@@ -84,6 +84,30 @@ button{font-family:var(--font);cursor:pointer}
 /* mission door lock */
 .lockbadge{position:absolute;pointer-events:none}
 
+
+/* ---------- skill panel + teach card + trigger state ---------- */
+#skill{position:absolute;right:14px;top:214px;width:290px;background:rgba(46,37,71,.94);
+  border:3px solid var(--mint);border-radius:14px;padding:11px 13px}
+#skill .lbl{font-size:11px;letter-spacing:2px;color:var(--mint)}
+#skill h4{margin:3px 0 5px;font-size:19px}
+#skill p{margin:0 0 8px;font-size:13.5px;color:var(--muted);line-height:1.4}
+#skill pre{margin:0;background:#1d1730;border:2px solid var(--line);border-radius:9px;padding:7px 9px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#8fd3ff;white-space:pre}
+#trigger{position:absolute;left:50%;top:calc(50% + 52px);transform:translateX(-50%);font-size:12px;
+  letter-spacing:1.5px;color:var(--mint);text-shadow:0 2px 5px #000}
+#trigger.cool{color:var(--muted)}
+#crosshair.cool::before,#crosshair.cool::after{background:#8a80a8}
+#teach{position:fixed;inset:0;z-index:45;background:rgba(28,20,45,.86);display:flex;align-items:center;justify-content:center;padding:20px}
+.teach-card{width:min(600px,94%);background:var(--panel);border:3px solid var(--mint);border-radius:20px;
+  padding:24px;text-align:center;box-shadow:0 26px 60px rgba(0,0,0,.6)}
+.teach-card .kicker{font-size:12px;letter-spacing:2.5px;color:var(--mint)}
+.teach-card h2{margin:6px 0 10px;font-size:28px}
+.teach-card p{font-size:17.5px;line-height:1.45;color:var(--text);margin:0 0 12px}
+.teach-card pre{text-align:left;background:#1d1730;border:3px solid var(--line);border-radius:12px;
+  padding:12px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:#8fd3ff;
+  white-space:pre;overflow:auto;margin:0 0 14px}
+.teach-card .why{font-size:14.5px;color:var(--muted);margin-bottom:14px}
+
 /* ---------- overlays ---------- */
 .screen{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(900px 600px at 50% 30%,#1b2c47,#0a0f18 70%);padding:20px}
@@ -196,6 +220,13 @@ button{font-family:var(--font);cursor:pointer}
     <ol id="objList"></ol>
   </div>
 
+  <div id="trigger" class="hidden"></div>
+  <div id="skill" class="hidden">
+    <div class="lbl" id="skLbl">SKILL</div>
+    <h4 id="skName"></h4>
+    <p id="skText"></p>
+    <pre id="skCode"></pre>
+  </div>
   <div id="briefing"></div>
   <div id="ptimer" class="hidden">
     <div class="lbl" id="ptLbl">TIME</div>
@@ -217,6 +248,7 @@ button{font-family:var(--font);cursor:pointer}
 <div id="hurt"></div>
 <div id="dmgNums"></div>
 <div id="downed" class="hidden"></div>
+<div id="teach" class="hidden"></div>
 
 <div id="start" class="screen">
   <div class="card">
@@ -252,11 +284,11 @@ button{font-family:var(--font);cursor:pointer}
 </div>
 
 <script src="lib/three.classic.js"></script>
-<script src="strings.js?v=9"></script>
-<script src="levels.js?v=9"></script>
-<script src="code.js?v=9"></script>
-<script src="combat.js?v=9"></script>
-<script src="puzzle.js?v=9"></script>
-<script src="game.js?v=9"></script>
+<script src="strings.js?v=11"></script>
+<script src="levels.js?v=11"></script>
+<script src="code.js?v=11"></script>
+<script src="combat.js?v=11"></script>
+<script src="puzzle.js?v=11"></script>
+<script src="game.js?v=11"></script>
 </body>
 </html>

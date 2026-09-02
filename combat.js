@@ -23,6 +23,11 @@ window.COMBAT = (function(){
   let stage=0, busy=false, mission=null, hp=100, lastHurt=0, dead=false, targetCol=null;
   let stageDone=false, checkT=null;
   const MAXHP=100, STEP_MS=520, ITER_MS=210;
+  // INVARIANT: ARMOUR_RESEAL < MANUAL_CD. Armour must always be back to full
+  // before the trigger can fire again, so no amount of clicking wears a wave
+  // down - only shots fired close together, which means a program.
+  const MANUAL_CD=2400, ARMOUR_RESEAL=1500;
+  let lastManual=-9999;
 
   /* ------------------------------------------------------------ art */
   const faceCache={};
@@ -48,9 +53,9 @@ window.COMBAT = (function(){
   }
 
   /* -------------------------------------------------------- spawning */
-  function spawn(kind,x,z,shieldColor){
+  function spawn(kind,x,z,shieldColor,armour){
     const K=KIND[kind];
-    const e={kind, K, hp:K.hp, dmg:K.dmg, shield:shieldColor||null,
+    const e={kind, K, hp:armour||K.hp, max:armour||K.hp, armour:!!armour, hurtAt:0, dmg:K.dmg, shield:shieldColor||null,
              mesh:shell(shieldColor? (shieldColor==='red'?PAL.rose:PAL.sky) : K.color, K.size, K.face),
              t:Math.random()*4, next:performance.now()+K.fire+Math.random()*1200, dead:false};
     e.mesh.position.set(x, 2.2, z);
@@ -167,8 +172,9 @@ window.COMBAT = (function(){
         msg(t('That shield is {c} — use the {c} bolt!',{c:t(e.shield)}));
         return;
       }
-      e.hp--; flash(e.mesh); hitMark();
+      e.hp--; e.hurtAt=performance.now(); flash(e.mesh); hitMark();
       if(e.hp<=0) kill(e);
+      else if(e.armour) msg(t('Its armour is resealing — hit it again <b>fast</b>.'));
     } else if(b && !b.dead){
       if(manual){
         // one-at-a-time trigger pulls must not beat a boss, or the loop lesson
@@ -319,6 +325,11 @@ window.COMBAT = (function(){
 
     enemies.forEach(e=>{
       e.t+=dt;
+      // armour reseals: a shot every couple of seconds can never wear it down,
+      // but two shots half a second apart - a loop - will
+      if(e.armour && e.hp<e.max && e.hurtAt && now-e.hurtAt>ARMOUR_RESEAL){
+        e.hp=e.max; e.hurtAt=0; flash(e.mesh);
+      }
       e.mesh.position.y=2.2+Math.sin(e.t*2)*0.32;
       const dx=G.pos.x-e.mesh.position.x, dz=G.pos.z-e.mesh.position.z;
       const dist=Math.hypot(dx,dz);
@@ -347,6 +358,14 @@ window.COMBAT = (function(){
     }
 
     if(hp<MAXHP && now-lastHurt>5000){ hp=Math.min(MAXHP,hp+8*dt); drawHP(); }
+    const tr=document.querySelector('#trigger');
+    if(mission && !range){
+      tr.classList.remove('hidden');
+      const ready=triggerReady();
+      tr.textContent = ready ? t('TRIGGER READY') : t('TRIGGER RECHARGING…');
+      tr.classList.toggle('cool',!ready);
+      document.querySelector('#crosshair').classList.toggle('cool',!ready);
+    } else tr.classList.add('hidden');
   }
 
   /* -------------------------------------------------------- missions */
@@ -355,16 +374,26 @@ window.COMBAT = (function(){
       objectives:['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'],
       stages:[
         {palette:['shoot'],
-         brief:'<b>Left click</b> fires one shot. That works — but waves need more. Open the console with <b>C</b>, add a <b>shoot()</b> block, and press RUN to let your <b>program</b> pull the trigger.',
+         skill:{name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'shoot()'},
+         teach:{kicker:'SKILL 1 OF 2', title:'A command', body:'Your <b>left click</b> fires one shot — try it. But your gun can also be <b>programmed</b>. A <b>command</b> is one instruction, and <code>shoot()</code> is a command: it fires once.',
+                code:'shoot()', why:'Press RUN and the gun does exactly what you wrote — no more, no less.'},
+         brief:'<b>Left click</b> fires one shot. Now do the same thing with code: press <b>C</b>, add a <b>shoot()</b> block, press RUN.',
          build(){ spawn('buzzer',0,-14); }},
         {palette:['shoot','repeat'],
-         brief:'Three of them, and they shoot back now. Use a <b>repeat</b> block with one <b>shoot()</b> inside — and keep moving.',
-         build(){ cover(); spawn('buzzer',-7,-15); spawn('buzzer',0,-18); spawn('buzzer',7,-15); }},
+         skill:{name:'Loops', text:'A loop runs the blocks inside it again and again, so you write the action once instead of copying it.', code:'repeat 3\n  shoot()\nend'},
+         teach:{kicker:'SKILL 2 OF 2', title:'A loop', body:'These three have <b>armour that reseals</b>. Your trigger is too slow — one shot every couple of seconds and it heals before you land the next. You need <b>two fast shots</b>, so put <code>shoot()</code> inside a <b>repeat</b>.',
+                code:'repeat 3\n  shoot()\nend', why:'Written once. Run three times. That is a loop.'},
+         brief:'Their armour reseals, so single shots will not do it. Put <b>shoot()</b> inside a <b>repeat</b> and fire a volley.',
+         build(){ cover(); spawn('buzzer',-7,-15,null,2); spawn('buzzer',0,-18,null,2); spawn('buzzer',7,-15,null,2); }},
         {palette:['shoot','repeat'],
-         brief:'Five, including a slow <b>slugger</b> that hits hard. Set <b>repeat</b> to 5 and sweep your aim. Hide behind a block to heal.',
-         build(){ cover(); for(let i=0;i<4;i++) spawn('buzzer',-8+i*5.5,-15-((i%2)*4)); spawn('slugger',2,-22); }},
+         skill:{name:'Loops', text:'Change the number on the repeat block and the same code does more work. That is why loops beat copy-paste.', code:'repeat 8\n  shoot()\nend'},
+         brief:'Five now, and the <b>slugger</b> takes three hits. Raise the number on your <b>repeat</b> — same program, more shots — and sweep your aim.',
+         build(){ cover(); for(let i=0;i<4;i++) spawn('buzzer',-8+i*5.5,-15-((i%2)*4),null,2); spawn('slugger',2,-22,null,3); }},
         {palette:['shoot','repeat'], boss:true,
-         brief:'<b>THE LOOPER</b> has an 8-part shield that grows back after every program. One shot at a time can never win — <b>repeat 8</b> in a single program can.',
+         skill:{name:'Loops', text:'One program, eight shots. The loop is the only thing that fires fast enough.', code:'repeat 8\n  shoot()\nend'},
+         teach:{kicker:'BOSS', title:'THE LOOPER', body:'His shield has <b>8 parts</b> and it grows back after every program. Trigger pulls bounce off. You need <b>8 shots inside one program</b>.',
+                code:'repeat 8\n  shoot()\nend', why:'Count the shield parts, then set the repeat number to match.'},
+         brief:'<b>THE LOOPER</b>: 8 shield parts, regrown after every program. <b>repeat 8</b> in one program.',
          build(){ cover(); spawnBoss({name:'THE LOOPER',shield:8,color:PAL.lav,face:'👾',dmg:15}); }}
       ]},
     m2:{ name:'Mission 2 — Choices', title:'The Prism Vault',
@@ -443,7 +472,31 @@ window.COMBAT = (function(){
     CODE.setPalette(st.palette); CODE.clear();
     st.build();
     G.pos.set(0,1.7,18); G.vel.set(0,0,0);
-    brief(st.brief); objectives();
+    brief(st.brief); objectives(); showSkill(st.skill);
+    if(st.teach) teachCard(st.teach);
+  }
+  function showSkill(sk){
+    const el=document.querySelector('#skill');
+    if(!sk){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    document.querySelector('#skLbl').textContent=t('SKILL YOU ARE USING');
+    document.querySelector('#skName').textContent=t(sk.name);
+    document.querySelector('#skText').textContent=t(sk.text);
+    document.querySelector('#skCode').textContent=sk.code;
+  }
+  // a one-screen card that names the concept before the fight that needs it
+  function teachCard(tc){
+    const el=document.querySelector('#teach');
+    el.classList.remove('hidden');
+    el.innerHTML=`<div class="teach-card">
+      <div class="kicker">${t(tc.kicker)}</div>
+      <h2>${t(tc.title)}</h2>
+      <p>${t(tc.body)}</p>
+      <pre>${tc.code}</pre>
+      <div class="why">${t(tc.why)}</div>
+      <button class="btn good" id="teachGo">${t('Open the console ▶')}</button>
+    </div>`;
+    el.querySelector('#teachGo').onclick=()=>{ el.classList.add('hidden'); CODE.show(); };
   }
   function checkStage(){
     if(!mission || stageDone) return;
@@ -463,6 +516,8 @@ window.COMBAT = (function(){
   function finish(){
     busy=false; brief('');
     document.querySelector('#health').classList.add('hidden');
+    document.querySelector('#skill').classList.add('hidden');
+    document.querySelector('#trigger').classList.add('hidden');
     const code=CODE.toText().join('\n');
     if(window.PROGRESS) PROGRESS.complete(mission.id||G.missionId);
     showResults({
@@ -557,13 +612,24 @@ window.COMBAT = (function(){
     msgT=setTimeout(()=>{ if(mission&&mission.stages[stage]) brief(mission.stages[stage].brief); },2400);
   }
   function reset(){ clearField(); obstacles=[]; stage=0; busy=false; mission=null; range=null;
-                    hp=MAXHP; dead=false; document.querySelector('#health').classList.add('hidden'); }
+                    hp=MAXHP; dead=false;
+                    document.querySelector('#health').classList.add('hidden');
+                    document.querySelector('#skill').classList.add('hidden');
+                    document.querySelector('#teach').classList.add('hidden');
+                    document.querySelector('#trigger').classList.add('hidden'); }
 
   function manualShot(){
     if(busy||dead||!mission) return;
+    const now=performance.now();
+    if(now-lastManual < MANUAL_CD){
+      msg(t('Trigger still recharging — a <b>program</b> fires as fast as you can write it.'));
+      return;
+    }
+    lastManual=now;
     playerShot(null, true);
   }
-  return { startMission, startRange, rangeShot, manualShot, update, runProgram, reset, damage,
+  function triggerReady(){ return performance.now()-lastManual >= MANUAL_CD; }
+  return { startMission, startRange, rangeShot, manualShot, triggerReady, update, runProgram, reset, damage,
            get busy(){ return busy; }, get dead(){ return dead; }, get inRange(){ return !!range; },
            get hp(){ return hp; } };
 })();
