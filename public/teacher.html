@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission: Linux — Teacher</title>
+<style>
+*{box-sizing:border-box}
+:root{--panel:#2e2547;--panel2:#3b3059;--line:#5a4b85;--text:#f4f0ff;--muted:#bdb2d8;
+ --mint:#a8e6cf;--bad:#ff9aa2;--sky:#8fd3ff;--star:#ffe9a8;
+ --font:"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+body{margin:0;background:#241d38;color:var(--text);font-family:var(--font)}
+header{background:var(--panel);border-bottom:3px solid var(--line);padding:12px 18px;
+ display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:21px}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+.card{background:var(--panel);border:3px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
+.card h2{margin:0 0 10px;font-size:17px;letter-spacing:1px;color:var(--mint)}
+input,button{font-family:var(--font)}
+input{padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:#1d1730;color:var(--text);font-size:15px}
+button{background:var(--sky);color:#123045;border:none;border-radius:10px;padding:10px 15px;font-size:15px;font-weight:bold;cursor:pointer}
+button.ghost{background:var(--panel2);color:var(--text)}
+button.warn{background:var(--bad);color:#3a1020}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+th{color:var(--muted);font-size:12px;letter-spacing:1px}
+#log{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.msg{background:#1d1730;border-radius:9px;padding:8px 10px;display:flex;justify-content:space-between;gap:10px}
+.msg b{color:var(--mint)} .msg.hidden-msg{opacity:.4;text-decoration:line-through}
+.msg small{color:var(--muted)}
+.code{background:#1d1730;border-radius:8px;padding:3px 8px;font-family:ui-monospace,Menlo,monospace;color:var(--star)}
+.hidden{display:none}
+.note{font-size:13px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐧 Mission: Linux — <span style="color:var(--mint)">Teacher</span></h1>
+  <div class="row"><span id="who" class="note"></span><button class="ghost" id="out">Sign out</button></div>
+</header>
+<div class="wrap">
+
+  <div class="card" id="authCard">
+    <h2>SIGN IN</h2>
+    <div class="row">
+      <input id="u" placeholder="username" autocomplete="username">
+      <input id="p" type="password" placeholder="password" autocomplete="current-password">
+      <button id="login">Sign in</button>
+    </div>
+    <p class="note" style="margin-top:12px">First time? Create the teacher account with the code from your setup:</p>
+    <div class="row">
+      <input id="tc" placeholder="teacher code">
+      <input id="u2" placeholder="new username"><input id="p2" type="password" placeholder="password (8+)">
+      <button class="ghost" id="reg">Create teacher account</button>
+    </div>
+    <div id="msg" class="note" style="color:var(--bad);min-height:20px;margin-top:8px"></div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <h2>CLASSES</h2>
+      <div id="classes"></div>
+      <div class="row" style="margin-top:10px">
+        <input id="cname" placeholder="class name (e.g. 4th period)">
+        <input id="ccode" placeholder="class code (optional)">
+        <button id="mkclass">Create class</button>
+      </div>
+      <p class="note">Students pick <b>Create my account</b> in the game and type this code. No emails, no real names — just a username, a display name and a password.</p>
+    </div>
+
+    <div class="card">
+      <h2>LIVE CHAT — FREE PLAY</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button class="warn" id="clear">Clear the whole chat</button>
+        <span class="note">Updates live. Hide removes a message from every student's screen.</span>
+      </div>
+      <div id="log"></div>
+    </div>
+
+    <div class="card">
+      <h2>STUDENTS</h2>
+      <table><thead><tr><th>Name</th><th>Username</th><th>Progress</th><th>Chat</th></tr></thead>
+      <tbody id="students"></tbody></table>
+    </div>
+  </div>
+</div>
+<script src="teacher.js?v=13"></script>
+</body>
+</html>

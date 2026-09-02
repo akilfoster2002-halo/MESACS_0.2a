@@ -1,0 +1,14 @@
+{
+  "name": "mesacs-0-2a",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mission: Linux — a coding campaign for the MESA CS lab, with class sign-in, free-play multiplayer and moderated chat",
+  "main": "server/index.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server/index.js" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "ws": "^8.17.0"
+  }
+}
