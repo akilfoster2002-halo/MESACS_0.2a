@@ -571,15 +571,14 @@ function finish(){
   $('#flat').classList.add('hidden');
   PROGRESS.complete('intro');
   const secs=Math.round((performance.now()-G.stats.t0)/1000);
-  $('#dTitle').textContent=t('Mission complete!');
-  $('#dBody').innerHTML=t('You walked the desktop, opened an app, went into a folder, closed a window with the ✕, found the App Launcher and read the system menu — then did it again on the flat desktop.');
-  $('#dStats').innerHTML=
-    `<div><b>${t('Clicks')}</b> ${G.stats.clicks}</div>
+  showResults({
+    title:t('Mission complete!'),
+    body:t('You walked the desktop, opened an app, went into a folder, closed a window with the ✕, found the App Launcher and read the system menu — then did it again on the flat desktop.'),
+    stats:`<div><b>${t('Clicks')}</b> ${G.stats.clicks}</div>
      <div><b>${t('Double-clicks')}</b> ${G.stats.dbl}</div>
      <div><b>${t('Time')}</b> ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}</div>
-     <div><b>${t('Steps walked')}</b> ${Math.round(G.stats.steps)}</div>`;
-  $('#dAgain').textContent=t('Play again');
-  $('#done').classList.remove('hidden');
+     <div><b>${t('Steps walked')}</b> ${Math.round(G.stats.steps)}</div>`
+  });
 }
 
 /* ----------------------------------------------------------- UI glue */
@@ -587,7 +586,6 @@ function wireUI(){
   $$('.langbtn').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   $('#btnLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   $('#sGo').onclick=begin;
-  $('#dAgain').onclick=()=>returnToDesktop();
   $('#btnLeave').onclick=()=>returnToDesktop();
   $('#btnHelp').onclick=()=>brief(quests[qi]?quests[qi].brief:'—');
 }
@@ -620,6 +618,16 @@ CODE.onRun=(steps)=>{
   lockPointer($('#view'));
 };
 
+function showResults(o){
+  $('#dTitle').innerHTML = o.title||'';
+  $('#dBody').innerHTML  = o.body||'';
+  $('#dStats').innerHTML = o.stats||'';
+  const b=$('#dAgain');
+  b.textContent = o.btnText || t('Back to the desktop');
+  b.onclick = o.onBtn || (()=>returnToDesktop());   // reset every single time
+  $('#done').classList.remove('hidden');
+}
+window.showResults=showResults;
 function returnToDesktop(){
   $('#done').classList.add('hidden');
   $('#downed').classList.add('hidden');

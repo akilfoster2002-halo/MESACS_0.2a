@@ -19,6 +19,7 @@ window.COMBAT = (function(){
   };
 
   let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
+  let runToken=0;                       // bumped whenever the field is torn down
   let stage=0, busy=false, mission=null, hp=100, lastHurt=0, dead=false, targetCol=null;
   const MAXHP=100, STEP_MS=520, ITER_MS=210;
 
@@ -248,9 +249,10 @@ window.COMBAT = (function(){
   function runProgram(steps){
     if(busy||dead) return;
     busy=true;
+    const token=runToken;
     let i=0;
     (function next(){
-      if(dead){ busy=false; CODE.hideTape(); return; }
+      if(dead || token!==runToken){ busy=false; CODE.hideTape(); return; }
       if(i>=steps.length){
         busy=false; CODE.highlight(null);
         setTimeout(()=>{ CODE.hideTape(); afterProgram(); },500);
@@ -401,6 +403,7 @@ window.COMBAT = (function(){
 
   /* ---------------------------------------------------- flow control */
   function clearField(){
+    runToken++;                         // any program still running is now void
     enemies.forEach(e=>G.roomGroup.remove(e.mesh));
     if(boss) G.roomGroup.remove(boss.mesh);
     bolts.forEach(b=>G.scene.remove(b.m)); foeBolts.forEach(b=>G.scene.remove(b.m));
@@ -439,12 +442,11 @@ window.COMBAT = (function(){
     document.querySelector('#health').classList.add('hidden');
     const code=CODE.toText().join('\n');
     if(window.PROGRESS) PROGRESS.complete(mission.id||G.missionId);
-    document.querySelector('#done').classList.remove('hidden');
-    document.querySelector('#dTitle').textContent=t(mission.name)+' — '+t('COMPLETE');
-    document.querySelector('#dBody').innerHTML=t(mission.win||'Nice work, coder.');
-    document.querySelector('#dStats').innerHTML=
-      `<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${code||'—'}</pre></div>`;
-    document.querySelector('#dAgain').textContent=t('Back to the desktop');
+    showResults({
+      title:t(mission.name)+' — '+t('COMPLETE'),
+      body:t(mission.win||'Nice work, coder.'),
+      stats:`<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${code||'—'}</pre></div>`
+    });
     G.running=false;
   }
   MISSIONS.m1.win='You beat THE LOOPER with a <b>loop</b>. One block, written once, ran again and again — that is what a loop is for.';
@@ -507,15 +509,14 @@ window.COMBAT = (function(){
     let best=0; try{ best=+localStorage.getItem('dq_range_best')||0; }catch(e){}
     const score=Math.round(range.hits*100*(acc/100) - secs*2);
     if(score>best){ try{ localStorage.setItem('dq_range_best',score); }catch(e){} }
-    document.querySelector('#done').classList.remove('hidden');
-    document.querySelector('#dTitle').textContent=t('Firing Range');
-    document.querySelector('#dBody').innerHTML=t('Warm-up done. Faster hands, fewer wasted shots.');
-    document.querySelector('#dStats').innerHTML=
-      `<div><b>${t('Targets hit')}</b> ${range.hits}/12</div>
+    showResults({
+      title:t('Firing Range'),
+      body:t('Warm-up done. Faster hands, fewer wasted shots.'),
+      stats:`<div><b>${t('Targets hit')}</b> ${range.hits}/12</div>
        <div><b>${t('Accuracy')}</b> ${acc}%</div>
        <div><b>${t('Time')}</b> ${secs}s</div>
-       <div><b>${t('Score')}</b> ${score} ${score>best?'🏆':''}</div>`;
-    document.querySelector('#dAgain').textContent=t('Back to the desktop');
+       <div><b>${t('Score')}</b> ${score} ${score>best?'🏆':''}</div>`
+    });
     range=null; G.running=false;
   }
 

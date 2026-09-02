@@ -11,6 +11,7 @@ window.PUZZLE = (function(){
              exit:0x8fd3ff, pit:0x6b5a8f, start:0xffc8dd};
 
   let P=null, idx=0, busy=false, tiles=[], timer=null, left=0, running=false;
+  let runToken=0;            // bumped on build/stop so an in-flight walk aborts
 
   /* ---------------------------------------------------------- levels */
   const LEVELS=[
@@ -77,6 +78,7 @@ window.PUZZLE = (function(){
     return m;
   }
   function build(n){
+    runToken++;
     const L=LEVELS[n];
     P={ n, L, x:0, y:0, dir:1, pads:[], padsLit:0, lock:null, exit:null, opened:false,
         w:L.grid[0].length, h:L.grid.length };
@@ -168,8 +170,9 @@ window.PUZZLE = (function(){
   function run(steps){
     if(busy||!P) return;
     busy=true; idx=0;
+    const token=runToken;
     (function next(){
-      if(!P){ busy=false; return; }
+      if(!P || token!==runToken){ busy=false; return; }
       if(idx>=steps.length){
         busy=false; CODE.highlight(null); CODE.hideTape();
         if(!won()) brief(t('Program finished, but you are not at the exit yet. Change your blocks and run again.'));
@@ -190,11 +193,13 @@ window.PUZZLE = (function(){
     done();
   }
   function turn(d, done){
+    if(!P) return;
     P.dir=(P.dir+d+4)%4;
     const target=Math.atan2(-DIRS[P.dir][0], -DIRS[P.dir][1]);
     ease(G.yaw, target, 260, v=>G.yaw=v, done);
   }
   function step(done){
+    if(!P) return;
     const nx=P.x+DIRS[P.dir][0], ny=P.y+DIRS[P.dir][1];
     const c=cell(nx,ny);
     if(c==='#'){
@@ -211,12 +216,13 @@ window.PUZZLE = (function(){
     ease(0,1,330,k=>{ G.pos.x=fx+(tx-fx)*k; G.pos.z=fz+(tz-fz)*k; }, ()=>{ landed(); done(); });
   }
   function landed(){
+    if(!P) return;                         // the vault was left mid-step
     const pad=P.pads.find(p=>p.x===P.x&&p.y===P.y&&!p.on);
     if(pad){ pad.on=true; P.padsLit++; pad.m.material.color.setHex(PAL.padOn);
              if(window.beep) beep('star'); hud(); }
   }
   function shootLock(){
-    if(!P.lock) return;
+    if(!P || !P.lock) return;
     if(window.GUN) GUN.kick();
     const d=Math.hypot(P.lock.x-P.x, P.lock.y-P.y);
     if(d<=2.5 && P.padsLit>=P.pads.length){
@@ -278,22 +284,18 @@ window.PUZZLE = (function(){
     const last = P.n>=LEVELS.length-1;
     if(last && window.PROGRESS) PROGRESS.complete('puzzles');
     document.querySelector('#ptimer').classList.add('hidden');
-    document.querySelector('#done').classList.remove('hidden');
-    document.querySelector('#dTitle').textContent=t('Puzzle solved!');
-    document.querySelector('#dBody').innerHTML=
-      `<div class="stars">${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</div>`+
-      t('{name} — done in {t} seconds with {b} blocks.',{name:t(P.L.name),t:timeUsed,b:used});
-    document.querySelector('#dStats').innerHTML=
-      `<div><b>${t('Time')}</b> ${timeUsed}s (${t('par')} ${P.L.par}s)</div>
-       <div><b>${t('Blocks')}</b> ${used}/${P.L.budget}</div>
-       <div style="grid-column:1/-1"><b>${t('Your code')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`;
-    const btn=document.querySelector('#dAgain');
-    btn.textContent = last ? t('Back to the desktop') : t('Next puzzle ▶');
     const nextN = P.n+1;
-    btn.onclick = last
-      ? ()=>returnToDesktop()
-      : ()=>{ document.querySelector('#done').classList.add('hidden');
-              G.running=true; build(nextN); lockPointer(document.querySelector('#view')); };
+    showResults({
+      title:t('Puzzle solved!'),
+      body:`<div class="stars">${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</div>`+
+           t('{name} — done in {t} seconds with {b} blocks.',{name:t(P.L.name),t:timeUsed,b:used}),
+      stats:`<div><b>${t('Time')}</b> ${timeUsed}s (${t('par')} ${P.L.par}s)</div>
+       <div><b>${t('Blocks')}</b> ${used}/${P.L.budget}</div>
+       <div style="grid-column:1/-1"><b>${t('Your code')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`,
+      btnText: last ? t('Back to the desktop') : t('Next puzzle ▶'),
+      onBtn: last ? null : ()=>{ document.querySelector('#done').classList.add('hidden');
+              G.running=true; build(nextN); lockPointer(document.querySelector('#view')); }
+    });
     G.running=false;
   }
 
@@ -303,7 +305,7 @@ window.PUZZLE = (function(){
     run, hud,
     get active(){ return !!P; },
     get busy(){ return busy; },
-    stop(){ stopClock(); P=null;
+    stop(){ stopClock(); runToken++; P=null; busy=false;
       document.querySelector('#ptimer').classList.add('hidden');
       document.querySelector('#mapwrap').classList.remove('hidden');
       CODE.setBudget(0); },
