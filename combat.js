@@ -21,6 +21,7 @@ window.COMBAT = (function(){
   let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
   let runToken=0;                       // bumped whenever the field is torn down
   let stage=0, busy=false, mission=null, hp=100, lastHurt=0, dead=false, targetCol=null;
+  let stageDone=false, checkT=null;
   const MAXHP=100, STEP_MS=520, ITER_MS=210;
 
   /* ------------------------------------------------------------ art */
@@ -148,7 +149,7 @@ window.COMBAT = (function(){
   }
 
   /* ----------------------------------------------------------- shots */
-  function playerShot(color){
+  function playerShot(color, manual){
     const dir=new THREE.Vector3(0,0,-1).applyQuaternion(G.camera.quaternion);
     const ray=new THREE.Raycaster(G.camera.position.clone(), dir); ray.far=110;
     let hit=ray.intersectObjects(G.hits,false)[0];
@@ -169,6 +170,13 @@ window.COMBAT = (function(){
       e.hp--; flash(e.mesh); hitMark();
       if(e.hp<=0) kill(e);
     } else if(b && !b.dead){
+      if(manual){
+        // one-at-a-time trigger pulls must not beat a boss, or the loop lesson
+        // evaporates - so say why instead of just doing nothing
+        spark(b.mesh.position,0xffffff);
+        msg(t('{n}: “Your trigger finger is too slow! Only a program can break my shield.”',{n:t(b.name)}));
+        return;
+      }
       if(b.cycle && b.color && b.color!==color){
         spark(b.mesh.position, 0xffffff);
         msg(t('PRISM is {c} right now — check the colour first!',{c:t(b.color)}));
@@ -226,6 +234,9 @@ window.COMBAT = (function(){
     G.hits=G.hits.filter(h=>h!==e.mesh.userData.body);
     enemies=enemies.filter(x=>x!==e);
     if(window.beep) beep('star');
+    // a wave cleared with the trigger has to advance too - only programs
+    // used to reach checkStage(), which left the room empty and the mission stuck
+    scheduleCheck();
   }
   function killBoss(b){
     b.dead=true; spark(b.mesh.position,0xffffff);
@@ -233,6 +244,13 @@ window.COMBAT = (function(){
     G.hits=G.hits.filter(h=>h!==b.mesh.userData.body);
     boss=null;
     if(window.beep) beep('star');
+    scheduleCheck();
+  }
+  // whichever path emptied the room - a program, the trigger, anything - the
+  // stage check happens. checkStage() is idempotent so double calls are safe.
+  function scheduleCheck(){
+    clearTimeout(checkT);
+    checkT=setTimeout(()=>{ if(!busy) checkStage(); }, 650);
   }
 
   /* -------------------------------------------------- run a program */
@@ -337,7 +355,7 @@ window.COMBAT = (function(){
       objectives:['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'],
       stages:[
         {palette:['shoot'],
-         brief:'Your gun runs your <b>program</b>. Open the console with <b>C</b>, add one <b>shoot()</b> block, and press RUN.',
+         brief:'<b>Left click</b> fires one shot. That works — but waves need more. Open the console with <b>C</b>, add a <b>shoot()</b> block, and press RUN to let your <b>program</b> pull the trigger.',
          build(){ spawn('buzzer',0,-14); }},
         {palette:['shoot','repeat'],
          brief:'Three of them, and they shoot back now. Use a <b>repeat</b> block with one <b>shoot()</b> inside — and keep moving.',
@@ -407,6 +425,9 @@ window.COMBAT = (function(){
     enemies.forEach(e=>G.roomGroup.remove(e.mesh));
     if(boss) G.roomGroup.remove(boss.mesh);
     bolts.forEach(b=>G.scene.remove(b.m)); foeBolts.forEach(b=>G.scene.remove(b.m));
+    // and drop their hitboxes: leaving these behind put invisible ghosts in the
+    // raycast list that swallowed shots, which reads exactly like a broken gun
+    G.hits=G.hits.filter(h=>!h.userData.enemy && !h.userData.boss && !h.userData.range);
     enemies=[]; boss=null; bolts=[]; foeBolts=[];
   }
   function startMission(id){
@@ -416,7 +437,7 @@ window.COMBAT = (function(){
     startStage(0);
   }
   function startStage(n){
-    stage=n; busy=false;
+    stage=n; busy=false; stageDone=false; clearTimeout(checkT);
     clearField();
     const st=mission.stages[n];
     CODE.setPalette(st.palette); CODE.clear();
@@ -425,9 +446,11 @@ window.COMBAT = (function(){
     brief(st.brief); objectives();
   }
   function checkStage(){
+    if(!mission || stageDone) return;
     const st=mission.stages[stage];
-    if(st.boss){ if(!boss) return finish(); return; }
+    if(st.boss){ if(!boss){ stageDone=true; finish(); } return; }
     if(!enemies.length){
+      stageDone=true;
       if(stage+1<mission.stages.length){ msg(t('Clear! Next wave…')); setTimeout(()=>startStage(stage+1),950); }
       else finish();
     }
@@ -536,7 +559,11 @@ window.COMBAT = (function(){
   function reset(){ clearField(); obstacles=[]; stage=0; busy=false; mission=null; range=null;
                     hp=MAXHP; dead=false; document.querySelector('#health').classList.add('hidden'); }
 
-  return { startMission, startRange, rangeShot, update, runProgram, reset, damage,
+  function manualShot(){
+    if(busy||dead||!mission) return;
+    playerShot(null, true);
+  }
+  return { startMission, startRange, rangeShot, manualShot, update, runProgram, reset, damage,
            get busy(){ return busy; }, get dead(){ return dead; }, get inRange(){ return !!range; },
            get hp(){ return hp; } };
 })();

@@ -119,6 +119,9 @@ window.ES = {
   'Light all <b>three pads</b> in <b>6 blocks</b>. Walk the top row, turn, then come down the side. Keep clear of the pit.':'Enciende las <b>tres placas</b> en <b>6 bloques</b>. Recorre la fila de arriba, gira y baja por el lado. No caigas al hoyo.',
   'Light the pad, then <b>shoot()</b> the blue lock from beside it, then walk on to the exit. Movement and shooting in one program.':'Enciende la placa, luego <b>shoot()</b> al candado azul desde junto a él y sigue a la salida. Movimiento y disparo en un solo programa.',
   'A staircase of <b>three identical legs</b>: two forward, turn left, two forward, turn right. Put that in <b>define combo</b> and call it inside a <b>repeat</b>.':'Una escalera de <b>tres tramos iguales</b>: dos adelante, gira a la izquierda, dos adelante, gira a la derecha. Ponlo en <b>define combo</b> y llámalo dentro de un <b>repite</b>.',
+  '{n}: “Your trigger finger is too slow! Only a program can break my shield.”':'{n}: “¡Tu dedo es muy lento! Solo un programa puede romper mi escudo.”',
+  '<b>Left click</b> fires one shot. That works — but waves need more. Open the console with <b>C</b>, add a <b>shoot()</b> block, and press RUN to let your <b>program</b> pull the trigger.':'El <b>clic izquierdo</b> dispara una vez. Eso funciona — pero las oleadas necesitan más. Abre la consola con <b>C</b>, agrega un bloque <b>shoot()</b> y presiona EJECUTAR para que tu <b>programa</b> dispare.',
+  'left click':'clic izquierdo','one shot':'un disparo',
   /* HUD */
   'MISSION':'MISIÓN','DESKTOP MAP':'MAPA DEL ESCRITORIO',
   'icons ▪ launcher ▪ system menu':'iconos ▪ lanzador ▪ menú del sistema',

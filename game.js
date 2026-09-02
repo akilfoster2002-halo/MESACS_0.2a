@@ -341,6 +341,7 @@ function wireInput(){
   canvas.addEventListener('click',()=>{
     if(!G.running) return;
     if(COMBAT.inRange){ COMBAT.rangeShot(); return; }   // the range is pure aiming
+    if(G.hudOwner==='mission'){ COMBAT.manualShot(); return; }  // in a fight, the trigger fires
     select();
   });
   canvas.addEventListener('dblclick',()=>{ if(G.running) open(); });
@@ -608,7 +609,7 @@ function setLang(l){
   $('#missionName').textContent=t('Basic Training — The Desktop');
   $('#keys').innerHTML=`<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')}<br>
     <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
-    <b>C</b> ${t('open the code console')}`;
+    <b>C</b> ${t('open the code console')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
   if(G.running){ buildRoom(G.room); renderObjectives(); brief(quests[qi]?quests[qi].brief:''); }
   else updateMapLegend();
 }
