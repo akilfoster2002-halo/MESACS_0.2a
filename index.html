@@ -7,9 +7,11 @@
 <style>
 *{box-sizing:border-box}
 :root{
-  --ink:#0b1018; --panel:#141c2b; --panel2:#1e2a40; --line:#33456b;
-  --accent:#3ea6ff; --good:#3ddc84; --warn:#ffb020; --bad:#ff6b6b; --star:#ffd54a;
-  --text:#eef3ff; --muted:#9fb0cc;
+  /* pastel-arcade: soft world, deep plum UI so the HUD still reads over it */
+  --ink:#241d38; --panel:#2e2547; --panel2:#3b3059; --line:#5a4b85;
+  --accent:#8fd3ff; --good:#a8e6cf; --warn:#ffd8a8; --bad:#ff9aa2; --star:#ffe9a8;
+  --mint:#a8e6cf; --peach:#ffb4a2; --lav:#cdb4f6; --blush:#ffc8dd; --sky:#8fd3ff;
+  --text:#f4f0ff; --muted:#bdb2d8;
   --font:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
 }
 html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--text);font-family:var(--font);
@@ -17,20 +19,22 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(-
 canvas{display:block;width:100%;height:100%}
 .hidden{display:none !important}
 button{font-family:var(--font);cursor:pointer}
-.btn{background:var(--accent);color:#04121f;border:none;border-radius:12px;padding:12px 20px;
-  font-size:18px;font-weight:bold;box-shadow:0 4px 0 #1f6fb0}
-.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #1f6fb0}
-.btn.small{font-size:14px;padding:8px 12px;box-shadow:0 3px 0 #1f6fb0}
-.btn.ghost{background:var(--panel2);color:var(--text);box-shadow:0 3px 0 #0b1220}
-.btn.good{background:var(--good);color:#052414;box-shadow:0 4px 0 #219a5b}
+.btn{background:var(--accent);color:#123045;border:none;border-radius:14px;padding:12px 20px;
+  font-size:18px;font-weight:bold;box-shadow:0 4px 0 #5aa8d6}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #5aa8d6}
+.btn.small{font-size:14px;padding:8px 12px;box-shadow:0 3px 0 #5aa8d6}
+.btn.ghost{background:var(--panel2);color:var(--text);box-shadow:0 3px 0 #221b36}
+.btn.good{background:var(--good);color:#13402f;box-shadow:0 4px 0 #6fc4a6}
 
 /* ---------- HUD ---------- */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
 #crosshair{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px}
-#crosshair::before,#crosshair::after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+#crosshair::before,#crosshair::after{content:"";position:absolute;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.6);border-radius:2px}
 #crosshair::before{left:11px;top:0;width:4px;height:26px}
 #crosshair::after{top:11px;left:0;height:4px;width:26px}
-#crosshair.on::before,#crosshair.on::after{background:var(--star)}
+#crosshair.on::before,#crosshair.on::after{background:var(--peach);box-shadow:0 0 10px var(--peach)}
+#crosshair.hit{animation:xhair .22s ease-out}
+@keyframes xhair{0%{transform:scale(1.7);opacity:.4}100%{transform:scale(1);opacity:1}}
 #focus{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);font-size:19px;
   background:rgba(8,12,20,.8);border:2px solid var(--line);border-radius:10px;padding:6px 14px;white-space:nowrap}
 #focus small{display:block;font-size:14px;color:var(--star);text-align:center}
@@ -45,9 +49,9 @@ button{font-family:var(--font);cursor:pointer}
 #objList li.done{border-left-color:var(--good);color:var(--good);text-decoration:line-through}
 
 #briefing{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);max-width:620px;
-  background:#fffbe8;color:#1a1a1a;border:3px solid var(--star);border-radius:16px;padding:12px 18px;
+  background:#fff6fb;color:#2a2140;border:3px solid var(--blush);border-radius:18px;padding:12px 18px;
   font-size:19px;line-height:1.35;box-shadow:0 12px 34px rgba(0,0,0,.55)}
-#briefing b{color:#8a5a00}
+#briefing b{color:#a4407a}
 
 #mapwrap{position:absolute;left:14px;top:14px;background:rgba(15,22,36,.92);border:3px solid var(--line);
   border-radius:14px;padding:8px}
@@ -59,6 +63,26 @@ button{font-family:var(--font);cursor:pointer}
   border-radius:12px;padding:9px 12px;font-size:13.5px;color:var(--muted);line-height:1.6}
 #keys b{color:var(--text)}
 #topbar{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;pointer-events:auto}
+
+
+/* ---------- health, damage, hit feedback ---------- */
+#health{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:340px;
+  background:rgba(46,37,71,.9);border:3px solid var(--line);border-radius:16px;padding:8px 12px}
+#health .hp-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);letter-spacing:1px}
+#hpBar{height:16px;background:#1d1730;border-radius:9px;overflow:hidden;margin-top:5px;border:2px solid #4a3d70}
+#hpFill{height:100%;width:100%;background:linear-gradient(90deg,#a8e6cf,#8fd3ff);transition:width .25s}
+#hpFill.low{background:linear-gradient(90deg,#ffb4a2,#ff9aa2)}
+#hurt{position:fixed;inset:0;pointer-events:none;z-index:15;opacity:0;
+  box-shadow:inset 0 0 140px 40px rgba(255,120,150,.85);transition:opacity .25s}
+#hurt.on{opacity:1}
+#dmgNums{position:fixed;inset:0;pointer-events:none;z-index:16}
+.dmg{position:absolute;font-size:22px;font-weight:bold;color:var(--peach);text-shadow:0 2px 6px #000;
+  animation:floatup .8s ease-out forwards}
+@keyframes floatup{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-46px);opacity:0}}
+#downed{position:fixed;inset:0;z-index:35;background:rgba(40,20,45,.86);display:flex;align-items:center;
+  justify-content:center;flex-direction:column;gap:14px;font-size:26px;text-align:center}
+/* mission door lock */
+.lockbadge{position:absolute;pointer-events:none}
 
 /* ---------- overlays ---------- */
 .screen{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
@@ -161,12 +185,20 @@ button{font-family:var(--font);cursor:pointer}
   </div>
 
   <div id="briefing"></div>
+  <div id="health" class="hidden">
+    <div class="hp-top"><span id="hpLbl">HEALTH</span><span id="hpNum">100</span></div>
+    <div id="hpBar"><div id="hpFill"></div></div>
+  </div>
   <div id="keys"></div>
   <div id="topbar">
     <button class="btn small ghost" id="btnLang">🌐 Español</button>
     <button class="btn small ghost" id="btnHelp">❔</button>
   </div>
 </div>
+
+<div id="hurt"></div>
+<div id="dmgNums"></div>
+<div id="downed" class="hidden"></div>
 
 <div id="start" class="screen">
   <div class="card">

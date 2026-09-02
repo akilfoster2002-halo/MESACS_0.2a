@@ -34,10 +34,12 @@ function init(){
   G.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 220);
   resize(); window.addEventListener('resize', resize);
 
-  G.scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x24303f, 1.15));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+  G.scene.add(new THREE.HemisphereLight(0xffffff, 0xc9b8e8, 1.35));
+  const sun = new THREE.DirectionalLight(0xfff3f8, 0.85);
   sun.position.set(12, 26, 8);
   G.scene.add(sun);
+  G.scene.add(G.camera);            // so the gun can hang off the camera
+  GUN.build();
 
   wireInput();
   wireUI();
@@ -95,6 +97,44 @@ function groundTexture(base, accent){
 function roundRect(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r);
   x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 
+/* ------------------------------------------------------------- the gun
+   A chunky pastel blaster in the corner of the eye: it bobs when you walk,
+   kicks when it fires, and the muzzle glows on every shot.               */
+const GUN=(function(){
+  let g=null, kick=0, bob=0, flash=null;
+  function box(w,h,d,color,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color}));
+    m.position.set(x,y,z); return m;
+  }
+  return {
+    build(){
+      if(g) return;
+      g=new THREE.Group();
+      g.add(box(0.24,0.24,1.30,0xdfe7ff, 0,0,-0.5));     // barrel
+      g.add(box(0.38,0.36,0.62,0xcdb4f6, 0,-0.05,0.18));  // body
+      g.add(box(0.18,0.42,0.22,0xa8e6cf, 0,-0.36,0.30));  // grip
+      g.add(box(0.13,0.13,0.24,0xffb4a2, 0,0.18,-0.08));  // sight
+      flash=box(0.26,0.26,0.26,0xfff2a8, 0,0,-1.15);
+      flash.visible=false; g.add(flash);
+      g.position.set(0.78,-0.56,-1.25);
+      g.rotation.y=-0.10;
+      G.camera.add(g);
+    },
+    kick(){ kick=1; if(flash){ flash.visible=true; setTimeout(()=>flash.visible=false,70); } },
+    update(dt, moving){
+      if(!g) return;
+      kick=Math.max(0, kick-dt*7);
+      bob+= moving? dt*9 : 0;
+      g.position.set(0.78 + Math.sin(bob)*0.02,
+                     -0.56 + Math.abs(Math.cos(bob))*0.018 - kick*0.05,
+                     -1.25 + kick*0.20);
+      g.rotation.x = kick*0.30;
+    }
+  };
+})();
+
+window.GUN=GUN;
+
 /* ------------------------------------------------------ world building */
 function addSolid(x,z,w,d){ G.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2}); }
 
@@ -126,8 +166,8 @@ function buildRoom(name){
   G.room=name;
   clearTimeout(briefTimer);
   const L=window.LEVELS[name];
-  G.scene.background=new THREE.Color(0x0c1524);
-  G.scene.fog=new THREE.Fog(0x0c1524, 55, 170);
+  G.scene.background=new THREE.Color(0xf3e8ff);
+  G.scene.fog=new THREE.Fog(0xf3e8ff, 60, 190);
 
   // floor
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(L.w,L.d),
@@ -135,7 +175,7 @@ function buildRoom(name){
   floor.rotation.x=-Math.PI/2; G.roomGroup.add(floor);
 
   // walls
-  const wallMat=new THREE.MeshLambertMaterial({color:0x16243a});
+  const wallMat=new THREE.MeshLambertMaterial({color:0xbfa8e8});
   const mk=(x,z,w,d)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,7,d), wallMat);
     m.position.set(x,3.5,z); G.roomGroup.add(m); addSolid(x,z,w,d); };
   mk(0,-L.d/2,L.w,1); mk(0,L.d/2,L.w,1); mk(-L.w/2,0,1,L.d); mk(L.w/2,0,1,L.d);
@@ -155,8 +195,12 @@ function buildPlaza(L){
   });
   // mission portals — the doors into the campaign levels
   (L.portals||[]).forEach(pt=>{
-    addPanel({id:pt.id, name:pt.name, emoji:pt.emoji, opens:pt.opens, kind:'portal',
-      x:pt.x, z:pt.z, bg:'#7a2740', frame:0x5a1b2e});
+    const open=PROGRESS.unlocked(pt.id);
+    const p=addPanel({id:pt.id, name:pt.name, emoji:open?pt.emoji:'🔒', kind:'portal',
+      x:pt.x, z:pt.z, bg:open?'#ff9aa2':'#6b6480', frame:open?0xff9aa2:0x6b6480});
+    p.userData.locked=!open;
+    p.userData.mission=pt.id;
+    if(PROGRESS.isDone(pt.id)) p.userData.sub=t('done — play again');
   });
   // App Launcher gate along the bottom edge
   const gate=new THREE.Group();
@@ -214,11 +258,44 @@ function buildAppRoom(L){
 
 function buildArena(L){
   G.pos.set(0,EYE,L.d/2-6); G.yaw=0; G.pitch=0;
-  const sign=new THREE.Mesh(new THREE.PlaneGeometry(14,3),
-    new THREE.MeshLambertMaterial({map:textTexture(['🐛 '+t(L.title)],'#2b1038',34)}));
-  sign.position.set(0,7.5,-L.d/2+0.6); G.roomGroup.add(sign);
-  setTimeout(()=>COMBAT.start(), 60);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(16,3.2),
+    new THREE.MeshLambertMaterial({map:textTexture([t(G.arenaTitle||L.title)],'#6b4d9e',32)}));
+  sign.position.set(0,8.5,-L.d/2+0.7); G.roomGroup.add(sign);
+  setTimeout(()=>{
+    if(G.missionId==='range') COMBAT.startRange();
+    else COMBAT.startMission(G.missionId);
+  }, 60);
 }
+function startMissionRoom(id){
+  COMBAT.reset();
+  G.missionId=id;
+  G.arenaTitle = id==='range' ? 'Firing Range'
+    : (id==='m1'?'The Loop Chamber': id==='m2'?'The Prism Vault':'The Off-By-One Foundry');
+  buildRoom('arena');
+}
+
+/* ------------------------------------------------------- progression */
+const PROGRESS=(function(){
+  const ORDER=['intro','m1','m2','m3'];
+  let done={};
+  try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
+  function save(){ try{ localStorage.setItem('dq_progress',JSON.stringify(done)); }catch(e){} }
+  return {
+    // refresh the door locks if we are standing in the plaza; otherwise the
+    // plaza is rebuilt anyway when the player walks back out of the mission
+    complete(id){ if(!id) return; done[id]=true; save(); if(G.room==='plaza') buildRoom('plaza'); },
+    isDone(id){ return !!done[id]; },
+    unlocked(id){
+      if(id==='range'||id==='intro') return true;
+      const i=ORDER.indexOf(id);
+      return i<=0 ? true : !!done[ORDER[i-1]];
+    },
+    needs(id){ const i=ORDER.indexOf(id); return i>0?ORDER[i-1]:null; },
+    reset(){ done={}; save(); }
+  };
+})();
+
+window.PROGRESS=PROGRESS;
 
 /* ------------------------------------------------------------- input */
 function lockPointer(el){
@@ -232,7 +309,8 @@ function wireInput(){
     G.keys[e.code]=true;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
-    if((e.code==='KeyC'||e.code==='Tab') && G.room==='arena' && G.running && !COMBAT.busy){
+    if((e.code==='KeyC'||e.code==='Tab') && G.room==='arena' && G.missionId!=='range'
+       && G.running && !COMBAT.busy && !COMBAT.dead){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
     }
@@ -250,7 +328,11 @@ function wireInput(){
     G.yaw   -= e.movementX*0.0022;
     G.pitch  = clamp(G.pitch - e.movementY*0.0022, -1.2, 1.2);
   });
-  canvas.addEventListener('click',()=>{ if(G.running) select(); });
+  canvas.addEventListener('click',()=>{
+    if(!G.running) return;
+    if(COMBAT.inRange){ COMBAT.rangeShot(); return; }   // the range is pure aiming
+    select();
+  });
   canvas.addEventListener('dblclick',()=>{ if(G.running) open(); });
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
 }
@@ -270,6 +352,16 @@ function open(){
   const u=f.userData;
   fire('open',{id:u.id, kind:u.kind});
   if(u.kind==='exit'){ buildRoom(u.back); return; }
+  if(u.kind==='portal'){
+    if(u.locked){
+      const need=PROGRESS.needs(u.mission);
+      brief(t('🔒 Locked. Finish {m} first.',{m:t(need==='intro'?'the intro mission':'Mission '+need.slice(1))}));
+      if(window.beep) beep('bad');
+      return;
+    }
+    startMissionRoom(u.mission);
+    return;
+  }
   if(u.opens){ buildRoom(u.opens); return; }
   if(u.kind==='tower'){ brief(t('Battery: {n}%',{n:G.battery})+' · '+t('Wi-Fi: connected')); return; }
   brief(t(u.label)+' — '+t('double-click to open'));
@@ -300,6 +392,7 @@ function step(dt){
   let dz = (-cos*fwd - sin*str)*spd*dt;
   if(dx||dz) G.stats.steps += Math.abs(dx)+Math.abs(dz);
   moveAxis('x',dx); moveAxis('z',dz);
+  GUN.update(dt, !!(dx||dz));
 
   G.camera.position.copy(G.pos);
   G.camera.rotation.set(0,0,0,'YXZ');
@@ -367,7 +460,8 @@ function drawMap(){
   x.lineTo(cx - Math.sin(G.yaw)*11, cy - Math.cos(G.yaw)*11); x.stroke();
 }
 function updateMapLegend(){
-  $('#maplegend').textContent = G.room==='plaza' ? t('icons ▪ launcher ▪ system menu') : t(window.LEVELS[G.room].title||'');
+  $('#maplegend').textContent = G.room==='plaza' ? t('icons ▪ launcher ▪ system menu')
+    : t((G.room==='arena' && G.arenaTitle) ? G.arenaTitle : (window.LEVELS[G.room].title||''));
 }
 
 /* ------------------------------------------------------- missions */
@@ -458,6 +552,7 @@ function openFlatWindow(){
 }
 function finish(){
   $('#flat').classList.add('hidden');
+  PROGRESS.complete('intro');
   const secs=Math.round((performance.now()-G.stats.t0)/1000);
   $('#dTitle').textContent=t('Mission complete!');
   $('#dBody').innerHTML=t('You walked the desktop, opened an app, went into a folder, closed a window with the ✕, found the App Launcher and read the system menu — then did it again on the flat desktop.');
@@ -475,7 +570,14 @@ function wireUI(){
   $$('.langbtn').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   $('#btnLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   $('#sGo').onclick=begin;
-  $('#dAgain').onclick=()=>location.reload();
+  $('#dAgain').onclick=()=>{
+    $('#done').classList.add('hidden');
+    COMBAT.reset();
+    G.missionId=null; G.running=true;
+    buildRoom('plaza');
+    if(!quests.length || quests.every(q=>q.done)) { brief(t('Pick a mission door. Locked ones need the mission before them.')); }
+    lockPointer($('#view'));
+  };
   $('#btnHelp').onclick=()=>brief(quests[qi]?quests[qi].brief:'—');
 }
 function setLang(l){

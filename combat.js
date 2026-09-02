@@ -1,237 +1,522 @@
 /* =====================================================================
-   COMBAT + MISSION 1 — "THE LOOPER"
+   COMBAT — enemies, cover, health, the firing range and Missions 1-3.
    Enemies are shaped so the concept is the shortest path to surviving:
-   one drone teaches a command, five identical drones make a loop the
-   obvious move, and the boss regrows his shield between programs, so
-   clicking RUN over and over cannot win — only a repeat can.
+   identical drones make a loop obvious, colour-shielded drones make an
+   if necessary, and a boss with a repeating pattern makes a function
+   worth writing. They shoot back, so standing still is not a plan.
    ===================================================================== */
 window.COMBAT = (function(){
-  let drones=[], boss=null, bolts=[], stage=0, busy=false, hitFx=0;
-  const STEP_MS=520, ITER_MS=220;   // slow enough to sweep the crosshair mid-loop
 
-  /* ------------------------------------------------------------ enemy */
-  function droneMesh(color, size, face){
-    const g=new THREE.Group();
-    const body=new THREE.Mesh(new THREE.BoxGeometry(size,size,size),
-      new THREE.MeshLambertMaterial({color}));
-    g.add(body);
-    const f=new THREE.Mesh(new THREE.PlaneGeometry(size*.8,size*.8),
-      new THREE.MeshLambertMaterial({map:faceTex(face), transparent:true}));
-    f.position.z=size/2+0.02; g.add(f);
-    g.userData.body=body;
-    return g;
-  }
+  const PAL={ mint:0xa8e6cf, peach:0xffb4a2, lav:0xcdb4f6, blush:0xffc8dd,
+              sky:0x8fd3ff, butter:0xffe9a8, rose:0xff9aa2, sand:0xffd8a8 };
+
+  /* enemy kinds — different jobs, different damage */
+  const KIND={
+    buzzer :{hp:1, size:1.9, color:PAL.mint,  face:'🐛', dmg:6,  fire:2600, speed:1.6, range:52, bolt:PAL.mint},
+    slugger:{hp:2, size:2.6, color:PAL.sand,  face:'🐌', dmg:12, fire:3400, speed:0.9, range:46, bolt:PAL.peach},
+    sniper :{hp:1, size:2.1, color:PAL.lav,   face:'👁️', dmg:20, fire:4200, speed:0.5, range:95, bolt:PAL.rose, tell:900},
+    swarm  :{hp:1, size:1.5, color:PAL.blush, face:'🦟', dmg:4,  fire:2000, speed:2.4, range:40, bolt:PAL.blush}
+  };
+
+  let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
+  let stage=0, busy=false, mission=null, hp=100, lastHurt=0, dead=false, targetCol=null;
+  const MAXHP=100, STEP_MS=520, ITER_MS=210;
+
+  /* ------------------------------------------------------------ art */
   const faceCache={};
   function faceTex(ch){
     if(faceCache[ch]) return faceCache[ch];
     const c=document.createElement('canvas'); c.width=c.height=128;
     const x=c.getContext('2d');
-    x.clearRect(0,0,128,128);
     x.font='96px "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif';
     x.textAlign='center'; x.fillText(ch,64,98);
     const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace;
     faceCache[ch]=tx; return tx;
   }
-
-  function spawnDrone(x,z,hp){
-    const d={hp:hp||1, mesh:droneMesh(0x35c07a,1.9,'🐛'), t:Math.random()*6, dead:false};
-    d.mesh.position.set(x,2.2,z);
-    G.roomGroup.add(d.mesh);
-    G.hits.push(d.mesh.userData.body);
-    d.mesh.userData.body.userData.drone=d;
-    drones.push(d);
-    return d;
+  function shell(color,size,face){
+    const g=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.BoxGeometry(size,size,size),
+      new THREE.MeshLambertMaterial({color}));
+    g.add(body);
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(size*.8,size*.8),
+      new THREE.MeshLambertMaterial({map:faceTex(face),transparent:true}));
+    f.position.z=size/2+0.02; g.add(f);
+    g.userData.body=body;
+    return g;
   }
-  function spawnBoss(shield){
-    const b={shield:shield, max:shield, mesh:droneMesh(0x8b5cf6,5,'👾'), seg:[], t:0, dead:false};
-    b.mesh.position.set(0,3.6,-16);
+
+  /* -------------------------------------------------------- spawning */
+  function spawn(kind,x,z,shieldColor){
+    const K=KIND[kind];
+    const e={kind, K, hp:K.hp, dmg:K.dmg, shield:shieldColor||null,
+             mesh:shell(shieldColor? (shieldColor==='red'?PAL.rose:PAL.sky) : K.color, K.size, K.face),
+             t:Math.random()*4, next:performance.now()+K.fire+Math.random()*1200, dead:false};
+    e.mesh.position.set(x, 2.2, z);
+    if(shieldColor){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(K.size*0.95,0.14,6,18),
+        new THREE.MeshLambertMaterial({color: shieldColor==='red'?0xff6b81:0x5ec8ff}));
+      ring.rotation.x=Math.PI/2; e.mesh.add(ring); e.ring=ring;
+    }
+    G.roomGroup.add(e.mesh);
+    G.hits.push(e.mesh.userData.body);
+    e.mesh.userData.body.userData.enemy=e;
+    enemies.push(e);
+    return e;
+  }
+  function spawnBoss(cfg){
+    const b={name:cfg.name, shield:cfg.shield, max:cfg.shield, dmg:cfg.dmg||15,
+             mesh:shell(cfg.color||PAL.lav, cfg.size||5, cfg.face||'👾'),
+             seg:[], t:0, dead:false, cycle:cfg.cycle||null, color:cfg.startColor||null,
+             next:performance.now()+2200, regrow:cfg.regrow!==false, hidden:cfg.hidden||0};
+    b.mesh.position.set(0,4,-18);
     G.roomGroup.add(b.mesh);
     G.hits.push(b.mesh.userData.body);
     b.mesh.userData.body.userData.boss=b;
-    for(let i=0;i<shield;i++){
-      const s=new THREE.Mesh(new THREE.BoxGeometry(.9,.9,.9),
-        new THREE.MeshLambertMaterial({color:0xffd54a}));
+    for(let i=0;i<b.max;i++){
+      const s=new THREE.Mesh(new THREE.BoxGeometry(.95,.95,.95),
+        new THREE.MeshLambertMaterial({color:PAL.butter}));
       b.mesh.add(s); b.seg.push(s);
     }
-    layoutShield(b);
-    boss=b; return b;
+    layout(b); boss=b; return b;
   }
-  function layoutShield(b){
-    b.seg.forEach((s,i)=>{
-      s.visible = i < b.shield;
-      const a=(i/b.max)*Math.PI*2;
-      s.position.set(Math.cos(a)*4.2, Math.sin(a)*2.2, 0);
-    });
+  function layout(b){
+    b.seg.forEach((s,i)=>{ s.visible=i<b.shield;
+      s.material.color.setHex(b.color==='red'?0xff9aa2 : b.color==='blue'?0x8fd3ff : PAL.butter); });
+    if(b.ringColor) b.mesh.userData.body.material.color.setHex(b.ringColor);
+  }
+
+  /* ------------------------------------------------------- obstacles */
+  function addObstacle(x,z,w,d,h,color){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h||4.5,d),
+      new THREE.MeshLambertMaterial({color:color||PAL.lav}));
+    m.position.set(x,(h||4.5)/2,z);
+    G.roomGroup.add(m);
+    G.solids.push({x1:x-w/2,x2:x+w/2,z1:z-d/2,z2:z+d/2});
+    obstacles.push({x1:x-w/2,x2:x+w/2,z1:z-d/2,z2:z+d/2});
+    return m;
+  }
+  // does a wall sit between these two points? (2-D segment vs box)
+  function blocked(ax,az,bx,bz){
+    for(const o of obstacles){
+      const steps=14;
+      for(let i=1;i<steps;i++){
+        const t=i/steps, px=ax+(bx-ax)*t, pz=az+(bz-az)*t;
+        if(px>o.x1&&px<o.x2&&pz>o.z1&&pz<o.z2) return true;
+      }
+    }
+    return false;
+  }
+
+  /* ---------------------------------------------------------- player */
+  function damage(n){
+    if(dead||hp<=0) return;
+    hp=Math.max(0,hp-n); lastHurt=performance.now();
+    drawHP(); hurtFlash(); dmgNum(n);
+    if(window.beep) beep('bad');
+    if(hp<=0) down();
+  }
+  function drawHP(){
+    const f=document.querySelector('#hpFill'), n=document.querySelector('#hpNum');
+    if(!f) return;
+    f.style.width=hp+'%'; f.classList.toggle('low',hp<=35);
+    n.textContent=Math.round(hp);
+  }
+  function hurtFlash(){
+    const h=document.querySelector('#hurt');
+    h.classList.add('on'); setTimeout(()=>h.classList.remove('on'),220);
+  }
+  function dmgNum(n){
+    const d=document.createElement('div'); d.className='dmg'; d.textContent='-'+n;
+    d.style.left=(46+Math.random()*8)+'%'; d.style.top=(52+Math.random()*6)+'%';
+    document.querySelector('#dmgNums').appendChild(d);
+    setTimeout(()=>d.remove(),820);
+  }
+  function down(){
+    dead=true; busy=false;
+    CODE.hideTape();
+    const el=document.querySelector('#downed');
+    el.classList.remove('hidden');
+    el.innerHTML=`<div style="font-size:60px">💥</div>
+      <div>${t('You were knocked out!')}</div>
+      <div style="font-size:17px;color:var(--muted);max-width:460px">${t('Nothing is lost — the wave starts again. Try using cover: put a block between you and them.')}</div>
+      <button class="btn good" id="respawn">${t('Try again ▶')}</button>`;
+    el.querySelector('#respawn').onclick=()=>{
+      el.classList.add('hidden'); dead=false; hp=MAXHP; drawHP();
+      startStage(stage);
+    };
   }
 
   /* ----------------------------------------------------------- shots */
-  function fireShot(){
+  function playerShot(color){
     const dir=new THREE.Vector3(0,0,-1).applyQuaternion(G.camera.quaternion);
-    const ray=new THREE.Raycaster(G.camera.position.clone(), dir); ray.far=90;
+    const ray=new THREE.Raycaster(G.camera.position.clone(), dir); ray.far=110;
     let hit=ray.intersectObjects(G.hits,false)[0];
-    if(!hit) hit=assist(dir);   // forgiving cone: the lesson is the loop, not the aim
-    const end = hit ? hit.point.clone()
-                    : G.camera.position.clone().add(dir.multiplyScalar(60));
-    bolt(G.camera.position.clone().add(new THREE.Vector3(0,-0.5,0)), end);
-    if(!hit) { msg(t('Missed — put the crosshair on the target.')); return; }
-    const d=hit.object.userData.drone, b=hit.object.userData.boss;
-    if(d && !d.dead){
-      d.hp--; flash(d.mesh);
-      if(d.hp<=0) kill(d);
+    if(!hit || (!hit.object.userData.enemy && !hit.object.userData.boss)) hit=assist(dir)||hit;
+    const muzzle=G.camera.position.clone()
+      .add(dir.clone().multiplyScalar(1.4)).add(new THREE.Vector3(0,-0.42,0));
+    const end=hit? hit.point.clone() : G.camera.position.clone().add(dir.multiplyScalar(70));
+    bolt(muzzle,end, color==='red'?0xff9aa2 : color==='blue'?0x8fd3ff : 0x7fe6ff);
+    if(window.GUN) GUN.kick();
+    if(!hit){ msg(t('Missed — put the crosshair on the target.')); return; }
+    const e=hit.object.userData.enemy, b=hit.object.userData.boss;
+    if(e && !e.dead){
+      if(e.shield && e.shield!==color){
+        spark(e.mesh.position, e.shield==='red'?0xff6b81:0x5ec8ff);
+        msg(t('That shield is {c} — use the {c} bolt!',{c:t(e.shield)}));
+        return;
+      }
+      e.hp--; flash(e.mesh); hitMark();
+      if(e.hp<=0) kill(e);
     } else if(b && !b.dead){
-      b.shield--; layoutShield(b); flash(b.mesh);
+      if(b.cycle && b.color && b.color!==color){
+        spark(b.mesh.position, 0xffffff);
+        msg(t('PRISM is {c} right now — check the colour first!',{c:t(b.color)}));
+        return;
+      }
+      b.shield--; layout(b); flash(b.mesh); hitMark();
       if(b.shield<=0) killBoss(b);
     }
   }
-  // if the crosshair is close but not exactly on a target, count it — these are
-  // eight-year-olds holding a mouse, and the skill being taught is the loop
   function assist(dir){
     const CONE=0.26, from=G.camera.position;
-    let best=null, bestAng=CONE;
-    const targets=[...drones.map(d=>d.mesh), ...(boss?[boss.mesh]:[])];
+    let best=null,bestAng=CONE;
+    const targets=[...enemies.map(e=>e.mesh), ...(boss?[boss.mesh]:[])];
     for(const m of targets){
       const to=m.getWorldPosition(new THREE.Vector3()).sub(from);
-      const dist=to.length();
-      if(dist>90) continue;
-      const ang=dir.angleTo(to.normalize());
+      if(to.length()>110) continue;
+      const ang=dir.angleTo(to.clone().normalize());
       if(ang<bestAng){ bestAng=ang; best=m; }
     }
-    if(!best) return null;
-    return {point:best.getWorldPosition(new THREE.Vector3()), object:best.userData.body};
+    return best? {point:best.getWorldPosition(new THREE.Vector3()), object:best.userData.body} : null;
   }
-  function bolt(from,to){
-    const m=new THREE.Mesh(new THREE.SphereGeometry(.22,8,8),
-      new THREE.MeshBasicMaterial({color:0x8ff0ff}));
+  function bolt(from,to,color){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.24,8,8),
+      new THREE.MeshBasicMaterial({color:color||0x7fe6ff}));
     m.position.copy(from); G.scene.add(m);
-    bolts.push({m, from, to, t:0});
+    bolts.push({m,from,to,t:0});
     if(window.beep) beep('pop');
   }
-  function flash(mesh){
-    const mat=mesh.userData.body.material;
-    const old=mat.color.getHex();
-    mat.color.setHex(0xffffff);
-    setTimeout(()=>mat.color.setHex(old),110);
+  function foeShot(e){
+    const from=e.mesh.position.clone();
+    const to=new THREE.Vector3(G.pos.x,G.pos.y-0.2,G.pos.z);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.3,8,8),
+      new THREE.MeshBasicMaterial({color:e.K.bolt}));
+    m.position.copy(from); G.scene.add(m);
+    foeBolts.push({m, from, to, t:0, speed:0.55+Math.random()*0.15, dmg:e.dmg});
   }
-  function kill(d){
-    d.dead=true;
-    G.roomGroup.remove(d.mesh);
-    G.hits=G.hits.filter(h=>h!==d.mesh.userData.body);
-    drones=drones.filter(x=>x!==d);
+  function spark(pos,color){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.7,8,8),
+      new THREE.MeshBasicMaterial({color,transparent:true,opacity:.9}));
+    m.position.copy(pos); G.scene.add(m);
+    let k=0; (function f(){ k+=0.08; m.scale.setScalar(1+k*2); m.material.opacity=.9-k;
+      if(k<0.9) requestAnimationFrame(f); else G.scene.remove(m); })();
+  }
+  function hitMark(){
+    const c=document.querySelector('#crosshair');
+    c.classList.add('hit'); setTimeout(()=>c.classList.remove('hit'),220);
+  }
+  function flash(mesh){
+    const mat=mesh.userData.body.material, old=mat.color.getHex();
+    mat.color.setHex(0xffffff); setTimeout(()=>mat.color.setHex(old),110);
+  }
+  function kill(e){
+    e.dead=true; spark(e.mesh.position, e.K.color);
+    G.roomGroup.remove(e.mesh);
+    G.hits=G.hits.filter(h=>h!==e.mesh.userData.body);
+    enemies=enemies.filter(x=>x!==e);
     if(window.beep) beep('star');
   }
   function killBoss(b){
-    b.dead=true;
+    b.dead=true; spark(b.mesh.position,0xffffff);
     G.roomGroup.remove(b.mesh);
     G.hits=G.hits.filter(h=>h!==b.mesh.userData.body);
     boss=null;
     if(window.beep) beep('star');
   }
 
-  /* ------------------------------------------------------ run a program */
+  /* -------------------------------------------------- run a program */
+  function currentTargetColor(){
+    const dir=new THREE.Vector3(0,0,-1).applyQuaternion(G.camera.quaternion);
+    const h=assist(dir);
+    if(h){
+      const e=h.object.userData.enemy, b=h.object.userData.boss;
+      if(e&&e.shield) return e.shield;
+      if(b&&b.color) return b.color;
+    }
+    return null;
+  }
   function runProgram(steps){
-    if(busy) return;
+    if(busy||dead) return;
     busy=true;
     let i=0;
     (function next(){
+      if(dead){ busy=false; CODE.hideTape(); return; }
       if(i>=steps.length){
-        busy=false;
-        CODE.highlight(null);
-        setTimeout(()=>{ CODE.hideTape(); afterProgram(); }, 500);
+        busy=false; CODE.highlight(null);
+        setTimeout(()=>{ CODE.hideTape(); afterProgram(); },500);
         return;
       }
       const s=steps[i++];
-      if(s.name==='__iter'){ CODE.setIter(s.blockId, s.i, s.n); setTimeout(next, ITER_MS); return; }
+      if(s.name==='__iter'){ CODE.setIter(s.blockId,s.i,s.n); setTimeout(next,ITER_MS); return; }
+      if(s.name==='__if'){
+        CODE.highlight(s);
+        const now=currentTargetColor();
+        if(now!==s.cond) i=s.jump;                 // condition false: skip the body
+        setTimeout(next,ITER_MS); return;
+      }
+      if(s.name==='__call'){ CODE.highlight(s); setTimeout(next,ITER_MS); return; }
       CODE.highlight(s);
-      if(s.name==='shoot') fireShot();
-      setTimeout(next, STEP_MS);
+      if(s.name==='shoot')      playerShot(null);
+      if(s.name==='shootRed')   playerShot('red');
+      if(s.name==='shootBlue')  playerShot('blue');
+      setTimeout(next, s.name==='wait'? 700 : STEP_MS);
     })();
   }
   function afterProgram(){
-    if(boss && !boss.dead && boss.shield>0 && boss.shield<boss.max){
-      // the whole point of the fight: one shot at a time can never finish him
-      msg(t('THE LOOPER: “Not enough! My shield grows back!”'));
-      setTimeout(()=>{ if(boss){ boss.shield=boss.max; layoutShield(boss); } }, 1200);
+    if(boss && !boss.dead && boss.regrow && boss.shield>0 && boss.shield<boss.max){
+      msg(t('{n}: “Not enough! My shield grows back!”',{n:t(boss.name)}));
+      setTimeout(()=>{ if(boss){ boss.shield=boss.max; layout(boss); } },1200);
     }
     checkStage();
   }
 
-  /* --------------------------------------------------------- mission */
-  const STAGES=[
-    { brief:'Your gun runs your <b>program</b>. Open the console with <b>C</b>, add one <b>shoot()</b> block, and press RUN.',
-      obj:['Program one shot','Clear the drones','Beat THE LOOPER'],
-      palette:['shoot'], setup(){ spawnDrone(0,-14,1); } },
-    { brief:'Three of them. You could add three <b>shoot()</b> blocks… or use a <b>repeat</b> block and put one shoot inside it.',
-      palette:['shoot','repeat'], setup(){ spawnDrone(-6,-15,1); spawnDrone(0,-17,1); spawnDrone(6,-15,1); } },
-    { brief:'Five now. Set the <b>repeat</b> number to 5 and keep one <b>shoot()</b> inside it. Aim at a new drone each time.',
-      palette:['shoot','repeat'], setup(){ for(let i=0;i<5;i++) spawnDrone(-8+i*4,-15-((i%2)*3),1); } },
-    { brief:'<b>THE LOOPER</b> has an 8-part shield that grows back after every program. One shot at a time will never win — <b>repeat 8</b> in a single program will.',
-      boss:true, palette:['shoot','repeat'], setup(){ spawnBoss(8); } }
-  ];
+  /* --------------------------------------------------------- update */
+  function update(dt){
+    const now=performance.now();
+    bolts=bolts.filter(b=>{ b.t+=dt/0.13;
+      b.m.position.lerpVectors(b.from,b.to,Math.min(b.t,1));
+      if(b.t>=1){ G.scene.remove(b.m); return false; } return true; });
+
+    foeBolts=foeBolts.filter(b=>{ b.t+=dt*b.speed;
+      b.m.position.lerpVectors(b.from,b.to,Math.min(b.t,1));
+      if(b.t>=1){
+        G.scene.remove(b.m);
+        const d=Math.hypot(b.to.x-G.pos.x, b.to.z-G.pos.z);
+        if(d<2.2) damage(b.dmg);                 // dodging actually works
+        return false;
+      }
+      return true; });
+
+    enemies.forEach(e=>{
+      e.t+=dt;
+      e.mesh.position.y=2.2+Math.sin(e.t*2)*0.32;
+      const dx=G.pos.x-e.mesh.position.x, dz=G.pos.z-e.mesh.position.z;
+      const dist=Math.hypot(dx,dz);
+      if(dist>7) { e.mesh.position.x+=dx/dist*e.K.speed*dt; e.mesh.position.z+=dz/dist*e.K.speed*dt; }
+      e.mesh.lookAt(G.pos.x, e.mesh.position.y, G.pos.z);
+      if(e.ring) e.ring.rotation.z+=dt*2;
+      if(now>e.next && dist<e.K.range && !blocked(e.mesh.position.x,e.mesh.position.z,G.pos.x,G.pos.z)){
+        e.next=now+e.K.fire; foeShot(e);
+      }
+    });
+
+    if(boss){
+      boss.t+=dt;
+      boss.mesh.position.y=4+Math.sin(boss.t*1.3)*0.55;
+      boss.seg.forEach((s,i)=>{ const a=(i/boss.max)*Math.PI*2 + boss.t*0.8;
+        s.position.set(Math.cos(a)*4.4, Math.sin(a)*2.3, 0); });
+      if(boss.cycle && boss.t> (boss.lastCycle||0)+boss.cycle){
+        boss.lastCycle=boss.t;
+        boss.color = boss.color==='red' ? 'blue' : 'red';
+        layout(boss);
+      }
+      if(now>boss.next){
+        boss.next=now+2400;
+        foeShot({mesh:boss.mesh, dmg:boss.dmg, K:{bolt:PAL.rose}});
+      }
+    }
+
+    if(hp<MAXHP && now-lastHurt>5000){ hp=Math.min(MAXHP,hp+8*dt); drawHP(); }
+  }
+
+  /* -------------------------------------------------------- missions */
+  const MISSIONS={
+    m1:{ name:'Mission 1 — Loops', title:'The Loop Chamber',
+      objectives:['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'],
+      stages:[
+        {palette:['shoot'],
+         brief:'Your gun runs your <b>program</b>. Open the console with <b>C</b>, add one <b>shoot()</b> block, and press RUN.',
+         build(){ spawn('buzzer',0,-14); }},
+        {palette:['shoot','repeat'],
+         brief:'Three of them, and they shoot back now. Use a <b>repeat</b> block with one <b>shoot()</b> inside — and keep moving.',
+         build(){ cover(); spawn('buzzer',-7,-15); spawn('buzzer',0,-18); spawn('buzzer',7,-15); }},
+        {palette:['shoot','repeat'],
+         brief:'Five, including a slow <b>slugger</b> that hits hard. Set <b>repeat</b> to 5 and sweep your aim. Hide behind a block to heal.',
+         build(){ cover(); for(let i=0;i<4;i++) spawn('buzzer',-8+i*5.5,-15-((i%2)*4)); spawn('slugger',2,-22); }},
+        {palette:['shoot','repeat'], boss:true,
+         brief:'<b>THE LOOPER</b> has an 8-part shield that grows back after every program. One shot at a time can never win — <b>repeat 8</b> in a single program can.',
+         build(){ cover(); spawnBoss({name:'THE LOOPER',shield:8,color:PAL.lav,face:'👾',dmg:15}); }}
+      ]},
+    m2:{ name:'Mission 2 — Choices', title:'The Prism Vault',
+      objectives:['Break a red shield','Break both colours','Survive the mixed wave','Beat PRISM'],
+      stages:[
+        {palette:['shootRed','shootBlue'],
+         brief:'These drones carry <b>coloured shields</b>. A red shield only breaks to a <b>red bolt</b>. Look at the ring, then pick the matching block.',
+         build(){ spawn('buzzer',-4,-15,'red'); spawn('buzzer',5,-16,'red'); }},
+        {palette:['shootRed','shootBlue','repeat','ifc'],
+         brief:'Now both colours are here. Guessing wastes shots — use an <b>if</b> block: <i>if target is red → shootRed()</i>, and another for blue.',
+         build(){ cover(); spawn('buzzer',-6,-15,'red'); spawn('buzzer',0,-18,'blue'); spawn('buzzer',6,-15,'blue'); }},
+        {palette:['shootRed','shootBlue','repeat','ifc'],
+         brief:'A mixed wave with snipers watching from the back. Put your <b>if</b> blocks inside a <b>repeat</b> so every shot checks the colour first.',
+         build(){ cover(); spawn('buzzer',-8,-14,'red'); spawn('buzzer',-2,-17,'blue'); spawn('buzzer',4,-15,'red');
+                  spawn('sniper',9,-24,'blue'); spawn('slugger',-9,-22,'red'); }},
+        {palette:['shootRed','shootBlue','repeat','ifc'], boss:true,
+         brief:'<b>PRISM</b> changes colour every two seconds. A fixed program cannot beat that — only <b>if</b> inside a <b>repeat</b> checks the colour every single shot.',
+         build(){ cover(); spawnBoss({name:'PRISM',shield:10,color:PAL.blush,face:'🔮',dmg:14,cycle:2,startColor:'red',regrow:false}); }}
+      ]},
+    m3:{ name:'Mission 3 — Functions', title:'The Off-By-One Foundry',
+      objectives:['Teach the gun a combo','Use the combo on a wave','Clear the corridor','Beat OFF-BY-ONE'],
+      stages:[
+        {palette:['shootRed','shootBlue','define','call'],
+         brief:'Put <b>shootRed()</b> and <b>shootBlue()</b> inside <b>define combo</b>. Then drop one <b>combo()</b> block to run both at once. Write it once, use it forever.',
+         build(){ spawn('buzzer',-3,-15,'red'); spawn('buzzer',3,-16,'blue'); }},
+        {palette:['shootRed','shootBlue','define','call','repeat'],
+         brief:'Six of them, in pairs. Keep your <b>combo</b> and call it inside a <b>repeat</b> — three calls, six shots.',
+         build(){ cover(); for(let i=0;i<3;i++){ spawn('buzzer',-7+i*7,-15,'red'); spawn('buzzer',-4+i*7,-19,'blue'); } }},
+        {palette:['shootRed','shootBlue','define','call','repeat','ifc'],
+         brief:'A corridor with cover on both sides and swarmers that rush you. Move through it — you cannot hit what you cannot see.',
+         build(){ corridor(); spawn('swarm',-6,-12); spawn('swarm',6,-12); spawn('sniper',0,-30,'red');
+                  spawn('slugger',-8,-26,'blue'); spawn('swarm',0,-20); }},
+        {palette:['shootRed','shootBlue','define','call','repeat','ifc'], boss:true,
+         brief:'<b>OFF-BY-ONE</b> shows <b>7</b> shield parts but always has <b>one more</b> than he shows. Count carefully — programmers start counting at zero.',
+         build(){ cover(); spawnBoss({name:'OFF-BY-ONE',shield:8,color:PAL.peach,face:'🧮',dmg:16,regrow:true}); }}
+      ]}
+  };
+
+  /* obstacle layouts */
+  function cover(){
+    addObstacle(-9,-8,4,4,4.6,PAL.lav);
+    addObstacle( 9,-8,4,4,4.6,PAL.lav);
+    addObstacle( 0,-4,7,2.4,3.2,PAL.blush);
+    addObstacle(-15,-18,3,9,5.4,PAL.sky);
+    addObstacle( 15,-18,3,9,5.4,PAL.sky);
+  }
+  function corridor(){
+    for(let i=0;i<4;i++){
+      addObstacle(-7, -6-i*7, 3.4, 4.6, 5.2, i%2?PAL.lav:PAL.sky);
+      addObstacle( 7, -9-i*7, 3.4, 4.6, 5.2, i%2?PAL.sky:PAL.lav);
+    }
+    addObstacle(0,-16,4.5,2.4,3.0,PAL.blush);
+  }
+
+  /* ---------------------------------------------------- flow control */
+  function clearField(){
+    enemies.forEach(e=>G.roomGroup.remove(e.mesh));
+    if(boss) G.roomGroup.remove(boss.mesh);
+    bolts.forEach(b=>G.scene.remove(b.m)); foeBolts.forEach(b=>G.scene.remove(b.m));
+    enemies=[]; boss=null; bolts=[]; foeBolts=[];
+  }
+  function startMission(id){
+    mission=MISSIONS[id];
+    hp=MAXHP; dead=false; drawHP();
+    document.querySelector('#health').classList.remove('hidden');
+    startStage(0);
+  }
   function startStage(n){
-    stage=n;
-    const s=STAGES[n];
-    CODE.setPalette(s.palette);
-    CODE.clear();
-    s.setup();
-    brief(s.brief);
-    objectives();
+    stage=n; busy=false;
+    clearField();
+    const st=mission.stages[n];
+    CODE.setPalette(st.palette); CODE.clear();
+    st.build();
+    G.pos.set(0,1.7,18); G.vel.set(0,0,0);
+    brief(st.brief); objectives();
   }
   function checkStage(){
-    const s=STAGES[stage];
-    if(s.boss){ if(!boss) return finish(); return; }
-    if(!drones.length){
-      if(stage+1<STAGES.length){
-        msg(t('Clear! Next wave…'));
-        setTimeout(()=>startStage(stage+1), 900);
-      } else finish();
+    const st=mission.stages[stage];
+    if(st.boss){ if(!boss) return finish(); return; }
+    if(!enemies.length){
+      if(stage+1<mission.stages.length){ msg(t('Clear! Next wave…')); setTimeout(()=>startStage(stage+1),950); }
+      else finish();
     }
   }
   function objectives(){
-    const ol=document.querySelector('#objList');
-    const names=['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'];
-    ol.innerHTML=names.map((n,i)=>
+    document.querySelector('#objList').innerHTML=mission.objectives.map((n,i)=>
       `<li class="${i<stage?'done':(i===stage?'cur':'')}">${i<stage?'✔ ':'• '}${t(n)}</li>`).join('');
-    document.querySelector('#missionName').textContent=t('Mission 1 — Loops');
+    document.querySelector('#missionName').textContent=t(mission.name);
   }
   function finish(){
-    busy=false;
-    brief('');
+    busy=false; brief('');
+    document.querySelector('#health').classList.add('hidden');
     const code=CODE.toText().join('\n');
+    if(window.PROGRESS) PROGRESS.complete(mission.id||G.missionId);
     document.querySelector('#done').classList.remove('hidden');
-    document.querySelector('#dTitle').textContent=t('MISSION 1 COMPLETE');
-    document.querySelector('#dBody').innerHTML=t('You beat THE LOOPER with a <b>loop</b>. One block, written once, ran again and again — that is what a loop is for.');
+    document.querySelector('#dTitle').textContent=t(mission.name)+' — '+t('COMPLETE');
+    document.querySelector('#dBody').innerHTML=t(mission.win||'Nice work, coder.');
     document.querySelector('#dStats').innerHTML=
-      `<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8ff0ff">${code||'—'}</pre></div>`;
-    document.querySelector('#dAgain').textContent=t('Play again');
+      `<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${code||'—'}</pre></div>`;
+    document.querySelector('#dAgain').textContent=t('Back to the desktop');
     G.running=false;
   }
+  MISSIONS.m1.win='You beat THE LOOPER with a <b>loop</b>. One block, written once, ran again and again — that is what a loop is for.';
+  MISSIONS.m2.win='You beat PRISM with an <b>if</b>. A program that checks before it acts can handle something that keeps changing.';
+  MISSIONS.m3.win='You beat OFF-BY-ONE with a <b>function</b>. You taught the gun a move once and called it whenever you needed it — and you counted carefully.';
 
-  /* ---------------------------------------------------------- update */
-  function update(dt){
-    // bolts
-    bolts=bolts.filter(b=>{
-      b.t+=dt/0.14;
-      b.m.position.lerpVectors(b.from,b.to,Math.min(b.t,1));
-      if(b.t>=1){ G.scene.remove(b.m); return false; }
-      return true;
-    });
-    // drones drift toward the player and bob
-    drones.forEach(d=>{
-      d.t+=dt;
-      d.mesh.position.y=2.2+Math.sin(d.t*2)*0.35;
-      const to=new THREE.Vector3(G.pos.x,d.mesh.position.y,G.pos.z).sub(d.mesh.position);
-      const dist=to.length();
-      if(dist>6) d.mesh.position.add(to.normalize().multiplyScalar(1.5*dt));
-      d.mesh.lookAt(G.pos.x,d.mesh.position.y,G.pos.z);
-    });
-    if(boss){
-      boss.t+=dt;
-      boss.mesh.position.y=3.6+Math.sin(boss.t*1.4)*0.5;
-      boss.mesh.rotation.y=Math.sin(boss.t*0.5)*0.5;
-      boss.seg.forEach((s,i)=>{ const a=(i/boss.max)*Math.PI*2 + boss.t*0.8;
-        s.position.set(Math.cos(a)*4.2, Math.sin(a)*2.2, 0); });
+  /* ------------------------------------------------- the firing range */
+  let range=null;
+  function startRange(){
+    clearField();
+    hp=MAXHP; dead=false; drawHP();
+    document.querySelector('#health').classList.add('hidden');
+    range={hits:0, shots:0, t0:performance.now(), left:12, targets:[]};
+    document.querySelector('#missionName').textContent=t('Firing Range');
+    objectivesRange();
+    brief('Click the targets as fast as you can. This is pure aiming — no code. <b>Left click</b> to shoot.');
+    nextTarget();
+  }
+  function nextTarget(){
+    if(!range) return;
+    if(range.left<=0) return rangeDone();
+    range.left--;
+    const x=-14+Math.random()*28, z=-10-Math.random()*20, y=1.6+Math.random()*4.5;
+    const m=new THREE.Mesh(new THREE.SphereGeometry(1.15,16,12),
+      new THREE.MeshLambertMaterial({color:PAL.blush}));
+    m.position.set(x,y,z);
+    G.roomGroup.add(m); G.hits.push(m);
+    m.userData.range=true;
+    range.targets.push(m);
+  }
+  function rangeShot(){
+    if(!range) return false;
+    range.shots++;
+    const dir=new THREE.Vector3(0,0,-1).applyQuaternion(G.camera.quaternion);
+    const ray=new THREE.Raycaster(G.camera.position.clone(),dir); ray.far=110;
+    const h=ray.intersectObjects(G.hits,false)[0];
+    const end=h? h.point.clone() : G.camera.position.clone().add(dir.multiplyScalar(70));
+    bolt(G.camera.position.clone().add(new THREE.Vector3(0,-0.4,0)), end, 0x7fe6ff);
+    if(window.GUN) GUN.kick();
+    if(h && h.object.userData.range){
+      range.hits++; hitMark(); spark(h.object.position,PAL.blush);
+      G.roomGroup.remove(h.object);
+      G.hits=G.hits.filter(x=>x!==h.object);
+      range.targets=range.targets.filter(x=>x!==h.object);
+      if(window.beep) beep('star');
+      objectivesRange(); nextTarget();
     }
-    if(hitFx>0) hitFx-=dt;
+    return true;
+  }
+  function objectivesRange(){
+    const acc=range.shots? Math.round(range.hits/range.shots*100):100;
+    document.querySelector('#objList').innerHTML=
+      `<li class="cur">🎯 ${t('Targets hit')}: <b>${range.hits}/12</b></li>
+       <li>${t('Accuracy')}: <b>${acc}%</b></li>
+       <li>${t('Shots')}: <b>${range.shots}</b></li>`;
+  }
+  function rangeDone(){
+    const secs=((performance.now()-range.t0)/1000).toFixed(1);
+    const acc=range.shots? Math.round(range.hits/range.shots*100):100;
+    let best=0; try{ best=+localStorage.getItem('dq_range_best')||0; }catch(e){}
+    const score=Math.round(range.hits*100*(acc/100) - secs*2);
+    if(score>best){ try{ localStorage.setItem('dq_range_best',score); }catch(e){} }
+    document.querySelector('#done').classList.remove('hidden');
+    document.querySelector('#dTitle').textContent=t('Firing Range');
+    document.querySelector('#dBody').innerHTML=t('Warm-up done. Faster hands, fewer wasted shots.');
+    document.querySelector('#dStats').innerHTML=
+      `<div><b>${t('Targets hit')}</b> ${range.hits}/12</div>
+       <div><b>${t('Accuracy')}</b> ${acc}%</div>
+       <div><b>${t('Time')}</b> ${secs}s</div>
+       <div><b>${t('Score')}</b> ${score} ${score>best?'🏆':''}</div>`;
+    document.querySelector('#dAgain').textContent=t('Back to the desktop');
+    range=null; G.running=false;
   }
 
   /* ----------------------------------------------------------- utils */
@@ -245,10 +530,12 @@ window.COMBAT = (function(){
     const b=document.querySelector('#briefing');
     b.classList.remove('hidden'); b.innerHTML=text;
     clearTimeout(msgT);
-    msgT=setTimeout(()=>{ if(STAGES[stage]) brief(STAGES[stage].brief); },2200);
+    msgT=setTimeout(()=>{ if(mission&&mission.stages[stage]) brief(mission.stages[stage].brief); },2400);
   }
-  function reset(){ drones=[]; boss=null; bolts=[]; stage=0; busy=false; }
+  function reset(){ clearField(); obstacles=[]; stage=0; busy=false; mission=null; range=null;
+                    hp=MAXHP; dead=false; document.querySelector('#health').classList.add('hidden'); }
 
-  return { start(){ reset(); startStage(0); }, update, runProgram, reset,
-           get busy(){ return busy; } };
+  return { startMission, startRange, rangeShot, update, runProgram, reset, damage,
+           get busy(){ return busy; }, get dead(){ return dead; }, get inRange(){ return !!range; },
+           get hp(){ return hp; } };
 })();

@@ -14,20 +14,28 @@ window.CODE = (function(){
   let uid=1;
 
   const DEF = {
-    shoot :{label:'shoot()',  color:'#e0663f', help:'Fire one shot where you are aiming'},
-    wait  :{label:'wait()',   color:'#3e8ede', help:'Pause for a moment'},
-    repeat:{label:'repeat',   color:'#7c5cff', help:'Do the blocks inside, again and again'}
+    shoot    :{label:'shoot()',      color:'#ffb4a2', help:'Fire one shot where you are aiming'},
+    shootRed :{label:'shootRed()',   color:'#ff9aa2', help:'Fire a RED bolt — breaks red shields'},
+    shootBlue:{label:'shootBlue()',  color:'#8fd3ff', help:'Fire a BLUE bolt — breaks blue shields'},
+    wait     :{label:'wait()',       color:'#bdb2d8', help:'Pause for a moment'},
+    repeat   :{label:'repeat',       color:'#cdb4f6', help:'Do the blocks inside, again and again'},
+    ifc      :{label:'if',           color:'#a8e6cf', help:'Only do the blocks inside IF it is true'},
+    call     :{label:'combo()',      color:'#ffe9a8', help:'Run the blocks you put in DEFINE combo'},
+    define   :{label:'define combo', color:'#ffd8a8', help:'Teach the gun a move once, then call it'}
   };
+  const CONDS=['red','blue'];
 
   /* ------------------------------------------------------------ model */
   function makeBlock(type){
     const b={id:uid++, type};
     if(type==='repeat'){ b.count=3; b.body=[]; }
+    if(type==='ifc'){ b.cond='red'; b.body=[]; }
+    if(type==='define'){ b.body=[]; }
     return b;
   }
   function addBlock(type){
     const b=makeBlock(type);
-    if(dropTarget && dropTarget.type==='repeat') dropTarget.body.push(b);
+    if(dropTarget && dropTarget.body) dropTarget.body.push(b);
     else script.push(b);
     if(window.beep) beep('pop');
     draw();
@@ -51,18 +59,36 @@ window.CODE = (function(){
 
   /* ------------------------------------------------- compile + text */
   // turns the block tree into the exact list of steps that will run
-  function compile(list, out, guard){
-    out=out||[]; guard=guard||{n:0};
+  function compile(list, out, guard, depth){
+    out=out||[]; guard=guard||{n:0}; depth=depth||0;
     for(const b of list){
-      if(guard.n++ > 400) break;
+      if(guard.n++ > 600) break;
+      if(b.type==='define') continue;                  // a definition only runs when called
       if(b.type==='repeat'){
         for(let i=0;i<b.count;i++){
           out.push({name:'__iter', blockId:b.id, i:i+1, n:b.count});
-          compile(b.body, out, guard);
+          compile(b.body, out, guard, depth);
+        }
+      } else if(b.type==='ifc'){
+        const at=out.length;
+        out.push({name:'__if', blockId:b.id, cond:b.cond, jump:0});
+        compile(b.body, out, guard, depth);
+        out[at].jump=out.length;                       // where to land when the test is false
+      } else if(b.type==='call'){
+        const def=findDefine();
+        if(def && depth<4){
+          out.push({name:'__call', blockId:b.id});
+          compile(def.body, out, guard, depth+1);
         }
       } else out.push({name:b.type, blockId:b.id});
     }
     return out;
+  }
+  function findDefine(list){
+    list=list||script;
+    for(const b of list){ if(b.type==='define') return b;
+      if(b.body){ const f=findDefine(b.body); if(f) return f; } }
+    return null;
   }
   function toText(list, depth){
     list=list||script; depth=depth||0;
@@ -71,8 +97,13 @@ window.CODE = (function(){
     for(const b of list){
       if(b.type==='repeat'){
         s.push(pad+'repeat '+b.count);
-        s=s.concat(toText(b.body, depth+1));
-        s.push(pad+'end');
+        s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
+      } else if(b.type==='ifc'){
+        s.push(pad+'if target is '+b.cond);
+        s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
+      } else if(b.type==='define'){
+        s.push(pad+'define combo');
+        s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else s.push(pad+DEF[b.type].label);
     }
     return s;
@@ -123,6 +154,21 @@ window.CODE = (function(){
 
   function blockHTML(b, readonly){
     const d=DEF[b.type];
+    if(b.type==='ifc' || b.type==='define'){
+      const isTarget = dropTarget && dropTarget.id===b.id;
+      const head = b.type==='ifc'
+        ? `<span class="blk-name">${t('if target is')}</span>
+           ${readonly?`<span class="cnt-n">${t(b.cond)}</span>`
+             :`<button class="cond" data-act="cond" data-id="${b.id}" style="--sw:${b.cond==='red'?'#ff9aa2':'#8fd3ff'}">${t(b.cond)}</button>`}`
+        : `<span class="blk-name">${t('define combo')}</span>`;
+      return `<div class="blk rep ${isTarget?'target':''}" data-id="${b.id}" style="--c:${d.color}">
+          <div class="blk-head">${head}
+            ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}</div>
+          <div class="blk-body">${b.body.map(c=>blockHTML(c,readonly)).join('') ||
+            (readonly?'':`<div class="blk-empty">${t('put blocks here')}</div>`)}</div>
+          <div class="blk-foot"></div>
+        </div>`;
+    }
     if(b.type==='repeat'){
       const isTarget = dropTarget && dropTarget.id===b.id;
       return `<div class="blk rep ${isTarget?'target':''}" data-id="${b.id}" style="--c:${d.color}">
@@ -175,10 +221,11 @@ window.CODE = (function(){
         if(btn.dataset.act==='del') removeBlock(+btn.dataset.id);
         if(btn.dataset.act==='inc' && b) b.count=Math.min(20,b.count+1);
         if(btn.dataset.act==='dec' && b) b.count=Math.max(1,b.count-1);
+        if(btn.dataset.act==='cond' && b) b.cond = CONDS[(CONDS.indexOf(b.cond)+1)%CONDS.length];
         draw();
       };
     });
-    scriptEl.querySelectorAll('.blk.rep').forEach(node=>{
+    scriptEl.querySelectorAll('.blk.rep, .blk.ifc, .blk.define').forEach(node=>{
       node.onclick=e=>{
         e.stopPropagation();
         const b=findBlock(+node.dataset.id);
@@ -200,8 +247,8 @@ window.CODE = (function(){
 
   function run(){
     const steps=compile(script);
-    const real=steps.filter(s=>s.name!=='__iter');
-    if(!real.length){
+    const real=steps.filter(s=>!s.name.startsWith('__'));
+    if(!real.filter(x=>!x.name.startsWith('__')).length){
       el.querySelector('#conHint').textContent=t('Add at least one shoot() block first.');
       if(window.beep) beep('bad');
       return;
