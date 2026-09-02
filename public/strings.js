@@ -170,6 +170,7 @@ window.ES = {
   'Ask your teacher for the class code.':'Pídele a tu maestro el código de la clase.',
   'YOUR CHARACTER':'TU PERSONAJE',
   'Pick who you play as. Everyone in Free Play sees them.':'Escoge con quién juegas. Todos en Juego Libre lo verán.',
+  'Sign-in is not connected yet — you can still play as a guest.':'El inicio de sesión aún no está conectado — puedes jugar como invitado.',
   /* HUD */
   'MISSION':'MISIÓN','DESKTOP MAP':'MAPA DEL ESCRITORIO',
   'icons ▪ launcher ▪ system menu':'iconos ▪ lanzador ▪ menú del sistema',

@@ -19,7 +19,16 @@ window.MENU = (function(){
   function authMsg(text, good){
     const el=$('#authMsg'); el.textContent=text||''; el.classList.toggle('good',!!good);
   }
-  function wireAuth(){
+  async function wireAuth(){
+    // say plainly when accounts are not connected instead of failing on submit
+    const up = await NET.health();
+    if(!up){
+      $('#authMsg').textContent = t('Sign-in is not connected yet — you can still play as a guest.');
+      ['#inUser','#inPass','#upCode','#upUser','#upName','#upPass'].forEach(sel=>{
+        const el=$(sel); if(el) el.disabled=true;
+      });
+      $('#btnIn').disabled=true; $('#btnUp').disabled=true;
+    }
     $$('.tab').forEach(b=>b.onclick=()=>{
       $$('.tab').forEach(x=>x.classList.toggle('on',x===b));
       $('#formIn').classList.toggle('hidden', b.dataset.tab!=='in');
