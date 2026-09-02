@@ -39,34 +39,33 @@ window.PUZZLE = (function(){
             '#P...P#',
             '#######'], pal:['forward','left','right','repeat'] },
 
-    { name:'Three Pads', budget:9, par:80,
-      teach:'Step on all <b>three pads</b>, then reach the exit. Mind the pits — walking into one restarts the run.',
+    { name:'Three Pads', budget:6, par:60,
+      teach:'Light all <b>three pads</b> in <b>6 blocks</b>. Walk the top row, turn, then come down the side. Keep clear of the pit.',
       grid:['#########',
-            '#S.P..O.#',
-            '#.#####.#',
-            '#P.....P#',
-            '#.#####.#',
-            '#......X#',
+            '#S.P..P.#',
+            '#######.#',
+            '#..O...P#',
             '#########'], pal:['forward','left','right','repeat'] },
 
-    { name:'The Lock', budget:10, par:90,
-      teach:'Light both pads, then <b>shoot()</b> the blue lock at the end to open the exit.',
+    { name:'The Lock', budget:8, par:75,
+      teach:'Light the pad, then <b>shoot()</b> the blue lock from beside it, then walk on to the exit. Movement and shooting in one program.',
       grid:['#########',
-            '#S..P...#',
-            '#.#####.#',
-            '#P.....L#',
-            '#.#####.#',
+            '#S..P..L#',
+            '#######.#',
             '#......X#',
             '#########'], pal:['forward','left','right','repeat','shoot'] },
 
-    { name:'The Long Way', budget:8, par:110,
-      teach:'A zig-zag of four identical legs. Teach it once with <b>define combo</b>, then call it inside a <b>repeat</b>.',
-      grid:['###########',
-            '#S..#..#..#',
-            '#.#.#.#.#.#',
-            '#.#.#.#.#.#',
-            '#...#...#X#',
-            '###########'], pal:['forward','left','right','repeat','define','call'] }
+    { name:'The Long Way', budget:10, par:110,
+      teach:'A staircase of <b>three identical legs</b>: two forward, turn left, two forward, turn right. Put that in <b>define combo</b> and call it inside a <b>repeat</b>.',
+      grid:['#########',
+            '#######X#',
+            '#######.#',
+            '#####...#',
+            '#####.###',
+            '###...###',
+            '###.#####',
+            '#S..#####',
+            '#########'], pal:['forward','left','right','repeat','define','call'] }
   ];
 
   /* ------------------------------------------------------------ build */
@@ -112,6 +111,9 @@ window.PUZZLE = (function(){
     G.pos.set(P.x*T, 2.2, P.y*T);
     G.yaw=Math.atan2(-DIRS[P.dir][0], -DIRS[P.dir][1]);
     G.pitch=-0.18;
+    G.hudOwner='puzzle';
+    if(window.updateLeaveBtn) updateLeaveBtn();
+    document.querySelector('#mapwrap').classList.add('hidden');   // no desktop map inside a vault
     CODE.setPalette(L.pal); CODE.setBudget(L.budget); CODE.clear();
     hud(); startClock(L.par*2);
     brief(L.teach);
@@ -287,10 +289,11 @@ window.PUZZLE = (function(){
        <div style="grid-column:1/-1"><b>${t('Your code')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`;
     const btn=document.querySelector('#dAgain');
     btn.textContent = last ? t('Back to the desktop') : t('Next puzzle ▶');
-    if(!last){
-      btn.onclick=()=>{ document.querySelector('#done').classList.add('hidden');
-        G.running=true; build(P.n+1); lockPointer($('#view')); };
-    }
+    const nextN = P.n+1;
+    btn.onclick = last
+      ? ()=>returnToDesktop()
+      : ()=>{ document.querySelector('#done').classList.add('hidden');
+              G.running=true; build(nextN); lockPointer(document.querySelector('#view')); };
     G.running=false;
   }
 
@@ -300,7 +303,10 @@ window.PUZZLE = (function(){
     run, hud,
     get active(){ return !!P; },
     get busy(){ return busy; },
-    stop(){ stopClock(); P=null; document.querySelector('#ptimer').classList.add('hidden'); CODE.setBudget(0); },
+    stop(){ stopClock(); P=null;
+      document.querySelector('#ptimer').classList.add('hidden');
+      document.querySelector('#mapwrap').classList.remove('hidden');
+      CODE.setBudget(0); },
     retry(){ if(P) build(P.n); },
     count: LEVELS.length
   };

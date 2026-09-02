@@ -159,6 +159,11 @@ function addPanel(opt){
   return g;
 }
 
+window.updateLeaveBtn=updateLeaveBtn;
+function updateLeaveBtn(){
+  const b=$('#btnLeave'); if(!b) return;
+  b.classList.toggle('hidden', G.hudOwner==='desktop');
+}
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
   G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
@@ -180,11 +185,12 @@ function buildRoom(name){
     m.position.set(x,3.5,z); G.roomGroup.add(m); addSolid(x,z,w,d); };
   mk(0,-L.d/2,L.w,1); mk(0,L.d/2,L.w,1); mk(-L.w/2,0,1,L.d); mk(L.w/2,0,1,L.d);
 
+  G.hudOwner = (name==='plaza') ? 'desktop' : (name==='arena' ? 'mission' : 'desktop');
   if(name==='plaza') buildPlaza(L);
   else if(L.arena) buildArena(L);
   else buildAppRoom(L);
   G.scene.updateMatrixWorld(true);   // so the crosshair can hit things before the first render
-  updateMapLegend();
+  updateMapLegend(); updateLeaveBtn();
 }
 
 function buildPlaza(L){
@@ -268,6 +274,7 @@ function buildArena(L){
 }
 function startMissionRoom(id){
   COMBAT.reset(); PUZZLE.stop();
+  G.hudOwner='mission';
   if(id==='puzzles'){ G.missionId='puzzles'; G.running=true; PUZZLE.start(0); return; }
   G.missionId=id;
   G.arenaTitle = id==='range' ? 'Firing Range'
@@ -498,7 +505,7 @@ function startMission(){
   renderObjectives(); brief(quests[0].brief);
 }
 function fire(ev,data={}){
-  if(G.room==='arena' || PUZZLE.active) return;   // missions and vaults run their own scripts
+  if(G.hudOwner!=='desktop') return;   // missions and vaults run their own scripts
   const q=quests[qi];
   if(!q||q.done) return;
   if(q.on!==ev) return;
@@ -524,7 +531,7 @@ function brief(html){
   briefTimer=setTimeout(()=>{
     // only restore a DESKTOP objective, and only while the desktop still owns the HUD —
     // otherwise this stamps "look at the icons" over a mission in another room
-    if(G.room!=='arena' && !PUZZLE.active && quests[qi]) b.innerHTML=t(quests[qi].brief);
+    if(G.hudOwner==='desktop' && quests[qi]) b.innerHTML=t(quests[qi].brief);
   }, 6000);
 }
 
@@ -580,14 +587,8 @@ function wireUI(){
   $$('.langbtn').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   $('#btnLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   $('#sGo').onclick=begin;
-  $('#dAgain').onclick=()=>{
-    $('#done').classList.add('hidden');
-    COMBAT.reset(); PUZZLE.stop(); CODE.setBudget(0);
-    G.missionId=null; G.running=true;
-    buildRoom('plaza');
-    if(!quests.length || quests.every(q=>q.done)) { brief(t('Pick a mission door. Locked ones need the mission before them.')); }
-    lockPointer($('#view'));
-  };
+  $('#dAgain').onclick=()=>returnToDesktop();
+  $('#btnLeave').onclick=()=>returnToDesktop();
   $('#btnHelp').onclick=()=>brief(quests[qi]?quests[qi].brief:'—');
 }
 function setLang(l){
@@ -619,6 +620,18 @@ CODE.onRun=(steps)=>{
   lockPointer($('#view'));
 };
 
+function returnToDesktop(){
+  $('#done').classList.add('hidden');
+  $('#downed').classList.add('hidden');
+  CODE.close(); CODE.setBudget(0); CODE.hideTape();
+  COMBAT.reset(); PUZZLE.stop();
+  G.missionId=null; G.arenaTitle=null; G.running=true;
+  buildRoom('plaza');
+  renderObjectives();
+  if(!quests.length || quests.every(q=>q.done))
+    brief('Pick a mission door. Locked ones need the mission before them.');
+  lockPointer($('#view'));
+}
 function begin(){
   $('#start').classList.add('hidden');
   $('#hud').classList.remove('hidden');
