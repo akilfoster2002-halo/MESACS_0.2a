@@ -21,7 +21,10 @@ window.CODE = (function(){
     repeat   :{label:'repeat',       color:'#cdb4f6', help:'Do the blocks inside, again and again'},
     ifc      :{label:'if',           color:'#a8e6cf', help:'Only do the blocks inside IF it is true'},
     call     :{label:'combo()',      color:'#ffe9a8', help:'Run the blocks you put in DEFINE combo'},
-    define   :{label:'define combo', color:'#ffd8a8', help:'Teach the gun a move once, then call it'}
+    define   :{label:'define combo', color:'#ffd8a8', help:'Teach the gun a move once, then call it'},
+    forward  :{label:'forward()',    color:'#a8e6cf', help:'Walk forward one tile'},
+    left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
+    right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'}
   };
   const CONDS=['red','blue'];
 
@@ -34,6 +37,12 @@ window.CODE = (function(){
     return b;
   }
   function addBlock(type){
+    if(budget && countBlocks()>=budget){
+      const h=el.querySelector('#conHint');
+      h.textContent=t('Block budget full — delete one, or find a shorter way (that is the puzzle).');
+      if(window.beep) beep('bad');
+      return;
+    }
     const b=makeBlock(type);
     if(dropTarget && dropTarget.body) dropTarget.body.push(b);
     else script.push(b);
@@ -47,6 +56,16 @@ window.CODE = (function(){
       if(list[i].body && removeBlock(id, list[i].body)) return true;
     }
     return false;
+  }
+  // which container holds this block? used to step OUT one level
+  function findParent(id, list, parent){
+    list=list||script; parent=parent===undefined?null:parent;
+    for(const b of list){
+      if(b.id===id) return parent;
+      if(b.body){ const f=findParent(id,b.body,b); if(f!==undefined&&f!==null) return f;
+                  if(b.body.some(c=>c.id===id)) return b; }
+    }
+    return null;
   }
   function findBlock(id, list){
     list = list || script;
@@ -131,7 +150,8 @@ window.CODE = (function(){
           </div>
         </div>
         <div class="con-foot">
-          <span class="con-hint" id="conHint"></span>
+          <span><span class="con-budget hidden" id="conBudget"></span>
+          <span class="con-hint" id="conHint"></span></span>
           <span>
             <button class="btn small ghost" id="conClear"></button>
             <button class="btn good" id="conRun"></button>
@@ -150,7 +170,14 @@ window.CODE = (function(){
   }
 
   let palette=['shoot','repeat'];
+  let budget=0;
   function setPalette(list){ palette=list; }
+  function setBudget(n){ budget=n||0; }
+  function countBlocks(list){
+    list=list||script; let n=0;
+    for(const b of list){ n++; if(b.body) n+=countBlocks(b.body); }
+    return n;
+  }
 
   function blockHTML(b, readonly){
     const d=DEF[b.type];
@@ -204,6 +231,11 @@ window.CODE = (function(){
     el.querySelector('#conHint').textContent = dropTarget
       ? t('New blocks go INSIDE the repeat. Click the repeat again to stop.')
       : t('Click a block to add it. Click a repeat to put blocks inside it.');
+    const bl=el.querySelector('#conBudget');
+    if(budget){ bl.classList.remove('hidden');
+      const used=countBlocks();
+      bl.innerHTML=`${t('Blocks')}: <b class="${used>budget?'over':''}">${used}/${budget}</b>`;
+    } else bl.classList.add('hidden');
 
     paletteEl.innerHTML=palette.map(type=>{
       const d=DEF[type];
@@ -229,7 +261,9 @@ window.CODE = (function(){
       node.onclick=e=>{
         e.stopPropagation();
         const b=findBlock(+node.dataset.id);
-        dropTarget = (dropTarget && dropTarget.id===b.id) ? null : b;
+        // clicking the container you are already inside steps OUT one level,
+        // back to the loop that holds it — not all the way to the top
+        dropTarget = (dropTarget && dropTarget.id===b.id) ? findParent(b.id) : b;
         draw();
       };
     });
@@ -277,7 +311,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, compile, toText, highlight, setIter, hideTape, clear,
+  return { show, close, isOpen, setPalette, setBudget, countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get script(){ return script; },
            set onRun(fn){ onRun=fn; } };
 })();

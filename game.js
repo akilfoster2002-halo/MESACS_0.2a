@@ -267,7 +267,8 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset();
+  COMBAT.reset(); PUZZLE.stop();
+  if(id==='puzzles'){ G.missionId='puzzles'; G.running=true; PUZZLE.start(0); return; }
   G.missionId=id;
   G.arenaTitle = id==='range' ? 'Firing Range'
     : (id==='m1'?'The Loop Chamber': id==='m2'?'The Prism Vault':'The Off-By-One Foundry');
@@ -276,7 +277,7 @@ function startMissionRoom(id){
 
 /* ------------------------------------------------------- progression */
 const PROGRESS=(function(){
-  const ORDER=['intro','m1','m2','m3'];
+  const ORDER=['intro','m1','puzzles','m2','m3'];
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
   function save(){ try{ localStorage.setItem('dq_progress',JSON.stringify(done)); }catch(e){} }
@@ -287,6 +288,7 @@ const PROGRESS=(function(){
     isDone(id){ return !!done[id]; },
     unlocked(id){
       if(id==='range'||id==='intro') return true;
+      if(id==='puzzles') return !!done.m1;              // puzzles open once you can loop
       const i=ORDER.indexOf(id);
       return i<=0 ? true : !!done[ORDER[i-1]];
     },
@@ -309,8 +311,9 @@ function wireInput(){
     G.keys[e.code]=true;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
-    if((e.code==='KeyC'||e.code==='Tab') && G.room==='arena' && G.missionId!=='range'
-       && G.running && !COMBAT.busy && !COMBAT.dead){
+    if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
+    if((e.code==='KeyC'||e.code==='Tab') && G.running && G.missionId!=='range'
+       && (PUZZLE.active || G.room==='arena') && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
     }
@@ -377,7 +380,14 @@ let last=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000, 0.05); last=now;
-  if(G.running && !CODE.isOpen()){ step(dt); focusScan(); drawMap(); if(G.room==='arena') COMBAT.update(dt); }
+  if(G.running && !CODE.isOpen()){
+    if(!PUZZLE.active) step(dt);
+    else { G.camera.position.copy(G.pos); G.camera.rotation.order='YXZ';
+           G.camera.rotation.y=G.yaw; G.camera.rotation.x=G.pitch; GUN.update(dt,false); }
+    focusScan();
+    if(!PUZZLE.active) drawMap();
+    if(G.room==='arena'&&!PUZZLE.active) COMBAT.update(dt);
+  }
   G.renderer.render(G.scene,G.camera);
 }
 function step(dt){
@@ -488,7 +498,7 @@ function startMission(){
   renderObjectives(); brief(quests[0].brief);
 }
 function fire(ev,data={}){
-  if(G.room==='arena') return;         // the arena runs its own mission script
+  if(G.room==='arena' || PUZZLE.active) return;   // missions and vaults run their own scripts
   const q=quests[qi];
   if(!q||q.done) return;
   if(q.on!==ev) return;
@@ -514,7 +524,7 @@ function brief(html){
   briefTimer=setTimeout(()=>{
     // only restore a DESKTOP objective, and only while the desktop still owns the HUD —
     // otherwise this stamps "look at the icons" over a mission in another room
-    if(G.room!=='arena' && quests[qi]) b.innerHTML=t(quests[qi].brief);
+    if(G.room!=='arena' && !PUZZLE.active && quests[qi]) b.innerHTML=t(quests[qi].brief);
   }, 6000);
 }
 
@@ -572,7 +582,7 @@ function wireUI(){
   $('#sGo').onclick=begin;
   $('#dAgain').onclick=()=>{
     $('#done').classList.add('hidden');
-    COMBAT.reset();
+    COMBAT.reset(); PUZZLE.stop(); CODE.setBudget(0);
     G.missionId=null; G.running=true;
     buildRoom('plaza');
     if(!quests.length || quests.every(q=>q.done)) { brief(t('Pick a mission door. Locked ones need the mission before them.')); }
@@ -603,7 +613,11 @@ function setLang(l){
   if(G.running){ buildRoom(G.room); renderObjectives(); brief(quests[qi]?quests[qi].brief:''); }
   else updateMapLegend();
 }
-CODE.onRun=(steps)=>{ COMBAT.runProgram(steps); lockPointer($('#view')); };
+CODE.onRun=(steps)=>{
+  if(PUZZLE.active) PUZZLE.run(steps);
+  else COMBAT.runProgram(steps);
+  lockPointer($('#view'));
+};
 
 function begin(){
   $('#start').classList.add('hidden');

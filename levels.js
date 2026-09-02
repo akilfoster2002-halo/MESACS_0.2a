@@ -21,7 +21,8 @@ window.LEVELS = {
       {id:'range', name:'FIRING RANGE', emoji:'🎯', x:-2,  z:-17},
       {id:'m1',    name:'MISSION 1',    emoji:'🐛', x:8,   z:-17},
       {id:'m2',    name:'MISSION 2',    emoji:'🔮', x:16,  z:-13},
-      {id:'m3',    name:'MISSION 3',    emoji:'🧮', x:22,  z:-7}
+      {id:'m3',    name:'MISSION 3',    emoji:'🧮', x:22,  z:-7},
+      {id:'puzzles', name:'PUZZLE VAULTS', emoji:'🧩', x:-11, z:-13}
     ]
   },
   files:{
