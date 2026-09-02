@@ -124,6 +124,7 @@ function buildRoom(name){
   G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
   G.solids=[]; G.hits=[]; G.selected=null; G.focused=null;
   G.room=name;
+  clearTimeout(briefTimer);
   const L=window.LEVELS[name];
   G.scene.background=new THREE.Color(0x0c1524);
   G.scene.fog=new THREE.Fog(0x0c1524, 55, 170);
@@ -327,6 +328,8 @@ function focusScan(){
   const owner = hit ? (hit.object.userData.owner||null) : null;
   G.focused=owner;
   const box=$('#focus'), cross=$('#crosshair');
+  const onEnemy = hit && (hit.object.userData.drone || hit.object.userData.boss);
+  if(onEnemy){ cross.classList.add('on'); box.classList.add('hidden'); return; }
   if(owner){
     cross.classList.add('on'); box.classList.remove('hidden');
     const u=owner.userData;
@@ -370,7 +373,7 @@ function updateMapLegend(){
 /* ------------------------------------------------------- missions */
 const MISSION = [
   {id:'look',  short:'Find the icons',            on:'look',   match:d=>d.id==='files'||d.id==='paint'||d.id==='textedit',
-   brief:'Turn left and look at the <b>icons</b> in the top-left corner — the same corner they sit in on your real desktop.'},
+   brief:'Look to your <b>left</b> — those tall panels are the <b>icons</b>, in the same top-left corner they sit in on your real desktop.'},
   {id:'sel',   short:'Select the Files icon',      on:'select', match:d=>d.id==='files',
    brief:'Put the crosshair on the <b>Files</b> door and press the left button <b>one time</b>. One click only <b>chooses</b> it.'},
   {id:'open',  short:'Open Files with a double-click', on:'open', match:d=>d.id==='files',
@@ -414,7 +417,11 @@ let briefTimer=null;
 function brief(html){
   const b=$('#briefing'); b.innerHTML=t(html); b.classList.remove('hidden');
   clearTimeout(briefTimer);
-  briefTimer=setTimeout(()=>{ if(quests[qi]) b.innerHTML=t(quests[qi].brief); }, 6000);
+  briefTimer=setTimeout(()=>{
+    // only restore a DESKTOP objective, and only while the desktop still owns the HUD —
+    // otherwise this stamps "look at the icons" over a mission in another room
+    if(G.room!=='arena' && quests[qi]) b.innerHTML=t(quests[qi].brief);
+  }, 6000);
 }
 
 /* --------------------------------------------- flip to the flat desktop

@@ -50,7 +50,7 @@ window.ES = {
   'SELECTED':'ESCOGIDO','double-click to open':'doble clic para abrir','walk in':'entra caminando',
   /* objectives + briefings */
   'Find the icons':'Encuentra los iconos',
-  'Turn left and look at the <b>icons</b> in the top-left corner — the same corner they sit in on your real desktop.':'Gira a la izquierda y mira los <b>iconos</b> en la esquina de arriba a la izquierda — la misma esquina donde están en tu escritorio real.',
+  'Look to your <b>left</b> — those tall panels are the <b>icons</b>, in the same top-left corner they sit in on your real desktop.':'Mira a tu <b>izquierda</b> — esos paneles altos son los <b>iconos</b>, en la misma esquina de arriba a la izquierda donde están en tu escritorio real.',
   'Select the Files icon':'Escoge el icono Archivos',
   'Put the crosshair on the <b>Files</b> door and press the left button <b>one time</b>. One click only <b>chooses</b> it.':'Pon la mira en la puerta de <b>Archivos</b> y presiona el botón izquierdo <b>una vez</b>. Un clic solo lo <b>escoge</b>.',
   'Open Files with a double-click':'Abre Archivos con doble clic',
