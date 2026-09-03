@@ -327,6 +327,19 @@ window.ES = {
   'Play again':'Jugar otra vez',
   'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados',
 
+  /* ---------- difficulty ---------- */
+  'DIFFICULTY':'DIFICULTAD',
+  'DIFFICULTY — APPLIES TO EVERY MISSION':'DIFICULTAD — SE APLICA A TODAS LAS MISIONES',
+  'Super Easy':'Súper Fácil','Easy':'Fácil','Medium':'Normal','Hard':'Difícil',
+  'Almost no pressure. For a first ever program.':
+    'Casi sin presión. Para tu primer programa.',
+  'Room to think, but it is still coming.':
+    'Tiempo para pensar, pero sigue viniendo.',
+  'The game as designed. Write fast, write short.':
+    'El juego como fue diseñado. Escribe rápido, escribe corto.',
+  'Faster, meaner, and it hits back. Loops only.':
+    'Más rápido, más duro y contraataca. Solo con bucles.',
+
   /* ---------- checkpoint ---------- */
   'CHECKPOINT':'PUNTO DE CONTROL','Take a checkpoint?':'¿Tomar un punto de control?',
   'You have cleared three waves — enough to show you can use what this mission teaches. Keep going for the boss and full mastery, or stop here and take the quiz now.':

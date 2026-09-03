@@ -487,6 +487,8 @@ function togglePause(){
       <div class="p-lbl">${t('YOUR HINT')}</div>
       <div class="p-hint">${$('#briefing').innerHTML||'—'}</div>
       ${sk}
+      <div class="p-lbl">${t('DIFFICULTY')}</div>
+      <div class="diffrow" id="pDiff"></div>
       <div class="p-lbl">${t('KEYS')}</div>
       <div class="p-hint">${$('#keys').innerHTML}</div>
       <div style="text-align:center;margin-top:14px">
@@ -495,8 +497,25 @@ function togglePause(){
       </div>
     </div>`;
   p.classList.remove('hidden');
+  pauseDiff();
   $('#pClose').onclick=()=>togglePause();
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };
+}
+/* Difficulty is read live by the chase and the guns, so switching it here
+   lands on the next step and the next shot — no restart, and the program the
+   student has already written stays exactly where it is. */
+function pauseDiff(){
+  const row=$('#pDiff'); if(!row || !window.DIFF) return;
+  row.innerHTML='';
+  DIFF.LEVELS.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='diffbtn'+(d.id===DIFF.current?' on':'');
+    b.style.setProperty('--a', d.a);
+    b.innerHTML=`<span class="dem">${d.em}</span><b>${t(d.name)}</b>`;
+    b.onclick=()=>{ DIFF.set(d.id); pauseDiff(); if(window.beep) beep('pop');
+                    if(window.MENU) MENU.render(); };
+    row.appendChild(b);
+  });
 }
 function step(dt){
   // In the corridor the program drives — the keys do nothing, but the camera

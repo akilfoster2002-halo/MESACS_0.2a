@@ -191,7 +191,9 @@ window.NAV = (function(){
     if(!L || L.done || L.caught || !L.zom.mesh) return;
     if(!document.querySelector('#teach').classList.contains('hidden')) return;
     if(!document.querySelector('#pause').classList.contains('hidden')) return;
-    const z=L.zom, spd=(L.S.speed||CHASE);
+    // read the difficulty every frame, so changing it from the pause menu
+    // is felt on the next step rather than the next stage
+    const z=L.zom, spd=(L.S.speed||CHASE)*(window.DIFF?DIFF.chase():1);
     // it stands and looks at you first, so you get a beat to read the corridor
     if(L.grace>0){
       L.grace-=dt;

@@ -148,8 +148,9 @@ window.PUZZLE = (function(){
       const d=Math.hypot(dx,dz);
       if(d<0.25){ g.i=(g.i+1)%g.route.length; }
       else {
-        g.mesh.position.x += dx/d*g.speed*dt;
-        g.mesh.position.z += dz/d*g.speed*dt;
+        const gs=g.speed*(window.DIFF?DIFF.chase():1);
+        g.mesh.position.x += dx/d*gs*dt;
+        g.mesh.position.z += dz/d*gs*dt;
         g.mesh.position.y  = L.built.heightAt(g.mesh.position.x, g.mesh.position.z,
                                               g.mesh.position.y);
         g.mesh.rotation.y = Math.atan2(-dx,-dz)+Math.PI;
@@ -159,7 +160,7 @@ window.PUZZLE = (function(){
     });
     // camera sweeps unless a program has parked it
     if(L.camera && !L.blinded){
-      L.camera.sweep += dt*0.7*L.camera.dir;
+      L.camera.sweep += dt*0.7*L.camera.dir*(window.DIFF?DIFF.chase():1);
       if(Math.abs(L.camera.sweep)>0.9) L.camera.dir*=-1;
       L.camera.grp.rotation.y = L.camera.angle + L.camera.sweep;
       if(sees(L.camera.grp.position, L.camera.grp.rotation.y, 11, 0.5)) caught(t('The camera saw you!'));

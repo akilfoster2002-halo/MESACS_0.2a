@@ -253,6 +253,20 @@ button{font-family:var(--font);cursor:pointer}
 .mis.locked{opacity:.5;cursor:not-allowed;filter:grayscale(.55)}
 .mis.done{border-color:var(--star)} .mis.done .tagrow{color:var(--star)}
 
+/* ---------- difficulty picker ---------- */
+.difflbl{font-size:11.5px;letter-spacing:2.2px;color:var(--mint);font-weight:bold;margin-top:4px}
+.diffrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px;margin:8px 0 2px}
+.diffbtn{background:var(--panel2);border:3px solid var(--line);border-radius:14px;
+  padding:9px 10px;text-align:left;color:var(--text);cursor:pointer;display:flex;
+  flex-direction:column;gap:2px;transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s}
+.diffbtn .dem{font-size:20px;line-height:1}
+.diffbtn b{font-size:14.5px}
+.diffbtn small{font-size:11.5px;color:var(--muted);line-height:1.3}
+.diffbtn:hover{transform:translateY(-3px);border-color:var(--a,#8fd3ff)}
+.diffbtn.on{border-color:var(--a,#8fd3ff);background:#2b2350;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--a,#8fd3ff) 30%, transparent)}
+.diffbtn.on b{color:var(--a,#8fd3ff)}
+
 #charRow{display:flex;gap:9px;overflow-x:auto;padding:9px 2px 4px}
 .chr{flex:none;width:76px;height:88px;border-radius:18px;border:3px solid var(--line);
   background:#221a3c;padding:3px;cursor:pointer;
@@ -624,6 +638,8 @@ button{font-family:var(--font);cursor:pointer}
         <button class="btn small ghost" id="mLang">🌐 Español</button>
       </div>
     </div>
+    <div class="difflbl" id="mDiffLbl"></div>
+    <div class="diffrow" id="diffRow"></div>
     <div class="misgrid" id="misGrid"></div>
     <p class="sub" id="mHint" style="font-size:13.5px"></p>
   </div>
@@ -650,20 +666,21 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=62"></script>
-<script src="strings.js?v=62"></script>
-<script src="net.js?v=62"></script>
-<script src="avatar.js?v=62"></script>
-<script src="zombies.js?v=62"></script>
-<script src="building.js?v=62"></script>
-<script src="levels.js?v=62"></script>
-<script src="code.js?v=62"></script>
-<script src="combat.js?v=62"></script>
-<script src="puzzle.js?v=62"></script>
-<script src="nav.js?v=62"></script>
-<script src="quiz.js?v=62"></script>
-<script src="chars.js?v=62"></script>
-<script src="menu.js?v=62"></script>
-<script src="game.js?v=62"></script>
+<script src="lib/three.classic.js?v=63"></script>
+<script src="strings.js?v=63"></script>
+<script src="difficulty.js?v=63"></script>
+<script src="net.js?v=63"></script>
+<script src="avatar.js?v=63"></script>
+<script src="zombies.js?v=63"></script>
+<script src="building.js?v=63"></script>
+<script src="levels.js?v=63"></script>
+<script src="code.js?v=63"></script>
+<script src="combat.js?v=63"></script>
+<script src="puzzle.js?v=63"></script>
+<script src="nav.js?v=63"></script>
+<script src="quiz.js?v=63"></script>
+<script src="chars.js?v=63"></script>
+<script src="menu.js?v=63"></script>
+<script src="game.js?v=63"></script>
 </body>
 </html>

@@ -108,6 +108,7 @@ window.MENU = (function(){
     $('#mHint').textContent = t('Finish a mission to unlock the next one.');
     const mc=$('#mChar'); if(mc) mc.textContent='🙂 '+t('Character');
     renderChars();
+    renderDiff();
     grid.innerHTML='';
     MISSIONS.forEach(m=>{
       const open_ = PROGRESS.unlocked(m.id);
@@ -125,6 +126,24 @@ window.MENU = (function(){
   }
   // the character grid lives on its own screen now
   function renderChars(){ if(window.CHARS) CHARS.render(); }
+
+  /* The difficulty row. It sits above the missions because it applies to all
+     of them — picking it after choosing a mission would read as a per-mission
+     setting, which it is not. */
+  function renderDiff(){
+    const row=$('#diffRow'); if(!row || !window.DIFF) return;
+    const lbl=$('#mDiffLbl');
+    if(lbl) lbl.textContent=t('DIFFICULTY — APPLIES TO EVERY MISSION');
+    row.innerHTML='';
+    DIFF.LEVELS.forEach(d=>{
+      const b=document.createElement('button');
+      b.className='diffbtn'+(d.id===DIFF.current?' on':'');
+      b.style.setProperty('--a', d.a);
+      b.innerHTML=`<span class="dem">${d.em}</span><b>${t(d.name)}</b><small>${t(d.blurb)}</small>`;
+      b.onclick=()=>{ DIFF.set(d.id); renderDiff(); if(window.beep) beep('pop'); };
+      row.appendChild(b);
+    });
+  }
   function labelOf(id){
     return ({nav:'Escape — Corridors', m1:'Mission 1 — Loops',
              m2:'Mission 2 — Choices', m3:'Mission 3 — Functions'})[id]||id;
