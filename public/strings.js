@@ -327,6 +327,19 @@ window.ES = {
   'Play again':'Jugar otra vez',
   'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados',
 
+  /* ---------- sign-in and free play ---------- */
+  'SIGN IN':'INICIAR SESIÓN','Sign in':'Iniciar sesión','Sign out':'Cerrar sesión',
+  'Sign in / Join a class':'Inicia sesión / Únete a una clase',
+  'An account saves your progress on any computer and opens Free Play.':
+    'Una cuenta guarda tu progreso en cualquier computadora y abre el Juego Libre.',
+  'I have an account':'Ya tengo cuenta','Join a class':'Únete a una clase',
+  'Sign in ▶':'Entrar ▶','Create my account ▶':'Crear mi cuenta ▶',
+  'Play as a guest':'Jugar como invitado',
+  'Free Play':'Juego Libre',
+  'The one room your class shares. Walk about together and chat.':
+    'La sala que comparte tu clase. Caminen juntos y platiquen.',
+  'Sign in to play together':'Inicia sesión para jugar juntos',
+
   /* ---------- circuit ---------- */
   'YOUR CAR':'TU COCHE','Scarlet':'Escarlata','Chalk':'Tiza','Ember':'Brasa','Clover':'Trébol',
   'Finish the Circuit':'Termina el Circuito','Beat a target time':'Baja de un tiempo objetivo',

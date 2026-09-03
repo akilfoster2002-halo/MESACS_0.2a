@@ -382,6 +382,11 @@ button{font-family:var(--font);cursor:pointer}
 @keyframes playPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @keyframes koroFloat{0%,100%{transform:translateY(0) rotate(-.6deg)}50%{transform:translateY(-9px) rotate(.6deg)}}
 .hero .langrow{margin-top:20px}
+/* quiet enough that it never competes with START, legible over the photo */
+.signlink{margin-top:14px;background:rgba(10,30,55,.42);border:2px solid rgba(255,255,255,.5);
+  color:#fff;border-radius:12px;padding:7px 18px;font-size:14.5px;font-weight:bold;
+  letter-spacing:.4px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.signlink:hover{background:rgba(10,30,55,.62);border-color:#fff}
 #start .langbtn{background:rgba(255,255,255,.86);border-color:#fff;color:#12405e;font-weight:bold}
 #start .langbtn.on{background:#ffd44d;color:#5a3d00}
 
@@ -606,6 +611,9 @@ button{font-family:var(--font);cursor:pointer}
       <span class="grass"></span><span class="dirt"></span><span class="shade"></span>
     </div>
     <button class="btn good bigplay" id="btnStart">START</button>
+    <!-- signing in is optional: it saves progress across machines and opens
+         Free Play, but START still takes a guest straight into the game -->
+    <button class="signlink" id="sSignIn"></button>
     <div class="langrow">
       <button class="langbtn" data-lang="en">🇺🇸 English</button>
       <button class="langbtn" data-lang="es">🇲🇽 Español</button>
@@ -630,6 +638,35 @@ button{font-family:var(--font);cursor:pointer}
   </div>
 </div>
 
+<div id="auth" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="card" style="max-width:560px">
+    <h1 class="scrtitle" id="aTitle">SIGN IN</h1>
+    <div class="sub" id="aSub"></div>
+    <div class="tabs">
+      <button class="tab on" data-tab="in" id="tabIn"></button>
+      <button class="tab" data-tab="up" id="tabUp"></button>
+    </div>
+    <form class="authform" id="formIn" autocomplete="off">
+      <input id="inUser" maxlength="20" autocomplete="username" placeholder="username">
+      <input id="inPass" type="password" maxlength="64" autocomplete="current-password" placeholder="password">
+      <button class="btn good" id="btnIn" type="submit"></button>
+    </form>
+    <form class="authform hidden" id="formUp" autocomplete="off">
+      <input id="upCode" maxlength="12" placeholder="class code">
+      <input id="upUser" maxlength="20" autocomplete="username" placeholder="username">
+      <input id="upName" maxlength="16" placeholder="display name">
+      <input id="upPass" type="password" maxlength="64" autocomplete="new-password" placeholder="password">
+      <button class="btn good" id="btnUp" type="submit"></button>
+    </form>
+    <div class="authmsg" id="authMsg"></div>
+    <div class="charfoot">
+      <button class="btn ghost small" id="aBack">◀</button>
+      <button class="btn ghost" id="btnGuest"></button>
+    </div>
+  </div>
+</div>
+
 <div id="menu" class="screen hidden">
   <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="card menucard">
@@ -637,6 +674,7 @@ button{font-family:var(--font);cursor:pointer}
       <div><h1 id="mTitle" class="koro">KORO</h1><div class="korotag" id="mWho"></div></div>
       <div class="menubtns">
         <button class="btn small ghost" id="mChar"></button>
+        <button class="btn small ghost" id="mOut"></button>
         <button class="btn small ghost" id="mLang">🌐 Español</button>
       </div>
     </div>

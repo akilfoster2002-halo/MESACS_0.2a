@@ -8,7 +8,7 @@ window.MENU = (function(){
 
   /* One screen hands over to the next with a short cross-fade, so a student
      always sees where they came from and where they landed. */
-  const SCREENS=['#start','#chars','#menu'];
+  const SCREENS=['#start','#chars','#auth','#menu'];
   let showing=null;
   function show(sel, after){
     if(showing===sel) return;
@@ -46,7 +46,10 @@ window.MENU = (function(){
     {id:'m2',    em:'🔮', a:'#cdb4f6', name:'Mission 2 — Choices',
      blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
-     blurb:'define combo. OFF-BY-ONE always has one more.'}
+     blurb:'define combo. OFF-BY-ONE always has one more.'},
+    {id:'free',  em:'🌐', a:'#cdb4f6', name:'Free Play',
+     blurb:'The one room your class shares. Walk about together and chat.',
+     needsAccount:true}
   ];
 
   /* ------------------------------------------------------- auth screen */
@@ -94,7 +97,13 @@ window.MENU = (function(){
     const cb=$('#cBack');    if(cb) cb.onclick=()=>start();
     const cg=$('#cGo');      if(cg) cg.onclick=()=>{ if(window.CHARS) CHARS.close(); open(); };
     const mc=$('#mChar');    if(mc) mc.onclick=()=>chars();
-    const out=$('#mOut'); if(out) out.onclick=async()=>{ await NET.logout(); location.reload(); };
+    const out=$('#mOut');
+    if(out) out.onclick=async()=>{
+      if(!NET.signedIn) return auth();
+      await NET.logout(); location.reload();
+    };
+    const si=$('#sSignIn'); if(si) si.onclick=()=>auth();
+    const ab=$('#aBack');   if(ab) ab.onclick=()=>start();
     $('#mLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   }
   function afterSignIn(){
@@ -115,20 +124,22 @@ window.MENU = (function(){
     renderDiff();
     grid.innerHTML='';
     MISSIONS.forEach(m=>{
-      const open_ = PROGRESS.unlocked(m.id);
+      const needsIn = m.needsAccount && !NET.signedIn;
+      const open_ = PROGRESS.unlocked(m.id) && !needsIn;
       const done  = PROGRESS.isDone(m.id);
       const b=document.createElement('button');
       b.className='mis'+(open_?'':' locked')+(done?' done':'');
       b.style.setProperty('--a', m.a||'#8fd3ff');
       // level 0 is practice: it never locks, and finishing it invites a replay
       // rather than closing the door with a COMPLETE stamp
-      const tag = !open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
+      const tag = needsIn ? '🔒 '+t('Sign in to play together')
+                : !open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
                 : done ? (m.id==='tut' ? '⭐ '+t('PRACTISE AGAIN ▶')
                      : m.id==='race' ? '⭐ '+t('BEAT YOUR TIME ▶') : '⭐ '+t('COMPLETE'))
                 : t('PLAY ▶');
       b.innerHTML=`<div class="em">${m.em}</div><b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
-      b.onclick=()=>{ if(!open_) return; launch(m.id); };
+      b.onclick=()=>{ if(needsIn) return auth(); if(!open_) return; launch(m.id); };
       grid.appendChild(b);
     });
   }
@@ -170,8 +181,26 @@ window.MENU = (function(){
     if(window.CHARS) CHARS.close();
     $('#btnStart').textContent=t('START');
     $('#sTag').textContent=t('THINK. CODE. CREATE.');
+    const si=$('#sSignIn');
+    if(si) si.textContent = NET.signedIn ? '👤 '+NET.nameOf() : t('Sign in / Join a class');
     if(document.pointerLockElement) document.exitPointerLock();
     show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
+  }
+  /* Sign-in is its own screen, and it is never in the way: START goes
+     straight to the game as a guest. An account buys two things — progress
+     that follows you to any machine, and Free Play. */
+  function auth(){
+    G.running=false;
+    $('#hud').classList.add('hidden');
+    if(window.CHARS) CHARS.heroClose();
+    $('#aTitle').textContent=t('SIGN IN');
+    $('#aSub').textContent=t('An account saves your progress on any computer and opens Free Play.');
+    $('#tabIn').textContent=t('I have an account');
+    $('#tabUp').textContent=t('Join a class');
+    $('#btnIn').textContent=t('Sign in ▶');
+    $('#btnUp').textContent=t('Create my account ▶');
+    $('#btnGuest').textContent=t('Play as a guest');
+    show('#auth');
   }
   /* who are you playing as */
   function chars(){
@@ -203,7 +232,7 @@ window.MENU = (function(){
     lockPointer($('#view'));
   }
 
-  return { open, start, chars, render, renderChars, wireAuth, launch, hideAll };
+  return { open, start, chars, auth, render, renderChars, wireAuth, launch, hideAll };
 })();
 
 /* =====================================================================
@@ -212,7 +241,7 @@ window.MENU = (function(){
 window.FREE = (function(){
   let others=new Map(), group=null;
   function enter(){
-    COMBAT.reset(); PUZZLE.stop();
+    COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     G.missionId=null; G.arenaTitle='Free Play';
     buildRoom('free');
     group=new THREE.Group(); G.roomGroup.add(group);
