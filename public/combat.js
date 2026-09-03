@@ -24,6 +24,7 @@ window.COMBAT = (function(){
   let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
   let runToken=0;                       // bumped whenever the field is torn down
   let stage=0, busy=false, mission=null, hp=100, lastHurt=0, dead=false, targetCol=null;
+  let stopRun=false;                    // cut a program short once the room is empty
   let stageDone=false, checkT=null;
   const MAXHP=100, STEP_MS=520, ITER_MS=210;
   // INVARIANT: ARMOUR_RESEAL < MANUAL_CD. Armour must always be back to full
@@ -305,12 +306,15 @@ window.COMBAT = (function(){
     G.hits=G.hits.filter(h=>h!==e.mesh.userData.body);
     enemies=enemies.filter(x=>x!==e);
     if(window.beep) beep('star');
+    // the wave ends when the last one drops, not when the program runs out of
+    // shots — nobody should have to watch the rest of it fire at empty air
+    if(!enemies.length) stopRun=true;
     // a wave cleared with the trigger has to advance too - only programs
     // used to reach checkStage(), which left the room empty and the mission stuck
     scheduleCheck();
   }
   function killBoss(b){
-    b.dead=true; spark(b.mesh.position,0xffffff);
+    b.dead=true; stopRun=true; spark(b.mesh.position,0xffffff);
     G.roomGroup.remove(b.mesh);
     G.hits=G.hits.filter(h=>h!==b.mesh.userData.body);
     boss=null;
@@ -337,14 +341,15 @@ window.COMBAT = (function(){
   }
   function runProgram(steps){
     if(busy||dead) return;
-    busy=true;
+    busy=true; stopRun=false;
     const token=runToken;
     let i=0;
     (function next(){
       if(dead || token!==runToken){ busy=false; CODE.hideTape(); return; }
-      if(i>=steps.length){
+      if(stopRun || i>=steps.length){
+        const early=stopRun; stopRun=false;
         busy=false; CODE.highlight(null);
-        setTimeout(()=>{ CODE.hideTape(); afterProgram(); },500);
+        setTimeout(()=>{ CODE.hideTape(); afterProgram(); }, early?260:500);
         return;
       }
       const s=steps[i++];

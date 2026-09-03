@@ -260,7 +260,7 @@ let codeBtnState=null;
 function updateCodeBtn(){
   const btn=$('#codeBtn'); if(!btn) return;
   const usable = G.running && !CODE.isOpen() &&
-    (PUZZLE.active || (G.hudOwner==='mission' && G.missionId && G.missionId!=='range'));
+    (PUZZLE.active || NAV.active || (G.hudOwner==='mission' && G.missionId));
   if(usable===codeBtnState) return;
   codeBtnState=usable;
   btn.classList.toggle('hidden',!usable);
@@ -329,17 +329,18 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset(); PUZZLE.stop();
+  COMBAT.reset(); PUZZLE.stop(); NAV.stop();
+  if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
   G.hudOwner='mission';
   G.missionId=id;
-  G.arenaTitle = id==='range' ? 'Firing Range'
-    : (id==='m1'?'The Loop Chamber': id==='m2'?'The Prism Vault':'The Off-By-One Foundry');
+  G.arenaTitle = id==='m1'?'The Loop Chamber'
+    : id==='m2'?'The Prism Vault':'The Off-By-One Foundry';
   buildRoom('arena');
 }
 
 /* ------------------------------------------------------- progression */
 const PROGRESS=(function(){
-  const ORDER=['m1','m2','m3'];
+  const ORDER=['nav','m1','m2','m3'];
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
   function save(){
@@ -352,7 +353,7 @@ const PROGRESS=(function(){
     complete(id){ if(!id) return; done[id]=true; save(); if(window.MENU) MENU.render(); },
     isDone(id){ return !!done[id]; },
     unlocked(id){
-      if(id==='range'||id==='free') return true;
+      if(id==='free') return true;
       const i=ORDER.indexOf(id);
       return i<=0 ? true : !!done[ORDER[i-1]];
     },
@@ -376,6 +377,7 @@ function wireInput(){
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
+    if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
     if(e.code==='KeyE' && PUZZLE.active && G.running){ e.preventDefault(); PUZZLE.use(); return; }
     // results and knock-out screens advance on SPACE - no Esc, no hunting for the button
     if(!$('#done').classList.contains('hidden')){
@@ -405,8 +407,9 @@ function wireInput(){
       else CHAT.focus();
       return;
     }
-    if((e.code==='KeyC'||e.code==='Tab') && G.running && G.missionId!=='range'
-       && (PUZZLE.active || G.room==='arena') && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy){
+    if((e.code==='KeyC'||e.code==='Tab') && G.running
+       && (PUZZLE.active || NAV.active || G.room==='arena')
+       && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
     }
@@ -446,12 +449,13 @@ function loop(now){
   const dt=Math.min((now-last)/1000, 0.05); last=now;
   updateCodeBtn();
   if(G.running && !frozen()){
-    step(dt);                       // you always walk yourself now
+    step(dt);
+    if(NAV.active) NAV.update(dt);
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(PUZZLE.active) PUZZLE.map();
-    else if(G.room) drawMap();
-    if(G.room==='arena'&&!PUZZLE.active) COMBAT.update(dt);
+    else if(!NAV.active && G.room) drawMap();
+    if(G.room==='arena'&&!PUZZLE.active&&!NAV.active) COMBAT.update(dt);
     if(G.room==='free') FREE.tick();
   }
   G.renderer.render(G.scene,G.camera);
@@ -491,11 +495,14 @@ function togglePause(){
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };
 }
 function step(dt){
+  // In the corridor the program drives — the keys do nothing, but the camera
+  // still has to follow the body the program is moving.
+  const driven = NAV.active;
   // turn with arrows too, so a student who cannot manage mouse-look can still play
-  if(G.keys.ArrowLeft)  G.yaw += 2.0*dt;
-  if(G.keys.ArrowRight) G.yaw -= 2.0*dt;
-  const fwd = (G.keys.KeyW||G.keys.ArrowUp?1:0) - (G.keys.KeyS||G.keys.ArrowDown?1:0);
-  const str = (G.keys.KeyD?1:0) - (G.keys.KeyA?1:0);
+  if(!driven && G.keys.ArrowLeft)  G.yaw += 2.0*dt;
+  if(!driven && G.keys.ArrowRight) G.yaw -= 2.0*dt;
+  const fwd = driven ? 0 : (G.keys.KeyW||G.keys.ArrowUp?1:0) - (G.keys.KeyS||G.keys.ArrowDown?1:0);
+  const str = driven ? 0 : (G.keys.KeyD?1:0) - (G.keys.KeyA?1:0);
   const spd = (G.keys.ShiftLeft||G.keys.ShiftRight)?11:6.5;
   const sin=Math.sin(G.yaw), cos=Math.cos(G.yaw);
   let dx = (-sin*fwd + cos*str)*spd*dt;
@@ -504,7 +511,7 @@ function step(dt){
   moveAxis('x',dx); moveAxis('z',dz);
   // stand on whatever the level calls the floor here, and jump off it
   const floor = (G.ground ? G.ground(G.pos.x, G.pos.z, G.pos.y-EYE) : 0) + EYE;
-  if(G.onGround && G.keys.Space){ G.vel.y = JUMP; G.onGround = false; }
+  if(G.onGround && G.keys.Space && !driven){ G.vel.y = JUMP; G.onGround = false; }
   if(G.onGround){
     if(floor < G.pos.y - 0.6){ G.onGround=false; G.vel.y=0; }   // walked off an edge
     else G.pos.y += (floor - G.pos.y) * Math.min(1, dt*14);     // ease over treads
@@ -650,9 +657,9 @@ function setLang(l){
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{
-  if(PUZZLE.active) PUZZLE.run(steps);
-  else COMBAT.runProgram(steps);
-  lockPointer($('#view'));
+  if(NAV.active) NAV.run(steps);
+  else if(PUZZLE.active) PUZZLE.run(steps);
+  else { COMBAT.runProgram(steps); lockPointer($('#view')); }
 };
 
 function showResults(o){
@@ -676,5 +683,5 @@ requestAnimationFrame(loop);
   // the first thing a student has to get past
   MENU.wireAuth();
   try{ const u = await NET.resume(); if(u && u.progress) PROGRESS.load(u.progress); }catch(e){}
-  MENU.open();
+  MENU.start();
 })();

@@ -6,9 +6,37 @@
 window.MENU = (function(){
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
+  /* One screen hands over to the next with a short cross-fade, so a student
+     always sees where they came from and where they landed. */
+  const SCREENS=['#start','#chars','#menu'];
+  let showing=null;
+  function show(sel, after){
+    if(showing===sel) return;
+    const next=$(sel);
+    const prev=showing ? $(showing) : null;
+    showing=sel;
+    if(prev){
+      prev.classList.remove('anim-in');
+      prev.classList.add('anim-out');
+      setTimeout(()=>{ prev.classList.add('hidden'); prev.classList.remove('anim-out'); }, 260);
+    }
+    SCREENS.filter(x=>x!==sel).forEach(x=>{ if(x!==showing && $(x)!==prev) $(x).classList.add('hidden'); });
+    setTimeout(()=>{
+      next.classList.remove('hidden','anim-out');
+      next.classList.add('anim-in');
+      setTimeout(()=>next.classList.remove('anim-in'), 520);
+      if(after) after();
+    }, prev?200:0);
+  }
+  function hideAll(){
+    SCREENS.forEach(x=>{ const e=$(x); if(e) e.classList.add('hidden'); });
+    showing=null;
+    if(window.CHARS) CHARS.close();
+  }
+
   const MISSIONS=[
-    {id:'range', em:'🎯', a:'#8fd3ff', name:'Firing Range',
-     blurb:'Warm up your aim. No code, just targets and a clock.'},
+    {id:'nav',   em:'🏃', a:'#8fd3ff', name:'Escape — Corridors',
+     blurb:'Something is behind you. Write the moves that get you out, fast.'},
     {id:'m1',    em:'🧟', a:'#a8e6cf', name:'Mission 1 — Loops',
      blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
     {id:'m2',    em:'🔮', a:'#cdb4f6', name:'Mission 2 — Choices',
@@ -19,32 +47,37 @@ window.MENU = (function(){
 
   /* ------------------------------------------------------- auth screen */
   function authMsg(text, good){
-    const el=$('#authMsg'); el.textContent=text||''; el.classList.toggle('good',!!good);
+    const el=$('#authMsg'); if(!el) return;
+    el.textContent=text||''; el.classList.toggle('good',!!good);
   }
+  /* The sign-in form is off the landing now.  Everything below still works
+     if the markup is put back, and quietly does nothing while it is not. */
   async function wireAuth(){
-    // say plainly when accounts are not connected instead of failing on submit
-    const up = await NET.health();
-    if(!up){
-      $('#authMsg').textContent = t('Sign-in is not connected yet — you can still play as a guest.');
-      ['#inUser','#inPass','#upCode','#upUser','#upName','#upPass'].forEach(sel=>{
-        const el=$(sel); if(el) el.disabled=true;
-      });
-      $('#btnIn').disabled=true; $('#btnUp').disabled=true;
+    if($('#authMsg')){
+      const up = await NET.health();
+      if(!up){
+        authMsg(t('Sign-in is not connected yet — you can still play as a guest.'));
+        ['#inUser','#inPass','#upCode','#upUser','#upName','#upPass','#btnIn','#btnUp']
+          .forEach(sel=>{ const el=$(sel); if(el) el.disabled=true; });
+      }
     }
     $$('.tab').forEach(b=>b.onclick=()=>{
       $$('.tab').forEach(x=>x.classList.toggle('on',x===b));
-      $('#formIn').classList.toggle('hidden', b.dataset.tab!=='in');
-      $('#formUp').classList.toggle('hidden', b.dataset.tab!=='up');
+      const fi=$('#formIn'), fu=$('#formUp');
+      if(fi) fi.classList.toggle('hidden', b.dataset.tab!=='in');
+      if(fu) fu.classList.toggle('hidden', b.dataset.tab!=='up');
       authMsg('');
     });
-    $('#formIn').onsubmit=async e=>{
+    const formIn=$('#formIn');
+    if(formIn) formIn.onsubmit=async e=>{
       e.preventDefault(); authMsg(t('Signing in…'));
       try{
         await NET.login($('#inUser').value.trim(), $('#inPass').value);
         afterSignIn();
       }catch(err){ authMsg(err.message); }
     };
-    $('#formUp').onsubmit=async e=>{
+    const formUp=$('#formUp');
+    if(formUp) formUp.onsubmit=async e=>{
       e.preventDefault(); authMsg(t('Creating your account…'));
       try{
         await NET.register({ classCode:$('#upCode').value.trim(), username:$('#upUser').value.trim(),
@@ -53,6 +86,10 @@ window.MENU = (function(){
       }catch(err){ authMsg(err.message); }
     };
     const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ open(); };
+    const st=$('#btnStart'); if(st) st.onclick=()=>chars();
+    const cb=$('#cBack');    if(cb) cb.onclick=()=>start();
+    const cg=$('#cGo');      if(cg) cg.onclick=()=>{ if(window.CHARS) CHARS.close(); open(); };
+    const mc=$('#mChar');    if(mc) mc.onclick=()=>chars();
     const out=$('#mOut'); if(out) out.onclick=async()=>{ await NET.logout(); location.reload(); };
     $('#mLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   }
@@ -69,6 +106,7 @@ window.MENU = (function(){
     $('#mWho').textContent = t('Pick who you are. Pick a mission. Write the code that wins it.');
     const out=$('#mOut'); if(out) out.textContent = NET.signedIn ? t('Sign out') : t('Sign in');
     $('#mHint').textContent = t('Finish a mission to unlock the next one.');
+    const mc=$('#mChar'); if(mc) mc.textContent='🙂 '+t('Character');
     renderChars();
     grid.innerHTML='';
     MISSIONS.forEach(m=>{
@@ -85,37 +123,47 @@ window.MENU = (function(){
       grid.appendChild(b);
     });
   }
-  function renderChars(){
-    const row=$('#charRow'); if(!row) return;
-    $('#charLbl').textContent=t('YOUR CHARACTER');
-    $('#charHint').textContent=t('Pick who you play as. This is you in every mission.');
-    row.innerHTML=AVATAR.CHARS.map(c=>
-      `<button class="chr${c.id===AVATAR.chosen?' on':''}" data-c="${c.id}" title="${c.name}">
-         <img src="${c.preview}" alt="${c.name}" loading="lazy">
-       </button>`).join('');
-    row.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
-      AVATAR.pick(b.dataset.c); renderChars();
-    });
-  }
+  // the character grid lives on its own screen now
+  function renderChars(){ if(window.CHARS) CHARS.render(); }
   function labelOf(id){
-    return ({m1:'Mission 1 — Loops', m2:'Mission 2 — Choices',
-             m3:'Mission 3 — Functions'})[id]||id;
+    return ({nav:'Escape — Corridors', m1:'Mission 1 — Loops',
+             m2:'Mission 2 — Choices', m3:'Mission 3 — Functions'})[id]||id;
   }
 
-  function open(){
+  /* the landing: a name and one button */
+  function start(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
     $('#downed').classList.add('hidden');
-    $('#start').classList.add('hidden');
-    $('#menu').classList.remove('hidden');
+    if(window.CHARS) CHARS.close();
+    $('#sSub').textContent=t('Learn to code by getting out alive.');
+    $('#btnStart').textContent=t('START');
+    if(document.pointerLockElement) document.exitPointerLock();
+    show('#start');
+  }
+  /* who are you playing as */
+  function chars(){
+    G.running=false;
+    $('#hud').classList.add('hidden');
+    show('#chars', ()=>{ if(window.CHARS) CHARS.open(); });
+  }
+  function open(){
+    G.running=false;
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop();
+    NET.disconnect(); CHAT.hide();
+    $('#hud').classList.add('hidden');
+    $('#done').classList.add('hidden');
+    $('#downed').classList.add('hidden');
+    if(window.CHARS) CHARS.close();
     if(document.pointerLockElement) document.exitPointerLock();
     render();
+    show('#menu');
   }
   function launch(id){
-    $('#menu').classList.add('hidden');
+    hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
     if(id==='free') return FREE.enter();
@@ -123,7 +171,7 @@ window.MENU = (function(){
     lockPointer($('#view'));
   }
 
-  return { open, render, renderChars, wireAuth, launch };
+  return { open, start, chars, render, renderChars, wireAuth, launch, hideAll };
 })();
 
 /* =====================================================================

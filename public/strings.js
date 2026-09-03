@@ -8,6 +8,26 @@ window.ES = {
   'Click the screen to look around with the mouse. Press Esc to let the mouse go.':'Haz clic en la pantalla para mirar con el ratón. Presiona Esc para soltar el ratón.',
   'Move':'Moverse','Turn':'Girar','Look':'Mirar','Select':'Escoger','Open':'Abrir','Run':'Correr',
   'Jump':'Saltar','THE FIELD':'EL CAMPO','PLAY ▶':'JUGAR ▶',
+  'START':'EMPEZAR','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
+  'CHOOSE YOUR CHARACTER':'ELIGE TU PERSONAJE','Continue ▶':'Continuar ▶','Character':'Personaje',
+  'Locked':'Bloqueado','Everyone is unlocked. Pick your favourite.':'Todos desbloqueados. Elige tu favorito.',
+  '{a} of {b} unlocked — finish a mission to open more.':
+    '{a} de {b} desbloqueados — termina una misión para abrir más.',
+  'Escape — Corridors':'Escape — Pasillos','THE CORRIDOR':'EL PASILLO',
+  'Something is behind you. Write the moves that get you out, fast.':
+    'Algo te sigue. Escribe los movimientos que te sacan, rápido.',
+  'Green door = out. Red = it.':'Puerta verde = salida. Rojo = él.',
+  'Escape {n} — {name}':'Escape {n} — {name}','ESCAPE {n}':'ESCAPE {n}',
+  'Round the Corner':'A la Vuelta','The Long Hall':'El Pasillo Largo',
+  'Run for it ▶':'¡Corre! ▶','Turning':'Girar',
+  'It steps once for every block you run — and the clock is already going.':
+    'Da un paso por cada bloque que ejecutas — y el reloj ya corre.',
+  'Program finished — but you are not out yet.':'El programa terminó — pero aún no has salido.',
+  '🧟 It caught you. Shorter program — every block lets it step.':
+    '🧟 Te atrapó. Programa más corto — cada bloque le deja avanzar.',
+  'Out! Next corridor…':'¡Fuera! Siguiente pasillo…','YOU GOT OUT':'SALISTE',
+  'You wrote your way out of three corridors with something chasing you.':
+    'Escribiste tu salida de tres pasillos con algo persiguiéndote.',
   'Pick who you play as. This is you in every mission.':
     'Elige a quién juegas. Eres tú en cada misión.',
   'Pick who you are. Pick a mission. Write the code that wins it.':

@@ -15,7 +15,7 @@ window.AVATAR = (function(){
     preview:`characters/previews/character-${c}.png` }));
   const BASE = 'characters/models/';     // so the .glb finds its texture
   const TALL = 1.85;                     // how tall a person stands, in world units
-  const HELD = 0.80;                     // and how long the blaster in their hand reads
+  const HELD = 0.70;                     // and how long the blaster in their hand reads
 
   const BLASTER='blasters/blaster-g.glb';
   const bytes=new Map();
@@ -70,7 +70,22 @@ window.AVATAR = (function(){
     const len=Math.max(0.001, box.max.z-box.min.z);
     gun.scale.setScalar((HELD/len)*k);
     gun.rotation.y = Math.PI;              // the model's muzzle is -Z, the body faces +Z
-    gun.position.set(0.17*k, -0.62*k, 0.22*k);   // at the end of the arm, clear of it
+
+    /* Put it in the HAND.  Guessed offsets land wherever the rig happens to
+       put its origin, so read the arm's own geometry and hang the blaster off
+       the far end of it, on the outside of the body. */
+    let limb=null; arm.traverse(o=>{ if(!limb && o.isMesh && o.geometry) limb=o; });
+    if(limb){
+      limb.geometry.computeBoundingBox();
+      const b=limb.geometry.boundingBox;
+      const midX=(b.min.x+b.max.x)/2;
+      const outX=Math.abs(b.min.x)>Math.abs(b.max.x) ? b.min.x : b.max.x;
+      gun.position.set(midX + (outX-midX)*0.45,       // outboard, clear of the hip
+                       b.min.y + (b.max.y-b.min.y)*0.10,  // down at the hand
+                       b.max.z + 0.04);               // just in front of the arm
+    } else {
+      gun.position.set(-0.28*k, -0.90*k, 0.24*k);
+    }
     gun.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
     arm.add(gun);
     return gun;
