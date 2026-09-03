@@ -454,7 +454,7 @@ function loop(now){
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(PUZZLE.active) PUZZLE.map();
-    else if(!NAV.active && G.room) drawMap();
+    else if(!NAV.active && G.room) drawMap();   // the corridors have no map
     if(G.room==='arena'&&!PUZZLE.active&&!NAV.active) COMBAT.update(dt);
     if(G.room==='free') FREE.tick();
   }

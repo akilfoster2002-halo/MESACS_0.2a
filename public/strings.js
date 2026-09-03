@@ -19,6 +19,8 @@ window.ES = {
   'Green door = out. Red = it.':'Puerta verde = salida. Rojo = él.',
   'Escape {n} — {name}':'Escape {n} — {name}','ESCAPE {n}':'ESCAPE {n}',
   'Round the Corner':'A la Vuelta','The Long Hall':'El Pasillo Largo',
+  'Zig Zag':'Zigzag','Switchback':'Vuelta y Vuelta','The Long Way Round':'El Camino Largo',
+  'Order':'Orden','Loops and turns':'Bucles y giros','All of it':'Todo junto',
   'Run for it ▶':'¡Corre! ▶','Turning':'Girar',
   'It steps once for every block you run — and the clock is already going.':
     'Da un paso por cada bloque que ejecutas — y el reloj ya corre.',

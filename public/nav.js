@@ -22,15 +22,15 @@ window.NAV = (function(){
   const STAGES=[
     { name:'Straight Shot', budget:6, speed:0.65,
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
-      brief:'A zombie is behind you. <b>forward()</b> moves one tile. Count the tiles to the green door and write that many.',
+      brief:'It is behind you and it does not stop. <b>forward()</b> moves one tile — count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
       grid:['############',
             '#Z...S....X#',
             '############'] },
 
-    { name:'Round the Corner', budget:9, speed:0.8,
+    { name:'Round the Corner', budget:9, speed:0.75,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
-      brief:'The way out is round a corner. <b>right()</b> and <b>left()</b> turn you without moving. Every block you run, it steps too.',
+      brief:'The way out bends. <b>right()</b> and <b>left()</b> turn you without moving — so a turn costs you time and no ground.',
       pal:['forward','left','right'],
       grid:['##########',
             '#Z...S...#',
@@ -39,13 +39,48 @@ window.NAV = (function(){
             '#######X##',
             '##########'] },
 
-    { name:'The Long Hall', budget:7, speed:0.9,
+    { name:'Zig Zag', budget:12, speed:0.8,
+      learn:{ name:'Order', text:'The computer does your blocks strictly top to bottom. Turn in the wrong place and the rest of the program is walking into a wall.', code:'forward()\nright()\nforward()\nleft()' },
+      brief:'Three turns this time. Work out the whole route <b>before</b> you write it — you have no time to find it by trying.',
+      pal:['forward','left','right'],
+      grid:['#########',
+            '#Z...S..#',
+            '#######.#',
+            '#####...#',
+            '#####X###',
+            '#########'] },
+
+    { name:'The Long Hall', budget:7, speed:0.85,
       learn:{ name:'Loops', text:'A loop runs the blocks inside it again and again, so you write the move once instead of ten times.', code:'repeat 10\n  forward()\nend' },
-      brief:'Ten tiles, and only <b>7 blocks</b> allowed. Writing forward() ten times will not fit — <b>repeat</b> it instead.',
+      brief:'Ten tiles, and only <b>7 blocks</b> allowed. Ten forward() blocks will not fit — <b>repeat</b> one instead.',
       pal:['forward','left','right','repeat'],
       grid:['#################',
             '#Z...S.........X#',
-            '#################'] }
+            '#################'] },
+
+    { name:'Switchback', budget:12, speed:0.95,
+      learn:{ name:'Loops and turns', text:'Each straight run is its own repeat. Count the tiles in one leg, loop that, then turn and count the next.', code:'repeat 7\n  forward()\nend\nright()' },
+      brief:'Long legs with turns between them. One <b>repeat</b> per straight — count each leg on its own.',
+      pal:['forward','left','right','repeat'],
+      grid:['##############',
+            '#Z...S.......#',
+            '############.#',
+            '#............#',
+            '#X############',
+            '##############'] },
+
+    { name:'The Long Way Round', budget:11, speed:1.05,
+      learn:{ name:'All of it', text:'Commands, turns and loops together. The exit is close by, but the only way there is the long way — and it is right behind you.', code:'repeat 8\n  forward()\nend\nright()\nrepeat 4\n  forward()\nend' },
+      brief:'The door is four tiles away and there is no way through. Go the whole way round, in <b>11 blocks</b>, before it reaches you.',
+      pal:['forward','left','right','repeat'],
+      grid:['###############',
+            '#Z...S........#',
+            '#############.#',
+            '#############.#',
+            '#############.#',
+            '#####.........#',
+            '#####X#########',
+            '###############'] }
   ];
 
   /* ------------------------------------------------------------- build */
@@ -67,7 +102,7 @@ window.NAV = (function(){
     G.scene.fog=new THREE.Fog(0x150f28, 60, 190);
     G.hudOwner='nav'; G.missionId='nav'; G.running=true;
     if(window.updateLeaveBtn) updateLeaveBtn();
-    document.querySelector('#mapwrap').classList.remove('hidden');
+    document.querySelector('#mapwrap').classList.add('hidden');   // no map here
 
     L={ idx, S, grid:S.grid, w:S.grid[0].length, h:S.grid.length,
         x:0, y:0, dir:1, start:null, exit:null, done:false, caught:false,
@@ -113,20 +148,36 @@ window.NAV = (function(){
     z.wx=x*T; z.wz=y*T;
     if(z.mesh) z.mesh.position.set(z.wx, 0, z.wz);
   }
-  /* the next tile it should walk to — greedy along the long axis, and it
-     will not walk into a wall */
+  /* The next tile it should walk to: the first step of the shortest route
+     to you.  Chasing greedily works down a straight corridor and stalls at
+     the first bend that leads away from you, and these bend a lot. */
   function aim(){
     const z=L.zom;
     z.cx=z.tx; z.cy=z.ty;
-    const dx=L.x-z.cx, dy=L.y-z.cy;
-    const tries = Math.abs(dx)>=Math.abs(dy)
-      ? [[Math.sign(dx),0],[0,Math.sign(dy)]]
-      : [[0,Math.sign(dy)],[Math.sign(dx),0]];
-    for(const [sx,sy] of tries){
-      if(!sx && !sy) continue;
-      if(cell(z.cx+sx, z.cy+sy)!=='#'){ z.tx=z.cx+sx; z.ty=z.cy+sy; return; }
+    if(z.cx===L.x && z.cy===L.y) return;
+    const key=(x,y)=>y*1000+x;
+    const from=new Map();
+    const seen=new Set([key(z.cx,z.cy)]);
+    let edge=[[z.cx,z.cy]];
+    while(edge.length){
+      const nextEdge=[];
+      for(const [x,y] of edge){
+        for(const [dx,dy] of DIRS){
+          const nx=x+dx, ny=y+dy, k=key(nx,ny);
+          if(cell(nx,ny)==='#' || seen.has(k)) continue;
+          seen.add(k); from.set(k,[x,y]);
+          if(nx===L.x && ny===L.y){
+            // walk the trail back until the step that leaves its own tile
+            let cur=[nx,ny], p=from.get(k);
+            while(p && !(p[0]===z.cx && p[1]===z.cy)){ cur=p; p=from.get(key(p[0],p[1])); }
+            z.tx=cur[0]; z.ty=cur[1]; return;
+          }
+          nextEdge.push([nx,ny]);
+        }
+      }
+      edge=nextEdge;
     }
-    z.tx=z.cx; z.ty=z.cy;
+    z.tx=z.cx; z.ty=z.cy;                 // walled off from you entirely
   }
   /* It never stops and it never takes turns.  That is the whole clock:
      the longer you spend writing, the closer it is when you press RUN. */
@@ -275,52 +326,19 @@ window.NAV = (function(){
     })();
   }
 
-  /* the corner map, drawn from the grid */
-  function map(){
-    if(!L) return;
-    const c=document.querySelector('#map'); if(!c) return;
-    const x=c.getContext('2d');
-    const sc=Math.min((c.width-8)/L.w, (c.height-8)/L.h);
-    const ox=(c.width-L.w*sc)/2, oy=(c.height-L.h*sc)/2;
-    const px=tx=>ox+(tx+0.5)*sc, pz=tz=>oy+(tz+0.5)*sc;
-    x.fillStyle='#0d1626'; x.fillRect(0,0,c.width,c.height);
-    for(let y=0;y<L.h;y++) for(let tx=0;tx<L.grid[y].length;tx++){
-      const ch=L.grid[y][tx];
-      x.fillStyle = ch==='#' ? '#151e33' : '#33456b';
-      x.fillRect(ox+tx*sc, oy+y*sc, sc-0.7, sc-0.7);
-    }
-    if(L.exit){
-      const beat=(performance.now()%1200)/1200;
-      x.beginPath(); x.arc(px(L.exit.x),pz(L.exit.y), 3+beat*6, 0, 7);
-      x.strokeStyle=`rgba(168,230,207,${(1-beat)*0.8})`; x.lineWidth=2; x.stroke();
-      x.fillStyle='#a8e6cf'; x.beginPath(); x.arc(px(L.exit.x),pz(L.exit.y),3.6,0,7); x.fill();
-    }
-    x.fillStyle='#ff6b81';
-    x.beginPath(); x.arc(px(L.zom.x),pz(L.zom.y),3.6,0,7); x.fill();
-    const cx=px(L.x), cy=pz(L.y);
-    x.strokeStyle='#fff'; x.lineWidth=2;
-    x.beginPath(); x.moveTo(cx,cy);
-    x.lineTo(cx-Math.sin(G.yaw)*sc*1.2, cy-Math.cos(G.yaw)*sc*1.2); x.stroke();
-    x.beginPath(); x.arc(cx,cy,3.4,0,7); x.fillStyle='#fff'; x.fill();
-    const title=document.querySelector('#mapTitle');
-    if(title) title.textContent=t('THE CORRIDOR');
-    const leg=document.querySelector('#maplegend');
-    if(leg) leg.textContent=t('Green door = out. Red = it.');
-  }
-
   /* Called every frame, console open or not — that is the point of it. */
   function tick(dt){
     if(!L) return;
     chase(dt);
     if(window.AVATAR) AVATAR.update(dt, false, false, true);
-    map();
   }
   function stop(){
     L=null; busy=false;
+    document.querySelector('#mapwrap').classList.remove('hidden');
     CODE.setBudget(0); CODE.setGuide(null);
   }
 
-  return { start, run, tick, update:tick, stop, map,
+  return { start, run, tick, update:tick, stop,
            get active(){ return !!L; },
            get busy(){ return busy; },
            retry(){ if(L) start(L.idx); },
