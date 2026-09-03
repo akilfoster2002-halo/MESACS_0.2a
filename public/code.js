@@ -302,20 +302,29 @@ window.CODE = (function(){
      you write it instead of behind the console */
   function drawGuide(){
     const g=el.querySelector('#conGuide');
-    if(!guide || !(guide.name||guide.text||guide.code)){ g.classList.add('hidden'); return; }
+    if(!guide || !(guide.brief||guide.name||guide.text||guide.code)){
+      g.classList.add('hidden'); return;
+    }
     g.classList.remove('hidden');
+    const skill = (guide.name||guide.text)
+      ? `<div class="cg-skill"><b>${t(guide.name||'')}</b>${t(guide.text||'')}</div>` : '';
     g.innerHTML=`<div class="con-lbl">${t('WHAT YOU ARE WRITING')}</div>
       <div class="cg-row">
-        <div class="cg-txt"><b>${t(guide.name||'')}</b>${t(guide.text||'')}</div>
+        <div class="cg-txt">
+          ${guide.brief ? `<div class="cg-brief">${t(guide.brief)}</div>` : ''}
+          ${skill}
+        </div>
         ${guide.code ? `<pre class="cg-code">${guide.code}</pre>` : ''}
       </div>`;
   }
   function hint(msg, kind){
+    if(!el) return;
     const h=el.querySelector('#conHint');
     h.className='con-hint'+(kind?' '+kind:'');
     h.innerHTML=msg;
   }
   function budgetOut(n){
+    if(!el) return;
     const bl=el.querySelector('#conBudget');
     if(!budget){ bl.classList.add('hidden'); return; }
     bl.classList.remove('hidden');
@@ -325,7 +334,7 @@ window.CODE = (function(){
   /* Type-it mode reads what you wrote after every keystroke and shows the
      blocks it would build — so a typo is caught where you made it. */
   function reflect(){
-    if(mode!=='text') return;
+    if(mode!=='text' || !el) return;
     const mirror=el.querySelector('#conMirror');
     const r=parse(typed);
     if(r.error){
@@ -357,6 +366,7 @@ window.CODE = (function(){
       script=r.script; dropTarget=null; mode='blocks';
     }
     try{ localStorage.setItem('dq_codemode', mode); }catch(e){}
+    if(!el) return;                       // the console can be set before it is built
     draw();
     if(mode==='text'){ const ta=el.querySelector('#conTA'); ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length); }

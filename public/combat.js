@@ -507,12 +507,16 @@ window.COMBAT = (function(){
     st.build();
     G.pos.set(0,1.7,18); G.vel.set(0,0,0);
     brief(st.brief); objectives(); showSkill(st.skill);
+    // the console opens over both the briefing and the skill panel, so it
+    // gets its own copy — the instruction first, the skill behind it
+    if(window.CODE) CODE.setGuide({ brief: st.brief,
+                                    name: st.skill && st.skill.name,
+                                    text: st.skill && st.skill.text,
+                                    code: st.skill && st.skill.code });
     if(st.teach) teachCard(st.teach);
   }
   function showSkill(sk){
     const el=document.querySelector('#skill');
-    // the console covers this panel, so hand it the same walkthrough
-    if(window.CODE) CODE.setGuide(sk||null);
     if(!sk){ el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     document.querySelector('#skLbl').textContent=t('SKILL YOU ARE USING');
