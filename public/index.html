@@ -195,7 +195,7 @@ button{font-family:var(--font);cursor:pointer}
 /* ---------- KORO landing ------------------------------------------------
    The first thing a student sees. It should look like somewhere you want
    to be, and it should move — but slowly, so it never fights the reading. */
-#menu{background:radial-gradient(1200px 820px at 50% -12%,#2c2258 0%,#150f28 56%,#090612 100%)}
+#menu{background:linear-gradient(180deg,#4db3f5 0%,#7fd0ff 45%,#cdeeff 100%)}
 .korobg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .korobg i{position:absolute;display:block;border-radius:50%;filter:blur(64px);opacity:.5;
   animation:koroDrift 26s ease-in-out infinite}
@@ -259,19 +259,66 @@ button{font-family:var(--font);cursor:pointer}
 .screen.anim-in .card,.screen.anim-in .hero{animation:cardIn .5s cubic-bezier(.2,.9,.3,1.15) both .06s}
 @keyframes cardIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 
-/* ---------- start ---------- */
-#start{background:radial-gradient(1200px 820px at 50% -12%,#2c2258 0%,#150f28 56%,#090612 100%)}
-.hero{position:relative;text-align:center;padding:20px}
-.koro-xl{font-size:clamp(64px,13vw,150px);letter-spacing:.16em}
-.hero .korotag{font-size:clamp(15px,2.2vw,20px);margin:6px 0 30px}
-.bigplay{font-size:26px;padding:18px 54px;border-radius:20px;letter-spacing:3px;
-  box-shadow:0 8px 0 #6fc4a6;animation:playPulse 2.6s ease-in-out infinite}
-.bigplay:active{transform:translateY(4px);box-shadow:0 4px 0 #6fc4a6}
-@keyframes playPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-.hero .langrow{margin-top:26px}
+/* ---------- start: blue sky, clouds, an island to stand on ----------- */
+#start{background:linear-gradient(180deg,#4db3f5 0%,#7fd0ff 42%,#bfe9ff 72%,#dff4ff 100%)}
+.sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.sky .sun{position:absolute;right:8%;top:6%;width:140px;height:140px;border-radius:50%;
+  background:radial-gradient(circle,#fff8d0 0%,#ffe9a8 55%,rgba(255,233,168,0) 72%)}
+.cloud{position:absolute;width:170px;height:52px;background:#fff;border-radius:60px;
+  box-shadow:0 10px 0 rgba(120,180,230,.22);animation:blow linear infinite}
+.cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:76px;height:76px;left:26px;top:-34px}
+.cloud::after{width:54px;height:54px;right:28px;top:-24px}
+.cloud.c1{top:11%;left:-22%;transform:scale(1.15);animation-duration:52s}
+.cloud.c2{top:26%;left:-30%;transform:scale(.8);opacity:.95;animation-duration:71s;animation-delay:-20s}
+.cloud.c3{top:5%;left:-40%;transform:scale(.62);opacity:.9;animation-duration:63s;animation-delay:-42s}
+.cloud.c4{top:38%;left:-26%;transform:scale(.5);opacity:.85;animation-duration:84s;animation-delay:-11s}
+@keyframes blow{ to{ left:130%; } }
+
+.hero{position:relative;text-align:center;padding:10px 20px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center}
+
+/* KORO: chunky, extruded, sitting in the sky like a logo should */
+.koro-xl{
+  font-family:"Arial Black","Arial Rounded MT Bold",Impact,system-ui,sans-serif;
+  font-size:clamp(58px,13vw,148px);font-weight:900;letter-spacing:.06em;
+  margin:0;line-height:.95;
+  color:#fff;background:none;-webkit-background-clip:border-box;background-clip:border-box;
+  -webkit-text-stroke:clamp(3px,.9vw,9px) #17384f;
+  paint-order:stroke fill;
+  text-shadow:
+     0 4px 0 #1d4c6b, 0 8px 0 #1d4c6b, 0 12px 0 #17384f,
+     0 16px 0 #12293a, 0 20px 26px rgba(0,40,70,.45);
+  animation:koroFloat 4.6s ease-in-out infinite;
+  transform-origin:50% 100%}
+.koro-sub{font-weight:900;letter-spacing:.34em;font-size:clamp(11px,1.7vw,15px);
+  color:#0f3a54;text-transform:uppercase;margin:26px 0 0;opacity:.8}
+
+/* the island they stand on */
+.island{position:relative;width:min(400px,80vw);height:210px;margin:22px auto 0}
+#heroView{position:absolute;left:0;right:0;top:-26px;width:100%;height:210px;display:block;z-index:2}
+.island .grass{position:absolute;left:0;right:0;top:112px;height:66px;z-index:1;
+  border-radius:50%;background:linear-gradient(180deg,#8ede5f 0%,#5cb83f 60%,#489a33 100%);
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.10)}
+.island .dirt{position:absolute;left:24%;right:24%;top:150px;height:80px;z-index:0;
+  background:linear-gradient(180deg,#b9814f 0%,#8b5a33 70%,#6d4526 100%);
+  clip-path:polygon(0 0,100% 0,64% 100%,36% 100%)}
+.island .shade{position:absolute;left:10%;right:10%;top:222px;height:22px;border-radius:50%;
+  background:rgba(20,60,90,.16);filter:blur(6px)}
+
+.btn.bigplay{font-size:clamp(20px,3vw,28px);padding:16px 56px;border-radius:22px;letter-spacing:4px;
+  font-weight:900;background:#ffd44d;color:#5a3d00;border:4px solid #fff;
+  box-shadow:0 9px 0 #d9a600, 0 14px 24px rgba(0,50,80,.3);
+  animation:playPulse 2.6s ease-in-out infinite;margin-top:26px}
+.btn.bigplay:active{transform:translateY(5px);box-shadow:0 4px 0 #d9a600}
+@keyframes playPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes koroFloat{0%,100%{transform:translateY(0) rotate(-.6deg)}50%{transform:translateY(-9px) rotate(.6deg)}}
+.hero .langrow{margin-top:20px}
+#start .langbtn{background:rgba(255,255,255,.86);border-color:#fff;color:#12405e;font-weight:bold}
+#start .langbtn.on{background:#ffd44d;color:#5a3d00}
 
 /* ---------- choose your character ---------- */
-#chars{background:radial-gradient(1200px 820px at 50% -12%,#26305c 0%,#12122a 56%,#080813 100%)}
+#chars{background:linear-gradient(180deg,#4db3f5 0%,#7fd0ff 45%,#cdeeff 100%)}
 .charcard{max-width:880px;width:min(880px,96%);position:relative;
   background:rgba(31,24,54,.74);border-color:rgba(255,255,255,.13);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
@@ -286,7 +333,10 @@ button{font-family:var(--font);cursor:pointer}
 .chrtile{position:relative;aspect-ratio:1/1.12;border-radius:16px;border:3px solid var(--line);
   background:#221a3c;padding:3px;cursor:pointer;overflow:hidden;
   transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s}
-.chrtile img{width:100%;height:100%;object-fit:contain}
+.chrtile img{width:100%;height:76%;object-fit:contain}
+.chrname{display:block;font-size:11px;letter-spacing:.4px;color:var(--muted);
+  margin-top:-2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chrtile.on .chrname{color:var(--mint)}
 .chrtile:hover:not(.lock){transform:translateY(-5px) rotate(-3deg);border-color:var(--sky)}
 .chrtile:hover:not(.lock) img{animation:chrBob 1s ease-in-out infinite}
 .chrtile.on{border-color:var(--mint);background:#2b3a4e;box-shadow:0 0 0 3px rgba(168,230,207,.34)}
@@ -466,9 +516,18 @@ button{font-family:var(--font);cursor:pointer}
 <div id="pause" class="screen hidden"></div>
 
 <div id="start" class="screen hidden">
-  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="sky" aria-hidden="true">
+    <span class="sun"></span>
+    <span class="cloud c1"></span><span class="cloud c2"></span>
+    <span class="cloud c3"></span><span class="cloud c4"></span>
+  </div>
   <div class="hero">
-    <h1 class="koro koro-xl">KORO</h1>
+    <h1 class="koro-xl">KORO</h1>
+    <p class="koro-sub" id="sTag"></p>
+    <div class="island">
+      <canvas id="heroView"></canvas>
+      <span class="grass"></span><span class="dirt"></span><span class="shade"></span>
+    </div>
     <button class="btn good bigplay" id="btnStart">START</button>
     <div class="langrow">
       <button class="langbtn" data-lang="en">🇺🇸 English</button>
@@ -527,19 +586,19 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=56"></script>
-<script src="strings.js?v=56"></script>
-<script src="net.js?v=56"></script>
-<script src="avatar.js?v=56"></script>
-<script src="zombies.js?v=56"></script>
-<script src="building.js?v=56"></script>
-<script src="levels.js?v=56"></script>
-<script src="code.js?v=56"></script>
-<script src="combat.js?v=56"></script>
-<script src="puzzle.js?v=56"></script>
-<script src="nav.js?v=56"></script>
-<script src="chars.js?v=56"></script>
-<script src="menu.js?v=56"></script>
-<script src="game.js?v=56"></script>
+<script src="lib/three.classic.js?v=59"></script>
+<script src="strings.js?v=59"></script>
+<script src="net.js?v=59"></script>
+<script src="avatar.js?v=59"></script>
+<script src="zombies.js?v=59"></script>
+<script src="building.js?v=59"></script>
+<script src="levels.js?v=59"></script>
+<script src="code.js?v=59"></script>
+<script src="combat.js?v=59"></script>
+<script src="puzzle.js?v=59"></script>
+<script src="nav.js?v=59"></script>
+<script src="chars.js?v=59"></script>
+<script src="menu.js?v=59"></script>
+<script src="game.js?v=59"></script>
 </body>
 </html>

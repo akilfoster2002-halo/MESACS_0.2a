@@ -8,7 +8,7 @@ window.ES = {
   'Click the screen to look around with the mouse. Press Esc to let the mouse go.':'Haz clic en la pantalla para mirar con el ratón. Presiona Esc para soltar el ratón.',
   'Move':'Moverse','Turn':'Girar','Look':'Mirar','Select':'Escoger','Open':'Abrir','Run':'Correr',
   'Jump':'Saltar','THE FIELD':'EL CAMPO','PLAY ▶':'JUGAR ▶',
-  'START':'EMPEZAR','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
+  'START':'EMPEZAR','Code your way out':'Programa tu salida','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
   'CHOOSE YOUR CHARACTER':'ELIGE TU PERSONAJE','Continue ▶':'Continuar ▶','Character':'Personaje',
   'Locked':'Bloqueado','Everyone is unlocked. Pick your favourite.':'Todos desbloqueados. Elige tu favorito.',
   '{a} of {b} unlocked — finish a mission to open more.':

@@ -7,10 +7,11 @@
    still PNG tells you nothing about who you are about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 4;                       // unlocked before you have played anything
-  const PER_MISSION = 4;                // the other fourteen are earned, four a mission
+  const FREE = 5;                       // unlocked before you have played anything
+  const PER_MISSION = 4;                // the other thirteen are earned, four a mission
 
   let view=null, previewing=null, raf=0, last=0;
+  let hero=null, heroRaf=0, heroLast=0;
 
   function unlockedCount(){
     let done=0;
@@ -87,7 +88,8 @@ window.CHARS = (function(){
       const lock=!isUnlocked(i);
       return `<button class="chrtile${c.id===AVATAR.chosen?' on':''}${lock?' lock':''}"
         data-c="${c.id}" ${lock?'disabled':''} title="${lock?t('Locked'):c.name}">
-        <img src="${c.preview}" alt="" loading="lazy"></button>`;
+        <img src="${c.preview}" alt="" loading="lazy">
+        <span class="chrname">${lock?'???':c.name}</span></button>`;
     }).join('');
 
     grid.querySelectorAll('[data-c]').forEach(b=>{
@@ -107,5 +109,50 @@ window.CHARS = (function(){
   function open(){ render(); play(); }
   function close(){ stop(); }
 
-  return { open, close, render, unlockedCount, isUnlocked };
+  /* ------------------------------------------- the one on the landing */
+  function heroStage(){
+    if(hero) return hero;
+    const canvas=document.querySelector('#heroView');
+    if(!canvas) return null;
+    const renderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(28, 1, 0.1, 60);
+    camera.position.set(0, 0.20, 3.9); camera.lookAt(0, 0.02, 0);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xbfe0ff, 1.7));
+    const key=new THREE.DirectionalLight(0xfff6e8, 1.6); key.position.set(3,6,5);
+    scene.add(key);
+    const turntable=new THREE.Group(); scene.add(turntable);
+    hero={renderer, scene, camera, turntable, current:null, who:null};
+    return hero;
+  }
+  async function heroShow(){
+    const h=heroStage(); if(!h) return;
+    if(h.who===AVATAR.chosen) return;
+    const want=AVATAR.chosen;
+    let m; try{ m=await AVATAR.load(want); }catch(e){ return; }
+    if(AVATAR.chosen!==want) return;
+    if(h.current) h.turntable.remove(h.current);
+    m.position.y=-0.9; h.turntable.add(m); h.current=m; h.who=want;
+    AVATAR.animate(m, 0, 'idle');
+  }
+  function heroLoop(now){
+    heroRaf=requestAnimationFrame(heroLoop);
+    const dt=Math.min((now-heroLast)/1000, 0.05); heroLast=now;
+    if(!hero) return;
+    const c=hero.renderer.domElement;
+    const w=c.clientWidth||300, ht=c.clientHeight||190;
+    hero.renderer.setSize(w,ht,false);
+    hero.camera.aspect=w/ht; hero.camera.updateProjectionMatrix();
+    hero.turntable.rotation.y = Math.sin(now/2600)*0.5;   // looks around, does not spin
+    if(hero.current) AVATAR.animate(hero.current, dt, 'idle');
+    hero.renderer.render(hero.scene, hero.camera);
+  }
+  function heroOpen(){
+    heroShow();
+    if(!heroRaf){ heroLast=performance.now(); heroRaf=requestAnimationFrame(heroLoop); }
+  }
+  function heroClose(){ if(heroRaf){ cancelAnimationFrame(heroRaf); heroRaf=0; } }
+
+  return { open, close, render, unlockedCount, isUnlocked, heroOpen, heroClose };
 })();

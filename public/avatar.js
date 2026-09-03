@@ -10,7 +10,11 @@
    ===================================================================== */
 window.AVATAR = (function(){
   const IDS = 'abcdefghijklmnopqr'.split('');
-  const CHARS = IDS.map(c=>({ id:c, name:'Character '+c.toUpperCase(),
+  // a name each, initial matching the file, so nobody is "Character G"
+  const NAMES = { a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
+                  g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',
+                  m:'Mo',  n:'Nia', o:'Ozzy', p:'Pip', q:'Quinn', r:'Rae' };
+  const CHARS = IDS.map(c=>({ id:c, name:NAMES[c] || ('Character '+c.toUpperCase()),
     model:`characters/models/character-${c}.glb`,
     preview:`characters/previews/character-${c}.png` }));
   const BASE = 'characters/models/';     // so the .glb finds its texture

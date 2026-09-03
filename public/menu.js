@@ -31,7 +31,7 @@ window.MENU = (function(){
   function hideAll(){
     SCREENS.forEach(x=>{ const e=$(x); if(e) e.classList.add('hidden'); });
     showing=null;
-    if(window.CHARS) CHARS.close();
+    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
   }
 
   const MISSIONS=[
@@ -140,13 +140,15 @@ window.MENU = (function(){
     $('#downed').classList.add('hidden');
     if(window.CHARS) CHARS.close();
     $('#btnStart').textContent=t('START');
+    $('#sTag').textContent=t('Code your way out');
     if(document.pointerLockElement) document.exitPointerLock();
-    show('#start');
+    show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
   }
   /* who are you playing as */
   function chars(){
     G.running=false;
     $('#hud').classList.add('hidden');
+    if(window.CHARS) CHARS.heroClose();
     show('#chars', ()=>{ if(window.CHARS) CHARS.open(); });
   }
   function open(){
@@ -156,7 +158,7 @@ window.MENU = (function(){
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
     $('#downed').classList.add('hidden');
-    if(window.CHARS) CHARS.close();
+    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
     if(document.pointerLockElement) document.exitPointerLock();
     render();
     show('#menu');
