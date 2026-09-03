@@ -666,5 +666,9 @@ window.COMBAT = (function(){
   function triggerReady(){ return performance.now()-lastManual >= MANUAL_CD; }
   return { startMission, startRange, rangeShot, manualShot, triggerReady, update, runProgram, reset, damage,
            get busy(){ return busy; }, get dead(){ return dead; }, get inRange(){ return !!range; },
-           get hp(){ return hp; } };
+           get hp(){ return hp; },
+           // read-only, for the corner map: what is on the field right now
+           get enemies(){ return enemies; }, get boss(){ return boss; },
+           get cover(){ return obstacles; },
+           get targets(){ return range ? range.targets : []; } };
 })();

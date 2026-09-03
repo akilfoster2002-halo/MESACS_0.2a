@@ -331,7 +331,6 @@ function buildArena(L){
 function startMissionRoom(id){
   COMBAT.reset(); PUZZLE.stop();
   G.hudOwner='mission';
-  if(id==='puzzles'){ G.missionId='puzzles'; G.running=true; PUZZLE.start(0); return; }
   G.missionId=id;
   G.arenaTitle = id==='range' ? 'Firing Range'
     : (id==='m1'?'The Loop Chamber': id==='m2'?'The Prism Vault':'The Off-By-One Foundry');
@@ -340,7 +339,7 @@ function startMissionRoom(id){
 
 /* ------------------------------------------------------- progression */
 const PROGRESS=(function(){
-  const ORDER=['m1','puzzles','m2','m3'];
+  const ORDER=['m1','m2','m3'];
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
   function save(){
@@ -572,6 +571,38 @@ function drawMap(){
     (L.folders||[]).forEach(f=>{ x.fillStyle='#3ddc84'; x.fillRect(px(f.x)-4,pz(f.z)-4,8,8); });
     if(L.exit){ x.fillStyle='#ff6b6b'; x.fillRect(px(L.exit.x)-4,pz(L.exit.z)-4,8,8); }
   }
+  /* The fight, from above: the cover you can duck behind, every drone that
+     can shoot you, and the boss ringed so you can find him in a crowd. */
+  if(G.room==='arena' && window.COMBAT){
+    (COMBAT.cover||[]).forEach(o=>{
+      x.fillStyle='#33456b';
+      x.fillRect(px(o.x1), pz(o.z1), (o.x2-o.x1)*sx, (o.z2-o.z1)*sz);
+    });
+    (COMBAT.targets||[]).forEach(m=>{
+      if(!m.parent) return;                       // already shot off the field
+      x.strokeStyle='#ffe9a8'; x.lineWidth=2;
+      x.beginPath(); x.arc(px(m.position.x), pz(m.position.z), 3.5, 0, 7); x.stroke();
+    });
+    (COMBAT.enemies||[]).forEach(e=>{
+      if(e.dead) return;
+      // a shielded drone is drawn in the colour you have to shoot it with
+      x.fillStyle = e.shield==='red' ? '#ff6b81' : e.shield==='blue' ? '#5ec8ff' : '#ff9aa2';
+      x.beginPath(); x.arc(px(e.mesh.position.x), pz(e.mesh.position.z), 3.4, 0, 7); x.fill();
+      x.strokeStyle='#0d1626'; x.lineWidth=1.4; x.stroke();
+    });
+    const b=COMBAT.boss;
+    if(b && !b.dead){
+      const bx=px(b.mesh.position.x), bz=pz(b.mesh.position.z);
+      const beat=(performance.now()%1400)/1400;
+      x.beginPath(); x.arc(bx,bz, 6+beat*8, 0, 7);
+      x.strokeStyle=`rgba(255,233,168,${(1-beat)*0.7})`; x.lineWidth=2; x.stroke();
+      x.fillStyle = b.color==='red' ? '#ff9aa2' : b.color==='blue' ? '#8fd3ff' : '#ffe9a8';
+      x.beginPath();
+      x.moveTo(bx,bz-6); x.lineTo(bx+6,bz); x.lineTo(bx,bz+6); x.lineTo(bx-6,bz);
+      x.closePath(); x.fill();
+      x.strokeStyle='#0d1626'; x.lineWidth=1.5; x.stroke();
+    }
+  }
   // player
   const cx=px(G.pos.x), cy=pz(G.pos.z);
   x.fillStyle='#fff'; x.beginPath(); x.arc(cx,cy,3.5,0,7); x.fill();
@@ -580,6 +611,7 @@ function drawMap(){
 }
 function updateMapLegend(){
   const L=window.LEVELS[G.room];
+  $('#mapTitle').textContent = G.room==='arena' ? t('THE FIELD') : t('DESKTOP MAP');
   $('#maplegend').textContent = t(G.arenaTitle || (L&&L.title) || '');
 }
 
