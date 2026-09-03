@@ -163,6 +163,9 @@ app.post('/api/teacher/mute', async (req,res)=>{
   const { userId, minutes } = req.body;
   const until = minutes>0 ? new Date(Date.now()+minutes*60000) : null;
   await db.q('UPDATE users SET muted_until=$1 WHERE id=$2',[until,userId]);
+  // enforce on the open connection too: without this the mute is advisory and
+  // a student whose client ignores it keeps talking
+  for(const [,p] of live) if(p.id===Number(userId)) p.mutedUntil = until ? until.getTime() : 0;
   send(userId,{ t:'muted', until: until? until.getTime():0 });
   ok(res,{});
 });
@@ -246,8 +249,8 @@ wss.on('connection', async (ws, req)=>{
         `INSERT INTO messages (class_id,user_id,display,text) VALUES ($1,$2,$3,$4) RETURNING id,created_at`,
         [p.classId,p.id,p.display,text]);
       const out = { t:'chat', id:ins.rows[0].id, from:p.display, userId:p.id, text };
-      broadcastRoom(p.classId,out);
-      ws.send(JSON.stringify(out));
+      broadcastRoom(p.classId,out,ws);      // everyone else…
+      ws.send(JSON.stringify(out));          // …then the sender, exactly once
       return;
     }
   });
