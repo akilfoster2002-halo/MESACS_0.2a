@@ -16,6 +16,7 @@ const G = {
   solids:[], hits:[],                 // collision boxes / raycast targets
   selected:null, focused:null,
   keys:{}, locked:false, running:false, firstPerson:false,
+  ground:null,                        // level's floor-height probe, if it has one
   yaw:0, pitch:0,
   pos:new THREE.Vector3(0,1.7,14),
   vel:new THREE.Vector3(),
@@ -27,17 +28,21 @@ const PLAYER_R = 0.9, EYE = 1.7;
 /* Roblox-style chase camera: sits behind and above the shoulder and pulls in
    if a wall would get between it and the player. */
 const CAM = { back:5.6, up:2.9, side:0.55, lerp:0.18 };
+/* A solid only blocks the storey it stands on; older rooms hand us boxes
+   with no height at all, and those block everywhere. */
+function spans(sd, y){ return sd.y1===undefined || (y > sd.y1 && y < sd.y2); }
 function thirdPerson(){
-  const head=new THREE.Vector3(G.pos.x, EYE, G.pos.z);
+  const head=new THREE.Vector3(G.pos.x, G.pos.y, G.pos.z);
   const dir=new THREE.Vector3(-Math.sin(G.yaw), 0, -Math.cos(G.yaw));
   const rightV=new THREE.Vector3(Math.cos(G.yaw), 0, -Math.sin(G.yaw));
   const pitchDrop=Math.sin(G.pitch)*3.2;
   let want=head.clone()
     .add(dir.clone().multiplyScalar(-CAM.back))
     .add(rightV.clone().multiplyScalar(CAM.side));
-  want.y = EYE + CAM.up - pitchDrop;
+  want.y = G.pos.y + CAM.up - pitchDrop;
   // keep the camera out of walls
   for(const sd of G.solids){
+    if(!spans(sd, want.y)) continue;
     const steps=8;
     for(let i=1;i<=steps;i++){
       const k=i/steps, px=head.x+(want.x-head.x)*k, pz=head.z+(want.z-head.z)*k;
@@ -49,7 +54,7 @@ function thirdPerson(){
     }
   }
   G.camera.position.lerp(want, CAM.lerp);
-  const look=head.clone().add(dir.clone().multiplyScalar(6)).setY(EYE + Math.sin(G.pitch)*5);
+  const look=head.clone().add(dir.clone().multiplyScalar(6)).setY(G.pos.y + Math.sin(G.pitch)*5);
   G.camera.lookAt(look);
 }
 
@@ -62,10 +67,18 @@ function init(){
   G.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 220);
   resize(); window.addEventListener('resize', resize);
 
-  G.scene.add(new THREE.HemisphereLight(0xffffff, 0xc9b8e8, 1.35));
-  const sun = new THREE.DirectionalLight(0xfff3f8, 0.85);
+  // sky bounce, a warm key, and a cool fill: enough that two walls meeting
+  // at a corner are visibly two walls
+  // The sky lights the tops, the ground bounce keeps ceilings off black,
+  // and the two directionals stop a corner reading as one flat surface.
+  G.scene.add(new THREE.AmbientLight(0xdfe6ff, 0.95));
+  G.scene.add(new THREE.HemisphereLight(0xffffff, 0xc3b4e6, 0.90));
+  const sun = new THREE.DirectionalLight(0xfff3f8, 1.15);
   sun.position.set(12, 26, 8);
   G.scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x9fb4ff, 0.50);
+  fill.position.set(-16, 12, -14);
+  G.scene.add(fill);
   G.scene.add(G.camera);            // so the gun can hang off the camera
   GUN.build();
 
@@ -126,37 +139,81 @@ function roundRect(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a
   x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 
 /* ------------------------------------------------------------- the gun
-   A chunky pastel blaster in the corner of the eye: it bobs when you walk,
-   kicks when it fires, and the muzzle glows on every shot.               */
+   A Kenney blaster in the corner of the eye: it bobs when you walk, kicks
+   when it fires, and the muzzle glows on every shot.  The models point
+   down -Z, which is exactly where the camera looks, so nothing to turn.  */
 const GUN=(function(){
-  let g=null, kick=0, bob=0, flash=null;
+  const MODELS = { a:'blaster-a', b:'blaster-c', c:'blaster-g', d:'blaster-k', e:'blaster-p' };
+  const BARREL = 0.94;                       // how long the blaster should read
+  const HOME   = new THREE.Vector3(0.66,-0.48,-1.20);
+  let g=null, kick=0, bob=0, flash=null, model=null;
+
   function box(w,h,d,color,x,y,z){
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color}));
     m.position.set(x,y,z); return m;
   }
+  /* if the kit is missing, fall back to the old blocks rather than nothing */
+  function blocks(){
+    const b=new THREE.Group();
+    b.add(box(0.24,0.24,1.30,0xdfe7ff, 0,0,-0.5));
+    b.add(box(0.38,0.36,0.62,0xcdb4f6, 0,-0.05,0.18));
+    b.add(box(0.18,0.42,0.22,0xa8e6cf, 0,-0.36,0.30));
+    b.add(box(0.13,0.13,0.24,0xffb4a2, 0,0.18,-0.08));
+    return b;
+  }
+  let chosen='c';
+  try{ chosen = localStorage.getItem('dq_blaster') || 'c'; }catch(e){}
+
+  function fit(m){
+    // scale the kit to the length we want and hang it off the grip
+    const b=new THREE.Box3().setFromObject(m);
+    const len=Math.max(0.001, b.max.z-b.min.z);
+    const s=BARREL/len;
+    m.scale.setScalar(s);
+    m.position.set(0, -b.min.y*s - 0.30, -(b.min.z+b.max.z)/2*s);
+    if(flash) flash.position.z = b.min.z*s - (b.min.z+b.max.z)/2*s - 0.10;
+  }
+  function swap(id){
+    const name=MODELS[id]||MODELS.c;
+    new THREE.GLTFLoader().load('blasters/'+name+'.glb', gl=>{
+      if(!g) return;
+      if(model) g.remove(model);
+      model=gl.scene;
+      model.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
+      fit(model); g.add(model);
+    }, undefined, ()=>{
+      if(!g || model) return;
+      model=blocks(); g.add(model);
+    });
+  }
+
   return {
     build(){
       if(g) return;
       g=new THREE.Group();
-      g.add(box(0.24,0.24,1.30,0xdfe7ff, 0,0,-0.5));     // barrel
-      g.add(box(0.38,0.36,0.62,0xcdb4f6, 0,-0.05,0.18));  // body
-      g.add(box(0.18,0.42,0.22,0xa8e6cf, 0,-0.36,0.30));  // grip
-      g.add(box(0.13,0.13,0.24,0xffb4a2, 0,0.18,-0.08));  // sight
       flash=box(0.26,0.26,0.26,0xfff2a8, 0,0,-1.15);
       flash.visible=false; g.add(flash);
-      g.position.set(0.78,-0.56,-1.25);
+      g.position.copy(HOME);
       g.rotation.y=-0.10;
       G.camera.add(g);
+      swap(chosen);
     },
+    pick(id){
+      chosen=id;
+      try{ localStorage.setItem('dq_blaster',id); }catch(e){}
+      if(g) swap(id);
+    },
+    get chosen(){ return chosen; },
+    get models(){ return MODELS; },
     kick(){ kick=1; if(flash){ flash.visible=true; setTimeout(()=>flash.visible=false,70); } },
     update(dt, moving){
       if(!g) return;
       kick=Math.max(0, kick-dt*7);
       bob+= moving? dt*9 : 0;
       g.visible=!!G.firstPerson;
-      g.position.set(0.78 + Math.sin(bob)*0.02,
-                     -0.56 + Math.abs(Math.cos(bob))*0.018 - kick*0.05,
-                     -1.25 + kick*0.20);
+      g.position.set(HOME.x + Math.sin(bob)*0.02,
+                     HOME.y + Math.abs(Math.cos(bob))*0.018 - kick*0.05,
+                     HOME.z + kick*0.20);
       g.rotation.x = kick*0.30;
     }
   };
@@ -212,7 +269,7 @@ function updateLeaveBtn(){
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
   G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
-  G.solids=[]; G.hits=[]; G.selected=null; G.focused=null;
+  G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ground=null;
   G.room=name;
   const L=window.LEVELS[name];
   G.scene.background=new THREE.Color(0xf3e8ff);
@@ -435,6 +492,11 @@ function step(dt){
   let dz = (-cos*fwd - sin*str)*spd*dt;
   if(dx||dz) G.stats.steps += Math.abs(dx)+Math.abs(dz);
   moveAxis('x',dx); moveAxis('z',dz);
+  // stand on whatever the level calls the floor here, and ease over treads
+  if(G.ground){
+    const y = G.ground(G.pos.x, G.pos.z, G.pos.y-EYE) + EYE;
+    G.pos.y += (y - G.pos.y) * Math.min(1, dt*14);
+  }
   GUN.update(dt, !!(dx||dz));
 
   if(G.firstPerson){
@@ -443,7 +505,7 @@ function step(dt){
     G.camera.rotation.order='YXZ';
     G.camera.rotation.y=G.yaw; G.camera.rotation.x=G.pitch;
   } else thirdPerson();
-  AVATAR.update();
+  AVATAR.update(dt, !!(dx||dz), !!(G.keys.ShiftLeft||G.keys.ShiftRight));
 
   if(G.room==='plaza'){
     if(G.gatePos && G.pos.distanceTo(new THREE.Vector3(G.gatePos.x,EYE,G.gatePos.z))<6) fire('reach',{id:'launcher'});
@@ -453,7 +515,9 @@ function step(dt){
 function moveAxis(axis,d){
   if(!d) return;
   const p=G.pos.clone(); p[axis]+=d;
+  const feet=G.pos.y-EYE;
   for(const s of G.solids){
+    if(s.y1!==undefined && (feet+2.2 < s.y1 || feet > s.y2-0.6)) continue;
     if(p.x+PLAYER_R>s.x1 && p.x-PLAYER_R<s.x2 && p.z+PLAYER_R>s.z1 && p.z-PLAYER_R<s.z2) return;
   }
   G.pos[axis]+=d;
