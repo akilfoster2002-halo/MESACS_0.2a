@@ -9,7 +9,7 @@ window.MENU = (function(){
   const MISSIONS=[
     {id:'range', em:'🎯', name:'Firing Range',  blurb:'Warm up your aim. No code, just targets and a clock.'},
     {id:'m1',    em:'🐛', name:'Mission 1 — Loops',      blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
-    {id:'puzzles',em:'🕵️',name:'Covert Ops',blurb:'Six heists. Program your agent past guards, lasers and locked doors.'},
+    {id:'puzzles',em:'🕵️',name:'Covert Ops',blurb:'Sneak in yourself. Use code to take over cameras, keypads and drones.'},
     {id:'m2',    em:'🔮', name:'Mission 2 — Choices',    blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    em:'🧮', name:'Mission 3 — Functions',  blurb:'define combo. OFF-BY-ONE always has one more.'},
     {id:'free',  em:'🌐', name:'Free Play',    blurb:'Your whole class, one room. Practise and chat together.'}
@@ -120,7 +120,8 @@ window.MENU = (function(){
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
     if(id==='free') return FREE.enter();
-    if(id==='puzzles'){ COMBAT.reset(); G.missionId='puzzles'; PUZZLE.start(0); return; }
+    if(id==='puzzles'){ COMBAT.reset(); G.missionId='puzzles'; PUZZLE.start(0);
+      lockPointer($('#view')); return; }
     startMissionRoom(id);
     lockPointer($('#view'));
   }

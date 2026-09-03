@@ -158,6 +158,9 @@ button{font-family:var(--font);cursor:pointer}
 .chr.on{border-color:var(--mint);background:#26364a;box-shadow:0 0 0 3px rgba(168,230,207,.35)}
 .chint{font-size:12.5px;color:var(--muted)}
 
+#usePrompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);background:rgba(29,23,48,.94);
+  border:3px solid var(--mint);border-radius:14px;padding:9px 16px;font-size:17px}
+
 /* ---------- key prompts ---------- */
 .keyhint{margin-top:10px;font-size:14px;color:var(--muted);letter-spacing:.5px}
 .keyhint kbd,.codebtn kbd{background:#1d1730;border:2px solid var(--line);border-bottom-width:4px;
@@ -293,6 +296,7 @@ button{font-family:var(--font);cursor:pointer}
     <pre id="skCode"></pre>
   </div>
   <button id="codeBtn" class="codebtn hidden"><kbd>C</kbd><span id="codeBtnTxt">Code Console</span></button>
+  <div id="usePrompt" class="hidden"></div>
   <div id="briefing"></div>
   <div id="ptimer" class="hidden">
     <div class="lbl" id="ptLbl">TIME</div>
@@ -396,15 +400,16 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=21"></script>
-<script src="strings.js?v=21"></script>
-<script src="net.js?v=21"></script>
-<script src="avatar.js?v=21"></script>
-<script src="levels.js?v=21"></script>
-<script src="code.js?v=21"></script>
-<script src="combat.js?v=21"></script>
-<script src="puzzle.js?v=21"></script>
-<script src="menu.js?v=21"></script>
-<script src="game.js?v=21"></script>
+<script src="lib/three.classic.js?v=22"></script>
+<script src="strings.js?v=22"></script>
+<script src="net.js?v=22"></script>
+<script src="avatar.js?v=22"></script>
+<script src="building.js?v=22"></script>
+<script src="levels.js?v=22"></script>
+<script src="code.js?v=22"></script>
+<script src="combat.js?v=22"></script>
+<script src="puzzle.js?v=22"></script>
+<script src="menu.js?v=22"></script>
+<script src="game.js?v=22"></script>
 </body>
 </html>

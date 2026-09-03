@@ -310,6 +310,7 @@ function wireInput(){
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
+    if(e.code==='KeyE' && PUZZLE.active && G.running){ e.preventDefault(); PUZZLE.use(); return; }
     // results and knock-out screens advance on SPACE - no Esc, no hunting for the button
     if(!$('#done').classList.contains('hidden')){
       if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){
@@ -379,11 +380,8 @@ function loop(now){
   const dt=Math.min((now-last)/1000, 0.05); last=now;
   updateCodeBtn();
   if(G.running && !frozen()){
-    if(!PUZZLE.active) step(dt);
-    else { if(G.firstPerson){ G.camera.position.copy(G.pos); G.camera.rotation.order='YXZ';
-             G.camera.rotation.y=G.yaw; G.camera.rotation.x=G.pitch; }
-           else thirdPerson();
-           AVATAR.update(); GUN.update(dt,false); }
+    step(dt);                       // you always walk yourself now
+    if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(!PUZZLE.active && G.room) drawMap();
     if(G.room==='arena'&&!PUZZLE.active) COMBAT.update(dt);

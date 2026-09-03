@@ -24,6 +24,8 @@ window.CODE = (function(){
     call     :{label:'combo()',      color:'#ffe9a8', help:'Run the blocks you put in DEFINE combo'},
     define   :{label:'define combo', color:'#ffd8a8', help:'Teach the gun a move once, then call it'},
     forward  :{label:'forward()',    color:'#a8e6cf', help:'Walk forward one tile'},
+    turn     :{label:'turn()',       color:'#8fd3ff', help:'Swing the camera a quarter turn'},
+    hold     :{label:'hold()',       color:'#cdb4f6', help:'Keep it there'},
     left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
     right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'}
   };
