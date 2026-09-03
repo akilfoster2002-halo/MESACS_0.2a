@@ -15,6 +15,7 @@ window.CODE = (function(){
 
   const DEF = {
     shoot    :{label:'shoot()',      color:'#ffb4a2', help:'Fire one shot where you are aiming'},
+    grab     :{label:'grab()',       color:'#ffe9a8', help:'Pick up what you are standing on'},
     shootRed :{label:'shootRed()',   color:'#ff9aa2', help:'Fire a RED bolt — breaks red shields'},
     shootBlue:{label:'shootBlue()',  color:'#8fd3ff', help:'Fire a BLUE bolt — breaks blue shields'},
     wait     :{label:'wait()',       color:'#bdb2d8', help:'Pause for a moment'},
@@ -26,13 +27,14 @@ window.CODE = (function(){
     left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
     right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'}
   };
-  const CONDS=['red','blue'];
+  let CONDS=['red','blue'];
+  function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }
 
   /* ------------------------------------------------------------ model */
   function makeBlock(type){
     const b={id:uid++, type};
     if(type==='repeat'){ b.count=3; b.body=[]; }
-    if(type==='ifc'){ b.cond='red'; b.body=[]; }
+    if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
     return b;
   }
@@ -311,7 +313,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, countBlocks, compile, toText, highlight, setIter, hideTape, clear,
+  return { show, close, isOpen, setPalette, setBudget, setConditions, countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get script(){ return script; },
            set onRun(fn){ onRun=fn; } };
 })();
