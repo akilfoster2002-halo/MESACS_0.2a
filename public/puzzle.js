@@ -82,7 +82,7 @@ window.PUZZLE = (function(){
     const L=LEVELS[n];
     P={ n, L, x:0, y:0, dir:1, pads:[], padsLit:0, lock:null, exit:null, opened:false,
         w:L.grid[0].length, h:L.grid.length };
-    G.roomGroup.clear ? G.roomGroup.clear() : null;
+    // launching straight from the menu means there may be no room yet
     if(G.roomGroup) G.scene.remove(G.roomGroup);
     G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
     G.solids=[]; G.hits=[]; tiles=[];
@@ -292,7 +292,7 @@ window.PUZZLE = (function(){
       stats:`<div><b>${t('Time')}</b> ${timeUsed}s (${t('par')} ${P.L.par}s)</div>
        <div><b>${t('Blocks')}</b> ${used}/${P.L.budget}</div>
        <div style="grid-column:1/-1"><b>${t('Your code')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`,
-      btnText: last ? t('Back to the desktop') : t('Next puzzle ▶'),
+      btnText: last ? t('Back to the menu') : t('Next puzzle ▶'),
       onBtn: last ? null : ()=>{ document.querySelector('#done').classList.add('hidden');
               G.running=true; build(nextN); lockPointer(document.querySelector('#view')); }
     });

@@ -158,6 +158,21 @@ button{font-family:var(--font);cursor:pointer}
 .chr.on{border-color:var(--mint);background:#26364a;box-shadow:0 0 0 3px rgba(168,230,207,.35)}
 .chint{font-size:12.5px;color:var(--muted)}
 
+/* ---------- key prompts ---------- */
+.keyhint{margin-top:10px;font-size:14px;color:var(--muted);letter-spacing:.5px}
+.keyhint kbd,.codebtn kbd{background:#1d1730;border:2px solid var(--line);border-bottom-width:4px;
+  border-radius:8px;padding:1px 9px;font-family:inherit;font-weight:bold;color:var(--star)}
+.codebtn{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);pointer-events:auto;
+  display:flex;align-items:center;gap:10px;background:rgba(46,37,71,.96);color:var(--text);
+  border:3px solid var(--mint);border-radius:16px;padding:11px 20px;font-size:19px;font-weight:bold;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);cursor:pointer}
+.codebtn kbd{font-size:20px;color:var(--mint)}
+.codebtn.nudge{animation:nudge 1.5s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateX(-50%) scale(1);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  50%{transform:translateX(-50%) scale(1.05);box-shadow:0 8px 30px rgba(168,230,207,.55)}}
+#escHint{position:absolute;right:14px;bottom:78px;font-size:12.5px;color:var(--muted);
+  background:rgba(29,23,48,.85);border-radius:9px;padding:5px 10px}
+
 /* ---------- overlays ---------- */
 .screen{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(900px 600px at 50% 30%,#1b2c47,#0a0f18 70%);padding:20px}
@@ -277,6 +292,7 @@ button{font-family:var(--font);cursor:pointer}
     <p id="skText"></p>
     <pre id="skCode"></pre>
   </div>
+  <button id="codeBtn" class="codebtn hidden"><kbd>C</kbd><span id="codeBtnTxt">Code Console</span></button>
   <div id="briefing"></div>
   <div id="ptimer" class="hidden">
     <div class="lbl" id="ptLbl">TIME</div>
@@ -288,6 +304,7 @@ button{font-family:var(--font);cursor:pointer}
     <div id="hpBar"><div id="hpFill"></div></div>
   </div>
   <div id="keys"></div>
+  <div id="escHint" class="hidden"></div>
   <div id="chat" class="hidden">
     <div id="chatLog"></div>
     <form id="chatForm"><input id="chatIn" maxlength="160" autocomplete="off"><button class="btn small" id="chatSend">▶</button></form>
@@ -368,6 +385,7 @@ button{font-family:var(--font);cursor:pointer}
     <p id="dBody"></p>
     <div id="dStats" class="ctrlgrid"></div>
     <button class="btn" id="dAgain"></button>
+    <div class="keyhint" id="dKey"></div>
   </div>
 </div>
 
@@ -378,15 +396,15 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=17"></script>
-<script src="strings.js?v=17"></script>
-<script src="net.js?v=17"></script>
-<script src="avatar.js?v=17"></script>
-<script src="levels.js?v=17"></script>
-<script src="code.js?v=17"></script>
-<script src="combat.js?v=17"></script>
-<script src="puzzle.js?v=17"></script>
-<script src="menu.js?v=17"></script>
-<script src="game.js?v=17"></script>
+<script src="lib/three.classic.js?v=19"></script>
+<script src="strings.js?v=19"></script>
+<script src="net.js?v=19"></script>
+<script src="avatar.js?v=19"></script>
+<script src="levels.js?v=19"></script>
+<script src="code.js?v=19"></script>
+<script src="combat.js?v=19"></script>
+<script src="puzzle.js?v=19"></script>
+<script src="menu.js?v=19"></script>
+<script src="game.js?v=19"></script>
 </body>
 </html>

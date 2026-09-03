@@ -189,6 +189,22 @@ function addPanel(opt){
 }
 
 window.updateLeaveBtn=updateLeaveBtn;
+window.updateCodeBtn=updateCodeBtn;
+let codeBtnState=null;
+function updateCodeBtn(){
+  const btn=$('#codeBtn'); if(!btn) return;
+  const usable = G.running && !CODE.isOpen() &&
+    (PUZZLE.active || (G.hudOwner==='mission' && G.missionId && G.missionId!=='range'));
+  if(usable===codeBtnState) return;
+  codeBtnState=usable;
+  btn.classList.toggle('hidden',!usable);
+  btn.classList.toggle('nudge',usable);
+  $('#codeBtnTxt').textContent=t('Code Console');
+  btn.onclick=()=>{ CODE.show(); updateCodeBtn(); };
+  const esc=$('#escHint');
+  if(esc){ esc.classList.toggle('hidden',!G.running);
+           esc.innerHTML=t('<kbd>Esc</kbd> frees the mouse · <kbd>P</kbd> pause &amp; hint'); }
+}
 function updateLeaveBtn(){
   const b=$('#btnLeave'); if(!b) return;
   b.classList.toggle('hidden', G.hudOwner==='desktop');
@@ -218,7 +234,7 @@ function buildRoom(name){
   else buildArena(L);
   AVATAR.attach();                   // the player's body belongs to the room
   G.scene.updateMatrixWorld(true);   // so the crosshair can hit things before the first render
-  updateMapLegend(); updateLeaveBtn();
+  updateMapLegend(); updateLeaveBtn(); codeBtnState=null; updateCodeBtn();
 }
 
 function buildFree(L){
@@ -294,6 +310,19 @@ function wireInput(){
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
+    // results and knock-out screens advance on SPACE - no Esc, no hunting for the button
+    if(!$('#done').classList.contains('hidden')){
+      if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){
+        e.preventDefault(); const b=$('#dAgain'); if(b) b.click();
+      }
+      return;
+    }
+    if(!$('#downed').classList.contains('hidden')){
+      if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){
+        e.preventDefault(); const b=$('#respawn'); if(b) b.click();
+      }
+      return;
+    }
     // instructions close on a key, so nobody has to release the mouse first
     if(!$('#teach').classList.contains('hidden')){
       if(e.code==='Space'||e.code==='Enter'||e.code==='NumpadEnter'){
@@ -348,6 +377,7 @@ let last=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000, 0.05); last=now;
+  updateCodeBtn();
   if(G.running && !frozen()){
     if(!PUZZLE.active) step(dt);
     else { if(G.firstPerson){ G.camera.position.copy(G.pos); G.camera.rotation.order='YXZ';
@@ -519,8 +549,9 @@ function showResults(o){
   $('#dBody').innerHTML  = o.body||'';
   $('#dStats').innerHTML = o.stats||'';
   const b=$('#dAgain');
-  b.textContent = o.btnText || t('Back to the desktop');
+  b.textContent = o.btnText || t('Back to the menu');
   b.onclick = o.onBtn || (()=>returnToDesktop());   // reset every single time
+  const k=$('#dKey'); if(k) k.innerHTML=t('or press <kbd>SPACE</kbd>');
   $('#done').classList.remove('hidden');
 }
 window.showResults=showResults;
