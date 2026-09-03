@@ -11,11 +11,13 @@ window.COMBAT = (function(){
               sky:0x8fd3ff, butter:0xffe9a8, rose:0xff9aa2, sand:0xffd8a8 };
 
   /* enemy kinds — different jobs, different damage */
+  /* tall is slow and hits hard, small is quick and weak — you can read a
+     wave before it reaches you just from how big they are */
   const KIND={
-    buzzer :{hp:1, size:1.9, color:PAL.mint,  face:'🐛', dmg:6,  fire:2600, speed:1.6, range:52, bolt:PAL.mint},
-    slugger:{hp:2, size:2.6, color:PAL.sand,  face:'🐌', dmg:12, fire:3400, speed:0.9, range:46, bolt:PAL.peach},
-    sniper :{hp:1, size:2.1, color:PAL.lav,   face:'👁️', dmg:20, fire:4200, speed:0.5, range:95, bolt:PAL.rose, tell:900},
-    swarm  :{hp:1, size:1.5, color:PAL.blush, face:'🦟', dmg:4,  fire:2000, speed:2.4, range:40, bolt:PAL.blush}
+    buzzer :{hp:1, size:1.9, color:PAL.mint,  face:'🐛', dmg:6,  fire:2600, speed:1.6, range:52, bolt:PAL.mint,  skin:'zombieA', tall:1.95},
+    slugger:{hp:2, size:2.6, color:PAL.sand,  face:'🐌', dmg:12, fire:3400, speed:0.9, range:46, bolt:PAL.peach, skin:'zombieC', tall:2.75},
+    sniper :{hp:1, size:2.1, color:PAL.lav,   face:'👁️', dmg:20, fire:4200, speed:0.5, range:95, bolt:PAL.rose, tell:900, skin:'zombieC', tall:2.25},
+    swarm  :{hp:1, size:1.5, color:PAL.blush, face:'🦟', dmg:4,  fire:2000, speed:2.4, range:40, bolt:PAL.blush, skin:'zombieA', tall:1.55}
   };
 
   let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
@@ -40,15 +42,34 @@ window.COMBAT = (function(){
     const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace;
     faceCache[ch]=tx; return tx;
   }
-  function shell(color,size,face){
+  /* A shell is the thing your shot hits.  With a skin it turns invisible
+     and a walking zombie stands in its place — every raycast, health bar
+     and aim-assist calculation carries on talking to the same box. */
+  function shell(color,size,face,K){
     const g=new THREE.Group();
     const body=new THREE.Mesh(new THREE.BoxGeometry(size,size,size),
       new THREE.MeshLambertMaterial({color}));
     g.add(body);
+    g.userData.body=body;
+    if(K && K.skin && window.ZOMBIE){
+      body.material.visible=false;            // still raycasts, never drawn
+      const tall=K.tall||size;
+      g.userData.stand=tall*0.62;             // group origin rides at chest
+      ZOMBIE.make({skin:K.skin, height:tall}).then(z=>{
+        z.position.y=-g.userData.stand;       // so its feet reach the floor
+        // the model already faces +Z, which is where lookAt aims the group
+        g.add(z); g.userData.zombie=z;
+        ZOMBIE.animate(z, 0, 'idle');
+      }).catch(err=>{                          // no kit, no problem: keep the cube
+        console.warn('zombie failed to load', err);
+        body.material.visible=true;
+        g.userData.stand=undefined;
+      });
+      return g;
+    }
     const f=new THREE.Mesh(new THREE.PlaneGeometry(size*.8,size*.8),
       new THREE.MeshLambertMaterial({map:faceTex(face),transparent:true}));
     f.position.z=size/2+0.02; g.add(f);
-    g.userData.body=body;
     return g;
   }
 
@@ -88,9 +109,9 @@ window.COMBAT = (function(){
   function spawn(kind,x,z,shieldColor,armour){
     const K=KIND[kind];
     const e={kind, K, hp:armour||K.hp, max:armour||K.hp, armour:!!armour, hurtAt:0, dmg:K.dmg, shield:shieldColor||null,
-             mesh:shell(shieldColor? (shieldColor==='red'?PAL.rose:PAL.sky) : K.color, K.size, K.face),
+             mesh:shell(shieldColor? (shieldColor==='red'?PAL.rose:PAL.sky) : K.color, K.size, K.face, K),
              t:Math.random()*4, next:performance.now()+K.fire+Math.random()*1200, dead:false};
-    e.mesh.position.set(x, 2.2, z);
+    e.mesh.position.set(x, e.mesh.userData.stand!==undefined ? e.mesh.userData.stand : 2.2, z);
     if(shieldColor){
       const ring=new THREE.Mesh(new THREE.TorusGeometry(K.size*0.95,0.14,6,18),
         new THREE.MeshLambertMaterial({color: shieldColor==='red'?0xff6b81:0x5ec8ff}));
@@ -265,6 +286,14 @@ window.COMBAT = (function(){
     c.classList.add('hit'); setTimeout(()=>c.classList.remove('hit'),220);
   }
   function flash(mesh){
+    const z=mesh.userData.zombie;
+    if(z){
+      const hit=[];
+      z.traverse(o=>{ if(o.isMesh){ hit.push([o.material,o.material.color.getHex()]);
+                                    o.material.color.setHex(0xff6b81); } });
+      setTimeout(()=>hit.forEach(([m,c])=>m.color.setHex(c)),110);
+      return;
+    }
     const mat=mesh.userData.body.material, old=mat.color.getHex();
     mat.color.setHex(0xffffff); setTimeout(()=>mat.color.setHex(old),110);
   }
@@ -364,11 +393,15 @@ window.COMBAT = (function(){
       if(e.armour && e.hp<e.max && e.hurtAt && now-e.hurtAt>ARMOUR_RESEAL){
         e.hp=e.max; e.hurtAt=0; flash(e.mesh); pulseBar(e,'reseal');
       }
-      e.mesh.position.y=2.2+Math.sin(e.t*2)*0.32;
+      const stand=e.mesh.userData.stand;
+      e.mesh.position.y = stand!==undefined ? stand : 2.2+Math.sin(e.t*2)*0.32;
       const dx=G.pos.x-e.mesh.position.x, dz=G.pos.z-e.mesh.position.z;
       const dist=Math.hypot(dx,dz);
-      if(dist>7) { e.mesh.position.x+=dx/dist*e.K.speed*dt; e.mesh.position.z+=dz/dist*e.K.speed*dt; }
+      const walking = dist>7;
+      if(walking){ e.mesh.position.x+=dx/dist*e.K.speed*dt; e.mesh.position.z+=dz/dist*e.K.speed*dt; }
       e.mesh.lookAt(G.pos.x, e.mesh.position.y, G.pos.z);
+      if(e.mesh.userData.zombie)
+        ZOMBIE.animate(e.mesh.userData.zombie, dt, walking ? 'run' : 'idle');
       if(e.ring) e.ring.rotation.z+=dt*2;
       if(now>e.next && dist<e.K.range && !blocked(e.mesh.position.x,e.mesh.position.z,G.pos.x,G.pos.z)){
         e.next=now+e.K.fire; foeShot(e);

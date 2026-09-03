@@ -15,9 +15,11 @@ window.AVATAR = (function(){
     preview:`characters/previews/character-${c}.png` }));
   const BASE = 'characters/models/';     // so the .glb finds its texture
   const TALL = 1.85;                     // how tall a person stands, in world units
+  const HELD = 0.80;                     // and how long the blaster in their hand reads
 
+  const BLASTER='blasters/blaster-g.glb';
   const bytes=new Map();
-  let loader=null;
+  let loader=null, gunProto=null;
 
   function file(id){
     const def = CHARS.find(c=>c.id===id) || CHARS[0];
@@ -42,6 +44,36 @@ window.AVATAR = (function(){
     if(h > 0.1) root.scale.setScalar(TALL / h);
     root.userData.rig = rig(root, g.animations||[]);
     return root;
+  }
+
+  /* The blaster the character is actually carrying.  The one in GUN hangs
+     off the camera and only exists in first person, so in third person the
+     player was holding nothing at all. */
+  function blaster(){
+    if(!gunProto){
+      loader = loader || new THREE.GLTFLoader();
+      gunProto = new Promise((res,rej)=>loader.load(BLASTER, g=>res(g.scene), undefined, rej));
+    }
+    return gunProto;
+  }
+  async function equip(root){
+    const arm=root.getObjectByName('arm-right');
+    if(!arm) return null;
+    let src;
+    try{ src=await blaster(); }catch(e){ return null; }
+    const gun=src.clone(true);
+    // the arm carries the whole body's normalising scale — divide it back out
+    // so the blaster is sized in world units rather than character units
+    const ws=new THREE.Vector3(); arm.getWorldScale(ws);
+    const k=1/(ws.x||1);
+    const box=new THREE.Box3().setFromObject(gun);
+    const len=Math.max(0.001, box.max.z-box.min.z);
+    gun.scale.setScalar((HELD/len)*k);
+    gun.rotation.y = Math.PI;              // the model's muzzle is -Z, the body faces +Z
+    gun.position.set(0.17*k, -0.62*k, 0.22*k);   // at the end of the arm, clear of it
+    gun.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
+    arm.add(gun);
+    return gun;
   }
 
   /* idle / walk / sprint, crossfaded so nobody pops between poses */
@@ -88,6 +120,7 @@ window.AVATAR = (function(){
       model=m;
       body=new THREE.Group(); body.add(m);
       G.roomGroup.add(body);
+      equip(m);                            // give them something to hold
     }catch(e){ console.warn('character failed to load',e); body=null; model=null; }
   }
   function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null; }
