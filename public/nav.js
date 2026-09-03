@@ -15,6 +15,7 @@ window.NAV = (function(){
   const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];      // N E S W
   const PAL={floor:0x8d93b4, wall:0x4a4570, exit:0xa8e6cf, safe:0xd8ecff};
   const CHASE = 1.6;     // world units per second — a walk, but it never stops
+  const GRACE = 5;       // and how long it stands and looks at you first
 
   let L=null, busy=false;
 
@@ -105,7 +106,7 @@ window.NAV = (function(){
     document.querySelector('#mapwrap').classList.add('hidden');   // no map here
 
     L={ idx, S, grid:S.grid, w:S.grid[0].length, h:S.grid.length,
-        x:0, y:0, dir:1, start:null, exit:null, done:false, caught:false,
+        x:0, y:0, dir:1, start:null, exit:null, done:false, caught:false, grace:GRACE,
         zom:{ cx:0, cy:0, tx:0, ty:0, wx:0, wz:0, mesh:null }, zomStart:null };
 
     S.grid.forEach((row,y)=>[...row].forEach((c,x)=>{
@@ -128,7 +129,7 @@ window.NAV = (function(){
       const z=await ZOMBIE.make({skin:'zombieA', height:2.2});
       G.roomGroup.add(z); L.zom.mesh=z;
       placeZombie(L.zomStart.x, L.zomStart.y);   // now that there is a body to place
-      ZOMBIE.animate(z,0,'run');
+      ZOMBIE.animate(z,0,'idle');
     }catch(e){ console.warn('chaser failed to load',e); }
 
     CODE.setPalette(S.pal); CODE.setBudget(S.budget); CODE.clear();
@@ -186,6 +187,13 @@ window.NAV = (function(){
     if(!document.querySelector('#teach').classList.contains('hidden')) return;
     if(!document.querySelector('#pause').classList.contains('hidden')) return;
     const z=L.zom, spd=(L.S.speed||CHASE);
+    // it stands and looks at you first, so you get a beat to read the corridor
+    if(L.grace>0){
+      L.grace-=dt;
+      z.mesh.lookAt(G.pos.x, 0, G.pos.z);
+      ZOMBIE.animate(z.mesh, dt, 'idle');
+      return;
+    }
     let step=spd*dt;
     while(step>0){
       const dx=z.tx*T-z.wx, dz=z.ty*T-z.wz;
@@ -275,7 +283,7 @@ window.NAV = (function(){
   }
   function reset(){
     if(!L) return;
-    L.x=L.start.x; L.y=L.start.y; L.dir=1; L.caught=false;
+    L.x=L.start.x; L.y=L.start.y; L.dir=1; L.caught=false; L.grace=GRACE;
     placeZombie(L.zomStart.x, L.zomStart.y);
     G.pos.set(L.x*T,1.9,L.y*T);
     G.yaw=Math.atan2(-DIRS[L.dir][0],-DIRS[L.dir][1]);
