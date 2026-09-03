@@ -14,13 +14,13 @@ window.NAV = (function(){
   const T=4;                                   // world units per grid tile
   const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];      // N E S W
   const PAL={floor:0x8d93b4, wall:0x4a4570, exit:0xa8e6cf, safe:0xd8ecff};
-  const CHASE = 0.55;    // world units per second — a walk, but it never stops
+  const CHASE = 0.8;     // world units per second — a walk, but it never stops
 
   let L=null, busy=false;
 
   /* ------------------------------------------------------------ levels */
   const STAGES=[
-    { name:'Straight Shot', budget:6, speed:0.45,
+    { name:'Straight Shot', budget:6, speed:0.65,
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
       brief:'A zombie is behind you. <b>forward()</b> moves one tile. Count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
@@ -28,7 +28,7 @@ window.NAV = (function(){
             '#Z...S....X#',
             '############'] },
 
-    { name:'Round the Corner', budget:9, speed:0.55,
+    { name:'Round the Corner', budget:9, speed:0.8,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
       brief:'The way out is round a corner. <b>right()</b> and <b>left()</b> turn you without moving. Every block you run, it steps too.',
       pal:['forward','left','right'],
@@ -39,7 +39,7 @@ window.NAV = (function(){
             '#######X##',
             '##########'] },
 
-    { name:'The Long Hall', budget:7, speed:0.6,
+    { name:'The Long Hall', budget:7, speed:0.9,
       learn:{ name:'Loops', text:'A loop runs the blocks inside it again and again, so you write the move once instead of ten times.', code:'repeat 10\n  forward()\nend' },
       brief:'Ten tiles, and only <b>7 blocks</b> allowed. Writing forward() ten times will not fit — <b>repeat</b> it instead.',
       pal:['forward','left','right','repeat'],
