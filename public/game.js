@@ -329,7 +329,8 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset(); PUZZLE.stop(); NAV.stop();
+  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop();
+  if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
   G.hudOwner='mission';
   G.missionId=id;
@@ -412,8 +413,8 @@ function wireInput(){
       return;
     }
     if((e.code==='KeyC'||e.code==='Tab') && G.running
-       && (PUZZLE.active || NAV.active || G.room==='arena')
-       && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy){
+       && (PUZZLE.active || NAV.active || TUTOR.active || G.room==='arena')
+       && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
     }
@@ -455,6 +456,7 @@ function loop(now){
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(G.running && !frozen()){
     step(dt);
+    if(TUTOR.active) TUTOR.tick(dt);
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(PUZZLE.active) PUZZLE.map();
@@ -680,7 +682,8 @@ function setLang(l){
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{
-  if(NAV.active) NAV.run(steps);
+  if(TUTOR.active) TUTOR.run(steps);
+  else if(NAV.active) NAV.run(steps);
   else if(PUZZLE.active) PUZZLE.run(steps);
   else { COMBAT.runProgram(steps); lockPointer($('#view')); }
 };

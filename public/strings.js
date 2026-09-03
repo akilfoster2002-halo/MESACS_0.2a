@@ -327,6 +327,40 @@ window.ES = {
   'Play again':'Jugar otra vez',
   'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados',
 
+  /* ---------- level 0 ---------- */
+  'LEVEL 0':'NIVEL 0','Level 0 — Basics':'Nivel 0 — Lo Básico','Basics':'Lo Básico',
+  'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.':
+    'Práctica. Camina, mira, salta, abre la consola, ejecuta un programa. Nada te persigue.',
+  'Nothing in this room is chasing you. Walk about, get used to the controls, then open the console and run your first program.':
+    'Nada en esta sala te persigue. Camina, acostúmbrate a los controles y luego abre la consola y ejecuta tu primer programa.',
+  'Five steps. They tick off on their own as you do them.':
+    'Cinco pasos. Se marcan solos conforme los haces.',
+  'Let me try ▶':'Déjame intentar ▶','PRACTISE AGAIN ▶':'PRACTICAR OTRA VEZ ▶',
+  'Look around':'Mira alrededor',
+  'Move the <b>mouse</b>, or press <b>←</b> and <b>→</b>, to look around the plaza.':
+    'Mueve el <b>ratón</b>, o presiona <b>←</b> y <b>→</b>, para mirar alrededor de la plaza.',
+  'Walk to the blue pad':'Camina a la plataforma azul',
+  'Hold <b>W</b> to walk forward. <b>A</b> and <b>D</b> step sideways, <b>S</b> backs up. Get to the <b>blue pad</b>.':
+    'Mantén <b>W</b> para avanzar. <b>A</b> y <b>D</b> se mueven de lado, <b>S</b> retrocede. Llega a la <b>plataforma azul</b>.',
+  'Press <b>SPACE</b> to jump. Nothing here needs it yet — but the ground is not always flat.':
+    'Presiona <b>ESPACIO</b> para saltar. Aquí no hace falta todavía — pero el suelo no siempre es plano.',
+  'Stand on the yellow pad':'Párate en la plataforma amarilla',
+  'Walk onto the <b>yellow launch pad</b>. That is where your program starts from.':
+    'Camina hasta la <b>plataforma amarilla</b>. Desde ahí empieza tu programa.',
+  'Write a program and run it':'Escribe un programa y ejecútalo',
+  'Press <b>C</b> for the code console. Add <b>four</b> <b>forward()</b> blocks and press <b>RUN</b> to walk to the green door.':
+    'Presiona <b>C</b> para la consola de código. Agrega <b>cuatro</b> bloques <b>forward()</b> y presiona <b>RUN</b> para llegar a la puerta verde.',
+  'Finish the step you are on first — the console comes last.':
+    'Termina primero el paso en el que estás — la consola viene al final.',
+  'Program finished — but you are not on the green door yet. Count the pads again.':
+    'El programa terminó — pero aún no estás en la puerta verde. Cuenta las plataformas otra vez.',
+  'That is a wall. Turn first, or use fewer blocks.':
+    'Eso es una pared. Gira primero, o usa menos bloques.',
+  'BASICS DONE':'LO BÁSICO, LISTO',
+  'You looked around, walked, jumped, opened the console and ran a program that moved you. That is every control the rest of the game uses.':
+    'Miraste alrededor, caminaste, saltaste, abriste la consola y ejecutaste un programa que te movió. Esos son todos los controles que usa el resto del juego.',
+  'mouse or ← →':'ratón o ← →','Console':'Consola',
+
   /* ---------- difficulty ---------- */
   'DIFFICULTY':'DIFICULTAD',
   'DIFFICULTY — APPLIES TO EVERY MISSION':'DIFICULTAD — SE APLICA A TODAS LAS MISIONES',
