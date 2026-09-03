@@ -304,19 +304,15 @@ function buildRoom(name){
   updateMapLegend(); updateLeaveBtn(); codeBtnState=null; updateCodeBtn();
 }
 
+/* Free Play is the sandbox. The floor is left deliberately clear — the only
+   things standing in it are the ones somebody built. */
 function buildFree(L){
   G.pos.set(0,EYE,20); G.yaw=0; G.pitch=0;
-  for(let i=0;i<7;i++){
-    const a=(i/7)*Math.PI*2, r=16;
-    const m=new THREE.Mesh(new THREE.BoxGeometry(4,4.5,4),
-      new THREE.MeshLambertMaterial({color:[0xcdb4f6,0xa8e6cf,0xffb4a2,0x8fd3ff][i%4]}));
-    m.position.set(Math.cos(a)*r,2.25,Math.sin(a)*r);
-    G.roomGroup.add(m);
-    addSolid(m.position.x,m.position.z,4,4);
-  }
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(16,3.2),
-    new THREE.MeshLambertMaterial({map:textTexture(['🌐 '+t('Free Play')],'#5aa8d6',32)}));
+    new THREE.MeshLambertMaterial({map:textTexture(['🔧 '+t('Workshop')],'#5aa8d6',32)}));
   sign.position.set(0,8,-L.d/2+0.7); G.roomGroup.add(sign);
+  document.querySelector('#mapwrap').classList.add('hidden');
+  if(window.SANDBOX) SANDBOX.enter(G.roomGroup);
 }
 function buildArena(L){
   G.pos.set(0,EYE,L.d/2-6); G.yaw=0; G.pitch=0;
@@ -406,6 +402,7 @@ function wireInput(){
       }
       return;
     }
+    if(e.code==='KeyB' && G.running && G.room==='free'){ e.preventDefault(); BENCH.toggle(); return; }
     if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
     if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
     if(G.room==='free' && CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
@@ -426,6 +423,7 @@ function wireInput(){
   const canvas=$('#view');
   canvas.addEventListener('mousedown',()=>{
     if(!G.running) return;
+    if(window.BENCH && BENCH.open) return;   // the workbench needs the mouse
     lockPointer(canvas);
   });
   document.addEventListener('pointerlockchange',()=>{ G.locked=!!document.pointerLockElement; });
@@ -434,8 +432,9 @@ function wireInput(){
     G.yaw   -= e.movementX*0.0022;
     G.pitch  = clamp(G.pitch - e.movementY*0.0022, -1.2, 1.2);
   });
-  canvas.addEventListener('click',()=>{
+  canvas.addEventListener('click',e=>{
     if(!G.running) return;
+    if(window.BENCH && BENCH.open){ BENCH.worldClick(e); return; }
     if(COMBAT.inRange){ COMBAT.rangeShot(); return; }   // the range is pure aiming
     if(G.hudOwner==='mission') COMBAT.manualShot();             // in a fight, the trigger fires
   });
@@ -457,6 +456,7 @@ function loop(now){
   updateCodeBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
+  if(G.room==='free'){ SANDBOX.tick(dt); BENCH.tick(dt); }
   if(G.running && !frozen()){
     step(dt);
     if(TUTOR.active) TUTOR.tick(dt);
@@ -559,8 +559,7 @@ function step(dt){
   AVATAR.update(dt, !!(dx||dz), !!(G.keys.ShiftLeft||G.keys.ShiftRight), G.onGround);
 
   if(G.room==='plaza'){
-    if(G.gatePos && G.pos.distanceTo(new THREE.Vector3(G.gatePos.x,EYE,G.gatePos.z))<6) fire('reach',{id:'launcher'});
-    if(G.towerPos && G.pos.distanceTo(new THREE.Vector3(G.towerPos.x,EYE,G.towerPos.z))<9) fire('near',{id:'sysmenu'});
+    /* the old desktop mission listened here; it is gone, and so is fire() */
   }
 }
 function moveAxis(axis,d){
@@ -575,6 +574,7 @@ function moveAxis(axis,d){
 }
 
 const ray=new THREE.Raycaster(); ray.far=34;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function focusScan(){
   const dir=new THREE.Vector3(0,0,-1).applyQuaternion(G.camera.quaternion);
   ray.set(G.camera.position, dir);
@@ -587,9 +587,15 @@ function focusScan(){
   if(owner){
     cross.classList.add('on'); box.classList.remove('hidden');
     const u=owner.userData;
-    box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
-      : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open') : t('one click')+' → '+t('double-click'))) + '</small>';
-    fire('look',{id:u.id});
+    if(u.part){                                   // a sandbox part names itself
+      const p=u.part;
+      box.innerHTML = esc(p.name) + '<small>' +
+        (p.powered ? t('powered') : t('no power')) + ' · ' + t('B for the workbench') + '</small>';
+    } else {
+      box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
+        : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
+                              : t('one click')+' → '+t('double-click'))) + '</small>';
+    }
   } else { cross.classList.remove('on'); box.classList.add('hidden'); }
 }
 

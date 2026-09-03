@@ -47,9 +47,8 @@ window.MENU = (function(){
      blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
-    {id:'free',  em:'🌐', a:'#cdb4f6', name:'Free Play',
-     blurb:'Pick a server and stand in it with everyone else who joined.',
-     needsAccount:true}
+    {id:'free',  em:'🔧', a:'#cdb4f6', name:'Free Play — Workshop',
+     blurb:'Build machines from parts, wire them up, program them, watch them run.'}
   ];
 
   /* ------------------------------------------------------- auth screen */
@@ -274,7 +273,11 @@ window.MENU = (function(){
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
-    if(id==='free'){ hideAll(); $('#hud').classList.add('hidden'); return servers(); }
+    if(id==='free'){
+      // signed in? pick who to share the room with. Otherwise straight to work.
+      if(!NET.signedIn) return enterServer(null);
+      hideAll(); $('#hud').classList.add('hidden'); return servers();
+    }
     startMissionRoom(id);
     lockPointer($('#view'));
   }
@@ -289,14 +292,14 @@ window.FREE = (function(){
   let others=new Map(), group=null;
   let room=null;
   function enter(sv){
-    room = sv || room || { id:'meadow', name:'Meadow' };
+    room = sv || { id:null, name:'Workshop' };
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     G.missionId=null; G.arenaTitle=t(room.name);
     buildRoom('free');
     group=new THREE.Group(); G.roomGroup.add(group);
     others.clear();
-    CHAT.show();
-    NET.connect(room.id, {
+    if(room.id) CHAT.show(); else CHAT.hide();
+    if(room.id) NET.connect(room.id, {
       players:list=>paint(list),
       chat:m=>CHAT.line(m.from, m.text, m.id),
       sys:s=>CHAT.sys(s),
@@ -304,10 +307,10 @@ window.FREE = (function(){
       unsay:id=>CHAT.remove(id)
     });
     document.querySelector('#objList').innerHTML=
-      `<li class="cur">🌐 ${t('Server')}: <b>${t(room.name)}</b></li>
-       <li>${t('Press ENTER to chat')}</li>
-       <li>${t('Press P for the pause menu')}</li>`;
-    document.querySelector('#missionName').textContent=t('Free Play');
+      `<li class="cur">🔧 ${t('Press B for the workbench')}</li>
+       <li>${room.id? '🌐 '+t('Server')+': <b>'+t(room.name)+'</b>' : '👤 '+t('Just you')}</li>
+       <li>${room.id? t('Press ENTER to chat') : t('Sign in to build alongside your class')}</li>`;
+    document.querySelector('#missionName').textContent=t('Workshop');
     lockPointer(document.querySelector('#view'));
   }
   function tag(name){

@@ -192,6 +192,64 @@ button{font-family:var(--font);cursor:pointer}
 .ctrlgrid b{color:var(--star);display:inline-block;min-width:74px}
 @keyframes tick{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 
+/* ---------- the workbench ---------- */
+#bench{position:fixed;inset:0;z-index:28;pointer-events:none;font-size:13px}
+#bench .bhead{font-size:11px;letter-spacing:2px;color:var(--mint);font-weight:bold;
+  display:flex;align-items:center;gap:6px;margin-bottom:8px}
+#bench .bhead2{font-size:10.5px;letter-spacing:1.6px;color:var(--muted);margin:12px 0 6px}
+#bench .bspace{flex:1}
+#bench .bnote{font-size:12px;color:var(--muted);line-height:1.45;margin:4px 0}
+#bench .bwarn{font-size:11.5px;color:var(--warn);margin:4px 0}
+#bBar{position:absolute;left:50%;top:10px;transform:translateX(-50%);pointer-events:auto;
+  display:flex;align-items:center;gap:8px;background:rgba(20,15,36,.94);
+  border:2px solid var(--line);border-radius:14px;padding:7px 10px;max-width:min(760px,92vw)}
+.bhintbox{font-size:12px;color:var(--muted)} .bhintbox.bad{color:var(--bad)}
+#bPal,#bInsp{position:absolute;top:60px;bottom:210px;width:230px;overflow:auto;pointer-events:auto;
+  background:rgba(20,15,36,.94);border:2px solid var(--line);border-radius:14px;padding:10px}
+#bPal{left:10px} #bInsp{right:10px}
+#bProg{position:absolute;left:10px;right:10px;bottom:10px;height:192px;overflow:auto;pointer-events:auto;
+  background:rgba(20,15,36,.95);border:2px solid var(--line);border-radius:14px;padding:10px}
+.bcat{margin-bottom:10px} .bcatname{font-size:11.5px;color:var(--a);margin-bottom:4px;font-weight:bold}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.btile{position:relative;background:var(--panel2);border:2px solid var(--line);border-radius:9px;
+  padding:5px 4px;color:var(--text);font-size:10.5px;display:flex;flex-direction:column;
+  align-items:center;gap:2px;line-height:1.15;text-align:center}
+.btile:hover{border-color:var(--a)} .btile.on{border-color:var(--a);background:#2b2350}
+.bem{font-size:17px}
+.binert{position:absolute;top:2px;right:4px;color:var(--warn);font-style:normal}
+.bname{width:100%;padding:6px 8px;border-radius:9px;border:2px solid var(--line);
+  background:#1d1730;color:var(--text);font-size:14px;font-weight:bold}
+.bstate{font-size:12px;color:var(--muted);margin:6px 0}
+.bstate .yes{color:var(--good)} .bstate .no{color:var(--muted)}
+.bprop{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:3px 0;font-size:12px}
+.bprop span{color:var(--muted)}
+.bprop input,.bprop select{width:96px;padding:4px 6px;border-radius:8px;border:2px solid var(--line);
+  background:#1d1730;color:var(--text);font-size:12px}
+.bprop input:disabled{opacity:.7}
+.brow{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.brow .btn{flex:1;min-width:88px} .btn.bad{background:var(--bad);color:#4a1720;box-shadow:0 3px 0 #c96b78}
+.bprogs{display:flex;flex-direction:column;gap:8px}
+.bcard{background:#241d38;border:2px solid var(--line);border-radius:12px;padding:8px}
+.bcardtop{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.bpname{flex:1;background:#1d1730;border:2px solid var(--line);border-radius:8px;
+  color:var(--text);padding:4px 7px;font-size:13px;font-weight:bold}
+.bswitch{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.bx{background:none;border:none;color:var(--muted);font-size:14px;padding:2px 5px}
+.bx:hover{color:var(--bad)}
+.bline{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:3px 0}
+.bline select,.bline input{padding:3px 6px;border-radius:7px;border:2px solid var(--line);
+  background:#1d1730;color:var(--text);font-size:12px}
+.bnum{width:66px}
+.bstep{margin-left:14px}
+.binner{width:100%;margin-left:16px;border-left:2px solid var(--line);padding-left:8px}
+.bkw{font-size:10px;font-weight:bold;letter-spacing:1.3px;padding:2px 7px;border-radius:6px;
+  background:#1d1730;border:1px solid var(--line);min-width:52px;text-align:center}
+.bkw.when{color:var(--star)} .bkw.iff{color:var(--mint)} .bkw.then{color:var(--accent)}
+.bkw.do{color:var(--accent)} .bkw.wait{color:var(--muted)} .bkw.rep{color:var(--lav)}
+.bkw.call{color:var(--peach)}
+.badd{margin-top:6px}
+@media (max-width:900px){ #bPal,#bInsp{width:170px} #bProg{height:150px} }
+
 /* ---------- quiz + certificate ---------- */
 .card .kicker{font-size:12px;letter-spacing:2.5px;color:var(--mint);font-weight:bold}
 #qOpts button{font-size:16px;padding:12px 16px;border-radius:12px;text-align:left}
@@ -707,6 +765,13 @@ button{font-family:var(--font);cursor:pointer}
   </div>
 </div>
 
+<div id="bench" class="hidden">
+  <div id="bBar"></div>
+  <div id="bPal"></div>
+  <div id="bInsp"></div>
+  <div id="bProg"></div>
+</div>
+
 <div id="quiz" class="screen hidden"></div>
 <div id="cert" class="screen hidden"></div>
 
@@ -717,23 +782,26 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=65"></script>
-<script src="strings.js?v=65"></script>
-<script src="difficulty.js?v=65"></script>
-<script src="net.js?v=65"></script>
-<script src="avatar.js?v=65"></script>
-<script src="zombies.js?v=65"></script>
-<script src="building.js?v=65"></script>
-<script src="levels.js?v=65"></script>
-<script src="code.js?v=65"></script>
-<script src="combat.js?v=65"></script>
-<script src="puzzle.js?v=65"></script>
-<script src="nav.js?v=65"></script>
-<script src="tutorial.js?v=65"></script>
-<script src="race.js?v=65"></script>
-<script src="quiz.js?v=65"></script>
-<script src="chars.js?v=65"></script>
-<script src="menu.js?v=65"></script>
-<script src="game.js?v=65"></script>
+<script src="lib/three.classic.js?v=66"></script>
+<script src="strings.js?v=66"></script>
+<script src="difficulty.js?v=66"></script>
+<script src="net.js?v=66"></script>
+<script src="avatar.js?v=66"></script>
+<script src="zombies.js?v=66"></script>
+<script src="building.js?v=66"></script>
+<script src="levels.js?v=66"></script>
+<script src="code.js?v=66"></script>
+<script src="combat.js?v=66"></script>
+<script src="puzzle.js?v=66"></script>
+<script src="nav.js?v=66"></script>
+<script src="tutorial.js?v=66"></script>
+<script src="race.js?v=66"></script>
+<script src="parts.js?v=66"></script>
+<script src="sandbox.js?v=66"></script>
+<script src="bench.js?v=66"></script>
+<script src="quiz.js?v=66"></script>
+<script src="chars.js?v=66"></script>
+<script src="menu.js?v=66"></script>
+<script src="game.js?v=66"></script>
 </body>
 </html>
