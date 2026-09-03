@@ -24,7 +24,7 @@ window.RACE = (function(){
   const BASE_MS=620;                           // one tile from a standing start
   const MAX_MOM=4;                             // and how far momentum can build
   const TURN_MS=300;
-  const PAL={ road:0x6f6a92, kerb:0xffe9a8, wall:0x4a4570, line:0x8fd3ff, grass:0x3c4a3a };
+  let CORNER=0;                                // corner-piece rotation offset, tuned on screen
 
   /* ---------------------------------------------------------- circuits */
   const TRACKS=[
@@ -138,13 +138,62 @@ window.RACE = (function(){
 
   let L=null, busy=false, kart=null;
 
-  /* ------------------------------------------------------------- build */
-  function slab(gx,gz,color,h,yOff){
-    const m=new THREE.Mesh(new THREE.BoxGeometry(T*0.98,h||0.4,T*0.98),
-      new THREE.MeshLambertMaterial({color}));
-    m.position.set(gx*T,(yOff!==undefined?yOff:0),gz*T);
-    G.roomGroup.add(m); return m;
+  /* -------------------------------------------------------- trackside
+     The kit is modelled on a 1×1 grid and stands on y=0, and a tile here
+     is T across — so one piece is exactly one tile at scale T, and
+     nothing needs measuring by hand. Props are static meshes, so a plain
+     clone is safe (unlike the characters, which carry skeletons). */
+  const PROPS='racing/';
+  const PROP={};
+  const ROAD_Y=0.12;                 // road is 0.08 thick, so its surface lands on 0.2
+  const GND_Y=0.20;                  // and everything else stands on that surface
+  let propLoader=null;
+
+  /* The kit models from a corner, not a centre: a road tile spans x 0..1 and
+     z -1..0 about its origin. Rotating that about y would swing the tile off
+     its square. So each piece is measured once on load and then hung inside a
+     group at minus its own centre — after which position is the tile centre
+     and rotation spins in place, for every piece, without a table of
+     hand-measured offsets. Y is left alone: these models stand on y=0. */
+  async function warm(names){
+    propLoader = propLoader || new THREE.GLTFLoader();
+    await Promise.all(names.map(n=>{
+      if(PROP[n]!==undefined) return null;
+      return new Promise(res=>propLoader.load(PROPS+n+'.glb',
+        g=>{
+          const b=new THREE.Box3().setFromObject(g.scene);
+          PROP[n]={ scene:g.scene,
+                    cx:(b.min.x+b.max.x)/2,
+                    cz:(b.min.z+b.max.z)/2 };
+          res();
+        },
+        undefined,
+        ()=>{
+          // Do NOT cache the failure. A load cancelled by restarting the
+          // circuit mid-fetch would otherwise blank that piece for the rest
+          // of the session; leaving the slot empty lets the next start retry.
+          console.warn('track piece failed, will retry:',n);
+          delete PROP[n]; res();
+        }));
+    }));
   }
+  function place(name, wx, wz, rotY, wy, scale){
+    const p=PROP[name]; if(!p) return null;
+    const m=p.scene.clone(true);
+    m.position.set(-p.cx, 0, -p.cz);          // centre it on its own group
+    m.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
+    const g=new THREE.Group();
+    g.add(m);
+    g.scale.setScalar(scale===undefined ? T : scale);
+    g.position.set(wx, wy===undefined?GND_Y:wy, wz);
+    g.rotation.y=rotY||0;
+    G.roomGroup.add(g); return g;
+  }
+  function tileProp(name, gx, gz, rotY, wy, scale){
+    return place(name, gx*T, gz*T, rotY, wy, scale);
+  }
+
+  /* ------------------------------------------------------------- build */
   /* if a car will not load, a box still races — better a plain kart than an
      empty track and a mission you cannot play */
   function fallbackKart(){
@@ -178,23 +227,11 @@ window.RACE = (function(){
         mom:1, laps:0, sinceCross:99, tiles:0,
         t0:0, elapsed:0, rolling:false, done:false, crashed:false };
 
-    K.grid.forEach((row,z)=>[...row].forEach((c,x)=>{
-      if(c==='#'){
-        /* Low barriers, and no physics box on them.
-           A race track hugs its walls, and a corridor-height wall broke the
-           chase camera both ways: as a solid it shoved the camera onto the
-           bonnet, and as scenery the camera flew inside it. Knee-high is
-           what a real circuit has anyway, and the camera simply looks over
-           the top. drive() still checks the grid, so they stop the car. */
-        slab(x,z,PAL.wall,1.4,0.7);
-        return;
-      }
-      slab(x,z,PAL.road,0.4,0);
-      if(c==='S'){                                 // start / finish line
-        const m=slab(x,z,PAL.kerb,0.46,0.04);
-        m.material.color.setHex(PAL.kerb);
-      }
-    }));
+    await warm(['roadStraight','roadCornerSmall','roadStartPositions','fenceStraight','barrierWall',
+                'overhead','flagCheckers','grandStand','grandStandCovered',
+                'treeLarge','treeSmall','lightPostLarge','pylon','tent']);
+    if(!L) return;                                 // left again while it loaded
+    buildTrack();
 
     const p={x:L.gx*T, z:L.gz*T};
     G.pos.set(p.x, 1.9, p.z);
@@ -231,6 +268,92 @@ window.RACE = (function(){
     // the kit models nose down +Z, the camera looks down -Z — same half turn
     // the characters need
     kart.rotation.y=G.yaw+Math.PI;
+  }
+
+  /* --------------------------------------------------------- the track
+     The grid already says where the road runs, so the shape of each tile
+     is read back out of it rather than authored twice: two road
+     neighbours facing each other is a straight, two at right angles is a
+     corner, and the rotation follows from which two. Add a tile to a
+     circuit above and the scenery follows it. */
+  const isRoad=(x,z)=>{ const c=cell(x,z); return c==='.'||c==='S'; };
+  function nbrs(x,z){ return DIRS.map(([dx,dz])=>isRoad(x+dx,z+dz)); }   // N E S W
+
+  function buildTrack(){
+    const K=L.K, H=L.h, W=L.w;
+    K.grid.forEach((row,z)=>[...row].forEach((c,x)=>{
+      if(c==='#'){ fenceEdges(x,z); return; }
+      roadTile(x,z,c);
+    }));
+    scenery();
+  }
+  function roadTile(gx,gz,c){
+    const n=nbrs(gx,gz);
+    const [N,E,S,Wd]=n;
+    const count=n.filter(Boolean).length;
+    if(count===2 && N && S)        tileProp('roadStraight', gx,gz, 0, ROAD_Y);
+    else if(count===2 && E && Wd)  tileProp('roadStraight', gx,gz, Math.PI/2, ROAD_Y);
+    else if(count===2 && N && E)   tileProp('roadCornerSmall', gx,gz, CORNER, ROAD_Y);
+    else if(count===2 && N && Wd)  tileProp('roadCornerSmall', gx,gz, CORNER+Math.PI/2, ROAD_Y);
+    else if(count===2 && S && Wd)  tileProp('roadCornerSmall', gx,gz, CORNER+Math.PI, ROAD_Y);
+    else if(count===2 && S && E)   tileProp('roadCornerSmall', gx,gz, CORNER-Math.PI/2, ROAD_Y);
+    else                           tileProp('roadStraight', gx,gz, 0, ROAD_Y);
+    if(c==='S') startFurniture(gx,gz);
+  }
+  /* The lap has to start on a corner — that is what makes the straights come
+     out 6,4,6,4 and keeps "one repeat per straight" honest. But a start line
+     painted across a corner looks like a mistake, so the furniture goes on
+     the first straight tile ahead instead, which is where a real gantry
+     stands anyway. Lap counting still keys off the S tile itself. */
+  function startFurniture(gx,gz){
+    const [dx,dz]=DIRS[L.K.start.dir];
+    const fx=gx+dx, fz=gz+dz;
+    const along = dx!==0 ? Math.PI/2 : 0;         // square the line across the road
+    tileProp('roadStartPositions', fx,fz, along, ROAD_Y+0.01);
+    tileProp('overhead',           fx,fz, along, GND_Y);
+    // a checkered flag either side of the gantry, set back off the asphalt
+    place('flagCheckers', (fx-dz*0.62)*T, (fz-dx*0.62)*T, 0, GND_Y);
+    place('flagCheckers', (fx+dz*0.62)*T, (fz+dx*0.62)*T, 0, GND_Y);
+  }
+  /* Barriers on every face where a wall tile meets the road — but not the
+     same barrier on both sides. The chase camera rides outside the track
+     through every corner, so anything tall on the OUTER ring would sit
+     between the player and their own car: out there it is a knee-high
+     barrier the camera sees straight over. The infield is never between the
+     camera and the car, so it gets the tall catch fencing and the depth
+     that comes with it. */
+  function fenceEdges(gx,gz){
+    const outer = gx===0 || gz===0 || gx===L.w-1 || gz===L.h-1;
+    DIRS.forEach(([dx,dz])=>{
+      if(!isRoad(gx+dx,gz+dz)) return;
+      const wx=gx*T+dx*T/2, wz=gz*T+dz*T/2;
+      // both pieces lie along X by default: turn them when the edge runs along Z
+      place(outer?'barrierWall':'fenceStraight', wx, wz, dx!==0 ? Math.PI/2 : 0, GND_Y);
+    });
+  }
+  /* everything past the barriers — placed off the grid bounds so it fits
+     whichever circuit is loaded */
+  function scenery(){
+    const W=L.w, H=L.h, r=()=>Math.random();
+    const out=2.2;                                  // how far outside the wall ring
+    // grandstands down the two long sides, facing in
+    for(let x=2;x<W-2;x+=3){
+      place('grandStandCovered', x*T, -out*T, Math.PI, GND_Y);
+      place('grandStand',        x*T, (H-1+out)*T, 0,  GND_Y);
+    }
+    // floodlights on the corners
+    [[0,0],[W-1,0],[0,H-1],[W-1,H-1]].forEach(([x,z],i)=>{
+      place('lightPostLarge', (x + (x?1.4:-1.4))*T, (z + (z?1.4:-1.4))*T, i*Math.PI/2, GND_Y);
+    });
+    // a treeline behind the stands, thinned out so it never reads as a hedge
+    for(let x=-2;x<W+2;x+=2){
+      if(r()<0.45) place(r()<0.5?'treeLarge':'treeSmall', x*T+r()*T, -(out+1.6)*T-r()*T*2, r()*6, GND_Y);
+      if(r()<0.45) place(r()<0.5?'treeLarge':'treeSmall', x*T+r()*T, (H-1+out+1.6)*T+r()*T*2, r()*6, GND_Y);
+    }
+    // paddock tents at one end, pylons marking the infield
+    place('tent', -out*T, 2*T, Math.PI/2, GND_Y);
+    place('tent', -out*T, 4*T, Math.PI/2, GND_Y);
+    for(let z=2;z<H-2;z+=2) place('pylon', (W/2)*T, z*T, 0, GND_Y);
   }
 
   /* --------------------------------------------------------- the world */
