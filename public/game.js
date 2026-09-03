@@ -329,8 +329,9 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop();
+  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
+  if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
   G.hudOwner='mission';
   G.missionId=id;
@@ -383,6 +384,7 @@ function wireInput(){
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
     if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
+    if(e.code==='KeyR' && RACE.active && !RACE.busy){ e.preventDefault(); RACE.retry(); }
     if(e.code==='KeyE' && PUZZLE.active && G.running){ e.preventDefault(); PUZZLE.use(); return; }
     // results and knock-out screens advance on SPACE - no Esc, no hunting for the button
     if(!$('#done').classList.contains('hidden')){
@@ -413,8 +415,8 @@ function wireInput(){
       return;
     }
     if((e.code==='KeyC'||e.code==='Tab') && G.running
-       && (PUZZLE.active || NAV.active || TUTOR.active || G.room==='arena')
-       && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy){
+       && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active || G.room==='arena')
+       && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
     }
@@ -454,6 +456,7 @@ function loop(now){
   const dt=Math.min((now-last)/1000, 0.05); last=now;
   updateCodeBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
+  if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(G.running && !frozen()){
     step(dt);
     if(TUTOR.active) TUTOR.tick(dt);
@@ -522,7 +525,7 @@ function pauseDiff(){
 function step(dt){
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
-  const driven = NAV.active;
+  const driven = NAV.active || RACE.active;
   // turn with arrows too, so a student who cannot manage mouse-look can still play
   if(!driven && G.keys.ArrowLeft)  G.yaw += 2.0*dt;
   if(!driven && G.keys.ArrowRight) G.yaw -= 2.0*dt;
@@ -682,7 +685,8 @@ function setLang(l){
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{
-  if(TUTOR.active) TUTOR.run(steps);
+  if(RACE.active) RACE.run(steps);
+  else if(TUTOR.active) TUTOR.run(steps);
   else if(NAV.active) NAV.run(steps);
   else if(PUZZLE.active) PUZZLE.run(steps);
   else { COMBAT.runProgram(steps); lockPointer($('#view')); }

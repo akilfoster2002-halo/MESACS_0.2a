@@ -26,6 +26,16 @@ window.QUIZ = (function(){
       { q:'<b>left()</b> and <b>right()</b> do what to your position on the grid?',
         a:['Move you one tile sideways','Nothing — they only turn you in place','Move you backward','Delete the next block'], correct:1 }
     ]},
+    race: { topic:'Loops inside loops', mission:'Circuit — Time Trial', questions:[
+      { q:'Each <b>gas()</b> in an unbroken row is quicker than the one before. What does a <b>turn</b> do to that speed?',
+        a:['Nothing, speed carries through a turn','Drops you back to a standing start','Doubles it','Ends the program'], correct:1 },
+      { q:'Why is a long straight taken in <b>one repeat</b> faster than the same tiles split by an extra turn?',
+        a:['The repeat block runs at double speed','The straight never breaks, so speed keeps building','Turns are free','It is not faster, only shorter'], correct:1 },
+      { q:'A lap is <b>repeat 8 { gas() } turnLeft()</b> done four times. What is the shortest way to write three of those laps?',
+        a:['Write the lap out three times','Wrap the whole lap in one more repeat','Use a bigger number inside gas()','Turn three extra times'], correct:1 },
+      { q:'A square circuit with four identical sides takes 36 blocks written out flat, or 4 blocks nested. Why is nesting also <b>faster</b>, not just shorter?',
+        a:['Nested blocks execute quicker','It does not add turns the track never asked for','Loops skip tiles','The timer pauses inside a loop'], correct:1 }
+    ]},
     m1: { topic:'Loops', mission:'Mission 1 — Loops', questions:[
       { q:'A <b>repeat 3</b> block runs the blocks inside it…',
         a:['Once','Three times','Zero times','Until you click Stop'], correct:1 },
@@ -144,7 +154,8 @@ window.QUIZ = (function(){
 /* ------------------------------------------------------------ CERT */
 window.CERT = (function(){
   const TITLES = { nav:'Commands & Loops', m1:'Loops', m2:'Choices (if / else)',
-                   m3:'Functions', puzzles:'Loops and counting' };
+                   m3:'Functions', puzzles:'Loops and counting',
+                   race:'Loops inside loops' };
   const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
   function show(missionId, pct, opts){

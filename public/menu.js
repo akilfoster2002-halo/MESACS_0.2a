@@ -37,6 +37,8 @@ window.MENU = (function(){
   const MISSIONS=[
     {id:'tut',   em:'🎮', a:'#ffe9a8', name:'Level 0 — Basics',
      blurb:'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.'},
+    {id:'race',  em:'🏁', a:'#ffd8a8', name:'Circuit — Time Trial',
+     blurb:'Program the kart round the track. Every turn costs you speed.'},
     {id:'nav',   em:'🧟', a:'#8fd3ff', name:'Escape — Corridors',
      blurb:'Learn to code by getting out alive. It never stops walking.'},
     {id:'m1',    em:'🧟', a:'#a8e6cf', name:'Mission 1 — Loops',
@@ -121,7 +123,8 @@ window.MENU = (function(){
       // level 0 is practice: it never locks, and finishing it invites a replay
       // rather than closing the door with a COMPLETE stamp
       const tag = !open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
-                : done ? (m.id==='tut' ? '⭐ '+t('PRACTISE AGAIN ▶') : '⭐ '+t('COMPLETE'))
+                : done ? (m.id==='tut' ? '⭐ '+t('PRACTISE AGAIN ▶')
+                     : m.id==='race' ? '⭐ '+t('BEAT YOUR TIME ▶') : '⭐ '+t('COMPLETE'))
                 : t('PLAY ▶');
       b.innerHTML=`<div class="em">${m.em}</div><b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
@@ -150,14 +153,14 @@ window.MENU = (function(){
     });
   }
   function labelOf(id){
-    return ({tut:'Level 0 — Basics', nav:'Escape — Corridors', m1:'Mission 1 — Loops',
+    return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors', m1:'Mission 1 — Loops',
              m2:'Mission 2 — Choices', m3:'Mission 3 — Functions'})[id]||id;
   }
 
   /* the landing: a name and one button */
   function start(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -179,7 +182,7 @@ window.MENU = (function(){
   }
   function open(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');

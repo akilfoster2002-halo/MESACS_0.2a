@@ -31,7 +31,8 @@ window.CODE = (function(){
     turn     :{label:'turn()',       color:'#8fd3ff', help:'Swing the camera a quarter turn'},
     hold     :{label:'hold()',       color:'#cdb4f6', help:'Keep it there'},
     left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
-    right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'}
+    right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'},
+    gas      :{label:'gas()',        color:'#ffd8a8', help:'Drive on one tile — faster every time in a row'}
   };
   let CONDS=['red','blue'];
   function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }

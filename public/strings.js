@@ -327,6 +327,33 @@ window.ES = {
   'Play again':'Jugar otra vez',
   'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados',
 
+  /* ---------- circuit ---------- */
+  'YOUR CAR':'TU COCHE','Scarlet':'Escarlata','Chalk':'Tiza','Ember':'Brasa','Clover':'Trébol',
+  'Finish the Circuit':'Termina el Circuito','Beat a target time':'Baja de un tiempo objetivo',
+  'Circuit — Time Trial':'Circuito — Contrarreloj','CIRCUIT {n}':'CIRCUITO {n}',
+  'Circuit {n} — {name}':'Circuito {n} — {name}','BEAT YOUR TIME ▶':'MEJORA TU TIEMPO ▶',
+  'Program the kart round the track. Every turn costs you speed.':
+    'Programa el kart por la pista. Cada giro te cuesta velocidad.',
+  'Warm-Up Lap':'Vuelta de Calentamiento','Three Laps':'Tres Vueltas','The Square Mile':'El Cuadrado',
+  'One repeat per straight':'Un repeat por recta','A loop inside a loop':'Un bucle dentro de un bucle',
+  'Nesting pays':'Anidar vale la pena',
+  'Every gas() in a row is quicker than the last. A turn puts you back to walking pace.':
+    'Cada gas() seguido es más rápido que el anterior. Un giro te devuelve al paso.',
+  'To the grid ▶':'A la parrilla ▶','Loops inside loops':'Bucles dentro de bucles',
+  'Time':'Tiempo','Lap':'Vuelta','of':'de','Target':'Objetivo','Best':'Mejor',
+  'Your time':'Tu tiempo','Blocks used':'Bloques usados',
+  'Lap {n} of {m}.':'Vuelta {n} de {m}.',
+  '🏁 {s}s — next circuit…':'🏁 {s}s — siguiente circuito…',
+  '💥 Into the barrier. Count the tiles on that straight again.':
+    '💥 Contra la barrera. Cuenta otra vez las casillas de esa recta.',
+  'Program finished after {n} of {m} laps. Wrap the lap in a bigger repeat.':
+    'El programa terminó tras {n} de {m} vueltas. Envuelve la vuelta en un repeat más grande.',
+  'CHEQUERED FLAG':'BANDERA A CUADROS',
+  'Under the target, on a program you can read in one breath. That is what a loop buys you.':
+    'Bajo el objetivo, con un programa que se lee de un vistazo. Eso es lo que te da un bucle.',
+  'Round in one piece. Now cut the blocks down — fewer turns and longer straights is a faster lap.':
+    'Diste la vuelta entera. Ahora recorta bloques — menos giros y rectas más largas es una vuelta más rápida.',
+
   /* ---------- level 0 ---------- */
   'LEVEL 0':'NIVEL 0','Level 0 — Basics':'Nivel 0 — Lo Básico','Basics':'Lo Básico',
   'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.':
