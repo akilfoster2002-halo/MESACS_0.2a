@@ -511,6 +511,8 @@ window.COMBAT = (function(){
   }
   function showSkill(sk){
     const el=document.querySelector('#skill');
+    // the console covers this panel, so hand it the same walkthrough
+    if(window.CODE) CODE.setGuide(sk||null);
     if(!sk){ el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     document.querySelector('#skLbl').textContent=t('SKILL YOU ARE USING');
@@ -553,6 +555,7 @@ window.COMBAT = (function(){
     document.querySelector('#health').classList.add('hidden');
     document.querySelector('#skill').classList.add('hidden');
     document.querySelector('#trigger').classList.add('hidden');
+    CODE.setGuide(null);
     const code=CODE.toText().join('\n');
     if(window.PROGRESS) PROGRESS.complete(mission.id||G.missionId);
     showResults({
@@ -648,6 +651,7 @@ window.COMBAT = (function(){
   }
   function reset(){ clearField(); obstacles=[]; stage=0; busy=false; mission=null; range=null;
                     hp=MAXHP; dead=false;
+                    if(window.CODE) CODE.setGuide(null);
                     document.querySelector('#health').classList.add('hidden');
                     document.querySelector('#skill').classList.add('hidden');
                     document.querySelector('#teach').classList.add('hidden');

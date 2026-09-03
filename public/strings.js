@@ -14,6 +14,29 @@ window.ES = {
   'one click':'un clic','double-click':'doble clic','hold Shift':'mantén Shift',
   /* --- code console --- */
   'CODE CONSOLE':'CONSOLA DE CÓDIGO','BLOCKS':'BLOQUES','YOUR PROGRAM':'TU PROGRAMA',
+  'Type it':'Escríbelo','WORD BANK':'BANCO DE PALABRAS','YOUR CODE':'TU CÓDIGO',
+  'THAT IS THESE BLOCKS':'ESO SON ESTOS BLOQUES','WHAT YOU ARE WRITING':'LO QUE ESTÁS ESCRIBIENDO',
+  'Line {n}':'Línea {n}','Nothing yet.':'Nada todavía.',
+  'Reads fine — {n} instruction(s).':'Se lee bien — {n} instrucción(es).',
+  'Fix that line and this fills in.':'Corrige esa línea y esto se llena.',
+  'One instruction per line. Click a word on the left to drop it in.':
+    'Una instrucción por línea. Haz clic en una palabra de la izquierda para ponerla.',
+  'Write at least one instruction first.':'Escribe al menos una instrucción primero.',
+  'It has to read before it can be blocks.':'Tiene que leerse bien antes de ser bloques.',
+  'This <b>end</b> has nothing open above it.':'Este <b>end</b> no tiene nada abierto arriba.',
+  'An <b>end</b> is missing — something is still open.':'Falta un <b>end</b> — algo sigue abierto.',
+  '<b>repeat</b> needs a number after it, like <b>repeat 3</b>.':
+    '<b>repeat</b> necesita un número después, como <b>repeat 3</b>.',
+  'Write the whole test, like <b>if target is red</b>.':
+    'Escribe la prueba completa, como <b>if target is red</b>.',
+  'The console does not know <b>{w}</b>. Click a word on the left.':
+    'La consola no conoce <b>{w}</b>. Haz clic en una palabra de la izquierda.',
+  '<b>{w}</b> is not in this mission yet.':'<b>{w}</b> todavía no está en esta misión.',
+  '<b>repeat</b> is not in this mission yet.':'<b>repeat</b> todavía no está en esta misión.',
+  '<b>if</b> is not in this mission yet.':'<b>if</b> todavía no está en esta misión.',
+  '<b>define combo</b> is not in this mission yet.':'<b>define combo</b> todavía no está en esta misión.',
+  '<b>{w}</b> is not something you can test for here.':'<b>{w}</b> no es algo que puedas probar aquí.',
+  'That is {a} blocks — the budget is {b}.':'Son {a} bloques — el límite es {b}.',
   'YOUR CODE SAYS':'TU CÓDIGO DICE','Clear':'Borrar','▶ RUN':'▶ EJECUTAR','RUNNING':'EJECUTANDO',
   'repeat':'repite','times':'veces','put blocks here':'pon bloques aquí',
   'Your program is empty. Click a block on the left.':'Tu programa está vacío. Haz clic en un bloque de la izquierda.',

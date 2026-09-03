@@ -247,6 +247,30 @@ button{font-family:var(--font);cursor:pointer}
 #tape .blk.rep .blk-head{font-size:14px;padding:6px 9px}
 #tape .blk-x,#tape .cnt{display:none}
 
+/* console: the walkthrough strip, the blocks/typing switch, and the word bank */
+.con-mode{display:flex;gap:2px;background:#121c30;border:2px solid var(--line);border-radius:11px;
+  padding:3px;margin-left:auto;margin-right:10px}
+.modebtn{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;letter-spacing:.5px;
+  padding:5px 13px;border-radius:8px;cursor:pointer}
+.modebtn.on{background:var(--line);color:var(--text)}
+#conGuide{padding:11px 14px 0}
+.cg-row{display:flex;gap:12px;align-items:flex-start;background:rgba(46,37,71,.62);
+  border:2px solid var(--line);border-radius:12px;padding:9px 12px;margin-top:4px}
+.cg-txt{flex:1;font-size:13.5px;color:var(--muted);line-height:1.45}
+.cg-txt b{display:block;color:var(--mint);font-size:16px;margin-bottom:2px}
+.cg-code{margin:0;background:#1d1730;border:2px solid var(--line);border-radius:9px;padding:7px 11px;
+  font-size:13.5px;color:var(--sky);white-space:pre;min-width:140px}
+.wordbank{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start}
+.word{background:var(--c);border:none;border-radius:9px;padding:7px 10px;color:#fff;font:inherit;
+  font-size:15px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.word:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+#conTA{flex:1;min-height:230px;background:#12192b;border:2px solid var(--line);border-radius:12px;
+  padding:11px 13px;color:#eef3ff;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;
+  line-height:1.55;resize:none;outline:none}
+#conTA:focus{border-color:var(--mint)}
+.con-hint b{color:var(--text)}
+.con-hint.err{color:var(--bad)} .con-hint.ok{color:var(--mint)}
+
 /* ---------- flat-mode transfer check ---------- */
 #flat{position:fixed;inset:0;z-index:40;background:linear-gradient(160deg,#12324a,#101a2c 55%,#0b1120);
   display:flex;flex-direction:column}
@@ -400,16 +424,16 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=31"></script>
-<script src="strings.js?v=31"></script>
-<script src="net.js?v=31"></script>
-<script src="avatar.js?v=31"></script>
-<script src="building.js?v=31"></script>
-<script src="levels.js?v=31"></script>
-<script src="code.js?v=31"></script>
-<script src="combat.js?v=31"></script>
-<script src="puzzle.js?v=31"></script>
-<script src="menu.js?v=31"></script>
-<script src="game.js?v=31"></script>
+<script src="lib/three.classic.js?v=33"></script>
+<script src="strings.js?v=33"></script>
+<script src="net.js?v=33"></script>
+<script src="avatar.js?v=33"></script>
+<script src="building.js?v=33"></script>
+<script src="levels.js?v=33"></script>
+<script src="code.js?v=33"></script>
+<script src="combat.js?v=33"></script>
+<script src="puzzle.js?v=33"></script>
+<script src="menu.js?v=33"></script>
+<script src="game.js?v=33"></script>
 </body>
 </html>
