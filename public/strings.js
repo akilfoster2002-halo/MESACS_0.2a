@@ -8,7 +8,7 @@ window.ES = {
   'Click the screen to look around with the mouse. Press Esc to let the mouse go.':'Haz clic en la pantalla para mirar con el ratón. Presiona Esc para soltar el ratón.',
   'Move':'Moverse','Turn':'Girar','Look':'Mirar','Select':'Escoger','Open':'Abrir','Run':'Correr',
   'Jump':'Saltar','THE FIELD':'EL CAMPO','PLAY ▶':'JUGAR ▶',
-  'START':'EMPEZAR','Code your way out':'Programa tu salida','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
+  'START':'EMPEZAR','THINK. CODE. CREATE.':'PIENSA. PROGRAMA. CREA.','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
   'CHOOSE YOUR CHARACTER':'ELIGE TU PERSONAJE','Continue ▶':'Continuar ▶','Character':'Personaje',
   'Locked':'Bloqueado','Everyone is unlocked. Pick your favourite.':'Todos desbloqueados. Elige tu favorito.',
   '{a} of {b} unlocked. Pick who you play as.':
@@ -325,7 +325,123 @@ window.ES = {
   'Mission complete!':'¡Misión cumplida!',
   'You walked the desktop, opened an app, went into a folder, closed a window with the ✕, found the App Launcher and read the system menu — then did it again on the flat desktop.':'Caminaste por el escritorio, abriste una aplicación, entraste a una carpeta, cerraste una ventana con la ✕, encontraste el Lanzador de Apps y leíste el menú del sistema — y luego lo hiciste otra vez en el escritorio plano.',
   'Play again':'Jugar otra vez',
-  'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados'
+  'Clicks':'Clics','Double-clicks':'Dobles clics','Time':'Tiempo','Steps walked':'Pasos caminados',
+
+  /* ---------- checkpoint ---------- */
+  'CHECKPOINT':'PUNTO DE CONTROL','Take a checkpoint?':'¿Tomar un punto de control?',
+  'You have cleared three waves — enough to show you can use what this mission teaches. Keep going for the boss and full mastery, or stop here and take the quiz now.':
+    'Ya limpiaste tres oleadas — suficiente para mostrar que sabes usar lo que enseña esta misión. Sigue para enfrentar al jefe y lograr el dominio completo, o detente aquí y toma el cuestionario ahora.',
+  'Continue to the boss ▶':'Seguir hacia el jefe ▶','Skip to the quiz':'Saltar al cuestionario',
+  'Take the quiz ▶':'Tomar el cuestionario ▶','Clear!':'¡Limpio!',
+
+  /* ---------- quiz ---------- */
+  'QUIZ':'CUESTIONARIO','Question {n} of {t}':'Pregunta {n} de {t}',
+  'Almost — {p}%':'Casi — {p}%',
+  'You need {p}% to earn your certificate. Think back over the mission, then try again.':
+    'Necesitas {p}% para ganar tu certificado. Piensa de nuevo en la misión e inténtalo otra vez.',
+  'Try the quiz again':'Intenta el cuestionario otra vez',
+
+  'Commands & Loops':'Comandos y Bucles','Choices (if / else)':'Decisiones (if / else)',
+  'Loops and counting':'Bucles y conteo','Functions':'Funciones',
+
+  'What does <b>forward()</b> do?':'¿Qué hace <b>forward()</b>?',
+  'Turns you a quarter turn':'Te gira un cuarto de vuelta',
+  'Moves you one tile the way you are facing':'Te mueve una casilla hacia donde miras',
+  'Ends the program early':'Termina el programa antes de tiempo',
+  'Repeats the next block':'Repite el siguiente bloque',
+  'Why write <b>repeat 10</b> instead of ten separate forward() blocks?':
+    '¿Por qué escribir <b>repeat 10</b> en vez de diez bloques forward() por separado?',
+  'It moves you further per step':'Te mueve más lejos por paso',
+  'Same result, far less to write — and one number to change':'El mismo resultado, mucho menos que escribir — y un solo número que cambiar',
+  'It automatically dodges walls':'Esquiva las paredes automáticamente',
+  'It turns the program invisible':'Vuelve invisible el programa',
+  'The computer runs your blocks…':'La computadora ejecuta tus bloques…',
+  'In a random order each time':'En un orden aleatorio cada vez',
+  'All at once':'Todos a la vez',
+  'Top to bottom, in order':'De arriba a abajo, en orden',
+  'Bottom to top':'De abajo a arriba',
+  '<b>left()</b> and <b>right()</b> do what to your position on the grid?':
+    '¿Qué le hacen <b>left()</b> y <b>right()</b> a tu posición en la cuadrícula?',
+  'Move you one tile sideways':'Te mueven una casilla al lado',
+  'Nothing — they only turn you in place':'Nada — solo te giran en tu lugar',
+  'Move you backward':'Te mueven hacia atrás',
+  'Delete the next block':'Borran el siguiente bloque',
+
+  'A <b>repeat 3</b> block runs the blocks inside it…':'Un bloque <b>repeat 3</b> ejecuta los bloques de adentro…',
+  'Once':'Una vez','Three times':'Tres veces','Zero times':'Cero veces','Until you click Stop':'Hasta que presiones Detener',
+  'Why did <b>repeat</b> beat writing shoot() three times in a row?':
+    '¿Por qué <b>repeat</b> es mejor que escribir shoot() tres veces seguidas?',
+  'It deals extra damage per shot':'Hace daño extra por disparo',
+  'Same result with less code — and one number changes how much it does':'El mismo resultado con menos código — y un número cambia cuánto hace',
+  'It aims for you automatically':'Apunta por ti automáticamente',
+  'It only works on bosses':'Solo funciona con jefes',
+  'THE LOOPER regrows his shield after every program runs. What does that force you to do?':
+    'THE LOOPER regenera su escudo después de cada programa. ¿Qué te obliga eso a hacer?',
+  'Fire every shot inside one repeat, in a single run':'Disparar todo dentro de un solo repeat, en una sola ejecución',
+  'Wait longer between programs':'Esperar más tiempo entre programas',
+  'Only ever use single shoot() commands':'Usar solo comandos shoot() individuales',
+  'Avoid the repeat block entirely':'Evitar el bloque repeat por completo',
+  'A shield has 8 parts. Which program clears it in one run?':
+    'Un escudo tiene 8 partes. ¿Qué programa lo destruye en una sola ejecución?',
+  'repeat 4 { shoot() }':'repeat 4 { shoot() }','repeat 8 { shoot() }':'repeat 8 { shoot() }',
+  'shoot() by itself':'shoot() solo','repeat 8 { repeat 8 { shoot() } }':'repeat 8 { repeat 8 { shoot() } }',
+
+  'An <b>if</b> block runs the code inside it…':'Un bloque <b>if</b> ejecuta el código de adentro…',
+  'Every time, no matter what':'Siempre, pase lo que pase',
+  'Only when its condition is true':'Solo cuando su condición es verdadera',
+  'Only once per mission':'Solo una vez por misión','Only when you hold Shift':'Solo cuando mantienes Shift',
+  'A drone has a red shield. What happens if you shootBlue() at it?':
+    'Un dron tiene un escudo rojo. ¿Qué pasa si le disparas shootBlue()?',
+  'It works anyway':'Funciona de todos modos',
+  'Nothing breaks — the colour has to match':'Nada se rompe — el color tiene que coincidir',
+  'It breaks twice as fast':'Se rompe el doble de rápido','The shield turns red':'El escudo se vuelve rojo',
+  'PRISM changes colour every two seconds. Why does a fixed, one-colour program fail?':
+    'PRISM cambia de color cada dos segundos. ¿Por qué falla un programa fijo de un solo color?',
+  'It fires too slowly to matter':'Dispara demasiado lento para importar',
+  'It never re-checks the colour — only if/else looks again each time':'Nunca vuelve a revisar el color — solo if/else lo revisa cada vez',
+  'PRISM is invisible half the time':'PRISM es invisible la mitad del tiempo',
+  'Fixed programs cannot use repeat':'Los programas fijos no pueden usar repeat',
+  'Putting an <b>if</b> block inside a <b>repeat</b> lets you…':'Poner un bloque <b>if</b> dentro de un <b>repeat</b> te permite…',
+  'Check the condition fresh on every pass through the loop':'Revisar la condición de nuevo en cada vuelta del bucle',
+  'Skip the condition entirely':'Saltarte la condición por completo',
+  'Turn the if block off':'Apagar el bloque if','Run the loop exactly once':'Ejecutar el bucle exactamente una vez',
+
+  'A function — <b>define combo()</b> — lets you…':'Una función — <b>define combo()</b> — te permite…',
+  'Delete blocks you no longer need':'Borrar bloques que ya no necesitas',
+  'Name a group of blocks once and reuse it with a single call':'Nombrar un grupo de bloques una vez y reusarlo con una sola llamada',
+  'Make the game run faster':'Hacer que el juego corra más rápido','Turn off loops':'Apagar los bucles',
+  'You define combo() with shootRed() then shootBlue() inside it. Calling combo() once runs…':
+    'Defines combo() con shootRed() y luego shootBlue() adentro. Llamar combo() una vez ejecuta…',
+  'Nothing until RUN is pressed twice':'Nada hasta presionar RUN dos veces',
+  'Both shots, in the order you defined them':'Ambos disparos, en el orden en que los definiste',
+  'Only the first shot':'Solo el primer disparo','A random one of the two':'Uno al azar de los dos',
+  'OFF-BY-ONE always has one more shield part than he shows. What is that testing?':
+    'OFF-BY-ONE siempre tiene una parte más de escudo de las que muestra. ¿Qué está probando eso?',
+  'Careful counting — code often starts counting at zero':'Contar con cuidado — el código a menudo empieza a contar en cero',
+  'Colour matching':'Coincidencia de color','Nothing — it is just flavour':'Nada — es solo ambientación',
+  'Calling your function inside a <b>repeat</b> lets you…':'Llamar tu función dentro de un <b>repeat</b> te permite…',
+  'Run the named combo more than once without rewriting it':'Ejecutar el combo con nombre más de una vez sin reescribirlo',
+  'Delete the function after one use':'Borrar la función después de usarla una vez',
+  'Make the function run backward':'Hacer que la función corra al revés',
+  'Turn the function into a loop permanently':'Convertir la función en un bucle permanentemente',
+
+  'Each <b>turn()</b> swings the camera…':'Cada <b>turn()</b> gira la cámara…',
+  'A quarter turn':'Un cuarto de vuelta','All the way around':'Toda la vuelta',
+  'Nowhere — it only tilts':'A ningún lado — solo se inclina','Back to its start, instantly':'A su inicio, al instante',
+  'Why did the fix need exactly 2 turns and 3 holds — not some other numbers?':
+    '¿Por qué la solución necesitó exactamente 2 turns y 3 holds — y no otros números?',
+  'Any numbers work the same':'Cualquier número funciona igual',
+  'It has to end facing the wall and then stay there — the count is the whole plan':'Tiene que terminar mirando la pared y quedarse ahí — el conteo es todo el plan',
+  'hold() also turns the camera':'hold() también gira la cámara','It is just decoration':'Es solo decoración',
+  'If the camera swings back after you turn it, what is missing from the program?':
+    'Si la cámara regresa después de girarla, ¿qué le falta al programa?',
+  'More turn() blocks':'Más bloques turn()','hold() blocks to keep it parked in place':'Bloques hold() para mantenerla fija en su lugar',
+  'A repeat around nothing':'Un repeat alrededor de nada','Nothing — it corrects itself':'Nada — se corrige sola',
+
+  /* ---------- certificate ---------- */
+  'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
+  'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',
+  'Back to the menu ▶':'Volver al menú ▶'
 };
 window.LANG = 'en';
 function t(s,p){

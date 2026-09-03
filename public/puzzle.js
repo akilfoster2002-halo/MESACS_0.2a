@@ -270,7 +270,8 @@ window.PUZZLE = (function(){
       title:t('OPERATION COMPLETE'),
       body:t('You blinded the camera with a program and walked out with the data.'),
       stats:`<div style="grid-column:1/-1"><b>${t('Your program')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`,
-      btnText:t('Back to the menu')
+      btnText:t('Take the quiz ▶'),
+      onBtn:()=>{ document.querySelector('#done').classList.add('hidden'); if(window.QUIZ) QUIZ.start('puzzles'); }
     });
     G.running=false;
   }

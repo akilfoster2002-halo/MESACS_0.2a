@@ -192,6 +192,17 @@ button{font-family:var(--font);cursor:pointer}
 .ctrlgrid b{color:var(--star);display:inline-block;min-width:74px}
 @keyframes tick{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 
+/* ---------- quiz + certificate ---------- */
+.card .kicker{font-size:12px;letter-spacing:2.5px;color:var(--mint);font-weight:bold}
+#qOpts button{font-size:16px;padding:12px 16px;border-radius:12px;text-align:left}
+#qOpts button:disabled{cursor:default}
+.certbox{margin:18px 0;padding:22px 18px;border:3px solid var(--star);border-radius:16px;
+  background:linear-gradient(180deg,#241d38,#1a1428)}
+.certname{font-size:26px;font-weight:bold;color:var(--star)}
+.certline{font-size:14.5px;color:var(--muted);margin-top:6px}
+.certtopic{font-size:21px;font-weight:bold;margin-top:4px}
+.certmeta{font-size:13.5px;color:var(--muted);margin-top:10px}
+
 /* ---------- KORO landing ------------------------------------------------
    The first thing a student sees. It should look like somewhere you want
    to be, and it should move — but slowly, so it never fights the reading. */
@@ -259,23 +270,64 @@ button{font-family:var(--font);cursor:pointer}
 .screen.anim-in .card,.screen.anim-in .hero{animation:cardIn .5s cubic-bezier(.2,.9,.3,1.15) both .06s}
 @keyframes cardIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 
-/* ---------- start: blue sky, clouds, an island to stand on ----------- */
-#start{background:linear-gradient(180deg,#4db3f5 0%,#7fd0ff 42%,#bfe9ff 72%,#dff4ff 100%)}
-.sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.sky .sun{position:absolute;right:8%;top:6%;width:140px;height:140px;border-radius:50%;
-  background:radial-gradient(circle,#fff8d0 0%,#ffe9a8 55%,rgba(255,233,168,0) 72%)}
+/* ---------- start: the KORO title slide, alive underneath the logo ----- */
+#start{background:#4db3f5}     /* fallback colour while the photo loads */
+.bgwrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.bgphoto{position:absolute;inset:-6%;
+  background:url('art/landing.jpg') center 62%/cover no-repeat;
+  animation:bgDrift 38s ease-in-out infinite alternate}
+@keyframes bgDrift{0%{transform:scale(1.05) translate(0,0)}100%{transform:scale(1.14) translate(-1.4%,-0.8%)}}
+/* a soft top-and-bottom fade so the title and HUD text keep their contrast
+   no matter where the photo's own sky and grass land after cropping */
+.bgfade{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(8,26,48,.32) 0%,rgba(8,26,48,0) 26%,
+    rgba(8,26,48,0) 68%,rgba(6,20,38,.30) 100%)}
+/* a slow gleam off the coin in the background art, upper right */
+.glint{position:absolute;right:6%;top:34%;width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,238,180,.65) 0%,rgba(255,233,168,0) 70%);
+  animation:glintPulse 4.2s ease-in-out infinite}
+@keyframes glintPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}
+/* a hint of light moving on the waterfalls, left side */
+.shimmer{position:absolute;width:60px;height:220px;left:5%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0) 75%);
+  filter:blur(3px);animation:shimmerFall 2.6s linear infinite}
+.shimmer.s1{top:20%}
+.shimmer.s2{top:38%;left:9%;width:40px;height:160px;animation-duration:3.4s;animation-delay:-1.2s;opacity:.7}
+@keyframes shimmerFall{0%{transform:translateY(-14%);opacity:0}15%{opacity:.9}100%{transform:translateY(14%);opacity:0}}
+
+.sky{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
 .cloud{position:absolute;width:170px;height:52px;background:#fff;border-radius:60px;
-  box-shadow:0 10px 0 rgba(120,180,230,.22);animation:blow linear infinite}
+  filter:blur(1px);box-shadow:0 10px 0 rgba(120,180,230,.14);animation:blow linear infinite}
 .cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%}
 .cloud::before{width:76px;height:76px;left:26px;top:-34px}
 .cloud::after{width:54px;height:54px;right:28px;top:-24px}
-.cloud.c1{top:11%;left:-22%;transform:scale(1.15);animation-duration:52s}
-.cloud.c2{top:26%;left:-30%;transform:scale(.8);opacity:.95;animation-duration:71s;animation-delay:-20s}
-.cloud.c3{top:5%;left:-40%;transform:scale(.62);opacity:.9;animation-duration:63s;animation-delay:-42s}
-.cloud.c4{top:38%;left:-26%;transform:scale(.5);opacity:.85;animation-duration:84s;animation-delay:-11s}
+.cloud.c1{top:9%;left:-22%;transform:scale(1.05);opacity:.55;animation-duration:52s}
+.cloud.c2{top:20%;left:-30%;transform:scale(.7);opacity:.5;animation-duration:71s;animation-delay:-20s}
+.cloud.c3{top:3%;left:-40%;transform:scale(.5);opacity:.45;animation-duration:63s;animation-delay:-42s}
+.cloud.c4{top:30%;left:-26%;transform:scale(.42);opacity:.4;animation-duration:84s;animation-delay:-11s}
 @keyframes blow{ to{ left:130%; } }
 
-.hero{position:relative;text-align:center;padding:10px 20px;display:flex;
+/* dust motes drifting up through the whole scene, for a scene that never
+   quite sits still even when nobody has touched anything yet */
+.motes{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+.motes span{position:absolute;bottom:-6%;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,rgba(255,255,255,0) 70%);
+  opacity:0;animation:moteRise linear infinite}
+.motes span:nth-child(1){left:8%;animation-duration:13s;animation-delay:0s}
+.motes span:nth-child(2){left:20%;width:4px;height:4px;animation-duration:17s;animation-delay:-4s}
+.motes span:nth-child(3){left:35%;animation-duration:15s;animation-delay:-9s}
+.motes span:nth-child(4){left:50%;width:5px;height:5px;animation-duration:19s;animation-delay:-2s}
+.motes span:nth-child(5){left:64%;animation-duration:14s;animation-delay:-7s}
+.motes span:nth-child(6){left:78%;width:4px;height:4px;animation-duration:18s;animation-delay:-12s}
+.motes span:nth-child(7){left:90%;animation-duration:16s;animation-delay:-5s}
+@keyframes moteRise{
+  0%{transform:translateY(0) translateX(0);opacity:0}
+  10%{opacity:.75}
+  90%{opacity:.35}
+  100%{transform:translateY(-92vh) translateX(18px);opacity:0}
+}
+
+.hero{position:relative;z-index:2;text-align:center;padding:10px 20px;display:flex;
   flex-direction:column;align-items:center;justify-content:center}
 
 /* KORO: chunky, extruded, sitting in the sky like a logo should */
@@ -349,6 +401,7 @@ button{font-family:var(--font);cursor:pointer}
   .korobg i,.koro,.chr.on img,.bigplay,.chrtile:hover img{animation:none}
   .mis,.chr,.mis .em,.chrtile{transition:none}
   .screen.anim-in,.screen.anim-out,.screen.anim-in .card,.screen.anim-in .hero{animation:none}
+  .bgphoto,.cloud,.motes span,.glint,.shimmer,.koro-xl,.btn.bigplay{animation:none}
 }
 
 
@@ -516,10 +569,18 @@ button{font-family:var(--font);cursor:pointer}
 <div id="pause" class="screen hidden"></div>
 
 <div id="start" class="screen hidden">
+  <div class="bgwrap" aria-hidden="true">
+    <div class="bgphoto"></div>
+    <span class="glint"></span>
+    <span class="shimmer s1"></span><span class="shimmer s2"></span>
+    <div class="bgfade"></div>
+  </div>
   <div class="sky" aria-hidden="true">
-    <span class="sun"></span>
     <span class="cloud c1"></span><span class="cloud c2"></span>
     <span class="cloud c3"></span><span class="cloud c4"></span>
+  </div>
+  <div class="motes" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
   </div>
   <div class="hero">
     <h1 class="koro-xl">KORO</h1>
@@ -579,6 +640,9 @@ button{font-family:var(--font);cursor:pointer}
   </div>
 </div>
 
+<div id="quiz" class="screen hidden"></div>
+<div id="cert" class="screen hidden"></div>
+
 <div id="flat" class="hidden">
   <div id="flatTop"><span id="flatTopL"></span><span id="flatTopR"></span></div>
   <div id="flatDesk"></div>
@@ -586,19 +650,20 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=61"></script>
-<script src="strings.js?v=61"></script>
-<script src="net.js?v=61"></script>
-<script src="avatar.js?v=61"></script>
-<script src="zombies.js?v=61"></script>
-<script src="building.js?v=61"></script>
-<script src="levels.js?v=61"></script>
-<script src="code.js?v=61"></script>
-<script src="combat.js?v=61"></script>
-<script src="puzzle.js?v=61"></script>
-<script src="nav.js?v=61"></script>
-<script src="chars.js?v=61"></script>
-<script src="menu.js?v=61"></script>
-<script src="game.js?v=61"></script>
+<script src="lib/three.classic.js?v=62"></script>
+<script src="strings.js?v=62"></script>
+<script src="net.js?v=62"></script>
+<script src="avatar.js?v=62"></script>
+<script src="zombies.js?v=62"></script>
+<script src="building.js?v=62"></script>
+<script src="levels.js?v=62"></script>
+<script src="code.js?v=62"></script>
+<script src="combat.js?v=62"></script>
+<script src="puzzle.js?v=62"></script>
+<script src="nav.js?v=62"></script>
+<script src="quiz.js?v=62"></script>
+<script src="chars.js?v=62"></script>
+<script src="menu.js?v=62"></script>
+<script src="game.js?v=62"></script>
 </body>
 </html>

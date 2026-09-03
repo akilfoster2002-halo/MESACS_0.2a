@@ -21,7 +21,7 @@ window.NAV = (function(){
 
   /* ------------------------------------------------------------ levels */
   const STAGES=[
-    { name:'Straight Shot', budget:6, speed:1.3,
+    { name:'Straight Shot', budget:6, speed:1.0,   // slower start: two stages to learn the console before it gets fast
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
       brief:'It is behind you and it does not stop. <b>forward()</b> moves one tile — count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
@@ -29,7 +29,7 @@ window.NAV = (function(){
             '#Z...S....X#',
             '############'] },
 
-    { name:'Round the Corner', budget:9, speed:1.5,
+    { name:'Round the Corner', budget:9, speed:1.15,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
       brief:'The way out bends. <b>right()</b> and <b>left()</b> turn you without moving — so a turn costs you time and no ground.',
       pal:['forward','left','right'],
@@ -269,7 +269,8 @@ window.NAV = (function(){
         title:t('YOU GOT OUT'),
         body:t('You wrote your way out of three corridors with something chasing you.'),
         stats:`<div style="grid-column:1/-1"><b>${t('Your program')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${CODE.toText().join('\n')||'—'}</pre></div>`,
-        btnText:t('Back to the menu')
+        btnText:t('Take the quiz ▶'),
+        onBtn:()=>{ document.querySelector('#done').classList.add('hidden'); if(window.QUIZ) QUIZ.start('nav'); }
       });
       G.running=false;
     }

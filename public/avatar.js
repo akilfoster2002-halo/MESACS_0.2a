@@ -9,7 +9,10 @@
    walk.  Parsing again is cheap — the file is only fetched once.
    ===================================================================== */
 window.AVATAR = (function(){
-  const IDS = 'abcdefghijklmnopqr'.split('');
+  // order matters: chars.js unlocks the first FREE of these. Nia is moved up
+  // so the four starting characters aren't all boys/bots — Cato slides back
+  // to fifth, ready to unlock first once PER_MISSION rewards are turned on.
+  const IDS = 'abndcefghijklmopqr'.split('');
   // a name each, initial matching the file, so nobody is "Character G"
   const NAMES = { a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
                   g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',

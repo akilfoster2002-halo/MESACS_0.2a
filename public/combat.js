@@ -450,7 +450,7 @@ window.COMBAT = (function(){
 
   /* -------------------------------------------------------- missions */
   const MISSIONS={
-    m1:{ name:'Mission 1 — Loops', title:'The Loop Chamber',
+    m1:{ name:'Mission 1 — Loops', title:'The Loop Chamber', halfwayAt:3,
       objectives:['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'],
       stages:[
         {palette:['shoot'],
@@ -591,7 +591,13 @@ window.COMBAT = (function(){
     if(st.boss){ if(!boss){ stageDone=true; finish(); } return; }
     if(!enemies.length){
       stageDone=true;
-      if(stage+1<mission.stages.length){ msg(t('Clear! Next wave…')); setTimeout(()=>startStage(stage+1),950); }
+      if(stage+1<mission.stages.length){
+        if(mission.halfwayAt!==undefined && stage+1===mission.halfwayAt){
+          msg(t('Clear!')); setTimeout(halfwayCard,950);
+        } else {
+          msg(t('Clear! Next wave…')); setTimeout(()=>startStage(stage+1),950);
+        }
+      }
       else finish();
     }
   }
@@ -607,13 +613,40 @@ window.COMBAT = (function(){
     document.querySelector('#trigger').classList.add('hidden');
     CODE.setGuide(null);
     const code=CODE.toText().join('\n');
-    if(window.PROGRESS) PROGRESS.complete(mission.id||G.missionId);
+    const id=mission.id||G.missionId;
+    if(window.PROGRESS) PROGRESS.complete(id);
     showResults({
       title:t(mission.name)+' — '+t('COMPLETE'),
       body:t(mission.win||'Nice work, coder.'),
-      stats:`<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${code||'—'}</pre></div>`
+      stats:`<div style="grid-column:1/-1"><b>${t('The code you wrote')}</b><pre style="margin:6px 0 0;color:#8fd3ff">${code||'—'}</pre></div>`,
+      btnText:t('Take the quiz ▶'),
+      onBtn:()=>{ document.querySelector('#done').classList.add('hidden'); if(window.QUIZ) QUIZ.start(id); }
     });
     G.running=false;
+  }
+  /* a checkpoint partway through a mission: play stops here, but the quiz
+     still runs and still earns a certificate — it just does not unlock the
+     next mission, since that stays tied to actually beating the boss. */
+  function halfwayCard(){
+    const el=document.querySelector('#teach');
+    el.classList.remove('hidden');
+    el.innerHTML=`<div class="teach-card">
+      <div class="kicker">${t('CHECKPOINT')}</div>
+      <h2>${t('Take a checkpoint?')}</h2>
+      <p>${t('You have cleared three waves — enough to show you can use what this mission teaches. Keep going for the boss and full mastery, or stop here and take the quiz now.')}</p>
+      <button class="btn good" id="hwGo">${t('Continue to the boss ▶')}</button>
+      <div style="margin-top:9px"><button class="btn ghost small" id="hwQuiz">${t('Skip to the quiz')}</button></div>
+    </div>`;
+    el.querySelector('#hwGo').onclick=()=>{ el.classList.add('hidden'); startStage(stage+1); };
+    el.querySelector('#hwQuiz').onclick=()=>{
+      el.classList.add('hidden'); busy=false; brief('');
+      document.querySelector('#health').classList.add('hidden');
+      document.querySelector('#skill').classList.add('hidden');
+      document.querySelector('#trigger').classList.add('hidden');
+      CODE.setGuide(null);
+      G.running=false;
+      if(window.QUIZ) QUIZ.start(mission.id||G.missionId, {partial:true});
+    };
   }
   MISSIONS.m1.win='You beat THE LOOPER with a <b>loop</b>. One block, written once, ran again and again — that is what a loop is for.';
   MISSIONS.m2.win='You beat PRISM with an <b>if</b>. A program that checks before it acts can handle something that keeps changing.';

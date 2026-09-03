@@ -352,6 +352,10 @@ const PROGRESS=(function(){
     all(){ return done; },
     complete(id){ if(!id) return; done[id]=true; save(); if(window.MENU) MENU.render(); },
     isDone(id){ return !!done[id]; },
+    // the quiz score rides in the same bag but never gates a mission unlock —
+    // only complete() does that, so a checkpoint quiz can't skip the boss fight
+    recordQuiz(id,pct){ if(!id) return; done['quiz_'+id]=pct; save(); },
+    quizScore(id){ return done['quiz_'+id]; },
     unlocked(id){
       if(id==='free') return true;
       const i=ORDER.indexOf(id);

@@ -137,10 +137,12 @@ window.MENU = (function(){
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
+    $('#quiz').classList.add('hidden');
+    $('#cert').classList.add('hidden');
     $('#downed').classList.add('hidden');
     if(window.CHARS) CHARS.close();
     $('#btnStart').textContent=t('START');
-    $('#sTag').textContent=t('Code your way out');
+    $('#sTag').textContent=t('THINK. CODE. CREATE.');
     if(document.pointerLockElement) document.exitPointerLock();
     show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
   }
@@ -157,6 +159,8 @@ window.MENU = (function(){
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
+    $('#quiz').classList.add('hidden');
+    $('#cert').classList.add('hidden');
     $('#downed').classList.add('hidden');
     if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
     if(document.pointerLockElement) document.exitPointerLock();
