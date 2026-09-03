@@ -7,8 +7,8 @@
    still PNG tells you nothing about who you are about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 5;                       // unlocked before you have played anything
-  const PER_MISSION = 4;                // the other thirteen are earned, four a mission
+  const FREE = 4;                       // unlocked before you have played anything
+  const PER_MISSION = 4;                // the other fourteen are earned, four a mission
 
   let view=null, previewing=null, raf=0, last=0;
   let hero=null, heroRaf=0, heroLast=0;
