@@ -14,37 +14,38 @@ window.NAV = (function(){
   const T=4;                                   // world units per grid tile
   const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];      // N E S W
   const PAL={floor:0x8d93b4, wall:0x4a4570, exit:0xa8e6cf, safe:0xd8ecff};
+  const CHASE = 0.55;    // world units per second — a walk, but it never stops
 
-  let L=null, busy=false, clockT=null, left=0;
+  let L=null, busy=false;
 
   /* ------------------------------------------------------------ levels */
   const STAGES=[
-    { name:'Straight Shot', secs:45, budget:6,
+    { name:'Straight Shot', budget:6, speed:0.45,
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
       brief:'A zombie is behind you. <b>forward()</b> moves one tile. Count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
-      grid:['##########',
-            '#Z.S....X#',
-            '##########'] },
+      grid:['############',
+            '#Z...S....X#',
+            '############'] },
 
-    { name:'Round the Corner', secs:55, budget:9,
+    { name:'Round the Corner', budget:9, speed:0.55,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
       brief:'The way out is round a corner. <b>right()</b> and <b>left()</b> turn you without moving. Every block you run, it steps too.',
       pal:['forward','left','right'],
-      grid:['########',
-            '#Z.S...#',
-            '#####.##',
-            '#####.##',
-            '#####X##',
-            '########'] },
+      grid:['##########',
+            '#Z...S...#',
+            '#######.##',
+            '#######.##',
+            '#######X##',
+            '##########'] },
 
-    { name:'The Long Hall', secs:60, budget:7,
+    { name:'The Long Hall', budget:7, speed:0.6,
       learn:{ name:'Loops', text:'A loop runs the blocks inside it again and again, so you write the move once instead of ten times.', code:'repeat 10\n  forward()\nend' },
       brief:'Ten tiles, and only <b>7 blocks</b> allowed. Writing forward() ten times will not fit — <b>repeat</b> it instead.',
       pal:['forward','left','right','repeat'],
-      grid:['###############',
-            '#Z.S.........X#',
-            '###############'] }
+      grid:['#################',
+            '#Z...S.........X#',
+            '#################'] }
   ];
 
   /* ------------------------------------------------------------- build */
@@ -69,8 +70,8 @@ window.NAV = (function(){
     document.querySelector('#mapwrap').classList.remove('hidden');
 
     L={ idx, S, grid:S.grid, w:S.grid[0].length, h:S.grid.length,
-        x:0, y:0, dir:1, start:null, zom:{x:0,y:0,mesh:null}, zomStart:null,
-        exit:null, beat:0, done:false, caught:false };
+        x:0, y:0, dir:1, start:null, exit:null, done:false, caught:false,
+        zom:{ cx:0, cy:0, tx:0, ty:0, wx:0, wz:0, mesh:null }, zomStart:null };
 
     S.grid.forEach((row,y)=>[...row].forEach((c,x)=>{
       if(c==='#'){ tile(x,y,PAL.wall,5.5,2.75);
@@ -78,7 +79,7 @@ window.NAV = (function(){
       tile(x,y,PAL.floor,0.4,0);
       if(c==='S'){ L.x=x; L.y=y; L.start={x,y}; tile(x,y,PAL.safe,0.45,0.03); }
       if(c==='X'){ L.exit={x,y}; tile(x,y,PAL.exit,0.5,0.05); }
-      if(c==='Z'){ L.zom.x=x; L.zom.y=y; L.zomStart={x,y}; }
+      if(c==='Z'){ L.zomStart={x,y}; placeZombie(x,y); }
     }));
 
     // you
@@ -90,15 +91,14 @@ window.NAV = (function(){
     // and it
     try{
       const z=await ZOMBIE.make({skin:'zombieA', height:2.2});
-      z.position.set(L.zom.x*T, 0, L.zom.y*T);
       G.roomGroup.add(z); L.zom.mesh=z;
-      ZOMBIE.animate(z,0,'idle');
+      placeZombie(L.zomStart.x, L.zomStart.y);   // now that there is a body to place
+      ZOMBIE.animate(z,0,'run');
     }catch(e){ console.warn('chaser failed to load',e); }
 
     CODE.setPalette(S.pal); CODE.setBudget(S.budget); CODE.clear();
     CODE.setGuide({ brief:S.brief, name:S.learn.name, text:S.learn.text, code:S.learn.code });
-    face(); hud(); brief(S.brief);
-    startClock(S.secs);
+    hud(); brief(S.brief);
     teach();
   }
 
@@ -107,27 +107,47 @@ window.NAV = (function(){
     if(y<0||y>=L.h||x<0||x>=L.grid[y].length) return '#';
     return L.grid[y][x];
   }
-  function face(){
-    if(!L.zom.mesh) return;
-    const m=L.zom.mesh;
-    m.position.set(L.zom.x*T, 0, L.zom.y*T);
-    m.lookAt(G.pos.x, 0, G.pos.z);
-  }
-  /* one beat: the zombie takes a step toward you, then we see if it has you */
-  function beat(){
-    L.beat++;
+  function placeZombie(x,y){
     const z=L.zom;
-    const dx=L.x-z.x, dy=L.y-z.y;
-    // greedy, but it will not walk into a wall — the long axis first
+    z.cx=z.tx=x; z.cy=z.ty=y;
+    z.wx=x*T; z.wz=y*T;
+    if(z.mesh) z.mesh.position.set(z.wx, 0, z.wz);
+  }
+  /* the next tile it should walk to — greedy along the long axis, and it
+     will not walk into a wall */
+  function aim(){
+    const z=L.zom;
+    z.cx=z.tx; z.cy=z.ty;
+    const dx=L.x-z.cx, dy=L.y-z.cy;
     const tries = Math.abs(dx)>=Math.abs(dy)
       ? [[Math.sign(dx),0],[0,Math.sign(dy)]]
       : [[0,Math.sign(dy)],[Math.sign(dx),0]];
     for(const [sx,sy] of tries){
       if(!sx && !sy) continue;
-      if(cell(z.x+sx, z.y+sy)!=='#'){ z.x+=sx; z.y+=sy; break; }
+      if(cell(z.cx+sx, z.cy+sy)!=='#'){ z.tx=z.cx+sx; z.ty=z.cy+sy; return; }
     }
-    face();
-    return (z.x===L.x && z.y===L.y);
+    z.tx=z.cx; z.ty=z.cy;
+  }
+  /* It never stops and it never takes turns.  That is the whole clock:
+     the longer you spend writing, the closer it is when you press RUN. */
+  function chase(dt){
+    if(!L || L.done || L.caught || !L.zom.mesh) return;
+    if(!document.querySelector('#teach').classList.contains('hidden')) return;
+    if(!document.querySelector('#pause').classList.contains('hidden')) return;
+    const z=L.zom, spd=(L.S.speed||CHASE);
+    let step=spd*dt;
+    while(step>0){
+      const dx=z.tx*T-z.wx, dz=z.ty*T-z.wz;
+      const d=Math.hypot(dx,dz);
+      if(d<0.001){ aim(); if(z.tx===z.cx && z.ty===z.cy) break; continue; }
+      const go=Math.min(step, d);
+      z.wx += dx/d*go; z.wz += dz/d*go;
+      step -= go;
+    }
+    z.mesh.position.set(z.wx, 0, z.wz);
+    z.mesh.lookAt(G.pos.x, 0, G.pos.z);
+    ZOMBIE.animate(z.mesh, dt, 'run');
+    if(Math.hypot(G.pos.x-z.wx, G.pos.z-z.wz) < T*0.6) eaten();
   }
 
   /* ------------------------------------------------------ run a program */
@@ -147,7 +167,7 @@ window.NAV = (function(){
       if(s.name==='__if'||s.name==='__call'){ CODE.highlight(s); return setTimeout(next,110); }
       CODE.highlight(s);
       act(s.name, ()=>{
-        if(beat()){ caught(); busy=false; return; }
+        if(!L || L.caught){ busy=false; return; }
         if(won()){ busy=false; return; }
         setTimeout(next,60);
       });
@@ -179,7 +199,7 @@ window.NAV = (function(){
   function won(){
     if(!L || !L.exit) return false;
     if(L.x!==L.exit.x || L.y!==L.exit.y) return false;
-    L.done=true; stopClock(); CODE.hideTape();
+    L.done=true; CODE.hideTape();
     if(window.beep) beep('star');
     if(L.idx+1 < STAGES.length){
       msg(t('Out! Next corridor…'));
@@ -196,39 +216,19 @@ window.NAV = (function(){
     }
     return true;
   }
-  function caught(){
+  function eaten(){
     if(!L || L.done || L.caught) return;
-    L.caught=true; stopClock(); hurt(); CODE.hideTape();
-    msg(t('🧟 It caught you. Shorter program — every block lets it step.'));
-    setTimeout(()=>reset(), 1300);
+    L.caught=true; busy=false; hurt(); CODE.hideTape(); CODE.close();
+    msg(t('🧟 YOU HAVE BEEN EATEN. It never stops — write it faster.'));
+    setTimeout(()=>reset(), 1600);
   }
   function reset(){
     if(!L) return;
-    L.x=L.start.x; L.y=L.start.y; L.dir=1; L.beat=0; L.caught=false;
-    L.zom.x=L.zomStart.x; L.zom.y=L.zomStart.y;
+    L.x=L.start.x; L.y=L.start.y; L.dir=1; L.caught=false;
+    placeZombie(L.zomStart.x, L.zomStart.y);
     G.pos.set(L.x*T,1.9,L.y*T);
     G.yaw=Math.atan2(-DIRS[L.dir][0],-DIRS[L.dir][1]);
-    face(); busy=false; hud();
-    startClock(L.S.secs);
-    brief(L.S.brief);
-  }
-
-  /* ------------------------------------------------------------- clock */
-  function startClock(secs){
-    stopClock(); left=secs; paintClock();
-    clockT=setInterval(()=>{
-      if(!L || L.done){ stopClock(); return; }
-      left--; paintClock();
-      if(left<=0){ stopClock(); caught(); }
-    }, 1000);
-  }
-  function stopClock(){ clearInterval(clockT); clockT=null; }
-  function paintClock(){
-    const el=document.querySelector('#navClock');
-    if(!el) return;
-    el.classList.remove('hidden');
-    el.textContent='⏱ '+Math.max(0,left)+'s';
-    el.classList.toggle('low', left<=10);
+    busy=false; hud(); brief(L.S.brief);
   }
 
   /* --------------------------------------------------------------- HUD */
@@ -308,19 +308,19 @@ window.NAV = (function(){
     if(leg) leg.textContent=t('Green door = out. Red = it.');
   }
 
-  function update(dt){
+  /* Called every frame, console open or not — that is the point of it. */
+  function tick(dt){
     if(!L) return;
-    if(L.zom.mesh) ZOMBIE.animate(L.zom.mesh, dt, 'idle');
+    chase(dt);
     if(window.AVATAR) AVATAR.update(dt, false, false, true);
     map();
   }
   function stop(){
-    stopClock(); L=null; busy=false;
-    const el=document.querySelector('#navClock'); if(el) el.classList.add('hidden');
+    L=null; busy=false;
     CODE.setBudget(0); CODE.setGuide(null);
   }
 
-  return { start, run, update, stop, map,
+  return { start, run, tick, update:tick, stop, map,
            get active(){ return !!L; },
            get busy(){ return busy; },
            retry(){ if(L) start(L.idx); },

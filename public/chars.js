@@ -7,14 +7,14 @@
    still PNG tells you nothing about who you are about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 3;                       // unlocked before you have played anything
-  const PER_MISSION = 5;                // and how many each finished mission adds
+  const FREE = 10;                      // unlocked before you have played anything
+  const PER_MISSION = 2;                // and how many each finished mission adds
 
   let view=null, previewing=null, raf=0, last=0;
 
   function unlockedCount(){
     let done=0;
-    try{ ['m1','m2','m3'].forEach(id=>{ if(PROGRESS.isDone(id)) done++; }); }catch(e){}
+    try{ ['nav','m1','m2','m3'].forEach(id=>{ if(PROGRESS.isDone(id)) done++; }); }catch(e){}
     return Math.min(AVATAR.CHARS.length, FREE + done*PER_MISSION);
   }
   function isUnlocked(i){ return i < unlockedCount(); }

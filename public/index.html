@@ -190,10 +190,6 @@ button{font-family:var(--font);cursor:pointer}
 .ctrlgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:14px 0;text-align:left}
 .ctrlgrid div{background:#111a29;border:2px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14.5px;color:var(--muted)}
 .ctrlgrid b{color:var(--star);display:inline-block;min-width:74px}
-#navClock{position:absolute;left:50%;top:14px;transform:translateX(-50%);
-  background:rgba(15,22,36,.92);border:3px solid var(--line);border-radius:14px;
-  padding:7px 18px;font-size:22px;letter-spacing:2px;color:var(--text)}
-#navClock.low{color:var(--bad);border-color:var(--bad);animation:tick .8s ease-in-out infinite}
 @keyframes tick{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 
 /* ---------- KORO landing ------------------------------------------------
@@ -449,7 +445,6 @@ button{font-family:var(--font);cursor:pointer}
     <div id="hpBar"><div id="hpFill"></div></div>
   </div>
   <div id="keys"></div>
-  <div id="navClock" class="hidden"></div>
   <div id="escHint" class="hidden"></div>
   <div id="chat" class="hidden">
     <div id="chatLog"></div>
@@ -474,7 +469,6 @@ button{font-family:var(--font);cursor:pointer}
   <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="hero">
     <h1 class="koro koro-xl">KORO</h1>
-    <p class="korotag" id="sSub"></p>
     <button class="btn good bigplay" id="btnStart">START</button>
     <div class="langrow">
       <button class="langbtn" data-lang="en">🇺🇸 English</button>
@@ -533,19 +527,19 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=48"></script>
-<script src="strings.js?v=48"></script>
-<script src="net.js?v=48"></script>
-<script src="avatar.js?v=48"></script>
-<script src="zombies.js?v=48"></script>
-<script src="building.js?v=48"></script>
-<script src="levels.js?v=48"></script>
-<script src="code.js?v=48"></script>
-<script src="combat.js?v=48"></script>
-<script src="puzzle.js?v=48"></script>
-<script src="nav.js?v=48"></script>
-<script src="chars.js?v=48"></script>
-<script src="menu.js?v=48"></script>
-<script src="game.js?v=48"></script>
+<script src="lib/three.classic.js?v=50"></script>
+<script src="strings.js?v=50"></script>
+<script src="net.js?v=50"></script>
+<script src="avatar.js?v=50"></script>
+<script src="zombies.js?v=50"></script>
+<script src="building.js?v=50"></script>
+<script src="levels.js?v=50"></script>
+<script src="code.js?v=50"></script>
+<script src="combat.js?v=50"></script>
+<script src="puzzle.js?v=50"></script>
+<script src="nav.js?v=50"></script>
+<script src="chars.js?v=50"></script>
+<script src="menu.js?v=50"></script>
+<script src="game.js?v=50"></script>
 </body>
 </html>

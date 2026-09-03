@@ -35,8 +35,8 @@ window.MENU = (function(){
   }
 
   const MISSIONS=[
-    {id:'nav',   em:'🏃', a:'#8fd3ff', name:'Escape — Corridors',
-     blurb:'Something is behind you. Write the moves that get you out, fast.'},
+    {id:'nav',   em:'🧟', a:'#8fd3ff', name:'Escape — Corridors',
+     blurb:'Learn to code by getting out alive. It never stops walking.'},
     {id:'m1',    em:'🧟', a:'#a8e6cf', name:'Mission 1 — Loops',
      blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
     {id:'m2',    em:'🔮', a:'#cdb4f6', name:'Mission 2 — Choices',
@@ -139,7 +139,6 @@ window.MENU = (function(){
     $('#done').classList.add('hidden');
     $('#downed').classList.add('hidden');
     if(window.CHARS) CHARS.close();
-    $('#sSub').textContent=t('Learn to code by getting out alive.');
     $('#btnStart').textContent=t('START');
     if(document.pointerLockElement) document.exitPointerLock();
     show('#start');

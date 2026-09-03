@@ -448,9 +448,9 @@ function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000, 0.05); last=now;
   updateCodeBtn();
+  if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(G.running && !frozen()){
     step(dt);
-    if(NAV.active) NAV.update(dt);
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(PUZZLE.active) PUZZLE.map();
