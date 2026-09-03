@@ -59,13 +59,15 @@ window.PUZZLE = (function(){
     G.scene.fog=new THREE.Fog(0x141024, 40, 150);
     G.hudOwner='puzzle'; G.missionId='puzzles';
     if(window.updateLeaveBtn) updateLeaveBtn();
-    document.querySelector('#mapwrap').classList.add('hidden');
+    document.querySelector('#mapwrap').classList.remove('hidden');
 
     const built = await BUILDING.build(O.plan, G.roomGroup);
     L = { O, built, guards:[], camera:null, terminal:null, vault:null,
           blinded:false, alarm:false, done:false, near:null };
     G.solids = built.solids.slice();
-    G.ground = built.heightAt;              // stairs: the floor is not flat any more
+    G.ground  = built.heightAt;             // stairs: the floor is not flat any more
+    G.ceiling = built.ceilingAt;            // so the chase camera ducks under a slab
+    G.vel.y=0; G.onGround=true;
 
     // player
     const sp=built.spots.spawn;
@@ -92,7 +94,7 @@ window.PUZZLE = (function(){
       beam.rotation.x=Math.PI/2; beam.position.set(0,3.4,-3.6); grp.add(beam);
       grp.position.set(cs.x*U, cs.y, cs.z*U);
       G.roomGroup.add(grp);
-      L.camera={ grp, beam, angle:0, sweep:0, dir:1, x:cs.x, z:cs.z };
+      L.camera={ grp, beam, angle:0, sweep:0, dir:1, x:cs.x, z:cs.z, s:cs.s, y:cs.y };
     }
     // terminal + vault
     const ts=built.spots.terminals[0];
@@ -100,15 +102,16 @@ window.PUZZLE = (function(){
       const m=new THREE.Mesh(new THREE.BoxGeometry(1.6,2.2,1.2),
         new THREE.MeshLambertMaterial({color:0x8fd3ff}));
       m.position.set(ts.x*U, ts.y+1.1, ts.z*U); G.roomGroup.add(m);
-      L.terminal={ x:ts.x, z:ts.z, y:ts.y, mesh:m };
+      L.terminal={ x:ts.x, z:ts.z, y:ts.y, s:ts.s, mesh:m };
     }
     const vs=built.spots.vault;
     if(vs){
       const m=new THREE.Mesh(new THREE.BoxGeometry(2.2,2.2,2.2),
         new THREE.MeshLambertMaterial({color:0xffe9a8}));
       m.position.set(vs.x*U, vs.y+1.2, vs.z*U); G.roomGroup.add(m);
-      L.vault={ x:vs.x, z:vs.z, y:vs.y, mesh:m };
+      L.vault={ x:vs.x, z:vs.z, y:vs.y, s:vs.s, mesh:m };
     }
+    lastTitle=lastLeg='';                   // the map header is shared, retitle it
     CODE.setPalette(O.pal); CODE.setBudget(0); CODE.clear();
     hud(); brief(O.brief);
     briefCard();
@@ -272,6 +275,97 @@ window.PUZZLE = (function(){
     G.running=false;
   }
 
+  /* ------------------------------------------------------------ map
+     The corner map answers one question — where do I go next? — and gives
+     one warning: who can see me from here.  It draws only the storey you
+     are standing on, so the vault upstairs does not clutter the ground. */
+  function storeyNow(){
+    if(!L) return 0;
+    return Math.max(0, Math.floor(feet()/L.built.storey + 0.25));
+  }
+  let lastTitle='', lastLeg='';
+  function map(){
+    if(!L) return;
+    const c=document.querySelector('#map'); if(!c) return;
+    const x=c.getContext('2d'), B=L.built, k=storeyNow();
+    const plan=B.floors[k] || B.floors[0];
+    const H=plan.length, W=Math.max(...plan.map(r=>r.length));
+    const sc=Math.min((c.width-6)/W, (c.height-6)/H);
+    const ox=(c.width-W*sc)/2, oy=(c.height-H*sc)/2;
+    const px=tx=>ox+(tx+0.5)*sc, pz=tz=>oy+(tz+0.5)*sc;
+    const dot=(tx,tz,fill,r,ring)=>{
+      x.beginPath(); x.arc(px(tx),pz(tz),r,0,7); x.fillStyle=fill; x.fill();
+      if(ring){ x.strokeStyle=ring; x.lineWidth=1.5; x.stroke(); }
+    };
+    const wedge=(tx,tz,ang,spread,len,fill)=>{
+      x.beginPath(); x.moveTo(px(tx),pz(tz));
+      for(let a=-spread;a<=spread+0.001;a+=spread/3)
+        x.lineTo(px(tx)-Math.sin(ang+a)*sc*len, pz(tz)-Math.cos(ang+a)*sc*len);
+      x.closePath(); x.fillStyle=fill; x.fill();
+    };
+
+    x.fillStyle='#0d1626'; x.fillRect(0,0,c.width,c.height);
+    for(let z=0;z<H;z++) for(let tx=0;tx<plan[z].length;tx++){
+      const ch=plan[z][tx];
+      if(ch===' ') continue;
+      x.fillStyle = B.walkable(ch) ? '#33456b' : '#151e33';   // rooms read open, walls solid
+      x.fillRect(ox+tx*sc, oy+z*sc, sc-0.7, sc-0.7);
+    }
+    // stairs, both tiles of the flight, in the same blue they are in the world
+    B.spots.stairs.forEach(st=>{
+      const tiles = st.s===k ? [[st.x,st.z],[(st.x+st.up.x)/2,(st.z+st.up.z)/2]]
+                  : st.up.s===k ? [[st.up.x,st.up.z]] : [];
+      tiles.forEach(([tx,tz])=>{ x.fillStyle='#3f6f9c';
+        x.fillRect(ox+tx*sc, oy+tz*sc, sc-0.7, sc-0.7); });
+    });
+
+    // where am I heading, and is it even on this floor?
+    const goal = L.blinded ? L.vault : L.terminal;
+    let aim=null, say='';
+    if(goal && !L.done){
+      if(goal.s===k){ aim=goal; say = L.blinded ? 'Go to the vault' : 'Go to the terminal'; }
+      else {
+        const st = B.spots.stairs.find(q=>q.s===k) ||
+                   B.spots.stairs.find(q=>q.up && q.up.s===k);
+        if(st){ aim = st.s===k ? st : st.up; say='Take the stairs up'; }
+      }
+    }
+    if(aim){
+      const beat=(performance.now()%1200)/1200;
+      x.beginPath(); x.arc(px(aim.x),pz(aim.z), 4+beat*7, 0, 7);
+      x.strokeStyle=`rgba(255,233,168,${(1-beat)*0.8})`; x.lineWidth=2; x.stroke();
+      dot(aim.x, aim.z, '#ffe9a8', 4, '#141024');
+    }
+
+    // the camera, and which way it is actually pointing right now
+    if(L.camera && L.camera.s===k){
+      const cm=L.camera, ang=cm.grp.rotation.y;
+      wedge(cm.x, cm.z, ang, 0.5, 2.8,
+            L.blinded ? 'rgba(168,230,207,.30)' : 'rgba(255,154,162,.34)');
+      dot(cm.x, cm.z, L.blinded ? '#a8e6cf' : '#ff9aa2', 3.2, '#141024');
+    }
+    // guards, with the cone they can see down; dimmed if on another floor
+    L.guards.forEach(g=>{
+      const gx=g.mesh.position.x/U, gz=g.mesh.position.z/U;
+      const gk=Math.max(0, Math.floor(g.mesh.position.y/B.storey + 0.25));
+      if(gk!==k){ dot(gx,gz,'rgba(255,154,162,.30)',2.6); return; }
+      wedge(gx, gz, g.mesh.rotation.y+Math.PI, 0.6, 2.3, 'rgba(255,154,162,.26)');
+      dot(gx, gz, '#ff9aa2', 3.4, '#141024');
+    });
+
+    // you
+    const cx=px(G.pos.x/U), cy=pz(G.pos.z/U);
+    x.strokeStyle='#fff'; x.lineWidth=2;
+    x.beginPath(); x.moveTo(cx,cy);
+    x.lineTo(cx-Math.sin(G.yaw)*sc*1.4, cy-Math.cos(G.yaw)*sc*1.4); x.stroke();
+    x.beginPath(); x.arc(cx,cy,3.6,0,7); x.fillStyle='#fff'; x.fill();
+
+    const title = t('SITE MAP')+' · '+(k===0 ? t('Ground floor') : t('Floor {n}',{n:k+1}));
+    if(title!==lastTitle){ document.querySelector('#mapTitle').textContent=lastTitle=title; }
+    const leg = say ? t(say) : '';
+    if(leg!==lastLeg){ document.querySelector('#maplegend').textContent=lastLeg=leg; }
+  }
+
   /* ------------------------------------------------------------ HUD */
   function briefCard(){
     const el=document.querySelector('#teach');
@@ -306,7 +400,7 @@ window.PUZZLE = (function(){
   }
 
   return {
-    start, run, update, use,
+    start, run, update, use, map,
     get active(){ return !!L; },
     get busy(){ return busy; },
     stop(){ L=null; busy=false; G.ground=null;

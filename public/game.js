@@ -16,7 +16,8 @@ const G = {
   solids:[], hits:[],                 // collision boxes / raycast targets
   selected:null, focused:null,
   keys:{}, locked:false, running:false, firstPerson:false,
-  ground:null,                        // level's floor-height probe, if it has one
+  ground:null, ceiling:null,          // level's floor / ceiling probes, if it has them
+  onGround:true,
   yaw:0, pitch:0,
   pos:new THREE.Vector3(0,1.7,14),
   vel:new THREE.Vector3(),
@@ -25,6 +26,7 @@ const G = {
   volume: 40+Math.floor(Math.random()*50)
 };
 const PLAYER_R = 0.9, EYE = 1.7;
+const GRAV = 26, JUMP = 9.0;        // a jump clears about 1.5 units, up in a third of a second
 /* Roblox-style chase camera: sits behind and above the shoulder and pulls in
    if a wall would get between it and the player. */
 const CAM = { back:5.6, up:2.9, side:0.55, lerp:0.18 };
@@ -52,6 +54,13 @@ function thirdPerson(){
         i=steps+1;
       }
     }
+  }
+  // and out of the floor above: indoors it would otherwise sit in the ceiling
+  // and put a slab between you and your own character
+  if(G.ceiling){
+    const lid = G.ceiling(want.x, want.z, G.pos.y - EYE);
+    if(lid < Infinity) want.y = Math.min(want.y, lid - 0.5);
+    want.y = Math.max(want.y, G.pos.y + 0.25);
   }
   G.camera.position.lerp(want, CAM.lerp);
   const look=head.clone().add(dir.clone().multiplyScalar(6)).setY(G.pos.y + Math.sin(G.pitch)*5);
@@ -269,7 +278,8 @@ function updateLeaveBtn(){
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
   G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
-  G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ground=null;
+  G.solids=[]; G.hits=[]; G.selected=null; G.focused=null;
+  G.ground=null; G.ceiling=null; G.vel.y=0; G.onGround=true;
   G.room=name;
   const L=window.LEVELS[name];
   G.scene.background=new THREE.Color(0xf3e8ff);
@@ -440,7 +450,8 @@ function loop(now){
     step(dt);                       // you always walk yourself now
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
-    if(!PUZZLE.active && G.room) drawMap();
+    if(PUZZLE.active) PUZZLE.map();
+    else if(G.room) drawMap();
     if(G.room==='arena'&&!PUZZLE.active) COMBAT.update(dt);
     if(G.room==='free') FREE.tick();
   }
@@ -492,10 +503,16 @@ function step(dt){
   let dz = (-cos*fwd - sin*str)*spd*dt;
   if(dx||dz) G.stats.steps += Math.abs(dx)+Math.abs(dz);
   moveAxis('x',dx); moveAxis('z',dz);
-  // stand on whatever the level calls the floor here, and ease over treads
-  if(G.ground){
-    const y = G.ground(G.pos.x, G.pos.z, G.pos.y-EYE) + EYE;
-    G.pos.y += (y - G.pos.y) * Math.min(1, dt*14);
+  // stand on whatever the level calls the floor here, and jump off it
+  const floor = (G.ground ? G.ground(G.pos.x, G.pos.z, G.pos.y-EYE) : 0) + EYE;
+  if(G.onGround && G.keys.Space){ G.vel.y = JUMP; G.onGround = false; }
+  if(G.onGround){
+    if(floor < G.pos.y - 0.6){ G.onGround=false; G.vel.y=0; }   // walked off an edge
+    else G.pos.y += (floor - G.pos.y) * Math.min(1, dt*14);     // ease over treads
+  } else {
+    G.vel.y -= GRAV*dt;
+    G.pos.y += G.vel.y*dt;
+    if(G.pos.y <= floor){ G.pos.y=floor; G.vel.y=0; G.onGround=true; }
   }
   GUN.update(dt, !!(dx||dz));
 
@@ -505,7 +522,7 @@ function step(dt){
     G.camera.rotation.order='YXZ';
     G.camera.rotation.y=G.yaw; G.camera.rotation.x=G.pitch;
   } else thirdPerson();
-  AVATAR.update(dt, !!(dx||dz), !!(G.keys.ShiftLeft||G.keys.ShiftRight));
+  AVATAR.update(dt, !!(dx||dz), !!(G.keys.ShiftLeft||G.keys.ShiftRight), G.onGround);
 
   if(G.room==='plaza'){
     if(G.gatePos && G.pos.distanceTo(new THREE.Vector3(G.gatePos.x,EYE,G.gatePos.z))<6) fire('reach',{id:'launcher'});
@@ -594,7 +611,7 @@ function setLang(l){
   $('#objTitle').textContent=t('MISSION');
   $('#mapTitle').textContent=t('DESKTOP MAP');
   $('#missionName').textContent=t('Basic Training — The Desktop');
-  $('#keys').innerHTML=`<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')}<br>
+  $('#keys').innerHTML=`<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')} &nbsp; <b>SPACE</b> ${t('Jump')}<br>
     <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
     <b>C</b> ${t('open the code console')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
   if(G.running && G.room) buildRoom(G.room);

@@ -91,12 +91,15 @@ window.AVATAR = (function(){
     }catch(e){ console.warn('character failed to load',e); body=null; model=null; }
   }
   function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null; }
-  function update(dt, moving, running){
+  function update(dt, moving, running, onGround){
     if(!body) return;
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
     body.rotation.y = G.yaw + Math.PI;      // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
-    animate(model, dt, moving ? (running ? 'sprint' : 'walk') : 'idle');
+    // the kit has no jump clip, so hold a clean pose while off the ground
+    const clip = onGround===false ? 'static'
+               : moving ? (running ? 'sprint' : 'walk') : 'idle';
+    animate(model, dt, clip);
   }
 
   return { CHARS, load, pick, attach, detach, update, animate,

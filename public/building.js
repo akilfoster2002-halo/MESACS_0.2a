@@ -81,7 +81,7 @@ window.BUILDING = (function(){
     const floors = (typeof plans[0] === 'string') ? [plans] : plans;
 
     const jobs=[], solids=[], runs=[], openEdge=new Set(), onStairs=new Set();
-    const spots = { terminals:[], guards:[], cameras:[], vault:null,
+    const spots = { terminals:[], guards:[], cameras:[], stairs:[], vault:null,
                     spawn:{x:1, z:1, s:0, y:K.slab} };
 
     const at = (k,x,z)=>{
@@ -102,6 +102,7 @@ window.BUILDING = (function(){
           if(!d) continue;
           const base = k*K.storey + K.slab;
           runs.push({ k, x, z, dx:d[0], dz:d[1], base, top:base + K.storey });
+          spots.stairs.push({ x, z, s:k, y:base, up:{ x:x+2*d[0], z:z+2*d[1], s:k+1 } });
           // both tiles of a flight belong to the treads, not to the flat floor
           onStairs.add(`${k}:${x},${z}`);
           onStairs.add(`${k}:${x+d[0]},${z+d[1]}`);
@@ -231,6 +232,17 @@ window.BUILDING = (function(){
           surfaces.get(key).push(k*K.storey + K.slab);
         }
 
+    /* The underside of the next floor up, so a chase camera can duck under
+       it instead of climbing into the storey above and hiding the player. */
+    function ceilingAt(wx, wz, from){
+      const x=Math.round(wx/UNIT), z=Math.round(wz/UNIT);
+      let lid=Infinity;
+      for(const y of (surfaces.get(x+','+z) || [])){
+        const under = y - K.slab;
+        if(under > from + 0.4 && under < lid) lid = under;
+      }
+      return lid;
+    }
     function heightAt(wx, wz, from){
       const x=Math.round(wx/UNIT), z=Math.round(wz/UNIT);
       const cand=(surfaces.get(x+','+z) || []).slice();
@@ -244,7 +256,10 @@ window.BUILDING = (function(){
       const reach = K.storey*0.6;                 // one flight is too far to hop
       let best=null;
       for(const y of cand) if(y <= y0 + reach && (best===null || y > best)) best=y;
-      return best===null ? Math.min(...cand) : best;
+      if(best!==null) return best;
+      // nothing within a step on this storey: hold the height you had rather
+      // than snapping up to a floor you never climbed to
+      return from===undefined ? Math.min(...cand) : from;
     }
     /* How high the treads are at this point of a two-tile flight.  The climb
        finishes a little short of the top step: the player is a cylinder, so
@@ -260,7 +275,7 @@ window.BUILDING = (function(){
     }
 
     return { solids, spots, unit:UNIT, storey:K.storey, slab:K.slab,
-             heightAt, at:(x,z)=>at(0,x,z), walkable, floors };
+             heightAt, ceilingAt, at:(x,z)=>at(0,x,z), walkable, floors };
   }
 
   /* a wall tile blocks the storey it stands on, and only that storey */
