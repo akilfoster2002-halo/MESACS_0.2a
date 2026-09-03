@@ -329,10 +329,10 @@ window.ES = {
 
   /* ---------- sign-in and free play ---------- */
   'SIGN IN':'INICIAR SESIÓN','Sign in':'Iniciar sesión','Sign out':'Cerrar sesión',
-  'Sign in / Join a class':'Inicia sesión / Únete a una clase',
+  'Sign in / Create an account':'Inicia sesión / Crea una cuenta',
   'An account saves your progress on any computer and opens Free Play.':
     'Una cuenta guarda tu progreso en cualquier computadora y abre el Juego Libre.',
-  'I have an account':'Ya tengo cuenta','Join a class':'Únete a una clase',
+  'I have an account':'Ya tengo cuenta','Create an account':'Crear una cuenta',
   'Sign in ▶':'Entrar ▶','Create my account ▶':'Crear mi cuenta ▶',
   'Play as a guest':'Jugar como invitado',
   'Free Play':'Juego Libre',

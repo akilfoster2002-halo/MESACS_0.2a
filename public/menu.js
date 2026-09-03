@@ -64,7 +64,7 @@ window.MENU = (function(){
       const up = await NET.health();
       if(!up){
         authMsg(t('Sign-in is not connected yet — you can still play as a guest.'));
-        ['#inUser','#inPass','#upCode','#upUser','#upName','#upPass','#btnIn','#btnUp']
+        ['#inUser','#inPass','#upUser','#upName','#upPass','#btnIn','#btnUp']
           .forEach(sel=>{ const el=$(sel); if(el) el.disabled=true; });
       }
     }
@@ -87,7 +87,7 @@ window.MENU = (function(){
     if(formUp) formUp.onsubmit=async e=>{
       e.preventDefault(); authMsg(t('Creating your account…'));
       try{
-        await NET.register({ classCode:$('#upCode').value.trim(), username:$('#upUser').value.trim(),
+        await NET.register({ username:$('#upUser').value.trim(),
                              display:$('#upName').value.trim(), password:$('#upPass').value });
         afterSignIn();
       }catch(err){ authMsg(err.message); }
@@ -182,7 +182,7 @@ window.MENU = (function(){
     $('#btnStart').textContent=t('START');
     $('#sTag').textContent=t('THINK. CODE. CREATE.');
     const si=$('#sSignIn');
-    if(si) si.textContent = NET.signedIn ? '👤 '+NET.nameOf() : t('Sign in / Join a class');
+    if(si) si.textContent = NET.signedIn ? '👤 '+NET.nameOf() : t('Sign in / Create an account');
     if(document.pointerLockElement) document.exitPointerLock();
     show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
   }
@@ -243,7 +243,7 @@ window.MENU = (function(){
     $('#aTitle').textContent=t('SIGN IN');
     $('#aSub').textContent=t('An account saves your progress on any computer and opens Free Play.');
     $('#tabIn').textContent=t('I have an account');
-    $('#tabUp').textContent=t('Join a class');
+    $('#tabUp').textContent=t('Create an account');
     $('#btnIn').textContent=t('Sign in ▶');
     $('#btnUp').textContent=t('Create my account ▶');
     $('#btnGuest').textContent=t('Play as a guest');
