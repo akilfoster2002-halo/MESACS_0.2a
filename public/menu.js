@@ -8,7 +8,7 @@ window.MENU = (function(){
 
   /* One screen hands over to the next with a short cross-fade, so a student
      always sees where they came from and where they landed. */
-  const SCREENS=['#start','#chars','#auth','#menu'];
+  const SCREENS=['#start','#chars','#auth','#servers','#menu'];
   let showing=null;
   function show(sel, after){
     if(showing===sel) return;
@@ -48,7 +48,7 @@ window.MENU = (function(){
     {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
     {id:'free',  em:'🌐', a:'#cdb4f6', name:'Free Play',
-     blurb:'The one room your class shares. Walk about together and chat.',
+     blurb:'Pick a server and stand in it with everyone else who joined.',
      needsAccount:true}
   ];
 
@@ -186,6 +186,53 @@ window.MENU = (function(){
     if(document.pointerLockElement) document.exitPointerLock();
     show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
   }
+  /* The server browser. A fixed list, each showing how many people are
+     standing in it right now, so a class can agree on one by looking. */
+  let serverPoll=null;
+  async function servers(){
+    G.running=false;
+    $('#hud').classList.add('hidden');
+    if(window.CHARS) CHARS.heroClose();
+    $('#svTitle').textContent=t('PICK A SERVER');
+    $('#svSub').textContent=t('Anyone in the same server can see and talk to each other.');
+    $('#svBack').textContent='◀';
+    show('#servers');
+    await paintServers();
+    clearInterval(serverPoll);
+    serverPoll=setInterval(()=>{                     // keep the headcounts honest
+      if($('#servers').classList.contains('hidden')) return clearInterval(serverPoll);
+      paintServers();
+    }, 4000);
+  }
+  /* No "is the screen visible" guard here: show() only drops the hidden class
+     after its 200ms cross-fade, so the first paint would skip itself. Painting
+     into a screen nobody is looking at is harmless; the poll stops on its own. */
+  async function paintServers(){
+    const row=$('#svGrid'); if(!row) return;
+    const list=await NET.servers();
+    row.innerHTML='';
+    if(!list.length){
+      row.innerHTML=`<p class="sub">${t('No servers right now — is the connection up?')}</p>`;
+      return;
+    }
+    list.forEach(sv=>{
+      const b=document.createElement('button');
+      b.className='mis';
+      b.style.setProperty('--a', sv.a||'#8fd3ff');
+      const who = sv.count===1 ? t('1 person here') : t('{n} people here',{n:sv.count});
+      b.innerHTML=`<div class="em">${sv.em||'🌐'}</div><b>${t(sv.name)}</b>
+                   <small>${who}</small><div class="tagrow">${t('JOIN ▶')}</div>`;
+      b.onclick=()=>{ clearInterval(serverPoll); enterServer(sv); };
+      row.appendChild(b);
+    });
+  }
+  function enterServer(sv){
+    hideAll();
+    $('#hud').classList.remove('hidden');
+    G.running=true; G.stats.t0=performance.now();
+    FREE.enter(sv);
+  }
+
   /* Sign-in is its own screen, and it is never in the way: START goes
      straight to the game as a guest. An account buys two things — progress
      that follows you to any machine, and Free Play. */
@@ -227,12 +274,12 @@ window.MENU = (function(){
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
-    if(id==='free') return FREE.enter();
+    if(id==='free'){ hideAll(); $('#hud').classList.add('hidden'); return servers(); }
     startMissionRoom(id);
     lockPointer($('#view'));
   }
 
-  return { open, start, chars, auth, render, renderChars, wireAuth, launch, hideAll };
+  return { open, start, chars, auth, servers, render, renderChars, wireAuth, launch, hideAll };
 })();
 
 /* =====================================================================
@@ -240,14 +287,16 @@ window.MENU = (function(){
    ===================================================================== */
 window.FREE = (function(){
   let others=new Map(), group=null;
-  function enter(){
+  let room=null;
+  function enter(sv){
+    room = sv || room || { id:'meadow', name:'Meadow' };
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
-    G.missionId=null; G.arenaTitle='Free Play';
+    G.missionId=null; G.arenaTitle=t(room.name);
     buildRoom('free');
     group=new THREE.Group(); G.roomGroup.add(group);
     others.clear();
     CHAT.show();
-    NET.connect({
+    NET.connect(room.id, {
       players:list=>paint(list),
       chat:m=>CHAT.line(m.from, m.text, m.id),
       sys:s=>CHAT.sys(s),
@@ -255,7 +304,7 @@ window.FREE = (function(){
       unsay:id=>CHAT.remove(id)
     });
     document.querySelector('#objList').innerHTML=
-      `<li class="cur">🌐 ${t('Free play — practise anything')}</li>
+      `<li class="cur">🌐 ${t('Server')}: <b>${t(room.name)}</b></li>
        <li>${t('Press ENTER to chat')}</li>
        <li>${t('Press P for the pause menu')}</li>`;
     document.querySelector('#missionName').textContent=t('Free Play');
@@ -339,7 +388,7 @@ window.CHAT = (function(){
     log.scrollTop=log.scrollHeight;
   }
   function remove(id){ const el=$(`#chatLog .m[data-id="${id}"]`); if(el) el.remove(); }
-  function clear(){ $('#chatLog').innerHTML=''; sys(t('Your teacher cleared the chat.')); }
+  function clear(quiet){ $('#chatLog').innerHTML=''; if(!quiet) sys(t('Your teacher cleared the chat.')); }
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   return { show, hide, focus, line, sys, clear, remove, get open(){ return open; } };
 })();

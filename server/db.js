@@ -1,6 +1,12 @@
 /* Postgres access + schema. Deliberately stores as little about a child as
-   possible: a username they choose, a hashed password, a class, and progress.
-   No email, no real name, no date of birth. */
+   possible: a username they choose, a hashed password, and progress.
+   No email, no real name, no date of birth.
+
+   Rooms used to be classes, which meant a teacher had to build one before
+   any two students could stand together. They are plain named servers now.
+   The classes table and the class_id columns are left alone rather than
+   dropped: there is live data behind them, and an additive migration cannot
+   lose anything. New rows simply leave them null and set `server`. */
 const { Pool } = require('pg');
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -45,6 +51,12 @@ async function init(){
     CREATE INDEX IF NOT EXISTS messages_class_idx ON messages(class_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS seen (id INT);
+
+    /* --- servers replace classes as the room a message belongs to --- */
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS server TEXT;
+    CREATE INDEX IF NOT EXISTS messages_server_idx ON messages(server, created_at DESC);
+    /* a class used to be required at sign-up; nobody has one now */
+    ALTER TABLE users ALTER COLUMN class_id DROP NOT NULL;
   `).then(()=>{ state.ready=true; });
 }
 module.exports = { pool, init, state,

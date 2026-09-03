@@ -653,7 +653,6 @@ button{font-family:var(--font);cursor:pointer}
       <button class="btn good" id="btnIn" type="submit"></button>
     </form>
     <form class="authform hidden" id="formUp" autocomplete="off">
-      <input id="upCode" maxlength="12" placeholder="class code">
       <input id="upUser" maxlength="20" autocomplete="username" placeholder="username">
       <input id="upName" maxlength="16" placeholder="display name">
       <input id="upPass" type="password" maxlength="64" autocomplete="new-password" placeholder="password">
@@ -663,6 +662,18 @@ button{font-family:var(--font);cursor:pointer}
     <div class="charfoot">
       <button class="btn ghost small" id="aBack">◀</button>
       <button class="btn ghost" id="btnGuest"></button>
+    </div>
+  </div>
+</div>
+
+<div id="servers" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="card menucard">
+    <h1 class="scrtitle" id="svTitle">PICK A SERVER</h1>
+    <div class="sub" id="svSub"></div>
+    <div class="misgrid" id="svGrid"></div>
+    <div class="charfoot">
+      <button class="btn ghost small" id="svBack">◀</button>
     </div>
   </div>
 </div>

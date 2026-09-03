@@ -29,20 +29,28 @@ window.NET = (function(){
     async resume(){ try{ me=(await api('/me')).user; return me; }catch(e){ me=null; return null; } },
     async login(username,password){ me=(await api('/login',{username,password})).user; return me; },
     async register(d){ me=(await api('/register',d)).user; return me; },
+    async servers(){ try{ return (await api('/servers')).servers||[]; }catch(e){ return []; } },
     async logout(){ try{ await api('/logout',{}); }catch(e){} me=null; if(ws){ws.close();ws=null;} },
     async saveProgress(p){ if(me) try{ await api('/progress',{progress:p}); }catch(e){} },
 
     /* ---- free play socket ---- */
-    connect(handlers){
+    /* `server` is the room to stand in. The socket opens in no room at all
+       and joins on request, so switching rooms costs a message, not a
+       reconnect. */
+    connect(server, handlers){
       if(!me) return false;
       onPlayers=handlers.players; onChat=handlers.chat; onSys=handlers.sys;
       const proto = location.protocol==='https:'?'wss':'ws';
       ws=new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onopen=()=>{ if(server) ws.send(JSON.stringify({t:'join', server})); };
       ws.onmessage=e=>{
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
         if(m.t==='chat'&&onChat) onChat(m);
-        if(m.t==='welcome'&&onChat) (m.history||[]).forEach(h=>onChat({...h, from:h.display, history:true}));
+        if(m.t==='room'&&onChat){
+          if(handlers.clear) handlers.clear(true);   // room switch: start on a clean log
+          (m.history||[]).forEach(h=>onChat({...h, from:h.display, history:true}));
+        }
         if(m.t==='joined'&&onSys) onSys(t('{n} joined',{n:m.display}));
         if(m.t==='left'&&onSys)   onSys(t('{n} left',{n:m.display}));
         if(m.t==='sys'&&onSys)    onSys(m.text);
@@ -57,6 +65,7 @@ window.NET = (function(){
     disconnect(){ if(ws){ ws.close(); ws=null; } },
     get live(){ return !!ws && ws.readyState===1; },
     pos(x,z,yaw,char){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',x,z,yaw,char})); },
-    say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); }
+    say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); },
+    join(server){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); }
   };
 })();

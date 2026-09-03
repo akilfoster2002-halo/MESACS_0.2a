@@ -1,4 +1,4 @@
-/* Teacher panel: create classes, watch the free-play chat live, mute a
+/* Teacher panel: watch every server's chat live, mute a
    student, hide a message, clear the room, and see who has finished what. */
 const $=s=>document.querySelector(s);
 let me=null, ws=null;
@@ -24,11 +24,12 @@ $('#reg').onclick=async()=>{
   catch(e){ $('#msg').textContent=e.message; }
 };
 $('#out').onclick=async()=>{ await api('/logout',{}); location.reload(); };
-$('#mkclass').onclick=async()=>{
-  try{ await api('/teacher/class',{name:$('#cname').value.trim(),code:$('#ccode').value.trim()}); refresh(); }
-  catch(e){ alert(e.message); }
+$('#clear').onclick=async()=>{ if(confirm('Clear the chat in every server?')){ await api('/teacher/clear',{}); refresh(); } };
+/* clearing one room at a time, from the server list */
+window.clearRoom=async(id,name)=>{
+  if(!confirm('Clear the chat in '+name+'?')) return;
+  await api('/teacher/clear',{server:id}); refresh();
 };
-$('#clear').onclick=async()=>{ if(confirm('Clear the chat for everyone?')){ await api('/teacher/clear',{}); refresh(); } };
 
 async function start(){
   $('#authCard').classList.add('hidden');
@@ -39,10 +40,11 @@ async function start(){
 }
 async function refresh(){
   const d=await api('/teacher/overview');
-  $('#classes').innerHTML = d.classes.length
-    ? d.classes.map(c=>`<div class="row" style="margin:4px 0"><b>${esc(c.name)}</b>
-        <span class="code">${esc(c.code)}</span></div>`).join('')
-    : '<p class="note">No classes yet — make one below.</p>';
+  $('#servers').innerHTML = (d.servers||[]).map(sv=>
+    `<div class="row" style="margin:4px 0"><b>${esc(sv.em||'')} ${esc(sv.name)}</b>
+      <span class="code">${sv.count} in room</span>
+      <button class="ghost" onclick="clearRoom('${esc(sv.id)}','${esc(sv.name)}')">Clear chat</button>
+     </div>`).join('') || '<p class="note">No servers configured.</p>';
   $('#students').innerHTML = d.students.map(s=>{
     const p=s.progress||{};
     const done=['m1','puzzles','m2','m3'].filter(k=>p[k]).join(', ')||'—';
@@ -56,8 +58,10 @@ async function refresh(){
   $('#log').scrollTop=$('#log').scrollHeight;
 }
 function line(m){
+  // the room is worth showing: one log now carries every server at once
+  const where = m.server ? `<span class="code">${esc(m.server)}</span> ` : '';
   return `<div class="msg ${m.hidden?'hidden-msg':''}" data-id="${m.id}">
-    <div><b>${esc(m.display)}</b> ${esc(m.text)}</div>
+    <div>${where}<b>${esc(m.display)}</b> ${esc(m.text)}</div>
     <div><small>${new Date(m.created_at).toLocaleTimeString()}</small>
       ${m.hidden?'':`<button class="ghost" onclick="hide(${m.id})">Hide</button>`}</div></div>`;
 }
