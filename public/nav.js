@@ -21,7 +21,7 @@ window.NAV = (function(){
 
   /* ------------------------------------------------------------ levels */
   const STAGES=[
-    { name:'Straight Shot', budget:6, speed:1.0,   // slower start: two stages to learn the console before it gets fast
+    { name:'Straight Shot', budget:6, speed:0.5,   // half pace: two stages to learn the console before it gets fast
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
       brief:'It is behind you and it does not stop. <b>forward()</b> moves one tile — count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
@@ -29,7 +29,7 @@ window.NAV = (function(){
             '#Z...S....X#',
             '############'] },
 
-    { name:'Round the Corner', budget:9, speed:1.15,
+    { name:'Round the Corner', budget:9, speed:0.6,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
       brief:'The way out bends. <b>right()</b> and <b>left()</b> turn you without moving — so a turn costs you time and no ground.',
       pal:['forward','left','right'],
