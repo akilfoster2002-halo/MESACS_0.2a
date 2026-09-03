@@ -11,13 +11,14 @@ window.COMBAT = (function(){
               sky:0x8fd3ff, butter:0xffe9a8, rose:0xff9aa2, sand:0xffd8a8 };
 
   /* enemy kinds — different jobs, different damage */
-  /* tall is slow and hits hard, small is quick and weak — you can read a
-     wave before it reaches you just from how big they are */
+  /* Every zombie stands at least as tall as you do — the model is slimmer
+     than the blocky player, so matching heights on paper reads as smaller
+     on screen.  Tall is slow and hits hard, short is quick and weak. */
   const KIND={
-    buzzer :{hp:1, size:1.9, color:PAL.mint,  face:'🐛', dmg:6,  fire:2600, speed:1.6, range:52, bolt:PAL.mint,  skin:'zombieA', tall:1.95},
-    slugger:{hp:2, size:2.6, color:PAL.sand,  face:'🐌', dmg:12, fire:3400, speed:0.9, range:46, bolt:PAL.peach, skin:'zombieC', tall:2.75},
-    sniper :{hp:1, size:2.1, color:PAL.lav,   face:'👁️', dmg:20, fire:4200, speed:0.5, range:95, bolt:PAL.rose, tell:900, skin:'zombieC', tall:2.25},
-    swarm  :{hp:1, size:1.5, color:PAL.blush, face:'🦟', dmg:4,  fire:2000, speed:2.4, range:40, bolt:PAL.blush, skin:'zombieA', tall:1.55}
+    buzzer :{hp:1, size:1.9, color:PAL.mint,  face:'🐛', dmg:6,  fire:2600, speed:1.6, range:52, bolt:PAL.mint,  skin:'zombieA', tall:2.2},
+    slugger:{hp:2, size:2.6, color:PAL.sand,  face:'🐌', dmg:12, fire:3400, speed:0.9, range:46, bolt:PAL.peach, skin:'zombieC', tall:2.7},
+    sniper :{hp:1, size:2.1, color:PAL.lav,   face:'👁️', dmg:20, fire:4200, speed:0.5, range:95, bolt:PAL.rose, tell:900, skin:'zombieC', tall:2.35},
+    swarm  :{hp:1, size:1.5, color:PAL.blush, face:'🦟', dmg:4,  fire:2000, speed:2.4, range:40, bolt:PAL.blush, skin:'zombieA', tall:2.0}
   };
 
   let enemies=[], boss=null, bolts=[], foeBolts=[], obstacles=[];
@@ -126,7 +127,8 @@ window.COMBAT = (function(){
   }
   function spawnBoss(cfg){
     const b={name:cfg.name, shield:cfg.shield, max:cfg.shield, dmg:cfg.dmg||15,
-             mesh:shell(cfg.color||PAL.lav, cfg.size||5, cfg.face||'👾'),
+             mesh:shell(cfg.color||PAL.lav, cfg.size||5, cfg.face||'👾',
+                        {skin:cfg.skin||'zombieC', tall:cfg.tall||7.5}),
              seg:[], t:0, dead:false, cycle:cfg.cycle||null, color:cfg.startColor||null,
              next:performance.now()+2200, regrow:cfg.regrow!==false, hidden:cfg.hidden||0};
     b.mesh.position.set(0,4,-18);
@@ -410,7 +412,13 @@ window.COMBAT = (function(){
 
     if(boss){
       boss.t+=dt;
-      boss.mesh.position.y=4+Math.sin(boss.t*1.3)*0.55;
+      const bstand=boss.mesh.userData.stand;
+      // a giant stands on the floor; the old emoji boss hovered
+      boss.mesh.position.y = bstand!==undefined ? bstand : 4+Math.sin(boss.t*1.3)*0.55;
+      if(boss.mesh.userData.zombie){
+        boss.mesh.lookAt(G.pos.x, boss.mesh.position.y, G.pos.z);
+        ZOMBIE.animate(boss.mesh.userData.zombie, dt, 'idle');
+      }
       boss.seg.forEach((s,i)=>{ const a=(i/boss.max)*Math.PI*2 + boss.t*0.8;
         s.position.set(Math.cos(a)*4.4, Math.sin(a)*2.3, 0); });
       if(boss.cycle && boss.t> (boss.lastCycle||0)+boss.cycle){

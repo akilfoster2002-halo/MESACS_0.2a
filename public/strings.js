@@ -7,7 +7,11 @@ window.ES = {
   'Start the mission ▶':'Empezar la misión ▶',
   'Click the screen to look around with the mouse. Press Esc to let the mouse go.':'Haz clic en la pantalla para mirar con el ratón. Presiona Esc para soltar el ratón.',
   'Move':'Moverse','Turn':'Girar','Look':'Mirar','Select':'Escoger','Open':'Abrir','Run':'Correr',
-  'Jump':'Saltar','THE FIELD':'EL CAMPO','SITE MAP':'PLANO','Floor {n}':'Piso {n}','Ground floor':'Planta baja',
+  'Jump':'Saltar','THE FIELD':'EL CAMPO','PLAY ▶':'JUGAR ▶',
+  'Pick who you play as. This is you in every mission.':
+    'Elige a quién juegas. Eres tú en cada misión.',
+  'Pick who you are. Pick a mission. Write the code that wins it.':
+    'Elige quién eres. Elige una misión. Escribe el código que la gana.','SITE MAP':'PLANO','Floor {n}':'Piso {n}','Ground floor':'Planta baja',
   'Go to the terminal':'Ve a la terminal','Go to the vault':'Ve a la bóveda',
   'Take the stairs up':'Sube por las escaleras','Guard':'Guardia',
   'W A S D or ↑ ↓':'W A S D o ↑ ↓','← → or mouse':'← → o el ratón','move the mouse':'mueve el ratón',

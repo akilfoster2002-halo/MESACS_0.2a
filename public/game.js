@@ -672,8 +672,9 @@ function begin(){ MENU.open(); }
 init();
 requestAnimationFrame(loop);
 (async function boot(){
+  // straight into KORO — accounts still work underneath, they are just not
+  // the first thing a student has to get past
   MENU.wireAuth();
-  const u = await NET.resume();
-  if(u){ if(u.progress) PROGRESS.load(u.progress); MENU.open(); }
-  else $('#start').classList.remove('hidden');
+  try{ const u = await NET.resume(); if(u && u.progress) PROGRESS.load(u.progress); }catch(e){}
+  MENU.open();
 })();

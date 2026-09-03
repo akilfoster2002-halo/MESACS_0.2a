@@ -191,6 +191,70 @@ button{font-family:var(--font);cursor:pointer}
 .ctrlgrid div{background:#111a29;border:2px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14.5px;color:var(--muted)}
 .ctrlgrid b{color:var(--star);display:inline-block;min-width:74px}
 
+/* ---------- KORO landing ------------------------------------------------
+   The first thing a student sees. It should look like somewhere you want
+   to be, and it should move — but slowly, so it never fights the reading. */
+#menu{background:radial-gradient(1200px 820px at 50% -12%,#2c2258 0%,#150f28 56%,#090612 100%)}
+.korobg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.korobg i{position:absolute;display:block;border-radius:50%;filter:blur(64px);opacity:.5;
+  animation:koroDrift 26s ease-in-out infinite}
+.korobg i:nth-child(1){width:46vmax;height:46vmax;left:-13vmax;top:-15vmax;
+  background:radial-gradient(circle,#7c5cff,transparent 68%)}
+.korobg i:nth-child(2){width:38vmax;height:38vmax;right:-11vmax;top:4vmax;
+  background:radial-gradient(circle,#ff7ab8,transparent 68%);animation-duration:33s;animation-delay:-9s}
+.korobg i:nth-child(3){width:41vmax;height:41vmax;left:24vmax;bottom:-19vmax;
+  background:radial-gradient(circle,#3ddcc4,transparent 68%);animation-duration:29s;animation-delay:-17s}
+@keyframes koroDrift{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  34%{transform:translate3d(6vmax,4vmax,0) scale(1.13)}
+  67%{transform:translate3d(-5vmax,7vmax,0) scale(.93)}
+}
+.menucard{max-width:1010px;width:min(1010px,96%);position:relative;
+  background:rgba(31,24,54,.74);border-color:rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.koro{font-size:clamp(46px,7vw,78px);font-weight:900;letter-spacing:.15em;margin:0 0 2px;line-height:1;
+  background:linear-gradient(100deg,#a8e6cf,#8fd3ff 28%,#cdb4f6 52%,#ffb4d8 74%,#a8e6cf);
+  background-size:280% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:koroSweep 9s linear infinite, koroFloat 5.5s ease-in-out infinite}
+@keyframes koroSweep{to{background-position:280% 0}}
+@keyframes koroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.korotag{color:var(--muted);font-size:15px;margin-top:2px}
+
+.misgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:14px;margin:18px 0 10px}
+.mis{position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  border:3px solid var(--line);border-radius:20px;padding:16px 15px 14px;text-align:left;
+  display:flex;flex-direction:column;gap:7px;min-height:176px;color:var(--text);cursor:pointer;
+  box-shadow:0 6px 0 rgba(0,0,0,.34);
+  transition:transform .18s cubic-bezier(.2,.9,.3,1.4),box-shadow .18s,border-color .18s}
+.mis::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(158deg,var(--a,#8fd3ff),transparent 64%);opacity:.18;transition:opacity .18s}
+.mis>*{position:relative}
+.mis:hover:not(.locked),.mis:focus-visible:not(.locked){transform:translateY(-6px);border-color:var(--a,#8fd3ff);
+  box-shadow:0 16px 30px rgba(0,0,0,.45),0 6px 0 rgba(0,0,0,.34)}
+.mis:hover:not(.locked)::before{opacity:.36}
+.mis:hover:not(.locked) .em{transform:translateY(-3px) rotate(-7deg) scale(1.12)}
+.mis .em{font-size:40px;line-height:1;transition:transform .26s cubic-bezier(.2,.9,.3,1.5)}
+.mis b{font-size:19px;letter-spacing:.2px}
+.mis small{font-size:13px;color:var(--muted);line-height:1.4}
+.mis .tagrow{margin-top:auto;font-size:12px;letter-spacing:1.4px;color:var(--a,#8fd3ff);font-weight:bold}
+.mis.locked{opacity:.5;cursor:not-allowed;filter:grayscale(.55)}
+.mis.done{border-color:var(--star)} .mis.done .tagrow{color:var(--star)}
+
+#charRow{display:flex;gap:9px;overflow-x:auto;padding:9px 2px 4px}
+.chr{flex:none;width:76px;height:88px;border-radius:18px;border:3px solid var(--line);
+  background:#221a3c;padding:3px;cursor:pointer;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s}
+.chr:hover{transform:translateY(-4px);border-color:var(--sky)}
+.chr.on{border-color:var(--mint);background:#2b3a4e;box-shadow:0 0 0 3px rgba(168,230,207,.32)}
+.chr.on img{animation:chrBob 2.4s ease-in-out infinite}
+@keyframes chrBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+@media (prefers-reduced-motion:reduce){
+  .korobg i,.koro,.chr.on img{animation:none}
+  .mis,.chr,.mis .em{transition:none}
+}
+
 
 /* ---------- code console (block based) ---------- */
 #console{position:fixed;inset:0;z-index:50;background:rgba(6,10,18,.82);display:flex;align-items:center;justify-content:center;padding:18px}
@@ -391,12 +455,12 @@ button{font-family:var(--font);cursor:pointer}
 </div>
 
 <div id="menu" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="card menucard">
     <div class="menutop">
-      <div><h1 id="mTitle">Mission: Linux</h1><div class="sub" id="mWho"></div></div>
+      <div><h1 id="mTitle" class="koro">KORO</h1><div class="korotag" id="mWho"></div></div>
       <div class="menubtns">
         <button class="btn small ghost" id="mLang">🌐 Español</button>
-        <button class="btn small ghost" id="mOut"></button>
       </div>
     </div>
     <div class="charpick">
@@ -427,17 +491,17 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=37"></script>
-<script src="strings.js?v=37"></script>
-<script src="net.js?v=37"></script>
-<script src="avatar.js?v=37"></script>
-<script src="zombies.js?v=37"></script>
-<script src="building.js?v=37"></script>
-<script src="levels.js?v=37"></script>
-<script src="code.js?v=37"></script>
-<script src="combat.js?v=37"></script>
-<script src="puzzle.js?v=37"></script>
-<script src="menu.js?v=37"></script>
-<script src="game.js?v=37"></script>
+<script src="lib/three.classic.js?v=40"></script>
+<script src="strings.js?v=40"></script>
+<script src="net.js?v=40"></script>
+<script src="avatar.js?v=40"></script>
+<script src="zombies.js?v=40"></script>
+<script src="building.js?v=40"></script>
+<script src="levels.js?v=40"></script>
+<script src="code.js?v=40"></script>
+<script src="combat.js?v=40"></script>
+<script src="puzzle.js?v=40"></script>
+<script src="menu.js?v=40"></script>
+<script src="game.js?v=40"></script>
 </body>
 </html>

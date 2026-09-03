@@ -7,11 +7,14 @@ window.MENU = (function(){
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
   const MISSIONS=[
-    {id:'range', em:'🎯', name:'Firing Range',  blurb:'Warm up your aim. No code, just targets and a clock.'},
-    {id:'m1',    em:'🐛', name:'Mission 1 — Loops',      blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
-    {id:'m2',    em:'🔮', name:'Mission 2 — Choices',    blurb:'if / else. PRISM changes colour every two seconds.'},
-    {id:'m3',    em:'🧮', name:'Mission 3 — Functions',  blurb:'define combo. OFF-BY-ONE always has one more.'},
-    {id:'free',  em:'🌐', name:'Free Play',    blurb:'Your whole class, one room. Practise and chat together.'}
+    {id:'range', em:'🎯', a:'#8fd3ff', name:'Firing Range',
+     blurb:'Warm up your aim. No code, just targets and a clock.'},
+    {id:'m1',    em:'🧟', a:'#a8e6cf', name:'Mission 1 — Loops',
+     blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
+    {id:'m2',    em:'🔮', a:'#cdb4f6', name:'Mission 2 — Choices',
+     blurb:'if / else. PRISM changes colour every two seconds.'},
+    {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
+     blurb:'define combo. OFF-BY-ONE always has one more.'}
   ];
 
   /* ------------------------------------------------------- auth screen */
@@ -49,8 +52,8 @@ window.MENU = (function(){
         afterSignIn();
       }catch(err){ authMsg(err.message); }
     };
-    $('#btnGuest').onclick=()=>{ open(); };
-    $('#mOut').onclick=async()=>{ await NET.logout(); location.reload(); };
+    const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ open(); };
+    const out=$('#mOut'); if(out) out.onclick=async()=>{ await NET.logout(); location.reload(); };
     $('#mLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   }
   function afterSignIn(){
@@ -62,23 +65,20 @@ window.MENU = (function(){
   /* -------------------------------------------------------- the menu */
   function render(){
     const grid=$('#misGrid'); if(!grid) return;
-    $('#mTitle').textContent=t('Mission: Linux');
-    $('#mWho').textContent = NET.signedIn
-      ? t('Signed in as {n}',{n:NET.me.display})
-      : t('Playing as a guest — progress will not be saved');
-    $('#mOut').textContent = NET.signedIn ? t('Sign out') : t('Sign in');
+    $('#mTitle').textContent='KORO';
+    $('#mWho').textContent = t('Pick who you are. Pick a mission. Write the code that wins it.');
+    const out=$('#mOut'); if(out) out.textContent = NET.signedIn ? t('Sign out') : t('Sign in');
     $('#mHint').textContent = t('Finish a mission to unlock the next one.');
     renderChars();
     grid.innerHTML='';
     MISSIONS.forEach(m=>{
-      const open_ = m.id==='free' ? NET.signedIn : PROGRESS.unlocked(m.id);
+      const open_ = PROGRESS.unlocked(m.id);
       const done  = PROGRESS.isDone(m.id);
       const b=document.createElement('button');
       b.className='mis'+(open_?'':' locked')+(done?' done':'');
-      const tag = m.id==='free'
-        ? (NET.signedIn? t('MULTIPLAYER'): t('SIGN IN TO PLAY'))
-        : (!open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
-                  : done ? '⭐ '+t('COMPLETE') : t('READY'));
+      b.style.setProperty('--a', m.a||'#8fd3ff');
+      const tag = !open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
+                : done ? '⭐ '+t('COMPLETE') : t('PLAY ▶');
       b.innerHTML=`<div class="em">${m.em}</div><b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
       b.onclick=()=>{ if(!open_) return; launch(m.id); };
@@ -88,7 +88,7 @@ window.MENU = (function(){
   function renderChars(){
     const row=$('#charRow'); if(!row) return;
     $('#charLbl').textContent=t('YOUR CHARACTER');
-    $('#charHint').textContent=t('Pick who you play as. Everyone in Free Play sees them.');
+    $('#charHint').textContent=t('Pick who you play as. This is you in every mission.');
     row.innerHTML=AVATAR.CHARS.map(c=>
       `<button class="chr${c.id===AVATAR.chosen?' on':''}" data-c="${c.id}" title="${c.name}">
          <img src="${c.preview}" alt="${c.name}" loading="lazy">
