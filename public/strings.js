@@ -11,8 +11,8 @@ window.ES = {
   'START':'EMPEZAR','Code your way out':'Programa tu salida','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
   'CHOOSE YOUR CHARACTER':'ELIGE TU PERSONAJE','Continue ▶':'Continuar ▶','Character':'Personaje',
   'Locked':'Bloqueado','Everyone is unlocked. Pick your favourite.':'Todos desbloqueados. Elige tu favorito.',
-  '{a} of {b} unlocked — finish a mission to open more.':
-    '{a} de {b} desbloqueados — termina una misión para abrir más.',
+  '{a} of {b} unlocked. Pick who you play as.':
+    '{a} de {b} desbloqueados. Elige a quién juegas.',
   'Escape — Corridors':'Escape — Pasillos','THE CORRIDOR':'EL PASILLO',
   'Something is behind you. Write the moves that get you out, fast.':
     'Algo te sigue. Escribe los movimientos que te sacan, rápido.',

@@ -1,14 +1,15 @@
 /* =====================================================================
    CHARS — the "choose your character" screen.
 
-   Three are yours from the start and the rest unlock as missions fall, so
-   the grid has something to grow into.  Whoever you are looking at stands
-   in a little turntable above the grid and plays their idle, because a
-   still PNG tells you nothing about who you are about to be.
+   Four are yours; the rest are locked and stay locked for now.  Whoever
+   you are looking at stands in a little turntable above the grid and plays
+   their idle, because a still PNG tells you nothing about who you are
+   about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 4;                       // unlocked before you have played anything
-  const PER_MISSION = 4;                // the other fourteen are earned, four a mission
+  const FREE = 4;                       // the four you can play as
+  const PER_MISSION = 0;                // the rest stay shut: set this above zero to
+                                        // start handing them out per finished mission
 
   let view=null, previewing=null, raf=0, last=0;
   let hero=null, heroRaf=0, heroLast=0;
@@ -79,8 +80,9 @@ window.CHARS = (function(){
     const grid=document.querySelector('#charGrid'); if(!grid) return;
     const open=unlockedCount();
     document.querySelector('#cTitle').textContent=t('CHOOSE YOUR CHARACTER');
+    // no promise of more until there is a way to earn them
     document.querySelector('#cHint').textContent = open < AVATAR.CHARS.length
-      ? t('{a} of {b} unlocked — finish a mission to open more.',{a:open,b:AVATAR.CHARS.length})
+      ? t('{a} of {b} unlocked. Pick who you play as.',{a:open,b:AVATAR.CHARS.length})
       : t('Everyone is unlocked. Pick your favourite.');
     document.querySelector('#cGo').textContent=t('Continue ▶');
 
