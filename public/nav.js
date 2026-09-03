@@ -14,13 +14,13 @@ window.NAV = (function(){
   const T=4;                                   // world units per grid tile
   const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];      // N E S W
   const PAL={floor:0x8d93b4, wall:0x4a4570, exit:0xa8e6cf, safe:0xd8ecff};
-  const CHASE = 0.8;     // world units per second — a walk, but it never stops
+  const CHASE = 1.6;     // world units per second — a walk, but it never stops
 
   let L=null, busy=false;
 
   /* ------------------------------------------------------------ levels */
   const STAGES=[
-    { name:'Straight Shot', budget:6, speed:0.65,
+    { name:'Straight Shot', budget:6, speed:1.3,
       learn:{ name:'Commands', text:'A command is one instruction. The computer does it once, exactly as written.', code:'forward()' },
       brief:'It is behind you and it does not stop. <b>forward()</b> moves one tile — count the tiles to the green door and write that many.',
       pal:['forward','left','right'],
@@ -28,7 +28,7 @@ window.NAV = (function(){
             '#Z...S....X#',
             '############'] },
 
-    { name:'Round the Corner', budget:9, speed:0.75,
+    { name:'Round the Corner', budget:9, speed:1.5,
       learn:{ name:'Turning', text:'left() and right() turn you a quarter turn on the spot. They do not move you.', code:'forward()\nright()\nforward()' },
       brief:'The way out bends. <b>right()</b> and <b>left()</b> turn you without moving — so a turn costs you time and no ground.',
       pal:['forward','left','right'],
@@ -39,7 +39,7 @@ window.NAV = (function(){
             '#######X##',
             '##########'] },
 
-    { name:'Zig Zag', budget:12, speed:0.8,
+    { name:'Zig Zag', budget:12, speed:1.6,
       learn:{ name:'Order', text:'The computer does your blocks strictly top to bottom. Turn in the wrong place and the rest of the program is walking into a wall.', code:'forward()\nright()\nforward()\nleft()' },
       brief:'Three turns this time. Work out the whole route <b>before</b> you write it — you have no time to find it by trying.',
       pal:['forward','left','right'],
@@ -50,7 +50,7 @@ window.NAV = (function(){
             '#####X###',
             '#########'] },
 
-    { name:'The Long Hall', budget:7, speed:0.85,
+    { name:'The Long Hall', budget:7, speed:1.7,
       learn:{ name:'Loops', text:'A loop runs the blocks inside it again and again, so you write the move once instead of ten times.', code:'repeat 10\n  forward()\nend' },
       brief:'Ten tiles, and only <b>7 blocks</b> allowed. Ten forward() blocks will not fit — <b>repeat</b> one instead.',
       pal:['forward','left','right','repeat'],
@@ -58,7 +58,7 @@ window.NAV = (function(){
             '#Z...S.........X#',
             '#################'] },
 
-    { name:'Switchback', budget:12, speed:0.95,
+    { name:'Switchback', budget:12, speed:1.9,
       learn:{ name:'Loops and turns', text:'Each straight run is its own repeat. Count the tiles in one leg, loop that, then turn and count the next.', code:'repeat 7\n  forward()\nend\nright()' },
       brief:'Long legs with turns between them. One <b>repeat</b> per straight — count each leg on its own.',
       pal:['forward','left','right','repeat'],
@@ -69,7 +69,7 @@ window.NAV = (function(){
             '#X############',
             '##############'] },
 
-    { name:'The Long Way Round', budget:11, speed:1.05,
+    { name:'The Long Way Round', budget:11, speed:2.1,
       learn:{ name:'All of it', text:'Commands, turns and loops together. The exit is close by, but the only way there is the long way — and it is right behind you.', code:'repeat 8\n  forward()\nend\nright()\nrepeat 4\n  forward()\nend' },
       brief:'The door is four tiles away and there is no way through. Go the whole way round, in <b>11 blocks</b>, before it reaches you.',
       pal:['forward','left','right','repeat'],
