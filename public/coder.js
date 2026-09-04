@@ -102,11 +102,11 @@ window.CODER = (function(){
     const P=VM.project;
     let extra='';
     if(only && only.cats && only.cats.indexOf(cat)<0) cat=cats()[0].id;
-    if(cat==='data' && !only){
-      extra=`<div class="cmake">
+    if(cat==='data'){
+      extra = (only ? '' : `<div class="cmake">
         <button class="btn small good" id="cAddVar">${t('Make a Variable')}</button>
-        <button class="btn small ghost" id="cAddList">${t('Make a List')}</button></div>
-        ${varRows()}`;
+        <button class="btn small ghost" id="cAddList">${t('Make a List')}</button></div>`)
+        + varRows();
     }
     if(cat==='my' && !only){
       extra=`<div class="cmake"><button class="btn small good" id="cAddProc">${t('Make a Block')}</button></div>
@@ -198,6 +198,8 @@ window.CODER = (function(){
       else if(sp.type==='bool') bk.args[k]=null;
       else bk.args[k]= sp.def!==undefined ? sp.def : '';
     });
+    const pre = only && only.defaults && only.defaults[op];
+    if(pre) Object.assign(bk.args, pre);
     if(callName){ bk.args.p=callName; bk.args.vals={}; }
     if(bd.kind==='c'||bd.kind==='c2') bk.body=[];
     if(bd.kind==='c2') bk.body2=[];

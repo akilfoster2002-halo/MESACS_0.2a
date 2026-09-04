@@ -72,7 +72,9 @@ window.COACH = (function(){
   }
   function paint(){
     const s=step(); if(!s) return;
-    const el = s.sel ? document.querySelector(s.sel) : null;
+    /* some targets are easier to describe than to select — the gap inside a
+       loop's mouth, say, whose path depends on what is already in the script */
+    const el = s.find ? s.find() : (s.sel ? document.querySelector(s.sel) : null);
     const r=ring();
     if(el){
       const b=el.getBoundingClientRect();

@@ -97,15 +97,132 @@ window.MISSIONS = (function(){
         { say:'Press Run. Watch for the pause in the middle — that is your wait.',
           sel:'#cFlag', done:()=>won }
       ] },
-    { id:'loops',   n:3, em:'🔁', a:'#8fd3ff', name:'Round and Round',
-      teach:'Loops',       soon:true, cats:['events','motion','control'],
-      ops:['event.flag','motion.move','motion.turn','ctrl.repeat','ctrl.forever'] },
-    { id:'keys',    n:4, em:'🎮', a:'#cdb4f6', name:'Take the Controls',
-      teach:'Interaction', soon:true, cats:['events','motion','control'],
-      ops:['event.key','motion.move','motion.turn','ctrl.forever','sense.key'] },
-    { id:'score',   n:5, em:'🔢', a:'#ffb4a2', name:'Keep Score',
-      teach:'Variables',   soon:true, cats:['events','motion','control','data'],
-      ops:['event.flag','motion.move','data.set','data.change','data.get'] },
+    { id:'loops', n:3, em:'🔁', a:'#8fd3ff',
+      name:'Round and Round',
+      teach:'Loops',
+      goal:'Walk all the way round a square and finish where you started.',
+      hint:'Four sides and four corners — but you only have to say it once.',
+      cats:['events','control','motion'],
+      ops:['event.flag','ctrl.repeat','motion.move','motion.turn'],
+      /* the lesson is the loop, so the mission hands over the numbers a square
+         needs rather than making a nine-year-old derive 360/4 first */
+      defaults:{ 'ctrl.repeat':{ n:4 }, 'motion.turn':{ n:90 } },
+      objects:[{ name:'Walker', shape:'people/character-f', colour:'#8fd3ff', size:1.7 }],
+      /* Three things, because any two of them are easy and wrong: it went a
+         real distance, it came home, and it got somewhere in BOTH directions
+         on the way. Standing still comes home. A straight line goes far. Out
+         and straight back does both — and is not a lap. */
+      done:(c)=>{
+        const m=c.mem, a=c.actor;
+        /* The first side is already walked by the time anything gets to look:
+           it happens in the frame that starts the run. So the tally opens at
+           however far from home it has got, and the box starts as home-to-here. */
+        if(!m.last){
+          const h=a.home||{x:a.x,z:a.z};
+          m.last={x:a.x,z:a.z}; m.path=c.moved;
+          m.box={ x0:Math.min(h.x,a.x), x1:Math.max(h.x,a.x),
+                  z0:Math.min(h.z,a.z), z1:Math.max(h.z,a.z) };
+          return false;
+        }
+        m.path += Math.hypot(a.x-m.last.x, a.z-m.last.z);
+        m.last={x:a.x,z:a.z};
+        m.box.x0=Math.min(m.box.x0,a.x); m.box.x1=Math.max(m.box.x1,a.x);
+        m.box.z0=Math.min(m.box.z0,a.z); m.box.z1=Math.max(m.box.z1,a.z);
+        return m.path>3 && c.moved<0.6
+            && (m.box.x1-m.box.x0)>0.6 && (m.box.z1-m.box.z0)>0.6;
+      },
+      steps:[
+        { say:'Somebody to walk a square. Go over and press E.',
+          world:true, done:()=>!!(window.CODER && CODER.open) },
+        { say:'Start it the usual way.',
+          sel:'#cPal [data-op="event.flag"]', done:c=>hats(c.actor)>0 },
+        { say:'Open Control. This is where blocks that repeat other blocks live.',
+          sel:'#cPal [data-c="control"]',
+          done:()=>!!document.querySelector('#cPal [data-c="control"].on') },
+        { say:'Take a repeat. Whatever you put inside it happens four times.',
+          sel:'#cPal [data-op="ctrl.repeat"]', done:c=>loops(c.actor)>0 },
+        { say:'Click the gap INSIDE the repeat. That is where the repeated blocks go.',
+          find:()=>document.querySelector('#cScript .cmouth .cdrop'),
+          done:()=>!!document.querySelector('#cScript .cmouth .cdrop.on') },
+        { say:'Now Motion, and drop a move in there. That is one side of the square.',
+          sel:'#cPal [data-c="motion"]',
+          done:()=>!!document.querySelector('#cPal [data-c="motion"].on') },
+        { say:'Click move. It lands inside the loop.',
+          sel:'#cPal [data-op="motion.move"]', done:c=>inLoop(c.actor,'motion.move') },
+        { say:'And a turn under it — that is the corner. Four sides, four corners, said once.',
+          sel:'#cPal [data-op="motion.turn"]', done:c=>inLoop(c.actor,'motion.turn') },
+        { say:'Press Run and watch it go round.',
+          sel:'#cFlag', done:()=>won }
+      ] },
+
+    { id:'keys', n:4, em:'🎮', a:'#cdb4f6',
+      name:'Take the Controls',
+      teach:'Interaction',
+      goal:'Drive Kit around with your own keys.',
+      hint:'There is no green flag block in here. Your keyboard is what starts it.',
+      cats:['events','motion'],
+      ops:['event.key','motion.move','motion.turn'],
+      objects:[{ name:'Kit', shape:'people/character-k', colour:'#cdb4f6', size:1.7 }],
+      /* Nothing in this palette can move Kit except a key press, so moving at
+         all is the proof. The mission is made of what it leaves out. */
+      done:(c)=>c.moved>1.5,
+      steps:[
+        { say:'That is Kit. Walk over and press E.',
+          world:true, done:()=>!!(window.CODER && CODER.open) },
+        { say:'No "when the game starts" this time. Take this — it fires the moment that key goes down.',
+          sel:'#cPal [data-op="event.key"]', done:c=>hats(c.actor)>0 },
+        { say:'Open Motion and give it something to do when you press.',
+          sel:'#cPal [data-c="motion"]',
+          done:()=>!!document.querySelector('#cPal [data-c="motion"].on') },
+        { say:'One move is enough.',
+          sel:'#cPal [data-op="motion.move"]', done:c=>moves(c.actor)>0 },
+        { say:'Press Run. That does not move Kit — it just makes the game listen.',
+          sel:'#cFlag', done:()=>!!VM.running },
+        { say:'Now hold SPACE. Every press is one step.',
+          done:()=>won }
+      ] },
+
+    { id:'score', n:5, em:'🔢', a:'#ffb4a2',
+      name:'Keep Score',
+      teach:'Variables',
+      goal:'Count to three, then say the number out loud.',
+      hint:'score is a box that remembers a number. Put things in it, then read it back out.',
+      cats:['events','looks','data'],
+      ops:['event.flag','data.set','data.change','data.get','looks.say'],
+      objects:[{ name:'Quinn', shape:'people/character-q', colour:'#ffb4a2', size:1.7 }],
+      vars:{ score:0 },
+      /* The number in the box got to three, and what it is saying is that same
+         number — so it counted, and it read the box rather than a typed-in 3. */
+      done:(c)=>{
+        const v=VM.project.vars.score;
+        const said=String(c.actor.saying==null?'':c.actor.saying).trim();
+        return typeof v==='number' && v>=3 && said!=='' && Number(said)===v;
+      },
+      steps:[
+        { say:'Quinn is going to count. Walk over and press E.',
+          world:true, done:()=>!!(window.CODER && CODER.open) },
+        { say:'Start it the usual way.',
+          sel:'#cPal [data-op="event.flag"]', done:c=>hats(c.actor)>0 },
+        { say:'Open Variables. There is already a box called score — watch its number as you go.',
+          sel:'#cPal [data-c="data"]',
+          done:()=>!!document.querySelector('#cPal [data-c="data"].on') },
+        { say:'Put a zero in the box to begin with, so counting always starts from the same place.',
+          sel:'#cPal [data-op="data.set"]', done:c=>count(c.actor,'data.set')>0 },
+        { say:'Now click this three times. Each one adds one to what is in the box.',
+          sel:'#cPal [data-op="data.change"]', done:c=>count(c.actor,'data.change')>=3 },
+        { say:'Open Looks — Quinn is going to say the answer.',
+          sel:'#cPal [data-c="looks"]',
+          done:()=>!!document.querySelector('#cPal [data-c="looks"].on') },
+        { say:'Add a say block.',
+          sel:'#cPal [data-op="looks.say"]', done:c=>count(c.actor,'looks.say')>0 },
+        { say:'Click the white box in that say block. It lights up, ready for something to drop in.',
+          find:()=>document.querySelector('#cScript .cin[data-slot="s"]'),
+          done:()=>!!document.querySelector('#cScript .cin.on') },
+        { say:'Back to Variables, and click the round score block. It drops into the slot you just armed.',
+          sel:'#cPal [data-op="data.get"]', done:c=>saysVar(c.actor) },
+        { say:'Press Run. Quinn says whatever ended up in the box.',
+          sel:'#cFlag', done:()=>won }
+      ] },
     { id:'ifthen',  n:6, em:'❓', a:'#ffc8dd', name:'Only If',
       teach:'Conditionals',soon:true, cats:['events','motion','control','sensing','ops'],
       ops:['event.flag','motion.move','ctrl.if','ctrl.forever','sense.touch','op.gt'] },
@@ -124,6 +241,13 @@ window.MISSIONS = (function(){
   const hats  = a => a ? a.scripts.length : 0;
   const moves = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='motion.move').length,0) : 0;
   const waits = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='ctrl.wait').length,0) : 0;
+  const count = (a,op) => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op===op).length,0) : 0;
+  const loops = a => count(a,'ctrl.repeat');
+  const inLoop = (a,op) => !!a && a.scripts.some(sc=>sc.body.some(
+        b=>b.op==='ctrl.repeat' && (b.body||[]).some(x=>x.op===op)));
+  /* a say block reading the box, rather than a 3 somebody typed in */
+  const saysVar = a => !!a && a.scripts.some(sc=>sc.body.some(
+        b=>b.op==='looks.say' && b.args && b.args.s && b.args.s.op==='data.get'));
 
   /* what a student has finished, per browser */
   const KEY='dq_missions_done';
@@ -157,7 +281,10 @@ window.MISSIONS = (function(){
     const m=get(id); if(!m || m.soon) return null;
     active=m; won=false; mem={}; threadsWere=0;
     if(!fits(m)) furnish(m);
-    if(window.CODER){ CODER.restrict({ cats:m.cats, ops:m.ops, locked:true });
+    // a project saved before the variable existed still needs it
+    if(m.vars) Object.keys(m.vars).forEach(k=>{
+      if(!(k in VM.project.vars)) VM.project.vars[k]=m.vars[k]; });
+    if(window.CODER){ CODER.restrict({ cats:m.cats, ops:m.ops, defaults:m.defaults, locked:true });
                       CODER.setActor(VM.project.actors[0]||null); }
     paint();
     /* walked the first time through, and any time the page is blank again —
@@ -174,6 +301,7 @@ window.MISSIONS = (function(){
   }
   function furnish(m){
     VM.reset();
+    if(m.vars) Object.keys(m.vars).forEach(k=>{ VM.project.vars[k]=m.vars[k]; });
     (m.objects||[]).forEach((o,i)=>{
       const p=spot(i, seatOf());
       VM.addActor({ name:o.name, shape:o.shape, colour:o.colour,
