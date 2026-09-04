@@ -39,7 +39,7 @@ window.BLOCKS = (function(){
 
   const LIST=[
     /* ------------------------------------------------------------ events */
-    B('event.flag','events','hat','when ▶ clicked'),
+    B('event.flag','events','hat','when ▶ the game starts'),
     B('event.key','events','hat','when %k key pressed',{k:{type:'key',def:'space'}}),
     B('event.recv','events','hat','when I receive %m',{m:{type:'msg',def:'message1'}}),
     B('event.clone','events','hat','when I start as a clone'),

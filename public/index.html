@@ -282,6 +282,14 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cxshape{font-size:11.5px;color:var(--muted);border-top:2px solid var(--line);padding-top:6px}
 @media (max-width:1150px){ #cPal{width:210px} #cScript{width:44vw} }
 
+/* mission cards: the number and what it teaches, before the blurb */
+.mis .mno{position:absolute;top:9px;right:12px;font-size:11px;letter-spacing:1.5px;
+  color:var(--muted);font-weight:bold}
+.mis .teach{display:inline-block;margin-top:5px;font-size:10.5px;letter-spacing:1.4px;
+  color:var(--ink);background:var(--a);border-radius:6px;padding:2px 7px;font-weight:bold}
+.mis.soon{opacity:.5}
+.mis.solved .tagrow{color:var(--good)}
+
 /* the costume picker: shelves across the top, the kit itself underneath */
 #cPick{position:fixed;inset:0;z-index:64;background:rgba(10,14,24,.72);
   display:flex;align-items:center;justify-content:center;pointer-events:auto}
@@ -843,6 +851,30 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   </div>
 </div>
 
+<div id="modes" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="card menucard">
+    <h1 class="scrtitle" id="mdTitle">HOW DO YOU WANT TO CODE?</h1>
+    <div class="sub" id="mdSub"></div>
+    <div class="misgrid" id="mdGrid"></div>
+    <div class="charfoot">
+      <button class="btn ghost small" id="mdBack">◀</button>
+    </div>
+  </div>
+</div>
+
+<div id="missions" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="card menucard">
+    <h1 class="scrtitle" id="msTitle">PICK A MISSION</h1>
+    <div class="sub" id="msSub"></div>
+    <div class="misgrid" id="msGrid"></div>
+    <div class="charfoot">
+      <button class="btn ghost small" id="msBack">◀</button>
+    </div>
+  </div>
+</div>
+
 <div id="servers" class="screen hidden">
   <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="card menucard">
@@ -908,27 +940,28 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=78"></script>
-<script src="strings.js?v=78"></script>
-<script src="difficulty.js?v=78"></script>
-<script src="net.js?v=78"></script>
-<script src="avatar.js?v=78"></script>
-<script src="zombies.js?v=78"></script>
-<script src="building.js?v=78"></script>
-<script src="levels.js?v=78"></script>
-<script src="code.js?v=78"></script>
-<script src="combat.js?v=78"></script>
-<script src="puzzle.js?v=78"></script>
-<script src="nav.js?v=78"></script>
-<script src="tutorial.js?v=78"></script>
-<script src="race.js?v=78"></script>
-<script src="costumes.js?v=78"></script>
-<script src="blocks.js?v=78"></script>
-<script src="vm.js?v=78"></script>
-<script src="coder.js?v=78"></script>
-<script src="quiz.js?v=78"></script>
-<script src="chars.js?v=78"></script>
-<script src="menu.js?v=78"></script>
-<script src="game.js?v=78"></script>
+<script src="lib/three.classic.js?v=85"></script>
+<script src="strings.js?v=85"></script>
+<script src="difficulty.js?v=85"></script>
+<script src="net.js?v=85"></script>
+<script src="avatar.js?v=85"></script>
+<script src="zombies.js?v=85"></script>
+<script src="building.js?v=85"></script>
+<script src="levels.js?v=85"></script>
+<script src="code.js?v=85"></script>
+<script src="combat.js?v=85"></script>
+<script src="puzzle.js?v=85"></script>
+<script src="nav.js?v=85"></script>
+<script src="tutorial.js?v=85"></script>
+<script src="race.js?v=85"></script>
+<script src="costumes.js?v=85"></script>
+<script src="missions.js?v=85"></script>
+<script src="blocks.js?v=85"></script>
+<script src="vm.js?v=85"></script>
+<script src="coder.js?v=85"></script>
+<script src="quiz.js?v=85"></script>
+<script src="chars.js?v=85"></script>
+<script src="menu.js?v=85"></script>
+<script src="game.js?v=85"></script>
 </body>
 </html>

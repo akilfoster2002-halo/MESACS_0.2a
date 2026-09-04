@@ -24,11 +24,28 @@ window.CODER = (function(){
   let selected=null;      // path of the selected block, for the keyboard
   let clip=null;          // cut/copy buffer
   let drag=null;          // an in-flight drag: see beginDrag
+  /* A mission hands you a few blocks and no more. A palette of two blocks is
+     a lesson; the whole language at once is a wall. null means the sandbox:
+     everything, as before. */
+  let only=null;          // { cats:[…], ops:[…], locked:bool }
   let magnify=false;      // the 🔍 tool: click a block to be told what it does
   let editingProc=null;
 
   function current(){ if(!actor) actor=VM.project.actors.find(a=>!a.isClone)||null; return actor; }
   function setActor(a){ actor=a; cursor=null; slotTarget=null; selected=null; render(); }
+  function restrict(spec){
+    only = spec||null;
+    cat = cats()[0].id;
+    /* the project changes with the mission, so let go of the object that was
+       being edited — it is about to stop existing, and a chip naming a deleted
+       object edits nothing */
+    actor=null; cursor=null; selected=null; slotTarget=null;
+    render();
+  }
+  const cats  = () => BLOCKS.CATS.filter(c=>!only || !only.cats || only.cats.indexOf(c.id)>=0);
+  const shown = c  => BLOCKS.inCat(c).filter(bd=>!only || !only.ops || only.ops.indexOf(bd.op)>=0);
+  /* walk up to a thing and open its code, which is the whole point */
+  function openOn(a){ if(!a) return; show(); setActor(a); }
 
   function show(){
     if(open) return;
@@ -62,13 +79,13 @@ window.CODER = (function(){
       <span class="chint" id="cHint"></span>
       <span class="bspace"></span>
       <span class="chint dim">${t('{n} running',{n:VM.threadCount})}</span>
-      <button class="btn small ghost" id="cWipe">${t('New')}</button>
+      ${only&&only.locked?'':`<button class="btn small ghost" id="cWipe">${t('New')}</button>`}
       <button class="btn small ghost" id="cShut">${t('Close')} (C)</button>`;
     $('#cFlag').onclick=()=>{ VM.greenFlag(); render(); };
     $('#cStop').onclick=()=>{ VM.stopAll(); render(); };
     $('#cMag').onclick=()=>{ magnify=!magnify; explainClose(); render(); };
     $('#cShut').onclick=hide;
-    $('#cWipe').onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){
+    const wipe_=$('#cWipe'); if(wipe_) wipe_.onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){
       VM.wipe(); actor=null; selected=null; cursor=null; render(); } };
     hint();
   }
@@ -84,13 +101,14 @@ window.CODER = (function(){
   function palette(){
     const P=VM.project;
     let extra='';
-    if(cat==='data'){
+    if(only && only.cats && only.cats.indexOf(cat)<0) cat=cats()[0].id;
+    if(cat==='data' && !only){
       extra=`<div class="cmake">
         <button class="btn small good" id="cAddVar">${t('Make a Variable')}</button>
         <button class="btn small ghost" id="cAddList">${t('Make a List')}</button></div>
         ${varRows()}`;
     }
-    if(cat==='my'){
+    if(cat==='my' && !only){
       extra=`<div class="cmake"><button class="btn small good" id="cAddProc">${t('Make a Block')}</button></div>
         ${P.procs.map(p=>`<div class="cprocrow">
             <button class="cblk k-stack" data-call="${esc(p.name)}" style="--a:#ff9aa2">${esc(p.name)}${
@@ -100,10 +118,10 @@ window.CODER = (function(){
           </div>`).join('')}`;
     }
     $('#cPal').innerHTML=`
-      <div class="ctabs">${BLOCKS.CATS.map(c=>`
+      <div class="ctabs">${cats().map(c=>`
         <button class="ctab${c.id===cat?' on':''}" data-c="${c.id}" style="--a:${c.a}">${t(c.name)}</button>`).join('')}</div>
       ${extra}
-      <div class="cblocks">${BLOCKS.inCat(cat).map(bd=>
+      <div class="cblocks">${shown(cat).map(bd=>
         `<button class="cblk k-${bd.kind}" data-op="${bd.op}" style="--a:${BLOCKS.catOf(bd.cat).a}">${preview(bd)}</button>`
       ).join('')}</div>`;
 
@@ -260,11 +278,11 @@ window.CODER = (function(){
       VM.project.actors.filter(x=>!x.isClone).map(x=>`
         <button class="cchip${x===a&&!editingProc?' on':''}" data-a="${x.id}">
           <span class="cdot" style="background:${x.colour}"></span>${esc(x.name)}</button>`).join('')}
-      <button class="cchip add" id="cAddObj">+</button>
-      ${a?`<button class="bx" id="cCos" title="${t('Change costume')}">🎭</button>
+      ${only&&only.locked?'':'<button class="cchip add" id="cAddObj">+</button>'}
+      ${a?`${only&&only.locked?'':`<button class="bx" id="cCos" title="${t('Change costume')}">🎭</button>`}
         <button class="bx" id="cReset" title="${t('Put this object back where it started')}">↺</button>
-        <button class="bx" id="cRen" title="${t('Rename')}">✎</button>
-        <button class="bx" id="cDelObj" title="${t('Delete')}">✕</button>`:''}
+        ${only&&only.locked?'':`<button class="bx" id="cRen" title="${t('Rename')}">✎</button>
+        <button class="bx" id="cDelObj" title="${t('Delete')}">✕</button>`}`:''}
     </div>`;
 
     if(editingProc){
@@ -765,5 +783,6 @@ window.CODER = (function(){
 
   addEventListener('keydown', keys, true);
 
-  return { show, hide, toggle, render, tick, setActor, get open(){ return open; } };
+  return { show, hide, toggle, render, tick, setActor, restrict, openOn,
+           get open(){ return open; } };
 })();

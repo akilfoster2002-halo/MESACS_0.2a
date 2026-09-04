@@ -424,7 +424,13 @@ function wireInput(){
     // field: typing "c" into a number slot must not close the editor around
     // it, and typing "p" into the chat must not pause the game.
     if(!typingInField(e)){
-      if(e.code==='KeyC' && G.running && G.room==='free'){ e.preventDefault(); CODER.toggle(); return; }
+      /* Find object → select object → program object. Looking at a thing and
+         pressing the key opens ITS code, not whatever was open last. */
+      if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
+        const on = G.focused && G.focused.userData && G.focused.userData.actor;
+        if(on && !CODER.open){ e.preventDefault(); CODER.openOn(on); return; }
+        if(e.code==='KeyC'){ e.preventDefault(); CODER.toggle(); return; }
+      }
       if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
       if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
     }
@@ -478,7 +484,7 @@ function loop(now){
   updateCodeBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
-  if(G.room==='free'){ VM.step(dt); CODER.tick(dt); }
+  if(G.room==='free'){ VM.step(dt); CODER.tick(dt); if(window.MISSIONS) MISSIONS.tick(dt); }
   if(G.running && !frozen()){
     step(dt);
     if(TUTOR.active) TUTOR.tick(dt);
@@ -610,7 +616,7 @@ function focusScan(){
     cross.classList.add('on'); box.classList.remove('hidden');
     const u=owner.userData;
     if(u.actor){                                  // a coded object names itself
-      box.innerHTML = esc(u.actor.name) + '<small>' + t('C to write its code') + '</small>';
+      box.innerHTML = esc(u.actor.name) + '<small>' + t('E — program this') + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')

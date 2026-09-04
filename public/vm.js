@@ -17,7 +17,11 @@
    copy of the script, and broadcasts that other objects answer.
    ===================================================================== */
 window.VM = (function(){
-  const KEY='dq_code_project';
+  /* Which project is loaded. The sandbox has one; every mission has its own,
+     so walking into Mission 1 cannot flatten the thing somebody spent an hour
+     building, and leaving it again gives that thing straight back. */
+  const SANDBOX='dq_code_project';
+  let KEY=SANDBOX;
   const MAXTHREADS=400;
 
   let P = blank();
@@ -49,6 +53,7 @@ window.VM = (function(){
     m.userData.actor=a; m.userData.owner=m;
     a.mesh=m; if(group) group.add(m);
     if(a.bubble){ m.add(a.bubble); }
+    aim(a,m);
     sync(a);
     if(dressed){
       const want=a.shape;
@@ -64,6 +69,25 @@ window.VM = (function(){
           new THREE.MeshLambertMaterial({color:new THREE.Color(a.colour)})));
       });
     }
+  }
+  /* Something for the crosshair to land on. A costume arrives late and is a
+     tree of meshes rather than one, so every object carries an invisible box
+     the size of itself: look at an object and the game knows which it is,
+     model or cube, loaded or still on its way. */
+  function aim(a, m){
+    forget(a);
+    const r=Math.max(0.6,(a.size||1))*1.15;
+    const box=new THREE.Mesh(new THREE.BoxGeometry(r,r,r),
+      new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false }));
+    box.userData.actor=a; box.userData.owner=box;
+    m.add(box); a.aim=box;
+    if(typeof G!=='undefined' && G.hits) G.hits.push(box);
+  }
+  function forget(a){
+    if(!a || !a.aim) return;
+    if(typeof G!=='undefined' && G.hits) G.hits=G.hits.filter(h=>h!==a.aim);
+    if(a.aim.parent) a.aim.parent.remove(a.aim);
+    a.aim=null;
   }
   function sync(a){
     if(!a.mesh) return;
@@ -107,6 +131,7 @@ window.VM = (function(){
     return a;
   }
   function delActor(a){
+    forget(a);
     threads=threads.filter(t=>t.actor!==a);
     if(a.mesh && a.mesh.parent) a.mesh.parent.remove(a.mesh);
     P.actors=P.actors.filter(x=>x!==a);
@@ -476,7 +501,14 @@ window.VM = (function(){
   }
 
   /* -------------------------------------------------------- persistence */
+  /* load() switches KEY and then empties the old project, and emptying it
+     deletes actors one at a time — each of which used to save. That wrote the
+     OUTGOING project, shrinking, over the INCOMING project's slot: walk out of
+     a mission and the sandbox you had built was overwritten by a mission ball.
+     Nothing saves while a swap is in progress. */
+  let quiet=0;
   function save(){
+    if(quiet) return;
     try{
       localStorage.setItem(KEY, JSON.stringify({
         actors:P.actors.map(a=>({ id:a.id,name:a.name,shape:a.shape,colour:a.colour,
@@ -489,7 +521,7 @@ window.VM = (function(){
   function load(){
     let raw=null;
     try{ raw=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
-    reset();
+    quiet++; reset(); quiet--;
     if(raw && Array.isArray(raw.actors)){
       Object.assign(P.vars, raw.vars||{});
       Object.assign(P.lists, raw.lists||{});
@@ -503,7 +535,11 @@ window.VM = (function(){
   }
 
   /* ------------------------------------------------------------- mount */
+  /* Which project the NEXT enter() will open. Set before the room is built,
+     because the room is what calls enter(). */
+  function useSlot(slot){ KEY = slot || SANDBOX; }
   function enter(parent){
+    if(group && group.parent) group.parent.remove(group);
     load();
     group=new THREE.Group(); parent.add(group);
     P.actors.forEach(build);
@@ -524,7 +560,7 @@ window.VM = (function(){
     get project(){ return P; },
     get running(){ return running; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe, resetActor, dress, runBlock, ghostMesh,
+    enter, leave, step, save, load, wipe, reset, resetActor, dress, runBlock, ghostMesh, useSlot,
     addActor, delActor, build, sync, actorByName,
     greenFlag, stopAll, startHats,
     evalBlock, lookup, num, truthy

@@ -8,7 +8,7 @@ window.MENU = (function(){
 
   /* One screen hands over to the next with a short cross-fade, so a student
      always sees where they came from and where they landed. */
-  const SCREENS=['#start','#chars','#auth','#servers','#menu'];
+  const SCREENS=['#start','#chars','#auth','#modes','#missions','#servers','#menu'];
   let showing=null;
   function show(sel, after){
     if(showing===sel) return;
@@ -34,7 +34,7 @@ window.MENU = (function(){
     if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
   }
 
-  const MISSIONS=[
+  const TILES=[   // the cards on the main grid, not the coding missions
     {id:'tut',   em:'🎮', a:'#ffe9a8', name:'Level 0 — Basics',
      blurb:'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.'},
     {id:'race',  em:'🏁', a:'#ffd8a8', name:'Circuit — Time Trial',
@@ -122,7 +122,7 @@ window.MENU = (function(){
     renderChars();
     renderDiff();
     grid.innerHTML='';
-    MISSIONS.forEach(m=>{
+    TILES.forEach(m=>{
       const needsIn = m.needsAccount && !NET.signedIn;
       const open_ = PROGRESS.unlocked(m.id) && !needsIn;
       const done  = PROGRESS.isDone(m.id);
@@ -195,6 +195,7 @@ window.MENU = (function(){
     $('#svTitle').textContent=t('PICK A SERVER');
     $('#svSub').textContent=t('Anyone in the same server can see and talk to each other.');
     $('#svBack').textContent='◀';
+    $('#svBack').onclick=()=>{ clearInterval(serverPoll); missions(); };
     show('#servers');
     await paintServers();
     clearInterval(serverPoll);
@@ -203,6 +204,75 @@ window.MENU = (function(){
       paintServers();
     }, 4000);
   }
+  /* ------------------------------------------------- how do you want to code
+     The coding world is one world, entered two ways: on your own, or in a room
+     with the class. The choice comes first because it changes who is standing
+     next to you, not what you can build. */
+  let mode='multi', mission=null;
+  function modes(){
+    G.running=false;
+    $('#hud').classList.add('hidden');
+    $('#mdTitle').textContent=t('HOW DO YOU WANT TO CODE?');
+    $('#mdSub').textContent=t('The same world either way — the difference is who else is in it.');
+    $('#mdBack').textContent='◀';
+    const grid=$('#mdGrid');
+    grid.innerHTML='';
+    const card=(id,em,a,name,blurb,note)=>{
+      const b=document.createElement('button');
+      b.className='mis'; b.style.setProperty('--a',a);
+      b.innerHTML=`<div class="em">${em}</div><b>${t(name)}</b><small>${t(blurb)}</small>
+                   <div class="tagrow">${t(note)}</div>`;
+      b.onclick=()=>{
+        mode=id;
+        if(id==='solo'){ mission=null; return enterServer(null); }
+        // a shared room needs a name to put over your head
+        if(!NET.signedIn) return auth();
+        missions();
+      };
+      grid.appendChild(b);
+    };
+    card('multi','🌐','#a8e6cf','Multiplayer',
+         'Walk around a shared world with your class. Everyone sees everyone\u2019s objects run.',
+         'CHOOSE ▶');
+    card('solo','👤','#cdb4f6','Single Player',
+         'The same sandbox, on your own. Build anything, no mission, nobody watching.',
+         'OPEN SANDBOX ▶');
+    $('#mdBack').onclick=()=>open();
+    show('#modes');
+  }
+
+  /* --------------------------------------------------------- mission select
+     The finished missions are playable, the rest are shown anyway: a student
+     should be able to see the road ahead, one idea per stop. */
+  function missions(){
+    $('#msTitle').textContent=t('PICK A MISSION');
+    $('#msSub').textContent=t('Each one opens a few more blocks. Start at the top.');
+    $('#msBack').textContent='◀';
+    const grid=$('#msGrid'); grid.innerHTML='';
+    MISSIONS.LIST.forEach(m=>{
+      const b=document.createElement('button');
+      const solved=MISSIONS.isDone(m.id);
+      b.className='mis'+(m.soon?' soon':'')+(solved?' solved':'');
+      b.style.setProperty('--a', m.a||'#8fd3ff');
+      b.innerHTML=`<div class="mno">${t('MISSION')} ${m.n}</div>
+        <div class="em">${m.em}</div><b>${t(m.name)}</b>
+        <div><span class="teach">${t(m.teach)}</span></div>
+        <small>${m.goal? t(m.goal) : t('Coming next.')}</small>
+        <div class="tagrow">${m.soon? t('SOON') : solved? t('SOLVED — PLAY AGAIN ▶') : t('START ▶')}</div>`;
+      if(!m.soon) b.onclick=()=>{ mission=m.id; servers(); };
+      grid.appendChild(b);
+    });
+    const b=document.createElement('button');
+    b.className='mis'; b.style.setProperty('--a','#cdb4f6');
+    b.innerHTML=`<div class="em">🧩</div><b>${t('Sandbox')}</b>
+      <small>${t('No mission and no limits — every block, and anything you want to build.')}</small>
+      <div class="tagrow">${t('OPEN ▶')}</div>`;
+    b.onclick=()=>{ mission=null; servers(); };
+    grid.appendChild(b);
+    $('#msBack').onclick=()=>modes();
+    show('#missions');
+  }
+
   /* No "is the screen visible" guard here: show() only drops the hidden class
      after its 200ms cross-fade, so the first paint would skip itself. Painting
      into a screen nobody is looking at is harmless; the poll stops on its own. */
@@ -229,7 +299,7 @@ window.MENU = (function(){
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
-    FREE.enter(sv);
+    FREE.enter(sv, mission);
   }
 
   /* Sign-in is its own screen, and it is never in the way: START goes
@@ -274,15 +344,17 @@ window.MENU = (function(){
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
     if(id==='free'){
-      // signed in? pick who to share the room with. Otherwise straight to work.
-      if(!NET.signedIn) return enterServer(null);
-      hideAll(); $('#hud').classList.add('hidden'); return servers();
+      // on your own, or with the class? Guests have no class to join.
+      hideAll(); $('#hud').classList.add('hidden');
+      mission=null;
+      return modes();
     }
     startMissionRoom(id);
     lockPointer($('#view'));
   }
 
-  return { open, start, chars, auth, servers, render, renderChars, wireAuth, launch, hideAll };
+  return { open, start, chars, auth, servers, modes, missions, render, renderChars,
+           wireAuth, launch, hideAll };
 })();
 
 /* =====================================================================
@@ -292,11 +364,18 @@ window.FREE = (function(){
   let others=new Map(), group=null;
   let ghosts=new Map();            // ownerId -> Map(objectId -> a copy of their object)
   let room=null;
-  function enter(sv){
+  function enter(sv, missionId){
     room = sv || { id:null, name:'Workshop' };
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    if(window.MISSIONS) MISSIONS.stop();
     G.missionId=null; G.arenaTitle=t(room.name);
+    /* the room is what opens the project, so say which one before building it */
+    const def = (missionId && window.MISSIONS) ? MISSIONS.get(missionId) : null;
+    VM.useSlot(def && !def.soon ? MISSIONS.slotFor(def.id) : null);
     buildRoom('free');
+    /* a mission furnishes the room and hands out its few blocks; without one
+       this is the sandbox it has always been */
+    const m = def ? MISSIONS.start(missionId) : null;
     group=new THREE.Group(); G.roomGroup.add(group);
     others.clear(); ghosts.clear(); sent.clear(); fullAt=0;
     if(room.id) CHAT.show(); else CHAT.hide();
@@ -308,11 +387,15 @@ window.FREE = (function(){
       clear:quiet=>CHAT.clear(quiet),   // a room switch is quiet; a teacher's clear is not
       unsay:id=>CHAT.remove(id)
     });
-    document.querySelector('#objList').innerHTML=
-      `<li class="cur">🧩 ${t('Press C to open the code editor')}</li>
-       <li>${room.id? '🌐 '+t('Server')+': <b>'+t(room.name)+'</b>' : '👤 '+t('Just you')}</li>
-       <li>${room.id? t('Press ENTER to chat') : t('Sign in to build alongside your class')}</li>`;
-    document.querySelector('#missionName').textContent=t('Code Sandbox');
+    if(m){
+      MISSIONS.paint();
+    } else {
+      document.querySelector('#objList').innerHTML=
+        `<li class="cur">🧩 ${t('Walk up to an object and press E to write its code')}</li>
+         <li>${room.id? '🌐 '+t('Server')+': <b>'+t(room.name)+'</b>' : '👤 '+t('Just you')}</li>
+         <li>${room.id? t('Press ENTER to chat') : t('Sign in to build alongside your class')}</li>`;
+      document.querySelector('#missionName').textContent=t('Code Sandbox');
+    }
     lockPointer(document.querySelector('#view'));
   }
   function tag(name){
