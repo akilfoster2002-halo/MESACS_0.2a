@@ -48,6 +48,14 @@ window.NET = (function(){
       if(!me) return false;
       want=server; handlers=hs; retry=0; gone=false;
       clearTimeout(retryT);
+      /* Already in the room? Keep the socket. Opening a second one would leave
+         the first live and unread — two of you in the roster, one of them a
+         ghost — every time the room is re-entered for a new mission. */
+      if(ws && ws.readyState===1){
+        onPlayers=hs.players; onChat=hs.chat; onSys=hs.sys;
+        if(server) ws.send(JSON.stringify({t:'join', server}));
+        return true;
+      }
       open_();
       return true;
     },

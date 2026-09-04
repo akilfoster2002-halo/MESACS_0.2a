@@ -46,9 +46,57 @@ window.MISSIONS = (function(){
           sel:'#cFlag', done:()=>won }
       ] },
 
-    { id:'timing',  n:2, em:'⏱️', a:'#a8e6cf', name:'Wait For It',
-      teach:'Timing',      soon:true, cats:['events','motion','control'],
-      ops:['event.flag','motion.move','motion.turn','ctrl.wait'] },
+    { id:'timing', n:2, em:'⏱️', a:'#a8e6cf',
+      name:'Wait For It',
+      teach:'Timing',
+      goal:'Make the car drive, pause, then drive again.',
+      hint:'Three blocks this time. A wait in the middle is what makes the pause.',
+      cats:['events','motion','control'],
+      ops:['event.flag','motion.move','ctrl.wait'],
+      objects:[{ name:'Car', shape:'cars/raceCarRed', colour:'#ff9aa2', size:2.2 }],
+      /* Judged by watching the car, not by reading the script: it moved, it
+         stood still for a beat while the program was still going, then it
+         moved again. A student who finds another way to do that has still
+         understood the idea, which is the point. */
+      done:(c)=>{
+        const m=c.mem, a=c.actor;
+        if(!m.last){ m.last={x:a.x,z:a.z}; m.still=0; return false; }
+        const step=Math.hypot(a.x-m.last.x, a.z-m.last.z);
+        m.last={x:a.x,z:a.z};
+        if(step>0.002){
+          if(m.paused) m.went=true;            // moving again, after the pause
+          m.still=0;
+        } else if(c.running){
+          m.still += c.dt;
+          /* A pause only counts once it has already driven somewhere — the
+             stillness before the first move is just a script that has not
+             started, and `wait` in front of a move is not what was asked for.
+             Note the first move cannot be WATCHED happening: it lands in the
+             same frame that starts the run. Where it ended up says so instead. */
+          if(m.still>0.45 && c.moved>0.5) m.paused=true;
+        }
+        return !!m.went;
+      },
+      steps:[
+        { say:'A car this time. Walk over and press E to open its code.',
+          world:true, done:()=>!!(window.CODER && CODER.open) },
+        { say:'Start the same way you did before.',
+          sel:'#cPal [data-op="event.flag"]', done:c=>hats(c.actor)>0 },
+        { say:'Open Motion and give it a move — that is the driving off part.',
+          sel:'#cPal [data-c="motion"]',
+          done:()=>!!document.querySelector('#cPal [data-c="motion"].on') },
+        { say:'Click move. One is enough for now.',
+          sel:'#cPal [data-op="motion.move"]', done:c=>moves(c.actor)>0 },
+        { say:'Now Control. This is where waiting lives.',
+          sel:'#cPal [data-c="control"]',
+          done:()=>!!document.querySelector('#cPal [data-c="control"].on') },
+        { say:'Add a wait. It holds the script here for a second before the next line runs.',
+          sel:'#cPal [data-op="ctrl.wait"]', done:c=>waits(c.actor)>0 },
+        { say:'Back to Motion for one more move, so there is something after the wait.',
+          sel:'#cPal [data-c="motion"]', done:c=>moves(c.actor)>1 },
+        { say:'Press Run. Watch for the pause in the middle — that is your wait.',
+          sel:'#cFlag', done:()=>won }
+      ] },
     { id:'loops',   n:3, em:'🔁', a:'#8fd3ff', name:'Round and Round',
       teach:'Loops',       soon:true, cats:['events','motion','control'],
       ops:['event.flag','motion.move','motion.turn','ctrl.repeat','ctrl.forever'] },
@@ -75,6 +123,7 @@ window.MISSIONS = (function(){
         G.focused.userData && G.focused.userData.actor===a;
   const hats  = a => a ? a.scripts.length : 0;
   const moves = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='motion.move').length,0) : 0;
+  const waits = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='ctrl.wait').length,0) : 0;
 
   /* what a student has finished, per browser */
   const KEY='dq_missions_done';
@@ -88,6 +137,11 @@ window.MISSIONS = (function(){
 
   /* ------------------------------------------------------------- running */
   let active=null, won=false;
+  /* Some missions are judged over time rather than in one glance — "it moved,
+     then it stood still, then it moved again" is three frames apart at least.
+     mem is a scratch pad for that, wiped at the start of every run so a second
+     Run is judged fresh instead of finishing what the first one started. */
+  let mem={}, threadsWere=0;
 
   /* Classmates share a room, so their objects must not share a spot. The
      golden angle spreads any number of people round a ring without anybody
@@ -101,7 +155,7 @@ window.MISSIONS = (function(){
 
   function start(id){
     const m=get(id); if(!m || m.soon) return null;
-    active=m; won=false;
+    active=m; won=false; mem={}; threadsWere=0;
     if(!fits(m)) furnish(m);
     if(window.CODER){ CODER.restrict({ cats:m.cats, ops:m.ops, locked:true });
                       CODER.setActor(VM.project.actors[0]||null); }
@@ -128,7 +182,8 @@ window.MISSIONS = (function(){
     VM.save();
   }
   function stop(){
-    active=null; won=false;
+    active=null; won=false; mem={}; threadsWere=0;
+    close_();
     if(window.COACH) COACH.stop();
     if(window.VM) VM.useSlot(null);
     if(window.CODER) CODER.restrict(null);
@@ -146,9 +201,12 @@ window.MISSIONS = (function(){
     if(!active || won || !active.done) return;
     const a=VM.project.actors[0];
     if(!a) return;
+    const live=VM.threadCount;
+    if(live>0 && threadsWere===0) mem={};        // a fresh Run is judged fresh
+    threadsWere=live;
     const h=a.home||{x:a.x,y:a.y,z:a.z};
     const moved=Math.hypot(a.x-h.x, a.y-h.y, a.z-h.z);
-    if(active.done({ moved, actor:a })) win();
+    if(active.done({ moved, actor:a, dt:dt||0.016, running:!!VM.running, mem })) win();
   }
   /* the coach runs off the same frame as the mission it belongs to */
   function coach(dt){ if(window.COACH) COACH.tick(dt); }
@@ -158,6 +216,62 @@ window.MISSIONS = (function(){
     paint();
     if(window.CHAT && CHAT.open)
       CHAT.sys(t('{n} solved it!',{n: (window.NET&&NET.me)?NET.me.display:t('You')}));
+    offerNext();
+  }
+
+  /* the next one that actually exists */
+  function nextOf(id){
+    const i=LIST.findIndex(m=>m.id===id);
+    if(i<0) return null;
+    for(let k=i+1;k<LIST.length;k++) if(!LIST[k].soon) return LIST[k];
+    return null;
+  }
+
+  /* On solving, the course carries on by itself — but after a beat, and with
+     a way out. Being yanked out of the room the moment your program worked is
+     no reward at all: you want to watch the thing you just made. */
+  const WAIT=7;
+  let countdown=null;
+  function offerNext(){
+    const nxt=nextOf(active.id);
+    const card=document.createElement('div');
+    card.id='nextUp';
+    document.body.appendChild(card);
+    if(!nxt){
+      card.innerHTML=`<div class="nuhead">🎉 ${t('Solved!')}</div>
+        <div class="nubody">${t('That is the last mission built so far. The sandbox has every block in it whenever you want a go.')}</div>
+        <div class="nurow"><button class="btn small ghost" id="nuStay">${t('Stay here')}</button></div>`;
+      document.querySelector('#nuStay').onclick=close_;
+      return;
+    }
+    let left=WAIT;
+    const draw=()=>{
+      card.innerHTML=`<div class="nuhead">🎉 ${t('Solved!')}</div>
+        <div class="nubody">${t('Next')}: <b>${t('Mission {n} — {name}',{n:nxt.n,name:t(nxt.name)})}</b>
+          <span class="nuteach">${t(nxt.teach)}</span></div>
+        <div class="nubar"><i style="width:${(left/WAIT)*100}%"></i></div>
+        <div class="nurow">
+          <button class="btn small good" id="nuGo">${t('Go now')} ▶</button>
+          <button class="btn small ghost" id="nuStay">${t('Stay here')} (${left})</button>
+        </div>`;
+      document.querySelector('#nuGo').onclick=()=>{ close_(); go(nxt.id); };
+      document.querySelector('#nuStay').onclick=close_;
+    };
+    draw();
+    countdown=setInterval(()=>{
+      left--;
+      if(left<=0){ close_(); go(nxt.id); return; }
+      draw();
+    }, 1000);
+  }
+  function close_(){
+    clearInterval(countdown); countdown=null;
+    const c=document.querySelector('#nextUp'); if(c) c.remove();
+  }
+  function go(id){
+    close_();
+    if(window.CODER) CODER.hide();
+    if(window.FREE) FREE.go(id);
   }
 
   /* the objective panel is the mission's, while it is running */
@@ -175,6 +289,6 @@ window.MISSIONS = (function(){
   }
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  return { LIST, get, start, stop, tick, paint, isDone, slotFor,
+  return { LIST, get, start, stop, tick, paint, isDone, slotFor, nextOf, go,
            get active(){ return active; }, get won(){ return won; } };
 })();

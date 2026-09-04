@@ -545,7 +545,9 @@ window.FREE = (function(){
     last=now; NET.pos(+G.pos.x.toFixed(2), +G.pos.z.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
     shareObjects();
   }
-  return { enter, tick, get count(){ return others.size; } };
+  /* move to another mission without leaving the room or the people in it */
+  function go(missionId){ enter(room, missionId); }
+  return { enter, go, tick, get count(){ return others.size; } };
 })();
 
 /* =====================================================================
