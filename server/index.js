@@ -40,6 +40,7 @@ const SERVERS = [
   { id:'lagoon',  name:'Lagoon',  em:'🐚', a:'#ffc8dd' }
 ];
 const isServer = id => SERVERS.some(s=>s.id===id);
+const OBJ_CAP = 60;          // one person cannot fill a room with ten thousand cubes
 
 const ok  = (res,data)=>res.json({ ok:true, ...data });
 /* Everything under /api needs Postgres except these two, which read no
@@ -243,7 +244,7 @@ wss.on('connection', async (ws, req)=>{
   const u = r.rows[0];
   if(!u){ ws.close(4001,'unknown user'); return; }
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
-                x:0, z:0, yaw:0, char:'a',
+                x:0, z:0, yaw:0, char:'a', objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
 
@@ -261,17 +262,39 @@ wss.on('connection', async (ws, req)=>{
         `SELECT id,display,text FROM messages WHERE server=$1 AND hidden=false
          ORDER BY id DESC LIMIT 40`,[want]);
       ws.send(JSON.stringify({ t:'room', server:want, history:recent.rows.reverse() }));
+      /* the room is already full of other people's objects — hand the newcomer
+         the lot at once, rather than waiting for each owner's next change */
+      for(const [,q] of live)
+        if(q!==p && q.server===want && q.objs.size)
+          ws.send(JSON.stringify({ t:'objs', from:q.id, full:true, set:[...q.objs.values()] }));
       broadcastRoom(want,{ t:'joined', display:p.display }, ws);
       return;
     }
     if(m.t==='leave'){
       if(p.server) broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display }, ws);
-      p.server=null; return;
+      p.server=null; p.objs.clear(); return;
     }
     if(m.t==='pos'){
       if(!p.server) return;
       p.x=+m.x||0; p.z=+m.z||0; p.yaw=+m.yaw||0;
       if(typeof m.char==='string' && /^[a-r]$/.test(m.char)) p.char=m.char;
+      return;
+    }
+    /* Objects are relayed, not simulated: the owner's machine runs the scripts
+       and says where things ended up. The server keeps the last word on each so
+       a latecomer sees a room that is already furnished. */
+    if(m.t==='objs'){
+      if(!p.server) return;
+      const set=Array.isArray(m.set)? m.set.slice(0,60) : [];
+      const del=Array.isArray(m.del)? m.del.slice(0,60) : [];
+      if(m.full) p.objs.clear();
+      for(const id of del) p.objs.delete(id);
+      for(const o of set){
+        if(!o || o.i===undefined) continue;
+        if(p.objs.has(o.i) || p.objs.size<OBJ_CAP) p.objs.set(o.i,o);
+      }
+      if(set.length||del.length||m.full)
+        broadcastRoom(p.server,{ t:'objs', from:p.id, full:!!m.full, set, del }, ws);
       return;
     }
     if(m.t==='chat'){

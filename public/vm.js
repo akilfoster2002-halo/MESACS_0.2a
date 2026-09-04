@@ -71,6 +71,26 @@ window.VM = (function(){
     a.mesh.rotation.set(a.tilt*Math.PI/180, a.dir*Math.PI/180, 0);
     a.mesh.visible=!!a.visible;
   }
+  /* A read-only copy of somebody else's object, for this room to look at. It
+     is built exactly the way ours are, but it carries no actor and runs no
+     code: the machine that owns an object is the one running its scripts. */
+  function ghostMesh(spec){
+    const shape=String((spec&&spec.shape)||'cube');
+    const size=Math.max(0.1, +(spec&&spec.size) || 1);
+    const colour=(spec&&spec.colour)||'#8fd3ff';
+    const plain=()=>new THREE.Mesh(geo(shape==='cube'?'cube':shape,size),
+      new THREE.MeshLambertMaterial({color:new THREE.Color(colour)}));
+    if(window.COSTUMES && COSTUMES.isModel(shape)){
+      const g=new THREE.Group();
+      COSTUMES.load(shape)
+        .then(o=>{ o.scale.multiplyScalar(size); g.add(o); })
+        .catch(()=>{ g.add(new THREE.Mesh(geo('cube',size),
+          new THREE.MeshLambertMaterial({color:new THREE.Color(colour)}))); });
+      return g;
+    }
+    return plain();
+  }
+
   /* HOME is everything a running program can change about an object. It is
      snapshotted the moment the object is made, so "put it back" is a plain
      copy rather than a re-run of whatever moved it. */
@@ -504,7 +524,7 @@ window.VM = (function(){
     get project(){ return P; },
     get running(){ return running; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe, resetActor, dress, runBlock,
+    enter, leave, step, save, load, wipe, resetActor, dress, runBlock, ghostMesh,
     addActor, delActor, build, sync, actorByName,
     greenFlag, stopAll, startHats,
     evalBlock, lookup, num, truthy

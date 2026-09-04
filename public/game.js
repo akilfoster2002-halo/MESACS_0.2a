@@ -382,6 +382,15 @@ function typingInField(e){
 }
 function wireInput(){
   addEventListener('keydown',e=>{
+    /* A keystroke aimed at a text field belongs to the field. Swallowing SPACE
+       unconditionally — to stop the page scrolling and to make jump work — also
+       swallowed every space anybody tried to type into the chat or into a `say`
+       block, and holding WASD to type walked the player around behind the panel. */
+    if(typingInField(e)){
+      G.keys[e.code]=false;
+      if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
+      return;
+    }
     G.keys[e.code]=true;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
@@ -478,7 +487,7 @@ function loop(now){
     if(PUZZLE.active) PUZZLE.map();
     else if(!NAV.active && G.room) drawMap();   // the corridors have no map
     if(G.room==='arena'&&!PUZZLE.active&&!NAV.active) COMBAT.update(dt);
-    if(G.room==='free') FREE.tick();
+    if(G.room==='free') FREE.tick(dt);
   }
   G.renderer.render(G.scene,G.camera);
 }

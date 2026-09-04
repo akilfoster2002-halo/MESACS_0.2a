@@ -290,6 +290,7 @@ window.MENU = (function(){
    ===================================================================== */
 window.FREE = (function(){
   let others=new Map(), group=null;
+  let ghosts=new Map();            // ownerId -> Map(objectId -> a copy of their object)
   let room=null;
   function enter(sv){
     room = sv || { id:null, name:'Workshop' };
@@ -297,13 +298,14 @@ window.FREE = (function(){
     G.missionId=null; G.arenaTitle=t(room.name);
     buildRoom('free');
     group=new THREE.Group(); G.roomGroup.add(group);
-    others.clear();
+    others.clear(); ghosts.clear(); sent.clear(); fullAt=0;
     if(room.id) CHAT.show(); else CHAT.hide();
     if(room.id) NET.connect(room.id, {
       players:list=>paint(list),
+      objs:m=>applyObjs(m),
       chat:m=>CHAT.line(m.from, m.text, m.id),
       sys:s=>CHAT.sys(s),
-      clear:()=>CHAT.clear(),
+      clear:quiet=>CHAT.clear(quiet),   // a room switch is quiet; a teacher's clear is not
       unsay:id=>CHAT.remove(id)
     });
     document.querySelector('#objList').innerHTML=
@@ -323,33 +325,142 @@ window.FREE = (function(){
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
     s.scale.set(4,1,1); s.position.y=3.2; return s;
   }
+  /* Presence lands about twelve times a second. Painting it straight onto the
+     scene made everybody else move in visible steps, so what arrives is a
+     TARGET and the frame loop eases towards it. */
   function paint(list){
     if(!group) return;
     const seen=new Set();
     list.forEach(p=>{
       seen.add(p.id);
+      const yaw=p.yaw+Math.PI;
       let o=others.get(p.id);
       if(!o){
         const g=new THREE.Group();
         g.add(tag(p.display));
-        group.add(g); o={g, char:null}; others.set(p.id,o);
+        g.position.set(p.x,0,p.z); g.rotation.y=yaw;
+        group.add(g);
+        o={ g, char:null, model:null, tx:p.x, tz:p.z, tyaw:yaw, speed:0 };
+        others.set(p.id,o);
       }
       if(p.char && o.char!==p.char){
         o.char=p.char;
         AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m; o.g.add(m); })
                            .catch(()=>{});
       }
-      o.g.position.set(p.x,0,p.z);
-      o.g.rotation.y=p.yaw+Math.PI;
+      o.tx=p.x; o.tz=p.z; o.tyaw=yaw;
     });
     for(const [id,o] of others) if(!seen.has(id)){ group.remove(o.g); others.delete(id); }
+    // whoever has left the room takes their objects with them
+    for(const [owner,mine] of ghosts) if(!seen.has(owner)){
+      for(const [,gh] of mine) group.remove(gh.g);
+      ghosts.delete(owner);
+    }
   }
+
+  /* ------------------------------------------------------------- objects
+     Everybody's objects stand in everybody's room. They are RELAYED, not
+     simulated twice: the machine that owns an object runs its scripts and
+     says where it ended up, so a program cannot run differently on two
+     screens. What arrives is a target, eased into like a player is. */
+  function applyObjs(m){
+    if(!group || !m || m.from==null || !window.VM) return;
+    let mine=ghosts.get(m.from);
+    if(!mine){ mine=new Map(); ghosts.set(m.from,mine); }
+    const drop=id=>{ const gh=mine.get(id); if(gh){ group.remove(gh.g); mine.delete(id); } };
+    if(m.full){
+      const keep=new Set((m.set||[]).map(o=>o.i));
+      for(const id of [...mine.keys()]) if(!keep.has(id)) drop(id);
+    }
+    (m.del||[]).forEach(drop);
+    (m.set||[]).forEach(o=>{
+      const look=o.s+'|'+o.c+'|'+o.sz;
+      let gh=mine.get(o.i);
+      if(!gh || gh.look!==look){                    // a new object, or a new costume
+        if(gh) group.remove(gh.g);
+        const g=VM.ghostMesh({ shape:o.s, colour:o.c, size:o.sz });
+        g.position.set(o.x,o.y,o.z);
+        g.rotation.set(o.tl*Math.PI/180, o.d*Math.PI/180, 0);
+        group.add(g);
+        gh={ g, look }; mine.set(o.i,gh);
+      }
+      gh.tx=o.x; gh.ty=o.y; gh.tz=o.z; gh.tdir=o.d; gh.ttilt=o.tl;
+      gh.g.visible = o.v!==0;
+    });
+  }
+
+  /* Ours, outwards. Only what actually changed goes on the wire — a room full
+     of objects standing still costs nothing — with a full picture every few
+     seconds so a dropped message cannot leave somebody's room wrong forever. */
+  const stamp = a => [a.shape,a.colour,a.x.toFixed(2),a.y.toFixed(2),a.z.toFixed(2),
+                      Math.round(a.dir),Math.round(a.tilt),(a.size||1).toFixed(2),
+                      a.visible?1:0].join('|');
+  let sent=new Map(), sentAt=0, fullAt=0;
+  function shareObjects(){
+    if(!NET.live || !window.VM) return;
+    const now=performance.now();
+    if(now-sentAt<200) return;
+    sentAt=now;
+    const full = now-fullAt>4000;
+    if(full){ fullAt=now; sent.clear(); }
+    const set=[], keep=new Set();
+    VM.project.actors.slice(0,60).forEach(a=>{
+      keep.add(a.id);
+      const k=stamp(a);
+      if(sent.get(a.id)===k) return;
+      sent.set(a.id,k);
+      set.push({ i:a.id, s:a.shape, c:a.colour,
+                 x:+a.x.toFixed(2), y:+a.y.toFixed(2), z:+a.z.toFixed(2),
+                 d:Math.round(a.dir), tl:Math.round(a.tilt),
+                 sz:+(a.size||1).toFixed(2), v:a.visible?1:0 });
+    });
+    const del=[];
+    for(const id of [...sent.keys()]) if(!keep.has(id)){ del.push(id); sent.delete(id); }
+    if(set.length || del.length || full) NET.objs({ full, set, del });
+  }
+
+  /* Ease towards the last known spot, a fixed fraction of the remaining gap per
+     second so it looks the same on a fast machine and a slow one — except when
+     somebody is a room away, where gliding across the floor would be a lie. */
+  function smooth(dt){
+    const k = 1 - Math.pow(0.0008, Math.min(dt,0.1));
+    for(const [,o] of others){
+      const dx=o.tx-o.g.position.x, dz=o.tz-o.g.position.z;
+      if(Math.hypot(dx,dz) > 12){ o.g.position.set(o.tx,0,o.tz); o.g.rotation.y=o.tyaw; o.speed=0; continue; }
+      o.g.position.x += dx*k;
+      o.g.position.z += dz*k;
+      let d=o.tyaw-o.g.rotation.y;
+      d=Math.atan2(Math.sin(d),Math.cos(d));          // turn the short way round
+      o.g.rotation.y += d*k;
+      // how fast they are actually travelling, smoothed, so the legs match
+      const v=Math.hypot(dx,dz)/Math.max(dt,0.001);
+      o.speed += (v-o.speed)*Math.min(1,dt*8);
+      if(o.model) AVATAR.animate(o.model, dt,
+        o.speed>3.2 ? 'sprint' : o.speed>0.35 ? 'walk' : 'idle');
+    }
+    for(const [,mine] of ghosts) for(const [,gh] of mine){
+      const p=gh.g.position;
+      if(Math.hypot(gh.tx-p.x, gh.ty-p.y, gh.tz-p.z) > 12){
+        p.set(gh.tx,gh.ty,gh.tz);
+      } else {
+        p.x+=(gh.tx-p.x)*k; p.y+=(gh.ty-p.y)*k; p.z+=(gh.tz-p.z)*k;
+      }
+      const want=gh.tdir*Math.PI/180;
+      let d=want-gh.g.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d));
+      gh.g.rotation.y += d*k;
+      gh.g.rotation.x = gh.ttilt*Math.PI/180;
+    }
+  }
+
   let last=0;
-  function tick(){
-    if(G.room!=='free' || !NET.live) return;
+  function tick(dt){
+    if(G.room!=='free') return;
+    smooth(dt||0.016);
+    if(!NET.live) return;
     const now=performance.now();
     if(now-last<90) return;
     last=now; NET.pos(+G.pos.x.toFixed(2), +G.pos.z.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
+    shareObjects();
   }
   return { enter, tick, get count(){ return others.size; } };
 })();

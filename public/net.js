@@ -55,7 +55,9 @@ window.NET = (function(){
     get live(){ return !!ws && ws.readyState===1; },
     pos(x,z,yaw,char){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',x,z,yaw,char})); },
     say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); },
-    join(server){ want=server; if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); }
+    join(server){ want=server; if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); },
+    /* what our objects look like right now, for everyone else in the room */
+    objs(payload){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'objs',...payload})); }
   };
 
   function open_(){
@@ -75,6 +77,7 @@ window.NET = (function(){
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
         if(m.t==='chat'&&onChat) onChat(m);
+        if(m.t==='objs'&&handlers.objs) handlers.objs(m);
         if(m.t==='room'&&onChat){
           if(handlers.clear) handlers.clear(true);   // room switch: start on a clean log
           (m.history||[]).forEach(h=>onChat({...h, from:h.display, history:true}));
