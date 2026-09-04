@@ -192,6 +192,62 @@ button{font-family:var(--font);cursor:pointer}
 .ctrlgrid b{color:var(--star);display:inline-block;min-width:74px}
 @keyframes tick{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 
+/* ---------- the code sandbox ---------- */
+#coder{position:fixed;inset:0;z-index:28;pointer-events:none;font-size:13px}
+#cBar{position:absolute;left:50%;top:10px;transform:translateX(-50%);pointer-events:auto;
+  display:flex;align-items:center;gap:8px;background:rgba(20,15,36,.94);
+  border:2px solid var(--line);border-radius:14px;padding:7px 10px;max-width:min(900px,94vw)}
+.chint{font-size:12px;color:var(--muted);white-space:nowrap} .chint.bad{color:var(--bad)}
+#cObj{position:absolute;left:10px;top:60px;bottom:10px;width:200px;overflow:auto;pointer-events:auto;
+  background:rgba(20,15,36,.95);border:2px solid var(--line);border-radius:14px;padding:10px}
+#cPal{position:absolute;left:218px;top:60px;bottom:10px;width:250px;overflow:auto;pointer-events:auto;
+  background:rgba(20,15,36,.95);border:2px solid var(--line);border-radius:14px;padding:10px}
+#cScript{position:absolute;right:10px;top:60px;bottom:10px;width:min(430px,38vw);overflow:auto;
+  pointer-events:auto;background:rgba(20,15,36,.95);border:2px solid var(--line);
+  border-radius:14px;padding:10px}
+.cobjs{display:flex;flex-direction:column;gap:4px}
+.cobj{display:flex;align-items:center;gap:6px;background:var(--panel2);border:2px solid var(--line);
+  border-radius:9px;padding:5px 7px;color:var(--text);font-size:12px;text-align:left}
+.cobj.on{border-color:var(--accent);background:#2b2350}
+.cobj small{margin-left:auto;color:var(--muted);font-size:10.5px}
+.cdot{width:11px;height:11px;border-radius:50%;flex:none}
+.cvar{display:flex;justify-content:space-between;font-size:12px;padding:2px 4px;color:var(--muted)}
+.cvar b{color:var(--text);font-weight:normal}
+.cproc{display:block;width:100%;text-align:left;background:#3a2340;border:2px solid #ff9aa2;
+  border-radius:8px;color:var(--text);padding:4px 7px;font-size:12px;margin:3px 0}
+.ctabs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px}
+.ctab{background:var(--panel2);border:2px solid var(--line);border-radius:8px;
+  color:var(--muted);font-size:11px;padding:3px 7px}
+.ctab.on{background:var(--a);color:#241d38;border-color:#fff;font-weight:bold}
+.cblocks{display:flex;flex-direction:column;gap:4px}
+.cblk{display:flex;align-items:center;gap:4px;flex-wrap:wrap;text-align:left;
+  background:var(--a);color:#241d38;border:none;border-radius:8px;padding:5px 8px;
+  font-size:12px;font-weight:bold;line-height:1.5;width:100%}
+.cblk.k-report,.cblk.k-bool{border-radius:14px}
+.cblk.k-hat{border-radius:12px 12px 8px 8px}
+.cblk.k-cap{border-radius:8px 8px 12px 12px}
+.cblk.live{cursor:default;width:auto}
+.cblk .bx{margin-left:auto;color:#241d38;opacity:.5} .cblk .bx:hover{opacity:1;color:#7a1020}
+.cslot{background:rgba(255,255,255,.75);border-radius:9px;padding:1px 6px;font-style:normal;
+  font-weight:normal;color:#241d38;font-size:11.5px}
+.cslot.bool{border-radius:4px;transform:rotate(45deg);display:inline-block;width:11px;height:11px;
+  padding:0;text-indent:-999px;overflow:hidden}
+.cslot.bool.on{background:var(--star);box-shadow:0 0 0 2px #fff}
+.cin{background:#fff;border:1px solid rgba(0,0,0,.25);border-radius:9px;padding:1px 5px;
+  font-size:11.5px;color:#241d38;font-family:inherit;max-width:120px}
+.cin.on{box-shadow:0 0 0 2px var(--star)} .cin.ccol{padding:0;width:26px;height:18px}
+.cnest{display:inline-flex;align-items:center;gap:3px;background:var(--a);border-radius:12px;
+  padding:1px 6px;font-size:11.5px}
+.cscript{margin-bottom:12px}
+.cstack{margin-left:6px;border-left:2px dashed var(--line);padding-left:6px}
+.cwrap{margin:2px 0}
+.cmouth{margin-left:14px;border-left:3px solid var(--line);padding-left:6px;min-height:8px}
+.celse{font-size:11px;color:var(--muted);margin-left:6px}
+.cdrop{height:7px;border-radius:4px;margin:1px 0;cursor:pointer}
+.cdrop:hover{background:rgba(255,255,255,.14)}
+.cdrop.on{background:var(--star);height:5px}
+@media (max-width:1200px){ #cPal{width:200px} #cScript{width:34vw} }
+
 /* ---------- the workbench ---------- */
 #bench{position:fixed;inset:0;z-index:28;pointer-events:none;font-size:13px}
 #bench .bhead{font-size:11px;letter-spacing:2px;color:var(--mint);font-weight:bold;
@@ -765,6 +821,13 @@ button{font-family:var(--font);cursor:pointer}
   </div>
 </div>
 
+<div id="coder" class="hidden">
+  <div id="cBar"></div>
+  <div id="cObj"></div>
+  <div id="cPal"></div>
+  <div id="cScript"></div>
+</div>
+
 <div id="bench" class="hidden">
   <div id="bBar"></div>
   <div id="bPal"></div>
@@ -782,26 +845,26 @@ button{font-family:var(--font);cursor:pointer}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=66"></script>
-<script src="strings.js?v=66"></script>
-<script src="difficulty.js?v=66"></script>
-<script src="net.js?v=66"></script>
-<script src="avatar.js?v=66"></script>
-<script src="zombies.js?v=66"></script>
-<script src="building.js?v=66"></script>
-<script src="levels.js?v=66"></script>
-<script src="code.js?v=66"></script>
-<script src="combat.js?v=66"></script>
-<script src="puzzle.js?v=66"></script>
-<script src="nav.js?v=66"></script>
-<script src="tutorial.js?v=66"></script>
-<script src="race.js?v=66"></script>
-<script src="parts.js?v=66"></script>
-<script src="sandbox.js?v=66"></script>
-<script src="bench.js?v=66"></script>
-<script src="quiz.js?v=66"></script>
-<script src="chars.js?v=66"></script>
-<script src="menu.js?v=66"></script>
-<script src="game.js?v=66"></script>
+<script src="lib/three.classic.js?v=67"></script>
+<script src="strings.js?v=67"></script>
+<script src="difficulty.js?v=67"></script>
+<script src="net.js?v=67"></script>
+<script src="avatar.js?v=67"></script>
+<script src="zombies.js?v=67"></script>
+<script src="building.js?v=67"></script>
+<script src="levels.js?v=67"></script>
+<script src="code.js?v=67"></script>
+<script src="combat.js?v=67"></script>
+<script src="puzzle.js?v=67"></script>
+<script src="nav.js?v=67"></script>
+<script src="tutorial.js?v=67"></script>
+<script src="race.js?v=67"></script>
+<script src="blocks.js?v=67"></script>
+<script src="vm.js?v=67"></script>
+<script src="coder.js?v=67"></script>
+<script src="quiz.js?v=67"></script>
+<script src="chars.js?v=67"></script>
+<script src="menu.js?v=67"></script>
+<script src="game.js?v=67"></script>
 </body>
 </html>

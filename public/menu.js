@@ -47,8 +47,8 @@ window.MENU = (function(){
      blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
-    {id:'free',  em:'🔧', a:'#cdb4f6', name:'Free Play — Workshop',
-     blurb:'Build machines from parts, wire them up, program them, watch them run.'}
+    {id:'free',  em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
+     blurb:'A 3D world you write. Objects, variables, functions, clones — code anything.'}
   ];
 
   /* ------------------------------------------------------- auth screen */
@@ -307,10 +307,10 @@ window.FREE = (function(){
       unsay:id=>CHAT.remove(id)
     });
     document.querySelector('#objList').innerHTML=
-      `<li class="cur">🔧 ${t('Press B for the workbench')}</li>
+      `<li class="cur">🧩 ${t('Press B to open the code editor')}</li>
        <li>${room.id? '🌐 '+t('Server')+': <b>'+t(room.name)+'</b>' : '👤 '+t('Just you')}</li>
        <li>${room.id? t('Press ENTER to chat') : t('Sign in to build alongside your class')}</li>`;
-    document.querySelector('#missionName').textContent=t('Workshop');
+    document.querySelector('#missionName').textContent=t('Code Sandbox');
     lockPointer(document.querySelector('#view'));
   }
   function tag(name){

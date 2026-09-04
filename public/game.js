@@ -312,7 +312,7 @@ function buildFree(L){
     new THREE.MeshLambertMaterial({map:textTexture(['🔧 '+t('Workshop')],'#5aa8d6',32)}));
   sign.position.set(0,8,-L.d/2+0.7); G.roomGroup.add(sign);
   document.querySelector('#mapwrap').classList.add('hidden');
-  if(window.SANDBOX) SANDBOX.enter(G.roomGroup);
+  if(window.VM) VM.enter(G.roomGroup);
 }
 function buildArena(L){
   G.pos.set(0,EYE,L.d/2-6); G.yaw=0; G.pitch=0;
@@ -402,7 +402,7 @@ function wireInput(){
       }
       return;
     }
-    if(e.code==='KeyB' && G.running && G.room==='free'){ e.preventDefault(); BENCH.toggle(); return; }
+    if(e.code==='KeyB' && G.running && G.room==='free'){ e.preventDefault(); CODER.toggle(); return; }
     if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
     if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
     if(G.room==='free' && CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
@@ -423,7 +423,7 @@ function wireInput(){
   const canvas=$('#view');
   canvas.addEventListener('mousedown',()=>{
     if(!G.running) return;
-    if(window.BENCH && BENCH.open) return;   // the workbench needs the mouse
+    if(window.CODER && CODER.open) return;   // the editor needs the mouse
     lockPointer(canvas);
   });
   document.addEventListener('pointerlockchange',()=>{ G.locked=!!document.pointerLockElement; });
@@ -434,7 +434,6 @@ function wireInput(){
   });
   canvas.addEventListener('click',e=>{
     if(!G.running) return;
-    if(window.BENCH && BENCH.open){ BENCH.worldClick(e); return; }
     if(COMBAT.inRange){ COMBAT.rangeShot(); return; }   // the range is pure aiming
     if(G.hudOwner==='mission') COMBAT.manualShot();             // in a fight, the trigger fires
   });
@@ -456,7 +455,7 @@ function loop(now){
   updateCodeBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
-  if(G.room==='free'){ SANDBOX.tick(dt); BENCH.tick(dt); }
+  if(G.room==='free'){ VM.step(dt); CODER.tick(dt); }
   if(G.running && !frozen()){
     step(dt);
     if(TUTOR.active) TUTOR.tick(dt);
@@ -587,10 +586,8 @@ function focusScan(){
   if(owner){
     cross.classList.add('on'); box.classList.remove('hidden');
     const u=owner.userData;
-    if(u.part){                                   // a sandbox part names itself
-      const p=u.part;
-      box.innerHTML = esc(p.name) + '<small>' +
-        (p.powered ? t('powered') : t('no power')) + ' · ' + t('B for the workbench') + '</small>';
+    if(u.actor){                                  // a coded object names itself
+      box.innerHTML = esc(u.actor.name) + '<small>' + t('B to write its code') + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
