@@ -365,6 +365,25 @@ window.VM = (function(){
     }
   }
 
+  /* One block, run on its own, the way clicking a block in Scratch's palette
+     tries it out. A reporter is answered rather than run — the value comes
+     straight back for the editor to show. Anything else joins the scheduler,
+     which is why this also switches the VM on: trying a block out is running
+     the project, just a very small piece of it. */
+  function runBlock(bk, actor){
+    if(!bk || !actor) return null;
+    const bd = window.BLOCKS && BLOCKS.of(bk.op);
+    const ctx = { actor, locals:null, depth:0 };
+    if(bd && (bd.kind==='report' || bd.kind==='bool')){
+      try{ return { value: val(bk,ctx) }; }
+      catch(e){ return { value:'' }; }
+    }
+    if(threads.length>=MAXTHREADS) return null;
+    running=true;
+    threads.push({ actor, script:null, gen:run([bk],ctx), wait:0 });
+    return { started:true };
+  }
+
   /* -------------------------------------------------------- scheduling */
   function startScript(actor, script){
     if(threads.length>=MAXTHREADS) return null;
@@ -485,7 +504,7 @@ window.VM = (function(){
     get project(){ return P; },
     get running(){ return running; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe, resetActor, dress,
+    enter, leave, step, save, load, wipe, resetActor, dress, runBlock,
     addActor, delActor, build, sync, actorByName,
     greenFlag, stopAll, startHats,
     evalBlock, lookup, num, truthy

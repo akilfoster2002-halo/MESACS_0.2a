@@ -109,14 +109,20 @@ window.CODER = (function(){
 
     $('#cPal').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ cat=b.dataset.c; palette(); });
     $('#cPal').querySelectorAll('[data-op]').forEach(b=>{
-      b.onclick=()=>{ if(justDragged) return; if(magnify) return explain(b.dataset.op,b); add(b.dataset.op); };
+      b.onclick=e=>{ if(justDragged) return; if(magnify) return explain(b.dataset.op,b);
+        if(e.detail>1) return;                    // the second click of a double-click
+        const r=add(b.dataset.op); lastAdd = r ? {...r, at:Date.now()} : null; };
+      b.ondblclick=()=>{ if(justDragged||magnify) return; tryOut(b.dataset.op); };
       b.onmousedown=e=>{ if(magnify) return; beginDrag(e,{ src:'palette', op:b.dataset.op,
         isExpr:BLOCKS.isExpr(BLOCKS.of(b.dataset.op).kind),
         html:b.innerHTML, cls:'k-'+BLOCKS.of(b.dataset.op).kind,
         colour:b.style.getPropertyValue('--a') }); };
     });
     $('#cPal').querySelectorAll('[data-call]').forEach(b=>{
-      b.onclick=()=>{ if(justDragged) return; if(magnify) return explain('my.call',b); add('my.call',b.dataset.call); };
+      b.onclick=e=>{ if(justDragged) return; if(magnify) return explain('my.call',b);
+        if(e.detail>1) return;
+        const r=add('my.call',b.dataset.call); lastAdd = r ? {...r, at:Date.now()} : null; };
+      b.ondblclick=()=>{ if(justDragged||magnify) return; tryOut('my.call',b.dataset.call); };
       b.onmousedown=e=>{ if(magnify) return;
         beginDrag(e,{ src:'palette', op:'my.call', callName:b.dataset.call,
           isExpr:false, html:b.innerHTML, cls:'k-stack' }); };
@@ -192,7 +198,7 @@ window.CODER = (function(){
       a.scripts.push({ id:Date.now()+Math.random(), hat:bk, body:[] });
       cursor=null; selected=null; VM.save(); render(); return;
     }
-    insert(bk);
+    return insert(bk);
   }
   function insert(bk){
     const list = cursor ? cursor.list : defaultList();
@@ -201,11 +207,50 @@ window.CODER = (function(){
     list.splice(at_,0,bk);
     cursor={ list, index:at_+1 };
     VM.save(); render();
+    return { list, bk };
   }
   function defaultList(){
     if(editingProc){ const p=VM.project.procs.find(x=>x.name===editingProc); return p?p.body:null; }
     const a=current(); if(!a || !a.scripts.length) return null;
     return a.scripts[a.scripts.length-1].body;
+  }
+
+  /* ------------------------------------------------------------ try it out
+     Double-clicking a block in the palette runs it on the spot, on whichever
+     object is selected — the fastest way to find out what `turn 15 degrees`
+     does is to watch it happen. The first click of that double-click has
+     already dropped a copy into the script, so it is taken back out again:
+     trying a block is not the same as writing one down. */
+  let lastAdd=null;                       // {list, bk, at} — undone by a double-click
+
+  function undoLastAdd(){
+    const la=lastAdd; lastAdd=null;
+    if(!la || Date.now()-la.at>700) return;
+    const i=la.list.indexOf(la.bk);
+    if(i<0) return;
+    la.list.splice(i,1);
+    cursor=null; selected=null; VM.save();
+  }
+  /* the block's own words, with whatever is sitting in its slots */
+  function plain(bk){
+    const bd=BLOCKS.of(bk.op); if(!bd) return bk.op;
+    return BLOCKS.parts(bd.label).map(seg=>{
+      if(seg[0]!=='%') return seg;
+      const v=bk.args[seg[1]];
+      return (v && typeof v==='object') ? '…' : String(v==null?'':v);
+    }).join('');
+  }
+  function tryOut(op, callName){
+    const bd=BLOCKS.of(op); if(!bd) return;
+    if(bd.kind==='hat') return;            // a hat starts a script; there is nothing to try
+    undoLastAdd();
+    const a=current();
+    if(!a){ render(); return flash(t('Add an object first.')); }
+    const bk=newBlock(op,callName); if(!bk){ render(); return; }
+    const r=VM.runBlock(bk,a);
+    render();
+    if(r && 'value' in r) note(plain(bk)+' → '+String(r.value));
+    else if(r) note(plain(bk)+' ✓');
   }
 
   /* ------------------------------------------------------------- scripts */
@@ -696,6 +741,12 @@ window.CODER = (function(){
     const h=$('#cHint'); if(!h) return;
     h.textContent=msg; h.classList.add('bad');
     clearTimeout(flashT); flashT=setTimeout(()=>{ h.classList.remove('bad'); hint(); },2000);
+  }
+  /* flash() is for mistakes and goes red; note() is for news and does not */
+  function note(msg){
+    const h=$('#cHint'); if(!h) return;
+    h.textContent=msg; h.classList.remove('bad');
+    clearTimeout(flashT); flashT=setTimeout(()=>hint(), 2600);
   }
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
