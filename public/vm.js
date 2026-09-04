@@ -35,14 +35,35 @@ window.VM = (function(){
     if(shape==='cone')     return new THREE.ConeGeometry(0.5*r,r,18);
     return new THREE.BoxGeometry(r,r,r);
   }
+  /* An object is either a primitive, built here and now, or a costume out
+     of the kits, which has to be fetched. A costume's object goes into the
+     world immediately as an empty group at the right spot — so the program
+     can move it, and the picker can select it, before the model lands —
+     and the model is added underneath when it arrives. */
   function build(a){
     if(a.mesh && a.mesh.parent) a.mesh.parent.remove(a.mesh);
-    const m=new THREE.Mesh(geo(a.shape,a.size),
-      new THREE.MeshLambertMaterial({color:new THREE.Color(a.colour)}));
+    const dressed = window.COSTUMES && COSTUMES.isModel(a.shape);
+    const m = dressed ? new THREE.Group()
+      : new THREE.Mesh(geo(a.shape,a.size),
+          new THREE.MeshLambertMaterial({color:new THREE.Color(a.colour)}));
     m.userData.actor=a; m.userData.owner=m;
     a.mesh=m; if(group) group.add(m);
     if(a.bubble){ m.add(a.bubble); }
     sync(a);
+    if(dressed){
+      const want=a.shape;
+      COSTUMES.load(want).then(o=>{
+        if(a.mesh!==m || a.shape!==want) return;      // rebuilt while we waited
+        o.scale.multiplyScalar(Math.max(0.1,a.size));
+        m.add(o);
+      }).catch(()=>{
+        // a costume that will not load leaves a cube behind, not an
+        // invisible object the student cannot find or click
+        if(a.mesh!==m || a.shape!==want) return;
+        m.add(new THREE.Mesh(geo('cube',a.size),
+          new THREE.MeshLambertMaterial({color:new THREE.Color(a.colour)})));
+      });
+    }
   }
   function sync(a){
     if(!a.mesh) return;
@@ -50,12 +71,18 @@ window.VM = (function(){
     a.mesh.rotation.set(a.tilt*Math.PI/180, a.dir*Math.PI/180, 0);
     a.mesh.visible=!!a.visible;
   }
+  /* HOME is everything a running program can change about an object. It is
+     snapshotted the moment the object is made, so "put it back" is a plain
+     copy rather than a re-run of whatever moved it. */
+  const HOME=['x','y','z','dir','tilt','size','shape','colour','visible'];
+  const snapshot = a => { const o={}; HOME.forEach(k=>o[k]=a[k]); return o; };
   function addActor(o){
     const a=Object.assign({
       id:uid++, name:'object'+uid, shape:'cube', colour:'#8fd3ff',
       x:0,y:1,z:0, dir:0, tilt:0, size:1, visible:true,
       scripts:[], vars:{}, isClone:false, mesh:null, bubble:null, saying:''
     }, o||{});
+    if(!a.home) a.home=snapshot(a);
     P.actors.push(a); build(a); save();
     return a;
   }
@@ -64,6 +91,27 @@ window.VM = (function(){
     if(a.mesh && a.mesh.parent) a.mesh.parent.remove(a.mesh);
     P.actors=P.actors.filter(x=>x!==a);
     save();
+  }
+  /* Put one object back to how it was made: where it stood, which way it
+     faced, its shape, size and colour. Its own scripts stop and the copies
+     it left behind go with them, because a half-reset room is worse than
+     none. Takes effect at once — there is nothing to run. */
+  function resetActor(a){
+    if(!a) return;
+    P.actors.filter(c=>c!==a && c.isClone && c.name===a.name).slice().forEach(delActor);
+    threads=threads.filter(t=>t.actor!==a);
+    bubble(a,'');
+    Object.assign(a, a.home || snapshot(a));
+    build(a); save();
+  }
+  /* Put a costume on by hand. It becomes the object's home look too — the
+     student has just said this is what the thing IS, so a reset that
+     undressed it again would be wrong. */
+  function dress(a,costume){
+    if(!a) return;
+    a.shape=String(costume);
+    if(a.home) a.home.shape=a.shape;
+    build(a); save();
   }
   const actorByName = nm => P.actors.find(a=>a.name===nm) || null;
 
@@ -143,7 +191,9 @@ window.VM = (function(){
       case 'motion.dir': return ctx.actor?ctx.actor.dir:0;
       case 'sense.dist': { const o=target(g('o'),ctx); if(!o||!ctx.actor) return 0;
         return +Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z).toFixed(2); }
-      case 'sense.touch': { const o=target(g('o'),ctx); if(!o||!ctx.actor) return false;
+      case 'sense.touch': {
+        if(g('o')==='edge') return atEdge(ctx.actor);
+        const o=target(g('o'),ctx); if(!o||!ctx.actor) return false;
         const r=(ctx.actor.size+(o.size||1))*0.6;
         return Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z) < r; }
       case 'sense.key': return !!G.keys[keyCode(g('k'))];
@@ -161,6 +211,15 @@ window.VM = (function(){
     if(k==='up') return 'ArrowUp'; if(k==='down') return 'ArrowDown';
     if(k==='left') return 'ArrowLeft'; if(k==='right') return 'ArrowRight';
     return 'Key'+k.toUpperCase().slice(0,1);
+  }
+  /* The room's four walls. An object touches the edge once its own skin
+     reaches one — and it STAYS touching if it has already gone past, so a
+     fast mover cannot step over the test in one go and escape the room. */
+  function atEdge(a){
+    if(!a) return false;
+    const L=(window.LEVELS||{})[G.room] || { w:70, d:70 };
+    const r=(a.size||1)*0.5;                    // walls are 1 thick, centred on w/2
+    return Math.abs(a.x) >= L.w/2-0.5-r || Math.abs(a.z) >= L.d/2-0.5-r;
   }
   /* `player` is the person standing in the world; anything else is an object */
   function target(nameOrObj,ctx){
@@ -270,7 +329,9 @@ window.VM = (function(){
         if(a){ bubble(a,g('s')); yield { wait: Math.max(0,num(g('n'))) }; bubble(a,''); }
         break;
       }
-      case 'looks.colour': { if(a){ a.colour=String(g('s')); if(a.mesh) a.mesh.material.color.set(a.colour);} break; }
+      case 'looks.colour': { if(a){ a.colour=String(g('s'));
+        // a costume carries the kit's own texture; only a primitive takes a colour
+        if(a.mesh && a.mesh.material) a.mesh.material.color.set(a.colour);} break; }
       case 'looks.size': { if(a){ a.size=Math.max(0.1,num(g('n'))); build(a);} break; }
       case 'looks.changeSize': { if(a){ a.size=Math.max(0.1,a.size+num(g('n'))); build(a);} break; }
       case 'looks.show': { if(a){ a.visible=true; sync(a);} break; }
@@ -381,7 +442,7 @@ window.VM = (function(){
       localStorage.setItem(KEY, JSON.stringify({
         actors:P.actors.map(a=>({ id:a.id,name:a.name,shape:a.shape,colour:a.colour,
           x:a.x,y:a.y,z:a.z,dir:a.dir,tilt:a.tilt,size:a.size,visible:a.visible,
-          scripts:a.scripts, vars:a.vars, isClone:a.isClone })).filter(a=>!a.isClone),
+          scripts:a.scripts, vars:a.vars, isClone:a.isClone, home:a.home })).filter(a=>!a.isClone),
         vars:P.vars, lists:P.lists, procs:P.procs, msgs:P.msgs, uid
       }));
     }catch(e){}
@@ -396,7 +457,9 @@ window.VM = (function(){
       (raw.procs||[]).forEach(x=>P.procs.push(x));
       if(raw.msgs&&raw.msgs.length){ P.msgs.length=0; raw.msgs.forEach(m=>P.msgs.push(m)); }
       uid=raw.uid||1;
-      raw.actors.forEach(a=>{ a.mesh=null; a.bubble=null; P.actors.push(a); });
+      raw.actors.forEach(a=>{ a.mesh=null; a.bubble=null;
+        if(!a.home) a.home=snapshot(a);   // saved before objects remembered a home
+        P.actors.push(a); });
     }
   }
 
@@ -422,7 +485,7 @@ window.VM = (function(){
     get project(){ return P; },
     get running(){ return running; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe,
+    enter, leave, step, save, load, wipe, resetActor, dress,
     addActor, delActor, build, sync, actorByName,
     greenFlag, stopAll, startHats,
     evalBlock, lookup, num, truthy

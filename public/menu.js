@@ -307,7 +307,7 @@ window.FREE = (function(){
       unsay:id=>CHAT.remove(id)
     });
     document.querySelector('#objList').innerHTML=
-      `<li class="cur">🧩 ${t('Press B to open the code editor')}</li>
+      `<li class="cur">🧩 ${t('Press C to open the code editor')}</li>
        <li>${room.id? '🌐 '+t('Server')+': <b>'+t(room.name)+'</b>' : '👤 '+t('Just you')}</li>
        <li>${room.id? t('Press ENTER to chat') : t('Sign in to build alongside your class')}</li>`;
     document.querySelector('#missionName').textContent=t('Code Sandbox');

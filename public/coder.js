@@ -24,6 +24,7 @@ window.CODER = (function(){
   let selected=null;      // path of the selected block, for the keyboard
   let clip=null;          // cut/copy buffer
   let drag=null;          // an in-flight drag: see beginDrag
+  let magnify=false;      // the 🔍 tool: click a block to be told what it does
   let editingProc=null;
 
   function current(){ if(!actor) actor=VM.project.actors.find(a=>!a.isClone)||null; return actor; }
@@ -43,7 +44,7 @@ window.CODER = (function(){
   }
   function hide(){
     open=false; selected=null; slotTarget=null;
-    $('#coder').classList.add('hidden');
+    $('#coder').classList.add('hidden'); explainClose(); closePicker();
     $('#objectives').classList.remove('hidden');
     $('#keys').classList.remove('hidden');
     $('#topbar').classList.remove('hidden');
@@ -56,13 +57,16 @@ window.CODER = (function(){
     $('#cBar').innerHTML=`
       <button class="btn small good" id="cFlag">▶ ${t('Run')}</button>
       <button class="btn small ghost" id="cStop">■ ${t('Stop')}</button>
+      <button class="btn small ${magnify?'good':'ghost'}" id="cMag"
+              title="${t('Explain a block')}">🔍</button>
       <span class="chint" id="cHint"></span>
       <span class="bspace"></span>
       <span class="chint dim">${t('{n} running',{n:VM.threadCount})}</span>
       <button class="btn small ghost" id="cWipe">${t('New')}</button>
-      <button class="btn small ghost" id="cShut">${t('Close')} (B)</button>`;
+      <button class="btn small ghost" id="cShut">${t('Close')} (C)</button>`;
     $('#cFlag').onclick=()=>{ VM.greenFlag(); render(); };
     $('#cStop').onclick=()=>{ VM.stopAll(); render(); };
+    $('#cMag').onclick=()=>{ magnify=!magnify; explainClose(); render(); };
     $('#cShut').onclick=hide;
     $('#cWipe').onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){
       VM.wipe(); actor=null; selected=null; cursor=null; render(); } };
@@ -70,7 +74,8 @@ window.CODER = (function(){
   }
   function hint(){
     const h=$('#cHint'); if(!h) return;
-    h.textContent = slotTarget ? t('Pick a rounded block to drop in the slot')
+    h.textContent = magnify    ? t('Click any block to find out what it does')
+                  : slotTarget ? t('Pick a rounded block to drop in the slot')
                   : selected   ? t('⌫ delete · ⌘X cut · ⌘C copy · ⌘V paste · ⌘D copy again · ↑↓ move')
                   : t('Click a block to add · click one in the script to select it');
   }
@@ -104,16 +109,17 @@ window.CODER = (function(){
 
     $('#cPal').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ cat=b.dataset.c; palette(); });
     $('#cPal').querySelectorAll('[data-op]').forEach(b=>{
-      b.onclick=()=>{ if(!justDragged) add(b.dataset.op); };
-      b.onmousedown=e=>beginDrag(e,{ src:'palette', op:b.dataset.op,
+      b.onclick=()=>{ if(justDragged) return; if(magnify) return explain(b.dataset.op,b); add(b.dataset.op); };
+      b.onmousedown=e=>{ if(magnify) return; beginDrag(e,{ src:'palette', op:b.dataset.op,
         isExpr:BLOCKS.isExpr(BLOCKS.of(b.dataset.op).kind),
         html:b.innerHTML, cls:'k-'+BLOCKS.of(b.dataset.op).kind,
-        colour:b.style.getPropertyValue('--a') });
+        colour:b.style.getPropertyValue('--a') }); };
     });
     $('#cPal').querySelectorAll('[data-call]').forEach(b=>{
-      b.onclick=()=>{ if(!justDragged) add('my.call',b.dataset.call); };
-      b.onmousedown=e=>beginDrag(e,{ src:'palette', op:'my.call', callName:b.dataset.call,
-        isExpr:false, html:b.innerHTML, cls:'k-stack' });
+      b.onclick=()=>{ if(justDragged) return; if(magnify) return explain('my.call',b); add('my.call',b.dataset.call); };
+      b.onmousedown=e=>{ if(magnify) return;
+        beginDrag(e,{ src:'palette', op:'my.call', callName:b.dataset.call,
+          isExpr:false, html:b.innerHTML, cls:'k-stack' }); };
     });
     $('#cPal').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{
       editingProc=b.dataset.edit; cursor=null; selected=null; render(); });
@@ -210,7 +216,9 @@ window.CODER = (function(){
         <button class="cchip${x===a&&!editingProc?' on':''}" data-a="${x.id}">
           <span class="cdot" style="background:${x.colour}"></span>${esc(x.name)}</button>`).join('')}
       <button class="cchip add" id="cAddObj">+</button>
-      ${a?`<button class="bx" id="cRen" title="${t('Rename')}">✎</button>
+      ${a?`<button class="bx" id="cCos" title="${t('Change costume')}">🎭</button>
+        <button class="bx" id="cReset" title="${t('Put this object back where it started')}">↺</button>
+        <button class="bx" id="cRen" title="${t('Rename')}">✎</button>
         <button class="bx" id="cDelObj" title="${t('Delete')}">✕</button>`:''}
     </div>`;
 
@@ -240,16 +248,72 @@ window.CODER = (function(){
   function wireChips(){
     $('#cScript').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
       editingProc=null; setActor(VM.project.actors.find(x=>x.id===+b.dataset.a)); });
-    const add_=$('#cAddObj'); if(add_) add_.onclick=()=>{
-      const n=VM.project.actors.length;
-      setActor(VM.addActor({ name:'object'+(n+1), x:(Math.random()*8-4), y:1, z:(Math.random()*8-4),
-        colour:['#8fd3ff','#a8e6cf','#ffb4a2','#cdb4f6','#ffd8a8'][n%5] })); };
+    const add_=$('#cAddObj'); if(add_) add_.onclick=()=>openPicker('new');
+    const cos=$('#cCos'); if(cos) cos.onclick=()=>openPicker('change');
+    const rst=$('#cReset'); if(rst) rst.onclick=()=>{
+      VM.resetActor(current()); render(); };
     const ren=$('#cRen'); if(ren) ren.onclick=()=>{
       const n=prompt(t('Name this object'),current().name);
       if(n){ current().name=n.slice(0,16); VM.save(); render(); } };
     const del=$('#cDelObj'); if(del) del.onclick=()=>{
       if(VM.project.actors.filter(x=>!x.isClone).length<2) return alert(t('Keep at least one object.'));
       VM.delActor(current()); actor=null; render(); };
+  }
+
+  /* ------------------------------------------------------------ costumes
+     What a new object looks like is the first question anybody asks, so it
+     is asked on the way in rather than left to a menu afterwards. The same
+     panel re-dresses an object that already exists. */
+  let picker=null;                 // { mode:'new'|'change', shelf }
+
+  function openPicker(mode){
+    const a=current();
+    const worn = (mode==='change' && a) ? String(a.shape||'cube') : 'people/character-a';
+    const sh = COSTUMES.SHELVES.find(s=>s.items.some(x=>COSTUMES.id(s.id,x.file)===worn));
+    picker={ mode, shelf:(sh?sh.id:'people') };
+    drawPicker();
+  }
+  function closePicker(){ picker=null; const el=$('#cPick'); if(el) el.remove(); }
+
+  function drawPicker(){
+    if(!picker) return;
+    let el=$('#cPick');
+    if(!el){ el=document.createElement('div'); el.id='cPick'; $('#coder').appendChild(el); }
+    const sh=COSTUMES.SHELVES.find(s=>s.id===picker.shelf)||COSTUMES.SHELVES[0];
+    const worn=picker.mode==='change' && current() ? String(current().shape||'') : '';
+    el.innerHTML=`
+      <div class="cpwrap">
+        <div class="cphead">
+          <b>${picker.mode==='new'? t('What is it?') : t('Change costume')}</b>
+          <span class="bspace"></span>
+          <button class="btn small ghost" id="cPClose">${t('Cancel')}</button>
+        </div>
+        <div class="cptabs">${COSTUMES.SHELVES.map(s=>
+          `<button class="cptab${s.id===sh.id?' on':''}" data-shelf="${s.id}">${t(s.name)}</button>`).join('')}</div>
+        <div class="cpgrid">${sh.items.map(x=>{
+          const cid=COSTUMES.id(sh.id,x.file), th=COSTUMES.thumbOf(cid);
+          return `<button class="cpit${cid===worn?' on':''}" data-cos="${esc(cid)}">
+            <span class="cpimg">${th?`<img src="${esc(th)}" alt="" loading="lazy">`
+                                   :`<i class="cpshape ${esc(x.file)}"></i>`}</span>
+            <span class="cpname">${esc(x.name)}</span></button>`;
+        }).join('')}</div>
+      </div>`;
+    $('#cPClose').onclick=closePicker;
+    el.querySelectorAll('[data-shelf]').forEach(b=>b.onclick=()=>{
+      picker.shelf=b.dataset.shelf; drawPicker(); });
+    el.querySelectorAll('[data-cos]').forEach(b=>b.onclick=()=>wear(b.dataset.cos));
+  }
+  function wear(cid){
+    if(!picker) return;
+    if(picker.mode==='new'){
+      const n=VM.project.actors.length;
+      const a=VM.addActor({ name:COSTUMES.nameOf(cid)+' '+(n+1), shape:cid,
+        x:(Math.random()*8-4), y:1, z:(Math.random()*8-4),
+        colour:['#8fd3ff','#a8e6cf','#ffb4a2','#cdb4f6','#ffd8a8'][n%5] });
+      closePicker(); setActor(a); return;
+    }
+    VM.dress(current(), cid);
+    closePicker(); render();
   }
 
   function renderList(list, path){
@@ -288,6 +352,12 @@ window.CODER = (function(){
     if(sp.type==='pick')
       return `<select class="cin" data-set="${k}">${sp.opts.map(o=>
         `<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+    if(sp.type==='costume')
+      return `<select class="cin" data-set="${k}">${COSTUMES.SHELVES.map(sh=>
+        `<optgroup label="${esc(sh.name)}">${sh.items.map(x=>{
+          const cid=COSTUMES.id(sh.id,x.file);
+          return `<option value="${esc(cid)}" ${cid===v?'selected':''}>${esc(x.name)}</option>`;
+        }).join('')}</optgroup>`).join('')}</select>`;
     if(sp.type==='var')
       return `<select class="cin" data-set="${k}">${allVarNames().map(o=>
         `<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')||'<option></option>'}</select>`;
@@ -299,9 +369,11 @@ window.CODER = (function(){
         `<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}
         <option value="__new">${t('new message…')}</option></select>`;
     if(sp.type==='obj')
+      /* `edge` is the room's own walls, and only blocks that can mean it offer it */
       return `<select class="cin" data-set="${k}">
         <option ${v==='player'?'selected':''}>player</option>
         <option ${v==='myself'?'selected':''}>myself</option>
+        ${sp.edge?`<option ${v==='edge'?'selected':''}>edge</option>`:''}
         ${VM.project.actors.filter(x=>!x.isClone).map(x=>
           `<option ${x.name===v?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
     if(sp.type==='colour')
@@ -357,11 +429,13 @@ window.CODER = (function(){
         if(e.target.closest('.cin,.bx,.cslot')) return;
         e.stopPropagation();
         const path=node.dataset.blk, r=at(path);
+        if(magnify){ if(r) explain(r.block.op, node); return; }
         selected = selected===path ? null : path;
         if(r) cursor={ list:r.list, index:r.index+1 };
         render();
       };
       node.onmousedown=e=>{
+        if(magnify) return;
         if(e.target.closest('.cin,.bx,.cslot,select,input')) return;
         const r=at(node.dataset.blk); if(!r) return;
         beginDrag(e,{ src:'script', path:node.dataset.blk,
@@ -418,6 +492,41 @@ window.CODER = (function(){
   function hatOf(inp){
     const sc=inp.closest('.cscript'); if(!sc) return null;
     return current().scripts[+sc.dataset.sc].hat;
+  }
+
+  /* ------------------------------------------------------- magnifying glass
+     A block that has to be guessed at is a block a student will not use. In
+     this mode a click explains instead of acting: same blocks, same places,
+     nothing added or moved. */
+  function explain(op, el){
+    const bd=BLOCKS.of(op); if(!bd) return;
+    explainClose();
+    const cat=BLOCKS.catOf(bd.cat);
+    const card=document.createElement('div');
+    card.className='cexplain'; card.id='cExplain';
+    card.innerHTML=`
+      <div class="cxtop" style="--a:${cat.a}">
+        <span class="cxcat">${t(cat.name)}</span>
+        <button class="bx" id="cxClose">✕</button>
+      </div>
+      <div class="cblk k-${bd.kind}" style="--a:${cat.a};width:auto">${preview(bd)}</div>
+      <p class="cxbody">${esc(BLOCKS.help(op))}</p>
+      <div class="cxshape">${esc(shapeNote(bd.kind))}</div>`;
+    document.body.appendChild(card);
+    const r=el.getBoundingClientRect(), w=300;
+    card.style.left = Math.min(window.innerWidth-w-12, Math.max(8, r.left)) + 'px';
+    card.style.top  = Math.min(window.innerHeight-190, r.bottom+8) + 'px';
+    card.querySelector('#cxClose').onclick=explainClose;
+  }
+  function explainClose(){ const c=document.querySelector('#cExplain'); if(c) c.remove(); }
+  function shapeNote(kind){
+    return kind==='hat'    ? t('Starts a script. Nothing can go above it.')
+         : kind==='c'      ? t('Wraps other blocks — drop them into its mouth.')
+         : kind==='c2'     ? t('Wraps two groups: one for true, one for false.')
+         : kind==='cap'    ? t('Ends a script. Nothing can go below it.')
+         : kind==='report' ? t('Reports a value. Drop it into a slot instead of typing a number.')
+         : kind==='bool'   ? t('Answers yes or no. Fits the diamond slots.')
+         : t('Does one thing, then the block below runs.');
   }
 
   /* ---------------------------------------------------------------- drag
@@ -590,7 +699,11 @@ window.CODER = (function(){
   }
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function render(){ if(!open) return; bar(); palette(); scripts(); }
+  function render(){
+    if(!open) return;
+    document.querySelector('#coder').classList.toggle('magnify', magnify);
+    bar(); palette(); scripts();
+  }
 
   let beat=0;
   function tick(dt){

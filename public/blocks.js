@@ -78,11 +78,11 @@ window.BLOCKS = (function(){
     B('looks.changeSize','looks','stack','change size by %n',{n:n(0.2)}),
     B('looks.show','looks','stack','show'),
     B('looks.hide','looks','stack','hide'),
-    B('looks.shape','looks','stack','become a %s',{s:{type:'pick',opts:['cube','ball','cylinder','cone'],def:'cube'}}),
+    B('looks.shape','looks','stack','become a %s',{s:{type:'costume',def:'cube'}}),
 
     /* ----------------------------------------------------------- sensing */
     B('sense.dist','sensing','report','distance to %o',{o:{type:'obj',def:'player'}}),
-    B('sense.touch','sensing','bool','touching %o ?',{o:{type:'obj',def:'player'}}),
+    B('sense.touch','sensing','bool','touching %o ?',{o:{type:'obj',def:'player',edge:true}}),
     B('sense.key','sensing','bool','key %k pressed?',{k:{type:'key',def:'space'}}),
     B('sense.posOf','sensing','report','%a of %o',{a:{type:'pick',opts:['x','y','z'],def:'x'},o:{type:'obj',def:'player'}}),
     B('sense.timer','sensing','report','timer'),
@@ -120,6 +120,87 @@ window.BLOCKS = (function(){
     B('my.call','my','stack','%p',{p:{type:'proc',def:''}})
   ];
 
+
+  /* ------------------------------------------------------------- help
+     One plain sentence per block, for the magnifying glass. Written for a
+     student who has not met the idea before: what it does, and when you
+     would reach for it — never a restatement of the block's own words. */
+  const HELP = {
+    'event.flag':"Starts this script when somebody presses Run. Most projects begin with one of these.",
+    'event.key':"Starts this script the moment that key goes down. Good for controls — one script per key.",
+    'event.recv':"Starts this script when any object broadcasts that message. It is how objects talk to each other.",
+    'event.clone':"Runs only in a copy made by 'create a clone of myself'. The original ignores it.",
+    'event.send':"Shouts a message to every object at once. Anything with a matching 'when I receive' wakes up.",
+    'event.sendWait':"Same as broadcast, but this script pauses until every script that answered has finished.",
+
+    'ctrl.wait':"Pauses just this script for a while. Other scripts keep running.",
+    'ctrl.repeat':"Does the blocks inside a set number of times, then carries on below.",
+    'ctrl.forever':"Does the blocks inside over and over and never moves past. Nothing below it will ever run.",
+    'ctrl.if':"Checks the diamond once. If it is true, runs the blocks inside; if not, skips them.",
+    'ctrl.ifelse':"Runs the first set of blocks when the diamond is true, and the second set when it is false.",
+    'ctrl.waitUntil':"Holds this script here until the diamond becomes true, then carries on.",
+    'ctrl.repeatUntil':"Keeps doing the blocks inside until the diamond becomes true. Checks before each go.",
+    'ctrl.stop':"Stops this one script, or every script in the project.",
+    'ctrl.clone':"Makes a copy of this object at the same spot. The copy runs its own 'when I start as a clone'.",
+    'ctrl.delclone':"Removes this copy. Has no effect on the original object.",
+
+    'motion.move':"Slides forward in whatever direction the object is facing. Turn first to change where that is.",
+    'motion.turn':"Spins the object left or right on the spot. Negative numbers turn the other way.",
+    'motion.tilt':"Tips the object forward or back, rather than turning it.",
+    'motion.goto':"Jumps straight to an exact spot. x is left-right, y is up-down, z is near-far.",
+    'motion.glide':"Slides smoothly to a spot over the time you give it, instead of jumping there.",
+    'motion.changeBy':"Nudges one coordinate by an amount. 'change y by 1' lifts the object a little.",
+    'motion.setTo':"Sets one coordinate exactly, leaving the other two alone.",
+    'motion.point':"Turns to face something. Handy just before 'move', to chase it.",
+    'motion.pos':"Reports where the object is on one axis. Drop it into a slot to do maths with it.",
+    'motion.dir':"Reports which way the object is facing, in degrees.",
+
+    'looks.say':"Puts a speech bubble over the object and leaves it there until you say something else.",
+    'looks.sayFor':"Shows a speech bubble, waits, then clears it by itself.",
+    'looks.colour':"Repaints the object.",
+    'looks.size':"Sets how big the object is. 1 is normal, 2 is twice as big.",
+    'looks.changeSize':"Grows or shrinks the object a bit. Negative numbers shrink it.",
+    'looks.show':"Makes the object visible again after hiding.",
+    'looks.hide':"Makes the object invisible. Its scripts keep running while it is hidden.",
+    'looks.shape':"Changes the object's costume — a shape, or anybody out of the kits. Mid-program, so a car can become a person.",
+
+    'sense.dist':"Reports how far away something is. Compare it with a number to react when it gets close.",
+    'sense.touch':"True while the object is touching that thing. Pick 'edge' for the walls of the room — that is how you keep something from wandering out.",
+    'sense.key':"True while that key is held down. Use it inside 'forever' for smooth controls.",
+    'sense.posOf':"Reports one coordinate of another object — how you make one thing follow another.",
+    'sense.timer':"Counts seconds since the project started or the timer was reset.",
+    'sense.resetTimer':"Puts the timer back to zero.",
+    'sense.count':"Counts how many clones exist, or how many objects share a name.",
+
+    'op.add':"Adds the two numbers together and reports the answer.",
+    'op.sub':"Takes the second number away from the first.",
+    'op.mul':"Multiplies the two numbers.",
+    'op.div':"Divides the first number by the second.",
+    'op.mod':"Reports the remainder after dividing. 'x mod 2' is 0 for even numbers — a neat way to alternate.",
+    'op.round':"Rounds to the nearest whole number.",
+    'op.math':"Does one piece of maths to a number: square root, absolute value, sine and so on.",
+    'op.random':"Picks a fresh number between the two, every single time it is read.",
+    'op.lt':"True when the first number is smaller than the second.",
+    'op.gt':"True when the first number is bigger than the second.",
+    'op.eq':"True when the two are the same. Works on words as well as numbers.",
+    'op.and':"True only when BOTH diamonds are true.",
+    'op.or':"True when EITHER diamond is true.",
+    'op.not':"Flips a diamond over: true becomes false.",
+    'op.join':"Sticks two pieces of text together, so you can say things like 'score: 12'.",
+
+    'data.set':"Puts a value into a variable, throwing away whatever was there.",
+    'data.change':"Adds to what a variable already holds. Use 1 to count things up.",
+    'data.get':"Reports what a variable is holding right now. Drop it into any slot.",
+    'list.add':"Puts something on the end of a list.",
+    'list.del':"Removes one item. The first item is number 1, not 0.",
+    'list.clear':"Empties the list completely.",
+    'list.item':"Reports one item out of a list, counting from 1.",
+    'list.len':"Reports how many things are in the list.",
+
+    'my.call':"Runs a block you defined yourself. Anything you build twice is worth turning into one of these."
+  };
+  const help = op => HELP[op] || '';
+
   const BY={}; LIST.forEach(x=>BY[x.op]=x);
   const of = op => BY[op]||null;
   const inCat = c => LIST.filter(x=>x.cat===c);
@@ -131,5 +212,5 @@ window.BLOCKS = (function(){
   }
   const isExpr = k => k==='report' || k==='bool';
 
-  return { CATS, LIST, of, inCat, catOf, parts, isExpr };
+  return { CATS, LIST, of, inCat, catOf, parts, isExpr, help };
 })();

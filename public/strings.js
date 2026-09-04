@@ -73,6 +73,7 @@ window.ES = {
   'Pause for a moment':'Espera un momento',
   'Do the blocks inside, again and again':'Hace los bloques de adentro, una y otra vez',
   'open the code console':'abrir la consola de código',
+  'write code':'escribir código',
   /* --- mission 1 --- */
   'Mission 1 — Loops':'Misión 1 — Bucles','The Loop Chamber':'La Cámara del Bucle',
   'MISSION 1':'MISIÓN 1',

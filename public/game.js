@@ -373,6 +373,13 @@ function lockPointer(el){
   if(document.pointerLockElement || !el.requestPointerLock) return;
   try{ const p=el.requestPointerLock(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
 }
+/* a keystroke aimed at a text field belongs to the field, not the game */
+function typingInField(e){
+  const el = (e.target && e.target.tagName) ? e.target : document.activeElement;
+  if(!el) return false;
+  const tag=(el.tagName||'').toLowerCase();
+  return tag==='input' || tag==='select' || tag==='textarea' || !!el.isContentEditable;
+}
 function wireInput(){
   addEventListener('keydown',e=>{
     G.keys[e.code]=true;
@@ -402,16 +409,23 @@ function wireInput(){
       }
       return;
     }
-    if(e.code==='KeyB' && G.running && G.room==='free'){ e.preventDefault(); CODER.toggle(); return; }
-    if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
-    if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
+    // C opens the block editor in Free Play, the same key that opens the code
+    // console everywhere else — one key for "write the code", whatever room
+    // you are standing in. Letter keys never fire while the caret is in a
+    // field: typing "c" into a number slot must not close the editor around
+    // it, and typing "p" into the chat must not pause the game.
+    if(!typingInField(e)){
+      if(e.code==='KeyC' && G.running && G.room==='free'){ e.preventDefault(); CODER.toggle(); return; }
+      if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
+      if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
+    }
     if(G.room==='free' && CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
       e.preventDefault();
       if(document.activeElement===$('#chatIn')) $('#chatForm').requestSubmit();
       else CHAT.focus();
       return;
     }
-    if((e.code==='KeyC'||e.code==='Tab') && G.running
+    if((e.code==='KeyC'||e.code==='Tab') && G.running && !typingInField(e)
        && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
@@ -587,7 +601,7 @@ function focusScan(){
     cross.classList.add('on'); box.classList.remove('hidden');
     const u=owner.userData;
     if(u.actor){                                  // a coded object names itself
-      box.innerHTML = esc(u.actor.name) + '<small>' + t('B to write its code') + '</small>';
+      box.innerHTML = esc(u.actor.name) + '<small>' + t('C to write its code') + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
@@ -683,7 +697,7 @@ function setLang(l){
   $('#missionName').textContent=t('Basic Training — The Desktop');
   $('#keys').innerHTML=`<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')} &nbsp; <b>SPACE</b> ${t('Jump')}<br>
     <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
-    <b>C</b> ${t('open the code console')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
+    <b>C</b> ${t('write code')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
   if(G.running && G.room) buildRoom(G.room);
   if(window.MENU) MENU.render();
 }
