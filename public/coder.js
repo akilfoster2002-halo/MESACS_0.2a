@@ -1,38 +1,54 @@
 /* =====================================================================
    CODER — the editor.
 
-   Click a block in the palette and it lands in the script. Click a slot
-   first and the next reporter you pick drops INTO that slot instead, so
-   `move (pick random 1 to 10) steps` is two clicks rather than a drag —
-   which matters on a lab trackpad, and matches the block console the
-   missions already taught them.
+   Two columns, not three. The palette is narrow and fixed; the script is
+   the widest thing on screen, because the script is the work. Objects
+   live as chips over the scripts they belong to, and Variables and My
+   Blocks are palette categories the way they are in Scratch, rather than
+   a third column stealing room from the code.
 
-   The world keeps running underneath. The green flag is right here, the
-   objects are three feet away, and nothing about pressing RUN takes you
-   out of the room.
+   KEYBOARD. Clicking a block selects it, and from there it behaves like
+   a text editor: backspace deletes, ctrl-X / ctrl-C / ctrl-V cut, copy
+   and paste, ctrl-D duplicates, the arrow keys walk up and down the
+   stack. Building a program should not require the mouse for every
+   single act.
+
+   Clicking a SLOT arms it, and the next reporter you pick drops inside —
+   two clicks instead of a drag, which is what a lab trackpad wants.
    ===================================================================== */
 window.CODER = (function(){
   const $=s=>document.querySelector(s);
-  let open=false, actor=null, cat='events', cursor=null, slotTarget=null;
+  let open=false, actor=null, cat='events';
+  let cursor=null;        // where the next stack block lands: {list,index}
+  let slotTarget=null;    // an armed slot waiting for a reporter
+  let selected=null;      // path of the selected block, for the keyboard
+  let clip=null;          // cut/copy buffer
+  let drag=null;          // an in-flight drag: see beginDrag
+  let editingProc=null;
 
-  /* cursor: where the next stack block lands.
-     { list:[...], index:n } — the array to splice into, and where. */
-  function setActor(a){ actor=a; cursor=null; slotTarget=null; render(); }
-  function current(){
-    if(!actor) actor=VM.project.actors[0]||null;
-    return actor;
-  }
+  function current(){ if(!actor) actor=VM.project.actors.find(a=>!a.isClone)||null; return actor; }
+  function setActor(a){ actor=a; cursor=null; slotTarget=null; selected=null; render(); }
 
   function show(){
     if(open) return;
     open=true;
     if(document.pointerLockElement) document.exitPointerLock();
     $('#coder').classList.remove('hidden');
+    // the sandbox HUD is noise while coding, and the key list is for the game
     $('#objectives').classList.add('hidden');
+    $('#keys').classList.add('hidden');
+    $('#chat').classList.add('hidden');
+    $('#topbar').classList.add('hidden');
     current(); render();
   }
-  function hide(){ open=false; $('#coder').classList.add('hidden');
-                   $('#objectives').classList.remove('hidden'); }
+  function hide(){
+    open=false; selected=null; slotTarget=null;
+    $('#coder').classList.add('hidden');
+    $('#objectives').classList.remove('hidden');
+    $('#keys').classList.remove('hidden');
+    $('#topbar').classList.remove('hidden');
+    if(window.CHAT && CHAT.open) $('#chat').classList.remove('hidden');
+  }
   function toggle(){ open?hide():show(); }
 
   /* ------------------------------------------------------------- top bar */
@@ -42,126 +58,110 @@ window.CODER = (function(){
       <button class="btn small ghost" id="cStop">■ ${t('Stop')}</button>
       <span class="chint" id="cHint"></span>
       <span class="bspace"></span>
-      <span class="chint">${t('{n} scripts running',{n:VM.threadCount})}</span>
-      <button class="btn small ghost" id="cWipe">${t('New project')}</button>
+      <span class="chint dim">${t('{n} running',{n:VM.threadCount})}</span>
+      <button class="btn small ghost" id="cWipe">${t('New')}</button>
       <button class="btn small ghost" id="cShut">${t('Close')} (B)</button>`;
     $('#cFlag').onclick=()=>{ VM.greenFlag(); render(); };
     $('#cStop').onclick=()=>{ VM.stopAll(); render(); };
     $('#cShut').onclick=hide;
-    $('#cWipe').onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){ VM.wipe(); actor=null; render(); } };
+    $('#cWipe').onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){
+      VM.wipe(); actor=null; selected=null; cursor=null; render(); } };
     hint();
   }
   function hint(){
     const h=$('#cHint'); if(!h) return;
-    h.textContent = slotTarget ? t('Now pick a reporter to drop in the slot.')
-                  : cursor     ? t('Blocks land where you clicked.')
-                  : t('Click a block to add it to the script.');
+    h.textContent = slotTarget ? t('Pick a rounded block to drop in the slot')
+                  : selected   ? t('⌫ delete · ⌘X cut · ⌘C copy · ⌘V paste · ⌘D copy again · ↑↓ move')
+                  : t('Click a block to add · click one in the script to select it');
   }
 
-  /* ------------------------------------------------------------ objects */
-  function objects(){
-    const P=VM.project;
-    $('#cObj').innerHTML=`<div class="bhead">${t('OBJECTS')}
-        <span class="bspace"></span>
-        <button class="btn small good" id="cAddObj">+</button></div>
-      <div class="cobjs">${P.actors.filter(a=>!a.isClone).map(a=>`
-        <button class="cobj${a===actor?' on':''}" data-a="${a.id}">
-          <span class="cdot" style="background:${a.colour}"></span>
-          <span>${esc(a.name)}</span>
-          <small>${(a.scripts||[]).length} ${t('scripts')}</small>
-        </button>`).join('')}</div>
-      ${actor?`<div class="brow">
-        <button class="btn small ghost" id="cRen">${t('Rename')}</button>
-        <button class="btn small ghost bad" id="cDelObj">${t('Delete')}</button>
-      </div>
-      <div class="bnote">${t('at')} ${actor.x.toFixed(1)}, ${actor.y.toFixed(1)}, ${actor.z.toFixed(1)}</div>`:''}
-      <div class="bhead2">${t('VARIABLES')}
-        <span class="bspace"></span>
-        <button class="btn small ghost" id="cAddVar">+</button></div>
-      ${Object.keys(P.vars).length||Object.keys(actor&&actor.vars||{}).length
-        ? [...Object.entries(P.vars).map(([k,v])=>['',k,v]),
-           ...Object.entries((actor&&actor.vars)||{}).map(([k,v])=>['·',k,v])]
-            .map(([m,k,v])=>`<div class="cvar"><b>${m}${esc(k)}</b><span>${esc(String(v))}</span></div>`).join('')
-        : `<p class="bnote">${t('No variables yet.')}</p>`}
-      <div class="bhead2">${t('LISTS')}
-        <span class="bspace"></span>
-        <button class="btn small ghost" id="cAddList">+</button></div>
-      ${Object.keys(P.lists).length
-        ? Object.entries(P.lists).map(([k,v])=>`<div class="cvar"><b>${esc(k)}</b><span>${v.length}</span></div>`).join('')
-        : `<p class="bnote">${t('No lists yet.')}</p>`}
-      <div class="bhead2">${t('MY BLOCKS')}
-        <span class="bspace"></span>
-        <button class="btn small ghost" id="cAddProc">+</button></div>
-      ${P.procs.length
-        ? P.procs.map(p=>`<button class="cproc" data-proc="${esc(p.name)}">${esc(p.name)}(${(p.params||[]).join(', ')})</button>`).join('')
-        : `<p class="bnote">${t('Define a block to reuse it anywhere.')}</p>`}`;
-
-    $('#cObj').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>
-      setActor(VM.project.actors.find(a=>a.id===+b.dataset.a)));
-    $('#cAddObj').onclick=()=>{
-      const a=VM.addActor({ name:'object'+(VM.project.actors.length+1),
-        x:(Math.random()*8-4), y:1, z:(Math.random()*8-4),
-        colour:['#8fd3ff','#a8e6cf','#ffb4a2','#cdb4f6','#ffd8a8'][VM.project.actors.length%5] });
-      setActor(a);
-    };
-    const ren=$('#cRen'); if(ren) ren.onclick=()=>{
-      const n=prompt(t('Name this object'),actor.name); if(n){ actor.name=n.slice(0,16); VM.save(); render(); } };
-    const del=$('#cDelObj'); if(del) del.onclick=()=>{
-      if(VM.project.actors.length<2) return alert(t('Keep at least one object.'));
-      VM.delActor(actor); actor=null; render(); };
-    $('#cAddVar').onclick=()=>{
-      const n=prompt(t('Variable name')); if(!n) return;
-      const mine=actor && confirm(t('Just for this object? Cancel makes it shared by everything.'));
-      if(mine) actor.vars[n]=0; else VM.project.vars[n]=0;
-      VM.save(); render();
-    };
-    $('#cAddList').onclick=()=>{
-      const n=prompt(t('List name')); if(!n) return;
-      VM.project.lists[n]=[]; VM.save(); render();
-    };
-    $('#cAddProc').onclick=()=>{
-      const n=prompt(t('Block name'),'my block'); if(!n) return;
-      const ps=prompt(t('Inputs, separated by commas (leave blank for none)'),'');
-      VM.project.procs.push({ name:n.slice(0,20),
-        params:(ps||'').split(',').map(x=>x.trim()).filter(Boolean), body:[] });
-      VM.save(); render();
-    };
-    $('#cObj').querySelectorAll('[data-proc]').forEach(b=>b.onclick=()=>{
-      editingProc = editingProc===b.dataset.proc ? null : b.dataset.proc;
-      cursor=null; render();
-    });
-  }
-  let editingProc=null;
-
-  /* ------------------------------------------------------------ palette */
+  /* ------------------------------------------------------------- palette */
   function palette(){
+    const P=VM.project;
+    let extra='';
+    if(cat==='data'){
+      extra=`<div class="cmake">
+        <button class="btn small good" id="cAddVar">${t('Make a Variable')}</button>
+        <button class="btn small ghost" id="cAddList">${t('Make a List')}</button></div>
+        ${varRows()}`;
+    }
+    if(cat==='my'){
+      extra=`<div class="cmake"><button class="btn small good" id="cAddProc">${t('Make a Block')}</button></div>
+        ${P.procs.map(p=>`<div class="cprocrow">
+            <button class="cblk k-stack" data-call="${esc(p.name)}" style="--a:#ff9aa2">${esc(p.name)}${
+              (p.params||[]).length?' <i class="cslot">'+p.params.map(esc).join('</i> <i class="cslot">')+'</i>':''}</button>
+            <button class="bx" data-edit="${esc(p.name)}" title="${t('edit')}">✎</button>
+            <button class="bx" data-delproc="${esc(p.name)}">✕</button>
+          </div>`).join('')}`;
+    }
     $('#cPal').innerHTML=`
       <div class="ctabs">${BLOCKS.CATS.map(c=>`
         <button class="ctab${c.id===cat?' on':''}" data-c="${c.id}" style="--a:${c.a}">${t(c.name)}</button>`).join('')}</div>
+      ${extra}
       <div class="cblocks">${BLOCKS.inCat(cat).map(bd=>
         `<button class="cblk k-${bd.kind}" data-op="${bd.op}" style="--a:${BLOCKS.catOf(bd.cat).a}">${preview(bd)}</button>`
-      ).join('')}
-      ${cat==='my'&&VM.project.procs.length
-        ? VM.project.procs.map(p=>`<button class="cblk k-stack" data-call="${esc(p.name)}" style="--a:#ff9aa2">${esc(p.name)}</button>`).join('')
-        : ''}</div>`;
+      ).join('')}</div>`;
+
     $('#cPal').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ cat=b.dataset.c; palette(); });
-    $('#cPal').querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>add(b.dataset.op));
-    $('#cPal').querySelectorAll('[data-call]').forEach(b=>b.onclick=()=>add('my.call',b.dataset.call));
+    $('#cPal').querySelectorAll('[data-op]').forEach(b=>{
+      b.onclick=()=>{ if(!justDragged) add(b.dataset.op); };
+      b.onmousedown=e=>beginDrag(e,{ src:'palette', op:b.dataset.op,
+        isExpr:BLOCKS.isExpr(BLOCKS.of(b.dataset.op).kind),
+        html:b.innerHTML, cls:'k-'+BLOCKS.of(b.dataset.op).kind,
+        colour:b.style.getPropertyValue('--a') });
+    });
+    $('#cPal').querySelectorAll('[data-call]').forEach(b=>{
+      b.onclick=()=>{ if(!justDragged) add('my.call',b.dataset.call); };
+      b.onmousedown=e=>beginDrag(e,{ src:'palette', op:'my.call', callName:b.dataset.call,
+        isExpr:false, html:b.innerHTML, cls:'k-stack' });
+    });
+    $('#cPal').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{
+      editingProc=b.dataset.edit; cursor=null; selected=null; render(); });
+    $('#cPal').querySelectorAll('[data-delproc]').forEach(b=>b.onclick=()=>{
+      P.procs=P.procs.filter(p=>p.name!==b.dataset.delproc);
+      if(editingProc===b.dataset.delproc) editingProc=null;
+      VM.save(); render(); });
+    const av=$('#cAddVar'); if(av) av.onclick=()=>{
+      const n=prompt(t('Variable name')); if(!n) return;
+      const mine=current() && confirm(t('Just for this object? Cancel makes it shared by everything.'));
+      if(mine) current().vars[n]=0; else P.vars[n]=0;
+      VM.save(); render(); };
+    const al=$('#cAddList'); if(al) al.onclick=()=>{
+      const n=prompt(t('List name')); if(!n) return; P.lists[n]=[]; VM.save(); render(); };
+    const ap=$('#cAddProc'); if(ap) ap.onclick=()=>{
+      const n=prompt(t('Block name'),'my block'); if(!n) return;
+      const ps=prompt(t('Inputs, separated by commas (leave blank for none)'),'');
+      P.procs.push({ name:n.slice(0,20),
+        params:(ps||'').split(',').map(x=>x.trim()).filter(Boolean), body:[] });
+      editingProc=n.slice(0,20); VM.save(); render(); };
+  }
+  function varRows(){
+    const P=VM.project, a=current();
+    const rows=[...Object.entries(P.vars).map(([k,v])=>[k,v,false]),
+                ...Object.entries((a&&a.vars)||{}).map(([k,v])=>[k,v,true])];
+    if(!rows.length) return `<p class="bnote">${t('No variables yet.')}</p>`;
+    return rows.map(([k,v,mine])=>`<div class="cvar">
+      <b>${mine?'· ':''}${esc(k)}</b><span>${esc(String(v))}</span>
+      <button class="bx" data-delvar="${esc(k)}" data-mine="${mine?1:''}">✕</button></div>`).join('')
+      + Object.keys(P.lists).map(k=>`<div class="cvar">
+          <b>▤ ${esc(k)}</b><span>${(P.lists[k]||[]).length}</span>
+          <button class="bx" data-dellist="${esc(k)}">✕</button></div>`).join('');
   }
   function preview(bd){
     return BLOCKS.parts(bd.label).map(seg=>{
       if(seg[0]!=='%') return esc(seg);
-      const k=seg[1], sp=bd.args[k];
+      const sp=bd.args[seg[1]];
       return `<i class="cslot">${sp&&sp.def!==undefined?esc(String(sp.def)):(sp&&sp.type==='bool'?'◇':'…')}</i>`;
     }).join('');
   }
 
-  /* ---------------------------------------------------------- add block */
+  /* ----------------------------------------------------------- add block */
+  const firstName=(...objs)=>{ for(const o of objs){ const k=Object.keys(o||{})[0]; if(k) return k; } return ''; };
   function newBlock(op, callName){
     const bd=BLOCKS.of(op); if(!bd) return null;
     const bk={ op, args:{} };
     Object.entries(bd.args).forEach(([k,sp])=>{
-      if(sp.type==='var')  bk.args[k]=firstName(VM.project.vars, actor&&actor.vars) || '';
+      if(sp.type==='var')  bk.args[k]=firstName(VM.project.vars, current()&&current().vars)||'';
       else if(sp.type==='list') bk.args[k]=Object.keys(VM.project.lists)[0]||'';
       else if(sp.type==='msg')  bk.args[k]=VM.project.msgs[0]||'message1';
       else if(sp.type==='proc') bk.args[k]=callName||(VM.project.procs[0]||{}).name||'';
@@ -173,12 +173,9 @@ window.CODER = (function(){
     if(bd.kind==='c2') bk.body2=[];
     return bk;
   }
-  const firstName=(...objs)=>{ for(const o of objs){ const k=Object.keys(o||{})[0]; if(k) return k; } return ''; };
-
   function add(op, callName){
     const bd=BLOCKS.of(op); if(!bd) return;
     const bk=newBlock(op,callName); if(!bk) return;
-
     if(BLOCKS.isExpr(bd.kind)){
       if(!slotTarget){ flash(t('Click an empty slot first, then pick this.')); return; }
       slotTarget.owner.args[slotTarget.key]=bk;
@@ -187,13 +184,16 @@ window.CODER = (function(){
     if(bd.kind==='hat'){
       const a=current(); if(!a) return;
       a.scripts.push({ id:Date.now()+Math.random(), hat:bk, body:[] });
-      cursor=null; VM.save(); render(); return;
+      cursor=null; selected=null; VM.save(); render(); return;
     }
+    insert(bk);
+  }
+  function insert(bk){
     const list = cursor ? cursor.list : defaultList();
     if(!list){ flash(t('Add a WHEN block first — a script needs a start.')); return; }
-    const at = cursor ? cursor.index : list.length;
-    list.splice(at,0,bk);
-    cursor={ list, index:at+1 };
+    const at_ = cursor ? cursor.index : list.length;
+    list.splice(at_,0,bk);
+    cursor={ list, index:at_+1 };
     VM.save(); render();
   }
   function defaultList(){
@@ -202,22 +202,29 @@ window.CODER = (function(){
     return a.scripts[a.scripts.length-1].body;
   }
 
-  /* --------------------------------------------------------- the script */
+  /* ------------------------------------------------------------- scripts */
   function scripts(){
     const a=current(), el=$('#cScript');
+    const chips=`<div class="cchips">${
+      VM.project.actors.filter(x=>!x.isClone).map(x=>`
+        <button class="cchip${x===a&&!editingProc?' on':''}" data-a="${x.id}">
+          <span class="cdot" style="background:${x.colour}"></span>${esc(x.name)}</button>`).join('')}
+      <button class="cchip add" id="cAddObj">+</button>
+      ${a?`<button class="bx" id="cRen" title="${t('Rename')}">✎</button>
+        <button class="bx" id="cDelObj" title="${t('Delete')}">✕</button>`:''}
+    </div>`;
+
     if(editingProc){
       const p=VM.project.procs.find(x=>x.name===editingProc);
-      el.innerHTML=`<div class="bhead">${t('DEFINE')} ${esc(editingProc)}(${(p.params||[]).join(', ')})
+      el.innerHTML=chips+`<div class="bhead">${t('DEFINE')} ${esc(editingProc)}(${(p.params||[]).join(', ')})
           <span class="bspace"></span>
           <button class="btn small ghost" id="cDoneProc">${t('Done')}</button></div>
         <div class="cstack">${renderList(p.body,'p')}</div>`;
-      $('#cDoneProc').onclick=()=>{ editingProc=null; cursor=null; render(); };
-      wireScript();
-      return;
-    }
-    if(!a){ el.innerHTML=`<p class="bnote">${t('Add an object to write code for.')}</p>`; return; }
-    el.innerHTML=`<div class="bhead">${t('SCRIPTS FOR')} ${esc(a.name)}</div>` +
-      (a.scripts.length
+      $('#cDoneProc').onclick=()=>{ editingProc=null; cursor=null; selected=null; render(); };
+    } else if(!a){
+      el.innerHTML=chips+`<p class="bnote">${t('Add an object to write code for.')}</p>`;
+    } else {
+      el.innerHTML=chips+(a.scripts.length
         ? a.scripts.map((sc,i)=>`
             <div class="cscript" data-sc="${i}">
               <div class="cblk k-hat live" style="--a:${BLOCKS.catOf('events').a}">
@@ -227,45 +234,57 @@ window.CODER = (function(){
               <div class="cstack">${renderList(sc.body, String(i))}</div>
             </div>`).join('')
         : `<p class="bnote">${t('No scripts yet. Pick an Events block to start one.')}</p>`);
-    wireScript();
+    }
+    wireChips(); wireScript();
   }
+  function wireChips(){
+    $('#cScript').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+      editingProc=null; setActor(VM.project.actors.find(x=>x.id===+b.dataset.a)); });
+    const add_=$('#cAddObj'); if(add_) add_.onclick=()=>{
+      const n=VM.project.actors.length;
+      setActor(VM.addActor({ name:'object'+(n+1), x:(Math.random()*8-4), y:1, z:(Math.random()*8-4),
+        colour:['#8fd3ff','#a8e6cf','#ffb4a2','#cdb4f6','#ffd8a8'][n%5] })); };
+    const ren=$('#cRen'); if(ren) ren.onclick=()=>{
+      const n=prompt(t('Name this object'),current().name);
+      if(n){ current().name=n.slice(0,16); VM.save(); render(); } };
+    const del=$('#cDelObj'); if(del) del.onclick=()=>{
+      if(VM.project.actors.filter(x=>!x.isClone).length<2) return alert(t('Keep at least one object.'));
+      VM.delActor(current()); actor=null; render(); };
+  }
+
   function renderList(list, path){
-    const rows = (list||[]).map((bk,i)=>renderBlock(bk, path+'.'+i)).join('');
-    const tail = `<div class="cdrop${isCursor(list,(list||[]).length)?' on':''}" data-drop="${path}|${(list||[]).length}"></div>`;
-    return rows + tail;
+    const rows=(list||[]).map((bk,i)=>renderBlock(bk, path+'.'+i)).join('');
+    const n=(list||[]).length;
+    return rows + `<div class="cdrop${isCursor(list,n)?' on':''}" data-drop="${path}|${n}"></div>`;
   }
-  function isCursor(list,i){ return cursor && cursor.list===list && cursor.index===i; }
+  const isCursor=(list,i)=>cursor && cursor.list===list && cursor.index===i;
   function renderBlock(bk, path){
     const bd=BLOCKS.of(bk.op); if(!bd) return '';
-    const a=BLOCKS.catOf(bd.cat).a;
+    const a=BLOCKS.catOf(bd.cat).a, sel = selected===path ? ' sel':'';
     let inner='';
     if(bd.kind==='c')  inner=`<div class="cmouth">${renderList(bk.body, path+'.b')}</div>`;
     if(bd.kind==='c2') inner=`<div class="cmouth">${renderList(bk.body, path+'.b')}</div>
       <div class="celse">${t('else')}</div><div class="cmouth">${renderList(bk.body2, path+'.e')}</div>`;
     return `<div class="cwrap">
-      <div class="cblk k-${bd.kind} live" style="--a:${a}" data-blk="${path}">
+      <div class="cblk k-${bd.kind} live${sel}" style="--a:${a}" data-blk="${path}">
         ${renderInline(bk)}<button class="bx" data-del="${path}">✕</button>
       </div>${inner}</div>`;
   }
   function renderInline(bk){
     const bd=BLOCKS.of(bk.op); if(!bd) return '';
-    return BLOCKS.parts(bd.label).map(seg=>{
-      if(seg[0]!=='%') return esc(seg);
-      const k=seg[1];
-      return slotHTML(bk,k,bd.args[k]);
-    }).join('');
+    return BLOCKS.parts(bd.label).map(seg=>
+      seg[0]!=='%' ? esc(seg) : slotHTML(bk,seg[1],bd.args[seg[1]])).join('');
   }
   function slotHTML(bk,k,sp){
     if(!sp) return '';
     const v=bk.args[k];
-    if(v && typeof v==='object' && v.op){                 // a reporter sits in the slot
+    if(v && typeof v==='object' && v.op){
       const bd=BLOCKS.of(v.op);
       return `<span class="cnest" style="--a:${BLOCKS.catOf(bd.cat).a}">${renderInline(v)}
         <button class="bx" data-clear="${k}">✕</button></span>`;
     }
-    const id='s'+Math.random().toString(36).slice(2,8);
     if(sp.type==='bool')
-      return `<i class="cslot bool ${isSlot(bk,k)?'on':''}" data-slot="${k}" data-id="${id}">◇</i>`;
+      return `<i class="cslot bool ${isSlot(bk,k)?'on':''}" data-slot="${k}">◇</i>`;
     if(sp.type==='pick')
       return `<select class="cin" data-set="${k}">${sp.opts.map(o=>
         `<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
@@ -287,111 +306,300 @@ window.CODER = (function(){
           `<option ${x.name===v?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
     if(sp.type==='colour')
       return `<input class="cin ccol" type="color" data-set="${k}" value="${esc(v||'#8fd3ff')}">`;
-    // plain value, and clicking it arms it as a slot for a reporter
     return `<input class="cin ${isSlot(bk,k)?'on':''}" data-set="${k}" data-slot="${k}"
                    value="${esc(String(v==null?'':v))}" size="${Math.max(2,String(v==null?'':v).length)}">`;
   }
   const isSlot=(bk,k)=>slotTarget && slotTarget.owner===bk && slotTarget.key===k;
-  function allVarNames(){
-    return [...Object.keys(VM.project.vars), ...Object.keys((current()||{}).vars||{})];
-  }
+  const allVarNames=()=>[...Object.keys(VM.project.vars), ...Object.keys((current()||{}).vars||{})];
 
-  /* resolve "0.b.2" into the block and the list holding it */
+  /* resolve "0.b.2" to the list holding the block and its index */
   function at(path){
+    if(path==null) return null;
     const segs=String(path).split('.');
-    const a=current();
-    let list, i=0;
-    if(segs[0]==='p'){ const p=VM.project.procs.find(x=>x.name===editingProc); list=p?p.body:[]; i=1; }
-    else { const sc=a.scripts[+segs[0]]; if(!sc) return null; list=sc.body; i=1; }
+    let list, i=1;
+    if(segs[0]==='p'){ const p=VM.project.procs.find(x=>x.name===editingProc); if(!p) return null; list=p.body; }
+    else { const a=current(); if(!a) return null; const sc=a.scripts[+segs[0]]; if(!sc) return null; list=sc.body; }
     let bk=null;
     for(; i<segs.length; i++){
       const s=segs[i];
-      if(s==='b'){ bk=bk; list=bk.body; continue; }
+      if(s==='b'){ list=bk.body; continue; }
       if(s==='e'){ list=bk.body2; continue; }
-      bk=list[+s];
-      if(!bk) return null;
+      bk=list[+s]; if(!bk) return null;
     }
     return { list, block:bk, index:list.indexOf(bk) };
   }
+  function listAt(path){                    // the list a drop-zone path points at
+    const segs=String(path).split('.');
+    let list;
+    if(segs[0]==='p'){ const p=VM.project.procs.find(x=>x.name===editingProc); list=p?p.body:[]; }
+    else { const a=current(); const sc=a&&a.scripts[+segs[0]]; list=sc?sc.body:[]; }
+    let bk=null;
+    for(let i=1;i<segs.length;i++){
+      const s=segs[i];
+      if(s==='b'){ list=bk.body; continue; }
+      if(s==='e'){ list=bk.body2; continue; }
+      bk=list[+s]; if(!bk) return list;
+    }
+    return list;
+  }
+
   function wireScript(){
     const el=$('#cScript');
-    el.querySelectorAll('[data-drop]').forEach(d=>d.onclick=()=>{
+    el.querySelectorAll('[data-drop]').forEach(d=>d.onclick=e=>{
+      e.stopPropagation();
       const [path,idx]=d.dataset.drop.split('|');
-      const segs=path.split('.');
-      let list;
-      if(segs[0]==='p'){ const p=VM.project.procs.find(x=>x.name===editingProc); list=p.body; }
-      else { const sc=current().scripts[+segs[0]]; list=sc.body; }
-      for(let i=1;i<segs.length;i++){
-        const s=segs[i];
-        if(s==='b'){ list=list.__last.body; continue; }
-        if(s==='e'){ list=list.__last.body2; continue; }
-        const bk=list[+s]; list.__last=bk;
-      }
-      cursor={ list, index:+idx }; render();
+      cursor={ list:listAt(path), index:+idx }; selected=null; render();
+    });
+    // clicking the block body selects it — that is what the keyboard acts on
+    el.querySelectorAll('[data-blk]').forEach(node=>{
+      node.onclick=e=>{
+        if(justDragged) return;
+        if(e.target.closest('.cin,.bx,.cslot')) return;
+        e.stopPropagation();
+        const path=node.dataset.blk, r=at(path);
+        selected = selected===path ? null : path;
+        if(r) cursor={ list:r.list, index:r.index+1 };
+        render();
+      };
+      node.onmousedown=e=>{
+        if(e.target.closest('.cin,.bx,.cslot,select,input')) return;
+        const r=at(node.dataset.blk); if(!r) return;
+        beginDrag(e,{ src:'script', path:node.dataset.blk,
+          isExpr:false, html:node.innerHTML, cls:'k-stack' });
+      };
     });
     el.querySelectorAll('[data-del]').forEach(x=>x.onclick=e=>{
       e.stopPropagation();
-      const r=at(x.dataset.del); if(r){ r.list.splice(r.index,1); cursor=null; VM.save(); render(); }
+      const r=at(x.dataset.del);
+      if(r){ r.list.splice(r.index,1); cursor=null; selected=null; VM.save(); render(); }
     });
     el.querySelectorAll('[data-del-script]').forEach(x=>x.onclick=e=>{
       e.stopPropagation();
-      current().scripts.splice(+x.dataset.delScript,1); cursor=null; VM.save(); render();
+      current().scripts.splice(+x.dataset.delScript,1);
+      cursor=null; selected=null; VM.save(); render();
     });
     el.querySelectorAll('[data-set]').forEach(inp=>{
-      const r=at(inp.closest('[data-blk]')?inp.closest('[data-blk]').dataset.blk:null);
+      const wrap=inp.closest('[data-blk]');
+      const holder = wrap ? (at(wrap.dataset.blk)||{}).block : hatOf(inp);
       inp.onchange=()=>{
-        const holder = r ? r.block : hatOf(inp);
         if(!holder) return;
         let v=inp.value;
         if(v==='__new'){ const m=prompt(t('New message name'),'message'+(VM.project.msgs.length+1));
                          if(m){ VM.project.msgs.push(m); v=m; } else v=VM.project.msgs[0]; }
-        holder.args[inp.dataset.set]=v;
-        VM.save(); render();
+        holder.args[inp.dataset.set]=v; VM.save(); render();
       };
       if(inp.dataset.slot) inp.onclick=e=>{
         e.stopPropagation();
-        const holder = r ? r.block : hatOf(inp);
         slotTarget = (slotTarget&&slotTarget.owner===holder&&slotTarget.key===inp.dataset.slot)
                      ? null : { owner:holder, key:inp.dataset.slot };
-        render();
+        hint(); markSlots();
       };
     });
     el.querySelectorAll('[data-slot].bool').forEach(sl=>sl.onclick=e=>{
       e.stopPropagation();
-      const holder = at(sl.closest('[data-blk]').dataset.blk).block;
+      const wrap=sl.closest('[data-blk]'); if(!wrap) return;
+      const holder=(at(wrap.dataset.blk)||{}).block; if(!holder) return;
       slotTarget={ owner:holder, key:sl.dataset.slot }; render();
     });
     el.querySelectorAll('[data-clear]').forEach(x=>x.onclick=e=>{
       e.stopPropagation();
       const wrap=x.closest('[data-blk]'); if(!wrap) return;
       const r=at(wrap.dataset.blk); if(!r) return;
-      const bd=BLOCKS.of(r.block.op), sp=bd.args[x.dataset.clear];
+      const sp=BLOCKS.of(r.block.op).args[x.dataset.clear];
       r.block.args[x.dataset.clear]= sp && sp.def!==undefined ? sp.def : null;
       VM.save(); render();
     });
+  }
+  function markSlots(){                     // cheap highlight without a full rebuild
+    $('#cScript').querySelectorAll('.cin,[data-slot]').forEach(n=>n.classList.remove('on'));
+    if(!slotTarget) return;
+    render();
   }
   function hatOf(inp){
     const sc=inp.closest('.cscript'); if(!sc) return null;
     return current().scripts[+sc.dataset.sc].hat;
   }
 
+  /* ---------------------------------------------------------------- drag
+     Scratch is a drag-and-drop language and students arrive expecting that,
+     so blocks drag as well as click: out of the palette, and around inside
+     the script. A drag only starts once the pointer has actually moved, so
+     a plain click still means "append", and the two never fight.
+
+     Reporters drop into SLOTS; everything else drops into the gaps between
+     blocks, including the gaps inside a loop's mouth — which is the whole
+     point of dragging in the first place. */
+  const DRAG_SLOP=4;
+
+  function beginDrag(e, spec){
+    if(e.button!==0) return;
+    drag = Object.assign({ x0:e.clientX, y0:e.clientY, live:false, ghost:null, hot:null }, spec);
+    addEventListener('mousemove', moveDrag, true);
+    addEventListener('mouseup', endDrag, true);
+  }
+  function makeGhost(html, cls){
+    const g=document.createElement('div');
+    g.className='cghost '+(cls||'');
+    g.innerHTML=html;
+    document.body.appendChild(g);
+    return g;
+  }
+  function moveDrag(e){
+    if(!drag) return;
+    if(!drag.live){
+      if(Math.hypot(e.clientX-drag.x0, e.clientY-drag.y0) < DRAG_SLOP) return;
+      drag.live=true;
+      drag.ghost=makeGhost(drag.html, drag.cls);
+      document.body.classList.add('cdragging');
+    }
+    drag.ghost.style.left=(e.clientX+8)+'px';
+    drag.ghost.style.top =(e.clientY+8)+'px';
+    highlight(e);
+    e.preventDefault();
+  }
+  /* reporters look for slots, statements look for gaps */
+  function highlight(e){
+    if(drag.hot){ drag.hot.el.classList.remove('hot'); drag.hot=null; }
+    const zones = drag.isExpr ? slotZones() : dropZones();
+    let best=null, bestD=Infinity;
+    zones.forEach(z=>{
+      const r=z.el.getBoundingClientRect();
+      if(e.clientX < r.left-70 || e.clientX > r.right+70) return;
+      const d=Math.abs((r.top+r.bottom)/2 - e.clientY) + Math.abs((r.left+r.right)/2 - e.clientX)*0.15;
+      if(d<bestD && d<170){ bestD=d; best=z; }
+    });
+    if(best){ best.el.classList.add('hot'); drag.hot=best; }
+  }
+  function dropZones(){
+    const out=[];
+    $('#cScript').querySelectorAll('[data-drop]').forEach(el=>{
+      const [path,idx]=el.dataset.drop.split('|');
+      out.push({ el, list:listAt(path), index:+idx });
+    });
+    return out;
+  }
+  function slotZones(){
+    const out=[];
+    $('#cScript').querySelectorAll('[data-slot]').forEach(el=>{
+      const wrap=el.closest('[data-blk]');
+      const owner = wrap ? (at(wrap.dataset.blk)||{}).block : hatOf(el);
+      if(owner) out.push({ el, owner, key:el.dataset.slot });
+    });
+    return out;
+  }
+  /* a block may not be dropped inside itself */
+  function subtreeLists(bk, acc){
+    acc=acc||new Set();
+    if(bk.body){ acc.add(bk.body); bk.body.forEach(c=>subtreeLists(c,acc)); }
+    if(bk.body2){ acc.add(bk.body2); bk.body2.forEach(c=>subtreeLists(c,acc)); }
+    return acc;
+  }
+  function endDrag(e){
+    removeEventListener('mousemove', moveDrag, true);
+    removeEventListener('mouseup', endDrag, true);
+    const d=drag; drag=null;
+    document.body.classList.remove('cdragging');
+    if(!d) return;
+    if(d.ghost) d.ghost.remove();
+    if(!d.live) return;                       // never moved: the click handler has it
+    if(d.hot) d.hot.el.classList.remove('hot');
+    justDragged=true; setTimeout(()=>{ justDragged=false; }, 0);
+    if(!d.hot){ if(d.src==='script') render(); return; }
+
+    if(d.isExpr){
+      const bk = d.src==='palette' ? newBlock(d.op,d.callName) : detach(d);
+      if(bk) d.hot.owner.args[d.hot.key]=bk;
+    } else {
+      let bk, target=d.hot;
+      if(d.src==='palette') bk=newBlock(d.op,d.callName);
+      else {
+        const r=at(d.path); if(!r) return;
+        if(subtreeLists(r.block).has(target.list)){ render(); flash(t('A block cannot go inside itself.')); return; }
+        // removing first can shift the target index within the same list
+        const sameList = r.list===target.list;
+        const idx = (sameList && r.index < target.index) ? target.index-1 : target.index;
+        r.list.splice(r.index,1);
+        target={ list:target.list, index:Math.max(0,Math.min(idx,target.list.length)) };
+        bk=r.block;
+      }
+      if(bk) target.list.splice(target.index,0,bk);
+    }
+    selected=null; cursor=null; VM.save(); render();
+  }
+  function detach(d){
+    const r=at(d.path); if(!r) return null;
+    r.list.splice(r.index,1);
+    return r.block;
+  }
+  let justDragged=false;
+
+  /* ------------------------------------------------------------ keyboard
+     Once a block is selected the script behaves like a document. Nothing
+     here fires while the caret is in a field — typing 10 into a slot must
+     not delete the block you are typing into. */
+  function keys(e){
+    if(!open) return;
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='select'||tag==='textarea'){
+      if(e.key==='Escape') e.target.blur();
+      return;
+    }
+    const meta=e.ctrlKey||e.metaKey;
+    const r=at(selected);
+
+    if(e.key==='Escape'){ selected=null; slotTarget=null; cursor=null; render(); e.preventDefault(); return; }
+    if((e.key==='Backspace'||e.key==='Delete') && r){
+      clip=JSON.parse(JSON.stringify(r.block));       // a delete you can undo by pasting
+      r.list.splice(r.index,1);
+      selected=null; cursor={ list:r.list, index:Math.max(0,r.index) };
+      VM.save(); render(); e.preventDefault(); return;
+    }
+    if(meta && e.key.toLowerCase()==='x' && r){
+      clip=JSON.parse(JSON.stringify(r.block));
+      r.list.splice(r.index,1);
+      selected=null; cursor={ list:r.list, index:Math.max(0,r.index) };
+      VM.save(); render(); e.preventDefault(); return;
+    }
+    if(meta && e.key.toLowerCase()==='c' && r){
+      clip=JSON.parse(JSON.stringify(r.block)); flash(t('Copied.')); e.preventDefault(); return;
+    }
+    if(meta && e.key.toLowerCase()==='v' && clip){
+      insert(JSON.parse(JSON.stringify(clip))); e.preventDefault(); return;
+    }
+    if(meta && e.key.toLowerCase()==='d' && r){
+      const copy=JSON.parse(JSON.stringify(r.block));
+      r.list.splice(r.index+1,0,copy);
+      selected=null; cursor={ list:r.list, index:r.index+2 };
+      VM.save(); render(); e.preventDefault(); return;
+    }
+    if((e.key==='ArrowUp'||e.key==='ArrowDown') && r){
+      const next=r.index + (e.key==='ArrowUp'?-1:1);
+      if(next>=0 && next<r.list.length){
+        const base=selected.split('.'); base[base.length-1]=String(next);
+        selected=base.join('.'); render();
+      }
+      e.preventDefault(); return;
+    }
+  }
+
   let flashT=null;
   function flash(msg){
     const h=$('#cHint'); if(!h) return;
     h.textContent=msg; h.classList.add('bad');
-    clearTimeout(flashT); flashT=setTimeout(()=>{ h.classList.remove('bad'); hint(); },2400);
+    clearTimeout(flashT); flashT=setTimeout(()=>{ h.classList.remove('bad'); hint(); },2000);
   }
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function render(){ if(!open) return; bar(); objects(); palette(); scripts(); }
+  function render(){ if(!open) return; bar(); palette(); scripts(); }
 
-  /* variable values change as the code runs, so refresh the readout gently */
   let beat=0;
   function tick(dt){
     if(!open) return;
     beat+=dt;
-    if(beat>0.4){ beat=0; objects(); bar(); }
+    if(beat>0.5){ beat=0; bar(); if(cat==='data') palette(); }
   }
+
+  addEventListener('keydown', keys, true);
 
   return { show, hide, toggle, render, tick, setActor, get open(){ return open; } };
 })();
