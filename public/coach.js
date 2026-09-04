@@ -1,0 +1,153 @@
+/* =====================================================================
+   COACH — the walkthrough.
+
+   A mission can hand you two blocks and still leave you standing in a
+   field with no idea what to do. So the first mission is walked, step by
+   step, with the thing you need to touch actually pointed at: a ring on
+   the floor and an arrow over the ball while you are in the world, and a
+   ring drawn around the exact button while you are in the editor.
+
+   Every step names what it wants and how it knows it happened. Nothing is
+   ever gated on the coach — you can ignore it entirely and just play, and
+   it will notice you got ahead of it and catch up. Being taught should
+   never be the same thing as being blocked.
+   ===================================================================== */
+window.COACH = (function(){
+  let steps=null, at=0, ctx=null, beacon=null, last=0, done=false;
+
+  function start(list, c){
+    stop();
+    if(!list || !list.length) return;
+    steps=list; ctx=c||{}; at=0; done=false;
+    paint();
+  }
+  function stop(){
+    steps=null; at=0; done=false;
+    dropBeacon();
+    const r=document.querySelector('#coachRing'); if(r) r.remove();
+    const p=document.querySelector('#coachTip'); if(p) p.remove();
+  }
+  const step = () => (steps && at<steps.length) ? steps[at] : null;
+
+  /* A student who works it out on their own must not be told to do the
+     thing they have already done, so every step is checked from the world
+     rather than from what the coach thinks it just asked for — and skipped
+     outright if it is already true. */
+  function tick(dt){
+    if(!steps || done) return;
+    /* Progress is monotonic: find the LAST step that has happened and stand
+       just past it. Checking only the next one stops the coach dead when
+       somebody works ahead of it — write the whole program in one go and it
+       would still be saying "walk to the ball" behind the open editor. */
+    for(let k=steps.length-1; k>=at; k--){
+      if(steps[k].done && steps[k].done(ctx)){ at=k+1; break; }
+    }
+    const s=step();
+    if(!s){ finish(); return; }
+    const now=performance.now();
+    if(now-last<70) { spin(dt); return; }
+    last=now;
+    paint(); spin(dt);
+  }
+  function finish(){
+    done=true;
+    dropBeacon();
+    const r=document.querySelector('#coachRing'); if(r) r.remove();
+    say(t('That is the whole idea: your blocks moved a thing in the world.'), true);
+  }
+
+  /* ------------------------------------------------------------ drawing */
+  function ring(){
+    let r=document.querySelector('#coachRing');
+    if(!r){ r=document.createElement('div'); r.id='coachRing'; document.body.appendChild(r); }
+    return r;
+  }
+  function tip(){
+    let p=document.querySelector('#coachTip');
+    if(!p){
+      p=document.createElement('div'); p.id='coachTip';
+      document.body.appendChild(p);
+    }
+    return p;
+  }
+  function paint(){
+    const s=step(); if(!s) return;
+    const el = s.sel ? document.querySelector(s.sel) : null;
+    const r=ring();
+    if(el){
+      const b=el.getBoundingClientRect();
+      if(b.width>0){
+        r.style.display='block';
+        r.style.left=(b.left-7)+'px'; r.style.top=(b.top-7)+'px';
+        r.style.width=(b.width+14)+'px'; r.style.height=(b.height+14)+'px';
+      } else r.style.display='none';
+      say(s.say, false, b);
+    } else {
+      r.style.display='none';
+      say(s.say, false, null);
+    }
+    // the world steps get a marker on the object itself
+    if(s.world && ctx.actor) beaconOn(ctx.actor); else dropBeacon();
+  }
+  function say(text, finished, near){
+    const p=tip();
+    const n = steps ? Math.min(at+1, steps.length) : 0;
+    p.className = finished ? 'ok' : '';
+    p.innerHTML = `<div class="ctstep">${finished? t('DONE')
+        : t('STEP {a} OF {b}',{a:n,b:steps.length})}</div>
+      <div class="cttext">${esc(text)}</div>
+      ${finished? '' : `<button class="ctskip" id="coachSkip">${t('skip the walkthrough')}</button>`}`;
+    const sk=document.querySelector('#coachSkip');
+    if(sk) sk.onclick=()=>stop();
+    /* sit beside what is being pointed at, and never off the edge */
+    if(near && near.width>0){
+      const w=290, gap=16;
+      let x=near.right+gap, y=near.top-6;
+      if(x+w > innerWidth-10) x=Math.max(10, near.left-w-gap);
+      y=Math.max(10, Math.min(y, innerHeight-150));
+      p.style.left=x+'px'; p.style.top=y+'px';
+      p.style.right=''; p.style.bottom=''; p.style.transform='';
+    } else {
+      p.style.left='50%'; p.style.top=''; p.style.bottom='96px';
+      p.style.right=''; p.style.transform='translateX(-50%)';
+    }
+    if(finished) setTimeout(()=>{ const q=document.querySelector('#coachTip'); if(q) q.remove(); }, 5200);
+  }
+
+  /* -------------------------------------------------------- the beacon */
+  function beaconOn(a){
+    if(beacon && beacon.a===a) return;
+    dropBeacon();
+    if(!a || typeof G==='undefined' || !G.roomGroup) return;
+    const g=new THREE.Group();
+    const mat=()=>new THREE.MeshBasicMaterial({ color:0xffe9a8, transparent:true, opacity:.9 });
+    const halo=new THREE.Mesh(new THREE.TorusGeometry(1.6,0.075,8,44), mat());
+    halo.rotation.x=-Math.PI/2; halo.position.y=0.05;
+    const arrow=new THREE.Mesh(new THREE.ConeGeometry(0.36,0.85,14), mat());
+    arrow.rotation.x=Math.PI;
+    g.add(halo); g.add(arrow);
+    G.roomGroup.add(g);
+    beacon={ g, halo, arrow, a, t:0 };
+    place();
+  }
+  function dropBeacon(){
+    if(!beacon) return;
+    if(beacon.g.parent) beacon.g.parent.remove(beacon.g);
+    beacon=null;
+  }
+  function place(){
+    if(!beacon) return;
+    const a=beacon.a;
+    beacon.g.position.set(a.x, 0, a.z);
+    beacon.arrow.position.y = (a.y||1) + (a.size||1)*0.55 + 0.8 + Math.sin(beacon.t*3)*0.16;
+  }
+  function spin(dt){
+    if(!beacon) return;
+    beacon.t += dt||0.016;
+    beacon.halo.rotation.z += (dt||0.016)*1.1;
+    place();
+  }
+
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  return { start, stop, tick, get running(){ return !!steps && !done; } };
+})();

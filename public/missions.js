@@ -26,7 +26,25 @@ window.MISSIONS = (function(){
       ops:['event.flag','motion.move'],
       objects:[{ name:'Ball', shape:'ball', colour:'#ffd8a8', size:1.6 }],
       /* moved, at all, because a program said so */
-      done:(ctx)=>ctx.moved > 0.5 },
+      done:(ctx)=>ctx.moved > 0.5,
+      /* The first mission is walked. Each step says what it wants and how it
+         knows it happened — from the world, not from the coach's memory, so
+         a student who runs ahead is never told to do it again. */
+      steps:[
+        { say:'That glowing ball is yours. Walk over to it — W A S D to move, the mouse to look.',
+          world:true, done:c=>near(c.actor,5) || looking(c.actor) },
+        { say:'Now look straight at the ball and press E. That opens the ball\u2019s own code.',
+          world:true, done:()=>!!(window.CODER && CODER.open) },
+        { say:'These are the ball\u2019s blocks. Click this one — it starts your program when somebody presses Run.',
+          sel:'#cPal [data-op="event.flag"]', done:c=>hats(c.actor)>0 },
+        { say:'Good. Now open Motion to find something for the ball to actually do.',
+          sel:'#cPal [data-c="motion"]',
+          done:()=>!!document.querySelector('#cPal [data-c="motion"].on') },
+        { say:'Click this. It snaps on underneath, so the ball moves when the game starts.',
+          sel:'#cPal [data-op="motion.move"]', done:c=>moves(c.actor)>0 },
+        { say:'That is a program. Press Run and watch the ball.',
+          sel:'#cFlag', done:()=>won }
+      ] },
 
     { id:'timing',  n:2, em:'⏱️', a:'#a8e6cf', name:'Wait For It',
       teach:'Timing',      soon:true, cats:['events','motion','control'],
@@ -49,6 +67,14 @@ window.MISSIONS = (function(){
   ];
 
   const get = id => LIST.find(m=>m.id===id) || null;
+
+  /* what the steps above ask the world about */
+  const near = (a,d) => !!a && typeof G!=='undefined' &&
+        Math.hypot(G.pos.x-a.x, G.pos.z-a.z) < d;
+  const looking = a => !!a && typeof G!=='undefined' && !!G.focused &&
+        G.focused.userData && G.focused.userData.actor===a;
+  const hats  = a => a ? a.scripts.length : 0;
+  const moves = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='motion.move').length,0) : 0;
 
   /* what a student has finished, per browser */
   const KEY='dq_missions_done';
@@ -80,6 +106,10 @@ window.MISSIONS = (function(){
     if(window.CODER){ CODER.restrict({ cats:m.cats, ops:m.ops, locked:true });
                       CODER.setActor(VM.project.actors[0]||null); }
     paint();
+    /* walked the first time through, and any time the page is blank again —
+       a student who wiped their script wants showing, not congratulating */
+    const a=VM.project.actors[0];
+    if(window.COACH && m.steps && a && !a.scripts.length) COACH.start(m.steps, { actor:a });
     return m;
   }
   /* the room is right if it holds exactly the objects the mission asks for */
@@ -99,6 +129,7 @@ window.MISSIONS = (function(){
   }
   function stop(){
     active=null; won=false;
+    if(window.COACH) COACH.stop();
     if(window.VM) VM.useSlot(null);
     if(window.CODER) CODER.restrict(null);
   }
@@ -110,7 +141,8 @@ window.MISSIONS = (function(){
      against the last frame: a run that finishes in a single step is over
      before any watcher gets a second look at it, and nothing but code can
      move a mission object anyway. */
-  function tick(){
+  function tick(dt){
+    coach(dt);
     if(!active || won || !active.done) return;
     const a=VM.project.actors[0];
     if(!a) return;
@@ -118,6 +150,8 @@ window.MISSIONS = (function(){
     const moved=Math.hypot(a.x-h.x, a.y-h.y, a.z-h.z);
     if(active.done({ moved, actor:a })) win();
   }
+  /* the coach runs off the same frame as the mission it belongs to */
+  function coach(dt){ if(window.COACH) COACH.tick(dt); }
   function win(){
     if(won||!active) return;
     won=true; record(active.id);
