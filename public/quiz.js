@@ -36,7 +36,7 @@ window.QUIZ = (function(){
       { q:'A square circuit with four identical sides takes 36 blocks written out flat, or 4 blocks nested. Why is nesting also <b>faster</b>, not just shorter?',
         a:['Nested blocks execute quicker','It does not add turns the track never asked for','Loops skip tiles','The timer pauses inside a loop'], correct:1 }
     ]},
-    m1: { topic:'Loops', mission:'Mission 1 — Loops', questions:[
+    m1: { topic:'Loops', mission:'Mission 2 — Loops', questions:[
       { q:'A <b>repeat 3</b> block runs the blocks inside it…',
         a:['Once','Three times','Zero times','Until you click Stop'], correct:1 },
       { q:'Why did <b>repeat</b> beat writing shoot() three times in a row?',
@@ -46,7 +46,7 @@ window.QUIZ = (function(){
       { q:'A shield has 8 parts. Which program clears it in one run?',
         a:['repeat 4 { shoot() }','repeat 8 { shoot() }','shoot() by itself','repeat 8 { repeat 8 { shoot() } }'], correct:1 }
     ]},
-    m2: { topic:'Choices (if / else)', mission:'Mission 2 — Choices', questions:[
+    m2: { topic:'Choices (if / else)', mission:'Mission 3 — Choices', questions:[
       { q:'An <b>if</b> block runs the code inside it…',
         a:['Every time, no matter what','Only when its condition is true','Only once per mission','Only when you hold Shift'], correct:1 },
       { q:'A drone has a red shield. What happens if you shootBlue() at it?',
@@ -56,7 +56,7 @@ window.QUIZ = (function(){
       { q:'Putting an <b>if</b> block inside a <b>repeat</b> lets you…',
         a:['Check the condition fresh on every pass through the loop','Skip the condition entirely','Turn the if block off','Run the loop exactly once'], correct:0 }
     ]},
-    m3: { topic:'Functions', mission:'Mission 3 — Functions', questions:[
+    m3: { topic:'Functions', mission:'Mission 4 — Functions', questions:[
       { q:'A function — <b>define combo()</b> — lets you…',
         a:['Delete blocks you no longer need','Name a group of blocks once and reuse it with a single call','Make the game run faster','Turn off loops'], correct:1 },
       { q:'You define combo() with shootRed() then shootBlue() inside it. Calling combo() once runs…',

@@ -66,6 +66,33 @@ button{font-family:var(--font);cursor:pointer}
 
 
 /* ---------- health, damage, hit feedback ---------- */
+/* the zombie warning: a word, a countdown and a bar that empties as it closes.
+   It only appears once it is actually coming for you, so it means something. */
+#danger{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:54;
+  background:rgba(38,10,14,.92);border:3px solid var(--warn);border-radius:16px;
+  padding:7px 20px 10px;text-align:center;min-width:210px;pointer-events:none}
+#danger.near{border-color:var(--bad);background:rgba(58,8,12,.94);animation:dangShake .5s infinite}
+#danger .d-row{display:flex;align-items:center;justify-content:center;gap:8px}
+#danger .d-face{font-size:20px}
+#danger .d-word{font-size:12.5px;letter-spacing:2.4px;color:var(--warn)}
+#danger.near .d-word{color:var(--bad)}
+#danger .d-clock{font-size:31px;font-weight:bold;color:var(--warn);
+  font-variant-numeric:tabular-nums;line-height:1.05}
+#danger.near .d-clock{color:var(--bad);animation:dangBlink .42s steps(1) infinite}
+#dBar{height:8px;border-radius:6px;background:rgba(255,255,255,.16);overflow:hidden;margin-top:5px}
+#dFill{height:100%;width:100%;background:var(--warn);transition:width .12s linear}
+#danger.near #dFill{background:var(--bad)}
+@keyframes dangBlink{50%{opacity:.35}}
+@keyframes dangShake{0%,100%{transform:translateX(-50%)}
+  25%{transform:translateX(calc(-50% - 3px))}75%{transform:translateX(calc(-50% + 3px))}}
+/* the whole screen reddens as it gets close, so it warns you even if your
+   eyes are down in the console */
+#dread{position:fixed;inset:0;pointer-events:none;z-index:52;opacity:0;
+  transition:opacity .2s linear;
+  box-shadow:inset 0 0 130px 40px rgba(190,20,30,.85)}
+@media (prefers-reduced-motion:reduce){
+  #danger.near,#danger.near .d-clock{animation:none}
+}
 #health{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:340px;
   background:rgba(46,37,71,.9);border:3px solid var(--line);border-radius:16px;padding:8px 12px}
 #health .hp-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);letter-spacing:1px}
@@ -450,6 +477,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .korotag{color:var(--muted);font-size:15px;margin-top:2px}
 
 .misgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:14px;margin:18px 0 10px}
+/* A group heading spans the whole grid, so the cards under it read as a set
+   rather than as wherever auto-fit happened to drop them. */
+.misgroup{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;
+  margin:10px 0 -2px;padding-bottom:6px;border-bottom:2px solid rgba(255,255,255,.10)}
+.misgroup:first-child{margin-top:0}
+.misgroup b{font-size:12.5px;letter-spacing:2.6px;color:var(--star)}
+.misgroup span{font-size:12.5px;color:var(--muted)}
 .mis{position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
   border:3px solid var(--line);border-radius:20px;padding:16px 15px 14px;text-align:left;
   display:flex;flex-direction:column;gap:7px;min-height:176px;color:var(--text);cursor:pointer;
@@ -616,8 +650,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   background:radial-gradient(closest-side,rgba(143,211,255,.16),transparent 72%);border-radius:20px;
   padding:6px 0 2px}
 #charView{width:100%;max-width:380px;height:250px;display:block}
-.charname{text-align:center;font-size:17px;letter-spacing:2.4px;color:var(--mint);
+.charname{text-align:center;font-size:17px;letter-spacing:2.4px;color:var(--muted);
   margin-top:-6px;min-height:22px}
+/* the turntable follows your mouse, so say out loud whether the one turning
+   in front of you is the one you actually chose */
+.charname.sel{color:var(--mint)}
+.charname .tag{display:block;font-size:11.5px;letter-spacing:1.4px;color:var(--muted)}
+.charname.sel .tag{color:var(--mint)}
 .chargrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(66px,1fr));gap:9px;margin:14px 0 4px}
 .chrtile{position:relative;aspect-ratio:1/1.12;border-radius:16px;border:3px solid var(--line);
   background:#221a3c;padding:3px;cursor:pointer;overflow:hidden;
@@ -625,22 +664,56 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .chrtile img{width:100%;height:76%;object-fit:contain}
 .chrname{display:block;font-size:11px;letter-spacing:.4px;color:var(--muted);
   margin-top:-2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chrtile.on .chrname{color:var(--mint)}
+.chrtile.on .chrname{color:var(--mint);font-weight:bold}
 .chrtile:hover:not(.lock){transform:translateY(-5px) rotate(-3deg);border-color:var(--sky)}
 .chrtile:hover:not(.lock) img{animation:chrBob 1s ease-in-out infinite}
-.chrtile.on{border-color:var(--mint);background:#2b3a4e;box-shadow:0 0 0 3px rgba(168,230,207,.34)}
+/* the one you picked has to still read as picked while the mouse is sitting on
+   it — otherwise clicking looks like nothing happened — so it outranks :hover */
+.chrtile.on,.chrtile.on:hover:not(.lock){border-color:var(--mint);background:#2b3a4e;
+  box-shadow:0 0 0 4px rgba(168,230,207,.55),0 10px 20px rgba(0,0,0,.38);
+  transform:translateY(-5px)}
+.chrtile.on img{animation:chrBob 2.4s ease-in-out infinite}
+.chrtile.on::before{content:'✓';position:absolute;top:3px;right:3px;z-index:2;
+  width:21px;height:21px;border-radius:50%;background:var(--mint);color:#14312a;
+  font-size:13px;font-weight:bold;line-height:1;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.45)}
 .chrtile.lock{cursor:not-allowed;filter:grayscale(1) brightness(.5)}
 .chrtile.lock::after{content:'🔒';position:absolute;inset:0;display:flex;align-items:center;
   justify-content:center;font-size:22px}
 .charfoot{display:flex;justify-content:space-between;gap:10px;margin-top:12px}
 
 @media (prefers-reduced-motion:reduce){
-  .korobg i,.koro,.chr.on img,.bigplay,.chrtile:hover img{animation:none}
+  .korobg i,.koro,.chr.on img,.bigplay,.chrtile:hover img,.chrtile.on img{animation:none}
   .mis,.chr,.mis .em,.chrtile{transition:none}
   .screen.anim-in,.screen.anim-out,.screen.anim-in .card,.screen.anim-in .hero{animation:none}
   .bgphoto,.cloud,.motes span,.glint,.shimmer,.koro-xl,.btn.bigplay{animation:none}
 }
 
+
+/* ---------- spaceflight ---------- */
+/* The beat counter rides over the windscreen AND over the code console —
+   the whole point is that the field keeps arriving while you are writing. */
+#fbeat{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:54;
+  background:rgba(8,14,34,.9);border:3px solid #8ff0ff;border-radius:16px;
+  padding:6px 22px 9px;text-align:center;min-width:150px;pointer-events:none}
+#fbeat .fb-lbl{font-size:11px;letter-spacing:2.6px;color:#8ff0ff}
+#fbeat .fb-n{font-size:29px;font-weight:bold;color:#fff;font-variant-numeric:tabular-nums;
+  line-height:1.05}
+#fbeat .fb-n small{font-size:15px;color:var(--muted);font-weight:normal}
+#fbeat .fb-lane{font-size:12px;letter-spacing:1.2px;color:var(--muted)}
+/* The chart, printed beat by beat above the palette. You cannot write a
+   program for a field you cannot see, so it is drawn where you write. */
+.chart{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;
+  max-height:132px;overflow-y:auto;padding:2px}
+.cbeat{background:#0e1626;border:2px solid var(--line);border-radius:9px;
+  padding:3px 4px 4px;text-align:center;min-width:38px}
+.cbeat.on{border-color:#8ff0ff;box-shadow:0 0 0 2px rgba(143,240,255,.35)}
+.cbeat b{display:block;font-size:10px;letter-spacing:.6px;color:var(--muted);margin-bottom:2px}
+.cgrid{display:grid;grid-template-columns:repeat(3,11px);grid-auto-rows:11px;gap:2px}
+/* open sky has to read as EMPTY and rock as SOLID at eleven pixels, which
+   means real contrast rather than two shades of dark */
+.cgrid i{background:#1b2740;border:1px solid rgba(143,240,255,.22);border-radius:2px}
+.cgrid i.rock{background:#b3a184;border-color:#b3a184}
 
 /* ---------- code console (block based) ---------- */
 #console{position:fixed;inset:0;z-index:50;background:rgba(6,10,18,.82);display:flex;align-items:center;justify-content:center;padding:18px}
@@ -799,6 +872,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 </div>
 
 <div id="hurt"></div>
+<!-- how long before it reaches you.  Outside #hud on purpose: it has to be
+     readable over the code console, which is where your eyes actually are. -->
+<div id="dread"></div>
+<!-- how far through the asteroid field the ship is, right now -->
+<div id="fbeat" class="hidden"></div>
+<div id="danger" class="hidden">
+  <div class="d-row"><span class="d-face">🧟</span><span class="d-word" id="dWord">CLOSING IN</span></div>
+  <div class="d-clock" id="dClock">0.0s</div>
+  <div id="dBar"><div id="dFill"></div></div>
+</div>
 <div id="dmgNums"></div>
 <div id="downed" class="hidden"></div>
 <div id="teach" class="hidden"></div>
@@ -971,29 +1054,31 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=92"></script>
-<script src="strings.js?v=92"></script>
-<script src="difficulty.js?v=92"></script>
-<script src="net.js?v=92"></script>
-<script src="avatar.js?v=92"></script>
-<script src="zombies.js?v=92"></script>
-<script src="building.js?v=92"></script>
-<script src="levels.js?v=92"></script>
-<script src="code.js?v=92"></script>
-<script src="combat.js?v=92"></script>
-<script src="puzzle.js?v=92"></script>
-<script src="nav.js?v=92"></script>
-<script src="tutorial.js?v=92"></script>
-<script src="race.js?v=92"></script>
-<script src="costumes.js?v=92"></script>
-<script src="missions.js?v=92"></script>
-<script src="coach.js?v=92"></script>
-<script src="blocks.js?v=92"></script>
-<script src="vm.js?v=92"></script>
-<script src="coder.js?v=92"></script>
-<script src="quiz.js?v=92"></script>
-<script src="chars.js?v=92"></script>
-<script src="menu.js?v=92"></script>
-<script src="game.js?v=92"></script>
+<script src="lib/three.classic.js?v=107"></script>
+<script src="strings.js?v=107"></script>
+<script src="difficulty.js?v=107"></script>
+<script src="net.js?v=107"></script>
+<script src="avatar.js?v=107"></script>
+<script src="zombies.js?v=107"></script>
+<script src="building.js?v=107"></script>
+<script src="levels.js?v=107"></script>
+<script src="code.js?v=107"></script>
+<script src="combat.js?v=107"></script>
+<script src="puzzle.js?v=107"></script>
+<script src="nav.js?v=107"></script>
+<script src="tutorial.js?v=107"></script>
+<script src="race.js?v=107"></script>
+<script src="flight.js?v=107"></script>
+<script src="costumes.js?v=107"></script>
+<script src="missions.js?v=107"></script>
+<script src="coach.js?v=107"></script>
+<script src="owner.js?v=107"></script>
+<script src="blocks.js?v=107"></script>
+<script src="vm.js?v=107"></script>
+<script src="coder.js?v=107"></script>
+<script src="quiz.js?v=107"></script>
+<script src="chars.js?v=107"></script>
+<script src="menu.js?v=107"></script>
+<script src="game.js?v=107"></script>
 </body>
 </html>

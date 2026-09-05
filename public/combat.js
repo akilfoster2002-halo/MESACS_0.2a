@@ -459,7 +459,7 @@ window.COMBAT = (function(){
 
   /* -------------------------------------------------------- missions */
   const MISSIONS={
-    m1:{ name:'Mission 1 — Loops', title:'The Loop Chamber', halfwayAt:3,
+    m1:{ name:'Mission 2 — Loops', title:'The Loop Chamber', halfwayAt:3,
       objectives:['Program one shot','Clear three drones','Clear five drones','Beat THE LOOPER'],
       stages:[
         {palette:['shoot'],
@@ -485,7 +485,7 @@ window.COMBAT = (function(){
          brief:'<b>THE LOOPER</b>: 8 shield parts, regrown after every program. <b>repeat 8</b> in one program.',
          build(){ cover(); spawnBoss({name:'THE LOOPER',shield:8,color:PAL.lav,face:'👾',dmg:15}); }}
       ]},
-    m2:{ name:'Mission 2 — Choices', title:'The Prism Vault',
+    m2:{ name:'Mission 3 — Choices', title:'The Prism Vault',
       objectives:['Break a red shield','Break both colours','Survive the mixed wave','Beat PRISM'],
       stages:[
         {palette:['shootRed','shootBlue'],
@@ -502,7 +502,7 @@ window.COMBAT = (function(){
          brief:'<b>PRISM</b> changes colour every two seconds. A fixed program cannot beat that — only <b>if</b> inside a <b>repeat</b> checks the colour every single shot.',
          build(){ cover(); spawnBoss({name:'PRISM',shield:10,color:PAL.blush,face:'🔮',dmg:14,cycle:2,startColor:'red',regrow:false}); }}
       ]},
-    m3:{ name:'Mission 3 — Functions', title:'The Off-By-One Foundry',
+    m3:{ name:'Mission 4 — Functions', title:'The Off-By-One Foundry',
       objectives:['Teach the gun a combo','Use the combo on a wave','Clear the corridor','Beat OFF-BY-ONE'],
       stages:[
         {palette:['shootRed','shootBlue','define','call'],

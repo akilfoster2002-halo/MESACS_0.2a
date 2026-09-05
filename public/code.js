@@ -32,8 +32,22 @@ window.CODE = (function(){
     hold     :{label:'hold()',       color:'#cdb4f6', help:'Keep it there'},
     left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
     right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'},
-    gas      :{label:'gas()',        color:'#ffd8a8', help:'Drive on one tile — faster every time in a row'}
+    gas      :{label:'gas()',        color:'#ffd8a8', help:'Drive on one tile — faster every time in a row'},
+    /* the flight deck.  up/down/left/right are RELATIVE — one lane from
+       wherever you are — and goTo is the absolute one, which is the whole
+       point of having both. */
+    flyUp    :{label:'up()',         color:'#a8e6cf', help:'Climb one lane'},
+    flyDown  :{label:'down()',       color:'#a8e6cf', help:'Drop one lane'},
+    flyLeft  :{label:'left()',       color:'#8fd3ff', help:'Slide one lane left'},
+    flyRight :{label:'right()',      color:'#8fd3ff', help:'Slide one lane right'},
+    coast    :{label:'coast()',      color:'#bdb2d8', help:'Hold this lane for one beat'},
+    fire     :{label:'fire()',       color:'#ffb4a2', help:'Shoot straight ahead'},
+    goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'}
   };
+  /* How far goTo is allowed to count. The console does not know how big any
+     one mission's grid is, so the mission says. */
+  let GRID={ col:2, row:2 };
+  function setGrid(cols, rows){ GRID={ col:Math.max(0,(cols||3)-1), row:Math.max(0,(rows||3)-1) }; }
   let CONDS=['red','blue'];
   function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }
 
@@ -43,6 +57,7 @@ window.CODE = (function(){
     if(type==='repeat'){ b.count=3; b.body=[]; }
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
+    if(type==='goTo'){ b.col=1; b.row=1; }
     return b;
   }
   function addBlock(type){
@@ -107,6 +122,8 @@ window.CODE = (function(){
           out.push({name:'__call', blockId:b.id});
           compile(def.body, out, guard, depth+1);
         }
+      } else if(b.type==='goTo'){
+        out.push({name:'goTo', blockId:b.id, col:b.col, row:b.row});
       } else out.push({name:b.type, blockId:b.id});
     }
     return out;
@@ -131,6 +148,8 @@ window.CODE = (function(){
       } else if(b.type==='define'){
         s.push(pad+'define combo');
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
+      } else if(b.type==='goTo'){
+        s.push(pad+'goto '+b.col+','+b.row);
       } else s.push(pad+DEF[b.type].label);
     }
     return s;
@@ -142,7 +161,7 @@ window.CODE = (function(){
      to be something you could have built, and it runs down one code path. */
   const BY_WORD = {};
   Object.keys(DEF).forEach(k=>{
-    if(k==='repeat'||k==='ifc'||k==='define') return;
+    if(k==='repeat'||k==='ifc'||k==='define'||k==='goTo') return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
   function allowed(type){ return palette.indexOf(type) >= 0; }
@@ -175,6 +194,14 @@ window.CODE = (function(){
         const b=makeBlock('ifc'); b.cond=m[1]; put(b); stack.push(b); continue;
       }
       if(low==='if') return bad(i, t('Write the whole test, like <b>if target is red</b>.'));
+      if((m=low.match(/^goto +(\d+) *, *(\d+)$/))){
+        if(!allowed('goTo')) return bad(i, t('<b>goTo</b> is not in this mission yet.'));
+        const b=makeBlock('goTo');
+        b.col=Math.max(0,Math.min(GRID.col,+m[1]));
+        b.row=Math.max(0,Math.min(GRID.row,+m[2]));
+        put(b); continue;
+      }
+      if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.'));
       if(low==='define combo'){
         if(!allowed('define')) return bad(i, t('<b>define combo</b> is not in this mission yet.'));
         const b=makeBlock('define'); put(b); stack.push(b); continue;
@@ -293,6 +320,21 @@ window.CODE = (function(){
           <div class="blk-foot"></div>
         </div>`;
     }
+    if(b.type==='goTo'){
+      // two little counters rather than a typed number: a nine-year-old can
+      // read a lane off the screen and click to it, and it cannot go out of
+      // bounds by construction
+      const step=(what,val)=>`
+        <span class="blk-times">${t(what)}</span>
+        ${readonly?'':`<button class="cnt" data-act="${what}-" data-id="${b.id}">−</button>`}
+        <span class="cnt-n">${val}</span>
+        ${readonly?'':`<button class="cnt" data-act="${what}+" data-id="${b.id}">+</button>`}`;
+      return `<div class="blk" data-id="${b.id}" style="--c:${d.color}">
+          <span class="blk-name">${t('goTo')}</span>
+          ${step('col',b.col)}${step('row',b.row)}
+          ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
+        </div>`;
+    }
     return `<div class="blk" data-id="${b.id}" style="--c:${d.color}">
         <span class="blk-name">${d.label}</span>
         ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
@@ -393,6 +435,7 @@ window.CODE = (function(){
       if(type==='repeat')      out.push({w:'repeat 3', c:d.color});
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
       else if(type==='define') out.push({w:'define combo', c:d.color});
+      else if(type==='goTo')   out.push({w:'goto 1,1', c:d.color});
       else                     out.push({w:d.label, c:d.color});
     });
     if(palette.some(p=>p==='repeat'||p==='ifc'||p==='define'))
@@ -443,7 +486,8 @@ window.CODE = (function(){
     paletteEl.innerHTML=palette.map(type=>{
       const d=DEF[type];
       return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
-        <b>${type==='repeat'?t('repeat')+' 3':d.label}</b><small>${t(d.help)}</small></button>`;
+        <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1':d.label}</b>
+        <small>${t(d.help)}</small></button>`;
     }).join('');
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
 
@@ -457,6 +501,10 @@ window.CODE = (function(){
         if(btn.dataset.act==='inc' && b) b.count=Math.min(20,b.count+1);
         if(btn.dataset.act==='dec' && b) b.count=Math.max(1,b.count-1);
         if(btn.dataset.act==='cond' && b) b.cond = CONDS[(CONDS.indexOf(b.cond)+1)%CONDS.length];
+        if(btn.dataset.act==='col+' && b) b.col=Math.min(GRID.col,b.col+1);
+        if(btn.dataset.act==='col-' && b) b.col=Math.max(0,b.col-1);
+        if(btn.dataset.act==='row+' && b) b.row=Math.min(GRID.row,b.row+1);
+        if(btn.dataset.act==='row-' && b) b.row=Math.max(0,b.row-1);
         draw();
       };
     });
@@ -531,7 +579,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setConditions, setGuide, setMode, parse,
+  return { show, close, isOpen, setPalette, setBudget, setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
            get script(){ return script; },

@@ -259,8 +259,11 @@ window.updateCodeBtn=updateCodeBtn;
 let codeBtnState=null;
 function updateCodeBtn(){
   const btn=$('#codeBtn'); if(!btn) return;
-  const usable = G.running && !CODE.isOpen() &&
-    (PUZZLE.active || NAV.active || (G.hudOwner==='mission' && G.missionId));
+  // the flight runs with G.running off — it drives its own camera — so it
+  // has to be its own reason for the button to be there
+  const flying = !!(window.FLIGHT && FLIGHT.active);
+  const usable = (G.running || flying) && !CODE.isOpen() &&
+    (PUZZLE.active || NAV.active || flying || (G.hudOwner==='mission' && G.missionId));
   if(usable===codeBtnState) return;
   codeBtnState=usable;
   btn.classList.toggle('hidden',!usable);
@@ -268,7 +271,7 @@ function updateCodeBtn(){
   $('#codeBtnTxt').textContent=t('Code Console');
   btn.onclick=()=>{ CODE.show(); updateCodeBtn(); };
   const esc=$('#escHint');
-  if(esc){ esc.classList.toggle('hidden',!G.running);
+  if(esc){ esc.classList.toggle('hidden',!(G.running||flying));
            esc.innerHTML=t('<kbd>Esc</kbd> frees the mouse · <kbd>P</kbd> pause &amp; hint'); }
 }
 function updateLeaveBtn(){
@@ -325,10 +328,11 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
+  if(id==='flight'){ FLIGHT.start(0); return; }  // and the asteroid field its own sky
   G.hudOwner='mission';
   G.missionId=id;
   G.arenaTitle = id==='m1'?'The Loop Chamber'
@@ -441,7 +445,8 @@ function wireInput(){
       return;
     }
     if((e.code==='KeyC'||e.code==='Tab') && G.running && !typingInField(e)
-       && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active || G.room==='arena')
+       && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active
+           || (window.FLIGHT && FLIGHT.active) || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
       CODE.isOpen() ? CODE.close() : CODE.show();
@@ -484,7 +489,13 @@ function loop(now){
   updateCodeBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
-  if(G.room==='free'){ VM.step(dt); CODER.tick(dt); if(window.MISSIONS) MISSIONS.tick(dt); }
+  if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
+  /* Free play keeps thinking while the world is frozen: scripts step on, and
+     what our objects look like has to keep going out — otherwise a paused or
+     typing player leaves the room holding a stale picture of them. */
+  if(G.room==='free'){ VM.step(dt); CODER.tick(dt); if(window.MISSIONS) MISSIONS.tick(dt);
+                       if(window.OWN) OWN.update(dt);      // whose object is whose
+                       if(window.FREE) FREE.share(); }
   if(G.running && !frozen()){
     step(dt);
     if(TUTOR.active) TUTOR.tick(dt);
@@ -553,7 +564,7 @@ function pauseDiff(){
 function step(dt){
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
-  const driven = NAV.active || RACE.active;
+  const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);
   // turn with arrows too, so a student who cannot manage mouse-look can still play
   if(!driven && G.keys.ArrowLeft)  G.yaw += 2.0*dt;
   if(!driven && G.keys.ArrowRight) G.yaw -= 2.0*dt;
@@ -717,7 +728,8 @@ function setLang(l){
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{
-  if(RACE.active) RACE.run(steps);
+  if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
+  else if(RACE.active) RACE.run(steps);
   else if(TUTOR.active) TUTOR.run(steps);
   else if(NAV.active) NAV.run(steps);
   else if(PUZZLE.active) PUZZLE.run(steps);

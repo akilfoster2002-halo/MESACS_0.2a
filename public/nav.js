@@ -185,12 +185,54 @@ window.NAV = (function(){
     }
     z.tx=z.cx; z.ty=z.cy;                 // walled off from you entirely
   }
+  /* --------------------------------------------------- the warning it gives */
+  const WARN = 8;        // seconds of countdown before it is on you
+  /* Straight-line distance lies around a corner — it can be two tiles away
+     through a wall and a whole corridor away on foot.  So measure the route
+     it will actually walk: the leg it is on, plus tiles from there to you. */
+  function reach(){
+    const z=L.zom;
+    let d=Math.hypot(z.tx*T-z.wx, z.ty*T-z.wz);
+    if(z.tx===L.x && z.ty===L.y) return d;
+    const key=(x,y)=>y*1000+x;
+    const seen=new Set([key(z.tx,z.ty)]);
+    let edge=[[z.tx,z.ty]], steps=0;
+    while(edge.length && steps<400){
+      steps++;
+      const nextEdge=[];
+      for(const [x,y] of edge){
+        for(const [dx,dy] of DIRS){
+          const nx=x+dx, ny=y+dy, k=key(nx,ny);
+          if(cell(nx,ny)==='#' || seen.has(k)) continue;
+          if(nx===L.x && ny===L.y) return d + steps*T;
+          seen.add(k); nextEdge.push([nx,ny]);
+        }
+      }
+      edge=nextEdge;
+    }
+    return Infinity;                         // walled off from you entirely
+  }
+  /* One place that owns the banner, so every way out of chase() can silence
+     it by calling warn(null). */
+  function warn(st){
+    const el=document.querySelector('#danger'), dr=document.querySelector('#dread');
+    if(dr) dr.style.opacity = st ? st.dread : 0;
+    if(!el) return;
+    if(!st){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.classList.toggle('near', st.near);
+    document.querySelector('#dWord').textContent=t(st.word);
+    document.querySelector('#dClock').textContent=st.secs.toFixed(1)+'s';
+    document.querySelector('#dFill').style.width=
+      Math.max(0,Math.min(1,st.k))*100+'%';
+  }
+
   /* It never stops and it never takes turns.  That is the whole clock:
      the longer you spend writing, the closer it is when you press RUN. */
   function chase(dt){
-    if(!L || L.done || L.caught || !L.zom.mesh) return;
-    if(!document.querySelector('#teach').classList.contains('hidden')) return;
-    if(!document.querySelector('#pause').classList.contains('hidden')) return;
+    if(!L || L.done || L.caught || !L.zom.mesh) return warn(null);
+    if(!document.querySelector('#teach').classList.contains('hidden')) return warn(null);
+    if(!document.querySelector('#pause').classList.contains('hidden')) return warn(null);
     // read the difficulty every frame, so changing it from the pause menu
     // is felt on the next step rather than the next stage
     const z=L.zom, spd=(L.S.speed||CHASE)*(window.DIFF?DIFF.chase():1);
@@ -199,6 +241,9 @@ window.NAV = (function(){
       L.grace-=dt;
       z.mesh.lookAt(G.pos.x, 0, G.pos.z);
       ZOMBIE.animate(z.mesh, dt, 'idle');
+      // it is still watching you — say when it starts walking
+      warn({ word:'IT STARTS WALKING IN', secs:Math.max(0,L.grace),
+             k:L.grace/GRACE, near:false, dread:0 });
       return;
     }
     let step=spd*dt;
@@ -213,6 +258,13 @@ window.NAV = (function(){
     z.mesh.position.set(z.wx, 0, z.wz);
     z.mesh.lookAt(G.pos.x, 0, G.pos.z);
     ZOMBIE.animate(z.mesh, dt, 'run');
+    // the countdown: how many seconds of walking are left between you
+    const secs=Math.max(0, (reach()-T*0.6)/spd);
+    if(secs<=WARN) warn({
+      word: secs>4 ? 'CLOSING IN' : secs>2 ? 'IT IS ALMOST ON YOU' : 'RUN FOR IT',
+      secs, k:secs/WARN, near:secs<=3,
+      dread: Math.max(0, (4-secs)/4)*0.8 });      // the screen reddens with it
+    else warn(null);
     if(Math.hypot(G.pos.x-z.wx, G.pos.z-z.wz) < T*0.6) eaten();
   }
 
@@ -285,7 +337,7 @@ window.NAV = (function(){
   }
   function eaten(){
     if(!L || L.done || L.caught) return;
-    L.caught=true; busy=false; hurt(); CODE.hideTape(); CODE.close();
+    L.caught=true; busy=false; hurt(); warn(null); CODE.hideTape(); CODE.close();
     msg(t('🧟 YOU HAVE BEEN EATEN. It never stops — write it faster.'));
     setTimeout(()=>reset(), 1600);
   }
@@ -349,7 +401,7 @@ window.NAV = (function(){
     if(window.AVATAR) AVATAR.update(dt, false, false, true);
   }
   function stop(){
-    L=null; busy=false;
+    L=null; busy=false; warn(null);
     document.querySelector('#mapwrap').classList.remove('hidden');
     CODE.setBudget(0); CODE.setGuide(null);
   }

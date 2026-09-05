@@ -34,20 +34,35 @@ window.MENU = (function(){
     if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
   }
 
-  const TILES=[   // the cards on the main grid, not the coding missions
-    {id:'tut',   em:'🎮', a:'#ffe9a8', name:'Level 0 — Basics',
+  /* The cards on the main grid, not the coding missions.
+     Circuit — Time Trial is parked: race.js still loads and GAME.start('race')
+     still runs it, but it is off the grid until the track is finished.
+
+     `group` is what stops this reading as one undifferentiated pile of seven
+     cards. Without it Spaceflight lands in the top row beside Level 0 and
+     looks like more warm-up, when it is a mission — it just does not hold a
+     number or lock anything behind it. */
+  const GROUPS={
+    warmup :{ lbl:'WARM UP',        sub:'No pressure, nothing to unlock.' },
+    /* Space Explorer is numbered but never locks, so the heading cannot
+       promise that the numbers gate each other — the card says which is which. */
+    course :{ lbl:'THE MISSIONS',   sub:'One idea each, in order — unless the card says otherwise.' },
+    sandbox:{ lbl:'YOUR OWN WORLD', sub:'Every block, no goal but yours.' }
+  };
+  const TILES=[
+    {id:'tut',   g:'warmup',  em:'🎮', a:'#ffe9a8', name:'Level 0 — Basics',
      blurb:'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.'},
-    {id:'race',  em:'🏁', a:'#ffd8a8', name:'Circuit — Time Trial',
-     blurb:'Program the kart round the track. Every turn costs you speed.'},
-    {id:'nav',   em:'🧟', a:'#8fd3ff', name:'Escape — Corridors',
+    {id:'nav',   g:'course',  em:'🧟', a:'#8fd3ff', name:'Escape — Corridors',
      blurb:'Learn to code by getting out alive. It never stops walking.'},
-    {id:'m1',    em:'🧟', a:'#a8e6cf', name:'Mission 1 — Loops',
+    {id:'flight',g:'course',  em:'🚀', a:'#8ff0ff', name:'Mission 1 — Space Explorer',
+     blurb:'Nine lanes, a wall of rock every beat. Motion, timing, loops — and a gunnery range between runs.'},
+    {id:'m1',    g:'course',  em:'🧟', a:'#a8e6cf', name:'Mission 2 — Loops',
      blurb:'Commands and loops. Beat THE LOOPER with repeat.'},
-    {id:'m2',    em:'🔮', a:'#cdb4f6', name:'Mission 2 — Choices',
+    {id:'m2',    g:'course',  em:'🔮', a:'#cdb4f6', name:'Mission 3 — Choices',
      blurb:'if / else. PRISM changes colour every two seconds.'},
-    {id:'m3',    em:'🧮', a:'#ffb4a2', name:'Mission 3 — Functions',
+    {id:'m3',    g:'course',  em:'🧮', a:'#ffb4a2', name:'Mission 4 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
-    {id:'free',  em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
+    {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
      blurb:'A 3D world you write. Objects, variables, functions, clones — code anything.'}
   ];
 
@@ -122,7 +137,17 @@ window.MENU = (function(){
     renderChars();
     renderDiff();
     grid.innerHTML='';
+    let group=null;
     TILES.forEach(m=>{
+      // a heading whenever the group changes, spanning the whole grid row
+      if(m.g && m.g!==group){
+        group=m.g;
+        const g=GROUPS[group];
+        const h=document.createElement('div');
+        h.className='misgroup';
+        h.innerHTML=`<b>${t(g.lbl)}</b><span>${t(g.sub)}</span>`;
+        grid.appendChild(h);
+      }
       const needsIn = m.needsAccount && !NET.signedIn;
       const open_ = PROGRESS.unlocked(m.id) && !needsIn;
       const done  = PROGRESS.isDone(m.id);
@@ -134,8 +159,11 @@ window.MENU = (function(){
       const tag = needsIn ? '🔒 '+t('Sign in to play together')
                 : !open_ ? '🔒 '+t('Finish {m} first',{m:t(labelOf(PROGRESS.needs(m.id)))})
                 : done ? (m.id==='tut' ? '⭐ '+t('PRACTISE AGAIN ▶')
-                     : m.id==='race' ? '⭐ '+t('BEAT YOUR TIME ▶') : '⭐ '+t('COMPLETE'))
-                : t('PLAY ▶');
+                     : m.id==='race' ? '⭐ '+t('BEAT YOUR TIME ▶')
+                     : m.id==='flight' ? '⭐ '+t('FLY IT AGAIN ▶') : '⭐ '+t('COMPLETE'))
+                // it sits in the course but gates nothing, so it never says
+                // "finish X first" and never makes anybody wait for it
+                : m.id==='flight' ? t('PLAY ANY TIME ▶') : t('PLAY ▶');
       b.innerHTML=`<div class="em">${m.em}</div><b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
       b.onclick=()=>{ if(needsIn) return auth(); if(!open_) return; launch(m.id); };
@@ -163,14 +191,15 @@ window.MENU = (function(){
     });
   }
   function labelOf(id){
-    return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors', m1:'Mission 1 — Loops',
-             m2:'Mission 2 — Choices', m3:'Mission 3 — Functions'})[id]||id;
+    return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors',
+             flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
+             m2:'Mission 3 — Choices', m3:'Mission 4 — Functions'})[id]||id;
   }
 
   /* the landing: a name and one button */
   function start(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -327,7 +356,7 @@ window.MENU = (function(){
   }
   function open(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -366,7 +395,7 @@ window.FREE = (function(){
   let room=null;
   function enter(sv, missionId){
     room = sv || { id:null, name:'Workshop' };
-    COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
     if(window.MISSIONS) MISSIONS.stop();
     G.missionId=null; G.arenaTitle=t(room.name);
     /* the room is what opens the project, so say which one before building it */
@@ -378,6 +407,7 @@ window.FREE = (function(){
     const m = def ? MISSIONS.start(missionId) : null;
     group=new THREE.Group(); G.roomGroup.add(group);
     others.clear(); ghosts.clear(); sent.clear(); fullAt=0;
+    if(window.OWN) OWN.clear();
     if(room.id) CHAT.show(); else CHAT.hide();
     if(room.id) NET.connect(room.id, {
       players:list=>paint(list),
@@ -423,9 +453,10 @@ window.FREE = (function(){
         g.add(tag(p.display));
         g.position.set(p.x,0,p.z); g.rotation.y=yaw;
         group.add(g);
-        o={ g, char:null, model:null, tx:p.x, tz:p.z, tyaw:yaw, speed:0 };
+        o={ g, char:null, model:null, tx:p.x, tz:p.z, tyaw:yaw, speed:0, name:p.display };
         others.set(p.id,o);
       }
+      o.name=p.display;                 // their objects are labelled from this
       if(p.char && o.char!==p.char){
         o.char=p.char;
         AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m; o.g.add(m); })
@@ -436,7 +467,7 @@ window.FREE = (function(){
     for(const [id,o] of others) if(!seen.has(id)){ group.remove(o.g); others.delete(id); }
     // whoever has left the room takes their objects with them
     for(const [owner,mine] of ghosts) if(!seen.has(owner)){
-      for(const [,gh] of mine) group.remove(gh.g);
+      for(const [,gh] of mine){ group.remove(gh.g); if(gh.plate) group.remove(gh.plate); }
       ghosts.delete(owner);
     }
   }
@@ -450,7 +481,8 @@ window.FREE = (function(){
     if(!group || !m || m.from==null || !window.VM) return;
     let mine=ghosts.get(m.from);
     if(!mine){ mine=new Map(); ghosts.set(m.from,mine); }
-    const drop=id=>{ const gh=mine.get(id); if(gh){ group.remove(gh.g); mine.delete(id); } };
+    const drop=id=>{ const gh=mine.get(id);
+      if(gh){ group.remove(gh.g); if(gh.plate) group.remove(gh.plate); mine.delete(id); } };
     if(m.full){
       const keep=new Set((m.set||[]).map(o=>o.i));
       for(const id of [...mine.keys()]) if(!keep.has(id)) drop(id);
@@ -460,13 +492,15 @@ window.FREE = (function(){
       const look=o.s+'|'+o.c+'|'+o.sz;
       let gh=mine.get(o.i);
       if(!gh || gh.look!==look){                    // a new object, or a new costume
-        if(gh) group.remove(gh.g);
+        if(gh){ group.remove(gh.g); if(gh.plate) group.remove(gh.plate); }
         const g=VM.ghostMesh({ shape:o.s, colour:o.c, size:o.sz });
         g.position.set(o.x,o.y,o.z);
         g.rotation.set(o.tl*Math.PI/180, o.d*Math.PI/180, 0);
         group.add(g);
-        gh={ g, look }; mine.set(o.i,gh);
+        gh={ g, look, sz:o.sz||1, plate:null, named:null }; mine.set(o.i,gh);
       }
+      gh.sz=o.sz||1;
+      gh.owner=m.from;
       gh.tx=o.x; gh.ty=o.y; gh.tz=o.z; gh.tdir=o.d; gh.ttilt=o.tl;
       gh.g.visible = o.v!==0;
     });
@@ -474,7 +508,13 @@ window.FREE = (function(){
 
   /* Ours, outwards. Only what actually changed goes on the wire — a room full
      of objects standing still costs nothing — with a full picture every few
-     seconds so a dropped message cannot leave somebody's room wrong forever. */
+     seconds so a dropped message cannot leave somebody's room wrong forever.
+
+     This runs even when the world is frozen — typing in the chat, the pause
+     menu, the instructions panel. Scripts keep stepping while you type, and
+     a mission you have just walked out of is still the picture everybody
+     else holds of you until you say otherwise: freeze the sharing and the
+     room hands your old mission's objects to the next person who joins. */
   const stamp = a => [a.shape,a.colour,a.x.toFixed(2),a.y.toFixed(2),a.z.toFixed(2),
                       Math.round(a.dir),Math.round(a.tilt),(a.size||1).toFixed(2),
                       a.visible?1:0].join('|');
@@ -521,7 +561,18 @@ window.FREE = (function(){
       if(o.model) AVATAR.animate(o.model, dt,
         o.speed>3.2 ? 'sprint' : o.speed>0.35 ? 'walk' : 'idle');
     }
-    for(const [,mine] of ghosts) for(const [,gh] of mine){
+    /* Their objects wear their name.  Four people on the same mission means
+       four identical balls on one floor, and the only thing telling them
+       apart is this — so it is placed here rather than parented to the
+       object, which turns and tilts and would take the label with it. */
+    for(const [owner,mine] of ghosts) for(const [,gh] of mine){
+      const who=nameOf(owner);
+      if(gh.named!==who){
+        if(gh.plate) group.remove(gh.plate);
+        gh.plate = window.OWN ? OWN.plate(who, OWN.THEIRS) : null;
+        if(gh.plate) group.add(gh.plate);
+        gh.named=who;
+      }
       const p=gh.g.position;
       if(Math.hypot(gh.tx-p.x, gh.ty-p.y, gh.tz-p.z) > 12){
         p.set(gh.tx,gh.ty,gh.tz);
@@ -532,8 +583,17 @@ window.FREE = (function(){
       let d=want-gh.g.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d));
       gh.g.rotation.y += d*k;
       gh.g.rotation.x = gh.ttilt*Math.PI/180;
+      if(gh.plate){
+        const sz=Math.max(0.6, gh.sz||1);
+        gh.plate.position.set(p.x, p.y + sz*0.6 + 0.95, p.z);
+        gh.plate.visible = gh.g.visible &&
+          (!window.OWN || OWN.dist(p.x,p.z) < OWN.NEAR);
+      }
     }
   }
+  /* a name may land after the objects it belongs to, so this is asked every
+     frame rather than baked in when the object first appears */
+  const nameOf = id => { const o=others.get(id); return (o && o.name) || t('Classmate'); };
 
   let last=0;
   function tick(dt){
@@ -543,11 +603,10 @@ window.FREE = (function(){
     const now=performance.now();
     if(now-last<90) return;
     last=now; NET.pos(+G.pos.x.toFixed(2), +G.pos.z.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
-    shareObjects();
   }
   /* move to another mission without leaving the room or the people in it */
   function go(missionId){ enter(room, missionId); }
-  return { enter, go, tick, get count(){ return others.size; } };
+  return { enter, go, tick, share:shareObjects, get count(){ return others.size; } };
 })();
 
 /* =====================================================================

@@ -151,5 +151,7 @@ window.COACH = (function(){
   }
 
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  return { start, stop, tick, get running(){ return !!steps && !done; } };
+  return { start, stop, tick, get running(){ return !!steps && !done; },
+           /* so the ownership marks can stand aside for the louder pointer */
+           get pointingAt(){ return beacon ? beacon.a : null; } };
 })();

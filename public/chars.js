@@ -59,9 +59,25 @@ window.CHARS = (function(){
     m.position.y=-0.92;                         // stand them on the middle of the frame
     v.turntable.add(m); v.current=m;
     AVATAR.animate(m, 0, 'idle');
+    label(id);
+  }
+  /* which tile wears the tick */
+  function mark(id){
+    document.querySelectorAll('#charGrid .chrtile').forEach(x=>{
+      const on=x.dataset.c===id;
+      x.classList.toggle('on', on);
+      x.setAttribute('aria-pressed', on?'true':'false');
+    });
+  }
+  /* the name under the turntable: whose it is, and whether they are yours yet */
+  function label(id){
+    const nm=document.querySelector('#charName'); if(!nm) return;
     const def=AVATAR.CHARS.find(c=>c.id===id);
-    const nm=document.querySelector('#charName');
-    if(nm) nm.textContent = def ? t(def.name) : '';
+    const mine=id===AVATAR.chosen;
+    nm.classList.toggle('sel', mine);
+    nm.innerHTML = def
+      ? `${t(def.name)}<span class="tag">${mine?t('✓ YOUR CHARACTER'):t('click to choose')}</span>`
+      : '';
   }
   function loop(now){
     raf=requestAnimationFrame(loop);
@@ -88,8 +104,10 @@ window.CHARS = (function(){
 
     grid.innerHTML=AVATAR.CHARS.map((c,i)=>{
       const lock=!isUnlocked(i);
-      return `<button class="chrtile${c.id===AVATAR.chosen?' on':''}${lock?' lock':''}"
-        data-c="${c.id}" ${lock?'disabled':''} title="${lock?t('Locked'):c.name}">
+      const on=c.id===AVATAR.chosen;
+      return `<button class="chrtile${on?' on':''}${lock?' lock':''}"
+        data-c="${c.id}" ${lock?'disabled':''} aria-pressed="${on?'true':'false'}"
+        title="${lock?t('Locked'):c.name}">
         <img src="${c.preview}" alt="" loading="lazy">
         <span class="chrname">${lock?'???':c.name}</span></button>`;
     }).join('');
@@ -99,9 +117,13 @@ window.CHARS = (function(){
       b.onmouseenter=()=>preview(b.dataset.c);
       b.onfocus=()=>preview(b.dataset.c);
       b.onclick=()=>{
-        AVATAR.pick(b.dataset.c);
-        grid.querySelectorAll('.chrtile').forEach(x=>x.classList.toggle('on',x===b));
-        preview(b.dataset.c);
+        const id=b.dataset.c;
+        AVATAR.pick(id);
+        // pick() saves progress, which re-renders this grid out from under us —
+        // so mark by id, not by node, or we clear the tile we just lit up
+        mark(id);
+        label(id);                     // the tick and the name agree straight away
+        preview(id);
         if(window.beep) beep('pop');
       };
     });

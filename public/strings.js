@@ -10,6 +10,7 @@ window.ES = {
   'Jump':'Saltar','THE FIELD':'EL CAMPO','PLAY ▶':'JUGAR ▶',
   'START':'EMPEZAR','THINK. CODE. CREATE.':'PIENSA. PROGRAMA. CREA.','Learn to code by getting out alive.':'Aprende a programar saliendo con vida.',
   'CHOOSE YOUR CHARACTER':'ELIGE TU PERSONAJE','Continue ▶':'Continuar ▶','Character':'Personaje',
+  '✓ YOUR CHARACTER':'✓ TU PERSONAJE','click to choose':'haz clic para elegir',
   'Locked':'Bloqueado','Everyone is unlocked. Pick your favourite.':'Todos desbloqueados. Elige tu favorito.',
   '{a} of {b} unlocked. Pick who you play as.':
     '{a} de {b} desbloqueados. Elige a quién juegas.',
@@ -18,6 +19,9 @@ window.ES = {
     'Algo te sigue. Escribe los movimientos que te sacan, rápido.',
   'Green door = out. Red = it.':'Puerta verde = salida. Rojo = él.',
   'Escape {n} — {name}':'Escape {n} — {name}','ESCAPE {n}':'ESCAPE {n}',
+  /* the zombie countdown */
+  'IT STARTS WALKING IN':'EMPIEZA A CAMINAR EN','CLOSING IN':'SE ACERCA',
+  'IT IS ALMOST ON YOU':'CASI TE ALCANZA','RUN FOR IT':'¡CORRE YA!',
   'Round the Corner':'A la Vuelta','The Long Hall':'El Pasillo Largo',
   'Zig Zag':'Zigzag','Switchback':'Vuelta y Vuelta','The Long Way Round':'El Camino Largo',
   'Order':'Orden','Loops and turns':'Bucles y giros','All of it':'Todo junto',
@@ -75,7 +79,7 @@ window.ES = {
   'open the code console':'abrir la consola de código',
   'write code':'escribir código',
   /* --- mission 1 --- */
-  'Mission 1 — Loops':'Misión 1 — Bucles','The Loop Chamber':'La Cámara del Bucle',
+  'Mission 2 — Loops':'Misión 2 — Bucles','The Loop Chamber':'La Cámara del Bucle',
   'MISSION 1':'MISIÓN 1',
   'Program one shot':'Programa un disparo','Clear three drones':'Elimina tres drones',
   'Clear five drones':'Elimina cinco drones','Beat THE LOOPER':'Vence a EL REPETIDOR',
@@ -100,8 +104,8 @@ window.ES = {
   '{n}: “Not enough! My shield grows back!”':'{n}: “¡No es suficiente! ¡Mi escudo se regenera!”',
   'THE LOOPER':'EL REPETIDOR','PRISM':'PRISMA','OFF-BY-ONE':'EL DESCUADRADO',
   /* --- missions --- */
-  'Mission 1 — Loops':'Misión 1 — Bucles','Mission 2 — Choices':'Misión 2 — Decisiones',
-  'Mission 3 — Functions':'Misión 3 — Funciones','COMPLETE':'COMPLETADA',
+  'Mission 2 — Loops':'Misión 2 — Bucles','Mission 3 — Choices':'Misión 3 — Decisiones',
+  'Mission 4 — Functions':'Misión 4 — Funciones','COMPLETE':'COMPLETADA',
   'The Loop Chamber':'La Cámara del Bucle','The Prism Vault':'La Bóveda del Prisma',
   'The Off-By-One Foundry':'La Fundición del Descuadrado',
   'Break a red shield':'Rompe un escudo rojo','Break both colours':'Rompe los dos colores',
@@ -525,6 +529,68 @@ window.ES = {
     'Si la cámara regresa después de girarla, ¿qué le falta al programa?',
   'More turn() blocks':'Más bloques turn()','hold() blocks to keep it parked in place':'Bloques hold() para mantenerla fija en su lugar',
   'A repeat around nothing':'Un repeat alrededor de nada','Nothing — it corrects itself':'Nada — se corrige sola',
+
+  /* ---------- whose object is whose ---------- */
+  'YOURS':'TUYO','You':'Tú','Classmate':'Compañero',
+
+  /* ---------- the mission grid, in groups ---------- */
+  'WARM UP':'CALENTAMIENTO','No pressure, nothing to unlock.':'Sin presión, nada que desbloquear.',
+  'THE MISSIONS':'LAS MISIONES',
+  'One idea each, in order — unless the card says otherwise.':
+    'Una idea cada una, en orden — salvo que la tarjeta diga otra cosa.',
+  'YOUR OWN WORLD':'TU PROPIO MUNDO','Every block, no goal but yours.':'Todos los bloques, sin más meta que la tuya.',
+  'PLAY ANY TIME ▶':'JUEGA CUANDO QUIERAS ▶','FLY IT AGAIN ▶':'VUÉLVELO A VOLAR ▶',
+
+  /* ---------- spaceflight ---------- */
+  'Mission 1 — Space Explorer':'Misión 1 — Explorador Espacial',
+  'Nine lanes, a wall of rock every beat. Motion, timing, loops — and a gunnery range between runs.':
+    'Nueve carriles y un muro de roca en cada tiempo. Movimiento, ritmo, bucles — y un campo de tiro entre vuelos.',
+  'Leg {n} — {name}':'Tramo {n} — {name}','LEG {n}':'TRAMO {n}',
+  'BEAT':'TIEMPO','col':'col','row':'fil','TARGETS':'BLANCOS','goTo':'irA',
+  'Launch ▶':'Despegar ▶','To the range ▶':'Al campo de tiro ▶',
+  /* the blocks */
+  'Climb one lane':'Sube un carril','Drop one lane':'Baja un carril',
+  'Slide one lane left':'Muévete un carril a la izquierda',
+  'Slide one lane right':'Muévete un carril a la derecha',
+  'Hold this lane for one beat':'Mantén el carril un tiempo',
+  'Shoot straight ahead':'Dispara al frente',
+  'Jump to one exact lane, from anywhere':'Salta a un carril exacto, desde donde sea',
+  /* the legs */
+  'First Contact':'Primer Contacto','Gunnery Range':'Campo de Tiro','The Rhythm':'El Ritmo',
+  'Turret Drill':'Práctica de Torreta','Deep Field':'Campo Profundo','Jump Drive':'Salto Hiperespacial',
+  'One block, one beat':'Un bloque, un tiempo','The same nine lanes':'Los mismos nueve carriles',
+  'A pattern of rock is a repeat':'Un patrón de roca es un repeat',
+  'A row of targets is a loop':'Una fila de blancos es un bucle',
+  'A loop inside a loop':'Un bucle dentro de un bucle',
+  'Absolute beats relative':'Lo absoluto gana a lo relativo',
+  /* what each leg asks for */
+  'Nine lanes, and a wall of rock every beat. <b>up() down() left() right()</b> move you one lane; <b>coast()</b> spends a beat staying put. Fly the gaps.':
+    'Nueve carriles y un muro de roca en cada tiempo. <b>up() down() left() right()</b> te mueven un carril; <b>coast()</b> gasta un tiempo sin moverte. Vuela por los huecos.',
+  'Four targets, twelve blocks. Move into a lane, then <b>fire()</b>. Nothing is coming at you — take your time and count the moves.':
+    'Cuatro blancos, doce bloques. Muévete a un carril y luego <b>fire()</b>. Nada viene hacia ti — tómate tu tiempo y cuenta los movimientos.',
+  'Twelve beats, <b>six blocks</b>. Writing it out flat needs twelve — so find the bit that repeats and put a <b>repeat</b> round it.':
+    'Doce tiempos, <b>seis bloques</b>. Escrito plano necesita doce — encuentra la parte que se repite y ponle un <b>repeat</b>.',
+  'Three targets across the bottom and only <b>four blocks</b>. Shooting them one at a time is five on its own — so <b>repeat</b> the pair instead.':
+    'Tres blancos abajo y solo <b>cuatro bloques</b>. Dispararlos uno a uno son cinco — mejor <b>repite</b> la pareja.',
+  'Eighteen beats, <b>six blocks</b>. One repeat round the whole cycle is seven and will not fit — put a <b>repeat inside a repeat</b> and it comes down to six.':
+    'Dieciocho tiempos, <b>seis bloques</b>. Un solo repeat alrededor del ciclo son siete y no cabe — pon un <b>repeat dentro de un repeat</b> y baja a seis.',
+  'One gap per beat and it is always in a <b>corner</b>. A single step cannot cross the field in one beat — <b>goTo</b> can go straight to a lane. Four corners, three times over, <b>six blocks</b>.':
+    'Un hueco por tiempo y siempre en una <b>esquina</b>. Un solo paso no cruza el campo en un tiempo — <b>goTo</b> va directo a un carril. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
+  /* what happens */
+  'Engines lit. {n} beats ahead.':'Motores encendidos. {n} tiempos por delante.',
+  '💥 Rock on beat {n}, lane col {c} row {r}. Look at beat {n} on the chart and put yourself somewhere open.':
+    '💥 Roca en el tiempo {n}, carril col {c} fil {r}. Mira el tiempo {n} en la carta y ponte en un hueco.',
+  '✅ Field flown — next leg…':'✅ Campo superado — siguiente tramo…',
+  '🎯 Range clear — next leg…':'🎯 Campo de tiro limpio — siguiente tramo…',
+  'That lane was empty — nothing to hit.':'Ese carril estaba vacío — no había nada que darle.',
+  'Program finished with {n} target(s) still standing.':'El programa terminó con {n} blanco(s) en pie.',
+  'THE FIELD IS BEHIND YOU':'EL CAMPO QUEDÓ ATRÁS',
+  'Nine lanes, a fixed clock, and a program that says not just what to do but when to do it. That is motion — relative, absolute, repeated and timed.':
+    'Nueve carriles, un reloj fijo y un programa que dice no solo qué hacer sino cuándo. Eso es movimiento — relativo, absoluto, repetido y a tiempo.',
+  'Legs flown':'Tramos volados','Blocks on the last one':'Bloques en el último',
+  '<b>goTo</b> is not in this mission yet.':'<b>goTo</b> aún no está en esta misión.',
+  '<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.':
+    '<b>goTo</b> necesita una columna y una fila, como <b>goto 1,2</b>.',
 
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
