@@ -625,6 +625,29 @@ window.ES = {
   'E — go in':'E — entrar',
   'JUMP TO A MISSION':'SALTAR A UNA MISIÓN','Back to the planet':'Volver al planeta',
 
+  /* ---------- the walkthroughs ---------- */
+  'Welcome to your planet. Hold <b>W</b> to walk forward.':
+    'Bienvenido a tu planeta. Mantén <b>W</b> para caminar.',
+  'Move the <b>mouse</b> to look around, and <b>A</b> and <b>D</b> to step sideways.':
+    'Mueve el <b>ratón</b> para mirar, y <b>A</b> y <b>D</b> para moverte de lado.',
+  'That building up the hill is <b>Mission Control</b>. Every mission is inside it. Walk to the door.':
+    'Ese edificio de la colina es <b>Control de Misiones</b>. Todas las misiones están dentro. Ve a la puerta.',
+  'Straight through the doorway.':'Cruza la entrada.',
+  'These are the missions, one station each. Look straight at one — the name comes up under your crosshair.':
+    'Estas son las misiones, una estación cada una. Mira una de frente — el nombre aparece bajo tu mira.',
+  'Now press <b>E</b> to go in. That is the whole game: walk to a thing, press E.':
+    'Ahora pulsa <b>E</b> para entrar. Ese es todo el juego: acércate a algo y pulsa E.',
+  'Nothing moves while this console is open. Look at the radar: the big square is the wall you meet on beat one, and the ring on it is YOU — sitting in a lane with a rock in it. Climb out of it: click <b>up()</b>. One block is one beat.':
+    'Nada se mueve mientras esta consola esté abierta. Mira el radar: el cuadro grande es el muro del tiempo uno, y el anillo eres TÚ — en un carril con una roca. Sal de ahí: pulsa <b>up()</b>. Un bloque es un tiempo.',
+  'The next wall is clear where you have just moved to, so spend that beat standing still — click <b>coast()</b>.':
+    'El siguiente muro está despejado donde acabas de subir, así que gasta ese tiempo quieto — pulsa <b>coast()</b>.',
+  'Eight beats, eight blocks. Read the radar and fill the rest in yourself.':
+    'Ocho tiempos, ocho bloques. Lee el radar y completa el resto tú.',
+  'Press <b>RUN</b> and watch it fly. Hit a rock and the console comes straight back — and you can press <b>C</b> to freeze the field whenever you like.':
+    'Pulsa <b>RUN</b> y míralo volar. Si chocas, la consola vuelve enseguida — y puedes pulsar <b>C</b> para congelar el campo cuando quieras.',
+  '💥 Rock on beat {n} — you were in col {c}, row {r}. The radar shows beat {n}: put yourself somewhere open.':
+    '💥 Roca en el tiempo {n} — estabas en col {c}, fil {r}. El radar muestra el tiempo {n}: ponte en un hueco.',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',

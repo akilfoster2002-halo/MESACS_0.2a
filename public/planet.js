@@ -71,6 +71,11 @@ window.PLANET = (function(){
   ];
 
   let on=false, server=null, others=new Map(), crowd=null, spin=0;
+  /* Where you were standing when you last left. Going into a mission, the
+     Workshop or the Wardrobe and coming back should put you back at the door
+     you went in by — being teleported to the landing site every time makes
+     the planet feel like a menu again, which is the one thing it is not. */
+  let back=null;
 
   /* ---------------------------------------------------------------- build */
   function enter(sv){
@@ -97,10 +102,16 @@ window.PLANET = (function(){
     BUILDINGS.forEach(build);
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
-    /* You land at the front of the world looking up the hill at the doors.
-       Forward here is (-sin yaw, 0, -cos yaw), so yaw 0 faces -z — which is
-       where Mission Control stands. */
-    G.pos.set(0, dome(0,44)+EYE, 44); G.yaw=0; G.pitch=-0.04;
+    /* Back where you left, if you have been here before. Otherwise you land
+       at the front of the world looking up the hill at the doors — forward
+       here is (-sin yaw, 0, -cos yaw), so yaw 0 faces -z, which is where
+       Mission Control stands. */
+    if(back){
+      G.pos.set(back.x, ground(back.x, back.z)+EYE, back.z);
+      G.yaw=back.yaw; G.pitch=back.pitch;
+    } else {
+      G.pos.set(0, dome(0,44)+EYE, 44); G.yaw=0; G.pitch=-0.04;
+    }
     if(window.AVATAR) AVATAR.attach();
     G.scene.updateMatrixWorld(true);
 
@@ -109,6 +120,7 @@ window.PLANET = (function(){
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
     hud();
     connect();
+    if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
     if(window.updateLeaveBtn) updateLeaveBtn();
     if(window.updateCodeBtn) updateCodeBtn();
     lockPointer(document.querySelector('#view'));
@@ -357,6 +369,7 @@ window.PLANET = (function(){
   function tick(dt){
     if(!on) return;
     spin+=dt;
+    tourTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
       const dx=o.tx-o.g.position.x, dz=o.tz-o.g.position.z;
@@ -380,6 +393,58 @@ window.PLANET = (function(){
     }
   }
 
+  /* ------------------------------------------------------------ the tour
+
+     Nobody is born knowing that W walks and E opens a door. The first time
+     you land, the planet walks you through it: hold W, look with the mouse,
+     go to that building, go in, look at a station, press E. Six steps, each
+     one checked from the world rather than from what the coach thinks it
+     just asked for — so a child who runs ahead is never told to do the thing
+     they have already done, and one who ignores it entirely is never blocked.
+
+     It runs once. After that the planet is yours, and the tour is on the
+     pause menu if anybody wants it again. */
+  const TOUR_KEY='dq_toured';
+  function toured(){ try{ return !!localStorage.getItem(TOUR_KEY); }catch(e){ return false; } }
+  function markToured(){ try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){} }
+
+  const MC = () => BUILDINGS[0];
+  const doorOf = b => ({ x:b.x, y:dome(b.x,b.z)+3, z:b.z+b.d/2+3, size:3.5 });
+  const insideOf = b => Math.abs(G.pos.x-b.x)<b.w/2 && Math.abs(G.pos.z-b.z)<b.d/2;
+  const nearTo = (p,d) => Math.hypot(G.pos.x-p.x, G.pos.z-p.z) < d;
+
+  function tour(){
+    if(!window.COACH) return;
+    const spawn={x:G.pos.x, z:G.pos.z};
+    const yaw0=G.yaw;
+    const first=()=>{
+      // where the leftmost station stands, so the beacon can point at it
+      const b=MC(), span=b.w-8;
+      return { x:b.x-span/2, y:dome(b.x,b.z)+2.5, z:b.z-b.d/2+3.4, size:2 };
+    };
+    COACH.start([
+      { say:'Welcome to your planet. Hold <b>W</b> to walk forward.',
+        done:()=>Math.hypot(G.pos.x-spawn.x, G.pos.z-spawn.z) > 9 },
+      { say:'Move the <b>mouse</b> to look around, and <b>A</b> and <b>D</b> to step sideways.',
+        done:()=>Math.abs(((G.yaw-yaw0+Math.PI*3)%(Math.PI*2))-Math.PI) > 0.5 },
+      { say:'That building up the hill is <b>Mission Control</b>. Every mission is inside it. Walk to the door.',
+        at:()=>doorOf(MC()),
+        done:()=>nearTo(doorOf(MC()), 14) },
+      { say:'Straight through the doorway.',
+        at:()=>doorOf(MC()),
+        done:()=>insideOf(MC()) },
+      { say:'These are the missions, one station each. Look straight at one — the name comes up under your crosshair.',
+        at:first,
+        done:()=>!!(G.focused && G.focused.userData && G.focused.userData.enter) },
+      { say:'Now press <b>E</b> to go in. That is the whole game: walk to a thing, press E.',
+        at:first,
+        done:()=>!on }        // you left the planet, which means it worked
+    ], {});
+  }
+  /* the tour is a walkthrough of the world, so it ticks with the world */
+  function tourTick(dt){ if(window.COACH) COACH.tick(dt); }
+  function retour(){ COACH.stop(); tour(); }
+
   /* ---------------------------------------------------------------- HUD */
   function hud(){
     const n=document.querySelector('#missionName');
@@ -393,14 +458,19 @@ window.PLANET = (function(){
   }
 
   function leave(){
+    // remember the spot before anything else has a chance to move you
+    if(on) back={ x:G.pos.x, z:G.pos.z, yaw:G.yaw, pitch:G.pitch };
     on=false;
+    if(window.COACH) COACH.tick(0);      // let the last step notice it is done
     if(window.CHAT) CHAT.hide();
     const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
     others.clear(); crowd=null; pads=[];
   }
   function stop(){ leave(); }
 
-  return { enter, tick, use, stop, leave, ground, dome, STATIONS, BUILDINGS,
+  return { enter, tick, use, stop, leave, ground, dome, tour:retour, STATIONS, BUILDINGS,
+           /* a fresh landing, for anyone who wants the front door again */
+           forget(){ back=null; },
            get active(){ return on; },
            get server(){ return server; } };
 })();

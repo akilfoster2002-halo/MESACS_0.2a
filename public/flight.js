@@ -352,7 +352,7 @@ window.FLIGHT = (function(){
         col:K.start.col, row:K.start.row,          // the lane it is heading for
         fromCol:K.start.col, fromRow:K.start.row,  // and the one it is leaving
         ease:1,                                    // 0..1 between the two
-        beat:0, elapsed:0, rolling:false, done:false, crashed:false,
+        beat:0, elapsed:0, rolling:false, done:false, crashed:false, taught:false,
         steps:null, at:0, shipZ:0, shipY:laneY(K.start.row), left:0,
         /* How many times you went back to the console. The first program is
            free — every stop after it is one you are trying to avoid, and a
@@ -473,7 +473,15 @@ window.FLIGHT = (function(){
        the radar you plan against is the one from the beat you stopped at
        rather than whatever it said when the leg began. */
     const open=!!(window.CODE && CODE.isOpen());
-    if(open!==L.wasOpen){ L.wasOpen=open; if(open) guide(); }
+    if(open!==L.wasOpen){
+      L.wasOpen=open;
+      if(open){
+        guide();
+        // the walkthrough needs the console on screen to point into it
+        if(L.idx===0 && !walked() && !L.taught){ L.taught=true; walkFirstLeg(); }
+      }
+    }
+    if(window.COACH) COACH.tick(dt);
     if(L.rolling && !L.done && !L.crashed && awake()){
       const B=beatMs()/1000;
       L.elapsed += dt;
@@ -632,9 +640,17 @@ window.FLIGHT = (function(){
     shake();
     if(window.beep) beep('bad');
     // the one fact worth knowing: WHICH beat, so the chart can be re-read
-    brief(t('💥 Rock on beat {n}, lane col {c} row {r}. Look at beat {n} on the chart and put yourself somewhere open.',
+    brief(t('💥 Rock on beat {n} — you were in col {c}, row {r}. The radar shows beat {n}: put yourself somewhere open.',
             {n:b, c:L.col, r:L.row}));
-    setTimeout(()=>{ if(L && L.crashed) reset(); }, 1500);
+    /* Back to the line, and the console opens itself. Crashing means the
+       program was wrong, so the console is exactly where you need to be —
+       and being dropped back on the start line with nothing happening is how
+       a nine-year-old concludes the game is over. */
+    setTimeout(()=>{
+      if(!L || !L.crashed) return;
+      reset();
+      if(window.CODE && !CODE.isOpen()) CODE.show();
+    }, 1600);
   }
   function reset(){
     if(!L) return;
@@ -648,6 +664,8 @@ window.FLIGHT = (function(){
     L.done=true; L.rolling=false; busy=false;
     CODE.hideTape(); CODE.close(); CODE.setGuide(null);
     if(window.beep) beep('star');
+    if(L.idx===0) markWalked();
+    if(window.COACH) COACH.stop();
     const last = L.idx+1 >= STAGES.length;
     if(!last){
       brief(L.kind==='gun' ? t('🎯 Range clear — next leg…') : t('✅ Field flown — next leg…'));
@@ -667,6 +685,48 @@ window.FLIGHT = (function(){
                   stop(); if(window.MENU) MENU.open(); }
     });
     G.running=false;
+  }
+
+  /* ------------------------------------------------- the first leg, walked
+
+     The teach card explains the idea; it does not get anybody's hands on the
+     controls. So leg one is walked: open the console, click a block, watch
+     the budget, press RUN. Every step is checked from the world — from the
+     script that actually exists and the console that is actually open — so
+     working ahead of it is fine and skipping it is one click.
+
+     Only the first leg, and only until you have flown it once. By leg two
+     you know what a beat is. */
+  const WALKED_KEY='dq_flight_walked';
+  function walked(){ try{ return !!localStorage.getItem(WALKED_KEY); }catch(e){ return false; } }
+  function markWalked(){ try{ localStorage.setItem(WALKED_KEY,'1'); }catch(e){} }
+
+  const scriptLen = () => (window.CODE && CODE.script) ? CODE.countBlocks() : 0;
+  const hasOp = op => !!(window.CODE && CODE.script &&
+    CODE.script.some(b=>b.type===op));
+
+  function walkFirstLeg(){
+    if(!window.COACH) return;
+    /* Every step needs a gate of its OWN. The coach stands just past the last
+       step that has already happened, which is what stops it nagging — but it
+       means two steps sharing a condition collapse into one, and the first
+       draft of this lost the radar explanation the instant any block was
+       added. One step, one thing you have to do. */
+    COACH.start([
+      /* One step, not two. Explaining the radar and then asking for the first
+         click were separate steps twice over, and both times the first click
+         satisfied both gates at once and the radar explanation was never
+         seen. The first thing anybody does here is press a block, so the
+         first step has to be the one that says why. */
+      { say:'Nothing moves while this console is open. Look at the radar: the big square is the wall you meet on beat one, and the ring on it is YOU — sitting in a lane with a rock in it. Climb out of it: click <b>up()</b>. One block is one beat.',
+        sel:'#conPalette [data-add="flyUp"]', done:()=>hasOp('flyUp') },
+      { say:'The next wall is clear where you have just moved to, so spend that beat standing still — click <b>coast()</b>.',
+        sel:'#conPalette [data-add="coast"]', done:()=>hasOp('coast') },
+      { say:'Eight beats, eight blocks. Read the radar and fill the rest in yourself.',
+        sel:'#conBudget', done:()=>scriptLen()>=6 },
+      { say:'Press <b>RUN</b> and watch it fly. Hit a rock and the console comes straight back — and you can press <b>C</b> to freeze the field whenever you like.',
+        sel:'#conRun', done:()=>!!(L && L.rolling) }
+    ], {});
   }
 
   /* --------------------------------------------------------------- HUD */
@@ -805,6 +865,7 @@ window.FLIGHT = (function(){
   }
 
   function stop(){
+    if(window.COACH) COACH.stop();
     L=null; busy=false; rocks=[]; bolts=[];
     if(ship && ship.parent) ship.parent.remove(ship);
     ship=null;

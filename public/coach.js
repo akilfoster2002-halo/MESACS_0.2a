@@ -88,8 +88,12 @@ window.COACH = (function(){
       r.style.display='none';
       say(s.say, false, null);
     }
-    // the world steps get a marker on the object itself
-    if(s.world && ctx.actor) beaconOn(ctx.actor); else dropBeacon();
+    /* World steps get a marker on the thing itself. A step can name its own
+       target with at() — the planet tour walks you to a building and then to
+       a station, which is two different places in one walkthrough, and the
+       beacon has to follow. Anything with x/y/z will do. */
+    const aim = s.at ? s.at() : (s.world ? ctx.actor : null);
+    if(aim) beaconOn(aim); else dropBeacon();
   }
   function say(text, finished, near){
     const p=tip();
@@ -97,7 +101,7 @@ window.COACH = (function(){
     p.className = finished ? 'ok' : '';
     p.innerHTML = `<div class="ctstep">${finished? t('DONE')
         : t('STEP {a} OF {b}',{a:n,b:steps.length})}</div>
-      <div class="cttext">${esc(text)}</div>
+      <div class="cttext">${bold(esc(text))}</div>
       ${finished? '' : `<button class="ctskip" id="coachSkip">${t('skip the walkthrough')}</button>`}`;
     const sk=document.querySelector('#coachSkip');
     if(sk) sk.onclick=()=>stop();
@@ -119,11 +123,15 @@ window.COACH = (function(){
   /* -------------------------------------------------------- the beacon */
   function beaconOn(a){
     if(beacon && beacon.a===a) return;
+    // a fresh {x,y,z} every frame is a different object but the same place
+    if(beacon && beacon.a && a && beacon.a.x===a.x && beacon.a.z===a.z
+       && beacon.a.y===a.y){ beacon.a=a; return; }
     dropBeacon();
     if(!a || typeof G==='undefined' || !G.roomGroup) return;
     const g=new THREE.Group();
     const mat=()=>new THREE.MeshBasicMaterial({ color:0xffe9a8, transparent:true, opacity:.9 });
-    const halo=new THREE.Mesh(new THREE.TorusGeometry(1.6,0.075,8,44), mat());
+    const rad=Math.max(1.2, (a.size||1)*1.6);
+    const halo=new THREE.Mesh(new THREE.TorusGeometry(rad,0.075*Math.max(1,rad/1.6),8,44), mat());
     halo.rotation.x=-Math.PI/2; halo.position.y=0.05;
     const arrow=new THREE.Mesh(new THREE.ConeGeometry(0.36,0.85,14), mat());
     arrow.rotation.x=Math.PI;
@@ -151,6 +159,11 @@ window.COACH = (function(){
   }
 
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  /* Everything a step says is escaped, because a walkthrough should never be
+     a way to put markup on the screen. But the ONE key you are being told to
+     press wants to stand out, so <b> is let back through afterwards and
+     nothing else is. */
+  const bold=s=>s.replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>');
   return { start, stop, tick, get running(){ return !!steps && !done; },
            /* so the ownership marks can stand aside for the louder pointer */
            get pointingAt(){ return beacon ? beacon.a : null; } };

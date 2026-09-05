@@ -276,7 +276,8 @@ function updateCodeBtn(){
 }
 function updateLeaveBtn(){
   const b=$('#btnLeave'); if(!b) return;
-  b.classList.toggle('hidden', G.hudOwner==='desktop');
+  // nothing to leave when you are already home
+  b.classList.toggle('hidden', G.hudOwner==='desktop' || G.hudOwner==='planet');
 }
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
@@ -450,7 +451,13 @@ function wireInput(){
       else CHAT.focus();
       return;
     }
-    if((e.code==='KeyC'||e.code==='Tab') && G.running && !typingInField(e)
+    /* The flight runs with G.running off — it drives its own camera — so it
+       has to be its own reason for this key to work, exactly like the console
+       button. Without this, C is dead in the one mission whose whole mechanic
+       is pressing C. FLIGHT.busy is deliberately NOT in the guard list below:
+       freezing the field MID-run is the point of it. */
+    const flyingNow = !!(window.FLIGHT && FLIGHT.active);
+    if((e.code==='KeyC'||e.code==='Tab') && (G.running||flyingNow) && !typingInField(e)
        && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active
            || (window.FLIGHT && FLIGHT.active) || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
