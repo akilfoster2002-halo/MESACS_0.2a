@@ -801,6 +801,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .rw b{display:block;font-size:9.5px;letter-spacing:1.6px;color:#8ff0ff;margin-bottom:3px}
 .rw b small{color:var(--muted);letter-spacing:0}
 .rw.mid{opacity:.72} .rw.far{opacity:.45}
+/* solve a wall and the cards step forward — the movement is the feedback,
+   so you can see the problem change rather than having to re-read it */
+@keyframes radarStep{
+  from{ transform:translateX(16px) scale(.94); opacity:0 }
+  to  { transform:none; opacity:1 }
+}
+.radar.advance .rw{animation:radarStep .26s cubic-bezier(.2,.9,.3,1.2) both}
+.radar.advance .rw.mid{animation-delay:.03s}
+.radar.advance .rw.far{animation-delay:.06s}
+@media (prefers-reduced-motion:reduce){ .radar.advance .rw{animation:none} }
 .rgrid{display:grid;gap:2px}
 .rw.big .rgrid{grid-template-columns:repeat(3,19px);grid-auto-rows:19px}
 .rw.mid .rgrid{grid-template-columns:repeat(3,12px);grid-auto-rows:12px}
@@ -1170,35 +1180,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=139"></script>
-<script src="strings.js?v=139"></script>
-<script src="difficulty.js?v=139"></script>
-<script src="net.js?v=139"></script>
-<script src="avatar.js?v=139"></script>
-<script src="zombies.js?v=139"></script>
-<script src="building.js?v=139"></script>
-<script src="levels.js?v=139"></script>
-<script src="code.js?v=139"></script>
-<script src="combat.js?v=139"></script>
-<script src="puzzle.js?v=139"></script>
-<script src="nav.js?v=139"></script>
-<script src="tutorial.js?v=139"></script>
-<script src="race.js?v=139"></script>
-<script src="flight.js?v=139"></script>
-<script src="planet.js?v=139"></script>
-<script src="wallet.js?v=139"></script>
-<script src="shop.js?v=139"></script>
-<script src="library.js?v=139"></script>
-<script src="costumes.js?v=139"></script>
-<script src="missions.js?v=139"></script>
-<script src="coach.js?v=139"></script>
-<script src="owner.js?v=139"></script>
-<script src="blocks.js?v=139"></script>
-<script src="vm.js?v=139"></script>
-<script src="coder.js?v=139"></script>
-<script src="quiz.js?v=139"></script>
-<script src="chars.js?v=139"></script>
-<script src="menu.js?v=139"></script>
-<script src="game.js?v=139"></script>
+<script src="lib/three.classic.js?v=140"></script>
+<script src="strings.js?v=140"></script>
+<script src="difficulty.js?v=140"></script>
+<script src="net.js?v=140"></script>
+<script src="avatar.js?v=140"></script>
+<script src="zombies.js?v=140"></script>
+<script src="building.js?v=140"></script>
+<script src="levels.js?v=140"></script>
+<script src="code.js?v=140"></script>
+<script src="combat.js?v=140"></script>
+<script src="puzzle.js?v=140"></script>
+<script src="nav.js?v=140"></script>
+<script src="tutorial.js?v=140"></script>
+<script src="race.js?v=140"></script>
+<script src="flight.js?v=140"></script>
+<script src="planet.js?v=140"></script>
+<script src="wallet.js?v=140"></script>
+<script src="shop.js?v=140"></script>
+<script src="library.js?v=140"></script>
+<script src="costumes.js?v=140"></script>
+<script src="missions.js?v=140"></script>
+<script src="coach.js?v=140"></script>
+<script src="owner.js?v=140"></script>
+<script src="blocks.js?v=140"></script>
+<script src="vm.js?v=140"></script>
+<script src="coder.js?v=140"></script>
+<script src="quiz.js?v=140"></script>
+<script src="chars.js?v=140"></script>
+<script src="menu.js?v=140"></script>
+<script src="game.js?v=140"></script>
 </body>
 </html>

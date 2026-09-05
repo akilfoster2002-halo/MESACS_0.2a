@@ -592,7 +592,9 @@ window.ES = {
     '<b>goTo</b> necesita una columna y una fila, como <b>goto 1,2</b>.',
 
   /* ---------- radar, stops and the coordinate system ---------- */
-  'NEXT':'SIGUIENTE','CLEAR':'DESPEJADO','holding':'en espera',
+  'NEXT':'SIGUIENTE','NOW':'AHORA','CLEAR':'DESPEJADO','holding':'en espera',
+  '{a} of {b} walls done':'{a} de {b} muros resueltos',
+  'All clear — press RUN':'Todo despejado — pulsa RUN',
   '{s}s to impact':'{s}s para el impacto',
   'Stops':'Paradas','Stops on the last one':'Paradas en el último',
   'The Coordinate System':'El Sistema de Coordenadas',

@@ -376,7 +376,7 @@ window.FLIGHT = (function(){
         /* How many times you went back to the console. The first program is
            free — every stop after it is one you are trying to avoid, and a
            loop is what buys you the beats to avoid it. */
-        runs:0, wasOpen:false, radarKey:'' };
+        runs:0, wasOpen:false, radarKey:'', radarFocus:undefined };
 
     G.scene.add(starfield());                      // sky, not room: it never moves
     G.roomGroup.add(rails(Math.max(beats.length, 6)));
@@ -477,6 +477,33 @@ window.FLIGHT = (function(){
     if(s.name==='addX') c=clamp(c+(s.n|0), COLS);
     if(s.name==='addY') r=clamp(r+(s.n|0), ROWS);
     return {c,r};
+  }
+  /* The whole program against the whole field, from the start line. This is
+     what lets the radar sit on the wall you are ACTUALLY working on rather
+     than always on wall one: walls your program already clears are solved,
+     and the first one that is unwritten or hit is your next problem. */
+  function runProgram(){
+    const out=[];
+    let c=L.K.start.col, r=L.K.start.row, at=0;
+    const steps = (window.CODE && CODE.script && CODE.script.length)
+          ? CODE.compile(CODE.script) : [];
+    for(let w=1; w<=L.beats.length; w++){
+      let s=null;
+      while(at<steps.length){
+        const x=steps[at++];
+        if(x.name==='__iter'||x.name==='__if'||x.name==='__call') continue;
+        s=x; break;
+      }
+      if(s){ const m=applyMove(c,r,s); c=m.c; r=m.r; }
+      out.push({ wall:w, col:c, row:r, written:!!s,
+                 hit:blocked(L.beats[w-1], c, r) });
+    }
+    return out;
+  }
+  /* which wall you are being asked about right now */
+  function focusOf(all){
+    for(let i=0;i<all.length;i++) if(!all[i].written || all[i].hit) return i;
+    return all.length;                       // every wall written and clear
   }
   /* Run the program forward and say which lane you are in at each of the
      next few walls, and whether that lane is rock. This is the whole answer
@@ -814,25 +841,40 @@ window.FLIGHT = (function(){
         <div class="rgrid">${grid(L.K.targets,L.col,L.row)}</div></div></div>`;
     }
     /* Each wall shows where YOUR PROGRAM puts you at that wall, with a tick
-       if it gets through and a cross if it does not. That is the difference
-       between a picture of the field and an answer to "does this work" — and
-       it is why the walls past the first one are worth drawing at all. */
-    const p=predict(3);
+       if it gets through and a cross if it does not.
+
+       And the cards MOVE. While you are writing, the big one is the first
+       wall your program has not solved yet — solve it and it slides off and
+       the next problem takes its place. A radar permanently showing walls one
+       to three tells you nothing about where you have got to. */
+    let p, solved=0, total=L.beats.length, focus;
+    if(L.rolling){
+      p=predict(3); focus=p[0].wall;
+    } else {
+      const all=runProgram();
+      const i=focusOf(all);
+      solved=i; focus=i+1;
+      p=[0,1,2].map(k=>all[i+k] || { wall:total+1+k, col:-1, row:-1, hit:false });
+    }
+    const moved = L.radarFocus!==undefined && L.radarFocus!==focus;
+    L.radarFocus=focus;
     const size=['big','mid','far'];
-    let out='<div class="radar">';
+    let out='<div class="radar'+(moved?' advance':'')+'">';
     for(let k=0;k<3;k++){
       const q=p[k];
-      if(q.wall>L.beats.length){
+      if(!q || q.wall>total){
         out+=`<div class="rw ${size[k]} clear"><b>${k?'':t('CLEAR')}</b>
           <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
         continue;
       }
       out+=`<div class="rw ${size[k]}${q.hit?' warn':''}">
-        <b>${k===0?t('NEXT'):'+'+k} <small>${q.wall}</small></b>
+        <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
         <div class="rgrid">${grid(L.beats[q.wall-1], q.col, q.row)}</div>
         <u class="rmark">${q.hit?'✕':'✓'}</u></div>`;
     }
-    out+=`<div class="rlegend">${eta()}</div></div>`;
+    out+=`<div class="rlegend">${L.rolling ? eta()
+            : (solved>=total ? t('All clear — press RUN')
+                             : t('{a} of {b} walls done',{a:solved,b:total}))}</div></div>`;
     return out;
   }
   /* seconds until the nearest wall reaches you — the number that decides
