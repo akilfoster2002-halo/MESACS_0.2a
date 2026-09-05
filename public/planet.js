@@ -32,20 +32,26 @@
    stuck on a planet because they could not find a door.
    ===================================================================== */
 window.PLANET = (function(){
-  const PR  = 92;                  // the radius of the world
+  /* Radius sets how hard the world curves. The horizon from the chase camera
+     is roughly sqrt(2*PR*camHeight), so 92 put it 28 metres out and buildings
+     rose out of the ground in front of you. At 200 it is past 40 and the
+     curve reads as a planet rather than as a hill you are always on top of.
+     The cost is the lap: 1257 metres, about three minutes on foot and half
+     that in a car. */
+  const PR  = 200;                 // the radius of the world
   const SKY = 0x070a1a;
   const V   = (x,y,z)=>new THREE.Vector3(x,y,z);
 
   /* Placed in degrees, because "72 degrees round and 6 down" is something
      you can reason about and a raw vector is not. */
   const BUILDINGS=[
-    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:14, w:34, d:22,
+    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:6,  w:34, d:22,
       wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
-    { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-74, lat:-8, w:20, d:18,
+    { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-15, lat:-5, w:20, d:18,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
-    { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:74,  lat:-8, w:18, d:16,
+    { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:15,  lat:-5, w:18, d:16,
       wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are, and spend what you earned' },
-    { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:180, lat:8,  w:22, d:18,
+    { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:0,   lat:-17, w:22, d:18,
       wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' }
   ];
   const STATIONS=[
@@ -121,7 +127,7 @@ window.PLANET = (function(){
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
       const b=BUILDINGS[0];
-      me.dir=dirOf(b.lon, b.lat-20);
+      me.dir=dirOf(b.lon, b.lat-9);
       me.fwd=frameAt(me.dir,0).fwd.clone();
     }
     me.alt=0; me.vy=0; me.onGround=true;
@@ -185,12 +191,15 @@ window.PLANET = (function(){
     const trunk=new THREE.MeshLambertMaterial({color:0x6b4a34});
     const leaf =new THREE.MeshLambertMaterial({color:0x4f9457});
     const stone=new THREE.MeshLambertMaterial({color:0x7d7a86});
-    for(let i=0;i<420;i++){
+    /* Four times the surface needs more on it, but every tree is two meshes
+       and a school laptop pays for each one — so this is a compromise, and
+       rocks (one mesh) get the larger share. */
+    for(let i=0;i<820;i++){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
       if(BUILDINGS.some(b=>dir.angleTo(dirOf(b.lon,b.lat))*PR < b.w*1.2)) continue;
       const g=new THREE.Group();
-      if(Math.random()<0.6){
+      if(Math.random()<0.45){
         const h=3+Math.random()*3;
         const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.42,h,6), trunk);
         t1.position.y=h/2; g.add(t1);
@@ -561,20 +570,22 @@ window.PLANET = (function(){
     const firstStation=()=>{ const b=MC();
       return b.g ? b.g.localToWorld(V(-(b.w-9)/2, 2.5, -b.d/2+3.2)) : V(0,0,0); };
     COACH.start([
-      { say:'Welcome to your planet. It is a whole world — keep walking one way and you come right back round to here. Hold <b>W</b> to set off.',
+      /* One line each. A child reading six sentences is a child not playing,
+         and every one of these is about a key they can press right now. */
+      { say:'Hold <b>W</b> to walk.',
         done:()=>me.dir.angleTo(start)*PR > 9 },
-      { say:'Move the <b>mouse</b> to look around, and <b>A</b> and <b>D</b> to step sideways.',
+      { say:'Mouse to look. <b>A</b> and <b>D</b> to step sideways.',
         done:()=>Math.abs(((G.yaw-yaw0+Math.PI*3)%(Math.PI*2))-Math.PI) > 0.5 },
-      { say:'That building is <b>Mission Control</b>. Every mission is inside it. Walk to the door.',
+      { say:'Walk to the ringed door.',
         at:()=>withSize(doorPoint(MC()),3.5),
         done:()=>metresTo(doorPoint(MC())) < 14 },
-      { say:'Straight through the doorway.',
+      { say:'Go inside.',
         at:()=>withSize(doorPoint(MC()),3.5),
         done:()=>insideOf(MC()) },
-      { say:'These are the missions, one station each. Look straight at one — the name comes up under your crosshair.',
+      { say:'Look at a mission station.',
         at:()=>withSize(firstStation(),2),
         done:()=>!!(G.focused && G.focused.userData && G.focused.userData.enter) },
-      { say:'Now press <b>E</b> to go in. That is the whole game: walk to a thing, press E.',
+      { say:'Press <b>E</b> to go in.',
         at:()=>withSize(firstStation(),2),
         done:()=>!on }
     ], {});

@@ -101,13 +101,13 @@ window.COACH = (function(){
     p.className = finished ? 'ok' : '';
     p.innerHTML = `<div class="ctstep">${finished? t('DONE')
         : t('STEP {a} OF {b}',{a:n,b:steps.length})}</div>
-      <div class="cttext">${bold(esc(text))}</div>
+      <div class="cttext">${bold(esc(t(text)))}</div>
       ${finished? '' : `<button class="ctskip" id="coachSkip">${t('skip the walkthrough')}</button>`}`;
     const sk=document.querySelector('#coachSkip');
     if(sk) sk.onclick=()=>stop();
     /* sit beside what is being pointed at, and never off the edge */
     if(near && near.width>0){
-      const w=290, gap=16;
+      const w=232, gap=14;
       let x=near.right+gap, y=near.top-6;
       if(x+w > innerWidth-10) x=Math.max(10, near.left-w-gap);
       y=Math.max(10, Math.min(y, innerHeight-150));

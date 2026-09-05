@@ -46,9 +46,9 @@ window.FLIGHT = (function(){
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast'],
       learn:{ name:'One block, one beat',
-              text:'The ship flies on whether you write anything or not. Each block you write happens on the next beat — so a program is not just what you do, it is when.',
+              text:'Each block happens on the next beat.',
               code:'up()\ncoast()\nleft()\ndown()' },
-      brief:'Nine lanes, and a wall of rock every beat. <b>up() down() left() right()</b> move you one lane; <b>coast()</b> spends a beat staying put. Fly the gaps.',
+      brief:'Fly the gaps. <b>coast()</b> spends a beat staying put.',
       start:{col:1,row:1},
       /* Drawn backwards from a path that uses all four directions and a
          coast, then thinned out: enough rock to make the gap the obvious
@@ -67,18 +67,18 @@ window.FLIGHT = (function(){
     { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
       pal:['flyUp','flyDown','flyLeft','flyRight','fire'],
       learn:{ name:'The same nine lanes',
-              text:'No clock out here. The ship holds still, you fly the crosshair around the same nine lanes, and fire() shoots whatever is in the lane you are sitting in.',
+              text:'No clock here. fire() hits your own lane.',
               code:'left()\nfire()\nup()\nfire()' },
-      brief:'Four targets, twelve blocks. Move into a lane, then <b>fire()</b>. Nothing is coming at you — take your time and count the moves.',
+      brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
       start:{col:1,row:1},
       targets:'X.X/.../X.X' },
 
     { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
-              text:'The field ahead is the same three beats over and over: a gap on top, a gap in the middle, then a gap in the middle again. Write those three moves once, wrap a repeat round them, and twelve beats fit in four blocks.',
+              text:'Three beats, over and over. Write them once.',
               code:'repeat 4\n  up()\n  down()\n  coast()\nend' },
-      brief:'Twelve beats, <b>six blocks</b>. Writing it out flat needs twelve — so find the bit that repeats and put a <b>repeat</b> round it.',
+      brief:'Twelve beats, <b>six blocks</b>. Find the bit that repeats.',
       start:{col:1,row:1},
       /* Three beats, four times over, drawn backwards from the program that
          is meant to fly it: up() puts you on the top row, down() puts you
@@ -94,18 +94,18 @@ window.FLIGHT = (function(){
     { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
       pal:['flyUp','flyDown','flyLeft','flyRight','fire','repeat'],
       learn:{ name:'A row of targets is a loop',
-              text:'Three targets in a line is the same two moves three times: shoot, slide across, shoot, slide across. That is a repeat with two blocks in it.',
+              text:'Shoot, slide, shoot, slide. That is a repeat.',
               code:'repeat 3\n  fire()\n  right()\nend' },
-      brief:'Three targets across the bottom and only <b>four blocks</b>. Shooting them one at a time is five on its own — so <b>repeat</b> the pair instead.',
+      brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
       start:{col:0,row:0},
       targets:'.../.../XXX' },
 
     { id:'deep', kind:'fly', stops:3, name:'Deep Field', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
       learn:{ name:'A loop inside a loop',
-              text:'The field repeats twice over: a small pattern that repeats, inside a bigger one that repeats too. A repeat is allowed to hold another repeat — that is how a big field fits in a small program.',
+              text:'A repeat can hold another repeat.',
               code:'repeat 3\n  repeat 2\n    left()\n    right()\n  end\n  up()\n  down()\nend' },
-      brief:'Eighteen beats, <b>six blocks</b>. One repeat round the whole cycle is seven and will not fit — put a <b>repeat inside a repeat</b> and it comes down to six.',
+      brief:'Eighteen beats, <b>six blocks</b>. One repeat is seven. Nest them.',
       start:{col:1,row:1},
       /* Six beats, three times over. The inner pair is left()/right(), which
          parks you at col 0 then col 1; the outer tail is up()/down(). Every
@@ -122,9 +122,9 @@ window.FLIGHT = (function(){
     { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
       pal:['setX','setY','addX','addY','coast','repeat'],
       learn:{ name:'x is the column, y is the row',
-              text:'There are no direction words on this leg. There are two numbers: x is which column you are in and y is which row, and you fly by changing them. x = 2 puts x there whatever it was. x = x + 1 takes the x you already have and adds one — which is exactly what right() was doing all along, written as arithmetic.',
+              text:'x = 2 puts you there. x = x + 1 moves you one.',
               code:'x = x + 2\ny = y - 1\ny = y - 1\nx = x - 2' },
-      brief:'No up() or left() here — only <b>x</b> and <b>y</b>. <b>x = 2</b> sets the column outright; <b>x = x + 1</b> adds one to the column you are in. Read your lane off the radar and write the numbers.',
+      brief:'No direction words. Only <b>x</b> and <b>y</b>. Read your lane off the radar.',
       start:{col:0,row:2},
       /* One gap per beat, and it only ever moves along ONE axis at a time —
          because one beat runs one block and a block changes one coordinate.
@@ -147,9 +147,9 @@ window.FLIGHT = (function(){
     { id:'jump', kind:'fly', stops:2, name:'Jump Drive', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat','goTo'],
       learn:{ name:'Absolute beats relative',
-              text:'up() and left() move you one lane FROM WHERE YOU ARE. goTo(col,row) puts you in one exact lane whatever lane you were in. When the only gap is diagonally across the field and you have one beat to reach it, a one-lane step cannot get there and goTo can.',
+              text:'One step cannot cross the field. goTo can.',
               code:'repeat 3\n  goto 0,0\n  goto 2,2\n  goto 2,0\n  goto 0,2\nend' },
-      brief:'One gap per beat and it is always in a <b>corner</b>. A single step cannot cross the field in one beat — <b>goTo</b> can go straight to a lane. Four corners, three times over, <b>six blocks</b>.',
+      brief:'One gap per beat, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.',
       start:{col:1,row:1},
       /* Every beat has exactly one open lane, and consecutive open lanes are
          never neighbours — so up/down/left/right cannot fly this at all,
@@ -425,9 +425,8 @@ window.FLIGHT = (function(){
     L.shipZ=0;
     pull();                                       // the move for beat 1 starts now
     brief(L.runs>1
-      ? t('Back to the start — flying it again. Stops so far: {n}.',{n:stops()})
-      : t('Engines lit. {n} beats ahead. Press <b>C</b> any time to freeze the field.',
-          {n:L.beats.length}));
+      ? t('Again from the start. Stops: {n}.',{n:stops()})
+      : t('{n} beats ahead. <b>C</b> freezes the field.',{n:L.beats.length}));
   }
   const beatMs = () => BEAT_MS * (window.DIFF?DIFF.time():1);
   const stops = () => Math.max(0, (L?L.runs:0) - 1);
@@ -644,8 +643,7 @@ window.FLIGHT = (function(){
     shake();
     if(window.beep) beep('bad');
     // the one fact worth knowing: WHICH beat, so the chart can be re-read
-    brief(t('💥 Rock on beat {n} — you were in col {c}, row {r}. The radar shows beat {n}: put yourself somewhere open.',
-            {n:b, c:L.col, r:L.row}));
+    brief(t('💥 Hit on beat {n}, col {c} row {r}. Find the gap.',{n:b, c:L.col, r:L.row}));
     /* Back to the line, and the console opens itself. Crashing means the
        program was wrong, so the console is exactly where you need to be —
        and being dropped back on the start line with nothing happening is how
@@ -723,13 +721,13 @@ window.FLIGHT = (function(){
          satisfied both gates at once and the radar explanation was never
          seen. The first thing anybody does here is press a block, so the
          first step has to be the one that says why. */
-      { say:'Nothing moves while this console is open. Look at the radar: the big square is the wall you meet on beat one, and the ring on it is YOU — sitting in a lane with a rock in it. Climb out of it: click <b>up()</b>. One block is one beat.',
+      { say:'Pink on the radar is a rock in your lane. Click <b>up()</b>.',
         sel:'#conPalette [data-add="flyUp"]', done:()=>hasOp('flyUp') },
-      { say:'The next wall is clear where you have just moved to, so spend that beat standing still — click <b>coast()</b>.',
+      { say:'Next wall is clear. Click <b>coast()</b> to hold.',
         sel:'#conPalette [data-add="coast"]', done:()=>hasOp('coast') },
-      { say:'Eight beats, eight blocks. Read the radar and fill the rest in yourself.',
+      { say:'Eight beats, eight blocks. Fill in the rest.',
         sel:'#conBudget', done:()=>scriptLen()>=6 },
-      { say:'Press <b>RUN</b> and watch it fly. Hit a rock and the console comes straight back — and you can press <b>C</b> to freeze the field whenever you like.',
+      { say:'Press <b>RUN</b>. <b>C</b> freezes the field any time.',
         sel:'#conRun', done:()=>!!(L && L.rolling) }
     ], {});
   }
@@ -793,7 +791,10 @@ window.FLIGHT = (function(){
   function guide(){
     const K=L.K;
     CODE.setGuide({
-      brief:K.brief+radarHTML(),
+      /* Translate the brief BEFORE the radar markup is glued on: the console
+         runs t() over whatever it is handed, and "the brief plus a div full
+         of radar" is not a string any dictionary has an entry for. */
+      brief:t(K.brief)+radarHTML(),
       name:K.learn.name, text:K.learn.text, code:K.learn.code });
   }
   /* The same radar, on the windscreen.  Rebuilt only when something on it

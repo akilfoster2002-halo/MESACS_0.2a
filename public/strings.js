@@ -577,10 +577,6 @@ window.ES = {
   'One gap per beat and it is always in a <b>corner</b>. A single step cannot cross the field in one beat — <b>goTo</b> can go straight to a lane. Four corners, three times over, <b>six blocks</b>.':
     'Un hueco por tiempo y siempre en una <b>esquina</b>. Un solo paso no cruza el campo en un tiempo — <b>goTo</b> va directo a un carril. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
   /* what happens */
-  'Engines lit. {n} beats ahead. Press <b>C</b> any time to freeze the field.':
-    'Motores encendidos. {n} tiempos por delante. Pulsa <b>C</b> cuando quieras para congelar el campo.',
-  'Back to the start — flying it again. Stops so far: {n}.':
-    'Vuelta al principio — a volarlo otra vez. Paradas hasta ahora: {n}.',
   '💥 Rock on beat {n}, lane col {c} row {r}. Look at beat {n} on the chart and put yourself somewhere open.':
     '💥 Roca en el tiempo {n}, carril col {c} fil {r}. Mira el tiempo {n} en la carta y ponte en un hueco.',
   '✅ Field flown — next leg…':'✅ Campo superado — siguiente tramo…',
@@ -626,27 +622,6 @@ window.ES = {
   'JUMP TO A MISSION':'SALTAR A UNA MISIÓN','Back to the planet':'Volver al planeta',
 
   /* ---------- the walkthroughs ---------- */
-  'Welcome to your planet. Hold <b>W</b> to walk forward.':
-    'Bienvenido a tu planeta. Mantén <b>W</b> para caminar.',
-  'Move the <b>mouse</b> to look around, and <b>A</b> and <b>D</b> to step sideways.':
-    'Mueve el <b>ratón</b> para mirar, y <b>A</b> y <b>D</b> para moverte de lado.',
-  'That building up the hill is <b>Mission Control</b>. Every mission is inside it. Walk to the door.':
-    'Ese edificio de la colina es <b>Control de Misiones</b>. Todas las misiones están dentro. Ve a la puerta.',
-  'Straight through the doorway.':'Cruza la entrada.',
-  'These are the missions, one station each. Look straight at one — the name comes up under your crosshair.':
-    'Estas son las misiones, una estación cada una. Mira una de frente — el nombre aparece bajo tu mira.',
-  'Now press <b>E</b> to go in. That is the whole game: walk to a thing, press E.':
-    'Ahora pulsa <b>E</b> para entrar. Ese es todo el juego: acércate a algo y pulsa E.',
-  'Nothing moves while this console is open. Look at the radar: the big square is the wall you meet on beat one, and the ring on it is YOU — sitting in a lane with a rock in it. Climb out of it: click <b>up()</b>. One block is one beat.':
-    'Nada se mueve mientras esta consola esté abierta. Mira el radar: el cuadro grande es el muro del tiempo uno, y el anillo eres TÚ — en un carril con una roca. Sal de ahí: pulsa <b>up()</b>. Un bloque es un tiempo.',
-  'The next wall is clear where you have just moved to, so spend that beat standing still — click <b>coast()</b>.':
-    'El siguiente muro está despejado donde acabas de subir, así que gasta ese tiempo quieto — pulsa <b>coast()</b>.',
-  'Eight beats, eight blocks. Read the radar and fill the rest in yourself.':
-    'Ocho tiempos, ocho bloques. Lee el radar y completa el resto tú.',
-  'Press <b>RUN</b> and watch it fly. Hit a rock and the console comes straight back — and you can press <b>C</b> to freeze the field whenever you like.':
-    'Pulsa <b>RUN</b> y míralo volar. Si chocas, la consola vuelve enseguida — y puedes pulsar <b>C</b> para congelar el campo cuando quieras.',
-  '💥 Rock on beat {n} — you were in col {c}, row {r}. The radar shows beat {n}: put yourself somewhere open.':
-    '💥 Roca en el tiempo {n} — estabas en col {c}, fil {r}. El radar muestra el tiempo {n}: ponte en un hueco.',
 
   /* ---------- coins, XP and the shop ---------- */
   'LEVEL {n}':'NIVEL {n}','Level':'Nivel','XP':'XP','coins':'monedas','{n} coins':'{n} monedas',
@@ -670,6 +645,53 @@ window.ES = {
   'Nested loop':'Bucle anidado','Event':'Evento','Variable':'Variable',
   'Coordinate':'Coordenada','Condition':'Condición','Function':'Función',
   'Clone':'Clon','Message':'Mensaje',
+
+  /* ---------- the walkthroughs and briefs, short ---------- */
+  'Hold <b>W</b> to walk.':'Mantén <b>W</b> para caminar.',
+  'Mouse to look. <b>A</b> and <b>D</b> to step sideways.':'Ratón para mirar. <b>A</b> y <b>D</b> para ir de lado.',
+  'Walk to the ringed door.':'Ve a la puerta señalada.',
+  'Go inside.':'Entra.',
+  'Look at a mission station.':'Mira una estación de misión.',
+  'Press <b>E</b> to go in.':'Pulsa <b>E</b> para entrar.',
+  'Pink on the radar is a rock in your lane. Click <b>up()</b>.':
+    'El rosa del radar es una roca en tu carril. Pulsa <b>up()</b>.',
+  'Next wall is clear. Click <b>coast()</b> to hold.':
+    'El siguiente muro está libre. Pulsa <b>coast()</b> para quedarte.',
+  'Eight beats, eight blocks. Fill in the rest.':'Ocho tiempos, ocho bloques. Completa el resto.',
+  'Press <b>RUN</b>. <b>C</b> freezes the field any time.':
+    'Pulsa <b>RUN</b>. <b>C</b> congela el campo cuando quieras.',
+  '💥 Hit on beat {n}, col {c} row {r}. Find the gap.':
+    '💥 Choque en el tiempo {n}, col {c} fil {r}. Busca el hueco.',
+  'Again from the start. Stops: {n}.':'Otra vez desde el principio. Paradas: {n}.',
+  '{n} beats ahead. <b>C</b> freezes the field.':'{n} tiempos por delante. <b>C</b> congela el campo.',
+  'Fly the gaps. <b>coast()</b> spends a beat staying put.':
+    'Vuela por los huecos. <b>coast()</b> gasta un tiempo sin moverte.',
+  'Each block happens on the next beat.':'Cada bloque ocurre en el siguiente tiempo.',
+  'No clock here. fire() hits your own lane.':'Aquí no hay reloj. fire() dispara a tu carril.',
+  'Four targets, twelve blocks. Move, then <b>fire()</b>.':
+    'Cuatro blancos, doce bloques. Muévete y luego <b>fire()</b>.',
+  'Three beats, over and over. Write them once.':'Tres tiempos, una y otra vez. Escríbelos una vez.',
+  'Twelve beats, <b>six blocks</b>. Find the bit that repeats.':
+    'Doce tiempos, <b>seis bloques</b>. Encuentra la parte que se repite.',
+  'Shoot, slide, shoot, slide. That is a repeat.':'Dispara, muévete, dispara, muévete. Eso es un repeat.',
+  'Three targets, <b>four blocks</b>. One at a time needs five.':
+    'Tres blancos, <b>cuatro bloques</b>. Uno a uno son cinco.',
+  'A repeat can hold another repeat.':'Un repeat puede contener otro repeat.',
+  'Eighteen beats, <b>six blocks</b>. One repeat is seven. Nest them.':
+    'Dieciocho tiempos, <b>seis bloques</b>. Un solo repeat son siete. Anídalos.',
+  'x = 2 puts you there. x = x + 1 moves you one.':'x = 2 te pone ahí. x = x + 1 te mueve uno.',
+  'No direction words. Only <b>x</b> and <b>y</b>. Read your lane off the radar.':
+    'Sin palabras de dirección. Solo <b>x</b> e <b>y</b>. Lee tu carril en el radar.',
+  'One step cannot cross the field. goTo can.':'Un paso no cruza el campo. goTo sí.',
+  'One gap per beat, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.':
+    'Un hueco por tiempo, siempre una <b>esquina</b>. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
+  'Click a block to add it.':'Pulsa un bloque para añadirlo.',
+  'Blocks go inside the repeat.':'Los bloques van dentro del repeat.',
+  'Click a block on the left.':'Pulsa un bloque de la izquierda.',
+  'Out of blocks. Find a shorter way.':'Sin bloques. Busca una forma más corta.',
+  'One instruction per line.':'Una instrucción por línea.',
+  'Write something first.':'Escribe algo primero.',
+  '{n} instruction(s).':'{n} instrucción(es).',
 
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',

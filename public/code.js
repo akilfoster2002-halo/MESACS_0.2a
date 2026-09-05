@@ -87,7 +87,7 @@ window.CODE = (function(){
   }
   function addBlock(type){
     if(budget && countBlocks()>=budget){
-      hint(t('Block budget full — delete one, or find a shorter way (that is the puzzle).'), 'err');
+      hint(t('Out of blocks. Find a shorter way.'), 'err');
       if(window.beep) beep('bad');
       return;
     }
@@ -451,7 +451,7 @@ window.CODE = (function(){
       : `<div class="blk-empty">${t('Nothing yet.')}</div>`;
     budgetOut(n);
     if(budget && n>budget) hint(t('That is {a} blocks — the budget is {b}.',{a:n,b:budget}), 'err');
-    else hint(t('Reads fine — {n} instruction(s).',{n}), 'ok');
+    else hint(t('{n} instruction(s).',{n}), 'ok');
   }
 
   function setMode(m){
@@ -537,15 +537,15 @@ window.CODE = (function(){
     paletteEl.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>insertWord(b.dataset.w));
     const ta=el.querySelector('#conTA');
     ta.value=typed;
-    ta.placeholder=t('One instruction per line. Click a word on the left to drop it in.');
+    ta.placeholder=t('One instruction per line.');
     reflect();
   }
 
   function drawBlocks(){
     paletteEl.className='';
     hint(dropTarget
-      ? t('New blocks go INSIDE the repeat. Click the repeat again to stop.')
-      : t('Click a block to add it. Click a repeat to put blocks inside it.'));
+      ? t('Blocks go inside the repeat.')
+      : t('Click a block to add it.'));
     budgetOut(countBlocks());
 
     paletteEl.innerHTML=palette.map(type=>{
@@ -559,7 +559,7 @@ window.CODE = (function(){
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
 
     scriptEl.innerHTML = script.length ? script.map(b=>blockHTML(b,false)).join('')
-      : `<div class="blk-empty big">${t('Your program is empty. Click a block on the left.')}</div>`;
+      : `<div class="blk-empty big">${t('Click a block on the left.')}</div>`;
     scriptEl.querySelectorAll('[data-act]').forEach(btn=>{
       btn.onclick=e=>{
         e.stopPropagation();
@@ -615,7 +615,7 @@ window.CODE = (function(){
     const steps=compile(script);
     const real=steps.filter(s=>!s.name.startsWith('__'));
     if(!real.length){
-      hint(t('Write at least one instruction first.'), 'err');
+      hint(t('Write something first.'), 'err');
       if(window.beep) beep('bad');
       return;
     }
