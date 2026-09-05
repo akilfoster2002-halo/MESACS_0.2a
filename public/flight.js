@@ -45,10 +45,10 @@ window.FLIGHT = (function(){
   const STAGES=[
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast'],
-      learn:{ name:'One block, one beat',
-              text:'Each block happens on the next beat.',
+      learn:{ name:'One block, one wall',
+              text:'Every block you write gets you past one wall.',
               code:'up()\ncoast()\nleft()\ndown()' },
-      brief:'Fly the gaps. <b>coast()</b> spends a beat staying put.',
+      brief:'A wall of rock, then another. Fly the gaps. <b>coast()</b> stays in your lane for one wall.',
       start:{col:1,row:1},
       /* Drawn backwards from a path that uses all four directions and a
          coast, then thinned out: enough rock to make the gap the obvious
@@ -76,9 +76,9 @@ window.FLIGHT = (function(){
     { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
-              text:'Three beats, over and over. Write them once.',
+              text:'Three walls, over and over. Write them once.',
               code:'repeat 4\n  up()\n  down()\n  coast()\nend' },
-      brief:'Twelve beats, <b>six blocks</b>. Find the bit that repeats.',
+      brief:'Twelve walls, <b>six blocks</b>. Find the bit that repeats.',
       start:{col:1,row:1},
       /* Three beats, four times over, drawn backwards from the program that
          is meant to fly it: up() puts you on the top row, down() puts you
@@ -105,7 +105,7 @@ window.FLIGHT = (function(){
       learn:{ name:'A loop inside a loop',
               text:'A repeat can hold another repeat.',
               code:'repeat 3\n  repeat 2\n    left()\n    right()\n  end\n  up()\n  down()\nend' },
-      brief:'Eighteen beats, <b>six blocks</b>. One repeat is seven. Nest them.',
+      brief:'Eighteen walls, <b>six blocks</b>. One repeat is seven. Nest them.',
       start:{col:1,row:1},
       /* Six beats, three times over. The inner pair is left()/right(), which
          parks you at col 0 then col 1; the outer tail is up()/down(). Every
@@ -149,7 +149,7 @@ window.FLIGHT = (function(){
       learn:{ name:'Absolute beats relative',
               text:'One step cannot cross the field. goTo can.',
               code:'repeat 3\n  goto 0,0\n  goto 2,2\n  goto 2,0\n  goto 0,2\nend' },
-      brief:'One gap per beat, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.',
+      brief:'One gap per wall, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.',
       start:{col:1,row:1},
       /* Every beat has exactly one open lane, and consecutive open lanes are
          never neighbours — so up/down/left/right cannot fly this at all,
@@ -426,10 +426,13 @@ window.FLIGHT = (function(){
     pull();                                       // the move for beat 1 starts now
     brief(L.runs>1
       ? t('Again from the start. Stops: {n}.',{n:stops()})
-      : t('{n} beats ahead. <b>C</b> freezes the field.',{n:L.beats.length}));
+      : t('{n} walls ahead. <b>C</b> stops everything.',{n:L.beats.length}));
   }
   const beatMs = () => BEAT_MS * (window.DIFF?DIFF.time():1);
   const stops = () => Math.max(0, (L?L.runs:0) - 1);
+  /* cheap fingerprint of the written program, so the radar knows to redraw */
+  const progSig = () => (window.CODE && CODE.script)
+    ? CODE.countBlocks()+':'+CODE.toText().join(';') : '';
 
   /* Take the next real instruction off the list.  The markers a repeat leaves
      behind are bookkeeping, not moves, so they light up the tape and cost no
@@ -445,27 +448,54 @@ window.FLIGHT = (function(){
     }
     CODE.highlight(null);                          // out of program: it coasts on
   }
+  /* One instruction, applied to a lane. Pure, because the radar has to run
+     the whole program forward WITHOUT flying it — that is what lets it show
+     you where you will be at each wall instead of only where you are now. */
+  function applyMove(c, r, s){
+    if(s.name==='flyUp')    r=Math.min(ROWS-1, r+1);
+    if(s.name==='flyDown')  r=Math.max(0,      r-1);
+    if(s.name==='flyLeft')  c=Math.max(0,      c-1);
+    if(s.name==='flyRight') c=Math.min(COLS-1, c+1);
+    if(s.name==='goTo'){ c=clamp(s.col|0, COLS); r=clamp(s.row|0, ROWS); }
+    if(s.name==='setX') c=clamp(s.n|0, COLS);
+    if(s.name==='setY') r=clamp(s.n|0, ROWS);
+    if(s.name==='addX') c=clamp(c+(s.n|0), COLS);
+    if(s.name==='addY') r=clamp(r+(s.n|0), ROWS);
+    return {c,r};
+  }
+  /* Run the program forward and say which lane you are in at each of the
+     next few walls, and whether that lane is rock. This is the whole answer
+     to "how do I know the next wall is clear" — you look, and it tells you. */
+  function predict(count){
+    const out=[];
+    let c, r, steps, at;
+    if(L.rolling && L.steps){ c=L.col; r=L.row; steps=L.steps; at=L.at; }
+    else {
+      c=L.K.start.col; r=L.K.start.row; at=0;
+      steps = (window.CODE && CODE.script && CODE.script.length)
+            ? CODE.compile(CODE.script) : [];
+    }
+    const first = L.rolling ? L.beat+1 : 1;
+    for(let k=0;k<count;k++){
+      let s=null;
+      while(at<steps.length){
+        const x=steps[at++];
+        if(x.name==='__iter'||x.name==='__if'||x.name==='__call') continue;
+        s=x; break;
+      }
+      if(s){ const m=applyMove(c,r,s); c=m.c; r=m.r; }
+      const wall=first+k;
+      const mask = (wall>=1 && wall<=L.beats.length) ? L.beats[wall-1] : null;
+      out.push({ wall, col:c, row:r, written:!!s,
+                 hit: !!mask && blocked(mask,c,r) });
+    }
+    return out;
+  }
   function move(s){
     L.fromCol=L.col; L.fromRow=L.row; L.ease=0;
-    if(s.name==='flyUp')    L.row=Math.min(ROWS-1, L.row+1);
-    if(s.name==='flyDown')  L.row=Math.max(0,      L.row-1);
-    if(s.name==='flyLeft')  L.col=Math.max(0,      L.col-1);
-    if(s.name==='flyRight') L.col=Math.min(COLS-1, L.col+1);
-    if(s.name==='goTo'){
-      L.col=Math.max(0,Math.min(COLS-1, s.col|0));
-      L.row=Math.max(0,Math.min(ROWS-1, s.row|0));
-    }
-    /* The coordinates, done as arithmetic. x IS the column and y IS the row —
-       not a metaphor for them, the same number the radar is drawn from. So
-       `x = x + 1` and right() land in the identical lane, and a student who
-       writes both and watches the same thing happen has understood what a
-       coordinate is. Off the edge is clamped rather than an error: the wall
-       of the field is a fact about the field, not a mistake in the program. */
-    if(s.name==='setX') L.col=clamp(s.n|0, COLS);
-    if(s.name==='setY') L.row=clamp(s.n|0, ROWS);
-    if(s.name==='addX') L.col=clamp(L.col+(s.n|0), COLS);
-    if(s.name==='addY') L.row=clamp(L.row+(s.n|0), ROWS);
-    // coast() and fire() move nothing: the beat passes and the lane holds
+    const m=applyMove(L.col, L.row, s);
+    L.col=m.c; L.row=m.r;
+    // coast() and fire() move nothing: the wall passes and the lane holds
   }
 
   /* every frame, whether the console is open or not */
@@ -476,13 +506,16 @@ window.FLIGHT = (function(){
        the radar you plan against is the one from the beat you stopped at
        rather than whatever it said when the leg began. */
     const open=!!(window.CODE && CODE.isOpen());
+    /* The console's copy of the radar has to follow the program too, so it
+       is rebuilt whenever a block goes in or comes out — otherwise adding
+       up() would leave the picture claiming you are still in the rock. */
+    if(open){
+      const sig=progSig();
+      if(sig!==L.progSig){ L.progSig=sig; if(L.wasOpen) guide(); }
+    }
     if(open!==L.wasOpen){
       L.wasOpen=open;
-      if(open){
-        guide();
-        // the walkthrough needs the console on screen to point into it
-        if(L.idx===0 && !walked() && !L.taught){ L.taught=true; walkFirstLeg(); }
-      }
+      if(open){ L.progSig=progSig(); guide(); }
     }
     if(window.COACH) COACH.tick(dt);
     if(L.rolling && !L.done && !L.crashed && awake()){
@@ -643,7 +676,7 @@ window.FLIGHT = (function(){
     shake();
     if(window.beep) beep('bad');
     // the one fact worth knowing: WHICH beat, so the chart can be re-read
-    brief(t('💥 Hit on beat {n}, col {c} row {r}. Find the gap.',{n:b, c:L.col, r:L.row}));
+    brief(t('💥 Wall {n} — you were in the rock. Look at the radar and pick the gap.',{n:b}));
     /* Back to the line, and the console opens itself. Crashing means the
        program was wrong, so the console is exactly where you need to be —
        and being dropped back on the start line with nothing happening is how
@@ -716,16 +749,17 @@ window.FLIGHT = (function(){
        draft of this lost the radar explanation the instant any block was
        added. One step, one thing you have to do. */
     COACH.start([
-      /* One step, not two. Explaining the radar and then asking for the first
-         click were separate steps twice over, and both times the first click
-         satisfied both gates at once and the radar explanation was never
-         seen. The first thing anybody does here is press a block, so the
-         first step has to be the one that says why. */
+      /* It starts OUT here in the world, looking at the walls, and only then
+         sends you into the console — a student who has never seen the field
+         has no idea what the console is for. */
+      { say:'Those walls are coming at you. The radar top-left shows the next three. Press <b>C</b> to write your program.',
+        find:()=>document.querySelector('#codeBtn'),
+        done:()=>!!(window.CODE && CODE.isOpen()) },
       { say:'Pink on the radar is a rock in your lane. Click <b>up()</b>.',
         sel:'#conPalette [data-add="flyUp"]', done:()=>hasOp('flyUp') },
       { say:'Next wall is clear. Click <b>coast()</b> to hold.',
         sel:'#conPalette [data-add="coast"]', done:()=>hasOp('coast') },
-      { say:'Eight beats, eight blocks. Fill in the rest.',
+      { say:'Eight walls, eight blocks. Fill in the rest.',
         sel:'#conBudget', done:()=>scriptLen()>=6 },
       { say:'Press <b>RUN</b>. <b>C</b> freezes the field any time.',
         sel:'#conRun', done:()=>!!(L && L.rolling) }
@@ -748,34 +782,38 @@ window.FLIGHT = (function(){
      Sit in the path of the nearest wall and that cell goes red. */
   function radarHTML(){
     if(!L) return '';
-    const cell=(mask,c,r,mine)=>{
+    const cell=(mask,c,r,mc,mr)=>{
       const rock=blocked(mask,c,r);
-      const me=mine && L.col===c && L.row===r;
+      const me=(c===mc && r===mr);
       return `<i class="${rock?'rock':''}${me?' me':''}${rock&&me?' hit':''}"></i>`;
     };
-    const grid=(mask,mine)=>{
+    const grid=(mask,mc,mr)=>{
       let out='';
-      for(let r=ROWS-1;r>=0;r--) for(let c=0;c<COLS;c++) out+=cell(mask,c,r,mine);
+      for(let r=ROWS-1;r>=0;r--) for(let c=0;c<COLS;c++) out+=cell(mask,c,r,mc,mr);
       return out;
     };
     if(L.kind==='gun'){
       return `<div class="radar"><div class="rw big"><b>${t('TARGETS')}</b>
-        <div class="rgrid">${grid(L.K.targets,true)}</div></div></div>`;
+        <div class="rgrid">${grid(L.K.targets,L.col,L.row)}</div></div></div>`;
     }
-    const at=L.rolling?L.beat:0;
-    const size=['big','mid','far'], lbl=[t('NEXT'),'+1','+2'];
+    /* Each wall shows where YOUR PROGRAM puts you at that wall, with a tick
+       if it gets through and a cross if it does not. That is the difference
+       between a picture of the field and an answer to "does this work" — and
+       it is why the walls past the first one are worth drawing at all. */
+    const p=predict(3);
+    const size=['big','mid','far'];
     let out='<div class="radar">';
     for(let k=0;k<3;k++){
-      const b=at+1+k;
-      if(b>L.beats.length){
+      const q=p[k];
+      if(q.wall>L.beats.length){
         out+=`<div class="rw ${size[k]} clear"><b>${k?'':t('CLEAR')}</b>
-          <div class="rgrid">${grid('.../.../...', k===0)}</div></div>`;
+          <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
         continue;
       }
-      const danger = k===0 && blocked(L.beats[b-1], L.col, L.row);
-      out+=`<div class="rw ${size[k]}${danger?' warn':''}">
-        <b>${lbl[k]} <small>${b}</small></b>
-        <div class="rgrid">${grid(L.beats[b-1], k===0)}</div></div>`;
+      out+=`<div class="rw ${size[k]}${q.hit?' warn':''}">
+        <b>${k===0?t('NEXT'):'+'+k} <small>${q.wall}</small></b>
+        <div class="rgrid">${grid(L.beats[q.wall-1], q.col, q.row)}</div>
+        <u class="rmark">${q.hit?'✕':'✓'}</u></div>`;
     }
     out+=`<div class="rlegend">${eta()}</div></div>`;
     return out;
@@ -806,7 +844,7 @@ window.FLIGHT = (function(){
     if(!L || (window.CODE && CODE.isOpen())){ el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const key=[L.kind,L.rolling?L.beat:-1,L.col,L.row,
-               Math.round((L.elapsed||0)*10)].join('|');
+               Math.round((L.elapsed||0)*10), progSig()].join('|');
     if(key===L.radarKey) return;
     L.radarKey=key;
     el.innerHTML=radarHTML();
@@ -831,7 +869,7 @@ window.FLIGHT = (function(){
     if(!L || L.kind==='gun' || !L.rolling){ el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const b=Math.min(L.beat+1, L.beats.length);
-    el.innerHTML=`<div class="fb-lbl">${t('BEAT')}</div>
+    el.innerHTML=`<div class="fb-lbl">${t('WALL')}</div>
       <div class="fb-n">${b} <small>/ ${L.beats.length}</small></div>
       <div class="fb-lane">${t('col')} ${L.col} · ${t('row')} ${L.row}</div>`;
   }
@@ -845,10 +883,19 @@ window.FLIGHT = (function(){
       <pre>${L.K.learn.code}</pre>
       <div class="why">${t(L.K.learn.text)}</div>
       <button class="btn good" id="teachGo">${
-        L.kind==='gun'? t('To the range ▶') : t('Launch ▶')}</button>
+        L.kind==='gun'? t('To the range ▶') : t('Look at the field ▶')}</button>
       <div style="font-size:13px;color:var(--muted);margin-top:9px">${t('or press SPACE')}</div>
     </div>`;
-    el.querySelector('#teachGo').onclick=()=>{ el.classList.add('hidden'); CODE.show(); };
+    /* The card used to open the console on its way out, so the first thing a
+       student ever saw of this mission was a wall of text over a wall of
+       blocks. It drops you at the start line now, looking down the field at
+       the rocks you are about to be asked about; C opens the console when
+       you are ready. */
+    el.querySelector('#teachGo').onclick=()=>{
+      el.classList.add('hidden');
+      if(L && L.idx===0 && !walked() && !L.taught){ L.taught=true; walkFirstLeg(); }
+      else brief(t('Press <b>C</b> to write your program.'));
+    };
   }
   let mt=null;
   function brief(html){

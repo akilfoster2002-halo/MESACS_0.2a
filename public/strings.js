@@ -693,6 +693,27 @@ window.ES = {
   'Write something first.':'Escribe algo primero.',
   '{n} instruction(s).':'{n} instrucción(es).',
 
+  /* ---------- walls, not beats ---------- */
+  'WALL':'MURO','One block, one wall':'Un bloque, un muro',
+  'Every block you write gets you past one wall.':'Cada bloque que escribes te pasa un muro.',
+  'A wall of rock, then another. Fly the gaps. <b>coast()</b> stays in your lane for one wall.':
+    'Un muro de roca, y otro. Vuela por los huecos. <b>coast()</b> te deja en tu carril un muro.',
+  'Three walls, over and over. Write them once.':'Tres muros, una y otra vez. Escríbelos una vez.',
+  'Twelve walls, <b>six blocks</b>. Find the bit that repeats.':
+    'Doce muros, <b>seis bloques</b>. Encuentra la parte que se repite.',
+  'Eighteen walls, <b>six blocks</b>. One repeat is seven. Nest them.':
+    'Dieciocho muros, <b>seis bloques</b>. Un solo repeat son siete. Anídalos.',
+  'One gap per wall, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.':
+    'Un hueco por muro, siempre una <b>esquina</b>. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
+  '{n} walls ahead. <b>C</b> stops everything.':'{n} muros por delante. <b>C</b> lo detiene todo.',
+  '💥 Wall {n} — you were in the rock. Look at the radar and pick the gap.':
+    '💥 Muro {n} — estabas en la roca. Mira el radar y elige el hueco.',
+  'Eight walls, eight blocks. Fill in the rest.':'Ocho muros, ocho bloques. Completa el resto.',
+  'Look at the field ▶':'Mira el campo ▶',
+  'Press <b>C</b> to write your program.':'Pulsa <b>C</b> para escribir tu programa.',
+  'Those walls are coming at you. The radar top-left shows the next three. Press <b>C</b> to write your program.':
+    'Esos muros vienen hacia ti. El radar de arriba a la izquierda muestra los tres siguientes. Pulsa <b>C</b> para escribir tu programa.',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',
