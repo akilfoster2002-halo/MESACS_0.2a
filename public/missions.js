@@ -7,7 +7,7 @@
    COUNTS AS DONE. That is the whole shape of it, and it is why the list
    below can grow one row at a time.
 
-   The course goes: events, then motion, then timing, loops, interaction,
+   The course goes: events, then motion, then loops, interaction,
    variables, conditionals, and objects talking to each other. Each mission
    opens exactly the blocks its idea needs and not one more — a palette of
    two blocks is a lesson; a palette of sixty is a wall. The rows for the
@@ -46,58 +46,7 @@ window.MISSIONS = (function(){
           sel:'#cFlag', done:()=>won }
       ] },
 
-    { id:'timing', n:2, em:'⏱️', a:'#a8e6cf',
-      name:'Wait For It',
-      teach:'Timing',
-      goal:'Make the car drive, pause, then drive again.',
-      hint:'Three blocks this time. A wait in the middle is what makes the pause.',
-      cats:['events','motion','control'],
-      ops:['event.flag','motion.move','ctrl.wait'],
-      objects:[{ name:'Car', shape:'cars/raceCarRed', colour:'#ff9aa2', size:2.2 }],
-      /* Judged by watching the car, not by reading the script: it moved, it
-         stood still for a beat while the program was still going, then it
-         moved again. A student who finds another way to do that has still
-         understood the idea, which is the point. */
-      done:(c)=>{
-        const m=c.mem, a=c.actor;
-        if(!m.last){ m.last={x:a.x,z:a.z}; m.still=0; return false; }
-        const step=Math.hypot(a.x-m.last.x, a.z-m.last.z);
-        m.last={x:a.x,z:a.z};
-        if(step>0.002){
-          if(m.paused) m.went=true;            // moving again, after the pause
-          m.still=0;
-        } else if(c.running){
-          m.still += c.dt;
-          /* A pause only counts once it has already driven somewhere — the
-             stillness before the first move is just a script that has not
-             started, and `wait` in front of a move is not what was asked for.
-             Note the first move cannot be WATCHED happening: it lands in the
-             same frame that starts the run. Where it ended up says so instead. */
-          if(m.still>0.45 && c.moved>0.5) m.paused=true;
-        }
-        return !!m.went;
-      },
-      steps:[
-        { say:'A car this time. Walk over and press E to open its code.',
-          world:true, done:()=>!!(window.CODER && CODER.open) },
-        { say:'Start the same way you did before.',
-          sel:'#cPal [data-op="event.flag"]', done:c=>hats(c.actor)>0 },
-        { say:'Open Motion and give it a move — that is the driving off part.',
-          sel:'#cPal [data-c="motion"]',
-          done:()=>!!document.querySelector('#cPal [data-c="motion"].on') },
-        { say:'Click move. One is enough for now.',
-          sel:'#cPal [data-op="motion.move"]', done:c=>moves(c.actor)>0 },
-        { say:'Now Control. This is where waiting lives.',
-          sel:'#cPal [data-c="control"]',
-          done:()=>!!document.querySelector('#cPal [data-c="control"].on') },
-        { say:'Add a wait. It holds the script here for a second before the next line runs.',
-          sel:'#cPal [data-op="ctrl.wait"]', done:c=>waits(c.actor)>0 },
-        { say:'Back to Motion for one more move, so there is something after the wait.',
-          sel:'#cPal [data-c="motion"]', done:c=>moves(c.actor)>1 },
-        { say:'Press Run. Watch for the pause in the middle — that is your wait.',
-          sel:'#cFlag', done:()=>won }
-      ] },
-    { id:'loops', n:3, em:'🔁', a:'#8fd3ff',
+    { id:'loops', n:2, em:'🔁', a:'#8fd3ff',
       name:'Round and Round',
       teach:'Loops',
       goal:'Walk all the way round a square and finish where you started.',
@@ -155,7 +104,7 @@ window.MISSIONS = (function(){
           sel:'#cFlag', done:()=>won }
       ] },
 
-    { id:'keys', n:4, em:'🎮', a:'#cdb4f6',
+    { id:'keys', n:3, em:'🎮', a:'#cdb4f6',
       name:'Take the Controls',
       teach:'Interaction',
       goal:'Drive Kit around with your own keys.',
@@ -182,7 +131,7 @@ window.MISSIONS = (function(){
           done:()=>won }
       ] },
 
-    { id:'score', n:5, em:'🔢', a:'#ffb4a2',
+    { id:'score', n:4, em:'🔢', a:'#ffb4a2',
       name:'Keep Score',
       teach:'Variables',
       goal:'Count to three, then say the number out loud.',
@@ -223,10 +172,10 @@ window.MISSIONS = (function(){
         { say:'Press Run. Quinn says whatever ended up in the box.',
           sel:'#cFlag', done:()=>won }
       ] },
-    { id:'ifthen',  n:6, em:'❓', a:'#ffc8dd', name:'Only If',
+    { id:'ifthen',  n:5, em:'❓', a:'#ffc8dd', name:'Only If',
       teach:'Conditionals',soon:true, cats:['events','motion','control','sensing','ops'],
       ops:['event.flag','motion.move','ctrl.if','ctrl.forever','sense.touch','op.gt'] },
-    { id:'talk',    n:7, em:'📣', a:'#ffe9a8', name:'Pass It On',
+    { id:'talk',    n:6, em:'📣', a:'#ffe9a8', name:'Pass It On',
       teach:'Messaging',   soon:true, cats:['events','motion','control'],
       ops:['event.flag','event.send','event.recv','motion.move','ctrl.wait'] }
   ];
@@ -240,7 +189,6 @@ window.MISSIONS = (function(){
         G.focused.userData && G.focused.userData.actor===a;
   const hats  = a => a ? a.scripts.length : 0;
   const moves = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='motion.move').length,0) : 0;
-  const waits = a => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op==='ctrl.wait').length,0) : 0;
   const count = (a,op) => a ? a.scripts.reduce((n,sc)=>n+sc.body.filter(b=>b.op===op).length,0) : 0;
   const loops = a => count(a,'ctrl.repeat');
   const inLoop = (a,op) => !!a && a.scripts.some(sc=>sc.body.some(
