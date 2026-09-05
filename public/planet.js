@@ -142,6 +142,11 @@ window.PLANET = (function(){
     document.querySelector('#mapwrap').classList.add('hidden');
     ['#health','#skill','#trigger','#fbeat','#radar'].forEach(s=>{
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
+    // there is nothing to shoot or double-click out here, so do not offer it
+    if(window.keyHint) keyHint(
+      `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
+       &nbsp; <b>SPACE</b> ${t('jump')}<br>
+       <b>E</b> ${t('go into what you are looking at')} &nbsp; <b>P</b> ${t('pause')}`);
     hud();
     connect();
     if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }

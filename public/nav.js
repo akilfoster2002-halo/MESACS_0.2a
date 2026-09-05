@@ -109,6 +109,11 @@ window.NAV = (function(){
     G.hudOwner='nav'; G.missionId='nav'; G.running=true;
     if(window.updateLeaveBtn) updateLeaveBtn();
     document.querySelector('#mapwrap').classList.add('hidden');   // no map here
+    /* The program walks you here, not the keys — so do not leave a legend up
+       promising W A S D, which reads as a frozen game the moment it is tried. */
+    if(window.keyHint) keyHint(
+      `<b>C</b> ${t('write your program')} &nbsp; <b>${t('RUN')}</b> ${t('walks it')}<br>
+       <b>P</b> ${t('pause')} &nbsp; <b>Esc</b> ${t('frees the mouse')}`);
 
     L={ idx, S, grid:S.grid, w:S.grid[0].length, h:S.grid.length,
         x:0, y:0, dir:1, start:null, exit:null, done:false, caught:false, grace:GRACE,
@@ -402,6 +407,7 @@ window.NAV = (function(){
   }
   function stop(){
     L=null; busy=false; warn(null);
+    if(window.keyHint) keyHint(null);
     document.querySelector('#mapwrap').classList.remove('hidden');
     CODE.setBudget(0); CODE.setGuide(null);
   }

@@ -714,6 +714,14 @@ window.ES = {
   'Those walls are coming at you. The radar top-left shows the next three. Press <b>C</b> to write your program.':
     'Esos muros vienen hacia ti. El radar de arriba a la izquierda muestra los tres siguientes. Pulsa <b>C</b> para escribir tu programa.',
 
+  /* ---------- what the keys do, per room ---------- */
+  'write your program':'escribe tu programa','flies it':'lo vuela',
+  'again stops the field':'otra vez detiene el campo','pause':'pausa',
+  'frees the mouse':'libera el ratón','RUN':'RUN',
+  'walk':'camina','mouse':'ratón','look':'mira','jump':'salta',
+  'walks it':'te camina','drives it':'lo conduce',
+  'go into what you are looking at':'entra en lo que estás mirando',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',

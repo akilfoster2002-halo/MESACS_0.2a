@@ -338,6 +338,21 @@ window.FLIGHT = (function(){
     if(window.updateLeaveBtn) updateLeaveBtn();
     ['#mapwrap','#health','#skill','#trigger'].forEach(s=>{
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
+    /* The crosshair box still said "Mission 1 — Space Explorer · E — go in"
+       from the station you were looking at a second ago, sitting in the middle
+       of the windscreen inviting a key that does nothing here. focusScan only
+       runs while G.running, which this mission turns off, so it would have sat
+       there for the whole leg. */
+    const fx=document.querySelector('#focus');
+    if(fx){ fx.classList.add('hidden'); fx.innerHTML=''; }
+    G.focused=null; G.selected=null;
+    /* And say what the keys ACTUALLY do here. Nothing flies this ship but the
+       program, so a legend promising W A S D is a legend promising a frozen
+       game. */
+    if(window.keyHint) keyHint(
+      `<b>C</b> ${t('write your program')} &nbsp; <b>${t('RUN')}</b> ${t('flies it')}<br>
+       <b>C</b> ${t('again stops the field')} &nbsp; <b>P</b> ${t('pause')}
+       &nbsp; <b>Esc</b> ${t('frees the mouse')}`);
 
     const beats=K.beats||[];
     if(K.kind==='fly'){
@@ -743,6 +758,8 @@ window.FLIGHT = (function(){
 
   function walkFirstLeg(){
     if(!window.COACH) return;
+    // the coach is about to say the same thing in the same corner
+    const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
     /* Every step needs a gate of its OWN. The coach stands just past the last
        step that has already happened, which is what stops it nagging — but it
        means two steps sharing a condition collapse into one, and the first
@@ -899,6 +916,11 @@ window.FLIGHT = (function(){
   }
   let mt=null;
   function brief(html){
+    /* While the walkthrough is running it is already saying the next thing to
+       do, in the same corner. Two boxes of text over each other is how the
+       first screenshot of this mission ended up unreadable. A crash still
+       gets through, because that one is news. */
+    if(window.COACH && COACH.running && String(html).indexOf('💥')<0) return;
     const b=document.querySelector('#briefing');
     b.classList.remove('hidden'); b.innerHTML=t(html);
     clearTimeout(mt);
@@ -919,6 +941,7 @@ window.FLIGHT = (function(){
 
   function stop(){
     if(window.COACH) COACH.stop();
+    if(window.keyHint) keyHint(null);
     L=null; busy=false; rocks=[]; bolts=[];
     if(ship && ship.parent) ship.parent.remove(ship);
     ship=null;

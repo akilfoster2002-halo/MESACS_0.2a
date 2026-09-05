@@ -254,6 +254,21 @@ function addPanel(opt){
   return g;
 }
 
+/* WHAT THE KEYS DO, PER ROOM.
+
+   This used to be one fixed list for the whole game, which meant the
+   Spaceflight told a student that W A S D moved them and SPACE jumped — and
+   in that mission every one of those keys is dead on purpose. Press them all,
+   watch nothing happen, and the only sane conclusion is that the game has
+   frozen. A room that takes the keys away has to say so. */
+function keyHint(html){
+  const el=$('#keys'); if(!el) return;
+  el.innerHTML = html!==null && html!==undefined ? html :
+    `<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')} &nbsp; <b>SPACE</b> ${t('Jump')}<br>
+     <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
+     <b>C</b> ${t('write code')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
+}
+window.keyHint=keyHint;
 window.updateLeaveBtn=updateLeaveBtn;
 window.updateCodeBtn=updateCodeBtn;
 let codeBtnState=null;
@@ -787,9 +802,7 @@ function setLang(l){
   $('#objTitle').textContent=t('MISSION');
   $('#mapTitle').textContent=t('DESKTOP MAP');
   $('#missionName').textContent=t('Basic Training — The Desktop');
-  $('#keys').innerHTML=`<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')} &nbsp; <b>SPACE</b> ${t('Jump')}<br>
-    <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
-    <b>C</b> ${t('write code')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
+  keyHint(null);
   if(G.running && G.room) buildRoom(G.room);
   if(window.MENU) MENU.render();
 }

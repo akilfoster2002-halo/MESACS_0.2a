@@ -218,6 +218,10 @@ window.RACE = (function(){
     G.hudOwner='race'; G.missionId='race'; G.room=null; G.running=true;
     if(window.updateLeaveBtn) updateLeaveBtn();
     document.querySelector('#mapwrap').classList.add('hidden');
+    // the program drives; the keys do nothing, so stop claiming otherwise
+    if(window.keyHint) keyHint(
+      `<b>C</b> ${t('write your program')} &nbsp; <b>${t('RUN')}</b> ${t('drives it')}<br>
+       <b>P</b> ${t('pause')} &nbsp; <b>Esc</b> ${t('frees the mouse')}`);
     document.querySelector('#health').classList.add('hidden');
     document.querySelector('#skill').classList.add('hidden');
     document.querySelector('#trigger').classList.add('hidden');
@@ -550,6 +554,7 @@ window.RACE = (function(){
 
   function stop(){
     L=null; busy=false;
+    if(window.keyHint) keyHint(null);
     if(kart && kart.parent) kart.parent.remove(kart);
     kart=null;
     document.querySelector('#mapwrap').classList.remove('hidden');
