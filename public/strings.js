@@ -648,6 +648,29 @@ window.ES = {
   '💥 Rock on beat {n} — you were in col {c}, row {r}. The radar shows beat {n}: put yourself somewhere open.':
     '💥 Roca en el tiempo {n} — estabas en col {c}, fil {r}. El radar muestra el tiempo {n}: ponte en un hueco.',
 
+  /* ---------- coins, XP and the shop ---------- */
+  'LEVEL {n}':'NIVEL {n}','Level':'Nivel','XP':'XP','coins':'monedas','{n} coins':'{n} monedas',
+  '{m} complete':'{m} completada','{n} flown':'{n} superado',
+  'That costs {n} and you have {h}. Finish a mission for more.':
+    'Cuesta {n} y tienes {h}. Termina una misión para conseguir más.',
+  'SHIPS':'NAVES','CARS':'COCHES','WEARING':'EN USO','OWNED':'TUYO',
+  'what you fly in Space Explorer':'lo que pilotas en Explorador Espacial',
+  'drive them around the planet':'condúcelos por el planeta',
+  'spend what you earned':'gasta lo que ganaste',
+  'Change who you are, and spend what you earned':'Cambia quién eres y gasta lo que ganaste',
+
+  /* ---------- the library ---------- */
+  'THE LIBRARY':'LA BIBLIOTECA','The Library':'La Biblioteca',
+  'Look up any word in the language':'Busca cualquier palabra del lenguaje',
+  'look up any word':'busca cualquier palabra',
+  'Search a word, a block or an idea…':'Busca una palabra, un bloque o una idea…',
+  'Everything':'Todo','{n} of {m} entries':'{n} de {m} entradas',
+  'Nothing matches “{q}”. Try a shorter word.':'Nada coincide con «{q}». Prueba una palabra más corta.',
+  'Ideas':'Ideas','Command':'Comando','Sequence':'Secuencia','Loop':'Bucle',
+  'Nested loop':'Bucle anidado','Event':'Evento','Variable':'Variable',
+  'Coordinate':'Coordenada','Condition':'Condición','Function':'Función',
+  'Clone':'Clon','Message':'Mensaje',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',

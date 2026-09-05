@@ -295,17 +295,21 @@ window.FLIGHT = (function(){
      blocky little fighter sits with the rest of the game anyway. */
   function build(){
     const g=new THREE.Group();
-    const hull=new THREE.MeshLambertMaterial({color:0xe8ecff});
-    const trim=new THREE.MeshLambertMaterial({color:0x8fd3ff});
-    const nose=new THREE.Mesh(new THREE.ConeGeometry(0.42,1.5,10), hull);
-    nose.rotation.x=-Math.PI/2; nose.position.z=-1.0; g.add(nose);
+    // whichever ship you have equipped in the Wardrobe — a shape and two
+    // colours, since there is no space kit to load models from
+    const K=(window.SHOP && SHOP.ship) ? SHOP.ship()
+          : { hull:0xe8ecff, trim:0x8fd3ff, wing:1.25, nose:1.5 };
+    const hull=new THREE.MeshLambertMaterial({color:K.hull});
+    const trim=new THREE.MeshLambertMaterial({color:K.trim});
+    const nose=new THREE.Mesh(new THREE.ConeGeometry(0.42,K.nose,10), hull);
+    nose.rotation.x=-Math.PI/2; nose.position.z=-(0.25+K.nose/2); g.add(nose);
     const body=new THREE.Mesh(new THREE.BoxGeometry(0.86,0.5,1.7), hull);
     g.add(body);
     [-1,1].forEach(s=>{
-      const w=new THREE.Mesh(new THREE.BoxGeometry(1.25,0.14,0.8), trim);
-      w.position.set(s*0.9, -0.06, 0.3); w.rotation.z=s*0.12; g.add(w);
+      const w=new THREE.Mesh(new THREE.BoxGeometry(K.wing,0.14,0.8), trim);
+      w.position.set(s*(K.wing*0.72), -0.06, 0.3); w.rotation.z=s*0.12; g.add(w);
       const f=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.5,0.5), trim);
-      f.position.set(s*1.4, 0.2, 0.5); g.add(f);
+      f.position.set(s*(K.wing*1.12), 0.2, 0.5); g.add(f);
     });
     // small, and tucked into the tail: a big one sits between the camera and
     // the ship and is the only thing you can see
@@ -666,6 +670,7 @@ window.FLIGHT = (function(){
     if(window.beep) beep('star');
     if(L.idx===0) markWalked();
     if(window.COACH) COACH.stop();
+    if(window.WALLET) WALLET.award(t('{n} flown',{n:t(L.K.name)}), 25, 12, 'flight_'+L.K.id);
     const last = L.idx+1 >= STAGES.length;
     if(!last){
       brief(L.kind==='gun' ? t('🎯 Range clear — next leg…') : t('✅ Field flown — next leg…'));

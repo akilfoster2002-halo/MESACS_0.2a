@@ -101,15 +101,24 @@ window.CHARS = (function(){
       ? t('{a} of {b} unlocked. Pick who you play as.',{a:open,b:AVATAR.CHARS.length})
       : t('Everyone is unlocked. Pick your favourite.');
     document.querySelector('#cGo').textContent=t('Continue ▶');
+    purse(); shelves();
 
+    /* The roster is a shop shelf now. The ??? tiles used to be locked with
+       no way on earth to earn them, which is a promise the game never kept —
+       they have a price on them instead. */
+    const items=window.SHOP ? SHOP.charItems() : [];
     grid.innerHTML=AVATAR.CHARS.map((c,i)=>{
-      const lock=!isUnlocked(i);
+      const it=items[i];
+      const owned=!it || SHOP.ownsChar(it);
       const on=c.id===AVATAR.chosen;
-      return `<button class="chrtile${on?' on':''}${lock?' lock':''}"
-        data-c="${c.id}" ${lock?'disabled':''} aria-pressed="${on?'true':'false'}"
-        title="${lock?t('Locked'):c.name}">
+      const afford=!it || WALLET.coins()>=it.price;
+      return `<button class="chrtile${on?' on':''}${owned?'':' buy'}${owned||afford?'':' poor'}"
+        data-c="${c.id}" data-buy="${owned?'':it.id}" data-price="${it?it.price:0}"
+        aria-pressed="${on?'true':'false'}"
+        title="${owned?c.name:t('{n} coins',{n:it.price})}">
         <img src="${c.preview}" alt="" loading="lazy">
-        <span class="chrname">${lock?'???':c.name}</span></button>`;
+        <span class="chrname">${c.name}</span>
+        ${owned?'':`<span class="chrprice">${it.price}¤</span>`}</button>`;
     }).join('');
 
     grid.querySelectorAll('[data-c]').forEach(b=>{
@@ -118,6 +127,14 @@ window.CHARS = (function(){
       b.onfocus=()=>preview(b.dataset.c);
       b.onclick=()=>{
         const id=b.dataset.c;
+        // not yours yet: this click is a purchase, not a change of clothes
+        if(b.dataset.buy){
+          const r=SHOP.buy(b.dataset.buy, +b.dataset.price);
+          if(r==='poor'){ shortfall(+b.dataset.price); return; }
+          render();
+          if(window.beep) beep('star');
+          return;
+        }
         AVATAR.pick(id);
         // pick() saves progress, which re-renders this grid out from under us —
         // so mark by id, not by node, or we clear the tile we just lit up
@@ -130,6 +147,65 @@ window.CHARS = (function(){
     preview(AVATAR.chosen);
   }
 
+  /* say how short you are rather than doing nothing, which reads as broken */
+  function shortfall(price){
+    const el=document.querySelector('#cHint');
+    if(!el) return;
+    el.textContent=t('That costs {n} and you have {h}. Finish a mission for more.',
+                     {n:price, h:WALLET.coins()});
+    el.classList.add('warn');
+    clearTimeout(shortfall._t);
+    shortfall._t=setTimeout(()=>{ el.classList.remove('warn'); render(); }, 2600);
+    if(window.beep) beep('bad');
+  }
+  /* coins, level and the bar towards the next one, over the roster */
+  function purse(){
+    const el=document.querySelector('#cPurse'); if(!el || !window.WALLET) return;
+    const p=WALLET.progress();
+    el.innerHTML=`<span class="pz-lv">${t('Level')} <b>${p.level}</b></span>
+      <span class="pz-bar"><i style="width:${Math.round(100*p.into/p.span)}%"></i></span>
+      <span class="pz-xp">${p.into} / ${p.span} ${t('XP')}</span>
+      <span class="pz-co">¤ <b>${WALLET.coins()}</b></span>`;
+  }
+  /* ---------------------------------------------------------- the shelves
+     Ships and cars sit under the roster on the same screen, because a child
+     looking for "the thing I bought" should not have to remember which
+     building it was in. */
+  function shelves(){
+    const el=document.querySelector('#cShop'); if(!el || !window.SHOP) return;
+    const card=(o)=>`<button class="shopit${o.on?' on':''}${o.owned?'':' buy'}"
+        data-shop="${o.id}" data-price="${o.price}" style="--a:${o.a}">
+        <span class="si-swatch"></span>
+        <b>${t(o.name)}</b><small>${t(o.blurb||'')}</small>
+        <span class="si-tag">${o.owned ? (o.on?t('WEARING'):t('OWNED')) : o.price+'¤'}</span>
+      </button>`;
+    const ships=SHOP.SHIPS.map(sh=>card({ id:sh.id, name:sh.name, blurb:sh.blurb,
+      price:sh.price, owned:SHOP.ownsShip(sh), on:SHOP.ship().id===sh.id,
+      a:'#'+sh.hull.toString(16).padStart(6,'0') })).join('');
+    const cur=SHOP.car();
+    const cars=SHOP.CARS.map(c=>card({ id:c.id, name:c.name, blurb:c.blurb,
+      price:c.price, owned:SHOP.ownsCar(c), on:!!cur && cur.id===c.id,
+      a:c.a })).join('');
+    el.innerHTML=
+      `<div class="shelf"><h4>🚀 ${t('SHIPS')} <small>${t('what you fly in Space Explorer')}</small></h4>
+         <div class="shelfrow">${ships}</div></div>
+       <div class="shelf"><h4>🏎 ${t('CARS')} <small>${t('drive them around the planet')}</small></h4>
+         <div class="shelfrow">${cars}</div></div>`;
+    el.querySelectorAll('[data-shop]').forEach(b=>{
+      b.onclick=()=>{
+        const id=b.dataset.shop, price=+b.dataset.price;
+        const owned = id.indexOf('ship_')===0 ? SHOP.ownsShip(SHOP.shipById(id))
+                                              : SHOP.ownsCar(SHOP.carById(id));
+        if(!owned){
+          const r=SHOP.buy(id, price);
+          if(r==='poor') return shortfall(price);
+          if(window.beep) beep('star');
+        } else if(window.beep) beep('pop');
+        SHOP.equip(id);
+        render();
+      };
+    });
+  }
   function open(){ render(); play(); }
   function close(){ stop(); }
 

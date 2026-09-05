@@ -44,7 +44,9 @@ window.PLANET = (function(){
     { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-74, lat:-8, w:20, d:18,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
     { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:74,  lat:-8, w:18, d:16,
-      wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are' }
+      wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are, and spend what you earned' },
+    { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:180, lat:8,  w:22, d:18,
+      wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' }
   ];
   const STATIONS=[
     { id:'tut',    em:'\u{1F3AE}', name:'Level 0 — Basics',           a:'#ffe9a8' },
@@ -80,6 +82,10 @@ window.PLANET = (function(){
   }
 
   let on=false, server=null, others=new Map(), crowd=null;
+  /* The car you bought, if you have one on. Riding is the whole use of a car
+     here — there is nothing to race on a planet, so it is a faster way to
+     cross one and a thing to be seen in. */
+  let ride=null, rideId=null, carLoader=null;
   /* You, as the planet sees you. G.pos is derived from this, never the
      other way round. */
   let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true };
@@ -121,7 +127,9 @@ window.PLANET = (function(){
     me.alt=0; me.vy=0; me.onGround=true;
     lastYaw=G.yaw=0; G.pitch=-0.05;
     G.pos.copy(worldPos(EYE));
+    ride=null; rideId=null;
     if(window.AVATAR) AVATAR.attach();
+    fitRide();
     place(0.016,false,false);
     G.scene.updateMatrixWorld(true);
 
@@ -317,7 +325,7 @@ window.PLANET = (function(){
     const f =(G.keys.KeyW||G.keys.ArrowUp?1:0)-(G.keys.KeyS||G.keys.ArrowDown?1:0);
     const sd=(G.keys.KeyD?1:0)-(G.keys.KeyA?1:0);
     const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight);
-    const spd=running?11:6.5;
+    const spd=(running?11:6.5)*(ride?RIDE_SPEED:1);
 
     let moved=false;
     if(f||sd){
@@ -354,6 +362,33 @@ window.PLANET = (function(){
     place(dt, moved, running);
     if(window.GUN) GUN.update(dt, moved);
   }
+  /* Put whatever you are riding under you, and take the body away — a
+     character standing inside a car reads as a bug rather than a driver,
+     which is the same reason the Circuit leaves them in the pits. */
+  function fitRide(){
+    const c = window.SHOP ? SHOP.car() : null;
+    const want = c && WALLET.has(c.id) ? c : null;
+    if((want?want.id:null)===rideId) return;
+    rideId = want ? want.id : null;
+    if(ride && ride.parent) ride.parent.remove(ride);
+    ride=null;
+    if(!want){ if(window.AVATAR) AVATAR.attach(); return; }
+    carLoader = carLoader || new THREE.GLTFLoader();
+    carLoader.load(want.file, g=>{
+      if(rideId!==want.id || !on) return;
+      const root=g.scene;
+      root.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
+      const box=new THREE.Box3().setFromObject(root);
+      const len=Math.max(0.001, box.max.z-box.min.z);
+      root.scale.setScalar(3.4/len);
+      const holder=new THREE.Group();
+      holder.add(root);
+      ride=holder; G.roomGroup.add(ride);
+      if(window.AVATAR) AVATAR.detach();          // you are in it, not beside it
+    }, undefined, ()=>{ ride=null; rideId=null; });
+  }
+  const RIDE_SPEED=1.9;
+
   /* the player, in a building's own frame */
   function local(b, worldPoint){
     const rel=worldPoint.clone().sub(b.frame.up.clone().multiplyScalar(PR));
@@ -380,7 +415,16 @@ window.PLANET = (function(){
   function place(dt, moving, running){
     const up=me.dir.clone().normalize();
     G.pos.copy(worldPos(EYE));
-    if(window.AVATAR) AVATAR.orient(worldPos(0), up, me.fwd, dt, moving, running, me.onGround);
+    if(ride){
+      const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
+      const r=new THREE.Vector3().crossVectors(up, f).normalize();
+      // the kit models nose down +Z, same half turn the characters need
+      ride.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+        r.clone().negate(), up, f.clone().negate()));
+      ride.position.copy(worldPos(0.25));
+    } else if(window.AVATAR){
+      AVATAR.orient(worldPos(0), up, me.fwd, dt, moving, running, me.onGround);
+    }
     const right=new THREE.Vector3().crossVectors(me.fwd, up).normalize();
     if(G.firstPerson){
       G.camera.position.copy(worldPos(EYE));
@@ -402,6 +446,9 @@ window.PLANET = (function(){
     if(!id) return;
     if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     if(id==='wardrobe'){ leave(); return MENU.chars(); }
+    /* The library does not take you anywhere — it opens over the world, so
+       you can look a word up and still be standing where you were. */
+    if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
     if(!PROGRESS.unlocked(id)){
       say(t('\u{1F512} Finish {m} first',{m:t(MENU.labelOf(PROGRESS.needs(id)))}));
       return;
@@ -543,7 +590,8 @@ window.PLANET = (function(){
     if(o) o.innerHTML=
       `<li class="cur">\u{1F680} ${t('Mission Control')} — ${t('every mission, one station each')}</li>
        <li>\u{1F527} ${t('The Workshop')} — ${t('build anything, with your class')}</li>
-       <li>\u{1F642} ${t('The Wardrobe')} — ${t('change who you are')}</li>`;
+       <li>\u{1F642} ${t('The Wardrobe')} — ${t('spend what you earned')}</li>
+       <li>\u{1F4DA} ${t('The Library')} — ${t('look up any word')}</li>`;
     say(t('Walk into a building. <b>E</b> to go in.'));
   }
 
@@ -558,7 +606,8 @@ window.PLANET = (function(){
   }
   function stop(){ leave(); }
 
-  return { enter, tick, walk, use, stop, leave, tour:retour,
+  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide,
+           get riding(){ return !!ride; },
            STATIONS, BUILDINGS, PR, lonLat, frameAt, dirOf,
            forget(){ back=null; },
            get where(){ return me; },

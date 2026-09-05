@@ -353,11 +353,25 @@ const PROGRESS=(function(){
   return {
     load(p){ done=p||{}; },
     all(){ return done; },
-    complete(id){ if(!id) return; done[id]=true; save(); if(window.MENU) MENU.render(); },
+    complete(id){
+      if(!id) return;
+      const first=!done[id];
+      done[id]=true; save();
+      /* Finishing pays, and the first time pays properly. award() handles the
+         quarter rate on a repeat itself, so replaying is still worth doing. */
+      if(window.WALLET && window.MENU)
+        WALLET.award(t('{m} complete',{m:t(MENU.labelOf(id))}), first?120:120, first?60:60, 'mission_'+id);
+      if(window.MENU) MENU.render();
+    },
     isDone(id){ return !!done[id]; },
     // the quiz score rides in the same bag but never gates a mission unlock —
     // only complete() does that, so a checkpoint quiz can't skip the boss fight
     recordQuiz(id,pct){ if(!id) return; done['quiz_'+id]=pct; save(); },
+    /* The same bag carries the wallet, so coins and XP follow an account to
+       any machine exactly the way finished missions already do. */
+    set(k,v){ done[k]=v; save(); },
+    get(k,d){ return done[k]===undefined ? d : done[k]; },
+    quiet(k,v){ done[k]=v; },          // change a lot, then save() once
     quizScore(id){ return done['quiz_'+id]; },
     unlocked(id){
       if(id==='free') return true;
@@ -365,6 +379,7 @@ const PROGRESS=(function(){
       return i<=0 ? true : !!done[ORDER[i-1]];
     },
     needs(id){ const i=ORDER.indexOf(id); return i>0?ORDER[i-1]:null; },
+    flush(){ save(); },
     reset(){ done={}; save(); }
   };
 })();
