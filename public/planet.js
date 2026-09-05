@@ -223,19 +223,25 @@ window.PLANET = (function(){
     pad.position.set(b.x, y-0.5, b.z); G.roomGroup.add(pad);
 
     const wall=new THREE.MeshLambertMaterial({color:b.wall});
-    const put=(x,z,w,d,h)=>{
-      const m=new THREE.Mesh(new THREE.BoxGeometry(w,h||H,d), wall);
-      m.position.set(x, y+(h||H)/2, z); G.roomGroup.add(m);
-      G.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:y, y2:y+(h||H)});
+    /* `up` is how far off the pad the piece STARTS. Without it every box sits
+       on the ground, which is fine for a wall and wrong for the bit over a
+       door — and a lintel seated on the floor is just a wall across the
+       doorway, which is exactly what it was. */
+    const put=(x,z,w,d,h,up)=>{
+      const hh=h||H, base=y+(up||0);
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d), wall);
+      m.position.set(x, base+hh/2, z); G.roomGroup.add(m);
+      G.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:base, y2:base+hh});
     };
     // back and sides solid; the front has a doorway cut out of the middle
     put(b.x, b.z-hd, b.w, 1);
     put(b.x-hw, b.z, 1, b.d);
     put(b.x+hw, b.z, 1, b.d);
-    const gap=7, side=(b.w-gap)/2;
+    const gap=9, side=(b.w-gap)/2, DOOR=6;
     put(b.x-(gap/2+side/2), b.z+hd, side, 1);
     put(b.x+(gap/2+side/2), b.z+hd, side, 1);
-    put(b.x, b.z+hd, gap, 1, 2.4);              // a lintel over the doorway
+    // the lintel starts at head height and goes up to the roof
+    put(b.x, b.z+hd, gap, 1, H-DOOR, DOOR);
 
     const roof=new THREE.Mesh(new THREE.BoxGeometry(b.w+2.4, 0.8, b.d+2.4),
       new THREE.MeshLambertMaterial({color:b.roof}));
