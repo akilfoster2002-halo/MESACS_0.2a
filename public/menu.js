@@ -106,10 +106,12 @@ window.MENU = (function(){
         afterSignIn();
       }catch(err){ authMsg(err.message); }
     };
-    const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ open(); };
+      const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
     const st=$('#btnStart'); if(st) st.onclick=()=>chars();
     const cb=$('#cBack');    if(cb) cb.onclick=()=>start();
-    const cg=$('#cGo');      if(cg) cg.onclick=()=>{ if(window.CHARS) CHARS.close(); open(); };
+    // picking a character is the last screen before the world: Continue lands
+    // you on the planet, not on a grid of cards
+    const cg=$('#cGo');      if(cg) cg.onclick=()=>{ if(window.CHARS) CHARS.close(); homeworld(); };
     const mc=$('#mChar');    if(mc) mc.onclick=()=>chars();
     const out=$('#mOut');
     if(out) out.onclick=async()=>{
@@ -123,7 +125,7 @@ window.MENU = (function(){
   function afterSignIn(){
     const u=NET.me;
     if(u && u.progress) PROGRESS.load(u.progress);
-    open();
+    homeworld();          // signing in lands you on the planet, not on a menu
   }
 
   /* -------------------------------------------------------- the menu */
@@ -324,6 +326,23 @@ window.MENU = (function(){
       row.appendChild(b);
     });
   }
+  /* THE HOMEWORLD.
+
+     Signing in used to hand you a grid of cards. It hands you a planet now:
+     the shared world if you have an account to share it with, and the same
+     planet on your own if you are a guest. Nobody chooses a server first —
+     you land on one and can move later. */
+  let world=null;
+  async function homeworld(){
+    hideAll();
+    $('#hud').classList.remove('hidden');
+    G.running=true; G.stats.t0=performance.now();
+    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
+    if(!world && NET.signedIn){
+      try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
+    }
+    PLANET.enter(NET.signedIn ? world : null);
+  }
   function enterServer(sv){
     hideAll();
     $('#hud').classList.remove('hidden');
@@ -383,7 +402,7 @@ window.MENU = (function(){
   }
 
   return { open, start, chars, auth, servers, modes, missions, render, renderChars,
-           wireAuth, launch, hideAll };
+           wireAuth, launch, hideAll, homeworld, labelOf };
 })();
 
 /* =====================================================================

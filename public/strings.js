@@ -612,6 +612,19 @@ window.ES = {
   'Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.':
     'Escribe una asignación completa, como <b>x = 2</b> o <b>x = x + 1</b>.',
 
+  /* ---------- the home planet ---------- */
+  'Home Planet':'Planeta Base',
+  'MISSION CONTROL':'CONTROL DE MISIONES','THE WORKSHOP':'EL TALLER','THE WARDROBE':'EL VESTUARIO',
+  'Mission Control':'Control de Misiones','The Workshop':'El Taller','The Wardrobe':'El Vestuario',
+  'Every mission, one station each':'Cada misión, una estación para cada una',
+  'every mission, one station each':'cada misión, una estación para cada una',
+  'Build anything, with your class':'Construye lo que quieras, con tu clase',
+  'build anything, with your class':'construye lo que quieras, con tu clase',
+  'Change who you are':'Cambia quién eres','change who you are':'cambia quién eres',
+  'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
+  'E — go in':'E — entrar',
+  'JUMP TO A MISSION':'SALTAR A UNA MISIÓN','Back to the planet':'Volver al planeta',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',

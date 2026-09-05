@@ -430,6 +430,12 @@ function wireInput(){
     if(!typingInField(e)){
       /* Find object → select object → program object. Looking at a thing and
          pressing the key opens ITS code, not whatever was open last. */
+      /* On the planet E is the door key: look at a station or a building
+         panel and it takes you in. Nothing else on the planet uses E. */
+      if(e.code==='KeyE' && G.running && G.room==='planet'){
+        const u=G.focused && G.focused.userData;
+        if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
+      }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;
         if(on && !CODER.open){ e.preventDefault(); CODER.openOn(on); return; }
@@ -490,6 +496,7 @@ function loop(now){
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
+  if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
      typing player leaves the room holding a stale picture of them. */
@@ -535,16 +542,43 @@ function togglePause(){
       <div class="diffrow" id="pDiff"></div>
       <div class="p-lbl">${t('KEYS')}</div>
       <div class="p-hint">${$('#keys').innerHTML}</div>
+      <div class="p-lbl">${t('JUMP TO A MISSION')}</div>
+      <div class="jumprow" id="pJump"></div>
       <div style="text-align:center;margin-top:14px">
         <button class="btn good" id="pClose">${t('Back to the game ▶')}</button>
+        <button class="btn ghost small" id="pHome">${t('Back to the planet')}</button>
         <button class="btn ghost small" id="pQuit">${t('Leave to the menu')}</button>
       </div>
     </div>`;
   p.classList.remove('hidden');
   pauseDiff();
+  pauseJump();
   $('#pClose').onclick=()=>togglePause();
+  const ph=$('#pHome');
+  if(ph) ph.onclick=()=>{ p.classList.add('hidden'); MENU.homeworld(); };
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };
 }
+/* The planet is how you are meant to get to a mission, but a walk across it
+   should never be the only way — this is the old grid, folded into the pause
+   menu, so nobody is ever stuck because they could not find a door. */
+function pauseJump(){
+  const row=$('#pJump'); if(!row || !window.PLANET) return;
+  row.innerHTML='';
+  PLANET.STATIONS.forEach(st=>{
+    const open_=PROGRESS.unlocked(st.id);
+    const b=document.createElement('button');
+    b.className='jumpbtn'+(open_?'':' lock')+(PROGRESS.isDone(st.id)?' done':'');
+    b.style.setProperty('--a', st.a);
+    b.disabled=!open_;
+    b.innerHTML=`<span class="jem">${open_?st.em:'🔒'}</span><b>${t(st.name)}</b>`;
+    b.onclick=()=>{ $('#pause').classList.add('hidden');
+                    $('#hud').classList.remove('hidden');
+                    if(window.PLANET) PLANET.leave();
+                    startMissionRoom(st.id); };
+    row.appendChild(b);
+  });
+}
+
 /* Difficulty is read live by the chase and the guns, so switching it here
    lands on the next step and the next shot — no restart, and the program the
    student has already written stays exactly where it is. */
@@ -628,6 +662,11 @@ function focusScan(){
     const u=owner.userData;
     if(u.actor){                                  // a coded object names itself
       box.innerHTML = esc(u.actor.name) + '<small>' + t('E — program this') + '</small>';
+    } else if(u.enter){
+      // a door on the planet: say so, and say when it is not open to you yet
+      const locked = u.kind==='station' && window.PROGRESS && !PROGRESS.unlocked(u.enter);
+      box.innerHTML = t(u.label) + '<small>' +
+        (locked ? '🔒 '+t('Locked') : t('E — go in')) + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
@@ -747,7 +786,12 @@ function showResults(o){
   $('#done').classList.remove('hidden');
 }
 window.showResults=showResults;
-function returnToDesktop(){ MENU.open(); }   // kept: every results screen calls this
+/* Every results screen lands here. Home is the planet now — the mission grid
+   is a shortcut behind P, not the place you live. */
+function returnToDesktop(){
+  if(window.PLANET && MENU.homeworld) MENU.homeworld();
+  else MENU.open();
+}
 function begin(){ MENU.open(); }
 
 init();
