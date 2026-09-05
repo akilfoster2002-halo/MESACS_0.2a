@@ -2,7 +2,8 @@
    Mission: Linux — server
    Serves the game, handles sign-in, saves progress, and runs the shared
    rooms: player presence plus chat that a teacher can watch, mute and
-   clear in real time.
+   clear in real time. Chat is never stored — a room that empties forgets
+   every word of it.
 
    Rooms are a fixed list of named servers a student picks from, not
    classes a teacher has to create first. Signing up needs nothing but a
@@ -165,12 +166,15 @@ app.get('/api/teacher/overview', async (req,res)=>{
   const students = await db.q(
     `SELECT id,username,display,progress,muted_until FROM users
      WHERE role='student' ORDER BY display`);
-  const msgs = await db.q(
-    `SELECT id,server,user_id,display,text,hidden,created_at FROM messages
-     ORDER BY id DESC LIMIT 120`);
+  /* only what is being said right now: rooms that emptied kept nothing */
+  const msgs = [];
+  for(const [server,log] of chats) for(const c of log)
+    msgs.push({ id:c.id, server, user_id:c.userId, display:c.display,
+                text:c.text, hidden:c.hidden, created_at:new Date(c.at).toISOString() });
+  msgs.sort((a,b)=>a.id-b.id);
   const n=headcount();
   ok(res,{ servers: SERVERS.map(s=>({ ...s, count:n[s.id]||0 })),
-           students:students.rows, messages:msgs.rows.reverse() });
+           students:students.rows, messages:msgs.slice(-120) });
 });
 
 app.post('/api/teacher/mute', async (req,res)=>{
@@ -187,19 +191,22 @@ app.post('/api/teacher/mute', async (req,res)=>{
 
 app.post('/api/teacher/hide', async (req,res)=>{
   const u = await requireTeacher(req,res); if(!u) return;
-  await db.q('UPDATE messages SET hidden=true WHERE id=$1',[req.body.id]);
-  broadcastAll({ t:'unsay', id:req.body.id });
+  const id = Number(req.body.id);
+  /* hidden, not spliced out: the teacher can still see what was said for as
+     long as the room has somebody in it */
+  for(const [,log] of chats) for(const c of log) if(c.id===id) c.hidden=true;
+  broadcastAll({ t:'unsay', id });
   ok(res,{});
 });
 
-/* Clear one room, or leave the server out to clear the lot. Messages are
-   hidden rather than deleted so an incident can still be looked at after. */
+/* Clear one room, or leave the server out to clear the lot. Nothing was
+   written down, so clearing is simply forgetting. */
 app.post('/api/teacher/clear', async (req,res)=>{
   const u = await requireTeacher(req,res); if(!u) return;
   const only = clean(req.body.server);
   if(only && !isServer(only)) return bad(res,400,'No such server');
-  if(only) await db.q('UPDATE messages SET hidden=true WHERE server=$1',[only]);
-  else     await db.q('UPDATE messages SET hidden=true');
+  if(only) chats.delete(only);
+  else     chats.clear();
   if(only) broadcastRoom(only,{ t:'clear' });
   else     broadcastAll({ t:'clear' });
   ok(res,{});
@@ -209,6 +216,24 @@ app.post('/api/teacher/clear', async (req,res)=>{
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path:'/ws' });
 const live = new Map();   // ws -> {id, display, server, role, x,z,yaw, mutedUntil}
+
+/* Chat is kept in memory and only while somebody is standing in the room.
+   Nothing goes to Postgres, and an empty room forgets everything it heard:
+   the moment the last person walks out the log goes with them, so the next
+   arrival gets a silent room rather than yesterday's conversation. A restart
+   wipes the lot for the same reason. */
+const chats = new Map();  // server id -> [{id, userId, display, text, hidden, at}]
+let nextMsgId = 1;
+const CHAT_KEEP = 40;     // how far back somebody joining can read
+
+function occupied(server){
+  for(const [,p] of live) if(p.server===server) return true;
+  return false;
+}
+/* Call with the room somebody has just left — including on disconnect. */
+function forgetIfEmpty(server){
+  if(server && !occupied(server)) chats.delete(server);
+}
 
 /* `server` is null until the client picks a room, so an unjoined socket is
    simply in no room and hears nothing — no accidental cross-posting. */
@@ -255,13 +280,23 @@ wss.on('connection', async (ws, req)=>{
     if(m.t==='join'){
       const want=String(m.server||'');
       if(!isServer(want)){ ws.send(JSON.stringify({ t:'sys', text:'No such server.' })); return; }
+      /* The objects we were holding belonged to the room — and the mission —
+         being left. Drop them before anything else, and tell the room, or a
+         newcomer is handed a set of objects that stopped existing: the ball
+         somebody swapped for a car turns up in the new room as a car. A join
+         to the room we are already in is a mission change and counts. */
+      if(p.objs.size){
+        p.objs.clear();
+        broadcastRoom(p.server,{ t:'objs', from:p.id, full:true, set:[] }, ws);
+      }
       if(p.server===want) return;
-      if(p.server) broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display }, ws);
+      const was = p.server;
+      if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=want;
-      const recent = await db.q(
-        `SELECT id,display,text FROM messages WHERE server=$1 AND hidden=false
-         ORDER BY id DESC LIMIT 40`,[want]);
-      ws.send(JSON.stringify({ t:'room', server:want, history:recent.rows.reverse() }));
+      forgetIfEmpty(was);
+      const history = (chats.get(want)||[]).filter(c=>!c.hidden)
+        .map(c=>({ id:c.id, display:c.display, text:c.text }));
+      ws.send(JSON.stringify({ t:'room', server:want, history }));
       /* the room is already full of other people's objects — hand the newcomer
          the lot at once, rather than waiting for each owner's next change */
       for(const [,q] of live)
@@ -271,8 +306,11 @@ wss.on('connection', async (ws, req)=>{
       return;
     }
     if(m.t==='leave'){
-      if(p.server) broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display }, ws);
-      p.server=null; p.objs.clear(); return;
+      const was = p.server;
+      if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
+      p.server=null; p.objs.clear();
+      forgetIfEmpty(was);
+      return;
     }
     if(m.t==='pos'){
       if(!p.server) return;
@@ -307,10 +345,11 @@ wss.on('connection', async (ws, req)=>{
         ws.send(JSON.stringify({ t:'sys', text:'Slow down a little.' })); return;
       }
       if(!p.server) return;
-      const ins = await db.q(
-        `INSERT INTO messages (server,user_id,display,text) VALUES ($1,$2,$3,$4) RETURNING id,created_at`,
-        [p.server,p.id,p.display,text]);
-      const out = { t:'chat', id:ins.rows[0].id, from:p.display, userId:p.id, text };
+      const out = { t:'chat', id:nextMsgId++, from:p.display, userId:p.id, text };
+      const log = chats.get(p.server) || [];
+      log.push({ id:out.id, userId:p.id, display:p.display, text, hidden:false, at:Date.now() });
+      if(log.length>CHAT_KEEP) log.splice(0, log.length-CHAT_KEEP);
+      chats.set(p.server, log);
       broadcastRoom(p.server,out,ws);       // everyone else…
       ws.send(JSON.stringify(out));          // …then the sender, exactly once
       return;
@@ -319,7 +358,9 @@ wss.on('connection', async (ws, req)=>{
 
   ws.on('close', ()=>{
     const p=live.get(ws); live.delete(ws);
-    if(p) broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
+    if(!p) return;
+    broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
+    forgetIfEmpty(p.server);
   });
 });
 

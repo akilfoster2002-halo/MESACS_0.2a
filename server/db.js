@@ -1,6 +1,7 @@
 /* Postgres access + schema. Deliberately stores as little about a child as
    possible: a username they choose, a hashed password, and progress.
-   No email, no real name, no date of birth.
+   No email, no real name, no date of birth — and no chat, which is held in
+   memory only and vanishes with the room.
 
    Rooms used to be classes, which meant a teacher had to build one before
    any two students could stand together. They are plain named servers now.
@@ -39,22 +40,13 @@ async function init(){
       muted_until TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT now()
     );
-    CREATE TABLE IF NOT EXISTS messages (
-      id        SERIAL PRIMARY KEY,
-      class_id  INTEGER REFERENCES classes(id),
-      user_id   INTEGER REFERENCES users(id),
-      display   TEXT NOT NULL,
-      text      TEXT NOT NULL,
-      hidden    BOOLEAN NOT NULL DEFAULT false,
-      created_at TIMESTAMPTZ DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS messages_class_idx ON messages(class_id, created_at DESC);
-
     CREATE TABLE IF NOT EXISTS seen (id INT);
 
-    /* --- servers replace classes as the room a message belongs to --- */
-    ALTER TABLE messages ADD COLUMN IF NOT EXISTS server TEXT;
-    CREATE INDEX IF NOT EXISTS messages_server_idx ON messages(server, created_at DESC);
+    /* Chat is not a table any more. It lives in the server's memory for as
+       long as somebody is standing in the room and is thrown away the moment
+       the room empties, so there is nothing here to create. An older messages
+       table is left where it is rather than dropped — same reason as classes. */
+
     /* a class used to be required at sign-up; nobody has one now */
     ALTER TABLE users ALTER COLUMN class_id DROP NOT NULL;
   `).then(()=>{ state.ready=true; });
