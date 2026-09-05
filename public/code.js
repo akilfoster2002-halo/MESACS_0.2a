@@ -42,12 +42,34 @@ window.CODE = (function(){
     flyRight :{label:'right()',      color:'#8fd3ff', help:'Slide one lane right'},
     coast    :{label:'coast()',      color:'#bdb2d8', help:'Hold this lane for one beat'},
     fire     :{label:'fire()',       color:'#ffb4a2', help:'Shoot straight ahead'},
-    goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'}
+    goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'},
+    /* The coordinates, written out. x is the column and y is the row, and
+       these say so in the one notation the student will meet again in every
+       language they ever use: a name, an equals sign, and a value.
+         x = 2        put x there, wherever it was    (absolute)
+         x = x + 1    take what x is and add one      (relative)
+       right() and x = x + 1 do exactly the same thing, and having both is
+       the point — one is a word for a move, the other is arithmetic on a
+       number that happens to be where you are. */
+    setX     :{label:'x =',          color:'#ffb4a2', help:'Put the column number straight into x'},
+    setY     :{label:'y =',          color:'#a8e6cf', help:'Put the row number straight into y'},
+    addX     :{label:'x = x +',      color:'#ffb4a2', help:'Add to the column you are already in'},
+    addY     :{label:'y = y +',      color:'#a8e6cf', help:'Add to the row you are already in'}
   };
+  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy' };   // which axis each counts on
   /* How far goTo is allowed to count. The console does not know how big any
      one mission's grid is, so the mission says. */
   let GRID={ col:2, row:2 };
   function setGrid(cols, rows){ GRID={ col:Math.max(0,(cols||3)-1), row:Math.max(0,(rows||3)-1) }; }
+  /* what the counter on a coordinate block is allowed to reach */
+  function numRange(type){
+    if(type==='setX') return [0, GRID.col];
+    if(type==='setY') return [0, GRID.row];
+    if(type==='addX') return [-GRID.col, GRID.col];
+    if(type==='addY') return [-GRID.row, GRID.row];
+    return [0,0];
+  }
+  const clampN=(type,v)=>{ const [lo,hi]=numRange(type); return Math.max(lo,Math.min(hi,v)); };
   let CONDS=['red','blue'];
   function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }
 
@@ -58,6 +80,9 @@ window.CODE = (function(){
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
     if(type==='goTo'){ b.col=1; b.row=1; }
+    // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
+    if(type==='setX'||type==='setY') b.n=1;
+    if(type==='addX'||type==='addY') b.n=1;
     return b;
   }
   function addBlock(type){
@@ -124,6 +149,8 @@ window.CODE = (function(){
         }
       } else if(b.type==='goTo'){
         out.push({name:'goTo', blockId:b.id, col:b.col, row:b.row});
+      } else if(NUMBLK[b.type]){
+        out.push({name:b.type, blockId:b.id, n:b.n});
       } else out.push({name:b.type, blockId:b.id});
     }
     return out;
@@ -150,6 +177,12 @@ window.CODE = (function(){
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else if(b.type==='goTo'){
         s.push(pad+'goto '+b.col+','+b.row);
+      } else if(b.type==='setX'||b.type==='setY'){
+        s.push(pad+(b.type==='setX'?'x':'y')+' = '+b.n);
+      } else if(b.type==='addX'||b.type==='addY'){
+        const v=b.type==='addX'?'x':'y';
+        // x = x - 1 reads better than x = x + -1, and parses back the same
+        s.push(pad+v+' = '+v+(b.n<0?' - '+Math.abs(b.n):' + '+b.n));
       } else s.push(pad+DEF[b.type].label);
     }
     return s;
@@ -161,7 +194,7 @@ window.CODE = (function(){
      to be something you could have built, and it runs down one code path. */
   const BY_WORD = {};
   Object.keys(DEF).forEach(k=>{
-    if(k==='repeat'||k==='ifc'||k==='define'||k==='goTo') return;
+    if(k==='repeat'||k==='ifc'||k==='define'||k==='goTo'||NUMBLK[k]) return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
   function allowed(type){ return palette.indexOf(type) >= 0; }
@@ -202,6 +235,21 @@ window.CODE = (function(){
         put(b); continue;
       }
       if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.'));
+      if((m=low.match(/^([xy]) *= *\1 *([+-]) *(\d+)$/))){
+        const type=m[1]==='x'?'addX':'addY';
+        if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:m[1]+' = '+m[1]+' + 1'}));
+        const b=makeBlock(type);
+        b.n=clampN(type, (m[2]==='-'?-1:1)*(+m[3]));
+        put(b); continue;
+      }
+      if((m=low.match(/^([xy]) *= *(-?\d+)$/))){
+        const type=m[1]==='x'?'setX':'setY';
+        if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:m[1]+' = 1'}));
+        const b=makeBlock(type); b.n=clampN(type, +m[2]);
+        put(b); continue;
+      }
+      if(/^[xy] *=/.test(low))
+        return bad(i, t('Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.'));
       if(low==='define combo'){
         if(!allowed('define')) return bad(i, t('<b>define combo</b> is not in this mission yet.'));
         const b=makeBlock('define'); put(b); stack.push(b); continue;
@@ -320,6 +368,19 @@ window.CODE = (function(){
           <div class="blk-foot"></div>
         </div>`;
     }
+    if(NUMBLK[b.type]){
+      const [lo,hi]=numRange(b.type);
+      const sign = (b.type==='addX'||b.type==='addY') && b.n>=0 ? '+' : '';
+      return `<div class="blk num" data-id="${b.id}" style="--c:${d.color}">
+          <span class="blk-name">${d.label}</span>
+          ${readonly?'':`<button class="cnt" data-act="n-" data-id="${b.id}"
+             ${b.n<=lo?'disabled':''}>−</button>`}
+          <span class="cnt-n">${sign}${b.n}</span>
+          ${readonly?'':`<button class="cnt" data-act="n+" data-id="${b.id}"
+             ${b.n>=hi?'disabled':''}>+</button>`}
+          ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
+        </div>`;
+    }
     if(b.type==='goTo'){
       // two little counters rather than a typed number: a nine-year-old can
       // read a lane off the screen and click to it, and it cannot go out of
@@ -436,6 +497,10 @@ window.CODE = (function(){
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
       else if(type==='define') out.push({w:'define combo', c:d.color});
       else if(type==='goTo')   out.push({w:'goto 1,1', c:d.color});
+      else if(type==='setX')   out.push({w:'x = 1', c:d.color});
+      else if(type==='setY')   out.push({w:'y = 1', c:d.color});
+      else if(type==='addX')   out.push({w:'x = x + 1', c:d.color});
+      else if(type==='addY')   out.push({w:'y = y + 1', c:d.color});
       else                     out.push({w:d.label, c:d.color});
     });
     if(palette.some(p=>p==='repeat'||p==='ifc'||p==='define'))
@@ -486,7 +551,9 @@ window.CODE = (function(){
     paletteEl.innerHTML=palette.map(type=>{
       const d=DEF[type];
       return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
-        <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1':d.label}</b>
+        <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1'
+             :type==='setX'?'x = 1':type==='setY'?'y = 1'
+             :type==='addX'?'x = x + 1':type==='addY'?'y = y + 1':d.label}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
@@ -505,6 +572,8 @@ window.CODE = (function(){
         if(btn.dataset.act==='col-' && b) b.col=Math.max(0,b.col-1);
         if(btn.dataset.act==='row+' && b) b.row=Math.min(GRID.row,b.row+1);
         if(btn.dataset.act==='row-' && b) b.row=Math.max(0,b.row-1);
+        if(btn.dataset.act==='n+' && b) b.n=clampN(b.type, b.n+1);
+        if(btn.dataset.act==='n-' && b) b.n=clampN(b.type, b.n-1);
         draw();
       };
     });

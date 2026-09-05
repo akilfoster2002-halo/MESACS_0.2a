@@ -577,7 +577,10 @@ window.ES = {
   'One gap per beat and it is always in a <b>corner</b>. A single step cannot cross the field in one beat — <b>goTo</b> can go straight to a lane. Four corners, three times over, <b>six blocks</b>.':
     'Un hueco por tiempo y siempre en una <b>esquina</b>. Un solo paso no cruza el campo en un tiempo — <b>goTo</b> va directo a un carril. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
   /* what happens */
-  'Engines lit. {n} beats ahead.':'Motores encendidos. {n} tiempos por delante.',
+  'Engines lit. {n} beats ahead. Press <b>C</b> any time to freeze the field.':
+    'Motores encendidos. {n} tiempos por delante. Pulsa <b>C</b> cuando quieras para congelar el campo.',
+  'Back to the start — flying it again. Stops so far: {n}.':
+    'Vuelta al principio — a volarlo otra vez. Paradas hasta ahora: {n}.',
   '💥 Rock on beat {n}, lane col {c} row {r}. Look at beat {n} on the chart and put yourself somewhere open.':
     '💥 Roca en el tiempo {n}, carril col {c} fil {r}. Mira el tiempo {n} en la carta y ponte en un hueco.',
   '✅ Field flown — next leg…':'✅ Campo superado — siguiente tramo…',
@@ -591,6 +594,23 @@ window.ES = {
   '<b>goTo</b> is not in this mission yet.':'<b>goTo</b> aún no está en esta misión.',
   '<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.':
     '<b>goTo</b> necesita una columna y una fila, como <b>goto 1,2</b>.',
+
+  /* ---------- radar, stops and the coordinate system ---------- */
+  'NEXT':'SIGUIENTE','CLEAR':'DESPEJADO','holding':'en espera',
+  '{s}s to impact':'{s}s para el impacto',
+  'Stops':'Paradas','Stops on the last one':'Paradas en el último',
+  'The Coordinate System':'El Sistema de Coordenadas',
+  'x is the column, y is the row':'x es la columna, y es la fila',
+  'There are no direction words on this leg. There are two numbers: x is which column you are in and y is which row, and you fly by changing them. x = 2 puts x there whatever it was. x = x + 1 takes the x you already have and adds one — which is exactly what right() was doing all along, written as arithmetic.':
+    'En este tramo no hay palabras de dirección. Hay dos números: x es en qué columna estás e y en qué fila, y vuelas cambiándolos. x = 2 pone x ahí, fuera lo que fuera. x = x + 1 toma la x que ya tienes y le suma uno — que es justo lo que hacía right(), escrito como aritmética.',
+  'No up() or left() here — only <b>x</b> and <b>y</b>. <b>x = 2</b> sets the column outright; <b>x = x + 1</b> adds one to the column you are in. Read your lane off the radar and write the numbers.':
+    'Aquí no hay up() ni left() — solo <b>x</b> e <b>y</b>. <b>x = 2</b> fija la columna directamente; <b>x = x + 1</b> suma uno a la columna en la que estás. Lee tu carril en el radar y escribe los números.',
+  'Put the column number straight into x':'Pon el número de columna directamente en x',
+  'Put the row number straight into y':'Pon el número de fila directamente en y',
+  'Add to the column you are already in':'Suma a la columna en la que ya estás',
+  'Add to the row you are already in':'Suma a la fila en la que ya estás',
+  'Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.':
+    'Escribe una asignación completa, como <b>x = 2</b> o <b>x = x + 1</b>.',
 
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',

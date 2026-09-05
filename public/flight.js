@@ -43,7 +43,7 @@ window.FLIGHT = (function(){
      'X' is rock.  Every chart is checked for a way through when the stage
      loads, so an impossible wall is a crash at author time, not at play. */
   const STAGES=[
-    { id:'first', kind:'fly', name:'First Contact', budget:8,
+    { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast'],
       learn:{ name:'One block, one beat',
               text:'The ship flies on whether you write anything or not. Each block you write happens on the next beat — so a program is not just what you do, it is when.',
@@ -73,7 +73,7 @@ window.FLIGHT = (function(){
       start:{col:1,row:1},
       targets:'X.X/.../X.X' },
 
-    { id:'rhythm', kind:'fly', name:'The Rhythm', budget:6,
+    { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
               text:'The field ahead is the same three beats over and over: a gap on top, a gap in the middle, then a gap in the middle again. Write those three moves once, wrap a repeat round them, and twelve beats fit in four blocks.',
@@ -100,7 +100,7 @@ window.FLIGHT = (function(){
       start:{col:0,row:0},
       targets:'.../.../XXX' },
 
-    { id:'deep', kind:'fly', name:'Deep Field', budget:6,
+    { id:'deep', kind:'fly', stops:3, name:'Deep Field', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
       learn:{ name:'A loop inside a loop',
               text:'The field repeats twice over: a small pattern that repeats, inside a bigger one that repeats too. A repeat is allowed to hold another repeat — that is how a big field fits in a small program.',
@@ -119,7 +119,32 @@ window.FLIGHT = (function(){
         '.../.X./XXX',  'XXX/X.X/...'
       ] },
 
-    { id:'jump', kind:'fly', name:'Jump Drive', budget:6,
+    { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
+      pal:['setX','setY','addX','addY','coast','repeat'],
+      learn:{ name:'x is the column, y is the row',
+              text:'There are no direction words on this leg. There are two numbers: x is which column you are in and y is which row, and you fly by changing them. x = 2 puts x there whatever it was. x = x + 1 takes the x you already have and adds one — which is exactly what right() was doing all along, written as arithmetic.',
+              code:'x = x + 2\ny = y - 1\ny = y - 1\nx = x - 2' },
+      brief:'No up() or left() here — only <b>x</b> and <b>y</b>. <b>x = 2</b> sets the column outright; <b>x = x + 1</b> adds one to the column you are in. Read your lane off the radar and write the numbers.',
+      start:{col:0,row:2},
+      /* One gap per beat, and it only ever moves along ONE axis at a time —
+         because one beat runs one block and a block changes one coordinate.
+         Written for a program that uses both forms of it: relative arithmetic
+         round the outside, then two outright assignments to cut the corner.
+
+            x = x + 2   y = y - 1   y = y - 1   x = x - 2
+            y = y + 2   x = 1       y = 0       x = x + 1                  */
+      beats:[
+        'XX./XXX/XXX',   // x = x + 2  → (2,2)
+        'XXX/XX./XXX',   // y = y - 1  → (2,1)
+        'XXX/XXX/XX.',   // y = y - 1  → (2,0)
+        'XXX/XXX/.XX',   // x = x - 2  → (0,0)
+        '.XX/XXX/XXX',   // y = y + 2  → (0,2)
+        'X.X/XXX/XXX',   // x = 1      → (1,2)
+        'XXX/XXX/X.X',   // y = 0      → (1,0)
+        'XXX/XXX/XX.'    // x = x + 1  → (2,0)
+      ] },
+
+    { id:'jump', kind:'fly', stops:2, name:'Jump Drive', budget:6,
       pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat','goTo'],
       learn:{ name:'Absolute beats relative',
               text:'up() and left() move you one lane FROM WHERE YOU ARE. goTo(col,row) puts you in one exact lane whatever lane you were in. When the only gap is diagonally across the field and you have one beat to reach it, a one-lane step cannot get there and goTo can.',
@@ -140,6 +165,7 @@ window.FLIGHT = (function(){
   let L=null, busy=false, ship=null, rocks=[], bolts=[], wasFP=null;
 
   /* ---------------------------------------------------------- the chart */
+  const clamp=(v,n)=>Math.max(0, Math.min(n-1, v));
   const rowsOf = s => String(s).split('/');
   /* rows are written top first, so row 2 is line 0 */
   function blocked(mask, col, row){
@@ -151,32 +177,54 @@ window.FLIGHT = (function(){
      is not hard, it is broken, and it says so in the console the moment the
      stage loads rather than after a child has tried it nine times.
 
-     `jump` says which kind of motion is being tested: false is one lane per
-     beat, which is what up/down/left/right can do, and true is anywhere at
-     all, which is what goTo can do.  The difference between those two
-     answers IS the lesson on the last leg — that chart is built so the first
-     one fails and the second one passes. */
-  function solvable(beats, start, jump){
+     `mode` says which kind of motion is being tested, because the palette a
+     leg hands out decides what "reachable in one beat" even means:
+
+       'step'  one lane, up/down/left/right — neighbours only
+       'axis'  x = 2 / y = y + 1 — any lane along ONE axis, because an
+               assignment moves one coordinate and a beat only runs one block,
+               so a diagonal still costs two beats
+       'jump'  goTo(col,row) — both coordinates at once, so anywhere at all
+
+     The gap between those answers is the lesson on the legs that need it: a
+     chart flyable under 'jump' and not under 'step' is what makes goTo worth
+     having rather than merely nicer. */
+  const MODES={
+    step:(c,r)=>[[c,r],[c,r+1],[c,r-1],[c-1,r],[c+1,r]],
+    axis:(c,r)=>{ const o=[];
+      for(let i=0;i<COLS;i++) o.push([i,r]);
+      for(let i=0;i<ROWS;i++) o.push([c,i]);
+      return o; }
+  };
+  function solvable(beats, start, mode){
+    mode = mode===true ? 'jump' : (mode||'step');
     let live=new Set([start.col+','+start.row]);
     for(let b=0;b<beats.length;b++){
       const next=new Set();
-      const open=[];
-      for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++)
-        if(!blocked(beats[b],c,r)) open.push([c,r]);
-      if(jump){
-        open.forEach(([c,r])=>next.add(c+','+r));   // goTo reaches any of them
-      } else for(const key of live){
-        const [c,r]=key.split(',').map(Number);
-        [[c,r],[c,r+1],[c,r-1],[c-1,r],[c+1,r]].forEach(([nc,nr])=>{
-          if(nc<0||nc>=COLS||nr<0||nr>=ROWS) return;
-          if(blocked(beats[b],nc,nr)) return;
-          next.add(nc+','+nr);
-        });
+      if(mode==='jump'){
+        for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++)
+          if(!blocked(beats[b],c,r)) next.add(c+','+r);
+      } else {
+        const reach=MODES[mode]||MODES.step;
+        for(const key of live){
+          const [c,r]=key.split(',').map(Number);
+          reach(c,r).forEach(([nc,nr])=>{
+            if(nc<0||nc>=COLS||nr<0||nr>=ROWS) return;
+            if(blocked(beats[b],nc,nr)) return;
+            next.add(nc+','+nr);
+          });
+        }
       }
       if(!next.size) return { ok:false, beat:b+1 };
       live=next;
     }
     return { ok:true };
+  }
+  /* what the blocks this leg hands out can actually do in one beat */
+  function modeOf(pal){
+    if(pal.indexOf('goTo')>=0) return 'jump';
+    if(pal.some(p=>p==='setX'||p==='setY'||p==='addX'||p==='addY')) return 'axis';
+    return 'step';
   }
 
   /* --------------------------------------------------------- the world */
@@ -289,21 +337,27 @@ window.FLIGHT = (function(){
 
     const beats=K.beats||[];
     if(K.kind==='fly'){
-      const jumps=K.pal.indexOf('goTo')>=0;
-      const s=solvable(beats, K.start, jumps);
+      const mode=modeOf(K.pal);
+      const s=solvable(beats, K.start, mode);
       // an unflyable chart is an authoring mistake, and it should say so
       if(!s.ok) console.warn('FLIGHT: stage "'+K.id+'" has no way through at beat '+s.beat);
-      // and a goTo stage that one-lane steps could also fly is a goTo stage
-      // that never teaches anything, which is the quieter mistake
-      if(jumps && solvable(beats, K.start, false).ok)
-        console.warn('FLIGHT: stage "'+K.id+'" does not need goTo — relative steps fly it too');
+      /* And a leg that hands out the fancy motion but could be flown with
+         plain one-lane steps has not taught anything — it has only mentioned
+         it. That is the quieter mistake, so it gets its own warning. */
+      if(mode!=='step' && solvable(beats, K.start, 'step').ok)
+        console.warn('FLIGHT: stage "'+K.id+'" does not need '+mode+
+                     ' motion — one-lane steps fly it too');
     }
     L={ idx, K, kind:K.kind, beats,
         col:K.start.col, row:K.start.row,          // the lane it is heading for
         fromCol:K.start.col, fromRow:K.start.row,  // and the one it is leaving
         ease:1,                                    // 0..1 between the two
         beat:0, elapsed:0, rolling:false, done:false, crashed:false,
-        steps:null, at:0, shipZ:0, shipY:laneY(K.start.row), left:0 };
+        steps:null, at:0, shipZ:0, shipY:laneY(K.start.row), left:0,
+        /* How many times you went back to the console. The first program is
+           free — every stop after it is one you are trying to avoid, and a
+           loop is what buys you the beats to avoid it. */
+        runs:0, wasOpen:false, radarKey:'' };
 
     G.scene.add(starfield());                      // sky, not room: it never moves
     G.roomGroup.add(rails(Math.max(beats.length, 6)));
@@ -360,14 +414,19 @@ window.FLIGHT = (function(){
     // the flight is not walked step by step: it is flown on a clock, and
     // tick() pulls the next block off as each beat arrives
     busy=true;
+    L.runs++;
     L.steps=steps; L.at=0;
     L.beat=0; L.elapsed=0; L.rolling=true;
     L.col=L.fromCol=L.K.start.col; L.row=L.fromRow=L.K.start.row; L.ease=1;
     L.shipZ=0;
     pull();                                       // the move for beat 1 starts now
-    brief(t('Engines lit. {n} beats ahead.',{n:L.beats.length}));
+    brief(L.runs>1
+      ? t('Back to the start — flying it again. Stops so far: {n}.',{n:stops()})
+      : t('Engines lit. {n} beats ahead. Press <b>C</b> any time to freeze the field.',
+          {n:L.beats.length}));
   }
   const beatMs = () => BEAT_MS * (window.DIFF?DIFF.time():1);
+  const stops = () => Math.max(0, (L?L.runs:0) - 1);
 
   /* Take the next real instruction off the list.  The markers a repeat leaves
      behind are bookkeeping, not moves, so they light up the tape and cost no
@@ -393,6 +452,16 @@ window.FLIGHT = (function(){
       L.col=Math.max(0,Math.min(COLS-1, s.col|0));
       L.row=Math.max(0,Math.min(ROWS-1, s.row|0));
     }
+    /* The coordinates, done as arithmetic. x IS the column and y IS the row —
+       not a metaphor for them, the same number the radar is drawn from. So
+       `x = x + 1` and right() land in the identical lane, and a student who
+       writes both and watches the same thing happen has understood what a
+       coordinate is. Off the edge is clamped rather than an error: the wall
+       of the field is a fact about the field, not a mistake in the program. */
+    if(s.name==='setX') L.col=clamp(s.n|0, COLS);
+    if(s.name==='setY') L.row=clamp(s.n|0, ROWS);
+    if(s.name==='addX') L.col=clamp(L.col+(s.n|0), COLS);
+    if(s.name==='addY') L.row=clamp(L.row+(s.n|0), ROWS);
     // coast() and fire() move nothing: the beat passes and the lane holds
   }
 
@@ -400,6 +469,11 @@ window.FLIGHT = (function(){
   function tick(dt){
     if(!L) return;
     spin(dt);
+    /* Opening the console froze the field. Rebuild the guide right then, so
+       the radar you plan against is the one from the beat you stopped at
+       rather than whatever it said when the leg began. */
+    const open=!!(window.CODE && CODE.isOpen());
+    if(open!==L.wasOpen){ L.wasOpen=open; if(open) guide(); }
     if(L.rolling && !L.done && !L.crashed && awake()){
       const B=beatMs()/1000;
       L.elapsed += dt;
@@ -415,12 +489,18 @@ window.FLIGHT = (function(){
     }
     fly();
     boltsTick(dt);
+    radarOut();
   }
-  /* the world stands still while a card or the pause menu is up, or the beat
-     would run out behind a screen the student is reading */
+  /* THE CONSOLE IS THE PAUSE BUTTON.  Press C and the field stops dead where
+     it is, so you can look at what is about to hit you and write your way out
+     of it — then RUN flies the leg again from the start with the new program.
+     Every other mission keeps its world turning while you type; this one must
+     not, because reacting to a wall you cannot stop to look at is not a
+     lesson, it is a reflex test. */
   function awake(){
     return document.querySelector('#teach').classList.contains('hidden')
-        && document.querySelector('#pause').classList.contains('hidden');
+        && document.querySelector('#pause').classList.contains('hidden')
+        && !(window.CODE && CODE.isOpen());
   }
   function gate(b){
     if(b>L.beats.length) return finish();
@@ -580,6 +660,7 @@ window.FLIGHT = (function(){
       title:t('THE FIELD IS BEHIND YOU'),
       body:t('Nine lanes, a fixed clock, and a program that says not just what to do but when to do it. That is motion — relative, absolute, repeated and timed.'),
       stats:`<div><b>${t('Legs flown')}</b> ${STAGES.length}</div>
+             <div><b>${t('Stops on the last one')}</b> ${stops()}</div>
              <div><b>${t('Blocks on the last one')}</b> ${blocks}</div>`,
       btnText:t('Back to the menu'),
       onBtn:()=>{ document.querySelector('#done').classList.add('hidden');
@@ -589,41 +670,94 @@ window.FLIGHT = (function(){
   }
 
   /* --------------------------------------------------------------- HUD */
-  /* The chart, drawn.  You cannot write a program for a field you cannot
-     see, so the same nine-lane grid the rocks are laid on is printed beat
-     by beat above the palette while you write. */
-  function chartHTML(upto){
+  /* THE RADAR.
+
+     This replaced a strip of numbered cards holding the whole field, which
+     nobody could read: twelve identical little grids in a row do not tell
+     you which one is about to hit you, and that is the only question you
+     ever actually have.
+
+     So it shows three walls and no more — the one you are about to meet
+     drawn big, the two behind it smaller and dimmer, so the panel reads as
+     depth rather than as a list.  Your own lane is marked on every one of
+     them, which is the thing the cards never did: you are not looking up a
+     fact about the field, you are looking at whether YOU are in the way.
+     Sit in the path of the nearest wall and that cell goes red. */
+  function radarHTML(){
     if(!L) return '';
-    const cells=(mask)=>{
+    const cell=(mask,c,r,mine)=>{
+      const rock=blocked(mask,c,r);
+      const me=mine && L.col===c && L.row===r;
+      return `<i class="${rock?'rock':''}${me?' me':''}${rock&&me?' hit':''}"></i>`;
+    };
+    const grid=(mask,mine)=>{
       let out='';
-      for(let r=ROWS-1;r>=0;r--){
-        for(let c=0;c<COLS;c++)
-          out+=`<i class="${blocked(mask,c,r)?'rock':''}"></i>`;
-      }
+      for(let r=ROWS-1;r>=0;r--) for(let c=0;c<COLS;c++) out+=cell(mask,c,r,mine);
       return out;
     };
     if(L.kind==='gun'){
-      return `<div class="chart"><div class="cbeat"><b>${t('TARGETS')}</b>
-        <div class="cgrid">${cells(L.K.targets)}</div></div></div>`;
+      return `<div class="radar"><div class="rw big"><b>${t('TARGETS')}</b>
+        <div class="rgrid">${grid(L.K.targets,true)}</div></div></div>`;
     }
-    const n = upto===undefined ? L.beats.length : upto;
-    return '<div class="chart">'+L.beats.slice(0,n).map((m,i)=>
-      `<div class="cbeat${L.rolling&&L.beat===i+1?' on':''}"><b>${i+1}</b>
-        <div class="cgrid">${cells(m)}</div></div>`).join('')+'</div>';
+    const at=L.rolling?L.beat:0;
+    const size=['big','mid','far'], lbl=[t('NEXT'),'+1','+2'];
+    let out='<div class="radar">';
+    for(let k=0;k<3;k++){
+      const b=at+1+k;
+      if(b>L.beats.length){
+        out+=`<div class="rw ${size[k]} clear"><b>${k?'':t('CLEAR')}</b>
+          <div class="rgrid">${grid('.../.../...', k===0)}</div></div>`;
+        continue;
+      }
+      const danger = k===0 && blocked(L.beats[b-1], L.col, L.row);
+      out+=`<div class="rw ${size[k]}${danger?' warn':''}">
+        <b>${lbl[k]} <small>${b}</small></b>
+        <div class="rgrid">${grid(L.beats[b-1], k===0)}</div></div>`;
+    }
+    out+=`<div class="rlegend">${eta()}</div></div>`;
+    return out;
+  }
+  /* seconds until the nearest wall reaches you — the number that decides
+     whether you have time to think or need to press C right now */
+  function eta(){
+    if(!L || !L.rolling) return t('holding');
+    const B=beatMs()/1000;
+    const left=Math.max(0, (L.beat+1) - L.elapsed/B) * B;
+    return t('{s}s to impact',{s:left.toFixed(1)});
   }
   function guide(){
     const K=L.K;
     CODE.setGuide({
-      brief:K.brief+chartHTML(),
+      brief:K.brief+radarHTML(),
       name:K.learn.name, text:K.learn.text, code:K.learn.code });
+  }
+  /* The same radar, on the windscreen.  Rebuilt only when something on it
+     actually changed — this runs every frame, and re-writing nine cells of
+     HTML sixty times a second for a picture that changes once a beat is how
+     a smooth mission turns into a slideshow. */
+  function radarOut(){
+    const el=document.querySelector('#radar'); if(!el) return;
+    if(!L || (window.CODE && CODE.isOpen())){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const key=[L.kind,L.rolling?L.beat:-1,L.col,L.row,
+               Math.round((L.elapsed||0)*10)].join('|');
+    if(key===L.radarKey) return;
+    L.radarKey=key;
+    el.innerHTML=radarHTML();
   }
   function hud(){
     if(!L) return;
     document.querySelector('#missionName').textContent=
       t('Leg {n} — {name}',{n:L.idx+1, name:t(L.K.name)});
-    document.querySelector('#objList').innerHTML=STAGES.map((s,i)=>
+    const legs=STAGES.map((s,i)=>
       `<li class="${i<L.idx?'done':(i===L.idx?'cur':'')}">${i<L.idx?'✔ ':'• '}${
         s.kind==='gun'?'🎯 ':'🪨 '}${t(s.name)}</li>`).join('');
+    // stops are the score on a timed leg; the range has no clock to beat
+    const tgt=L.K.stops;
+    document.querySelector('#objList').innerHTML =
+      (tgt===undefined ? '' :
+        `<li class="cur">⏸ ${t('Stops')}: <b>${stops()}</b> ${t('of')} <b>${tgt}</b>
+          ${stops()>tgt?'⚠':''}</li>`) + legs;
   }
   /* how far through the field the ship is, right now, over the windscreen */
   function beatOut(){
@@ -678,6 +812,7 @@ window.FLIGHT = (function(){
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null;
                       if(window.GUN) GUN.update(0,false); }
     const fb=document.querySelector('#fbeat'); if(fb) fb.classList.add('hidden');
+    const rd=document.querySelector('#radar'); if(rd){ rd.classList.add('hidden'); rd.innerHTML=''; }
     document.querySelector('#mapwrap').classList.remove('hidden');
     CODE.setBudget(0); CODE.setGuide(null); CODE.setGrid(3,3);
   }
