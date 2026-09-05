@@ -79,6 +79,24 @@ window.PLANET = (function(){
     right=new THREE.Vector3().crossVectors(up, fwd).normalize();
     return { up, fwd, right };
   }
+  /* Where you land the first time: out in front of Mission Control's door,
+     far enough back to read the sign over it. The door is the +z side of the
+     building's own frame, so this steps back along that side rather than
+     guessing at a latitude — guessing put you behind the building as often
+     as in front, which makes "walk to the door" a hunt. */
+  const LANDING_OFF=48;
+  function landingSpot(){
+    const b=BUILDINGS[0];
+    if(!b.frame) return dirOf(b.lon, b.lat-14);
+    return b.dir.clone().applyAxisAngle(b.frame.right, LANDING_OFF/PR).normalize();
+  }
+  /* The tangent at `from` that points along the ground toward `to`. On a
+     sphere you cannot subtract two positions and call it a direction — the
+     part of `to` that sticks out of the surface has to come off first. */
+  function facing(from, to){
+    const f=to.clone().sub(from.clone().multiplyScalar(to.dot(from)));
+    return f.lengthSq()<1e-9 ? frameAt(from,0).fwd.clone() : f.normalize();
+  }
   function stand(g, dir, spin, lift){
     const f=frameAt(dir, spin||0);
     g.quaternion.setFromRotationMatrix(
@@ -120,18 +138,26 @@ window.PLANET = (function(){
     G.scene.fog=null;
     on=true;
 
-    sky(); surface(); scatter();
+    sky(); surface();
     BUILDINGS.forEach(build);
+    scatter();                     // after the buildings: it works around them
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
-      const b=BUILDINGS[0];
-      me.dir=dirOf(b.lon, b.lat-9);
-      me.fwd=frameAt(me.dir,0).fwd.clone();
+      /* First landing: stand out in front of Mission Control's door, looking
+         straight at it. Not "somewhere near it" — the door is on the +z side
+         of the building's own frame, so step back along that side and then
+         face the building. Spawning at a fixed latitude used to put you
+         behind it as often as in front, which makes the first instruction a
+         student ever gets ("walk to the door") a hunt. */
+      // far enough back that the whole building and its sign are in frame
+      me.dir=landingSpot();
+      me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
     me.alt=0; me.vy=0; me.onGround=true;
-    lastYaw=G.yaw=0; G.pitch=-0.05;
+    // level, not looking at your own feet: the sign is above the door
+    lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
     ride=null; rideId=null;
     if(window.AVATAR) AVATAR.attach();
@@ -192,6 +218,22 @@ window.PLANET = (function(){
   }
   /* Scattered over the whole ball, each standing on its own normal — on a
      sphere the far side has to be furnished too, or it reads as a backdrop. */
+  /* Is this spot standing in the walk from the landing spot to the door? A
+     tree in that corridor is the first thing a student ever sees of this
+     world, planted squarely in front of the thing they are being told to
+     walk to. Distance to the great circle between the two, and only between
+     the two — behind you or past the door does not count. */
+  function onPath(dir){
+    const b=BUILDINGS[0]; if(!b.frame) return false;
+    const a=landingSpot();
+    const n=new THREE.Vector3().crossVectors(a, b.dir);
+    if(n.lengthSq()<1e-9) return false;
+    n.normalize();
+    const off=Math.asin(Math.min(1,Math.abs(dir.dot(n))))*PR;
+    if(off>13) return false;
+    const arc=a.angleTo(b.dir);
+    return dir.angleTo(a)<arc+0.06 && dir.angleTo(b.dir)<arc+0.06;
+  }
   function scatter(){
     const trunk=new THREE.MeshLambertMaterial({color:0x6b4a34});
     const leaf =new THREE.MeshLambertMaterial({color:0x4f9457});
@@ -203,6 +245,7 @@ window.PLANET = (function(){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
       if(BUILDINGS.some(b=>dir.angleTo(dirOf(b.lon,b.lat))*PR < b.w*1.2)) continue;
+      if(onPath(dir)) continue;               // and not in the way of the door
       const g=new THREE.Group();
       if(Math.random()<0.45){
         const h=3+Math.random()*3;
@@ -458,6 +501,11 @@ window.PLANET = (function(){
   /* ----------------------------------------------------- walking into one */
   function use(id){
     if(!id) return;
+    /* Only ever the ids the panels actually carry. Anything else used to fall
+       through to startMissionRoom() and build an arena out of a typo. */
+    const known = id==='workshop' || id==='wardrobe' || id==='library'
+               || STATIONS.some(s=>s.id===id);
+    if(!known) return;
     if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     if(id==='wardrobe'){ leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
@@ -472,6 +520,11 @@ window.PLANET = (function(){
     startMissionRoom(id);
   }
   function say(msg){
+    // the tour is already talking, in the same corner — same reason as flight
+    if(window.COACH && COACH.running){
+      const q=document.querySelector('#briefing'); if(q) q.classList.add('hidden');
+      return;
+    }
     const b=document.querySelector('#briefing'); if(!b) return;
     b.classList.remove('hidden'); b.innerHTML=msg;
     clearTimeout(say._t);
@@ -571,6 +624,8 @@ window.PLANET = (function(){
 
   function tour(){
     if(!window.COACH) return;
+    // hud() already put a briefing up; the tour talks in the same corner
+    const bq=document.querySelector('#briefing'); if(bq) bq.classList.add('hidden');
     const start=me.dir.clone(), yaw0=G.yaw;
     const firstStation=()=>{ const b=MC();
       return b.g ? b.g.localToWorld(V(-(b.w-9)/2, 2.5, -b.d/2+3.2)) : V(0,0,0); };
@@ -622,7 +677,7 @@ window.PLANET = (function(){
   }
   function stop(){ leave(); }
 
-  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide,
+  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing,
            get riding(){ return !!ride; },
            STATIONS, BUILDINGS, PR, lonLat, frameAt, dirOf,
            forget(){ back=null; },
