@@ -603,6 +603,11 @@ function pauseDiff(){
   });
 }
 function step(dt){
+  /* THE PLANET IS ROUND, so none of what follows applies there: no height
+     function, no gravity down -Y, no axis-aligned walls and no camera that
+     assumes up is up. It owns all of that itself and this hands straight
+     over. Everything after this line is the flat-world game, unchanged. */
+  if(window.PLANET && PLANET.active){ PLANET.walk(dt); return; }
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
   const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);

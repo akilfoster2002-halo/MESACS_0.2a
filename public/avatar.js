@@ -146,6 +146,21 @@ window.AVATAR = (function(){
     }catch(e){ console.warn('character failed to load',e); body=null; model=null; }
   }
   function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null; }
+  /* On a round world a body cannot be placed with a y-rotation — it has to
+     stand along the surface normal, which points somewhere different at every
+     step. A caller that owns its own gravity hands the basis in and this puts
+     the model on it. The model faces +Z, so +Z is where the player is facing. */
+  function orient(pos, up, fwd, dt, moving, running, onGround){
+    if(!body) return;
+    const u=up.clone().normalize();
+    const f=fwd.clone().sub(u.clone().multiplyScalar(fwd.dot(u))).normalize();
+    const r=new THREE.Vector3().crossVectors(u, f).normalize();   // right-handed: r × u = f
+    body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
+    body.position.copy(pos);
+    body.visible=!G.firstPerson;
+    animate(model, dt, onGround===false ? 'static'
+                     : moving ? (running ? 'sprint' : 'walk') : 'idle');
+  }
   function update(dt, moving, running, onGround){
     if(!body) return;
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
@@ -157,6 +172,6 @@ window.AVATAR = (function(){
     animate(model, dt, clip);
   }
 
-  return { CHARS, load, pick, attach, detach, update, animate,
+  return { CHARS, load, pick, attach, detach, update, orient, animate,
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };
 })();
