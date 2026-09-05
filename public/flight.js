@@ -44,11 +44,11 @@ window.FLIGHT = (function(){
      loads, so an impossible wall is a crash at author time, not at play. */
   const STAGES=[
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
-      pal:['flyUp','flyDown','flyLeft','flyRight','coast'],
-      learn:{ name:'One block, one wall',
-              text:'Every block you write gets you past one wall.',
-              code:'up()\ncoast()\nleft()\ndown()' },
-      brief:'A wall of rock, then another. Fly the gaps. <b>coast()</b> stays in your lane for one wall.',
+      pal:['addY','addX','coast'],
+      learn:{ name:'A move is arithmetic',
+              text:'x is your column, y is your row. Add to one and you move.',
+              code:'y = y + 1\ncoast()\nx = x - 1\ny = y - 1' },
+      brief:'<b>y = y + 1</b> goes up a row, <b>y = y - 1</b> down. <b>x</b> is across. The sign is the direction.',
       start:{col:1,row:1},
       /* Drawn backwards from a path that uses all four directions and a
          coast, then thinned out: enough rock to make the gap the obvious
@@ -65,19 +65,19 @@ window.FLIGHT = (function(){
       ] },
 
     { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
-      pal:['flyUp','flyDown','flyLeft','flyRight','fire'],
+      pal:['addY','addX','fire'],
       learn:{ name:'The same nine lanes',
               text:'No clock here. fire() hits your own lane.',
-              code:'left()\nfire()\nup()\nfire()' },
+              code:'x = x - 1\nfire()\ny = y + 1\nfire()' },
       brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
       start:{col:1,row:1},
       targets:'X.X/.../X.X' },
 
     { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
-      pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
+      pal:['addY','addX','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
               text:'Three walls, over and over. Write them once.',
-              code:'repeat 4\n  up()\n  down()\n  coast()\nend' },
+              code:'repeat 4\n  y = y + 1\n  y = y - 1\n  coast()\nend' },
       brief:'Twelve walls, <b>six blocks</b>. Find the bit that repeats.',
       start:{col:1,row:1},
       /* Three beats, four times over, drawn backwards from the program that
@@ -92,19 +92,19 @@ window.FLIGHT = (function(){
       ] },
 
     { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
-      pal:['flyUp','flyDown','flyLeft','flyRight','fire','repeat'],
+      pal:['addY','addX','fire','repeat'],
       learn:{ name:'A row of targets is a loop',
               text:'Shoot, slide, shoot, slide. That is a repeat.',
-              code:'repeat 3\n  fire()\n  right()\nend' },
+              code:'repeat 3\n  fire()\n  x = x + 1\nend' },
       brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
       start:{col:0,row:0},
       targets:'.../.../XXX' },
 
     { id:'deep', kind:'fly', stops:3, name:'Deep Field', budget:6,
-      pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat'],
+      pal:['addY','addX','coast','repeat'],
       learn:{ name:'A loop inside a loop',
               text:'A repeat can hold another repeat.',
-              code:'repeat 3\n  repeat 2\n    left()\n    right()\n  end\n  up()\n  down()\nend' },
+              code:'repeat 3\n  repeat 2\n    x = x - 1\n    x = x + 1\n  end\n  y = y + 1\n  y = y - 1\nend' },
       brief:'Eighteen walls, <b>six blocks</b>. One repeat is seven. Nest them.',
       start:{col:1,row:1},
       /* Six beats, three times over. The inner pair is left()/right(), which
@@ -119,12 +119,34 @@ window.FLIGHT = (function(){
         '.../.X./XXX',  'XXX/X.X/...'
       ] },
 
+    { id:'spin', kind:'fly', stops:3, name:'Hard to Starboard', budget:9,
+      pal:['addX','addY','turn','coast'],
+      learn:{ name:'An angle is a number too',
+              text:'turn +90 and turn -90 add and subtract from which way up you are. Two of the same turn is 180.',
+              code:'turn 90\ncoast()\nturn -90\nturn 90' },
+      brief:'These are too big to go round — one gap each, cut at an angle. <b>turn +90</b> and <b>turn -90</b> rotate the ship. Line up with the gap. Where you are does not matter here, only which way up you are.',
+      start:{col:1,row:1},
+      /* Slot walls only. The whole windscreen is rock with one gap through
+         it, so x and y are useless and the only number that matters is the
+         angle — which is the point of the leg. Angles chosen so the answer is
+         a real sum: +90, then +90 again to reach 180, then -90 back. */
+      beats:[
+        'slot90',   // turn 90
+        'slot90',   // coast — still lined up, and worth noticing
+        'slot0',    // turn -90  (or +90: both land on a slot that is mod 180)
+        'slot90',   // turn 90
+        'slot0',    // turn 90   — 180 is the same slot as 0
+        'slot0',    // coast
+        'slot90',   // turn 90
+        'slot0'     // turn 90
+      ] },
+
     { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
       pal:['setX','setY','addX','addY','coast','repeat'],
       learn:{ name:'x is the column, y is the row',
-              text:'x = 2 puts you there. x = x + 1 moves you one.',
+              text:'x = 2 puts you there whatever you were. x = x + 1 adds to what you have.',
               code:'x = x + 2\ny = y - 1\ny = y - 1\nx = x - 2' },
-      brief:'No direction words. Only <b>x</b> and <b>y</b>. Read your lane off the radar.',
+      brief:'<b>x = 2</b> sets the column outright. <b>x = x + 1</b> adds to it. Two different sums.',
       start:{col:0,row:2},
       /* One gap per beat, and it only ever moves along ONE axis at a time —
          because one beat runs one block and a block changes one coordinate.
@@ -145,7 +167,7 @@ window.FLIGHT = (function(){
       ] },
 
     { id:'jump', kind:'fly', stops:2, name:'Jump Drive', budget:6,
-      pal:['flyUp','flyDown','flyLeft','flyRight','coast','repeat','goTo'],
+      pal:['addX','addY','coast','repeat','goTo'],
       learn:{ name:'Absolute beats relative',
               text:'One step cannot cross the field. goTo can.',
               code:'repeat 3\n  goto 0,0\n  goto 2,2\n  goto 2,0\n  goto 0,2\nend' },
@@ -167,10 +189,42 @@ window.FLIGHT = (function(){
   /* ---------------------------------------------------------- the chart */
   const clamp=(v,n)=>Math.max(0, Math.min(n-1, v));
   const rowsOf = s => String(s).split('/');
+
+  /* A wall is one of two things.
+
+       '.X./.../XXX'   a MASK: which of the nine lanes are rock. You get past
+                       it by being in an open lane, which is arithmetic on x
+                       and y.
+       'slot90'        a SLOT: one asteroid big enough to fill the windscreen,
+                       with a single gap cut through it at that angle. Where
+                       you are does not matter — the gap spans the whole
+                       field. What matters is whether the SHIP is turned to
+                       line up with it, which is arithmetic on an angle. A
+                       slot at 0 and one at 180 are the same slot, so the test
+                       is mod 180.
+
+     Two kinds of wall, two kinds of number, one rule: every block changes a
+     number and every wall checks one. */
+  const isSlot = w => String(w).indexOf('slot')===0;
+  const slotAngle = w => ((parseInt(String(w).slice(4),10)||0)%180+180)%180;
+  const norm = a => ((a%360)+360)%360;
+  /* turning 270 degrees one way is 90 the other; roll the short way round */
+  const shortWay = (from,to) => { let d=norm(to)-norm(from);
+    if(d>180) d-=360; if(d<-180) d+=360; return d; };
+
   /* rows are written top first, so row 2 is line 0 */
   function blocked(mask, col, row){
+    if(isSlot(mask)) return false;               // a slot blocks no lane
     const r=rowsOf(mask)[ROWS-1-row];
     return !!r && r[col]==='X';
+  }
+  /* Does standing HERE, turned THIS way, get me through that wall? The one
+     question the mission is built on, asked in a single place so the runner,
+     the radar and the chart checker can never disagree about the answer. */
+  function hits(wall, col, row, ang){
+    if(wall===null || wall===undefined) return false;
+    if(isSlot(wall)) return (norm(ang)%180) !== slotAngle(wall);
+    return blocked(wall, col, row);
   }
   /* Is there a way through at all?  Walk every lane you could be in at every
      beat and see whether any survives to the end.  A chart that fails this
@@ -200,6 +254,11 @@ window.FLIGHT = (function(){
     mode = mode===true ? 'jump' : (mode||'step');
     let live=new Set([start.col+','+start.row]);
     for(let b=0;b<beats.length;b++){
+      /* A slot asks about the angle, not the lane, and one turn block always
+         reaches any quarter turn — so it never narrows where you can be. It
+         is a wall you pass by turning, which this check does not model
+         because there is nothing to get wrong about it. */
+      if(isSlot(beats[b])) continue;
       const next=new Set();
       if(mode==='jump'){
         for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++)
@@ -370,6 +429,7 @@ window.FLIGHT = (function(){
     L={ idx, K, kind:K.kind, beats,
         col:K.start.col, row:K.start.row,          // the lane it is heading for
         fromCol:K.start.col, fromRow:K.start.row,  // and the one it is leaving
+        ang:0, fromAng:0,                          // and which way up it is
         ease:1,                                    // 0..1 between the two
         beat:0, elapsed:0, rolling:false, done:false, crashed:false, taught:false,
         steps:null, at:0, shipZ:0, shipY:laneY(K.start.row), left:0,
@@ -405,6 +465,7 @@ window.FLIGHT = (function(){
   function layRocks(){
     L.beats.forEach((mask,i)=>{
       const b=i+1;
+      if(isSlot(mask)){ laySlot(mask, b); return; }
       for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++){
         if(!blocked(mask,c,r)) continue;
         const m=rock(1.05+Math.random()*0.35);
@@ -413,6 +474,34 @@ window.FLIGHT = (function(){
         G.roomGroup.add(m); rocks.push(m);
       }
     });
+  }
+  /* One asteroid across the whole windscreen with a single gap cut through
+     it. Two slabs either side of the gap, the pair rotated to the slot's
+     angle — so the gap is visibly a slot you have to line up with rather
+     than a lane you have to find. */
+  function laySlot(mask, b){
+    const ang=slotAngle(mask);
+    const g=new THREE.Group();
+    const span=LANE*COLS+3, gap=2.1, slab=(span-gap)/2;
+    const mat=new THREE.MeshLambertMaterial({ color:0x8a7f6e });
+    [-1,1].forEach(sgn=>{
+      // a slab of rubble rather than a clean brick, so it reads as asteroid
+      const part=new THREE.Group();
+      for(let i=0;i<7;i++){
+        const m=rock(1.0+Math.random()*0.7);
+        m.position.set((Math.random()-0.5)*span*0.9,
+                       sgn*(gap/2+slab/2)+(Math.random()-0.5)*slab*0.7, 0);
+        part.add(m);
+      }
+      const core=new THREE.Mesh(new THREE.BoxGeometry(span, slab, 2.2), mat);
+      core.position.y=sgn*(gap/2+slab/2);
+      part.add(core);
+      g.add(part);
+    });
+    g.rotation.z=ang*Math.PI/180;
+    g.position.z=beatZ(b);
+    G.roomGroup.add(g);
+    rocks.push(g);
   }
   function layTargets(){
     L.left=0;
@@ -466,17 +555,15 @@ window.FLIGHT = (function(){
   /* One instruction, applied to a lane. Pure, because the radar has to run
      the whole program forward WITHOUT flying it — that is what lets it show
      you where you will be at each wall instead of only where you are now. */
-  function applyMove(c, r, s){
-    if(s.name==='flyUp')    r=Math.min(ROWS-1, r+1);
-    if(s.name==='flyDown')  r=Math.max(0,      r-1);
-    if(s.name==='flyLeft')  c=Math.max(0,      c-1);
-    if(s.name==='flyRight') c=Math.min(COLS-1, c+1);
+  function applyMove(c, r, a, s){
     if(s.name==='goTo'){ c=clamp(s.col|0, COLS); r=clamp(s.row|0, ROWS); }
     if(s.name==='setX') c=clamp(s.n|0, COLS);
     if(s.name==='setY') r=clamp(s.n|0, ROWS);
     if(s.name==='addX') c=clamp(c+(s.n|0), COLS);
     if(s.name==='addY') r=clamp(r+(s.n|0), ROWS);
-    return {c,r};
+    // an angle is a number too, and it wraps rather than clamping
+    if(s.name==='turn') a=norm(a+(s.n|0));
+    return {c,r,a};
   }
   /* The whole program against the whole field, from the start line. This is
      what lets the radar sit on the wall you are ACTUALLY working on rather
@@ -484,7 +571,7 @@ window.FLIGHT = (function(){
      and the first one that is unwritten or hit is your next problem. */
   function runProgram(){
     const out=[];
-    let c=L.K.start.col, r=L.K.start.row, at=0;
+    let c=L.K.start.col, r=L.K.start.row, a=0, at=0;
     const steps = (window.CODE && CODE.script && CODE.script.length)
           ? CODE.compile(CODE.script) : [];
     for(let w=1; w<=L.beats.length; w++){
@@ -494,9 +581,9 @@ window.FLIGHT = (function(){
         if(x.name==='__iter'||x.name==='__if'||x.name==='__call') continue;
         s=x; break;
       }
-      if(s){ const m=applyMove(c,r,s); c=m.c; r=m.r; }
-      out.push({ wall:w, col:c, row:r, written:!!s,
-                 hit:blocked(L.beats[w-1], c, r) });
+      if(s){ const m=applyMove(c,r,a,s); c=m.c; r=m.r; a=m.a; }
+      out.push({ wall:w, col:c, row:r, ang:a, written:!!s,
+                 hit:hits(L.beats[w-1], c, r, a) });
     }
     return out;
   }
@@ -510,10 +597,10 @@ window.FLIGHT = (function(){
      to "how do I know the next wall is clear" — you look, and it tells you. */
   function predict(count){
     const out=[];
-    let c, r, steps, at;
-    if(L.rolling && L.steps){ c=L.col; r=L.row; steps=L.steps; at=L.at; }
+    let c, r, a, steps, at;
+    if(L.rolling && L.steps){ c=L.col; r=L.row; a=L.ang; steps=L.steps; at=L.at; }
     else {
-      c=L.K.start.col; r=L.K.start.row; at=0;
+      c=L.K.start.col; r=L.K.start.row; a=0; at=0;
       steps = (window.CODE && CODE.script && CODE.script.length)
             ? CODE.compile(CODE.script) : [];
     }
@@ -525,18 +612,18 @@ window.FLIGHT = (function(){
         if(x.name==='__iter'||x.name==='__if'||x.name==='__call') continue;
         s=x; break;
       }
-      if(s){ const m=applyMove(c,r,s); c=m.c; r=m.r; }
+      if(s){ const m=applyMove(c,r,a,s); c=m.c; r=m.r; a=m.a; }
       const wall=first+k;
       const mask = (wall>=1 && wall<=L.beats.length) ? L.beats[wall-1] : null;
-      out.push({ wall, col:c, row:r, written:!!s,
-                 hit: !!mask && blocked(mask,c,r) });
+      out.push({ wall, col:c, row:r, ang:a, written:!!s,
+                 hit: mask!==null && hits(mask,c,r,a) });
     }
     return out;
   }
   function move(s){
-    L.fromCol=L.col; L.fromRow=L.row; L.ease=0;
-    const m=applyMove(L.col, L.row, s);
-    L.col=m.c; L.row=m.r;
+    L.fromCol=L.col; L.fromRow=L.row; L.fromAng=L.ang; L.ease=0;
+    const m=applyMove(L.col, L.row, L.ang, s);
+    L.col=m.c; L.row=m.r; L.ang=m.a;
     // coast() and fire() move nothing: the wall passes and the lane holds
   }
 
@@ -590,8 +677,7 @@ window.FLIGHT = (function(){
   }
   function gate(b){
     if(b>L.beats.length) return finish();
-    const mask=L.beats[b-1];
-    if(blocked(mask, L.col, L.row)) return crash(b);
+    if(hits(L.beats[b-1], L.col, L.row, L.ang)) return crash(b);
   }
   /* Place the ship, then the camera behind it.
 
@@ -610,7 +696,12 @@ window.FLIGHT = (function(){
     L.shipY=y;
     ship.position.set(x,y,L.shipZ);
     // bank into the slide, and pitch into the climb — it reads as flying
-    ship.rotation.z = (laneX(L.fromCol)-laneX(L.col))*0.22*(1-Math.abs(2*k-1));
+    /* Roll to the angle you have turned to, plus a lean into the slide. The
+       turn is the thing a slot wall is actually measuring, so it has to be
+       visible on the ship and not just true in a variable. */
+    const a0=L.fromAng, a1=L.fromAng+shortWay(L.fromAng, L.ang);
+    ship.rotation.z = -(a0+(a1-a0)*k)*Math.PI/180
+                    + (laneX(L.fromCol)-laneX(L.col))*0.22*(1-Math.abs(2*k-1));
     ship.rotation.x = (laneY(L.fromRow)-laneY(L.row))*0.12*(1-Math.abs(2*k-1));
     const gl=ship.userData.glow;
     if(gl) gl.scale.z = 1.4 + Math.sin(performance.now()/90)*0.35;
@@ -718,7 +809,11 @@ window.FLIGHT = (function(){
     shake();
     if(window.beep) beep('bad');
     // the one fact worth knowing: WHICH beat, so the chart can be re-read
-    brief(t('💥 Wall {n} — you were in the rock. Look at the radar and pick the gap.',{n:b}));
+    /* Say what actually went wrong. On a slot wall the lane is irrelevant and
+       being told to pick a gap is advice you cannot act on. */
+    brief(isSlot(L.beats[b-1])
+      ? t('💥 Wall {n} — side-on to the gap. Turn to line up with it.',{n:b})
+      : t('💥 Wall {n} — you were in the rock. Look at the radar and pick the gap.',{n:b}));
     /* Back to the line, and the console opens itself. Crashing means the
        program was wrong, so the console is exactly where you need to be —
        and being dropped back on the start line with nothing happening is how
@@ -799,8 +894,8 @@ window.FLIGHT = (function(){
       { say:'Those walls are coming at you. The radar top-left shows the next three. Press <b>C</b> to write your program.',
         find:()=>document.querySelector('#codeBtn'),
         done:()=>!!(window.CODE && CODE.isOpen()) },
-      { say:'Pink on the radar is a rock in your lane. Click <b>up()</b>.',
-        sel:'#conPalette [data-add="flyUp"]', done:()=>hasOp('flyUp') },
+      { say:'Pink on the radar is a rock in your lane. <b>y = y + 1</b> moves you one row up — click it.',
+        sel:'#conPalette [data-add="addY"]', done:()=>hasOp('addY') },
       { say:'Next wall is clear. Click <b>coast()</b> to hold.',
         sel:'#conPalette [data-add="coast"]', done:()=>hasOp('coast') },
       { say:'Eight walls, eight blocks. Fill in the rest.',
@@ -867,9 +962,18 @@ window.FLIGHT = (function(){
           <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
         continue;
       }
+      const wall=L.beats[q.wall-1];
+      /* A slot wall is not a grid of lanes, so drawing one would be a lie.
+         It gets the gap it actually is, at the angle it actually is, with
+         the ship drawn at the angle YOUR program will have it turned to. */
+      const pic = isSlot(wall)
+        ? `<div class="rslot" style="--sa:${slotAngle(wall)}deg">
+             <i class="rs-gap"></i><b class="rs-ship" style="--pa:${norm(q.ang)}deg"></b>
+           </div>`
+        : `<div class="rgrid">${grid(wall, q.col, q.row)}</div>`;
       out+=`<div class="rw ${size[k]}${q.hit?' warn':''}">
         <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
-        <div class="rgrid">${grid(L.beats[q.wall-1], q.col, q.row)}</div>
+        ${pic}
         <u class="rmark">${q.hit?'✕':'✓'}</u></div>`;
     }
     out+=`<div class="rlegend">${L.rolling ? eta()

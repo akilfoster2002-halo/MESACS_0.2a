@@ -33,14 +33,10 @@ window.CODE = (function(){
     left     :{label:'turnLeft()',   color:'#8fd3ff', help:'Turn a quarter turn left'},
     right    :{label:'turnRight()',  color:'#8fd3ff', help:'Turn a quarter turn right'},
     gas      :{label:'gas()',        color:'#ffd8a8', help:'Drive on one tile — faster every time in a row'},
-    /* the flight deck.  up/down/left/right are RELATIVE — one lane from
-       wherever you are — and goTo is the absolute one, which is the whole
-       point of having both. */
-    flyUp    :{label:'up()',         color:'#a8e6cf', help:'Climb one lane'},
-    flyDown  :{label:'down()',       color:'#a8e6cf', help:'Drop one lane'},
-    flyLeft  :{label:'left()',       color:'#8fd3ff', help:'Slide one lane left'},
-    flyRight :{label:'right()',      color:'#8fd3ff', help:'Slide one lane right'},
-    coast    :{label:'coast()',      color:'#bdb2d8', help:'Hold this lane for one beat'},
+    /* The flight deck. There are no direction words here on purpose: a move
+       is arithmetic on a coordinate, and turning is arithmetic on an angle. */
+    coast    :{label:'coast()',      color:'#bdb2d8', help:'Hold this lane for one wall'},
+    turn     :{label:'turn',         color:'#ffd8a8', help:'Rotate the ship a quarter turn'},
     fire     :{label:'fire()',       color:'#ffb4a2', help:'Shoot straight ahead'},
     goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'},
     /* The coordinates, written out. x is the column and y is the row, and
@@ -56,7 +52,11 @@ window.CODE = (function(){
     addX     :{label:'x = x +',      color:'#ffb4a2', help:'Add to the column you are already in'},
     addY     :{label:'y = y +',      color:'#a8e6cf', help:'Add to the row you are already in'}
   };
-  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy' };   // which axis each counts on
+  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy', turn:'deg' };
+  /* how much one press of the counter is worth. An angle steps a quarter
+     turn at a time, because a ship that can face 37 degrees is a ship nobody
+     can reason about. */
+  const NUMSTEP={ setX:1, setY:1, addX:1, addY:1, turn:90 };
   /* How far goTo is allowed to count. The console does not know how big any
      one mission's grid is, so the mission says. */
   let GRID={ col:2, row:2 };
@@ -67,9 +67,17 @@ window.CODE = (function(){
     if(type==='setY') return [0, GRID.row];
     if(type==='addX') return [-GRID.col, GRID.col];
     if(type==='addY') return [-GRID.row, GRID.row];
+    if(type==='turn') return [-180, 180];
     return [0,0];
   }
   const clampN=(type,v)=>{ const [lo,hi]=numRange(type); return Math.max(lo,Math.min(hi,v)); };
+  /* zero is not a turn, so the counter steps over it rather than resting on it */
+  function bumpN(type, cur, dir){
+    const step=NUMSTEP[type]||1;
+    let v=clampN(type, cur + dir*step);
+    if(type==='turn' && v===0) v=clampN(type, v + dir*step);
+    return v;
+  }
   let CONDS=['red','blue'];
   function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }
 
@@ -83,6 +91,7 @@ window.CODE = (function(){
     // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
     if(type==='setX'||type==='setY') b.n=1;
     if(type==='addX'||type==='addY') b.n=1;
+    if(type==='turn') b.n=90;
     return b;
   }
   function addBlock(type){
@@ -183,6 +192,8 @@ window.CODE = (function(){
         const v=b.type==='addX'?'x':'y';
         // x = x - 1 reads better than x = x + -1, and parses back the same
         s.push(pad+v+' = '+v+(b.n<0?' - '+Math.abs(b.n):' + '+b.n));
+      } else if(b.type==='turn'){
+        s.push(pad+'turn '+b.n);
       } else s.push(pad+DEF[b.type].label);
     }
     return s;
@@ -248,6 +259,13 @@ window.CODE = (function(){
         const b=makeBlock(type); b.n=clampN(type, +m[2]);
         put(b); continue;
       }
+      if((m=low.match(/^turn +(-?\d+)$/))){
+        if(!allowed('turn')) return bad(i, t('<b>turn</b> is not in this mission yet.'));
+        const b=makeBlock('turn');
+        b.n=clampN('turn', Math.round((+m[1])/90)*90) || 90;
+        put(b); continue;
+      }
+      if(low==='turn') return bad(i, t('<b>turn</b> needs an angle, like <b>turn 90</b>.'));
       if(/^[xy] *=/.test(low))
         return bad(i, t('Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.'));
       if(low==='define combo'){
@@ -370,7 +388,7 @@ window.CODE = (function(){
     }
     if(NUMBLK[b.type]){
       const [lo,hi]=numRange(b.type);
-      const sign = (b.type==='addX'||b.type==='addY') && b.n>=0 ? '+' : '';
+      const sign = (b.type==='addX'||b.type==='addY'||b.type==='turn') && b.n>=0 ? '+' : '';
       return `<div class="blk num" data-id="${b.id}" style="--c:${d.color}">
           <span class="blk-name">${d.label}</span>
           ${readonly?'':`<button class="cnt" data-act="n-" data-id="${b.id}"
@@ -501,6 +519,8 @@ window.CODE = (function(){
       else if(type==='setY')   out.push({w:'y = 1', c:d.color});
       else if(type==='addX')   out.push({w:'x = x + 1', c:d.color});
       else if(type==='addY')   out.push({w:'y = y + 1', c:d.color});
+      else if(type==='turn'){  out.push({w:'turn 90', c:d.color});
+                               out.push({w:'turn -90', c:d.color}); }
       else                     out.push({w:d.label, c:d.color});
     });
     if(palette.some(p=>p==='repeat'||p==='ifc'||p==='define'))
@@ -553,7 +573,8 @@ window.CODE = (function(){
       return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
         <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1'
              :type==='setX'?'x = 1':type==='setY'?'y = 1'
-             :type==='addX'?'x = x + 1':type==='addY'?'y = y + 1':d.label}</b>
+             :type==='addX'?'x = x + 1':type==='addY'?'y = y + 1'
+             :type==='turn'?'turn +90':d.label}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
@@ -572,8 +593,8 @@ window.CODE = (function(){
         if(btn.dataset.act==='col-' && b) b.col=Math.max(0,b.col-1);
         if(btn.dataset.act==='row+' && b) b.row=Math.min(GRID.row,b.row+1);
         if(btn.dataset.act==='row-' && b) b.row=Math.max(0,b.row-1);
-        if(btn.dataset.act==='n+' && b) b.n=clampN(b.type, b.n+1);
-        if(btn.dataset.act==='n-' && b) b.n=clampN(b.type, b.n-1);
+        if(btn.dataset.act==='n+' && b) b.n=bumpN(b.type, b.n, 1);
+        if(btn.dataset.act==='n-' && b) b.n=bumpN(b.type, b.n, -1);
         draw();
       };
     });

@@ -822,6 +822,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .rgrid i.me{box-shadow:inset 0 0 0 2px #8ff0ff;background:#1d3550}
 .rgrid i.me.rock{box-shadow:inset 0 0 0 2px #ff9aa2;background:#b3a184}
 .rw.warn b{color:var(--bad)}
+/* a slot wall: the gap at its angle, and your ship at yours. Lined up means
+   the two bars are parallel, which you can see without reading anything. */
+.rslot{position:relative;width:100%;aspect-ratio:1/1;border-radius:4px;
+  background:#b3a184;overflow:hidden}
+.rw.big .rslot{width:61px} .rw.mid .rslot{width:40px} .rw.far .rslot{width:28px}
+.rslot .rs-gap{position:absolute;left:-25%;top:50%;width:150%;height:20%;
+  margin-top:-10%;background:#16203a;transform:rotate(var(--sa))}
+.rslot .rs-ship{position:absolute;left:22%;top:50%;width:56%;height:0;
+  border-top:3px solid #8ff0ff;transform:rotate(var(--pa))}
+.rw.warn .rslot .rs-ship{border-top-color:var(--bad)}
 /* the verdict per wall: does your program get through this one */
 .rmark{display:block;font-size:13px;font-style:normal;line-height:1.1;margin-top:2px;color:var(--mint)}
 .rw.warn .rmark{color:var(--bad)}
@@ -1180,35 +1190,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=145"></script>
-<script src="strings.js?v=145"></script>
-<script src="difficulty.js?v=145"></script>
-<script src="net.js?v=145"></script>
-<script src="avatar.js?v=145"></script>
-<script src="zombies.js?v=145"></script>
-<script src="building.js?v=145"></script>
-<script src="levels.js?v=145"></script>
-<script src="code.js?v=145"></script>
-<script src="combat.js?v=145"></script>
-<script src="puzzle.js?v=145"></script>
-<script src="nav.js?v=145"></script>
-<script src="tutorial.js?v=145"></script>
-<script src="race.js?v=145"></script>
-<script src="flight.js?v=145"></script>
-<script src="planet.js?v=145"></script>
-<script src="wallet.js?v=145"></script>
-<script src="shop.js?v=145"></script>
-<script src="library.js?v=145"></script>
-<script src="costumes.js?v=145"></script>
-<script src="missions.js?v=145"></script>
-<script src="coach.js?v=145"></script>
-<script src="owner.js?v=145"></script>
-<script src="blocks.js?v=145"></script>
-<script src="vm.js?v=145"></script>
-<script src="coder.js?v=145"></script>
-<script src="quiz.js?v=145"></script>
-<script src="chars.js?v=145"></script>
-<script src="menu.js?v=145"></script>
-<script src="game.js?v=145"></script>
+<script src="lib/three.classic.js?v=147"></script>
+<script src="strings.js?v=147"></script>
+<script src="difficulty.js?v=147"></script>
+<script src="net.js?v=147"></script>
+<script src="avatar.js?v=147"></script>
+<script src="zombies.js?v=147"></script>
+<script src="building.js?v=147"></script>
+<script src="levels.js?v=147"></script>
+<script src="code.js?v=147"></script>
+<script src="combat.js?v=147"></script>
+<script src="puzzle.js?v=147"></script>
+<script src="nav.js?v=147"></script>
+<script src="tutorial.js?v=147"></script>
+<script src="race.js?v=147"></script>
+<script src="flight.js?v=147"></script>
+<script src="planet.js?v=147"></script>
+<script src="wallet.js?v=147"></script>
+<script src="shop.js?v=147"></script>
+<script src="library.js?v=147"></script>
+<script src="costumes.js?v=147"></script>
+<script src="missions.js?v=147"></script>
+<script src="coach.js?v=147"></script>
+<script src="owner.js?v=147"></script>
+<script src="blocks.js?v=147"></script>
+<script src="vm.js?v=147"></script>
+<script src="coder.js?v=147"></script>
+<script src="quiz.js?v=147"></script>
+<script src="chars.js?v=147"></script>
+<script src="menu.js?v=147"></script>
+<script src="game.js?v=147"></script>
 </body>
 </html>

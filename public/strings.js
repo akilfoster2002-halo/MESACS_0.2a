@@ -724,6 +724,30 @@ window.ES = {
   'walks it':'te camina','drives it':'lo conduce',
   'go into what you are looking at':'entra en lo que estás mirando',
 
+  /* ---------- arithmetic moves and turning ---------- */
+  'Hard to Starboard':'Timón a Estribor','An angle is a number too':'Un ángulo también es un número',
+  'turn +90 and turn -90 add and subtract from which way up you are. Two of the same turn is 180.':
+    'turn +90 y turn -90 suman y restan a tu orientación. Dos giros iguales son 180.',
+  'These are too big to go round — one gap each, cut at an angle. <b>turn +90</b> and <b>turn -90</b> rotate the ship. Line up with the gap. Where you are does not matter here, only which way up you are.':
+    'Son demasiado grandes para rodearlos — un hueco cada uno, cortado en ángulo. <b>turn +90</b> y <b>turn -90</b> giran la nave. Alinéate con el hueco. Aquí no importa dónde estés, solo cómo estés girado.',
+  'A move is arithmetic':'Un movimiento es aritmética',
+  'x is your column, y is your row. Add to one and you move.':
+    'x es tu columna, y es tu fila. Suma a una y te mueves.',
+  '<b>y = y + 1</b> goes up a row, <b>y = y - 1</b> down. <b>x</b> is across. The sign is the direction.':
+    '<b>y = y + 1</b> sube una fila, <b>y = y - 1</b> baja. <b>x</b> es a lo ancho. El signo es la dirección.',
+  '<b>x = 2</b> sets the column outright. <b>x = x + 1</b> adds to it. Two different sums.':
+    '<b>x = 2</b> fija la columna directamente. <b>x = x + 1</b> le suma. Dos sumas distintas.',
+  'x = 2 puts you there whatever you were. x = x + 1 adds to what you have.':
+    'x = 2 te pone ahí fueras donde fueras. x = x + 1 suma a lo que ya tienes.',
+  'Rotate the ship a quarter turn':'Gira la nave un cuarto de vuelta',
+  'Hold this lane for one wall':'Mantén este carril un muro',
+  'Pink on the radar is a rock in your lane. <b>y = y + 1</b> moves you one row up — click it.':
+    'El rosa del radar es una roca en tu carril. <b>y = y + 1</b> te sube una fila — púlsalo.',
+  '💥 Wall {n} — side-on to the gap. Turn to line up with it.':
+    '💥 Muro {n} — de lado al hueco. Gira para alinearte.',
+  '<b>turn</b> is not in this mission yet.':'<b>turn</b> aún no está en esta misión.',
+  '<b>turn</b> needs an angle, like <b>turn 90</b>.':'<b>turn</b> necesita un ángulo, como <b>turn 90</b>.',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',
