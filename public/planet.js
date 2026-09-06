@@ -38,20 +38,20 @@ window.PLANET = (function(){
      curve reads as a planet rather than as a hill you are always on top of.
      The cost is the lap: 1257 metres, about three minutes on foot and half
      that in a car. */
-  const PR  = 200;                 // the radius of the world
+  const PR  = 320;                 // the radius of the world
   const SKY = 0x070a1a;
   const V   = (x,y,z)=>new THREE.Vector3(x,y,z);
 
   /* Placed in degrees, because "72 degrees round and 6 down" is something
      you can reason about and a raw vector is not. */
   const BUILDINGS=[
-    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:6,  w:44, d:28,
+    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:7,  w:64, d:46, h:18, door:10,
       wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
-    { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-15, lat:-5, w:20, d:18,
+    { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-19, lat:-6, w:24, d:20, h:11,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
-    { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:15,  lat:-5, w:18, d:16,
+    { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:19,  lat:-6, w:22, d:18, h:11,
       wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are, and spend what you earned' },
-    { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:0,   lat:-17, w:22, d:18,
+    { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:0,   lat:-21, w:26, d:20, h:11,
       wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' }
   ];
   const STATIONS=[
@@ -306,8 +306,11 @@ window.PLANET = (function(){
     const f=stand(g, dir, 0);
     G.roomGroup.add(g);
     b.g=g; b.dir=dir; b.frame=f; b.solids=[];
+    g.userData.b=b;
 
-    const hw=b.w/2, hd=b.d/2, H=9, DOOR=6;
+    /* Height is the building's own business now. A hall with six statues in
+       it needs a ceiling you notice; a shed does not. */
+    const hw=b.w/2, hd=b.d/2, H=b.h||9, DOOR=b.door||6;
     const wall=new THREE.MeshLambertMaterial({color:b.wall});
     // local: +x right, +y up off the surface, +z the way it faces
     const put=(x,z,w,d,h,up0)=>{
@@ -342,13 +345,25 @@ window.PLANET = (function(){
 
     if(b.id==='missions'){
       castle(b, g, hw, hd, H, put);
-      const span=b.w-11, stepX=STATIONS.length>1 ? span/(STATIONS.length-1) : 0;
+      /* Round the room, not in a rank. Six consoles in a line is a corridor
+         you walk past; a horseshoe is a hall you stand in the middle of, and
+         every one of them turns to face whoever has just come through the
+         gate. Two along the back and two down each side. */
+      const spots=[
+        { x:-11, z:-hd+5, r:0 },            // back wall, facing the door
+        { x: 11, z:-hd+5, r:0 },
+        { x:-hw+6, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
+        { x:-hw+6, z:  6, r: Math.PI/4 },
+        { x: hw-6, z:-10, r:-Math.PI/4 },   // and down the right
+        { x: hw-6, z:  6, r:-Math.PI/4 }
+      ];
       STATIONS.forEach((s,i)=>{
-        const x=-span/2+i*stepX;
-        panel(g,b, x, -hd+4.2, s.em, t(s.name), s.id, '#1b2740', 0.62);
-        statue(g, s.id, x, -hd+1.4);          // the thing itself, behind its console
+        const p=spots[i] || spots[spots.length-1];
+        panel(g,b, p.x, p.z, s.em, t(s.name), s.id, '#1b2740', 0.8, p.r);
+        // the statue stands behind its own console, facing the same way
+        statue(g, s.id, p.x - Math.sin(p.r)*4.6, p.z - Math.cos(p.r)*4.6, p.r);
       });
-    } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85);
+    } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
   }
 
   /* ---------------------------------------------------------- the castle
@@ -405,23 +420,50 @@ window.PLANET = (function(){
     banner.rotation.x=0;
 
     // a runner of floor leading in, so the hall has a middle
-    const rug=add(new THREE.Mesh(new THREE.BoxGeometry(6, 0.12, b.d-2),
+    const rug=add(new THREE.Mesh(new THREE.BoxGeometry(b.w*0.26, 0.12, b.d-3),
       new THREE.MeshLambertMaterial({color:0x6b4a8f})), 0, 0.07, 0);
     rug.receiveShadow=false;
+
+    /* Braziers down the hall. A room this tall goes flat without something
+       bright in it, and a real light each is worth the cost in a room you
+       stand still in. */
+    [[-hw+4, -hd+8],[hw-4, -hd+8],[-hw+4, hd-10],[hw-4, hd-10]].forEach(([bx,bz])=>{
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.9,4.5,8), stone), bx, 2.25, bz);
+      add(new THREE.Mesh(new THREE.SphereGeometry(0.85,12,10),
+        new THREE.MeshBasicMaterial({color:0xffd9a0})), bx, 4.9, bz);
+      const lamp=new THREE.PointLight(0xffd9a0, 0.85, 34);
+      lamp.position.set(bx, 5.2, bz); g.add(lamp);
+    });
   }
   /* ------------------------------------------------------------ statues
      One per mission, standing behind its console: the thing the mission is
      actually about, so you can tell them apart from the door without reading
      six labels. A ship dodging an asteroid, a zombie, a prism. */
-  function plinth(){
+  /* A plinth worth standing something on: a stepped base, a fluted column
+     with a band in the mission's own colour, a moulded cap, and a disc of
+     light under whatever is on top. Three grey boxes was a crate. */
+  function plinth(tint){
     const g=new THREE.Group();
-    const st=new THREE.MeshLambertMaterial({color:0x6b7ba8});
-    const base=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.5,3.4), st);
-    base.position.y=0.25; g.add(base);
-    const col=new THREE.Mesh(new THREE.BoxGeometry(2.4,3.1,2.4), st);
-    col.position.y=2.05; g.add(col);
-    const cap=new THREE.Mesh(new THREE.BoxGeometry(3.1,0.45,3.1), st);
-    cap.position.y=3.8; g.add(cap);
+    const st=new THREE.MeshLambertMaterial({color:0x7d8cba});
+    const dk=new THREE.MeshLambertMaterial({color:0x4a5578});
+    const band=new THREE.MeshLambertMaterial({color:tint||0x8fd3ff});
+    const box=(w,h,d,y,m)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m||st);
+      b.position.y=y; g.add(b); return b; };
+    box(4.0,0.4,4.0,0.2,dk);            // two steps up to it
+    box(3.4,0.4,3.4,0.6);
+    box(2.6,0.5,2.6,1.05,dk);
+    // the column, with four half-round flutes down its faces
+    box(2.1,3.4,2.1,3.0);
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dz])=>{
+      const fl=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.26,3.4,8), dk);
+      fl.position.set(dx*1.05, 3.0, dz*1.05); g.add(fl);
+    });
+    box(2.9,0.35,2.9,4.87,band);        // the colour band, at eye level
+    box(3.3,0.45,3.3,5.27);             // and the cap it all stands on
+    // a soft disc of light on top, so the statue reads against the wall
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(1.5, 20),
+      new THREE.MeshBasicMaterial({color:tint||0x8fd3ff, transparent:true, opacity:0.22}));
+    glow.rotation.x=-Math.PI/2; glow.position.y=5.51; g.add(glow);
     return g;
   }
   const lam = c => new THREE.MeshLambertMaterial({color:c});
@@ -449,10 +491,14 @@ window.PLANET = (function(){
     glow.position.z=0.72; g.add(glow);
     return g;
   }
-  function statue(parent, id, x, z){
+  function statue(parent, id, x, z, rot){
     const g=new THREE.Group();
-    g.add(plinth());
-    const top=new THREE.Group(); top.position.y=4.2; g.add(top);
+    const st=STATIONS.find(s=>s.id===id);
+    const tint=st ? parseInt(String(st.a).slice(1),16) : 0x8fd3ff;
+    g.add(plinth(tint));
+    const top=new THREE.Group();
+    top.position.y=6.4; top.scale.setScalar(1.75);      // read from across the hall
+    g.add(top);
 
     if(id==='flight'){
       // a ship banking round an asteroid: the whole mission in one shape
@@ -493,8 +539,12 @@ window.PLANET = (function(){
       });
     }
     g.position.set(x,0,z);
+    g.rotation.y=rot||0;
     parent.add(g);
     statues.push(top);
+    // and you cannot walk through a statue
+    parent.userData.b && parent.userData.b.solids.push(
+      {x1:x-2.1, x2:x+2.1, z1:z-2.1, z2:z+2.1, y1:0, y2:6});
 
     /* Escape and Loops get the real thing — the same rig that chases you in
        the mission, standing still on a plinth. */
@@ -509,7 +559,7 @@ window.PLANET = (function(){
     return g;
   }
 
-  function panel(g, b, x, z, emoji, label, opens, bg, scale){
+  function panel(g, b, x, z, emoji, label, opens, bg, scale, rot){
     const p=new THREE.Group();
     const body=new THREE.Mesh(new THREE.BoxGeometry(4.4,5.6,0.7),
       new THREE.MeshLambertMaterial({color:0x2a3b5c}));
@@ -521,12 +571,17 @@ window.PLANET = (function(){
       new THREE.MeshLambertMaterial({color:0x1b2740}));
     base.position.y=0.25; p.add(base);
     p.position.set(x,0,z); p.scale.setScalar(scale||1);
+    p.rotation.y=rot||0;
     g.add(p);
     p.userData={ kind: opens===b.id ? 'door' : 'station', label, enter:opens, glow:face };
     body.userData.owner=p; face.userData.owner=p;
     G.hits.push(body, face);
-    const w=4.6*(scale||1), d=1.6*(scale||1);
-    b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:0, y2:5.8*(scale||1)});
+    const sc=scale||1;
+    const across=4.6*sc, thick=1.6*sc;
+    // the exact box round a rotated rectangle, so a console at any angle stops you
+    const ca=Math.abs(Math.cos(rot||0)), sa=Math.abs(Math.sin(rot||0));
+    const w=across*ca+thick*sa, d=across*sa+thick*ca;
+    b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:0, y2:5.8*sc});
   }
 
   /* ------------------------------------------------------------- walking
