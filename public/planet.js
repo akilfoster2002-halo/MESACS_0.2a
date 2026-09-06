@@ -45,7 +45,7 @@ window.PLANET = (function(){
   /* Placed in degrees, because "72 degrees round and 6 down" is something
      you can reason about and a raw vector is not. */
   const BUILDINGS=[
-    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:6,  w:34, d:22,
+    { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:6,  w:44, d:28,
       wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
     { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-15, lat:-5, w:20, d:18,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
@@ -84,7 +84,8 @@ window.PLANET = (function(){
      building's own frame, so this steps back along that side rather than
      guessing at a latitude — guessing put you behind the building as often
      as in front, which makes "walk to the door" a hunt. */
-  const LANDING_OFF=48;
+  // far enough back to see the whole of whatever you are landing in front of
+  const LANDING_OFF=74;
   function landingSpot(){
     const b=BUILDINGS[0];
     if(!b.frame) return dirOf(b.lon, b.lat-14);
@@ -110,6 +111,7 @@ window.PLANET = (function(){
      here — there is nothing to race on a planet, so it is a faster way to
      cross one and a thing to be seen in. */
   let ride=null, rideId=null, carLoader=null;
+  let statues=[];                    // the ones that turn on their plinths
   /* You, as the planet sees you. G.pos is derived from this, never the
      other way round. */
   let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true,
@@ -134,6 +136,7 @@ window.PLANET = (function(){
     G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ceiling=null;
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
+    statues=[];
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
     // fog would eat the far side of the world, and the far side is the point
@@ -329,18 +332,183 @@ window.PLANET = (function(){
       new THREE.MeshLambertMaterial({color:b.roof}));
     roof.position.y=H+0.4; g.add(roof);
 
-    const W=b.w*0.9, HH=W*(96/512);
+    // a nameplate, not a billboard: it has to sit between the towers rather
+    // than across them, and the castle is wider than the sheds are
+    const W=Math.min(b.w*0.62, 26), HH=W*(96/512);
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(W,HH),
       new THREE.MeshBasicMaterial({map:signTexture(b.em+'  '+t(b.name), b.roof),
                                    transparent:true, side:THREE.DoubleSide}));
     sign.position.set(0, H+1.2+HH/2, hd+0.25); g.add(sign);
 
     if(b.id==='missions'){
-      const span=b.w-9, stepX=STATIONS.length>1 ? span/(STATIONS.length-1) : 0;
-      STATIONS.forEach((s,i)=>
-        panel(g,b, -span/2+i*stepX, -hd+3.2, s.em, t(s.name), s.id, '#1b2740', 0.62));
+      castle(b, g, hw, hd, H, put);
+      const span=b.w-11, stepX=STATIONS.length>1 ? span/(STATIONS.length-1) : 0;
+      STATIONS.forEach((s,i)=>{
+        const x=-span/2+i*stepX;
+        panel(g,b, x, -hd+4.2, s.em, t(s.name), s.id, '#1b2740', 0.62);
+        statue(g, s.id, x, -hd+1.4);          // the thing itself, behind its console
+      });
     } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85);
   }
+
+  /* ---------------------------------------------------------- the castle
+     Mission Control is where the whole course lives, so it should look like
+     somewhere worth walking into rather than the same shed as everything
+     else: corner towers with spires, a crenellated parapet, a gate arch and
+     a banner over it. The walls are still the four boxes the collision knows
+     about — all of this stands on top of them. */
+  function castle(b, g, hw, hd, H, put){
+    const stone=new THREE.MeshLambertMaterial({color:0x4a5f9e});
+    const roofM=new THREE.MeshLambertMaterial({color:b.roof});
+    const add=(mesh,x,y,z)=>{ mesh.position.set(x,y,z); g.add(mesh); return mesh; };
+
+    // four towers, one on each corner, each with a spire
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
+      const x=sx*hw, z=sz*hd, TH=H+6, TR=3.1;
+      add(new THREE.Mesh(new THREE.CylinderGeometry(TR,TR+0.5,TH,12), stone), x, TH/2, z);
+      // a ring of merlons round the top of each tower
+      for(let i=0;i<10;i++){
+        const a=i/10*Math.PI*2;
+        add(new THREE.Mesh(new THREE.BoxGeometry(1.1,1.5,1.1), stone),
+            x+Math.cos(a)*TR, TH+0.75, z+Math.sin(a)*TR);
+      }
+      add(new THREE.Mesh(new THREE.ConeGeometry(TR+1.2, 5.5, 12), roofM), x, TH+3.9, z);
+      // and a pennant on a pole
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,3,6), stone), x, TH+8, z);
+      const flag=add(new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.1),
+        new THREE.MeshLambertMaterial({color:0x8ff0ff, side:THREE.DoubleSide})),
+        x+1.1, TH+8.8, z);
+      flag.rotation.y=Math.PI/2;
+      G.solids && b.solids.push({x1:x-TR,x2:x+TR,z1:z-TR,z2:z+TR,y1:0,y2:TH});
+    });
+
+    // battlements along the tops of the four walls
+    const merlon=(x,z)=>add(new THREE.Mesh(new THREE.BoxGeometry(1.4,1.6,1.4), stone), x, H+0.8, z);
+    for(let x=-hw+3; x<=hw-3; x+=3){ merlon(x,-hd); merlon(x, hd); }
+    for(let z=-hd+3; z<=hd-3; z+=3){ merlon(-hw,z); merlon( hw,z); }
+
+    /* The gate. The doorway is a gap in the front wall; this is the arch over
+       it, stepped out of boxes, with a banner hung above. */
+    const gap=9;
+    for(let i=0;i<4;i++){
+      const w=gap+2.4+i*1.6, y=H-6+i*0.55;
+      add(new THREE.Mesh(new THREE.BoxGeometry(w,0.55,1.6), stone), 0, y, hd);
+    }
+    [-1,1].forEach(sx=>{
+      add(new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.25,H-5.6,10), stone),
+          sx*(gap/2+1.3), (H-5.6)/2, hd);
+    });
+    const banner=add(new THREE.Mesh(new THREE.PlaneGeometry(gap-1, 3.4),
+      new THREE.MeshLambertMaterial({map:signTexture('\u{1F680}', b.roof),
+                                     transparent:true, side:THREE.DoubleSide})),
+      0, H-2.4, hd+0.3);
+    banner.rotation.x=0;
+
+    // a runner of floor leading in, so the hall has a middle
+    const rug=add(new THREE.Mesh(new THREE.BoxGeometry(6, 0.12, b.d-2),
+      new THREE.MeshLambertMaterial({color:0x6b4a8f})), 0, 0.07, 0);
+    rug.receiveShadow=false;
+  }
+  /* ------------------------------------------------------------ statues
+     One per mission, standing behind its console: the thing the mission is
+     actually about, so you can tell them apart from the door without reading
+     six labels. A ship dodging an asteroid, a zombie, a prism. */
+  function plinth(){
+    const g=new THREE.Group();
+    const st=new THREE.MeshLambertMaterial({color:0x6b7ba8});
+    const base=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.5,3.4), st);
+    base.position.y=0.25; g.add(base);
+    const col=new THREE.Mesh(new THREE.BoxGeometry(2.4,3.1,2.4), st);
+    col.position.y=2.05; g.add(col);
+    const cap=new THREE.Mesh(new THREE.BoxGeometry(3.1,0.45,3.1), st);
+    cap.position.y=3.8; g.add(cap);
+    return g;
+  }
+  const lam = c => new THREE.MeshLambertMaterial({color:c});
+  function lumpyRock(r){
+    const geo=new THREE.IcosahedronGeometry(r,0), pos=geo.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const k=0.75+Math.random()*0.5;
+      pos.setXYZ(i, pos.getX(i)*k, pos.getY(i)*k, pos.getZ(i)*k);
+    }
+    if(geo.computeVertexNormals) geo.computeVertexNormals();
+    return new THREE.Mesh(geo, lam(0x8a7f6e));
+  }
+  function littleShip(){
+    const g=new THREE.Group();
+    const hull=lam(0xe8ecff), trim=lam(0x8fd3ff);
+    const nose=new THREE.Mesh(new THREE.ConeGeometry(0.3,1.1,10), hull);
+    nose.rotation.x=-Math.PI/2; nose.position.z=-0.75; g.add(nose);
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.36,1.25), hull); g.add(body);
+    [-1,1].forEach(sx=>{
+      const wg=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,0.6), trim);
+      wg.position.set(sx*0.66,-0.04,0.22); wg.rotation.z=sx*0.14; g.add(wg);
+    });
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),
+      new THREE.MeshBasicMaterial({color:0x8ff0ff}));
+    glow.position.z=0.72; g.add(glow);
+    return g;
+  }
+  function statue(parent, id, x, z){
+    const g=new THREE.Group();
+    g.add(plinth());
+    const top=new THREE.Group(); top.position.y=4.2; g.add(top);
+
+    if(id==='flight'){
+      // a ship banking round an asteroid: the whole mission in one shape
+      const ship=littleShip(); ship.position.set(-0.65,0.55,0);
+      ship.rotation.set(0.15,0.5,-0.5); top.add(ship);
+      const rock=lumpyRock(0.95); rock.position.set(0.75,-0.15,0); top.add(rock);
+      const r2=lumpyRock(0.4); r2.position.set(0.2,0.95,0.4); top.add(r2);
+      top.userData.spin=0.5;
+    } else if(id==='m2'){
+      const p=new THREE.Mesh(new THREE.OctahedronGeometry(1.05,0), lam(0xcdb4f6));
+      p.position.y=0.5; top.add(p);
+      top.userData.spin=0.9; top.userData.prism=p;
+    } else if(id==='m1'){
+      // the looper: a figure caught inside its own loop
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,0.13,8,26), lam(0xa8e6cf));
+      ring.rotation.x=Math.PI/2; ring.position.y=0.55; top.add(ring);
+      const r2=new THREE.Mesh(new THREE.TorusGeometry(0.85,0.1,8,24), lam(0xa8e6cf));
+      r2.position.y=0.55; top.add(r2);
+      top.userData.spin=0.7;
+    } else if(id==='m3'){
+      // off-by-one: a counting frame, one bead adrift
+      const bar=lam(0x8b6f4e);
+      for(let row=0;row<3;row++){
+        const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,6), bar);
+        rod.rotation.z=Math.PI/2; rod.position.y=0.3+row*0.55; top.add(rod);
+        for(let k=0;k<4;k++){
+          const bead=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),
+            lam(row===2&&k===3 ? 0xff9aa2 : 0xffb4a2));
+          bead.position.set(-0.85+k*0.5 + (row===2&&k===3?0.35:0), 0.3+row*0.55, 0);
+          top.add(bead);
+        }
+      }
+    } else if(id==='tut'){
+      // level zero: the blocks themselves, stacked
+      [[0,0.3,0,0xffe9a8],[0,0.95,0,0xa8e6cf],[0.15,1.6,0,0x8fd3ff]].forEach(([bx,by,bz,c])=>{
+        const cube=new THREE.Mesh(new THREE.BoxGeometry(1,0.55,1), lam(c));
+        cube.position.set(bx,by,bz); cube.rotation.y=Math.random()*0.4-0.2; top.add(cube);
+      });
+    }
+    g.position.set(x,0,z);
+    parent.add(g);
+    statues.push(top);
+
+    /* Escape and Loops get the real thing — the same rig that chases you in
+       the mission, standing still on a plinth. */
+    if((id==='nav' || id==='m1') && window.ZOMBIE){
+      ZOMBIE.make({ skin: id==='nav' ? 'zombieA' : 'zombieC', height:2.4 })
+        .then(z=>{ if(!on) return;
+          z.position.y = id==='m1' ? -0.2 : 0;
+          top.add(z); ZOMBIE.animate(z,0,'idle');
+          if(id==='nav') top.userData.spin=0.25; })
+        .catch(()=>{});
+    }
+    return g;
+  }
+
   function panel(g, b, x, z, emoji, label, opens, bg, scale){
     const p=new THREE.Group();
     const body=new THREE.Mesh(new THREE.BoxGeometry(4.4,5.6,0.7),
@@ -693,6 +861,8 @@ window.PLANET = (function(){
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
+    // the statues turn slowly on their plinths, the way a museum piece does
+    statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
       o.dir.lerp(o.tdir,k).normalize();
