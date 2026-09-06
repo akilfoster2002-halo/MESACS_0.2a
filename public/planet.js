@@ -136,7 +136,7 @@ window.PLANET = (function(){
     G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ceiling=null;
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
-    statues=[];
+    statues=[]; ada=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
     // fog would eat the far side of the world, and the far side is the point
@@ -430,7 +430,130 @@ window.PLANET = (function(){
         statue(g, s.id, keepIn(p.x - Math.sin(p.r)*4.6, hw),
                         keepIn(p.z - Math.cos(p.r)*4.6, hd), p.r);
       });
+    } else if(b.id==='library'){
+      panel(g,b, -5.5, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+      reading(g, b, hw, hd, H);
+      librarian(g, b, 5.5, -hd+3.6);
     } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+  }
+
+  /* -------------------------------------------------------- the librarian
+     The catalogue was already here: a console you press E at, which opens
+     the whole book on everything at once.  That is a filing cabinet, and a
+     filing cabinet is what a nine-year-old backs away from.
+
+     So there is somebody behind the desk.  She is not decoration and she is
+     not a second door to the same screen — she reads where you have got to
+     and names the ONE idea your next mission is built on, then opens the
+     book already searched for it.  Ask her again and she moves on to the
+     next thing.  A shelf you are pointed at is a shelf you read.  */
+  const LIB_NAME='ADA';
+  let ada=null, adaTip=0;
+  /* The concept behind each mission, so "what should I read?" has an answer
+     that depends on where you actually are rather than on a dice roll. */
+  const MISSION_IDEA=[
+    ['tut',   'Command'],
+    ['nav',   'Sequence'],
+    ['flight','Coordinate'],
+    ['m1',    'Loop'],
+    ['m2',    'Condition'],
+    ['m3',    'Function']
+  ];
+  function adaPicks(){
+    // the first mission you have not finished — that is the one you need
+    if(window.PROGRESS) for(const [id,term] of MISSION_IDEA)
+      if(!PROGRESS.isDone(id)) return term;
+    // nothing left to unlock: walk her through the rest of the shelves
+    const rest=(window.LIBRARY?LIBRARY.IDEAS:[]).map(i=>i.term)
+      .filter(x=>!MISSION_IDEA.some(m=>m[1]===x));
+    return rest.length ? rest[(adaTip++)%rest.length] : 'Loop';
+  }
+  function ask(){
+    const term=adaPicks();
+    const idea=(window.LIBRARY?LIBRARY.IDEAS:[]).find(i=>i.term===term);
+    // one sentence, in her voice, and then the shelf she is pointing at
+    const line=idea ? idea.what.split('. ')[0]+'.' : '';
+    /* The word goes into her mouth and into the search box UNtranslated: the
+       shelves are indexed on the English term, and a librarian who names a
+       word you cannot then find is worse than one who says nothing. */
+    say('\u{1F4DA} <b>'+LIB_NAME+'</b> — \u201C'+t('Read up on {w}.',{w:'<b>'+term+'</b>'})
+        +'\u201D<br><small>'+esc(t(line))+'</small>');
+    if(window.LIBRARY) LIBRARY.open(term);
+  }
+  /* A desk says librarian, but standing her BEHIND one puts a metre of oak
+     between a nine-year-old and the only person in the building: from the
+     door all you could see was the top of a head over a counter. So the desk
+     is behind her and she is out in front of it, in the open, the whole of
+     her, the way somebody who wants to be asked something stands. */
+  function librarian(g, b, x, z){
+    const wood=new THREE.MeshLambertMaterial({color:0x6b4a34});
+    const top=new THREE.Mesh(new THREE.BoxGeometry(5.6,0.3,1.5), wood);
+    top.position.set(x, 0.95, z); g.add(top);
+    const front=new THREE.Mesh(new THREE.BoxGeometry(5.6,0.95,0.45),
+      new THREE.MeshLambertMaterial({color:0x59402f}));
+    front.position.set(x, 0.47, z+0.5); g.add(front);
+    b.solids.push({x1:x-2.8, x2:x+2.8, z1:z-0.9, z2:z+0.9, y1:0, y2:1.1});
+
+    const stack=new THREE.Group(); stack.position.set(x-1.9, 1.1, z);
+    [0x8fd3ff,0xffb4a2,0xa8e6cf].forEach((c,i)=>{
+      const bk=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.16,0.8), lam(c));
+      bk.position.set(0, i*0.17, 0); bk.rotation.y=(i-1)*0.12; stack.add(bk);
+    });
+    g.add(stack);
+
+    const who=new THREE.Group();
+    // out in front of the desk, on the door side, and lifted the tenth of a
+    // metre the model's feet hang below its own origin
+    who.position.set(x, 0.1, z+2.4);
+    g.add(who);
+    ada={ g:who, b, x, z:z+2.4, model:null, yaw:0 };
+
+    /* You have to be able to point at a person, and the raycast only tests
+       the meshes it was handed — a loaded character is a tree of them and
+       arrives late besides.  So the thing you actually aim at is a box the
+       size of a person, standing there from the first frame whether the
+       model has downloaded or not. */
+    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.5,2.1,1.2),
+      new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true,
+                                    opacity:0, depthWrite:false }));
+    hitbox.position.set(x, 1.15, z+2.4); g.add(hitbox);
+    hitbox.userData.owner=who;
+    who.userData={ kind:'npc', label:LIB_NAME+' — '+t('the librarian'), enter:'librarian' };
+    G.hits.push(hitbox);
+
+    const tag = window.OWN ? OWN.plate(LIB_NAME, 0xffe9a8) : null;
+    if(tag){ tag.position.set(x, 2.8, z+2.4); tag.scale.set(3.4,0.85,1); g.add(tag); }
+
+    if(window.AVATAR){
+      // never the character the player is wearing: two of you is a bug, not a cast
+      const id = (AVATAR.chosen==='h') ? 'q' : 'h';
+      AVATAR.load(id).then(root=>{
+        if(!ada || ada.g!==who || !on) return;
+        who.add(root); ada.model=root;
+      }).catch(()=>{});
+    }
+  }
+  /* shelves down both side walls, because a library with no books in it is a
+     room with a search box in it */
+  function reading(g, b, hw, hd, H){
+    const wood=new THREE.MeshLambertMaterial({color:0x5b4130});
+    const spines=[0x8fd3ff,0xffb4a2,0xa8e6cf,0xcdb4f6,0xffe9a8,0xe89fb0];
+    /* Spaced to FIT, not spaced to look right and then checked afterwards:
+       the third case used to end a metre outside the front wall. */
+    [-1,1].forEach(sx=>{
+      for(let k=0;k<3;k++){
+        const z=-hd+5.5+k*5.5, x=sx*(hw-1.6);
+        const cse=new THREE.Mesh(new THREE.BoxGeometry(1.6,4.6,4.6), wood);
+        cse.position.set(x, 2.3, z); g.add(cse);
+        b.solids.push({x1:x-0.8, x2:x+0.8, z1:z-2.3, z2:z+2.3, y1:0, y2:4.6});
+        for(let sh=0; sh<3; sh++) for(let i=0;i<9;i++){
+          const bk=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.9+Math.random()*0.5,0.34),
+            lam(spines[(i+sh+k)%spines.length]));
+          bk.position.set(x-sx*0.85, 1.1+sh*1.45, z-1.9+i*0.46);
+          g.add(bk);
+        }
+      }
+    });
   }
 
   /* ---------------------------------------------------------- the castle
@@ -897,13 +1020,14 @@ window.PLANET = (function(){
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
     const known = id==='workshop' || id==='wardrobe' || id==='library'
-               || STATIONS.some(s=>s.id===id);
+               || id==='librarian' || STATIONS.some(s=>s.id===id);
     if(!known) return;
     if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     if(id==='wardrobe'){ leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
        you can look a word up and still be standing where you were. */
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
+    if(id==='librarian'){ ask(); return; }
     if(!PROGRESS.unlocked(id)){
       say(t('\u{1F512} Finish {m} first',{m:t(MENU.labelOf(PROGRESS.needs(id)))}));
       return;
@@ -989,6 +1113,7 @@ window.PLANET = (function(){
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
+    adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
       o.dir.lerp(o.tdir,k).normalize();
@@ -1006,6 +1131,21 @@ window.PLANET = (function(){
         NET.pos(+ll.lon.toFixed(2), +ll.lat.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
       }
     }
+  }
+
+  /* She faces the door until somebody is in the room, and then she faces
+     them.  It is two lines and it is most of what separates somebody
+     standing there from a statue of somebody standing there. */
+  function adaTick(dt){
+    if(!ada) return;
+    const l=local(ada.b, worldPos(0));
+    const near = Math.abs(l.x-ada.x)<11 && Math.abs(l.z-ada.z)<13;
+    const want = near ? Math.atan2(l.x-ada.x, l.z-ada.z) : 0;
+    let d=want-ada.yaw;
+    d=Math.atan2(Math.sin(d), Math.cos(d));          // the short way round
+    ada.yaw += d*Math.min(1, 4*dt);
+    ada.g.rotation.y=ada.yaw;
+    if(ada.model && window.AVATAR) AVATAR.animate(ada.model, dt, 'idle');
   }
 
   /* ------------------------------------------------------------ the tour */

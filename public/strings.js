@@ -635,6 +635,9 @@ window.ES = {
   'Change who you are':'Cambia quién eres','change who you are':'cambia quién eres',
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
+  'E — ask':'E — preguntar',
+  'the librarian':'la bibliotecaria',
+  'Read up on {w}.':'Lee sobre {w}.',
   'JUMP TO A MISSION':'SALTAR A UNA MISIÓN','Back to the planet':'Volver al planeta',
 
   /* ---------- the walkthroughs ---------- */

@@ -711,8 +711,11 @@ function focusScan(){
     } else if(u.enter){
       // a door on the planet: say so, and say when it is not open to you yet
       const locked = u.kind==='station' && window.PROGRESS && !PROGRESS.unlocked(u.enter);
+      // a person is not a door, and telling a child to "go in" one is worse
+      // than saying nothing at all
       box.innerHTML = t(u.label) + '<small>' +
-        (locked ? '🔒 '+t('Locked') : t('E — go in')) + '</small>';
+        (locked ? '🔒 '+t('Locked')
+                : u.kind==='npc' ? t('E — ask') : t('E — go in')) + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')

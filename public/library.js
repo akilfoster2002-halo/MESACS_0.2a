@@ -139,13 +139,16 @@ window.LIBRARY = (function(){
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,
     c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function open(){
+  /* Opening on a word rather than on everything: the librarian sends you to
+     a shelf, not to the door of the building you are already standing in. */
+  function open(pre){
     if(!el) build();
-    q=''; cat='';
+    q=String(pre||'').trim().toLowerCase(); cat='';
     el.classList.remove('hidden');
     draw();
     if(document.pointerLockElement) document.exitPointerLock();
-    const i=el.querySelector('#libQ'); i.value=''; setTimeout(()=>i.focus(),30);
+    const i=el.querySelector('#libQ'); i.value=String(pre||'');
+    setTimeout(()=>{ i.focus(); i.select(); },30);
   }
   function close(){
     if(!el) return;
