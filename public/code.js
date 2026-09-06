@@ -47,10 +47,10 @@ window.CODE = (function(){
        right() and x = x + 1 do exactly the same thing, and having both is
        the point — one is a word for a move, the other is arithmetic on a
        number that happens to be where you are. */
-    setX     :{label:'x =',          color:'#ffb4a2', help:'Put the column number straight into x'},
-    setY     :{label:'y =',          color:'#a8e6cf', help:'Put the row number straight into y'},
-    addX     :{label:'x = x +',      color:'#ffb4a2', help:'Add to the column you are already in'},
-    addY     :{label:'y = y +',      color:'#a8e6cf', help:'Add to the row you are already in'}
+    setX     :{label:'set x to',     color:'#ffb4a2', help:'Put the ship in that column, wherever it was'},
+    setY     :{label:'set y to',     color:'#a8e6cf', help:'Put the ship in that row, wherever it was'},
+    addX     :{label:'change x by',  color:'#ffb4a2', help:'Add to the column you are in. Minus goes left'},
+    addY     :{label:'change y by',  color:'#a8e6cf', help:'Add to the row you are in. Minus goes down'}
   };
   const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy', turn:'deg' };
   /* how much one press of the counter is worth. An angle steps a quarter
@@ -187,11 +187,9 @@ window.CODE = (function(){
       } else if(b.type==='goTo'){
         s.push(pad+'goto '+b.col+','+b.row);
       } else if(b.type==='setX'||b.type==='setY'){
-        s.push(pad+(b.type==='setX'?'x':'y')+' = '+b.n);
+        s.push(pad+'set '+(b.type==='setX'?'x':'y')+' to '+b.n);
       } else if(b.type==='addX'||b.type==='addY'){
-        const v=b.type==='addX'?'x':'y';
-        // x = x - 1 reads better than x = x + -1, and parses back the same
-        s.push(pad+v+' = '+v+(b.n<0?' - '+Math.abs(b.n):' + '+b.n));
+        s.push(pad+'change '+(b.type==='addX'?'x':'y')+' by '+b.n);
       } else if(b.type==='turn'){
         s.push(pad+'turn '+b.n);
       } else s.push(pad+DEF[b.type].label);
@@ -246,6 +244,17 @@ window.CODE = (function(){
         put(b); continue;
       }
       if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.'));
+      if((m=low.match(/^change +([xy]) +by +(-?\d+)$/))){
+        const type=m[1]==='x'?'addX':'addY';
+        if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:'change '+m[1]+' by'}));
+        const b=makeBlock(type); b.n=clampN(type, +m[2]); put(b); continue;
+      }
+      if((m=low.match(/^set +([xy]) +to +(-?\d+)$/))){
+        const type=m[1]==='x'?'setX':'setY';
+        if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:'set '+m[1]+' to'}));
+        const b=makeBlock(type); b.n=clampN(type, +m[2]); put(b); continue;
+      }
+      // the equation forms still read, for anyone who prefers writing them
       if((m=low.match(/^([xy]) *= *\1 *([+-]) *(\d+)$/))){
         const type=m[1]==='x'?'addX':'addY';
         if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:m[1]+' = '+m[1]+' + 1'}));
@@ -266,8 +275,8 @@ window.CODE = (function(){
         put(b); continue;
       }
       if(low==='turn') return bad(i, t('<b>turn</b> needs an angle, like <b>turn 90</b>.'));
-      if(/^[xy] *=/.test(low))
-        return bad(i, t('Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.'));
+      if(/^(change|set) +[xy]/.test(low) || /^[xy] *=/.test(low))
+        return bad(i, t('Write the whole line, like <b>change x by 1</b> or <b>set x to 2</b>.'));
       if(low==='define combo'){
         if(!allowed('define')) return bad(i, t('<b>define combo</b> is not in this mission yet.'));
         const b=makeBlock('define'); put(b); stack.push(b); continue;
@@ -387,15 +396,16 @@ window.CODE = (function(){
         </div>`;
     }
     if(NUMBLK[b.type]){
-      const [lo,hi]=numRange(b.type);
-      const sign = (b.type==='addX'||b.type==='addY'||b.type==='turn') && b.n>=0 ? '+' : '';
+      /* The number is TYPED. A pair of stepper buttons made "change y by -1"
+         render as "y = y + [-] -1 [+]", which is two operators and a widget
+         where a child wanted to write minus one. A box you type in says what
+         it is. */
       return `<div class="blk num" data-id="${b.id}" style="--c:${d.color}">
-          <span class="blk-name">${d.label}</span>
-          ${readonly?'':`<button class="cnt" data-act="n-" data-id="${b.id}"
-             ${b.n<=lo?'disabled':''}>−</button>`}
-          <span class="cnt-n">${sign}${b.n}</span>
-          ${readonly?'':`<button class="cnt" data-act="n+" data-id="${b.id}"
-             ${b.n>=hi?'disabled':''}>+</button>`}
+          <span class="blk-name">${t(d.label)}</span>
+          ${readonly ? `<span class="cnt-n">${b.n}</span>`
+            : `<input class="numin" type="text" inputmode="numeric"
+                 data-num="${b.id}" value="${b.n}" size="3"
+                 aria-label="${t(d.label)}">`}
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
     }
@@ -515,10 +525,12 @@ window.CODE = (function(){
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
       else if(type==='define') out.push({w:'define combo', c:d.color});
       else if(type==='goTo')   out.push({w:'goto 1,1', c:d.color});
-      else if(type==='setX')   out.push({w:'x = 1', c:d.color});
-      else if(type==='setY')   out.push({w:'y = 1', c:d.color});
-      else if(type==='addX')   out.push({w:'x = x + 1', c:d.color});
-      else if(type==='addY')   out.push({w:'y = y + 1', c:d.color});
+      else if(type==='setX')   out.push({w:'set x to 1', c:d.color});
+      else if(type==='setY')   out.push({w:'set y to 1', c:d.color});
+      else if(type==='addX'){  out.push({w:'change x by 1', c:d.color});
+                               out.push({w:'change x by -1', c:d.color}); }
+      else if(type==='addY'){  out.push({w:'change y by 1', c:d.color});
+                               out.push({w:'change y by -1', c:d.color}); }
       else if(type==='turn'){  out.push({w:'turn 90', c:d.color});
                                out.push({w:'turn -90', c:d.color}); }
       else                     out.push({w:d.label, c:d.color});
@@ -573,8 +585,9 @@ window.CODE = (function(){
       return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
         <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1'
              :type==='setX'?'x = 1':type==='setY'?'y = 1'
-             :type==='addX'?'x = x + 1':type==='addY'?'y = y + 1'
-             :type==='turn'?'turn +90':d.label}</b>
+             :type==='addX'?t('change x by')+' 1':type==='addY'?t('change y by')+' 1'
+             :type==='setX'?t('set x to')+' 1':type==='setY'?t('set y to')+' 1'
+             :type==='turn'?t('turn')+' 90':d.label}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
@@ -593,8 +606,31 @@ window.CODE = (function(){
         if(btn.dataset.act==='col-' && b) b.col=Math.max(0,b.col-1);
         if(btn.dataset.act==='row+' && b) b.row=Math.min(GRID.row,b.row+1);
         if(btn.dataset.act==='row-' && b) b.row=Math.max(0,b.row-1);
-        if(btn.dataset.act==='n+' && b) b.n=bumpN(b.type, b.n, 1);
-        if(btn.dataset.act==='n-' && b) b.n=bumpN(b.type, b.n, -1);
+
+        draw();
+      };
+    });
+    /* The typed numbers. Value goes in on every keystroke so the mission's
+       own preview keeps up, but the block is NOT redrawn until you leave the
+       box — redrawing mid-word would take the caret away with it. */
+    scriptEl.querySelectorAll('input[data-num]').forEach(inp=>{
+      inp.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); };
+      inp.onclick=e=>e.stopPropagation();
+      inp.oninput=()=>{
+        const b=findBlock(+inp.dataset.num); if(!b) return;
+        const v=parseInt(inp.value,10);
+        if(!isNaN(v)) b.n=clampN(b.type, v);       // a lone "-" waits for a digit
+        textEl.textContent=toText().join('\n') || '—';
+      };
+      inp.onblur=()=>{
+        const b=findBlock(+inp.dataset.num); if(!b) return;
+        let v=parseInt(inp.value,10);
+        if(isNaN(v)) v=b.n;
+        if(b.type==='turn'){                       // quarter turns only
+          v=Math.round(v/90)*90;
+          if(v===0) v=90;
+        }
+        b.n=clampN(b.type, v);
         draw();
       };
     });

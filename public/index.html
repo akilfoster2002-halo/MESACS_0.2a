@@ -841,9 +841,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .rlegend{align-self:flex-end;font-size:11px;letter-spacing:.6px;color:var(--muted);
   padding-bottom:2px;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){ .rw.warn .rgrid i.me{animation:none} }
-/* a coordinate block is arithmetic, so its number sits inline with the name */
-.blk.num .blk-name{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.5px}
+/* a coordinate block reads as an instruction with a number you type into */
+.blk.num .blk-name{letter-spacing:.3px}
 .blk.num .cnt-n{min-width:30px}
+.numin{width:56px;padding:3px 7px;border-radius:8px;border:2px solid rgba(0,0,0,.3);
+  background:rgba(0,0,0,.28);color:#fff;font-size:17px;font-weight:bold;text-align:center;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+.numin:focus{outline:none;border-color:#fff;background:rgba(0,0,0,.45)}
 .cnt[disabled]{opacity:.3}
 
 /* ---------- code console (block based) ---------- */
@@ -1190,35 +1194,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=147"></script>
-<script src="strings.js?v=147"></script>
-<script src="difficulty.js?v=147"></script>
-<script src="net.js?v=147"></script>
-<script src="avatar.js?v=147"></script>
-<script src="zombies.js?v=147"></script>
-<script src="building.js?v=147"></script>
-<script src="levels.js?v=147"></script>
-<script src="code.js?v=147"></script>
-<script src="combat.js?v=147"></script>
-<script src="puzzle.js?v=147"></script>
-<script src="nav.js?v=147"></script>
-<script src="tutorial.js?v=147"></script>
-<script src="race.js?v=147"></script>
-<script src="flight.js?v=147"></script>
-<script src="planet.js?v=147"></script>
-<script src="wallet.js?v=147"></script>
-<script src="shop.js?v=147"></script>
-<script src="library.js?v=147"></script>
-<script src="costumes.js?v=147"></script>
-<script src="missions.js?v=147"></script>
-<script src="coach.js?v=147"></script>
-<script src="owner.js?v=147"></script>
-<script src="blocks.js?v=147"></script>
-<script src="vm.js?v=147"></script>
-<script src="coder.js?v=147"></script>
-<script src="quiz.js?v=147"></script>
-<script src="chars.js?v=147"></script>
-<script src="menu.js?v=147"></script>
-<script src="game.js?v=147"></script>
+<script src="lib/three.classic.js?v=149"></script>
+<script src="strings.js?v=149"></script>
+<script src="difficulty.js?v=149"></script>
+<script src="net.js?v=149"></script>
+<script src="avatar.js?v=149"></script>
+<script src="zombies.js?v=149"></script>
+<script src="building.js?v=149"></script>
+<script src="levels.js?v=149"></script>
+<script src="code.js?v=149"></script>
+<script src="combat.js?v=149"></script>
+<script src="puzzle.js?v=149"></script>
+<script src="nav.js?v=149"></script>
+<script src="tutorial.js?v=149"></script>
+<script src="race.js?v=149"></script>
+<script src="flight.js?v=149"></script>
+<script src="planet.js?v=149"></script>
+<script src="wallet.js?v=149"></script>
+<script src="shop.js?v=149"></script>
+<script src="library.js?v=149"></script>
+<script src="costumes.js?v=149"></script>
+<script src="missions.js?v=149"></script>
+<script src="coach.js?v=149"></script>
+<script src="owner.js?v=149"></script>
+<script src="blocks.js?v=149"></script>
+<script src="vm.js?v=149"></script>
+<script src="coder.js?v=149"></script>
+<script src="quiz.js?v=149"></script>
+<script src="chars.js?v=149"></script>
+<script src="menu.js?v=149"></script>
+<script src="game.js?v=149"></script>
 </body>
 </html>

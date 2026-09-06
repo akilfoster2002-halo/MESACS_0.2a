@@ -603,10 +603,24 @@ window.ES = {
     'En este tramo no hay palabras de dirección. Hay dos números: x es en qué columna estás e y en qué fila, y vuelas cambiándolos. x = 2 pone x ahí, fuera lo que fuera. x = x + 1 toma la x que ya tienes y le suma uno — que es justo lo que hacía right(), escrito como aritmética.',
   'No up() or left() here — only <b>x</b> and <b>y</b>. <b>x = 2</b> sets the column outright; <b>x = x + 1</b> adds one to the column you are in. Read your lane off the radar and write the numbers.':
     'Aquí no hay up() ni left() — solo <b>x</b> e <b>y</b>. <b>x = 2</b> fija la columna directamente; <b>x = x + 1</b> suma uno a la columna en la que estás. Lee tu carril en el radar y escribe los números.',
-  'Put the column number straight into x':'Pon el número de columna directamente en x',
-  'Put the row number straight into y':'Pon el número de fila directamente en y',
-  'Add to the column you are already in':'Suma a la columna en la que ya estás',
-  'Add to the row you are already in':'Suma a la fila en la que ya estás',
+  'set x to':'pon x en','set y to':'pon y en',
+  'change x by':'cambia x en','change y by':'cambia y en','turn':'gira',
+  'Put the ship in that column, wherever it was':'Pon la nave en esa columna, estuviera donde estuviera',
+  'Put the ship in that row, wherever it was':'Pon la nave en esa fila, estuviera donde estuviera',
+  'Add to the column you are in. Minus goes left':'Suma a la columna en la que estás. Menos va a la izquierda',
+  'Add to the row you are in. Minus goes down':'Suma a la fila en la que estás. Menos va hacia abajo',
+  'Write the whole line, like <b>change x by 1</b> or <b>set x to 2</b>.':
+    'Escribe la línea entera, como <b>change x by 1</b> o <b>set x to 2</b>.',
+  '<b>change y by 1</b> goes up a row, <b>change y by -1</b> goes down. <b>x</b> is across. The sign is the direction.':
+    '<b>change y by 1</b> sube una fila, <b>change y by -1</b> baja. <b>x</b> es a lo ancho. El signo es la dirección.',
+  'x is your column, y is your row. Change one and you move.':
+    'x es tu columna, y es tu fila. Cambia una y te mueves.',
+  '<b>set x to 2</b> puts you in column 2 whatever you were. <b>change x by 1</b> adds one to it. Two different sums.':
+    '<b>set x to 2</b> te pone en la columna 2 estuvieras donde estuvieras. <b>change x by 1</b> le suma uno. Dos sumas distintas.',
+  'set x to 2 puts you there. change x by 1 adds to where you are.':
+    'set x to 2 te pone ahí. change x by 1 suma a donde estás.',
+  'Pink on the radar is a rock in your lane. <b>change y by 1</b> moves you up a row — click it.':
+    'El rosa del radar es una roca en tu carril. <b>change y by 1</b> te sube una fila — púlsalo.',
   'Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.':
     'Escribe una asignación completa, como <b>x = 2</b> o <b>x = x + 1</b>.',
 
