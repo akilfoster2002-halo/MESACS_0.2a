@@ -734,6 +734,10 @@ window.ES = {
   'walk':'camina','mouse':'ratón','look':'mira','jump':'salta',
   'walks it':'te camina','drives it':'lo conduce',
   'go into what you are looking at':'entra en lo que estás mirando',
+  'go in':'entrar','get in the car':'súbete al coche',
+  'Back on foot.':'De vuelta a pie.',
+  'No car yet. The Wardrobe sells them.':'Aún no tienes coche. El Vestuario los vende.',
+  '{n} — hold W to drive.':'{n} — mantén W para conducir.',
 
   /* ---------- arithmetic moves and turning ---------- */
   'Hard to Starboard':'Timón a Estribor','An angle is a number too':'Un ángulo también es un número',

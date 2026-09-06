@@ -680,7 +680,9 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .chrtile.lock{cursor:not-allowed;filter:grayscale(1) brightness(.5)}
 .chrtile.lock::after{content:'🔒';position:absolute;inset:0;display:flex;align-items:center;
   justify-content:center;font-size:22px}
-.charfoot{display:flex;justify-content:space-between;gap:10px;margin-top:12px}
+.ckeys{margin-top:10px;font-size:12px;letter-spacing:.6px;color:var(--muted);text-align:center}
+.ckeys b{color:var(--text);font-weight:bold}
+.charfoot{display:flex;justify-content:space-between;gap:10px;margin-top:8px}
 
 @media (prefers-reduced-motion:reduce){
   .korobg i,.koro,.chr.on img,.bigplay,.chrtile:hover img,.chrtile.on img{animation:none}
@@ -764,6 +766,12 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .shopit.on{border-color:var(--mint);background:#2b3a4e}
 .shopit.on .si-tag{color:var(--mint)}
 .shopit.buy .si-tag{color:var(--star)}
+/* Keyboard focus has to be obvious, because on this screen it is the cursor.
+   :focus-visible only, so a mouse click does not leave a ring behind. */
+.chrtile:focus-visible,.shopit:focus-visible,#cBack:focus-visible,#cGo:focus-visible{
+  outline:3px solid var(--star);outline-offset:3px}
+.chrtile:focus-visible{transform:translateY(-5px)}
+.shopit:focus-visible{transform:translateY(-2px)}
 /* a character you have not bought yet wears its price */
 .chrtile.buy{filter:grayscale(.75) brightness(.66)}
 .chrtile.buy:hover{filter:none}
@@ -1073,6 +1081,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
     <div id="charGrid" class="chargrid"></div>
     <div id="cPurse" class="purse"></div>
     <div id="cShop" class="shop"></div>
+    <div class="ckeys">↑ ↓ ← → <b>move</b> &nbsp; Enter <b>choose</b> &nbsp; Esc <b>back to the planet</b></div>
     <div class="charfoot">
       <button class="btn ghost small" id="cBack">◀</button>
       <button class="btn good" id="cGo">Continue ▶</button>
@@ -1197,35 +1206,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=159"></script>
-<script src="strings.js?v=159"></script>
-<script src="difficulty.js?v=159"></script>
-<script src="net.js?v=159"></script>
-<script src="avatar.js?v=159"></script>
-<script src="zombies.js?v=159"></script>
-<script src="building.js?v=159"></script>
-<script src="levels.js?v=159"></script>
-<script src="code.js?v=159"></script>
-<script src="combat.js?v=159"></script>
-<script src="puzzle.js?v=159"></script>
-<script src="nav.js?v=159"></script>
-<script src="tutorial.js?v=159"></script>
-<script src="race.js?v=159"></script>
-<script src="flight.js?v=159"></script>
-<script src="planet.js?v=159"></script>
-<script src="wallet.js?v=159"></script>
-<script src="shop.js?v=159"></script>
-<script src="library.js?v=159"></script>
-<script src="costumes.js?v=159"></script>
-<script src="missions.js?v=159"></script>
-<script src="coach.js?v=159"></script>
-<script src="owner.js?v=159"></script>
-<script src="blocks.js?v=159"></script>
-<script src="vm.js?v=159"></script>
-<script src="coder.js?v=159"></script>
-<script src="quiz.js?v=159"></script>
-<script src="chars.js?v=159"></script>
-<script src="menu.js?v=159"></script>
-<script src="game.js?v=159"></script>
+<script src="lib/three.classic.js?v=164"></script>
+<script src="strings.js?v=164"></script>
+<script src="difficulty.js?v=164"></script>
+<script src="net.js?v=164"></script>
+<script src="avatar.js?v=164"></script>
+<script src="zombies.js?v=164"></script>
+<script src="building.js?v=164"></script>
+<script src="levels.js?v=164"></script>
+<script src="code.js?v=164"></script>
+<script src="combat.js?v=164"></script>
+<script src="puzzle.js?v=164"></script>
+<script src="nav.js?v=164"></script>
+<script src="tutorial.js?v=164"></script>
+<script src="race.js?v=164"></script>
+<script src="flight.js?v=164"></script>
+<script src="planet.js?v=164"></script>
+<script src="wallet.js?v=164"></script>
+<script src="shop.js?v=164"></script>
+<script src="library.js?v=164"></script>
+<script src="costumes.js?v=164"></script>
+<script src="missions.js?v=164"></script>
+<script src="coach.js?v=164"></script>
+<script src="owner.js?v=164"></script>
+<script src="blocks.js?v=164"></script>
+<script src="vm.js?v=164"></script>
+<script src="coder.js?v=164"></script>
+<script src="quiz.js?v=164"></script>
+<script src="chars.js?v=164"></script>
+<script src="menu.js?v=164"></script>
+<script src="game.js?v=164"></script>
 </body>
 </html>

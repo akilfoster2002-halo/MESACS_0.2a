@@ -172,7 +172,8 @@ window.PLANET = (function(){
     if(window.keyHint) keyHint(
       `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
        &nbsp; <b>SPACE</b> ${t('jump')}<br>
-       <b>E</b> ${t('go into what you are looking at')} &nbsp; <b>P</b> ${t('pause')}`);
+       <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('get in the car')}
+       &nbsp; <b>P</b> ${t('pause')}`);
     hud();
     connect();
     if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
@@ -449,6 +450,19 @@ window.PLANET = (function(){
     }, undefined, ()=>{ ride=null; rideId=null; });
   }
   const RIDE_SPEED=1.9;
+  /* Get in and get out, out here, without walking to a menu to do it. R
+     summons whichever car you have — the one you own if you have not chosen,
+     since everybody starts with one — and R again leaves it behind. */
+  function toggleRide(){
+    if(!on || !window.SHOP) return;
+    if(rideId){ SHOP.equip(rideId); fitRide(); say(t('Back on foot.')); return; }
+    let c=SHOP.car();
+    if(!c || !SHOP.ownsCar(c)) c=SHOP.CARS.find(x=>SHOP.ownsCar(x));
+    if(!c){ say(t('No car yet. The Wardrobe sells them.')); return; }
+    SHOP.equip(c.id);
+    fitRide();
+    say(t('{n} — hold W to drive.',{n:t(c.name)}));
+  }
 
   /* the player, in a building's own frame */
   function local(b, worldPoint){
@@ -684,7 +698,7 @@ window.PLANET = (function(){
   }
   function stop(){ leave(); }
 
-  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing,
+  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
            get riding(){ return !!ride; },
            STATIONS, BUILDINGS, PR, lonLat, frameAt, dirOf,
            forget(){ back=null; },

@@ -209,7 +209,97 @@ window.CHARS = (function(){
       };
     });
   }
-  function open(){ render(); play(); }
+  /* ------------------------------------------------- driving it by keyboard
+
+     You arrive here from a planet that has your mouse locked, so reaching
+     this screen used to mean pressing Escape before you could click
+     anything — a step nobody is told about and half the reason it felt
+     broken. The pointer is freed on the way in, and the whole screen is
+     navigable on the arrow keys without touching the mouse at all.
+
+     Movement is GEOMETRIC rather than by DOM order: from whatever is focused,
+     the arrow finds the nearest thing that actually lies in that direction on
+     screen. One rule that handles the character grid, both shelves and the
+     buttons at the bottom, and it keeps working when a shelf changes length
+     or the window is resized. */
+  function items(){
+    return [...document.querySelectorAll(
+      '#chars .chrtile, #chars .shopit, #chars #cBack, #chars #cGo')]
+      .filter(el=>!el.disabled && el.offsetParent!==null);
+  }
+  function move(dir){
+    /* Not while the screen is sliding in. The card animates with a transform,
+       so every rectangle it reports mid-flight is somewhere the element is not
+       — and the arrow lands on whatever happened to be under the distortion. */
+    const screen=document.querySelector('#chars');
+    if(screen && screen.classList.contains('anim-in')){
+      const first=items()[0]; if(first) first.focus();
+      return;
+    }
+    const all=items(); if(!all.length) return;
+    const cur=all.indexOf(document.activeElement)>=0 ? document.activeElement : null;
+    if(!cur){ all[0].focus(); return; }
+    const a=cur.getBoundingClientRect();
+    const ax=a.left+a.width/2, ay=a.top+a.height/2;
+    let best=null, bestScore=Infinity;
+    all.forEach(el=>{
+      if(el===cur) return;
+      const b=el.getBoundingClientRect();
+      const dx=(b.left+b.width/2)-ax, dy=(b.top+b.height/2)-ay;
+      // must actually be in the direction asked for
+      if(dir==='left'  && dx>-4) return;
+      if(dir==='right' && dx< 4) return;
+      if(dir==='up'    && dy>-4) return;
+      if(dir==='down'  && dy< 4) return;
+      /* Distance along the axis you asked for, plus a heavy penalty for
+         drifting off it — so right goes to the next tile along and not to
+         something nearer but a shelf away. */
+      const along=Math.abs(dir==='left'||dir==='right' ? dx : dy);
+      const off  =Math.abs(dir==='left'||dir==='right' ? dy : dx);
+      const score=along + off*3;
+      if(score<bestScore){ bestScore=score; best=el; }
+    });
+    /* Nothing lies that way — or the layout is in a state where nothing looks
+       like it does. Fall back to plain document order, so an arrow always
+       moves you somewhere sensible instead of leaving you stuck. */
+    if(!best){
+      const i=all.indexOf(cur);
+      const step=(dir==='right'||dir==='down') ? 1 : -1;
+      best=all[Math.max(0, Math.min(all.length-1, i+step))];
+      if(best===cur) return;
+    }
+    best.focus();
+    best.scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+  function onKey(e){
+    if(document.querySelector('#chars').classList.contains('hidden')) return;
+    const k=e.key;
+    const dir = (k==='ArrowLeft')?'left' : (k==='ArrowRight')?'right'
+              : (k==='ArrowUp')?'up' : (k==='ArrowDown')?'down' : null;
+    if(dir){ e.preventDefault(); e.stopPropagation(); move(dir); return; }
+    if(k==='Escape' || k==='Backspace'){
+      e.preventDefault(); e.stopPropagation();
+      if(window.MENU && MENU.homeworld) MENU.homeworld();
+      return;
+    }
+    // Enter and Space already activate a focused button; keep them off the game
+    if(k==='Enter'||k===' ') e.stopPropagation();
+  }
+  let wired=false;
+  function wireKeys(){
+    if(wired) return; wired=true;
+    // capture, so the game's own hotkeys never see these while we are open
+    addEventListener('keydown', onKey, true);
+  }
+
+  function open(){
+    render(); play(); wireKeys();
+    if(document.pointerLockElement) document.exitPointerLock();
+    setTimeout(()=>{
+      const first=items()[0];
+      if(first && !document.querySelector('#chars').classList.contains('hidden')) first.focus();
+    }, 60);
+  }
   function close(){ stop(); }
 
   /* ------------------------------------------- the one on the landing */

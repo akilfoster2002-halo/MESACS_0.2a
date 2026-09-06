@@ -467,6 +467,10 @@ function wireInput(){
         const u=G.focused && G.focused.userData;
         if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
       }
+      // R gets you in and out of your car, out in the world where the car is
+      if(e.code==='KeyR' && G.running && G.room==='planet'){
+        e.preventDefault(); PLANET.toggleRide(); return;
+      }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;
         if(on && !CODER.open){ e.preventDefault(); CODER.openOn(on); return; }
