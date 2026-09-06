@@ -112,7 +112,9 @@ window.PLANET = (function(){
   let ride=null, rideId=null, carLoader=null;
   /* You, as the planet sees you. G.pos is derived from this, never the
      other way round. */
-  let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true };
+  let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true,
+           spd:0,        // how fast the car is going, along its own nose
+           look:0 };     // where you are looking, which is not where it is going
   let lastYaw=0, back=null;
 
   const worldPos = extra => me.dir.clone().multiplyScalar(PR + me.alt + (extra||0));
@@ -155,7 +157,7 @@ window.PLANET = (function(){
       me.dir=landingSpot();
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
-    me.alt=0; me.vy=0; me.onGround=true;
+    me.alt=0; me.vy=0; me.onGround=true; me.spd=0; me.look=0;
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
@@ -169,11 +171,7 @@ window.PLANET = (function(){
     ['#health','#skill','#trigger','#fbeat','#radar'].forEach(s=>{
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
     // there is nothing to shoot or double-click out here, so do not offer it
-    if(window.keyHint) keyHint(
-      `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
-       &nbsp; <b>SPACE</b> ${t('jump')}<br>
-       <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('get in the car')}
-       &nbsp; <b>P</b> ${t('pause')}`);
+    keysFor();
     hud();
     connect();
     if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
@@ -366,11 +364,68 @@ window.PLANET = (function(){
   /* ------------------------------------------------------------- walking
      step() in game.js hands over to this. Everything here is the planet's
      own physics, because none of the flat-world kind applies on a ball. */
+  /* ------------------------------------------------------------- driving
+
+     A car is not a person. A person goes where they look, sideways as
+     happily as forwards, and stops the instant you let go. None of that is
+     true of a car, and one set of controls for both made the car feel like a
+     walking man wearing a car.
+
+       W        throttle. Speed builds; it does not appear.
+       S        brake, then reverse once you have stopped.
+       A D      STEER — they turn the nose, they do not slide you sideways,
+                and they do nothing at a standstill, because a wheel that is
+                not rolling cannot point you anywhere.
+       mouse    look around WITHOUT steering. Where you are looking and where
+                the car is pointing are two different things in a car, and
+                that is most of what makes one feel like a car.
+
+     Let go and it coasts down rather than stopping dead. */
+  const CAR={ top:26, reverse:-9, accel:20, brake:34, drag:5.5, turn:1.7, grip:7 };
+  function drive(dt, up){
+    const throttle=(G.keys.KeyW||G.keys.ArrowUp?1:0)-(G.keys.KeyS||G.keys.ArrowDown?1:0);
+    const steer=(G.keys.KeyA?1:0)-(G.keys.KeyD?1:0);
+
+    if(throttle>0)      me.spd += CAR.accel*dt;
+    else if(throttle<0) me.spd -= (me.spd>0.2 ? CAR.brake : CAR.accel*0.7)*dt;
+    else {
+      const d=Math.min(Math.abs(me.spd), CAR.drag*dt);   // coasting down
+      me.spd -= Math.sign(me.spd)*d;
+    }
+    me.spd=Math.max(CAR.reverse, Math.min(CAR.top, me.spd));
+
+    /* Steering bites with speed and reverses when reversing, the way a real
+       one does — so you cannot spin on the spot, and backing round a corner
+       goes the way your hands expect. */
+    if(steer && Math.abs(me.spd)>0.15){
+      const bite=Math.min(1, Math.abs(me.spd)/CAR.grip);
+      me.fwd.applyAxisAngle(up, steer*CAR.turn*bite*Math.sign(me.spd)*dt);
+      me.fwd.sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
+    }
+
+    let moved=false;
+    if(Math.abs(me.spd)>0.01){
+      const move=me.fwd.clone().multiplyScalar(Math.sign(me.spd));
+      const axis=new THREE.Vector3().crossVectors(up, move).normalize();
+      const ang=(Math.abs(me.spd)*dt)/PR;
+      const want=me.dir.clone().applyAxisAngle(axis, ang).normalize();
+      if(blocked(want)) me.spd=0;                  // into a wall is a full stop
+      else { me.dir.copy(want); me.fwd.applyAxisAngle(axis, ang); moved=true;
+             G.stats.steps += Math.abs(me.spd)*dt; }
+    }
+    place(dt, moved, Math.abs(me.spd)>CAR.top*0.6);
+    // walk() does this every frame; without it here the held blaster keeps
+    // whatever state it had when you got in and hangs in the windscreen
+    if(window.GUN) GUN.update(dt, moved);
+  }
+
   function walk(dt){
     if(!on || !me.dir) return;
     const up=me.dir.clone().normalize();
 
+    /* The mouse steers you on foot, and only turns your head in a car. */
     const dy=G.yaw-lastYaw; lastYaw=G.yaw;
+    if(ride){ me.look += dy; return drive(dt, up); }
     if(dy) me.fwd.applyAxisAngle(up, dy);
     if(G.keys.ArrowLeft)  me.fwd.applyAxisAngle(up,  2.0*dt);
     if(G.keys.ArrowRight) me.fwd.applyAxisAngle(up, -2.0*dt);
@@ -447,21 +502,38 @@ window.PLANET = (function(){
       holder.add(root);
       ride=holder; G.roomGroup.add(ride);
       if(window.AVATAR) AVATAR.detach();          // you are in it, not beside it
+      keysFor();
     }, undefined, ()=>{ ride=null; rideId=null; });
   }
   const RIDE_SPEED=1.9;
   /* Get in and get out, out here, without walking to a menu to do it. R
      summons whichever car you have — the one you own if you have not chosen,
      since everybody starts with one — and R again leaves it behind. */
+  /* what the keys do depends on whether you are in the car */
+  function keysFor(){
+    if(!window.keyHint) return;
+    if(ride) keyHint(
+      `<b>W</b> ${t('go')} &nbsp; <b>S</b> ${t('brake / reverse')}
+       &nbsp; <b>A D</b> ${t('steer')} &nbsp; <b>${t('mouse')}</b> ${t('look around')}<br>
+       <b>R</b> ${t('get out')} &nbsp; <b>E</b> ${t('go in')} &nbsp; <b>P</b> ${t('pause')}`);
+    else keyHint(
+      `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
+       &nbsp; <b>SPACE</b> ${t('jump')}<br>
+       <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('get in the car')}
+       &nbsp; <b>P</b> ${t('pause')}`);
+  }
   function toggleRide(){
     if(!on || !window.SHOP) return;
-    if(rideId){ SHOP.equip(rideId); fitRide(); say(t('Back on foot.')); return; }
+    if(rideId){ SHOP.equip(rideId); fitRide(); me.spd=0; me.look=0;
+                keysFor(); say(t('Back on foot.')); return; }
     let c=SHOP.car();
     if(!c || !SHOP.ownsCar(c)) c=SHOP.CARS.find(x=>SHOP.ownsCar(x));
     if(!c){ say(t('No car yet. The Wardrobe sells them.')); return; }
     SHOP.equip(c.id);
     fitRide();
-    say(t('{n} — hold W to drive.',{n:t(c.name)}));
+    me.spd=0; me.look=0;
+    keysFor();
+    say(t('{n} — <b>W</b> to go, <b>A D</b> to steer, <b>S</b> to brake.',{n:t(c.name)}));
   }
 
   /* the player, in a building's own frame */
@@ -487,15 +559,18 @@ window.PLANET = (function(){
   /* The camera's own up has to BE the surface normal, or the world rolls
      over as you walk and a child throws the mouse across the room. */
   const CAM_BACK=6.2, CAM_UP=2.6;
+  const CAR_BACK=12, CAR_UP=4.4;
   function place(dt, moving, running){
     const up=me.dir.clone().normalize();
     G.pos.copy(worldPos(EYE));
     if(ride){
       const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
       const r=new THREE.Vector3().crossVectors(up, f).normalize();
-      // the kit models nose down +Z, same half turn the characters need
-      ride.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
-        r.clone().negate(), up, f.clone().negate()));
+      /* Local +Z is the nose, exactly as it is for the characters — so +Z
+         maps to FORWARD. Negating both axes was still a valid rotation, which
+         is why nothing looked broken, but it was the one turned half a circle
+         and the car drove everywhere backwards. */
+      ride.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, up, f));
       ride.position.copy(worldPos(0.25));
     } else if(window.AVATAR){
       AVATAR.orient(worldPos(0), up, me.fwd, dt, moving, running, me.onGround);
@@ -508,9 +583,15 @@ window.PLANET = (function(){
       G.camera.lookAt(G.camera.position.clone().addScaledVector(look,10));
       return;
     }
-    const head=worldPos(EYE);
-    const off=me.fwd.clone().multiplyScalar(-CAM_BACK).addScaledVector(up, CAM_UP);
-    off.applyAxisAngle(right, G.pitch);
+    /* In a car the camera trails the LOOK direction, which the mouse turns
+       independently of the nose — so you can watch where you are going round
+       a bend, or look at what you are driving past. */
+    const camF = ride ? me.fwd.clone().applyAxisAngle(up, me.look) : me.fwd.clone();
+    const camR = new THREE.Vector3().crossVectors(camF, up).normalize();
+    const back = ride ? CAR_BACK : CAM_BACK, lift = ride ? CAR_UP : CAM_UP;
+    const head=worldPos(ride ? 1.4 : EYE);
+    const off=camF.clone().multiplyScalar(-back).addScaledVector(up, lift);
+    off.applyAxisAngle(camR, G.pitch);
     G.camera.position.copy(head).add(off);
     G.camera.up.copy(up);
     G.camera.lookAt(head);
