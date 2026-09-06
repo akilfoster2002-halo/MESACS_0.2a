@@ -971,10 +971,17 @@ window.FLIGHT = (function(){
              <i class="rs-gap"></i><b class="rs-ship" style="--pa:${norm(q.ang)}deg"></b>
            </div>`
         : `<div class="rgrid">${grid(wall, q.col, q.row)}</div>`;
-      out+=`<div class="rw ${size[k]}${q.hit?' warn':''}">
+      /* A verdict only where there IS one. A wall your program has not
+         written a block for gets a dash, not a tick — coasting happens to
+         clear a lot of them, and a tick under a wall you have said nothing
+         about is a tick you did not earn. Delete the block and the tick goes
+         with it, which is the whole point of the mark. */
+      const said = q.written || L.rolling;
+      const bad  = said && q.hit;
+      out+=`<div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}">
         <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
         ${pic}
-        <u class="rmark">${q.hit?'✕':'✓'}</u></div>`;
+        <u class="rmark">${said ? (q.hit?'✕':'✓') : '–'}</u></div>`;
     }
     out+=`<div class="rlegend">${L.rolling ? eta()
             : (solved>=total ? t('All clear — press RUN')
