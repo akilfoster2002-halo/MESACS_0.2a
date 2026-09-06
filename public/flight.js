@@ -100,24 +100,12 @@ window.FLIGHT = (function(){
       start:{col:0,row:0},
       targets:'.../.../XXX' },
 
-    { id:'deep', kind:'fly', stops:3, name:'Deep Field', budget:6,
-      pal:['addY','addX','coast','repeat'],
-      learn:{ name:'A loop inside a loop',
-              text:'A repeat can hold another repeat.',
-              code:'repeat 3\n  repeat 2\n    change x by -1\n    change x by 1\n  end\n  change y by 1\n  change y by -1\nend' },
-      brief:'Eighteen walls, <b>six blocks</b>. One repeat is seven. Nest them.',
-      start:{col:1,row:1},
-      /* Six beats, three times over. The inner pair is left()/right(), which
-         parks you at col 0 then col 1; the outer tail is up()/down(). Every
-         beat blocks whatever that program is not standing in. */
-      beats:[
-        '.../.XX/...',  '.../X.X/...',  '.../.XX/...',  '.../X.X/...',
-        '.../.X./XXX',  'XXX/X.X/...',
-        '.../.XX/...',  '.../X.X/...',  '.../.XX/...',  '.../X.X/...',
-        '.../.X./XXX',  'XXX/X.X/...',
-        '.../.XX/...',  '.../X.X/...',  '.../.XX/...',  '.../X.X/...',
-        '.../.X./XXX',  'XXX/X.X/...'
-      ] },
+    /* Deep Field lived here: eighteen walls in six blocks, which only fits if
+       you put a repeat inside a repeat. Nesting is out of this mission — one
+       loop is a big enough idea to be worth its own leg, and a second one
+       hidden inside it turned the leg into a puzzle about block budgets
+       rather than about motion. The language still has it, and the Library
+       still explains it, for anyone who wants it in Free Play. */
 
     { id:'spin', kind:'fly', stops:3, name:'Hard to Starboard', budget:9,
       pal:['addX','addY','turn','coast'],

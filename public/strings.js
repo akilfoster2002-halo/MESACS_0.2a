@@ -692,7 +692,6 @@ window.ES = {
   'Shoot, slide, shoot, slide. That is a repeat.':'Dispara, muévete, dispara, muévete. Eso es un repeat.',
   'Three targets, <b>four blocks</b>. One at a time needs five.':
     'Tres blancos, <b>cuatro bloques</b>. Uno a uno son cinco.',
-  'A repeat can hold another repeat.':'Un repeat puede contener otro repeat.',
   'Eighteen beats, <b>six blocks</b>. One repeat is seven. Nest them.':
     'Dieciocho tiempos, <b>seis bloques</b>. Un solo repeat son siete. Anídalos.',
   'x = 2 puts you there. x = x + 1 moves you one.':'x = 2 te pone ahí. x = x + 1 te mueve uno.',
@@ -717,8 +716,6 @@ window.ES = {
   'Three walls, over and over. Write them once.':'Tres muros, una y otra vez. Escríbelos una vez.',
   'Twelve walls, <b>six blocks</b>. Find the bit that repeats.':
     'Doce muros, <b>seis bloques</b>. Encuentra la parte que se repite.',
-  'Eighteen walls, <b>six blocks</b>. One repeat is seven. Nest them.':
-    'Dieciocho muros, <b>seis bloques</b>. Un solo repeat son siete. Anídalos.',
   'One gap per wall, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.':
     'Un hueco por muro, siempre una <b>esquina</b>. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
   '{n} walls ahead. <b>C</b> stops everything.':'{n} muros por delante. <b>C</b> lo detiene todo.',
