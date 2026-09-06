@@ -167,13 +167,17 @@ window.CHARS = (function(){
       <span class="pz-co">¤ <b>${WALLET.coins()}</b></span>`;
   }
   /* ---------------------------------------------------------- the shelves
-     Ships and cars sit under the roster on the same screen, because a child
-     looking for "the thing I bought" should not have to remember which
-     building it was in. */
+     Ships sit under the roster. CARS DO NOT, any more: the Mechanic sells
+     those now, out of a room with the actual vehicles standing in it, and two
+     places selling the same car is one place too many — the second one is
+     where a child learns that the shop they walked to was pointless.
+
+     A ship is not worn either, but it stays here for now because the thing
+     you fly is chosen next to the person who flies it. */
   function shelves(){
     const el=document.querySelector('#cShop'); if(!el || !window.SHOP) return;
-    /* A ship is flown and a car is driven; neither is worn. The tag says what
-       you would actually be doing with it, and what one more click does. */
+    /* A ship is flown, not worn. The tag says what you would actually be
+       doing with it, and what one more click does. */
     const card=(o)=>`<button class="shopit${o.on?' on':''}${o.owned?'':' buy'}"
         data-shop="${o.id}" data-price="${o.price}" style="--a:${o.a}">
         <span class="si-swatch"></span>
@@ -184,21 +188,15 @@ window.CHARS = (function(){
       price:sh.price, owned:SHOP.ownsShip(sh), on:SHOP.ship().id===sh.id,
       onWord:'FLYING', offWord:'TAP TO FLY',
       a:'#'+sh.hull.toString(16).padStart(6,'0') })).join('');
-    const cur=SHOP.car();
-    const cars=SHOP.CARS.map(c=>card({ id:c.id, name:c.name, blurb:c.blurb,
-      price:c.price, owned:SHOP.ownsCar(c), on:!!cur && cur.id===c.id,
-      onWord:'DRIVING · TAP TO WALK', offWord:'TAP TO DRIVE',
-      a:c.a })).join('');
     el.innerHTML=
       `<div class="shelf"><h4>🚀 ${t('SHIPS')} <small>${t('what you fly in Space Explorer')}</small></h4>
          <div class="shelfrow">${ships}</div></div>
-       <div class="shelf"><h4>🏎 ${t('CARS')} <small>${t('tap one to drive it round your planet')}</small></h4>
-         <div class="shelfrow">${cars}</div></div>`;
+       <div class="shelf ghost"><h4>🏎 ${t('CARS')}
+         <small>${t('at the Mechanic, on the planet')}</small></h4></div>`;
     el.querySelectorAll('[data-shop]').forEach(b=>{
       b.onclick=()=>{
         const id=b.dataset.shop, price=+b.dataset.price;
-        const owned = id.indexOf('ship_')===0 ? SHOP.ownsShip(SHOP.shipById(id))
-                                              : SHOP.ownsCar(SHOP.carById(id));
+        const owned = SHOP.ownsShip(SHOP.shipById(id));
         if(!owned){
           const r=SHOP.buy(id, price);
           if(r==='poor') return shortfall(price);

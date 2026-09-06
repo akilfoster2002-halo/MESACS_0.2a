@@ -636,6 +636,7 @@ window.ES = {
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
   'E — ask':'E — preguntar',
+  'at the Mechanic, on the planet':'en el Mecánico, en el planeta',
   'the librarian':'la bibliotecaria',
   'Read up on {w}.':'Lee sobre {w}.',
   'JUMP TO A MISSION':'SALTAR A UNA MISIÓN','Back to the planet':'Volver al planeta',
