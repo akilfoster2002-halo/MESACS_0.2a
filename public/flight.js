@@ -504,7 +504,11 @@ window.FLIGHT = (function(){
       g.add(part);
     });
     g.rotation.z=ang*Math.PI/180;
-    g.position.z=beatZ(b);
+    /* Centred on the MIDDLE LANE, not on zero. The lane grid sits at y=6 and
+       the ship flies in it; a slot built around the origin left the ship six
+       units above the middle of the rock — riding along its top edge, and on
+       a horizontal slot the gap was below it entirely. */
+    g.position.set(0, laneY((ROWS-1)/2), beatZ(b));
     G.roomGroup.add(g);
     rocks.push(g);
   }
