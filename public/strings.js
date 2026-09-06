@@ -735,6 +735,7 @@ window.ES = {
   'walks it':'te camina','drives it':'lo conduce',
   'go into what you are looking at':'entra en lo que estás mirando',
   'go in':'entrar','get in the car':'súbete al coche','get out':'bájate',
+  'on foot':'a pie','driving {n}':'conduciendo {n}','HOME PLANET':'PLANETA BASE',
   'go':'acelera','brake / reverse':'frena / marcha atrás','steer':'gira','look around':'mira alrededor',
   '{n} — <b>W</b> to go, <b>A D</b> to steer, <b>S</b> to brake.':
     '{n} — <b>W</b> para acelerar, <b>A D</b> para girar, <b>S</b> para frenar.',

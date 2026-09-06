@@ -702,6 +702,28 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .jumpbtn.lock{opacity:.45;cursor:not-allowed}
 .jumpbtn.done b::after{content:' ⭐'}
 
+/* ---------- the player dashboard, and the map of the world ---------- */
+#dash{position:absolute;left:14px;top:14px;z-index:12;width:190px;
+  background:rgba(15,22,36,.92);border:3px solid var(--line);border-radius:14px;
+  padding:9px 10px;pointer-events:none}
+#dash .d-who{display:flex;align-items:center;gap:8px}
+#dash #dFace{width:34px;height:34px;object-fit:contain;background:#221a3c;
+  border-radius:9px;border:2px solid var(--line)}
+#dash .d-id{min-width:0}
+#dash .d-id b{display:block;font-size:14px;line-height:1.15}
+#dash .d-id span{font-size:11px;color:var(--muted);letter-spacing:.4px}
+#dash .d-row{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+#dash .d-bar{flex:1;height:7px;background:rgba(255,255,255,.13);border-radius:5px;overflow:hidden}
+#dash .d-bar b{display:block;height:100%;background:var(--mint);width:0}
+#dash .d-co{color:var(--star);font-size:14px}
+#dash .d-co b{font-size:16px}
+/* the whole planet on one disc: you in the middle, the far side at the rim */
+#pmap{position:absolute;left:14px;top:132px;z-index:12;pointer-events:none;
+  background:rgba(15,22,36,.92);border:3px solid var(--line);border-radius:14px;padding:7px}
+#pmap canvas{display:block;width:190px;height:190px}
+#pmap .pm-lbl{text-align:center;font-size:10.5px;letter-spacing:1.8px;
+  color:var(--muted);margin-top:3px}
+
 /* ---------- the library ---------- */
 #library{position:fixed;inset:0;z-index:58;background:rgba(6,10,18,.84);
   display:flex;align-items:center;justify-content:center;padding:20px}
@@ -972,6 +994,18 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="crosshair"></div>
   <div id="focus" class="hidden"></div>
 
+  <!-- who you are, what you have, and where everything is -->
+  <div id="dash" class="hidden">
+    <div class="d-who"><img id="dFace" alt=""><div class="d-id">
+      <b id="dName"></b><span id="dRide"></span></div></div>
+    <div class="d-row"><span id="dLv"></span><i class="d-bar"><b id="dBar"></b></i></div>
+    <div class="d-row d-co">¤ <b id="dCoins">0</b></div>
+  </div>
+  <div id="pmap" class="hidden">
+    <canvas id="pmapC" width="190" height="190"></canvas>
+    <div class="pm-lbl" id="pmapName"></div>
+  </div>
+
   <div id="mapwrap">
     <h3 id="mapTitle">DESKTOP MAP</h3>
     <canvas id="map" width="190" height="140"></canvas>
@@ -1206,35 +1240,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=168"></script>
-<script src="strings.js?v=168"></script>
-<script src="difficulty.js?v=168"></script>
-<script src="net.js?v=168"></script>
-<script src="avatar.js?v=168"></script>
-<script src="zombies.js?v=168"></script>
-<script src="building.js?v=168"></script>
-<script src="levels.js?v=168"></script>
-<script src="code.js?v=168"></script>
-<script src="combat.js?v=168"></script>
-<script src="puzzle.js?v=168"></script>
-<script src="nav.js?v=168"></script>
-<script src="tutorial.js?v=168"></script>
-<script src="race.js?v=168"></script>
-<script src="flight.js?v=168"></script>
-<script src="planet.js?v=168"></script>
-<script src="wallet.js?v=168"></script>
-<script src="shop.js?v=168"></script>
-<script src="library.js?v=168"></script>
-<script src="costumes.js?v=168"></script>
-<script src="missions.js?v=168"></script>
-<script src="coach.js?v=168"></script>
-<script src="owner.js?v=168"></script>
-<script src="blocks.js?v=168"></script>
-<script src="vm.js?v=168"></script>
-<script src="coder.js?v=168"></script>
-<script src="quiz.js?v=168"></script>
-<script src="chars.js?v=168"></script>
-<script src="menu.js?v=168"></script>
-<script src="game.js?v=168"></script>
+<script src="lib/three.classic.js?v=171"></script>
+<script src="strings.js?v=171"></script>
+<script src="difficulty.js?v=171"></script>
+<script src="net.js?v=171"></script>
+<script src="avatar.js?v=171"></script>
+<script src="zombies.js?v=171"></script>
+<script src="building.js?v=171"></script>
+<script src="levels.js?v=171"></script>
+<script src="code.js?v=171"></script>
+<script src="combat.js?v=171"></script>
+<script src="puzzle.js?v=171"></script>
+<script src="nav.js?v=171"></script>
+<script src="tutorial.js?v=171"></script>
+<script src="race.js?v=171"></script>
+<script src="flight.js?v=171"></script>
+<script src="planet.js?v=171"></script>
+<script src="wallet.js?v=171"></script>
+<script src="shop.js?v=171"></script>
+<script src="library.js?v=171"></script>
+<script src="costumes.js?v=171"></script>
+<script src="missions.js?v=171"></script>
+<script src="coach.js?v=171"></script>
+<script src="owner.js?v=171"></script>
+<script src="blocks.js?v=171"></script>
+<script src="vm.js?v=171"></script>
+<script src="coder.js?v=171"></script>
+<script src="quiz.js?v=171"></script>
+<script src="chars.js?v=171"></script>
+<script src="menu.js?v=171"></script>
+<script src="game.js?v=171"></script>
 </body>
 </html>

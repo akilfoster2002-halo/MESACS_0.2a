@@ -172,7 +172,7 @@ window.PLANET = (function(){
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
     // there is nothing to shoot or double-click out here, so do not offer it
     keysFor();
-    hud();
+    hud(); dash(); drawMap();
     connect();
     if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
     if(window.updateLeaveBtn) updateLeaveBtn();
@@ -689,6 +689,10 @@ window.PLANET = (function(){
   function tick(dt){
     if(!on) return;
     tourTick(dt);
+    /* Twelve times a second is plenty for a map and a coin counter, and it
+       keeps a canvas redraw off the sixty-frame path. */
+    const now=performance.now();
+    if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
       o.dir.lerp(o.tdir,k).normalize();
@@ -752,6 +756,98 @@ window.PLANET = (function(){
   function tourTick(dt){ if(window.COACH) COACH.tick(dt); }
   function retour(){ if(window.COACH) COACH.stop(); tour(); }
 
+  /* -------------------------------------------------- the player dashboard
+     Who you are, what you are on, what you have. It is the answer to the
+     three questions a child asks first and it should not require opening a
+     menu to see. */
+  function dash(){
+    const el=document.querySelector('#dash'); if(!el || !window.WALLET) return;
+    el.classList.remove('hidden');
+    const me_=AVATAR.CHARS.find(c=>c.id===AVATAR.chosen);
+    const face=document.querySelector('#dFace');
+    if(face && me_ && face.getAttribute('src')!==me_.preview) face.src=me_.preview;
+    const nm=document.querySelector('#dName');
+    if(nm) nm.textContent = me_ ? t(me_.name) : '';
+    const rd=document.querySelector('#dRide');
+    if(rd) rd.textContent = ride && SHOP.car() ? t('driving {n}',{n:t(SHOP.car().name)})
+                                              : t('on foot');
+    const p=WALLET.progress();
+    const lv=document.querySelector('#dLv'); if(lv) lv.textContent=t('Level')+' '+p.level;
+    const bar=document.querySelector('#dBar');
+    if(bar) bar.style.width=Math.round(100*p.into/p.span)+'%';
+    const co=document.querySelector('#dCoins'); if(co) co.textContent=WALLET.coins();
+  }
+
+  /* ------------------------------------------------------------- the map
+
+     The whole world on one disc. YOU are the centre, the rim is the far side
+     of the planet, and forward is up — so the map turns as you do and you
+     never have to work out which way you are holding it.
+
+     Distance is SQUARE-ROOTED rather than linear. Straight proportion is the
+     honest projection and it was useless: the four buildings sit inside
+     eighty metres of a world that is twelve hundred round, so all of them
+     landed in a thumbnail at the centre with the entire disc empty around
+     them. The root spreads out what is near you, which is what you are
+     navigating by, and still fits the whole planet on. */
+  let mapAt=0;
+  function drawMap(){
+    const c=document.querySelector('#pmapC'); if(!c || !me.dir) return;
+    const wrap=document.querySelector('#pmap'); if(wrap) wrap.classList.remove('hidden');
+    const x=c.getContext('2d'), W=c.width, H=c.height, cx=W/2, cy=H/2, R=W/2-8;
+    x.clearRect(0,0,W,H);
+
+    const up=me.dir.clone().normalize();
+    const fwd=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
+    const rt=new THREE.Vector3().crossVectors(fwd, up).normalize();
+    const project=(d)=>{
+      const th=Math.acos(Math.max(-1,Math.min(1, d.dot(up))));   // 0 at you, PI opposite
+      const r=Math.sqrt(th/Math.PI)*R;
+      const tan=d.clone().sub(up.clone().multiplyScalar(d.dot(up)));
+      if(tan.lengthSq()<1e-9) return {x:cx, y:cy, far:th};
+      tan.normalize();
+      const a=Math.atan2(tan.dot(rt), tan.dot(fwd));             // 0 straight ahead
+      return { x:cx+r*Math.sin(a), y:cy-r*Math.cos(a), far:th };
+    };
+
+    x.fillStyle='rgba(10,18,32,.9)';
+    x.beginPath(); x.arc(cx,cy,R,0,Math.PI*2); x.fill();
+    // the horizon you can actually see, and the halfway line round the world
+    x.strokeStyle='rgba(143,240,255,.13)'; x.lineWidth=1;
+    x.beginPath(); x.arc(cx,cy,R/2,0,Math.PI*2); x.stroke();
+    x.strokeStyle='rgba(143,240,255,.34)'; x.lineWidth=2;
+    x.beginPath(); x.arc(cx,cy,R,0,Math.PI*2); x.stroke();
+
+    // your classmates, if anybody is here
+    x.fillStyle='#8fd3ff';
+    for(const [,o] of others){
+      const p=project(o.dir.clone().normalize());
+      x.beginPath(); x.arc(p.x,p.y,2.6,0,Math.PI*2); x.fill();
+    }
+
+    BUILDINGS.forEach(b=>{
+      if(!b.dir) return;
+      const p=project(b.dir);
+      // things round the curve of the world are drawn faint, not hidden
+      x.globalAlpha = p.far>Math.PI/2 ? 0.42 : 1;
+      // a pip in the building's own roof colour, so it reads before the emoji
+      x.fillStyle='#'+b.roof.toString(16).padStart(6,'0');
+      x.beginPath(); x.arc(p.x, p.y, 8.5, 0, Math.PI*2); x.fill();
+      x.font='11px system-ui,"Apple Color Emoji","Segoe UI Emoji"';
+      x.textAlign='center'; x.textBaseline='middle';
+      x.fillText(b.em, p.x, p.y+0.5);
+      x.globalAlpha=1;
+    });
+
+    // you, pointing the way you are facing, which on this map is always up
+    x.fillStyle='#a8e6cf';
+    x.beginPath();
+    x.moveTo(cx, cy-7); x.lineTo(cx-5, cy+5); x.lineTo(cx+5, cy+5);
+    x.closePath(); x.fill();
+    const nm=document.querySelector('#pmapName');
+    if(nm) nm.textContent = server && server.id ? t(server.name) : t('HOME PLANET');
+  }
+
   /* ---------------------------------------------------------------- HUD */
   function hud(){
     const n=document.querySelector('#missionName');
@@ -775,6 +871,7 @@ window.PLANET = (function(){
     if(window.CHAT) CHAT.hide();
     const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
     others.clear(); crowd=null;
+    ['#dash','#pmap'].forEach(q=>{ const e=document.querySelector(q); if(e) e.classList.add('hidden'); });
     G.camera.up.set(0,1,0);        // hand the flat rooms their world back
   }
   function stop(){ leave(); }
