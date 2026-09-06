@@ -341,26 +341,13 @@ window.FLIGHT = (function(){
   }
   /* The ship, out of primitives — there is no space kit in the assets, and a
      blocky little fighter sits with the rest of the game anyway. */
+  /* One builder, in SHOP, shared with the showroom that sells them — see the
+     note there. The fallback is for the case where shop.js has not loaded. */
   function build(){
+    if(window.SHOP && SHOP.model) return SHOP.model();
     const g=new THREE.Group();
-    // whichever ship you have equipped in the Wardrobe — a shape and two
-    // colours, since there is no space kit to load models from
-    const K=(window.SHOP && SHOP.ship) ? SHOP.ship()
-          : { hull:0xe8ecff, trim:0x8fd3ff, wing:1.25, nose:1.5 };
-    const hull=new THREE.MeshLambertMaterial({color:K.hull});
-    const trim=new THREE.MeshLambertMaterial({color:K.trim});
-    const nose=new THREE.Mesh(new THREE.ConeGeometry(0.42,K.nose,10), hull);
-    nose.rotation.x=-Math.PI/2; nose.position.z=-(0.25+K.nose/2); g.add(nose);
-    const body=new THREE.Mesh(new THREE.BoxGeometry(0.86,0.5,1.7), hull);
-    g.add(body);
-    [-1,1].forEach(s=>{
-      const w=new THREE.Mesh(new THREE.BoxGeometry(K.wing,0.14,0.8), trim);
-      w.position.set(s*(K.wing*0.72), -0.06, 0.3); w.rotation.z=s*0.12; g.add(w);
-      const f=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.5,0.5), trim);
-      f.position.set(s*(K.wing*1.12), 0.2, 0.5); g.add(f);
-    });
-    // small, and tucked into the tail: a big one sits between the camera and
-    // the ship and is the only thing you can see
+    const hull=new THREE.MeshLambertMaterial({color:0xe8ecff});
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.86,0.5,1.7), hull));
     const glow=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),
       new THREE.MeshBasicMaterial({color:0x8ff0ff, transparent:true, opacity:0.85}));
     glow.position.z=0.92; glow.scale.z=1.7; g.add(glow);

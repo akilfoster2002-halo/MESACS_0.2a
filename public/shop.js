@@ -91,6 +91,32 @@ window.SHOP = (function(){
     return 'bought';
   }
 
-  return { SHIPS, CARS, charItems, shipById, carById, ship, car,
+  /* The ship, as an object. It used to be built inside flight.js and nowhere
+     else, which was fine while the only place you ever saw your ship was
+     from behind it — but a showroom that sold you a different shape from the
+     one you flew would be a lie told in three dimensions. */
+  function model(k){
+    const K=k||ship();
+    const g=new THREE.Group();
+    const hull=new THREE.MeshLambertMaterial({color:K.hull});
+    const trim=new THREE.MeshLambertMaterial({color:K.trim});
+    const nose=new THREE.Mesh(new THREE.ConeGeometry(0.42,K.nose,10), hull);
+    nose.rotation.x=-Math.PI/2; nose.position.z=-(0.25+K.nose/2); g.add(nose);
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.86,0.5,1.7), hull));
+    [-1,1].forEach(s=>{
+      const w=new THREE.Mesh(new THREE.BoxGeometry(K.wing,0.14,0.8), trim);
+      w.position.set(s*(K.wing*0.72), -0.06, 0.3); w.rotation.z=s*0.12; g.add(w);
+      const f=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.5,0.5), trim);
+      f.position.set(s*(K.wing*1.12), 0.2, 0.5); g.add(f);
+    });
+    // small, and tucked into the tail: a big one sits between the camera and
+    // the ship and is the only thing you can see
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),
+      new THREE.MeshBasicMaterial({color:0x8ff0ff, transparent:true, opacity:0.85}));
+    glow.position.z=0.92; glow.scale.z=1.7; g.add(glow);
+    g.userData.glow=glow;
+    return g;
+  }
+  return { SHIPS, CARS, charItems, shipById, carById, ship, car, model,
            ownsShip, ownsCar, ownsChar, equip, buy, FREE_CHARS };
 })();

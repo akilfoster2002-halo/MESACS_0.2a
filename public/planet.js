@@ -38,13 +38,22 @@ window.PLANET = (function(){
      curve reads as a planet rather than as a hill you are always on top of.
      The cost is the lap: 1257 metres, about three minutes on foot and half
      that in a car. */
-  const PR  = 320;                 // the radius of the world
-  const SKY = 0x070a1a;
   const V   = (x,y,z)=>new THREE.Vector3(x,y,z);
 
-  /* Placed in degrees, because "72 degrees round and 6 down" is something
+  /* --------------------------------------------------------------- worlds
+     There is more than one planet now, so everything that used to be a
+     constant about THE world is a property of A world: how big it is, what
+     colour its sky and its soil are, how much it heaves, which buildings
+     stand on it, and the seed its landscape is generated from.
+
+     Two kinds. The hub is the school — everybody lands on the same one and
+     it is the same for everyone. A home planet belongs to one player, is
+     generated from their own seed, and is theirs alone: their palette, their
+     hills, their name on the sign. That is the whole reason the seed exists.
+
+     Placed in degrees, because "72 degrees round and 6 down" is something
      you can reason about and a raw vector is not. */
-  const BUILDINGS=[
+  const HUB_BUILDINGS=[
     { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:7,  w:64, d:46, h:18, door:10,
       wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
     { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-19, lat:-6, w:24, d:20, h:11,
@@ -52,8 +61,90 @@ window.PLANET = (function(){
     { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:19,  lat:-6, w:22, d:18, h:11,
       wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are, and spend what you earned' },
     { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:0,   lat:-21, w:26, d:20, h:11,
-      wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' }
+      wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' },
+    { id:'mechanic', name:'THE MECHANIC',    em:'\u{1F527}', lon:-34, lat:6,  w:40, d:28, h:14, door:9,
+      wall:0x5c4636, roof:0xffd8a8, blurb:'Cars and ships, and the coins to buy them' }
   ];
+
+  /* Grass, ochre, violet and ice. A home planet picks one from its seed, so
+     two students standing on each other's worlds can tell them apart from
+     orbit, never mind from the ground. */
+  const BIOMES=[
+    { key:'green',  sky:0x070a1a, soil:[[0.13,0.28,0.15],[0.20,0.38,0.18],[0.29,0.44,0.19],
+                                       [0.40,0.40,0.20],[0.30,0.22,0.14],[0.31,0.30,0.32]] },
+    { key:'ochre',  sky:0x140a06, soil:[[0.36,0.24,0.12],[0.47,0.32,0.15],[0.56,0.40,0.19],
+                                       [0.62,0.50,0.26],[0.35,0.25,0.16],[0.38,0.34,0.30]] },
+    { key:'violet', sky:0x0a0716, soil:[[0.22,0.15,0.32],[0.31,0.21,0.42],[0.40,0.29,0.50],
+                                       [0.48,0.40,0.55],[0.28,0.20,0.30],[0.34,0.32,0.38]] },
+    { key:'ice',    sky:0x050d16, soil:[[0.30,0.40,0.46],[0.42,0.53,0.58],[0.55,0.65,0.70],
+                                       [0.68,0.75,0.78],[0.34,0.38,0.42],[0.44,0.46,0.50]] }
+  ];
+
+  /* Names, not numbers. "Planet 4713" is a save slot; "Veskaro" is a place. */
+  const SYL_A=['Ve','Ta','Ori','Sol','Ky','Nu','Bra','Mel','Zan','Hal','Pyr','Cel',
+               'Dro','Ish','Fen','Ora','Lum','Ras','Ther','Vex'];
+  const SYL_B=['ska','dun','mir','vex','tara','lys','morn','doria','beth','var',
+               'quel','ondo','rax','stel','nova','heim','ara','tide','fell','ion'];
+  function planetName(seed){
+    const a=SYL_A[seed % SYL_A.length];
+    const b=SYL_B[(seed>>>5) % SYL_B.length];
+    return (a+b).toUpperCase();
+  }
+
+  /* The player's own number. Kept in PROGRESS so it rides the same bag as
+     coins and finished missions, which means it follows the account onto any
+     machine — a home planet that changed shape when you logged in from the
+     other side of the classroom would not be a home. */
+  function homeSeed(){
+    if(!window.PROGRESS) return 20250906;
+    let n=PROGRESS.get('home_seed', 0);
+    if(!n){
+      n=(Math.random()*0x7fffffff)|0 || 1;
+      PROGRESS.set('home_seed', n);
+    }
+    return n>>>0;
+  }
+  function homeWorld(){
+    const seed=homeSeed(), bio=BIOMES[seed % BIOMES.length];
+    return {
+      id:'home', kind:'home', seed,
+      name:planetName(seed), sub:'your home planet',
+      radius:200, sky:bio.sky, soil:bio.soil, biome:bio.key,
+      relief:6.5 + (seed>>>7)%6,
+      buildings:[
+        { id:'house', name:planetName(seed)+' HOUSE', em:'\u{1F3E0}', lon:0, lat:2,
+          w:26, d:22, h:12, door:8,
+          wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Yours. Build whatever you like in it' }
+      ],
+      pad:{ lon:0, lat:-13 }
+    };
+  }
+  const HUB={
+    id:'hub', kind:'hub', seed:0, name:'KORO', sub:'everybody lands here',
+    /* Radius sets how hard the world curves. The horizon from the chase camera
+       is roughly sqrt(2*PR*camHeight), so 92 put it 28 metres out and buildings
+       rose out of the ground in front of you. At 320 it is past fifty and the
+       curve reads as a planet rather than a hill you are always on top of. */
+    radius:320, sky:0x070a1a, soil:BIOMES[0].soil, biome:'green', relief:9.5,
+    buildings:HUB_BUILDINGS,
+    pad:{ lon:-34, lat:-9 }
+  };
+  const worldById = id => id==='home' ? homeWorld() : HUB;
+
+  /* The live world, and the things every other function in this file reads
+     off it. They were consts when there was only ever one planet. */
+  let W=HUB, PR=W.radius, SKY=W.sky, BUILDINGS=W.buildings;
+  let RELIEF=W.relief, SOIL=W.soil.map(c=>({c}));
+  function setWorld(w){
+    W=w; PR=w.radius; SKY=w.sky;
+    /* The pad appends itself to this list when the world is built, so a
+       second visit would find last visit's pad still in it — pointing at a
+       group that was thrown away with the old room. Drop it and let the
+       rebuild put a fresh one back. */
+    BUILDINGS = w.buildings = w.buildings.filter(b=>b.id!=='pad');
+    RELIEF=w.relief; SOIL=w.soil.map(c=>({c}));
+    BUILDINGS.forEach(b=>{ b.g=null; b.dir=null; b.frame=null; b.solids=[]; });
+  }
   const STATIONS=[
     { id:'tut',    em:'\u{1F3AE}', name:'Level 0 — Basics',           a:'#ffe9a8' },
     { id:'nav',    em:'\u{1F9DF}', name:'Escape — Corridors',         a:'#8fd3ff' },
@@ -118,13 +209,18 @@ window.PLANET = (function(){
   let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true,
            spd:0,        // how fast the car is going, along its own nose
            look:0 };     // where you are looking, which is not where it is going
-  let lastYaw=0, back=null;
+  /* Where you were standing, PER WORLD. Fly home, walk about, fly back, and
+     the hub should put you down beside the pad you left from — not at the
+     spot you last stood on a different planet. */
+  let lastYaw=0, backs={};
 
   const worldPos = extra => me.dir.clone().multiplyScalar(PR + me.alt + (extra||0));
 
   /* ---------------------------------------------------------------- build */
-  function enter(sv){
+  function enter(sv, worldId){
     server = sv || null;
+    // whichever ball we are standing on decides its own size, sky and soil
+    setWorld(worldById(worldId || (W?W.id:'hub')));
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop();
     if(window.MISSIONS) MISSIONS.stop();
@@ -137,7 +233,7 @@ window.PLANET = (function(){
     G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ceiling=null;
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
-    statues=[]; ada=null;
+    statues=[]; ada=null; bays=[]; spinners=[]; purseFace=null; padShip=null; padB=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
     /* The stars, the neighbour and its ring all sit five hundred metres out
@@ -148,14 +244,18 @@ window.PLANET = (function(){
     G.scene.fog=null;
     on=true;
 
-    sky(); surface();
-    BUILDINGS.forEach(build);
+    sky();
+    padSpec(W);                    // in the list before the ground is made
+    surface();
+    BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
+    launchpad(W);                  // its plate, now that its patch is flat
     scatter();                     // after the buildings: it works around them
     cover();                       // and the small stuff after the big stuff
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
+    const back=backs[W.id];
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
       /* First landing: stand out in front of Mission Control's door, looking
@@ -229,17 +329,11 @@ window.PLANET = (function(){
      SECOND noise field at a different scale from the height — tie colour to
      height alone and every hill is the same colour at the same altitude,
      which is the thing that makes procedural ground look procedural. */
-  /* Darker than they look on paper. A lit face here is a colour multiplied by
-     rather more than one, so a palette picked to look right flat comes out
-     bleached the moment the sun is on it. */
-  const SOIL=[
-    { c:[0.13,0.28,0.15] },        // deep grass, in the hollows
-    { c:[0.20,0.38,0.18] },        // ordinary grass
-    { c:[0.29,0.44,0.19] },        // sunlit grass
-    { c:[0.40,0.40,0.20] },        // dry grass
-    { c:[0.30,0.22,0.14] },        // bare earth
-    { c:[0.31,0.30,0.32] }         // stone
-  ];
+  /* Six bands, lush to bare, and which six depends on the world: SOIL is set
+     by setWorld() from the biome. They are all darker than they look on
+     paper, because a lit face here is a colour multiplied by rather more
+     than one and a palette picked to read well flat comes out bleached the
+     moment the sun is on it. */
   function soilAt(dir, h){
     const wet=fbm(dir, 2.7, 2);                    // patches, larger than the hills
     const grit=fbm(dir, 21, 2);                    // and a fine speckle over them
@@ -349,7 +443,8 @@ window.PLANET = (function(){
      whole planet came out flat and one colour, and it looked like the terrain
      code was not running at all. */
   function hash3(i,j,k){
-    let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177);
+    let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177)
+          + Math.imul(W.seed|0, 2654435761);      // a different world, a different landscape
     h = Math.imul(h ^ (h>>>13), 1274126177);
     h = Math.imul(h ^ (h>>>16), 2246822519);
     return ((h ^ (h>>>13)) >>> 0) / 4294967295;
@@ -375,8 +470,9 @@ window.PLANET = (function(){
   }
   /* One lattice cell at frequency 5.5 is about sixty metres across on a ball
      this size, and the horizon is fifty — so the largest octave is roughly
-     one hill per view, which is what you want. */
-  const RELIEF=9.5;
+     one hill per view, which is what you want. RELIEF is per world: a home
+     planet heaves more or less than the hub depending on its seed. */
+
   function rawHeight(dir){
     const h=fbm(dir, 5.5, 4);
     // squared going up, linear coming down: hills stand on a plain instead of
@@ -389,11 +485,22 @@ window.PLANET = (function(){
      the country, and the height is simply multiplied by it. Under a building
      the ground IS the sphere, exactly as the plate was written to expect. */
   const PAD_FADE=26;
+  /* A building's dir is worked out in build(), and the GROUND is generated
+     before build() runs. So this used to see b.dir === null on every
+     building, skip every one of them, and flatten nothing at all — the pads
+     have been silently doing nothing since terrain went in, and the first
+     visible sign was a rectangle of grass growing through the showroom
+     floor. Work it out here if nobody has yet; it is two trig calls. */
+  const dirOfB = b => b.dir || (b.dir = dirOf(b.lon, b.lat));
   function padK(dir){
     let k=1;
     for(const b of BUILDINGS){
-      const d=b.dir ? dir.angleTo(b.dir)*PR : 1e9;
-      const flat=Math.max(b.w,b.d)/2 + apronOf(b) + 4;
+      const d=dir.angleTo(dirOfB(b))*PR;
+      /* Half the DIAGONAL. Half the width leaves the plate's four corners
+         sticking out past the flattened disc, and the hills come up through
+         the showroom floor — which is exactly what a patch of grass growing
+         inside the Mechanic turned out to be. */
+      const flat=Math.hypot(b.w,b.d)/2 + apronOf(b) + 4;
       if(d>=flat+PAD_FADE) continue;
       if(d<=flat) return 0;
       const t=(d-flat)/PAD_FADE;
@@ -446,7 +553,13 @@ window.PLANET = (function(){
     }
     if(geo.computeVertexNormals) geo.computeVertexNormals();
     const m=new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:0x8b8f9e}));
-    m.position.y=-0.02;                // under the rug, not fighting it for pixels
+    /* A HAIR proud of the ball, not under it. At the exact centre of a
+       building the sphere and the tangent plane are the same surface, so a
+       plate laid at or below zero leaves a couple of centimetres of grass
+       showing through the middle of the room and z-fighting where it does.
+       Five centimetres of the player's shoe is invisible; a flickering
+       rectangle of lawn in a showroom is not. */
+    m.position.y=0.05;
     return m;
   }
   /* How far off the ball the floor is where you are standing — which is what
@@ -782,12 +895,18 @@ window.PLANET = (function(){
     x.font='92px system-ui,"Apple Color Emoji","Segoe UI Emoji"';
     x.fillText(emoji,128,130);
     x.fillStyle='#eef3ff'; x.font='bold 26px "Trebuchet MS",system-ui,sans-serif';
-    let line='', y=182;
-    String(label).split(' ').forEach(w=>{
-      if(x.measureText(line+' '+w).width>224 && line){ x.fillText(line,128,y); y+=29; line=w; }
-      else line = line ? line+' '+w : w;
+    /* A newline in the label is a break the caller MEANT — the price under
+       the name, not wrapped in beside it. Before this, wrapping was purely by
+       width and "Clover 340 ◆" came out as one run of words. */
+    let y=182;
+    String(label).split('\n').forEach(para=>{
+      let line='';
+      para.split(' ').forEach(w=>{
+        if(x.measureText(line+' '+w).width>224 && line){ x.fillText(line,128,y); y+=29; line=w; }
+        else line = line ? line+' '+w : w;
+      });
+      x.fillText(line,128,y); y+=29;
     });
-    x.fillText(line,128,y);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     return tex;
   }
@@ -873,11 +992,229 @@ window.PLANET = (function(){
         statue(g, s.id, keepIn(p.x - Math.sin(p.r)*4.6, hw),
                         keepIn(p.z - Math.cos(p.r)*4.6, hd), p.r);
       });
+    } else if(b.id==='mechanic'){
+      showroom(g, b, hw, hd);
     } else if(b.id==='library'){
       panel(g,b, -5.5, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
       reading(g, b, hw, hd, H);
       librarian(g, b, 5.5, -hd+3.6);
     } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+  }
+
+  /* ------------------------------------------------------------- the pad
+     A launch pad on every world, and the ship you own standing on it. Walk
+     up, press E, and you are on the other planet — the hub if you are home,
+     home if you are on the hub.
+
+     Everybody can travel. The Dart is free and everybody has it from the
+     first minute, so the pad is never a locked door; buying a better ship
+     changes what is parked on the pad and nothing else, which is the same
+     bargain every other thing in the shop makes. */
+  let padShip=null, padB=null;
+  /* Registered BEFORE the ground is generated, because the ground asks
+     BUILDINGS which patches of itself to flatten — and a pad that joins the
+     list afterwards gets a landing field with a hill through it. */
+  function padSpec(w){
+    padB=null;
+    const spot=w.pad; if(!spot) return;
+    const dir=dirOf(spot.lon, spot.lat);
+    /* A roof colour and an emoji it will never wear, because the MAP draws
+       every building from those two fields and a pad you cannot find on the
+       map is a pad you cannot fly home from. */
+    padB={ id:'pad', name:'THE PAD', em:'\u{1F6F8}', lon:spot.lon, lat:spot.lat,
+           w:26, d:26, h:0, roof:0x8ff0ff, dir, frame:null, g:null, solids:[] };
+    BUILDINGS.push(padB);
+  }
+  function launchpad(w){
+    const b=padB; if(!b) return;
+    const g=new THREE.Group();
+    b.g=g;
+    b.frame=stand(g, b.dir, 0, terrainH(b.dir));
+    G.roomGroup.add(g);
+    const flr=plate(b); flr.userData.lid=true; g.add(flr);
+
+    const deck=new THREE.Mesh(new THREE.CylinderGeometry(10,10.6,0.7,32),
+      new THREE.MeshLambertMaterial({color:0x54596b}));
+    deck.position.y=0.35; deck.userData.flat=true; g.add(deck);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(9.2,0.36,8,48),
+      new THREE.MeshBasicMaterial({color:0x8ff0ff}));
+    ring.rotation.x=-Math.PI/2; ring.position.y=0.75; g.add(ring);
+    // eight lamps round the rim, because a pad at night should be findable
+    for(let i=0;i<8;i++){
+      const a=i/8*Math.PI*2, lx=Math.cos(a)*9.2, lz=Math.sin(a)*9.2;
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,2.2,6),
+        new THREE.MeshLambertMaterial({color:0x3d4152}));
+      post.position.set(lx,1.8,lz); g.add(post);
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.34,10,8),
+        new THREE.MeshBasicMaterial({color:0x8ff0ff}));
+      bulb.position.set(lx,3.1,lz); g.add(bulb);
+      b.solids.push({x1:lx-0.4,x2:lx+0.4,z1:lz-0.4,z2:lz+0.4,y1:0,y2:3.4});
+    }
+    const light=new THREE.PointLight(0x8ff0ff, 220, 40, 1.5);
+    light.position.set(0,4,0); g.add(light);
+
+    // your own ship, parked, at a size a person could climb into
+    padShip=SHOP && SHOP.model ? SHOP.model() : null;
+    if(padShip){
+      padShip.position.set(0, 3.1, -1.2);
+      padShip.scale.setScalar(2.6);
+      g.add(padShip);
+      b.solids.push({x1:-3,x2:3,z1:-4.4,z2:2,y1:0,y2:4.4});
+    }
+    const to = W.kind==='home' ? HUB : homeWorld();
+    panel(g, b, 0, 9.4, '\u{1F6F8}',
+      t('FLY TO {n}',{n:to.name}), 'launch', '#12304a', 0.8, Math.PI);
+  }
+  /* Leaving a world and arriving at another is one call, because everything
+     that makes a world — its size, its sky, its soil, its buildings — is
+     rebuilt by enter(). What has to survive is where you were standing on
+     the one you left, and backs[] is what remembers that. */
+  function travel(){
+    const to = W.kind==='home' ? 'hub' : 'home';
+    const name = to==='hub' ? HUB.name : homeWorld().name;
+    leave();
+    enter(server, to);
+    say(t('Touched down on {n}.',{n:name}));
+  }
+
+  /* --------------------------------------------------------- the mechanic
+     The Wardrobe sells cars from a flat shelf of names and prices, which is
+     a spreadsheet with a buy button. Nobody buys a car off a spreadsheet.
+
+     So this is a floor with the actual vehicles standing on it. You walk
+     down the bays, you look at the thing, and the console beside it is where
+     the money changes hands. What you are shown is the SAME model the game
+     will hand you afterwards — the ships come out of the one builder in
+     SHOP that Space Explorer flies, because a showroom that sells a
+     different shape from the one you get is a lie told in three dimensions.
+
+     Everything stays purely cosmetic. A bought car is a faster walk on a
+     world with nothing to race and a bought ship is a paint job, so a
+     student who never spends a coin is never behind one who does. */
+  let bays=[];                      // {id, kind, panel, redraw}
+  function bayPanel(g, b, x, z, rot, kind, item){
+    const owned = kind==='car' ? SHOP.ownsCar(item) : SHOP.ownsShip(item);
+    const on = kind==='car' ? (SHOP.car() && SHOP.car().id===item.id)
+                            : (SHOP.ship() && SHOP.ship().id===item.id);
+    const line = on ? t('IN USE') : owned ? t('OWNED')
+               : (item.price===0 ? t('FREE') : item.price+' ◆');
+    const p=panel(g, b, x, z, kind==='car'?'\u{1F697}':'\u{1F680}',
+                  t(item.name)+'\n'+line, 'buy:'+item.id,
+                  on?'#1d4030':owned?'#22406b':'#3a2a1b', 0.62, rot);
+    bays.push({ id:item.id, kind, item, p });
+    return p;
+  }
+  /* After a purchase the plate has to say something different, or the only
+     feedback a child gets for spending three hundred coins is a line of text
+     that fades in three seconds. */
+  function repaintBays(){
+    bays.forEach(bay=>{
+      const owned = bay.kind==='car' ? SHOP.ownsCar(bay.item) : SHOP.ownsShip(bay.item);
+      const on = bay.kind==='car' ? (SHOP.car() && SHOP.car().id===bay.item.id)
+                                  : (SHOP.ship() && SHOP.ship().id===bay.item.id);
+      const line = on ? t('IN USE') : owned ? t('OWNED')
+                 : (bay.item.price===0 ? t('FREE') : bay.item.price+' ◆');
+      const face=bay.p.userData.glow;
+      if(!face) return;
+      if(face.material.map) face.material.map.dispose();
+      face.material.map=panelTex(bay.kind==='car'?'\u{1F697}':'\u{1F680}',
+        t(bay.item.name)+'\n'+line,
+        on?'#1d4030':owned?'#22406b':'#3a2a1b');
+      face.material.needsUpdate=true;
+    });
+  }
+  function showroom(g, b, hw, hd){
+    bays=[];
+    if(!window.SHOP) return;
+    /* A roof that really blocks the sun means a workshop with no windows is
+       a workshop with no light. Strip lamps down the middle, the way a real
+       one is lit, plus a spill inside the door. */
+    [-hd*0.45, hd*0.15].forEach(z=>{
+      const tube=new THREE.Mesh(new THREE.BoxGeometry(hw*1.2,0.3,0.9),
+        new THREE.MeshBasicMaterial({color:0xfff6e0}));
+      tube.position.set(0, b.h-1.4, z); g.add(tube);
+      const lamp=new THREE.PointLight(0xfff2d8, 300, 54, 1.4);
+      lamp.position.set(0, b.h-2, z); g.add(lamp);
+    });
+    const spill=new THREE.PointLight(0xdfe9ff, 110, 40, 1.5);
+    spill.position.set(0, 5, hd-4); g.add(spill);
+    const floorPaint=new THREE.MeshLambertMaterial({color:0x3b3128});
+    // cars down the left-hand wall, each on its own painted bay
+    SHOP.CARS.forEach((c,i)=>{
+      const x=-hw+9, z=-hd+7+i*6.4;
+      const mark=new THREE.Mesh(new THREE.BoxGeometry(6.2,0.08,4.6), floorPaint);
+      mark.position.set(x,0.13,z); mark.userData.flat=true; g.add(mark);
+      bayPanel(g, b, x-5.4, z, Math.PI/2, 'car', c);
+      loadCar(c, g, x, z);
+    });
+    // ships down the right, up on plinths where you can see under them
+    SHOP.SHIPS.forEach((sp,i)=>{
+      const x=hw-8, z=-hd+6+i*5.0;
+      const col=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.9,2.2,10),
+        new THREE.MeshLambertMaterial({color:0x6d6152}));
+      col.position.set(x,1.1,z); g.add(col);
+      const m=SHOP.model(sp);
+      m.position.set(x, 3.4, z); m.scale.setScalar(1.5); m.rotation.y=-Math.PI/2;
+      g.add(m);
+      spinners.push(m);
+      bayPanel(g, b, x+5.2, z, -Math.PI/2, 'ship', sp);
+    });
+    // and a purse on the wall, so you can see what you have to spend
+    const purse=panel(g, b, 0, -hd+3.4, '◆',
+      t('YOUR COINS'), 'purse', '#2a2013', 0.7, 0);
+    purseFace=purse.userData.glow;
+    refreshPurse();
+  }
+  let purseFace=null, spinners=[];
+  function refreshPurse(){
+    if(!purseFace || !window.WALLET) return;
+    if(purseFace.material.map) purseFace.material.map.dispose();
+    purseFace.material.map=panelTex('◆',
+      WALLET.coins()+' ◆\n'+t('LV {n}',{n:WALLET.level?WALLET.level():1}), '#2a2013');
+    purseFace.material.needsUpdate=true;
+  }
+  let showLoader=null;
+  function loadCar(c, g, x, z){
+    if(!c.file) return;
+    showLoader = showLoader || new THREE.GLTFLoader();
+    showLoader.load(c.file, gl=>{
+      if(!on) return;
+      const root=gl.scene;
+      const box=new THREE.Box3().setFromObject(root);
+      const len=Math.max(0.001, box.max.z-box.min.z);
+      root.scale.setScalar(4.4/len);
+      root.position.set(x, 0.1, z);
+      root.rotation.y=Math.PI/2;               // side on to whoever walks past
+      g.add(root);
+    }, undefined, ()=>{});
+  }
+  /* Buying, which is the whole point of the room. Three outcomes and each one
+     says which it was: you bought it, you already had it and now you are
+     using it, or you cannot afford it and here is how short you are. */
+  function purchase(id){
+    if(!window.SHOP || !window.WALLET) return;
+    const car=SHOP.CARS.find(c=>c.id===id), ship=SHOP.SHIPS.find(s=>s.id===id);
+    const item=car||ship; if(!item) return;
+    const owned = car ? SHOP.ownsCar(car) : SHOP.ownsShip(ship);
+    if(!owned){
+      const r=SHOP.buy(item.id, item.price);
+      if(r==='poor'){
+        say(t('{n} costs {p} ◆. You have {c} ◆.',
+              {n:t(item.name), p:item.price, c:WALLET.coins()}));
+        return;
+      }
+      say(t('Bought {n}.',{n:t(item.name)}));
+    }
+    // equip() toggles a car off if it is already the one you have chosen, so
+    // only call it when this is not already the car in use
+    const already = car ? (SHOP.car() && SHOP.car().id===id)
+                        : (SHOP.ship() && SHOP.ship().id===id);
+    if(!already){
+      SHOP.equip(id);
+      if(owned) say(t('{n} it is.',{n:t(item.name)}));
+    }
+    if(car) fitRide();
+    repaintBays(); refreshPurse();
   }
 
   /* -------------------------------------------------------- the librarian
@@ -1060,7 +1397,7 @@ window.PLANET = (function(){
 
     // a runner of floor leading in, so the hall has a middle
     const rug=add(new THREE.Mesh(new THREE.BoxGeometry(b.w*0.26, 0.12, b.d-3),
-      new THREE.MeshLambertMaterial({color:0x6b4a8f})), 0, 0.07, 0);
+      new THREE.MeshLambertMaterial({color:0x6b4a8f})), 0, 0.15, 0);
     rug.receiveShadow=false;
 
     /* Braziers down the hall. A room this tall goes flat without something
@@ -1224,6 +1561,7 @@ window.PLANET = (function(){
     const ca=Math.abs(Math.cos(rot||0)), sa=Math.abs(Math.sin(rot||0));
     const w=across*ca+thick*sa, d=across*sa+thick*ca;
     b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:0, y2:5.8*sc});
+    return p;                 // the showroom repaints its own price plates
   }
 
   /* ------------------------------------------------------------- walking
@@ -1472,14 +1810,26 @@ window.PLANET = (function(){
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
     const known = id==='workshop' || id==='wardrobe' || id==='library'
-               || id==='librarian' || STATIONS.some(s=>s.id===id);
+               || id==='librarian' || id==='purse' || id==='mechanic'
+               || id==='launch' || id==='house'
+               || id.indexOf('buy:')===0
+               || STATIONS.some(s=>s.id===id);
     if(!known) return;
     if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     if(id==='wardrobe'){ leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
        you can look a word up and still be standing where you were. */
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
+    // the mechanic has no screen: the room IS the shop, so walking in is it
+    if(id==='mechanic'){ say(t('Walk down the bays. <b>E</b> at a price to buy it.')); return; }
     if(id==='librarian'){ ask(); return; }
+    if(id==='purse'){
+      say(t('{c} ◆ · {x} XP',{c:WALLET.coins(), x:WALLET.xp?WALLET.xp():0}));
+      return;
+    }
+    if(id.indexOf('buy:')===0){ purchase(id.slice(4)); return; }
+    if(id==='launch'){ travel(); return; }
+    if(id==='house'){ leave(); return FREE.enter(server||{id:null,name:'Home'}, null); }
     if(!PROGRESS.unlocked(id)){
       say(t('\u{1F512} Finish {m} first',{m:t(MENU.labelOf(PROGRESS.needs(id)))}));
       return;
@@ -1566,6 +1916,7 @@ window.PLANET = (function(){
     sunAt();
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
+    spinners.forEach(m=>{ m.rotation.y += 0.55*dt; });
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
@@ -1779,7 +2130,7 @@ window.PLANET = (function(){
   }
 
   function leave(){
-    if(on && me.dir) back={ dir:me.dir.clone(), fwd:me.fwd.clone() };
+    if(on && me.dir) backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
     on=false;
     /* Let the last tour step notice it is done, then take the card away — its
        farewell used to hang about for five seconds over whatever screen you
@@ -1800,9 +2151,12 @@ window.PLANET = (function(){
 
   return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
            get riding(){ return !!ride; },
-           STATIONS, BUILDINGS, PR, lonLat, frameAt, dirOf,
+           STATIONS, lonLat, frameAt, dirOf,
+           get BUILDINGS(){ return BUILDINGS; },
+           get PR(){ return PR; },
+           get world(){ return W; },
            get ao(){ return aoStats; },
-           forget(){ back=null; },
+           forget(){ backs={}; },
            get where(){ return me; },
            get active(){ return on; },
            get server(){ return server; } };
