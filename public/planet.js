@@ -605,7 +605,9 @@ window.PLANET = (function(){
     /* Four times the surface needs more on it, but every tree is two meshes
        and a school laptop pays for each one — so this is a compromise, and
        rocks (one mesh) get the larger share. */
-    for(let i=0;i<820;i++){
+    /* Four hundred over the whole ball rather than eight hundred and twenty.
+       A tree every so often is scenery; a tree every few paces is scrub. */
+    for(let i=0;i<400;i++){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
       if(BUILDINGS.some(b=>dir.angleTo(dirOf(b.lon,b.lat))*PR < b.w*1.2)) continue;
@@ -687,24 +689,28 @@ window.PLANET = (function(){
     G.roomGroup.add(mesh);
     return n;
   }
+  /* NO GRASS TUFTS. Three shapes were tried and every one of them failed the
+     same way: a half-metre cone at this camera distance is not a blade of
+     grass, it is a small conifer, and nine thousand of them is a model
+     railway you have to walk through. Grass is the GRAIN in the ground
+     texture — a repeating detail finer than anything worth modelling — and
+     it always was. Standing objects on top of it only argued with it.
+
+     What is left is deliberately thin. A field reads as a field because of
+     what it is made of, not because of how much is standing up in it, and
+     everything scattered here has to earn its place by being far enough from
+     the last one to be seen as a separate thing. */
   function cover(){
-    /* Short and wide, not tall and thin. The first version was a 0.9-metre
-       three-sided cone, which at this scale is not a tuft of grass — it is a
-       little dark conifer, and a lawn of them looks like a model railway. */
-    const blade=new THREE.ConeGeometry(0.16, 0.5, 5);
-    blade.translate(0, 0.25, 0);
-    plant(blade, [0x6f9a45,0x7fa84c,0x5f8c3e,0x8ab054,0x93a558], 9000,
-          {min:0.6, max:1.3, townR:260});
-    // pebbles, which is what stops bare ground reading as paper
+    // pebbles, sparse, so bare ground has something to catch the light
     const peb=new THREE.IcosahedronGeometry(0.24, 0);
     peb.translate(0, 0.12, 0);
-    plant(peb, [0x7d7a86,0x8b8578,0x6e6b74,0x94908a], 4200,
-          {min:0.6, max:1.8, townR:280, nearTown:0.6});
-    // and something in flower, so the ground has a colour that is not green
+    plant(peb, [0x7d7a86,0x8b8578,0x6e6b74,0x94908a], 900,
+          {min:0.7, max:1.9, townR:320, nearTown:0.5});
+    // and the occasional thing in flower, so the ground is not only green
     const bud=new THREE.IcosahedronGeometry(0.16, 0);
     bud.translate(0, 0.62, 0);
-    plant(bud, [0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], 2300,
-          {min:0.7, max:1.3, townR:200, nearTown:0.85});
+    plant(bud, [0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], 420,
+          {min:0.8, max:1.4, townR:260, nearTown:0.7});
   }
 
   /* ------------------------------------------------------- ray-traced light
