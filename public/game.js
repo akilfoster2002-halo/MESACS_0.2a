@@ -70,22 +70,45 @@ function thirdPerson(){
 /* ---------------------------------------------------------------- boot */
 function init(){
   const canvas = $('#view');
-  G.renderer = new THREE.WebGLRenderer({canvas, antialias:false, powerPreference:'high-performance'});
+  G.renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
   G.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));   // lab-machine budget
+  /* Filmic tone mapping instead of clipping: without it a lit wall and a very
+     lit wall are both pure white, and the whole picture flattens exactly where
+     the light is most interesting. */
+  G.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  G.renderer.toneMappingExposure = 1.05;
+  /* Shadows are the single biggest difference between this looking like a
+     diagram and looking like a place. Soft percentage-closer filtering: the
+     hard kind reads as a bug on blocky geometry. */
+  G.renderer.shadowMap.enabled = true;
+  G.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   G.scene = new THREE.Scene();
   G.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 220);
   resize(); window.addEventListener('resize', resize);
 
-  // sky bounce, a warm key, and a cool fill: enough that two walls meeting
-  // at a corner are visibly two walls
-  // The sky lights the tops, the ground bounce keeps ceilings off black,
-  // and the two directionals stop a corner reading as one flat surface.
-  G.scene.add(new THREE.AmbientLight(0xdfe6ff, 0.95));
-  G.scene.add(new THREE.HemisphereLight(0xffffff, 0xc3b4e6, 0.90));
-  const sun = new THREE.DirectionalLight(0xfff3f8, 1.15);
-  sun.position.set(12, 26, 8);
-  G.scene.add(sun);
-  const fill = new THREE.DirectionalLight(0x9fb4ff, 0.50);
+  /* One light does the shaping and casts the shadows; the rest only stop the
+     shadowed side going black. The old rig was four flat lights adding up to
+     3.5, which lit every face of every box almost equally — nothing to cast,
+     and nothing to see if it had. */
+  G.scene.add(new THREE.AmbientLight(0xdfe6ff, 0.16));
+  G.scene.add(new THREE.HemisphereLight(0xbfd8ff, 0xa88c6a, 0.46));
+  const sun = new THREE.DirectionalLight(0xfff2e0, 1.62);
+  sun.position.set(48, 96, 34);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  /* The shadow camera is an orthographic box that has to CONTAIN whatever
+     should cast: too small and shadows stop at a line across the ground, too
+     big and every shadow is a smear. PLANET moves this box with the player. */
+  const sc = sun.shadow.camera;
+  sc.left=-120; sc.right=120; sc.top=120; sc.bottom=-120; sc.near=1; sc.far=460;
+  sc.updateProjectionMatrix();
+  /* normalBias, not bias: on geometry this chunky, plain depth bias either
+     leaves acne or lifts every shadow off its own object. */
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.55;
+  G.scene.add(sun); G.scene.add(sun.target);
+  G.sun = sun;
+  const fill = new THREE.DirectionalLight(0x9fb4ff, 0.20);
   fill.position.set(-16, 12, -14);
   G.scene.add(fill);
   G.scene.add(G.camera);            // so the gun can hang off the camera
@@ -554,7 +577,25 @@ function loop(now){
     if(G.room==='arena'&&!PUZZLE.active&&!NAV.active) COMBAT.update(dt);
     if(G.room==='free') FREE.tick(dt);
   }
+  shade();
   G.renderer.render(G.scene,G.camera);
+}
+/* Every room builds its own meshes and none of them think about shadows, so
+   rather than teach seven builders the same lesson, the flags go on once per
+   room from here — the room group's identity is what changed. Sky bodies and
+   anything marked flat opt out: a star casting a shadow is a wasted draw and
+   the ground shadowing itself over 320 metres is just noise. */
+let shaded=null;
+function shade(){
+  if(!G.roomGroup || shaded===G.roomGroup) return;
+  shaded=G.roomGroup;
+  G.roomGroup.traverse(o=>{
+    if(!o.isMesh) return;
+    const u=o.userData||{};
+    if(u.sky){ o.castShadow=false; o.receiveShadow=false; return; }
+    o.castShadow    = !u.flat;
+    o.receiveShadow = true;
+  });
 }
 function frozen(){
   return CODE.isOpen()

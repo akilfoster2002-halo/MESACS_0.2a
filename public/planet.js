@@ -112,6 +112,7 @@ window.PLANET = (function(){
      cross one and a thing to be seen in. */
   let ride=null, rideId=null, carLoader=null;
   let statues=[];                    // the ones that turn on their plinths
+  let aoStats=null;                  // what the ray-traced pass cost, for tuning
   /* You, as the planet sees you. G.pos is derived from this, never the
      other way round. */
   let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true,
@@ -139,6 +140,10 @@ window.PLANET = (function(){
     statues=[]; ada=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
+    /* The stars, the neighbour and its ring all sit five hundred metres out
+       and the camera stopped seeing at two hundred and twenty, so none of the
+       sky this room builds had ever been on screen. */
+    G.camera.near=0.3; G.camera.far=1800; G.camera.updateProjectionMatrix();
     // fog would eat the far side of the world, and the far side is the point
     G.scene.fog=null;
     on=true;
@@ -146,6 +151,9 @@ window.PLANET = (function(){
     sky(); surface();
     BUILDINGS.forEach(build);
     scatter();                     // after the buildings: it works around them
+    cover();                       // and the small stuff after the big stuff
+    G.scene.updateMatrixWorld(true);
+    aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
@@ -193,31 +201,208 @@ window.PLANET = (function(){
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos,3));
-    G.roomGroup.add(new THREE.Points(g, new THREE.PointsMaterial({
-      color:0xdfe8ff, size:1.8, sizeAttenuation:true })));
-    const neighbour=new THREE.Mesh(new THREE.SphereGeometry(150,32,24),
+    const stars=new THREE.Points(g, new THREE.PointsMaterial({
+      color:0xdfe8ff, size:1.8, sizeAttenuation:true }));
+    stars.userData.sky=true; G.roomGroup.add(stars);
+    const neighbour=new THREE.Mesh(new THREE.SphereGeometry(150,48,32),
       new THREE.MeshLambertMaterial({color:0x7c5cc4}));
-    neighbour.position.set(-520,180,-620); G.roomGroup.add(neighbour);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(230,9,10,48),
+    neighbour.position.set(-520,180,-620);
+    neighbour.userData.sky=true; G.roomGroup.add(neighbour);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(230,9,10,64),
       new THREE.MeshBasicMaterial({color:0xcdb4f6, transparent:true, opacity:.42}));
     ring.position.copy(neighbour.position); ring.rotation.set(1.15,0.3,0.2);
-    G.roomGroup.add(ring);
-    const sun=new THREE.Mesh(new THREE.SphereGeometry(34,20,16),
+    ring.userData.sky=true; G.roomGroup.add(ring);
+    const sun=new THREE.Mesh(new THREE.SphereGeometry(34,24,18),
       new THREE.MeshBasicMaterial({color:0xfff3d0}));
-    sun.position.set(420,300,-420); G.roomGroup.add(sun);
+    sun.position.set(420,300,-420);
+    sun.userData.sky=true; G.roomGroup.add(sun);
+    /* A halo, so the star is a light source rather than a white circle. */
+    const halo=new THREE.Mesh(new THREE.SphereGeometry(64,24,18),
+      new THREE.MeshBasicMaterial({color:0xffe9b0, transparent:true, opacity:0.18,
+                                   side:THREE.BackSide, depthWrite:false}));
+    halo.position.copy(sun.position);
+    halo.userData.sky=true; G.roomGroup.add(halo);
+  }
+  /* The palette the ground is painted from. Not one green: grass that has
+     been rained on, grass that has not, the earth under a worn patch, and
+     stone where the ground breaks through. Which one you get is decided by a
+     SECOND noise field at a different scale from the height — tie colour to
+     height alone and every hill is the same colour at the same altitude,
+     which is the thing that makes procedural ground look procedural. */
+  /* Darker than they look on paper. A lit face here is a colour multiplied by
+     rather more than one, so a palette picked to look right flat comes out
+     bleached the moment the sun is on it. */
+  const SOIL=[
+    { c:[0.13,0.28,0.15] },        // deep grass, in the hollows
+    { c:[0.20,0.38,0.18] },        // ordinary grass
+    { c:[0.29,0.44,0.19] },        // sunlit grass
+    { c:[0.40,0.40,0.20] },        // dry grass
+    { c:[0.30,0.22,0.14] },        // bare earth
+    { c:[0.31,0.30,0.32] }         // stone
+  ];
+  function soilAt(dir, h){
+    const wet=fbm(dir, 2.7, 2);                    // patches, larger than the hills
+    const grit=fbm(dir, 21, 2);                    // and a fine speckle over them
+    let t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;      // 0 = lush, 5 = stone
+    t = Math.max(0, Math.min(SOIL.length-1.001, t));
+    const i=Math.floor(t), f=t-i;
+    const a=SOIL[i].c, b=SOIL[i+1].c;
+    // a little extra speckle so no two neighbouring faces are exactly equal
+    const n=1+grit*0.06;
+    return [ (a[0]+(b[0]-a[0])*f)*n, (a[1]+(b[1]-a[1])*f)*n, (a[2]+(b[2]-a[2])*f)*n ];
+  }
+  /* Fine detail belongs in a texture, not in geometry. Twenty thousand little
+     meshes at half a metre each read as scattered OBJECTS — at this camera
+     distance they looked like a lawn of miniature conifers, then like green
+     paving slabs. What actually reads as grass is a repeating grain finer
+     than anything you would model, multiplied over the vertex colours: the
+     mesh keeps saying which field you are standing in, and this says what the
+     ground is made of. */
+  function grainTexture(){
+    const N=256, c=document.createElement('canvas'); c.width=c.height=N;
+    const x=c.getContext('2d');
+    x.fillStyle='#ffffff'; x.fillRect(0,0,N,N);
+    // blades: short strokes, mostly upright, drawn twice at the seam so it tiles
+    for(let i=0;i<2600;i++){
+      const px=Math.random()*N, py=Math.random()*N;
+      const len=2+Math.random()*5, lean=(Math.random()-0.5)*2.2;
+      const g=200+Math.random()*55, dark=Math.random()<0.5;
+      x.strokeStyle=dark ? `rgba(${g-70},${g-52},${g-78},0.5)`
+                         : `rgba(255,255,${g},0.42)`;
+      x.lineWidth=0.6+Math.random()*0.9;
+      for(const [ox,oy] of [[0,0],[N,0],[0,N],[-N,0],[0,-N]]){
+        x.beginPath(); x.moveTo(px+ox,py+oy); x.lineTo(px+ox+lean, py+oy-len); x.stroke();
+      }
+    }
+    // and a fine speckle under them, so flat light still has something to catch
+    const img=x.getImageData(0,0,N,N), d=img.data;
+    for(let i=0;i<d.length;i+=4){
+      const n=(Math.random()-0.5)*26;
+      d[i]=Math.max(0,Math.min(255,d[i]+n));
+      d[i+1]=Math.max(0,Math.min(255,d[i+1]+n));
+      d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));
+    }
+    x.putImageData(img,0,0);
+    const tex=new THREE.CanvasTexture(c);
+    tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+    tex.colorSpace=THREE.SRGBColorSpace;
+    tex.anisotropy=Math.min(8, G.renderer.capabilities.getMaxAnisotropy?
+                               G.renderer.capabilities.getMaxAnisotropy():1);
+    tex.repeat.set(150, 75);         // about one tile every thirteen metres
+    return tex;
   }
   function surface(){
-    G.roomGroup.add(new THREE.Mesh(new THREE.SphereGeometry(PR, 96, 64),
-      new THREE.MeshLambertMaterial({ color:0x6fae7a })));
+    /* The ball RECEIVES shadows and casts none. A sphere three hundred metres
+       across, dropped into a shadow camera two hundred metres wide, fills the
+       depth map with its own back and every shadow in the world becomes the
+       shadow of the planet. */
+    const SEG_W=256, SEG_H=160;      // ~4 m a face: fine enough to walk over
+    const geo=new THREE.SphereGeometry(PR, SEG_W, SEG_H);
+    const pos=geo.attributes.position;
+    const col=new Float32Array(pos.count*3);
+    const d=new THREE.Vector3();
+    for(let i=0;i<pos.count;i++){
+      d.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      const h=terrainH(d);
+      pos.setXYZ(i, d.x*(PR+h), d.y*(PR+h), d.z*(PR+h));
+      const c=soilAt(d, h/RELIEF);
+      col[i*3]=c[0]; col[i*3+1]=c[1]; col[i*3+2]=c[2];
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+    // recomputed AFTER displacing, or every hill is lit as though it were flat
+    geo.computeVertexNormals();
+    const ball=new THREE.Mesh(geo,
+      new THREE.MeshLambertMaterial({ vertexColors:true, map:grainTexture() }));
+    ball.userData.flat=true;
+    G.roomGroup.add(ball);
     // a pale cap at each pole, so you can tell you have been somewhere
     [1,-1].forEach(s=>{
-      const c=new THREE.Mesh(
-        new THREE.SphereGeometry(PR+0.15, 48, 24, 0, Math.PI*2, 0, 0.36),
-        new THREE.MeshLambertMaterial({ color:0xdfeef0 }));
+      const cg=new THREE.SphereGeometry(PR, 64, 32, 0, Math.PI*2, 0, 0.36);
+      const cp=cg.attributes.position;
+      for(let i=0;i<cp.count;i++){
+        d.set(cp.getX(i), cp.getY(i), cp.getZ(i)).normalize();
+        if(s<0) d.negate();                         // the cap is turned below
+        const r=PR+terrainH(d)+0.12;                // snow lies ON the ground
+        cp.setXYZ(i, cp.getX(i)/PR*r, cp.getY(i)/PR*r, cp.getZ(i)/PR*r);
+      }
+      cg.computeVertexNormals();
+      const c=new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ color:0xdfeef0 }));
+      c.userData.flat=true;
       if(s<0) c.rotation.x=Math.PI;
       G.roomGroup.add(c);
     });
   }
+  /* ----------------------------------------------------------- the ground
+     A sphere of one flat green is a diagram of a planet. What makes ground
+     read as ground is that it is never level and never one colour, and both
+     of those come from the same place: a height field.
+
+     Value noise on the unit sphere — a hash at each lattice corner, smoothly
+     interpolated, four octaves each half the size and half the height of the
+     one before. No library, no texture, no fetch: the same direction always
+     gives the same number on every machine, which is what lets the mesh and
+     the player's feet agree without either one asking the other. */
+  /* Math.imul, not `*`: a plain multiply of two large integers in JS lands in
+     a double, loses its low bits, and the xor that follows then mixes bits
+     that were rounded away. The first version of this returned a mean of
+     -0.5 instead of 0 with a fifth of the spread it should have had — the
+     whole planet came out flat and one colour, and it looked like the terrain
+     code was not running at all. */
+  function hash3(i,j,k){
+    let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177);
+    h = Math.imul(h ^ (h>>>13), 1274126177);
+    h = Math.imul(h ^ (h>>>16), 2246822519);
+    return ((h ^ (h>>>13)) >>> 0) / 4294967295;
+  }
+  const fade = t => t*t*(3-2*t);
+  function vnoise(x,y,z){
+    const xi=Math.floor(x), yi=Math.floor(y), zi=Math.floor(z);
+    const xf=fade(x-xi), yf=fade(y-yi), zf=fade(z-zi);
+    let n=0;
+    for(let dz=0;dz<2;dz++) for(let dy=0;dy<2;dy++) for(let dx=0;dx<2;dx++){
+      const w=(dx?xf:1-xf)*(dy?yf:1-yf)*(dz?zf:1-zf);
+      n += w*hash3(xi+dx, yi+dy, zi+dz);
+    }
+    return n*2-1;                                  // -1 .. 1
+  }
+  function fbm(dir, freq, octaves){
+    let a=1, f=freq, sum=0, norm=0;
+    for(let i=0;i<octaves;i++){
+      sum += a*vnoise(dir.x*f, dir.y*f, dir.z*f);
+      norm += a; a*=0.5; f*=2.07;                  // not exactly 2: avoids a grid
+    }
+    return sum/norm;
+  }
+  /* One lattice cell at frequency 5.5 is about sixty metres across on a ball
+     this size, and the horizon is fifty — so the largest octave is roughly
+     one hill per view, which is what you want. */
+  const RELIEF=9.5;
+  function rawHeight(dir){
+    const h=fbm(dir, 5.5, 4);
+    // squared going up, linear coming down: hills stand on a plain instead of
+    // the whole world rolling like a swell
+    return (h>0 ? h*h*2.2 : h*0.7)*RELIEF;
+  }
+  /* Every building stands on level ground, and the FLOOR PLATE already knows
+     how to meet a sphere at its rim. So rather than teach the plate about
+     hills, the hills stop: this is 0 over a building and its apron, 1 out in
+     the country, and the height is simply multiplied by it. Under a building
+     the ground IS the sphere, exactly as the plate was written to expect. */
+  const PAD_FADE=26;
+  function padK(dir){
+    let k=1;
+    for(const b of BUILDINGS){
+      const d=b.dir ? dir.angleTo(b.dir)*PR : 1e9;
+      const flat=Math.max(b.w,b.d)/2 + apronOf(b) + 4;
+      if(d>=flat+PAD_FADE) continue;
+      if(d<=flat) return 0;
+      const t=(d-flat)/PAD_FADE;
+      k=Math.min(k, t*t*(3-2*t));
+    }
+    return k;
+  }
+  const terrainH = dir => { const k=padK(dir); return k<=0 ? 0 : rawHeight(dir)*k; };
+
   /* ------------------------------------------------------------- the floor
      A room is flat and the world is not, and that is a real contradiction,
      not a rounding error: across a hall 64 metres wide the ground falls two
@@ -276,7 +461,7 @@ window.PLANET = (function(){
       // altitude is measured along the radius, and the floor is not square to it
       return (plateY(b,l.x,l.z)+PR)/Math.max(0.5, dir.dot(b.dir)) - PR;
     }
-    return 0;
+    return terrainH(dir);            // out in the country, the ground is the hills
   }
 
   /* Scattered over the whole ball, each standing on its own normal — on a
@@ -320,9 +505,260 @@ window.PLANET = (function(){
         const s=new THREE.Mesh(new THREE.IcosahedronGeometry(0.7+Math.random()*1.2,0), stone);
         s.position.y=0.4; s.rotation.set(Math.random(),Math.random(),Math.random()); g.add(s);
       }
-      stand(g, dir, Math.random()*6);
+      stand(g, dir, Math.random()*6, terrainH(dir));
       G.roomGroup.add(g);
     }
+  }
+
+  /* ---------------------------------------------------------- ground cover
+     Trees and boulders give a landscape its shape; what gives it TEXTURE is
+     the small stuff underfoot, and there has to be a great deal of it. Twelve
+     thousand separate meshes would be twelve thousand draw calls and the end
+     of the frame rate, so each kind is one InstancedMesh: one geometry, one
+     material, one call, a matrix each.
+
+     Weighted toward the town, because that is where the hours are spent and
+     the far side of a planet does not need flowers nobody will stand in. */
+  const townDir=()=>{
+    const v=V(0,0,0);
+    BUILDINGS.forEach(b=>v.add(b.dir||dirOf(b.lon,b.lat)));
+    return v.normalize();
+  };
+  function plant(geo, tints, count, opts){
+    const o=opts||{};
+    const town=townDir(), fr=frameAt(town,0);
+    const mesh=new THREE.InstancedMesh(geo,
+      new THREE.MeshLambertMaterial({ vertexColors:false }), count);
+    mesh.castShadow=false; mesh.receiveShadow=true;   // too small to be worth a shadow
+    mesh.userData.flat=true;
+    const m=new THREE.Matrix4(), q=new THREE.Quaternion(), col=new THREE.Color();
+    let n=0, tries=0;
+    while(n<count && tries<count*6){
+      tries++;
+      let dir;
+      if(Math.random()<(o.nearTown!==undefined?o.nearTown:0.72)){
+        // somewhere in a disc round the town, denser at the middle
+        const a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*(o.townR||240)/PR;
+        const ax=fr.right.clone().multiplyScalar(Math.cos(a))
+                 .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+        dir=town.clone().applyAxisAngle(ax, r).normalize();
+      } else {
+        const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+        dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
+      }
+      // nothing grows through a floor, or across the walk to the front door
+      if(BUILDINGS.some(b=>b.dir && dir.angleTo(b.dir)*PR <
+           Math.max(b.w,b.d)/2 + apronOf(b) + 2)) continue;
+      /* No onPath() here. That rule exists so a TREE does not stand in the
+         middle of the first instruction a student is given, and applying it to
+         ankle-high grass shaved a bald thirteen-metre runway up to the gate —
+         the one stretch of ground everybody looks at. */
+      const f=frameAt(dir, Math.random()*Math.PI*2);
+      const sc=(o.min||0.7)+Math.random()*((o.max||1.4)-(o.min||0.7));
+      m.makeBasis(f.right, f.up, f.fwd);
+      q.setFromRotationMatrix(m);
+      m.compose(dir.clone().multiplyScalar(PR + terrainH(dir)), q,
+                V(sc, sc*(0.7+Math.random()*0.8), sc));
+      mesh.setMatrixAt(n, m);
+      const t=tints[(Math.random()*tints.length)|0];
+      col.setHex(t); col.offsetHSL(0, 0, (Math.random()-0.5)*0.10);
+      mesh.setColorAt(n, col);
+      n++;
+    }
+    mesh.count=n;                       // whatever actually found a spot
+    mesh.instanceMatrix.needsUpdate=true;
+    if(mesh.instanceColor) mesh.instanceColor.needsUpdate=true;
+    G.roomGroup.add(mesh);
+    return n;
+  }
+  function cover(){
+    /* Short and wide, not tall and thin. The first version was a 0.9-metre
+       three-sided cone, which at this scale is not a tuft of grass — it is a
+       little dark conifer, and a lawn of them looks like a model railway. */
+    const blade=new THREE.ConeGeometry(0.16, 0.5, 5);
+    blade.translate(0, 0.25, 0);
+    plant(blade, [0x6f9a45,0x7fa84c,0x5f8c3e,0x8ab054,0x93a558], 9000,
+          {min:0.6, max:1.3, townR:260});
+    // pebbles, which is what stops bare ground reading as paper
+    const peb=new THREE.IcosahedronGeometry(0.24, 0);
+    peb.translate(0, 0.12, 0);
+    plant(peb, [0x7d7a86,0x8b8578,0x6e6b74,0x94908a], 4200,
+          {min:0.6, max:1.8, townR:280, nearTown:0.6});
+    // and something in flower, so the ground has a colour that is not green
+    const bud=new THREE.IcosahedronGeometry(0.16, 0);
+    bud.translate(0, 0.62, 0);
+    plant(bud, [0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], 2300,
+          {min:0.7, max:1.3, townR:200, nearTown:0.85});
+  }
+
+  /* ------------------------------------------------------- ray-traced light
+     A shadow map answers one question — is the sun blocked? — for one light,
+     every frame. It cannot answer the other one: how much of the SKY can this
+     square inch see at all? That is what darkens the inside corner of a room,
+     the strip of grass against a wall, the ground under a tree. No amount of
+     shadow mapping produces it, and it is most of what makes a rendered scene
+     look like it has been lit rather than coloured in.
+
+     So this traces rays. Actual rays: from each point on the ground and each
+     point on a building's floor, a fan of them is fired up into the sky, and
+     what fraction come back blocked is baked into that vertex's colour. It
+     happens ONCE, when the world is built, because nothing here moves — the
+     castle will not walk off its plate — and one second at load buys a
+     lighting term that would otherwise cost every frame forever.
+
+     Real-time ray tracing this is not, and on a school laptop it could not
+     be. Tracing the rays once and keeping the answer is how this was always
+     done before the hardware existed to do it per frame. */
+  /* These four numbers are the whole cost. The first pass used fourteen rays
+     reaching sixteen metres over a two-hundred-and-thirty-metre town and took
+     four and a half seconds, which is four and a half seconds of a child
+     staring at nothing. Occlusion is a LOCAL effect — a wall eleven metres
+     away is not what darkens a corner — so the reach comes down, the grid
+     cell comes down with it, and the bake gets an order of magnitude cheaper
+     for a result you cannot tell apart. */
+  const AO_RAYS=10, AO_REACH=11, AO_CELL=14;
+  /* And only NEAR A BUILDING. Out in a field the answer is "all of it" for
+     every vertex, and paying four milliseconds a vertex to be told the sky is
+     open is the whole reason the first bake took four and a half seconds. */
+  const AO_SKIRT=30;
+  /* Casting every ray against every mesh in the world is the naive way and it
+     is thousands of times too slow. Occluders go into a coarse grid on the
+     sphere first, so a ray only ever asks the handful of things standing near
+     where it started. */
+  function occluderGrid(cell){
+    const grid=new Map(), meshes=[];
+    /* Buildings only. A tree does darken the grass under it, but the trees are
+       eight hundred groups spread over the whole world and putting them in
+       here quadrupled the candidate list in every cell for a shadow nobody
+       walks up to and inspects. */
+    BUILDINGS.forEach(b=>{ if(!b.g) return; b.g.traverse(m=>{
+      if(!m.isMesh || m.isInstancedMesh) return;
+      const u=m.userData||{};
+      if(u.sky || u.lid) return;              // not the roof, and not the floor
+      if(!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      meshes.push(m);
+    }); });
+    const c=new THREE.Vector3();
+    meshes.forEach(m=>{
+      m.getWorldPosition(c);
+      const bs=m.geometry.boundingSphere;
+      // kept on the mesh so a ray can reject it exactly, not just by its cell
+      m.userData.aoC=c.clone();
+      m.userData.aoR=(bs?bs.radius:1)*Math.max(m.scale.x,m.scale.y,m.scale.z);
+      const r=m.userData.aoR+AO_REACH;
+      const d=c.clone().normalize();
+      const span=Math.ceil(r/cell);
+      const key=(a,b)=>a+','+b;
+      const ci=Math.round(Math.asin(Math.max(-1,Math.min(1,d.y)))*PR/cell);
+      const cj=Math.round(Math.atan2(d.x,d.z)*PR/cell);
+      for(let i=-span;i<=span;i++) for(let j=-span;j<=span;j++){
+        const k=key(ci+i, cj+j);
+        let a=grid.get(k); if(!a){ a=[]; grid.set(k,a); }
+        a.push(m);
+      }
+    });
+    return {
+      /* The cell is a first cut; this is the second. A cell near the castle
+         holds a couple of hundred meshes and most of them are nowhere near
+         this particular square metre of grass — the exact sphere test drops
+         them for the price of one subtraction each. */
+      near(p){
+        const d=p.clone().normalize();
+        const ci=Math.round(Math.asin(Math.max(-1,Math.min(1,d.y)))*PR/cell);
+        const cj=Math.round(Math.atan2(d.x,d.z)*PR/cell);
+        const all=grid.get(ci+','+cj);
+        if(!all) return EMPTY;
+        const out=[];
+        for(const m of all){
+          const R=m.userData.aoR+AO_REACH;
+          if(m.userData.aoC.distanceToSquared(p) < R*R) out.push(m);
+        }
+        return out;
+      },
+      count:meshes.length
+    };
+  }
+  const EMPTY=[];
+  /* A fan of directions round a normal, weighted the way light arrives:
+     more of them near straight up, fewer near the horizon. */
+  function hemiRays(n){
+    const out=[];
+    for(let i=0;i<n;i++){
+      const t=(i+0.5)/n;                       // golden-angle spiral: even, no clumps
+      const r=Math.sqrt(t), a=i*2.399963;
+      out.push([r*Math.cos(a), Math.sqrt(Math.max(0,1-t)), r*Math.sin(a)]);
+    }
+    return out;
+  }
+  function bakeAO(){
+    const t0=performance.now();
+    const grid=occluderGrid(AO_CELL);
+    const ray=new THREE.Raycaster(); ray.far=AO_REACH;
+    const dirs=hemiRays(AO_RAYS);
+    const P=new THREE.Vector3(), N=new THREE.Vector3(), D=new THREE.Vector3();
+    let lit=0, samples=0;
+
+    /* how open the sky is above this point: 1 in the open, 0 in a corner */
+    function sky(p, up, side, fwd, skipSelf){
+      const near=grid.near(p);
+      if(!near.length) return 1;            // open country: nothing to trace against
+      let clear=0;
+      for(const [x,y,z] of dirs){
+        D.set(0,0,0).addScaledVector(side,x).addScaledVector(up,y).addScaledVector(fwd,z).normalize();
+        ray.set(P.copy(p).addScaledVector(up,0.06), D);
+        const hit=ray.intersectObjects(near, false);
+        let blocked=false;
+        for(const h of hit){ if(h.object!==skipSelf){ blocked=true; break; } }
+        if(!blocked) clear++;
+      }
+      samples++;
+      return clear/dirs.length;
+    }
+    /* Paint it into a mesh's own vertex colours. AO never brightens: it can
+       only take light away, and it is floored so a corner goes dim, not black. */
+    function paint(mesh, only){
+      const g=mesh.geometry, pos=g.attributes.position;
+      let col=g.attributes.color;
+      if(!col){
+        col=new THREE.BufferAttribute(new Float32Array(pos.count*3),3);
+        const base=mesh.material.color;
+        for(let i=0;i<pos.count;i++) col.setXYZ(i, base.r, base.g, base.b);
+        g.setAttribute('color', col);
+        mesh.material=mesh.material.clone();
+        mesh.material.vertexColors=true;
+        mesh.material.color.setRGB(1,1,1);
+      }
+      const v=new THREE.Vector3(), w=new THREE.Vector3();
+      mesh.updateMatrixWorld(true);
+      for(let i=0;i<pos.count;i++){
+        v.fromBufferAttribute(pos,i);
+        w.copy(v).applyMatrix4(mesh.matrixWorld);
+        if(only && !only(w)) continue;
+        const up=w.clone().normalize();
+        const f=frameAt(up,0);
+        const k=0.40+0.60*sky(w, up, f.right, f.fwd, mesh);
+        lit++;
+        col.setXYZ(i, col.getX(i)*k, col.getY(i)*k, col.getZ(i)*k);
+      }
+      col.needsUpdate=true;
+    }
+
+    // the ground, but only the skirt of grass round each building
+    const ball=G.roomGroup.children.find(o=>o.isMesh && o.userData.flat &&
+      o.geometry.attributes.color);
+    if(ball) paint(ball, w => {
+      const d=w.clone().normalize();
+      return BUILDINGS.some(b => b.dir &&
+        d.angleTo(b.dir)*PR < Math.max(b.w,b.d)/2 + apronOf(b) + AO_SKIRT);
+    });
+    // and every building's floor, where the corners are
+    BUILDINGS.forEach(b=>{
+      if(!b.g) return;
+      const plate=b.g.children.find(o=>o.isMesh && o.geometry.type==='PlaneGeometry');
+      if(plate) paint(plate);
+    });
+    return { ms:Math.round(performance.now()-t0), vertices:lit, rays:samples*AO_RAYS,
+             occluders:grid.count };
   }
 
   function signTexture(text, tint){
@@ -380,7 +816,7 @@ window.PLANET = (function(){
       m.position.set(x, base+hh/2, z); g.add(m);
       b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:base, y2:base+hh});
     };
-    g.add(plate(b));
+    const flr=plate(b); flr.userData.lid=true; g.add(flr);
 
     put(0,-hd, b.w, 1);
     put(-hw,0, 1, b.d);
@@ -392,7 +828,14 @@ window.PLANET = (function(){
 
     const roof=new THREE.Mesh(new THREE.BoxGeometry(b.w+2.4, 0.8, b.d+2.4),
       new THREE.MeshLambertMaterial({color:b.roof}));
-    roof.position.y=H+0.4; g.add(roof);
+    roof.position.y=H+0.4;
+    /* Marked as a lid, which means the ray-traced pass ignores it. A roof
+       blocks the sky over the whole room, so counting it turns the entire
+       hall floor uniformly dark — physically right for a windowless keep, and
+       completely wrong for a room the game lights as though it were daylit.
+       What should darken this floor is its WALLS, at the edges. */
+    roof.userData.lid=true;
+    g.add(roof);
 
     // a nameplate, not a billboard: it has to sit between the towers rather
     // than across them, and the castle is wider than the sheds are
@@ -609,6 +1052,12 @@ window.PLANET = (function(){
       0, H-2.4, hd+0.3);
     banner.rotation.x=0;
 
+    /* A pool of light inside the gate. Sunlight does come through a door, and
+       without this the threshold is a hard line between a bright field and a
+       black rectangle — which is what a child reads as "you cannot go in". */
+    const spill=new THREE.PointLight(0xdfe9ff, 120, 46, 1.5);
+    spill.position.set(0, 5, hd-4); g.add(spill);
+
     // a runner of floor leading in, so the hall has a middle
     const rug=add(new THREE.Mesh(new THREE.BoxGeometry(b.w*0.26, 0.12, b.d-3),
       new THREE.MeshLambertMaterial({color:0x6b4a8f})), 0, 0.07, 0);
@@ -621,7 +1070,10 @@ window.PLANET = (function(){
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.9,4.5,8), stone), bx, 2.25, bz);
       add(new THREE.Mesh(new THREE.SphereGeometry(0.85,12,10),
         new THREE.MeshBasicMaterial({color:0xffd9a0})), bx, 4.9, bz);
-      const lamp=new THREE.PointLight(0xffd9a0, 0.85, 34);
+      /* Now that the roof really does block the sun, these are not decoration
+         any more — they are the only light in the building, and 0.85 candela
+         in a hall sixty-four metres across is a match in a cathedral. */
+      const lamp=new THREE.PointLight(0xffd9a0, 260, 62, 1.4);
       lamp.position.set(bx, 5.2, bz); g.add(lamp);
     });
   }
@@ -1111,6 +1563,7 @@ window.PLANET = (function(){
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
+    sunAt();
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     adaTick(dt);
@@ -1118,7 +1571,8 @@ window.PLANET = (function(){
     for(const [,o] of others){
       o.dir.lerp(o.tdir,k).normalize();
       const f=frameAt(o.dir,0);
-      o.g.position.copy(o.dir).multiplyScalar(PR);
+      // everyone else stands on the same hills you do
+      o.g.position.copy(o.dir).multiplyScalar(PR + floorAt(o.dir));
       o.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
         f.right, f.up, f.fwd.clone().applyAxisAngle(f.up, o.yaw)));
       if(o.model) AVATAR.animate(o.model, dt, 'idle');
@@ -1131,6 +1585,33 @@ window.PLANET = (function(){
         NET.pos(+ll.lon.toFixed(2), +ll.lat.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
       }
     }
+  }
+
+  /* --------------------------------------------------------------- the sun
+     A real star over a real ball would leave half the class standing in the
+     dark, and a nine-year-old sent to the Library at midnight is a support
+     ticket, not a lighting effect. So the sun rides with you: fixed high and
+     to one side of wherever you are standing, which keeps every building lit
+     the same way from every approach and still throws a long honest shadow.
+
+     The shadow camera is a box seventy metres across, so it has to travel
+     with you as well — parked at the origin it would cover a fiftieth of the
+     planet and shadows would simply stop at a line on the ground. */
+  /* Low, not overhead. A sun at sixty degrees casts a puddle round the foot
+     of a tower; at thirty it lays the whole tower across the grass, and it is
+     the length of the shadow that tells you how tall the thing is. */
+  const SUN_UP=120, SUN_SIDE=150, SUN_FWD=76;
+  function sunAt(){
+    const s=G.sun; if(!s || !me.dir) return;
+    const up=me.dir.clone().normalize();
+    const f=frameAt(up,0);
+    const here=worldPos(0);
+    s.target.position.copy(here);
+    s.position.copy(here)
+      .addScaledVector(up, SUN_UP)
+      .addScaledVector(f.right, SUN_SIDE)
+      .addScaledVector(f.fwd, SUN_FWD);
+    s.target.updateMatrixWorld();
   }
 
   /* She faces the door until somebody is in the room, and then she faces
@@ -1309,12 +1790,18 @@ window.PLANET = (function(){
     others.clear(); crowd=null;
     ['#dash','#pmap'].forEach(q=>{ const e=document.querySelector(q); if(e) e.classList.add('hidden'); });
     G.camera.up.set(0,1,0);        // hand the flat rooms their world back
+    // and their clip planes: a flat room is thirty metres across, and a depth
+    // buffer stretched to eighteen hundred fights with itself at that size
+    G.camera.near=0.1; G.camera.far=220; G.camera.updateProjectionMatrix();
+    if(G.sun){ G.sun.position.set(48,96,34); G.sun.target.position.set(0,0,0);
+               G.sun.target.updateMatrixWorld(); }
   }
   function stop(){ leave(); }
 
   return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
            get riding(){ return !!ride; },
            STATIONS, BUILDINGS, PR, lonLat, frameAt, dirOf,
+           get ao(){ return aoStats; },
            forget(){ back=null; },
            get where(){ return me; },
            get active(){ return on; },
