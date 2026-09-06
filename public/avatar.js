@@ -140,7 +140,13 @@ window.AVATAR = (function(){
   function pick(id){
     chosen=id;
     try{ localStorage.setItem('dq_char',id); }catch(e){}
-    if(window.PROGRESS){ const p=PROGRESS.all(); p.char=id; PROGRESS.complete('char'); }
+    /* RECORD the choice; do not COMPLETE it. complete() is the mission
+       payout path — it hands over coins and XP, at a quarter rate on a
+       repeat — so changing your character paid you fifteen coins, every
+       time, for ever. Nobody noticed while that meant walking to a menu and
+       clicking a thumbnail. The Mall turns it into standing in one spot
+       pressing E, which is a money printer with a shop attached. */
+    if(window.PROGRESS) PROGRESS.set('char', id);
   }
 
   /* the player's own body, third person */

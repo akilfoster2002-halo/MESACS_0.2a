@@ -58,8 +58,8 @@ window.PLANET = (function(){
       wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
     { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-19, lat:-6, w:24, d:20, h:11,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
-    { id:'wardrobe', name:'THE WARDROBE',    em:'\u{1F642}', lon:19,  lat:-6, w:22, d:18, h:11,
-      wall:0x6b4a5e, roof:0xffb4a2, blurb:'Change who you are, and spend what you earned' },
+    { id:'mall',     name:'THE MALL',        em:'\u{1F642}', lon:19,  lat:-6, w:72, d:48, h:15, door:10,
+      wall:0x6b4a5e, roof:0xffb4a2, blurb:'Everyone you could be, standing up' },
     { id:'library',  name:'THE LIBRARY',     em:'\u{1F4DA}', lon:0,   lat:-21, w:26, d:20, h:11,
       wall:0x4d6b4a, roof:0xa8e6cf, blurb:'Look up any word in the language' },
     { id:'mechanic', name:'THE MECHANIC',    em:'\u{1F527}', lon:-34, lat:6,  w:40, d:28, h:14, door:9,
@@ -234,6 +234,7 @@ window.PLANET = (function(){
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
     statues=[]; ada=null; bays=[]; spinners=[]; purseFace=null; padShip=null; padB=null;
+    mannequins=[]; flies=null; beasts=[]; sparkTex=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
     /* The stars, the neighbour and its ring all sit five hundred metres out
@@ -251,6 +252,8 @@ window.PLANET = (function(){
     launchpad(W);                  // its plate, now that its patch is flat
     scatter();                     // after the buildings: it works around them
     cover();                       // and the small stuff after the big stuff
+    fireflies();                   // and then the things that are alive
+    wildlife(W.kind==='home' ? 10 : 18);
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
@@ -992,6 +995,8 @@ window.PLANET = (function(){
         statue(g, s.id, keepIn(p.x - Math.sin(p.r)*4.6, hw),
                         keepIn(p.z - Math.cos(p.r)*4.6, hd), p.r);
       });
+    } else if(b.id==='mall'){
+      mallroom(g, b, hw, hd);
     } else if(b.id==='mechanic'){
       showroom(g, b, hw, hd);
     } else if(b.id==='library'){
@@ -999,6 +1004,328 @@ window.PLANET = (function(){
       reading(g, b, hw, hd, H);
       librarian(g, b, 5.5, -hd+3.6);
     } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+  }
+
+  /* -------------------------------------------------------- living things
+     A landscape with weather in it and nothing alive is a diorama. Two
+     cheap things fix that, and neither of them needs to be clever:
+
+     FIREFLIES, which are one Points object. Not one mesh each — a thousand
+     meshes of one triangle is a thousand draw calls, and the whole effect is
+     specks of light you never look at directly. Each one owns a little orbit
+     round a home spot and a phase, and the whole cloud is rewritten into one
+     buffer every frame.
+
+     ANIMALS, which walk. A handful of them, each with a heading it keeps for
+     a while and then changes, moving on great circles exactly the way the
+     player does — the same rotate-about-(up × move) that makes going straight
+     on come back round. They stand on the terrain, they step round the
+     buildings, and their legs move, because a thing that slides across grass
+     reads as a bug and a thing that bobs reads as alive. */
+  /* Density, not count. Nine hundred spread over a three-hundred-metre disc
+     is one every three hundred square metres, which put eight of them inside
+     the forty metres you can actually see — a firefly you have to go looking
+     for is not an effect, it is a rounding error. Four thousand over a
+     smaller circle puts about a hundred and fifty in view. */
+  let flies=null, flyHome=null, flyPhase=null, flyT=0;
+  // and the texture is thrown away with the room, like everything else here
+  const FLIES=4000, FLY_R=170;
+  /* A point with no texture is a SQUARE, and a field of one-metre white
+     squares bobbing over the grass looks like a printing error rather than
+     an insect. A soft round falloff is the whole difference. */
+  let sparkTex=null;
+  function sparkTexture(){
+    if(sparkTex) return sparkTex;
+    const N=64, c=document.createElement('canvas'); c.width=c.height=N;
+    const x=c.getContext('2d');
+    const gr=x.createRadialGradient(N/2,N/2,0, N/2,N/2,N/2);
+    gr.addColorStop(0,   'rgba(255,255,235,1)');
+    gr.addColorStop(0.25,'rgba(255,240,160,0.85)');
+    gr.addColorStop(0.6, 'rgba(255,220,110,0.18)');
+    gr.addColorStop(1,   'rgba(255,210,90,0)');
+    x.fillStyle=gr; x.fillRect(0,0,N,N);
+    sparkTex=new THREE.CanvasTexture(c);
+    sparkTex.colorSpace=THREE.SRGBColorSpace;
+    return sparkTex;
+  }
+  function fireflies(){
+    const town=townDir(), fr=frameAt(town,0);
+    const pos=new Float32Array(FLIES*3);
+    flyHome=new Array(FLIES);
+    flyPhase=new Float32Array(FLIES*3);
+    for(let i=0;i<FLIES;i++){
+      let dir;
+      if(Math.random()<0.75){                       // most of them near the town
+        const a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*FLY_R/PR;
+        const ax=fr.right.clone().multiplyScalar(Math.cos(a))
+                 .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+        dir=town.clone().applyAxisAngle(ax, r).normalize();
+      } else {
+        const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+        dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
+      }
+      // low: knee to head height over the grass, where you will walk through them
+      flyHome[i]={ dir, up:frameAt(dir,0), h:terrainH(dir)+0.4+Math.random()*1.8 };
+      flyPhase[i*3  ]=Math.random()*Math.PI*2;
+      flyPhase[i*3+1]=0.35+Math.random()*0.9;       // how fast it wanders
+      flyPhase[i*3+2]=0.7+Math.random()*1.8;        // how far
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    flies=new THREE.Points(g, new THREE.PointsMaterial({
+      color:0xfff0a0, size:0.62, sizeAttenuation:true, map:sparkTexture(),
+      transparent:true, opacity:0.95, depthWrite:false,
+      blending:THREE.AdditiveBlending }));
+    flies.frustumCulled=false;
+    flies.userData.sky=true;                        // a spark casts no shadow
+    G.roomGroup.add(flies);
+    flyTick(0);
+  }
+  function flyTick(dt){
+    if(!flies) return;
+    flyT+=dt;
+    const p=flies.geometry.attributes.position, a=p.array;
+    for(let i=0;i<FLIES;i++){
+      const h=flyHome[i], ph=flyPhase[i*3], sp=flyPhase[i*3+1], rad=flyPhase[i*3+2];
+      const tt=flyT*sp+ph;
+      // a slow lissajous round the home spot, in that spot's own tangent plane
+      const ox=Math.sin(tt)*rad, oz=Math.sin(tt*0.73+1.1)*rad;
+      const oy=Math.sin(tt*1.31)*0.5;
+      const r=PR+h.h+oy;
+      a[i*3  ]=h.dir.x*r + h.up.right.x*ox + h.up.fwd.x*oz;
+      a[i*3+1]=h.dir.y*r + h.up.right.y*ox + h.up.fwd.y*oz;
+      a[i*3+2]=h.dir.z*r + h.up.right.z*ox + h.up.fwd.z*oz;
+    }
+    p.needsUpdate=true;
+    // they pulse, all slightly out of step, which is most of what says "alive"
+    flies.material.opacity=0.55+0.4*Math.abs(Math.sin(flyT*1.6));
+  }
+
+  /* --------------------------------------------------------------- beasts */
+  const BEASTS=[
+    { key:'grazer',  body:0xb08a5e, spot:0x8a6a44, len:1.7, tall:1.05, legs:0.62, speed:1.5, neck:1.0 },
+    { key:'hopper',  body:0xd4a6c8, spot:0xb07fa4, len:0.9, tall:0.72, legs:0.42, speed:2.6, neck:0.5 },
+    { key:'strider', body:0x7fa8c4, spot:0x5d86a0, len:1.3, tall:1.5,  legs:1.15, speed:2.0, neck:1.5 }
+  ];
+  let beasts=[];
+  function beastModel(k){
+    const g=new THREE.Group();
+    const skin=lam(k.body), dark=lam(k.spot);
+    const body=new THREE.Mesh(new THREE.BoxGeometry(k.len*0.62, k.tall*0.5, k.len), skin);
+    body.position.y=k.legs+k.tall*0.25; g.add(body);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(k.len*0.42, k.tall*0.38, k.len*0.42), skin);
+    head.position.set(0, k.legs+k.tall*0.25+k.neck*0.42, -k.len*0.62); g.add(head);
+    const neck=new THREE.Mesh(new THREE.BoxGeometry(k.len*0.26, k.neck*0.6, k.len*0.26), dark);
+    neck.position.set(0, k.legs+k.tall*0.25+k.neck*0.18, -k.len*0.44); g.add(neck);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz],i)=>{
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(k.len*0.16, k.legs, k.len*0.16), dark);
+      leg.geometry.translate(0,-k.legs/2,0);                 // hinge at the top
+      leg.position.set(sx*k.len*0.22, k.legs, sz*k.len*0.34);
+      leg.userData.phase=i*Math.PI/2;
+      g.add(leg);
+      (g.userData.legs = g.userData.legs || []).push(leg);
+    });
+    const tail=new THREE.Mesh(new THREE.BoxGeometry(k.len*0.12, k.len*0.12, k.len*0.5), dark);
+    tail.position.set(0, k.legs+k.tall*0.32, k.len*0.6); g.add(tail);
+    return g;
+  }
+  function wildlife(n){
+    beasts=[];
+    const town=townDir(), fr=frameAt(town,0);
+    for(let i=0;i<n;i++){
+      const k=BEASTS[i%BEASTS.length];
+      const a=Math.random()*Math.PI*2, r=(60+Math.random()*300)/PR;
+      const ax=fr.right.clone().multiplyScalar(Math.cos(a))
+               .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+      const dir=town.clone().applyAxisAngle(ax, r).normalize();
+      if(BUILDINGS.some(b=>b.dir && dir.angleTo(b.dir)*PR <
+           Math.hypot(b.w,b.d)/2 + 8)) continue;
+      const g=beastModel(k);
+      G.roomGroup.add(g);
+      beasts.push({ k, g, dir, fwd:frameAt(dir, Math.random()*Math.PI*2).fwd,
+                    step:0, rest:Math.random()*4, turn:0 });
+    }
+  }
+  function beastTick(dt){
+    for(const bs of beasts){
+      const up=bs.dir.clone().normalize();
+      // keep the heading in the tangent plane; a long walk drifts out of it
+      bs.fwd.sub(up.clone().multiplyScalar(bs.fwd.dot(up)));
+      if(bs.fwd.lengthSq()<1e-8) bs.fwd.copy(frameAt(up,0).fwd);
+      bs.fwd.normalize();
+
+      bs.rest-=dt;
+      if(bs.rest<=0){                       // stop, look about, choose a new way
+        bs.rest=3+Math.random()*7;
+        bs.turn=(Math.random()-0.5)*2.4;
+      }
+      const walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
+      if(bs.turn){ const d=Math.min(Math.abs(bs.turn), 1.3*dt)*Math.sign(bs.turn);
+                   bs.fwd.applyAxisAngle(up, d); bs.turn-=d; }
+      if(walking){
+        const v=bs.k.speed;
+        const axis=new THREE.Vector3().crossVectors(up, bs.fwd).normalize();
+        const ang=(v*dt)/PR;
+        const want=bs.dir.clone().applyAxisAngle(axis, ang).normalize();
+        // a building is a thing to walk round, not through
+        const hit=BUILDINGS.some(b=>b.dir && want.angleTo(b.dir)*PR <
+                    Math.hypot(b.w,b.d)/2 + 5);
+        if(hit){ bs.turn=1.6; }
+        else { bs.dir.copy(want); bs.fwd.applyAxisAngle(axis, ang); bs.step+=v*dt; }
+      }
+      /* up × forward, in that order. The other way round is still a perfectly
+         valid set of three axes — it is just left-handed, so makeBasis builds
+         a REFLECTION rather than a rotation and the animal lies down on its
+         side inside its own mirror image. Same order the car and the player
+         use, for the same reason. */
+      const fwd=bs.fwd.clone(), up2=bs.dir.clone().normalize();
+      const right=new THREE.Vector3().crossVectors(up2, fwd).normalize();
+      bs.g.quaternion.setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(right, up2, fwd));
+      bs.g.position.copy(bs.dir).multiplyScalar(PR + floorAt(bs.dir));
+      // legs swing when it moves and hang still when it does not
+      (bs.g.userData.legs||[]).forEach(l=>{
+        l.rotation.x = walking ? Math.sin(bs.step*2.4 + l.userData.phase)*0.5 : 0;
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------- the mall
+     Choosing who you are used to be a grid of thumbnails on a screen. A
+     thumbnail of a character is a picture of a decision; the character
+     standing in front of you at your own height, turning on a dais, is the
+     decision itself. Same argument as the hall of statues in Mission
+     Control, and the same machinery: something up on a plinth, a console
+     beside it, walk over and press E.
+
+     The screen has not gone — the counter at the back still opens it, and it
+     is still where the ships are and where a keyboard can do everything in
+     four keys. But it is no longer the FIRST thing that happens when you
+     open a door. */
+  let mannequins=[];
+  /* Round the walls, evenly: seven along the back and the rest up the two
+     sides, every one of them turned to face the middle of the room. */
+  /* Eighteen people each need a dais four metres across and a console two
+     and a half wide in front of them. Cram that into a room the size of a
+     classroom and the consoles overlap each other and the person they are
+     labelling — which is what the first version did, and it read as one
+     continuous wall of price tags. */
+  function mallSpots(n, hw, hd){
+    const out=[], back=Math.min(n,8), x0=-hw+8, x1=hw-8;
+    for(let i=0;i<back;i++){
+      const t=back===1?0.5:i/(back-1);
+      out.push({ x:x0+t*(x1-x0), z:-hd+6, r:0 });
+    }
+    const rest=n-back, per=Math.max(1,Math.ceil(rest/2)), z0=-hd+14, z1=hd-9;
+    for(let i=0;i<rest;i++){
+      const side=(i%2)?1:-1, k=(i/2)|0;
+      const t=per===1?0.5:k/(per-1);
+      out.push({ x:side*(hw-7), z:z0+t*(z1-z0), r:side*(-Math.PI/2) });
+    }
+    return out;
+  }
+  /* A dais, not a column. The plinths in Mission Control lift a statue to be
+     admired from across a hall; a person you are deciding to BE should be
+     standing at your own height, close enough to look in the face. */
+  function dais(tint){
+    const g=new THREE.Group();
+    const st=new THREE.MeshLambertMaterial({color:0x8d93b5});
+    const dk=new THREE.MeshLambertMaterial({color:0x545a7d});
+    const step=(r,h,y,m)=>{ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.06,h,20), m||st);
+      c.position.y=y; g.add(c); };
+    step(1.9,0.22,0.11,dk); step(1.7,0.24,0.34); step(1.45,0.22,0.57,dk);
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.1,20),
+      new THREE.MeshBasicMaterial({color:tint||0x8fd3ff}));
+    band.position.y=0.70; g.add(band);
+    const glow=new THREE.Mesh(new THREE.CircleGeometry(1.35,20),
+      new THREE.MeshBasicMaterial({color:tint||0x8fd3ff, transparent:true, opacity:0.25}));
+    glow.rotation.x=-Math.PI/2; glow.position.y=0.76; g.add(glow);
+    return g;
+  }
+  function wearLabel(it){
+    const owned=SHOP.ownsChar(it);
+    const on=window.AVATAR && AVATAR.chosen===it.charId;
+    return { line: on ? t('WEARING') : owned ? t('YOURS')
+                     : (it.price===0 ? t('FREE') : it.price+' ◆'),
+             bg: on ? '#1d4030' : owned ? '#22406b' : '#3a2a1b' };
+  }
+  function mallroom(g, b, hw, hd){
+    mannequins=[];
+    if(!window.SHOP || !window.AVATAR) return;
+    /* Shop lighting: a windowless room under a roof that really does block
+       the sun, so the light has to come from in here. */
+    [-hd*0.4, hd*0.3].forEach(z=>{
+      const tube=new THREE.Mesh(new THREE.BoxGeometry(hw*1.3,0.28,0.8),
+        new THREE.MeshBasicMaterial({color:0xffeef6}));
+      tube.position.set(0, b.h-1.3, z); g.add(tube);
+      const lamp=new THREE.PointLight(0xffe6f0, 300, 58, 1.4);
+      lamp.position.set(0, b.h-2, z); g.add(lamp);
+    });
+    const spill=new THREE.PointLight(0xdfe9ff, 110, 40, 1.5);
+    spill.position.set(0, 5, hd-4); g.add(spill);
+
+    const items=SHOP.charItems();
+    const spots=mallSpots(items.length, hw, hd);
+    items.forEach((it,i)=>{
+      const s=spots[i]; if(!s) return;
+      const tint=SHOP.ownsChar(it) ? 0xa8e6cf : 0xffe9a8;
+      const d=dais(tint); d.position.set(s.x, 0, s.z); g.add(d);
+      const stage=new THREE.Group();
+      stage.position.set(s.x, 0.78, s.z); stage.rotation.y=s.r;
+      g.add(stage);
+      /* BESIDE the dais, not in front of it. A console is three metres tall
+         and the person it is labelling is under two — stand it between them
+         and the viewer and the whole point of a mannequin is gone. */
+      const cx=s.x + 3.1*Math.cos(s.r) + 1.7*Math.sin(s.r);
+      const cz=s.z - 3.1*Math.sin(s.r) + 1.7*Math.cos(s.r);
+      const p=panel(g, b, cx, cz,
+        '\u{1F642}', t(it.name)+'\n'+wearLabel(it).line, 'wear:'+it.charId,
+        wearLabel(it).bg, 0.5, s.r);
+      mannequins.push({ it, p, stage, model:null });
+      AVATAR.load(it.charId).then(root=>{
+        if(!on || !stage.parent) return;
+        stage.add(root);
+        const m=mannequins.find(x=>x.stage===stage); if(m) m.model=root;
+      }).catch(()=>{});
+    });
+    /* The counter, off to one side. Straight ahead of the door it was the
+       first thing you walked into, which is a fine way to make sure nobody
+       ever sees the shop floor. */
+    panel(g, b, hw-9, hd-7, '\u{1F4CB}', t('THE COUNTER')+'\n'+t('ships and the full list'),
+      'counter', '#2a2013', 0.7, -Math.PI/2);
+  }
+  function repaintMall(){
+    mannequins.forEach(m=>{
+      const w=wearLabel(m.it), face=m.p && m.p.userData.glow;
+      if(!face) return;
+      if(face.material.map) face.material.map.dispose();
+      face.material.map=panelTex('\u{1F642}', t(m.it.name)+'\n'+w.line, w.bg);
+      face.material.needsUpdate=true;
+    });
+  }
+  function wear(charId){
+    if(!window.SHOP || !window.AVATAR) return;
+    const it=SHOP.charItems().find(x=>x.charId===charId); if(!it) return;
+    if(!SHOP.ownsChar(it)){
+      const r=SHOP.buy(it.id, it.price);
+      if(r==='poor'){
+        say(t('{n} costs {p} ◆. You have {c} ◆.',
+              {n:t(it.name), p:it.price, c:WALLET.coins()}));
+        return;
+      }
+      say(t('Bought {n}.',{n:t(it.name)}));
+    } else say(t('You are {n} now.',{n:t(it.name)}));
+    SHOP.equip(it.id);                    // which calls AVATAR.pick for us
+    repaintMall();
+  }
+  /* The mannequins turn, slowly and all together, the way a shop window
+     turns — it is what stops eighteen people standing still reading as
+     eighteen corpses. */
+  function mallTick(dt){
+    mannequins.forEach(m=>{
+      m.stage.rotation.y += 0.35*dt;
+      if(m.model && window.AVATAR) AVATAR.animate(m.model, dt, 'idle');
+    });
   }
 
   /* ------------------------------------------------------------- the pad
@@ -1735,7 +2062,7 @@ window.PLANET = (function(){
                 keysFor(); say(t('Back on foot.')); return; }
     let c=SHOP.car();
     if(!c || !SHOP.ownsCar(c)) c=SHOP.CARS.find(x=>SHOP.ownsCar(x));
-    if(!c){ say(t('No car yet. The Wardrobe sells them.')); return; }
+    if(!c){ say(t('No car yet. The Mechanic sells them.')); return; }
     SHOP.equip(c.id);
     fitRide();
     me.spd=0; me.look=0;
@@ -1809,14 +2136,18 @@ window.PLANET = (function(){
     if(!id) return;
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
-    const known = id==='workshop' || id==='wardrobe' || id==='library'
+    const known = id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
-               || id==='launch' || id==='house'
+               || id==='launch' || id==='house' || id==='counter'
+               || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
     if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
-    if(id==='wardrobe'){ leave(); return MENU.chars(); }
+    // the Mall is a room you walk round, not a screen: only the counter
+    // inside it opens the full list, and that is 'counter'
+    if(id==='mall'){ say(t('Walk up to anyone. <b>E</b> to wear them.')); return; }
+    if(id==='counter'){ leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
        you can look a word up and still be standing where you were. */
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
@@ -1828,6 +2159,7 @@ window.PLANET = (function(){
       return;
     }
     if(id.indexOf('buy:')===0){ purchase(id.slice(4)); return; }
+    if(id.indexOf('wear:')===0){ wear(id.slice(5)); return; }
     if(id==='launch'){ travel(); return; }
     if(id==='house'){ leave(); return FREE.enter(server||{id:null,name:'Home'}, null); }
     if(!PROGRESS.unlocked(id)){
@@ -1917,6 +2249,8 @@ window.PLANET = (function(){
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     spinners.forEach(m=>{ m.rotation.y += 0.55*dt; });
+    mallTick(dt);
+    flyTick(dt); beastTick(dt);
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
@@ -2124,7 +2458,7 @@ window.PLANET = (function(){
     if(o) o.innerHTML=
       `<li class="cur">\u{1F680} ${t('Mission Control')} — ${t('every mission, one station each')}</li>
        <li>\u{1F527} ${t('The Workshop')} — ${t('build anything, with your class')}</li>
-       <li>\u{1F642} ${t('The Wardrobe')} — ${t('spend what you earned')}</li>
+       <li>\u{1F642} ${t('The Mall')} — ${t('spend what you earned')}</li>
        <li>\u{1F4DA} ${t('The Library')} — ${t('look up any word')}</li>`;
     say(t('Walk into a building. <b>E</b> to go in.'));
   }

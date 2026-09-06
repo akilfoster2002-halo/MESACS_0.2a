@@ -626,8 +626,8 @@ window.ES = {
 
   /* ---------- the home planet ---------- */
   'Home Planet':'Planeta Base',
-  'MISSION CONTROL':'CONTROL DE MISIONES','THE WORKSHOP':'EL TALLER','THE WARDROBE':'EL VESTUARIO',
-  'Mission Control':'Control de Misiones','The Workshop':'El Taller','The Wardrobe':'El Vestuario',
+  'MISSION CONTROL':'CONTROL DE MISIONES','THE WORKSHOP':'EL TALLER','THE WARDROBE':'EL VESTUARIO','THE MALL':'EL CENTRO',
+  'Mission Control':'Control de Misiones','The Workshop':'El Taller','The Wardrobe':'El Vestuario','The Mall':'El Centro',
   'Every mission, one station each':'Cada misión, una estación para cada una',
   'every mission, one station each':'cada misión, una estación para cada una',
   'Build anything, with your class':'Construye lo que quieras, con tu clase',
@@ -744,7 +744,7 @@ window.ES = {
   '{n} — <b>W</b> to go, <b>A D</b> to steer, <b>S</b> to brake.':
     '{n} — <b>W</b> para acelerar, <b>A D</b> para girar, <b>S</b> para frenar.',
   'Back on foot.':'De vuelta a pie.',
-  'No car yet. The Wardrobe sells them.':'Aún no tienes coche. El Vestuario los vende.',
+  'No car yet. The Mechanic sells them.':'Aún no tienes coche. El Mecánico los vende.',
 
   /* ---------- arithmetic moves and turning ---------- */
   'Hard to Starboard':'Timón a Estribor','An angle is a number too':'Un ángulo también es un número',

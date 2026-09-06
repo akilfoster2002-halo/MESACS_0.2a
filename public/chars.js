@@ -95,7 +95,7 @@ window.CHARS = (function(){
   function render(){
     const grid=document.querySelector('#charGrid'); if(!grid) return;
     const open=unlockedCount();
-    document.querySelector('#cTitle').textContent=t('THE WARDROBE');
+    document.querySelector('#cTitle').textContent=t('THE MALL');
     // no promise of more until there is a way to earn them
     document.querySelector('#cHint').textContent =
       t('Change who you are, and spend what you earned. Coins come from missions.');
