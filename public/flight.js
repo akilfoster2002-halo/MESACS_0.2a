@@ -436,7 +436,7 @@ window.FLIGHT = (function(){
         /* How many times you went back to the console. The first program is
            free — every stop after it is one you are trying to avoid, and a
            loop is what buys you the beats to avoid it. */
-        runs:0, wasOpen:false, radarKey:'', radarFocus:undefined };
+        runs:0, gen:0, wasOpen:false, radarKey:'', radarFocus:undefined };
 
     G.scene.add(starfield());                      // sky, not room: it never moves
     G.roomGroup.add(rails(Math.max(beats.length, 6)));
@@ -516,7 +516,16 @@ window.FLIGHT = (function(){
 
   /* ------------------------------------------------------- run a program */
   function run(steps){
-    if(busy || !L || L.done) return;
+    if(!L || L.done) return;
+    /* RUN always means START OVER. It used to bail out whenever a run was
+       already in flight, which is fine until one ends without clearing the
+       flag — and then the button is simply dead with nothing on screen to say
+       why. Every press bumps a generation instead, and anything still running
+       from the last press notices and stops. */
+    L.gen=(L.gen||0)+1;
+    busy=false;
+    bolts.forEach(b=>{ if(b.m && b.m.parent) b.m.parent.remove(b.m); });
+    bolts=[];
     L.crashed=false;
     if(L.kind==='gun') return runGun(steps);
     // the flight is not walked step by step: it is flown on a clock, and
@@ -525,8 +534,12 @@ window.FLIGHT = (function(){
     L.runs++;
     L.steps=steps; L.at=0;
     L.beat=0; L.elapsed=0; L.rolling=true;
-    L.col=L.fromCol=L.K.start.col; L.row=L.fromRow=L.K.start.row; L.ease=1;
-    L.shipZ=0;
+    /* EVERYTHING the last attempt changed goes back, not just the position.
+       The angle is state too, and a ship left rotated by a crash makes the
+       same program fly differently the second time — which looks like the
+       game cheating rather than like a bug. */
+    L.col=L.fromCol=L.K.start.col; L.row=L.fromRow=L.K.start.row;
+    L.ang=L.fromAng=0; L.ease=1; L.shipZ=0; L.radarFocus=undefined;
     pull();                                       // the move for beat 1 starts now
     brief(L.runs>1
       ? t('Again from the start. Stops: {n}.',{n:stops()})
@@ -727,10 +740,16 @@ window.FLIGHT = (function(){
      No clock out here, so this one IS walked step by step, the way the
      Circuit and Escape are. */
   function runGun(steps){
+    const gen=L.gen;
     busy=true;
+    restoreTargets();
+    L.col=L.fromCol=L.K.start.col; L.row=L.fromRow=L.K.start.row;
+    L.ang=L.fromAng=0; L.ease=1;
+    fly(0.016,false,false);
     let i=0;
     (function next(){
-      if(!L || L.done){ busy=false; return; }
+      // a newer press has taken over, so this chain is finished with
+      if(!L || L.done || L.gen!==gen){ busy=false; return; }
       if(i>=steps.length){
         busy=false; CODE.highlight(null); CODE.hideTape();
         if(L.left>0) brief(t('Program finished with {n} target(s) still standing.',{n:L.left}));
@@ -740,7 +759,8 @@ window.FLIGHT = (function(){
       if(s.name==='__iter'){ CODE.setIter(s.blockId,s.i,s.n); return setTimeout(next,90); }
       if(s.name==='__if'||s.name==='__call'){ CODE.highlight(s); return setTimeout(next,90); }
       CODE.highlight(s);
-      act(s, ()=>{ if(!L || L.done){ busy=false; return; } setTimeout(next,50); });
+      act(s, ()=>{ if(!L || L.done || L.gen!==gen){ busy=false; return; }
+                   setTimeout(next,50); });
     })();
   }
   function act(s, done){
@@ -755,18 +775,19 @@ window.FLIGHT = (function(){
       new THREE.MeshBasicMaterial({color:0x8ff0ff}));
     b.position.copy(ship.position); b.position.z-=1.4;
     G.roomGroup.add(b);
-    bolts.push({ m:b, col:L.col, row:L.row, done, t:0 });
+    bolts.push({ m:b, col:L.col, row:L.row, done, t:0, gen:L.gen });
     if(window.beep) beep('pop');
   }
   function boltsTick(dt){
     for(let i=bolts.length-1;i>=0;i--){
       const b=bolts[i];
+      if(!L || b.gen!==L.gen){ finishBolt(i,b); continue; }   // fired last round
       b.m.position.z -= 62*dt; b.t+=dt;
       const hit = rocks.find(m=>m.userData.alive && m.userData.col===b.col
                                                  && m.userData.row===b.row);
       if(hit && b.m.position.z <= hit.position.z+0.9){
         hit.userData.alive=false;
-        G.roomGroup.remove(hit);
+        hit.visible=false;                 // hidden, not removed: Run puts it back
         L.left--;
         pop(hit.position);
         finishBolt(i, b);
@@ -824,12 +845,25 @@ window.FLIGHT = (function(){
       if(window.CODE && !CODE.isOpen()) CODE.show();
     }, 1600);
   }
+  /* Back to the start line, in every sense: lane, angle, distance and the
+     radar's idea of where you had got to. */
   function reset(){
     if(!L) return;
     L.crashed=false; L.rolling=false; L.beat=0; L.elapsed=0; L.at=0; L.steps=null;
     L.col=L.fromCol=L.K.start.col; L.row=L.fromRow=L.K.start.row;
-    L.ease=1; L.shipZ=0;
+    L.ang=L.fromAng=0; L.ease=1; L.shipZ=0; L.radarFocus=undefined;
+    if(L.kind==='gun') restoreTargets();
     fly(); hud(); beatOut();
+  }
+  /* The range is a start line too. Targets you shot last time come back and
+     the crosshair goes home, or a second Run continues a half-finished round
+     and the program you are testing is not the program that gets judged. */
+  function restoreTargets(){
+    L.left=0;
+    rocks.forEach(m=>{
+      if(!m.userData || m.userData.col===undefined) return;
+      m.userData.alive=true; m.visible=true; L.left++;
+    });
   }
   function finish(){
     if(!L || L.done) return;
