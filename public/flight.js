@@ -173,6 +173,7 @@ window.FLIGHT = (function(){
   ];
 
   let L=null, busy=false, ship=null, rocks=[], bolts=[], wasFP=null;
+  let shipSpan=3.7;                  // measured off the ship the moment it is built
 
   /* ---------------------------------------------------------- the chart */
   const clamp=(v,n)=>Math.max(0, Math.min(n-1, v));
@@ -428,9 +429,15 @@ window.FLIGHT = (function(){
 
     G.scene.add(starfield());                      // sky, not room: it never moves
     G.roomGroup.add(rails(Math.max(beats.length, 6)));
-    if(K.kind==='fly') layRocks(); else layTargets();
-
+    /* The ship is built FIRST and measured, because a slot has to be cut to
+       fit it. Laying the field first meant guessing a gap width, and the
+       guess was 1.66 against a ship 3.67 across — so even lined up perfectly
+       it ploughed through the rock instead of flying through the hole. */
     ship=build(); G.roomGroup.add(ship);
+    const sb=new THREE.Box3().setFromObject(ship);
+    shipSpan=Math.max(sb.max.x-sb.min.x, sb.max.y-sb.min.y);
+
+    if(K.kind==='fly') layRocks(); else layTargets();
     if(window.AVATAR) AVATAR.detach();
     /* The held blaster is a first-person prop and it hangs in the middle of
        the windscreen out here. GUN only re-reads this in step(), which the
@@ -467,21 +474,31 @@ window.FLIGHT = (function(){
      it. Two slabs either side of the gap, the pair rotated to the slot's
      angle — so the gap is visibly a slot you have to line up with rather
      than a lane you have to find. */
+  const SLOT_DEPTH=6;                // deep enough that going through reads as a tunnel
   function laySlot(mask, b){
     const ang=slotAngle(mask);
     const g=new THREE.Group();
-    const span=LANE*COLS+3, gap=2.1, slab=(span-gap)/2;
+    const span=LANE*COLS+3;
+    /* Wide enough for the ship AT ANY ANGLE, not just the right one. It turns
+       while it flies, so it meets the gap part-way through a rotation, and a
+       gap cut to the aligned width would clip it every single time. */
+    const gap=shipSpan+1.7, slab=Math.max(2.4,(span-gap)/2);
     const mat=new THREE.MeshLambertMaterial({ color:0x8a7f6e });
+    const inner=gap/2, outer=gap/2+slab;
     [-1,1].forEach(sgn=>{
-      // a slab of rubble rather than a clean brick, so it reads as asteroid
+      // rubble rather than a clean brick, so it reads as asteroid — but kept
+      // clear of the hole, or the rocks close the gap the slab left open
       const part=new THREE.Group();
-      for(let i=0;i<7;i++){
-        const m=rock(1.0+Math.random()*0.7);
-        m.position.set((Math.random()-0.5)*span*0.9,
-                       sgn*(gap/2+slab/2)+(Math.random()-0.5)*slab*0.7, 0);
+      for(let i=0;i<8;i++){
+        const rad=0.9+Math.random()*0.7;
+        const lo=inner+rad+0.25, hi=Math.max(lo+0.1, outer-rad*0.4);
+        const d=lo+Math.random()*(hi-lo);
+        const m=rock(rad);
+        m.position.set((Math.random()-0.5)*span*0.9, sgn*d,
+                       (Math.random()-0.5)*SLOT_DEPTH*0.6);
         part.add(m);
       }
-      const core=new THREE.Mesh(new THREE.BoxGeometry(span, slab, 2.2), mat);
+      const core=new THREE.Mesh(new THREE.BoxGeometry(span, slab, SLOT_DEPTH), mat);
       core.position.y=sgn*(gap/2+slab/2);
       part.add(core);
       g.add(part);
