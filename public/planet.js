@@ -160,7 +160,7 @@ window.PLANET = (function(){
       me.dir=landingSpot();
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
-    me.alt=0; me.vy=0; me.onGround=true; me.spd=0; me.look=0;
+    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
@@ -218,6 +218,67 @@ window.PLANET = (function(){
       G.roomGroup.add(c);
     });
   }
+  /* ------------------------------------------------------------- the floor
+     A room is flat and the world is not, and that is a real contradiction,
+     not a rounding error: across a hall 64 metres wide the ground falls two
+     and a half metres away from a flat floor laid over it.  Walk in and you
+     walk down into the stone.
+
+     So the floor is its own surface.  Level over the whole room — a room
+     should feel like a room the moment you are in it — and then, in a band
+     around the outside, it bends down to meet the ground exactly where the
+     ground is.  You walk up an apron onto it instead of stepping over a lip,
+     and the same function that shapes the mesh decides how high you stand,
+     so what you see and what you walk on cannot drift apart. */
+  /* The apron is as long as the drop it has to cover, so a shed does not get
+     a castle's forecourt: the ground falls away as the square of the distance
+     from the middle, so a small building barely leans at all. */
+  const apronOf = b => Math.max(3, Math.min(9, b.w/7));
+  /* how far outside the room this point is, in metres; 0 anywhere inside */
+  function plateOff(b,x,z){
+    const ox=Math.max(0, Math.abs(x)-(b.w/2+1)), oz=Math.max(0, Math.abs(z)-(b.d/2+1));
+    return Math.hypot(ox,oz);
+  }
+  /* the height of that surface, in the building's own frame */
+  function plateY(b,x,z){
+    const k=Math.min(1, plateOff(b,x,z)/apronOf(b)), s=k*k*(3-2*k);
+    const p=Math.hypot(x,z);
+    return (Math.sqrt(Math.max(0,PR*PR-p*p))-PR)*s;   // 0 inside, the ground at the rim
+  }
+  function plate(b){
+    const A=apronOf(b), W=b.w+2*(1+A), D=b.d+2*(1+A);
+    const geo=new THREE.PlaneGeometry(W, D,
+      Math.max(14,Math.round(W/2.5)), Math.max(14,Math.round(D/2.5)));
+    geo.rotateX(-Math.PI/2);
+    const pos=geo.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const x=pos.getX(i), z=pos.getZ(i);
+      // the very rim sinks in: the ball is drawn as flats, so its surface sits
+      // a little under the true sphere between vertices and a rim laid exactly
+      // on the sphere would hover over it
+      const rim = Math.abs(x)>W/2-0.01 || Math.abs(z)>D/2-0.01;
+      pos.setY(i, plateY(b,x,z) - (rim?0.5:0));
+    }
+    if(geo.computeVertexNormals) geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:0x8b8f9e}));
+    m.position.y=-0.02;                // under the rug, not fighting it for pixels
+    return m;
+  }
+  /* How far off the ball the floor is where you are standing — which is what
+     you stand on, indoors.  Zero out on the grass, so this is the ordinary
+     case costing four dot products. */
+  const FLOOR_COS=0.975;
+  function floorAt(dir){
+    for(const b of BUILDINGS){
+      if(!b.frame || dir.dot(b.dir)<FLOOR_COS) continue;
+      const l=local(b, dir.clone().multiplyScalar(PR));
+      if(plateOff(b,l.x,l.z)>=apronOf(b)) continue;
+      // altitude is measured along the radius, and the floor is not square to it
+      return (plateY(b,l.x,l.z)+PR)/Math.max(0.5, dir.dot(b.dir)) - PR;
+    }
+    return 0;
+  }
+
   /* Scattered over the whole ball, each standing on its own normal — on a
      sphere the far side has to be furnished too, or it reads as a backdrop. */
   /* Is this spot standing in the walk from the landing spot to the door? A
@@ -319,9 +380,7 @@ window.PLANET = (function(){
       m.position.set(x, base+hh/2, z); g.add(m);
       b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:base, y2:base+hh});
     };
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(b.w+4, 1, b.d+4),
-      new THREE.MeshLambertMaterial({color:0x8b8f9e}));
-    floor.position.y=-0.5; g.add(floor);
+    g.add(plate(b));
 
     put(0,-hd, b.w, 1);
     put(-hw,0, 1, b.d);
@@ -350,18 +409,26 @@ window.PLANET = (function(){
          every one of them turns to face whoever has just come through the
          gate. Two along the back and two down each side. */
       const spots=[
-        { x:-11, z:-hd+5, r:0 },            // back wall, facing the door
-        { x: 11, z:-hd+5, r:0 },
-        { x:-hw+6, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
-        { x:-hw+6, z:  6, r: Math.PI/4 },
-        { x: hw-6, z:-10, r:-Math.PI/4 },   // and down the right
-        { x: hw-6, z:  6, r:-Math.PI/4 }
+        { x:-13, z:-hd+11, r:0 },           // back wall, facing the door
+        { x: 13, z:-hd+11, r:0 },
+        { x:-hw+8, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
+        { x:-hw+8, z:  7, r: Math.PI/4 },
+        { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
+        { x: hw-8, z:  7, r:-Math.PI/4 }
       ];
+      /* A statue stands BEHIND its console, and a plinth is four metres square,
+         so "behind" has to be somewhere there is four metres of room. Get that
+         wrong by half a metre and the plinth grows out through the back of the
+         castle, which is what the outside of this building looked like. Keep
+         the whole base inside the walls and let the console sit further into
+         the hall instead. */
+      const PLINTH=2.2;
+      const keepIn=(v,half)=>Math.max(-half+1+PLINTH, Math.min(half-1-PLINTH, v));
       STATIONS.forEach((s,i)=>{
         const p=spots[i] || spots[spots.length-1];
         panel(g,b, p.x, p.z, s.em, t(s.name), s.id, '#1b2740', 0.8, p.r);
-        // the statue stands behind its own console, facing the same way
-        statue(g, s.id, p.x - Math.sin(p.r)*4.6, p.z - Math.cos(p.r)*4.6, p.r);
+        statue(g, s.id, keepIn(p.x - Math.sin(p.r)*4.6, hw),
+                        keepIn(p.z - Math.cos(p.r)*4.6, hd), p.r);
       });
     } else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
   }
@@ -636,6 +703,7 @@ window.PLANET = (function(){
       else { me.dir.copy(want); me.fwd.applyAxisAngle(axis, ang); moved=true;
              G.stats.steps += Math.abs(me.spd)*dt; }
     }
+    me.alt=floorAt(me.dir);            // drive up the apron, not through it
     place(dt, moved, Math.abs(me.spd)>CAR.top*0.6);
     // walk() does this every frame; without it here the held blaster keeps
     // whatever state it had when you got in and hangs in the windscreen
@@ -690,10 +758,13 @@ window.PLANET = (function(){
            || (sd ? tryMove(right.clone().multiplyScalar(sd)) : false);
       if(moved) G.stats.steps += spd*dt;
     }
+    // indoors the ground under you is the building's floor, not the ball
+    const floor=floorAt(me.dir);
     if(me.onGround && G.keys.Space){ me.vy=JUMP; me.onGround=false; }
-    if(!me.onGround){
+    if(me.onGround) me.alt=floor;
+    else {
       me.vy-=GRAV*dt; me.alt+=me.vy*dt;
-      if(me.alt<=0){ me.alt=0; me.vy=0; me.onGround=true; }
+      if(me.alt<=floor){ me.alt=floor; me.vy=0; me.onGround=true; }
     }
     place(dt, moved, running);
     if(window.GUN) GUN.update(dt, moved);
