@@ -107,8 +107,13 @@ window.MENU = (function(){
       }catch(err){ authMsg(err.message); }
     };
       const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
-    const st=$('#btnStart'); if(st) st.onclick=()=>chars();
-    const cb=$('#cBack');    if(cb) cb.onclick=()=>start();
+    /* START goes straight to the world. Everybody is handed one of the free
+       characters on arrival, so choosing one is no longer a gate you have to
+       pass before you are allowed to play — the Wardrobe is where you change
+       it, along with your ship and your car. */
+    const st=$('#btnStart'); if(st) st.onclick=()=>homeworld();
+    // and this screen is reached FROM the planet now, so back means back there
+    const cb=$('#cBack');    if(cb) cb.onclick=()=>homeworld();
     // picking a character is the last screen before the world: Continue lands
     // you on the planet, not on a grid of cards
     const cg=$('#cGo');      if(cg) cg.onclick=()=>{ if(window.CHARS) CHARS.close(); homeworld(); };

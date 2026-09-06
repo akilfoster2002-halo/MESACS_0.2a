@@ -423,8 +423,12 @@ window.PLANET = (function(){
      character standing inside a car reads as a bug rather than a driver,
      which is the same reason the Circuit leaves them in the pits. */
   function fitRide(){
+    /* Ask the shop whether it is yours, not the wallet. A free car was never
+       bought, so it is not in the owned list — checking the wallet directly
+       meant the one car everybody starts with was the one car that would not
+       load. */
     const c = window.SHOP ? SHOP.car() : null;
-    const want = c && WALLET.has(c.id) ? c : null;
+    const want = (c && SHOP.ownsCar(c)) ? c : null;
     if((want?want.id:null)===rideId) return;
     rideId = want ? want.id : null;
     if(ride && ride.parent) ride.parent.remove(ride);
@@ -669,7 +673,10 @@ window.PLANET = (function(){
   function leave(){
     if(on && me.dir) back={ dir:me.dir.clone(), fwd:me.fwd.clone() };
     on=false;
-    if(window.COACH) COACH.tick(0);
+    /* Let the last tour step notice it is done, then take the card away — its
+       farewell used to hang about for five seconds over whatever screen you
+       had just walked into. */
+    if(window.COACH){ COACH.tick(0); COACH.stop(); }
     if(window.CHAT) CHAT.hide();
     const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
     others.clear(); crowd=null;

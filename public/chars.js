@@ -95,12 +95,11 @@ window.CHARS = (function(){
   function render(){
     const grid=document.querySelector('#charGrid'); if(!grid) return;
     const open=unlockedCount();
-    document.querySelector('#cTitle').textContent=t('CHOOSE YOUR CHARACTER');
+    document.querySelector('#cTitle').textContent=t('THE WARDROBE');
     // no promise of more until there is a way to earn them
-    document.querySelector('#cHint').textContent = open < AVATAR.CHARS.length
-      ? t('{a} of {b} unlocked. Pick who you play as.',{a:open,b:AVATAR.CHARS.length})
-      : t('Everyone is unlocked. Pick your favourite.');
-    document.querySelector('#cGo').textContent=t('Continue ▶');
+    document.querySelector('#cHint').textContent =
+      t('Change who you are, and spend what you earned. Coins come from missions.');
+    document.querySelector('#cGo').textContent=t('Back to the planet ▶');
     purse(); shelves();
 
     /* The roster is a shop shelf now. The ??? tiles used to be locked with
@@ -173,23 +172,27 @@ window.CHARS = (function(){
      building it was in. */
   function shelves(){
     const el=document.querySelector('#cShop'); if(!el || !window.SHOP) return;
+    /* A ship is flown and a car is driven; neither is worn. The tag says what
+       you would actually be doing with it, and what one more click does. */
     const card=(o)=>`<button class="shopit${o.on?' on':''}${o.owned?'':' buy'}"
         data-shop="${o.id}" data-price="${o.price}" style="--a:${o.a}">
         <span class="si-swatch"></span>
         <b>${t(o.name)}</b><small>${t(o.blurb||'')}</small>
-        <span class="si-tag">${o.owned ? (o.on?t('WEARING'):t('OWNED')) : o.price+'¤'}</span>
+        <span class="si-tag">${o.owned ? (o.on?t(o.onWord):t(o.offWord)) : o.price+'¤'}</span>
       </button>`;
     const ships=SHOP.SHIPS.map(sh=>card({ id:sh.id, name:sh.name, blurb:sh.blurb,
       price:sh.price, owned:SHOP.ownsShip(sh), on:SHOP.ship().id===sh.id,
+      onWord:'FLYING', offWord:'TAP TO FLY',
       a:'#'+sh.hull.toString(16).padStart(6,'0') })).join('');
     const cur=SHOP.car();
     const cars=SHOP.CARS.map(c=>card({ id:c.id, name:c.name, blurb:c.blurb,
       price:c.price, owned:SHOP.ownsCar(c), on:!!cur && cur.id===c.id,
+      onWord:'DRIVING · TAP TO WALK', offWord:'TAP TO DRIVE',
       a:c.a })).join('');
     el.innerHTML=
       `<div class="shelf"><h4>🚀 ${t('SHIPS')} <small>${t('what you fly in Space Explorer')}</small></h4>
          <div class="shelfrow">${ships}</div></div>
-       <div class="shelf"><h4>🏎 ${t('CARS')} <small>${t('drive them around the planet')}</small></h4>
+       <div class="shelf"><h4>🏎 ${t('CARS')} <small>${t('tap one to drive it round your planet')}</small></h4>
          <div class="shelfrow">${cars}</div></div>`;
     el.querySelectorAll('[data-shop]').forEach(b=>{
       b.onclick=()=>{

@@ -759,6 +759,15 @@ window.ES = {
   '<b>turn</b> is not in this mission yet.':'<b>turn</b> aún no está en esta misión.',
   '<b>turn</b> needs an angle, like <b>turn 90</b>.':'<b>turn</b> necesita un ángulo, como <b>turn 90</b>.',
 
+  /* ---------- the wardrobe as a shop ---------- */
+  'FLYING':'VOLANDO','TAP TO FLY':'TOCA PARA VOLAR',
+  'DRIVING · TAP TO WALK':'CONDUCIENDO · TOCA PARA ANDAR','TAP TO DRIVE':'TOCA PARA CONDUCIR',
+  'tap one to drive it round your planet':'toca uno para conducirlo por tu planeta',
+  'Change who you are, and spend what you earned. Coins come from missions.':
+    'Cambia quién eres y gasta lo que ganaste. Las monedas vienen de las misiones.',
+  'Back to the planet ▶':'Volver al planeta ▶',
+  'Yours already. Twice walking pace.':'Ya es tuyo. El doble de rápido que andando.',
+
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',

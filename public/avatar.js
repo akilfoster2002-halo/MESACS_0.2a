@@ -125,8 +125,18 @@ window.AVATAR = (function(){
   }
 
   /* who the player is */
-  let chosen = 'a';
-  try{ chosen = localStorage.getItem('dq_char') || 'a'; }catch(e){}
+  /* Everybody starts as SOMEBODY. Nobody has to pick a character before they
+     are allowed to play — the first time you arrive you are handed one of the
+     free four at random and the Wardrobe is where you change it. A saved
+     choice always wins, so this only ever fires once. */
+  const FREE_AT_START = 4;
+  let chosen = null;
+  try{ chosen = localStorage.getItem('dq_char'); }catch(e){}
+  if(!chosen || !CHARS.some(c=>c.id===chosen)){
+    const pool=CHARS.slice(0, Math.min(FREE_AT_START, CHARS.length));
+    chosen = pool[Math.floor(Math.random()*pool.length)].id;
+    try{ localStorage.setItem('dq_char', chosen); }catch(e){}
+  }
   function pick(id){
     chosen=id;
     try{ localStorage.setItem('dq_char',id); }catch(e){}

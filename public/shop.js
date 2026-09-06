@@ -35,10 +35,13 @@ window.SHOP = (function(){
       blurb:'Gold. Entirely unnecessary, which is the point.' }
   ];
 
-  /* Cars come out of the Kenney racing kit that is already in the repo. */
+  /* Cars come out of the Kenney racing kit that is already in the repo.
+     The first one is FREE and yours from the start — a shop where every
+     shelf is locked is a shop nobody learns to use, and everybody should
+     find out on day one that you can drive around your own planet. */
   const CARS=[
-    { id:'car_red',    name:'Scarlet', price:150, file:'racing/raceCarRed.glb',    a:'#ff9aa2',
-      blurb:'Drive it round the planet. Twice walking pace.' },
+    { id:'car_red',    name:'Scarlet', price:0,   file:'racing/raceCarRed.glb',    a:'#ff9aa2',
+      blurb:'Yours already. Twice walking pace.' },
     { id:'car_white',  name:'Chalk',   price:150, file:'racing/raceCarWhite.glb',  a:'#e8ecff',
       blurb:'The same car in a quieter coat.' },
     { id:'car_orange', name:'Ember',   price:260, file:'racing/raceCarOrange.glb', a:'#ffd8a8',
@@ -68,7 +71,7 @@ window.SHOP = (function(){
   const car  = () => carById(PROGRESS.get(EQ_CAR,null));
 
   const ownsShip = s => s.price===0 || WALLET.has(s.id);
-  const ownsCar  = c => WALLET.has(c.id);
+  const ownsCar  = c => !!c && (c.price===0 || WALLET.has(c.id));
   const ownsChar = it => it.price===0 || WALLET.has(it.id);
 
   function equip(id){
