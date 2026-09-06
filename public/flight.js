@@ -919,22 +919,67 @@ window.FLIGHT = (function(){
        means two steps sharing a condition collapse into one, and the first
        draft of this lost the radar explanation the instant any block was
        added. One step, one thing you have to do. */
-    COACH.start([
-      /* It starts OUT here in the world, looking at the walls, and only then
-         sends you into the console — a student who has never seen the field
-         has no idea what the console is for. */
-      { say:'Those walls are coming at you. The radar top-left shows the next three. Press <b>C</b> to write your program.',
+    /* One thing per step, in the order a person would actually do it, and
+       nothing else POSSIBLE while the step is up. The palette is cut to the
+       single block being asked for, so the ring the coach draws is around
+       the only thing on screen — and RUN stays shut until there is something
+       worth running, because a first flight that ends in a crash two seconds
+       after the console opens teaches only that this game is unfair. */
+    const WALK=[
+      { say:'Rocks are coming. Press <b>C</b> to stop the field and think.',
         find:()=>document.querySelector('#codeBtn'),
-        done:()=>!!(window.CODE && CODE.isOpen()) },
-      { say:'Pink on the radar is a rock in your lane. <b>change y by 1</b> moves you up a row — click it.',
-        sel:'#conPalette [data-add="addY"]', done:()=>hasOp('addY') },
-      { say:'Next wall is clear. Click <b>coast()</b> to hold.',
-        sel:'#conPalette [data-add="coast"]', done:()=>hasOp('coast') },
-      { say:'Eight walls, eight blocks. Fill in the rest.',
-        sel:'#conBudget', done:()=>scriptLen()>=6 },
-      { say:'Press <b>RUN</b>. <b>C</b> freezes the field any time.',
-        sel:'#conRun', done:()=>!!(L && L.rolling) }
-    ], {});
+        done:()=>!!(window.CODE && CODE.isOpen()),
+        pal:['addY'], rails:{run:false, clear:false, mode:false} },
+
+      { say:'That pale ship is a GHOST. It flies your plan so you can watch it before you go. Right now it has no plan, so it stops at the first wall.',
+        sel:'#conPalette [data-add="addY"]',
+        done:()=>hasOp('addY'),
+        pal:['addY'], rails:{run:false, clear:false, mode:false} },
+
+      { say:'Watch the ghost. <b>change y by 1</b> moved it up one row, and a green hoop shows where it goes through.',
+        sel:'#conPalette [data-add="coast"]',
+        done:()=>hasOp('coast'),
+        pal:['coast'], rails:{run:false, clear:false, mode:false} },
+
+      /* RUN opens here, and it opens whether the plan is right or not.
+         Holding it shut until the ghost clears every wall sounds like
+         teaching and is the opposite of it: the budget is one block a wall,
+         so a child who fills all eight wrongly would have nothing left to
+         add and no way to try — only Clear and start again. Being shown the
+         controls is the point; being forbidden to press them is not. */
+      { say:'Now you have both. Fill the rest — one block for each wall. Watch the ghost after every one.',
+        sel:'#conBudget',
+        done:()=>ghostClears() || scriptLen()>=L.K.budget,
+        pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:false} },
+
+      { say:'Press <b>RUN</b> and fly it. If the ghost did not get through, you will not either — <b>C</b> stops the field so you can fix it.',
+        sel:'#conRun',
+        done:()=>!!(L && L.rolling),
+        pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:true} }
+    ];
+    COACH.start(WALK, {
+      /* The coach does not know what a palette is, and should not. It says
+         which step is live; this decides what that means. */
+      onStep(s){
+        if(!window.CODE) return;
+        if(!s){                                   // the walkthrough is over
+          CODE.setPalette(L?L.K.pal:['addY','addX','coast']);
+          CODE.setRails({});
+          return;
+        }
+        /* Every step names its palette outright. An earlier version treated
+           an empty list as "no opinion" and handed back the whole palette,
+           which is the exact opposite of what an empty list means. */
+        if(s.pal) CODE.setPalette(s.pal);
+        CODE.setRails(s.rails||{});
+      }
+    });
+  }
+  /* does the program, as written, get the ghost all the way down the field? */
+  function ghostClears(){
+    if(!L || !L.beats) return false;
+    const all=runProgram();
+    return all.length>0 && all.every(q=>!q.hit);
   }
 
   /* --------------------------------------------------------------- HUD */

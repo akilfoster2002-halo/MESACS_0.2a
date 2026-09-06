@@ -2338,14 +2338,30 @@ window.PLANET = (function(){
     // hud() already put a briefing up; the tour talks in the same corner
     const bq=document.querySelector('#briefing'); if(bq) bq.classList.add('hidden');
     const start=me.dir.clone(), yaw0=G.yaw;
-    const firstStation=()=>{ const b=MC();
-      return b.g ? b.g.localToWorld(V(-(b.w-9)/2, 2.5, -b.d/2+3.2)) : V(0,0,0); };
+    /* Ask the ROOM where its consoles are, rather than repeating the layout
+       here. This used to be a hard-coded corner of the old back-wall rank,
+       and when the stations moved into a horseshoe the arrow went on
+       pointing confidently at an empty patch of floor. Nearest one to the
+       player, so the tour points at the one they would walk to. */
+    const firstStation=()=>{
+      const b=MC(); if(!b.g) return V(0,0,0);
+      let best=null, bd=1e9;
+      const p=worldPos(0), w=new THREE.Vector3();
+      G.hits.forEach(h=>{
+        const own=h.userData.owner; if(!own || !own.userData) return;
+        if(!STATIONS.some(st=>st.id===own.userData.enter)) return;
+        own.getWorldPosition(w);
+        const d=w.distanceTo(p);
+        if(d<bd){ bd=d; best=w.clone(); }
+      });
+      return best || b.g.localToWorld(V(0, 2.5, -b.d/2+6));
+    };
     COACH.start([
       /* One line each. A child reading six sentences is a child not playing,
          and every one of these is about a key they can press right now. */
       { say:'Hold <b>W</b> to walk.',
         done:()=>me.dir.angleTo(start)*PR > 9 },
-      { say:'Mouse to look. <b>A</b> and <b>D</b> to step sideways.',
+      { say:'Move the mouse to look around.',
         done:()=>Math.abs(((G.yaw-yaw0+Math.PI*3)%(Math.PI*2))-Math.PI) > 0.5 },
       { say:'Walk to the ringed door.',
         at:()=>withSize(doorPoint(MC()),3.5),
@@ -2353,7 +2369,7 @@ window.PLANET = (function(){
       { say:'Go inside.',
         at:()=>withSize(doorPoint(MC()),3.5),
         done:()=>insideOf(MC()) },
-      { say:'Look at a mission station.',
+      { say:'The missions are round the walls. Point at one.',
         at:()=>withSize(firstStation(),2),
         done:()=>!!(G.focused && G.focused.userData && G.focused.userData.enter) },
       { say:'Press <b>E</b> to go in.',

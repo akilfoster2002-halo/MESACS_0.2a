@@ -7,22 +7,41 @@
    the floor and an arrow over the ball while you are in the world, and a
    ring drawn around the exact button while you are in the editor.
 
-   Every step names what it wants and how it knows it happened. Nothing is
-   ever gated on the coach — you can ignore it entirely and just play, and
-   it will notice you got ahead of it and catch up. Being taught should
-   never be the same thing as being blocked.
+   Every step names what it wants and how it knows it happened. A student
+   who works it out on their own is never told to do the thing they have
+   already done: progress is read from the world, and the coach catches up.
+
+   ON RAILS. A walkthrough that only SUGGESTS what to press is a
+   walkthrough a nine-year-old walks straight past, and then they are lost
+   in a mission they were never shown. So a step can also say what is
+   POSSIBLE while it is running — the coach hands each step to the caller,
+   and the caller narrows the palette to the one block being asked for and
+   shuts the buttons that lead anywhere else. The rails come off with the
+   last step and never come back; this is how somebody is taught the
+   controls, not how the game is played.
    ===================================================================== */
 window.COACH = (function(){
-  let steps=null, at=0, ctx=null, beacon=null, last=0, done=false;
+  let steps=null, at=0, ctx=null, beacon=null, last=0, done=false, railed=-1;
 
   function start(list, c){
     stop();
     if(!list || !list.length) return;
-    steps=list; ctx=c||{}; at=0; done=false;
+    steps=list; ctx=c||{}; at=0; done=false; railed=-1;
+    rail();
     paint();
   }
+  /* Tell whoever started the walkthrough which step is live, so it can put
+     the world into the state that step needs. Only on a CHANGE of step: this
+     runs every frame and re-narrowing a palette sixty times a second would
+     redraw the console sixty times a second. */
+  function rail(){
+    if(!ctx || !ctx.onStep || at===railed) return;
+    railed=at;
+    ctx.onStep(step(), at);
+  }
   function stop(){
-    steps=null; at=0; done=false;
+    if(ctx && ctx.onStep && steps) ctx.onStep(null, -1);   // rails off
+    steps=null; at=0; done=false; railed=-1;
     dropBeacon();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const p=document.querySelector('#coachTip'); if(p) p.remove();
@@ -44,6 +63,7 @@ window.COACH = (function(){
     }
     const s=step();
     if(!s){ finish(); return; }
+    rail();
     const now=performance.now();
     if(now-last<70) { spin(dt); return; }
     last=now;
@@ -51,6 +71,7 @@ window.COACH = (function(){
   }
   function finish(){
     done=true;
+    if(ctx && ctx.onStep) ctx.onStep(null, -1);            // and the rails come off
     dropBeacon();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     say(t('That is the whole idea: your blocks moved a thing in the world.'), true);

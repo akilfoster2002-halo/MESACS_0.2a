@@ -349,8 +349,37 @@ window.CODE = (function(){
 
   let palette=['shoot','repeat'];
   let budget=0;
-  function setPalette(list){ palette=list; }
+  /* Redraw if the console is already open. Missions set the palette before
+     showing the console, so this never mattered — until a walkthrough began
+     changing it step by step with the console up, and the narrowing only
+     appeared after the student happened to click something else. */
+  function setPalette(list){
+    const same = palette && list && palette.length===list.length
+              && palette.every((x,i)=>x===list[i]);
+    palette=list;
+    if(!same && el && isOpen()) draw();
+  }
   function setBudget(n){ budget=n||0; }
+  /* ------------------------------------------------------------- the rails
+     A walkthrough that only SUGGESTS what to press is a walkthrough a
+     nine-year-old walks straight past. While one is running, the console can
+     be put on rails: the palette is already cut to the one block being asked
+     for, and this shuts the buttons that would take you somewhere else.
+
+     Off by default, and cleared the moment the walkthrough ends, because
+     this is a teaching aid and not a way of running the game. */
+  let rails={};
+  function setRails(r){ rails=r||{}; if(el) drawRails(); }
+  function drawRails(){
+    if(!el) return;
+    [['run','#conRun'],['clear','#conClear'],
+     ['mode','#conModeB'],['mode','#conModeT']].forEach(([k,q])=>{
+      const b=el.querySelector(q); if(!b) return;
+      const off = rails[k]===false;
+      b.disabled=off;
+      b.classList.toggle('railed', off);
+    });
+  }
   function countBlocks(list){
     list=list||script; let n=0;
     for(const b of list){ n++; if(b.body) n+=countBlocks(b.body); }
@@ -550,6 +579,7 @@ window.CODE = (function(){
     el.querySelector('#conTextLbl').textContent   = typing ? t('THAT IS THESE BLOCKS') : t('YOUR CODE SAYS');
     el.querySelector('#conClear').textContent=t('Clear');
     el.querySelector('#conRun').textContent=t('▶ RUN');
+    drawRails();
     drawGuide();
 
     scriptEl.classList.toggle('hidden', typing);
@@ -702,7 +732,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setConditions, setGrid, setGuide, setMode, parse,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
            get script(){ return script; },
