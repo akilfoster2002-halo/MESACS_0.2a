@@ -39,14 +39,12 @@ window.CODE = (function(){
     turn     :{label:'turn',         color:'#ffd8a8', help:'Rotate the ship a quarter turn'},
     fire     :{label:'fire()',       color:'#ffb4a2', help:'Shoot straight ahead'},
     goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'},
-    /* The coordinates, written out. x is the column and y is the row, and
-       these say so in the one notation the student will meet again in every
-       language they ever use: a name, an equals sign, and a value.
-         x = 2        put x there, wherever it was    (absolute)
-         x = x + 1    take what x is and add one      (relative)
-       right() and x = x + 1 do exactly the same thing, and having both is
-       the point — one is a word for a move, the other is arithmetic on a
-       number that happens to be where you are. */
+    /* The coordinates. x is the column and y is the row, and the pair of
+       verbs is the whole idea:
+         set x to 2      put x there, whatever it was   (absolute)
+         change x by 1   add to the x you already have  (relative)
+       Same two numbers, two different sums — which is a plainer way to say
+       absolute against relative than two arrangements of an equals sign. */
     setX     :{label:'set x to',     color:'#ffb4a2', help:'Put the ship in that column, wherever it was'},
     setY     :{label:'set y to',     color:'#a8e6cf', help:'Put the ship in that row, wherever it was'},
     addX     :{label:'change x by',  color:'#ffb4a2', help:'Add to the column you are in. Minus goes left'},
@@ -584,7 +582,6 @@ window.CODE = (function(){
       const d=DEF[type];
       return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
         <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1'
-             :type==='setX'?'x = 1':type==='setY'?'y = 1'
              :type==='addX'?t('change x by')+' 1':type==='addY'?t('change y by')+' 1'
              :type==='setX'?t('set x to')+' 1':type==='setY'?t('set y to')+' 1'
              :type==='turn'?t('turn')+' 90':d.label}</b>
