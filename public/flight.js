@@ -173,7 +173,6 @@ window.FLIGHT = (function(){
   ];
 
   let L=null, busy=false, ship=null, rocks=[], bolts=[], wasFP=null;
-  let ghost=null, ghostLine=null, ghostT=0;   // the plan, flown in front of you
   let shipSpan=3.7;                  // measured off the ship the moment it is built
 
   /* ---------------------------------------------------------- the chart */
@@ -672,7 +671,6 @@ window.FLIGHT = (function(){
     }
     fly();
     boltsTick(dt);
-    ghostTick(dt);
     radarOut();
   }
   /* THE CONSOLE IS THE PAUSE BUTTON.  Press C and the field stops dead where
@@ -866,7 +864,7 @@ window.FLIGHT = (function(){
   function finish(){
     if(!L || L.done) return;
     L.done=true; L.rolling=false; busy=false;
-    CODE.hideTape(); CODE.close(); CODE.setGuide(null);
+    CODE.hideTape(); CODE.close(); CODE.setGuide(null); CODE.setAside(null,null);
     if(window.beep) beep('star');
     if(L.idx===0) markWalked();
     if(window.COACH) COACH.stop();
@@ -931,28 +929,28 @@ window.FLIGHT = (function(){
         done:()=>!!(window.CODE && CODE.isOpen()),
         pal:['addY'], rails:{run:false, clear:false, mode:false} },
 
-      { say:'That pale ship is a GHOST. It flies your plan so you can watch it before you go. Right now it has no plan, so it stops at the first wall.',
+      { say:'The panels on the right are the next three walls. The brown lumps are rocks; the little ship is you. Click <b>change y by 1</b>.',
         sel:'#conPalette [data-add="addY"]',
         done:()=>hasOp('addY'),
         pal:['addY'], rails:{run:false, clear:false, mode:false} },
 
-      { say:'Watch the ghost. <b>change y by 1</b> moved it up one row, and a green hoop shows where it goes through.',
+      { say:'Watch the panel — your ship moved up a row. Now click <b>coast()</b>.',
         sel:'#conPalette [data-add="coast"]',
         done:()=>hasOp('coast'),
         pal:['coast'], rails:{run:false, clear:false, mode:false} },
 
       /* RUN opens here, and it opens whether the plan is right or not.
-         Holding it shut until the ghost clears every wall sounds like
+         Holding it shut until every wall is solved sounds like
          teaching and is the opposite of it: the budget is one block a wall,
          so a child who fills all eight wrongly would have nothing left to
          add and no way to try — only Clear and start again. Being shown the
          controls is the point; being forbidden to press them is not. */
-      { say:'Now you have both. Fill the rest — one block for each wall. Watch the ghost after every one.',
+      { say:'Now you have both. One block for each wall — keep the little ship out of the rocks.',
         sel:'#conBudget',
-        done:()=>ghostClears() || scriptLen()>=L.K.budget,
+        done:()=>allClear() || scriptLen()>=L.K.budget,
         pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:false} },
 
-      { say:'Press <b>RUN</b> and fly it. If the ghost did not get through, you will not either — <b>C</b> stops the field so you can fix it.',
+      { say:'Press <b>RUN</b> and fly it. <b>C</b> stops the field any time so you can fix it.',
         sel:'#conRun',
         done:()=>!!(L && L.rolling),
         pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:true} }
@@ -975,8 +973,8 @@ window.FLIGHT = (function(){
       }
     });
   }
-  /* does the program, as written, get the ghost all the way down the field? */
-  function ghostClears(){
+  /* does the program, as written, get all the way down the field? */
+  function allClear(){
     if(!L || !L.beats) return false;
     const all=runProgram();
     return all.length>0 && all.every(q=>!q.hit);
@@ -996,156 +994,88 @@ window.FLIGHT = (function(){
      them, which is the thing the cards never did: you are not looking up a
      fact about the field, you are looking at whether YOU are in the way.
      Sit in the path of the nearest wall and that cell goes red. */
+  /* Each cell is either empty space, a ROCK, or you. The rock is not a
+     coloured square any more — it is a lumpy little asteroid that turns, so
+     it reads as the thing it stands for out in the field rather than as a
+     symbol you have to be taught. And you are a ship, pointing the way the
+     ship points, so "where am I" is answered by looking rather than by
+     remembering which shade of pink meant you. */
+  function cellHTML(mask,c,r,mc,mr){
+    const rock=blocked(mask,c,r), me=(c===mc && r===mr);
+    // a spin per cell, so nine rocks do not turn in lockstep like a machine
+    const sp=(6+((c*7+r*13)%9)), dir=((c+r)%2)?'':' rev';
+    return `<i class="cel${rock?' rock':''}${me?' me':''}${rock&&me?' hit':''}">`
+         + (rock ? `<u class="ast${dir}" style="--sp:${sp}s"></u>` : '')
+         + (me   ? `<b class="mini"></b>` : '')
+         + `</i>`;
+  }
+  /* The panels, and under them the one sentence that says what the blocks
+     mean. That sentence used to head a panel of its own with a worked
+     example beside it; it is a caption, so it is captioned. */
+  function asideHTML(){
+    if(!L) return '';
+    return radarHTML()+`<p class="asbrief">${t(L.K.brief)}</p>`;
+  }
   function radarHTML(){
     if(!L) return '';
+    const grid=(mask,mc,mr)=>{
+      let out='';
+      for(let r=ROWS-1;r>=0;r--) for(let c=0;c<COLS;c++) out+=cellHTML(mask,c,r,mc,mr);
+      return out;
+    };
     if(L.kind==='gun'){
-      /* The range keeps its grid. There are no walls here and nothing to
-         fly through — the only question is which targets are still up, and
-         nine squares answers that in one look. */
-      const cell=(mask,c,r,mc,mr)=>{
-        const rock=blocked(mask,c,r);
-        const me=(c===mc && r===mr);
-        return `<i class="${rock?'rock':''}${me?' me':''}${rock&&me?' hit':''}"></i>`;
-      };
-      let grid='';
-      for(let r=ROWS-1;r>=0;r--) for(let c=0;c<COLS;c++)
-        grid+=cell(L.K.targets,c,r,L.col,L.row);
       return `<div class="radar"><div class="rw big"><b>${t('TARGETS')}</b>
-        <div class="rgrid">${grid}</div></div></div>`;
+        <div class="rgrid">${grid(L.K.targets,L.col,L.row)}</div></div></div>`;
     }
-    /* One line. The phantom ship in the field is the picture; this is only
-       the caption under it, and a caption that needs a legend is not a
-       caption. */
-    const total=L.beats.length;
-    if(L.rolling) return `<div class="rline">${eta()}</div>`;
-    /* Say what the GHOST does, not what the script says. The two have to
-       agree or the caption is arguing with the picture above it — and the
-       picture is the one the child is looking at. An empty script still
-       flies: it coasts into the first wall, and being told it "gets to wall
-       0" while the phantom visibly crashes into wall 1 helps nobody. */
-    const all=runProgram();
-    let hit=-1, written=0;
-    for(let i=0;i<all.length;i++){
-      if(all[i].written) written++;
-      if(hit<0 && all[i].hit) hit=i+1;
+    /* Three walls, and the cards MOVE: the big one is the first wall your
+       program has not solved yet, so solving one slides it off and puts the
+       next problem in its place. A panel permanently showing walls one to
+       three tells you nothing about where you have got to. */
+    let p, solved=0, total=L.beats.length, focus;
+    if(L.rolling){
+      p=predict(3); focus=p[0].wall;
+    } else {
+      const all=runProgram();
+      const i=focusOf(all);
+      solved=i; focus=i+1;
+      p=[0,1,2].map(k=>all[i+k] || { wall:total+1+k, col:-1, row:-1, hit:false });
     }
-    const msg = written===0 ? t('Write a move — the ghost will fly it.')
-              : hit>0       ? t('The ghost stops at wall {k} of {b}.',{k:hit,b:total})
-                            : t('The ghost gets through. Press RUN.');
-    return `<div class="rline${hit>0?' warn':''}">${msg}</div>`;
-  }
-  /* ---------------------------------------------------------- the phantom
-     The chart is gone. It was three little grids of nine squares sitting in
-     the corner, each standing for a wall, with a tick or a cross under it —
-     and every one of those is a translation. The wall in front of you is
-     already a picture of the wall; drawing a second, worse picture of it
-     beside the first and asking a nine-year-old to hold both in their head
-     at once is not information, it is homework.
-
-     So the plan is flown instead. A see-through copy of your own ship runs
-     the program you have written, through the actual rocks, on a loop, while
-     you watch. Where it goes is where you will go. Where it stops is where
-     you crash. There is nothing to read and nothing to match up, because it
-     is happening in the same place and at the same size as the real thing. */
-  const GHOST_SPEED=9;                      // world units a second, deliberately slow
-  function ghostPath(){
-    if(!L || L.kind==='gun') return null;
-    const all=runProgram();
-    const pts=[{ x:laneX(L.K.start.col), y:laneY(L.K.start.row), z:0, ang:0 }];
-    let stop=-1;
-    for(let i=0;i<all.length;i++){
-      const q=all[i];
-      pts.push({ x:laneX(q.col), y:laneY(q.row), z:beatZ(q.wall), ang:q.ang });
-      if(q.hit){ stop=i+1; break; }          // the plan ends where it hits
+    const moved = L.radarFocus!==undefined && L.radarFocus!==focus;
+    L.radarFocus=focus;
+    const size=['big','mid','far'];
+    let out='<div class="radar'+(moved?' advance':'')+'">';
+    for(let k=0;k<3;k++){
+      const q=p[k];
+      if(!q || q.wall>total){
+        out+=`<div class="rw ${size[k]} clear"><b>${k?'':t('CLEAR')}</b>
+          <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
+        continue;
+      }
+      const wall=L.beats[q.wall-1];
+      /* A slot wall is not a grid of lanes, so drawing one would be a lie.
+         It gets the gap it actually is, at the angle it actually is, with
+         the ship at the angle YOUR program will have it turned to. */
+      const pic = isSlot(wall)
+        ? `<div class="rslot" style="--sa:${slotAngle(wall)}deg">
+             <i class="rs-gap"></i><b class="rs-ship" style="--pa:${norm(q.ang)}deg"></b>
+           </div>`
+        : `<div class="rgrid">${grid(wall, q.col, q.row)}</div>`;
+      /* A verdict only where there IS one. A wall your program has not
+         written a block for gets a dash, not a tick — coasting clears a lot
+         of them by accident, and a tick under a wall you have said nothing
+         about is a tick you did not earn. */
+      const said = q.written || L.rolling;
+      const bad  = said && q.hit;
+      out+=`<div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}">
+        <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
+        ${pic}
+        <u class="rmark">${said ? (q.hit?'✕':'✓') : '–'}</u></div>`;
     }
-    return { pts, stop, walls:all.length };
+    out+=`<div class="rlegend">${L.rolling ? eta()
+            : (solved>=total ? t('All clear — press RUN')
+                             : t('{a} of {b} walls done',{a:solved,b:total}))}</div></div>`;
+    return out;
   }
-  function buildGhost(){
-    dropGhost();
-    const path=ghostPath();
-    if(!path || path.pts.length<2) return;
-    /* A HOLOGRAM, not a dimmed ship. Lambert at 40% in a scene lit this
-       darkly is a smudge you have to be told is there — and a preview you
-       have to be told is there has failed at the only job it has. Basic
-       material ignores the lighting entirely and glows its own colour. */
-    ghost=build();
-    ghost.traverse(m=>{
-      if(!m.isMesh) return;
-      const c=(m.material.color||new THREE.Color(0x8ff0ff)).clone().lerp(new THREE.Color(0x8ff0ff),0.7);
-      m.material=new THREE.MeshBasicMaterial({ color:c, transparent:true,
-        opacity:0.55, depthWrite:false });
-    });
-    ghost.userData.path=path;
-    G.roomGroup.add(ghost);
-
-    /* And a GATE at every wall the plan passes through, in the lane it goes
-       through it. A thin line is one pixel wide and disappears against the
-       lane grid; a chain of hoops receding into the field reads instantly,
-       and it says the one thing that matters — which hole you have aimed at.
-       Green all the way, red round the one it does not make. */
-    ghostLine=new THREE.Group();
-    const ok=0x7fe0a0, bad=0xff6b6b;
-    for(let i=1;i<path.pts.length;i++){
-      const q=path.pts[i];
-      const last=(i===path.pts.length-1) && path.stop>=0;
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.55,0.14,8,28),
-        new THREE.MeshBasicMaterial({ color:last?bad:ok, transparent:true,
-          opacity:last?0.95:0.62, depthWrite:false }));
-      ring.position.set(q.x,q.y,q.z);
-      ring.userData.doom=last;
-      ghostLine.add(ring);
-      // and a thread between the hoops, so the route reads as one path
-      const a=path.pts[i-1];
-      const g2=new THREE.BufferGeometry();
-      g2.setAttribute('position', new THREE.BufferAttribute(
-        new Float32Array([a.x,a.y,a.z, q.x,q.y,q.z]),3));
-      ghostLine.add(new THREE.Line(g2, new THREE.LineBasicMaterial({
-        color:last?bad:ok, transparent:true, opacity:0.4, depthWrite:false })));
-    }
-    G.roomGroup.add(ghostLine);
-    ghostT=0;
-  }
-  function dropGhost(){
-    if(ghost && ghost.parent) ghost.parent.remove(ghost);
-    if(ghostLine && ghostLine.parent) ghostLine.parent.remove(ghostLine);
-    ghost=null; ghostLine=null;
-  }
-  /* Fly it. One pass down the plan, a beat of stillness at the end, and then
-     it starts again from the beginning — a loop, so you can look away, think,
-     and look back without having missed it. */
-  function ghostTick(dt){
-    if(!ghost) return;
-    const path=ghost.userData.path, pts=path.pts;
-    const total=Math.abs(pts[pts.length-1].z - pts[0].z);
-    ghostT += GHOST_SPEED*dt;
-    if(ghostT > total + GHOST_SPEED*1.1) ghostT=0;     // the pause, then round again
-    const d=Math.min(ghostT, total);
-    // which leg of the path are we on, and how far along it
-    let i=0;
-    while(i<pts.length-2 && Math.abs(pts[i+1].z-pts[0].z) < d) i++;
-    const a=pts[i], b=pts[i+1];
-    const span=Math.abs(b.z-a.z) || 1;
-    const k=Math.max(0, Math.min(1, (d-Math.abs(a.z-pts[0].z))/span));
-    const e=k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;    // the same ease the ship flies
-    ghost.position.set(a.x+(b.x-a.x)*e, a.y+(b.y-a.y)*e, a.z+(b.z-a.z)*e);
-    ghost.rotation.z=-(a.ang+shortWay(a.ang,b.ang)*e)*Math.PI/180;
-    /* It fades out at the end of its run rather than vanishing, and it
-       flashes at the wall it fails to clear — which is the only moment on
-       the whole loop anybody needs to be looking. */
-    const doomed = path.stop>=0 && i>=pts.length-2;
-    const fade = 0.55*(1 - Math.max(0, (ghostT-total)/(GHOST_SPEED*1.1)));
-    ghost.traverse(m=>{
-      if(!m.isMesh) return;
-      m.material.opacity = doomed && k>0.75
-        ? 0.5+0.45*Math.abs(Math.sin(performance.now()/90))
-        : fade;
-    });
-    // the gate it fails at pulses too, so the eye is sent to the same place
-    if(ghostLine) ghostLine.children.forEach(o=>{
-      if(o.userData.doom) o.material.opacity=0.6+0.4*Math.abs(Math.sin(performance.now()/260));
-    });
-  }
-
   /* seconds until the nearest wall reaches you — the number that decides
      whether you have time to think or need to press C right now */
   function eta(){
@@ -1156,34 +1086,42 @@ window.FLIGHT = (function(){
   }
   function guide(){
     const K=L.K;
-    CODE.setGuide({
-      /* Translate the brief BEFORE the radar markup is glued on: the console
-         runs t() over whatever it is handed, and "the brief plus a div full
-         of radar" is not a string any dictionary has an entry for. */
-      brief:t(K.brief)+radarHTML(),
-      name:K.learn.name, text:K.learn.text, code:K.learn.code });
+    /* No guide panel here any more. "WHAT YOU ARE WRITING" was a block of
+       prose, a worked example and a caption stacked above a console that
+       already has three columns of its own, and by the time it was drawn
+       there was more to read than to do. The one line that matters is the
+       brief; it goes in the footer. Everything else about this mission is
+       answerable by looking at the wall in front of you, so what takes the
+       third column is the wall.
+
+       And the panels have to be handed over as MARKUP, so the brief is
+       translated on its own — the console runs t() over what it is given,
+       and "a sentence plus a div full of asteroids" is not a string any
+       dictionary has an entry for. */
+    CODE.setGuide(null);
+    CODE.setAside(t('THE NEXT WALLS'), asideHTML());
   }
   /* The same radar, on the windscreen.  Rebuilt only when something on it
      actually changed — this runs every frame, and re-writing nine cells of
      HTML sixty times a second for a picture that changes once a beat is how
      a smooth mission turns into a slideshow. */
   function radarOut(){
-    /* The phantom only exists while the field is stopped. Once you press RUN
-       the real ship is flying the same path, and two ships flying the same
-       line a second apart is a thing to puzzle over rather than a help. */
-    if(L && !L.rolling && !L.done && L.kind!=='gun'){
-      const sig=progSig();
-      if(sig!==L.ghostSig){ L.ghostSig=sig; buildGhost(); }
-    } else if(ghost){ dropGhost(); if(L) L.ghostSig=null; }
-
     const el=document.querySelector('#radar'); if(!el) return;
-    if(!L || (window.CODE && CODE.isOpen())){ el.classList.add('hidden'); return; }
+    if(!L){ el.classList.add('hidden'); return; }
+    if(window.CODE && CODE.isOpen()){
+      el.classList.add('hidden');
+      // the console has its own copy in the third column; keep that one live
+      const k=[L.col,L.row,progSig()].join('|');
+      if(k!==L.asideKey){ L.asideKey=k; CODE.setAside(t('THE NEXT WALLS'), asideHTML()); }
+      return;
+    }
     el.classList.remove('hidden');
     const key=[L.kind,L.rolling?L.beat:-1,L.col,L.row,
                Math.round((L.elapsed||0)*10), progSig()].join('|');
     if(key===L.radarKey) return;
     L.radarKey=key;
     el.innerHTML=radarHTML();
+    if(window.CODE && CODE.isOpen()) CODE.setAside(t('THE NEXT WALLS'), asideHTML());
   }
   function hud(){
     if(!L) return;
@@ -1261,7 +1199,6 @@ window.FLIGHT = (function(){
   function stop(){
     if(window.COACH) COACH.stop();
     if(window.keyHint) keyHint(null);
-    dropGhost();
     L=null; busy=false; rocks=[]; bolts=[];
     if(ship && ship.parent) ship.parent.remove(ship);
     ship=null;
@@ -1271,7 +1208,7 @@ window.FLIGHT = (function(){
     const fb=document.querySelector('#fbeat'); if(fb) fb.classList.add('hidden');
     const rd=document.querySelector('#radar'); if(rd){ rd.classList.add('hidden'); rd.innerHTML=''; }
     document.querySelector('#mapwrap').classList.remove('hidden');
-    CODE.setBudget(0); CODE.setGuide(null); CODE.setGrid(3,3);
+    CODE.setBudget(0); CODE.setGuide(null); CODE.setAside(null,null); CODE.setGrid(3,3);
   }
 
   return { start, run, tick, update:tick, stop, solvable, blocked,

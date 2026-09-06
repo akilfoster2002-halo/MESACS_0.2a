@@ -636,6 +636,7 @@ window.ES = {
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
   'E — ask':'E — preguntar',
+  'THE NEXT WALLS':'LOS SIGUIENTES MUROS',
   'The ghost hits wall {k}.':'El fantasma choca con el muro {k}.',
   'The ghost gets through. Press RUN.':'El fantasma pasa. Pulsa RUN.',
   'The ghost gets to wall {a} of {b}.':'El fantasma llega al muro {a} de {b}.',

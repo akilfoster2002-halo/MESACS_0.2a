@@ -316,6 +316,7 @@ window.CODE = (function(){
             <div class="con-lbl" id="conTextLbl"></div>
             <pre id="conText"></pre>
             <div id="conMirror" class="hidden"></div>
+            <div id="conAside" class="hidden"></div>
           </div>
         </div>
         <div class="con-foot">
@@ -368,6 +369,16 @@ window.CODE = (function(){
 
      Off by default, and cleared the moment the walkthrough ends, because
      this is a teaching aid and not a way of running the game. */
+  /* THE THIRD COLUMN. By default it mirrors your blocks back as text, which
+     is what "YOUR CODE SAYS" means. A mission can take it over instead —
+     Space Explorer puts the field itself there, because the answer to "what
+     do I write" is the wall in front of you and it should be at your elbow
+     while you write rather than behind the console. */
+  let aside=null;
+  function setAside(label, html){
+    aside = (html==null) ? null : { label:label||'', html };
+    if(el && open) draw();
+  }
   let rails={};
   function setRails(r){ rails=r||{}; if(el) drawRails(); }
   function drawRails(){
@@ -576,14 +587,23 @@ window.CODE = (function(){
     el.querySelector('#conModeT').classList.toggle('on', typing);
     el.querySelector('#conPalLbl').textContent    = typing ? t('WORD BANK') : t('BLOCKS');
     el.querySelector('#conScriptLbl').textContent = typing ? t('YOUR CODE')  : t('YOUR PROGRAM');
-    el.querySelector('#conTextLbl').textContent   = typing ? t('THAT IS THESE BLOCKS') : t('YOUR CODE SAYS');
+    /* An aside owns the column outright: label, mirror and all. Leaving
+       "YOUR CODE SAYS" sitting above somebody else's panel is how a heading
+       ends up describing the thing underneath it and being wrong. */
+    const asideOn=!!aside;
+    const av=el.querySelector('#conAside');
+    av.classList.toggle('hidden', !asideOn);
+    if(asideOn) av.innerHTML=aside.html;
+    el.querySelector('#conTextLbl').textContent =
+      asideOn ? aside.label : (typing ? t('THAT IS THESE BLOCKS') : t('YOUR CODE SAYS'));
     el.querySelector('#conClear').textContent=t('Clear');
     el.querySelector('#conRun').textContent=t('▶ RUN');
     drawRails();
     drawGuide();
 
     scriptEl.classList.toggle('hidden', typing);
-    textEl.classList.toggle('hidden', typing);
+    // an aside has already taken this column; typing mode must not hand it back
+    textEl.classList.toggle('hidden', typing || !!aside);
     el.querySelector('#conTA').classList.toggle('hidden', !typing);
     el.querySelector('#conMirror').classList.toggle('hidden', !typing);
 
@@ -732,7 +752,8 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setRails, setConditions, setGrid, setGuide, setMode, parse,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setAside,
+           setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
            get script(){ return script; },

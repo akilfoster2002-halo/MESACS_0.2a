@@ -864,10 +864,45 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .rw.far .rgrid{grid-template-columns:repeat(3,8px);grid-auto-rows:8px}
 /* open sky reads as empty, rock as solid, and YOU as a ring on top of
    whichever you are sitting in */
-.rgrid i{background:#16203a;border:1px solid rgba(143,240,255,.20);border-radius:3px}
-.rgrid i.rock{background:#b3a184;border-color:#c8b596}
-.rgrid i.me{box-shadow:inset 0 0 0 2px #8ff0ff;background:#1d3550}
-.rgrid i.me.rock{box-shadow:inset 0 0 0 2px #ff9aa2;background:#b3a184}
+/* A CELL IS A PIECE OF SPACE. What is in it is drawn as the thing it is:
+   an asteroid that turns, and a ship that points. The old version filled
+   the whole square with a colour and asked a child to remember that beige
+   meant rock and a cyan outline meant you — which is a key, and a picture
+   that needs a key is not doing its job. */
+.rgrid i{position:relative;background:#0e1730;border:1px solid rgba(143,240,255,.18);
+  border-radius:3px;display:grid;place-items:center;overflow:hidden}
+.rgrid i.rock{background:#141d33}
+/* the rock itself: a lumpy polygon, turning slowly, each at its own rate */
+.ast{width:78%;height:78%;background:linear-gradient(150deg,#c6b393,#8e7c62 62%,#6d5f4b);
+  clip-path:polygon(50% 2%,78% 12%,95% 38%,88% 70%,64% 95%,33% 96%,9% 74%,3% 42%,20% 14%);
+  animation:astSpin var(--sp,7s) linear infinite;
+  box-shadow:inset -2px -3px 0 rgba(0,0,0,.28)}
+.ast.rev{animation-direction:reverse}
+@keyframes astSpin{ to{ transform:rotate(360deg) } }
+/* and you: a little ship, nose up the screen, the way the field runs */
+.mini{width:0;height:0;border-left:.34em solid transparent;border-right:.34em solid transparent;
+  border-bottom:.62em solid #8ff0ff;filter:drop-shadow(0 0 3px rgba(143,240,255,.85));
+  position:relative;z-index:2}
+.rgrid i.me{background:#12294a;box-shadow:inset 0 0 0 2px rgba(143,240,255,.55)}
+.rgrid i.me.rock{box-shadow:inset 0 0 0 2px var(--bad)}
+.rgrid i.me.rock .mini{border-bottom-color:#ff9aa2}
+@media (prefers-reduced-motion:reduce){ .ast{animation:none} }
+/* the sentence under the panels, where a whole panel of prose used to be */
+/* The panels are being READ here, to decide what to write — so they get the
+   room the old guide panel used to take, rather than the glance-sized
+   version that lives on the windscreen. */
+#conAside .radar{background:none;border:none;padding:0;gap:12px;flex-wrap:wrap}
+#conAside .rw.big .rgrid{grid-template-columns:repeat(3,34px);grid-auto-rows:34px}
+#conAside .rw.mid .rgrid{grid-template-columns:repeat(3,22px);grid-auto-rows:22px}
+#conAside .rw.far .rgrid{grid-template-columns:repeat(3,15px);grid-auto-rows:15px}
+/* the ship scales with the cell it is in, so it is a ship in the big panel
+   and still a ship two panels back */
+#conAside .rw.big .mini{border-left-width:7px;border-right-width:7px;border-bottom-width:13px}
+#conAside .rw b{font-size:10.5px}
+#conAside .rlegend{flex-basis:100%;font-size:12.5px;color:var(--star);
+  white-space:normal;margin-top:2px}
+.asbrief{margin:10px 2px 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.asbrief b{color:var(--star)}
 .rw.warn b{color:var(--bad)}
 /* a slot wall: the gap at its angle, and your ship at yours. Lined up means
    the two bars are parallel, which you can see without reading anything. */
@@ -1257,35 +1292,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=217"></script>
-<script src="strings.js?v=217"></script>
-<script src="difficulty.js?v=217"></script>
-<script src="net.js?v=217"></script>
-<script src="avatar.js?v=217"></script>
-<script src="zombies.js?v=217"></script>
-<script src="building.js?v=217"></script>
-<script src="levels.js?v=217"></script>
-<script src="code.js?v=217"></script>
-<script src="combat.js?v=217"></script>
-<script src="puzzle.js?v=217"></script>
-<script src="nav.js?v=217"></script>
-<script src="tutorial.js?v=217"></script>
-<script src="race.js?v=217"></script>
-<script src="flight.js?v=217"></script>
-<script src="planet.js?v=217"></script>
-<script src="wallet.js?v=217"></script>
-<script src="shop.js?v=217"></script>
-<script src="library.js?v=217"></script>
-<script src="costumes.js?v=217"></script>
-<script src="missions.js?v=217"></script>
-<script src="coach.js?v=217"></script>
-<script src="owner.js?v=217"></script>
-<script src="blocks.js?v=217"></script>
-<script src="vm.js?v=217"></script>
-<script src="coder.js?v=217"></script>
-<script src="quiz.js?v=217"></script>
-<script src="chars.js?v=217"></script>
-<script src="menu.js?v=217"></script>
-<script src="game.js?v=217"></script>
+<script src="lib/three.classic.js?v=220"></script>
+<script src="strings.js?v=220"></script>
+<script src="difficulty.js?v=220"></script>
+<script src="net.js?v=220"></script>
+<script src="avatar.js?v=220"></script>
+<script src="zombies.js?v=220"></script>
+<script src="building.js?v=220"></script>
+<script src="levels.js?v=220"></script>
+<script src="code.js?v=220"></script>
+<script src="combat.js?v=220"></script>
+<script src="puzzle.js?v=220"></script>
+<script src="nav.js?v=220"></script>
+<script src="tutorial.js?v=220"></script>
+<script src="race.js?v=220"></script>
+<script src="flight.js?v=220"></script>
+<script src="planet.js?v=220"></script>
+<script src="wallet.js?v=220"></script>
+<script src="shop.js?v=220"></script>
+<script src="library.js?v=220"></script>
+<script src="costumes.js?v=220"></script>
+<script src="missions.js?v=220"></script>
+<script src="coach.js?v=220"></script>
+<script src="owner.js?v=220"></script>
+<script src="blocks.js?v=220"></script>
+<script src="vm.js?v=220"></script>
+<script src="coder.js?v=220"></script>
+<script src="quiz.js?v=220"></script>
+<script src="chars.js?v=220"></script>
+<script src="menu.js?v=220"></script>
+<script src="game.js?v=220"></script>
 </body>
 </html>
