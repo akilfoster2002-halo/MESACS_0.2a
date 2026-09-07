@@ -1045,13 +1045,25 @@ window.FLIGHT = (function(){
      symbol you have to be taught. And you are a ship, pointing the way the
      ship points, so "where am I" is answered by looking rather than by
      remembering which shade of pink meant you. */
+  /* You, as a ship. It was a CSS triangle, which is an arrow — and an arrow
+     in a grid of rocks reads as "this way", not as "this is me". A nose, a
+     cockpit, two wings and an engine is unmistakably a little spacecraft at
+     any size down to about ten pixels, which is where the furthest card
+     sits. */
+  const SHIP_SVG=
+    `<svg class="shipico" viewBox="0 0 24 26" aria-hidden="true">
+       <path class="s-wing" d="M4 17 L12 9 L20 17 L20 20 L12 16 L4 20 Z"/>
+       <path class="s-hull" d="M12 1 C15 6 16.5 12 16.5 17 L16.5 21 L12 19 L7.5 21 L7.5 17 C7.5 12 9 6 12 1 Z"/>
+       <circle class="s-glass" cx="12" cy="10.5" r="2.4"/>
+       <path class="s-fire" d="M9.6 21 L12 26 L14.4 21 Z"/>
+     </svg>`;
   function cellHTML(mask,c,r,mc,mr){
     const rock=blocked(mask,c,r), me=(c===mc && r===mr);
     // a spin per cell, so nine rocks do not turn in lockstep like a machine
     const sp=(6+((c*7+r*13)%9)), dir=((c+r)%2)?'':' rev';
     return `<i class="cel${rock?' rock':''}${me?' me':''}${rock&&me?' hit':''}">`
          + (rock ? `<u class="ast${dir}" style="--sp:${sp}s"></u>` : '')
-         + (me   ? `<b class="mini"></b>` : '')
+         + (me   ? `<b class="mini">${SHIP_SVG}</b>` : '')
          + `</i>`;
   }
   /* The panels, and under them the one sentence that says what the blocks
@@ -1107,8 +1119,9 @@ window.FLIGHT = (function(){
     for(let k=0;k<3;k++){
       const q=p[k];
       if(!q || q.wall>total){
-        out+=`<div class="rw ${size[k]} clear" data-wall="clear${k}"><b>${k?'':t('CLEAR')}</b>
-          <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
+        out+=`<div class="rwrap ${size[k]}"><div class="rw ${size[k]} clear"
+          data-wall="clear${k}"><b>${k?'':t('CLEAR')}</b>
+          <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div></div>`;
         continue;
       }
       const wall=L.beats[q.wall-1];
@@ -1126,14 +1139,19 @@ window.FLIGHT = (function(){
          about is a tick you did not earn. */
       const said = q.written || L.rolling;
       const bad  = said && q.hit;
-      out+=`<div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}" data-wall="${q.wall}">
+      out+=`<div class="rwrap ${size[k]}">
+        <div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}" data-wall="${q.wall}">
         <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
         ${pic}
-        <u class="rmark">${said ? (q.hit?'✕':'✓') : '–'}</u></div>`;
+        <u class="rmark">${said ? (q.hit?'✕':'✓') : '–'}</u></div></div>`;
     }
-    out+=`<div class="rlegend">${L.rolling ? eta()
+    /* OUTSIDE the stack. Every card in there is absolutely positioned, which
+       leaves the legend as the only thing still in the flow — so it went to
+       the top of the box and sat on the furthest wall. It is a caption for
+       the corridor, so it goes under the corridor. */
+    out+=`</div><div class="rlegend">${L.rolling ? eta()
             : (solved>=total ? t('All clear — press RUN')
-                             : t('{a} of {b} walls done',{a:solved,b:total}))}</div></div>`;
+                             : t('{a} of {b} walls done',{a:solved,b:total}))}</div>`;
     return out;
   }
   /* --------------------------------------------------------- the shuffle
@@ -1178,7 +1196,9 @@ window.FLIGHT = (function(){
         n.style.transformOrigin='top left';
         n.style.transform=`translate(${dx}px,${dy}px) scale(${sc})`;
       } else {
-        n.style.transform='translateX(30px)';
+        // brand new: out of the vanishing point, small, and grows into place
+        n.style.transformOrigin='center center';
+        n.style.transform='scale(.35)';
         n.style.opacity='0';
       }
       n.getBoundingClientRect();                 // force layout, or there is no start
@@ -1198,8 +1218,12 @@ window.FLIGHT = (function(){
         pointerEvents:'none' });
       document.body.appendChild(c);
       c.getBoundingClientRect();
-      c.style.transition=`transform ${SLIDE}ms cubic-bezier(.4,0,.7,.3), opacity ${SLIDE}ms`;
-      c.style.transform='translateX(-46px) scale(.82)';
+      /* Past the camera, not off the side. You are flying INTO this field,
+         so the wall you have just dealt with grows and passes you — the same
+         thing the real rocks do out of the windscreen. */
+      c.style.transformOrigin='center center';
+      c.style.transition=`transform ${SLIDE}ms cubic-bezier(.35,0,.75,.35), opacity ${SLIDE}ms`;
+      c.style.transform='scale(2.1)';
       c.style.opacity='0';
       setTimeout(()=>c.remove(), SLIDE+60);
     });

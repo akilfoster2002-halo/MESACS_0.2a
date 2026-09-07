@@ -848,9 +848,23 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   letter-spacing:.4px;color:#8ff0ff;max-width:min(64vw,430px)}
 .rline.warn{color:#ffb4a2;border-color:rgba(255,107,107,.6)}
 .cg-txt .rline{margin-top:10px;font-size:15px;background:rgba(8,14,34,.55)}
-.radar{display:flex;align-items:flex-end;gap:10px;
+/* A CORRIDOR, not a row. Three cards side by side is a list of three
+   things; three cards stacked into the screen, each smaller and dimmer
+   than the one in front, is the field you are flying down. Solving a wall
+   then reads as travel: everything steps toward you a size, the front one
+   grows and passes the camera, and a new one appears in the distance. */
+/* The gaps have to clear each card's HEIGHT, not just look roomy: stack
+   them too close and the front card swallows the two behind it and all you
+   can see of the field ahead is three labels. */
+.radar{position:relative;height:196px;
   background:rgba(8,14,34,.86);border:3px solid rgba(143,240,255,.5);
-  border-radius:16px;padding:9px 13px 8px}
+  border-radius:16px;padding:8px 10px}
+/* The WRAPPER owns the place in the stack; the card inside owns nothing, so
+   the animation has its transform entirely to itself. */
+.rwrap{position:absolute;left:0;right:0;display:flex;justify-content:center}
+.rwrap.big{top:82px;z-index:3}
+.rwrap.mid{top:36px;z-index:2}
+.rwrap.far{top:2px;z-index:1}
 .cg-txt .radar{margin-top:10px;background:rgba(8,14,34,.55);gap:14px;padding:11px 16px 10px}
 /* bigger inside the console: this is where you are actually reading it to
    decide what to write, rather than glancing at it mid-flight */
@@ -858,7 +872,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cg-txt .rw.mid .rgrid{grid-template-columns:repeat(3,16px);grid-auto-rows:16px}
 .cg-txt .rw.far .rgrid{grid-template-columns:repeat(3,11px);grid-auto-rows:11px}
 .cg-txt .rw b{font-size:10.5px}
-.cg-txt .rlegend{font-size:12.5px;color:var(--star)}
+.cg-txt .radar + .rlegend{text-align:center;margin-top:2px}
+.rlegend{font-size:12.5px;color:var(--star)}
 .rw{text-align:center}
 .rw b{display:block;font-size:9.5px;letter-spacing:1.6px;color:#8ff0ff;margin-bottom:3px}
 .rw b small{color:var(--muted);letter-spacing:0}
@@ -890,9 +905,15 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .ast.rev{animation-direction:reverse}
 @keyframes astSpin{ to{ transform:rotate(360deg) } }
 /* and you: a little ship, nose up the screen, the way the field runs */
-.mini{width:0;height:0;border-left:.34em solid transparent;border-right:.34em solid transparent;
-  border-bottom:.62em solid #8ff0ff;filter:drop-shadow(0 0 3px rgba(143,240,255,.85));
-  position:relative;z-index:2}
+.mini{position:relative;z-index:2;width:76%;height:76%;display:grid;place-items:center;
+  filter:drop-shadow(0 0 4px rgba(143,240,255,.8))}
+.shipico{width:100%;height:100%;display:block}
+.shipico .s-hull{fill:#dff4ff}
+.shipico .s-wing{fill:#4fb8d8}
+.shipico .s-glass{fill:#1b3b63}
+.shipico .s-fire{fill:#ffd27f}
+.rgrid i.me.rock .shipico .s-hull{fill:#ffd8d8}
+.rgrid i.me.rock .shipico .s-wing{fill:#e0656c}
 .rgrid i.me{background:#12294a;box-shadow:inset 0 0 0 2px rgba(143,240,255,.55)}
 .rgrid i.me.rock{box-shadow:inset 0 0 0 2px var(--bad)}
 .rgrid i.me.rock .mini{border-bottom-color:#ff9aa2}
@@ -901,7 +922,10 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 /* The panels are being READ here, to decide what to write — so they get the
    room the old guide panel used to take, rather than the glance-sized
    version that lives on the windscreen. */
-#conAside .radar{background:none;border:none;padding:0;gap:12px;flex-wrap:wrap}
+#conAside .radar{background:none;border:none;padding:0;height:292px}
+#conAside .rwrap.big{top:130px}
+#conAside .rwrap.mid{top:54px}
+#conAside .rwrap.far{top:2px}
 #conAside .rw.big .rgrid{grid-template-columns:repeat(3,34px);grid-auto-rows:34px}
 #conAside .rw.mid .rgrid{grid-template-columns:repeat(3,22px);grid-auto-rows:22px}
 #conAside .rw.far .rgrid{grid-template-columns:repeat(3,15px);grid-auto-rows:15px}
@@ -909,8 +933,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    and still a ship two panels back */
 #conAside .rw.big .mini{border-left-width:7px;border-right-width:7px;border-bottom-width:13px}
 #conAside .rw b{font-size:10.5px}
-#conAside .rlegend{flex-basis:100%;font-size:12.5px;color:var(--star);
-  white-space:normal;margin-top:2px}
+#conAside .rlegend{font-size:12.5px;color:var(--star);white-space:normal}
 /* a shelf entry the walkthrough has filled in for you: the number in the
    block is the answer, so the block is marked as being handed over */
 .palblk.pinned{box-shadow:0 0 0 2px var(--star),0 3px 0 #221b36}
@@ -1318,35 +1341,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=234"></script>
-<script src="strings.js?v=234"></script>
-<script src="difficulty.js?v=234"></script>
-<script src="net.js?v=234"></script>
-<script src="avatar.js?v=234"></script>
-<script src="zombies.js?v=234"></script>
-<script src="building.js?v=234"></script>
-<script src="levels.js?v=234"></script>
-<script src="code.js?v=234"></script>
-<script src="combat.js?v=234"></script>
-<script src="puzzle.js?v=234"></script>
-<script src="nav.js?v=234"></script>
-<script src="tutorial.js?v=234"></script>
-<script src="race.js?v=234"></script>
-<script src="flight.js?v=234"></script>
-<script src="planet.js?v=234"></script>
-<script src="wallet.js?v=234"></script>
-<script src="shop.js?v=234"></script>
-<script src="library.js?v=234"></script>
-<script src="costumes.js?v=234"></script>
-<script src="missions.js?v=234"></script>
-<script src="coach.js?v=234"></script>
-<script src="owner.js?v=234"></script>
-<script src="blocks.js?v=234"></script>
-<script src="vm.js?v=234"></script>
-<script src="coder.js?v=234"></script>
-<script src="quiz.js?v=234"></script>
-<script src="chars.js?v=234"></script>
-<script src="menu.js?v=234"></script>
-<script src="game.js?v=234"></script>
+<script src="lib/three.classic.js?v=239"></script>
+<script src="strings.js?v=239"></script>
+<script src="difficulty.js?v=239"></script>
+<script src="net.js?v=239"></script>
+<script src="avatar.js?v=239"></script>
+<script src="zombies.js?v=239"></script>
+<script src="building.js?v=239"></script>
+<script src="levels.js?v=239"></script>
+<script src="code.js?v=239"></script>
+<script src="combat.js?v=239"></script>
+<script src="puzzle.js?v=239"></script>
+<script src="nav.js?v=239"></script>
+<script src="tutorial.js?v=239"></script>
+<script src="race.js?v=239"></script>
+<script src="flight.js?v=239"></script>
+<script src="planet.js?v=239"></script>
+<script src="wallet.js?v=239"></script>
+<script src="shop.js?v=239"></script>
+<script src="library.js?v=239"></script>
+<script src="costumes.js?v=239"></script>
+<script src="missions.js?v=239"></script>
+<script src="coach.js?v=239"></script>
+<script src="owner.js?v=239"></script>
+<script src="blocks.js?v=239"></script>
+<script src="vm.js?v=239"></script>
+<script src="coder.js?v=239"></script>
+<script src="quiz.js?v=239"></script>
+<script src="chars.js?v=239"></script>
+<script src="menu.js?v=239"></script>
+<script src="game.js?v=239"></script>
 </body>
 </html>
