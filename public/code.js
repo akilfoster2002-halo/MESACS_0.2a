@@ -92,13 +92,18 @@ window.CODE = (function(){
     if(type==='turn') b.n=90;
     return b;
   }
-  function addBlock(type){
+  function addBlock(type, n){
     if(budget && countBlocks()>=budget){
       hint(t('Out of blocks. Find a shorter way.'), 'err');
       if(window.beep) beep('bad');
       return;
     }
     const b=makeBlock(type);
+    /* A pinned number. A walkthrough that says "click change y by 1" and
+       then hands over a block reading 1 when the answer was -1 has taught
+       the student to distrust it — so the shelf can carry the value as well
+       as the block, and what arrives is what was promised. */
+    if(n!==undefined && n!==null && 'n' in b) b.n=n;
     if(dropTarget && dropTarget.body) dropTarget.body.push(b);
     else script.push(b);
     if(window.beep) beep('pop');
@@ -204,7 +209,8 @@ window.CODE = (function(){
     if(k==='repeat'||k==='ifc'||k==='define'||k==='goTo'||NUMBLK[k]) return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
-  function allowed(type){ return palette.indexOf(type) >= 0; }
+  const palOps = () => palette.map(p => (typeof p==='string') ? p : p.op);
+  function allowed(type){ return palOps().indexOf(type) >= 0; }
 
   function parse(text){
     const out=[], stack=[], lines=String(text||'').split('\n');
@@ -355,8 +361,9 @@ window.CODE = (function(){
      changing it step by step with the console up, and the narrowing only
      appeared after the student happened to click something else. */
   function setPalette(list){
+    const key=v=>JSON.stringify(v);
     const same = palette && list && palette.length===list.length
-              && palette.every((x,i)=>x===list[i]);
+              && palette.every((x,i)=>key(x)===key(list[i]));
     palette=list;
     if(!same && el && isOpen()) draw();
   }
@@ -569,7 +576,8 @@ window.CODE = (function(){
   /* the word bank is the block palette, spelled out */
   function words(){
     const out=[];
-    palette.forEach(type=>{
+    // the word bank speaks in ops; a pinned shelf entry is still just its op
+    palOps().forEach(type=>{
       const d=DEF[type]; if(!d) return;
       if(type==='repeat')      out.push({w:'repeat 3', c:d.color});
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
@@ -640,16 +648,25 @@ window.CODE = (function(){
       : t('Click a block to add it.'));
     budgetOut(countBlocks());
 
-    paletteEl.innerHTML=palette.map(type=>{
+    /* A shelf entry is either a block type or a type WITH the number already
+       in it. The second form is what a walkthrough uses to hand somebody the
+       answer rather than describing it. */
+    paletteEl.innerHTML=palette.map(it=>{
+      const type=(typeof it==='string') ? it : it.op;
+      const pin =(typeof it==='string') ? null : it.n;
       const d=DEF[type];
-      return `<button class="palblk" data-add="${type}" style="--c:${d.color}">
-        <b>${type==='repeat'?t('repeat')+' 3':type==='goTo'?t('goTo')+' 1,1'
-             :type==='addX'?t('change x by')+' 1':type==='addY'?t('change y by')+' 1'
-             :type==='setX'?t('set x to')+' 1':type==='setY'?t('set y to')+' 1'
-             :type==='turn'?t('turn')+' 90':d.label}</b>
+      const num = v => (pin===null||pin===undefined) ? v : pin;
+      return `<button class="palblk${pin!==null&&pin!==undefined?' pinned':''}"
+          data-add="${type}"${pin!==null&&pin!==undefined?` data-n="${pin}"`:''}
+          style="--c:${d.color}">
+        <b>${type==='repeat'?t('repeat')+' '+num(3):type==='goTo'?t('goTo')+' 1,1'
+             :type==='addX'?t('change x by')+' '+num(1):type==='addY'?t('change y by')+' '+num(1)
+             :type==='setX'?t('set x to')+' '+num(1):type==='setY'?t('set y to')+' '+num(1)
+             :type==='turn'?t('turn')+' '+num(90):d.label}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
-    paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addBlock(b.dataset.add));
+    paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>
+      addBlock(b.dataset.add, b.dataset.n===undefined ? undefined : +b.dataset.n));
 
     scriptEl.innerHTML = script.length ? script.map(b=>blockHTML(b,false)).join('')
       : `<div class="blk-empty big">${t('Click a block on the left.')}</div>`;

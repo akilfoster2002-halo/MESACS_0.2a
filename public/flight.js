@@ -917,44 +917,44 @@ window.FLIGHT = (function(){
        means two steps sharing a condition collapse into one, and the first
        draft of this lost the radar explanation the instant any block was
        added. One step, one thing you have to do. */
-    /* One thing per step, in the order a person would actually do it, and
-       nothing else POSSIBLE while the step is up. The palette is cut to the
-       single block being asked for, so the ring the coach draws is around
-       the only thing on screen — and RUN stays shut until there is something
-       worth running, because a first flight that ends in a crash two seconds
-       after the console opens teaches only that this game is unfair. */
+    /* THE ANSWER, WALL BY WALL. Leg one is not a puzzle. It is the place
+       somebody finds out that a block moves a ship, and a student who is
+       left to "figure out" a nine-lane field before they have grasped that
+       has been abandoned, not taught. So the walkthrough works the whole
+       leg out first, and then hands it over one block at a time: the shelf
+       holds exactly one block, with the right NUMBER already in it, and the
+       card says which gap it is aiming at. There is nothing to get wrong,
+       which is the point — the lesson here is what the blocks DO.
+
+       The other six legs are untouched. This is the demonstration. */
+    const plan=solveLeg();
+    const gap = q => q.dc<0 ? t('left') : q.dc>0 ? t('right')
+                   : q.dr>0 ? t('up')   : q.dr<0 ? t('down') : null;
     const WALK=[
-      { say:'Rocks are coming. Press <b>C</b> to stop the field and think.',
+      { say:'Rocks ahead. Press <b>C</b> to stop the field so you can look at them.',
         find:()=>document.querySelector('#codeBtn'),
         done:()=>!!(window.CODE && CODE.isOpen()),
-        pal:['addY'], rails:{run:false, clear:false, mode:false} },
-
-      { say:'The panels on the right are the next three walls. The brown lumps are rocks; the little ship is you. Click <b>change y by 1</b>.',
-        sel:'#conPalette [data-add="addY"]',
-        done:()=>hasOp('addY'),
-        pal:['addY'], rails:{run:false, clear:false, mode:false} },
-
-      { say:'Watch the panel — your ship moved up a row. Now click <b>coast()</b>.',
-        sel:'#conPalette [data-add="coast"]',
-        done:()=>hasOp('coast'),
-        pal:['coast'], rails:{run:false, clear:false, mode:false} },
-
-      /* RUN opens here, and it opens whether the plan is right or not.
-         Holding it shut until every wall is solved sounds like
-         teaching and is the opposite of it: the budget is one block a wall,
-         so a child who fills all eight wrongly would have nothing left to
-         add and no way to try — only Clear and start again. Being shown the
-         controls is the point; being forbidden to press them is not. */
-      { say:'Now you have both. One block for each wall — keep the little ship out of the rocks.',
-        sel:'#conBudget',
-        done:()=>allClear() || scriptLen()>=L.K.budget,
-        pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:false} },
-
-      { say:'Press <b>RUN</b> and fly it. <b>C</b> stops the field any time so you can fix it.',
-        sel:'#conRun',
-        done:()=>!!(L && L.rolling),
-        pal:['addY','addX','coast'], rails:{run:true, clear:true, mode:true} }
+        pal:[], rails:{run:false, clear:false, mode:false} }
     ];
+    plan.forEach((q,i)=>{
+      const where=gap(q);
+      WALK.push({
+        say: i===0
+          ? t('The panel on the right is wall 1. The little ship is you. The gap is {w} — click the block.',{w:where||t('straight ahead')})
+          : where
+            ? t('Wall {n}: the gap is {w}. Click the block.',{n:q.wall,w:where})
+            : t('Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.',{n:q.wall}),
+        sel:'#conPalette [data-add]',
+        done:()=>scriptLen()>i,
+        pal:[q.pin], rails:{run:false, clear:false, mode:false}
+      });
+    });
+    WALK.push({
+      say:'That is the whole field. Press <b>RUN</b> and fly it.',
+      sel:'#conRun',
+      done:()=>!!(L && L.rolling),
+      pal:L.K.pal, rails:{run:true, clear:true, mode:true} });
+
     COACH.start(WALK, {
       /* The coach does not know what a palette is, and should not. It says
          which step is live; this decides what that means. */
@@ -965,14 +965,38 @@ window.FLIGHT = (function(){
           CODE.setRails({});
           return;
         }
-        /* Every step names its palette outright. An earlier version treated
-           an empty list as "no opinion" and handed back the whole palette,
-           which is the exact opposite of what an empty list means. */
         if(s.pal) CODE.setPalette(s.pal);
         CODE.setRails(s.rails||{});
       }
     });
   }
+  /* Walk the field once, choosing a move for every wall: hold the lane if it
+     is already clear, otherwise step to a neighbouring lane that is. It is a
+     one-block-deep search because the legs are built to be solvable that way
+     — and if a wall ever defeats it, the walkthrough says coast and the
+     student watches what happens, which is also a lesson. */
+  function solveLeg(){
+    const out=[];
+    let c=L.K.start.col, r=L.K.start.row;
+    for(let w=1; w<=L.beats.length; w++){
+      const mask=L.beats[w-1];
+      if(!hits(mask,c,r,0)){
+        out.push({ wall:w, dc:0, dr:0, pin:'coast' });
+        continue;
+      }
+      const tries=[[0,1,'addY',1],[0,-1,'addY',-1],[-1,0,'addX',-1],[1,0,'addX',1]];
+      let got=null;
+      for(const [dc,dr,op,n] of tries){
+        const nc=c+dc, nr=r+dr;
+        if(nc<0||nc>=COLS||nr<0||nr>=ROWS) continue;
+        if(hits(mask,nc,nr,0)) continue;
+        got={ wall:w, dc, dr, pin:{op, n} }; c=nc; r=nr; break;
+      }
+      out.push(got || { wall:w, dc:0, dr:0, pin:'coast' });
+    }
+    return out;
+  }
+
   /* does the program, as written, get all the way down the field? */
   function allClear(){
     if(!L || !L.beats) return false;
