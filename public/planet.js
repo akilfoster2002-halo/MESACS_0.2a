@@ -225,6 +225,7 @@ window.PLANET = (function(){
     if(window.FLIGHT) FLIGHT.stop();
     if(window.MISSIONS) MISSIONS.stop();
     if(window.CODER) CODER.hide();
+    if(window.MECH) MECH.stop();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
 

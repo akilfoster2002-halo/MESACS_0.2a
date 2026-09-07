@@ -48,9 +48,29 @@ window.CODE = (function(){
     setX     :{label:'set x to',     color:'#ffb4a2', help:'Put the ship in that column, wherever it was'},
     setY     :{label:'set y to',     color:'#a8e6cf', help:'Put the ship in that row, wherever it was'},
     addX     :{label:'change x by',  color:'#ffb4a2', help:'Add to the column you are in. Minus goes left'},
-    addY     :{label:'change y by',  color:'#a8e6cf', help:'Add to the row you are in. Minus goes down'}
+    addY     :{label:'change y by',  color:'#a8e6cf', help:'Add to the row you are in. Minus goes down'},
+    /* The mech deck. Four of the seven verbs a mech needs already exist above
+       — forward(), turnLeft(), turnRight() and shoot() mean in an arena
+       exactly what they mean in a corridor — so only the three it adds are
+       here. Reusing them is not a saving; it is the point. A student who
+       learned forward() escaping a corridor should not have to learn a second
+       word for the same idea to fight with it.
+
+       No energy costs in the help text: what an action costs is a rule of the
+       match, set per tournament, and a number written here would be a lie the
+       moment somebody changed it. The arena shows the real ones. */
+    back     :{label:'back()',       color:'#a8e6cf', help:'Reverse one tile, still facing the same way'},
+    shield   :{label:'shield()',     color:'#8fd3ff', help:'Brace. Soaks damage until your next action'},
+    dash     :{label:'dash()',       color:'#ffd8a8', help:'Two tiles forward at once — expensive, and it can overshoot'},
+    /* The first loop whose length nobody knows when they write it. repeat 5
+       is counted out at compile time; this one has to be tested every pass. */
+    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'}
   };
-  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy', turn:'deg' };
+  /* The shape of the language — which blocks carry a number, how a tree of
+     them compiles, how many blocks it is — lives in program.js, because the
+     referee of a PvP match has to compile a submitted program with exactly
+     this code and has no screen to do it on. */
+  const NUMBLK=PROGRAM.NUMBLK;
   /* how much one press of the counter is worth. An angle steps a quarter
      turn at a time, because a ship that can face 37 degrees is a ship nobody
      can reason about. */
@@ -84,14 +104,35 @@ window.CODE = (function(){
     if(type==='turn' && v===0) v=clampN(type, v + dir*step);
     return v;
   }
-  let CONDS=['red','blue'];
-  function setConditions(list){ CONDS=list&&list.length?list:['red','blue']; }
+  /* WHAT AN `if` CAN TEST FOR. A mission hands over its own list, because a
+     test only means something against the thing being fought: a boss has a
+     shield that is red or blue, a mech has an enemy that is ahead or is not.
+
+     The lead-in is part of it. "if target is red" reads properly in a duel
+     with one target; "if target is enemy ahead" does not read at all, so the
+     words in front of the dropdown belong to the mission too. Called with a
+     plain list — which is what every mission before the arena does — nothing
+     changes. */
+  let CONDS=['red','blue'], CONDCOL={red:'#ff9aa2',blue:'#8fd3ff'};
+  let IFLEAD='if target is', UNTILLEAD='repeat until';
+  function setConditions(list, opts){
+    opts=opts||{};
+    const L = (list&&list.length) ? list : ['red','blue'];
+    CONDS = L.map(c=>typeof c==='string' ? c : c.id);
+    CONDCOL = {};
+    L.forEach(c=>{ if(typeof c!=='string' && c.a) CONDCOL[c.id]=c.a; });
+    if(!Object.keys(CONDCOL).length) CONDCOL={red:'#ff9aa2',blue:'#8fd3ff'};
+    IFLEAD    = opts.lead  || 'if target is';
+    UNTILLEAD = opts.until || 'repeat until';
+  }
+  const condColour = c => CONDCOL[c] || '#8fd3ff';
 
   /* ------------------------------------------------------------ model */
   function makeBlock(type){
     const b={id:uid++, type};
     if(type==='repeat'){ b.count=3; b.body=[]; }
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
+    if(type==='until'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
     if(type==='goTo'){ b.col=0; b.row=0; }   // centre of a centred grid
     // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
@@ -145,42 +186,11 @@ window.CODE = (function(){
   }
 
   /* ------------------------------------------------- compile + text */
-  // turns the block tree into the exact list of steps that will run
-  function compile(list, out, guard, depth){
-    out=out||[]; guard=guard||{n:0}; depth=depth||0;
-    for(const b of list){
-      if(guard.n++ > 600) break;
-      if(b.type==='define') continue;                  // a definition only runs when called
-      if(b.type==='repeat'){
-        for(let i=0;i<b.count;i++){
-          out.push({name:'__iter', blockId:b.id, i:i+1, n:b.count});
-          compile(b.body, out, guard, depth);
-        }
-      } else if(b.type==='ifc'){
-        const at=out.length;
-        out.push({name:'__if', blockId:b.id, cond:b.cond, jump:0});
-        compile(b.body, out, guard, depth);
-        out[at].jump=out.length;                       // where to land when the test is false
-      } else if(b.type==='call'){
-        const def=findDefine();
-        if(def && depth<4){
-          out.push({name:'__call', blockId:b.id});
-          compile(def.body, out, guard, depth+1);
-        }
-      } else if(b.type==='goTo'){
-        out.push({name:'goTo', blockId:b.id, col:b.col, row:b.row});
-      } else if(NUMBLK[b.type]){
-        out.push({name:b.type, blockId:b.id, n:b.n});
-      } else out.push({name:b.type, blockId:b.id});
-    }
-    return out;
-  }
-  function findDefine(list){
-    list=list||script;
-    for(const b of list){ if(b.type==='define') return b;
-      if(b.body){ const f=findDefine(b.body); if(f) return f; } }
-    return null;
-  }
+  /* The tree becomes a flat list of steps in program.js. `script` is passed
+     as the root as well as the list, so a call() finds its define wherever
+     in the program either of them was written. */
+  function compile(list){ return PROGRAM.compile(list||script, { root:script }); }
+
   function toText(list, depth){
     list=list||script; depth=depth||0;
     const pad='  '.repeat(depth);
@@ -190,7 +200,10 @@ window.CODE = (function(){
         s.push(pad+'repeat '+b.count);
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else if(b.type==='ifc'){
-        s.push(pad+'if target is '+b.cond);
+        s.push(pad+IFLEAD+' '+b.cond);
+        s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
+      } else if(b.type==='until'){
+        s.push(pad+UNTILLEAD+' '+b.cond);
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else if(b.type==='define'){
         s.push(pad+'define combo');
@@ -214,12 +227,18 @@ window.CODE = (function(){
      to be something you could have built, and it runs down one code path. */
   const BY_WORD = {};
   Object.keys(DEF).forEach(k=>{
-    if(k==='repeat'||k==='ifc'||k==='define'||k==='goTo'||NUMBLK[k]) return;
+    if(k==='repeat'||k==='ifc'||k==='until'||k==='define'||k==='goTo'||NUMBLK[k]) return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
   const palOps = () => palette.map(p => (typeof p==='string') ? p : p.op);
   function allowed(type){ return palOps().indexOf(type) >= 0; }
 
+  /* "if target is red" and "if enemy ahead" are the same line with different
+     words in front, so the matcher is built from whatever those words are.
+     Escaped, because a mission is allowed to put punctuation in them. */
+  function leadRe(lead){
+    return new RegExp('^'+String(lead).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+' +(.+)$');
+  }
   function parse(text){
     const out=[], stack=[], lines=String(text||'').split('\n');
     const put=b=>{ (stack.length ? stack[stack.length-1].body : out).push(b); };
@@ -240,14 +259,21 @@ window.CODE = (function(){
         const b=makeBlock('repeat'); b.count=Math.max(1,Math.min(20,+m[1]));
         put(b); stack.push(b); continue;
       }
+      if((m=low.match(leadRe(UNTILLEAD)))){
+        if(!allowed('until')) return bad(i, t('<b>repeat until</b> is not in this mission yet.'));
+        if(CONDS.indexOf(m[1])<0)
+          return bad(i, t('<b>{w}</b> is not something you can test for here.',{w:m[1]}));
+        const b=makeBlock('until'); b.cond=m[1]; put(b); stack.push(b); continue;
+      }
       if(low==='repeat') return bad(i, t('<b>repeat</b> needs a number after it, like <b>repeat 3</b>.'));
-      if((m=low.match(/^if target is (\w+)$/))){
+      if((m=low.match(leadRe(IFLEAD)))){
         if(!allowed('ifc')) return bad(i, t('<b>if</b> is not in this mission yet.'));
         if(CONDS.indexOf(m[1])<0)
           return bad(i, t('<b>{w}</b> is not something you can test for here.',{w:m[1]}));
         const b=makeBlock('ifc'); b.cond=m[1]; put(b); stack.push(b); continue;
       }
-      if(low==='if') return bad(i, t('Write the whole test, like <b>if target is red</b>.'));
+      if(low===IFLEAD.toLowerCase() || low==='if')
+        return bad(i, t('Write the whole test, like <b>{w}</b>.',{w:IFLEAD+' '+CONDS[0]}));
       if((m=low.match(/^goto +(\d+) *, *(\d+)$/))){
         if(!allowed('goTo')) return bad(i, t('<b>goTo</b> is not in this mission yet.'));
         const b=makeBlock('goTo');
@@ -427,25 +453,25 @@ window.CODE = (function(){
       b.classList.toggle('railed', off);
     });
   }
-  function countBlocks(list){
-    list=list||script; let n=0;
-    for(const b of list){ n++; if(b.body) n+=countBlocks(b.body); }
-    return n;
-  }
+  function countBlocks(list){ return PROGRAM.countBlocks(list||script); }
 
   function blockHTML(b, readonly){
     const d=DEF[b.type];
-    if(b.type==='ifc' || b.type==='define'){
+    if(b.type==='ifc' || b.type==='until' || b.type==='define'){
       const isTarget = dropTarget && dropTarget.id===b.id;
-      const head = b.type==='ifc'
-        ? `<span class="blk-name">${t('if target is')}</span>
+      /* if and repeat-until are the same block wearing different words: a
+         test, then a body. Only the lead-in tells them apart, which is
+         exactly the difference — one asks once, the other keeps asking. */
+      const test = (lead)=>`<span class="blk-name">${t(lead)}</span>
            ${readonly?`<span class="cnt-n">${t(b.cond)}</span>`
-             :`<button class="cond" data-act="cond" data-id="${b.id}" style="--sw:${b.cond==='red'?'#ff9aa2':'#8fd3ff'}">${t(b.cond)}</button>`}`
-        : `<span class="blk-name">${t('define combo')}</span>`;
+             :`<button class="cond" data-act="cond" data-id="${b.id}" style="--sw:${condColour(b.cond)}">${t(b.cond)}</button>`}`;
+      const head = b.type==='ifc'   ? test(IFLEAD)
+                 : b.type==='until' ? test(UNTILLEAD)
+                 : `<span class="blk-name">${t('define combo')}</span>`;
       return `<div class="blk rep ${isTarget?'target':''}" data-id="${b.id}" style="--c:${d.color}">
           <div class="blk-head">${head}
             ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}</div>
-          <div class="blk-body">${b.body.map(c=>blockHTML(c,readonly)).join('') ||
+          <div class="blk-body" data-body="${b.id}">${b.body.map(c=>blockHTML(c,readonly)).join('') ||
             (readonly?'':`<div class="blk-empty">${t('put blocks here')}</div>`)}</div>
           <div class="blk-foot"></div>
         </div>`;
@@ -597,7 +623,8 @@ window.CODE = (function(){
     palOps().forEach(type=>{
       const d=DEF[type]; if(!d) return;
       if(type==='repeat')      out.push({w:'repeat 3', c:d.color});
-      else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
+      else if(type==='ifc')    CONDS.forEach(c=>out.push({w:IFLEAD+' '+c, c:d.color}));
+      else if(type==='until')  CONDS.forEach(c=>out.push({w:UNTILLEAD+' '+c, c:d.color}));
       else if(type==='define') out.push({w:'define combo', c:d.color});
       else if(type==='goTo')   out.push({w:'goto 0,0', c:d.color});
       else if(type==='setX')   out.push({w:'set x to 1', c:d.color});
@@ -610,7 +637,7 @@ window.CODE = (function(){
                                out.push({w:'turn -90', c:d.color}); }
       else                     out.push({w:d.label, c:d.color});
     });
-    if(palette.some(p=>p==='repeat'||p==='ifc'||p==='define'))
+    if(palOps().some(p=>p==='repeat'||p==='ifc'||p==='until'||p==='define'))
       out.push({w:'end', c:'#5a4b85'});
     return out;
   }
@@ -676,7 +703,10 @@ window.CODE = (function(){
       return `<button class="palblk${pin!==null&&pin!==undefined?' pinned':''}"
           data-add="${type}"${pin!==null&&pin!==undefined?` data-n="${pin}"`:''}
           style="--c:${d.color}">
-        <b>${type==='repeat'?t('repeat')+' '+num(3):type==='goTo'?t('goTo')+' 0,0'
+        <b>${type==='repeat'?t('repeat')+' '+num(3)
+             :type==='until'?t(UNTILLEAD)+' '+t(CONDS[0])
+             :type==='ifc'?t(IFLEAD)+' '+t(CONDS[0])
+             :type==='goTo'?t('goTo')+' 0,0'
              :type==='addX'?t('change x by')+' '+num(1):type==='addY'?t('change y by')+' '+num(1)
              :type==='setX'?t('set x to')+' '+num(0):type==='setY'?t('set y to')+' '+num(0)
              :type==='turn'?t('turn')+' '+num(90):d.label}</b>

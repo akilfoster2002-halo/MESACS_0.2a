@@ -805,7 +805,91 @@ window.ES = {
   /* ---------- certificate ---------- */
   'Certificate of Completion':'Certificado de Finalización','Certificate of Mastery':'Certificado de Dominio',
   'has demonstrated understanding of':'ha demostrado comprender','Quiz score':'Puntaje del cuestionario',
-  'Back to the menu ▶':'Volver al menú ▶'
+  'Back to the menu ▶':'Volver al menú ▶',
+
+  /* ---------- the mech league ---------- */
+  'The Mech League':'La Liga de Mechs','THE MECH LEAGUE':'LA LIGA DE MECHS',
+  'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.':
+    'Programa un mech de combate y mándalo sin ti. Cuatro rivales, y nada de manos en los controles.',
+  'Program a machine and send it in without you. You cannot help it once it is out there — whatever you wrote is what it does.':
+    'Programa una máquina y mándala sin ti. No puedes ayudarla allí dentro — lo que escribiste es lo que hace.',
+  'THE ARENA':'LA ARENA',
+  'Your code against somebody else\u2019s. No hands on the controls.':
+    'Tu código contra el de otra persona. Nada de manos en los controles.',
+  'PICK YOUR MECH':'ELIGE TU MECH',
+  'Four frames, five numbers each. None of them is the best one — the right one depends on the program you are going to write.':
+    'Cuatro chasis, cinco números cada uno. Ninguno es el mejor — el correcto depende del programa que vas a escribir.',
+  'Arena':'Arena','Mech':'Mech','FIGHT ▶':'PELEAR ▶',
+  'BEATEN — FIGHT AGAIN ▶':'VENCIDO — PELEAR OTRA VEZ ▶','DEPLOY THIS ▶':'DESPLEGAR ESTE ▶',
+  'armour':'blindaje','hit':'golpe','range':'alcance','speed':'velocidad','sensor':'sensor',
+  'YOU':'TÚ','you':'tú','energy':'energía','hazard':'peligro','Turns':'Turnos',
+  'most armour left wins if nobody is destroyed':'si nadie es destruido, gana quien conserve más blindaje',
+
+  'Round 1':'Ronda 1','Round 2':'Ronda 2','Round 3':'Ronda 3','Round 4':'Ronda 4',
+  /* THE LOOPER is already translated above, for the Mission 2 boss this one
+     is named after. A second entry here would quietly rename him. */
+  'TIN CAN':'LATA','SENTRY':'CENTINELA','THE HUNTER':'LA CAZADORA',
+  'It walks forward and it never looks up. Anything at all beats it.':
+    'Camina de frente y nunca levanta la vista. Cualquier cosa le gana.',
+  'Get in front of it and shoot.':'Ponte enfrente y dispara.',
+  'Spins on the spot and fires. Deadly in front of it, useless everywhere else.':
+    'Gira en el sitio y dispara. Mortal enfrente, inútil en cualquier otro lado.',
+  'A loop of your own, and a test before you shoot.':'Un bucle tuyo, y una prueba antes de disparar.',
+  'Never moves. Shields when you are close and shoots when you are in front.':
+    'Nunca se mueve. Se escuda cuando te acercas y dispara cuando estás enfrente.',
+  'Cover, and coming at it from a side it is not watching.':
+    'Cobertura, y llegarle por un lado que no está mirando.',
+  'Comes looking. Fast, fragile, and it tests before it does anything.':
+    'Te viene a buscar. Rápida, frágil, y prueba antes de hacer nada.',
+  'Everything at once — sensors, a loop, and where you stand.':
+    'Todo a la vez — sensores, un bucle, y dónde te pones.',
+
+  'TANK':'TANQUE','SCOUT':'EXPLORADOR','STRIKER':'ASALTO','DEFENDER':'DEFENSOR',
+  'Slow, thick, and it hits hardest. Get in close and stay there.':
+    'Lento, grueso, y pega más fuerte. Acércate y quédate ahí.',
+  'Two tiles a step and it sees the furthest. Made of paper.':
+    'Dos casillas por paso y es el que más lejos ve. Hecho de papel.',
+  'No weakness worth naming. The one to learn on.':
+    'Sin ninguna debilidad que valga la pena nombrar. Con este se aprende.',
+  'Shrugs off two of every hit, and its shield is worth double.':
+    'Se quita dos de cada golpe, y su escudo vale el doble.',
+
+  'TRAINING ARENA':'ARENA DE ENTRENAMIENTO','RUINS':'RUINAS','ENERGY ARENA':'ARENA DE ENERGÍA',
+  'MAZE':'LABERINTO','HAZARD ARENA':'ARENA DE PELIGRO',
+
+  /* 'wall ahead' is already 'pared adelante' up in the flight deck — the
+     sensor reads the same in both, so it keeps the words it already had. */
+  'enemy ahead':'enemigo enfrente','enemy nearby':'enemigo cerca',
+  'energy nearby':'energía cerca','enemy detected':'enemigo detectado',
+  /* The verbs stay in English, the way forward() and shoot() already do
+     everywhere else: they are code, and a student typing them into the
+     word bank has to type what the block says. Only the words AROUND them
+     translate. */
+  'repeat until':'repetir hasta',
+  'Reverse one tile, still facing the same way':'Retrocede una casilla, mirando hacia el mismo lado',
+  'Brace. Soaks damage until your next action':'Aguanta. Absorbe daño hasta tu siguiente acción',
+  'Two tiles forward at once — expensive, and it can overshoot':
+    'Dos casillas de golpe — caro, y se te puede pasar',
+  'Keep doing the blocks inside until the test comes true':
+    'Repite los bloques de dentro hasta que la prueba sea verdadera',
+
+  'Program your mech, then press RUN to deploy it. It runs your program over and over until somebody is destroyed.':
+    'Programa tu mech y pulsa CORRER para desplegarlo. Repite tu programa una y otra vez hasta que alguien sea destruido.',
+  'THE FIGHT':'EL COMBATE','deploys it':'lo despliega',
+  'turn the camera':'gira la cámara','play / pause the replay':'reproduce / pausa la repetición',
+  'DEPLOY!':'¡DESPLIEGUE!','nobody can help them now':'ya nadie puede ayudarles',
+  'BATTLE LOG':'REGISTRO DEL COMBATE','TURN':'TURNO','NOT DEPLOYED':'SIN DESPLEGAR',
+  'DESTROYED':'DESTRUIDO','Nothing has happened yet.':'Todavía no ha pasado nada.',
+  'TRUE':'VERDADERO','FALSE':'FALSO','nothing happened':'no pasó nada',
+  'HIT':'IMPACTO','missed':'falló','shield up':'escudo arriba','collision':'choque',
+  'blocked':'bloqueado','wall':'muro','took damage':'recibió daño',
+  'picked up energy':'recogió energía','step':'paso','EDIT CODE':'EDITAR CÓDIGO',
+  'WATCH IT BACK ▶':'VOLVER A VERLO ▶',
+  'YOUR MECH WINS':'TU MECH GANA','YOUR MECH IS DOWN':'TU MECH HA CAÍDO','A DRAW':'EMPATE',
+  'damage dealt':'daño hecho','damage taken':'daño recibido','shots fired':'disparos',
+  'shots that hit':'disparos acertados','energy used':'energía usada',
+  'turns survived':'turnos sobrevividos',
+  'The referee sent it back.':'El árbitro lo devolvió.','{m} beaten':'{m} vencido'
 };
 window.LANG = 'en';
 function t(s,p){

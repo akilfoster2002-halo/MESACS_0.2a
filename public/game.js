@@ -367,11 +367,13 @@ function buildArena(L){
   }, 60);
 }
 function startMissionRoom(id){
-  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
+  COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+  if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
   if(id==='flight'){ FLIGHT.start(0); return; }  // and the asteroid field its own sky
+  if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
   G.hudOwner='mission';
   G.missionId=id;
   G.arenaTitle = id==='m1'?'The Loop Chamber'
@@ -455,6 +457,7 @@ function wireInput(){
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
     if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
     if(e.code==='KeyR' && RACE.active && !RACE.busy){ e.preventDefault(); RACE.retry(); }
+    if(window.MECH && MECH.active && MECH.key(e.code)){ e.preventDefault(); return; }
     if(e.code==='KeyE' && PUZZLE.active && G.running){ e.preventDefault(); PUZZLE.use(); return; }
     // results and knock-out screens advance on SPACE - no Esc, no hunting for the button
     if(!$('#done').classList.contains('hidden')){
@@ -560,6 +563,7 @@ function loop(now){
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
+  if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
@@ -683,6 +687,10 @@ function step(dt){
      assumes up is up. It owns all of that itself and this hands straight
      over. Everything after this line is the flat-world game, unchanged. */
   if(window.PLANET && PLANET.active){ PLANET.walk(dt); return; }
+  /* And so does the arena. You are a spectator above a board there — no
+     body to walk, no floor to fall through, and a camera that belongs to
+     the mode rather than to a pair of legs. */
+  if(window.MECH && MECH.active) return;
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
   const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);
@@ -855,7 +863,11 @@ function setLang(l){
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{
-  if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
+  /* The arena is handed nothing: it takes the BLOCKS off the console and
+     compiles them itself, because that is what the referee does and the
+     two have to be the same compile. */
+  if(window.MECH && MECH.active) MECH.run();
+  else if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
   else if(RACE.active) RACE.run(steps);
   else if(TUTOR.active) TUTOR.run(steps);
   else if(NAV.active) NAV.run(steps);

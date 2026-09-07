@@ -1161,6 +1161,88 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .fwin-body{flex:1;padding:12px;font-size:16px;color:var(--muted)}
 #flatMsg{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:#fffbe8;color:#1a1a1a;
   border:3px solid var(--star);border-radius:14px;padding:10px 16px;font-size:18px;max-width:560px;text-align:center}
+/* ---------- MECH LEAGUE ----------
+   The battle overlay. Two mechs across the top, the fight in the middle of
+   the screen behind it, the log down the right, and the transport along the
+   bottom. Everything is pointer-events:none except the controls, because the
+   arena underneath is the thing being watched. */
+#mech{position:fixed;inset:0;z-index:56;pointer-events:none;font-family:var(--font)}
+#mkTop{position:absolute;left:0;right:0;top:0;display:flex;align-items:flex-start;
+  justify-content:space-between;gap:12px;padding:12px 14px}
+.mk-side{width:min(300px,30vw);background:rgba(15,22,36,.93);border:3px solid var(--line);
+  border-radius:14px;padding:10px 12px}
+.mk-side.r{text-align:right}
+.mk-name{font-size:17px;font-weight:bold;letter-spacing:.5px;display:flex;gap:8px;align-items:center}
+.mk-side.r .mk-name{flex-direction:row-reverse}
+.mk-chassis{font-size:12px;color:var(--muted);letter-spacing:1.4px;margin:2px 0 7px}
+.mk-meter{height:13px;border-radius:7px;background:#111a29;overflow:hidden;margin-bottom:5px;
+  border:1px solid #0b1220}
+.mk-meter i{display:block;height:100%;width:100%;transition:width .18s linear}
+.mk-hp i{background:linear-gradient(90deg,#ff9aa2,#ffc8dd)}
+.mk-en i{background:linear-gradient(90deg,#ffe9a8,#ffd8a8)}
+.mk-nums{font-size:13px;color:var(--muted);display:flex;gap:12px}
+.mk-side.r .mk-nums{justify-content:flex-end}
+.mk-nums b{color:var(--text)}
+.mk-dead{color:var(--bad);font-weight:bold;letter-spacing:2px}
+#mkTurn{background:rgba(15,22,36,.93);border:3px solid var(--line);border-radius:14px;
+  padding:8px 16px;text-align:center;min-width:120px}
+#mkTurn .n{font-size:26px;font-weight:bold;color:var(--star);line-height:1}
+#mkTurn .l{font-size:11px;color:var(--muted);letter-spacing:2px}
+
+/* the log. One block of the running program per line, with the answer the
+   test gave, because "why did it do that" is the whole point of watching. */
+#mkLog{position:absolute;right:14px;top:120px;width:min(330px,32vw);max-height:52vh;
+  overflow:hidden;background:rgba(15,22,36,.93);border:3px solid var(--line);
+  border-radius:14px;padding:10px 12px;pointer-events:auto}
+#mkLog h4{margin:0 0 7px;font-size:12px;letter-spacing:2px;color:var(--accent)}
+.mk-turn{border-top:1px solid #3b3059;padding-top:6px;margin-top:6px}
+.mk-turn:first-of-type{border:none;margin-top:0;padding-top:0}
+.mk-tn{font-size:11px;letter-spacing:2px;color:var(--muted)}
+.mk-line{font-size:13.5px;line-height:1.45;display:flex;gap:6px;align-items:baseline}
+.mk-line .who{font-weight:bold;min-width:14px}
+.mk-line.a .who{color:var(--sky)} .mk-line.b .who{color:var(--peach)}
+.mk-line .op{font-family:ui-monospace,Menlo,Consolas,monospace}
+.mk-t{color:var(--muted)} .mk-yes{color:var(--good);font-weight:bold} .mk-no{color:var(--bad);font-weight:bold}
+.mk-hit{color:var(--star);font-weight:bold} .mk-why{color:var(--muted);font-size:12.5px;font-style:italic}
+
+/* the transport: play, step, scrub. A battle you cannot pause is a battle
+   you cannot learn anything from. */
+#mkBar{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;
+  gap:8px;align-items:center;background:rgba(15,22,36,.94);border:3px solid var(--line);
+  border-radius:16px;padding:8px 12px;pointer-events:auto}
+#mkBar button{background:var(--panel2);color:var(--text);border:none;border-radius:10px;
+  padding:8px 12px;font-size:15px;font-weight:bold;box-shadow:0 3px 0 #221b36}
+#mkBar button:active{transform:translateY(2px);box-shadow:0 1px 0 #221b36}
+#mkBar button.on{background:var(--accent);color:#123045;box-shadow:0 3px 0 #5aa8d6}
+#mkBar input[type=range]{width:min(260px,26vw);accent-color:var(--accent)}
+#mkBar .sc{font-size:13px;color:var(--muted);min-width:74px;text-align:center}
+
+#mkCount{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;background:rgba(20,14,34,.55)}
+#mkCount .big{font-size:min(24vw,220px);font-weight:bold;color:var(--star);
+  text-shadow:0 10px 40px rgba(0,0,0,.7);line-height:1;animation:mkpop .6s ease-out}
+#mkCount .sub{font-size:22px;color:var(--text);letter-spacing:6px;margin-top:10px}
+@keyframes mkpop{0%{transform:scale(2.2);opacity:0}45%{transform:scale(1);opacity:1}100%{opacity:1}}
+
+/* the console's third column while you are writing: the map you will fight
+   on, what everything costs, and what your chassis is made of */
+.mk-prev{display:grid;gap:2px;margin-bottom:10px}
+.mk-prev i{aspect-ratio:1;border-radius:3px;background:#1b2740}
+.mk-prev i.w{background:#5a4b85} .mk-prev i.e{background:var(--star)}
+.mk-prev i.h{background:var(--bad)} .mk-prev i.a{background:var(--sky)}
+.mk-prev i.b{background:var(--peach)}
+.mk-cost{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.mk-cost span{font-size:12.5px;background:#1b2740;border:1px solid #3b3059;border-radius:8px;
+  padding:3px 7px}
+.mk-cost b{color:var(--star)}
+.mk-stat{font-size:13px;color:var(--muted);line-height:1.6}
+.mk-stat b{color:var(--text)}
+
+/* the setup screen reuses .mis cards; this is only the extra row of stats */
+.mk-pick{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--muted);
+  margin-top:6px;flex-wrap:wrap}
+.mk-pick b{color:var(--text)}
+
 </style>
 </head>
 <body>
@@ -1409,6 +1491,29 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <div id="quiz" class="screen hidden"></div>
 <div id="cert" class="screen hidden"></div>
 
+<div id="mech" class="hidden">
+  <div id="mkTop">
+    <div class="mk-side" id="mkA"></div>
+    <div id="mkTurn"></div>
+    <div class="mk-side r" id="mkB"></div>
+  </div>
+  <div id="mkLog" class="hidden"></div>
+  <div id="mkBar" class="hidden"></div>
+  <div id="mkCount" class="hidden"></div>
+</div>
+
+<div id="mkSetup" class="screen hidden">
+  <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="card menucard">
+    <h1 class="scrtitle" id="mkTitle"></h1>
+    <div class="sub" id="mkSub"></div>
+    <div class="misgrid" id="mkGrid"></div>
+    <div class="charfoot">
+      <button class="btn ghost small" id="mkBack">◀</button>
+    </div>
+  </div>
+</div>
+
 <div id="flat" class="hidden">
   <div id="flatTop"><span id="flatTopL"></span><span id="flatTopR"></span></div>
   <div id="flatDesk"></div>
@@ -1416,35 +1521,38 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=255"></script>
-<script src="strings.js?v=255"></script>
-<script src="difficulty.js?v=255"></script>
-<script src="net.js?v=255"></script>
-<script src="avatar.js?v=255"></script>
-<script src="zombies.js?v=255"></script>
-<script src="building.js?v=255"></script>
-<script src="levels.js?v=255"></script>
-<script src="code.js?v=255"></script>
-<script src="combat.js?v=255"></script>
-<script src="puzzle.js?v=255"></script>
-<script src="nav.js?v=255"></script>
-<script src="tutorial.js?v=255"></script>
-<script src="race.js?v=255"></script>
-<script src="flight.js?v=255"></script>
-<script src="planet.js?v=255"></script>
-<script src="wallet.js?v=255"></script>
-<script src="shop.js?v=255"></script>
-<script src="library.js?v=255"></script>
-<script src="costumes.js?v=255"></script>
-<script src="missions.js?v=255"></script>
-<script src="coach.js?v=255"></script>
-<script src="owner.js?v=255"></script>
-<script src="blocks.js?v=255"></script>
-<script src="vm.js?v=255"></script>
-<script src="coder.js?v=255"></script>
-<script src="quiz.js?v=255"></script>
-<script src="chars.js?v=255"></script>
-<script src="menu.js?v=255"></script>
-<script src="game.js?v=255"></script>
+<script src="lib/three.classic.js?v=263"></script>
+<script src="strings.js?v=263"></script>
+<script src="difficulty.js?v=263"></script>
+<script src="net.js?v=263"></script>
+<script src="avatar.js?v=263"></script>
+<script src="zombies.js?v=263"></script>
+<script src="building.js?v=263"></script>
+<script src="levels.js?v=263"></script>
+<script src="program.js?v=263"></script>
+<script src="code.js?v=263"></script>
+<script src="mechsim.js?v=263"></script>
+<script src="mech.js?v=263"></script>
+<script src="combat.js?v=263"></script>
+<script src="puzzle.js?v=263"></script>
+<script src="nav.js?v=263"></script>
+<script src="tutorial.js?v=263"></script>
+<script src="race.js?v=263"></script>
+<script src="flight.js?v=263"></script>
+<script src="planet.js?v=263"></script>
+<script src="wallet.js?v=263"></script>
+<script src="shop.js?v=263"></script>
+<script src="library.js?v=263"></script>
+<script src="costumes.js?v=263"></script>
+<script src="missions.js?v=263"></script>
+<script src="coach.js?v=263"></script>
+<script src="owner.js?v=263"></script>
+<script src="blocks.js?v=263"></script>
+<script src="vm.js?v=263"></script>
+<script src="coder.js?v=263"></script>
+<script src="quiz.js?v=263"></script>
+<script src="chars.js?v=263"></script>
+<script src="menu.js?v=263"></script>
+<script src="game.js?v=263"></script>
 </body>
 </html>

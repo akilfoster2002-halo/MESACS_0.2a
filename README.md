@@ -30,6 +30,8 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   the red ✕ is the only way out of an app. Live minimap of the desktop layout.
 - **Mission 1 — Loops (THE LOOPER)** — block-based code console (`C` to open, time freezes),
   four stages, and a boss that forces `repeat`.
+- **The Mech League** — program a battle mech and send it in without you. Four opponents,
+  four chassis, five arenas, and a battle log you can step backwards through afterwards.
 - Bilingual English / Español throughout, including the villain's taunts.
 
 ## Controls
@@ -43,18 +45,51 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
 
 Arrow keys turn as well as the mouse, so a student who can't manage mouse-look can still play.
 
+## The Mech League
+A PvP mode where the programming *is* the fight. You never touch the controls: you write a
+program, press RUN, and watch it play out against somebody else's.
+
+```
+BUILD MECH → WRITE CODE → DEPLOY → BATTLE → READ THE LOG → CHANGE A BLOCK → FIGHT AGAIN
+```
+
+The referee is a pure function — two programs, an arena and a seed in, the whole battle out:
+
+```js
+MECHSIM.simulate({ a, b, arena, rules, seed })   // → frames[], log[], result, stats
+```
+
+It has no DOM and no clock, and it runs under Node as well as in the browser, so the same
+compile that a student watched is the one that judges the match. Nothing is simulated during
+playback — the fight is decided before the countdown finishes, which is what lets the replay
+scrub, step backwards and explain itself.
+
+Everything a match runs on is in `MECHSIM.RULES`: block limit, energy costs, turn cap, regen,
+damage. Chassis are rows in `MECHSIM.CHASSIS`, arenas are text grids in `MECHSIM.ARENAS`.
+
 ## Files
 ```
 index.html   page shell, HUD and styles
 game.js      engine: renderer, movement, rooms, minimap, desktop missions
-code.js      block console + compiler (never uses eval)
+program.js   the block language with no screen attached — compile, count, validate
+code.js      block console: palette, drag, text mode, walkthroughs
 combat.js    drones, boss, Mission 1 script
+mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
+mech.js      the arena: 3D board, countdown, battle log, replay/debug
 levels.js    room layouts — edit this to add levels
 strings.js   every word, in both languages
+tests/       node --test, no dependencies — run with `npm test`
 lib/         three.js, bundled as a classic script so file:// still works
 ```
 
 `levels.js` and `strings.js` are the files to edit for new content; the engine shouldn't need touching.
+New chassis and arenas go in `mechsim.js`; new opponents go in `mech.js`.
+
+## Tests
+```bash
+npm test
+```
+No test framework to install — Node's own runner, over `program.js` and `mechsim.js`.
 
 ## Not built yet
 The intro cutscene, mission select with saved progress, and the rest of the villains

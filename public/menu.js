@@ -47,6 +47,10 @@ window.MENU = (function(){
     /* Space Explorer is numbered but never locks, so the heading cannot
        promise that the numbers gate each other — the card says which is which. */
     course :{ lbl:'THE MISSIONS',   sub:'One idea each, in order — unless the card says otherwise.' },
+    /* The arena is not part of the course and does not gate anything. It is
+       where a student goes once the blocks mean something — the same
+       vocabulary, pointed at somebody else's program. */
+    arena  :{ lbl:'THE ARENA',      sub:'Your code against somebody else\u2019s. No hands on the controls.' },
     sandbox:{ lbl:'YOUR OWN WORLD', sub:'Every block, no goal but yours.' }
   };
   const TILES=[
@@ -62,6 +66,8 @@ window.MENU = (function(){
      blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    g:'course',  em:'🧮', a:'#ffb4a2', name:'Mission 4 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
+    {id:'mech',  g:'arena',   em:'🤖', a:'#ffd8a8', name:'The Mech League',
+     blurb:'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
      blurb:'A 3D world you write. Objects, variables, functions, clones — code anything.'}
   ];
@@ -200,13 +206,15 @@ window.MENU = (function(){
   function labelOf(id){
     return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors',
              flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
-             m2:'Mission 3 — Choices', m3:'Mission 4 — Functions'})[id]||id;
+             m2:'Mission 3 — Choices', m3:'Mission 4 — Functions',
+             mech:'The Mech League'})[id]||id;
   }
 
   /* the landing: a name and one button */
   function start(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -380,7 +388,8 @@ window.MENU = (function(){
   }
   function open(){
     G.running=false;
-    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
+    CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
+    if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
