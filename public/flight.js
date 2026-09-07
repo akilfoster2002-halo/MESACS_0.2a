@@ -43,16 +43,15 @@ window.FLIGHT = (function(){
      'X' is rock.  Every chart is checked for a way through when the stage
      loads, so an impossible wall is a crash at author time, not at play.
 
-     THE ORDER IS THE SYLLABUS. Two navigation legs before anybody is handed
-     a gun: this mission is about moving a ship with arithmetic, and putting
-     the shooting range second made the second thing a student ever did an
-     entirely different verb. Fly, then fly again with a loop, and only then
-     shoot.
+     THE ORDER IS THE SYLLABUS, and it opens with three legs of nothing but
+     x and y. First Contact shows what a move is; Sidestep is that one idea
+     eight times over with every other way out shut, so it cannot be solved
+     by accident and cannot be solved with y at all; Up and Over is the same
+     drill turned ninety degrees, and its last two walls are the first time
+     both letters are needed in one program.
 
-     After that no concept is ever used before the leg that taught it —
-     Turret Drill needs both fire and repeat, so it sits after the range and
-     after The Rhythm; Hard to Starboard, The Coordinate System and Jump
-     Drive each bring one new idea and nothing borrowed. */
+     Only then a gun, and only after that a loop. Nothing is ever used
+     before the leg that taught it. */
   const STAGES=[
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
       pal:['addY','addX','coast'],
@@ -75,6 +74,56 @@ window.FLIGHT = (function(){
         '..X/..X/.X.'    // coast → col2 row0
       ] },
 
+    { id:'across', kind:'fly', stops:2, name:'Sidestep', budget:8,
+      pal:['addX','addY','coast'],
+      learn:{ name:'x is across',
+              text:'change x by 1 goes right, change x by -1 goes left.',
+              code:'change x by 1\nchange x by -1\nchange x by -1' },
+      brief:'Every gap here is beside you, never above. <b>change x by 1</b> right, <b>change x by -1</b> left.',
+      start:{col:1,row:1},
+      /* One idea, eight times. Each wall shuts three of the four ways out,
+         so there is exactly one lane open and it is always left or right —
+         you cannot solve this leg by accident, and you cannot solve it with
+         y at all. */
+      beats:[
+        '.X./XX./.X.',   // right → col2
+        '..X/..X/..X',   // left  → col1
+        '.X./.X./.X.',   // left  → col0
+        'X../X../X..',   // right → col1
+        'X.X/.../X.X',   // coast → col1
+        '.X./XX./.X.',   // right → col2
+        'XX./XX./XX.',   // coast → col2
+        '..X/..X/..X'    // left  → col1
+      ] },
+    { id:'over', kind:'fly', stops:2, name:'Up and Over', budget:8,
+      pal:['addY','addX','coast'],
+      learn:{ name:'y is up and down',
+              text:'change y by 1 climbs a row, change y by -1 drops one.',
+              code:'change y by 1\nchange y by -1\nchange y by -1' },
+      brief:'Now the gaps are above and below. <b>y</b> is your row: <b>+1</b> climbs, <b>-1</b> drops.',
+      start:{col:1,row:1},
+      /* The same drill turned ninety degrees, and then the two put together:
+         the last two walls need a sideways step and a drop, which is the
+         first time this mission asks for x and y in the same program. */
+      beats:[
+        'X.X/XXX/.X.',   // up    → row2
+        'XXX/X.X/...',   // down  → row1
+        '.X./.X./X.X',   // down  → row0
+        '.../.../XXX',   // up    → row1
+        'X.X/.../X.X',   // coast → row1
+        'X.X/XXX/.X.',   // up    → row2
+        'XX./.X./...',   // right → col2
+        '.XX/XX./...'    // down  → row1
+      ] },
+    { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
+      pal:['addY','addX','fire'],
+      learn:{ name:'The same nine lanes',
+              text:'No clock here. fire() hits your own lane.',
+              code:'change x by -1\nfire()\nchange y by 1\nfire()' },
+      brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
+      start:{col:1,row:1},
+      targets:'X.X/.../X.X' },
+
     { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
       pal:['addY','addX','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
@@ -93,14 +142,21 @@ window.FLIGHT = (function(){
         '.../.X./.X.',  '.X./.../.X.',  'X.X/.../X.X'
       ] },
 
-    { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
-      pal:['addY','addX','fire'],
-      learn:{ name:'The same nine lanes',
-              text:'No clock here. fire() hits your own lane.',
-              code:'change x by -1\nfire()\nchange y by 1\nfire()' },
-      brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
-      start:{col:1,row:1},
-      targets:'X.X/.../X.X' },
+    { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
+      pal:['addY','addX','fire','repeat'],
+      learn:{ name:'A row of targets is a loop',
+              text:'Shoot, slide, shoot, slide. That is a repeat.',
+              code:'repeat 3\n  fire()\n  change x by 1\nend' },
+      brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
+      start:{col:0,row:0},
+      targets:'.../.../XXX' },
+
+    /* Deep Field lived here: eighteen walls in six blocks, which only fits if
+       you put a repeat inside a repeat. Nesting is out of this mission — one
+       loop is a big enough idea to be worth its own leg, and a second one
+       hidden inside it turned the leg into a puzzle about block budgets
+       rather than about motion. The language still has it, and the Library
+       still explains it, for anyone who wants it in Free Play. */
 
     { id:'spin', kind:'fly', stops:3, name:'Hard to Starboard', budget:9,
       pal:['addX','addY','turn','coast'],
@@ -123,22 +179,6 @@ window.FLIGHT = (function(){
         'slot90',   // turn 90
         'slot0'     // turn 90
       ] },
-
-    { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
-      pal:['addY','addX','fire','repeat'],
-      learn:{ name:'A row of targets is a loop',
-              text:'Shoot, slide, shoot, slide. That is a repeat.',
-              code:'repeat 3\n  fire()\n  change x by 1\nend' },
-      brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
-      start:{col:0,row:0},
-      targets:'.../.../XXX' },
-
-    /* Deep Field lived here: eighteen walls in six blocks, which only fits if
-       you put a repeat inside a repeat. Nesting is out of this mission — one
-       loop is a big enough idea to be worth its own leg, and a second one
-       hidden inside it turned the leg into a puzzle about block budgets
-       rather than about motion. The language still has it, and the Library
-       still explains it, for anyone who wants it in Free Play. */
 
     { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
       pal:['setX','setY','addX','addY','coast','repeat'],
