@@ -54,7 +54,7 @@ window.FLIGHT = (function(){
      before the leg that taught it. */
   const STAGES=[
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
-      pal:['addY','addX','coast'],
+      walk:'change', pal:['addY','addX','coast'],
       learn:{ name:'A move is arithmetic',
               text:'x is your column, y is your row. Change one and you move.',
               code:'change y by 1\ncoast()\nchange x by -1\nchange y by -1' },
@@ -181,11 +181,11 @@ window.FLIGHT = (function(){
       ] },
 
     { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
-      pal:['setX','setY','addX','addY','coast','repeat'],
+      walk:'set', pal:['setX','setY','addX','addY','turn','coast','repeat'],
       learn:{ name:'x is the column, y is the row',
-              text:'set x to 2 puts you there. change x by 1 adds to where you are.',
+              text:'set x to 1 puts you there. change x by 1 adds to where you are.',
               code:'change x by 2\nchange y by -1\nchange y by -1\nchange x by -2' },
-      brief:'<b>set x to 2</b> puts you in column 2 whatever you were. <b>change x by 1</b> adds one to it. Two different sums.',
+      brief:'The lanes are <b>-1</b>, <b>0</b>, <b>1</b> — you start at 0. <b>set x to 1</b> puts you in the right-hand lane whatever you were; <b>change x by 1</b> adds one to where you are.',
       start:{col:0,row:2},
       /* One gap per beat, and it only ever moves along ONE axis at a time —
          because one beat runs one block and a block changes one coordinate.
@@ -195,18 +195,57 @@ window.FLIGHT = (function(){
             x = x + 2   y = y - 1   y = y - 1   x = x - 2
             y = y + 2   x = 1       y = 0       x = x + 1                  */
       beats:[
-        'XX./XXX/XXX',   // x = x + 2  → (2,2)
-        'XXX/XX./XXX',   // y = y - 1  → (2,1)
-        'XXX/XXX/XX.',   // y = y - 1  → (2,0)
-        'XXX/XXX/.XX',   // x = x - 2  → (0,0)
-        '.XX/XXX/XXX',   // y = y + 2  → (0,2)
-        'X.X/XXX/XXX',   // x = 1      → (1,2)
-        'XXX/XXX/X.X',   // y = 0      → (1,0)
-        'XXX/XXX/XX.'    // x = x + 1  → (2,0)
+        'X.X/XXX/.X.',   // → row 1
+        'XX./.X./...',   // → col 1
+        '.XX/XX./...',   // → row 0
+        '..X/..X/..X',   // → col 0
+        'X.X/.../X.X',   // clear
+        '.X./.X./X.X',   // → row -1
+        '.../.X./.XX',   // → col -1
+        '.../.../X..'    // → row 0
+      ] },
+
+    { id:'grid', kind:'fly', stops:2, name:'Grid Reference', budget:8,
+      pal:['setX','setY','addX','addY','turn','coast','repeat'],
+      learn:{ name:'A coordinate is an address',
+              text:'set x to -1 puts you in the left lane from wherever you were.',
+              code:'set y to 1\nset x to 1\nset y to 0' },
+      brief:'<b>set</b> says WHERE, not which way. <b>x</b> is <b>-1</b> left, <b>0</b> middle, <b>1</b> right. <b>y</b> is <b>-1</b> bottom, <b>0</b> middle, <b>1</b> top.',
+      start:{col:1,row:1},
+      /* Every wall shuts three ways out, so the lane you want is never in
+         doubt — what IS in doubt is its number, which is the only thing
+         this leg is asking. */
+      beats:[
+        '.X./.X./.X.',   // → col -1
+        '.../X../...',   // → row 1
+        'X../X../...',   // → col 0
+        'XXX/X.X/...',   // → row 0
+        'X.X/.../X.X',   // clear
+        '.X./XX./.X.',   // → col 1
+        '.../..X/...',   // → row 1
+        '..X/..X/...'    // → col 0
+      ] },
+
+    { id:'address', kind:'fly', stops:2, name:'By the Numbers', budget:8,
+      pal:['setX','setY','addX','addY','turn','coast','repeat'],
+      learn:{ name:'Set and change, side by side',
+              text:'set jumps to a number. change adds to the one you have.',
+              code:'set x to -1\nset y to 1\nchange x by 1' },
+      brief:'Both kinds work here. <b>set</b> when you know the lane, <b>change</b> when you know the step.',
+      start:{col:1,row:1},
+      beats:[
+        '.X./XX./.X.',   // → col 1
+        '.../..X/...',   // → row 1
+        '..X/..X/...',   // → col 0
+        'XXX/X.X/...',   // → row 0
+        'X.X/.../X.X',   // clear
+        '.X./.X./.X.',   // → col -1
+        'X../X../.XX',   // → row -1
+        '.../X../X..'    // → col 0
       ] },
 
     { id:'jump', kind:'fly', stops:2, name:'Jump Drive', budget:6,
-      pal:['addX','addY','coast','repeat','goTo'],
+      pal:['goTo','setX','setY','addX','addY','turn','coast','repeat'],
       learn:{ name:'Absolute beats relative',
               text:'One step cannot cross the field. goTo can.',
               code:'repeat 3\n  goto 0,0\n  goto 2,2\n  goto 2,0\n  goto 0,2\nend' },
@@ -619,10 +658,16 @@ window.FLIGHT = (function(){
   /* One instruction, applied to a lane. Pure, because the radar has to run
      the whole program forward WITHOUT flying it — that is what lets it show
      you where you will be at each wall instead of only where you are now. */
+  /* A COORDINATE IS CENTRED. The lanes are -1, 0, 1 as far as anybody
+     writing a block is concerned, and 0, 1, 2 as far as the array of rocks
+     is concerned. These two lines are where those two facts meet, and they
+     are the only place either of them has to be true. */
+  const MIDC=(COLS-1)/2, MIDR=(ROWS-1)/2;
+  const lane = (n, mid, span) => clamp(Math.round(n)+mid, span);
   function applyMove(c, r, a, s){
-    if(s.name==='goTo'){ c=clamp(s.col|0, COLS); r=clamp(s.row|0, ROWS); }
-    if(s.name==='setX') c=clamp(s.n|0, COLS);
-    if(s.name==='setY') r=clamp(s.n|0, ROWS);
+    if(s.name==='goTo'){ c=lane(s.col|0, MIDC, COLS); r=lane(s.row|0, MIDR, ROWS); }
+    if(s.name==='setX') c=lane(s.n|0, MIDC, COLS);
+    if(s.name==='setY') r=lane(s.n|0, MIDR, ROWS);
     if(s.name==='addX') c=clamp(c+(s.n|0), COLS);
     if(s.name==='addY') r=clamp(r+(s.n|0), ROWS);
     // an angle is a number too, and it wraps rather than clamping
@@ -704,9 +749,11 @@ window.FLIGHT = (function(){
 
        L.taught is per attempt, so skipping it holds for the rest of the leg
        and a crash does not start it over. */
-    if(L.idx===0 && L.kind!=='gun' && !L.taught
-       && window.CODE && CODE.isOpen()){
-      L.taught=true; walkFirstLeg();
+    /* Any leg that asks for one. Leg one teaches what a move is; The
+       Coordinate System teaches a different KIND of move, and a new kind of
+       move deserves the same demonstration rather than a paragraph. */
+    if(L.K.walk && !L.taught && window.CODE && CODE.isOpen()){
+      L.taught=true; walkLeg();
     }
     /* Opening the console froze the field. Rebuild the guide right then, so
        the radar you plan against is the one from the beat you stopped at
@@ -975,7 +1022,7 @@ window.FLIGHT = (function(){
   /* The walkthrough hands over a whole answer block by block, so it has to
      start from an empty program — restarting it on top of six blocks would
      satisfy half its steps before the student had read one of them. */
-  function walkFirstLeg(){
+  function walkLeg(){
     if(window.CODE) CODE.clear();
     if(!window.COACH) return;
     // the coach is about to say the same thing in the same corner
@@ -995,23 +1042,36 @@ window.FLIGHT = (function(){
        which is the point — the lesson here is what the blocks DO.
 
        The other six legs are untouched. This is the demonstration. */
-    const plan=solveLeg();
+    const mode=L.K.walk;                        // 'change' or 'set'
+    const plan=solveLeg(mode);
     const gap = q => q.dc<0 ? t('left') : q.dc>0 ? t('right')
                    : q.dr>0 ? t('up')   : q.dr<0 ? t('down') : null;
+    /* Where the gap IS, rather than which way to lean — a set block names a
+       destination, so the card names the destination too. */
+    const at = q => q.dc ? t('column {n}',{n:q.col-MIDC}) : t('row {n}',{n:q.row-MIDR});
     const WALK=[
-      { say:'Rocks ahead. Press <b>C</b> to stop the field so you can look at them.',
+      { say: mode==='set'
+          ? 'New blocks this time. Press <b>C</b> to see them.'
+          : 'Rocks ahead. Press <b>C</b> to stop the field so you can look at them.',
         find:()=>document.querySelector('#codeBtn'),
         done:()=>!!(window.CODE && CODE.isOpen()),
         pal:[], rails:{run:false, clear:false, mode:false} }
     ];
     plan.forEach((q,i)=>{
       const where=gap(q);
+      const say = mode==='set'
+        ? (i===0
+            ? t('These blocks name WHERE to be, not which way to lean. The gap is {p} — click the glowing block.',{p:at(q)})
+            : where
+              ? t('Wall {n}: the gap is {p}. Click the glowing block.',{n:q.wall,p:at(q)})
+              : t('Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.',{n:q.wall}))
+        : (i===0
+            ? t('Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.',{w:where||t('straight ahead')})
+            : where
+              ? t('Wall {n}: the gap is {w}. Click the glowing block.',{n:q.wall,w:where})
+              : t('Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.',{n:q.wall}));
       WALK.push({
-        say: i===0
-          ? t('Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.',{w:where||t('straight ahead')})
-          : where
-            ? t('Wall {n}: the gap is {w}. Click the glowing block.',{n:q.wall,w:where})
-            : t('Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.',{n:q.wall}),
+        say,
         sel:'#conPalette [data-add]',
         done:()=>scriptLen()>i,
         pal:[q.pin], rails:{run:false, clear:false, mode:false}
@@ -1047,13 +1107,18 @@ window.FLIGHT = (function(){
      one-block-deep search because the legs are built to be solvable that way
      — and if a wall ever defeats it, the walkthrough says coast and the
      student watches what happens, which is also a lesson. */
-  function solveLeg(){
+  /* The same walk, said two ways. A leg that teaches CHANGE gets relative
+     moves — "the gap is left, change x by -1" — and a leg that teaches SET
+     gets the destination itself — "the gap is in column -1, set x to -1".
+     That contrast is the entire lesson of The Coordinate System, so the
+     walkthrough has to be able to speak both. */
+  function solveLeg(mode){
     const out=[];
     let c=L.K.start.col, r=L.K.start.row;
     for(let w=1; w<=L.beats.length; w++){
       const mask=L.beats[w-1];
       if(!hits(mask,c,r,0)){
-        out.push({ wall:w, dc:0, dr:0, pin:'coast' });
+        out.push({ wall:w, dc:0, dr:0, col:c, row:r, pin:'coast' });
         continue;
       }
       const tries=[[0,1,'addY',1],[0,-1,'addY',-1],[-1,0,'addX',-1],[1,0,'addX',1]];
@@ -1062,9 +1127,12 @@ window.FLIGHT = (function(){
         const nc=c+dc, nr=r+dr;
         if(nc<0||nc>=COLS||nr<0||nr>=ROWS) continue;
         if(hits(mask,nc,nr,0)) continue;
-        got={ wall:w, dc, dr, pin:{op, n} }; c=nc; r=nr; break;
+        const pin = mode==='set'
+          ? (dc ? {op:'setX', n:nc-MIDC} : {op:'setY', n:nr-MIDR})
+          : {op, n};
+        got={ wall:w, dc, dr, col:nc, row:nr, pin }; c=nc; r=nr; break;
       }
-      out.push(got || { wall:w, dc:0, dr:0, pin:'coast' });
+      out.push(got || { wall:w, dc:0, dr:0, col:c, row:r, pin:'coast' });
     }
     return out;
   }

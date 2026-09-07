@@ -57,14 +57,22 @@ window.CODE = (function(){
   const NUMSTEP={ setX:1, setY:1, addX:1, addY:1, turn:90 };
   /* How far goTo is allowed to count. The console does not know how big any
      one mission's grid is, so the mission says. */
-  let GRID={ col:2, row:2 };
-  function setGrid(cols, rows){ GRID={ col:Math.max(0,(cols||3)-1), row:Math.max(0,(rows||3)-1) }; }
+  /* THE GRID IS CENTRED ON ZERO. Three lanes are -1, 0 and 1, not 0, 1 and
+     2, so the middle lane — the one you start in and come back to — is the
+     origin. It also means set and change agree with each other: "set x to
+     -1" and "change x by -1" both go left, and a child who has just spent
+     three legs learning that minus means left is not then told that minus
+     does not exist. */
+  let GRID={ col:1, row:1 };
+  function setGrid(cols, rows){
+    GRID={ col:Math.floor(((cols||3)-1)/2), row:Math.floor(((rows||3)-1)/2) };
+  }
   /* what the counter on a coordinate block is allowed to reach */
   function numRange(type){
-    if(type==='setX') return [0, GRID.col];
-    if(type==='setY') return [0, GRID.row];
-    if(type==='addX') return [-GRID.col, GRID.col];
-    if(type==='addY') return [-GRID.row, GRID.row];
+    if(type==='setX') return [-GRID.col, GRID.col];
+    if(type==='setY') return [-GRID.row, GRID.row];
+    if(type==='addX') return [-2*GRID.col, 2*GRID.col];
+    if(type==='addY') return [-2*GRID.row, 2*GRID.row];
     if(type==='turn') return [-180, 180];
     return [0,0];
   }
@@ -85,9 +93,9 @@ window.CODE = (function(){
     if(type==='repeat'){ b.count=3; b.body=[]; }
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
-    if(type==='goTo'){ b.col=1; b.row=1; }
+    if(type==='goTo'){ b.col=0; b.row=0; }   // centre of a centred grid
     // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
-    if(type==='setX'||type==='setY') b.n=1;
+    if(type==='setX'||type==='setY') b.n=0;    // the middle lane, on a centred grid
     if(type==='addX'||type==='addY') b.n=1;
     if(type==='turn') b.n=90;
     return b;
@@ -247,7 +255,7 @@ window.CODE = (function(){
         b.row=Math.max(0,Math.min(GRID.row,+m[2]));
         put(b); continue;
       }
-      if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,2</b>.'));
+      if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,-1</b>.'));
       if((m=low.match(/^change +([xy]) +by +(-?\d+)$/))){
         const type=m[1]==='x'?'addX':'addY';
         if(!allowed(type)) return bad(i, t('<b>{w}</b> is not in this mission yet.',{w:'change '+m[1]+' by'}));
@@ -591,7 +599,7 @@ window.CODE = (function(){
       if(type==='repeat')      out.push({w:'repeat 3', c:d.color});
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:'if target is '+c, c:d.color}));
       else if(type==='define') out.push({w:'define combo', c:d.color});
-      else if(type==='goTo')   out.push({w:'goto 1,1', c:d.color});
+      else if(type==='goTo')   out.push({w:'goto 0,0', c:d.color});
       else if(type==='setX')   out.push({w:'set x to 1', c:d.color});
       else if(type==='setY')   out.push({w:'set y to 1', c:d.color});
       else if(type==='addX'){  out.push({w:'change x by 1', c:d.color});
@@ -668,9 +676,9 @@ window.CODE = (function(){
       return `<button class="palblk${pin!==null&&pin!==undefined?' pinned':''}"
           data-add="${type}"${pin!==null&&pin!==undefined?` data-n="${pin}"`:''}
           style="--c:${d.color}">
-        <b>${type==='repeat'?t('repeat')+' '+num(3):type==='goTo'?t('goTo')+' 1,1'
+        <b>${type==='repeat'?t('repeat')+' '+num(3):type==='goTo'?t('goTo')+' 0,0'
              :type==='addX'?t('change x by')+' '+num(1):type==='addY'?t('change y by')+' '+num(1)
-             :type==='setX'?t('set x to')+' '+num(1):type==='setY'?t('set y to')+' '+num(1)
+             :type==='setX'?t('set x to')+' '+num(0):type==='setY'?t('set y to')+' '+num(0)
              :type==='turn'?t('turn')+' '+num(90):d.label}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');

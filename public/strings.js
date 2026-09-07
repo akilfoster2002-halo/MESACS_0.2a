@@ -636,6 +636,11 @@ window.ES = {
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
   'E — ask':'E — preguntar',
+  'column {n}':'la columna {n}','row {n}':'la fila {n}',
+  'These blocks name WHERE to be, not which way to lean. The gap is {p} — click the glowing block.':
+    'Estos bloques dicen DÓNDE estar, no hacia dónde inclinarse. El hueco está en {p} — pulsa el bloque que brilla.',
+  'Wall {n}: the gap is {p}. Click the glowing block.':
+    'Muro {n}: el hueco está en {p}. Pulsa el bloque que brilla.',
   'left':'izquierda','right':'derecha','up':'arriba','down':'abajo',
   'straight ahead':'justo delante',
   'Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.':
