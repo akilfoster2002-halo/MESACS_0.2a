@@ -613,6 +613,8 @@ window.FLIGHT = (function(){
        why. Every press bumps a generation instead, and anything still running
        from the last press notices and stops. */
     L.gen=(L.gen||0)+1;
+    L.crashWall=null;                  // a new attempt, so the last one's news goes
+    if(window.CODE && CODE.blame) CODE.blame(null);
     busy=false;
     bolts.forEach(b=>{ if(b.m && b.m.parent) b.m.parent.remove(b.m); });
     bolts=[];
@@ -943,9 +945,18 @@ window.FLIGHT = (function(){
     // the one fact worth knowing: WHICH beat, so the chart can be re-read
     /* Say what actually went wrong. On a slot wall the lane is irrelevant and
        being told to pick a gap is advice you cannot act on. */
+    /* Say WHERE it went wrong and WHAT HAPPENS NEXT. "You were in the rock"
+       leaves out the only other thing a child needs to know, which is that
+       the leg starts again from the beginning — so they sit on the start
+       line wondering whether they have lost. */
+    L.crashWall=b;
     brief(isSlot(L.beats[b-1])
-      ? t('💥 Wall {n} — side-on to the gap. Turn to line up with it.',{n:b})
-      : t('💥 Wall {n} — you were in the rock. Look at the radar and pick the gap.',{n:b}));
+      ? t('💥 Wall {n} — side-on to the gap. Back to the start of the leg: turn to line up, then RUN.',{n:b})
+      : t('💥 Wall {n} — you flew into the rock. Back to the start of the leg: fix that block, then RUN.',{n:b}));
+    /* And point at the block that did it. The console reopens with the whole
+       program still in it, and "wall 4" is only useful if you can tell which
+       of eight blocks wall 4 belongs to. */
+    markCulprit(b);
     /* Back to the line, and the console opens itself. Crashing means the
        program was wrong, so the console is exactly where you need to be —
        and being dropped back on the start line with nothing happening is how
@@ -956,8 +967,23 @@ window.FLIGHT = (function(){
       if(window.CODE && !CODE.isOpen()) CODE.show();
     }, 1600);
   }
+  /* Which block was in the ship's hand at the wall it hit. The steps a
+     program compiles to carry the id of the block they came from, so this is
+     just counting real instructions up to that wall. */
+  function markCulprit(wall){
+    if(!window.CODE || !CODE.script || !CODE.script.length) return;
+    const steps=CODE.compile(CODE.script);
+    let n=0;
+    for(const st of steps){
+      if(st.name==='__iter'||st.name==='__if'||st.name==='__call') continue;
+      n++;
+      if(n===wall){ if(st.blockId!=null) CODE.blame(st.blockId); return; }
+    }
+    CODE.blame(null);                // it ran out of blocks and coasted in
+  }
+
   /* Back to the start line, in every sense: lane, angle, distance and the
-     radar's idea of where you had got to. */
+     panels' idea of where you had got to. */
   function reset(){
     if(!L) return;
     L.crashed=false; L.rolling=false; L.beat=0; L.elapsed=0; L.at=0; L.steps=null;
@@ -1206,7 +1232,13 @@ window.FLIGHT = (function(){
   }
   function asideHTML(){
     if(!L) return '';
-    return radarHTML()+`<p class="asbrief">${t(L.K.brief)}</p>`;
+    /* The banner stays up until the next RUN. A line that fades after three
+       seconds is a line a child reading the blocks underneath it never
+       saw. */
+    const bang = L.crashWall
+      ? `<p class="ascrash">${t('💥 Crashed at wall {n}. You are back at the start of the leg — fix it and press RUN.',{n:L.crashWall})}</p>`
+      : '';
+    return bang+radarHTML()+`<p class="asbrief">${t(L.K.brief)}</p>`;
   }
   function radarHTML(){
     if(!L) return '';

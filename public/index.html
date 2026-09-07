@@ -960,6 +960,20 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 /* a shelf entry the walkthrough has filled in for you: the number in the
    block is the answer, so the block is marked as being handed over */
 .palblk.pinned{box-shadow:0 0 0 2px var(--star),0 3px 0 #221b36}
+/* The block that flew you into the rock, still sitting in your program. */
+.blk.blame{outline:3px solid #ff5a5a;outline-offset:2px;
+  animation:blamePulse 1s ease-in-out infinite}
+@keyframes blamePulse{
+  0%,100%{ box-shadow:0 0 0 0 rgba(255,90,90,.55) }
+  50%    { box-shadow:0 0 16px 3px rgba(255,90,90,.8) }
+}
+@media (prefers-reduced-motion:reduce){ .blk.blame{animation:none} }
+/* The crash notice, above the walls, where the student is about to look
+   anyway. It stays until the next RUN — a line that fades after three
+   seconds is a line nobody reading the blocks underneath it ever saw. */
+.ascrash{margin:0 0 9px;padding:8px 11px;border-radius:10px;font-size:13px;
+  line-height:1.4;font-weight:bold;color:#ffd8d8;
+  background:rgba(255,70,70,.16);border:2px solid rgba(255,90,90,.55)}
 .asbrief{margin:10px 2px 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
 .asbrief b{color:var(--star)}
 .rw.warn b{color:var(--bad)}
@@ -1402,35 +1416,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=253"></script>
-<script src="strings.js?v=253"></script>
-<script src="difficulty.js?v=253"></script>
-<script src="net.js?v=253"></script>
-<script src="avatar.js?v=253"></script>
-<script src="zombies.js?v=253"></script>
-<script src="building.js?v=253"></script>
-<script src="levels.js?v=253"></script>
-<script src="code.js?v=253"></script>
-<script src="combat.js?v=253"></script>
-<script src="puzzle.js?v=253"></script>
-<script src="nav.js?v=253"></script>
-<script src="tutorial.js?v=253"></script>
-<script src="race.js?v=253"></script>
-<script src="flight.js?v=253"></script>
-<script src="planet.js?v=253"></script>
-<script src="wallet.js?v=253"></script>
-<script src="shop.js?v=253"></script>
-<script src="library.js?v=253"></script>
-<script src="costumes.js?v=253"></script>
-<script src="missions.js?v=253"></script>
-<script src="coach.js?v=253"></script>
-<script src="owner.js?v=253"></script>
-<script src="blocks.js?v=253"></script>
-<script src="vm.js?v=253"></script>
-<script src="coder.js?v=253"></script>
-<script src="quiz.js?v=253"></script>
-<script src="chars.js?v=253"></script>
-<script src="menu.js?v=253"></script>
-<script src="game.js?v=253"></script>
+<script src="lib/three.classic.js?v=255"></script>
+<script src="strings.js?v=255"></script>
+<script src="difficulty.js?v=255"></script>
+<script src="net.js?v=255"></script>
+<script src="avatar.js?v=255"></script>
+<script src="zombies.js?v=255"></script>
+<script src="building.js?v=255"></script>
+<script src="levels.js?v=255"></script>
+<script src="code.js?v=255"></script>
+<script src="combat.js?v=255"></script>
+<script src="puzzle.js?v=255"></script>
+<script src="nav.js?v=255"></script>
+<script src="tutorial.js?v=255"></script>
+<script src="race.js?v=255"></script>
+<script src="flight.js?v=255"></script>
+<script src="planet.js?v=255"></script>
+<script src="wallet.js?v=255"></script>
+<script src="shop.js?v=255"></script>
+<script src="library.js?v=255"></script>
+<script src="costumes.js?v=255"></script>
+<script src="missions.js?v=255"></script>
+<script src="coach.js?v=255"></script>
+<script src="owner.js?v=255"></script>
+<script src="blocks.js?v=255"></script>
+<script src="vm.js?v=255"></script>
+<script src="coder.js?v=255"></script>
+<script src="quiz.js?v=255"></script>
+<script src="chars.js?v=255"></script>
+<script src="menu.js?v=255"></script>
+<script src="game.js?v=255"></script>
 </body>
 </html>

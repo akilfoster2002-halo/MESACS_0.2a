@@ -636,6 +636,12 @@ window.ES = {
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
   'E — ask':'E — preguntar',
+  '💥 Crashed at wall {n}. You are back at the start of the leg — fix it and press RUN.':
+    '💥 Choque en el muro {n}. Vuelves al principio del tramo — corrígelo y pulsa RUN.',
+  '💥 Wall {n} — you flew into the rock. Back to the start of the leg: fix that block, then RUN.':
+    '💥 Muro {n} — chocaste con la roca. Vuelves al principio del tramo: corrige ese bloque y pulsa RUN.',
+  '💥 Wall {n} — side-on to the gap. Back to the start of the leg: turn to line up, then RUN.':
+    '💥 Muro {n} — de lado al hueco. Vuelves al principio del tramo: gira para alinearte y pulsa RUN.',
   'column {n}':'la columna {n}','row {n}':'la fila {n}',
   'These blocks name WHERE to be, not which way to lean. The gap is {p} — click the glowing block.':
     'Estos bloques dicen DÓNDE estar, no hacia dónde inclinarse. El hueco está en {p} — pulsa el bloque que brilla.',

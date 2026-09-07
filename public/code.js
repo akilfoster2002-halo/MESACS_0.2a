@@ -728,6 +728,7 @@ window.CODE = (function(){
       };
     });
     wireDrag();
+    drawBlame();
     scriptEl.querySelectorAll('.blk.rep, .blk.ifc, .blk.define').forEach(node=>{
       node.onclick=e=>{
         e.stopPropagation();
@@ -931,6 +932,19 @@ window.CODE = (function(){
     const node=tape.querySelector(`.blk[data-id="${step.blockId}"]`);
     if(node) node.classList.add('on');
   }
+  /* THE BLOCK THAT CRASHED YOU. highlight() marks the running tape, which is
+     taken down the moment a run ends — so it is no use at all for pointing at
+     a mistake afterwards. This marks the block in the program you are about
+     to edit, and stays there until the next run. */
+  let blamed=null;
+  function blame(id){ blamed = (id==null) ? null : id; drawBlame(); }
+  function drawBlame(){
+    if(!scriptEl) return;
+    scriptEl.querySelectorAll('.blk.blame').forEach(n=>n.classList.remove('blame'));
+    if(blamed==null) return;
+    const n=scriptEl.querySelector(`.blk[data-id="${blamed}"]`);
+    if(n) n.classList.add('blame');
+  }
   function setIter(blockId,i,n){
     if(!tape) return;
     const s=tape.querySelector(`[data-iter="${blockId}"]`);
@@ -941,7 +955,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost, blame,
            setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
