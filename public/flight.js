@@ -1012,6 +1012,22 @@ window.FLIGHT = (function(){
   /* The panels, and under them the one sentence that says what the blocks
      mean. That sentence used to head a panel of its own with a worked
      example beside it; it is a caption, so it is captioned. */
+  /* one place the console's column is written, so one place it can slide */
+  /* ONCE per actual change. tick() repaints when the program changes and
+     radarOut() repaints when the panels do, and on the frame a wall is
+     solved both are true — so the column was written twice, and the second
+     write replaced the nodes the first one had just set moving. The panels
+     jumped, and only the card flying away ever animated.
+
+     The rendered markup is the state, so comparing it is the exact test. */
+  function paintAside(){
+    if(!window.CODE || !L) return;
+    const html=asideHTML();
+    if(html===L.asideHTML) return;
+    L.asideHTML=html;
+    const lbl=t('THE NEXT WALLS');
+    slideSwap(CODE.asideEl && CODE.asideEl(), ()=>CODE.setAside(lbl, html));
+  }
   function asideHTML(){
     if(!L) return '';
     return radarHTML()+`<p class="asbrief">${t(L.K.brief)}</p>`;
@@ -1040,14 +1056,13 @@ window.FLIGHT = (function(){
       solved=i; focus=i+1;
       p=[0,1,2].map(k=>all[i+k] || { wall:total+1+k, col:-1, row:-1, hit:false });
     }
-    const moved = L.radarFocus!==undefined && L.radarFocus!==focus;
     L.radarFocus=focus;
     const size=['big','mid','far'];
-    let out='<div class="radar'+(moved?' advance':'')+'">';
+    let out='<div class="radar">';
     for(let k=0;k<3;k++){
       const q=p[k];
       if(!q || q.wall>total){
-        out+=`<div class="rw ${size[k]} clear"><b>${k?'':t('CLEAR')}</b>
+        out+=`<div class="rw ${size[k]} clear" data-wall="clear${k}"><b>${k?'':t('CLEAR')}</b>
           <div class="rgrid">${grid('.../.../...', -1, -1)}</div></div>`;
         continue;
       }
@@ -1066,7 +1081,7 @@ window.FLIGHT = (function(){
          about is a tick you did not earn. */
       const said = q.written || L.rolling;
       const bad  = said && q.hit;
-      out+=`<div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}">
+      out+=`<div class="rw ${size[k]}${bad?' warn':''}${said?'':' unsaid'}" data-wall="${q.wall}">
         <b>${k===0?t('NOW'):'+'+k} <small>${q.wall}</small></b>
         ${pic}
         <u class="rmark">${said ? (q.hit?'✕':'✓') : '–'}</u></div>`;
@@ -1076,6 +1091,75 @@ window.FLIGHT = (function(){
                              : t('{a} of {b} walls done',{a:solved,b:total}))}</div></div>`;
     return out;
   }
+  /* --------------------------------------------------------- the shuffle
+     Solve a wall and it drops off the front: +1 becomes NOW, +2 becomes +1,
+     and a new +2 arrives. That is the most important thing the panels ever
+     say, and until now it happened between two frames — the pictures simply
+     were different, and a child who blinked had no idea anything had moved,
+     or which way.
+
+     So they slide. Write the new panels, then measure where each wall's
+     panel USED to be, put it back there with a transform, and let it travel
+     to its new home: the same trick every list animation is, and the only
+     one that survives the whole thing being re-rendered from scratch, which
+     it is. The wall you just solved leaves too — it is gone from the markup
+     by then, so a copy of it is flown off to the left and thrown away. */
+  const SLIDE=340;
+  const stillMoves = () =>
+    !window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* Takes a WRITER rather than a string. The console keeps its own copy of
+     whatever is in that column and re-injects it on any full redraw, so
+     writing the DOM behind its back leaves a stale copy that snaps back the
+     next time a block moves — and the panels then slide the same wall away
+     twice. Measure, let the owner write, then animate. */
+  function slideSwap(el, write){
+    if(!el) return write();
+    if(!stillMoves() || !el.querySelector('.rw')) return write();
+    const was=new Map();
+    el.querySelectorAll('.rw[data-wall]').forEach(n=>
+      was.set(n.dataset.wall, { r:n.getBoundingClientRect(), node:n }));
+    write();
+    const now=[...el.querySelectorAll('.rw[data-wall]')];
+    const here=new Set(now.map(n=>n.dataset.wall));
+
+    now.forEach(n=>{
+      const old=was.get(n.dataset.wall);
+      const a=n.getBoundingClientRect();
+      if(old){
+        const b=old.r;
+        const dx=b.left-a.left, dy=b.top-a.top;
+        const sc=a.width ? b.width/a.width : 1;
+        if(Math.abs(dx)<1 && Math.abs(dy)<1 && Math.abs(sc-1)<0.02) return;
+        n.style.transformOrigin='top left';
+        n.style.transform=`translate(${dx}px,${dy}px) scale(${sc})`;
+      } else {
+        n.style.transform='translateX(30px)';
+        n.style.opacity='0';
+      }
+      n.getBoundingClientRect();                 // force layout, or there is no start
+      n.style.transition=`transform ${SLIDE}ms cubic-bezier(.2,.85,.3,1), opacity ${SLIDE}ms`;
+      n.style.transform='none';
+      n.style.opacity='';
+      setTimeout(()=>{ n.style.transition=''; n.style.transformOrigin=''; }, SLIDE+40);
+    });
+
+    /* Anything that was there and is not any more flies out on its own, as a
+       copy pinned where it stood — the original went with the innerHTML. */
+    was.forEach((old,key)=>{
+      if(here.has(key)) return;
+      const c=old.node.cloneNode(true), b=old.r;
+      Object.assign(c.style, { position:'fixed', left:b.left+'px', top:b.top+'px',
+        width:b.width+'px', height:b.height+'px', margin:'0', zIndex:70,
+        pointerEvents:'none' });
+      document.body.appendChild(c);
+      c.getBoundingClientRect();
+      c.style.transition=`transform ${SLIDE}ms cubic-bezier(.4,0,.7,.3), opacity ${SLIDE}ms`;
+      c.style.transform='translateX(-46px) scale(.82)';
+      c.style.opacity='0';
+      setTimeout(()=>c.remove(), SLIDE+60);
+    });
+  }
+
   /* seconds until the nearest wall reaches you — the number that decides
      whether you have time to think or need to press C right now */
   function eta(){
@@ -1099,7 +1183,12 @@ window.FLIGHT = (function(){
        and "a sentence plus a div full of asteroids" is not a string any
        dictionary has an entry for. */
     CODE.setGuide(null);
-    CODE.setAside(t('THE NEXT WALLS'), asideHTML());
+    /* Through the SAME door as every other update. This used to call
+       setAside directly, which writes the column straight out — and because
+       tick() calls guide() the moment the program changes, it landed a frame
+       before radarOut() and the panels had already silently swapped by the
+       time anything tried to animate them. */
+    paintAside();
   }
   /* The same radar, on the windscreen.  Rebuilt only when something on it
      actually changed — this runs every frame, and re-writing nine cells of
@@ -1112,7 +1201,7 @@ window.FLIGHT = (function(){
       el.classList.add('hidden');
       // the console has its own copy in the third column; keep that one live
       const k=[L.col,L.row,progSig()].join('|');
-      if(k!==L.asideKey){ L.asideKey=k; CODE.setAside(t('THE NEXT WALLS'), asideHTML()); }
+      if(k!==L.asideKey){ L.asideKey=k; paintAside(); }
       return;
     }
     el.classList.remove('hidden');
@@ -1120,8 +1209,10 @@ window.FLIGHT = (function(){
                Math.round((L.elapsed||0)*10), progSig()].join('|');
     if(key===L.radarKey) return;
     L.radarKey=key;
-    el.innerHTML=radarHTML();
-    if(window.CODE && CODE.isOpen()) CODE.setAside(t('THE NEXT WALLS'), asideHTML());
+    const html=radarHTML();
+    if(html===L.radarHTML) return;
+    L.radarHTML=html;
+    slideSwap(el, ()=>{ el.innerHTML=html; });
   }
   function hud(){
     if(!L) return;

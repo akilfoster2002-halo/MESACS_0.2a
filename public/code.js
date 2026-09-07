@@ -376,9 +376,21 @@ window.CODE = (function(){
      while you write rather than behind the console. */
   let aside=null;
   function setAside(label, html){
+    const had=!!aside, lbl=aside?aside.label:null;
     aside = (html==null) ? null : { label:label||'', html };
-    if(el && open) draw();
+    if(!el || !open) return;
+    /* Only redraw the WHOLE console when the column changes hands. Once an
+       aside is installed, later content goes straight into it — a mission
+       updating its panel every time a block moves must not take the palette
+       and the script list down and put them back up with it, and anything
+       animating inside the column would be wiped mid-flight if it did. */
+    if(had && aside && aside.label===lbl){
+      const av=el.querySelector('#conAside');
+      if(av){ av.innerHTML=aside.html; return; }
+    }
+    draw();
   }
+  const asideEl = () => (el && open && aside) ? el.querySelector('#conAside') : null;
   let rails={};
   function setRails(r){ rails=r||{}; if(el) drawRails(); }
   function drawRails(){
@@ -752,7 +764,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setRails, setAside,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl,
            setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
