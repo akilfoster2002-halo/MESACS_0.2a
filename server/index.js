@@ -15,6 +15,7 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const db = require('./db');
 const auth = require('./auth');
+const mech = require('./mechmatch');
 
 const app = express();
 app.use(express.json({ limit:'16kb' }));
@@ -216,6 +217,10 @@ app.post('/api/teacher/clear', async (req,res)=>{
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path:'/ws' });
 const live = new Map();   // ws -> {id, display, server, role, x,z,yaw, mutedUntil}
+/* Who is standing in the Gym with a program in their hand, one room at a
+   time. It holds programs, not sockets, so a match is decided by what was
+   submitted rather than by who is still connected to watch it. */
+const lobby = new mech.Lobby();
 
 /* Chat is kept in memory and only while somebody is standing in the room.
    Nothing goes to Postgres, and an empty room forgets everything it heard:
@@ -263,8 +268,8 @@ function roster(server){
    they are nowhere near — and the ones the room has a word for are said out
    loud, once, when they change. Anywhere else is simply away: they vanish,
    and nothing is announced. */
-const WENT = { hub:'outside', home:'outside', workshop:'workshop',
-               house:'house', counter:'counter', mission:'mission' };
+const WENT = { hub:'outside', home:'outside', arena:'outside', workshop:'workshop',
+               house:'house', counter:'counter', mission:'mission', gym:'gym' };
 function moveTo(p, raw){
   const at = (typeof raw==='string' && /^[a-z_]{1,16}$/.test(raw)) ? raw : null;
   if(p.at===at) return;
@@ -312,6 +317,7 @@ wss.on('connection', async (ws, req)=>{
         broadcastRoom(p.server,{ t:'objs', from:p.id, full:true, set:[] }, ws);
       }
       if(p.server===want) return;
+      lobby.cancel(p.id);          // you cannot wait in a Gym you have left
       const was = p.server;
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=want;
@@ -329,6 +335,7 @@ wss.on('connection', async (ws, req)=>{
     }
     if(m.t==='leave'){
       const was = p.server;
+      lobby.cancel(p.id);
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=null; p.objs.clear();
       forgetIfEmpty(was);
@@ -345,6 +352,65 @@ wss.on('connection', async (ws, req)=>{
       return;
     }
     if(m.t==='place'){ moveTo(p, m.at); return; }
+    /* ------------------------------------------------------- the Gym
+       A student submits a program and either waits or gets a whole
+       match back. The fight is decided here and only the inputs travel,
+       so both browsers redraw the same battle turn for turn and neither
+       of them gets to decide who won. */
+    if(m.t==='mech'){
+      if(m.op==='cancel'){
+        if(lobby.cancel(p.id)) ws.send(JSON.stringify({ t:'mech', op:'cancelled' }));
+        return;
+      }
+      if(m.op!=='queue') return;
+      if(!p.server){ ws.send(JSON.stringify({ t:'mech', op:'error',
+        message:'You are not in a room.' })); return; }
+      if(rateLimited('mech:'+p.id, 20, 60000)){
+        ws.send(JSON.stringify({ t:'mech', op:'error',
+          message:'Too many deploys — wait a moment.' })); return; }
+      /* A program is a couple of dozen small blocks. Anything the size of
+         a novel is not one, and is not worth handing to the compiler. */
+      if(JSON.stringify(m.program||null).length > 12000){
+        ws.send(JSON.stringify({ t:'mech', op:'error',
+          message:'That program is too big to send.' })); return; }
+
+      const r = lobby.add(p.server,
+        { id:p.id, name:p.display, chassis:String(m.chassis||''), program:m.program });
+
+      if(r.status==='waiting'){
+        ws.send(JSON.stringify({ t:'mech', op:'waiting' }));
+        // so the rest of the room knows there is somebody to go and fight
+        broadcastRoom(p.server, { t:'mech', op:'open', name:p.display }, ws);
+        return;
+      }
+      if(r.status==='rejected' || r.status==='error'){
+        ws.send(JSON.stringify({ t:'mech', op:'rejected',
+          errors:r.errors || [{ msg:r.message }] }));
+        return;
+      }
+      if(r.status==='rejected-pair'){
+        // tell each side only about its own program
+        for(const side of ['A','B']){
+          const who=r.sides[side];
+          const mine=(r.rejected.find(x=>x.side===side)||{}).errors||[];
+          send(who, mine.length
+            ? { t:'mech', op:'rejected', errors:mine }
+            : { t:'mech', op:'waiting' });
+        }
+        return;
+      }
+      if(r.status==='matched'){
+        const M=r.match;
+        for(const side of ['A','B'])
+          send(M[side].id, { t:'mech', op:'match', you:side,
+            seed:M.seed, arena:M.arena, rules:M.rules, result:M.result,
+            A:{ name:M.A.name, chassis:M.A.chassis, program:M.A.program },
+            B:{ name:M.B.name, chassis:M.B.chassis, program:M.B.program } });
+        broadcastRoom(p.server, { t:'fought', a:M.A.name, b:M.B.name,
+          winner:M.result.winner, turns:M.result.turns });
+      }
+      return;
+    }
     /* Objects are relayed, not simulated: the owner's machine runs the scripts
        and says where things ended up. The server keeps the last word on each so
        a latecomer sees a room that is already furnished. */
@@ -386,6 +452,7 @@ wss.on('connection', async (ws, req)=>{
   ws.on('close', ()=>{
     const p=live.get(ws); live.delete(ws);
     if(!p) return;
+    lobby.cancel(p.id);
     broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
     forgetIfEmpty(p.server);
   });

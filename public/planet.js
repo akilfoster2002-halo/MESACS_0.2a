@@ -129,7 +129,25 @@ window.PLANET = (function(){
     buildings:HUB_BUILDINGS,
     pad:{ lon:-34, lat:-9 }
   };
-  const worldById = id => id==='home' ? homeWorld() : HUB;
+  /* ------------------------------------------------------- the fight world
+     A third planet, and it exists for one building. The Gym is not on the
+     hub on purpose: flying somewhere to fight makes the fight an occasion
+     and keeps a room full of people writing missions from being a room
+     full of people challenging each other. Small and bare — there is one
+     thing to do here and the walk to it should be short. */
+  const ARENA_BUILDINGS=[
+    { id:'gym', name:'THE GYM', em:'\u{1F916}', lon:0, lat:5, w:36, d:28, h:14, door:9,
+      wall:0x4a3550, roof:0xff9aa2, blurb:'Program a mech and fight' }
+  ];
+  const ARENA_WORLD={
+    id:'arena', kind:'arena', seed:7, name:'VOLTA', sub:'where the mechs fight',
+    radius:200, sky:BIOMES[2].sky, soil:BIOMES[2].soil, biome:'violet', relief:5.0,
+    buildings:ARENA_BUILDINGS,
+    pad:{ lon:0, lat:-11 }
+  };
+  const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD];
+  const worldById = id => id==='home' ? homeWorld()
+                        : id==='arena' ? ARENA_WORLD : HUB;
 
   /* The live world, and the things every other function in this file reads
      off it. They were consts when there was only ever one planet. */
@@ -289,7 +307,10 @@ window.PLANET = (function(){
     keysFor();
     hud(); dash(); drawMap();
     connect();
-    if(!toured()){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
+    /* The walkthrough is about the hub's front door — it points at Mission
+       Control and at the stations inside it, neither of which exists on
+       another ball. Landing anywhere else is not a first arrival. */
+    if(!toured() && W.kind==='hub'){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
     if(window.updateLeaveBtn) updateLeaveBtn();
     if(window.updateCodeBtn) updateCodeBtn();
     lockPointer(document.querySelector('#view'));
@@ -1002,6 +1023,8 @@ window.PLANET = (function(){
         statue(g, s.id, keepIn(p.x - Math.sin(p.r)*4.6, hw),
                         keepIn(p.z - Math.cos(p.r)*4.6, hd), p.r);
       });
+    } else if(b.id==='gym'){
+      gymroom(g, b, hw, hd);
     } else if(b.id==='mall'){
       mallroom(g, b, hw, hd);
     } else if(b.id==='mechanic'){
@@ -1335,6 +1358,43 @@ window.PLANET = (function(){
     });
   }
 
+  /* --------------------------------------------------------------- the gym
+     Two consoles and a floor between them. The floor is the arena you will
+     actually fight on, chalked out at the size it is — ten squares by ten —
+     so somebody standing in the room has already seen the map their program
+     has to cross before they write a line of it.
+
+     Left console: the league, four machines that never get better. Right
+     console: whoever else is in the room. Same blocks, same referee; the
+     only difference is that one of them is trying to beat you back. */
+  function gymroom(g, b, hw, hd){
+    const line=new THREE.MeshBasicMaterial({color:0x8fd3ff});
+    const mat =new THREE.MeshLambertMaterial({color:0x2e2547});
+    const N=10, sq=1.5, half=N*sq/2;
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(N*sq+1.2, 0.16, N*sq+1.2), mat);
+    floor.position.set(0,0.09,1.5); floor.userData.flat=true; g.add(floor);
+    // the grid, drawn rather than modelled: eleven lines each way
+    for(let i=0;i<=N;i++){
+      const at=-half+i*sq;
+      const across=new THREE.Mesh(new THREE.BoxGeometry(N*sq, 0.04, 0.07), line);
+      across.position.set(0, 0.18, 1.5+at); across.userData.flat=true; g.add(across);
+      const down=new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.04, N*sq), line);
+      down.position.set(at, 0.18, 1.5); down.userData.flat=true; g.add(down);
+    }
+    // the two starting marks, in the colours the arena itself uses
+    [[-half+sq/2,-half+sq/2,0x8fd3ff],[half-sq/2,half-sq/2,0xff9aa2]].forEach(([x,z,c])=>{
+      const m=new THREE.Mesh(new THREE.RingGeometry(0.4,0.62,20),
+        new THREE.MeshBasicMaterial({color:c, side:THREE.DoubleSide}));
+      m.rotation.x=-Math.PI/2; m.position.set(x, 0.2, 1.5+z);
+      m.userData.flat=true; g.add(m);
+    });
+    const lamp=new THREE.PointLight(0xffd8f0, 220, 44, 1.5);
+    lamp.position.set(0, b.h-3, 1.5); g.add(lamp);
+
+    panel(g, b, -8.5, -hd+4.2, '\u{1F916}', t('FIGHT THE LEAGUE'), 'league', '#2a1d3d', 0.8, 0);
+    panel(g, b,  8.5, -hd+4.2, '\u{2694}',  t('FIGHT A PLAYER'),   'pvp',    '#3d1d28', 0.8, 0);
+  }
+
   /* ------------------------------------------------------------- the pad
      A launch pad on every world, and the ship you own standing on it. Walk
      up, press E, and you are on the other planet — the hub if you are home,
@@ -1395,19 +1455,26 @@ window.PLANET = (function(){
       g.add(padShip);
       b.solids.push({x1:-3,x2:3,z1:-4.4,z2:2,y1:0,y2:4.4});
     }
-    const to = W.kind==='home' ? HUB : homeWorld();
-    panel(g, b, 0, 9.4, '\u{1F6F8}',
-      t('FLY TO {n}',{n:to.name}), 'launch', '#12304a', 0.8, Math.PI);
+    /* One console per destination, side by side, each saying where it goes.
+       A single button that toggled between two planets could not say what
+       it would do with a third one in the sky. */
+    const dests=WORLDS().filter(x=>x.id!==W.id);
+    const gap=8.2, first=-(gap*(dests.length-1))/2;
+    dests.forEach((to,i)=>{
+      panel(g, b, first+i*gap, 9.4, '\u{1F6F8}',
+        t('FLY TO {n}',{n:to.name}), 'fly:'+to.id, '#12304a', 0.72, Math.PI);
+    });
   }
   /* Leaving a world and arriving at another is one call, because everything
      that makes a world — its size, its sky, its soil, its buildings — is
      rebuilt by enter(). What has to survive is where you were standing on
      the one you left, and backs[] is what remembers that. */
-  function travel(){
-    const to = W.kind==='home' ? 'hub' : 'home';
-    const name = to==='hub' ? HUB.name : homeWorld().name;
+  function travel(to){
+    const id = to || (W.kind==='home' ? 'hub' : 'home');
+    if(id===W.id) return;
+    const name = worldById(id).name;
     leave();
-    enter(server, to);
+    enter(server, id);
     say(t('Touched down on {n}.',{n:name}));
   }
 
@@ -2156,10 +2223,25 @@ window.PLANET = (function(){
     const known = id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
+               || id==='league' || id==='pvp'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
+               || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
+    /* The Gym is a room you walk into and choose in, like the Mall: these
+       two consoles standing either side of the floor are the choice. */
+    if(id==='league' || id==='pvp'){
+      if(!window.MECH) return;
+      if(id==='pvp' && !(window.NET && NET.live)){
+        say(t('Fighting a classmate needs the server. The league is next door.'));
+        return;
+      }
+      wentTo('gym'); leave();
+      document.querySelector('#hud').classList.remove('hidden');
+      return MECH.start({ pvp:id==='pvp' });
+    }
+    if(id.indexOf('fly:')===0){ travel(id.slice(4)); return; }
     if(id==='workshop'){ wentTo('workshop'); leave();
                          return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     // the Mall is a room you walk round, not a screen: only the counter
@@ -2533,12 +2615,16 @@ window.PLANET = (function(){
   function hud(){
     const n=document.querySelector('#missionName');
     if(n) n.textContent = server && server.id ? t(server.name) : t('Home Planet');
+    /* What is on THIS ball. It used to be the hub's four buildings written
+       out by hand, which read as a lie the moment you flew anywhere: a
+       student standing on the fight world was being told where the Library
+       was. The buildings already carry their own name and their own line. */
     const o=document.querySelector('#objList');
-    if(o) o.innerHTML=
-      `<li class="cur">\u{1F680} ${t('Mission Control')} — ${t('every mission, one station each')}</li>
-       <li>\u{1F527} ${t('The Workshop')} — ${t('build anything, with your class')}</li>
-       <li>\u{1F642} ${t('The Mall')} — ${t('spend what you earned')}</li>
-       <li>\u{1F4DA} ${t('The Library')} — ${t('look up any word')}</li>`;
+    if(o) o.innerHTML = BUILDINGS.filter(b=>b.id!=='pad')
+      .map((b,i)=>`<li${i?'':' class="cur"'}>${b.em} ${t(b.name)}${
+        b.blurb? ' — '+t(b.blurb) : ''}</li>`)
+      .concat(`<li>\u{1F6F8} ${t('The Pad')} — ${t('fly to another planet')}</li>`)
+      .join('');
     say(t('Walk into a building. <b>E</b> to go in.'));
   }
 

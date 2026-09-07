@@ -1224,6 +1224,22 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #mkCount .sub{font-size:22px;color:var(--text);letter-spacing:6px;margin-top:10px}
 @keyframes mkpop{0%{transform:scale(2.2);opacity:0}45%{transform:scale(1);opacity:1}100%{opacity:1}}
 
+/* Waiting for somebody to fight. Your program is already at the server, so
+   this is the one screen in the game where the right thing to do is nothing
+   — it says so, and it keeps both ways out in reach. */
+#mkWait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,14,34,.62)}
+#mkWait .card{background:rgba(15,22,36,.97);border:3px solid var(--line);border-radius:18px;
+  padding:22px 26px;text-align:center;max-width:440px;pointer-events:auto}
+#mkWait h3{margin:0 0 6px;font-size:20px;letter-spacing:3px;color:var(--star)}
+#mkWait p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}
+#mkWait .dots{font-size:34px;letter-spacing:8px;color:var(--accent);margin-bottom:10px}
+#mkWait .dots i{animation:mkblink 1.2s infinite;font-style:normal}
+#mkWait .dots i:nth-child(2){animation-delay:.2s}
+#mkWait .dots i:nth-child(3){animation-delay:.4s}
+@keyframes mkblink{0%,100%{opacity:.25}50%{opacity:1}}
+#mkWait .row{display:flex;gap:10px;justify-content:center}
+
 /* the console's third column while you are writing: the map you will fight
    on, what everything costs, and what your chassis is made of */
 .mk-prev{display:grid;gap:2px;margin-bottom:10px}
@@ -1500,6 +1516,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="mkLog" class="hidden"></div>
   <div id="mkBar" class="hidden"></div>
   <div id="mkCount" class="hidden"></div>
+  <div id="mkWait" class="hidden"></div>
 </div>
 
 <div id="mkSetup" class="screen hidden">

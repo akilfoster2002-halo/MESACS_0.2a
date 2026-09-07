@@ -3,7 +3,7 @@
    Guests can still play; they just get no multiplayer and no saved work.
    ===================================================================== */
 window.NET = (function(){
-  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null;
+  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null;
   let muted=0;
   /* what we are meant to be connected to, so a dropped socket can put itself
      back. A deploy, a sleeping free-tier dyno or a flaky school wifi all end
@@ -32,7 +32,8 @@ window.NET = (function(){
     workshop:'{n} went into the Workshop',
     house   :'{n} went home',
     counter :'{n} went into the Wardrobe',
-    mission :'{n} went into a mission'
+    mission :'{n} went into a mission',
+    gym     :'{n} went into the Gym'
   };
 
   const nameOf = ()=> me ? me.display : t('Guest');
@@ -79,6 +80,15 @@ window.NET = (function(){
     pos(p){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',...p})); },
     /* one-shot: they have just walked into somewhere, and the room is told */
     place(at){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'place',at})); },
+    /* ---- the Gym ----
+       A program goes up to the server and either waits there for somebody
+       to fight or comes back as a whole match. Answers arrive at onMech,
+       which the arena sets when it loads: they have to reach it whether
+       the socket was opened by the planet or by Free Play, and the arena
+       is neither of those rooms. */
+    mech(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'mech',...msg})); },
+    set onMech(fn){ onMech=fn; },
+    get onMech(){ return onMech; },
     say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); },
     join(server){ want=server; if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); },
     /* what our objects look like right now, for everyone else in the room */
@@ -112,6 +122,16 @@ window.NET = (function(){
         if(m.t==='moved'&&onSys){
           const w=WENT[m.where];
           if(w) onSys(t(w,{n:m.display}));
+        }
+        /* A fight is news for the whole room, whoever was in it. */
+        if(m.t==='fought'&&onSys) onSys(
+          m.winner==='draw' ? t('{a} and {b} fought to a draw — {n} turns',
+                                {a:m.a,b:m.b,n:m.turns})
+          : t('{w} beat {l} in {n} turns',
+              {w:m.winner==='A'?m.a:m.b, l:m.winner==='A'?m.b:m.a, n:m.turns}));
+        if(m.t==='mech'){
+          if(m.op==='open'&&onSys) onSys(t('{n} is waiting for a fight in the Gym',{n:m.name}));
+          if(onMech) onMech(m);
         }
         if(m.t==='sys'&&onSys)    onSys(m.text);
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()

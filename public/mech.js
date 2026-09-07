@@ -36,6 +36,15 @@ window.MECH = (function(){
   let world=null, mechMesh=[], crateMesh=[], fx=[];
   let idx=0, playing=false, acc=0, speed=1;
   let you=null, foe=null;               // the two sides of this match
+  /* WHICH SIDE YOU ARE. Against the league you are always A. Against
+     another student you are whichever mark the server gave you, and that
+     is not cosmetic: both browsers have to replay the fight with the sides
+     in the order the referee ran them, or the two of them are watching
+     different battles. So the frames stay in A,B order everywhere and this
+     is the only thing that says which of them is yours. */
+  let pvp=false, mySide='A';
+  const mine  = ()=> mySide==='A' ? 0 : 1;
+  const other = ()=> mySide==='A' ? 1 : 0;
   let orbit=0, orbitH=1;
   /* Nobody is holding anything here. The blaster and the crosshair belong to
      a person standing in a room, and there is no person in this room — so
@@ -105,11 +114,32 @@ window.MECH = (function(){
     try{ localStorage.setItem(slot(id), JSON.stringify(tree||[])); }catch(e){}
   }
 
+  /* ------------------------------------------------------------- the Gym
+     Fighting a classmate is the same arena, the same console and the same
+     referee. Three things are different, and only three: the opponent is
+     not known when you write your program, the fight is decided by the
+     server rather than here, and the floor is fixed in advance.
+
+     THE FLOOR IS FIXED so it can be trained for. A map drawn after both
+     programs are in would make every program a guess, and it is chosen
+     for being symmetric — turn that board half a circle and it is itself
+     with the two marks swapped, so neither side is handed the better
+     start. Whoever deploys first is A; on this floor that is a fact both
+     replays must agree on rather than an advantage. */
+  const GYM_ARENA='energy';
+  function stranger(){
+    return { id:'pvp', tag:'THE GYM', name:t('A CLASSMATE'), em:'\u{1F464}',
+             a:SIDE_B, chassis:'striker', arena:GYM_ARENA, program:[],
+             teach:'somebody else’s program',
+             blurb:'Whoever deploys next. You do not get to see their program first.' };
+  }
+
   /* ==================================================== the setup screen */
   let opponent=null, chassis='striker';
-  function start(){
+  function start(opts){
     stop();
     on=true; phase='setup';
+    pvp=!!(opts && opts.pvp); mySide='A';
     G.running=false;
     if(window.CHARS) CHARS.heroClose();
     $('#hud').classList.add('hidden');
@@ -118,7 +148,8 @@ window.MECH = (function(){
     $('#teach').classList.add('hidden');
     $('#done').classList.add('hidden');
     if(document.pointerLockElement) document.exitPointerLock();
-    pickOpponent();
+    if(pvp){ opponent=stranger(); pickChassis(); }
+    else pickOpponent();
   }
   function pickOpponent(){
     phase='setup';
@@ -147,8 +178,12 @@ window.MECH = (function(){
   function pickChassis(){
     phase='setup';
     $('#mkTitle').textContent=t('PICK YOUR MECH');
-    $('#mkSub').innerHTML=t('Four frames, five numbers each. None of them is the best one — '+
-      'the right one depends on the program you are going to write.');
+    $('#mkSub').innerHTML = pvp
+      ? t('Four frames, five numbers each. You are fighting another student on '+
+          '{a} — and you will not know which frame they picked until you are both '+
+          'standing on it.',{a:t(MECHSIM.arenaById(GYM_ARENA).name)})
+      : t('Four frames, five numbers each. None of them is the best one — '+
+          'the right one depends on the program you are going to write.');
     const grid=$('#mkGrid'); grid.innerHTML='';
     Object.keys(MECHSIM.CHASSIS).forEach(id=>{
       const c=MECHSIM.CHASSIS[id];
@@ -168,7 +203,8 @@ window.MECH = (function(){
       b.onclick=()=>{ chassis=id; enterArena(); };
       grid.appendChild(b);
     });
-    $('#mkBack').onclick=()=>pickOpponent();
+    // in the Gym there is no opponent list behind this, only the way out
+    $('#mkBack').onclick = pvp ? ()=>{ stop(); MENU.homeworld(); } : ()=>pickOpponent();
     showSetup();
   }
   function showSetup(){
@@ -268,9 +304,15 @@ window.MECH = (function(){
        the hull, the ring under it, the panel above it and the ▲ in the
        log. The opponent's branding stays on its card, where it cannot
        be confused with anything. */
-    mechMesh=[ buildMech(you= { side:'A', chassis, name:t('YOU'), a:SIDE_A }),
-               buildMech(foe= { side:'B', chassis:opponent.chassis,
-                                name:t(opponent.name), a:SIDE_B }) ];
+    /* Built in A,B order, because that is the order the referee ran them
+       and the order every frame is written in. Which of the two is YOURS
+       is a separate question, and blue is always the answer. */
+    const mineSpec={ side:mySide, chassis, name:t('YOU'), a:SIDE_A };
+    const foeSpec ={ side:mySide==='A'?'B':'A', chassis:opponent.chassis,
+                     name:t(opponent.name), a:SIDE_B };
+    you=mineSpec; foe=foeSpec;
+    const bySide=[]; bySide[mine()]=mineSpec; bySide[other()]=foeSpec;
+    mechMesh=bySide.map(buildMech);
     mechMesh.forEach(m=>world.add(m));
 
     /* Lit so the two machines still have their colour. Ambient at .55 with
@@ -364,8 +406,11 @@ window.MECH = (function(){
     CODE.setGrid(A.w, A.h);
     CODE.setConditions(MECHSIM.SENSORS.map(s=>({ id:s.id, a:s.a })), { lead:'if' });
     CODE.setGuide({
-      brief: t('Program your mech, then press RUN to deploy it. '+
-               'It runs your program over and over until somebody is destroyed.'),
+      brief: pvp && !match
+        ? t('Program your mech, then press RUN to put it in the Gym. '+
+            'The fight starts the moment another student deploys theirs.')
+        : t('Program your mech, then press RUN to deploy it. '+
+            'It runs your program over and over until somebody is destroyed.'),
       name: t(opponent.name)+' — '+t(opponent.teach),
       text: t(opponent.blurb),
       code: null });
@@ -381,6 +426,10 @@ window.MECH = (function(){
      spending their attention on the wrong thing. */
   function asideHTML(){
     const R=rules(), c=MECHSIM.CHASSIS[chassis], o=MECHSIM.CHASSIS[opponent.chassis];
+    /* Until somebody has deployed against you there is nothing true to say
+       about their frame, and printing a plausible guess would be worse than
+       printing nothing — a student would write their program against it. */
+    const blind = pvp && !match;
     const cell=(x,z)=>{
       if(A.wall[z][x]) return 'w';
       if(A.hazard[z][x]) return 'h';
@@ -402,8 +451,10 @@ window.MECH = (function(){
       <div class="mk-stat">
         <b>${t(c.name)}</b> — ❤ ${c.hp} · ⚡ ${c.energy} · ${t('armour')} ${c.armour} ·
         ${t('hit')} ${c.attack} · ${t('range')} ${c.range} · ${t('sensor')} ${c.sensor}<br>
-        <b>${t(opponent.name)}</b> — ${t(o.name)}, ❤ ${o.hp} · ${t('armour')} ${o.armour} ·
-        ${t('hit')} ${o.attack} · ${t('range')} ${o.range}<br>
+        ${blind
+          ? `<b>${t('A CLASSMATE')}</b> — ${t('frame and program unknown until you both deploy')}`
+          : `<b>${t(opponent.name)}</b> — ${t(o.name)}, ❤ ${o.hp} · ${t('armour')} ${o.armour} ·
+             ${t('hit')} ${o.attack} · ${t('range')} ${o.range}`}<br>
         <span style="color:var(--star)">${t('Turns')}: ${rules().maxTurns}</span> ·
         ${t('most armour left wins if nobody is destroyed')}</div>`;
   }
@@ -425,6 +476,7 @@ window.MECH = (function(){
     if(phase!=='program' && phase!=='results') return;
     const tree=JSON.parse(JSON.stringify(CODE.script));
     saveProgram(opponent.id, tree);
+    if(pvp) return submit(tree);
 
     const r=MECHSIM.simulate({
       a:{ name:t('YOU'),        chassis, program:tree },
@@ -432,18 +484,99 @@ window.MECH = (function(){
       arena:opponent.arena, rules:DEFAULT_RULES, seed:seedFor(tree)
     });
     if(!r.ok){
-      const mine=r.rejected.find(x=>x.side==='A');
-      const e=mine && mine.errors[0];
-      if(e){
-        if(e.blockId!=null && CODE.blame) CODE.blame(e.blockId);
-        CODE.show();
-        if(window.beep) beep('bad');
-        brief('<b>'+t('The referee sent it back.')+'</b> '+t(e.msg));
-      }
+      refuse((r.rejected.find(x=>x.side==='A')||{errors:[]}).errors[0]);
       return;
     }
     match=r; idx=0;
     CODE.close(); CODE.hideTape(); if(CODE.blame) CODE.blame(null);
+    countdown();
+  }
+  /* One place to be told no, whoever said it — the referee in this browser
+     or the one on the server. Both hand back the same shape of error, and
+     both mean the same thing: this block, this sentence, try again. */
+  function refuse(e){
+    if(!e) return;
+    if(e.blockId!=null && CODE.blame) CODE.blame(e.blockId);
+    CODE.show();
+    if(window.beep) beep('bad');
+    brief('<b>'+t('The referee sent it back.')+'</b> '+t(e.msg));
+  }
+
+  /* ------------------------------------------------- deploying at the Gym
+     The program goes up and waits there. Nothing is decided in this
+     browser: what comes back is the whole match, including the other
+     student's program, which is what lets this machine draw the same fight
+     theirs is drawing. */
+  function submit(tree){
+    if(!window.NET || !NET.live){
+      brief('<b>'+t('Not connected.')+'</b> '+
+            t('The Gym needs the server — sign in and pick a room to fight in.'));
+      return;
+    }
+    const R=rules();
+    const v=PROGRAM.validate(tree, { limit:R.blockLimit, maxDepth:R.maxDepth,
+      allow:PAL, conds:MECHSIM.SENSORS.map(s=>s.id) });
+    if(!v.ok) return refuse(v.errors[0]);        // caught here, before the trip
+    NET.mech({ op:'queue', chassis, program:tree });
+    phase='waiting';
+    CODE.close(); CODE.hideTape(); if(CODE.blame) CODE.blame(null);
+    waitCard(t('Your program is in. The fight starts the moment somebody else deploys.'));
+  }
+  function waitCard(line){
+    const el=$('#mkWait'); if(!el) return;
+    el.innerHTML=`<div class="card">
+      <div class="dots"><i>●</i><i>●</i><i>●</i></div>
+      <h3>${t('WAITING FOR AN OPPONENT')}</h3>
+      <p>${line}</p>
+      <div class="row">
+        <button class="btn small" data-a="edit">${t('EDIT CODE')}</button>
+        <button class="btn ghost small" data-a="cancel">${t('Leave the queue')}</button>
+      </div></div>`;
+    el.classList.remove('hidden');
+    el.querySelector('[data-a="edit"]').onclick=()=>{ CODE.show(); };
+    el.querySelector('[data-a="cancel"]').onclick=()=>{
+      if(window.NET) NET.mech({ op:'cancel' });
+      hideWait(); phase='program'; console_();
+    };
+  }
+  function hideWait(){ const el=$('#mkWait'); if(el){ el.classList.add('hidden'); el.innerHTML=''; } }
+
+  /* What the server says back. Only ever about the match — the chat lines
+     that go with it are worded in net.js like every other room message. */
+  function fromServer(m){
+    if(!on || !pvp) return;
+    if(m.op==='waiting'){ phase='waiting';
+      waitCard(t('Your program is in. The fight starts the moment somebody else deploys.'));
+      return; }
+    if(m.op==='cancelled'){ hideWait(); phase='program'; console_(); return; }
+    if(m.op==='rejected'){ hideWait(); phase='program'; refuse((m.errors||[])[0]); return; }
+    if(m.op==='error'){ hideWait(); phase='program';
+      brief('<b>'+t('The Gym said no.')+'</b> '+t(m.message||'')); return; }
+    if(m.op==='match') begin(m);
+  }
+  /* A match arrives as its inputs, not as a video: two programs, a floor
+     and a seed. Running them here gives back the same frames the server
+     got, which is what the replay, the log and the scrubber all read. */
+  function begin(m){
+    hideWait();
+    mySide = m.you==='B' ? 'B' : 'A';
+    const us=m[mySide], them=m[mySide==='A'?'B':'A'];
+    chassis=us.chassis;                      // whatever the server actually ran
+    opponent=Object.assign(stranger(), {
+      name:them.name, chassis:them.chassis, program:them.program, arena:m.arena,
+      teach:'another student', blurb:'You are watching their program, not them.' });
+    A=MECHSIM.readArena(MECHSIM.arenaById(m.arena));
+    build();                                 // their frame is known now, so redraw it
+    const r=MECHSIM.simulate({ a:m.A, b:m.B, arena:m.arena, rules:m.rules, seed:m.seed });
+    if(!r.ok){ phase='program';
+      refuse((r.rejected.find(x=>x.side===mySide)||{errors:[]}).errors[0]); return; }
+    /* The server's verdict is the one on record. These should be the same
+       sentence — the same function ran on the same inputs — and if they are
+       ever not, the one both students were told is the one shown. */
+    if(m.result && r.result.winner!==m.result.winner)
+      console.warn('replay disagreed with the referee', r.result, m.result);
+    if(m.result) r.result=m.result;
+    match=r; idx=0;
     countdown();
   }
   /* The seed is part of the match, so it is written down rather than
@@ -515,7 +648,9 @@ window.MECH = (function(){
       mechMesh.forEach((g,k)=>{
         g.userData.at=false;
         place(g, A.starts[k], faceCentre(A.starts[k]), true);
-        g.visible=true; g.userData.shield.visible=false;
+        // in the Gym the other mark is empty until somebody stands on it
+        g.visible = !(pvp && k===other());
+        g.userData.shield.visible=false;
       });
       return;
     }
@@ -620,7 +755,7 @@ window.MECH = (function(){
   /* ===================================================== the two panels */
   function paintTop(f){
     const side=(k, el)=>{
-      const spec=k? foe : you;
+      const spec = k===mine() ? you : foe;
       const c=MECHSIM.CHASSIS[spec.chassis];
       const m=f ? f.mechs[k] : { hp:c.hp, energy:c.energy, alive:true };
       const maxE = match ? match.mechs[k].maxEnergy : c.energy;
@@ -633,7 +768,7 @@ window.MECH = (function(){
         <div class="mk-nums"><span>❤ <b>${m.hp}</b>/${c.hp}</span>
           <span>⚡ <b>${m.energy}</b>/${maxE}</span></div>`;
     };
-    side(0, $('#mkA')); side(1, $('#mkB'));
+    side(mine(), $('#mkA')); side(other(), $('#mkB'));
     const T=$('#mkTurn');
     T.innerHTML = match
       ? `<div class="n">${idx}</div><div class="l">${t('TURN')} / ${match.result.turns}</div>`
@@ -652,7 +787,7 @@ window.MECH = (function(){
     for(let i=from;i<idx;i++){
       const l=match.log[i];
       html+=`<div class="mk-turn"><div class="mk-tn">${t('TURN')} ${l.turn}</div>`;
-      html+=lines(l.A,'a', you.name)+lines(l.B,'b', foe.name);
+      html+=lines(l[mySide],'a', you.name)+lines(l[mySide==='A'?'B':'A'],'b', foe.name);
       html+=`</div>`;
     }
     if(idx===0) html+=`<div class="mk-why">${t('Nothing has happened yet.')}</div>`;
@@ -719,9 +854,11 @@ window.MECH = (function(){
      somebody can act on — then straight back to the blocks. */
   function finish(){
     phase='results';
-    const r=match.result, mine=match.stats.A;
-    const winner = r.winner==='A';
-    if(winner && window.PROGRESS){
+    const r=match.result, stats=match.stats[mySide];
+    const winner = r.winner===mySide;
+    /* The league pays; the Gym does not. A rematch is two clicks, so a
+       coin for beating a classmate is a coin for pressing RUN twice. */
+    if(winner && !pvp && window.PROGRESS){
       const first=!won(opponent.id);
       PROGRESS.set('mech_'+opponent.id, true);
       if(first && window.WALLET)
@@ -731,16 +868,16 @@ window.MECH = (function(){
     /* explain() falls back to the verdict when it has nothing sharper to
        say, and printing the same sentence twice reads as a stutter rather
        than as advice. */
-    const why=MECHSIM.explain(match,'A');
+    const why=MECHSIM.explain(match,mySide);
     const advice = (why && why!==r.text)
       ? `<p style="color:var(--star)">${t(why)}</p>` : '';
     showResults({
       title: r.winner==='draw' ? t('A DRAW')
            : winner ? t('YOUR MECH WINS') : t('YOUR MECH IS DOWN'),
       body: `<p>${t(r.text)}</p>`+advice,
-      stats: row('damage dealt', mine.damageDealt) + row('damage taken', mine.damageTaken)
-           + row('shots fired', mine.shots) + row('shots that hit', mine.hits)
-           + row('energy used', mine.energyUsed) + row('turns survived', mine.turnsSurvived)
+      stats: row('damage dealt', stats.damageDealt) + row('damage taken', stats.damageTaken)
+           + row('shots fired', stats.shots) + row('shots that hit', stats.hits)
+           + row('energy used', stats.energyUsed) + row('turns survived', stats.turnsSurvived)
            + row('blocks', PROGRAM.countBlocks(CODE.script)),
       btnText: t('WATCH IT BACK ▶'),
       onBtn: ()=>{ $('#done').classList.add('hidden');
@@ -755,7 +892,11 @@ window.MECH = (function(){
   /* ------------------------------------------------------------- leaving */
   function stop(){
     if(!on){ phase='off'; return; }
-    on=false; phase='off';
+    /* Walking out while your program is in the queue takes it with you —
+       otherwise the next person to deploy fights an empty chair. */
+    if(pvp && phase==='waiting' && window.NET && NET.live) NET.mech({ op:'cancel' });
+    on=false; phase='off'; pvp=false; mySide='A';
+    hideWait();
     clearFx();
     match=null; mechMesh=[]; crateMesh=[]; world=null;
     $('#mech').classList.add('hidden');
@@ -763,6 +904,7 @@ window.MECH = (function(){
     $('#mkLog').classList.add('hidden');
     $('#mkBar').classList.add('hidden');
     $('#mkCount').classList.add('hidden');
+    $('#mkWait').classList.add('hidden');
     $('#objectives').classList.remove('hidden');
     $('#crosshair').classList.remove('hidden');
     $('#briefing').classList.remove('hidden');
@@ -786,8 +928,14 @@ window.MECH = (function(){
     return false;
   }
 
-  return { start, stop, tick, run, key, camera,
+  /* Set once, at load. The socket belongs to the planet or to Free Play,
+     and the arena is neither — so it says where its own post goes rather
+     than hoping whoever opened the connection remembered to pass it on. */
+  if(window.NET) NET.onMech = fromServer;
+
+  return { start, stop, tick, run, key, camera, net:fromServer,
            get active(){ return on; },
            get phase(){ return phase; },
-           LEAGUE, PAL };
+           get pvp(){ return pvp; },
+           GYM_ARENA, LEAGUE, PAL };
 })();

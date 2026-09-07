@@ -340,6 +340,39 @@ window.ES = {
   'Sign in to play. Your account saves your progress on any computer.':
     'Inicia sesión para jugar. Tu cuenta guarda tu progreso en cualquier computadora.',
   '{n} came back outside':'{n} volvió afuera',
+  '{n} went into the Gym':'{n} entró al Gimnasio',
+  '{n} is waiting for a fight in the Gym':'{n} espera pelea en el Gimnasio',
+  '{w} beat {l} in {n} turns':'{w} venció a {l} en {n} turnos',
+  '{a} and {b} fought to a draw — {n} turns':'{a} y {b} empataron — {n} turnos',
+  /* the fight world and the Gym */
+  'THE GYM':'EL GIMNASIO','Program a mech and fight':'Programa un mech y pelea',
+  'where the mechs fight':'donde pelean los mechs',
+  'FIGHT THE LEAGUE':'PELEA LA LIGA','FIGHT A PLAYER':'PELEA CON ALGUIEN',
+  'Two consoles. <b>E</b> at one to fight.':'Dos consolas. <b>E</b> en una para pelear.',
+  'Fighting a classmate needs the server. The league is next door.':
+    'Pelear con un compañero necesita el servidor. La liga está al lado.',
+  'The Pad':'La Plataforma','fly to another planet':'vuela a otro planeta',
+  'A CLASSMATE':'UN COMPAÑERO','another student':'otro estudiante',
+  'somebody else’s program':'el programa de alguien más',
+  'You are watching their program, not them.':'Ves su programa, no a esa persona.',
+  'Whoever deploys next. You do not get to see their program first.':
+    'Quien despliegue después. No verás su programa antes.',
+  'frame and program unknown until you both deploy':
+    'marco y programa desconocidos hasta que ambos desplieguen',
+  'WAITING FOR AN OPPONENT':'ESPERANDO A UN RIVAL',
+  'Your program is in. The fight starts the moment somebody else deploys.':
+    'Tu programa ya está. La pelea empieza en cuanto alguien más despliegue.',
+  'Leave the queue':'Salir de la fila','EDIT CODE':'EDITAR CÓDIGO',
+  'Program your mech, then press RUN to put it in the Gym. The fight starts the moment another student deploys theirs.':
+    'Programa tu mech y presiona CORRER para dejarlo en el Gimnasio. '+
+    'La pelea empieza en cuanto otro estudiante despliegue el suyo.',
+  'Four frames, five numbers each. You are fighting another student on {a} — and you will not know which frame they picked until you are both standing on it.':
+    'Cuatro marcos, cinco números cada uno. Peleas contra otro estudiante en '+
+    '{a} — y no sabrás qué marco eligió hasta que ambos estén ahí.',
+  'Not connected.':'Sin conexión.',
+  'The Gym needs the server — sign in and pick a room to fight in.':
+    'El Gimnasio necesita el servidor — inicia sesión y elige una sala para pelear.',
+  'The Gym said no.':'El Gimnasio dijo que no.',
   '{n} went into the Workshop':'{n} entró al Taller',
   '{n} went home':'{n} se fue a su casa',
   '{n} went into the Wardrobe':'{n} entró al Vestuario',
