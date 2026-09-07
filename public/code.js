@@ -719,6 +719,7 @@ window.CODE = (function(){
         draw();
       };
     });
+    wireDrag();
     scriptEl.querySelectorAll('.blk.rep, .blk.ifc, .blk.define').forEach(node=>{
       node.onclick=e=>{
         e.stopPropagation();
@@ -730,6 +731,148 @@ window.CODE = (function(){
       };
     });
     textEl.textContent=toText().join('\n') || '—';
+  }
+
+  /* ------------------------------------------------------------ dragging
+     Blocks could only be added to the end and taken away again. That is
+     fine for the first program anybody writes and hopeless for the second:
+     realising the coast belongs BEFORE the turn meant deleting everything
+     after it and typing it again, which teaches that a mistake is expensive
+     rather than that order is the whole idea.
+
+     So they drag. Pointer events, not HTML5 drag-and-drop, because that
+     does not fire on a touch screen and half of these are used on tablets.
+     A copy of the block follows the finger and a line shows the gap it
+     would drop into, so the answer to "where will this land" is on screen
+     before you let go rather than after.
+
+     A drag begins only after the pointer has actually MOVED. Without that,
+     every tap on a repeat block would be a one-pixel drag and the tap that
+     is supposed to open it for nesting would be eaten. */
+  const DRAG_SLOP=5;
+  let drag=null;
+
+  function listOf(id){                    // the array a block lives in
+    let found=null;
+    (function walk(list){
+      for(const b of list){
+        if(b.id===id){ found=list; return; }
+        if(b.body){ walk(b.body); if(found) return; }
+      }
+    })(script);
+    return found;
+  }
+  /* Every gap a block could be dropped into, as a screen position. A gap is
+     "before this block" for each block in a list, plus "at the end" of it —
+     including the inside of every repeat, so a block can be dragged into a
+     loop as well as around one. */
+  function gaps(){
+    const out=[];
+    scriptEl.querySelectorAll('[data-body]').forEach(body=>{
+      const id=+body.dataset.body;
+      const b=findBlock(id);
+      if(b && b.body) out.push(...slotsIn(body, b.body));
+    });
+    out.push(...slotsIn(scriptEl, script));
+    return out;
+  }
+  function slotsIn(container, list){
+    const out=[];
+    const kids=[...container.children].filter(n=>n.classList.contains('blk'));
+    kids.forEach((n,i)=>{
+      const r=n.getBoundingClientRect();
+      out.push({ list, index:i, y:r.top, x:r.left, w:r.width, node:n, where:'before' });
+    });
+    const r=container.getBoundingClientRect();
+    const last=kids[kids.length-1];
+    out.push({ list, index:list.length,
+               y:last?last.getBoundingClientRect().bottom:r.top+6,
+               x:r.left+8, w:Math.max(60,r.width-16), node:last, where:'after' });
+    return out;
+  }
+  function marker(){
+    let m=document.querySelector('#dropLine');
+    if(!m){ m=document.createElement('div'); m.id='dropLine'; document.body.appendChild(m); }
+    return m;
+  }
+  function startDrag(b, node, ev){
+    const r=node.getBoundingClientRect();
+    const ghost=node.cloneNode(true);
+    ghost.classList.add('dragging');
+    Object.assign(ghost.style, { position:'fixed', left:r.left+'px', top:r.top+'px',
+      width:r.width+'px', margin:'0', pointerEvents:'none', zIndex:120 });
+    document.body.appendChild(ghost);
+    node.classList.add('lifted');
+    drag={ b, node, ghost, dx:ev.clientX-r.left, dy:ev.clientY-r.top, slot:null };
+  }
+  function moveDrag(ev){
+    if(!drag) return;
+    drag.ghost.style.left=(ev.clientX-drag.dx)+'px';
+    drag.ghost.style.top =(ev.clientY-drag.dy)+'px';
+    /* Nearest gap to the pointer. Distance, not "is it inside this box",
+       because the gap at the end of a list has no box to be inside. */
+    let best=null, bd=1e9;
+    for(const g of gaps()){
+      if(insideDragged(g.node)) continue;      // no dropping a block into itself
+      const d=Math.abs(ev.clientY-g.y) + Math.abs(ev.clientX-(g.x+g.w/2))*0.15;
+      if(d<bd){ bd=d; best=g; }
+    }
+    drag.slot=best;
+    const m=marker();
+    if(best){
+      m.style.display='block';
+      m.style.left=best.x+'px'; m.style.top=(best.y-2)+'px'; m.style.width=best.w+'px';
+    } else m.style.display='none';
+  }
+  const insideDragged = node =>
+    !!(node && drag && drag.node && (node===drag.node || drag.node.contains(node)));
+  function endDrag(){
+    if(!drag) return;
+    const { b, slot }=drag;
+    drag.ghost.remove();
+    drag.node.classList.remove('lifted');
+    const m=document.querySelector('#dropLine'); if(m) m.style.display='none';
+    drag=null;
+    if(!slot) return draw();
+    const from=listOf(b.id); if(!from) return draw();
+    const at=from.indexOf(b);
+    let to=slot.index;
+    from.splice(at,1);
+    // taking it out of its own list shifts every later gap in that list back one
+    if(from===slot.list && at<to) to--;
+    slot.list.splice(Math.max(0,Math.min(to, slot.list.length)), 0, b);
+    if(window.beep) beep('pop');
+    draw();
+  }
+  function wireDrag(){
+    scriptEl.querySelectorAll('.blk').forEach(node=>{
+      node.onpointerdown=ev=>{
+        if(ev.button) return;
+        // the ✕, the steppers and the number box are controls, not handles
+        if(ev.target.closest('button, input')) return;
+        /* The innermost block wins. A block inside a repeat is inside the
+           repeat's element too, so without this the press starts TWO drags —
+           and the outer one, being the loop that contains the thing you are
+           holding, rules out every place you could put it down. */
+        ev.stopPropagation();
+        const b=findBlock(+node.dataset.id); if(!b) return;
+        const sx=ev.clientX, sy=ev.clientY;
+        let live=false;
+        const move=e=>{
+          if(!live && Math.hypot(e.clientX-sx, e.clientY-sy) < DRAG_SLOP) return;
+          if(!live){ live=true; startDrag(b, node, {clientX:sx, clientY:sy}); }
+          e.preventDefault();
+          moveDrag(e);
+        };
+        const up=()=>{
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          if(live) endDrag();
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      };
+    });
   }
 
   function show(pal){

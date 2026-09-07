@@ -284,6 +284,18 @@ button{font-family:var(--font);cursor:pointer}
 .cdrop{height:8px;border-radius:4px;margin:1px 0;cursor:pointer}
 .cdrop:hover{background:rgba(255,255,255,.16)}
 .cdrop.on{background:var(--star);height:5px}
+/* THE MISSION CONSOLE'S OWN DRAG. A copy of the block rides under the
+   finger and a line shows the gap it would drop into, so "where will this
+   land" is answered before you let go rather than after. */
+#dropLine{position:fixed;display:none;height:4px;border-radius:3px;z-index:119;
+  background:var(--star);box-shadow:0 0 10px 2px rgba(255,233,168,.65);
+  pointer-events:none}
+.blk.dragging{opacity:.92;transform:rotate(-1.5deg) scale(1.03);
+  box-shadow:0 10px 26px rgba(0,0,0,.55)}
+.blk.lifted{opacity:.32}
+#conScript .blk{cursor:grab;touch-action:none}
+#conScript .blk:active{cursor:grabbing}
+#conScript .blk button,#conScript .blk input{cursor:pointer;touch-action:auto}
 /* dragging: a ghost under the cursor, and the gap it would land in */
 .cghost{position:fixed;z-index:60;pointer-events:none;opacity:.9;
   background:var(--accent);color:#241d38;border-radius:8px;padding:5px 8px;
@@ -1390,35 +1402,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=246"></script>
-<script src="strings.js?v=246"></script>
-<script src="difficulty.js?v=246"></script>
-<script src="net.js?v=246"></script>
-<script src="avatar.js?v=246"></script>
-<script src="zombies.js?v=246"></script>
-<script src="building.js?v=246"></script>
-<script src="levels.js?v=246"></script>
-<script src="code.js?v=246"></script>
-<script src="combat.js?v=246"></script>
-<script src="puzzle.js?v=246"></script>
-<script src="nav.js?v=246"></script>
-<script src="tutorial.js?v=246"></script>
-<script src="race.js?v=246"></script>
-<script src="flight.js?v=246"></script>
-<script src="planet.js?v=246"></script>
-<script src="wallet.js?v=246"></script>
-<script src="shop.js?v=246"></script>
-<script src="library.js?v=246"></script>
-<script src="costumes.js?v=246"></script>
-<script src="missions.js?v=246"></script>
-<script src="coach.js?v=246"></script>
-<script src="owner.js?v=246"></script>
-<script src="blocks.js?v=246"></script>
-<script src="vm.js?v=246"></script>
-<script src="coder.js?v=246"></script>
-<script src="quiz.js?v=246"></script>
-<script src="chars.js?v=246"></script>
-<script src="menu.js?v=246"></script>
-<script src="game.js?v=246"></script>
+<script src="lib/three.classic.js?v=249"></script>
+<script src="strings.js?v=249"></script>
+<script src="difficulty.js?v=249"></script>
+<script src="net.js?v=249"></script>
+<script src="avatar.js?v=249"></script>
+<script src="zombies.js?v=249"></script>
+<script src="building.js?v=249"></script>
+<script src="levels.js?v=249"></script>
+<script src="code.js?v=249"></script>
+<script src="combat.js?v=249"></script>
+<script src="puzzle.js?v=249"></script>
+<script src="nav.js?v=249"></script>
+<script src="tutorial.js?v=249"></script>
+<script src="race.js?v=249"></script>
+<script src="flight.js?v=249"></script>
+<script src="planet.js?v=249"></script>
+<script src="wallet.js?v=249"></script>
+<script src="shop.js?v=249"></script>
+<script src="library.js?v=249"></script>
+<script src="costumes.js?v=249"></script>
+<script src="missions.js?v=249"></script>
+<script src="coach.js?v=249"></script>
+<script src="owner.js?v=249"></script>
+<script src="blocks.js?v=249"></script>
+<script src="vm.js?v=249"></script>
+<script src="coder.js?v=249"></script>
+<script src="quiz.js?v=249"></script>
+<script src="chars.js?v=249"></script>
+<script src="menu.js?v=249"></script>
+<script src="game.js?v=249"></script>
 </body>
 </html>
