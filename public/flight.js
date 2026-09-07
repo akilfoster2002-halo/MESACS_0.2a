@@ -41,7 +41,18 @@ window.FLIGHT = (function(){
      A beat is written as three rows, top to bottom, separated by slashes —
      exactly the way it looks through the windscreen.  '.' is open sky and
      'X' is rock.  Every chart is checked for a way through when the stage
-     loads, so an impossible wall is a crash at author time, not at play. */
+     loads, so an impossible wall is a crash at author time, not at play.
+
+     THE ORDER IS THE SYLLABUS. Two navigation legs before anybody is handed
+     a gun: this mission is about moving a ship with arithmetic, and putting
+     the shooting range second made the second thing a student ever did an
+     entirely different verb. Fly, then fly again with a loop, and only then
+     shoot.
+
+     After that no concept is ever used before the leg that taught it —
+     Turret Drill needs both fire and repeat, so it sits after the range and
+     after The Rhythm; Hard to Starboard, The Coordinate System and Jump
+     Drive each bring one new idea and nothing borrowed. */
   const STAGES=[
     { id:'first', kind:'fly', stops:2, name:'First Contact', budget:8,
       pal:['addY','addX','coast'],
@@ -64,15 +75,6 @@ window.FLIGHT = (function(){
         '..X/..X/.X.'    // coast → col2 row0
       ] },
 
-    { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
-      pal:['addY','addX','fire'],
-      learn:{ name:'The same nine lanes',
-              text:'No clock here. fire() hits your own lane.',
-              code:'change x by -1\nfire()\nchange y by 1\nfire()' },
-      brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
-      start:{col:1,row:1},
-      targets:'X.X/.../X.X' },
-
     { id:'rhythm', kind:'fly', stops:2, name:'The Rhythm', budget:6,
       pal:['addY','addX','coast','repeat'],
       learn:{ name:'A pattern of rock is a repeat',
@@ -91,21 +93,14 @@ window.FLIGHT = (function(){
         '.../.X./.X.',  '.X./.../.X.',  'X.X/.../X.X'
       ] },
 
-    { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
-      pal:['addY','addX','fire','repeat'],
-      learn:{ name:'A row of targets is a loop',
-              text:'Shoot, slide, shoot, slide. That is a repeat.',
-              code:'repeat 3\n  fire()\n  change x by 1\nend' },
-      brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
-      start:{col:0,row:0},
-      targets:'.../.../XXX' },
-
-    /* Deep Field lived here: eighteen walls in six blocks, which only fits if
-       you put a repeat inside a repeat. Nesting is out of this mission — one
-       loop is a big enough idea to be worth its own leg, and a second one
-       hidden inside it turned the leg into a puzzle about block budgets
-       rather than about motion. The language still has it, and the Library
-       still explains it, for anyone who wants it in Free Play. */
+    { id:'range', kind:'gun', name:'Gunnery Range', budget:12,
+      pal:['addY','addX','fire'],
+      learn:{ name:'The same nine lanes',
+              text:'No clock here. fire() hits your own lane.',
+              code:'change x by -1\nfire()\nchange y by 1\nfire()' },
+      brief:'Four targets, twelve blocks. Move, then <b>fire()</b>.',
+      start:{col:1,row:1},
+      targets:'X.X/.../X.X' },
 
     { id:'spin', kind:'fly', stops:3, name:'Hard to Starboard', budget:9,
       pal:['addX','addY','turn','coast'],
@@ -128,6 +123,22 @@ window.FLIGHT = (function(){
         'slot90',   // turn 90
         'slot0'     // turn 90
       ] },
+
+    { id:'turret', kind:'gun', name:'Turret Drill', budget:4,
+      pal:['addY','addX','fire','repeat'],
+      learn:{ name:'A row of targets is a loop',
+              text:'Shoot, slide, shoot, slide. That is a repeat.',
+              code:'repeat 3\n  fire()\n  change x by 1\nend' },
+      brief:'Three targets, <b>four blocks</b>. One at a time needs five.',
+      start:{col:0,row:0},
+      targets:'.../.../XXX' },
+
+    /* Deep Field lived here: eighteen walls in six blocks, which only fits if
+       you put a repeat inside a repeat. Nesting is out of this mission — one
+       loop is a big enough idea to be worth its own leg, and a second one
+       hidden inside it turned the leg into a puzzle about block budgets
+       rather than about motion. The language still has it, and the Library
+       still explains it, for anyone who wants it in Free Play. */
 
     { id:'coords', kind:'fly', stops:3, name:'The Coordinate System', budget:8,
       pal:['setX','setY','addX','addY','coast','repeat'],
