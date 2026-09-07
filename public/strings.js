@@ -636,7 +636,6 @@ window.ES = {
   'Walk into a building. <b>E</b> to go in.':'Entra en un edificio. <b>E</b> para pasar.',
   'E — go in':'E — entrar',
   'E — ask':'E — preguntar',
-  'Show me how':'Enséñame cómo',
   'left':'izquierda','right':'derecha','up':'arriba','down':'abajo',
   'straight ahead':'justo delante',
   'Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.':

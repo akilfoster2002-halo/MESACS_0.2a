@@ -445,12 +445,6 @@ window.FLIGHT = (function(){
        the windscreen as well left the same paragraph on screen twice, one
        copy of it sitting under the console saying nothing anybody needed. */
     hud();
-    /* Leg one can always be walked again. It was gated on a flag set the
-       first time anybody finished it, which meant a student who skipped the
-       walkthrough — or came back next week — opened the console to three
-       blocks, an empty script and no idea, with no way left to ask. */
-    if(K.kind!=='gun' && L.idx===0) CODE.setHelp(t('Show me how'), ()=>walkFirstLeg());
-    else CODE.setHelp(null, null);
     teach();
   }
 
@@ -650,11 +644,16 @@ window.FLIGHT = (function(){
   function tick(dt){
     if(!L) return;
     spin(dt);
-    /* The first visit walks itself the moment the console opens. This used
-       to hang off the teach card's button alone, so any other way of getting
-       rid of that card — and there are several — skipped the lesson without
-       ever offering it. */
-    if(L.idx===0 && L.kind!=='gun' && !L.taught && !walked()
+    /* LEG ONE ALWAYS WALKS, the moment the console opens. There was a flag
+       for whether this student had ever finished it, and a button to ask for
+       it back if they had — and both were answers to a question nobody
+       asked. Leg one is the demonstration. You watch the demonstration. It
+       costs eight clicks and it is the only place in the game that explains
+       what a block does to a ship.
+
+       L.taught is per attempt, so skipping it holds for the rest of the leg
+       and a crash does not start it over. */
+    if(L.idx===0 && L.kind!=='gun' && !L.taught
        && window.CODE && CODE.isOpen()){
       L.taught=true; walkFirstLeg();
     }
@@ -884,7 +883,6 @@ window.FLIGHT = (function(){
     L.done=true; L.rolling=false; busy=false;
     CODE.hideTape(); CODE.close(); CODE.setGuide(null); CODE.setAside(null,null);
     if(window.beep) beep('star');
-    if(L.idx===0) markWalked();
     if(window.COACH) COACH.stop();
     if(window.WALLET) WALLET.award(t('{n} flown',{n:t(L.K.name)}), 25, 12, 'flight_'+L.K.id);
     const last = L.idx+1 >= STAGES.length;
@@ -918,9 +916,6 @@ window.FLIGHT = (function(){
 
      Only the first leg, and only until you have flown it once. By leg two
      you know what a beat is. */
-  const WALKED_KEY='dq_flight_walked';
-  function walked(){ try{ return !!localStorage.getItem(WALKED_KEY); }catch(e){ return false; } }
-  function markWalked(){ try{ localStorage.setItem(WALKED_KEY,'1'); }catch(e){} }
 
   const scriptLen = () => (window.CODE && CODE.script) ? CODE.countBlocks() : 0;
   const hasOp = op => !!(window.CODE && CODE.script &&
@@ -1309,8 +1304,7 @@ window.FLIGHT = (function(){
        you are ready. */
     el.querySelector('#teachGo').onclick=()=>{
       el.classList.add('hidden');
-      if(L && L.idx===0 && !walked() && !L.taught){ L.taught=true; walkFirstLeg(); }
-      else brief(t('Press <b>C</b> to write your program.'));
+      brief(t('Press <b>C</b> to write your program.'));
     };
   }
   let mt=null;
