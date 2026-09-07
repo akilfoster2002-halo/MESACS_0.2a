@@ -25,6 +25,16 @@ window.NET = (function(){
     return j;
   }
 
+  /* The server says which KIND of place somebody walked into; the wording is
+     picked here so it can be translated like everything else. */
+  const WENT = {
+    outside :'{n} came back outside',
+    workshop:'{n} went into the Workshop',
+    house   :'{n} went home',
+    counter :'{n} went into the Wardrobe',
+    mission :'{n} went into a mission'
+  };
+
   const nameOf = ()=> me ? me.display : t('Guest');
   return {
     get me(){ return me; },
@@ -61,7 +71,14 @@ window.NET = (function(){
     },
     disconnect(){ want=null; gone=true; clearTimeout(retryT); if(ws){ ws.close(); ws=null; } },
     get live(){ return !!ws && ws.readyState===1; },
-    pos(x,z,yaw,char){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',x,z,yaw,char})); },
+    /* Where we are, what we are wearing, and what we are driving. `at` is the
+       place those two numbers are measured in — the planet you are standing
+       on, or 'inside' for a room off it. Presence has to carry both or a
+       classmate drives past still walking, and somebody who has gone indoors
+       is left standing in the field with their indoor coordinates. */
+    pos(p){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',...p})); },
+    /* one-shot: they have just walked into somewhere, and the room is told */
+    place(at){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'place',at})); },
     say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); },
     join(server){ want=server; if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); },
     /* what our objects look like right now, for everyone else in the room */
@@ -92,6 +109,10 @@ window.NET = (function(){
         }
         if(m.t==='joined'&&onSys) onSys(t('{n} joined',{n:m.display}));
         if(m.t==='left'&&onSys)   onSys(t('{n} left',{n:m.display}));
+        if(m.t==='moved'&&onSys){
+          const w=WENT[m.where];
+          if(w) onSys(t(w,{n:m.display}));
+        }
         if(m.t==='sys'&&onSys)    onSys(m.text);
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()
             ? t('Your teacher muted the chat for you.') : t('You can chat again.')); }

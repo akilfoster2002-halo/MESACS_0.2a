@@ -253,8 +253,30 @@ function send(userId,obj){
 function roster(server){
   const out=[];
   for(const [,p] of live) if(p.server===server && p.role==='student')
-    out.push({ id:p.id, display:p.display, x:p.x, z:p.z, yaw:p.yaw, char:p.char });
+    out.push({ id:p.id, display:p.display, x:p.x, z:p.z, yaw:p.yaw,
+               char:p.char, ride:p.ride, at:p.at });
   return out;
+}
+/* Where somebody is standing: the planet they are out on, or the room they
+   have walked into. Everyone else needs it to know whether to draw them at
+   all — indoor coordinates painted onto a planet put a classmate in a field
+   they are nowhere near — and the ones the room has a word for are said out
+   loud, once, when they change. Anywhere else is simply away: they vanish,
+   and nothing is announced. */
+const WENT = { hub:'outside', home:'outside', workshop:'workshop',
+               house:'house', counter:'counter', mission:'mission' };
+function moveTo(p, raw){
+  const at = (typeof raw==='string' && /^[a-z_]{1,16}$/.test(raw)) ? raw : null;
+  if(p.at===at) return;
+  p.at=at;
+  const where = WENT[at] || null;
+  if(!where) return;                 // somewhere with no name: they simply go
+  // arriving on the planet for the first time is "joined", which the room has
+  // already said — only a return from somewhere is worth a second line
+  const first = p.went===null && where==='outside';
+  if(where!==p.went && !first && p.server)
+    broadcastRoom(p.server, { t:'moved', display:p.display, where });
+  p.went = where;
 }
 function headcount(){
   const n={}; SERVERS.forEach(s=>n[s.id]=0);
@@ -269,7 +291,7 @@ wss.on('connection', async (ws, req)=>{
   const u = r.rows[0];
   if(!u){ ws.close(4001,'unknown user'); return; }
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
-                x:0, z:0, yaw:0, char:'a', objs:new Map(),
+                x:0, z:0, yaw:0, char:'a', ride:null, at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
 
@@ -316,8 +338,13 @@ wss.on('connection', async (ws, req)=>{
       if(!p.server) return;
       p.x=+m.x||0; p.z=+m.z||0; p.yaw=+m.yaw||0;
       if(typeof m.char==='string' && /^[a-r]$/.test(m.char)) p.char=m.char;
+      // the car they are driving, if any — the browser decides which model that
+      // names, so an unknown id simply draws nothing
+      p.ride = (typeof m.ride==='string' && /^[a-z_]{1,16}$/.test(m.ride)) ? m.ride : null;
+      moveTo(p, m.at);
       return;
     }
+    if(m.t==='place'){ moveTo(p, m.at); return; }
     /* Objects are relayed, not simulated: the owner's machine runs the scripts
        and says where things ended up. The server keeps the last word on each so
        a latecomer sees a room that is already furnished. */

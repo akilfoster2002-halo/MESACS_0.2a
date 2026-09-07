@@ -2016,6 +2016,24 @@ window.PLANET = (function(){
     place(dt, moved, running);
     if(window.GUN) GUN.update(dt, moved);
   }
+  /* One car, sized to the world and nose along +Z like everything else that
+     stands on this ball. The driver's own and every classmate's come out of
+     here, so a car looks the same from inside it and from across the field. */
+  function rideModel(id){
+    const want = window.SHOP ? SHOP.CARS.find(c=>c.id===id) : null;
+    if(!want) return Promise.reject(new Error('no such car'));
+    carLoader = carLoader || new THREE.GLTFLoader();
+    return new Promise((res,rej)=>carLoader.load(want.file, g=>{
+      const root=g.scene;
+      root.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
+      const box=new THREE.Box3().setFromObject(root);
+      const len=Math.max(0.001, box.max.z-box.min.z);
+      root.scale.setScalar(3.4/len);
+      const holder=new THREE.Group();
+      holder.add(root);
+      res(holder);
+    }, undefined, rej));
+  }
   /* Put whatever you are riding under you, and take the body away — a
      character standing inside a car reads as a bug rather than a driver,
      which is the same reason the Circuit leaves them in the pits. */
@@ -2031,20 +2049,12 @@ window.PLANET = (function(){
     if(ride && ride.parent) ride.parent.remove(ride);
     ride=null;
     if(!want){ if(window.AVATAR) AVATAR.attach(); return; }
-    carLoader = carLoader || new THREE.GLTFLoader();
-    carLoader.load(want.file, g=>{
+    rideModel(want.id).then(holder=>{
       if(rideId!==want.id || !on) return;
-      const root=g.scene;
-      root.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
-      const box=new THREE.Box3().setFromObject(root);
-      const len=Math.max(0.001, box.max.z-box.min.z);
-      root.scale.setScalar(3.4/len);
-      const holder=new THREE.Group();
-      holder.add(root);
       ride=holder; G.roomGroup.add(ride);
       if(window.AVATAR) AVATAR.detach();          // you are in it, not beside it
       keysFor();
-    }, undefined, ()=>{ ride=null; rideId=null; });
+    }).catch(()=>{ ride=null; rideId=null; });
   }
   const RIDE_SPEED=1.9;
   /* Get in and get out, out here, without walking to a menu to do it. R
@@ -2150,11 +2160,12 @@ window.PLANET = (function(){
                || id.indexOf('buy:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
-    if(id==='workshop'){ leave(); return FREE.enter(server||{id:null,name:'Workshop'}, null); }
+    if(id==='workshop'){ wentTo('workshop'); leave();
+                         return FREE.enter(server||{id:null,name:'Workshop'}, null); }
     // the Mall is a room you walk round, not a screen: only the counter
     // inside it opens the full list, and that is 'counter'
     if(id==='mall'){ say(t('Walk up to anyone. <b>E</b> to wear them.')); return; }
-    if(id==='counter'){ leave(); return MENU.chars(); }
+    if(id==='counter'){ wentTo('counter'); leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
        you can look a word up and still be standing where you were. */
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
@@ -2168,11 +2179,13 @@ window.PLANET = (function(){
     if(id.indexOf('buy:')===0){ purchase(id.slice(4)); return; }
     if(id.indexOf('wear:')===0){ wear(id.slice(5)); return; }
     if(id==='launch'){ travel(); return; }
-    if(id==='house'){ leave(); return FREE.enter(server||{id:null,name:'Home'}, null); }
+    if(id==='house'){ wentTo('house'); leave();
+                      return FREE.enter(server||{id:null,name:'Home'}, null); }
     if(!PROGRESS.unlocked(id)){
       say(t('\u{1F512} Finish {m} first',{m:t(MENU.labelOf(PROGRESS.needs(id)))}));
       return;
     }
+    wentTo('mission');
     leave();
     document.querySelector('#hud').classList.remove('hidden');
     startMissionRoom(id);
@@ -2210,21 +2223,42 @@ window.PLANET = (function(){
     const seen=new Set();
     list.forEach(p=>{
       if(window.NET && NET.me && p.id===NET.me.id) return;
+      /* Only the people actually out on this ball. Somebody who has walked
+         into the Workshop is sending coordinates measured in a room thirty
+         metres across; read as a longitude they turn up standing in a field
+         they are nowhere near. */
+      if(p.at!==W.id) return;
       seen.add(p.id);
       let o=others.get(p.id);
       if(!o){
         const g=new THREE.Group();
         g.add(nameTag(p.display));
         crowd.add(g);
-        o={ g, char:null, model:null, dir:dirOf(p.x,p.z), tdir:dirOf(p.x,p.z), yaw:p.yaw||0 };
+        o={ g, char:null, model:null, dir:dirOf(p.x,p.z), tdir:dirOf(p.x,p.z),
+            head:p.yaw||0, thead:p.yaw||0, speed:0, ride:null, car:null };
         others.set(p.id,o);
       }
       if(p.char && o.char!==p.char){
         o.char=p.char;
-        AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m; o.g.add(m); })
+        AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m;
+                                      m.visible=!o.car; o.g.add(m); })
                            .catch(()=>{});
       }
-      o.tdir=dirOf(p.x,p.z); o.yaw=p.yaw||0;
+      /* Somebody who gets into a car has to be SEEN to get into a car. The
+         same swap the driver makes — body away, car under them — made from
+         the one field their presence carries. */
+      const ride = p.ride || null;
+      if(o.ride!==ride){
+        o.ride=ride;
+        if(o.car){ o.g.remove(o.car); o.car=null; }
+        if(o.model) o.model.visible=!ride;
+        if(ride) rideModel(ride).then(c=>{
+          if(o.ride!==ride || !others.has(p.id)) return;
+          c.position.set(0,0.25,0); o.car=c; o.g.add(c);
+          if(o.model) o.model.visible=false;
+        }).catch(()=>{});
+      }
+      o.tdir=dirOf(p.x,p.z); o.thead=p.yaw||0;
     });
     for(const [id,o] of others) if(!seen.has(id)){ crowd.remove(o.g); others.delete(id); }
   }
@@ -2242,6 +2276,12 @@ window.PLANET = (function(){
     const d=me.dir;
     return { lon:Math.atan2(d.x,d.z)*180/Math.PI,
              lat:Math.asin(Math.max(-1,Math.min(1,d.y)))*180/Math.PI };
+  }
+  /* Which way we are facing, measured against the frame this spot would build
+     for anybody — the one number that means the same thing on both screens. */
+  function heading(){
+    const f=frameAt(me.dir,0);
+    return Math.atan2(me.fwd.dot(f.right), me.fwd.dot(f.fwd));
   }
 
   let sent=0;
@@ -2261,20 +2301,36 @@ window.PLANET = (function(){
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
+      const was=o.g.position.clone();
       o.dir.lerp(o.tdir,k).normalize();
-      const f=frameAt(o.dir,0);
+      /* Their heading is an angle in the frame under THEIR feet, so it has to
+         be turned back into a direction there and the whole basis built round
+         it. Rotating the nose while keeping the old right-hand vector left the
+         matrix out of square, and a body on an out-of-square basis leans — the
+         further round the ball they walked, the further over they went. */
+      let d=o.thead-o.head; d=Math.atan2(Math.sin(d),Math.cos(d));
+      o.head+=d*k;
+      const f=frameAt(o.dir,o.head);
       // everyone else stands on the same hills you do
       o.g.position.copy(o.dir).multiplyScalar(PR + floorAt(o.dir));
-      o.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
-        f.right, f.up, f.fwd.clone().applyAxisAngle(f.up, o.yaw)));
-      if(o.model) AVATAR.animate(o.model, dt, 'idle');
+      o.g.quaternion.setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(f.right, f.up, f.fwd));
+      // how fast they are actually crossing the ground, so the legs match it
+      const v=was.distanceTo(o.g.position)/Math.max(dt,0.001);
+      o.speed += (v-o.speed)*Math.min(1,dt*8);
+      if(o.model && !o.ride)
+        AVATAR.animate(o.model, dt, o.speed>9 ? 'sprint' : o.speed>0.4 ? 'walk' : 'idle');
     }
     if(window.NET && NET.live){
       const now=performance.now();
       if(now-sent>90){
         sent=now;
         const ll=lonLat();
-        NET.pos(+ll.lon.toFixed(2), +ll.lat.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
+        /* Not G.yaw: that is how far the mouse has been dragged, which means
+           nothing on anybody else's screen. What travels is the heading in the
+           frame under our own feet, which rebuilds anywhere on the ball. */
+        NET.pos({ x:+ll.lon.toFixed(2), z:+ll.lat.toFixed(2), yaw:+heading().toFixed(3),
+                  char:AVATAR.chosen, ride:rideId, at:W.id });
       }
     }
   }
@@ -2486,9 +2542,14 @@ window.PLANET = (function(){
     say(t('Walk into a building. <b>E</b> to go in.'));
   }
 
+  /* Walking in somewhere is worth saying out loud, and it is the same message
+     that takes your body off everybody else's field. */
+  const wentTo = where => { if(window.NET && NET.live) NET.place(where); };
   function leave(){
     if(on && me.dir) backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
     on=false;
+    // whatever we are walking into, we are not out here any more
+    wentTo('inside');
     /* Let the last tour step notice it is done, then take the card away — its
        farewell used to hang about for five seconds over whatever screen you
        had just walked into. */

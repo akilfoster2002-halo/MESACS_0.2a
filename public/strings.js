@@ -337,6 +337,13 @@ window.ES = {
   'Sign in / Create an account':'Inicia sesión / Crea una cuenta',
   'An account saves your progress on any computer and opens Free Play.':
     'Una cuenta guarda tu progreso en cualquier computadora y abre el Juego Libre.',
+  'Sign in to play. Your account saves your progress on any computer.':
+    'Inicia sesión para jugar. Tu cuenta guarda tu progreso en cualquier computadora.',
+  '{n} came back outside':'{n} volvió afuera',
+  '{n} went into the Workshop':'{n} entró al Taller',
+  '{n} went home':'{n} se fue a su casa',
+  '{n} went into the Wardrobe':'{n} entró al Vestuario',
+  '{n} went into a mission':'{n} entró a una misión',
   'I have an account':'Ya tengo cuenta','Create an account':'Crear una cuenta',
   'Sign in ▶':'Entrar ▶','Create my account ▶':'Crear mi cuenta ▶',
   'Play as a guest':'Jugar como invitado',

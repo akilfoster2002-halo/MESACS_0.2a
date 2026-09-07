@@ -505,7 +505,10 @@ function wireInput(){
       if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
       if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
     }
-    if(G.room==='free' && CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
+    /* Wherever the chat panel is up — the planet as much as Free Play — ENTER
+       is how you get into it and how you send. Asking which room this is meant
+       the planet's chat could only be reached by clicking the box. */
+    if(CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
       e.preventDefault();
       if(document.activeElement===$('#chatIn')) $('#chatForm').requestSubmit();
       else CHAT.focus();

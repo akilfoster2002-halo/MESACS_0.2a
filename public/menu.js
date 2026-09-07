@@ -77,16 +77,16 @@ window.MENU = (function(){
     const el=$('#authMsg'); if(!el) return;
     el.textContent=text||''; el.classList.toggle('good',!!good);
   }
-  /* The sign-in form is off the landing now.  Everything below still works
-     if the markup is put back, and quietly does nothing while it is not. */
+  /* Playing is behind an account. Guest play is the fallback for a lab whose
+     database is down — otherwise nobody could play at all — and it is the only
+     case that still opens the world without a name. */
+  let signInUp = true;
   async function wireAuth(){
-    if($('#authMsg')){
-      const up = await NET.health();
-      if(!up){
-        authMsg(t('Sign-in is not connected yet — you can still play as a guest.'));
-        ['#inUser','#inPass','#upUser','#upName','#upPass','#btnIn','#btnUp']
-          .forEach(sel=>{ const el=$(sel); if(el) el.disabled=true; });
-      }
+    signInUp = await NET.health();
+    if(!signInUp && $('#authMsg')){
+      authMsg(t('Sign-in is not connected yet — you can still play as a guest.'));
+      ['#inUser','#inPass','#upUser','#upName','#upPass','#btnIn','#btnUp']
+        .forEach(sel=>{ const el=$(sel); if(el) el.disabled=true; });
     }
     $$('.tab').forEach(b=>b.onclick=()=>{
       $$('.tab').forEach(x=>x.classList.toggle('on',x===b));
@@ -113,11 +113,11 @@ window.MENU = (function(){
       }catch(err){ authMsg(err.message); }
     };
       const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
-    /* START goes straight to the world. Everybody is handed one of the free
+    /* START asks who you are first. Everybody is handed one of the free
        characters on arrival, so choosing one is no longer a gate you have to
        pass before you are allowed to play — the Wardrobe is where you change
        it, along with your ship and your car. */
-    const st=$('#btnStart'); if(st) st.onclick=()=>homeworld();
+    const st=$('#btnStart'); if(st) st.onclick=()=>{ NET.signedIn ? homeworld() : auth(); };
     // and this screen is reached FROM the planet now, so back means back there
     const cb=$('#cBack');    if(cb) cb.onclick=()=>homeworld();
     // picking a character is the last screen before the world: Continue lands
@@ -347,6 +347,7 @@ window.MENU = (function(){
      you land on one and can move later. */
   let world=null;
   async function homeworld(){
+    if(!NET.signedIn && signInUp) return auth();
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
@@ -363,15 +364,17 @@ window.MENU = (function(){
     FREE.enter(sv, mission);
   }
 
-  /* Sign-in is its own screen, and it is never in the way: START goes
-     straight to the game as a guest. An account buys two things — progress
-     that follows you to any machine, and Free Play. */
+  /* Sign-in is the way in. The name over your head is what lets the class see
+     each other and what your work is saved against, so the world does not open
+     without one — unless sign-in itself is down, which is the only time the
+     guest button is offered. */
   function auth(){
     G.running=false;
     $('#hud').classList.add('hidden');
     if(window.CHARS) CHARS.heroClose();
+    const guest=$('#btnGuest'); if(guest) guest.classList.toggle('hidden', signInUp);
     $('#aTitle').textContent=t('SIGN IN');
-    $('#aSub').textContent=t('An account saves your progress on any computer and opens Free Play.');
+    $('#aSub').textContent=t('Sign in to play. Your account saves your progress on any computer.');
     $('#tabIn').textContent=t('I have an account');
     $('#tabUp').textContent=t('Create an account');
     $('#btnIn').textContent=t('Sign in ▶');
@@ -478,6 +481,8 @@ window.FREE = (function(){
     if(!group) return;
     const seen=new Set();
     list.forEach(p=>{
+      // anybody still out on the planet is sending a longitude, not an x
+      if(p.at!=='inside') return;
       seen.add(p.id);
       const yaw=p.yaw+Math.PI;
       let o=others.get(p.id);
@@ -635,7 +640,8 @@ window.FREE = (function(){
     if(!NET.live) return;
     const now=performance.now();
     if(now-last<90) return;
-    last=now; NET.pos(+G.pos.x.toFixed(2), +G.pos.z.toFixed(2), +G.yaw.toFixed(2), AVATAR.chosen);
+    last=now; NET.pos({ x:+G.pos.x.toFixed(2), z:+G.pos.z.toFixed(2),
+                        yaw:+G.yaw.toFixed(2), char:AVATAR.chosen, at:'inside' });
   }
   /* move to another mission without leaving the room or the people in it */
   function go(missionId){ enter(room, missionId); }
