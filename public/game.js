@@ -369,6 +369,7 @@ function buildArena(L){
 function startMissionRoom(id){
   COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
+  if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
@@ -568,6 +569,10 @@ function loop(now){
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
+  /* The live arena runs on the frame rather than inside the frozen-world
+     block: the fight carries on while a results card is up, and the
+     player's own walking has to stay smooth between server snapshots. */
+  if(window.MECHA && MECHA.active) MECHA.tick(dt);
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
      typing player leaves the room holding a stale picture of them. */
@@ -694,6 +699,8 @@ function step(dt){
      body to walk, no floor to fall through, and a camera that belongs to
      the mode rather than to a pair of legs. */
   if(window.MECH && MECH.active) return;
+  // the mecha arena owns its own movement, and sends it to the server
+  if(window.MECHA && MECHA.active) return;
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
   const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);

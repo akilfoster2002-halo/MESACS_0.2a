@@ -67,6 +67,51 @@ scrub, step backwards and explain itself.
 Everything a match runs on is in `MECHSIM.RULES`: block limit, energy costs, turn cap, regen,
 damage. Chassis are rows in `MECHSIM.CHASSIS`, arenas are text grids in `MECHSIM.ARENAS`.
 
+## The Mecha Arena
+The other kind of PvP, and it is a different sport. Here you DO touch the controls — WASD and
+the mouse, all of it — and the code does the fighting:
+
+```
+the player drives            the code fights
+─────────────────           ────────────────
+walk, run, strafe, turn      punch, heavy, block, dodge
+where to stand               when to do any of it
+```
+
+Every mecha is five parts with their own health, and the two arms and the legs each carry their
+own program. The language is standing orders rather than a tape:
+
+```
+WHEN ENEMY NEAR
+  IF ENEMY DISTANCE < 5
+    PUNCH
+  ELSE
+    BLOCK
+```
+
+Twenty times a second every part with a program is asked one question — given what you can see
+right now, what do you do? — and answers with at most one action. Combat is a triangle you can
+write orders about: **block** beats **punch**, **heavy** goes through a guard, and a heavy roots
+you long enough to be punished for it. Damage lands per part by rule rather than by dice: the
+core if their guard is down, that arm if it is up, and the core plus their sensor from behind —
+so flanking blinds them and turtling costs them an arm.
+
+The server runs the match and both browsers draw what they are sent. Nothing is decided in a
+browser and nothing is streamed: what goes over the wire is WASD one way and a snapshot the
+other. Practice against the dummy runs the *same* simulation locally, so nobody trains against
+rules that turn out not to be the real ones.
+
+`MECHAARENA.RULES` holds every number a fight is played by; `MECHACODE` holds the events,
+sensors and actions the palette is built from. Adding a sensor is a row in one of them.
+
+```
+WORKSHOP → CODE A PART → FIGHT → READ THE FEED → FIND THE READING THAT WENT THE WRONG WAY → FIGHT AGAIN
+```
+
+The feed down the left of the arena is the point of the mode: it prints your own code's
+reasoning as it happens — the event, the reading, which way the test went, and what the part did
+about it — so "why didn't my mecha punch?" is a question the screen has already answered.
+
 ## Files
 ```
 index.html   page shell, HUD and styles
@@ -75,7 +120,11 @@ program.js   the block language with no screen attached — compile, count, vali
 code.js      block console: palette, drag, text mode, walkthroughs
 combat.js    drones, boss, Mission 1 script
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
-mech.js      the arena: 3D board, countdown, battle log, replay/debug
+mech.js      the league arena: 3D board, countdown, battle log, replay/debug
+mechacode.js the standing-orders language: events, sensors, decide(), the trace
+mechaarena.js the live fight, stepped 20×/s — no DOM, no clock, Node too
+mecha.js     the 3D arena you drive: camera, input, HUD, the why-it-did-that feed
+workshop.js  the robot you click, and the block editor for whichever part
 levels.js    room layouts — edit this to add levels
 strings.js   every word, in both languages
 tests/       node --test, no dependencies — run with `npm test`
@@ -83,13 +132,17 @@ lib/         three.js, bundled as a classic script so file:// still works
 ```
 
 `levels.js` and `strings.js` are the files to edit for new content; the engine shouldn't need touching.
-New chassis and arenas go in `mechsim.js`; new opponents go in `mech.js`.
+New chassis and arenas go in `mechsim.js`; new league opponents go in `mech.js`. New sensors,
+events and actions for the live arena go in `mechacode.js`, and what they cost goes with them.
 
 ## Tests
 ```bash
 npm test
 ```
-No test framework to install — Node's own runner, over `program.js` and `mechsim.js`.
+No test framework to install — Node's own runner, over `program.js`, `mechsim.js`,
+`mechacode.js` and `mechaarena.js`. The arena's tests are also its balance harness: they assert
+the combat triangle holds, that two mechas cannot walk through each other, and that the same two
+programs driven the same way produce the same fight twice.
 
 ## Not built yet
 The intro cutscene, mission select with saved progress, and the rest of the villains

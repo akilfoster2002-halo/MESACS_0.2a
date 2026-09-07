@@ -16,6 +16,8 @@ const { WebSocketServer } = require('ws');
 const db = require('./db');
 const auth = require('./auth');
 const mech = require('./mechmatch');
+const mecha = require('./mechalobby');
+const ARENA_HZ = require('../public/mechaarena.js').RULES.hz;
 
 const app = express();
 app.use(express.json({ limit:'16kb' }));
@@ -221,6 +223,12 @@ const live = new Map();   // ws -> {id, display, server, role, x,z,yaw, mutedUnt
    time. It holds programs, not sockets, so a match is decided by what was
    submitted rather than by who is still connected to watch it. */
 const lobby = new mech.Lobby();
+/* And the live one. It is handed the two ways it can reach people and
+   knows nothing else about sockets; the timer that steps it is below. */
+const arena = new mecha.Arena({
+  send:(id,msg)=>send(id,msg),
+  room:(server,msg)=>broadcastRoom(server,msg)
+});
 
 /* Chat is kept in memory and only while somebody is standing in the room.
    Nothing goes to Postgres, and an empty room forgets everything it heard:
@@ -318,6 +326,7 @@ wss.on('connection', async (ws, req)=>{
       }
       if(p.server===want) return;
       lobby.cancel(p.id);          // you cannot wait in a Gym you have left
+      arena.leave(p.id);
       const was = p.server;
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=want;
@@ -335,7 +344,7 @@ wss.on('connection', async (ws, req)=>{
     }
     if(m.t==='leave'){
       const was = p.server;
-      lobby.cancel(p.id);
+      lobby.cancel(p.id); arena.leave(p.id);
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=null; p.objs.clear();
       forgetIfEmpty(was);
@@ -411,6 +420,34 @@ wss.on('connection', async (ws, req)=>{
       }
       return;
     }
+    /* ------------------------------------------------- the live arena
+       Three messages and nothing else: put me in the queue, here is what
+       I am holding down, take me out. Everything about who hit whom is
+       decided by the server and sent back. */
+    if(m.t==='mecha'){
+      if(m.op==='input'){ arena.input(p.id, m.i||{}); return; }
+      if(m.op==='cancel'){
+        if(arena.cancel(p.id)) ws.send(JSON.stringify({ t:'mecha', op:'cancelled' }));
+        return;
+      }
+      if(m.op==='leave'){ arena.leave(p.id); return; }
+      if(m.op!=='queue') return;
+      if(!p.server){ ws.send(JSON.stringify({ t:'mecha', op:'error',
+        message:'You are not in a room.' })); return; }
+      if(rateLimited('mecha:'+p.id, 20, 60000)){
+        ws.send(JSON.stringify({ t:'mecha', op:'error',
+          message:'Too many deploys — wait a moment.' })); return; }
+      const r=arena.join(p.server, { id:p.id, name:p.display, programs:m.programs });
+      if(r.status==='waiting'){
+        ws.send(JSON.stringify({ t:'mecha', op:'waiting' }));
+        broadcastRoom(p.server, { t:'mecha', op:'open', name:p.display }, ws);
+      } else if(r.status==='rejected'){
+        ws.send(JSON.stringify({ t:'mecha', op:'rejected', errors:r.errors }));
+      } else if(r.status==='error'){
+        ws.send(JSON.stringify({ t:'mecha', op:'error', message:r.message }));
+      }
+      return;
+    }
     /* Objects are relayed, not simulated: the owner's machine runs the scripts
        and says where things ended up. The server keeps the last word on each so
        a latecomer sees a room that is already furnished. */
@@ -452,11 +489,21 @@ wss.on('connection', async (ws, req)=>{
   ws.on('close', ()=>{
     const p=live.get(ws); live.delete(ws);
     if(!p) return;
-    lobby.cancel(p.id);
+    lobby.cancel(p.id); arena.leave(p.id);
     broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
     forgetIfEmpty(p.server);
   });
 });
+
+/* The arena's own heartbeat. Twenty times a second is the tick the
+   simulation is written for; the interval is asked for the real gap so a
+   busy server slows a fight down rather than getting it wrong. */
+let arenaAt=Date.now();
+setInterval(()=>{
+  const now=Date.now(), dt=Math.min(0.1,(now-arenaAt)/1000);
+  arenaAt=now;
+  if(arena.running) arena.tick(dt);
+}, 1000/ARENA_HZ);
 
 /* 12 times a second, tell everyone in a room where everyone else is */
 setInterval(()=>{

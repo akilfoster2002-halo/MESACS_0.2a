@@ -1240,6 +1240,129 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 @keyframes mkblink{0%,100%{opacity:.25}50%{opacity:1}}
 #mkWait .row{display:flex;gap:10px;justify-content:center}
 
+/* =====================================================================
+   THE MECHA WORKSHOP. A robot drawn flat and to scale, with every part a
+   button: you click the arm you want to give orders to and the orders
+   appear beside it, so "this code is that arm" is a thing you can see
+   rather than a thing you are told.
+   ===================================================================== */
+#mw{position:fixed;inset:0;z-index:60;background:#141024;overflow:auto;
+  font-family:var(--font);padding:14px}
+#mw .mw-wrap{max-width:1180px;margin:0 auto}
+#mw h1{margin:0;font-size:26px;letter-spacing:4px;color:var(--star)}
+#mw .mw-sub{color:var(--muted);font-size:14px;margin:4px 0 12px}
+#mw .mw-cols{display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start}
+@media (max-width:880px){ #mw .mw-cols{grid-template-columns:1fr} }
+
+/* the robot, in parts */
+.mw-bot{background:var(--panel2);border:3px solid var(--line);border-radius:16px;padding:14px}
+.mw-fig{display:grid;grid-template-columns:58px 1fr 58px;grid-template-rows:auto auto auto;
+  gap:8px;justify-items:center;margin-bottom:10px}
+.mw-part{width:100%;border:3px solid var(--line);border-radius:12px;background:#1d1730;
+  color:var(--text);cursor:pointer;padding:8px 6px;text-align:center;font-family:var(--font);
+  transition:border-color .12s,background .12s}
+.mw-part:hover{border-color:var(--accent)}
+.mw-part.on{border-color:var(--star);background:#2a2140}
+.mw-part.dead{opacity:.45}
+.mw-part b{display:block;font-size:11px;letter-spacing:1.5px}
+.mw-part .mw-n{font-size:11px;color:var(--muted);margin-top:3px}
+.mw-part .mw-bar{height:6px;border-radius:4px;background:#0f1626;margin-top:5px;overflow:hidden}
+.mw-part .mw-bar i{display:block;height:100%;background:linear-gradient(90deg,#a8e6cf,#8fd3ff)}
+.mw-head{grid-column:2}
+.mw-larm{grid-column:1;grid-row:2}
+.mw-core{grid-column:2;grid-row:2}
+.mw-rarm{grid-column:3;grid-row:2}
+.mw-legs{grid-column:2;grid-row:3}
+.mw-key{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* the orders for whichever part is selected */
+.mw-code{background:var(--panel2);border:3px solid var(--line);border-radius:16px;padding:14px;
+  min-height:420px}
+.mw-codehead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.mw-codehead b{font-size:17px;letter-spacing:2px;color:var(--accent)}
+.mw-codehead .mw-budget{margin-left:auto;font-size:12px;color:var(--muted)}
+.mw-editor{display:grid;grid-template-columns:210px 1fr;gap:12px}
+@media (max-width:700px){ .mw-editor{grid-template-columns:1fr} }
+.mw-pal{display:flex;flex-direction:column;gap:6px}
+.mw-pal h4{margin:6px 0 2px;font-size:11px;letter-spacing:2px;color:var(--muted)}
+.mw-blk{border:none;border-radius:10px;padding:8px 10px;font-family:var(--font);font-size:13px;
+  font-weight:bold;text-align:left;cursor:pointer;color:#1b1430;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.mw-blk:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.mw-blk small{display:block;font-weight:normal;font-size:11px;opacity:.8}
+.mw-prog{background:#100c1e;border-radius:12px;padding:10px;min-height:300px}
+.mw-row{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:13px}
+.mw-row .mw-body{flex:1;display:flex;align-items:center;gap:6px;border-radius:9px;padding:6px 9px;
+  color:#1b1430;font-weight:bold}
+.mw-row select,.mw-row input{font-family:var(--font);font-size:12px;border-radius:7px;
+  border:2px solid rgba(0,0,0,.25);background:#fffdf7;color:#231a3d;padding:2px 4px}
+.mw-row .mw-x,.mw-row .mw-up,.mw-row .mw-dn{background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:13px;padding:2px 4px}
+.mw-row .mw-x:hover{color:var(--bad)}
+.mw-add{background:#1d1730;border:2px dashed #3b3059;color:var(--muted);border-radius:9px;
+  padding:4px 10px;font-family:var(--font);font-size:12px;cursor:pointer;margin:3px 0}
+.mw-add:hover,.mw-add.on{border-color:var(--star);color:var(--star)}
+.mw-empty{color:var(--muted);font-size:13px;padding:8px 4px}
+.mw-err{color:var(--bad);font-size:12px;margin-top:6px}
+.mw-foot{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+
+/* =====================================================================
+   THE ARENA HUD. Both mechas' parts across the top, what your own code
+   is deciding down the left, and the clock in the middle.
+   ===================================================================== */
+#ma{position:fixed;inset:0;z-index:56;pointer-events:none;font-family:var(--font)}
+#maTop{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;
+  align-items:flex-start;gap:10px;padding:10px 12px}
+.ma-side{width:min(290px,29vw);background:rgba(15,22,36,.93);border:3px solid var(--line);
+  border-radius:14px;padding:9px 11px}
+.ma-side.r{text-align:right}
+.ma-name{font-size:16px;font-weight:bold;letter-spacing:1px}
+.ma-parts{display:grid;gap:3px;margin-top:6px}
+.ma-p{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;color:var(--muted)}
+.ma-side.r .ma-p{flex-direction:row-reverse}
+.ma-p span{width:48px}
+.ma-p .b{flex:1;height:8px;border-radius:5px;background:#0f1626;overflow:hidden}
+.ma-p .b i{display:block;height:100%;background:#a8e6cf;transition:width .12s linear}
+.ma-p.core .b i{background:linear-gradient(90deg,#ff9aa2,#ffc8dd)}
+.ma-p.gone .b i{background:#5a3a4a}
+.ma-p.gone span{color:var(--bad)}
+.ma-meters{display:flex;gap:6px;margin-top:7px}
+.ma-meter{flex:1;height:10px;border-radius:6px;background:#0f1626;overflow:hidden}
+.ma-meter i{display:block;height:100%;transition:width .12s linear}
+.ma-en i{background:linear-gradient(90deg,#ffe9a8,#ffd8a8)}
+.ma-ht i{background:linear-gradient(90deg,#8fd3ff,#ff9aa2)}
+#maClock{background:rgba(15,22,36,.93);border:3px solid var(--line);border-radius:14px;
+  padding:6px 14px;text-align:center;min-width:112px}
+#maClock .n{font-size:24px;font-weight:bold;color:var(--star);line-height:1}
+#maClock .l{font-size:10px;letter-spacing:2px;color:var(--muted)}
+#maClock .pips{margin-top:3px;letter-spacing:3px;font-size:12px}
+#maFeed{position:absolute;left:12px;bottom:14px;width:min(360px,34vw);
+  background:rgba(15,22,36,.9);border:3px solid var(--line);border-radius:14px;padding:8px 10px;
+  max-height:34vh;overflow:hidden}
+#maFeed h4{margin:0 0 5px;font-size:11px;letter-spacing:2px;color:var(--accent)}
+.ma-line{font-size:12px;margin:2px 0;color:var(--text);opacity:.95}
+.ma-line .ev{color:var(--star);font-weight:bold}
+.ma-line .no{color:var(--bad)}
+.ma-line .yes{color:var(--good)}
+.ma-line .act{color:var(--accent);font-weight:bold}
+.ma-line .why{color:var(--muted);font-style:italic}
+#maSay{position:absolute;left:50%;top:64px;transform:translateX(-50%);
+  background:rgba(15,22,36,.94);border:3px solid var(--line);border-radius:12px;
+  padding:8px 16px;font-size:15px;letter-spacing:1px}
+#maKeys{position:absolute;right:12px;bottom:14px;background:rgba(15,22,36,.9);
+  border:3px solid var(--line);border-radius:12px;padding:7px 10px;font-size:12px;color:var(--muted)}
+#maKeys b{color:var(--text)}
+#maBig{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;background:rgba(20,14,34,.5)}
+#maBig .big{font-size:min(16vw,150px);font-weight:bold;color:var(--star);line-height:1;
+  text-shadow:0 10px 40px rgba(0,0,0,.7);animation:mkpop .6s ease-out}
+#maBig .sub{font-size:20px;letter-spacing:5px;color:var(--text);margin-top:8px}
+#maWait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,14,34,.62)}
+#maWait .card{background:rgba(15,22,36,.97);border:3px solid var(--line);border-radius:18px;
+  padding:22px 26px;text-align:center;max-width:430px;pointer-events:auto}
+#maWait h3{margin:0 0 6px;font-size:19px;letter-spacing:3px;color:var(--star)}
+#maWait p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}
+
 /* the console's third column while you are writing: the map you will fight
    on, what everything costs, and what your chassis is made of */
 .mk-prev{display:grid;gap:2px;margin-bottom:10px}
@@ -1519,6 +1642,24 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="mkWait" class="hidden"></div>
 </div>
 
+<!-- the mecha workshop: a robot you click, and the orders for whatever you
+     clicked. Built by workshop.js -->
+<div id="mw" class="hidden"></div>
+
+<!-- the live arena's overlay. The fight itself is the 3D scene behind it. -->
+<div id="ma" class="hidden">
+  <div id="maTop">
+    <div class="ma-side" id="maA"></div>
+    <div id="maClock"></div>
+    <div class="ma-side r" id="maB"></div>
+  </div>
+  <div id="maFeed" class="hidden"></div>
+  <div id="maKeys" class="hidden"></div>
+  <div id="maSay" class="hidden"></div>
+  <div id="maBig" class="hidden"></div>
+  <div id="maWait" class="hidden"></div>
+</div>
+
 <div id="mkSetup" class="screen hidden">
   <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="card menucard">
@@ -1550,6 +1691,10 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="code.js?v=263"></script>
 <script src="mechsim.js?v=263"></script>
 <script src="mech.js?v=263"></script>
+<script src="mechacode.js?v=263"></script>
+<script src="mechaarena.js?v=263"></script>
+<script src="mecha.js?v=263"></script>
+<script src="workshop.js?v=263"></script>
 <script src="combat.js?v=263"></script>
 <script src="puzzle.js?v=263"></script>
 <script src="nav.js?v=263"></script>

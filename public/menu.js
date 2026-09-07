@@ -215,6 +215,7 @@ window.MENU = (function(){
     G.running=false;
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
+    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -393,6 +394,7 @@ window.MENU = (function(){
     G.running=false;
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
+    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');

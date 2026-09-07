@@ -244,6 +244,7 @@ window.PLANET = (function(){
     if(window.MISSIONS) MISSIONS.stop();
     if(window.CODER) CODER.hide();
     if(window.MECH) MECH.stop();
+    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
 
@@ -1391,8 +1392,14 @@ window.PLANET = (function(){
     const lamp=new THREE.PointLight(0xffd8f0, 220, 44, 1.5);
     lamp.position.set(0, b.h-3, 1.5); g.add(lamp);
 
-    panel(g, b, -8.5, -hd+4.2, '\u{1F916}', t('FIGHT THE LEAGUE'), 'league', '#2a1d3d', 0.8, 0);
-    panel(g, b,  8.5, -hd+4.2, '\u{2694}',  t('FIGHT A PLAYER'),   'pvp',    '#3d1d28', 0.8, 0);
+    /* Three ways to fight, and they are not the same sport. The first two
+       are the turn-based league: you write a program, you press RUN, and
+       you are a spectator. The third hands you the controls — you drive
+       and your code does the punching — so it stands apart on the right
+       with its own mark on the floor. */
+    panel(g, b, -12, -hd+4.2, '\u{1F916}', t('FIGHT THE LEAGUE'), 'league', '#2a1d3d', 0.75, 0);
+    panel(g, b,   0, -hd+4.2, '\u{2694}',  t('FIGHT A PLAYER'),   'pvp',    '#3d1d28', 0.75, 0);
+    panel(g, b,  12, -hd+4.2, '\u{1F94A}', t('MECHA ARENA'),      'mecha',  '#1d3040', 0.75, 0);
   }
 
   /* ------------------------------------------------------------- the pad
@@ -2223,7 +2230,7 @@ window.PLANET = (function(){
     const known = id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
-               || id==='league' || id==='pvp'
+               || id==='league' || id==='pvp' || id==='mecha'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
                || id.indexOf('fly:')===0
@@ -2231,6 +2238,15 @@ window.PLANET = (function(){
     if(!known) return;
     /* The Gym is a room you walk into and choose in, like the Mall: these
        two consoles standing either side of the floor are the choice. */
+    /* The live arena. Its workshop is the door: you cannot walk into a
+       fight you have not given your mecha orders for, and the workshop is
+       where the ways into a fight live. */
+    if(id==='mecha'){
+      if(!window.WORKSHOP || !window.MECHA) return;
+      wentTo('gym'); leave();
+      document.querySelector('#hud').classList.add('hidden');
+      return WORKSHOP.show({ onFight:(kind, programs)=>MECHA.start(kind, programs) });
+    }
     if(id==='league' || id==='pvp'){
       if(!window.MECH) return;
       if(id==='pvp' && !(window.NET && NET.live)){

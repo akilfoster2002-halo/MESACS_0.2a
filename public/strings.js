@@ -373,6 +373,74 @@ window.ES = {
   'The Gym needs the server — sign in and pick a room to fight in.':
     'El Gimnasio necesita el servidor — inicia sesión y elige una sala para pelear.',
   'The Gym said no.':'El Gimnasio dijo que no.',
+
+  /* ---------------------------------------------------- the mecha arena
+     A different sport from the league next door: you drive and your code
+     fights, so the words for the two must not blur together. "Órdenes"
+     rather than "programa" for what a part is carrying — a part is told
+     what to do, and standing orders is what these are. */
+  'MECHA ARENA':'ARENA MECHA','MECHA WORKSHOP':'TALLER MECHA',
+  'You drive it. Your code fights with it. Click a part to give that part its orders.':
+    'Tú lo conduces. Tu código pelea con él. Haz clic en una parte para darle sus órdenes.',
+  'TEST ALONE ▶':'PROBAR SOLO ▶','FIND AN OPPONENT ▶':'BUSCAR RIVAL ▶',
+  'Test alone against a training dummy, or find another student to fight.':
+    'Prueba solo contra un maniquí, o busca a otro estudiante para pelear.',
+  'LEFT ARM':'BRAZO IZQUIERDO','RIGHT ARM':'BRAZO DERECHO','LEGS':'PIERNAS',
+  'SENSOR':'SENSOR','CORE':'NÚCLEO',
+  'no orders':'sin órdenes','no orders to give':'no recibe órdenes',
+  '{n} blocks':'{n} bloques','{n} / {m} blocks':'{n} / {m} bloques',
+  'the first action it reaches is the one it takes':
+    'la primera acción que alcanza es la que hace',
+  'is your life. At zero you are out.':'es tu vida. En cero, se acabó.',
+  'is how your code sees. Wreck it and their code goes blind.':
+    'es como ve tu código. Destrúyelo y su código queda ciego.',
+  'are your speed, and where a dodge comes from.':
+    'son tu velocidad, y de donde sale un esquive.',
+  'Press + inside a rule to put a test or an action in it.':
+    'Presiona + dentro de una regla para poner una prueba o una acción.',
+  'WHEN — start a new rule':'CUANDO — empieza una regla',
+  'IF — ask the sensors':'SI — pregunta a los sensores','DO':'HAZ',
+  '+ rule':'+ regla','+ inside':'+ dentro','+ do this':'+ haz esto','+ otherwise':'+ si no',
+  'No orders. This part will do nothing at all — start with a WHEN on the left.':
+    'Sin órdenes. Esta parte no hará nada — empieza con un CUANDO a la izquierda.',
+  'That part is full — {m} blocks is the limit.':
+    'Esa parte está llena — el límite es {m} bloques.',
+  /* the events and the sensors, which are read in the feed mid-fight */
+  'ALWAYS':'SIEMPRE','WHEN ENEMY NEAR':'CUANDO EL RIVAL ESTÁ CERCA',
+  'WHEN ATTACKED':'CUANDO TE ATACAN','WHEN HIT':'CUANDO TE GOLPEAN',
+  'WHEN HEALTH LOW':'CUANDO TE QUEDA POCA VIDA','WHEN ENERGY LOW':'CUANDO QUEDA POCA ENERGÍA',
+  'WHEN ROUND STARTS':'CUANDO EMPIEZA EL ASALTO','WHEN':'CUANDO','IF':'SI','ELSE':'SI NO',
+  'ENEMY DISTANCE':'DISTANCIA AL RIVAL','ENEMY CORE':'NÚCLEO DEL RIVAL','MY CORE':'MI NÚCLEO',
+  'MY ENERGY':'MI ENERGÍA','MY HEAT':'MI CALOR','ENEMY FACING ME':'EL RIVAL ME MIRA',
+  'PUNCH':'GOLPE','HEAVY PUNCH':'GOLPE PESADO','BLOCK':'BLOQUEO','DODGE':'ESQUIVE','BRACE':'AFIANZAR',
+  /* the fight */
+  'ROUND':'ASALTO','ROUND {n}':'ASALTO {n}','ROUND 1':'ASALTO 1',
+  'ROUND WON':'ASALTO GANADO','ROUND LOST':'ASALTO PERDIDO','ROUND DRAWN':'ASALTO EMPATADO',
+  'core destroyed':'núcleo destruido','on the clock':'por tiempo',
+  'the dummy hits back':'el maniquí sí pega','TRAINING DUMMY':'MANIQUÍ',
+  'WHY IT DID THAT':'POR QUÉ HIZO ESO','nothing: ':'nada: ',
+  'DODGED IT':'LO ESQUIVÓ','HIT':'GOLPE','IS DESTROYED':'ESTÁ DESTRUIDO',
+  'YOUR':'TU','THEIR':'SU','blocked':'bloqueado','from behind':'por la espalda',
+  '{p} destroyed — the orders in it stop running.':
+    '{p} destruido — sus órdenes dejan de correr.',
+  'your code does the fighting — watch the feed on the left':
+    'tu código pelea — mira el registro de la izquierda',
+  'Your mecha is in the arena. The fight starts when another student walks in.':
+    'Tu mecha está en la arena. La pelea empieza cuando entre otro estudiante.',
+  'Back to the workshop':'Volver al taller','BACK TO THE WORKSHOP ▶':'VOLVER AL TALLER ▶',
+  'YOU WIN':'GANASTE','YOU ARE DOWN':'ESTÁS EN EL SUELO','THE FIGHT IS OVER':'SE ACABÓ LA PELEA',
+  'punches thrown':'golpes lanzados','punches landed':'golpes acertados','accuracy':'precisión',
+  'blocks put up':'bloqueos','dodges':'esquives','overheats':'sobrecalentamientos',
+  'energy wasted':'energía desperdiciada','damage dealt':'daño hecho','damage taken':'daño recibido',
+  'Your arms never swung once. Nothing in them ever reached an action — check what the WHEN is waiting for.':
+    'Tus brazos no se movieron ni una vez. Nada llegó a una acción — revisa qué espera el CUANDO.',
+  'They blocked most of what you threw. A heavy punch goes through a guard.':
+    'Bloquearon casi todo lo que lanzaste. Un golpe pesado atraviesa la guardia.',
+  'It worked. Now think about what it would lose to.':
+    'Funcionó. Ahora piensa contra qué perdería.',
+  '{n} is in the Mecha Arena, waiting':'{n} está esperando en la Arena Mecha',
+  '{w} beat {l} in the Mecha Arena, {x}–{y}':'{w} venció a {l} en la Arena Mecha, {x}–{y}',
+  '{a} and {b} drew in the Mecha Arena':'{a} y {b} empataron en la Arena Mecha',
   '{n} went into the Workshop':'{n} entró al Taller',
   '{n} went home':'{n} se fue a su casa',
   '{n} went into the Wardrobe':'{n} entró al Vestuario',

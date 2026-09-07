@@ -3,7 +3,7 @@
    Guests can still play; they just get no multiplayer and no saved work.
    ===================================================================== */
 window.NET = (function(){
-  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null;
+  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null;
   let muted=0;
   /* what we are meant to be connected to, so a dropped socket can put itself
      back. A deploy, a sleeping free-tier dyno or a flaky school wifi all end
@@ -89,6 +89,12 @@ window.NET = (function(){
     mech(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'mech',...msg})); },
     set onMech(fn){ onMech=fn; },
     get onMech(){ return onMech; },
+    /* The live arena. `input` goes out twenty times a second while a
+       fight is running, which is the only chatty message in the game —
+       everything else here is somebody pressing a button. */
+    mecha(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'mecha',...msg})); },
+    set onMecha(fn){ onMecha=fn; },
+    get onMecha(){ return onMecha; },
     say(text){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'chat',text})); },
     join(server){ want=server; if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'join',server})); },
     /* what our objects look like right now, for everyone else in the room */
@@ -133,6 +139,15 @@ window.NET = (function(){
           if(m.op==='open'&&onSys) onSys(t('{n} is waiting for a fight in the Gym',{n:m.name}));
           if(onMech) onMech(m);
         }
+        if(m.t==='mecha'){
+          if(m.op==='open'&&onSys) onSys(t('{n} is in the Mecha Arena, waiting',{n:m.name}));
+          if(onMecha) onMecha(m);
+        }
+        if(m.t==='bout'&&onSys) onSys(
+          m.winner==='draw' ? t('{a} and {b} drew in the Mecha Arena',{a:m.a,b:m.b})
+          : t('{w} beat {l} in the Mecha Arena, {x}–{y}',{
+              w:m.winner==='A'?m.a:m.b, l:m.winner==='A'?m.b:m.a,
+              x:Math.max(m.score.A,m.score.B), y:Math.min(m.score.A,m.score.B) }));
         if(m.t==='sys'&&onSys)    onSys(m.text);
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()
             ? t('Your teacher muted the chat for you.') : t('You can chat again.')); }
