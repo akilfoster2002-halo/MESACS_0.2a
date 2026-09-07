@@ -440,7 +440,11 @@ window.FLIGHT = (function(){
     CODE.setGrid(COLS, ROWS);
     CODE.setPalette(K.pal); CODE.setBudget(K.budget); CODE.clear();
     guide();
-    hud(); brief(K.brief);
+    /* No brief here. This sentence explains what the blocks mean, and it is
+       already printed under the panels inside the console — putting it on
+       the windscreen as well left the same paragraph on screen twice, one
+       copy of it sitting under the console saying nothing anybody needed. */
+    hud();
     teach();
   }
 
@@ -940,9 +944,9 @@ window.FLIGHT = (function(){
       const where=gap(q);
       WALK.push({
         say: i===0
-          ? t('The panel on the right is wall 1. The little ship is you. The gap is {w} — click the block.',{w:where||t('straight ahead')})
+          ? t('Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.',{w:where||t('straight ahead')})
           : where
-            ? t('Wall {n}: the gap is {w}. Click the block.',{n:q.wall,w:where})
+            ? t('Wall {n}: the gap is {w}. Click the glowing block.',{n:q.wall,w:where})
             : t('Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.',{n:q.wall}),
         sel:'#conPalette [data-add]',
         done:()=>scriptLen()>i,
@@ -1227,6 +1231,7 @@ window.FLIGHT = (function(){
     if(!L){ el.classList.add('hidden'); return; }
     if(window.CODE && CODE.isOpen()){
       el.classList.add('hidden');
+      const bf=document.querySelector('#briefing'); if(bf) bf.classList.add('hidden');
       // the console has its own copy in the third column; keep that one live
       const k=[L.col,L.row,progSig()].join('|');
       if(k!==L.asideKey){ L.asideKey=k; paintAside(); }
@@ -1297,6 +1302,9 @@ window.FLIGHT = (function(){
        first screenshot of this mission ended up unreadable. A crash still
        gets through, because that one is news. */
     if(window.COACH && COACH.running && String(html).indexOf('💥')<0) return;
+    /* And nothing goes under an open console. The console covers the middle
+       of the screen; a line of prose behind it is a line nobody reads. */
+    if(window.CODE && CODE.isOpen() && String(html).indexOf('💥')<0) return;
     const b=document.querySelector('#briefing');
     b.classList.remove('hidden'); b.innerHTML=t(html);
     clearTimeout(mt);

@@ -22,6 +22,7 @@
    ===================================================================== */
 window.COACH = (function(){
   let steps=null, at=0, ctx=null, beacon=null, last=0, done=false, railed=-1;
+  let marked=null;                  // the element currently lit up
 
   function start(list, c){
     stop();
@@ -44,6 +45,7 @@ window.COACH = (function(){
     if(ctx && ctx.onStep && steps) ctx.onStep(null, -1);   // rails off
     steps=null; at=0; done=false; railed=-1;
     dropBeacon();
+    unmark();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const p=document.querySelector('#coachTip'); if(p) p.remove();
     if(host){ host.classList.add('hidden'); host.innerHTML=''; }
@@ -78,8 +80,17 @@ window.COACH = (function(){
     dropBeacon();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const host = ctx && ctx.host ? ctx.host() : null;
+    unmark();
     say(t('That is the whole idea: your blocks moved a thing in the world.'), true);
     clearLater(host);
+  }
+
+  function unmark(){
+    if(marked) marked.classList.remove('coach-target');
+    marked=null;
+    // a redraw can replace the node while it is lit, leaving the class behind
+    document.querySelectorAll('.coach-target')
+      .forEach(n=>n.classList.remove('coach-target'));
   }
 
   /* ------------------------------------------------------------ drawing */
@@ -101,6 +112,13 @@ window.COACH = (function(){
     /* some targets are easier to describe than to select — the gap inside a
        loop's mouth, say, whose path depends on what is already in the script */
     const el = s.find ? s.find() : (s.sel ? document.querySelector(s.sel) : null);
+    /* Mark the thing ITSELF, not just the air around it. A ring drawn on an
+       overlay is a rectangle floating near a button; the button lighting up
+       and breathing is the button asking to be pressed, and that is the
+       difference between a hint and an instruction. */
+    if(marked && marked!==el) marked.classList.remove('coach-target');
+    if(el) el.classList.add('coach-target');
+    marked = el || null;
     const r=ring();
     if(el){
       const b=el.getBoundingClientRect();

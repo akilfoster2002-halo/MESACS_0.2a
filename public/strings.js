@@ -638,10 +638,10 @@ window.ES = {
   'E — ask':'E — preguntar',
   'left':'izquierda','right':'derecha','up':'arriba','down':'abajo',
   'straight ahead':'justo delante',
-  'The panel on the right is wall 1. The little ship is you. The gap is {w} — click the block.':
-    'El panel de la derecha es el muro 1. La nave pequeña eres tú. El hueco está a la {w} — pulsa el bloque.',
-  'Wall {n}: the gap is {w}. Click the block.':
-    'Muro {n}: el hueco está a la {w}. Pulsa el bloque.',
+  'Wall 1 is on the right. The little ship is you, the lumps are rocks. The gap is {w} — click the glowing block.':
+    'El muro 1 está a la derecha. La nave pequeña eres tú, los bultos son rocas. El hueco está a la {w} — pulsa el bloque que brilla.',
+  'Wall {n}: the gap is {w}. Click the glowing block.':
+    'Muro {n}: el hueco está a la {w}. Pulsa el bloque que brilla.',
   'Wall {n} is clear where you are. Click <b>coast()</b> to hold your lane.':
     'El muro {n} está libre donde estás. Pulsa <b>coast()</b> para mantener el carril.',
   'THE NEXT WALLS':'LOS SIGUIENTES MUROS',
