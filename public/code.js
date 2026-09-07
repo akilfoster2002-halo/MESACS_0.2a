@@ -307,6 +307,10 @@ window.CODE = (function(){
           </span>
           <button class="btn small ghost" id="conClose">✕</button></div>
         <div id="conGuide" class="hidden"></div>
+        <!-- where the walkthrough talks while the console is open. A card
+             floating over the middle of the screen is a card covering the
+             thing it is telling you to click. -->
+        <div id="conCoach" class="hidden"></div>
         <div class="con-body">
           <div class="con-col">
             <div class="con-lbl" id="conPalLbl"></div>
@@ -398,6 +402,10 @@ window.CODE = (function(){
     draw();
   }
   const asideEl = () => (el && open && aside) ? el.querySelector('#conAside') : null;
+  /* The console lends this strip to the walkthrough while it is open, and
+     takes it back the moment it closes — so a step that happens out in the
+     world still gets a card on screen to say so. */
+  const coachHost = () => (el && open) ? el.querySelector('#conCoach') : null;
   let rails={};
   function setRails(r){ rails=r||{}; if(el) drawRails(); }
   function drawRails(){
@@ -781,7 +789,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost,
            setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },

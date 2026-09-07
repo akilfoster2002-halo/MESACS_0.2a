@@ -956,6 +956,10 @@ window.FLIGHT = (function(){
       pal:L.K.pal, rails:{run:true, clear:true, mode:true} });
 
     COACH.start(WALK, {
+      /* Where the walkthrough talks: inside the console once it is open, and
+         only floating over the world for the one step that happens out
+         there — pressing C. */
+      host: ()=> (window.CODE && CODE.coachHost) ? CODE.coachHost() : null,
       /* The coach does not know what a palette is, and should not. It says
          which step is live; this decides what that means. */
       onStep(s){

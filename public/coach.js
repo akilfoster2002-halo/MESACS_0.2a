@@ -40,11 +40,14 @@ window.COACH = (function(){
     ctx.onStep(step(), at);
   }
   function stop(){
+    const host = ctx && ctx.host ? ctx.host() : null;
     if(ctx && ctx.onStep && steps) ctx.onStep(null, -1);   // rails off
     steps=null; at=0; done=false; railed=-1;
     dropBeacon();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const p=document.querySelector('#coachTip'); if(p) p.remove();
+    if(host){ host.classList.add('hidden'); host.innerHTML=''; }
+    ctx=null;
   }
   const step = () => (steps && at<steps.length) ? steps[at] : null;
 
@@ -74,7 +77,9 @@ window.COACH = (function(){
     if(ctx && ctx.onStep) ctx.onStep(null, -1);            // and the rails come off
     dropBeacon();
     const r=document.querySelector('#coachRing'); if(r) r.remove();
+    const host = ctx && ctx.host ? ctx.host() : null;
     say(t('That is the whole idea: your blocks moved a thing in the world.'), true);
+    clearLater(host);
   }
 
   /* ------------------------------------------------------------ drawing */
@@ -117,13 +122,30 @@ window.COACH = (function(){
     if(aim) beaconOn(aim); else dropBeacon();
   }
   function say(text, finished, near){
-    const p=tip();
     const n = steps ? Math.min(at+1, steps.length) : 0;
-    p.className = finished ? 'ok' : '';
-    p.innerHTML = `<div class="ctstep">${finished? t('DONE')
+    const body = `<div class="ctstep">${finished? t('DONE')
         : t('STEP {a} OF {b}',{a:n,b:steps.length})}</div>
       <div class="cttext">${bold(esc(t(text)))}</div>
       ${finished? '' : `<button class="ctskip" id="coachSkip">${t('skip the walkthrough')}</button>`}`;
+
+    /* A HOST, if the caller has lent us one. While a console is open the
+       walkthrough belongs inside it: a card floating over the middle of the
+       screen is a card sitting on top of the thing it is telling you to
+       click, and the one place a student is already looking is the panel
+       they are being asked to work in. */
+    const host = ctx && ctx.host ? ctx.host() : null;
+    if(host){
+      const p=document.querySelector('#coachTip'); if(p) p.remove();
+      host.classList.remove('hidden');
+      host.className = finished ? 'ok' : '';
+      host.innerHTML = body;
+      const sk=host.querySelector('#coachSkip');
+      if(sk) sk.onclick=()=>stop();
+      return;
+    }
+    const p=tip();
+    p.className = finished ? 'ok' : '';
+    p.innerHTML = body;
     const sk=document.querySelector('#coachSkip');
     if(sk) sk.onclick=()=>stop();
     /* sit beside what is being pointed at, and never off the edge */
@@ -139,6 +161,11 @@ window.COACH = (function(){
       p.style.right=''; p.style.transform='translateX(-50%)';
     }
     if(finished) setTimeout(()=>{ const q=document.querySelector('#coachTip'); if(q) q.remove(); }, 5200);
+  }
+  /* the last word clears itself, wherever it was said */
+  function clearLater(host){
+    if(!host) return;
+    setTimeout(()=>{ host.classList.add('hidden'); host.innerHTML=''; }, 5200);
   }
 
   /* -------------------------------------------------------- the beacon */
