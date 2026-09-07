@@ -445,6 +445,12 @@ window.FLIGHT = (function(){
        the windscreen as well left the same paragraph on screen twice, one
        copy of it sitting under the console saying nothing anybody needed. */
     hud();
+    /* Leg one can always be walked again. It was gated on a flag set the
+       first time anybody finished it, which meant a student who skipped the
+       walkthrough — or came back next week — opened the console to three
+       blocks, an empty script and no idea, with no way left to ask. */
+    if(K.kind!=='gun' && L.idx===0) CODE.setHelp(t('Show me how'), ()=>walkFirstLeg());
+    else CODE.setHelp(null, null);
     teach();
   }
 
@@ -644,6 +650,14 @@ window.FLIGHT = (function(){
   function tick(dt){
     if(!L) return;
     spin(dt);
+    /* The first visit walks itself the moment the console opens. This used
+       to hang off the teach card's button alone, so any other way of getting
+       rid of that card — and there are several — skipped the lesson without
+       ever offering it. */
+    if(L.idx===0 && L.kind!=='gun' && !L.taught && !walked()
+       && window.CODE && CODE.isOpen()){
+      L.taught=true; walkFirstLeg();
+    }
     /* Opening the console froze the field. Rebuild the guide right then, so
        the radar you plan against is the one from the beat you stopped at
        rather than whatever it said when the leg began. */
@@ -912,7 +926,11 @@ window.FLIGHT = (function(){
   const hasOp = op => !!(window.CODE && CODE.script &&
     CODE.script.some(b=>b.type===op));
 
+  /* The walkthrough hands over a whole answer block by block, so it has to
+     start from an empty program — restarting it on top of six blocks would
+     satisfy half its steps before the student had read one of them. */
   function walkFirstLeg(){
+    if(window.CODE) CODE.clear();
     if(!window.COACH) return;
     // the coach is about to say the same thing in the same corner
     const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');

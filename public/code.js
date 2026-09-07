@@ -333,6 +333,7 @@ window.CODE = (function(){
           <span><span class="con-budget hidden" id="conBudget"></span>
           <span class="con-hint" id="conHint"></span></span>
           <span>
+            <button class="btn small ghost hidden" id="conHelp"></button>
             <button class="btn small ghost" id="conClear"></button>
             <button class="btn good" id="conRun"></button>
           </span>
@@ -406,11 +407,27 @@ window.CODE = (function(){
      takes it back the moment it closes — so a step that happens out in the
      world still gets a card on screen to say so. */
   const coachHost = () => (el && open) ? el.querySelector('#conCoach') : null;
+  /* A way back to the walkthrough. It used to run once, ever, on the first
+     visit — and a student who skipped it, or who came back a week later, had
+     no way to ask for it again. The mission says whether there is one to
+     offer and what pressing it does. */
+  let help=null;
+  function setHelp(label, fn){
+    help = fn ? { label:label||'', fn } : null;
+    if(el && open) drawHelp();
+  }
+  function drawHelp(){
+    const btn=el && el.querySelector('#conHelp'); if(!btn) return;
+    btn.classList.toggle('hidden', !help);
+    if(!help) return;
+    btn.textContent=help.label;
+    btn.onclick=()=>help.fn();
+  }
   let rails={};
   function setRails(r){ rails=r||{}; if(el) drawRails(); }
   function drawRails(){
     if(!el) return;
-    [['run','#conRun'],['clear','#conClear'],
+    [['run','#conRun'],['clear','#conClear'],['help','#conHelp'],
      ['mode','#conModeB'],['mode','#conModeT']].forEach(([k,q])=>{
       const b=el.querySelector(q); if(!b) return;
       const off = rails[k]===false;
@@ -627,6 +644,7 @@ window.CODE = (function(){
     el.querySelector('#conClear').textContent=t('Clear');
     el.querySelector('#conRun').textContent=t('▶ RUN');
     drawRails();
+    drawHelp();
     drawGuide();
 
     scriptEl.classList.toggle('hidden', typing);
@@ -789,7 +807,7 @@ window.CODE = (function(){
   function hideTape(){ if(tape) tape.classList.add('hidden'); }
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
-  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost,
+  return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost, setHelp,
            setConditions, setGrid, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
