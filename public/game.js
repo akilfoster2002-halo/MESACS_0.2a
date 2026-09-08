@@ -286,10 +286,18 @@ function addPanel(opt){
    frozen. A room that takes the keys away has to say so. */
 function keyHint(html){
   const el=$('#keys'); if(!el) return;
+  /* THE DEFAULT SAYS ONLY WHAT IS TRUE EVERYWHERE, which is how you move.
+     It used to end with "C write code", and because this is the fallback
+     every room falls back to, a C nobody could press followed a student
+     through the whole game — across the planet, the shops, the Mall, the
+     wardrobe, none of which have a console to open. Every room that DOES
+     have one says so itself, in its own words, at the moment it is true.
+     The same goes for the click-to-select and one-shot lines: those belong
+     to the old desktop, and there has not been an icon to double-click in
+     this game for months. */
   el.innerHTML = html!==null && html!==undefined ? html :
-    `<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')} &nbsp; <b>SPACE</b> ${t('Jump')}<br>
-     <b>${t('one click')}</b> ${t('Select')} &nbsp; <b>${t('double-click')}</b> ${t('Open')} &nbsp; <b>Shift</b> ${t('Run')}<br>
-     <b>C</b> ${t('write code')} &nbsp; <b>${t('left click')}</b> ${t('one shot')}`;
+    `<b>W A S D</b> / <b>↑ ↓</b> ${t('Move')} &nbsp; <b>← →</b> ${t('Turn')}
+     &nbsp; <b>SPACE</b> ${t('Jump')} &nbsp; <b>Shift</b> ${t('Run')}`;
 }
 window.keyHint=keyHint;
 window.updateLeaveBtn=updateLeaveBtn;
@@ -573,6 +581,7 @@ function loop(now){
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */
   if(window.MECHA && MECHA.active) MECHA.tick(dt);
+  if(window.INTRO && INTRO.active) INTRO.tick(dt);
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
      typing player leaves the room holding a stale picture of them. */

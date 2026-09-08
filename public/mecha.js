@@ -60,6 +60,13 @@ window.MECHA = (function(){
     $('#ma').classList.remove('hidden');
     $('#maFeed').classList.remove('hidden');
     $('#maKeys').classList.remove('hidden');
+    /* This room's keys are its own, and the last room's are a lie in it:
+       walking out of the planet used to leave "E go in · R get in the car"
+       sitting under an arena with no doors and no cars. */
+    if(window.keyHint) keyHint(
+      `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('turn')}
+       &nbsp; <b>Shift</b> ${t('run')}`);
+    const esc=$('#escHint'); if(esc) esc.classList.add('hidden');
     $('#maKeys').innerHTML=
       `<b>W A S D</b> ${t('walk')} · <b>${t('mouse')}</b> ${t('turn')} · <b>Shift</b> ${t('run')}<br>
        ${t('your code does the fighting — watch the feed on the left')}`;
@@ -103,6 +110,7 @@ window.MECHA = (function(){
     ['#maFeed','#maKeys','#maSay','#maBig','#maWait'].forEach(s=>$(s).classList.add('hidden'));
     ['#objectives','#crosshair','#briefing'].forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
+    if(window.keyHint) keyHint(null);
     if(window.AVATAR) AVATAR.attach();
   }
 
