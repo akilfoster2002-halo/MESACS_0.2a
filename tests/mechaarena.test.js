@@ -295,3 +295,200 @@ test('a round the timer runs out on goes to whoever has more core', ()=>{
   assert.ok(round, 'the round should have ended on the clock');
   assert.equal(round.why, 'time');
 });
+
+/* ------------------------------------------------------------- the feel
+   Hitstop, hitstun and knockback are not effects — they are simulation
+   state, they are on the wire, and both browsers have to agree on them.
+   These are the tests that keep them honest. */
+
+/* Put two mechas nose to nose and let one of them swing. Returns the tick
+   the first hit landed on, so a test can look at what happened after it. */
+function brawl(m, seconds, drive){
+  const ticks=Math.round((seconds||6)*m.rules.hz);
+  const log=[];
+  for(let i=0;i<ticks && !m.over;i++){
+    (drive||(()=>{ m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI}); }))(m,i);
+    const r=m.step(1/m.rules.hz);
+    r.events.forEach(e=>log.push(Object.assign({tick:i},e)));
+  }
+  return log;
+}
+/* B stood in front of A, facing it, close enough to be hit — and both of
+   them in the MIDDLE of the floor. Put them where they spawn and they are
+   a metre from the wall, so every shove pins the victim against it and a
+   test that thinks it is measuring knockback is measuring the wall. */
+function faceOff(a, b){
+  const m=match(a, b);
+  m.robots.A.x=0; m.robots.A.z=-1.5;
+  m.robots.B.x=0; m.robots.B.z= 1.5;
+  return m;
+}
+
+test('a landed hit freezes BOTH mechas where they stand', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  let frozen=null;
+  for(let i=0;i<6*m.rules.hz && !frozen;i++){
+    m.setInput('A',{fwd:1,yaw:0}); m.setInput('B',{fwd:1,yaw:0});   // both driving hard
+    const was={ A:{x:m.robots.A.x,z:m.robots.A.z}, B:{x:m.robots.B.x,z:m.robots.B.z} };
+    const hit=m.step(0.05).events.some(e=>e.kind==='hit');
+    if(hit){
+      // the tick AFTER the hit is inside the freeze: nobody may move
+      const before={ A:{x:m.robots.A.x,z:m.robots.A.z}, B:{x:m.robots.B.x,z:m.robots.B.z} };
+      m.step(0.05);
+      frozen={
+        A:Math.hypot(m.robots.A.x-before.A.x, m.robots.A.z-before.A.z),
+        B:Math.hypot(m.robots.B.x-before.B.x, m.robots.B.z-before.B.z)
+      };
+    }
+  }
+  assert.ok(frozen, 'nothing ever landed');
+  assert.ok(frozen.A < 1e-9, 'the attacker kept walking through its own punch');
+  assert.ok(frozen.B < 1e-9, 'the victim kept walking through being hit');
+});
+
+test('a freeze stops the swing itself, not just the feet', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  let held=false;
+  for(let i=0;i<6*m.rules.hz && !held;i++){
+    m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:0});
+    if(m.step(0.05).events.some(e=>e.kind==='hit')){
+      const arm=m.robots.A.arms.left_arm.state, t=m.robots.A.arms.left_arm.t;
+      m.step(0.05);
+      held = m.robots.A.arms.left_arm.state===arm && m.robots.A.arms.left_arm.t===t;
+    }
+  }
+  assert.ok(held, 'the arm carried on through the freeze');
+});
+
+test('being hit takes the steering away for a moment', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  let stunned=null;
+  for(let i=0;i<6*m.rules.hz && !stunned;i++){
+    m.setInput('A',{fwd:0,yaw:0});
+    m.setInput('B',{fwd:1,yaw:Math.PI});          // B is trying to walk away
+    if(m.step(0.05).events.some(e=>e.kind==='hit')) stunned=true;
+  }
+  assert.ok(stunned, 'nothing landed');
+  // through the freeze and into the stun: B is going backwards, not forwards
+  const start={x:m.robots.B.x,z:m.robots.B.z};
+  for(let i=0;i<6;i++){ m.setInput('B',{fwd:1,yaw:Math.PI}); m.step(0.05); }
+  const away=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+  const wasAway=Math.hypot(start.x-m.robots.A.x, start.z-m.robots.A.z);
+  assert.ok(away>wasAway, 'the shove should have carried them, not their driving');
+});
+
+test('a mecha in hitstun takes no new orders', ()=>{
+  const m=faceOff(BRAWLER, BRAWLER);
+  let seen=false;
+  for(let i=0;i<8*m.rules.hz && !seen;i++){
+    m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+    const r=m.step(0.05);
+    if(m.robots.B.stun>0 && m.robots.B.stop<=0){
+      // asked while stunned? nothing may come back with an action in it
+      const acted=r.traces.B.some(l=>l.steps.some(s=>s.kind==='action'));
+      assert.equal(acted, false, 'a stunned mecha started a new move');
+      seen=true;
+    }
+  }
+  assert.ok(seen, 'B was never caught in hitstun');
+});
+
+test('a punch throws them away from whoever threw it', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  let before=null, after=null;
+  for(let i=0;i<6*m.rules.hz && !after;i++){
+    m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+    if(!before) before=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+    if(m.step(0.05).events.some(e=>e.kind==='hit')){
+      for(let k=0;k<8;k++) m.step(0.05);
+      after=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+    }
+  }
+  assert.ok(after>before+0.5, 'they should have been pushed back, '+before+' → '+after);
+});
+
+test('a heavy throws them further than a punch does', ()=>{
+  const push=(prog)=>{
+    const m=faceOff(prog, NOTHING);
+    let d=null;
+    for(let i=0;i<8*m.rules.hz && d===null;i++){
+      m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+      if(m.step(0.05).events.some(e=>e.kind==='hit')){
+        for(let k=0;k<10;k++) m.step(0.05);
+        d=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+      }
+    }
+    return d;
+  };
+  const light=push(BRAWLER), heavy=push(SLEDGE);
+  assert.ok(heavy!==null && light!==null, 'one of them never landed');
+  assert.ok(heavy>light, 'a heavy ('+heavy.toFixed(1)+') should out-throw a punch ('+light.toFixed(1)+')');
+});
+
+test('a guard takes the sting out of the shove as well as the damage', ()=>{
+  const push=(defence)=>{
+    const m=faceOff(BRAWLER, defence);
+    let d=null;
+    for(let i=0;i<8*m.rules.hz && d===null;i++){
+      m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+      if(m.step(0.05).events.some(e=>e.kind==='hit')){
+        for(let k=0;k<10;k++) m.step(0.05);
+        d=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+      }
+    }
+    return d;
+  };
+  assert.ok(push(GUARD) < push(NOTHING), 'blocking should keep you closer than eating it');
+});
+
+test('the shove grows as the core goes', ()=>{
+  const push=(core)=>{
+    const m=faceOff(BRAWLER, NOTHING);
+    m.robots.B.parts.core=core;
+    let d=null;
+    for(let i=0;i<8*m.rules.hz && d===null;i++){
+      m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+      if(m.step(0.05).events.some(e=>e.kind==='hit')){
+        for(let k=0;k<10;k++) m.step(0.05);
+        d=Math.hypot(m.robots.B.x-m.robots.A.x, m.robots.B.z-m.robots.A.z);
+      }
+    }
+    return d;
+  };
+  assert.ok(push(30) > push(200), 'a nearly-dead mecha should be thrown further');
+});
+
+test('nobody is knocked out of the arena', ()=>{
+  const m=faceOff(SLEDGE, NOTHING);
+  // stand them both against the wall so every shove is aimed at the edge
+  const R=ARENA.RULES.radius-ARENA.RULES.bodyR;
+  m.robots.A.x=0; m.robots.A.z=R-4;
+  m.robots.B.x=0; m.robots.B.z=R-1;
+  for(let i=0;i<10*m.rules.hz;i++){
+    m.setInput('A',{fwd:1,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+    m.step(0.05);
+    ['A','B'].forEach(s=>assert.ok(Math.hypot(m.robots[s].x,m.robots[s].z) <= ARENA.RULES.radius+0.01,
+      s+' was thrown out of the arena'));
+  }
+});
+
+test('the freeze and the stun are on the wire, or the client predicts through them', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  let snap=null;
+  for(let i=0;i<6*m.rules.hz && !snap;i++){
+    m.setInput('A',{fwd:0,yaw:0}); m.setInput('B',{fwd:0,yaw:Math.PI});
+    if(m.step(0.05).events.some(e=>e.kind==='hit')) snap=m.snapshot();
+  }
+  assert.ok(snap, 'nothing landed');
+  assert.ok(snap.A.fz > 0, 'the attacker\'s freeze is not in the snapshot');
+  assert.ok(snap.B.fz > 0, 'the victim\'s freeze is not in the snapshot');
+  assert.ok(snap.B.st > 0, 'the victim\'s stun is not in the snapshot');
+});
+
+test('a hit says how long the world stops for, so the picture can shake for exactly that long', ()=>{
+  const m=faceOff(BRAWLER, NOTHING);
+  const log=brawl(m, 6);
+  const hit=log.find(e=>e.kind==='hit');
+  assert.ok(hit, 'nothing landed');
+  assert.ok(hit.stop > 0);
+});

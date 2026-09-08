@@ -101,6 +101,17 @@ browser and nothing is streamed: what goes over the wire is WASD one way and a s
 other. Practice against the dummy runs the *same* simulation locally, so nobody trains against
 rules that turn out not to be the real ones.
 
+A hit is three things, not one. **Hitstop** freezes both mechas for a moment — no movement, no
+state machine, no timers, no orders — which is what makes a punch feel like it weighed
+something. **Hitstun** is the victim's alone: for a moment their parts take no new orders and
+their driver has no steering. **Knockback** throws them, base plus growth, where the growth is
+paid against how much core they have already lost, so the last hit of a round sends them further
+than the first. Getting shoved out of your own reach is what hands the initiative back to the
+player — closing the distance again is the driver's job, not the program's.
+
+Those three ideas come from reading [SlopArena](https://github.com/Binoui/SlopArena) (MIT,
+© MPXXV), which is a Unity game in C# and shares no code with this one.
+
 `MECHAARENA.RULES` holds every number a fight is played by; `MECHACODE` holds the events,
 sensors and actions the palette is built from. Adding a sensor is a row in one of them.
 

@@ -38,6 +38,15 @@
 
    Which is why flanking is worth doing: it blinds them. And why a
    student who blocks everything ends the round with one arm.
+
+   WITH THANKS TO SlopArena (github.com/Binoui/SlopArena, MIT, © MPXXV),
+   which is a Unity game in C# and shares not one line with this file.
+   What was taken from reading it is three ideas, and they are the three
+   that turned this from an exchange of numbers into a fight: that
+   hitstop should freeze EVERYTHING rather than just pause an animation,
+   that knockback wants a base and a growth rather than one constant, and
+   that the growth should be paid against damage already taken so the end
+   of a round looks like the end of a round.
    ===================================================================== */
 (function(root){
 
@@ -56,7 +65,35 @@
     heatMax:100, cool:4.5,    // heat a second, gone
     overheat:2.6,             // seconds locked out when it hits the top
     sensorRange:14,           // how far the sensor sees
-    parts:{ left_arm:100, right_arm:100, legs:100, sensor:100, core:200 }
+    parts:{ left_arm:100, right_arm:100, legs:100, sensor:100, core:200 },
+
+    /* ------------------------------------------------------- the feel
+       Three numbers per hit, and between them they are the difference
+       between two robots subtracting numbers from each other and a fight.
+
+       HITSTOP freezes BOTH mechas for a moment on impact — no movement,
+       no state machine, no timers, no orders. It is the oldest trick in
+       fighting games and it is the one that makes a punch feel like it
+       weighed something. It costs nothing but the pause: nothing else
+       lands during it either, because everything is stopped.
+
+       HITSTUN is the victim's alone. For a moment after being hit their
+       parts take no new orders and their driver has no steering — which
+       is what makes getting hit a thing worth writing code to avoid,
+       rather than a number going down.
+
+       KNOCKBACK throws them. Base plus growth, where growth is paid out
+       against how much core they have already lost, so a mecha on its
+       last legs gets thrown across the arena and everybody watching can
+       see it is nearly over. Getting shoved out of your own reach is
+       what hands the initiative back to the player: closing the distance
+       again is the driver's job, not the program's. */
+    stop:{ punch:0.10, heavy:0.20, blocked:0.05 },
+    stun:{ punch:0.22, heavy:0.42, blocked:0.10 },
+    kb:{ punch:{ base:6,  growth:5  },
+         heavy:{ base:15, growth:10 },
+         blocked:{ base:3, growth:0 } },
+    kbDrag:5.5                // how fast a shove bleeds off, per second
   };
 
   /* What each action costs, how long it takes, and what it does. The
@@ -88,6 +125,7 @@
       arms:{ left_arm:limb(), right_arm:limb() },
       legs:limb(),
       hitT:0,                            // how long since something landed
+      stop:0, stun:0, kbx:0, kbz:0,      // hitstop, hitstun, and the shove
       stats:zeroStats(),
       wins:0
     };
@@ -148,6 +186,12 @@
 
       this.t+=dt; this.clock-=dt;
       [ [A,B], [B,A] ].forEach(([me,foe])=>{
+        /* Frozen means frozen: no energy back, no heat gone, no limb
+           advancing, no order asked, nothing moved. The one thing that
+           keeps running is the round clock, because a fight that could
+           be extended by landing punches would be a fight decided by
+           who punched most, which is the scoreboard's job. */
+        if(me.stop>0){ me.stop=Math.max(0, me.stop-dt); me.px=me.x; me.pz=me.z; return; }
         resources(me, dt);
         drive(me, this.input[me.side], dt, this.rules);
       });
@@ -156,6 +200,7 @@
          reading a world the other has already changed this tick. */
       const sense={ A:sensors(A,B,this.rules), B:sensors(B,A,this.rules) };
       [ [A,B], [B,A] ].forEach(([me,foe])=>{
+        if(me.stop>0) return;
         think(me, sense[me.side], traces[me.side]);
         act(me, foe, dt, events, this.rules);
       });
@@ -201,6 +246,7 @@
       const one=r=>({
         x:+r.x.toFixed(2), z:+r.z.toFixed(2), yaw:+r.yaw.toFixed(3),
         e:Math.round(r.energy), h:Math.round(r.heat), lock:+r.lock.toFixed(2),
+        fz:+r.stop.toFixed(2), st:+r.stun.toFixed(2),
         p:{ la:Math.max(0,Math.round(r.parts.left_arm)), ra:Math.max(0,Math.round(r.parts.right_arm)),
             lg:Math.max(0,Math.round(r.parts.legs)),     sn:Math.max(0,Math.round(r.parts.sensor)),
             co:Math.max(0,Math.round(r.parts.core)) },
@@ -234,7 +280,21 @@
      punch having rooted them where they stand. */
   function drive(r, input, dt, rules){
     r.px=r.x; r.pz=r.z;              // where we were, for the contact below
+    /* The head still turns. Taking the camera off somebody for half a
+       second is the one part of being hit that reads as the game having
+       crashed rather than as a punch, and where they are LOOKING has no
+       effect on where a shove carries them anyway. */
     r.yaw=input.yaw;
+    if(r.stun>0){
+      r.stun=Math.max(0, r.stun-dt);
+      r.x+=r.kbx*dt; r.z+=r.kbz*dt;
+      const drag=Math.max(0, 1 - RULES.kbDrag*dt);
+      r.kbx*=drag; r.kbz*=drag;
+      r.vx=r.kbx; r.vz=r.kbz;
+      const d0=Math.hypot(r.x,r.z), lim0=rules.radius-rules.bodyR;
+      if(d0>lim0){ const k=lim0/d0; r.x*=k; r.z*=k; r.kbx*=0.3; r.kbz*=0.3; }
+      return;
+    }
     let speed=(input.run ? rules.run : rules.walk)*legFactor(r);
     const rooted = r.arms.left_arm.rooted || r.arms.right_arm.rooted;
     if(rooted) speed*=0.15;
@@ -468,8 +528,32 @@
     hurt(foe, part, dmg, events, me.side);
     me.stats.landed++; me.stats.dealt+=dmg; foe.stats.taken+=dmg;
     foe.hitT=0;
+    /* And now the three things that make it a hit rather than a
+       subtraction. `key` is which of the three sets of numbers applies —
+       a punch caught on a guard is a different event from one that got
+       through, and it should not throw anybody across the room. */
+    const key = note==='blocked' ? 'blocked' : kind==='heavy' ? 'heavy' : 'punch';
+    me.stop=Math.max(me.stop, RULES.stop[key]);
+    foe.stop=Math.max(foe.stop, RULES.stop[key]);
+    foe.stun=Math.max(foe.stun, RULES.stun[key]);
+    shove(me, foe, key, rules);
     events.push({ kind:'hit', side:me.side, at:foe.side, act:kind, part, dmg, note,
+                  stop:RULES.stop[key],
                   x:+foe.x.toFixed(2), z:+foe.z.toFixed(2) });
+  }
+  /* Away from whoever threw it, base plus growth — and growth is paid
+     against how much core they have already lost, so the last hit of a
+     round sends them further than the first. On a symmetric floor that
+     is the only thing in the fight that escalates. */
+  function shove(me, foe, key, rules){
+    const K=RULES.kb[key]; if(!K) return;
+    let dx=foe.x-me.x, dz=foe.z-me.z;
+    const d=Math.hypot(dx,dz);
+    if(d<1e-4){ dx=Math.sin(me.yaw); dz=Math.cos(me.yaw); }
+    else { dx/=d; dz/=d; }
+    const lost=1 - Math.max(0, foe.parts.core)/rules.parts.core;   // 0 fresh, 1 finished
+    const power=K.base + K.growth*lost;
+    foe.kbx=dx*power; foe.kbz=dz*power;
   }
   function hurt(r, part, dmg, events, from){
     if(r.parts[part]<=0) return;

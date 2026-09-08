@@ -36,7 +36,7 @@ window.MECHA = (function(){
   let snap=null;                              // the last thing the server said
   let local=null;                             // the practice match, if there is one
   let pred=null;                              // where we think we are standing
-  let sendAt=0, feed=[], over=null;
+  let sendAt=0, feed=[], over=null, shake=0;
   let wasFP=null;
 
   /* ------------------------------------------------------------ start */
@@ -303,6 +303,11 @@ window.MECHA = (function(){
   function walkLocally(i, dt){
     if(!pred || !snap) return;
     const me=snap[mySide];
+    /* Frozen or being thrown, the server is not listening to the keys, and
+       a browser that keeps walking during a hitstop spends the next tick
+       being dragged back to where it actually is. The freeze is on the
+       wire for exactly this. */
+    if(me.fz>0 || me.st>0) return;
     const busy = /wind:heavy/.test(me.a.l) || /wind:heavy/.test(me.a.r);
     const legs = 0.45+0.55*(me.p.lg/(rules.parts?rules.parts.legs:100));
     let sp=(i.run?AR().RULES.run:AR().RULES.walk)*legs*(busy?0.15:1);
@@ -365,6 +370,16 @@ window.MECHA = (function(){
        past you at the ground you are both standing on. */
     const back=12, up=7.2, side=2.0, ahead=6;
     G.camera.position.set(p.x - s*back + c*side, up, p.z - c*back - s*side);
+    /* THE FLINCH. Hitstop stops the world for a moment; this is what makes
+       that stop read as an impact rather than as a dropped frame. Scaled
+       by the damage and gone in a third of a second, so a jab caught on a
+       guard twitches the lens and a heavy through it hits the lens. */
+    if(shake>0){
+      const now=performance.now();
+      G.camera.position.x += Math.sin(now*0.09)*shake;
+      G.camera.position.y += Math.cos(now*0.13)*shake*0.7;
+      shake=Math.max(0, shake-(dt||0.016)*4.5);
+    }
     G.camera.up.set(0,1,0);
     G.camera.lookAt(p.x + s*ahead, 2.0, p.z + c*ahead);
   }
@@ -373,6 +388,11 @@ window.MECHA = (function(){
   function event(e){
     if(e.kind==='hit'){
       const b=bots[e.at]; if(b) hitFx(b.g.position, e.dmg, e.note);
+      /* Both of you feel it, and the one taking it feels it more. A hit
+         you landed should be worth watching too — half a flinch says
+         "that connected" without pretending you were the one hit. */
+      const felt=Math.min(1.0, (e.dmg||0)/22) * (e.at===mySide ? 0.9 : 0.45);
+      shake=Math.max(shake, felt);
       if(e.at!==mySide) return;
       // taking one is worth saying, because it is usually why a plan died
       line(`<span class="no">${t('HIT')} −${e.dmg} ${t(partName(e.part))}</span>`
@@ -452,16 +472,31 @@ window.MECHA = (function(){
 
   /* -------------------------------------------------------- the extras */
   function hitFx(pos, dmg, note){
-    const m=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,8),
+    const big=Math.min(1.6, 0.55+(dmg||0)/18);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(big,12,8),
       new THREE.MeshBasicMaterial({color: note==='blocked'?0x8fd3ff:0xffe9a8,
         transparent:true, opacity:0.9}));
     m.position.set(pos.x, 2.6, pos.z); world.add(m);
-    fx.push({ m, life:0.35, grow:true });
+    fx.push({ m, life: note==='blocked'?0.25:0.4, grow:true });
+    // scrap: a few chips thrown off the side that was hit
+    if(note!=='blocked') for(let i=0;i<4;i++){
+      const c=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.22),
+        new THREE.MeshBasicMaterial({color:0xffd8a8, transparent:true, opacity:0.95}));
+      c.position.set(pos.x+(Math.random()-0.5), 2.4+Math.random(), pos.z+(Math.random()-0.5));
+      world.add(c);
+      fx.push({ m:c, life:0.45, vx:(Math.random()-0.5)*9, vy:2+Math.random()*4,
+                vz:(Math.random()-0.5)*9 });
+    }
   }
   function stepFx(dt){
     for(let i=fx.length-1;i>=0;i--){
       const f=fx[i]; f.life-=dt;
       if(f.grow) f.m.scale.multiplyScalar(1+dt*4);
+      if(f.vx!==undefined){                     // thrown scrap, falling
+        f.m.position.x+=f.vx*dt; f.m.position.y+=f.vy*dt; f.m.position.z+=f.vz*dt;
+        f.vy-=26*dt;
+        f.m.rotation.x+=dt*7; f.m.rotation.y+=dt*5;
+      }
       f.m.material.opacity=Math.max(0,f.life*2.4);
       if(f.life<=0){ if(f.m.parent) f.m.parent.remove(f.m); fx.splice(i,1); }
     }
