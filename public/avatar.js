@@ -15,9 +15,9 @@ window.AVATAR = (function(){
   /* Kyle leads: he is the character this game is about, so he is the one
      you are unless you go to the Wardrobe and say otherwise. The rest keep
      the order they had. */
-  const IDS = 'sabndcefghijklmopqr'.split('');
+  const IDS = 'stabndcefghijklmopqr'.split('');
   // a name each, initial matching the file, so nobody is "Character G"
-  const NAMES = { s:'Kyle',
+  const NAMES = { s:'Kyle', t:'Mia',
                   a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
                   g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',
                   m:'Mo',  n:'Nia', o:'Ozzy', p:'Pip', q:'Quinn', r:'Rae' };
