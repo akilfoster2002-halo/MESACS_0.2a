@@ -1263,9 +1263,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   12%{opacity:1;transform:translateY(0)}
   82%{opacity:1;transform:translateY(0)}
   100%{opacity:0;transform:translateY(-6px)}}
-#intro .in-title{position:absolute;left:0;right:0;top:20%;text-align:center;
-  font-family:var(--font);font-size:clamp(46px,11vw,150px);font-weight:bold;color:#ffe9a8;
-  letter-spacing:.16em;text-shadow:0 12px 50px rgba(0,0,0,.85);opacity:0;
+/* One line, always. A two-word title left to wrap sat across the middle
+   of the closing shot in two big slabs, with the planet it is announcing
+   behind them. It goes in the top third and stays on one line. */
+#intro .in-title{position:absolute;left:0;right:0;top:14%;text-align:center;
+  white-space:nowrap;
+  font-family:var(--font);font-size:clamp(22px,5vw,64px);font-weight:bold;color:#ffe9a8;
+  letter-spacing:.1em;text-shadow:0 12px 50px rgba(0,0,0,.85);opacity:0;
   transition:opacity .8s ease,transform .8s ease;transform:scale(1.12)}
 #intro .in-title.in-show{opacity:1;transform:scale(1)}
 #intro .in-skip{position:absolute;right:16px;bottom:calc(9vh + 14px);pointer-events:auto;

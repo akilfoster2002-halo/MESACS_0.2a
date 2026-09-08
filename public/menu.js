@@ -112,12 +112,12 @@ window.MENU = (function(){
         afterSignIn();
       }catch(err){ authMsg(err.message); }
     };
-      const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ arrive(); };
+      const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
     /* START asks who you are first. Everybody is handed one of the free
        characters on arrival, so choosing one is no longer a gate you have to
        pass before you are allowed to play — the Wardrobe is where you change
        it, along with your ship and your car. */
-    const st=$('#btnStart'); if(st) st.onclick=()=>{ NET.signedIn ? arrive() : auth(); };
+    const st=$('#btnStart'); if(st) st.onclick=()=>{ NET.signedIn ? homeworld() : auth(); };
     // and this screen is reached FROM the planet now, so back means back there
     const cb=$('#cBack');    if(cb) cb.onclick=()=>homeworld();
     // picking a character is the last screen before the world: Continue lands
@@ -136,7 +136,7 @@ window.MENU = (function(){
   function afterSignIn(){
     const u=NET.me;
     if(u && u.progress) PROGRESS.load(u.progress);
-    arrive();             // signing in lands you on the planet, by way of the film
+    homeworld();          // signing in lands you on the planet, not on a menu
   }
 
   /* -------------------------------------------------------- the menu */
@@ -346,19 +346,6 @@ window.MENU = (function(){
      the shared world if you have an account to share it with, and the same
      planet on your own if you are a guest. Nobody chooses a server first —
      you land on one and can move later. */
-  /* THE FILM PLAYS ON THE WAY IN, ONCE. homeworld() is also where every
-     mission drops you when it ends, so hanging the intro on it would play
-     ten seconds of asteroids after every single level — which is how a
-     class learns to hammer the skip button. This is the door from the
-     outside: signing in, or START with an account already in hand. */
-  let seenIntro=false;
-  function arrive(){
-    if(seenIntro || !window.INTRO){ homeworld(); return; }
-    seenIntro=true;
-    hideAll();
-    $('#hud').classList.add('hidden');
-    INTRO.play(()=>homeworld());
-  }
   let world=null;
   async function homeworld(){
     if(!NET.signedIn && signInUp) return auth();
@@ -434,7 +421,7 @@ window.MENU = (function(){
   }
 
   return { open, start, chars, auth, servers, modes, missions, render, renderChars,
-           wireAuth, launch, hideAll, homeworld, arrive, labelOf };
+           wireAuth, launch, hideAll, homeworld, labelOf };
 })();
 
 /* =====================================================================

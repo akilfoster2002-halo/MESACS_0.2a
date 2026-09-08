@@ -381,7 +381,16 @@ function startMissionRoom(id){
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
   if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
-  if(id==='flight'){ FLIGHT.start(0); return; }  // and the asteroid field its own sky
+  /* Space Explorer opens with its own ten seconds of film — a ship in the
+     rocks, which is what the next ninety are. Only on the way IN: the legs
+     restart themselves constantly, and those go straight to FLIGHT.start()
+     without passing through here. */
+  if(id==='flight'){
+    if(window.INTRO) INTRO.play(()=>FLIGHT.start(0),
+      { id:'flight', title:'SPACE EXPLORER' });
+    else FLIGHT.start(0);
+    return;
+  }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
   G.hudOwner='mission';
   G.missionId=id;

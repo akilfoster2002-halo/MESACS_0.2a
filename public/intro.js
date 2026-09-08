@@ -1,11 +1,17 @@
 /* =====================================================================
-   INTRO — ten seconds of film before the first landing.
+   INTRO — ten seconds of film in front of Space Explorer.
 
-   A student arriving at a game wants to know three things in the first
-   minute: what is this, what do I do, and what am I looking at. A menu
-   can only answer the first. So this answers all three while something
-   is happening: a ship running an asteroid field, cut four ways, with
-   one line of the answer over each cut.
+   It opens the mission it is about. A ship running an asteroid field is
+   not a picture of "a coding game", it is a picture of THIS one: nine
+   lanes, a wall of rock every beat, and a program written before the
+   engine starts. Put in front of the sign-in it was a nice ten seconds
+   about nothing in particular; put here it is the briefing, and every
+   line of it is about the thing that starts the moment it ends.
+
+   A student about to fly wants three things: what is coming at me, what
+   am I supposed to do about it, and when. So it answers all three while
+   something is happening — cut four ways, with one line of the answer
+   over each cut.
 
    WHY FOUR CAMERAS AND NOT ONE. A single locked shot of a ship going
    forward is a screensaver. Cutting — behind it, alongside it, straight
@@ -14,9 +20,10 @@
    cut lands on a new sentence so the words and the pictures change
    together.
 
-   IT IS SKIPPABLE ON ANY KEY, and it plays once per visit rather than
-   every time you come back from a mission. A cinematic you cannot get
-   out of is a cinematic a class watches thirty times in one lesson.
+   IT IS SKIPPABLE ON ANY KEY, and it plays once a visit rather than on
+   every attempt — the legs restart constantly, and a cinematic in front
+   of a retry is a cinematic a class learns to hammer through. A student
+   who wants it again gets it by coming back to the mission.
 
    It borrows the game's own renderer and its own scene group, so there
    is no second canvas and nothing to tear down but a group and a
@@ -36,16 +43,27 @@ window.INTRO = (function(){
 
   /* Each cut, when it lands, and what is said over it. Two and a half
      seconds is about as long as one line of this can hold. */
-  const SHOTS=[
-    { at:0.0,  cap:'This is KORO. You fly in, you land, and everything on it runs on code.' },
-    { at:2.6,  cap:'You do not type it. You snap blocks together, and press RUN.' },
-    { at:5.2,  cap:'Every mission teaches one idea. Loops. Choices. Functions.' },
-    { at:7.8,  cap:'Then take your code to the arena, against somebody else’s.' }
+  const FLIGHT_SHOTS=[
+    { at:0.0,  cap:'Nine lanes. A wall of rock across every one of them but one.' },
+    { at:2.6,  cap:'You do not fly it. You write the moves first — blocks, not typing.' },
+    { at:5.2,  cap:'Then RUN, and the clock takes over. One block, one wall.' },
+    { at:7.8,  cap:'Miss, and you are back on the start line. Change a block, go again.' }
   ];
+  let SHOTS=FLIGHT_SHOTS, TITLE='SPACE EXPLORER';
   const END=10.6;
+  const seen={};
 
-  function play(after){
+  /* `opts.id` is what "once" is counted against, so a second film later on
+     is not silenced by this one having played. */
+  function play(after, opts){
     if(on) return;
+    opts=opts||{};
+    if(opts.id){
+      if(seen[opts.id]){ if(after) after(); return; }
+      seen[opts.id]=true;
+    }
+    SHOTS=opts.shots||FLIGHT_SHOTS;
+    TITLE=opts.title||'SPACE EXPLORER';
     done=after||null;
     on=true; clock=0; shot=-1;
     G.running=false;
@@ -110,7 +128,8 @@ window.INTRO = (function(){
       new THREE.MeshBasicMaterial({color:0x8ff0ff, transparent:true, opacity:0.16,
         side:THREE.BackSide, depthWrite:false, fog:false}));
     koro.add(halo);
-    koro.position.set(34,-46,-560);
+    koro.position.set(38,-74,-640);
+    koro.visible=false;
     group.add(koro);
 
     // the ship they own, at a size that reads against a rock
@@ -172,7 +191,7 @@ window.INTRO = (function(){
       <div class="in-bar top"></div>
       <div class="in-bar bottom"></div>
       <div class="in-cap" id="inCap"></div>
-      <div class="in-title" id="inTitle">KORO</div>
+      <div class="in-title" id="inTitle">${t_(TITLE)}</div>
       <button class="in-skip" id="inSkip">${t_('SKIP ▶')}</button>
       <div class="in-fade" id="inFade"></div>`;
     $('#inSkip').onclick=finish;
@@ -204,7 +223,13 @@ window.INTRO = (function(){
     if(stars) stars.position.z = (stars.position.z + v*0.12) % 300;
     koro.rotation.y += dt*0.05;
     // the planet comes up on the last cut, so it is arriving rather than parked
-    koro.position.z = -560 + Math.max(0, clock-4.5)*30;
+    /* KORO belongs to the last cut and only to it. Taking it out of the fog
+       so it could be seen at all also meant it could be seen from the first
+       frame, sitting behind the ship for the whole film and giving away the
+       one thing the closing shot has to reveal. It arrives on the cut, and
+       the black flash on the cut is what covers its arrival. */
+    koro.visible = clock >= SHOTS[SHOTS.length-1].at - 0.05;
+    koro.position.z = -640 + Math.max(0, clock-SHOTS[SHOTS.length-1].at)*75;
   }
   /* The ship weaves a little and banks into the weave, which is the whole
      difference between flying and being dragged along on a wire. */
@@ -302,5 +327,5 @@ window.INTRO = (function(){
     if(go) go();
   }
 
-  return { play, tick, skip:finish, get active(){ return on; }, END };
+  return { play, tick, skip:finish, get active(){ return on; }, END, FLIGHT_SHOTS };
 })();

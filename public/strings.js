@@ -374,16 +374,16 @@ window.ES = {
     'El Gimnasio necesita el servidor — inicia sesión y elige una sala para pelear.',
   'The Gym said no.':'El Gimnasio dijo que no.',
 
-  /* the ten seconds before the first landing */
-  'SKIP ▶':'SALTAR ▶',
-  'This is KORO. You fly in, you land, and everything on it runs on code.':
-    'Esto es KORO. Vuelas, aterrizas, y todo aquí funciona con código.',
-  'You do not type it. You snap blocks together, and press RUN.':
-    'No lo escribes. Encajas bloques y presionas CORRER.',
-  'Every mission teaches one idea. Loops. Choices. Functions.':
-    'Cada misión enseña una idea. Bucles. Decisiones. Funciones.',
-  'Then take your code to the arena, against somebody else\u2019s.':
-    'Luego lleva tu código a la arena, contra el de alguien más.',
+  /* the ten seconds in front of Space Explorer */
+  'SKIP ▶':'SALTAR ▶','SPACE EXPLORER':'EXPLORADOR ESPACIAL',
+  'Nine lanes. A wall of rock across every one of them but one.':
+    'Nueve carriles. Un muro de roca en todos menos uno.',
+  'You do not fly it. You write the moves first — blocks, not typing.':
+    'No lo pilotas. Escribes los movimientos primero — bloques, no teclado.',
+  'Then RUN, and the clock takes over. One block, one wall.':
+    'Luego CORRER, y manda el reloj. Un bloque, un muro.',
+  'Miss, and you are back on the start line. Change a block, go again.':
+    'Si fallas, vuelves a la línea de salida. Cambia un bloque y otra vez.',
 
   /* ---------------------------------------------------- the mecha arena
      A different sport from the league next door: you drive and your code
