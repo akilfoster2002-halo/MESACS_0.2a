@@ -128,7 +128,9 @@ window.MECHA = (function(){
     const R=AR().RULES.radius;
     const floor=new THREE.Mesh(new THREE.CylinderGeometry(R, R, 1, 64),
       new THREE.MeshLambertMaterial({color:0x2b2444}));
-    floor.position.y=-0.5; floor.userData.flat=true; world.add(floor);
+    floor.position.y=-0.5; floor.userData.flat=true;
+    floor.receiveShadow=true;                 // what the mechas stand on
+    world.add(floor);
     // a ring of plates, so the floor has a scale you can count in
     for(let i=0;i<24;i++){
       const a=i/24*Math.PI*2;
@@ -151,9 +153,24 @@ window.MECHA = (function(){
         new THREE.MeshBasicMaterial({color:0x8ff0ff}));
       l.position.set(Math.sin(a)*(R+0.4), 5.4, Math.cos(a)*(R+0.4)); world.add(l);
     }
-    world.add(new THREE.AmbientLight(0xb9a8ff, 0.42));
-    const key=new THREE.DirectionalLight(0xffffff, 0.8);
-    key.position.set(20,40,15); world.add(key);
+    world.add(new THREE.AmbientLight(0xb9a8ff, 0.38));
+    /* A shadow is what puts a thing ON a floor rather than in front of
+       one. The box only has to cover the arena, so it can be tight enough
+       for the shadows to be sharp — and this is the one room in the game
+       where two objects are all that ever cast. */
+    const key=new THREE.DirectionalLight(0xffffff, 0.95);
+    key.position.set(16,34,12);
+    key.castShadow=true;
+    key.shadow.mapSize.set(1024,1024);
+    const sc=key.shadow.camera;
+    sc.left=-R-4; sc.right=R+4; sc.top=R+4; sc.bottom=-R-4; sc.near=1; sc.far=90;
+    sc.updateProjectionMatrix();
+    key.shadow.bias=-0.0006; key.shadow.normalBias=0.4;
+    world.add(key); world.add(key.target);
+    /* And a cold one from the other side, so the shadowed half of a mecha
+       is still a colour rather than a hole. */
+    const fill=new THREE.DirectionalLight(0x8fa8ff, 0.35);
+    fill.position.set(-18,10,-14); world.add(fill);
 
     bots={ A:mech(mySide==='A'?SIDE_ME:SIDE_YOU), B:mech(mySide==='B'?SIDE_ME:SIDE_YOU) };
     world.add(bots.A.g); world.add(bots.B.g);
@@ -162,43 +179,195 @@ window.MECHA = (function(){
 
   /* A mecha, out of boxes, with shoulders that actually turn — the punch
      you see is the punch the simulation is running, read off its state. */
+  /* A MECHA WITH JOINTS, because everything the simulation knows about it
+     should be visible on it.
+
+     The old one was a torso, two legs that never moved and an arm on a
+     shoulder pivot. It could show you a punch and nothing else — so a
+     student whose left arm had been destroyed, whose legs were wrecked,
+     who was mid-block or being thrown across the floor saw the same box
+     either way, and had to read all of it off a bar chart.
+
+     Every joint here is driven by state that already exists: shoulders
+     and elbows from what each arm is doing, hips and knees from how fast
+     the thing is actually travelling, the whole body from hitstun and
+     from how much core is left. A destroyed arm hangs and stops being
+     part of the fight. Wrecked legs limp. A dying core smokes. None of
+     that is decoration — it is the damage model, drawn.
+
+     Boxes throughout, deliberately. This game is Kenney-blocky
+     everywhere else, and a smooth mecha would look like it wandered in
+     from another game. */
   function mech(colour){
     const g=new THREE.Group();
-    const body=new THREE.MeshLambertMaterial({color:new THREE.Color(colour),
-      emissive:new THREE.Color(colour).multiplyScalar(0.22)});
-    const trim=new THREE.MeshLambertMaterial({color:0x2f2748});
-    const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m||body);
+    const hull=new THREE.MeshLambertMaterial({color:new THREE.Color(colour),
+      emissive:new THREE.Color(colour).multiplyScalar(0.20)});
+    const dark=new THREE.MeshLambertMaterial({color:0x2a2440});
+    const trim=new THREE.MeshLambertMaterial({color:0x4a4370});
+    const box=(w,h,d,m)=>{
+      const x=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m||hull);
+      x.castShadow=true; return x;
+    };
+    /* A pivot is a joint: an empty at the point the limb turns about,
+       with the limb hung underneath it. Rotating the pivot swings
+       everything below, which is the whole trick. */
+    const joint=(x,y,z,parent)=>{
+      const j=new THREE.Group(); j.position.set(x,y,z); (parent||g).add(j); return j;
+    };
 
-    const torso=box(2.0,2.0,1.3); torso.position.y=2.5; g.add(torso);
-    const hip=box(1.6,0.7,1.2,trim); hip.position.y=1.4; g.add(hip);
-    const head=box(0.9,0.7,0.9,trim); head.position.set(0,3.6,0); g.add(head);
-    const eye=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.16,0.08),
+    // ---- body
+    const body=joint(0,0,0);                 // leans and recoils as one piece
+    const torso=box(2.1,1.9,1.35); torso.position.y=2.75; body.add(torso);
+    const chest=box(1.5,0.6,0.35,trim); chest.position.set(0,3.2,0.72); body.add(chest);
+    const vent=box(1.7,0.18,0.2,dark); vent.position.set(0,2.15,0.7); body.add(vent);
+    const hipBlock=box(1.5,0.65,1.15,dark); hipBlock.position.y=1.75; body.add(hipBlock);
+    const neck=box(0.5,0.3,0.5,dark); neck.position.y=3.8; body.add(neck);
+    const head=box(1.05,0.75,0.95,trim); head.position.y=4.2; body.add(head);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.2,0.1),
       new THREE.MeshBasicMaterial({color:0x8ff0ff}));
-    eye.position.set(0,3.65,0.47); g.add(eye);
-    // legs
-    [-1,1].forEach(s=>{
-      const l=box(0.62,1.5,0.7,trim); l.position.set(s*0.45,0.75,0); g.add(l);
-    });
-    // arms, each on its own shoulder pivot so it can swing
+    visor.position.set(0,4.24,0.5); body.add(visor);
+
+    // ---- arms: shoulder → upper → elbow → forearm → fist
     const arms={};
-    [['left_arm',-1],['right_arm',1]].forEach(([id,s])=>{
-      const piv=new THREE.Group();
-      piv.position.set(s*1.25, 3.1, 0);
-      const upper=box(0.6,1.7,0.6); upper.position.y=-0.85; piv.add(upper);
-      const fist=box(0.75,0.6,0.85,trim); fist.position.y=-1.85; piv.add(fist);
-      g.add(piv);
-      arms[id]={ piv, pose:0, want:0 };
+    [['left_arm',-1],['right_arm',1]].forEach(([id,side])=>{
+      const shoulder=joint(side*1.35, 3.35, 0, body);
+      const pad=box(0.85,0.7,0.9); pad.position.y=-0.1; shoulder.add(pad);
+      const upper=box(0.55,1.15,0.55,trim); upper.position.y=-0.85; shoulder.add(upper);
+      const elbow=joint(0,-1.4,0, shoulder);
+      const fore=box(0.62,1.15,0.62); fore.position.y=-0.6; elbow.add(fore);
+      const fist=box(0.85,0.7,0.9,dark); fist.position.y=-1.35; elbow.add(fist);
+      /* The guard is on the ARM that is guarding. A bubble round the whole
+         mecha said "blocking" without saying with what, and it sat over
+         the one pose worth looking at — the forearm coming up across the
+         face. This is a plate on that forearm, so which side is covered
+         is a thing you can see and therefore a thing you can walk around. */
+      const shield=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.7,0.14),
+        new THREE.MeshBasicMaterial({color:0x8fd3ff, transparent:true, opacity:0.34,
+          depthWrite:false}));
+      shield.position.set(0,-0.75,0.55); shield.visible=false; elbow.add(shield);
+      const parts=[pad,upper,fore,fist];
+      arms[id]={ shoulder, elbow, shield, sPose:0, ePose:0.25, sWant:0, eWant:0.25,
+                 side, gone:false, parts,
+                 // what it looked like before it was wrecked: a round ends and
+                 // the arm comes back, and it has to come back its own colour
+                 mats:parts.map(p=>p.material) };
     });
-    const ring=new THREE.Mesh(new THREE.RingGeometry(1.6,2.1,28),
+
+    // ---- legs: hip → thigh → knee → shin → foot
+    const legs=[];
+    [-1,1].forEach(side=>{
+      const hip=joint(side*0.62, 1.65, 0, body);
+      const thigh=box(0.72,1.0,0.8,trim); thigh.position.y=-0.5; hip.add(thigh);
+      const knee=joint(0,-1.0,0, hip);
+      const shin=box(0.62,0.95,0.7); shin.position.y=-0.5; knee.add(shin);
+      const foot=box(0.8,0.32,1.15,dark); foot.position.set(0,-1.05,0.16); knee.add(foot);
+      legs.push({ hip, knee, side, hPose:0, kPose:0 });
+    });
+
+    // ---- the floor ring that says whose it is, readable from overhead
+    const ring=new THREE.Mesh(new THREE.RingGeometry(1.7,2.2,28),
       new THREE.MeshBasicMaterial({color:new THREE.Color(colour), transparent:true,
         opacity:0.7, side:THREE.DoubleSide}));
     ring.rotation.x=-Math.PI/2; ring.position.y=0.05; ring.userData.flat=true; g.add(ring);
-    const guard=new THREE.Mesh(new THREE.SphereGeometry(2.6,18,12),
-      new THREE.MeshBasicMaterial({color:0x8fd3ff, transparent:true, opacity:0.18,
-        depthWrite:false}));
-    guard.position.y=2.2; guard.visible=false; g.add(guard);
-    return { g, arms, guard, at:null };
+
+    /* Smoke for a core that is nearly gone. Made once and parked, because
+       a mecha that starts allocating puffs in the last ten seconds of a
+       round is a mecha that stutters exactly when it matters. */
+    const smoke=[];
+    for(let i=0;i<7;i++){
+      const puff=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5),
+        new THREE.MeshBasicMaterial({color:0x6b6274, transparent:true, opacity:0}));
+      puff.userData.t=i/7; body.add(puff); smoke.push(puff);
+    }
+    return { g, body, arms, legs, smoke, at:null, walk:0, lean:0, hurt:0 };
   }
+
+  /* ---------------------------------------------------------- posing
+     Every number below comes from the snapshot. Nothing here decides
+     anything about the fight; it only draws what the fight already is. */
+  const ARM_POSE={
+    //                 shoulder   elbow      what it reads as
+    idle   :{ s: 0.10, e: 0.30 },      // hanging, slightly bent
+    wind   :{ s:-0.75, e: 1.55 },      // cocked back, elbow folded
+    act    :{ s:-1.45, e: 0.06 },      // thrown, arm straight out
+    rec    :{ s:-0.45, e: 0.75 },      // coming back
+    block  :{ s:-1.15, e: 1.85 },      // forearm across the face
+    windh  :{ s:-1.25, e: 1.75 },      // a heavy winds up further
+    acth   :{ s:-1.70, e: 0.02 }       // and lands with everything
+  };
+  function pose(b, s, dt, mine){
+    const hurt = s.st>0;                       // being thrown about
+    const stopped = s.fz>0;                    // the world is frozen
+    const speed = b.speed||0;
+
+    // ---- arms
+    ['left_arm','right_arm'].forEach(id=>{
+      const arm=b.arms[id];
+      const hp = id==='left_arm' ? s.p.la : s.p.ra;
+      const raw = (id==='left_arm' ? s.a.l : s.a.r).split(':');
+      const state=raw[0], act=raw[1];
+      let key = act==='block' ? 'block'
+              : state==='wind' ? (act==='heavy'?'windh':'wind')
+              : state==='act'  ? (act==='heavy'?'acth':'act')
+              : state==='rec'  ? 'rec' : 'idle';
+      if(hp<=0){
+        // dead weight: it hangs, and it swings a little as the body moves
+        arm.sWant=0.25+Math.sin(b.walk)*0.12; arm.eWant=0.15;
+        if(!arm.gone){ arm.gone=true; arm.parts.forEach(p=>p.material=DEAD); }
+      } else {
+        // three rounds a match, and every round hands the arms back
+        if(arm.gone){ arm.gone=false; arm.parts.forEach((p,i)=>p.material=arm.mats[i]); }
+        const P=ARM_POSE[key];
+        arm.sWant=P.s; arm.eWant=P.e;
+        // walking swings the arms that are not doing anything
+        if(key==='idle') arm.sWant += Math.sin(b.walk+(arm.side>0?Math.PI:0))*Math.min(0.5,speed*0.07);
+      }
+      const k=Math.min(1, dt*(stopped?0:22));   // frozen means frozen, here too
+      arm.sPose += (arm.sWant-arm.sPose)*k;
+      arm.ePose += (arm.eWant-arm.ePose)*k;
+      arm.shoulder.rotation.x=arm.sPose;
+      arm.elbow.rotation.x=arm.ePose;
+      arm.shield.visible = hp>0 && key==='block';
+      if(arm.shield.visible)
+        arm.shield.material.opacity=0.26+0.12*Math.sin(performance.now()*0.008);
+    });
+
+    // ---- legs: a walk cycle driven by how fast it is actually travelling
+    if(!stopped) b.walk += dt*(2.2 + speed*1.15);
+    const legHp=Math.max(0, s.p.lg)/100;
+    const stride=Math.min(0.85, speed*0.12) * (0.45+0.55*legHp);
+    b.legs.forEach(L=>{
+      const ph=b.walk + (L.side>0?Math.PI:0);
+      L.hPose += ((Math.sin(ph)*stride) - L.hPose)*Math.min(1, dt*16);
+      // the knee only bends on the back half of the stride, or it looks like wading
+      const bend=Math.max(0, -Math.cos(ph))*stride*1.4 + (legHp<0.5?0.25:0);
+      L.kPose += (bend - L.kPose)*Math.min(1, dt*16);
+      L.hip.rotation.x=L.hPose;
+      L.knee.rotation.x=L.kPose;
+    });
+
+    // ---- the body: lean into the walk, recoil when hit, sag when dying
+    b.hurt += ((hurt?1:0)-b.hurt)*Math.min(1, dt*(hurt?26:6));
+    const core=Math.max(0, s.p.co)/200;
+    const sag=(1-core)*0.18;
+    b.lean += ((Math.min(0.16, speed*0.02) + sag) - b.lean)*Math.min(1, dt*8);
+    b.body.rotation.x = b.lean - b.hurt*0.42;
+    b.body.rotation.z = Math.sin(b.walk)*0.045 + (b.hurt*0.2*(b.arms.left_arm.side));
+    b.body.position.y = Math.abs(Math.sin(b.walk))*0.09 - b.hurt*0.18;
+
+    // ---- smoke, once the core is in trouble
+    const smoking = core<0.45;
+    b.smoke.forEach((puff,i)=>{
+      if(!smoking){ puff.material.opacity=0; return; }
+      puff.userData.t=(puff.userData.t+dt*(0.5+0.4*i/7))%1;
+      const t=puff.userData.t;
+      puff.position.set((i%2?0.5:-0.4)+Math.sin(t*6+i)*0.3, 3.4+t*3.2, -0.3-t*0.4);
+      puff.scale.setScalar(0.5+t*1.5);
+      puff.material.opacity=(1-core)*0.5*(1-t);
+    });
+
+  }
+  const DEAD=new THREE.MeshLambertMaterial({color:0x3a3448});
 
   /* ==================================================== the network side */
   function fromServer(m){
@@ -334,25 +503,22 @@ window.MECHA = (function(){
         b.g.position.x += (x-b.g.position.x)*k;
         b.g.position.z += (z-b.g.position.z)*k;
       }
+      /* How fast it is actually crossing the floor, smoothed — the legs
+         are driven by this rather than by the keys, so a mecha being
+         thrown backwards runs its legs backwards too. */
+      const moved=Math.hypot(b.g.position.x-(b.wasX||b.g.position.x),
+                             b.g.position.z-(b.wasZ||b.g.position.z));
+      b.wasX=b.g.position.x; b.wasZ=b.g.position.z;
+      const v=moved/Math.max(dt,0.001);
+      b.speed=(b.speed||0)+(v-(b.speed||0))*Math.min(1,dt*9);
+
       let d=s.yaw-b.g.rotation.y;
       d=Math.atan2(Math.sin(d),Math.cos(d));
       b.g.rotation.y += d*Math.min(1, dt*16);
 
-      // the arms, read straight off what each one is doing
-      ['left_arm','right_arm'].forEach(id=>{
-        const st=(id==='left_arm'?s.a.l:s.a.r).split(':');
-        const arm=b.arms[id];
-        arm.want = st[1]==='block' ? -1.5
-                 : st[0]==='wind'  ? 0.7
-                 : st[0]==='act'   ? -1.35
-                 : st[0]==='rec'   ? -0.5 : 0;
-        arm.pose += (arm.want-arm.pose)*Math.min(1, dt*18);
-        arm.piv.rotation.x = arm.pose;
-      });
-      const guarding = /block/.test(s.a.l+s.a.r);
-      b.guard.visible = guarding;
-      // a mecha with nothing left stands broken
-      b.g.scale.setScalar(s.p.co<=0 ? 0.85 : 1);
+      pose(b, s, dt, mine);
+      // a mecha with nothing left drops where it stands
+      b.g.scale.setScalar(s.p.co<=0 ? 0.9 : 1);
     });
   }
   /* Over your own shoulder. The camera follows where you are LOOKING,
@@ -472,15 +638,19 @@ window.MECHA = (function(){
 
   /* -------------------------------------------------------- the extras */
   function hitFx(pos, dmg, note){
-    const big=Math.min(1.6, 0.55+(dmg||0)/18);
-    const m=new THREE.Mesh(new THREE.SphereGeometry(big,12,8),
+    /* A spark, not a dome. Growth is compounded per frame, so a sphere
+       that looks modest for one frame ends up five times its own size by
+       the end of its life whatever the frame rate — the first version of
+       this swallowed both mechas. Small, brief, and it grows by half. */
+    const big=Math.min(0.85, 0.3+(dmg||0)/40);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(big,10,8),
       new THREE.MeshBasicMaterial({color: note==='blocked'?0x8fd3ff:0xffe9a8,
-        transparent:true, opacity:0.9}));
+        transparent:true, opacity:0.95}));
     m.position.set(pos.x, 2.6, pos.z); world.add(m);
-    fx.push({ m, life: note==='blocked'?0.25:0.4, grow:true });
+    fx.push({ m, life: note==='blocked'?0.18:0.26, grow:1.6 });
     // scrap: a few chips thrown off the side that was hit
     if(note!=='blocked') for(let i=0;i<4;i++){
-      const c=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.22),
+      const c=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.17,0.17),
         new THREE.MeshBasicMaterial({color:0xffd8a8, transparent:true, opacity:0.95}));
       c.position.set(pos.x+(Math.random()-0.5), 2.4+Math.random(), pos.z+(Math.random()-0.5));
       world.add(c);
@@ -491,7 +661,7 @@ window.MECHA = (function(){
   function stepFx(dt){
     for(let i=fx.length-1;i>=0;i--){
       const f=fx[i]; f.life-=dt;
-      if(f.grow) f.m.scale.multiplyScalar(1+dt*4);
+      if(f.grow) f.m.scale.multiplyScalar(1+dt*f.grow);
       if(f.vx!==undefined){                     // thrown scrap, falling
         f.m.position.x+=f.vx*dt; f.m.position.y+=f.vy*dt; f.m.position.z+=f.vz*dt;
         f.vy-=26*dt;

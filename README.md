@@ -112,6 +112,14 @@ player — closing the distance again is the driver's job, not the program's.
 Those three ideas come from reading [SlopArena](https://github.com/Binoui/SlopArena) (MIT,
 © MPXXV), which is a Unity game in C# and shares no code with this one.
 
+**The damage model is drawn, not just charted.** The mecha is a rig — shoulders, elbows, hips,
+knees — and every joint is driven by state the simulation already has. The legs run a walk cycle
+off how fast it is really crossing the floor, so a mecha being thrown backwards runs its legs
+backwards. A destroyed arm turns dead grey and hangs. Wrecked legs shorten the stride and leave
+the knees bent. A core under half smokes, and the body sags with it. Whichever arm is blocking is
+the one holding the shield plate, so which side is covered is something you can see and therefore
+something you can walk around.
+
 `MECHAARENA.RULES` holds every number a fight is played by; `MECHACODE` holds the events,
 sensors and actions the palette is built from. Adding a sensor is a row in one of them.
 
