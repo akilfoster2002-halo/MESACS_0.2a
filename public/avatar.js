@@ -68,7 +68,13 @@ window.AVATAR = (function(){
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const h = box.max.y - box.min.y;
-    if(h > 0.1) root.scale.setScalar(TALL / h);
+    /* Any positive height is a height. The old floor of 0.1 was there to
+       dodge a divide by zero and instead became a silent way to fail: a
+       model that arrives a hundredth of a unit tall — which is exactly
+       what comes back from FBX — fell under it, was left unscaled, and
+       rendered as an invisible speck with no error anywhere. */
+    if(h > 1e-6) root.scale.setScalar(TALL / h);
+    else console.warn('character has no height, cannot scale:', id);
     root.userData.rig = rig(root, g.animations||[]);
     return root;
   }
