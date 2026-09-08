@@ -12,9 +12,13 @@ window.AVATAR = (function(){
   // order matters: chars.js unlocks the first FREE of these. Nia is moved up
   // so the four starting characters aren't all boys/bots — Cato slides back
   // to fifth, ready to unlock first once PER_MISSION rewards are turned on.
-  const IDS = 'abndcefghijklmopqr'.split('');
+  /* Kyle leads: he is the character this game is about, so he is the one
+     you are unless you go to the Wardrobe and say otherwise. The rest keep
+     the order they had. */
+  const IDS = 'sabndcefghijklmopqr'.split('');
   // a name each, initial matching the file, so nobody is "Character G"
-  const NAMES = { a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
+  const NAMES = { s:'Kyle',
+                  a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
                   g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',
                   m:'Mo',  n:'Nia', o:'Ozzy', p:'Pip', q:'Quinn', r:'Rae' };
   const CHARS = IDS.map(c=>({ id:c, name:NAMES[c] || ('Character '+c.toUpperCase()),
@@ -44,8 +48,21 @@ window.AVATAR = (function(){
     const g = await new Promise((res,rej)=>
       loader.parse(buf.slice(0), BASE, res, rej));
     const root = g.scene;
-    root.traverse(o=>{ if(o.isMesh){ o.castShadow=false; o.receiveShadow=false; o.frustumCulled=false; } });
+    root.traverse(o=>{ if(o.isMesh){ o.castShadow=false; o.receiveShadow=false; o.frustumCulled=false; }
+      /* a model that carries its colour in the mesh rather than in a
+         texture has to be told to use it */
+      if(o.isMesh && o.geometry.attributes.color){ o.material.vertexColors=true;
+                                                   o.material.needsUpdate=true; } });
     // the kit models at its own scale — stand everyone the same height
+    /* MEASURE THE WORLD, NOT THE INTENTION. setFromObject reads each
+       child's matrixWorld, and straight out of the loader those are all
+       identity — so any scale sitting on the model's own root node is not
+       counted and the height comes back wrong. The kit models happen to
+       carry no root scale, which is why this never showed; a model that
+       has been through FBX comes back a hundredth of its size with the
+       correction on the root, and without this it is normalised from the
+       wrong number. */
+    root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const h = box.max.y - box.min.y;
     if(h > 0.1) root.scale.setScalar(TALL / h);
@@ -133,8 +150,10 @@ window.AVATAR = (function(){
   let chosen = null;
   try{ chosen = localStorage.getItem('dq_char'); }catch(e){}
   if(!chosen || !CHARS.some(c=>c.id===chosen)){
-    const pool=CHARS.slice(0, Math.min(FREE_AT_START, CHARS.length));
-    chosen = pool[Math.floor(Math.random()*pool.length)].id;
+    /* Not a random one of the free four any more. There is a main
+       character now, and being handed somebody else on your first run
+       made the Wardrobe a chore before it was a choice. */
+    chosen = CHARS[0].id;
     try{ localStorage.setItem('dq_char', chosen); }catch(e){}
   }
   function pick(id){
