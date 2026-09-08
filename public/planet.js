@@ -253,7 +253,7 @@ window.PLANET = (function(){
     G.solids=[]; G.hits=[]; G.selected=null; G.focused=null; G.ceiling=null;
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
-    statues=[]; ada=null; bays=[]; spinners=[]; purseFace=null; padShip=null; padB=null;
+    statues=[]; ada=null; bays=[]; purseFace=null; padShip=null; padB=null;
     mannequins=[]; flies=null; beasts=[]; sparkTex=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
@@ -1547,33 +1547,32 @@ window.PLANET = (function(){
     const spill=new THREE.PointLight(0xdfe9ff, 110, 40, 1.5);
     spill.position.set(0, 5, hd-4); g.add(spill);
     const floorPaint=new THREE.MeshLambertMaterial({color:0x3b3128});
-    // cars down the left-hand wall, each on its own painted bay
+    /* Cars down the middle now rather than along the left wall. With the
+       ships gone the right-hand half was bare floor, which reads as a room
+       that has lost something rather than one built this way. */
     SHOP.CARS.forEach((c,i)=>{
-      const x=-hw+9, z=-hd+7+i*6.4;
+      const x=-2, z=-hd+7+i*6.4;
       const mark=new THREE.Mesh(new THREE.BoxGeometry(6.2,0.08,4.6), floorPaint);
       mark.position.set(x,0.13,z); mark.userData.flat=true; g.add(mark);
       bayPanel(g, b, x-5.4, z, Math.PI/2, 'car', c);
       loadCar(c, g, x, z);
     });
-    // ships down the right, up on plinths where you can see under them
-    SHOP.SHIPS.forEach((sp,i)=>{
-      const x=hw-8, z=-hd+6+i*5.0;
-      const col=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.9,2.2,10),
-        new THREE.MeshLambertMaterial({color:0x6d6152}));
-      col.position.set(x,1.1,z); g.add(col);
-      const m=SHOP.model(sp);
-      m.position.set(x, 3.4, z); m.scale.setScalar(1.5); m.rotation.y=-Math.PI/2;
-      g.add(m);
-      spinners.push(m);
-      bayPanel(g, b, x+5.2, z, -Math.PI/2, 'ship', sp);
-    });
+    /* NO SHIPS DOWN THE RIGHT ANY MORE. They were sold twice — here on
+       plinths and again in the Mall — and the Mall is where they belong,
+       beside the character who flies them. Cars stay, because this is the
+       only place that sells them.
+
+       It was never only about tidiness. A ship is a real model now rather
+       than five boxes, and five of them turning on plinths were seventy-
+       seven thousand triangles standing in a room most of whose visitors
+       came to look at a car. */
     // and a purse on the wall, so you can see what you have to spend
     const purse=panel(g, b, 0, -hd+3.4, '◆',
       t('YOUR COINS'), 'purse', '#2a2013', 0.7, 0);
     purseFace=purse.userData.glow;
     refreshPurse();
   }
-  let purseFace=null, spinners=[];
+  let purseFace=null;
   function refreshPurse(){
     if(!purseFace || !window.WALLET) return;
     if(purseFace.material.map) purseFace.material.map.dispose();
@@ -2393,7 +2392,6 @@ window.PLANET = (function(){
     sunAt();
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
-    spinners.forEach(m=>{ m.rotation.y += 0.55*dt; });
     mallTick(dt);
     flyTick(dt); beastTick(dt);
     adaTick(dt);
