@@ -95,8 +95,64 @@ window.SHOP = (function(){
      else, which was fine while the only place you ever saw your ship was
      from behind it — but a showroom that sold you a different shape from the
      one you flew would be a lie told in three dimensions. */
+  /* THE SHIP IS A MODEL NOW, not five boxes. One file, tinted per hull —
+     glTF multiplies the vertex colours by the material colour, so the gold
+     and the blue canopy survive and each ship in the shop still reads as
+     its own. The Dart's hull is nearly white, so the one you start with is
+     the ship exactly as it was painted.
+
+     It is loaded ONCE and cloned, and the group comes back empty and fills
+     in when the file lands — every caller here adds the result to a scene
+     immediately and none of them can wait. The primitives are still below
+     as the fallback: a lab machine that cannot fetch the model gets the
+     old blocky ship rather than an invisible one. */
+  const SHIP_FILE='ships/ship.glb';
+  const SHIP_LEN=2.8;                 // about as long as the boxes it replaces
+  let shipReq=null;
+  function shipProto(){
+    if(shipReq) return shipReq;
+    shipReq=new Promise((res,rej)=>{
+      new THREE.GLTFLoader().load(SHIP_FILE+'?v='+(window.ASSETV||'1'),
+        g=>res(g.scene), undefined, rej);
+    });
+    return shipReq;
+  }
   function model(k){
     const K=k||ship();
+    const g=new THREE.Group();
+    /* The engine flare belongs to the group, not to the model: flight.js
+       reaches for userData.glow the moment it has a ship, and it cannot be
+       waiting on a download to find it. */
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),
+      new THREE.MeshBasicMaterial({color:0x8ff0ff, transparent:true, opacity:0.85}));
+    glow.position.z=0.92; glow.scale.z=1.7; g.add(glow);
+    g.userData.glow=glow;
+    /* `glow` alone does not mean "ship" — the planet's doors and panels
+       carry one too, for the look-at highlight. This says what it is. */
+    g.userData.isShip=true;
+    shipProto().then(proto=>{
+      const o=proto.clone(true);
+      o.traverse(m=>{ if(!m.isMesh) return;
+        m.material=m.material.clone();
+        m.material.vertexColors=true;
+        m.material.color.setHex(K.hull);         // the shop's tint, over the paint
+        m.frustumCulled=false;
+      });
+      /* The file was authored nose-forward down +Z; every ship in this game
+         flies down -Z, so it is turned here rather than in the asset. */
+      const spin=new THREE.Group(); spin.add(o); spin.rotation.y=Math.PI;
+      spin.updateMatrixWorld(true);
+      const b=new THREE.Box3().setFromObject(spin);
+      const len=(b.max.z-b.min.z)||1;
+      const c=b.getCenter(new THREE.Vector3());
+      o.position.sub(c.clone().applyAxisAngle(new THREE.Vector3(0,1,0), -Math.PI));
+      spin.scale.setScalar(SHIP_LEN/len);
+      g.add(spin);
+    }).catch(()=>{ g.add(boxes(K)); });
+    return g;
+  }
+  /* The old ship, kept as the fallback. */
+  function boxes(K){
     const g=new THREE.Group();
     const hull=new THREE.MeshLambertMaterial({color:K.hull});
     const trim=new THREE.MeshLambertMaterial({color:K.trim});
@@ -109,12 +165,6 @@ window.SHOP = (function(){
       const f=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.5,0.5), trim);
       f.position.set(s*(K.wing*1.12), 0.2, 0.5); g.add(f);
     });
-    // small, and tucked into the tail: a big one sits between the camera and
-    // the ship and is the only thing you can see
-    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),
-      new THREE.MeshBasicMaterial({color:0x8ff0ff, transparent:true, opacity:0.85}));
-    glow.position.z=0.92; glow.scale.z=1.7; g.add(glow);
-    g.userData.glow=glow;
     return g;
   }
   return { SHIPS, CARS, charItems, shipById, carById, ship, car, model,
