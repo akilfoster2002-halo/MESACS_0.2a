@@ -865,7 +865,7 @@ window.FLIGHT = (function(){
       if(!L || L.done || L.gen!==gen){ busy=false; return; }
       if(i>=steps.length){
         busy=false; CODE.highlight(null); CODE.hideTape();
-        if(L.left>0) brief(t('Program finished with {n} target(s) still standing.',{n:L.left}));
+        if(L.left>0) missed();
         return;
       }
       const s=steps[i++];
@@ -875,6 +875,35 @@ window.FLIGHT = (function(){
       act(s, ()=>{ if(!L || L.done || L.gen!==gen){ busy=false; return; }
                    setTimeout(next,50); });
     })();
+  }
+  /* A RANGE YOU DID NOT CLEAR IS A LEG YOU DID NOT PASS, and a leg you did
+     not pass starts again — exactly like flying into a rock does. This used
+     to print one line and stop: the ship stayed parked wherever the program
+     ran out, the targets you did hit stayed shot, the console was still
+     closed from pressing RUN, and nothing on the screen moved again. A
+     child reads that as the game having ended, and they are not wrong to —
+     nothing was going to happen.
+
+     So it says the same three things a crash says: what went wrong, that
+     the range has gone back to the beginning, and what to do about it. Then
+     it puts everything back on the start line and opens the console, which
+     is where the fixing happens. The blocks stay: rewriting a program from
+     scratch is not the lesson, and the one that missed is the one worth
+     reading. */
+  function missed(){
+    const gen=L.gen, n=L.left;
+    brief(t('🎯 {n} target(s) still standing. Back to the start of the range: '+
+            'fix the program, then RUN.',{n}));
+    if(window.beep) beep('bad');
+    setTimeout(()=>{
+      // a newer RUN has taken over, so this attempt's tidying is not wanted
+      if(!L || L.done || L.gen!==gen) return;
+      reset();
+      if(window.CODE){
+        CODE.hideTape(); CODE.highlight(null);
+        if(!CODE.isOpen()) CODE.show();
+      }
+    }, 1500);
   }
   function act(s, done){
     if(s.name==='fire') return fire(done);
