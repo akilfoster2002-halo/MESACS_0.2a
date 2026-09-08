@@ -193,7 +193,7 @@ window.AVATAR = (function(){
     body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
     body.position.copy(pos);
     body.visible=!G.firstPerson;
-    animate(model, dt, onGround===false ? 'static'
+    animate(model, dt, onGround===false ? 'jump'
                      : moving ? (running ? 'sprint' : 'walk') : 'idle');
   }
   function update(dt, moving, running, onGround){
@@ -201,8 +201,13 @@ window.AVATAR = (function(){
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
     body.rotation.y = G.yaw + Math.PI;      // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
-    // the kit has no jump clip, so hold a clean pose while off the ground
-    const clip = onGround===false ? 'static'
+    /* ASK FOR A JUMP AND TAKE WHAT YOU GET. play() leaves the current clip
+       alone when it cannot find the name, so a character with a jump plays
+       it and one without carries on with whatever it was doing — which is
+       exactly the clean held pose the kit characters have always used.
+       Naming a clip nobody has was the old way of saying the same thing;
+       naming the real one costs them nothing and pays whoever has it. */
+    const clip = onGround===false ? 'jump'
                : moving ? (running ? 'sprint' : 'walk') : 'idle';
     animate(model, dt, clip);
   }
