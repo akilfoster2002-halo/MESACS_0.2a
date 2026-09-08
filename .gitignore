@@ -10,3 +10,9 @@ glb files/*.glb
 glb files/*.obj
 glb files/rig/
 animations/
+
+# Source art, not runtime. The game only ever loads from public/ — these are
+# the original Kenney downloads the served copies were cut from, and they
+# stay on disk for whoever needs to cut another one.
+kenney_*/
+"glb files"/
