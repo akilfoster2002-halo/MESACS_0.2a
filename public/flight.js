@@ -885,15 +885,22 @@ window.FLIGHT = (function(){
      nothing was going to happen.
 
      So it says the same three things a crash says: what went wrong, that
-     the range has gone back to the beginning, and what to do about it. Then
-     it puts everything back on the start line and opens the console, which
-     is where the fixing happens. The blocks stay: rewriting a program from
-     scratch is not the lesson, and the one that missed is the one worth
-     reading. */
+     the range has gone back to the beginning, and what to do about it.
+     Then it puts EVERYTHING back — the ship on its start line, the targets
+     standing, and the console empty — and opens the console, which is where
+     the next attempt is written. Back to the beginning means back to the
+     beginning: a range that starts again holding the program that just
+     missed is a start line with the last attempt still sitting on it.
+
+     The crash on a flying leg is deliberately not this. That one keeps the
+     program, because it has just ringed the one block that flew you into
+     the rock and an empty console cannot point at anything. Here there is
+     no culprit block to point at — the program simply ran out — so there is
+     nothing to keep it for. */
   function missed(){
     const gen=L.gen, n=L.left;
     brief(t('🎯 {n} target(s) still standing. Back to the start of the range: '+
-            'fix the program, then RUN.',{n}));
+            'write it again, then RUN.',{n}));
     if(window.beep) beep('bad');
     setTimeout(()=>{
       // a newer RUN has taken over, so this attempt's tidying is not wanted
@@ -901,6 +908,8 @@ window.FLIGHT = (function(){
       reset();
       if(window.CODE){
         CODE.hideTape(); CODE.highlight(null);
+        if(CODE.blame) CODE.blame(null);
+        CODE.clear();
         if(!CODE.isOpen()) CODE.show();
       }
     }, 1500);
