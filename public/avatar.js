@@ -21,9 +21,12 @@ window.AVATAR = (function(){
                   a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
                   g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',
                   m:'Mo',  n:'Nia', o:'Ozzy', p:'Pip', q:'Quinn', r:'Rae' };
+  /* ?v= on the asset, not just on the script. Without it a changed model
+     is invisible for a day behind the server's cache header. */
+  const V = ()=> '?v='+(window.ASSETV||'1');
   const CHARS = IDS.map(c=>({ id:c, name:NAMES[c] || ('Character '+c.toUpperCase()),
-    model:`characters/models/character-${c}.glb`,
-    preview:`characters/previews/character-${c}.png` }));
+    model:`characters/models/character-${c}.glb`+V(),
+    preview:`characters/previews/character-${c}.png`+V() }));
   const BASE = 'characters/models/';     // so the .glb finds its texture
   const TALL = 1.85;                     // how tall a person stands, in world units
   const HELD = 0.70;                     // and how long the blaster in their hand reads
@@ -130,7 +133,11 @@ window.AVATAR = (function(){
         if(cur) cur.fadeOut(fade===undefined?0.18:fade);
         cur=next; curName=name;
       },
-      update(dt){ mixer.update(dt); }
+      update(dt){ mixer.update(dt); },
+      /* An emote can only be offered by a character who actually has one,
+         and it has to know how long to hold before handing control back. */
+      has(name){ return clips.some(c=>c.name===name); },
+      seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration:0; }
     };
   }
   /* drive anything that came out of load() — the player, a guard, anyone */
@@ -170,6 +177,38 @@ window.AVATAR = (function(){
 
   /* the player's own body, third person */
   let body=null, model=null;
+  /* AN EMOTE IS A CLIP THAT IS NOT A STATE. Every other clip answers a
+     question about the body — is it moving, is it airborne — and is chosen
+     fresh each frame from the answer. This one is chosen because somebody
+     pressed a button, so it needs somewhere to live between frames: how
+     long is left of it, and which one it was.
+
+     Walking cancels it. Nobody wants to watch their character finish a
+     dance they have changed their mind about halfway through. */
+  let emoting=0, emoteClip=null;
+  const rigOf = m => (m && m.userData && m.userData.rig) || null;
+  function emote(name){
+    const r=rigOf(model);
+    name=name||'dance';
+    if(!r || !r.has(name)) return false;
+    emoteClip=name; emoting=r.seconds(name) || 3;
+    return true;
+  }
+  function canEmote(name){
+    const r=rigOf(model);
+    return !!(r && r.has(name||'dance'));
+  }
+  const emoting_ = ()=> emoting>0;
+  /* Returns the clip to play, or null to carry on as normal. Shared by both
+     drivers — the flat world's update() and the planet's orient() — because
+     an emote that only worked on one of them would be a bug somebody found
+     by walking through a door. */
+  function emoteFrame(dt, moving){
+    if(emoting<=0) return null;
+    if(moving){ emoting=0; return null; }
+    emoting-=dt;
+    return emoting>0 ? emoteClip : null;
+  }
   async function attach(){
     detach();
     try{
@@ -180,7 +219,8 @@ window.AVATAR = (function(){
       equip(m);                            // give them something to hold
     }catch(e){ console.warn('character failed to load',e); body=null; model=null; }
   }
-  function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null; }
+  function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null;
+                     emoting=0; emoteClip=null; }
   /* On a round world a body cannot be placed with a y-rotation — it has to
      stand along the surface normal, which points somewhere different at every
      step. A caller that owns its own gravity hands the basis in and this puts
@@ -193,8 +233,9 @@ window.AVATAR = (function(){
     body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
     body.position.copy(pos);
     body.visible=!G.firstPerson;
-    animate(model, dt, onGround===false ? 'jump'
-                     : moving ? (running ? 'sprint' : 'walk') : 'idle');
+    animate(model, dt, emoteFrame(dt, moving)
+                     || (onGround===false ? 'jump'
+                     : moving ? (running ? 'sprint' : 'walk') : 'idle'));
   }
   function update(dt, moving, running, onGround){
     if(!body) return;
@@ -207,11 +248,13 @@ window.AVATAR = (function(){
        exactly the clean held pose the kit characters have always used.
        Naming a clip nobody has was the old way of saying the same thing;
        naming the real one costs them nothing and pays whoever has it. */
-    const clip = onGround===false ? 'jump'
-               : moving ? (running ? 'sprint' : 'walk') : 'idle';
+    const clip = emoteFrame(dt, moving)
+               || (onGround===false ? 'jump'
+               : moving ? (running ? 'sprint' : 'walk') : 'idle');
     animate(model, dt, clip);
   }
 
   return { CHARS, load, pick, attach, detach, update, orient, animate,
+           emote, canEmote, get emoting(){ return emoting>0; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };
 })();

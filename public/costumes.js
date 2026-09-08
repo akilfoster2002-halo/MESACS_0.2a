@@ -70,7 +70,7 @@ window.COSTUMES = (function(){
   }
   function thumbOf(id){
     const s=shelfOf(id), x=find(id);
-    return (s && x && s.thumbs) ? s.thumbs+x.file+'.png' : null;
+    return (s && x && s.thumbs) ? s.thumbs+x.file+'.png?v='+(window.ASSETV||'1') : null;
   }
 
   /* ---------------------------------------------------------- loading
@@ -84,7 +84,9 @@ window.COSTUMES = (function(){
 
   function file(id){
     const s=shelfOf(id); if(!s||!s.dir) return null;
-    return s.dir + String(id).split('/').slice(1).join('/') + '.glb';
+    // same reason as avatar.js: the server caches these for a day
+    return s.dir + String(id).split('/').slice(1).join('/') + '.glb'
+           + '?v=' + (window.ASSETV||'1');
   }
   function proto(id){
     if(protos.has(id)) return protos.get(id);

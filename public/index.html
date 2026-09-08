@@ -63,6 +63,10 @@ button{font-family:var(--font);cursor:pointer}
   border-radius:12px;padding:9px 12px;font-size:13.5px;color:var(--muted);line-height:1.6}
 #keys b{color:var(--text)}
 #topbar{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;pointer-events:auto}
+/* the emote button, while the emote is running: it is the one control that
+   says something about the world rather than about the menus */
+#btnEmote{font-size:17px;line-height:1}
+#btnEmote.on{background:var(--star);color:#4a3b12;box-shadow:0 3px 0 #c9ae5e}
 
 
 /* ---------- health, damage, hit feedback ---------- */
@@ -1501,6 +1505,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
     <div id="chatHint"></div>
   </div>
   <div id="topbar">
+    <!-- only shown for a character who actually has an emote to play -->
+    <button class="btn small ghost hidden" id="btnEmote" title="Dance">🕺</button>
     <button class="btn small ghost hidden" id="btnLeave">⏏ Leave</button>
     <button class="btn small ghost" id="btnLang">🌐 Español</button>
     <button class="btn small ghost" id="btnHelp">❔</button>
@@ -1739,43 +1745,50 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=282"></script>
-<script src="strings.js?v=282"></script>
-<script src="difficulty.js?v=282"></script>
-<script src="net.js?v=282"></script>
-<script src="avatar.js?v=282"></script>
-<script src="zombies.js?v=282"></script>
-<script src="building.js?v=282"></script>
-<script src="levels.js?v=282"></script>
-<script src="program.js?v=282"></script>
-<script src="code.js?v=282"></script>
-<script src="mechsim.js?v=282"></script>
-<script src="mech.js?v=282"></script>
-<script src="intro.js?v=282"></script>
-<script src="mechacode.js?v=282"></script>
-<script src="mechaarena.js?v=282"></script>
-<script src="mecha.js?v=282"></script>
-<script src="workshop.js?v=282"></script>
-<script src="combat.js?v=282"></script>
-<script src="puzzle.js?v=282"></script>
-<script src="nav.js?v=282"></script>
-<script src="tutorial.js?v=282"></script>
-<script src="race.js?v=282"></script>
-<script src="flight.js?v=282"></script>
-<script src="planet.js?v=282"></script>
-<script src="wallet.js?v=282"></script>
-<script src="shop.js?v=282"></script>
-<script src="library.js?v=282"></script>
-<script src="costumes.js?v=282"></script>
-<script src="missions.js?v=282"></script>
-<script src="coach.js?v=282"></script>
-<script src="owner.js?v=282"></script>
-<script src="blocks.js?v=282"></script>
-<script src="vm.js?v=282"></script>
-<script src="coder.js?v=282"></script>
-<script src="quiz.js?v=282"></script>
-<script src="chars.js?v=282"></script>
-<script src="menu.js?v=282"></script>
-<script src="game.js?v=282"></script>
+<!-- ONE VERSION FOR EVERY ASSET. The server caches anything that is not
+     .js or .html for a day, which is right for models that rarely change
+     and wrong the moment one does: the URL stays the same, so the browser
+     keeps yesterday's character and no amount of reloading helps. The
+     scripts have always carried ?v=; now the models do too, off the same
+     number. Bump it here when an asset changes. -->
+<script>window.ASSETV='284';</script>
+<script src="lib/three.classic.js?v=284"></script>
+<script src="strings.js?v=284"></script>
+<script src="difficulty.js?v=284"></script>
+<script src="net.js?v=284"></script>
+<script src="avatar.js?v=284"></script>
+<script src="zombies.js?v=284"></script>
+<script src="building.js?v=284"></script>
+<script src="levels.js?v=284"></script>
+<script src="program.js?v=284"></script>
+<script src="code.js?v=284"></script>
+<script src="mechsim.js?v=284"></script>
+<script src="mech.js?v=284"></script>
+<script src="intro.js?v=284"></script>
+<script src="mechacode.js?v=284"></script>
+<script src="mechaarena.js?v=284"></script>
+<script src="mecha.js?v=284"></script>
+<script src="workshop.js?v=284"></script>
+<script src="combat.js?v=284"></script>
+<script src="puzzle.js?v=284"></script>
+<script src="nav.js?v=284"></script>
+<script src="tutorial.js?v=284"></script>
+<script src="race.js?v=284"></script>
+<script src="flight.js?v=284"></script>
+<script src="planet.js?v=284"></script>
+<script src="wallet.js?v=284"></script>
+<script src="shop.js?v=284"></script>
+<script src="library.js?v=284"></script>
+<script src="costumes.js?v=284"></script>
+<script src="missions.js?v=284"></script>
+<script src="coach.js?v=284"></script>
+<script src="owner.js?v=284"></script>
+<script src="blocks.js?v=284"></script>
+<script src="vm.js?v=284"></script>
+<script src="coder.js?v=284"></script>
+<script src="quiz.js?v=284"></script>
+<script src="chars.js?v=284"></script>
+<script src="menu.js?v=284"></script>
+<script src="game.js?v=284"></script>
 </body>
 </html>

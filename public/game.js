@@ -320,6 +320,18 @@ function updateCodeBtn(){
   if(esc){ esc.classList.toggle('hidden',!(G.running||flying));
            esc.innerHTML=t('<kbd>Esc</kbd> frees the mouse · <kbd>P</kbd> pause &amp; hint'); }
 }
+/* Shown only when there is a body to do it with and that body knows how.
+   Ash and the rest of the kit have idle, walk and sprint and nothing else,
+   so for them the button simply is not there — better than a button that
+   does nothing when pressed. */
+let emoteShown=null;
+function updateEmoteBtn(){
+  const b=$('#btnEmote'); if(!b) return;
+  const can = !!(window.AVATAR && AVATAR.canEmote('dance')) && G.running
+           && !G.firstPerson;
+  if(can!==emoteShown){ b.classList.toggle('hidden', !can); emoteShown=can; }
+  if(can) b.classList.toggle('on', !!AVATAR.emoting);
+}
 function updateLeaveBtn(){
   const b=$('#btnLeave'); if(!b) return;
   // nothing to leave when you are already home
@@ -581,6 +593,7 @@ function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000, 0.05); last=now;
   updateCodeBtn();
+  updateEmoteBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
@@ -869,6 +882,14 @@ function wireUI(){
   on('#btnLang',()=>setLang(window.LANG==='en'?'es':'en'));
   on('#btnLeave',()=>returnToDesktop());
   on('#btnHelp',()=>togglePause());
+  /* An emote is the one button here that does something in the world rather
+     than to the menus, so it goes back to the game afterwards: on a planet
+     the mouse is locked and clicking a button unlocks it, which would leave
+     you dancing and unable to walk away. */
+  on('#btnEmote',()=>{
+    if(window.AVATAR && AVATAR.emote('dance') && window.beep) beep('pop');
+    const v=$('#view'); if(v && G.running) lockPointer(v);
+  });
 }
 function setLang(l){
   window.LANG=l;
