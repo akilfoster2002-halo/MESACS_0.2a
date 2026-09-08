@@ -374,6 +374,17 @@ window.ES = {
     'El Gimnasio necesita el servidor — inicia sesión y elige una sala para pelear.',
   'The Gym said no.':'El Gimnasio dijo que no.',
 
+  /* the ten seconds before the first landing */
+  'SKIP ▶':'SALTAR ▶',
+  'This is KORO. You fly in, you land, and everything on it runs on code.':
+    'Esto es KORO. Vuelas, aterrizas, y todo aquí funciona con código.',
+  'You do not type it. You snap blocks together, and press RUN.':
+    'No lo escribes. Encajas bloques y presionas CORRER.',
+  'Every mission teaches one idea. Loops. Choices. Functions.':
+    'Cada misión enseña una idea. Bucles. Decisiones. Funciones.',
+  'Then take your code to the arena, against somebody else\u2019s.':
+    'Luego lleva tu código a la arena, contra el de alguien más.',
+
   /* ---------------------------------------------------- the mecha arena
      A different sport from the league next door: you drive and your code
      fights, so the words for the two must not blur together. "Órdenes"

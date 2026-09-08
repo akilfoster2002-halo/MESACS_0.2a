@@ -1241,6 +1241,42 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #mkWait .row{display:flex;gap:10px;justify-content:center}
 
 /* =====================================================================
+   THE INTRO. Letterbox bars, one line of copy per cut, and a black flash
+   on the cuts themselves — the three cheapest things that make ten
+   seconds of 3D read as a film rather than as a demo somebody left on.
+   Everything here is pointer-events:none except the way out.
+   ===================================================================== */
+#intro{position:fixed;inset:0;z-index:70;pointer-events:none;font-family:var(--font);
+  transition:opacity .55s ease}
+#intro.in-out{opacity:0}
+#intro .in-bar{position:absolute;left:0;right:0;height:9vh;background:#05060f;
+  animation:inbar .7s ease-out}
+#intro .in-bar.top{top:0}
+#intro .in-bar.bottom{bottom:0}
+@keyframes inbar{from{height:0}to{height:9vh}}
+#intro .in-cap{position:absolute;left:0;right:0;bottom:13vh;text-align:center;
+  font-size:clamp(17px,2.5vw,30px);font-weight:bold;color:#eef3ff;letter-spacing:.6px;
+  text-shadow:0 4px 24px rgba(0,0,0,.9);padding:0 8vw;opacity:0;transform:translateY(10px)}
+#intro .in-cap.in-show{animation:incap 2.4s ease-out forwards}
+@keyframes incap{
+  0%{opacity:0;transform:translateY(10px)}
+  12%{opacity:1;transform:translateY(0)}
+  82%{opacity:1;transform:translateY(0)}
+  100%{opacity:0;transform:translateY(-6px)}}
+#intro .in-title{position:absolute;left:0;right:0;top:20%;text-align:center;
+  font-family:var(--font);font-size:clamp(46px,11vw,150px);font-weight:bold;color:#ffe9a8;
+  letter-spacing:.16em;text-shadow:0 12px 50px rgba(0,0,0,.85);opacity:0;
+  transition:opacity .8s ease,transform .8s ease;transform:scale(1.12)}
+#intro .in-title.in-show{opacity:1;transform:scale(1)}
+#intro .in-skip{position:absolute;right:16px;bottom:calc(9vh + 14px);pointer-events:auto;
+  background:rgba(15,22,36,.8);border:2px solid var(--line);color:var(--muted);
+  border-radius:10px;padding:6px 14px;font-family:var(--font);font-size:13px;cursor:pointer}
+#intro .in-skip:hover{color:var(--text);border-color:var(--accent)}
+#intro .in-fade{position:absolute;inset:0;background:#05060f;opacity:0}
+#intro .in-fade.in-flash{animation:inflash .34s ease-out}
+@keyframes inflash{0%{opacity:1}100%{opacity:0}}
+
+/* =====================================================================
    THE MECHA WORKSHOP. A robot drawn flat and to scale, with every part a
    button: you click the arm you want to give orders to and the orders
    appear beside it, so "this code is that arm" is a thing you can see
@@ -1691,6 +1727,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="code.js?v=263"></script>
 <script src="mechsim.js?v=263"></script>
 <script src="mech.js?v=263"></script>
+<script src="intro.js?v=263"></script>
 <script src="mechacode.js?v=263"></script>
 <script src="mechaarena.js?v=263"></script>
 <script src="mecha.js?v=263"></script>
