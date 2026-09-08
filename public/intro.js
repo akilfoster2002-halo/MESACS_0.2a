@@ -39,7 +39,7 @@ window.INTRO = (function(){
      one button label into a crash. */
   let on=false, clock=0, done=null, group=null;
   let ship=null, rocks=[], hero=null, koro=null, stars=null, streaks=[];
-  let shot=-1, keyed=null;
+  let shot=-1, keyed=null, hidden=[];
 
   /* Each cut, when it lands, and what is said over it. Two and a half
      seconds is about as long as one line of this can hold. */
@@ -71,8 +71,19 @@ window.INTRO = (function(){
     if(window.MENU) MENU.hideAll();
     if(window.AVATAR) AVATAR.detach();
     if(window.GUN) GUN.update(0,false);
-    ['#hud','#briefing','#crosshair','#focus'].forEach(s=>{
-      const e=$(s); if(e) e.classList.add('hidden'); });
+    /* WHAT IS PUT AWAY HAS TO COME BACK. The film hides the HUD so ten
+       seconds of space is not shot through a health bar — and hiding #hud
+       hides everything inside it, which is the key hints, the Esc line and
+       the [C] Code Console button. Handing over to a mission without
+       putting them back left the student flying the whole leg with no HUD
+       at all and no way to see that C brings the console up. So the state
+       of each one is written down here and restored on the way out. */
+    hidden=[];
+    ['#hud','#briefing','#crosshair','#focus'].forEach(sel=>{
+      const e=$(sel); if(!e) return;
+      if(!e.classList.contains('hidden')) hidden.push(sel);
+      e.classList.add('hidden');
+    });
     build();
     screen();
     keyed=e=>{ if(e.type==='keydown' && e.repeat) return; finish(); };
@@ -323,6 +334,10 @@ window.INTRO = (function(){
       setTimeout(()=>{ if(!on && el.parentNode) el.remove(); }, 620);
     }
     group=null; ship=null; rocks=[]; streaks=[]; koro=null; stars=null;
+    // back to how the screen was before the film, and THEN into the mission,
+    // so whatever it wants hidden it hides itself
+    hidden.forEach(sel=>{ const e=$(sel); if(e) e.classList.remove('hidden'); });
+    hidden=[];
     const go=done; done=null;
     if(go) go();
   }
