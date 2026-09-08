@@ -403,9 +403,54 @@ window.FLIGHT = (function(){
     return new THREE.LineSegments(g, new THREE.LineBasicMaterial({
       color:0x4d7cff, transparent:true, opacity:0.34 }));
   }
-  /* A rock.  An icosahedron with its corners knocked about, so twenty of them
-     in a row do not read as twenty of the same ball. */
-  function rock(r){
+  /* A ROCK.
+
+     A scanned asteroid, cut down to about 1,700 flat facets with the stone
+     painted into its vertices — there are no UVs on it, so the greys and
+     the crater floors are carried by the mesh itself.
+
+     One geometry, shared by every rock in the field: forty meshes pointing
+     at the same buffers cost forty draw calls and one upload.  What stops
+     forty copies of one scan reading as forty copies of one scan is that
+     each is turned to a random attitude and squashed a little differently,
+     and each turns at its own rate.
+
+     THE LOAD IS STARTED THE MOMENT THIS FILE RUNS, and the knocked-about
+     icosahedron below is still here as the fallback.  A rock is the thing
+     you have to dodge, so it can never be the thing that has not arrived
+     yet: whoever gets a lump gets a lump, and when the model lands every
+     rock already on the field is re-dressed in place. */
+  const AST_FILE='rocks/asteroid.glb';
+  const ROCK_MAT=new THREE.MeshLambertMaterial({ vertexColors:true });
+  const LUMP_MAT=new THREE.MeshLambertMaterial({ color:0x8a7f6e });
+  let astGeo=null, astReq=null;
+  function astProto(){
+    if(astReq) return astReq;
+    astReq=new Promise((res,rej)=>{
+      new THREE.GLTFLoader().load(AST_FILE+'?v='+(window.ASSETV||'1'), g=>{
+        let found=null;
+        g.scene.traverse(m=>{ if(!found && m.isMesh) found=m.geometry; });
+        found ? res(found) : rej(new Error('no mesh in '+AST_FILE));
+      }, undefined, rej);
+    });
+    astReq.then(g=>{ astGeo=g; redress(); })
+          .catch(e=>console.warn('asteroid failed to load, flying with lumps', e));
+    return astReq;
+  }
+  /* Swap the fallback lumps for the real thing on whatever is already laid
+     out.  Only the geometry changes, so position, spin and squash all
+     survive it and nothing on the field jumps. */
+  function redress(){
+    rocks.forEach(m=>{
+      if(!m.isMesh || !m.userData.lump) return;
+      m.geometry.dispose();
+      m.geometry=astGeo; m.material=ROCK_MAT; m.userData.lump=false;
+    });
+  }
+  astProto();          // not on demand: the first wall must not be lumps
+
+  /* the old rock, kept for the machine that cannot fetch the model */
+  function lump(r){
     const g=new THREE.IcosahedronGeometry(r, 0);
     const p=g.attributes.position;
     for(let i=0;i<p.count;i++){
@@ -413,7 +458,20 @@ window.FLIGHT = (function(){
       p.setXYZ(i, p.getX(i)*k, p.getY(i)*k, p.getZ(i)*k);
     }
     if(g.computeVertexNormals) g.computeVertexNormals();
-    const m=new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color:0x8a7f6e }));
+    return g;
+  }
+  function rock(r){
+    const real=!!astGeo;
+    /* The model is built to radius 1 and scaled here; the fallback is built
+       at radius r already, so it is scaled by 1.  Either way the squash goes
+       on top, and either way `r` is the radius the field asked for. */
+    const m=new THREE.Mesh(real ? astGeo : lump(r), real ? ROCK_MAT : LUMP_MAT);
+    const s=real ? r : 1;
+    m.scale.set(s*(0.86+Math.random()*0.28),
+                s*(0.86+Math.random()*0.28),
+                s*(0.86+Math.random()*0.28));
+    m.rotation.set(Math.random()*6.283, Math.random()*6.283, Math.random()*6.283);
+    m.userData.lump=!real;
     m.userData.spin=new THREE.Vector3((Math.random()-0.5)*0.9,
                                       (Math.random()-0.5)*0.9,
                                       (Math.random()-0.5)*0.9);
@@ -564,7 +622,9 @@ window.FLIGHT = (function(){
        while it flies, so it meets the gap part-way through a rotation, and a
        gap cut to the aligned width would clip it every single time. */
     const gap=shipSpan+1.7, slab=Math.max(2.4,(span-gap)/2);
-    const mat=new THREE.MeshLambertMaterial({ color:0x8a7f6e });
+    /* The mass behind the rubble, tinted to the asteroid's own mean
+       colour so the slab and the rocks piled on it read as one rock. */
+    const mat=new THREE.MeshLambertMaterial({ color:0x6b6157 });
     const inner=gap/2, outer=gap/2+slab;
     [-1,1].forEach(sgn=>{
       // rubble rather than a clean brick, so it reads as asteroid — but kept
