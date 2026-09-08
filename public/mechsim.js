@@ -93,6 +93,21 @@
     pickupRespawn:8,        // turns before a taken crate comes back
     nearRange:2,            // what "nearby" means
     dashRange:2,
+    /* THE STREAK. Consecutive shots that land, on a mech that cannot be
+       aimed by hand — so the only way to build one is a program that keeps
+       getting itself into line, and the only way to lose one is a shot
+       taken on a bad reading. It is the difference between "shoot every
+       turn and hope" and "test, then shoot".
+
+       A miss puts it back to zero. Not shooting leaves it where it is, so
+       a program is free to break off and reposition without being
+       punished for thinking.
+
+       `after` is how many hits are free before it starts paying, and `max`
+       caps what it can ever be worth, because a fight where the first hit
+       decides the rest is not a fight. Off with combo.on=false, and a
+       tournament can say so. */
+    combo:{ on:true, after:2, bonus:1, max:3 },
     loopProgram:true,       // a finished program starts again
     stepsPerTurn:200,       // control blocks allowed between two actions
     winBy:'hp'              // how a match that runs out of turns is settled
@@ -100,6 +115,7 @@
   function makeRules(over){
     const r=Object.assign({}, RULES, over||{});
     r.cost=Object.assign({}, RULES.cost, (over&&over.cost)||{});
+    r.combo=Object.assign({}, RULES.combo, (over&&over.combo)||{});
     return r;
   }
 
@@ -313,9 +329,9 @@
       armour:c.armour, attack:c.attack, range:c.range, sensor:c.sensor,
       moveTiles:c.move, shieldBonus:c.shieldBonus||0,
       regen: rules.regen==null ? c.regen : rules.regen,
-      shield:false, alive:true,
+      shield:false, alive:true, streak:0,
       stats:{ damageDealt:0, damageTaken:0, shots:0, hits:0, energyUsed:0,
-              moves:0, stalls:0, pickups:0, turnsSurvived:0 }
+              moves:0, stalls:0, pickups:0, turnsSurvived:0, bestStreak:0 }
     };
   }
 
@@ -605,18 +621,28 @@
       const path=shotPath(A,m,m.range);
       const hit=foe.alive && path.some(p=>p.x===foe.x && p.z===foe.z);
       if(!hit){
-        entries[i].push({ kind:'event', text:'miss', blockId:w.blockId,
-          why:'Nothing was in front of you within '+m.range+' tiles when the shot went off.' });
+        /* A shot at nothing costs the streak as well as the energy, which
+           is the whole reason to put a test in front of it. */
+        const lost=m.streak;
+        m.streak=0;
+        entries[i].push({ kind:'event', text:'miss', blockId:w.blockId, broke:lost||0,
+          why:'Nothing was in front of you within '+m.range+' tiles when the shot went off.'
+              + (lost>1 ? ' That also broke a streak of '+lost+'.' : '') });
         events.push({ kind:'shot', side:m.side, from:{x:m.x,z:m.z},
                       to:path.length?path[path.length-1]:{x:m.x,z:m.z}, hit:false });
         continue;
       }
+      m.streak++;
+      if(m.streak>m.stats.bestStreak) m.stats.bestStreak=m.streak;
       const soak = foe.armour + (foe.shield ? rules.shieldCut + foe.shieldBonus : 0);
-      const dmg  = Math.max(1, m.attack - soak);
+      const bonus= comboBonus(m.streak, rules);
+      const dmg  = Math.max(1, m.attack - soak) + bonus;
       hits.push({ i, dmg, from:{x:m.x,z:m.z}, to:{x:foe.x,z:foe.z} });
       entries[i].push({ kind:'event', text:'hit', blockId:w.blockId, value:dmg,
-        why: foe.shield ? 'You hit a raised shield, so it soaked '+(rules.shieldCut+foe.shieldBonus)+'.'
-                        : 'A clean hit through '+foe.armour+' armour.' });
+        streak:m.streak, bonus,
+        why: (foe.shield ? 'You hit a raised shield, so it soaked '+(rules.shieldCut+foe.shieldBonus)+'.'
+                         : 'A clean hit through '+foe.armour+' armour.')
+             + (bonus ? ' '+m.streak+' in a row, so +'+bonus+' on top.' : '') });
     }
     hits.forEach(h=>{
       const m=mechs[h.i], foe=mechs[1-h.i];
@@ -628,6 +654,13 @@
     });
   }
   const hurt = (m,n) => { m.hp=Math.max(0, m.hp-n); };
+  /* What the streak adds, given how long it is. Everything about it is in
+     the rules, including whether it exists at all. */
+  function comboBonus(streak, rules){
+    const c=rules.combo;
+    if(!c || !c.on) return 0;
+    return Math.max(0, Math.min(c.max, (streak - c.after) * c.bonus));
+  }
 
   /* ------------------------------------------------------------- verdict */
   function verdict(mechs, turn, how){
@@ -661,7 +694,8 @@
   function frame(turn, mechs, live, events){
     return { turn,
       mechs: mechs.map(m=>({ side:m.side, x:m.x, z:m.z, dir:m.dir, hp:m.hp,
-                             energy:m.energy, shield:m.shield, alive:m.alive })),
+                             energy:m.energy, shield:m.shield, alive:m.alive,
+                             streak:m.streak })),
       crates: live.crates.map(c=>({ x:c.x, z:c.z, taken:c.taken })),
       events: events.slice() };
   }

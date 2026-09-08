@@ -1008,7 +1008,15 @@ window.ES = {
   'damage dealt':'daño hecho','damage taken':'daño recibido','shots fired':'disparos',
   'shots that hit':'disparos acertados','energy used':'energía usada',
   'turns survived':'turnos sobrevividos',
-  'The referee sent it back.':'El árbitro lo devolvió.','{m} beaten':'{m} vencido'
+  'The referee sent it back.':'El árbitro lo devolvió.','{m} beaten':'{m} vencido',
+
+  /* the streak, the camera, and watching somebody else fight */
+  'in a row':'seguidos','streak broken':'racha rota',
+  'BOARD':'TABLERO','FOLLOW':'SEGUIR','board / follow':'tablero / seguir',
+  'JUST FOUGHT':'ACABAN DE PELEAR','vs':'contra','WATCH IT ▶':'VERLO ▶',
+  '{n} WINS':'GANA {n}','turns':'turnos','damage':'daño',
+  'somebody else\u2019s fight':'la pelea de otra persona',
+  'You are watching, not fighting.':'Estás mirando, no peleando.'
 };
 window.LANG = 'en';
 function t(s,p){

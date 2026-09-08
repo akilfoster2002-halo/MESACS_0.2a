@@ -295,6 +295,91 @@ test('a loop that spins without ever acting is caught and explained', ()=>{
   assert.strictEqual(r.result.turns, r.rules.maxTurns);   // it did not hang
 });
 
+/* --------------------------------------------------------- the streak
+   Consecutive hits pay. The point of it is that a mech cannot be aimed by
+   hand, so the only way to keep a streak is a program that keeps putting
+   itself in line — and the only way to lose one is shooting on a bad
+   reading. */
+
+test('hits in a row start paying once the free ones are used up', ()=>{
+  // striker hits 5 through 1 armour = 4; after two hits the streak adds
+  const r=run([B('shoot')],[B('left')],{arena:strip('1.2'), turns:5});
+  const hp=n=>at(r,n,'B').hp;
+  assert.strictEqual(hp(0)-hp(1), 4);      // streak 1 — free
+  assert.strictEqual(hp(1)-hp(2), 4);      // streak 2 — free
+  assert.strictEqual(hp(2)-hp(3), 5);      // streak 3 — +1
+  assert.strictEqual(hp(3)-hp(4), 6);      // streak 4 — +2
+});
+
+test('the streak is capped, so the first hit cannot decide the fight', ()=>{
+  // a tank soaks 2, so it lives long enough to be hit six times: 3,3,4,5,6,6
+  const r=run([B('shoot')],[B('left')],{cb:'tank', arena:strip('1.2'), turns:6});
+  const hp=n=>at(r,n,'B').hp;
+  assert.strictEqual(hp(4)-hp(5), 6);      // streak 5 — +3, the cap
+  assert.strictEqual(hp(5)-hp(6), 6);      // streak 6 — still +3, not +4
+});
+
+test('a shot at nothing puts the streak back to zero', ()=>{
+  //  hit, hit, step out of range, miss, step back in, hit
+  const r=run([B('shoot'),B('shoot'),B('back'),B('shoot'),B('forward'),B('shoot')],
+              [B('left')], {arena:strip('.1...2.'), turns:6});
+  const hp=n=>at(r,n,'B').hp;
+  assert.strictEqual(hp(0)-hp(1), 4);
+  assert.strictEqual(hp(1)-hp(2), 4);
+  const miss=evs(r,4,'A').find(e=>e.text==='miss');
+  assert.ok(miss, 'turn 4 should be a miss, out of range');
+  assert.strictEqual(miss.broke, 2);
+  assert.match(miss.why, /broke a streak of 2/);
+  assert.strictEqual(hp(5)-hp(6), 4);      // back to a free hit, not a bonus one
+});
+
+test('breaking off to reposition does not cost the streak', ()=>{
+  // three hits, then two turns of turning on the spot, then a fourth hit
+  const r=run([B('shoot'),B('shoot'),B('shoot'),B('left'),B('right'),B('shoot')],
+              [B('left')], {arena:strip('1.2'), turns:6});
+  const hp=n=>at(r,n,'B').hp;
+  assert.strictEqual(hp(2)-hp(3), 5);      // streak 3
+  assert.strictEqual(hp(5)-hp(6), 6);      // streak 4, straight after the turns
+});
+
+test('the streak is written on the frame, so the scrubber rewinds it', ()=>{
+  const r=run([B('shoot')],[B('left')],{arena:strip('1.2'), turns:4});
+  assert.deepStrictEqual([0,1,2,3,4].map(n=>at(r,n,'A').streak), [0,1,2,3,4]);
+  assert.strictEqual(r.stats.A.bestStreak, 4);
+});
+
+test('the log says a streak paid, and by how much', ()=>{
+  const r=run([B('shoot')],[B('left')],{arena:strip('1.2'), turns:3});
+  const hit=evs(r,3,'A').find(e=>e.text==='hit');
+  assert.strictEqual(hit.streak, 3);
+  assert.strictEqual(hit.bonus, 1);
+  assert.match(hit.why, /3 in a row/);
+});
+
+test('a tournament can turn the streak off', ()=>{
+  const r=run([B('shoot')],[B('left')],
+    {arena:strip('1.2'), turns:5, rules:{combo:{on:false}}});
+  const hp=n=>at(r,n,'B').hp;
+  [1,2,3,4,5].forEach(n=>assert.strictEqual(hp(n-1)-hp(n), 4));
+  assert.strictEqual(r.stats.A.bestStreak, 5);   // still counted, just not paid
+});
+
+test('a tournament can retune the streak rather than only switch it', ()=>{
+  const r=run([B('shoot')],[B('left')],
+    {arena:strip('1.2'), turns:3, rules:{combo:{after:0, bonus:5, max:2}}});
+  const hp=n=>at(r,n,'B').hp;
+  assert.strictEqual(hp(0)-hp(1), 6);      // first hit already pays, capped at +2
+  assert.strictEqual(hp(1)-hp(2), 6);
+});
+
+test('a streak cannot be built on a mech that is already down', ()=>{
+  const r=run([rep(20,[B('shoot')])],[B('shield')],
+    {ca:'tank', cb:'scout', arena:strip('1.2'), rules:{regen:9}});
+  assert.strictEqual(r.result.winner,'A');
+  const last=r.log[r.log.length-1].A;
+  assert.ok(!last.some(e=>e.text==='hit' && e.streak>r.stats.A.bestStreak));
+});
+
 /* ------------------------------------------------------------- verdicts */
 
 test('destroying the other mech ends the match there and then', ()=>{

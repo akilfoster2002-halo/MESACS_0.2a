@@ -415,8 +415,19 @@ wss.on('connection', async (ws, req)=>{
             seed:M.seed, arena:M.arena, rules:M.rules, result:M.result,
             A:{ name:M.A.name, chassis:M.A.chassis, program:M.A.program },
             B:{ name:M.B.name, chassis:M.B.chassis, program:M.B.program } });
+        /* AND THE ROOM CAN WATCH IT. A match is only its inputs — two
+           programs, a floor and a seed — so this is a kilobyte or so, not
+           a video, and anybody who replays it gets the identical fight.
+           The two who fought it already have it; they ignore their own.
+
+           It reveals nothing that was private: after a match both
+           programs are readable in the other's battle log anyway, and
+           this only ever goes out about a fight that has finished. */
         broadcastRoom(p.server, { t:'fought', a:M.A.name, b:M.B.name,
-          winner:M.result.winner, turns:M.result.turns });
+          winner:M.result.winner, turns:M.result.turns,
+          watch:{ seed:M.seed, arena:M.arena, rules:M.rules, result:M.result,
+                  A:{ name:M.A.name, chassis:M.A.chassis, program:M.A.program },
+                  B:{ name:M.B.name, chassis:M.B.chassis, program:M.B.program } } });
       }
       return;
     }

@@ -129,7 +129,10 @@ window.NET = (function(){
           const w=WENT[m.where];
           if(w) onSys(t(w,{n:m.display}));
         }
-        /* A fight is news for the whole room, whoever was in it. */
+        /* A fight is news for the whole room, whoever was in it — and it
+           arrives with everything needed to watch it, which the arena
+           picks up if somebody is standing in there to care. */
+        if(m.t==='fought'&&m.watch&&window.MECH&&MECH.offer) MECH.offer(m);
         if(m.t==='fought'&&onSys) onSys(
           m.winner==='draw' ? t('{a} and {b} fought to a draw — {n} turns',
                                 {a:m.a,b:m.b,n:m.turns})

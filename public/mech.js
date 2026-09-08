@@ -28,6 +28,8 @@ window.MECH = (function(){
   const TILE = 4;                       // world units per grid square
   const SIDE_A='#8fd3ff', SIDE_B='#ff9aa2';   // you, and whoever you are fighting
   const TURN_MS = 520;                  // how long one turn takes to watch
+  const DROP_H  = 46;                   // how far up a mech is dropped in from
+  const DROP_MS = 760;                  // and how long it takes to arrive
   const EYE = 1.7;
 
   let on=false, phase='off';
@@ -43,9 +45,28 @@ window.MECH = (function(){
      different battles. So the frames stay in A,B order everywhere and this
      is the only thing that says which of them is yours. */
   let pvp=false, mySide='A';
+  /* WATCHING SOMEBODY ELSE'S FIGHT. A spectator is a replay with no stake
+     in it: the same frames, the same log, the same scrubber, and no side
+     of their own — so `mySide` is whichever mark the panel on the left
+     should show, and nothing is saved, awarded or queued. */
+  let watching=false, offered=null;
   const mine  = ()=> mySide==='A' ? 0 : 1;
   const other = ()=> mySide==='A' ? 1 : 0;
   let orbit=0, orbitH=1;
+  /* The camera's own flinch. Purely a number that decays — nothing reads
+     it back, and it is deliberately NOT random: the same match shaken the
+     same way twice is one less thing that can differ between two students
+     watching the same fight. */
+  let shake=0, shakeT=0;
+  /* BOARD or FOLLOW. Remembered, because it is a preference about how
+     somebody likes to watch and not a property of any one match. */
+  let view='board';
+  try{ if(localStorage.getItem('dq_mech_view')==='follow') view='follow'; }catch(e){}
+  function setView(v){
+    view = v==='follow' ? 'follow' : 'board';
+    try{ localStorage.setItem('dq_mech_view', view); }catch(e){}
+    paintBar();
+  }
   /* Nobody is holding anything here. The blaster and the crosshair belong to
      a person standing in a room, and there is no person in this room — so
      they go away on the way in and come back on the way out, exactly the way
@@ -239,7 +260,8 @@ window.MECH = (function(){
     $('#briefing').classList.add('hidden');
     if(window.keyHint) keyHint(
       `<b>C</b> ${t('write your program')} &nbsp; <b>${t('RUN')}</b> ${t('deploys it')}<br>
-       <b>←→</b> ${t('turn the camera')} &nbsp; <b>Space</b> ${t('play / pause the replay')}`);
+       <b>←→</b> ${t('turn the camera')} &nbsp; <b>B</b> ${t('board / follow')}
+       &nbsp; <b>Space</b> ${t('play / pause the replay')}`);
 
     A=MECHSIM.readArena(MECHSIM.arenaById(opponent.arena));
     build();
@@ -345,7 +367,15 @@ window.MECH = (function(){
      "why did the tank lose" needs you to know which one was the tank. */
   function buildMech(spec){
     const c=MECHSIM.CHASSIS[spec.chassis];
+    /* TWO GROUPS, NOT ONE. `g` is where the machine stands and which way
+       it faces — the tile and the turn, both of which come straight off a
+       frame and must never be guessed at. `body` is everything that moves
+       while it stands there: the walk, the recoil, the flinch, and the
+       fall when it dies. Keeping them apart is what stops a topple from
+       fighting with a turn, and it means every one of these can be thrown
+       away and re-derived from the frame when somebody scrubs backwards. */
     const g=new THREE.Group();
+    const body=new THREE.Group(); g.add(body);
     /* The HULL says whose it is and the SHAPE says what it is. That way
        round because from a camera fifty metres up you read colour before
        silhouette, and the first question watching a fight is always "which
@@ -359,33 +389,48 @@ window.MECH = (function(){
       return new THREE.MeshLambertMaterial({ color:col,
         emissive:col.clone().multiplyScalar(0.30) });
     };
-    const body=lit(spec.a), trim=lit(c.a);
-    const box=(w,hh,d,mat)=>new THREE.Mesh(new THREE.BoxGeometry(w,hh,d), mat||body);
+    const paint=lit(spec.a), trim=lit(c.a);
+    const legs=[];
+    const box=(w,hh,d,mat)=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d), mat||paint);
+      body.add(m); return m;
+    };
+    /* A leg is hung from its hip rather than centred, so swinging it
+       rotates the foot and not the whole machine. */
+    const leg=(w,hh,d,x,z,mat)=>{
+      const pivot=new THREE.Group(); pivot.position.set(x, hh, z||0); body.add(pivot);
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d), mat||paint);
+      m.position.y=-hh/2; pivot.add(m);
+      legs.push(pivot); return pivot;
+    };
 
-    const hull=box(2.0,1.2,2.4); hull.position.y=1.5; g.add(hull);
-    const head=box(1.0,0.7,1.0, trim); head.position.set(0,2.5,-0.3); g.add(head);
+    const hull=box(2.0,1.2,2.4); hull.position.y=1.5;
+    const head=box(1.0,0.7,1.0, trim); head.position.set(0,2.5,-0.3);
     // the barrel points -z, which is north, which is dir 0
-    const gun=box(0.35,0.35,2.2, trim); gun.position.set(0.55,1.7,-1.6); g.add(gun);
+    const gun=box(0.35,0.35,2.2, trim); gun.position.set(0.55,1.7,-1.6);
 
     if(spec.chassis==='tank'){
       hull.scale.set(1.35,0.85,1.1);
       gun.scale.set(1.7,1.7,1.0);
-      [-1,1].forEach(s=>{ const tr=box(0.7,0.9,2.8); tr.position.set(s*1.45,0.5,0); g.add(tr); });
+      // treads roll, they do not stride — no pivots for these
+      [-1,1].forEach(sx=>{ const tr=box(0.7,0.9,2.8); tr.position.set(sx*1.45,0.5,0); });
     } else if(spec.chassis==='scout'){
       hull.scale.set(0.75,0.9,0.9); hull.position.y=1.9;
       gun.scale.set(0.7,0.7,1.3);
-      [-1,1].forEach(s=>{ const leg=box(0.3,1.6,0.3); leg.position.set(s*0.7,0.9,0); g.add(leg); });
-      const ant=box(0.14,1.4,0.14, trim); ant.position.set(-0.4,3.2,-0.3); g.add(ant);
+      [-1,1].forEach(sx=>leg(0.3,1.6,0.3, sx*0.7, 0));
+      const ant=box(0.14,1.4,0.14, trim); ant.position.set(-0.4,3.2,-0.3);
     } else if(spec.chassis==='defender'){
-      const plate=box(2.6,2.0,0.4, trim); plate.position.set(0,1.6,-1.35); g.add(plate);
-      [-1,1].forEach(s=>{ const leg=box(0.55,1.0,0.8); leg.position.set(s*0.9,0.55,0); g.add(leg); });
+      const plate=box(2.6,2.0,0.4, trim); plate.position.set(0,1.6,-1.35);
+      [-1,1].forEach(sx=>leg(0.55,1.0,0.8, sx*0.9, 0));
     } else {
-      [-1,1].forEach(s=>{ const sh=box(0.7,0.6,1.0); sh.position.set(s*1.2,2.0,-0.2); g.add(sh); });
-      [-1,1].forEach(s=>{ const leg=box(0.45,1.0,0.6); leg.position.set(s*0.6,0.55,0); g.add(leg); });
+      [-1,1].forEach(sx=>{ const sh=box(0.7,0.6,1.0); sh.position.set(sx*1.2,2.0,-0.2); });
+      [-1,1].forEach(sx=>leg(0.45,1.0,0.6, sx*0.6, 0));
     }
 
     /* whose it is, said on the floor rather than on the machine — a ring
-       under a mech is readable from directly overhead, a stripe is not */
+       under a mech is readable from directly overhead, a stripe is not.
+       It hangs off `g` rather than `body` so it stays flat on the floor
+       while the machine above it bobs, flinches and finally falls over. */
     const ring=new THREE.Mesh(new THREE.RingGeometry(1.5,2.0,28),
       new THREE.MeshBasicMaterial({color:new THREE.Color(spec.a), transparent:true,
         opacity:0.75, side:THREE.DoubleSide}));
@@ -395,8 +440,75 @@ window.MECH = (function(){
       new THREE.MeshBasicMaterial({color:0x8fd3ff, transparent:true, opacity:0.26,
         depthWrite:false}));
     shield.position.y=1.6; shield.visible=false; g.userData.shield=shield; g.add(shield);
+
     g.userData.spec=spec;
+    g.userData.ring=ring;
+    g.userData.parts={ body, hull, head, gun, legs, gunZ:gun.position.z };
+    /* Every one of these is a number that decays to nothing. None of them
+       is ever read back by anything that decides the fight — they are how
+       it looks, and the frame is what it is. */
+    g.userData.anim={ walk:0, recoil:0, flash:0, shove:0, drop:0 };
+    g.userData.paint=paint;
+    g.userData.baseEmissive=paint.emissive.clone();
     return g;
+  }
+
+  /* Which machine is which side. Frames are written in A,B order and the
+     meshes are built to match, whichever mark is yours. */
+  const meshOfSide = side => mechMesh[side==='B' ? 1 : 0];
+
+  /* ------------------------------------------------------- the animation
+     Everything here is decoration over a fight that is already decided.
+     It reads the frame and the events and never writes to either, which
+     is why scrubbing backwards puts all of it right: a mech that is alive
+     on the frame you land on stands back up. */
+  function animate(dt){
+    mechMesh.forEach(g=>{
+      const a=g.userData.anim, P=g.userData.parts;
+      if(!a || !P) return;
+
+      /* WALK. How far it still has to travel is how hard it is walking —
+         no state to keep, and it stops by itself on arrival. */
+      const to=g.userData.to;
+      const far = to ? Math.hypot(to.x-g.position.x, to.z-g.position.z) : 0;
+      const moving = far>0.2 && !g.userData.dead;
+      a.walk += dt*(moving?13:0);
+      const stride = moving ? Math.min(1, far/TILE) : 0;
+      P.legs.forEach((lg,i)=>{
+        const want = moving ? Math.sin(a.walk + i*Math.PI)*0.55*stride : 0;
+        lg.rotation.x += (want-lg.rotation.x)*Math.min(1, dt*14);
+      });
+
+      /* RECOIL, FLINCH, SHOVE — three numbers falling to zero */
+      a.recoil=Math.max(0, a.recoil - dt*4.2);
+      a.flash =Math.max(0, a.flash  - dt*4.5);
+      a.shove =Math.max(0, a.shove  - dt*5.0);
+      a.drop  =Math.max(0, a.drop   - dt*1.9);
+
+      P.gun.position.z = P.gunZ + a.recoil*1.1;
+      const base=g.userData.baseEmissive;
+      g.userData.paint.emissive.setRGB(
+        base.r + (1-base.r)*a.flash, base.g + (1-base.g)*a.flash, base.b + (1-base.b)*a.flash);
+
+      /* TOPPLE. Driven by the frame's own alive flag rather than by the
+         event that killed it, so landing on turn 9 from either direction
+         shows the same thing. */
+      const downed=!!g.userData.dead;
+      const wantTilt = downed ? -1.35 : 0;
+      P.body.rotation.x += (wantTilt-P.body.rotation.x)*Math.min(1, dt*5);
+      P.body.rotation.z += ((downed?0.25:0)-P.body.rotation.z)*Math.min(1, dt*5);
+
+      const bob = moving ? Math.abs(Math.sin(a.walk))*0.13*stride : 0;
+      P.body.position.y = bob + (downed ? -0.35 : 0);
+      P.body.position.z = a.shove*0.9;          // knocked back on its heels
+
+      /* THE FALL IN. `drop` eases out rather than in, because a machine
+         landing should arrive fast and stop dead. */
+      const h = a.drop*a.drop*DROP_H;
+      g.position.y = h;
+      g.userData.ring.position.y = 0.06 - h;    // the ring stays on the floor
+      g.userData.ring.material.opacity = 0.75 - a.drop*0.35;
+    });
   }
 
   /* ==================================================== the programming */
@@ -541,6 +653,53 @@ window.MECH = (function(){
   }
   function hideWait(){ const el=$('#mkWait'); if(el){ el.classList.add('hidden'); el.innerHTML=''; } }
 
+  /* SOMEBODY ELSE JUST FOUGHT. Held rather than shown, unless there is
+     nothing else going on — a card over the arena while a student is
+     mid-program is an interruption, not an offer. */
+  function offer(m){
+    if(!on || !m || !m.watch) return;
+    // your own match came back through op:'match'; you are not a spectator of it
+    if(pvp && phase!=='program' && phase!=='results') return;
+    offered={ a:m.a, b:m.b, watch:m.watch };
+    paintOffer();
+  }
+  function paintOffer(){
+    const el=$('#mkOffer'); if(!el) return;
+    if(!offered || phase==='battle' || phase==='countdown'){
+      el.classList.add('hidden'); return;
+    }
+    el.innerHTML=`<b>${t('JUST FOUGHT')}</b>
+      <span>${offered.a} ${t('vs')} ${offered.b}</span>
+      <button class="btn small" data-a="watch">${t('WATCH IT ▶')}</button>
+      <button class="btn ghost small" data-a="no">✕</button>`;
+    el.classList.remove('hidden');
+    el.querySelector('[data-a="watch"]').onclick=()=>watch(offered.watch);
+    el.querySelector('[data-a="no"]').onclick=()=>{ offered=null; paintOffer(); };
+  }
+  /* A match is replayed from its inputs, exactly the way your own is —
+     so a spectator's scrubber, log and explanation are the real ones and
+     not a summary somebody sent. */
+  function watch(w){
+    if(!w) return;
+    offered=null; $('#mkOffer').classList.add('hidden');
+    watching=true; mySide='A';
+    hideWait();
+    chassis=w.A.chassis;
+    you={ side:'A', chassis:w.A.chassis, name:w.A.name, a:SIDE_A };
+    opponent=Object.assign(stranger(), {
+      name:w.B.name, chassis:w.B.chassis, program:w.B.program, arena:w.arena,
+      teach:'somebody else’s fight', blurb:'You are watching, not fighting.' });
+    A=MECHSIM.readArena(MECHSIM.arenaById(w.arena));
+    build();
+    you.name=w.A.name; foe.name=w.B.name;      // named for who actually fought
+    const r=MECHSIM.simulate({ a:w.A, b:w.B, arena:w.arena, rules:w.rules, seed:w.seed });
+    if(!r.ok){ watching=false; return; }
+    if(w.result) r.result=w.result;            // the server's verdict is the one on record
+    match=r; idx=0;
+    CODE.close(); CODE.hideTape();
+    countdown();
+  }
+
   /* What the server says back. Only ever about the match — the chat lines
      that go with it are worded in net.js like every other room message. */
   function fromServer(m){
@@ -607,13 +766,48 @@ window.MECH = (function(){
       el.innerHTML=`<div class="big" style="font-size:min(12vw,110px)">${t('DEPLOY!')}</div>
                     <div class="sub">${t('nobody can help them now')}</div>`;
       if(window.beep) beep('good');
-      setTimeout(()=>{ el.classList.add('hidden'); battle(); }, 780);
+      drop();
+      setTimeout(()=>{ el.classList.add('hidden'); battle(); }, DROP_MS);
     };
     show(0);
     tick_();
   }
+  /* THE WORD MEANS SOMETHING NOW. Both machines are dropped in from
+     above on DEPLOY!, land hard, and the fight starts on the floor.
+
+     It is pure decoration and it has to stay that way: the match was
+     decided before the countdown began, so this cannot change an outcome
+     — the worst it can do is delay one, which is why it is skippable. */
+  function drop(){
+    mechMesh.forEach(g=>{ if(g.userData.anim) g.userData.anim.drop=1; });
+    if(window.beep) setTimeout(()=>beep('bad'), DROP_MS-160);
+    setTimeout(()=>{
+      if(!on) return;
+      shake=1.0;
+      mechMesh.forEach(g=>{
+        if(!g.visible) return;
+        const m=new THREE.Mesh(new THREE.RingGeometry(1.6,2.4,26),
+          new THREE.MeshBasicMaterial({ color:0xffe9a8, transparent:true,
+            opacity:0.85, side:THREE.DoubleSide }));
+        m.rotation.x=-Math.PI/2;
+        m.position.set(g.position.x, 0.12, g.position.z);
+        m.userData.flat=true;
+        world.add(m); fx.push({ m, life:0.5, grow:true });
+      });
+    }, DROP_MS-140);
+  }
+  /* Straight to the fight, for anybody who has watched the three-two-one
+     ten times already. */
+  function skipCountdown(){
+    if(phase!=='countdown') return false;
+    $('#mkCount').classList.add('hidden');
+    mechMesh.forEach(g=>{ if(g.userData.anim) g.userData.anim.drop=0; });
+    battle();
+    return true;
+  }
   function battle(){
     phase='battle';
+    paintOffer();
     idx=0; acc=0; playing=true; speed=1;
     $('#mkLog').classList.remove('hidden');
     $('#mkBar').classList.remove('hidden');
@@ -630,7 +824,7 @@ window.MECH = (function(){
     camera(dt);
     crateMesh.forEach((g,i)=>{ g.rotation.y+=dt*1.4; g.children[0].position.y=Math.sin(performance.now()/420+i)*0.16; });
     stepFx(dt);
-    if(!match || !playing) { lerp(dt); return; }
+    if(!match || !playing) { lerp(dt); animate(dt); return; }
     acc+=dt*1000*speed;
     if(acc>=TURN_MS){
       acc=0;
@@ -638,6 +832,7 @@ window.MECH = (function(){
       else { playing=false; paintBar(); if(phase==='battle') finish(); }
     }
     lerp(dt);
+    animate(dt);
   }
 
   /* Jump the whole board to one turn. Everything the replay shows comes
@@ -661,12 +856,11 @@ window.MECH = (function(){
       place(g, m, m.dir, false);
       g.visible=true;
       g.userData.shield.visible=!!m.shield;
+      // a toppled machine says "destroyed" better than a shrunken one
       g.userData.dead=!m.alive;
-      g.scale.setScalar(m.alive?1:0.72);
-      g.traverse(o=>{ if(o.isMesh && o.material && o.material.opacity===undefined) return; });
     });
     crateMesh.forEach((g,k)=>{ g.visible = f.crates[k] && !f.crates[k].taken; });
-    if(idx>0) f.events.forEach(spawnFx);
+    if(idx>0) f.events.forEach(ev=>{ spawnFx(ev); react(ev); });
     paintTop(f);
     paintLog();
     paintBar();
@@ -693,6 +887,57 @@ window.MECH = (function(){
       while(d<-Math.PI) d+=Math.PI*2;
       g.rotation.y += d*k;
     });
+  }
+
+  /* Events are read TWICE: once here, for the things that fly through the
+     air, and once in react(), for what the machines themselves do about
+     it. Both are decoration over a decided fight. */
+  function react(ev){
+    if(ev.kind==='shot'){
+      const shooter=meshOfSide(ev.side);
+      if(shooter) shooter.userData.anim.recoil=1;
+      if(!ev.hit) return;
+      const victim=meshOfSide(ev.side==='A'?'B':'A');
+      if(victim){ victim.userData.anim.flash=1; victim.userData.anim.shove=1; }
+      // the numbers land on the machine that took them, not in the corner
+      hurtNumber(ev.to, ev.dmg, ev.side!==mySide);
+      shake=Math.max(shake, 0.5);
+      return;
+    }
+    if(ev.kind==='collision'){
+      mechMesh.forEach(g=>{ g.userData.anim.flash=0.6; g.userData.anim.shove=0.7; });
+      shake=Math.max(shake, 0.35);
+      return;
+    }
+    if(ev.kind==='hazard'){
+      const m=meshOfSide(ev.side);
+      if(m) m.userData.anim.flash=0.8;
+      hurtNumber({x:ev.x,z:ev.z}, ev.value, ev.side!==mySide);
+      return;
+    }
+    if(ev.kind==='destroyed') shake=Math.max(shake, 1.1);
+  }
+  /* A number that floats off the machine it was taken off. Projected from
+     the world rather than dropped in the middle of the screen, because
+     with two mechs on a board "who took that" is the whole question. */
+  function hurtNumber(at_, n, theirs){
+    if(!n) return;
+    const p=world_(at_.x, at_.z);
+    /* The camera was moved a few lines ago in this same tick and the world
+       matrix that project() reads is only refreshed by a render, so without
+       this the number is placed against where the camera was LAST frame —
+       and while the pane is throttled, against nothing at all. */
+    G.camera.updateMatrixWorld();
+    const v=new THREE.Vector3(p.x, 2.6, p.z).project(G.camera);
+    if(v.z>1) return;                       // behind the camera
+    const el=document.createElement('div');
+    el.className='mkdmg'+(theirs?' them':'');
+    el.textContent='−'+n;
+    el.style.left=((v.x*0.5+0.5)*window.innerWidth)+'px';
+    el.style.top =((-v.y*0.5+0.5)*window.innerHeight)+'px';
+    const host=$('#dmgNums'); if(!host) return;
+    host.appendChild(el);
+    setTimeout(()=>el.remove(), 860);
   }
 
   /* shots, hits and pickups, as things you can see happen */
@@ -746,10 +991,30 @@ window.MECH = (function(){
     /* Far enough out that the whole floor is in shot at once. A battle you
        have to pan around to follow is a battle you cannot read. */
     const span=Math.max(A.w, A.h)*TILE;
-    const r=span*0.80, y=span*0.92*orbitH;
-    G.camera.position.set(Math.sin(orbit)*r, y, Math.cos(orbit)*r);
+    /* WHERE IT LOOKS. On the board by default, because the board is how a
+       student works out why they lost. FOLLOW pulls in on the middle of
+       the two machines, which is better television and worse evidence —
+       so it is a button rather than the default. */
+    let cx=0, cz=0, pull=1;
+    if(view==='follow' && match && mechMesh.length===2){
+      cx=(mechMesh[0].position.x+mechMesh[1].position.x)/2;
+      cz=(mechMesh[0].position.z+mechMesh[1].position.z)/2;
+      const apart=Math.hypot(mechMesh[0].position.x-mechMesh[1].position.x,
+                             mechMesh[0].position.z-mechMesh[1].position.z);
+      // close in when they are close, back off when the fight spreads out
+      pull=Math.max(0.34, Math.min(0.8, 0.22 + apart/(span*1.5)));
+    }
+    const r=span*0.80*pull, y=span*0.92*orbitH*pull;
+    /* A decaying wobble rather than a random one: two students watching
+       the same match should see the same shake. */
+    shakeT += dt*34;
+    const k = shake*0.9;
+    G.camera.position.set(cx+Math.sin(orbit)*r + Math.sin(shakeT)*k,
+                          y + Math.sin(shakeT*1.7)*k,
+                          cz+Math.cos(orbit)*r + Math.cos(shakeT*1.3)*k);
+    shake=Math.max(0, shake - dt*6);
     G.camera.up.set(0,1,0);
-    G.camera.lookAt(0,0,0);
+    G.camera.lookAt(cx,0,cz);
   }
 
   /* ===================================================== the two panels */
@@ -766,12 +1031,17 @@ window.MECH = (function(){
         <div class="mk-meter mk-hp"><i style="width:${Math.max(0,m.hp/c.hp*100)}%"></i></div>
         <div class="mk-meter mk-en"><i style="width:${Math.max(0,m.energy/maxE*100)}%"></i></div>
         <div class="mk-nums"><span>❤ <b>${m.hp}</b>/${c.hp}</span>
-          <span>⚡ <b>${m.energy}</b>/${maxE}</span></div>`;
+          <span>⚡ <b>${m.energy}</b>/${maxE}</span>
+          ${m.streak>1?`<span class="mk-streak">🔥 <b>${m.streak}</b></span>`:''}</div>`;
     };
     side(mine(), $('#mkA')); side(other(), $('#mkB'));
     const T=$('#mkTurn');
+    /* Counted off the frames rather than off the verdict. They agree for
+       every real match — the verdict is computed from these very frames —
+       but the scrubber runs on frames, and a header that disagreed with
+       the slider under it would be the one thing nobody could explain. */
     T.innerHTML = match
-      ? `<div class="n">${idx}</div><div class="l">${t('TURN')} / ${match.result.turns}</div>`
+      ? `<div class="n">${idx}</div><div class="l">${t('TURN')} / ${match.frames.length-1}</div>`
       : `<div class="n">—</div><div class="l">${t('NOT DEPLOYED')}</div>`;
   }
 
@@ -809,7 +1079,11 @@ window.MECH = (function(){
         return `<div class="mk-line ${cls}">${w}<span class="mk-no">${t('nothing happened')}</span></div>
                 <div class="mk-why">${t(e.why)}</div>`;
       if(e.kind==='event' && e.text==='hit')
-        return `<div class="mk-line ${cls}">${w}<span class="mk-hit">${t('HIT')} −${e.value} ❤</span></div>`;
+        return `<div class="mk-line ${cls}">${w}<span class="mk-hit">${t('HIT')} −${e.value} ❤</span>
+          ${e.bonus?`<span class="mk-combo">🔥 ${e.streak} ${t('in a row')} +${e.bonus}</span>`:''}</div>`;
+      if(e.kind==='event' && e.text==='miss' && e.broke>1)
+        return `<div class="mk-line ${cls}">${w}<span class="mk-no">${t('missed')}</span>
+          <span class="mk-t">${t('streak broken')}</span></div>`;
       if(e.kind==='event' && e.text==='miss')
         return `<div class="mk-line ${cls}">${w}<span class="mk-no">${t('missed')}</span></div>`;
       if(e.kind==='event')
@@ -831,6 +1105,8 @@ window.MECH = (function(){
       <input type="range" min="0" max="${last}" value="${idx}" data-a="scrub">
       <span class="sc">${t('TURN')} ${idx}/${last}</span>
       <button data-a="speed">×${speed}</button>
+      <button data-a="view" class="${view==='follow'?'on':''}">${
+        view==='follow' ? t('FOLLOW') : t('BOARD')}</button>
       <button data-a="edit">${t('EDIT CODE')}</button>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-a]').forEach(b=>{
@@ -844,6 +1120,7 @@ window.MECH = (function(){
           if(playing && idx>=last) show(0);
           paintBar(); }
         if(act==='speed'){ speed = speed===1?2 : speed===2?4 : 1; paintBar(); }
+        if(act==='view') setView(view==='follow'?'board':'follow');
         if(act==='edit'){ playing=false; phase='program'; console_(); }
       };
     });
@@ -856,6 +1133,21 @@ window.MECH = (function(){
     phase='results';
     const r=match.result, stats=match.stats[mySide];
     const winner = r.winner===mySide;
+    const row=(k,v)=>`<div><b>${v}</b><span>${t(k)}</span></div>`;
+    if(watching){
+      /* Nothing is yours here — not the win, not the coins, not the
+         advice, which would be advice to somebody who is not reading. */
+      showResults({
+        title: r.winner==='draw' ? t('A DRAW') : t('{n} WINS',{n:you.name}),
+        body: `<p>${t(r.text)}</p>`,
+        stats: row('turns', match.frames.length-1)
+             + row('damage', match.stats.A.damageDealt+match.stats.B.damageDealt),
+        btnText: t('WATCH IT BACK ▶'),
+        onBtn: ()=>{ $('#done').classList.add('hidden');
+                     playing=false; clearFx(); show(0); paintBar(); }
+      });
+      return;
+    }
     /* The league pays; the Gym does not. A rematch is two clicks, so a
        coin for beating a classmate is a coin for pressing RUN twice. */
     if(winner && !pvp && window.PROGRESS){
@@ -864,7 +1156,6 @@ window.MECH = (function(){
       if(first && window.WALLET)
         WALLET.award(t('{m} beaten',{m:t(opponent.name)}), 90, 45, 'mech_'+opponent.id);
     }
-    const row=(k,v)=>`<div><b>${v}</b><span>${t(k)}</span></div>`;
     /* explain() falls back to the verdict when it has nothing sharper to
        say, and printing the same sentence twice reads as a stutter rather
        than as advice. */
@@ -896,6 +1187,8 @@ window.MECH = (function(){
        otherwise the next person to deploy fights an empty chair. */
     if(pvp && phase==='waiting' && window.NET && NET.live) NET.mech({ op:'cancel' });
     on=false; phase='off'; pvp=false; mySide='A';
+    watching=false; offered=null;
+    const off=$('#mkOffer'); if(off){ off.classList.add('hidden'); off.innerHTML=''; }
     hideWait();
     clearFx();
     match=null; mechMesh=[]; crateMesh=[]; world=null;
@@ -919,7 +1212,11 @@ window.MECH = (function(){
      console is not. The same keys the transport shows, so somebody who
      found one has found the other. */
   function key(code){
-    if(!on || !match || CODE.isOpen()) return false;
+    if(!on || CODE.isOpen()) return false;
+    // SPACE means "get on with it" in both places it can be pressed
+    if(code==='Space' && phase==='countdown') return skipCountdown();
+    if(!match) return false;
+    if(code==='KeyB'){ setView(view==='follow'?'board':'follow'); return true; }
     if(code==='Space'){ playing=!playing; acc=0;
       if(playing && idx>=match.frames.length-1) show(0);
       paintBar(); return true; }
@@ -933,9 +1230,10 @@ window.MECH = (function(){
      than hoping whoever opened the connection remembered to pass it on. */
   if(window.NET) NET.onMech = fromServer;
 
-  return { start, stop, tick, run, key, camera, net:fromServer,
+  return { start, stop, tick, run, key, camera, net:fromServer, offer, watch,
            get active(){ return on; },
            get phase(){ return phase; },
            get pvp(){ return pvp; },
+           get watching(){ return watching; },
            GYM_ARENA, LEAGUE, PAL };
 })();

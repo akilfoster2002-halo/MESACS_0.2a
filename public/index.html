@@ -1417,6 +1417,25 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .mk-stat{font-size:13px;color:var(--muted);line-height:1.6}
 .mk-stat b{color:var(--text)}
 
+/* damage, floating off the machine that took it. margin rather than
+   transform, because the float animation owns transform already. */
+.mkdmg{position:absolute;font-size:21px;font-weight:bold;color:var(--bad);
+  text-shadow:0 2px 8px #000;margin-top:-10px;animation:mkfloat .86s ease-out forwards}
+.mkdmg.them{color:var(--star)}
+@keyframes mkfloat{0%{opacity:0;margin-top:0}18%{opacity:1}100%{opacity:0;margin-top:-58px}}
+.mk-streak{color:var(--star)}
+.mk-streak b{color:var(--star)}
+/* the streak, in the log */
+.mk-combo{color:var(--star);font-weight:bold}
+
+/* somebody in your room just fought. An offer, not an interruption:
+   a strip along the bottom that waits, rather than a card in the way. */
+#mkOffer{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);display:flex;
+  gap:10px;align-items:center;background:rgba(15,22,36,.95);border:3px solid var(--line);
+  border-radius:14px;padding:8px 12px;pointer-events:auto;font-size:14px}
+#mkOffer b{color:var(--star);letter-spacing:1.5px;font-size:12px}
+#mkOffer span{color:var(--muted)}
+
 /* the setup screen reuses .mis cards; this is only the extra row of stats */
 .mk-pick{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--muted);
   margin-top:6px;flex-wrap:wrap}
@@ -1680,6 +1699,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="mkBar" class="hidden"></div>
   <div id="mkCount" class="hidden"></div>
   <div id="mkWait" class="hidden"></div>
+  <div id="mkOffer" class="hidden"></div>
 </div>
 
 <!-- the mecha workshop: a robot you click, and the orders for whatever you
@@ -1719,43 +1739,43 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="flatMsg"></div>
 </div>
 
-<script src="lib/three.classic.js?v=263"></script>
-<script src="strings.js?v=263"></script>
-<script src="difficulty.js?v=263"></script>
-<script src="net.js?v=263"></script>
-<script src="avatar.js?v=263"></script>
-<script src="zombies.js?v=263"></script>
-<script src="building.js?v=263"></script>
-<script src="levels.js?v=263"></script>
-<script src="program.js?v=263"></script>
-<script src="code.js?v=263"></script>
-<script src="mechsim.js?v=263"></script>
-<script src="mech.js?v=263"></script>
-<script src="intro.js?v=263"></script>
-<script src="mechacode.js?v=263"></script>
-<script src="mechaarena.js?v=263"></script>
-<script src="mecha.js?v=263"></script>
-<script src="workshop.js?v=263"></script>
-<script src="combat.js?v=263"></script>
-<script src="puzzle.js?v=263"></script>
-<script src="nav.js?v=263"></script>
-<script src="tutorial.js?v=263"></script>
-<script src="race.js?v=263"></script>
-<script src="flight.js?v=263"></script>
-<script src="planet.js?v=263"></script>
-<script src="wallet.js?v=263"></script>
-<script src="shop.js?v=263"></script>
-<script src="library.js?v=263"></script>
-<script src="costumes.js?v=263"></script>
-<script src="missions.js?v=263"></script>
-<script src="coach.js?v=263"></script>
-<script src="owner.js?v=263"></script>
-<script src="blocks.js?v=263"></script>
-<script src="vm.js?v=263"></script>
-<script src="coder.js?v=263"></script>
-<script src="quiz.js?v=263"></script>
-<script src="chars.js?v=263"></script>
-<script src="menu.js?v=263"></script>
-<script src="game.js?v=263"></script>
+<script src="lib/three.classic.js?v=275"></script>
+<script src="strings.js?v=275"></script>
+<script src="difficulty.js?v=275"></script>
+<script src="net.js?v=275"></script>
+<script src="avatar.js?v=275"></script>
+<script src="zombies.js?v=275"></script>
+<script src="building.js?v=275"></script>
+<script src="levels.js?v=275"></script>
+<script src="program.js?v=275"></script>
+<script src="code.js?v=275"></script>
+<script src="mechsim.js?v=275"></script>
+<script src="mech.js?v=275"></script>
+<script src="intro.js?v=275"></script>
+<script src="mechacode.js?v=275"></script>
+<script src="mechaarena.js?v=275"></script>
+<script src="mecha.js?v=275"></script>
+<script src="workshop.js?v=275"></script>
+<script src="combat.js?v=275"></script>
+<script src="puzzle.js?v=275"></script>
+<script src="nav.js?v=275"></script>
+<script src="tutorial.js?v=275"></script>
+<script src="race.js?v=275"></script>
+<script src="flight.js?v=275"></script>
+<script src="planet.js?v=275"></script>
+<script src="wallet.js?v=275"></script>
+<script src="shop.js?v=275"></script>
+<script src="library.js?v=275"></script>
+<script src="costumes.js?v=275"></script>
+<script src="missions.js?v=275"></script>
+<script src="coach.js?v=275"></script>
+<script src="owner.js?v=275"></script>
+<script src="blocks.js?v=275"></script>
+<script src="vm.js?v=275"></script>
+<script src="coder.js?v=275"></script>
+<script src="quiz.js?v=275"></script>
+<script src="chars.js?v=275"></script>
+<script src="menu.js?v=275"></script>
+<script src="game.js?v=275"></script>
 </body>
 </html>
