@@ -172,6 +172,14 @@ window.AVATAR = (function(){
   function pick(id){
     chosen=id;
     try{ localStorage.setItem('dq_char',id); }catch(e){}
+    /* PUT IT ON NOW. pick() used to do nothing but write the choice down,
+       so the body already standing in the world went on being whoever it
+       was until something else happened to rebuild the room — which in
+       practice meant reloading the game. Every way of changing character
+       ends up here: the Mall's grid, the mannequins you walk up to, and
+       the shop when you buy one. So this is the one place it has to
+       happen, and now it does. */
+    if(body) attach();
     /* RECORD the choice; do not COMPLETE it. complete() is the mission
        payout path — it hands over coins and XP, at a quarter rate on a
        repeat — so changing your character paid you fifteen coins, every
@@ -192,6 +200,9 @@ window.AVATAR = (function(){
      Walking cancels it. Nobody wants to watch their character finish a
      dance they have changed their mind about halfway through. */
   let emoting=0, emoteClip=null;
+  /* Which attach is the current one. Two characters clicked quickly are two
+     loads in flight, and the slower one must not win by finishing last. */
+  let attachSeq=0;
   const rigOf = m => (m && m.userData && m.userData.rig) || null;
   function emote(name){
     const r=rigOf(model);
@@ -215,15 +226,22 @@ window.AVATAR = (function(){
     emoting-=dt;
     return emoting>0 ? emoteClip : null;
   }
+  /* LOAD FIRST, SWAP AFTER. Detaching up front left the world with nobody
+     standing in it for as long as the new character took to arrive — a
+     visible hole every time somebody changed clothes. The one you are
+     wearing stays until the one you asked for is ready. */
   async function attach(){
+    const seq=++attachSeq;
+    let m;
+    try{ m=await load(chosen); }
+    catch(e){ console.warn('character failed to load',e); return; }
+    if(seq!==attachSeq) return;            // they picked again while this loaded
+    if(!G.roomGroup){ detach(); return; }  // nowhere to stand
     detach();
-    try{
-      const m=await load(chosen);
-      model=m;
-      body=new THREE.Group(); body.add(m);
-      G.roomGroup.add(body);
-      equip(m);                            // give them something to hold
-    }catch(e){ console.warn('character failed to load',e); body=null; model=null; }
+    model=m;
+    body=new THREE.Group(); body.add(m);
+    G.roomGroup.add(body);
+    equip(m);                              // give them something to hold
   }
   function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null;
                      emoting=0; emoteClip=null; }
