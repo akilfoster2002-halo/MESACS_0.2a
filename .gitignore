@@ -16,3 +16,8 @@ animations/
 # stay on disk for whoever needs to cut another one.
 kenney_*/
 "glb files"/
+
+# The soundtrack source, at the repo root. ANCHORED with a leading slash:
+# a bare "music/" matches at every level and would take public/music/ —
+# the copy the game actually serves — with it.
+/music/

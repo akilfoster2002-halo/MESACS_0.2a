@@ -257,6 +257,11 @@ window.PLANET = (function(){
     mannequins=[]; flies=null; beasts=[]; sparkTex=null;
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
+    /* KORO'S THEME, and only on KORO. It is the hub's music, not the
+       game's: the planet the missions are on gets it, and the arena, the
+       home planet, the rooms indoors and the run between the planets do
+       not. A theme that plays everywhere stops being a theme. */
+    if(window.MUSIC) MUSIC.play(W.id==='hub' ? 'hub' : null);
     G.scene.background=new THREE.Color(SKY);
     /* The stars, the neighbour and its ring all sit five hundred metres out
        and the camera stopped seeing at two hundred and twenty, so none of the
@@ -3043,6 +3048,7 @@ window.PLANET = (function(){
   function leave(){
     if(on && me.dir) backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
     on=false;
+    if(window.MUSIC) MUSIC.stop();      // whatever you walked into, it is not out here
     // whatever we are walking into, we are not out here any more
     wentTo('inside');
     /* Let the last tour step notice it is done, then take the card away — its
