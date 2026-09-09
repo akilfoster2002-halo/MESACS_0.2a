@@ -64,8 +64,7 @@ window.CODE = (function(){
     dash     :{label:'dash()',       color:'#ffd8a8', help:'Two tiles forward at once — expensive, and it can overshoot'},
     /* The first loop whose length nobody knows when they write it. repeat 5
        is counted out at compile time; this one has to be tested every pass. */
-    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'},
-    sample   :{label:'sample()',     color:'#ffe9a8', help:'Take a reading of the ground under the rover'}
+    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'}
   };
   /* The shape of the language — which blocks carry a number, how a tree of
      them compiles, how many blocks it is — lives in program.js, because the

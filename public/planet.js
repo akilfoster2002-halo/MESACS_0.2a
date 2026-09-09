@@ -170,7 +170,7 @@ window.PLANET = (function(){
     { id:'m1',     em:'\u{1F9DF}', name:'Mission 2 — Loops',          a:'#a8e6cf' },
     { id:'m2',     em:'\u{1F52E}', name:'Mission 3 — Choices',        a:'#cdb4f6' },
     { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' },
-    { id:'rover',  em:'\u{1F6F0}', name:'Mission 5 — The Survey',      a:'#9fe6b4' }
+    { id:'sub',    em:'\u{1F30A}', name:'Mission 5 — The Trench',      a:'#8ff0ff' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -1998,9 +1998,9 @@ window.PLANET = (function(){
         cube.position.set(bx,by,bz); cube.rotation.y=Math.random()*0.4-0.2; top.add(cube);
       });
     }
-    if(id==='rover'){
-      /* The rover itself, small, on its plinth — a slab on six wheels with
-         a mast, which is the shape the mission is about. */
+    if(id==='sub'){
+      /* The submersible on its plinth — a capsule with a tower and a
+         glass nose, which is the shape the mission is about. */
       const body=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.28,1.3),
         new THREE.MeshLambertMaterial({color:0xd8dbe6}));
       body.position.y=0.42; top.add(body);

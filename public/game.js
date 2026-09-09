@@ -404,9 +404,9 @@ function startMissionRoom(id){
     return;
   }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
-  /* The rover builds its own plot, the way the flight builds its own field:
-     a board you look down on rather than a room you stand in. */
-  if(id==='rover'){ if(window.ROVER) ROVER.start(0); return; }
+  /* The trench builds its own seabed, the way the flight builds its own
+     field: a board you look down on rather than a room you stand in. */
+  if(id==='sub'){ if(window.SUB) SUB.start(0); return; }
   G.hudOwner='mission';
   G.missionId=id;
   G.arenaTitle = id==='m1'?'The Loop Chamber'
@@ -416,7 +416,7 @@ function startMissionRoom(id){
 
 /* ------------------------------------------------------- progression */
 const PROGRESS=(function(){
-  const ORDER=['nav','m1','m2','m3','rover'];
+  const ORDER=['nav','m1','m2','m3','sub'];
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
   function save(){
@@ -552,10 +552,10 @@ function wireInput(){
        button. Without this, C is dead in the one mission whose whole mechanic
        is pressing C. FLIGHT.busy is deliberately NOT in the guard list below:
        freezing the field MID-run is the point of it. */
-    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.ROVER && ROVER.active));
+    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active));
     if((e.code==='KeyC'||e.code==='Tab') && (G.running||flyingNow) && !typingInField(e)
        && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active
-           || (window.FLIGHT && FLIGHT.active) || (window.ROVER && ROVER.active)
+           || (window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active)
            || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
@@ -602,7 +602,7 @@ function loop(now){
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
-  if(window.ROVER && ROVER.active) ROVER.tick(dt);     // the rover crawls on while you write
+  if(window.SUB && SUB.active) SUB.tick(dt);       // the current runs while you write
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* The live arena runs on the frame rather than inside the frozen-world
@@ -914,7 +914,7 @@ CODE.onRun=(steps)=>{
      compiles them itself, because that is what the referee does and the
      two have to be the same compile. */
   if(window.MECH && MECH.active) MECH.run();
-  else if(window.ROVER && ROVER.active) ROVER.run();
+  else if(window.SUB && SUB.active) SUB.run();
   else if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
   else if(RACE.active) RACE.run(steps);
   else if(TUTOR.active) TUTOR.run(steps);
