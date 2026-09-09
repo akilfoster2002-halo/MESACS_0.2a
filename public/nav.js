@@ -240,7 +240,7 @@ window.NAV = (function(){
     if(!document.querySelector('#pause').classList.contains('hidden')) return warn(null);
     // read the difficulty every frame, so changing it from the pause menu
     // is felt on the next step rather than the next stage
-    const z=L.zom, spd=(L.S.speed||CHASE)*(window.DIFF?DIFF.chase():1);
+    const z=L.zom, spd=(L.S.speed||CHASE);
     // it stands and looks at you first, so you get a beat to read the corridor
     if(L.grace>0){
       L.grace-=dt;

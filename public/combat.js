@@ -115,7 +115,7 @@ window.COMBAT = (function(){
              t:Math.random()*4, dead:false,
              // the opening shot obeys the difficulty too, or Super Easy still
              // takes its first hit on the Medium clock
-             next:performance.now()+(K.fire+Math.random()*1200)*(window.DIFF?DIFF.fireGap():1)};
+             next:performance.now()+(K.fire+Math.random()*1200)};
     e.mesh.position.set(x, e.mesh.userData.stand!==undefined ? e.mesh.userData.stand : 2.2, z);
     if(shieldColor){
       const ring=new THREE.Mesh(new THREE.TorusGeometry(K.size*0.95,0.14,6,18),
@@ -181,7 +181,7 @@ window.COMBAT = (function(){
     // one choke point for everything that can hurt the player, so difficulty
     // scales here rather than in every spawn. Never rounds away to nothing:
     // a hit that costs zero reads as a broken game, not a gentle one.
-    n = Math.max(1, Math.round(n*(window.DIFF?DIFF.dmg():1)));
+    n = Math.max(1, Math.round(n));
     hp=Math.max(0,hp-n); lastHurt=performance.now();
     drawHP(); hurtFlash(); dmgNum(n);
     if(window.beep) beep('bad');
@@ -283,7 +283,7 @@ window.COMBAT = (function(){
       new THREE.MeshBasicMaterial({color:e.K.bolt}));
     m.position.copy(from); G.scene.add(m);
     foeBolts.push({m, from, to, t:0,
-      speed:(0.55+Math.random()*0.15)*(window.DIFF?DIFF.bolt():1), dmg:e.dmg});
+      speed:(0.55+Math.random()*0.15), dmg:e.dmg});
   }
   function spark(pos,color){
     const m=new THREE.Mesh(new THREE.SphereGeometry(.7,8,8),
@@ -413,14 +413,14 @@ window.COMBAT = (function(){
       const dx=G.pos.x-e.mesh.position.x, dz=G.pos.z-e.mesh.position.z;
       const dist=Math.hypot(dx,dz);
       const walking = dist>7;
-      const chase=e.K.speed*(window.DIFF?DIFF.chase():1);
+      const chase=e.K.speed;
       if(walking){ e.mesh.position.x+=dx/dist*chase*dt; e.mesh.position.z+=dz/dist*chase*dt; }
       e.mesh.lookAt(G.pos.x, e.mesh.position.y, G.pos.z);
       if(e.mesh.userData.zombie)
         ZOMBIE.animate(e.mesh.userData.zombie, dt, walking ? 'run' : 'idle');
       if(e.ring) e.ring.rotation.z+=dt*2;
       if(now>e.next && dist<e.K.range && !blocked(e.mesh.position.x,e.mesh.position.z,G.pos.x,G.pos.z)){
-        e.next=now+e.K.fire*(window.DIFF?DIFF.fireGap():1); foeShot(e);
+        e.next=now+e.K.fire; foeShot(e);
       }
     });
 
@@ -441,7 +441,7 @@ window.COMBAT = (function(){
         layout(boss);
       }
       if(now>boss.next){
-        boss.next=now+2400*(window.DIFF?DIFF.fireGap():1);
+        boss.next=now+2400;
         foeShot({mesh:boss.mesh, dmg:boss.dmg, K:{bolt:PAL.rose}});
       }
     }

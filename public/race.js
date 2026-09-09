@@ -347,7 +347,7 @@ window.RACE = (function(){
     if(z<0||z>=L.h||x<0||x>=L.grid[z].length) return '#';
     return L.grid[z][x];
   }
-  function target(){ return L.K.par * (window.DIFF?DIFF.time():1); }
+  function target(){ return L.K.par; }
   function bestKey(){ return 'dq_race_best_'+L.idx; }
   function best(){ try{ return +localStorage.getItem(bestKey())||0; }catch(e){ return 0; } }
   function saveBest(secs){

@@ -664,8 +664,6 @@ function togglePause(){
       <div class="p-lbl">${t('YOUR HINT')}</div>
       <div class="p-hint">${$('#briefing').innerHTML||'—'}</div>
       ${sk}
-      <div class="p-lbl">${t('DIFFICULTY')}</div>
-      <div class="diffrow" id="pDiff"></div>
       <div class="p-lbl">${t('SOUND')}</div>
       <div class="p-hint"><button class="btn ghost small" id="pMusic"></button></div>
       <div class="p-lbl">${t('KEYS')}</div>
@@ -679,7 +677,6 @@ function togglePause(){
       </div>
     </div>`;
   p.classList.remove('hidden');
-  pauseDiff();
   pauseJump();
   $('#pClose').onclick=()=>togglePause();
   /* The music toggle lives in the top bar too, but the top bar is hidden in
@@ -716,19 +713,6 @@ function pauseJump(){
 /* Difficulty is read live by the chase and the guns, so switching it here
    lands on the next step and the next shot — no restart, and the program the
    student has already written stays exactly where it is. */
-function pauseDiff(){
-  const row=$('#pDiff'); if(!row || !window.DIFF) return;
-  row.innerHTML='';
-  DIFF.LEVELS.forEach(d=>{
-    const b=document.createElement('button');
-    b.className='diffbtn'+(d.id===DIFF.current?' on':'');
-    b.style.setProperty('--a', d.a);
-    b.innerHTML=`<span class="dem">${d.em}</span><b>${t(d.name)}</b>`;
-    b.onclick=()=>{ DIFF.set(d.id); pauseDiff(); if(window.beep) beep('pop');
-                    if(window.MENU) MENU.render(); };
-    row.appendChild(b);
-  });
-}
 function step(dt){
   /* THE PLANET IS ROUND, so none of what follows applies there: no height
      function, no gravity down -Y, no axis-aligned walls and no camera that

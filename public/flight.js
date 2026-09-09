@@ -697,7 +697,12 @@ window.FLIGHT = (function(){
       ? t('Again from the start. Stops: {n}.',{n:stops()})
       : t('{n} walls ahead. <b>C</b> stops everything.',{n:L.beats.length}));
   }
-  const beatMs = () => BEAT_MS * (window.DIFF?DIFF.time():1);
+  /* HOW FAST THE FIELD ARRIVES, per leg. This used to be the difficulty
+     dial: one clock for the whole mission, bent by a setting chosen in a
+     menu. The dial is gone — the mission gets harder because the legs get
+     harder — so the clock belongs to the leg, and a stage that wants to
+     press can say so and take the responsibility for being fair. */
+  const beatMs = () => (L && L.K && L.K.beat) || BEAT_MS;
   const stops = () => Math.max(0, (L?L.runs:0) - 1);
   /* cheap fingerprint of the written program, so the radar knows to redraw */
   const progSig = () => (window.CODE && CODE.script)
