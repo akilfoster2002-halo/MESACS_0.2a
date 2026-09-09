@@ -1186,8 +1186,11 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   background:linear-gradient(90deg,#8ff0ff,#cdb4f6);transition:width .25s linear}
 #cruise .cthr{position:absolute;left:22px;bottom:74px;font-size:12px;letter-spacing:1.6px}
 #cruise .cthr .cbar.sm{width:120px;margin-top:4px}
-#cruise .ckeys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);
-  font-size:12px;letter-spacing:.4px;color:#b9d6e6;white-space:nowrap}
+/* wraps rather than running off the edge: the line is long and a narrow
+   window is a lab window */
+#cruise .ckeys{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);
+  font-size:12px;letter-spacing:.4px;color:#b9d6e6;text-align:center;
+  max-width:min(94vw,900px);line-height:1.7}
 #cruise .ckeys b{color:#ffd23f;letter-spacing:1px}
 /* the course marker: a ring on the planet ahead, an arrow at the edge when
    it is behind you */
@@ -1777,45 +1780,45 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='315';</script>
-<script src="lib/three.classic.js?v=315"></script>
-<script src="strings.js?v=315"></script>
-<script src="difficulty.js?v=315"></script>
-<script src="net.js?v=315"></script>
-<script src="avatar.js?v=315"></script>
-<script src="zombies.js?v=315"></script>
-<script src="building.js?v=315"></script>
-<script src="levels.js?v=315"></script>
-<script src="program.js?v=315"></script>
-<script src="code.js?v=315"></script>
-<script src="mechsim.js?v=315"></script>
-<script src="mech.js?v=315"></script>
-<script src="intro.js?v=315"></script>
-<script src="mechacode.js?v=315"></script>
-<script src="mechaarena.js?v=315"></script>
-<script src="mecha.js?v=315"></script>
-<script src="workshop.js?v=315"></script>
-<script src="combat.js?v=315"></script>
-<script src="puzzle.js?v=315"></script>
-<script src="nav.js?v=315"></script>
-<script src="tutorial.js?v=315"></script>
-<script src="race.js?v=315"></script>
-<script src="flight.js?v=315"></script>
-<script src="cruise.js?v=315"></script>
-<script src="planet.js?v=315"></script>
-<script src="wallet.js?v=315"></script>
-<script src="shop.js?v=315"></script>
-<script src="library.js?v=315"></script>
-<script src="costumes.js?v=315"></script>
-<script src="missions.js?v=315"></script>
-<script src="coach.js?v=315"></script>
-<script src="owner.js?v=315"></script>
-<script src="blocks.js?v=315"></script>
-<script src="vm.js?v=315"></script>
-<script src="coder.js?v=315"></script>
-<script src="quiz.js?v=315"></script>
-<script src="chars.js?v=315"></script>
-<script src="menu.js?v=315"></script>
-<script src="game.js?v=315"></script>
+<script>window.ASSETV='316';</script>
+<script src="lib/three.classic.js?v=316"></script>
+<script src="strings.js?v=316"></script>
+<script src="difficulty.js?v=316"></script>
+<script src="net.js?v=316"></script>
+<script src="avatar.js?v=316"></script>
+<script src="zombies.js?v=316"></script>
+<script src="building.js?v=316"></script>
+<script src="levels.js?v=316"></script>
+<script src="program.js?v=316"></script>
+<script src="code.js?v=316"></script>
+<script src="mechsim.js?v=316"></script>
+<script src="mech.js?v=316"></script>
+<script src="intro.js?v=316"></script>
+<script src="mechacode.js?v=316"></script>
+<script src="mechaarena.js?v=316"></script>
+<script src="mecha.js?v=316"></script>
+<script src="workshop.js?v=316"></script>
+<script src="combat.js?v=316"></script>
+<script src="puzzle.js?v=316"></script>
+<script src="nav.js?v=316"></script>
+<script src="tutorial.js?v=316"></script>
+<script src="race.js?v=316"></script>
+<script src="flight.js?v=316"></script>
+<script src="cruise.js?v=316"></script>
+<script src="planet.js?v=316"></script>
+<script src="wallet.js?v=316"></script>
+<script src="shop.js?v=316"></script>
+<script src="library.js?v=316"></script>
+<script src="costumes.js?v=316"></script>
+<script src="missions.js?v=316"></script>
+<script src="coach.js?v=316"></script>
+<script src="owner.js?v=316"></script>
+<script src="blocks.js?v=316"></script>
+<script src="vm.js?v=316"></script>
+<script src="coder.js?v=316"></script>
+<script src="quiz.js?v=316"></script>
+<script src="chars.js?v=316"></script>
+<script src="menu.js?v=316"></script>
+<script src="game.js?v=316"></script>
 </body>
 </html>

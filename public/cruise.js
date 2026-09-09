@@ -26,9 +26,13 @@
    ===================================================================== */
 window.CRUISE = (function(){
   /* --------------------------------------------------------- the journey */
-  const CRUISE_SPEED = 300;              // units a second at a normal throttle
-  const TRIP_SECONDS = 120;              // how long the ride takes if you fly it straight
-  const TRIP = CRUISE_SPEED * TRIP_SECONDS;   // so: how far apart the planets are
+  /* Flat out and pointed straight at it, the crossing is the two minutes it
+     was always meant to be — but that is now a thing you can do rather than
+     a thing that happens to you. Boost gets you there in about seventy
+     seconds; dawdling takes as long as you like. */
+  const SHIP={ top:300, reverse:-80, accel:130, brake:240, drag:30, boost:1.8 };
+  const TRIP_SECONDS = 120;
+  const TRIP = SHIP.top * TRIP_SECONDS;       // so: how far apart the planets are
 
   /* ONE FRAME FOR EVERYBODY. The planets are at fixed points in a space both
      ships share, rather than each pilot flying in their own coordinates from
@@ -53,7 +57,7 @@ window.CRUISE = (function(){
 
   let on=false, server=null, dest='arena', from='hub';
   let field=null, ship=null, shipHull=null, cam=null;
-  let vel=new THREE.Vector3(), speed=CRUISE_SPEED, throttle=1, boost=0;
+  let vel=new THREE.Vector3(), speed=0, throttle=0, boost=0;
   let pitch=0, yaw=0, roll=0, rollV=0;
   let clock=0, done=false;
   /* Where the ship actually is, in the shared frame. The ship itself never
@@ -519,7 +523,7 @@ window.CRUISE = (function(){
     stop();
     server=sv||null; dest=to||'arena'; from=fromId||'hub';
     on=true; done=false; clock=0;
-    speed=CRUISE_SPEED; throttle=1; boost=0;
+    speed=0; throttle=0; boost=0;          // stopped on the pad, engines cold
     roll=0; rollV=0; keys={}; look.x=look.y=0;
 
     where.copy(spotOf(from));
@@ -573,6 +577,9 @@ window.CRUISE = (function(){
     }
     const c=document.querySelector('#view');
     if(c && c.requestPointerLock) c.requestPointerLock();
+    /* A ship sitting still is indistinguishable from a ship that has not
+       loaded, so the one instruction that matters gets said out loud. */
+    say(t('Clear of the pad. <b>W</b> to fire the engines.'), true);
   }
 
   function stop(){
@@ -630,9 +637,10 @@ window.CRUISE = (function(){
        <div class="cthr"><span id="cspd">—</span>
          <div class="cbar sm"><i id="cthrb"></i></div></div>
        <div class="ckeys">
-         <b>MOUSE</b> ${t('or')} <b>↑↓←→</b> ${t('steer')} &nbsp; <b>W S</b> ${t('throttle')}
-         &nbsp; <b>SHIFT</b> ${t('boost')} &nbsp; <b>SPACE</b> ${t('brake')}
-         &nbsp; <b>A D</b> ${t('roll')} &nbsp; <b>ESC</b> ${t('turn back')}</div>
+         <b>W</b> ${t('engines')} &nbsp; <b>S</b> ${t('brake / reverse')}
+         &nbsp; <b>MOUSE</b> ${t('or')} <b>↑↓←→</b> ${t('steer')}
+         &nbsp; <b>SHIFT</b> ${t('boost')} &nbsp; <b>A D</b> ${t('roll')}
+         &nbsp; <b>ESC</b> ${t('turn back')}</div>
        <div class="cmark" id="cmark"><i></i></div>`;
     document.body.appendChild(el);
     document.querySelector('#cdest').textContent=
@@ -685,13 +693,25 @@ window.CRUISE = (function(){
     roll += rollV*dt;
     roll *= Math.pow(0.06, dt);          // it always comes back level
 
-    if(keys.KeyW) throttle=Math.min(1.25, throttle+dt*0.55);
-    if(keys.KeyS) throttle=Math.max(0.06, throttle-dt*0.55);
+    /* THE SAME MODEL THE CAR USES, because it is the same question: press to
+       go, press the other one to slow, let go and it runs down. It used to
+       be a throttle NOTCH that started pinned wide open — so the ship left
+       the pad already doing three hundred and flew itself until you
+       interfered, which is a cutscene with a steering wheel attached.
+
+       You start stopped now. Nothing happens until you fire the engines. */
     const wantBoost=(keys.ShiftLeft||keys.ShiftRight)?1:0;
-    boost += (wantBoost-boost)*Math.min(1, dt*2.4);
-    let want=CRUISE_SPEED*throttle*(1+boost*1.35);
-    if(keys.Space) want*=0.18;
-    speed += (want-speed)*Math.min(1, dt*1.6);
+    boost += (wantBoost-boost)*Math.min(1, dt*2.6);
+    const top=SHIP.top*(1+boost*(SHIP.boost-1));
+    const th=(keys.KeyW?1:0)-(keys.KeyS?1:0);
+    if(th>0)      speed += SHIP.accel*(1+boost*0.8)*dt;
+    else if(th<0) speed -= (speed>2 ? SHIP.brake : SHIP.accel*0.7)*dt;
+    else {
+      const d=Math.min(Math.abs(speed), SHIP.drag*dt);   // coasting down
+      speed -= Math.sign(speed)*d;
+    }
+    speed=Math.max(SHIP.reverse, Math.min(top, speed));
+    throttle=Math.max(0, speed)/SHIP.top;          // what the readout shows
 
     qy.setFromAxisAngle(new THREE.Vector3(0,1,0), yaw);
     qp.setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
@@ -722,7 +742,7 @@ window.CRUISE = (function(){
       // the engine glow answers the throttle, so the ship looks like it is trying
       const glow=shipHull.userData && shipHull.userData.glow;
       if(glow){
-        const k=0.5+throttle*0.7+boost*0.8;
+        const k=0.28+Math.max(0,speed/SHIP.top)*0.9+boost*0.8;
         glow.scale.set(k, k, k*(1.7+boost*2.6));
         glow.material.opacity=0.55+boost*0.4;
       }
@@ -772,7 +792,7 @@ window.CRUISE = (function(){
     show(homeGlobe, toHome, Math.max(1, toHome.length()));
 
     // and the streaks, which only show up when you are really moving
-    const fast=Math.max(0, (speed/CRUISE_SPEED)-0.95)/1.6;
+    const fast=Math.max(0, (speed/SHIP.top)-0.92)/1.4;
     streaks.material.opacity=Math.min(0.65, fast*0.9);
     streaks.quaternion.copy(q);
     if(fast>0.02){
@@ -826,7 +846,7 @@ window.CRUISE = (function(){
     const spd=document.querySelector('#cspd');
     if(spd) spd.textContent=Math.round(speed)+' u/s';
     const tb=document.querySelector('#cthrb');
-    if(tb) tb.style.width=((throttle/1.25)*100).toFixed(0)+'%';
+    if(tb) tb.style.width=Math.max(0,Math.min(100,(speed/SHIP.top)*100)).toFixed(0)+'%';
 
     /* THE COURSE MARKER. It sits on the destination when the destination is
        in front of you and clamps to the edge of the screen when it is not,
