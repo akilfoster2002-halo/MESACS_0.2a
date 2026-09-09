@@ -30,9 +30,14 @@ window.COSTUMES = (function(){
       items:'abndcefghijklmopqr'.split('').map(c=>
         it('character-'+c, PEOPLE_NAMES[c]||('Character '+c.toUpperCase()))) },
 
+    /* One car, because there is one car in the game now. This shelf used
+       to hold the four Kenney kit cars in four colours; those were what
+       you drove as well, and when the McLaren replaced them on the road
+       there was no reason to keep four of them standing here. A project
+       saved with one of the old ids gets a cube, which is what any costume
+       that will not load has always fallen back to. */
     { id:'cars', name:'Cars', dir:'racing/', thumbs:'racing/previews/', items:[
-        it('raceCarRed','Scarlet'), it('raceCarWhite','Chalk'),
-        it('raceCarOrange','Ember'), it('raceCarGreen','Clover') ] },
+        it('mclaren','McLaren') ] },
 
     { id:'outdoors', name:'Outdoors', dir:'racing/', thumbs:'racing/previews/', items:[
         it('treeLarge','Tall tree'), it('treeSmall','Small tree'), it('pylon','Cone marker'),
