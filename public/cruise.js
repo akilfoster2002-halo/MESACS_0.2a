@@ -27,10 +27,24 @@
 window.CRUISE = (function(){
   /* --------------------------------------------------------- the journey */
   const CRUISE_SPEED = 300;              // units a second at a normal throttle
-  const TRIP_SECONDS = 120;              // how long the ride is meant to take
-  const TOTAL = CRUISE_SPEED * TRIP_SECONDS;
-  const COURSE = new THREE.Vector3(0,0,-1);   // the way to the other planet
-  const FAR_PLANET = 9000, NEAR_PLANET = 620; // how far off it sits, start and end
+  const TRIP_SECONDS = 120;              // how long the ride takes if you fly it straight
+  const TRIP = CRUISE_SPEED * TRIP_SECONDS;   // so: how far apart the planets are
+
+  /* ONE FRAME FOR EVERYBODY. The planets are at fixed points in a space both
+     ships share, rather than each pilot flying in their own coordinates from
+     wherever they happened to take off. Two people cannot see each other in
+     two different frames — and this is also what lets one of you fly out
+     while the other flies back, and pass. */
+  const KORO_AT  = new THREE.Vector3(0, 0, 0);
+  const VOLTA_AT = new THREE.Vector3(0, 0, -TRIP);
+  const spotOf = id => id==='arena' ? VOLTA_AT : KORO_AT;
+
+  const ARRIVE = 780;                    // how close counts as orbit
+  /* Something thirty-six kilometres away is past the far plane, and drawing
+     it there would cost the depth buffer everything. So a far planet is
+     drawn NEARER and SMALLER by the same factor: the angle it covers on
+     screen is exactly right, and it grows honestly as you close. */
+  const DRAW_MAX = 15000;
 
   /* The field is a sphere around the ship. Everything is placed inside it and
      recycled when it leaves, so what it costs does not depend on how far you
@@ -41,9 +55,16 @@ window.CRUISE = (function(){
   let field=null, ship=null, shipHull=null, cam=null;
   let vel=new THREE.Vector3(), speed=CRUISE_SPEED, throttle=1, boost=0;
   let pitch=0, yaw=0, roll=0, rollV=0;
-  let travelled=0, clock=0, arriving=0, done=false;
+  let clock=0, done=false;
+  /* Where the ship actually is, in the shared frame. The ship itself never
+     moves — see the note at the top — so this is the only thing that knows
+     the difference between setting off and arriving. */
+  const where=new THREE.Vector3(), destAbs=new THREE.Vector3(), homeAbs=new THREE.Vector3();
+  const toDest=new THREE.Vector3(), toHome=new THREE.Vector3();
+  let startDist=TRIP, realDist=TRIP;
   let keys={}, look={x:0,y:0}, exposureWas=1.05;
   let phen=[], comets=[], rocks=null, destGlobe=null, homeGlobe=null, sun=null;
+  let crowd=null, mates=new Map(), sent=0;
   let starA=null, starB=null, streaks=null;
   const q=new THREE.Quaternion(), qy=new THREE.Quaternion(), qp=new THREE.Quaternion();
   const qr=new THREE.Quaternion(), fwd=new THREE.Vector3(), tmp=new THREE.Vector3();
@@ -334,6 +355,8 @@ window.CRUISE = (function(){
     rockField();
     ionStreaks();
 
+    crowd=new THREE.Group(); G.roomGroup.add(crowd);
+
     // and the ship, at the middle of all of it
     ship=new THREE.Group();
     shipHull=(window.SHOP && SHOP.model) ? SHOP.model() : null;
@@ -418,16 +441,99 @@ window.CRUISE = (function(){
     o.position.copy(tmp).sub(field.position);
   }
 
+  /* --------------------------------------------------------- your friends
+     EVERYBODY IS IN THE SAME SPACE. Presence on the ground is two numbers
+     and a heading, because the ground supplies the third — you are standing
+     on it. Out here there is nothing to stand on, so height and pitch go up
+     with the rest, and `at` says 'space' so nobody on a planet tries to
+     draw a classmate who is forty kilometres above their head.
+
+     What travels is the position in the SHARED frame, not the position
+     relative to anybody. What is drawn is that minus your own, which keeps
+     the numbers small on the way in exactly as it does for the sky. */
+  function nameTag(name){
+    const c=document.createElement('canvas'); c.width=256; c.height=64;
+    const x=c.getContext('2d');
+    x.fillStyle='rgba(10,16,34,.82)'; x.fillRect(0,14,256,36);
+    x.fillStyle='#8ff0ff'; x.font='bold 26px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.fillText(String(name||'').slice(0,16),128,42);
+    const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx, transparent:true,
+      depthWrite:false, depthTest:false}));
+    sp.scale.set(26,6.5,1); sp.position.y=9; return sp;
+  }
+  function seePlayers(list){
+    if(!crowd) return;
+    const seen=new Set();
+    list.forEach(p=>{
+      if(window.NET && NET.me && p.id===NET.me.id) return;
+      if(p.at!=='space') return;            // they are on a planet, not out here
+      seen.add(p.id);
+      let m=mates.get(p.id);
+      if(!m){
+        const g=new THREE.Group();
+        g.add(nameTag(p.display));
+        const hull=(window.SHOP && SHOP.model) ? SHOP.model() : null;
+        if(hull){ hull.scale.setScalar(3.2); g.add(hull); }
+        crowd.add(g);
+        m={ g, at:new THREE.Vector3(p.x,p.y,p.z), to:new THREE.Vector3(p.x,p.y,p.z),
+            yaw:p.yaw||0, tyaw:p.yaw||0, pit:p.pit||0, tpit:p.pit||0 };
+        mates.set(p.id, m);
+      }
+      m.to.set(p.x, p.y, p.z);
+      m.tyaw=p.yaw||0; m.tpit=p.pit||0;
+    });
+    for(const [id,m] of mates) if(!seen.has(id)){ crowd.remove(m.g); mates.delete(id); }
+  }
+  /* Presence lands about eleven times a second, which is nowhere near a
+     frame rate — so what arrives is a TARGET and the frame eases onto it,
+     the same way the planet does with people walking. */
+  function mateTick(dt){
+    if(!crowd) return;
+    const k=1-Math.pow(0.0009, Math.min(dt,0.1));
+    for(const [,m] of mates){
+      m.at.lerp(m.to, k);
+      m.g.position.copy(m.at).sub(where);     // their place, from where you are
+      let dy=m.tyaw-m.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy));
+      m.yaw+=dy*k; m.pit+=(m.tpit-m.pit)*k;
+      m.g.quaternion.setFromEuler(new THREE.Euler(m.pit, m.yaw, 0, 'YXZ'));
+      /* A ship forty kilometres off is a pixel, and a name tag on a pixel is
+         unreadable — so the tag holds a legible size however far away they
+         are, which is what makes "where is my friend" answerable at all. */
+      const d=m.g.position.length();
+      const tag=m.g.children[0];
+      if(tag && tag.isSprite){ const s=Math.max(1, d/90);
+        tag.scale.set(26*s, 6.5*s, 1); tag.position.y=9*s; }
+    }
+    if(!window.NET || !NET.live) return;
+    const now=performance.now();
+    if(now-sent<90) return;
+    sent=now;
+    NET.pos({ x:+where.x.toFixed(1), y:+where.y.toFixed(1), z:+where.z.toFixed(1),
+              yaw:+yaw.toFixed(3), pit:+pitch.toFixed(3),
+              char: window.AVATAR ? AVATAR.chosen : 's', at:'space' });
+  }
+
   /* ----------------------------------------------------------- the flight */
   function launch(sv, to, fromId){
     stop();
     server=sv||null; dest=to||'arena'; from=fromId||'hub';
-    on=true; done=false; arriving=0; travelled=0; clock=0;
+    on=true; done=false; clock=0;
     speed=CRUISE_SPEED; throttle=1; boost=0;
-    pitch=0; yaw=0; roll=0; rollV=0; keys={}; look.x=look.y=0;
+    roll=0; rollV=0; keys={}; look.x=look.y=0;
+
+    where.copy(spotOf(from));
+    destAbs.copy(spotOf(dest));
+    homeAbs.copy(spotOf(from));
+    toDest.copy(destAbs).sub(where);
+    startDist=realDist=Math.max(1, toDest.length());
+    /* Pointed at it on the way out, and no further help than that. The nose
+       starts on the course; keeping it there is the flying. */
+    const d=toDest.clone().normalize();
+    yaw=Math.atan2(-d.x, -d.z);
+    pitch=Math.asin(Math.max(-1,Math.min(1,d.y)));
 
     G.running=false;
-    if(window.CHAT) CHAT.hide();
     document.querySelector('#hud').classList.add('hidden');
     const mw=document.querySelector('#mapwrap'); if(mw) mw.classList.add('hidden');
 
@@ -451,6 +557,20 @@ window.CRUISE = (function(){
     build();
     hud();
     bind();
+    /* Take the socket's presence over for the duration. The planet put its
+       own handlers on it and is not listening any more; chat stays where it
+       was, so you can still talk to whoever is out here with you. */
+    if(server && server.id && window.NET && NET.connect){
+      NET.connect(server.id, {
+        players:list=>seePlayers(list),
+        objs:()=>{},
+        chat:m=>{ if(window.CHAT) CHAT.line(m.from, m.text, m.id); },
+        sys:x=>{ if(window.CHAT) CHAT.sys(x); },
+        clear:qq=>{ if(window.CHAT) CHAT.clear(qq); },
+        unsay:id=>{ if(window.CHAT) CHAT.remove(id); }
+      });
+      if(window.CHAT) CHAT.show();
+    }
     const c=document.querySelector('#view');
     if(c && c.requestPointerLock) c.requestPointerLock();
   }
@@ -465,6 +585,7 @@ window.CRUISE = (function(){
     G.renderer.toneMappingExposure=exposureWas;
     const h=document.querySelector('#hud'); if(h) h.classList.remove('hidden');
     const mw=document.querySelector('#mapwrap'); if(mw) mw.classList.remove('hidden');
+    mates.clear(); crowd=null;
     field=null; ship=null; shipHull=null; phen=[]; comets=[]; rocks=null;
     destGlobe=null; homeGlobe=null; sun=null; starA=null; starB=null; streaks=null;
   }
@@ -474,8 +595,8 @@ window.CRUISE = (function(){
     if(!on) return;
     if(e.type==='keydown' && e.code==='Escape'){ abort(); return; }
     keys[e.code]= e.type==='keydown';
-    if(['KeyW','KeyS','KeyA','KeyD','Space','ShiftLeft','ShiftRight','KeyQ','KeyE']
-       .indexOf(e.code)>=0) e.preventDefault();
+    if(['KeyW','KeyS','KeyA','KeyD','Space','ShiftLeft','ShiftRight','KeyQ','KeyE',
+        'ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code)>=0) e.preventDefault();
   }
   function onMove(e){
     if(!on || !document.pointerLockElement) return;
@@ -504,11 +625,12 @@ window.CRUISE = (function(){
     el.id='cruise';
     el.innerHTML=
       `<div class="cnav"><b id="cdest">—</b><span id="ceta"></span>
-         <div class="cbar"><i id="cprog"></i></div></div>
+         <div class="cbar"><i id="cprog"></i></div>
+         <em id="cdist"></em></div>
        <div class="cthr"><span id="cspd">—</span>
          <div class="cbar sm"><i id="cthrb"></i></div></div>
        <div class="ckeys">
-         <b>MOUSE</b> ${t('steer')} &nbsp; <b>W S</b> ${t('throttle')}
+         <b>MOUSE</b> ${t('or')} <b>↑↓←→</b> ${t('steer')} &nbsp; <b>W S</b> ${t('throttle')}
          &nbsp; <b>SHIFT</b> ${t('boost')} &nbsp; <b>SPACE</b> ${t('brake')}
          &nbsp; <b>A D</b> ${t('roll')} &nbsp; <b>ESC</b> ${t('turn back')}</div>
        <div class="cmark" id="cmark"><i></i></div>`;
@@ -530,8 +652,9 @@ window.CRUISE = (function(){
     clock+=dt;
     fly(dt);
     sky(dt);
+    mateTick(dt);
     paint();
-    if(!done && travelled>=TOTAL) land();
+    if(!done && realDist<=ARRIVE) land();
   }
 
   function fly(dt){
@@ -539,10 +662,21 @@ window.CRUISE = (function(){
        than being flown separately, because a ship that banks into its own
        turns flies itself and one that does not looks like a brick. A and D
        still roll it by hand for anyone who wants to. */
-    yaw   -= look.x*0.0016;
-    pitch -= look.y*0.0016;
+    /* THE ARROWS STEER TOO, and not only as a courtesy. All of this used to
+       be on the mouse, which means it was all on pointer lock — and a
+       browser that refuses the lock, or a pupil who pressed Escape out of
+       habit, had a ship with a throttle and no way to turn it. */
+    let kx=0, ky=0;
+    if(keys.ArrowLeft)  kx-=1;
+    if(keys.ArrowRight) kx+=1;
+    if(keys.ArrowUp)    ky-=1;
+    if(keys.ArrowDown)  ky+=1;
+    const mx=look.x*0.0016 + kx*dt*1.15;
+    const my=look.y*0.0016 + ky*dt*0.95;
+    yaw   -= mx;
+    pitch -= my;
     pitch = Math.max(-1.35, Math.min(1.35, pitch));
-    const turn=-look.x*0.0016;
+    const turn=-mx;
     look.x=look.y=0;
 
     let hand=0;
@@ -569,13 +703,12 @@ window.CRUISE = (function(){
     /* The sky moves, not the ship — see the note at the top. */
     vel.copy(fwd).multiplyScalar(speed);
     field.position.addScaledVector(vel, -dt);
-
-    /* PROGRESS IS ALONG THE COURSE, not just distance flown. Fly at the
-       planet and you get there in two minutes; wander off and you still
-       close on it, slowly, because a ride nobody can finish is not a ride.
-       That floor is what makes exploring safe rather than punishing. */
-    const align=Math.max(0.30, fwd.dot(COURSE));
-    travelled += speed*align*dt;
+    /* And this is the only thing that actually travels. There used to be a
+       `travelled` counter that crept up whichever way you were pointing, so
+       the trip finished on its own whatever you did with the controls —
+       which made the whole flight a corridor with a progress bar on it.
+       Now you arrive because you flew there. */
+    where.addScaledVector(vel, dt);
 
     // the chase camera, hung back and above, easing rather than welded on
     const back=tmp.set(0,0,1).applyQuaternion(q).multiplyScalar(26+boost*10);
@@ -627,15 +760,16 @@ window.CRUISE = (function(){
     // the stars sit on the ship, so they never get closer however far you fly
     starA.rotation.y += dt*0.004; starB.rotation.y -= dt*0.006;
 
-    /* The two planets. The one ahead grows the whole way in, which is the
-       only clock this ride needs — you can see how far there is to go by
-       how big it is. */
-    const p=Math.min(1, travelled/TOTAL);
-    destGlobe.position.copy(COURSE).multiplyScalar(NEAR_PLANET+(FAR_PLANET-NEAR_PLANET)*(1-p));
-    destGlobe.position.y += 40;
+    /* THE TWO PLANETS, at where they really are. Each is drawn along its
+       true bearing, pulled in to the far plane if it is past it, and shrunk
+       by the same factor — so it covers exactly the angle it should and
+       grows because you are closing on it, not because a timer says so. */
+    toDest.copy(destAbs).sub(where);
+    realDist=Math.max(1, toDest.length());
+    show(destGlobe, toDest, realDist);
     destGlobe.rotation.y += dt*0.03;
-    homeGlobe.position.copy(COURSE).multiplyScalar(-(NEAR_PLANET+(FAR_PLANET-NEAR_PLANET)*p));
-    homeGlobe.position.y -= 30;
+    toHome.copy(homeAbs).sub(where);
+    show(homeGlobe, toHome, Math.max(1, toHome.length()));
 
     // and the streaks, which only show up when you are really moving
     const fast=Math.max(0, (speed/CRUISE_SPEED)-0.95)/1.6;
@@ -649,6 +783,12 @@ window.CRUISE = (function(){
       }
       a.needsUpdate=true;
     }
+  }
+
+  function show(g, to, dist){
+    const draw=Math.min(dist, DRAW_MAX), k=draw/dist;
+    g.position.copy(to).multiplyScalar(k);
+    g.scale.setScalar(k);
   }
 
   /* Anything you have gone past is put back out in front. `pad` keeps a
@@ -668,15 +808,21 @@ window.CRUISE = (function(){
   }
 
   function paint(){
-    const p=Math.min(1, travelled/TOTAL);
+    const p=Math.max(0, Math.min(1, 1-(realDist-ARRIVE)/Math.max(1,startDist-ARRIVE)));
     const bar=document.querySelector('#cprog'); if(bar) bar.style.width=(p*100).toFixed(1)+'%';
     const eta=document.querySelector('#ceta');
     if(eta){
-      const align=Math.max(0.30, fwd.dot(COURSE));
-      const left=Math.max(0, (TOTAL-travelled)/Math.max(1, speed*align));
-      eta.textContent = p>=1 ? t('ARRIVING')
-        : Math.floor(left/60)+':'+String(Math.floor(left%60)).padStart(2,'0');
+      /* CLOSING SPEED, not speed. Pointed at it this is the time to arrival;
+         pointed away it goes to dashes, which is the honest answer and the
+         one that tells you to turn. */
+      const closing=vel.dot(tmp.copy(toDest).normalize());
+      if(realDist<=ARRIVE) eta.textContent=t('ARRIVING');
+      else if(closing<8) eta.textContent='— · —';
+      else { const left=realDist/closing;
+             eta.textContent=Math.floor(left/60)+':'+String(Math.floor(left%60)).padStart(2,'0'); }
     }
+    const dst=document.querySelector('#cdist');
+    if(dst) dst.textContent=(realDist/1000).toFixed(1)+' km';
     const spd=document.querySelector('#cspd');
     if(spd) spd.textContent=Math.round(speed)+' u/s';
     const tb=document.querySelector('#cthrb');
@@ -727,6 +873,8 @@ window.CRUISE = (function(){
 
   return { launch, tick, stop, abort,
            get active(){ return on; },
-           get progress(){ return Math.min(1, travelled/TOTAL); },
+           get progress(){ return Math.max(0, Math.min(1,
+             1-(realDist-ARRIVE)/Math.max(1,startDist-ARRIVE))); },
+           get km(){ return realDist/1000; },
            TRIP_SECONDS };
 })();

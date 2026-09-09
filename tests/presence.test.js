@@ -36,8 +36,13 @@ test('the server relays every character the wardrobe can put you in', ()=>{
 
 test('the character everybody starts as is the one the server assumes', ()=>{
   const first = roster()[0];
-  const m = read('server/index.js').match(/yaw:0,\s*char:'([a-z])'/);
-  assert.ok(m, 'server/index.js no longer seeds a default char on the live record');
+  /* Anchored on the live record itself, not on whichever field happened to
+     sit next to it — adding the space coordinates moved `yaw` away from
+     `char` and broke this test without anything being wrong. */
+  const rec = read('server/index.js').match(/live\.set\(ws,\s*\{[\s\S]*?\}\);/);
+  assert.ok(rec, 'server/index.js no longer seeds a live record per socket');
+  const m = rec[0].match(/char:\s*'([a-z])'/);
+  assert.ok(m, 'the live record no longer seeds a default char');
   assert.strictEqual(m[1], first,
     'a roster read before the first pos message would show the wrong character');
 });
@@ -88,4 +93,40 @@ test('both rooms send what the body is doing, and the server passes it on', ()=>
   // ...and put back on the roster the room is given
   assert.match(read('server/index.js'), /act:\s*p\.act/,
     'roster() does not hand act back out, so nothing sent ever arrives');
+});
+
+/* ----------------------------------------------------------------- space
+   The third dimension. On the ground two numbers and a heading are the whole
+   of where somebody is, because the ground supplies the rest — you are
+   standing on it. Between the planets there is nothing to stand on, so
+   height and pitch have to travel as well, or a classmate flying above you
+   is a classmate flying beside you. Same trap as `char` and `act`: the
+   sender can be right and the relay can quietly drop it. */
+test('the ship sends where it is in all three dimensions', ()=>{
+  const src = read('public/cruise.js');
+  const call = src.match(/NET\.pos\(\{[\s\S]*?\}\)/);
+  assert.ok(call, 'cruise.js no longer sends presence at all');
+  ['x:', 'y:', 'z:', 'yaw:', 'pit:'].forEach(f =>
+    assert.ok(call[0].includes(f), 'the flight does not send ' + f));
+  assert.match(call[0], /at:\s*'space'/,
+    "the flight does not mark itself as being in 'space', so a planet would try to draw it");
+});
+
+test('the server keeps and relays the third dimension', ()=>{
+  const src = read('server/index.js');
+  assert.match(src, /p\.y\s*=\s*\+m\.y/,   'the server drops the height off a presence message');
+  assert.match(src, /p\.pit\s*=\s*\+m\.pit/, 'the server drops the pitch off a presence message');
+  const roster = src.match(/function roster\([\s\S]*?\n\}/);
+  assert.ok(roster, 'server/index.js no longer builds a roster');
+  ['y:p.y', 'pit:p.pit'].forEach(f =>
+    assert.ok(roster[0].replace(/\s/g,'').includes(f),
+      'roster() does not hand back ' + f + ', so nothing sent ever arrives'));
+});
+
+test("'space' is a place the server will let you be", ()=>{
+  const src = read('server/index.js');
+  const m = src.match(/const at\s*=\s*\(typeof raw==='string'\s*&&\s*(\/\^.+?\$\/)\.test/);
+  assert.ok(m, 'server/index.js no longer filters the `at` field with a regex');
+  assert.ok(new RegExp(m[1].slice(1,-1)).test('space'),
+    "the room the flight reports would be thrown away, and nobody would see anybody");
 });

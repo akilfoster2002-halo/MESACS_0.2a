@@ -33,7 +33,8 @@ window.NET = (function(){
     house   :'{n} went home',
     counter :'{n} went into the Wardrobe',
     mission :'{n} went into a mission',
-    gym     :'{n} went into the Gym'
+    gym     :'{n} went into the Gym',
+    space   :'{n} launched'
   };
 
   const nameOf = ()=> me ? me.display : t('Guest');

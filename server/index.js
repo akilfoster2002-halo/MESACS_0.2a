@@ -266,7 +266,8 @@ function send(userId,obj){
 function roster(server){
   const out=[];
   for(const [,p] of live) if(p.server===server && p.role==='student')
-    out.push({ id:p.id, display:p.display, x:p.x, z:p.z, yaw:p.yaw,
+    out.push({ id:p.id, display:p.display, x:p.x, y:p.y, z:p.z,
+               yaw:p.yaw, pit:p.pit,
                char:p.char, act:p.act, ride:p.ride, at:p.at });
   return out;
 }
@@ -277,7 +278,8 @@ function roster(server){
    loud, once, when they change. Anywhere else is simply away: they vanish,
    and nothing is announced. */
 const WENT = { hub:'outside', home:'outside', arena:'outside', workshop:'workshop',
-               house:'house', counter:'counter', mission:'mission', gym:'gym' };
+               house:'house', counter:'counter', mission:'mission', gym:'gym',
+               space:'space' };
 function moveTo(p, raw){
   const at = (typeof raw==='string' && /^[a-z_]{1,16}$/.test(raw)) ? raw : null;
   if(p.at===at) return;
@@ -306,7 +308,8 @@ wss.on('connection', async (ws, req)=>{
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
                 // 's' is the character the browser starts everybody on, so a
                 // roster read before their first 'pos' shows what they wear
-                x:0, z:0, yaw:0, char:'s', act:null, ride:null, at:null, went:null, objs:new Map(),
+                x:0, y:0, z:0, yaw:0, pit:0, char:'s', act:null, ride:null,
+                at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
 
@@ -355,6 +358,12 @@ wss.on('connection', async (ws, req)=>{
     if(m.t==='pos'){
       if(!p.server) return;
       p.x=+m.x||0; p.z=+m.z||0; p.yaw=+m.yaw||0;
+      /* THE THIRD ONE, for space. On the ground two numbers and a heading
+         are the whole of where somebody is — the ground supplies the rest.
+         Out between the planets there is no ground, so height and pitch
+         have to travel too, or a classmate flying above you is a classmate
+         flying beside you. */
+      p.y=+m.y||0; p.pit=+m.pit||0;
       /* THE FORMAT, NOT THE ROSTER.  This used to spell out the letters
          the game shipped with — and when Kyle and Mia were added as `s`
          and `t` the test silently dropped them, so everybody wearing the
