@@ -906,7 +906,9 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   --rbig:calc(57px / var(--cols)); --rmid:calc(36px / var(--cols));
   --rfar:calc(24px / var(--cols));
   --cbig:calc(75px / var(--cols)); --cmid:calc(48px / var(--cols));
-  --cfar:calc(33px / var(--cols))}
+  --cfar:calc(33px / var(--cols));
+  --abig:calc(102px / var(--cols)); --amid:calc(66px / var(--cols));
+  --afar:calc(45px / var(--cols))}
 .rgrid{display:grid;gap:2px}
 .rw.big .rgrid{grid-template-columns:repeat(var(--cols,3),var(--rbig));grid-auto-rows:var(--rbig)}
 .rw.mid .rgrid{grid-template-columns:repeat(var(--cols,3),var(--rmid));grid-auto-rows:var(--rmid)}
@@ -961,9 +963,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #conAside .rwrap.big{top:130px}
 #conAside .rwrap.mid{top:54px}
 #conAside .rwrap.far{top:2px}
-#conAside .rw.big .rgrid{grid-template-columns:repeat(3,34px);grid-auto-rows:34px}
-#conAside .rw.mid .rgrid{grid-template-columns:repeat(3,22px);grid-auto-rows:22px}
-#conAside .rw.far .rgrid{grid-template-columns:repeat(3,15px);grid-auto-rows:15px}
+/* The console's own copy of the radar, and the THIRD place these cells are
+   sized. An id selector, so it beats both of the others — which is exactly
+   why a five-wide field came out here as three columns of nine rows,
+   overflowing the aside and running through the brief underneath it. */
+#conAside .rw.big .rgrid{grid-template-columns:repeat(var(--cols,3),var(--abig));grid-auto-rows:var(--abig)}
+#conAside .rw.mid .rgrid{grid-template-columns:repeat(var(--cols,3),var(--amid));grid-auto-rows:var(--amid)}
+#conAside .rw.far .rgrid{grid-template-columns:repeat(var(--cols,3),var(--afar));grid-auto-rows:var(--afar)}
 /* the ship scales with the cell it is in, so it is a ship in the big panel
    and still a ship two panels back */
 #conAside .rw.big .mini{border-left-width:7px;border-right-width:7px;border-bottom-width:13px}
@@ -1787,45 +1793,45 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='331';</script>
-<script src="lib/three.classic.js?v=331"></script>
-<script src="strings.js?v=331"></script>
-<script src="music.js?v=331"></script>
-<script src="net.js?v=331"></script>
-<script src="avatar.js?v=331"></script>
-<script src="zombies.js?v=331"></script>
-<script src="building.js?v=331"></script>
-<script src="levels.js?v=331"></script>
-<script src="program.js?v=331"></script>
-<script src="code.js?v=331"></script>
-<script src="mechsim.js?v=331"></script>
-<script src="mech.js?v=331"></script>
-<script src="intro.js?v=331"></script>
-<script src="mechacode.js?v=331"></script>
-<script src="mechaarena.js?v=331"></script>
-<script src="mecha.js?v=331"></script>
-<script src="workshop.js?v=331"></script>
-<script src="combat.js?v=331"></script>
-<script src="puzzle.js?v=331"></script>
-<script src="nav.js?v=331"></script>
-<script src="tutorial.js?v=331"></script>
-<script src="race.js?v=331"></script>
-<script src="flight.js?v=331"></script>
-<script src="cruise.js?v=331"></script>
-<script src="planet.js?v=331"></script>
-<script src="wallet.js?v=331"></script>
-<script src="shop.js?v=331"></script>
-<script src="library.js?v=331"></script>
-<script src="costumes.js?v=331"></script>
-<script src="missions.js?v=331"></script>
-<script src="coach.js?v=331"></script>
-<script src="owner.js?v=331"></script>
-<script src="blocks.js?v=331"></script>
-<script src="vm.js?v=331"></script>
-<script src="coder.js?v=331"></script>
-<script src="quiz.js?v=331"></script>
-<script src="chars.js?v=331"></script>
-<script src="menu.js?v=331"></script>
-<script src="game.js?v=331"></script>
+<script>window.ASSETV='332';</script>
+<script src="lib/three.classic.js?v=332"></script>
+<script src="strings.js?v=332"></script>
+<script src="music.js?v=332"></script>
+<script src="net.js?v=332"></script>
+<script src="avatar.js?v=332"></script>
+<script src="zombies.js?v=332"></script>
+<script src="building.js?v=332"></script>
+<script src="levels.js?v=332"></script>
+<script src="program.js?v=332"></script>
+<script src="code.js?v=332"></script>
+<script src="mechsim.js?v=332"></script>
+<script src="mech.js?v=332"></script>
+<script src="intro.js?v=332"></script>
+<script src="mechacode.js?v=332"></script>
+<script src="mechaarena.js?v=332"></script>
+<script src="mecha.js?v=332"></script>
+<script src="workshop.js?v=332"></script>
+<script src="combat.js?v=332"></script>
+<script src="puzzle.js?v=332"></script>
+<script src="nav.js?v=332"></script>
+<script src="tutorial.js?v=332"></script>
+<script src="race.js?v=332"></script>
+<script src="flight.js?v=332"></script>
+<script src="cruise.js?v=332"></script>
+<script src="planet.js?v=332"></script>
+<script src="wallet.js?v=332"></script>
+<script src="shop.js?v=332"></script>
+<script src="library.js?v=332"></script>
+<script src="costumes.js?v=332"></script>
+<script src="missions.js?v=332"></script>
+<script src="coach.js?v=332"></script>
+<script src="owner.js?v=332"></script>
+<script src="blocks.js?v=332"></script>
+<script src="vm.js?v=332"></script>
+<script src="coder.js?v=332"></script>
+<script src="quiz.js?v=332"></script>
+<script src="chars.js?v=332"></script>
+<script src="menu.js?v=332"></script>
+<script src="game.js?v=332"></script>
 </body>
 </html>
