@@ -298,7 +298,6 @@ window.PLANET = (function(){
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
     me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
-    grassField();                  // sown around you, so it needs you placed first
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
@@ -367,21 +366,11 @@ window.PLANET = (function(){
      paper, because a lit face here is a colour multiplied by rather more
      than one and a palette picked to read well flat comes out bleached the
      moment the sun is on it. */
-  /* 0 = lush, 5 = stone. Pulled out of soilAt because the grass wants the
-     same number: what grows somewhere and what colour the ground is are the
-     same question asked twice. */
-  function soilT(dir, h){
+  function soilAt(dir, h){
     const wet=fbm(dir, 2.7, 2);                    // patches, larger than the hills
     const grit=fbm(dir, 21, 2);                    // and a fine speckle over them
-    const t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;
-    return Math.max(0, Math.min(SOIL.length-1.001, t));
-  }
-  /* `known` lets a caller that has already worked the number out hand it in
-     rather than paying for two more noise fields — the ground does exactly
-     that for forty thousand vertices. */
-  function soilAt(dir, h, known){
-    const grit=fbm(dir, 21, 2);
-    const t = known===undefined ? soilT(dir, h) : known;
+    let t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;      // 0 = lush, 5 = stone
+    t = Math.max(0, Math.min(SOIL.length-1.001, t));
     const i=Math.floor(t), f=t-i;
     const a=SOIL[i].c, b=SOIL[i+1].c;
     // a little extra speckle so no two neighbouring faces are exactly equal
@@ -440,28 +429,10 @@ window.PLANET = (function(){
     const d=new THREE.Vector3();
     for(let i=0;i<pos.count;i++){
       d.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
-      /* padK inlined out of terrainH so it is paid ONCE. It is a loop over
-         every building doing an acos apiece, and the grass below wants the
-         same number — asking twice for forty thousand vertices is the whole
-         cost of this change. */
-      const k=padK(d);
-      const h=k<=0 ? 0 : rawHeight(d)*k;
+      const h=terrainH(d);
       pos.setXYZ(i, d.x*(PR+h), d.y*(PR+h), d.z*(PR+h));
-      const t=soilT(d, h/RELIEF);
-      const c=soilAt(d, h/RELIEF, t);
-      /* THE GROUND UNDER THE GRASS IS NOT THE GROUND. This is the thing the
-         first two attempts at grass got wrong and never recovered from: put
-         green tufts on khaki soil and every gap between two of them is a gap
-         of DIRT, so the eye reads scattered weeds on a wasteland however
-         many you plant. Under real turf the floor is dark green — it is the
-         shaded bottom of the sward, not earth — and once it is that colour
-         the tufts stop being objects standing on something else and start
-         being the top of one surface. */
-      const lush=grassLush(d, k, t);
-      const c0=c[0]+(GRASS_FLOOR[0]-c[0])*lush*0.62;
-      const c1=c[1]+(GRASS_FLOOR[1]-c[1])*lush*0.62;
-      const c2=c[2]+(GRASS_FLOOR[2]-c[2])*lush*0.62;
-      col[i*3]=c0; col[i*3+1]=c1; col[i*3+2]=c2;
+      const c=soilAt(d, h/RELIEF);
+      col[i*3]=c[0]; col[i*3+1]=c[1]; col[i*3+2]=c[2];
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col,3));
     // recomputed AFTER displacing, or every hill is lit as though it were flat
@@ -487,291 +458,6 @@ window.PLANET = (function(){
       G.roomGroup.add(c);
     });
   }
-  /* ------------------------------------------------------------- the grass
-     GRASS CARDS. Each is two triangles wearing a photograph of a tuft,
-     standing upright and turning to face you as you walk round it.
-
-     Three things had to be true together, and the first two attempts had
-     one or two of them and looked worse for it.
-
-     THE CARDS THEMSELVES. A modelled blade is one flat strip and it takes
-     an absurd number of them before a patch reads as grass — forty-eight
-     thousand of them still looked like a brush. One card carries thirty
-     real blades in its alpha channel, with the depth and the colour
-     variation already photographed into it.
-
-     A NARROW SLICE OF THE PHOTOGRAPH, not all of it. The source is a round
-     bush with its own silhouette: use the whole thing and every card reads
-     as a bush, however many you put down. A third of it wide is just
-     blades, and blades at different heights standing in each other are a
-     field.
-
-     AND THE GROUND HAS TO AGREE. See the note in surface(). Green tufts on
-     khaki soil are green tufts on khaki soil at any density.
-
-     WORLD-ANCHORED, NOT PLAYER-ANCHORED. Every card keeps the direction it
-     grows in, so walking does not drag the field along with you. What
-     follows you is the budget: one that falls off the back edge is re-sown
-     on the far side. */
-  const GRASS_N=32000;             // two triangles each: ~64k
-  const GRASS_REACH=15;            // metres; past this the ground carries it
-  /* FORTY-FIVE TUFTS TO THE SQUARE METRE, which sounds absurd until you
-     notice what a card actually covers. It is a vertical sheet: it hides
-     ground only at a grazing angle, and this camera looks down from two and
-     a half metres. Twenty to the metre left visible floor between every
-     tuft from up there — right density for a picture taken lying down,
-     wrong one for the game. */
-  const GRASS_TEX='textures/grass.png';
-  const GRASS_SLICE=[0.34, 0.62];  // how much of the card texture one tuft shows
-  const GRASS_ASPECT=512/476;      // the texture's own, so a slice is not stretched
-  const GRASS_SOW_MAX=1200;        // cards placed in any one frame — see grassTick
-  /* The shaded floor of a sward, which is what the ground becomes wherever
-     this grows. Darker AND greener than any band in the soil palette,
-     because it is not soil you are looking at. */
-  const GRASS_FLOOR=[0.075, 0.135, 0.062];
-  /* Not every ball is a lawn. Ice gets none — blades through snow is not a
-     planet, it is a bug — and the others get their own palette's version. */
-  const GRASS_BIOME={ green:1, violet:0.85, ochre:0.45, ice:0 };
-  /* One switch, for a machine that cannot afford it: localStorage
-     dq_grass='off'. It takes the ground shading with it, so turning it off
-     gives back exactly the planet that was there before. */
-  const GRASS_ON=(()=>{ try{ return localStorage.getItem('dq_grass')!=='off'; }
-                        catch(e){ return true; } })();
-
-  /* HOW MUCH GRASS IS HERE — one definition, used to place the tufts and to
-     shade the ground beneath them, which is the only way those two can
-     agree. The numbers are the ground's own: sampled over what you can see,
-     soilT runs 2.0 to 3.6 about a median of 2.7, so lush ground is thick
-     with it, worn earth is thin and stone is bare. An earlier pass faded it
-     out by 2.9 and grew almost nothing — a threshold for a range the ground
-     never uses. */
-  function grassLush(dir, k, t){
-    if(!GRASS_ON) return 0;
-    const bio=GRASS_BIOME[W.biome];
-    const b=bio===undefined ? 0.7 : bio;
-    if(b<=0) return 0;
-    if(Math.abs(dir.y)>0.93) return 0;        // the poles are snow
-    const l=(1 - Math.max(0, Math.min(1, (t-2.60)/0.90))) * k * b;
-    return l<0 ? 0 : l>1 ? 1 : l;
-  }
-
-  let grass=null, grassDir=null, grassCursor=0;
-  let grassUp=null, grassSize=null, grassUV=null;
-  const grassWind={ value:0 };
-  /* Where the player is, for the rim fade below. The camera will not do:
-     it sits six metres behind you, so the field would fade against the
-     wrong point and thin out in front of you as you turned. */
-  const grassEye={ value:new THREE.Vector3() };
-
-  /* The card: a quad standing on y=0, a unit tall, half a unit either side. */
-  function cardGeometry(){
-    const g=new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-      -0.5,0,0,  0.5,0,0,  0.5,1,0,  -0.5,1,0 ]),3));
-    g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([
-      0,0, 1,0, 1,1, 0,1 ]),2));
-    g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([
-      0,1,0, 0,1,0, 0,1,0, 0,1,0 ]),3));
-    g.setIndex([0,1,2, 0,2,3]);
-    return g;
-  }
-
-  const gA=new THREE.Vector3(), gT1=new THREE.Vector3(), gT2=new THREE.Vector3();
-  const gM=new THREE.Matrix4(), gQ=new THREE.Quaternion();
-  const gScale=new THREE.Vector3(), gCol=new THREE.Color();
-  const G_ZERO=new THREE.Vector3();
-
-  function tangentBasis(d){
-    gT1.set(0,1,0); if(Math.abs(d.y)>0.9) gT1.set(1,0,0);
-    gT2.crossVectors(gT1,d).normalize();
-    gT1.crossVectors(d,gT2).normalize();
-  }
-
-  function dressCard(i, d){
-    const k=padK(d);                 // nothing grows through the Mechanic's floor
-    const h=k<=0 ? 0 : rawHeight(d)*k;
-    const lush=grassLush(d, k, soilT(d, h/RELIEF));
-    if(lush<0.07){
-      grassSize.setXY(i, 0, 0);
-      gM.compose(G_ZERO, gQ.identity(), gScale.set(1,1,1));
-      grass.setMatrixAt(i, gM);
-      return;
-    }
-    /* Position only. The card's orientation is worked out per frame in the
-       shader, so the matrix carries where it stands and nothing else — and
-       the shader reads the root straight back out of it. */
-    gA.copy(d).multiplyScalar(PR+h);
-    gM.compose(gA, gQ.identity(), gScale.set(1,1,1));
-    grass.setMatrixAt(i, gM);
-    grassUp.setXYZ(i, d.x, d.y, d.z);
-
-    /* Its full height, always. The fade at the rim of the reach is done in
-       the shader against LIVE distance — see below. It used to be baked in
-       here, which had two faults: a tuft sown near the rim stayed stunted
-       for ever, even once you had walked right up to it, so the field was a
-       mix of full and half-grown for no reason you could see; and the fade
-       could only ever apply to the moment of sowing, so what you actually
-       watched was grass appearing. */
-    const tall=(0.42+Math.random()*0.34)*(0.6+0.4*lush);
-    /* Which slice of the photograph this tuft shows, and a negative width
-       mirrors it. One texture over a whole field would read as one texture
-       repeated; a random window into it, flipped half the time, gives every
-       tuft its own blades out of a single download. */
-    const uw=GRASS_SLICE[0]+Math.random()*(GRASS_SLICE[1]-GRASS_SLICE[0]);
-    grassUV.setXY(i, Math.random()*(1-uw), uw);
-    grassSize.setXY(i, tall*uw*GRASS_ASPECT*(Math.random()<0.5?-1:1), tall);
-
-    /* Tinted by the ground it grows out of, so the biome's palette carries
-       through and a worn patch grows tired grass. The photograph supplies
-       the detail; this supplies the belonging. */
-    const c=soilAt(d, h/RELIEF);
-    const j=0.86+Math.random()*0.30;
-    gCol.setRGB(Math.min(1.6, (0.95+c[0]*0.55)*j),
-                Math.min(1.6, (1.06+c[1]*0.55)*j),
-                Math.min(1.6, (0.84+c[2]*0.55)*j));
-    grass.setColorAt(i, gCol);
-  }
-
-  function sowCard(i, c, full){
-    const a=Math.random()*6.28318;
-    const r=GRASS_REACH*Math.sqrt(full ? Math.random() : 0.34+Math.random()*0.66);
-    const d=grassDir[i].copy(c)
-      .addScaledVector(gT1, Math.cos(a)*r/PR)
-      .addScaledVector(gT2, Math.sin(a)*r/PR).normalize();
-    dressCard(i, d);
-  }
-
-  /* SOWN IN FULL, HERE, while the room is still being built. An earlier
-     version left every card unplaced and let the frame loop fill them in an
-     eighth at a time, which kept the landing cheap and meant the first
-     second of every arrival was spent watching grass grow out of the
-     ground. A field is a thing that is already there. The cost lands inside
-     the same load that is already building a planet, where there is nothing
-     to watch it happen. */
-  function sowGrass(){
-    if(!grass) return;
-    tangentBasis(me.dir);
-    grassEye.value.copy(me.dir).multiplyScalar(PR+me.alt);
-    for(let i=0;i<GRASS_N;i++) sowCard(i, me.dir, true);
-    grass.instanceMatrix.needsUpdate=true;
-    grassUp.needsUpdate=true; grassSize.needsUpdate=true; grassUV.needsUpdate=true;
-    if(grass.instanceColor) grass.instanceColor.needsUpdate=true;
-  }
-
-  function grassField(){
-    grass=null; grassDir=null; grassCursor=0;
-    if(!GRASS_ON) return;
-    const bio=GRASS_BIOME[W.biome];
-    if((bio===undefined ? 0.7 : bio)<=0) return;
-
-    const tex=new THREE.TextureLoader().load(GRASS_TEX+'?v='+(window.ASSETV||'1'));
-    tex.colorSpace=THREE.SRGBColorSpace;
-    tex.anisotropy=Math.min(8, G.renderer.capabilities.getMaxAnisotropy ?
-                               G.renderer.capabilities.getMaxAnisotropy() : 1);
-    /* CUT OUT, NOT BLENDED. Transparency would want twenty-four thousand
-       cards sorted back to front every frame and would still punch holes in
-       each other through the depth buffer. A cutout writes depth like any
-       solid thing and never needs sorting; the price is a hard edge, which
-       at this size is a blade of grass. */
-    const mat=new THREE.MeshLambertMaterial({
-      map:tex, alphaTest:0.30, transparent:false, side:THREE.FrontSide });
-
-    mat.onBeforeCompile=sh=>{
-      sh.uniforms.uWind=grassWind;
-      sh.vertexShader=
-        ['uniform float uWind;',
-         'uniform vec3 uEye;',
-         'attribute vec3 aUp;',
-         'attribute vec2 aSize;',
-         'attribute vec2 aUV;', ''].join('\n')+sh.vertexShader;
-      /* Each card samples its own window of the texture. three writes the
-         map's coordinate into vMapUv in <uv_vertex>; this rewrites it just
-         after, which is the only place a per-instance slice can be applied
-         without a second texture or a second draw call. */
-      sh.vertexShader=sh.vertexShader.replace('#include <uv_vertex>',
-        ['#include <uv_vertex>',
-         '#ifdef USE_MAP',
-         'vMapUv = vec2(aUV.x + uv.x*aUV.y, uv.y);',
-         '#endif'].join('\n'));
-      /* Lit as though it were the ground it grows out of. A card lit by its
-         own facing is lit by which way you happen to be standing, so the
-         whole field changes brightness as you turn round. */
-      sh.vertexShader=sh.vertexShader.replace('#include <beginnormal_vertex>',
-        ['#include <beginnormal_vertex>',
-         'objectNormal = normalize(aUp);'].join('\n'));
-      /* The card is built here rather than baked into the instance matrix:
-         the matrix holds only where it stands, and its plane is spanned
-         fresh each frame by its own up and whichever way is sideways FROM
-         THE CAMERA. That is the billboard, and it costs a cross product.
-         The alternative — crossing two or three quads per tuft — triples
-         the geometry and still looks like crossed quads from above. */
-      sh.uniforms.uEye=grassEye;
-      const FADE=(GRASS_REACH*0.34).toFixed(2), REACH=GRASS_REACH.toFixed(2);
-      sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>',
-        ['#include <begin_vertex>',
-         'vec3 gRoot  = instanceMatrix[3].xyz;',
-         'vec3 gUp    = normalize(aUp);',
-         'vec3 gRight = cross(gUp, cameraPosition - gRoot);',
-         'float gLen  = length(gRight);',
-         'gRight = gLen > 1e-4 ? gRight/gLen : normalize(cross(gUp, vec3(0.0,0.0,1.0)));',
-         /* THE RIM, RE-DECIDED EVERY FRAME. A tuft grows out of nothing over
-            the last third of the reach as you close on it and sinks back as
-            you leave, so the edge of the field is a horizon rather than a
-            line — and a tuft re-sown out there is re-sown at zero height,
-            where there is nothing to see. This is what stops the grass
-            looking like it is spreading as you walk. */
-         'float gD    = distance(uEye, gRoot);',
-         'float gFade = clamp(('+REACH+' - gD)/'+FADE+', 0.0, 1.0);',
-         'float gH    = aSize.y * gFade;',
-         'float gSway = sin(uWind*1.3 + gRoot.x*0.45 + gRoot.z*0.40)',
-         '            + 0.40*sin(uWind*2.6 + gRoot.x*1.25 + gRoot.y*0.70);',
-         'transformed = gRight*(position.x*aSize.x*gFade)',
-         '            + gUp*(position.y*gH)',
-         '            + gRight*(gSway*position.y*position.y*0.10*gH);'].join('\n'));
-    };
-
-    grass=new THREE.InstancedMesh(cardGeometry(), mat, GRASS_N);
-    grassUp=new THREE.InstancedBufferAttribute(new Float32Array(GRASS_N*3),3);
-    grassSize=new THREE.InstancedBufferAttribute(new Float32Array(GRASS_N*2),2);
-    grassUV=new THREE.InstancedBufferAttribute(new Float32Array(GRASS_N*2),2);
-    grass.geometry.setAttribute('aUp', grassUp);
-    grass.geometry.setAttribute('aSize', grassSize);
-    grass.geometry.setAttribute('aUV', grassUV);
-    /* Re-sown around you, so its bounds are never what three thinks they
-       are — and a field culled by a stale box vanishes when you look the
-       wrong way. */
-    grass.frustumCulled=false;
-    grass.userData.flat=true;                 // the look-at highlight skips it
-    grassDir=new Array(GRASS_N);
-    for(let i=0;i<GRASS_N;i++) grassDir[i]=new THREE.Vector3();
-    G.roomGroup.add(grass);
-    sowGrass();
-  }
-
-  function grassTick(dt){
-    if(!grass) return;
-    grassWind.value+=dt;
-    grassEye.value.copy(me.dir).multiplyScalar(PR+me.alt);
-    const cosReach=Math.cos(GRASS_REACH/PR);
-    tangentBasis(me.dir);
-    /* Two budgets, because the halves cost wildly different things. CHECKING
-       a card is a dot product. SOWING one is a padK over every building plus
-       two noise fields, so the frames just after landing — when every card
-       is unplaced — would run long without a cap. */
-    let sown=0, seen=0;
-    const slice=(GRASS_N>>2);
-    while(seen<slice && sown<GRASS_SOW_MAX){
-      const i=grassCursor++; if(grassCursor>=GRASS_N) grassCursor=0;
-      seen++;
-      if(grassDir[i].dot(me.dir)<cosReach){ sowCard(i, me.dir, false); sown++; }
-    }
-    if(sown){
-      grass.instanceMatrix.needsUpdate=true;
-      grassUp.needsUpdate=true; grassSize.needsUpdate=true; grassUV.needsUpdate=true;
-      if(grass.instanceColor) grass.instanceColor.needsUpdate=true;
-    }
-  }
-
   /* ----------------------------------------------------------- the ground
      A sphere of one flat green is a diagram of a planet. What makes ground
      read as ground is that it is never level and never one colour, and both
@@ -2790,7 +2476,6 @@ window.PLANET = (function(){
     const now=performance.now();
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
     sunAt();
-    grassTick(dt);
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     mallTick(dt);
