@@ -553,6 +553,10 @@ window.PLANET = (function(){
   let grass=null, grassDir=null, grassCursor=0;
   let grassUp=null, grassSize=null, grassUV=null;
   const grassWind={ value:0 };
+  /* Where the player is, for the rim fade below. The camera will not do:
+     it sits six metres behind you, so the field would fade against the
+     wrong point and thin out in front of you as you turned. */
+  const grassEye={ value:new THREE.Vector3() };
 
   /* The card: a quad standing on y=0, a unit tall, half a unit either side. */
   function cardGeometry(){
@@ -596,10 +600,14 @@ window.PLANET = (function(){
     grass.setMatrixAt(i, gM);
     grassUp.setXYZ(i, d.x, d.y, d.z);
 
-    /* Short at the edge of the reach, so one re-sown out there grows in
-       rather than appearing at full height. */
-    const edge=Math.min(1, (1 - d.angleTo(me.dir)*PR/GRASS_REACH)*1.9);
-    const tall=(0.42+Math.random()*0.34)*(0.6+0.4*lush)*Math.max(0,edge);
+    /* Its full height, always. The fade at the rim of the reach is done in
+       the shader against LIVE distance — see below. It used to be baked in
+       here, which had two faults: a tuft sown near the rim stayed stunted
+       for ever, even once you had walked right up to it, so the field was a
+       mix of full and half-grown for no reason you could see; and the fade
+       could only ever apply to the moment of sowing, so what you actually
+       watched was grass appearing. */
+    const tall=(0.42+Math.random()*0.34)*(0.6+0.4*lush);
     /* Which slice of the photograph this tuft shows, and a negative width
        mirrors it. One texture over a whole field would read as one texture
        repeated; a random window into it, flipped half the time, gives every
@@ -628,20 +636,21 @@ window.PLANET = (function(){
     dressCard(i, d);
   }
 
-  /* GROWN IN OVER THE FIRST FRAMES, not sown in one go: every card starts
-     with no direction at all, and the frame loop treats "never placed"
-     exactly like "walked past". Placing them all at once is a freeze at the
-     moment you land. */
+  /* SOWN IN FULL, HERE, while the room is still being built. An earlier
+     version left every card unplaced and let the frame loop fill them in an
+     eighth at a time, which kept the landing cheap and meant the first
+     second of every arrival was spent watching grass grow out of the
+     ground. A field is a thing that is already there. The cost lands inside
+     the same load that is already building a planet, where there is nothing
+     to watch it happen. */
   function sowGrass(){
     if(!grass) return;
-    gM.compose(G_ZERO, gQ.identity(), gScale.set(1,1,1));
-    for(let i=0;i<GRASS_N;i++){
-      grassDir[i].set(0,0,0);
-      grassSize.setXY(i,0,0);
-      grass.setMatrixAt(i, gM);
-    }
+    tangentBasis(me.dir);
+    grassEye.value.copy(me.dir).multiplyScalar(PR+me.alt);
+    for(let i=0;i<GRASS_N;i++) sowCard(i, me.dir, true);
     grass.instanceMatrix.needsUpdate=true;
-    grassSize.needsUpdate=true;
+    grassUp.needsUpdate=true; grassSize.needsUpdate=true; grassUV.needsUpdate=true;
+    if(grass.instanceColor) grass.instanceColor.needsUpdate=true;
   }
 
   function grassField(){
@@ -666,6 +675,7 @@ window.PLANET = (function(){
       sh.uniforms.uWind=grassWind;
       sh.vertexShader=
         ['uniform float uWind;',
+         'uniform vec3 uEye;',
          'attribute vec3 aUp;',
          'attribute vec2 aSize;',
          'attribute vec2 aUV;', ''].join('\n')+sh.vertexShader;
@@ -690,6 +700,8 @@ window.PLANET = (function(){
          THE CAMERA. That is the billboard, and it costs a cross product.
          The alternative — crossing two or three quads per tuft — triples
          the geometry and still looks like crossed quads from above. */
+      sh.uniforms.uEye=grassEye;
+      const FADE=(GRASS_REACH*0.34).toFixed(2), REACH=GRASS_REACH.toFixed(2);
       sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>',
         ['#include <begin_vertex>',
          'vec3 gRoot  = instanceMatrix[3].xyz;',
@@ -697,11 +709,20 @@ window.PLANET = (function(){
          'vec3 gRight = cross(gUp, cameraPosition - gRoot);',
          'float gLen  = length(gRight);',
          'gRight = gLen > 1e-4 ? gRight/gLen : normalize(cross(gUp, vec3(0.0,0.0,1.0)));',
+         /* THE RIM, RE-DECIDED EVERY FRAME. A tuft grows out of nothing over
+            the last third of the reach as you close on it and sinks back as
+            you leave, so the edge of the field is a horizon rather than a
+            line — and a tuft re-sown out there is re-sown at zero height,
+            where there is nothing to see. This is what stops the grass
+            looking like it is spreading as you walk. */
+         'float gD    = distance(uEye, gRoot);',
+         'float gFade = clamp(('+REACH+' - gD)/'+FADE+', 0.0, 1.0);',
+         'float gH    = aSize.y * gFade;',
          'float gSway = sin(uWind*1.3 + gRoot.x*0.45 + gRoot.z*0.40)',
          '            + 0.40*sin(uWind*2.6 + gRoot.x*1.25 + gRoot.y*0.70);',
-         'transformed = gRight*(position.x*aSize.x)',
-         '            + gUp*(position.y*aSize.y)',
-         '            + gRight*(gSway*position.y*position.y*0.10*aSize.y);'].join('\n'));
+         'transformed = gRight*(position.x*aSize.x*gFade)',
+         '            + gUp*(position.y*gH)',
+         '            + gRight*(gSway*position.y*position.y*0.10*gH);'].join('\n'));
     };
 
     grass=new THREE.InstancedMesh(cardGeometry(), mat, GRASS_N);
@@ -725,6 +746,7 @@ window.PLANET = (function(){
   function grassTick(dt){
     if(!grass) return;
     grassWind.value+=dt;
+    grassEye.value.copy(me.dir).multiplyScalar(PR+me.alt);
     const cosReach=Math.cos(GRASS_REACH/PR);
     tangentBasis(me.dir);
     /* Two budgets, because the halves cost wildly different things. CHECKING
@@ -736,8 +758,7 @@ window.PLANET = (function(){
     while(seen<slice && sown<GRASS_SOW_MAX){
       const i=grassCursor++; if(grassCursor>=GRASS_N) grassCursor=0;
       seen++;
-      const fresh=grassDir[i].lengthSq()===0;    // never placed: first sowing
-      if(fresh || grassDir[i].dot(me.dir)<cosReach){ sowCard(i, me.dir, fresh); sown++; }
+      if(grassDir[i].dot(me.dir)<cosReach){ sowCard(i, me.dir, false); sown++; }
     }
     if(sown){
       grass.instanceMatrix.needsUpdate=true;
