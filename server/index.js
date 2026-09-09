@@ -304,7 +304,9 @@ wss.on('connection', async (ws, req)=>{
   const u = r.rows[0];
   if(!u){ ws.close(4001,'unknown user'); return; }
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
-                x:0, z:0, yaw:0, char:'a', ride:null, at:null, went:null, objs:new Map(),
+                // 's' is the character the browser starts everybody on, so a
+                // roster read before their first 'pos' shows what they wear
+                x:0, z:0, yaw:0, char:'s', ride:null, at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
 
@@ -353,7 +355,15 @@ wss.on('connection', async (ws, req)=>{
     if(m.t==='pos'){
       if(!p.server) return;
       p.x=+m.x||0; p.z=+m.z||0; p.yaw=+m.yaw||0;
-      if(typeof m.char==='string' && /^[a-r]$/.test(m.char)) p.char=m.char;
+      /* THE FORMAT, NOT THE ROSTER.  This used to spell out the letters
+         the game shipped with — and when Kyle and Mia were added as `s`
+         and `t` the test silently dropped them, so everybody wearing the
+         DEFAULT character was relayed to the room as the `a` below and
+         appeared to their classmates as somebody else entirely.  The
+         browser decides which model a letter names and catches one it
+         does not know, exactly as it does for `ride` underneath, so the
+         only thing worth checking here is that it is a single letter. */
+      if(typeof m.char==='string' && /^[a-z]$/.test(m.char)) p.char=m.char;
       // the car they are driving, if any — the browser decides which model that
       // names, so an unknown id simply draws nothing
       p.ride = (typeof m.ride==='string' && /^[a-z_]{1,16}$/.test(m.ride)) ? m.ride : null;
