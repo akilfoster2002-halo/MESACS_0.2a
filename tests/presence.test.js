@@ -50,3 +50,42 @@ test('the filter checks the shape of a character id, not a list of them', ()=>{
   ['', 'ab', '../x', 'A', '1', 'a/b'].forEach(bad =>
     assert.ok(!re.test(bad), JSON.stringify(bad) + ' is accepted as a character id'));
 });
+
+/* ------------------------------------------------------------------ act
+   The same trap one field over. `act` carries the clip the body is
+   playing, so a jump and an emote reach everybody else's screen instead of
+   being guessed from how fast somebody crosses the ground — which can see
+   a walk and can never see a jump. Add a clip and forget the server and it
+   goes quiet in exactly the way `s` and `t` did. */
+function clipsTheBrowserPlays(){
+  const src = read('public/avatar.js');
+  const body = src.match(/function clipFor\([^)]*\)\s*\{([\s\S]*?)\n  \}/);
+  assert.ok(body, 'avatar.js no longer chooses its clip in one clipFor()');
+  const names = [...body[1].matchAll(/'([a-z][a-z0-9_]*)'/g)].map(m => m[1]);
+  const emote = src.match(/name\s*=\s*name\s*\|\|\s*'([a-z][a-z0-9_]*)'/);
+  assert.ok(emote, 'avatar.js no longer names a default emote');
+  return [...new Set(names.concat(emote[1]))];
+}
+function serverAcceptsAct(){
+  const m = read('server/index.js').match(/m\.act==='string'\s*&&\s*(\/\^.+?\$\/)\.test/);
+  assert.ok(m, 'server/index.js no longer filters m.act with a regex');
+  return new RegExp(m[1].slice(1, -1));
+}
+
+test('the server relays every clip the body can play', ()=>{
+  const re = serverAcceptsAct();
+  const clips = clipsTheBrowserPlays();
+  assert.ok(clips.includes('jump'), 'clipFor no longer names a jump: ' + clips.join(', '));
+  const dropped = clips.filter(c => !re.test(c));
+  assert.deepStrictEqual(dropped, [],
+    'these clips would be dropped on the way to the room: ' + dropped.join(', '));
+});
+
+test('both rooms send what the body is doing, and the server passes it on', ()=>{
+  // sent from the planet and from indoors...
+  ['public/planet.js', 'public/menu.js'].forEach(f =>
+    assert.match(read(f), /act:\s*AVATAR\.act/, f + ' does not send act with its presence'));
+  // ...and put back on the roster the room is given
+  assert.match(read('server/index.js'), /act:\s*p\.act/,
+    'roster() does not hand act back out, so nothing sent ever arrives');
+});

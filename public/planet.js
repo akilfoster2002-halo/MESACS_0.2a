@@ -2332,7 +2332,7 @@ window.PLANET = (function(){
         g.add(nameTag(p.display));
         crowd.add(g);
         o={ g, char:null, model:null, dir:dirOf(p.x,p.z), tdir:dirOf(p.x,p.z),
-            head:p.yaw||0, thead:p.yaw||0, speed:0, ride:null, car:null };
+            head:p.yaw||0, thead:p.yaw||0, speed:0, act:null, ride:null, car:null };
         others.set(p.id,o);
       }
       if(p.char && o.char!==p.char){
@@ -2355,9 +2355,25 @@ window.PLANET = (function(){
           if(o.model) o.model.visible=false;
         }).catch(()=>{});
       }
-      o.tdir=dirOf(p.x,p.z); o.thead=p.yaw||0;
+      o.tdir=dirOf(p.x,p.z); o.thead=p.yaw||0; o.act=p.act||null;
     });
     for(const [id,o] of others) if(!seen.has(id)){ crowd.remove(o.g); others.delete(id); }
+  }
+  /* WHICH CLIP SOMEBODY ELSE IS PLAYING.
+
+     Two sources disagree and each is right about something. How fast they
+     cross the ground is the honest account of what you can SEE — however
+     the network eased them into it, the legs match the movement, and that
+     is why walking has always been read off it rather than sent.
+
+     But a jump is not in the movement. You go straight up; the ground you
+     cover does not change, so a body watching your speed sees you walk
+     off the edge of a roof. Neither is an emote. So those travel, and the
+     ground still decides the rest. */
+  const GROUND={ idle:1, walk:1, sprint:1 };
+  function doing(o){
+    if(o.act && !GROUND[o.act]) return o.act;
+    return o.speed>9 ? 'sprint' : o.speed>0.4 ? 'walk' : 'idle';
   }
   function nameTag(name){
     const c=document.createElement('canvas'); c.width=256; c.height=64;
@@ -2414,8 +2430,7 @@ window.PLANET = (function(){
       // how fast they are actually crossing the ground, so the legs match it
       const v=was.distanceTo(o.g.position)/Math.max(dt,0.001);
       o.speed += (v-o.speed)*Math.min(1,dt*8);
-      if(o.model && !o.ride)
-        AVATAR.animate(o.model, dt, o.speed>9 ? 'sprint' : o.speed>0.4 ? 'walk' : 'idle');
+      if(o.model && !o.ride) AVATAR.animate(o.model, dt, doing(o));
     }
     if(window.NET && NET.live){
       const now=performance.now();
@@ -2426,7 +2441,7 @@ window.PLANET = (function(){
            nothing on anybody else's screen. What travels is the heading in the
            frame under our own feet, which rebuilds anywhere on the ball. */
         NET.pos({ x:+ll.lon.toFixed(2), z:+ll.lat.toFixed(2), yaw:+heading().toFixed(3),
-                  char:AVATAR.chosen, ride:rideId, at:W.id });
+                  char:AVATAR.chosen, act:AVATAR.act, ride:rideId, at:W.id });
       }
     }
   }

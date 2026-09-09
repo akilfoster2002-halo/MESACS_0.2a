@@ -493,7 +493,7 @@ window.FREE = (function(){
         g.add(tag(p.display));
         g.position.set(p.x,0,p.z); g.rotation.y=yaw;
         group.add(g);
-        o={ g, char:null, model:null, tx:p.x, tz:p.z, tyaw:yaw, speed:0, name:p.display };
+        o={ g, char:null, model:null, tx:p.x, tz:p.z, tyaw:yaw, speed:0, act:null, name:p.display };
         others.set(p.id,o);
       }
       o.name=p.display;                 // their objects are labelled from this
@@ -502,7 +502,7 @@ window.FREE = (function(){
         AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m; o.g.add(m); })
                            .catch(()=>{});
       }
-      o.tx=p.x; o.tz=p.z; o.tyaw=yaw;
+      o.tx=p.x; o.tz=p.z; o.tyaw=yaw; o.act=p.act||null;
     });
     for(const [id,o] of others) if(!seen.has(id)){ group.remove(o.g); others.delete(id); }
     // whoever has left the room takes their objects with them
@@ -585,6 +585,7 @@ window.FREE = (function(){
   /* Ease towards the last known spot, a fixed fraction of the remaining gap per
      second so it looks the same on a fast machine and a slow one — except when
      somebody is a room away, where gliding across the floor would be a lie. */
+  const GROUND={ idle:1, walk:1, sprint:1 };
   function smooth(dt){
     const k = 1 - Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
@@ -598,8 +599,12 @@ window.FREE = (function(){
       // how fast they are actually travelling, smoothed, so the legs match
       const v=Math.hypot(dx,dz)/Math.max(dt,0.001);
       o.speed += (v-o.speed)*Math.min(1,dt*8);
+      /* A jump is not in the ground they cover, so it travels with their
+         presence instead of being guessed from it — see the note on the
+         planet's `doing`, which decides the same thing the same way. */
       if(o.model) AVATAR.animate(o.model, dt,
-        o.speed>3.2 ? 'sprint' : o.speed>0.35 ? 'walk' : 'idle');
+        (o.act && !GROUND[o.act]) ? o.act
+        : o.speed>3.2 ? 'sprint' : o.speed>0.35 ? 'walk' : 'idle');
     }
     /* Their objects wear their name.  Four people on the same mission means
        four identical balls on one floor, and the only thing telling them
@@ -643,7 +648,8 @@ window.FREE = (function(){
     const now=performance.now();
     if(now-last<90) return;
     last=now; NET.pos({ x:+G.pos.x.toFixed(2), z:+G.pos.z.toFixed(2),
-                        yaw:+G.yaw.toFixed(2), char:AVATAR.chosen, at:'inside' });
+                        yaw:+G.yaw.toFixed(2), char:AVATAR.chosen,
+                        act:AVATAR.act, at:'inside' });
   }
   /* move to another mission without leaving the room or the people in it */
   function go(missionId){ enter(room, missionId); }

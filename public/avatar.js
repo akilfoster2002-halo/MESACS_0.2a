@@ -191,6 +191,25 @@ window.AVATAR = (function(){
 
   /* the player's own body, third person */
   let body=null, model=null;
+  /* WHAT THE BODY IS DOING, worked out in one place because three callers
+     want it: the two that draw us, and presence, which sends the name to
+     everybody else's screen.  Their body used to guess from how fast it
+     was crossing the ground, which can see a walk and a sprint and cannot
+     ever see a jump — you go straight up, your speed over the ground does
+     not change, and the classmate watching you sees you keep walking.
+
+     ASK FOR A JUMP AND TAKE WHAT YOU GET. play() leaves the current clip
+     alone when it cannot find the name, so a character with a jump plays
+     it and one without carries on with whatever it was doing — which is
+     exactly the clean held pose the kit characters have always used.
+     Naming a clip nobody has was the old way of saying the same thing;
+     naming the real one costs them nothing and pays whoever has it. */
+  let acting='idle';
+  function clipFor(dt, moving, running, onGround){
+    return acting = emoteFrame(dt, moving)
+                 || (onGround===false ? 'jump'
+                 : moving ? (running ? 'sprint' : 'walk') : 'idle');
+  }
   /* AN EMOTE IS A CLIP THAT IS NOT A STATE. Every other clip answers a
      question about the body — is it moving, is it airborne — and is chosen
      fresh each frame from the answer. This one is chosen because somebody
@@ -257,28 +276,18 @@ window.AVATAR = (function(){
     body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
     body.position.copy(pos);
     body.visible=!G.firstPerson;
-    animate(model, dt, emoteFrame(dt, moving)
-                     || (onGround===false ? 'jump'
-                     : moving ? (running ? 'sprint' : 'walk') : 'idle'));
+    animate(model, dt, clipFor(dt, moving, running, onGround));
   }
   function update(dt, moving, running, onGround){
     if(!body) return;
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
     body.rotation.y = G.yaw + Math.PI;      // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
-    /* ASK FOR A JUMP AND TAKE WHAT YOU GET. play() leaves the current clip
-       alone when it cannot find the name, so a character with a jump plays
-       it and one without carries on with whatever it was doing — which is
-       exactly the clean held pose the kit characters have always used.
-       Naming a clip nobody has was the old way of saying the same thing;
-       naming the real one costs them nothing and pays whoever has it. */
-    const clip = emoteFrame(dt, moving)
-               || (onGround===false ? 'jump'
-               : moving ? (running ? 'sprint' : 'walk') : 'idle');
-    animate(model, dt, clip);
+    animate(model, dt, clipFor(dt, moving, running, onGround));
   }
 
   return { CHARS, load, pick, attach, detach, update, orient, animate,
            emote, canEmote, get emoting(){ return emoting>0; },
+           get act(){ return acting; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };
 })();

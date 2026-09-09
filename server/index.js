@@ -267,7 +267,7 @@ function roster(server){
   const out=[];
   for(const [,p] of live) if(p.server===server && p.role==='student')
     out.push({ id:p.id, display:p.display, x:p.x, z:p.z, yaw:p.yaw,
-               char:p.char, ride:p.ride, at:p.at });
+               char:p.char, act:p.act, ride:p.ride, at:p.at });
   return out;
 }
 /* Where somebody is standing: the planet they are out on, or the room they
@@ -306,7 +306,7 @@ wss.on('connection', async (ws, req)=>{
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
                 // 's' is the character the browser starts everybody on, so a
                 // roster read before their first 'pos' shows what they wear
-                x:0, z:0, yaw:0, char:'s', ride:null, at:null, went:null, objs:new Map(),
+                x:0, z:0, yaw:0, char:'s', act:null, ride:null, at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
 
@@ -366,6 +366,11 @@ wss.on('connection', async (ws, req)=>{
       if(typeof m.char==='string' && /^[a-z]$/.test(m.char)) p.char=m.char;
       // the car they are driving, if any — the browser decides which model that
       // names, so an unknown id simply draws nothing
+      /* WHAT THEIR BODY IS DOING: the name of the clip it is playing. Only
+         the things their movement cannot show travel this way — a jump and
+         an emote — and the browser reads it exactly as it reads `ride`
+         below, so a name it does not know simply draws nothing new. */
+      p.act = (typeof m.act==='string' && /^[a-z][a-z0-9_]{0,15}$/.test(m.act)) ? m.act : null;
       p.ride = (typeof m.ride==='string' && /^[a-z_]{1,16}$/.test(m.ride)) ? m.ride : null;
       moveTo(p, m.at);
       return;
