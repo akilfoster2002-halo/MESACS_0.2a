@@ -598,6 +598,7 @@ function loop(now){
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
+  if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* The live arena runs on the frame rather than inside the frozen-world
      block: the fight carries on while a results card is up, and the

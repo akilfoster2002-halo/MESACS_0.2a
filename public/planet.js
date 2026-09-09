@@ -255,6 +255,7 @@ window.PLANET = (function(){
     others.clear();
     statues=[]; ada=null; bays=[]; purseFace=null; padShip=null; padB=null;
     mannequins=[]; flies=null; beasts=[]; sparkTex=null;
+    shipBayPanel=null; shipBayModel=null; padPanel=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
     G.scene.background=new THREE.Color(SKY);
     /* The stars, the neighbour and its ring all sit five hundred metres out
@@ -1462,27 +1463,41 @@ window.PLANET = (function(){
       g.add(padShip);
       b.solids.push({x1:-3,x2:3,z1:-4.4,z2:2,y1:0,y2:4.4});
     }
-    /* One console per destination, side by side, each saying where it goes.
-       A single button that toggled between two planets could not say what
-       it would do with a third one in the sky. */
-    const dests=WORLDS().filter(x=>x.id!==W.id);
-    const gap=8.2, first=-(gap*(dests.length-1))/2;
-    dests.forEach((to,i)=>{
-      panel(g, b, first+i*gap, 9.4, '\u{1F6F8}',
-        t('FLY TO {n}',{n:to.name}), 'fly:'+to.id, '#12304a', 0.72, Math.PI);
-    });
+    /* ONE COURSE IN THE NAV COMPUTER. There used to be a console per world
+       and each one teleported you there. The ship flies for real now, and a
+       route is a thing somebody has to survey — so the only one loaded is
+       the run out to VOLTA, and the way home from it. The other worlds are
+       still in WORLDS(); they are just not on the charts yet. */
+    const to = W.id==='arena' ? 'hub' : 'arena';
+    padPanel=panel(g, b, 0, 9.4, '\u{1F6F8}',
+      navLabel(to), 'fly:'+to, hasShip()?'#12304a':'#3a2a1b', 0.78, Math.PI);
   }
-  /* Leaving a world and arriving at another is one call, because everything
-     that makes a world — its size, its sky, its soil, its buildings — is
-     rebuilt by enter(). What has to survive is where you were standing on
-     the one you left, and backs[] is what remembers that. */
+  let padPanel=null;
+  function navLabel(to){
+    const n=worldById(to).name;
+    return hasShip() ? t('LAUNCH')+'\n'+t('COURSE: {n}',{n})
+                     : t('NO SHIP')+'\n'+t('SEE THE MECHANIC');
+  }
+  /* Leaving a world and arriving at another used to be one call — enter()
+     rebuilds everything that makes a world, so a teleport was free. It is
+     not free any more on purpose: you fly it. What has to survive either
+     way is where you were standing on the world you left, and backs[]
+     remembers that. */
   function travel(to){
     const id = to || (W.kind==='home' ? 'hub' : 'home');
     if(id===W.id) return;
-    const name = worldById(id).name;
+    if(!hasShip()){
+      say(t('You have no ship. <b>THE MECHANIC</b> has one waiting.'));
+      return;
+    }
+    if(!window.CRUISE){                      // the flight failed to load: walk it in
+      leave(); enter(server, id);
+      say(t('Touched down on {n}.',{n:worldById(id).name}));
+      return;
+    }
+    const back=W.id;
     leave();
-    enter(server, id);
-    say(t('Touched down on {n}.',{n:name}));
+    CRUISE.launch(server, id, back);
   }
 
   /* --------------------------------------------------------- the mechanic
@@ -1566,12 +1581,67 @@ window.PLANET = (function(){
        than five boxes, and five of them turning on plinths were seventy-
        seven thousand triangles standing in a room most of whose visitors
        came to look at a car. */
+    shipBay(g, b, hw, hd);
     // and a purse on the wall, so you can see what you have to spend
     const purse=panel(g, b, 0, -hd+3.4, '◆',
       t('YOUR COINS'), 'purse', '#2a2013', 0.7, 0);
     purseFace=purse.userData.glow;
     refreshPurse();
   }
+  /* ------------------------------------------------------------ the hangar
+     THE SHIP LIVES HERE, and you have to come and get it. The Pad used to
+     take you to another planet on its own, which made the other planets
+     tabs rather than places — so now the Pad flies a ship, and a ship is
+     something you fetch from the garage first.
+
+     It costs nothing. This is not another thing to buy; it is a reason to
+     walk somewhere before the sky opens up. */
+  const SHIP_KEY='has_ship';
+  function hasShip(){
+    try{ return !!(window.PROGRESS && PROGRESS.get(SHIP_KEY,0)); }catch(e){ return false; }
+  }
+  function takeShip(){
+    try{ if(window.PROGRESS) PROGRESS.set(SHIP_KEY,1); }catch(e){}
+    repaintShipBay();
+    if(window.beep) beep('pop');
+    say(t('🚀 The ship is yours. It is waiting on <b>THE PAD</b>.'));
+  }
+  let shipBayPanel=null, shipBayModel=null;
+  function shipBay(g, b, hw, hd){
+    const x=hw*0.52, z=-hd*0.10;
+    // a lit pad, so the corner reads as a hangar rather than as spare floor
+    const deck=new THREE.Mesh(new THREE.CylinderGeometry(4.4,4.7,0.5,28),
+      new THREE.MeshLambertMaterial({color:0x3f4a63}));
+    deck.position.set(x,0.25,z); deck.userData.flat=true; g.add(deck);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(4.0,0.16,8,40),
+      new THREE.MeshBasicMaterial({color:0x8ff0ff}));
+    ring.rotation.x=-Math.PI/2; ring.position.set(x,0.56,z); g.add(ring);
+    const lamp=new THREE.PointLight(0x8ff0ff, 140, 26, 1.6);
+    lamp.position.set(x,5,z); g.add(lamp);
+    b.solids.push({x1:x-4.7,x2:x+4.7,z1:z-4.7,z2:z+4.7,y1:0,y2:0.75});
+
+    if(window.SHOP && SHOP.model){
+      shipBayModel=SHOP.model();
+      shipBayModel.position.set(x,3.2,z);
+      shipBayModel.scale.setScalar(2.4);
+      g.add(shipBayModel);
+      shipBayModel.userData.spin=0.35;      // the statues loop turns it
+      statues.push(shipBayModel);
+    }
+    shipBayPanel=panel(g, b, x, z+5.6, '\u{1F680}',
+      hasShip() ? t('SHIP')+'\n'+t('YOURS') : t('TAKE THE SHIP')+'\n'+t('FREE'),
+      'takeship', hasShip()?'#1d4030':'#12304a', 0.66, 0);
+  }
+  function repaintShipBay(){
+    if(!shipBayPanel) return;
+    const face=shipBayPanel.userData.glow; if(!face) return;
+    if(face.material.map) face.material.map.dispose();
+    face.material.map=panelTex('\u{1F680}',
+      hasShip() ? t('SHIP')+'\n'+t('YOURS') : t('TAKE THE SHIP')+'\n'+t('FREE'),
+      hasShip()?'#1d4030':'#12304a');
+    face.material.needsUpdate=true;
+  }
+
   let purseFace=null;
   function refreshPurse(){
     if(!purseFace || !window.WALLET) return;
@@ -2222,6 +2292,7 @@ window.PLANET = (function(){
                || id==='league' || id==='pvp' || id==='mecha'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
+               || id==='takeship'
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
@@ -2245,6 +2316,10 @@ window.PLANET = (function(){
       wentTo('gym'); leave();
       document.querySelector('#hud').classList.remove('hidden');
       return MECH.start({ pvp:id==='pvp' });
+    }
+    if(id==='takeship'){
+      if(hasShip()){ say(t('It is already yours — it is on <b>THE PAD</b>.')); return; }
+      takeShip(); return;
     }
     if(id.indexOf('fly:')===0){ travel(id.slice(4)); return; }
     if(id==='workshop'){ wentTo('workshop'); leave();
