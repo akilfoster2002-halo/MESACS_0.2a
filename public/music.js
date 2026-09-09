@@ -113,20 +113,34 @@ window.MUSIC = (function(){
     } else if(want) play(want);
   }
 
+  /* Two buttons wear this state — the one in the top bar and the one in the
+     pause menu — and the pause menu's is rebuilt from scratch every time it
+     opens. So painting is one function that finds whichever of them exist
+     rather than something the caller has to remember to do. */
+  const say = k => (window.t ? t(k) : k);
   function paint(){
-    const b=document.querySelector('#btnMusic'); if(!b) return;
-    b.textContent = muted ? '🔇' : '🎵';
-    b.title = muted ? 'Music off' : 'Music on';
-    b.setAttribute('aria-pressed', String(!muted));
+    const icon = muted ? '🔇' : '🎵';
+    const label = muted ? say('Music off') : say('Music on');
+    const bar=document.querySelector('#btnMusic');
+    if(bar){ bar.textContent=icon; bar.title=label;
+             bar.setAttribute('aria-pressed', String(!muted)); }
+    /* The pause menu is read standing still, so it gets words. The top bar
+       is glanced at mid-game, so it gets a glyph. */
+    const pause=document.querySelector('#pMusic');
+    if(pause){ pause.textContent=icon+' '+label;
+               pause.setAttribute('aria-pressed', String(!muted)); }
   }
+  /* What the pause menu calls when its button is pressed. It rebuilds its
+     own markup, so it wires this itself and then asks for a repaint. */
+  function toggle(){ setMuted(!muted); if(window.beep) beep('pop'); }
 
   document.addEventListener('DOMContentLoaded', ()=>{
     const b=document.querySelector('#btnMusic');
-    if(b) b.onclick=()=>{ setMuted(!muted); if(window.beep) beep('pop'); };
+    if(b) b.onclick=toggle;
     paint();
   });
 
-  return { play, stop, setMuted, paint,
+  return { play, stop, setMuted, paint, toggle,
            get muted(){ return muted; },
            get track(){ return want; },
            /* Whether it is actually SOUNDING, which is not the same as

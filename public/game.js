@@ -666,6 +666,8 @@ function togglePause(){
       ${sk}
       <div class="p-lbl">${t('DIFFICULTY')}</div>
       <div class="diffrow" id="pDiff"></div>
+      <div class="p-lbl">${t('SOUND')}</div>
+      <div class="p-hint"><button class="btn ghost small" id="pMusic"></button></div>
       <div class="p-lbl">${t('KEYS')}</div>
       <div class="p-hint">${$('#keys').innerHTML}</div>
       <div class="p-lbl">${t('JUMP TO A MISSION')}</div>
@@ -680,6 +682,12 @@ function togglePause(){
   pauseDiff();
   pauseJump();
   $('#pClose').onclick=()=>togglePause();
+  /* The music toggle lives in the top bar too, but the top bar is hidden in
+     half the rooms and invisible to anybody who has paused to read. This is
+     where you look when you want the game to stop doing something. */
+  const pm=$('#pMusic');
+  if(pm && window.MUSIC){ pm.onclick=()=>MUSIC.toggle(); MUSIC.paint(); }
+  else if(pm) pm.classList.add('hidden');
   const ph=$('#pHome');
   if(ph) ph.onclick=()=>{ p.classList.add('hidden'); MENU.homeworld(); };
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };

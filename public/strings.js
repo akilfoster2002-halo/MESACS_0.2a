@@ -527,6 +527,7 @@ window.ES = {
 
   /* ---------- difficulty ---------- */
   'DIFFICULTY':'DIFICULTAD',
+  'SOUND':'SONIDO','Music on':'Música activada','Music off':'Música desactivada',
   'DIFFICULTY — APPLIES TO EVERY MISSION':'DIFICULTAD — SE APLICA A TODAS LAS MISIONES',
   'Super Easy':'Súper Fácil','Easy':'Fácil','Medium':'Normal','Hard':'Difícil',
   'Almost no pressure. For a first ever program.':
