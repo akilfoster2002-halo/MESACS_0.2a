@@ -76,15 +76,17 @@ window.RACE = (function(){
   ];
 
   /* ------------------------------------------------------- the garage
-     Four cars out of the Kenney racing kit. Two are yours from the start;
-     the other two are earned on the track rather than handed over, the
-     same way the character grid keeps most of its roster behind ???. */
+     The same four cars the Mechanic sells, in the same four colours, built
+     by the same builder — the car you bought is the car you race. Two are
+     yours from the start; the other two are earned on the track rather
+     than handed over, the same way the character grid keeps most of its
+     roster behind ???. */
   const CARS=[
-    { id:'red',    file:'racing/raceCarRed.glb',    name:'Scarlet',  a:'#ff9aa2', free:true },
-    { id:'white',  file:'racing/raceCarWhite.glb',  name:'Chalk',    a:'#e8ecff', free:true },
-    { id:'orange', file:'racing/raceCarOrange.glb', name:'Ember',    a:'#ffd8a8',
+    { id:'red',    paint:0xd42a35, name:'Scarlet',  a:'#ff9aa2', free:true },
+    { id:'white',  paint:0xe9edf5, name:'Chalk',    a:'#e8ecff', free:true },
+    { id:'orange', paint:0xf0761c, name:'Ember',    a:'#ffd8a8',
       needs:'Finish the Circuit' },
-    { id:'green',  file:'racing/raceCarGreen.glb',  name:'Clover',   a:'#a8e6cf',
+    { id:'green',  paint:0x2f9d55, name:'Clover',   a:'#a8e6cf',
       needs:'Beat a target time' }
   ];
   const CAR_LEN=3.0;                             // how long a car reads, in world units
@@ -106,34 +108,14 @@ window.RACE = (function(){
     try{ localStorage.setItem('dq_car',id); }catch(e){}
   }
 
-  let carLoader=null;
-  const carBytes=new Map();
-  /* parsed fresh each time from bytes fetched once — same reason avatar.js
-     does it: this build of three has no SkeletonUtils and a shared clone
-     would hand every car the same transform */
-  async function loadCar(id){
+  /* One car, out of SHOP, which is where every car in the game is built —
+     including the wheels this needs to turn, found there by the names the
+     asset now carries. There used to be a fetch, a byte cache and a parse
+     in here doing that job for four separate files. */
+  function loadCar(id){
     const def=CARS.find(c=>c.id===id) || CARS[0];
-    if(!carBytes.has(def.id))
-      carBytes.set(def.id, fetch(def.file).then(r=>{
-        if(!r.ok) throw new Error('missing '+def.file);
-        return r.arrayBuffer();
-      }));
-    carLoader = carLoader || new THREE.GLTFLoader();
-    const buf=await carBytes.get(def.id);
-    const g=await new Promise((res,rej)=>carLoader.parse(buf.slice(0),'racing/',res,rej));
-    const root=g.scene;
-    root.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
-    const box=new THREE.Box3().setFromObject(root);
-    const len=Math.max(0.001, box.max.z-box.min.z);
-    root.scale.setScalar(CAR_LEN/len);
-    // the kit names its wheels, so the real ones can turn
-    const wheels=[];
-    ['wheelBackLeft','wheelBackRight','wheelFrontLeft','wheelFrontRight']
-      .forEach(n=>{ const w=root.getObjectByName(n); if(w) wheels.push(w); });
-    const holder=new THREE.Group();
-    holder.add(root);
-    holder.userData.wheels=wheels;
-    return holder;
+    if(!window.SHOP || !SHOP.carModel) return Promise.reject(new Error('no shop'));
+    return SHOP.carModel(def.paint, CAR_LEN);
   }
 
   let L=null, busy=false, kart=null;

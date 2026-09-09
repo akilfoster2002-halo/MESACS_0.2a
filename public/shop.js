@@ -35,18 +35,25 @@ window.SHOP = (function(){
       blurb:'Gold. Entirely unnecessary, which is the point.' }
   ];
 
-  /* Cars come out of the Kenney racing kit that is already in the repo.
+  /* Cars are ONE MODEL IN FOUR COLOURS, the way the ships are — the paint
+     lives on a single material in the file and `paint` is what gets put on
+     it.  They used to be four separate models out of the Kenney racing kit;
+     those files are still in the repo because the Workshop's catalogue
+     offers them as props a student can place, and pulling them would empty
+     that shelf out of saved builds.  They are just no longer what you
+     drive.
+
      The first one is FREE and yours from the start — a shop where every
      shelf is locked is a shop nobody learns to use, and everybody should
      find out on day one that you can drive around your own planet. */
   const CARS=[
-    { id:'car_red',    name:'Scarlet', price:0,   file:'racing/raceCarRed.glb',    a:'#ff9aa2',
+    { id:'car_red',    name:'Scarlet', price:0,   paint:0xd42a35, a:'#ff9aa2',
       blurb:'Yours already. Twice walking pace.' },
-    { id:'car_white',  name:'Chalk',   price:150, file:'racing/raceCarWhite.glb',  a:'#e8ecff',
+    { id:'car_white',  name:'Chalk',   price:150, paint:0xe9edf5, a:'#e8ecff',
       blurb:'The same car in a quieter coat.' },
-    { id:'car_orange', name:'Ember',   price:260, file:'racing/raceCarOrange.glb', a:'#ffd8a8',
+    { id:'car_orange', name:'Ember',   price:260, paint:0xf0761c, a:'#ffd8a8',
       blurb:'Louder than it needs to be.' },
-    { id:'car_green',  name:'Clover',  price:340, file:'racing/raceCarGreen.glb',  a:'#a8e6cf',
+    { id:'car_green',  name:'Clover',  price:340, paint:0x2f9d55, a:'#a8e6cf',
       blurb:'The one everybody wants and nobody has yet.' }
   ];
 
@@ -151,6 +158,56 @@ window.SHOP = (function(){
     }).catch(()=>{ g.add(boxes(K)); });
     return g;
   }
+  /* ------------------------------------------------------------- THE CAR
+     One builder for every car in the game: the showroom's plinths, the one
+     you drive round the planet, the one you take round the Circuit and the
+     one your classmates see you in.  They used to be three separate loads
+     in two files at two different scales, which is three chances for a car
+     to look like a different car depending on where you met it.
+
+     The model is parsed ONCE and cloned per car.  Cloning shares the
+     geometry, which is the whole point at seventy-five thousand triangles
+     — only the paint material is cloned, because that is the only thing
+     that differs between a Scarlet and a Clover. */
+  const CAR_FILE='racing/mclaren.glb';
+  const CAR_BODY='body';          // car-build.js folds the five paint materials into this one
+  const CAR_WHEELS=['wheelFrontLeft','wheelFrontRight','wheelBackLeft','wheelBackRight'];
+  let carReq=null;
+  function carProto(){
+    if(carReq) return carReq;
+    carReq=new Promise((res,rej)=>{
+      new THREE.GLTFLoader().load(CAR_FILE+'?v='+(window.ASSETV||'1'),
+        g=>res(g.scene), undefined, rej);
+    });
+    return carReq;
+  }
+  /* `paint` is a colour rather than a car id: the Circuit keeps its own
+     garage with its own ids and its own way of unlocking them, and neither
+     list should have to know about the other to ask for a red car. */
+  function carModel(paint, len){
+    return carProto().then(proto=>{
+      const o=proto.clone(true);
+      o.traverse(m=>{ if(!m.isMesh) return;
+        m.frustumCulled=false;
+        if(m.material && m.material.name===CAR_BODY){
+          m.material=m.material.clone();
+          m.material.color.setHex(paint===undefined ? CARS[0].paint : paint);
+        }
+      });
+      /* Sized by its length, so a car is the same size in the showroom and
+         on the road however long the model happens to be. */
+      const box=new THREE.Box3().setFromObject(o);
+      const l=Math.max(0.001, box.max.z-box.min.z);
+      o.scale.setScalar((len||3.4)/l);
+      const holder=new THREE.Group();
+      holder.add(o);
+      /* The Circuit turns these. The asset carries the names the game has
+         always looked for, so this is a lookup and not a translation. */
+      holder.userData.wheels=CAR_WHEELS.map(n=>o.getObjectByName(n)).filter(Boolean);
+      return holder;
+    });
+  }
+
   /* The old ship, kept as the fallback. */
   function boxes(K){
     const g=new THREE.Group();
@@ -167,6 +224,6 @@ window.SHOP = (function(){
     });
     return g;
   }
-  return { SHIPS, CARS, charItems, shipById, carById, ship, car, model,
+  return { SHIPS, CARS, charItems, shipById, carById, ship, car, model, carModel,
            ownsShip, ownsCar, ownsChar, equip, buy, FREE_CHARS };
 })();

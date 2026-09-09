@@ -219,7 +219,7 @@ window.PLANET = (function(){
   /* The car you bought, if you have one on. Riding is the whole use of a car
      here — there is nothing to race on a planet, so it is a faster way to
      cross one and a thing to be seen in. */
-  let ride=null, rideId=null, carLoader=null;
+  let ride=null, rideId=null;
   let statues=[];                    // the ones that turn on their plinths
   let aoStats=null;                  // what the ray-traced pass cost, for tuning
   /* You, as the planet sees you. G.pos is derived from this, never the
@@ -1580,20 +1580,17 @@ window.PLANET = (function(){
       WALLET.coins()+' ◆\n'+t('LV {n}',{n:WALLET.level?WALLET.level():1}), '#2a2013');
     purseFace.material.needsUpdate=true;
   }
-  let showLoader=null;
+  /* A car on its plinth, bigger than the one you drive because you are
+     meant to be looking at it. Same builder as the road, so what is on the
+     stand is what you get. */
   function loadCar(c, g, x, z){
-    if(!c.file) return;
-    showLoader = showLoader || new THREE.GLTFLoader();
-    showLoader.load(c.file, gl=>{
+    if(!window.SHOP) return;
+    SHOP.carModel(c.paint, 4.4).then(holder=>{
       if(!on) return;
-      const root=gl.scene;
-      const box=new THREE.Box3().setFromObject(root);
-      const len=Math.max(0.001, box.max.z-box.min.z);
-      root.scale.setScalar(4.4/len);
-      root.position.set(x, 0.1, z);
-      root.rotation.y=Math.PI/2;               // side on to whoever walks past
-      g.add(root);
-    }, undefined, ()=>{});
+      holder.position.set(x, 0.1, z);
+      holder.rotation.y=Math.PI/2;             // side on to whoever walks past
+      g.add(holder);
+    }).catch(()=>{});
   }
   /* Buying, which is the whole point of the room. Three outcomes and each one
      says which it was: you bought it, you already had it and now you are
@@ -2095,17 +2092,7 @@ window.PLANET = (function(){
   function rideModel(id){
     const want = window.SHOP ? SHOP.CARS.find(c=>c.id===id) : null;
     if(!want) return Promise.reject(new Error('no such car'));
-    carLoader = carLoader || new THREE.GLTFLoader();
-    return new Promise((res,rej)=>carLoader.load(want.file, g=>{
-      const root=g.scene;
-      root.traverse(o=>{ if(o.isMesh) o.frustumCulled=false; });
-      const box=new THREE.Box3().setFromObject(root);
-      const len=Math.max(0.001, box.max.z-box.min.z);
-      root.scale.setScalar(3.4/len);
-      const holder=new THREE.Group();
-      holder.add(root);
-      res(holder);
-    }, undefined, rej));
+    return SHOP.carModel(want.paint, 3.4);
   }
   /* Put whatever you are riding under you, and take the body away — a
      character standing inside a car reads as a bug rather than a driver,
