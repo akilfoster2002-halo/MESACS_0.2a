@@ -1,3 +1,5 @@
+/* GENERATED — copied from public/strings.js by tools/build-flightschool.js.
+   Edit public/strings.js and re-run `npm run build:flightschool`. */
 /* Desktop Quest 0.2a — all wording lives here. English is the key, Spanish is the value. */
 window.ES = {
   /* start screen */

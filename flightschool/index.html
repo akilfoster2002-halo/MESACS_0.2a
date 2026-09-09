@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight School — coordinates, turns and glides</title>
+<meta name="description" content="A five-by-five coordinate grid you program a spaceship across. Six lessons, no account, no network.">
+<link rel="stylesheet" href="vendor/koro.css?v=5ec563f187">
+<style>
+/* Only what the full game's HUD gets from being inside the full game.
+   Everything else on this page is KORO's own stylesheet, unedited. */
+html,body{height:100%;margin:0;background:#0a0e1c}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block}
+/* The game's crosshair belongs to a first-person body. There is no body
+   here — the board is read from above — and a plus sign in the middle of a
+   coordinate grid is a seventh point somebody will try to count. */
+#crosshair{display:none}
+/* A back-to-the-menu that is out of the way of both the board and the
+   brief, and out of the way of the console when it is open. */
+#fsHome{position:absolute;left:14px;top:14px;z-index:12;pointer-events:auto}
+.fs-levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:8px;margin:16px 0;text-align:left}
+.fs-levels button{background:#111a29;border:2px solid var(--line);border-radius:12px;
+  padding:10px 12px;color:var(--text);font-family:var(--font);font-size:15px;text-align:left}
+.fs-levels button:hover{border-color:var(--accent)}
+.fs-levels b{display:block;color:var(--star);font-size:15.5px;margin-bottom:2px}
+.fs-levels span{color:var(--muted);font-size:13.5px}
+.fs-foot{color:var(--muted);font-size:13.5px;margin-top:14px}
+</style>
+</head>
+<body>
+
+<canvas id="view"></canvas>
+
+<!-- The game's HUD, cut down to the four things Flight School writes to:
+     the level list, the level name, the brief, and the console button. -->
+<div id="hud" class="hidden">
+  <div id="crosshair"></div>
+  <div id="focus" class="hidden"></div>
+  <div id="mapwrap" class="hidden"></div>
+  <button class="btn small ghost" id="fsHome">☰ Levels</button>
+
+  <div id="objectives">
+    <h2 id="objTitle">MISSION</h2>
+    <div id="missionName"></div>
+    <ol id="objList"></ol>
+  </div>
+
+  <button id="codeBtn" class="codebtn hidden"><kbd>C</kbd><span id="codeBtnTxt">Code Console</span></button>
+  <div id="briefing"></div>
+  <div id="keys"></div>
+  <div id="escHint" class="hidden"></div>
+</div>
+
+<!-- the way in, and the way a teacher jumps to a lesson -->
+<div id="fsMenu" class="screen">
+  <div class="card">
+    <div class="langrow">
+      <button class="langbtn on" data-lang="en">🇺🇸 English</button>
+      <button class="langbtn" data-lang="es">🇲🇽 Español</button>
+    </div>
+    <h1 id="fsTitle">FLIGHT SCHOOL</h1>
+    <p class="sub" id="fsTag">Coordinates, turns and glides — on a five-by-five grid.</p>
+    <p id="fsBlurb">You write a short program. The ship flies it. Nothing on this
+      board moves until you tell it to.</p>
+    <div class="fs-levels" id="fsLevels"></div>
+    <button class="btn good" id="fsStart">Start at level 1 ▶</button>
+    <div class="fs-foot" id="fsFoot">Press <b>C</b> to open the console, <b>RUN</b> to fly it.</div>
+  </div>
+</div>
+
+<!-- what there is instead of a planet to walk back out onto -->
+<div id="fsDone" class="screen hidden">
+  <div class="card">
+    <h1>🏅</h1>
+    <h1 id="fsDoneTitle">Flight school passed</h1>
+    <p id="fsDoneText">Six levels: a coordinate, two axes, a heading, a glide,
+      an angle that is not a corner, and a course with all of it on.</p>
+    <button class="btn good" id="fsAgain">Back to the levels</button>
+  </div>
+</div>
+
+<script>window.ASSETV='5ec563f187'</script>
+<script src="vendor/lib/three.classic.js?v=5ec563f187"></script>
+<script src="vendor/strings.js?v=5ec563f187"></script>
+<script src="vendor/program.js?v=5ec563f187"></script>
+<script src="vendor/code.js?v=5ec563f187"></script>
+<script src="vendor/coach.js?v=5ec563f187"></script>
+<script src="ship.js?v=5ec563f187"></script>
+<script src="vendor/school.js?v=5ec563f187"></script>
+<script src="app.js?v=5ec563f187"></script>
+</body>
+</html>

@@ -21,6 +21,18 @@ const ARENA_HZ = require('../public/mechaarena.js').RULES.hz;
 
 const app = express();
 app.use(express.json({ limit:'16kb' }));
+/* Flight School also ships as a standalone site with no account and no
+   network — see flightschool/README.md. It is served from here too, so a
+   teacher who is already in KORO has a link to hand out rather than a
+   second deploy to keep alive. Same rules: code always revalidates. */
+app.use('/flightschool', express.static(path.join(__dirname,'..','flightschool'), {
+  etag:true,
+  setHeaders(res,file){
+    if(/\.(js|css|html)$/.test(file)) res.setHeader('Cache-Control','no-cache');
+    else res.setHeader('Cache-Control','public, max-age=86400');
+  }
+}));
+
 app.use(express.static(path.join(__dirname,'..','public'), {
   etag:true,
   setHeaders(res,file){

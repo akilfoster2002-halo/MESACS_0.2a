@@ -1,3 +1,5 @@
+/* GENERATED — copied from public/school.js by tools/build-flightschool.js.
+   Edit public/school.js and re-run `npm run build:flightschool`. */
 /* =====================================================================
    FLIGHT SCHOOL — the grid, before anything is moving at you.
 
