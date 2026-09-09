@@ -292,6 +292,7 @@ window.PLANET = (function(){
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
     me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
+    grassField();                  // sown around you, so it needs you placed first
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
@@ -360,11 +361,18 @@ window.PLANET = (function(){
      paper, because a lit face here is a colour multiplied by rather more
      than one and a palette picked to read well flat comes out bleached the
      moment the sun is on it. */
-  function soilAt(dir, h){
+  /* 0 = lush, 5 = stone. Pulled out of soilAt because the grass wants the
+     same number: what grows somewhere and what colour it is are the same
+     question asked twice, and a blade standing on bare rock is the tell. */
+  function soilT(dir, h){
     const wet=fbm(dir, 2.7, 2);                    // patches, larger than the hills
     const grit=fbm(dir, 21, 2);                    // and a fine speckle over them
-    let t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;      // 0 = lush, 5 = stone
-    t = Math.max(0, Math.min(SOIL.length-1.001, t));
+    const t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;
+    return Math.max(0, Math.min(SOIL.length-1.001, t));
+  }
+  function soilAt(dir, h){
+    const grit=fbm(dir, 21, 2);
+    const t=soilT(dir, h);
     const i=Math.floor(t), f=t-i;
     const a=SOIL[i].c, b=SOIL[i+1].c;
     // a little extra speckle so no two neighbouring faces are exactly equal
@@ -452,6 +460,224 @@ window.PLANET = (function(){
       G.roomGroup.add(c);
     });
   }
+  /* ------------------------------------------------------------- the grass
+     The texture under this says what the ground is MADE of. This says what
+     you are standing IN, and only a solid thing does that: at eye height a
+     painted lawn is a painted lawn however fine the grain, because the one
+     thing grass does that paint cannot is stand up between you and the
+     ground behind it.
+
+     An earlier attempt at this put twenty thousand little meshes out at
+     half a metre each and they read as scattered OBJECTS — a lawn of
+     miniature conifers. The difference here is scale and count: a blade is
+     three triangles and a third of a metre, there are thirty thousand of
+     them, and they only exist within eighteen metres of you. Past that the
+     grain in the ground texture carries it, which is what a texture is
+     actually good at.
+
+     WORLD-ANCHORED, NOT PLAYER-ANCHORED. Every blade remembers the
+     direction it grows in and keeps it; walking does not move the grass,
+     it moves you through it. What follows you is only the BUDGET — a blade
+     that falls off the back edge is re-sown on the far side, so thirty
+     thousand of them cover wherever you happen to be standing without ever
+     covering the whole planet. */
+  const GRASS_N=48000;             // three triangles each: ~144k
+  const GRASS_REACH=14;            // metres; past this the ground texture takes over
+  /* Eighty blades to the square metre. Thirty was the first try and it read
+     as weeds rather than turf: you could see between every blade, so each
+     one was a separate green mark on brown ground instead of a surface. */
+  /* Not every ball is a lawn. The colour comes from the biome's own palette,
+     so grass on the violet world is violet growth and on the ochre one it is
+     dry scrub — both of which are better than bare. Ice gets none: blades
+     coming up through snow is not a planet, it is a bug. */
+  const GRASS_BIOME={ green:1, violet:0.85, ochre:0.45, ice:0 };
+  const GRASS_SOW_MAX=1200;        // blades placed in any one frame — see grassTick
+  /* One switch. This is the most expensive thing on the ball, and a machine
+     that cannot afford it should be able to say so without a code change:
+     localStorage.dq_grass='off'. The ground underneath is unchanged, so
+     turning it off costs you the blades and nothing else. */
+  const GRASS_ON=(()=>{ try{ return localStorage.getItem('dq_grass')!=='off'; }
+                        catch(e){ return true; } })();
+  let grass=null, grassDir=null, grassCursor=0, grassLush=1;
+  const grassWind={ value:0 };
+
+  /* A blade: two segments so it can bend, tapering to a point. */
+  function bladeGeometry(){
+    const w=0.032;
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -w,0,0,   w,0,0,   -w*0.62,0.52,0,   w*0.62,0.52,0,   0,1,0 ]),3));
+    /* NORMALS POINT UP, not out of the blade's own face. A flat strip lit by
+       its facing goes black the moment you walk round the side of it, and a
+       field of those flickers as you turn. Lit as though it were the ground
+       it grows out of, the field holds together — and the blades turned away
+       from the sun pick up the hemisphere light's warm under-colour instead,
+       which is the variation you wanted anyway. */
+    const n=new Float32Array(15);
+    for(let i=0;i<5;i++){ n[i*3+1]=1; }
+    g.setAttribute('normal', new THREE.BufferAttribute(n,3));
+    /* DARK AT THE ROOT, LIGHT AT THE TIP, as a multiplier over whatever
+       colour the instance is. This is the thing that makes a field of these
+       read as grass rather than as a green rug: light does not reach the
+       bottom of a tuft, so a blade shaded evenly along its length is the one
+       detail that says "flat texture standing up". It also gives the mass
+       somewhere to go tonally — the tips catch and the roots recede, and the
+       eye reads depth it can otherwise only get from real shadowing. */
+    const shade=[0.55,0.55, 0.86,0.86, 1.22];
+    const vc=new Float32Array(15);
+    for(let i=0;i<5;i++){ vc[i*3]=vc[i*3+1]=vc[i*3+2]=shade[i]; }
+    g.setAttribute('color', new THREE.BufferAttribute(vc,3));
+    g.setIndex([0,1,3, 0,3,2, 2,3,4]);
+    return g;
+  }
+
+  const gA=new THREE.Vector3(), gT1=new THREE.Vector3(), gT2=new THREE.Vector3();
+  const gM=new THREE.Matrix4(), gQ=new THREE.Quaternion(), gSpin=new THREE.Quaternion();
+  const gScale=new THREE.Vector3(), gCol=new THREE.Color();
+  const G_UP=new THREE.Vector3(0,1,0), G_X=new THREE.Vector3(1,0,0);
+  const G_ZERO=new THREE.Vector3();
+
+  function tangentBasis(d){
+    gT1.set(0,1,0); if(Math.abs(d.y)>0.9) gT1.set(1,0,0);
+    gT2.crossVectors(gT1,d).normalize();
+    gT1.crossVectors(d,gT2).normalize();
+  }
+
+  /* One blade, given the direction it grows in: how tall, what colour, and
+     whether it is there at all. */
+  function dressBlade(i, d){
+    const k=padK(d);                 // nothing grows through the Mechanic's floor
+    const h=terrainH(d);
+    const t=soilT(d, h/RELIEF);
+    /* Lush ground is thick with it, worn earth is thin, stone is bare — and
+       the numbers are the ground's own, not a guess. Sampled over the
+       eighteen metres you can see, soilT runs 2.0 to 3.6 about a median of
+       2.7; the first pass here faded out by 2.9 and grew almost nothing,
+       which is a threshold picked for a range the ground does not use. */
+    let lush=(1 - Math.max(0, Math.min(1, (t-2.60)/0.90))) * k * grassLush;
+    if(Math.abs(d.y)>0.93) lush=0;   // the poles are snow, and snow is not a lawn
+    if(lush<0.07){
+      gScale.set(0,0,0);
+      gM.compose(G_ZERO, gQ.identity(), gScale);
+      grass.setMatrixAt(i, gM);
+      return;
+    }
+    gA.copy(d).multiplyScalar(PR+h);
+    tangentBasis(d);
+    gM.makeBasis(gT2, d, gT1);       // up the radius, turned any which way
+    gQ.setFromRotationMatrix(gM);
+    gQ.multiply(gSpin.setFromAxisAngle(G_UP, Math.random()*6.28318));
+    /* Short at the edge of the reach, so a blade re-sown out there grows in
+       rather than popping into being at full height. */
+    const edge=Math.min(1, (1 - d.angleTo(me.dir)*PR/GRASS_REACH)*3.2);
+    const tall=(0.30+Math.random()*0.34)*(0.55+0.45*lush)*Math.max(0,edge);
+    /* A LEAN, before the wind gets to it. Blades all dead upright read as a
+       brush; a few degrees of random tilt is most of what makes a patch look
+       grown rather than planted. */
+    gQ.multiply(gSpin.setFromAxisAngle(G_X, (Math.random()-0.5)*0.62));
+    gScale.set(1, tall, 1);
+    gM.compose(gA, gQ, gScale);
+    grass.setMatrixAt(i, gM);
+
+    /* Close to the ground it grows out of, not a brighter green laid on top:
+       a blade that contrasts with the soil reads as one blade, and forty
+       thousand of them read as confetti. Nudged green and varied per blade,
+       and the field does the rest. */
+    const c=soilAt(d, h/RELIEF);
+    const j=0.84+Math.random()*0.34;
+    gCol.setRGB(Math.min(1,c[0]*0.92*j), Math.min(1,c[1]*1.30*j), Math.min(1,c[2]*0.80*j));
+    grass.setColorAt(i, gCol);
+  }
+
+  /* Re-sow one blade somewhere in the outer part of the reach — never right
+     under your feet, which is where a blade appearing from nothing is the
+     one thing you would actually catch. */
+  function sowBlade(i, c, full){
+    const a=Math.random()*6.28318;
+    const r=GRASS_REACH*Math.sqrt(full ? Math.random() : 0.34+Math.random()*0.66);
+    const d=grassDir[i].copy(c)
+      .addScaledVector(gT1, Math.cos(a)*r/PR)
+      .addScaledVector(gT2, Math.sin(a)*r/PR).normalize();
+    dressBlade(i, d);
+  }
+
+  /* GROWN IN OVER THE FIRST FEW FRAMES, not sown in one go. Placing all
+     forty-eight thousand at once is about 180 ms of noise sampling on this
+     machine and several times that on a lab one — a freeze, right at the
+     moment you land. Every blade starts with no direction at all, and the
+     frame loop below treats "never placed" exactly like "walked past": it
+     sows an eighth of them per frame, so the field comes up over a fifth of
+     a second instead of stopping the world for half of one. */
+  function sowGrass(){
+    if(!grass) return;
+    gScale.set(0,0,0);
+    gM.compose(G_ZERO, gQ.identity(), gScale);
+    for(let i=0;i<GRASS_N;i++){ grassDir[i].set(0,0,0); grass.setMatrixAt(i, gM); }
+    grass.instanceMatrix.needsUpdate=true;
+  }
+
+  function grassField(){
+    grass=null; grassDir=null; grassCursor=0;
+    grassLush=GRASS_BIOME[W.biome]!==undefined ? GRASS_BIOME[W.biome] : 0.7;
+    if(!GRASS_ON || grassLush<=0) return;
+    const mat=new THREE.MeshLambertMaterial({ side:THREE.DoubleSide, vertexColors:true });
+    /* THE WIND, in the vertex shader, because thirty thousand matrices
+       rewritten every frame is not a breeze, it is a stall. The bend is
+       squared up the blade so the root stays put and only the top half
+       moves, and the phase comes off the blade's own position so the field
+       ripples across rather than swaying as one object. */
+    mat.onBeforeCompile=sh=>{
+      sh.uniforms.uWind=grassWind;
+      sh.vertexShader='uniform float uWind;\n'+sh.vertexShader;
+      sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>',
+        ['#include <begin_vertex>',
+         'vec3 gRoot=(instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;',
+         'float gSway=sin(uWind*1.5+gRoot.x*0.55+gRoot.z*0.50)',
+         '            +0.45*sin(uWind*3.3+gRoot.x*1.60+gRoot.y*0.90);',
+         'transformed.x+=gSway*transformed.y*transformed.y*0.17;'].join('\n'));
+    };
+    grass=new THREE.InstancedMesh(bladeGeometry(), mat, GRASS_N);
+    /* It is re-sown around you, so its bounds are never what three thinks
+       they are — and a field culled by a stale box vanishes when you look
+       the wrong way. */
+    grass.frustumCulled=false;
+    grass.userData.flat=true;                 // the look-at highlight skips it
+    grassDir=new Array(GRASS_N);
+    for(let i=0;i<GRASS_N;i++) grassDir[i]=new THREE.Vector3();
+    G.roomGroup.add(grass);
+    sowGrass();
+  }
+
+  /* Every frame: turn the wind over, and re-sow whatever you have walked
+     past. An eighth of the field is checked per frame — thirty thousand
+     angle tests every frame is real work for a question whose answer
+     changes at walking pace. */
+  function grassTick(dt){
+    if(!grass) return;
+    grassWind.value+=dt;
+    const cosReach=Math.cos(GRASS_REACH/PR);
+    tangentBasis(me.dir);
+    /* Two budgets, because the two halves of this cost wildly different
+       things. CHECKING a blade is a dot product, so an eighth of the field
+       every frame is nothing. SOWING one is a padK over every building plus
+       three noise fields, so the first frames after landing — when every
+       blade is unplaced and every check turns into a sowing — ran to 25 ms
+       and up. Capping the sowings holds the worst frame near five and lets
+       the field come up over about half a second instead. */
+    let sown=0, seen=0;
+    const slice=(GRASS_N>>3);
+    while(seen<slice && sown<GRASS_SOW_MAX){
+      const i=grassCursor++; if(grassCursor>=GRASS_N) grassCursor=0;
+      seen++;
+      const fresh=grassDir[i].lengthSq()===0;      // never placed: this is the first sowing
+      if(fresh || grassDir[i].dot(me.dir)<cosReach){ sowBlade(i, me.dir, fresh); sown++; }
+    }
+    if(sown){
+      grass.instanceMatrix.needsUpdate=true;
+      if(grass.instanceColor) grass.instanceColor.needsUpdate=true;
+    }
+  }
+
   /* ----------------------------------------------------------- the ground
      A sphere of one flat green is a diagram of a planet. What makes ground
      read as ground is that it is never level and never one colour, and both
@@ -2396,6 +2622,7 @@ window.PLANET = (function(){
     const now=performance.now();
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
     sunAt();
+    grassTick(dt);
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     mallTick(dt);
