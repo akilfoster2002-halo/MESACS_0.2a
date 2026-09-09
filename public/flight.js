@@ -40,7 +40,7 @@ window.FLIGHT = (function(){
      stops being a claim and becomes arithmetic. The widening IS the
      difficulty; there is no dial any more. */
   const GRID={ cols:3, rows:3 };
-  let COLS=3, ROWS=3;
+  let COLS=3, ROWS=3, drift=0;
   const LANE=3.6;                    // world units between lane centres
   const GAP=13;                      // world units between one beat and the next
   const BEAT_MS=900;                 // one beat at Medium, before difficulty
@@ -287,6 +287,55 @@ window.FLIGHT = (function(){
         'XXXXX/XXXXX/XXXXX/XXXXX/XXXX.',  '.XXXX/XXXXX/XXXXX/XXXXX/XXXXX',
         'XXXXX/XXXXX/XXXXX/XXXXX/.XXXX',  'XXXX./XXXXX/XXXXX/XXXXX/XXXXX',
         'XXXXX/XXXXX/XXXXX/XXXXX/XXXX.',  '.XXXX/XXXXX/XXXXX/XXXXX/XXXXX'
+      ] },
+
+    /* ------------------------------------------------------------- DRIFT
+       THE FIELD MOVES. Every wall in this leg is the same wall — one gap,
+       far left, dead centre row — and the chart below really is that string
+       fifteen times. What makes it a leg is `drift`: wall one is that wall
+       shifted one lane, wall two shifted two, and so on. The gap marches
+       across the field, and the rocks slide into place as they come at you,
+       so you can see it happening before the radar has to tell you.
+
+       WHY IT IS THE RIGHT KIND OF HARD. Nothing is hidden and nothing is a
+       reflex — the radar draws the shifted walls exactly as it has drawn
+       every other leg, and a correct program still survives it every single
+       time. What changed is that the answer is no longer a lane, it is a
+       RATE: the gap moves one lane a beat, so the program that flies it
+       moves one lane a beat. That is the first time this mission asks for a
+       program shaped like the field rather than a list of where to be.
+
+       AND THEN THE WRAP BREAKS IT. Five lanes and a drift of one means the
+       gap runs off the right edge every fifth wall and comes back on the
+       left. `change x by 1` cannot make that jump — it is four lanes the
+       wrong way — so the loop needs one absolute set in it, at the turn.
+       That is the leg's real sting: a relative program that is right four
+       times in five, and the fix is the set from the legs before used
+       because it is the only thing that reaches, not because it is on the
+       palette.
+
+         repeat 3
+           change x by 1   (four times)   chasing the gap across
+           set x to -2                    and round the back when it wraps
+         end                                                            */
+    { id:'drift', kind:'fly', stops:3, name:'The Drift', budget:7,
+      cols:5, rows:5, beat:820,
+      drift:1,
+      pal:['setX','setY','addX','addY','goTo','coast','repeat'],
+      learn:{ name:'A moving gap needs a moving program',
+              text:'The gap slides one lane every wall. So does your ship, until it wraps.',
+              code:'repeat 3\n  change x by 1\n  change x by 1\n  change x by 1\n  change x by 1\n  set x to -2\nend' },
+      brief:'The rocks are <b>moving</b>. The gap slides one lane right every wall, and when it runs off the edge it comes back on the other side. <b>Seven blocks</b> for fifteen walls.',
+      start:{col:0,row:2},
+      beats:[
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX', 'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/.XXXX/XXXXX/XXXXX'
       ] }
   ];
 
@@ -296,6 +345,18 @@ window.FLIGHT = (function(){
   /* ---------------------------------------------------------- the chart */
   const clamp=(v,n)=>Math.max(0, Math.min(n-1, v));
   const rowsOf = s => String(s).split('/');
+  /* Slide a wall sideways, wrapping. What leaves one edge arrives at the
+     other, which is the whole reason a drifting leg cannot be flown with
+     one direction held down: sooner or later the gap you have been chasing
+     comes back round behind you. */
+  function shiftMask(mask, n){
+    if(isSlot(mask)) return mask;
+    const rows=rowsOf(mask);
+    const w=rows[0].length;
+    const k=((n % w) + w) % w;
+    if(!k) return mask;
+    return rows.map(r=>r.slice(w-k)+r.slice(0, w-k)).join('/');
+  }
 
   /* A wall is one of two things.
 
@@ -575,8 +636,18 @@ window.FLIGHT = (function(){
        layout and the block dropdowns all ask how wide the field is, so the
        leg has to have answered first. */
     COLS=K.cols||GRID.cols; ROWS=K.rows||GRID.rows;
+    drift=K.drift||0;
 
-    const beats=K.beats||[];
+    /* A DRIFTING LEG IS SHIFTED ONCE, HERE, and after this line nothing else
+       in the file knows the field moves. The chart it was authored with is
+       one wall repeated; what the solver checks, what the radar draws, what
+       the rocks are laid on and what you crash into are the shifted copies.
+
+       Doing it here rather than at every read is the difference between one
+       transformation and seven — blocked(), solvable(), gate(), predict(),
+       layRocks() and the two radars would each have had to remember. */
+    const beats=drift ? (K.beats||[]).map((m,i)=>shiftMask(m, drift*(i+1)))
+                      : (K.beats||[]);
     if(K.kind==='fly'){
       const mode=modeOf(K.pal);
       const s=solvable(beats, K.start, mode);
@@ -690,6 +761,22 @@ window.FLIGHT = (function(){
   const fM=new THREE.Matrix4(), fQ=new THREE.Quaternion(), fE=new THREE.Euler();
   function writeField(){
     if(!field) return;
+    /* THE ROCKS SIT WHERE THE CHART SAYS, including on a drifting leg.
+
+       The first version of this slid them: a rock's lane is where it will be
+       when you MEET it, so it came in from the side and arrived on the beat.
+       It looked wonderful and it had to go. A drift of one lane a beat is
+       fast — over the four beats you can see, a rock crosses the whole field
+       — so an honest continuous slide smears the field diagonally, and
+       clamping the smear makes every distant wall sit a fixed two lanes off
+       its real position. Either way the field you LOOK at stops agreeing
+       with the chart you are flying, and this mission's one promise is that
+       a correct program survives every time.
+
+       The movement is still there and it is the real one: the gap is in a
+       different lane on every wall, and at speed that reads as the gap
+       sweeping across the field, which is exactly what your program has to
+       match. The motion is in the field, not in each rock. */
     for(let i=0;i<fieldAt.length;i++){
       const f=fieldAt[i];
       fM.compose(f.pos, f.q, f.scale);
