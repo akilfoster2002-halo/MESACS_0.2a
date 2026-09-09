@@ -39,6 +39,10 @@ window.CODE = (function(){
     turn     :{label:'turn',         color:'#ffd8a8', help:'Rotate the ship a quarter turn'},
     fire     :{label:'fire()',       color:'#ffb4a2', help:'Shoot straight ahead'},
     goTo     :{label:'goTo',         color:'#ffd8a8', help:'Jump to one exact lane, from anywhere'},
+    /* Glide is goTo with the time put back in. Same pair of numbers, same
+       "from anywhere" — but you watch it cross, so a coordinate stops being
+       a place you appear at and becomes a place you go to. */
+    glide    :{label:'glide to',     color:'#a8e6cf', help:'Move smoothly to that exact point'},
     /* The coordinates. x is the column and y is the row, and the pair of
        verbs is the whole idea:
          set x to 2      put x there, whatever it was   (absolute)
@@ -74,7 +78,11 @@ window.CODE = (function(){
   /* how much one press of the counter is worth. An angle steps a quarter
      turn at a time, because a ship that can face 37 degrees is a ship nobody
      can reason about. */
+  /* How far one press of a counter moves it. `turn` is a quarter by default
+     because the flight only ever asks for quarters — but a mission that
+     teaches angles has to be able to say otherwise, so it is settable. */
   const NUMSTEP={ setX:1, setY:1, addX:1, addY:1, turn:90 };
+  function setTurnStep(deg){ NUMSTEP.turn=Math.max(1, Math.min(180, deg|0)) || 90; }
   /* How far goTo is allowed to count. The console does not know how big any
      one mission's grid is, so the mission says. */
   /* THE GRID IS CENTRED ON ZERO. Three lanes are -1, 0 and 1, not 0, 1 and
@@ -134,7 +142,7 @@ window.CODE = (function(){
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='until'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
-    if(type==='goTo'){ b.col=0; b.row=0; }   // centre of a centred grid
+    if(type==='goTo'||type==='glide'){ b.col=0; b.row=0; }   // centre of a centred grid
     // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
     if(type==='setX'||type==='setY') b.n=0;    // the middle lane, on a centred grid
     if(type==='addX'||type==='addY') b.n=1;
@@ -210,6 +218,8 @@ window.CODE = (function(){
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else if(b.type==='goTo'){
         s.push(pad+'goto '+b.col+','+b.row);
+      } else if(b.type==='glide'){
+        s.push(pad+'glide to '+b.col+','+b.row);
       } else if(b.type==='setX'||b.type==='setY'){
         s.push(pad+'set '+(b.type==='setX'?'x':'y')+' to '+b.n);
       } else if(b.type==='addX'||b.type==='addY'){
@@ -274,6 +284,13 @@ window.CODE = (function(){
       }
       if(low===IFLEAD.toLowerCase() || low==='if')
         return bad(i, t('Write the whole test, like <b>{w}</b>.',{w:IFLEAD+' '+CONDS[0]}));
+      if((m=low.match(/^glide +to +(\d+) *, *(\d+)$/))){
+        if(!allowed('glide')) return bad(i, t('<b>glide</b> is not in this mission yet.'));
+        const b=makeBlock('glide');
+        b.col=Math.max(0,Math.min(GRID.col,+m[1]));
+        b.row=Math.max(0,Math.min(GRID.row,+m[2]));
+        put(b); continue;
+      }
       if((m=low.match(/^goto +(\d+) *, *(\d+)$/))){
         if(!allowed('goTo')) return bad(i, t('<b>goTo</b> is not in this mission yet.'));
         const b=makeBlock('goTo');
@@ -309,7 +326,11 @@ window.CODE = (function(){
       if((m=low.match(/^turn +(-?\d+)$/))){
         if(!allowed('turn')) return bad(i, t('<b>turn</b> is not in this mission yet.'));
         const b=makeBlock('turn');
-        b.n=clampN('turn', Math.round((+m[1])/90)*90) || 90;
+        /* Snapped to whatever this mission's turn step is, not always to a
+           quarter. Rounding every angle to 90 meant a level about 45° could
+           not be written down. */
+        const st=NUMSTEP.turn||90;
+        b.n=clampN('turn', Math.round((+m[1])/st)*st) || st;
         put(b); continue;
       }
       if(low==='turn') return bad(i, t('<b>turn</b> needs an angle, like <b>turn 90</b>.'));
@@ -399,6 +420,11 @@ window.CODE = (function(){
      changing it step by step with the console up, and the narrowing only
      appeared after the student happened to click something else. */
   function setPalette(list){
+    /* A palette is a fresh mission, so the turn counter goes back to
+       quarters. Otherwise Flight School's forty-fives follow the student
+       into Space Explorer, where every turn is a quarter and a 45 is a
+       crash — a setting leaking out of the mission that set it. */
+    NUMSTEP.turn=90;
     const key=v=>JSON.stringify(v);
     const same = palette && list && palette.length===list.length
               && palette.every((x,i)=>key(x)===key(list[i]));
@@ -509,7 +535,7 @@ window.CODE = (function(){
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
     }
-    if(b.type==='goTo'){
+    if(b.type==='goTo'||b.type==='glide'){
       // two little counters rather than a typed number: a nine-year-old can
       // read a lane off the screen and click to it, and it cannot go out of
       // bounds by construction
@@ -519,7 +545,7 @@ window.CODE = (function(){
         <span class="cnt-n">${val}</span>
         ${readonly?'':`<button class="cnt" data-act="${what}+" data-id="${b.id}">+</button>`}`;
       return `<div class="blk" data-id="${b.id}" style="--c:${d.color}">
-          <span class="blk-name">${t('goTo')}</span>
+          <span class="blk-name">${d.label}</span>
           ${step('col',b.col)}${step('row',b.row)}
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
@@ -986,7 +1012,7 @@ window.CODE = (function(){
   function clear(){ script=[]; typed=''; dropTarget=null; if(el) draw(); }
 
   return { show, close, isOpen, setPalette, setBudget, setRails, setAside, asideEl, coachHost, blame,
-           setConditions, setGrid, setGuide, setMode, parse,
+           setConditions, setGrid, setTurnStep, setGuide, setMode, parse,
            countBlocks, compile, toText, highlight, setIter, hideTape, clear,
            get mode(){ return mode; },
            get script(){ return script; },

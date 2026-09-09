@@ -165,6 +165,7 @@ window.PLANET = (function(){
   }
   const STATIONS=[
     { id:'tut',    em:'\u{1F3AE}', name:'Level 0 — Basics',           a:'#ffe9a8' },
+    { id:'school', em:'\u{1F9ED}', name:'Flight School — Motion',      a:'#a8e6cf' },
     { id:'nav',    em:'\u{1F9DF}', name:'Escape — Corridors',         a:'#8fd3ff' },
     { id:'flight', em:'\u{1F680}', name:'Mission 1 — Space Explorer', a:'#8ff0ff' },
     { id:'m1',     em:'\u{1F9DF}', name:'Mission 2 — Loops',          a:'#a8e6cf' },
@@ -1013,6 +1014,7 @@ window.PLANET = (function(){
         { x:-13, z:-hd+11, r:0 },           // back wall, facing the door
         { x: 13, z:-hd+11, r:0 },
         { x:  0, z:-hd+11, r:0 },           // and the middle of it, for the seventh
+        { x:-hw+8, z: 22, r: Math.PI/4 },   // and one more down the left
         { x:-hw+8, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
         { x:-hw+8, z:  7, r: Math.PI/4 },
         { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
@@ -1997,6 +1999,25 @@ window.PLANET = (function(){
         const cube=new THREE.Mesh(new THREE.BoxGeometry(1,0.55,1), lam(c));
         cube.position.set(bx,by,bz); cube.rotation.y=Math.random()*0.4-0.2; top.add(cube);
       });
+    }
+    if(id==='school'){
+      /* A ship above a square of gridlines. The whole mission is "a place
+         is two numbers", and a plinth can say that in one shape. */
+      const grid=new THREE.Group();
+      const line=new THREE.MeshBasicMaterial({color:0x8ff0ff});
+      for(let i=0;i<=4;i++){
+        const a=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.03,0.035), line);
+        a.position.set(0,0,-0.8+i*0.4); grid.add(a);
+        const b2=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.03,1.6), line);
+        b2.position.set(-0.8+i*0.4,0,0); grid.add(b2);
+      }
+      grid.position.y=-0.35; top.add(grid);
+      if(window.SHOP && SHOP.model){
+        const sh=SHOP.model(); sh.scale.setScalar(0.30);
+        sh.position.set(-0.1,0.45,0.1); sh.rotation.set(0.2,-Math.PI/2,0);
+        top.add(sh);
+      }
+      top.userData.spin=0.20;
     }
     if(id==='sub'){
       /* The submersible on its plinth — a capsule with a tower and a

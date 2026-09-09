@@ -407,6 +407,8 @@ function startMissionRoom(id){
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
   if(id==='sub'){ if(window.SUB) SUB.start(0); return; }
+  /* Flight School draws its own sheet of graph paper. */
+  if(id==='school'){ if(window.SCHOOL) SCHOOL.start(0); return; }
   G.hudOwner='mission';
   G.missionId=id;
   G.arenaTitle = id==='m1'?'The Loop Chamber'
@@ -552,10 +554,10 @@ function wireInput(){
        button. Without this, C is dead in the one mission whose whole mechanic
        is pressing C. FLIGHT.busy is deliberately NOT in the guard list below:
        freezing the field MID-run is the point of it. */
-    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active));
+    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active) || (window.SCHOOL && SCHOOL.active));
     if((e.code==='KeyC'||e.code==='Tab') && (G.running||flyingNow) && !typingInField(e)
        && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active
-           || (window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active)
+           || (window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active) || (window.SCHOOL && SCHOOL.active)
            || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
@@ -603,6 +605,7 @@ function loop(now){
   if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
   if(window.SUB && SUB.active) SUB.tick(dt);       // the current runs while you write
+  if(window.SCHOOL && SCHOOL.active) SCHOOL.tick(dt);  // and the avatar finishes its move
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* The live arena runs on the frame rather than inside the frozen-world
@@ -915,6 +918,7 @@ CODE.onRun=(steps)=>{
      two have to be the same compile. */
   if(window.MECH && MECH.active) MECH.run();
   else if(window.SUB && SUB.active) SUB.run();
+  else if(window.SCHOOL && SCHOOL.active) SCHOOL.run();
   else if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
   else if(RACE.active) RACE.run(steps);
   else if(TUTOR.active) TUTOR.run(steps);

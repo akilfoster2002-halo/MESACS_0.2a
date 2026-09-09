@@ -100,6 +100,8 @@
         }
       } else if(b.type==='goTo'){
         out.push({name:'goTo', blockId:b.id, col:b.col, row:b.row});
+      } else if(b.type==='glide'){
+        out.push({name:'glide', blockId:b.id, col:b.col, row:b.row});
       } else if(NUMBLK[b.type]){
         out.push({name:b.type, blockId:b.id, n:b.n});
       } else out.push({name:b.type, blockId:b.id});

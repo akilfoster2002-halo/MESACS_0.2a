@@ -58,6 +58,8 @@ window.MENU = (function(){
      blurb:'Practice. Walk, look, jump, open the console, run a program. Nothing chases you.'},
     {id:'nav',   g:'course',  em:'🧟', a:'#8fd3ff', name:'Escape — Corridors',
      blurb:'Learn to code by getting out alive. It never stops walking.'},
+    {id:'school',g:'course',  em:'🧭', a:'#a8e6cf', name:'Flight School — Motion',
+     blurb:'A grid, a ship and a star. Coordinates, turns, angles and glide — before anything is flying at you.'},
     {id:'flight',g:'course',  em:'🚀', a:'#8ff0ff', name:'Mission 1 — Space Explorer',
      blurb:'Nine lanes, a wall of rock every beat. Motion, timing, loops — and a gunnery range between runs.'},
     {id:'m1',    g:'course',  em:'🧟', a:'#a8e6cf', name:'Mission 2 — Loops',
@@ -194,7 +196,7 @@ window.MENU = (function(){
     return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors',
              flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
              m2:'Mission 3 — Choices', m3:'Mission 4 — Functions',
-             sub:'Mission 5 — The Trench',
+             sub:'Mission 5 — The Trench', school:'Flight School — Motion',
              mech:'The Mech League'})[id]||id;
   }
 
