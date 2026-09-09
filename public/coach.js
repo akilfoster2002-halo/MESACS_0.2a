@@ -49,6 +49,11 @@ window.COACH = (function(){
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const p=document.querySelector('#coachTip'); if(p) p.remove();
     if(host){ host.classList.add('hidden'); host.innerHTML=''; }
+    /* host() only answers while the console is OPEN, and a walkthrough that
+       ends by running the program ends with the console already closed —
+       leaving the last step sitting in it, to greet whoever opens it next. */
+    const h=document.querySelector('#conCoach');
+    if(h){ h.classList.add('hidden'); h.innerHTML=''; }
     ctx=null;
   }
   const step = () => (steps && at<steps.length) ? steps[at] : null;
@@ -85,12 +90,27 @@ window.COACH = (function(){
     clearLater(host);
   }
 
+  /* z-index only bites on a positioned element, so a static target is given
+     one — INLINE, and taken back off after, because a blanket
+     `position:relative` in the stylesheet also lands on targets that were
+     already absolutely positioned and moves them. */
+  function light(el){
+    el.classList.add('coach-target');
+    if(getComputedStyle(el).position==='static'){
+      el.dataset.coachPos='1';
+      el.style.position='relative';
+    }
+  }
+  function douse(el){
+    if(!el) return;
+    el.classList.remove('coach-target');
+    if(el.dataset.coachPos){ el.style.position=''; delete el.dataset.coachPos; }
+  }
   function unmark(){
-    if(marked) marked.classList.remove('coach-target');
+    douse(marked);
     marked=null;
     // a redraw can replace the node while it is lit, leaving the class behind
-    document.querySelectorAll('.coach-target')
-      .forEach(n=>n.classList.remove('coach-target'));
+    document.querySelectorAll('.coach-target').forEach(douse);
   }
 
   /* ------------------------------------------------------------ drawing */
@@ -116,8 +136,8 @@ window.COACH = (function(){
        overlay is a rectangle floating near a button; the button lighting up
        and breathing is the button asking to be pressed, and that is the
        difference between a hint and an instruction. */
-    if(marked && marked!==el) marked.classList.remove('coach-target');
-    if(el) el.classList.add('coach-target');
+    if(marked && marked!==el) douse(marked);
+    if(el) light(el);
     marked = el || null;
     const r=ring();
     if(el){

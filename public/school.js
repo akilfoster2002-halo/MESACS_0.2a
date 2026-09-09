@@ -44,7 +44,7 @@ window.SCHOOL = (function(){
   const COMPASS={ 0:'East', 90:'North', 180:'West', 270:'South' };
 
   const LEVELS=[
-    { id:'one', name:'One Command', budget:1,
+    { id:'one', name:'One Command', budget:1, walk:true,
       pal:['addX','addY'],
       start:{x:0,y:2,a:0}, goal:{x:4,y:2},
       learn:{ name:'A coordinate is two numbers',
@@ -214,8 +214,16 @@ window.SCHOOL = (function(){
     G.camera.near=0.3; G.camera.far=200; G.camera.updateProjectionMatrix();
     if(wasFP===null) wasFP=!!G.firstPerson;
     G.firstPerson=false;
-    ['#mapwrap','#dash','#pmap'].forEach(q=>{
+    ['#mapwrap','#dash','#pmap','#health','#skill','#trigger'].forEach(q=>{
       const e=document.querySelector(q); if(e) e.classList.add('hidden'); });
+    /* The crosshair box still said "Flight School — Motion · E — go in" from
+       the console you were looking at a second ago, sitting over the middle
+       of the board offering a key that does nothing here. focusScan only
+       runs while G.running, which this mission turns off, so it would have
+       sat there for the whole level. */
+    const fx=document.querySelector('#focus');
+    if(fx){ fx.classList.add('hidden'); fx.innerHTML=''; }
+    G.focused=null; G.selected=null;
 
     group=new THREE.Group(); G.roomGroup.add(group);
     group.add(board());
@@ -245,9 +253,12 @@ window.SCHOOL = (function(){
        And the whole thing sits a little high, because the brief prints
        across the bottom of the screen and the x axis is the one line a
        student has to read a number off. */
-    G.camera.position.set(0, span*1.75, -1.1);
+    /* and a little to the right of the board's centre, which pushes the board
+       left on screen and out from under the brief in the top corner — the
+       star at (4, 2) was landing on the panel's edge. */
+    G.camera.position.set(CELL*0.6, span*1.75, -1.1);
     G.camera.up.set(0,0,-1);
-    G.camera.lookAt(0,0,-1.1);
+    G.camera.lookAt(CELL*0.6,0,-1.1);
 
     /* setGrid takes the width of a CENTRED grid and keeps half of it — the
        flight's lanes run -1,0,1 — so it has to be handed twice this board
@@ -260,16 +271,72 @@ window.SCHOOL = (function(){
        about angles — so a turn is a quarter until the moment the mission
        says an angle is just a number, and then it is any of them. */
     CODE.setPalette(K.pal); CODE.setBudget(K.budget); CODE.clear();
+    if(CODE.hideTape) CODE.hideTape();   // the last level's run, still reading out
     // after setPalette, which resets it — see the note there
     if(CODE.setTurnStep) CODE.setTurnStep(K.turnStep || 90);
     if(K.learn) CODE.setGuide(K.learn);
     hud(); say(K.brief);
+    // the walkthrough belongs to level one and follows nobody into level two
+    if(window.COACH) COACH.stop();
+    if(K.walk) coach();
   }
 
   function lay(snap){
     const tx=px(L.x), tz=pz(L.y), ta=L.a*Math.PI/180;
     if(snap){ ship.position.set(tx,0.05,tz); ship.rotation.y=-ta; }
     L.tx=tx; L.tz=tz; L.ta=-ta;
+  }
+
+  /* ------------------------------------------------------- the walkthrough
+     THE FIRST LEVEL IS WALKED, because a child who has never opened the
+     console is not short of instructions — they are short of knowing that
+     the instructions are about a thing they can click. So the thing they
+     can click lights up, and nothing else is available while it does.
+
+     COACH already does all of this for the flight: it rings the exact
+     element, reads progress out of the world rather than out of what it
+     just asked for, and hands each step back so the caller can narrow the
+     palette to the one block being asked for. */
+  /* NOT called walk(): the step runner below is also called walk(), and a
+     second function declaration of the same name in the same scope quietly
+     replaces the first. The level asked for its walkthrough and got the
+     runner instead, with no arguments — which returns on its first line and
+     throws nothing. */
+  function coach(){
+    if(!window.COACH) return;
+    /* The console remembers whether you were last writing words or stacking
+       blocks, and the walkthrough is written entirely in blocks — it points
+       at a shelf that is not on the screen in typing mode. Somebody's first
+       minute is not the place to inherit a preference they have never set. */
+    if(window.CODE && CODE.setMode) CODE.setMode('blocks');
+    const steps=[
+      { say:'This is your ship, at <b>(0, 2)</b>. The star is at <b>(4, 2)</b>. Press <b>C</b> to open the console.',
+        find:()=>document.querySelector('#codeBtn'),
+        done:()=>!!(window.CODE && CODE.isOpen()),
+        pal:[], rails:{run:false, clear:false, mode:false} },
+      { say:'Only <b>x</b> changed — 0 to 4. Click the glowing <b>change x by</b> block.',
+        sel:'#conPalette [data-add="addX"]',
+        done:()=>!!(window.CODE && CODE.script && CODE.script.length),
+        pal:['addX'], rails:{run:false, clear:false, mode:false} },
+      { say:'It says 1, and you need <b>4</b>. Click the number and type <b>4</b>.',
+        sel:'#conScript .numin',
+        done:()=>!!(window.CODE && CODE.script && CODE.script[0]
+                    && CODE.script[0].n===4),
+        pal:['addX'], rails:{run:false, clear:false, mode:false} },
+      { say:'That is the whole program. Press <b>RUN</b>.',
+        sel:'#conRun',
+        done:()=>busy || (L && L.x===L.K.goal.x),
+        pal:['addX'], rails:{run:true, clear:true, mode:true} }
+    ];
+    COACH.start(steps, {
+      host: ()=> (window.CODE && CODE.coachHost) ? CODE.coachHost() : null,
+      onStep(s){
+        if(!window.CODE) return;
+        if(!s){ CODE.setPalette(L?L.K.pal:['addX','addY']); CODE.setRails({}); return; }
+        if(s.pal) CODE.setPalette(s.pal);
+        CODE.setRails(s.rails||{});
+      }
+    });
   }
 
   /* ------------------------------------------------------------- run it */
@@ -352,18 +419,34 @@ window.SCHOOL = (function(){
     const h=document.querySelector('#hud'); if(h) h.classList.remove('hidden');
     if(window.keyHint) keyHint(`<b>C</b> ${t('write your program')} &nbsp; <b>RUN</b> ${t('flies it')}`);
   }
+  /* THE BRIEF SITS IN THE CORNER HERE, under the level list, rather than
+     across the bottom of the screen where every other mission puts it. On a
+     board you read by counting squares, a box in the middle of the screen is
+     a box over the squares. */
   function say(msg){
     const b=document.querySelector('#briefing'); if(!b) return;
+    b.classList.add('corner');
+    /* Sits under the MISSION panel, and that panel is as tall as the list of
+       levels in it — so the gap is measured rather than guessed. */
+    const panel=document.querySelector('#objectives');
+    if(panel){ const r=panel.getBoundingClientRect();
+      if(r.height>0) b.style.setProperty('--brief-top', Math.round(r.bottom+12)+'px'); }
     b.classList.remove('hidden'); b.innerHTML=msg;
   }
 
-  function tick(dt){ if(on && anim) anim.tick(performance.now()); }
+  function tick(dt){
+    if(!on) return;
+    if(anim) anim.tick(performance.now());
+    if(window.COACH && COACH.tick) COACH.tick(dt);
+  }
   function stop(){
     clearTimeout(nextT); nextT=null;
     if(!on) return;
     on=false; busy=false; anim=null; L=null; group=null; ship=null;
     if(window.CODE){ CODE.close(); CODE.setGuide(null); CODE.setBudget(0); }
     const mw=document.querySelector('#mapwrap'); if(mw) mw.classList.remove('hidden');
+    const bf=document.querySelector('#briefing'); if(bf) bf.classList.remove('corner');
+    if(window.COACH) COACH.stop();
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
   }
 

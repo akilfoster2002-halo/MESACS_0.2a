@@ -306,10 +306,15 @@ let codeBtnState=null;
 function updateCodeBtn(){
   const btn=$('#codeBtn'); if(!btn) return;
   // the flight runs with G.running off — it drives its own camera — so it
-  // has to be its own reason for the button to be there
+  // has to be its own reason for the button to be there. So do the sub and
+  // the flight school: both take the camera off G.running the same way, and
+  // both are missions whose entire content is written in the console. A
+  // mission you cannot open the console in is a mission you cannot play.
   const flying = !!(window.FLIGHT && FLIGHT.active);
-  const usable = (G.running || flying) && !CODE.isOpen() &&
-    (PUZZLE.active || NAV.active || flying || (G.hudOwner==='mission' && G.missionId));
+  const piloted = flying
+    || !!(window.SUB && SUB.active) || !!(window.SCHOOL && SCHOOL.active);
+  const usable = (G.running || piloted) && !CODE.isOpen() &&
+    (PUZZLE.active || NAV.active || piloted || (G.hudOwner==='mission' && G.missionId));
   if(usable===codeBtnState) return;
   codeBtnState=usable;
   btn.classList.toggle('hidden',!usable);
@@ -317,7 +322,7 @@ function updateCodeBtn(){
   $('#codeBtnTxt').textContent=t('Code Console');
   btn.onclick=()=>{ CODE.show(); updateCodeBtn(); };
   const esc=$('#escHint');
-  if(esc){ esc.classList.toggle('hidden',!(G.running||flying));
+  if(esc){ esc.classList.toggle('hidden',!(G.running||piloted));
            esc.innerHTML=t('<kbd>Esc</kbd> frees the mouse · <kbd>P</kbd> pause &amp; hint'); }
 }
 /* Shown only when there is a body to do it with and that body knows how.

@@ -52,6 +52,12 @@ button{font-family:var(--font);cursor:pointer}
   background:#fff6fb;color:#2a2140;border:3px solid var(--blush);border-radius:18px;padding:12px 18px;
   font-size:19px;line-height:1.35;box-shadow:0 12px 34px rgba(0,0,0,.55)}
 #briefing b{color:#a4407a}
+/* ---- CORNERED. On a board you read by counting squares, the brief cannot
+   sit across the middle of the screen. Flight School puts it under the level
+   list in the top right, where it reads as one column of information with
+   the mission panel rather than as something laid over the work. ---- */
+#briefing.corner{left:auto;right:14px;bottom:auto;top:var(--brief-top,232px);
+  transform:none;max-width:320px;font-size:16px;line-height:1.42;padding:11px 14px}
 
 #mapwrap{position:absolute;left:14px;top:14px;background:rgba(15,22,36,.92);border:3px solid var(--line);
   border-radius:14px;padding:8px}
@@ -334,11 +340,18 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    the white label printed on it, and the words on the one thing you are
    being told to press came out fainter than the words on everything else.
    The ring supplies the glow; this supplies the movement. */
-.coach-target{position:relative;z-index:2;
+/* No position here: the Code Console button is absolutely positioned and
+   centred with a transform, and a `position:relative` from this rule sent it
+   off the top of the screen the moment the walkthrough pointed at it. COACH
+   sets position inline, and only on elements that are actually static.
+   The lift uses `translate`/`scale` rather than `transform` for the same
+   reason — those compose with an element's own transform instead of
+   replacing it. */
+.coach-target{z-index:2;
   animation:coachLift 1.5s ease-in-out infinite}
 @keyframes coachLift{
-  0%,100%{ transform:none }
-  50%    { transform:translateY(-2px) scale(1.025) }
+  0%,100%{ translate:0 0; scale:1 }
+  50%    { translate:0 -2px; scale:1.025 }
 }
 @media (prefers-reduced-motion:reduce){ .coach-target{animation:none} }
 #coachRing{position:fixed;z-index:66;border:3px solid var(--star);border-radius:12px;
@@ -1810,47 +1823,47 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='353';</script>
-<script src="lib/three.classic.js?v=353"></script>
-<script src="strings.js?v=353"></script>
-<script src="music.js?v=353"></script>
-<script src="net.js?v=353"></script>
-<script src="avatar.js?v=353"></script>
-<script src="zombies.js?v=353"></script>
-<script src="building.js?v=353"></script>
-<script src="levels.js?v=353"></script>
-<script src="program.js?v=353"></script>
-<script src="code.js?v=353"></script>
-<script src="mechsim.js?v=353"></script>
-<script src="mech.js?v=353"></script>
-<script src="intro.js?v=353"></script>
-<script src="mechacode.js?v=353"></script>
-<script src="mechaarena.js?v=353"></script>
-<script src="mecha.js?v=353"></script>
-<script src="workshop.js?v=353"></script>
-<script src="combat.js?v=353"></script>
-<script src="puzzle.js?v=353"></script>
-<script src="nav.js?v=353"></script>
-<script src="tutorial.js?v=353"></script>
-<script src="race.js?v=353"></script>
-<script src="flight.js?v=353"></script>
-<script src="sub.js?v=353"></script>
-<script src="school.js?v=353"></script>
-<script src="cruise.js?v=353"></script>
-<script src="planet.js?v=353"></script>
-<script src="wallet.js?v=353"></script>
-<script src="shop.js?v=353"></script>
-<script src="library.js?v=353"></script>
-<script src="costumes.js?v=353"></script>
-<script src="missions.js?v=353"></script>
-<script src="coach.js?v=353"></script>
-<script src="owner.js?v=353"></script>
-<script src="blocks.js?v=353"></script>
-<script src="vm.js?v=353"></script>
-<script src="coder.js?v=353"></script>
-<script src="quiz.js?v=353"></script>
-<script src="chars.js?v=353"></script>
-<script src="menu.js?v=353"></script>
-<script src="game.js?v=353"></script>
+<script>window.ASSETV='355';</script>
+<script src="lib/three.classic.js?v=360"></script>
+<script src="strings.js?v=360"></script>
+<script src="music.js?v=360"></script>
+<script src="net.js?v=360"></script>
+<script src="avatar.js?v=360"></script>
+<script src="zombies.js?v=360"></script>
+<script src="building.js?v=360"></script>
+<script src="levels.js?v=360"></script>
+<script src="program.js?v=360"></script>
+<script src="code.js?v=360"></script>
+<script src="mechsim.js?v=360"></script>
+<script src="mech.js?v=360"></script>
+<script src="intro.js?v=360"></script>
+<script src="mechacode.js?v=360"></script>
+<script src="mechaarena.js?v=360"></script>
+<script src="mecha.js?v=360"></script>
+<script src="workshop.js?v=360"></script>
+<script src="combat.js?v=360"></script>
+<script src="puzzle.js?v=360"></script>
+<script src="nav.js?v=360"></script>
+<script src="tutorial.js?v=360"></script>
+<script src="race.js?v=360"></script>
+<script src="flight.js?v=360"></script>
+<script src="sub.js?v=360"></script>
+<script src="school.js?v=360"></script>
+<script src="cruise.js?v=360"></script>
+<script src="planet.js?v=360"></script>
+<script src="wallet.js?v=360"></script>
+<script src="shop.js?v=360"></script>
+<script src="library.js?v=360"></script>
+<script src="costumes.js?v=360"></script>
+<script src="missions.js?v=360"></script>
+<script src="coach.js?v=360"></script>
+<script src="owner.js?v=360"></script>
+<script src="blocks.js?v=360"></script>
+<script src="vm.js?v=360"></script>
+<script src="coder.js?v=360"></script>
+<script src="quiz.js?v=360"></script>
+<script src="chars.js?v=360"></script>
+<script src="menu.js?v=360"></script>
+<script src="game.js?v=360"></script>
 </body>
 </html>
