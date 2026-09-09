@@ -89,7 +89,7 @@ window.RACE = (function(){
     { id:'green',  paint:0x2f9d55, name:'Clover',   a:'#a8e6cf',
       needs:'Beat a target time' }
   ];
-  const CAR_LEN=3.0;                             // how long a car reads, in world units
+  const CAR_LEN=4.0;                             // a tile is 4 across, so about one tile long
   const ACE_KEY='dq_race_ace';                   // set the first time a target falls
 
   function aced(){ try{ return !!localStorage.getItem(ACE_KEY); }catch(e){ return false; } }

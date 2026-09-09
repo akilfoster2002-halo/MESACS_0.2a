@@ -1585,9 +1585,9 @@ window.PLANET = (function(){
      stand is what you get. */
   function loadCar(c, g, x, z){
     if(!window.SHOP) return;
-    SHOP.carModel(c.paint, 4.4).then(holder=>{
+    SHOP.carModel(c.paint, 5.4).then(holder=>{
       if(!on) return;
-      holder.position.set(x, 0.1, z);
+      holder.position.set(x, 0.17, z);         // the floor mark's top surface
       holder.rotation.y=Math.PI/2;             // side on to whoever walks past
       g.add(holder);
     }).catch(()=>{});
@@ -2092,7 +2092,7 @@ window.PLANET = (function(){
   function rideModel(id){
     const want = window.SHOP ? SHOP.CARS.find(c=>c.id===id) : null;
     if(!want) return Promise.reject(new Error('no such car'));
-    return SHOP.carModel(want.paint, 3.4);
+    return SHOP.carModel(want.paint);
   }
   /* Put whatever you are riding under you, and take the body away — a
      character standing inside a car reads as a bug rather than a driver,
@@ -2182,7 +2182,10 @@ window.PLANET = (function(){
          is why nothing looked broken, but it was the one turned half a circle
          and the car drove everywhere backwards. */
       ride.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, up, f));
-      ride.position.copy(worldPos(0.25));
+      /* No lift any more. SHOP stands a car on its own wheels, so the ground
+         is where the ground is — the 0.25 that used to be here was propping
+         up a model whose origin was not at its tyres. */
+      ride.position.copy(worldPos(0));
     } else if(window.AVATAR){
       AVATAR.orient(worldPos(0), up, me.fwd, dt, moving, running, me.onGround);
     }

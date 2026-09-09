@@ -170,6 +170,11 @@ window.SHOP = (function(){
      — only the paint material is cloned, because that is the only thing
      that differs between a Scarlet and a Clover. */
   const CAR_FILE='racing/mclaren.glb';
+  /* How long a car reads, in world units.  A character stands 1.85 units
+     tall, so a unit is about a metre and this is roughly the 4.5 m the real
+     car is — it used to be 3.4, which is a metre and a half short and read
+     as a toy parked next to somebody. */
+  const CAR_LEN=4.6;
   const CAR_BODY='body';          // car-build.js folds the five paint materials into this one
   const CAR_WHEELS=['wheelFrontLeft','wheelFrontRight','wheelBackLeft','wheelBackRight'];
   let carReq=null;
@@ -194,13 +199,23 @@ window.SHOP = (function(){
           m.material.color.setHex(paint===undefined ? CARS[0].paint : paint);
         }
       });
-      /* Sized by its length, so a car is the same size in the showroom and
-         on the road however long the model happens to be. */
-      const box=new THREE.Box3().setFromObject(o);
-      const l=Math.max(0.001, box.max.z-box.min.z);
-      o.scale.setScalar((len||3.4)/l);
       const holder=new THREE.Group();
       holder.add(o);
+      /* Sized by its length, so a car is the same size in the showroom and
+         on the road however long the model happens to be. */
+      holder.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(holder);
+      const l=Math.max(0.001, box.max.z-box.min.z);
+      o.scale.multiplyScalar((len||CAR_LEN)/l);
+      /* AND THEN STOOD ON THE FLOOR.  A model's origin is wherever its
+         author left it — this one sits a little under the sills rather than
+         at the tyres — so every caller was adding a hand-picked lift to get
+         the wheels down, and every one of them was picked for a different
+         car.  Measure the bottom and drop it to zero here instead, and then
+         holder y=0 IS the contact patch: put the holder on the ground and
+         the wheels are on the ground. */
+      holder.updateMatrixWorld(true);
+      o.position.y -= new THREE.Box3().setFromObject(holder).min.y;
       /* The Circuit turns these. The asset carries the names the game has
          always looked for, so this is a lookup and not a translation. */
       holder.userData.wheels=CAR_WHEELS.map(n=>o.getObjectByName(n)).filter(Boolean);
