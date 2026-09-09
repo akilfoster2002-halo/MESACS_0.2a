@@ -66,6 +66,8 @@ window.MENU = (function(){
      blurb:'if / else. PRISM changes colour every two seconds.'},
     {id:'m3',    g:'course',  em:'🧮', a:'#ffb4a2', name:'Mission 4 — Functions',
      blurb:'define combo. OFF-BY-ONE always has one more.'},
+    {id:'rover', g:'course',  em:'🛰', a:'#9fe6b4', name:'Mission 5 — The Survey',
+     blurb:'Program a rover across a plot of ground. Loops that count, loops that do not, and loops inside loops.'},
     {id:'mech',  g:'arena',   em:'🤖', a:'#ffd8a8', name:'The Mech League',
      blurb:'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
@@ -192,6 +194,7 @@ window.MENU = (function(){
     return ({tut:'Level 0 — Basics', race:'Circuit — Time Trial', nav:'Escape — Corridors',
              flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
              m2:'Mission 3 — Choices', m3:'Mission 4 — Functions',
+             rover:'Mission 5 — The Survey',
              mech:'The Mech League'})[id]||id;
   }
 

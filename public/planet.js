@@ -169,7 +169,8 @@ window.PLANET = (function(){
     { id:'flight', em:'\u{1F680}', name:'Mission 1 — Space Explorer', a:'#8ff0ff' },
     { id:'m1',     em:'\u{1F9DF}', name:'Mission 2 — Loops',          a:'#a8e6cf' },
     { id:'m2',     em:'\u{1F52E}', name:'Mission 3 — Choices',        a:'#cdb4f6' },
-    { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' }
+    { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' },
+    { id:'rover',  em:'\u{1F6F0}', name:'Mission 5 — The Survey',      a:'#9fe6b4' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -1011,6 +1012,7 @@ window.PLANET = (function(){
       const spots=[
         { x:-13, z:-hd+11, r:0 },           // back wall, facing the door
         { x: 13, z:-hd+11, r:0 },
+        { x:  0, z:-hd+11, r:0 },           // and the middle of it, for the seventh
         { x:-hw+8, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
         { x:-hw+8, z:  7, r: Math.PI/4 },
         { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
@@ -1995,6 +1997,28 @@ window.PLANET = (function(){
         const cube=new THREE.Mesh(new THREE.BoxGeometry(1,0.55,1), lam(c));
         cube.position.set(bx,by,bz); cube.rotation.y=Math.random()*0.4-0.2; top.add(cube);
       });
+    }
+    if(id==='rover'){
+      /* The rover itself, small, on its plinth — a slab on six wheels with
+         a mast, which is the shape the mission is about. */
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.28,1.3),
+        new THREE.MeshLambertMaterial({color:0xd8dbe6}));
+      body.position.y=0.42; top.add(body);
+      const deck=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.09,0.8),
+        new THREE.MeshLambertMaterial({color:0x2f3a52}));
+      deck.position.y=0.60; top.add(deck);
+      const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.55,8),
+        new THREE.MeshLambertMaterial({color:0x9aa3b8}));
+      mast.position.set(0,0.88,-0.34); top.add(mast);
+      const dish=new THREE.Mesh(new THREE.SphereGeometry(0.17,12,8,0,6.283,0,1.2),
+        new THREE.MeshLambertMaterial({color:0x8ff0ff, side:THREE.DoubleSide}));
+      dish.position.set(0,1.16,-0.34); dish.rotation.x=-0.7; top.add(dish);
+      const tyre=new THREE.MeshLambertMaterial({color:0x23262f});
+      [-1,0,1].forEach(dz=>[-1,1].forEach(dx=>{
+        const w=new THREE.Mesh(new THREE.CylinderGeometry(0.21,0.21,0.15,12), tyre);
+        w.rotation.z=Math.PI/2; w.position.set(dx*0.51, 0.21, dz*0.47); top.add(w);
+      }));
+      top.userData.spin=0.22;          // it turns, the way a museum piece does
     }
     g.position.set(x,0,z);
     g.rotation.y=rot||0;
