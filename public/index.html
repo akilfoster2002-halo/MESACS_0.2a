@@ -884,9 +884,9 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cg-txt .radar{margin-top:10px;background:rgba(8,14,34,.55);gap:14px;padding:11px 16px 10px}
 /* bigger inside the console: this is where you are actually reading it to
    decide what to write, rather than glancing at it mid-flight */
-.cg-txt .rw.big .rgrid{grid-template-columns:repeat(3,25px);grid-auto-rows:25px}
-.cg-txt .rw.mid .rgrid{grid-template-columns:repeat(3,16px);grid-auto-rows:16px}
-.cg-txt .rw.far .rgrid{grid-template-columns:repeat(3,11px);grid-auto-rows:11px}
+.cg-txt .rw.big .rgrid{grid-template-columns:repeat(var(--cols,3),var(--cbig));grid-auto-rows:var(--cbig)}
+.cg-txt .rw.mid .rgrid{grid-template-columns:repeat(var(--cols,3),var(--cmid));grid-auto-rows:var(--cmid)}
+.cg-txt .rw.far .rgrid{grid-template-columns:repeat(var(--cols,3),var(--cfar));grid-auto-rows:var(--cfar)}
 .cg-txt .rw b{font-size:10.5px}
 .cg-txt .radar + .rlegend{text-align:center;margin-top:2px}
 .rlegend{font-size:12.5px;color:var(--star)}
@@ -899,10 +899,18 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    This used to be a keyframe that popped each card in place from nowhere,
    which shows that something changed without showing what — the travel is
    done from JS now, measured from where each panel actually was. */
+.radar{--cols:3;
+  /* One panel width, however many lanes divide it. At three these come out
+     at the sizes they were hand-set to; at five they shrink to fit rather
+     than pushing the console's aside wider than it is allowed to be. */
+  --rbig:calc(57px / var(--cols)); --rmid:calc(36px / var(--cols));
+  --rfar:calc(24px / var(--cols));
+  --cbig:calc(75px / var(--cols)); --cmid:calc(48px / var(--cols));
+  --cfar:calc(33px / var(--cols))}
 .rgrid{display:grid;gap:2px}
-.rw.big .rgrid{grid-template-columns:repeat(3,19px);grid-auto-rows:19px}
-.rw.mid .rgrid{grid-template-columns:repeat(3,12px);grid-auto-rows:12px}
-.rw.far .rgrid{grid-template-columns:repeat(3,8px);grid-auto-rows:8px}
+.rw.big .rgrid{grid-template-columns:repeat(var(--cols,3),var(--rbig));grid-auto-rows:var(--rbig)}
+.rw.mid .rgrid{grid-template-columns:repeat(var(--cols,3),var(--rmid));grid-auto-rows:var(--rmid)}
+.rw.far .rgrid{grid-template-columns:repeat(var(--cols,3),var(--rfar));grid-auto-rows:var(--rfar)}
 /* open sky reads as empty, rock as solid, and YOU as a ring on top of
    whichever you are sitting in */
 /* A CELL IS A PIECE OF SPACE. What is in it is drawn as the thing it is:
@@ -1779,45 +1787,45 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='327';</script>
-<script src="lib/three.classic.js?v=327"></script>
-<script src="strings.js?v=327"></script>
-<script src="music.js?v=327"></script>
-<script src="net.js?v=327"></script>
-<script src="avatar.js?v=327"></script>
-<script src="zombies.js?v=327"></script>
-<script src="building.js?v=327"></script>
-<script src="levels.js?v=327"></script>
-<script src="program.js?v=327"></script>
-<script src="code.js?v=327"></script>
-<script src="mechsim.js?v=327"></script>
-<script src="mech.js?v=327"></script>
-<script src="intro.js?v=327"></script>
-<script src="mechacode.js?v=327"></script>
-<script src="mechaarena.js?v=327"></script>
-<script src="mecha.js?v=327"></script>
-<script src="workshop.js?v=327"></script>
-<script src="combat.js?v=327"></script>
-<script src="puzzle.js?v=327"></script>
-<script src="nav.js?v=327"></script>
-<script src="tutorial.js?v=327"></script>
-<script src="race.js?v=327"></script>
-<script src="flight.js?v=327"></script>
-<script src="cruise.js?v=327"></script>
-<script src="planet.js?v=327"></script>
-<script src="wallet.js?v=327"></script>
-<script src="shop.js?v=327"></script>
-<script src="library.js?v=327"></script>
-<script src="costumes.js?v=327"></script>
-<script src="missions.js?v=327"></script>
-<script src="coach.js?v=327"></script>
-<script src="owner.js?v=327"></script>
-<script src="blocks.js?v=327"></script>
-<script src="vm.js?v=327"></script>
-<script src="coder.js?v=327"></script>
-<script src="quiz.js?v=327"></script>
-<script src="chars.js?v=327"></script>
-<script src="menu.js?v=327"></script>
-<script src="game.js?v=327"></script>
+<script>window.ASSETV='329';</script>
+<script src="lib/three.classic.js?v=329"></script>
+<script src="strings.js?v=329"></script>
+<script src="music.js?v=329"></script>
+<script src="net.js?v=329"></script>
+<script src="avatar.js?v=329"></script>
+<script src="zombies.js?v=329"></script>
+<script src="building.js?v=329"></script>
+<script src="levels.js?v=329"></script>
+<script src="program.js?v=329"></script>
+<script src="code.js?v=329"></script>
+<script src="mechsim.js?v=329"></script>
+<script src="mech.js?v=329"></script>
+<script src="intro.js?v=329"></script>
+<script src="mechacode.js?v=329"></script>
+<script src="mechaarena.js?v=329"></script>
+<script src="mecha.js?v=329"></script>
+<script src="workshop.js?v=329"></script>
+<script src="combat.js?v=329"></script>
+<script src="puzzle.js?v=329"></script>
+<script src="nav.js?v=329"></script>
+<script src="tutorial.js?v=329"></script>
+<script src="race.js?v=329"></script>
+<script src="flight.js?v=329"></script>
+<script src="cruise.js?v=329"></script>
+<script src="planet.js?v=329"></script>
+<script src="wallet.js?v=329"></script>
+<script src="shop.js?v=329"></script>
+<script src="library.js?v=329"></script>
+<script src="costumes.js?v=329"></script>
+<script src="missions.js?v=329"></script>
+<script src="coach.js?v=329"></script>
+<script src="owner.js?v=329"></script>
+<script src="blocks.js?v=329"></script>
+<script src="vm.js?v=329"></script>
+<script src="coder.js?v=329"></script>
+<script src="quiz.js?v=329"></script>
+<script src="chars.js?v=329"></script>
+<script src="menu.js?v=329"></script>
+<script src="game.js?v=329"></script>
 </body>
 </html>

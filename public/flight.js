@@ -29,7 +29,18 @@
    while you write, and a correct program survives it every single time.
    ===================================================================== */
 window.FLIGHT = (function(){
-  const COLS=3, ROWS=3;              // the nine lanes
+  /* HOW MANY LANES, and it is per LEG rather than per mission. The first
+     legs are three by three because that is what teaches: every wall in
+     Sidestep shuts three of the four ways out, so there is exactly one lane
+     open and the leg cannot be flown by accident. Widen that to five and the
+     same wall leaves four ways out and the lesson goes soft.
+
+     So the field widens later, at Jump Drive, where the mission's own
+     argument is "one step cannot cross the field" — which at five across
+     stops being a claim and becomes arithmetic. The widening IS the
+     difficulty; there is no dial any more. */
+  const GRID={ cols:3, rows:3 };
+  let COLS=3, ROWS=3;
   const LANE=3.6;                    // world units between lane centres
   const GAP=13;                      // world units between one beat and the next
   const BEAT_MS=900;                 // one beat at Medium, before difficulty
@@ -244,21 +255,38 @@ window.FLIGHT = (function(){
         '.../X../X..'    // → col 0
       ] },
 
+    /* THE FIELD WIDENS HERE, and this is the leg to do it on because it is
+       the leg whose whole argument is distance. At three across, "one step
+       cannot cross the field" is true but only just — the corners are two
+       lanes apart and it reads as a rule rather than as a fact. At five they
+       are four lanes apart on both axes, and the claim stops needing to be
+       believed.
+
+       It also shuts the back door. One block is one beat, and a set only
+       moves you along one axis — so at three across a corner-to-corner hop
+       could sometimes be done with a single set, and here it never can: every
+       corner differs from the last in BOTH x and y, which needs two sets and
+       there is only ever time for one. goTo or nothing. */
     { id:'jump', kind:'fly', stops:2, name:'Jump Drive', budget:6,
+      cols:5, rows:5,
       pal:['goTo','setX','setY','addX','addY','turn','coast','repeat'],
       learn:{ name:'Absolute beats relative',
               text:'One step cannot cross the field. goTo can.',
-              code:'repeat 3\n  goto 0,0\n  goto 2,2\n  goto 2,0\n  goto 0,2\nend' },
-      brief:'One gap per wall, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.',
-      start:{col:1,row:1},
-      /* Every beat has exactly one open lane, and consecutive open lanes are
-         never neighbours — so up/down/left/right cannot fly this at all,
-         which is the entire argument for goTo. Four corners on a cycle, so
-         a repeat still pays on top. */
+              code:'repeat 3\n  goto -2,-2\n  goto 2,2\n  goto 2,-2\n  goto -2,2\nend' },
+      brief:'The field is <b>five lanes wide</b> now, and there is one gap per wall — always a <b>corner</b>. Lanes run <b>-2</b> to <b>2</b>. Four corners, three times, <b>six blocks</b>.',
+      start:{col:2,row:2},
+      /* Every beat has exactly one open lane and it is a corner, cycling
+         bottom-left, top-right, bottom-right, top-left. Consecutive gaps are
+         never neighbours and never share a row or a column, so neither a
+         one-lane step nor a single set can reach the next one. Four corners
+         on a cycle, so a repeat still pays on top of the goTo. */
       beats:[
-        'XXX/XXX/.XX',  'XX./XXX/XXX',  'XXX/XXX/XX.',  '.XX/XXX/XXX',
-        'XXX/XXX/.XX',  'XX./XXX/XXX',  'XXX/XXX/XX.',  '.XX/XXX/XXX',
-        'XXX/XXX/.XX',  'XX./XXX/XXX',  'XXX/XXX/XX.',  '.XX/XXX/XXX'
+        'XXXXX/XXXXX/XXXXX/XXXXX/.XXXX',  'XXXX./XXXXX/XXXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/XXXXX/XXXXX/XXXX.',  '.XXXX/XXXXX/XXXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/XXXXX/XXXXX/.XXXX',  'XXXX./XXXXX/XXXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/XXXXX/XXXXX/XXXX.',  '.XXXX/XXXXX/XXXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/XXXXX/XXXXX/.XXXX',  'XXXX./XXXXX/XXXXX/XXXXX/XXXXX',
+        'XXXXX/XXXXX/XXXXX/XXXXX/XXXX.',  '.XXXX/XXXXX/XXXXX/XXXXX/XXXXX'
       ] }
   ];
 
@@ -446,6 +474,12 @@ window.FLIGHT = (function(){
       m.geometry.dispose();
       m.geometry=astGeo; m.material=ROCK_MAT; m.userData.lump=false;
     });
+    /* The whole field at once, because it is one mesh: every instance shares
+       the geometry, so dressing them is a single assignment. */
+    if(field && field.userData.lump){
+      field.geometry.dispose();
+      field.geometry=astGeo; field.material=ROCK_MAT; field.userData.lump=false;
+    }
   }
   astProto();          // not on demand: the first wall must not be lumps
 
@@ -507,7 +541,7 @@ window.FLIGHT = (function(){
   function start(n){
     const idx=Math.max(0, Math.min(STAGES.length-1, n||0));
     const K=STAGES[idx];
-    busy=false; rocks=[]; bolts=[];
+    busy=false; rocks=[]; bolts=[]; field=null; fieldAt=[];
     if(G.roomGroup) G.scene.remove(G.roomGroup);
     G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
     G.solids=[]; G.hits=[]; G.ceiling=null;
@@ -536,6 +570,11 @@ window.FLIGHT = (function(){
       `<b>C</b> ${t('write your program')} &nbsp; <b>${t('RUN')}</b> ${t('flies it')}<br>
        <b>C</b> ${t('again stops the field')} &nbsp; <b>P</b> ${t('pause')}
        &nbsp; <b>Esc</b> ${t('frees the mouse')}`);
+
+    /* BEFORE ANYTHING ELSE READS THEM. solvable(), laneX(), the rock
+       layout and the block dropdowns all ask how wide the field is, so the
+       leg has to have answered first. */
+    COLS=K.cols||GRID.cols; ROWS=K.rows||GRID.rows;
 
     const beats=K.beats||[];
     if(K.kind==='fly'){
@@ -596,18 +635,67 @@ window.FLIGHT = (function(){
     teach();
   }
 
+  /* ONE MESH FOR THE WHOLE FIELD.
+
+     Every rock in every wall is the same geometry and the same material —
+     they differ only in where they are, how big they are and which way they
+     are tumbling — so they are one InstancedMesh rather than one Mesh each.
+
+     That was a nicety at three lanes across and is not at five. A wall with
+     one gap in it is twenty-four rocks instead of eight, and Jump Drive has
+     twelve of those: the field went from thirty-four meshes and seventy-two
+     thousand triangles to two hundred and ninety meshes and half a million.
+     The triangles a modern card will shrug at; two hundred and ninety draw
+     calls on a several-year-old laptop is what actually costs the frame.
+
+     The slot walls keep their individual rocks. There are sixteen of them,
+     they hang inside a group that rotates as one, and instancing something
+     that already moves as a unit buys nothing. */
+  let field=null, fieldAt=[];
   function layRocks(){
+    const put=[];
     L.beats.forEach((mask,i)=>{
       const b=i+1;
       if(isSlot(mask)){ laySlot(mask, b); return; }
       for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++){
         if(!blocked(mask,c,r)) continue;
-        const m=rock(1.05+Math.random()*0.35);
-        m.position.set(laneX(c)+(Math.random()-0.5)*0.5,
-                       laneY(r)+(Math.random()-0.5)*0.5, beatZ(b));
-        G.roomGroup.add(m); rocks.push(m);
+        put.push({ x:laneX(c)+(Math.random()-0.5)*0.5,
+                   y:laneY(r)+(Math.random()-0.5)*0.5,
+                   z:beatZ(b), r:1.05+Math.random()*0.35 });
       }
     });
+    if(put.length) buildField(put);
+  }
+  function buildField(put){
+    const real=!!astGeo;
+    field=new THREE.InstancedMesh(real?astGeo:lump(1), real?ROCK_MAT:LUMP_MAT, put.length);
+    field.frustumCulled=false;                 // it is laid out ahead of the camera
+    field.userData.lump=!real;
+    fieldAt=put.map(p=>({
+      pos:new THREE.Vector3(p.x, p.y, p.z),
+      q:new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        Math.random()*6.283, Math.random()*6.283, Math.random()*6.283)),
+      /* The model and the fallback are both built at radius 1, so `r` is the
+         radius the field asked for either way, and the squash goes on top. */
+      scale:new THREE.Vector3(p.r*(0.86+Math.random()*0.28),
+                              p.r*(0.86+Math.random()*0.28),
+                              p.r*(0.86+Math.random()*0.28)),
+      spin:new THREE.Vector3((Math.random()-0.5)*0.9,
+                             (Math.random()-0.5)*0.9,
+                             (Math.random()-0.5)*0.9)
+    }));
+    writeField();
+    G.roomGroup.add(field);
+  }
+  const fM=new THREE.Matrix4(), fQ=new THREE.Quaternion(), fE=new THREE.Euler();
+  function writeField(){
+    if(!field) return;
+    for(let i=0;i<fieldAt.length;i++){
+      const f=fieldAt[i];
+      fM.compose(f.pos, f.q, f.scale);
+      field.setMatrixAt(i, fM);
+    }
+    field.instanceMatrix.needsUpdate=true;
   }
   /* One asteroid across the whole windscreen with a single gap cut through
      it. Two slabs either side of the gap, the pair rotated to the slot's
@@ -729,12 +817,16 @@ window.FLIGHT = (function(){
      writing a block is concerned, and 0, 1, 2 as far as the array of rocks
      is concerned. These two lines are where those two facts meet, and they
      are the only place either of them has to be true. */
-  const MIDC=(COLS-1)/2, MIDR=(ROWS-1)/2;
+  /* Read live, not captured. These were consts worked out when the file
+     loaded, which was correct for exactly as long as every leg was the same
+     size — the first five-wide leg would have addressed its lanes against a
+     three-wide centre and put every goTo one lane off. */
+  const MIDC=()=>(COLS-1)/2, MIDR=()=>(ROWS-1)/2;
   const lane = (n, mid, span) => clamp(Math.round(n)+mid, span);
   function applyMove(c, r, a, s){
-    if(s.name==='goTo'){ c=lane(s.col|0, MIDC, COLS); r=lane(s.row|0, MIDR, ROWS); }
-    if(s.name==='setX') c=lane(s.n|0, MIDC, COLS);
-    if(s.name==='setY') r=lane(s.n|0, MIDR, ROWS);
+    if(s.name==='goTo'){ c=lane(s.col|0, MIDC(), COLS); r=lane(s.row|0, MIDR(), ROWS); }
+    if(s.name==='setX') c=lane(s.n|0, MIDC(), COLS);
+    if(s.name==='setY') r=lane(s.n|0, MIDR(), ROWS);
     if(s.name==='addX') c=clamp(c+(s.n|0), COLS);
     if(s.name==='addY') r=clamp(r+(s.n|0), ROWS);
     // an angle is a number too, and it wraps rather than clamping
@@ -912,6 +1004,12 @@ window.FLIGHT = (function(){
       if(!s) return;
       m.rotation.x+=s.x*dt; m.rotation.y+=s.y*dt; m.rotation.z+=s.z*dt;
     });
+    if(!field) return;
+    for(let i=0;i<fieldAt.length;i++){
+      const f=fieldAt[i];
+      f.q.multiply(fQ.setFromEuler(fE.set(f.spin.x*dt, f.spin.y*dt, f.spin.z*dt)));
+    }
+    writeField();
   }
 
   /* ------------------------------------------------------ the gunnery range
@@ -1177,7 +1275,7 @@ window.FLIGHT = (function(){
                    : q.dr>0 ? t('up')   : q.dr<0 ? t('down') : null;
     /* Where the gap IS, rather than which way to lean — a set block names a
        destination, so the card names the destination too. */
-    const at = q => q.dc ? t('column {n}',{n:q.col-MIDC}) : t('row {n}',{n:q.row-MIDR});
+    const at = q => q.dc ? t('column {n}',{n:q.col-MIDC()}) : t('row {n}',{n:q.row-MIDR()});
     const WALK=[
       { say: mode==='set'
           ? 'New blocks this time. Press <b>C</b> to see them.'
@@ -1257,7 +1355,7 @@ window.FLIGHT = (function(){
         if(nc<0||nc>=COLS||nr<0||nr>=ROWS) continue;
         if(hits(mask,nc,nr,0)) continue;
         const pin = mode==='set'
-          ? (dc ? {op:'setX', n:nc-MIDC} : {op:'setY', n:nr-MIDR})
+          ? (dc ? {op:'setX', n:nc-MIDC()} : {op:'setY', n:nr-MIDR()})
           : {op, n};
         got={ wall:w, dc, dr, col:nc, row:nr, pin }; c=nc; r=nr; break;
       }
@@ -1351,7 +1449,7 @@ window.FLIGHT = (function(){
       return out;
     };
     if(L.kind==='gun'){
-      return `<div class="radar"><div class="rw big"><b>${t('TARGETS')}</b>
+      return `<div class="radar" style="--cols:${COLS}"><div class="rw big"><b>${t('TARGETS')}</b>
         <div class="rgrid">${grid(L.K.targets,L.col,L.row)}</div></div></div>`;
     }
     /* Three walls, and the cards MOVE: the big one is the first wall your
@@ -1369,7 +1467,7 @@ window.FLIGHT = (function(){
     }
     L.radarFocus=focus;
     const size=['big','mid','far'];
-    let out='<div class="radar">';
+    let out=`<div class="radar" style="--cols:${COLS}">`;
     for(let k=0;k<3;k++){
       const q=p[k];
       if(!q || q.wall>total){
@@ -1616,7 +1714,7 @@ window.FLIGHT = (function(){
   function stop(){
     if(window.COACH) COACH.stop();
     if(window.keyHint) keyHint(null);
-    L=null; busy=false; rocks=[]; bolts=[];
+    L=null; busy=false; rocks=[]; bolts=[]; field=null; fieldAt=[];
     if(ship && ship.parent) ship.parent.remove(ship);
     ship=null;
     G.ground=null;
