@@ -195,11 +195,14 @@ window.CLUB = (function(){
   let group=null, tiles=null, tileCol=null, beams=[], dancers=[], booth=null, dj=null;
   let bldg=null, deckLight=null, panelFace=null;
   const DANCERS=10;
-  /* Kyle and Mia are the two rigged characters in the game and the only two
-     with a real dance in them; the kit models have four bones and an idle,
-     so they are danced by hand below. Both kinds on the floor, because a
-     room of ten identical people is a room of ten identical people. */
-  const CAST=['s','t','a','c','f','h','k','n','p','r'];
+  /* The whole roster, alternating. It used to be Kyle and Mia and eight
+     out of the Kenney kit, danced by hand because the kit has no dance in
+     it — and the hand-danced ones were the reason the six-named-bones path
+     below exists. The kit is gone; both of these have a real dance clip,
+     so the floor is ten people actually dancing rather than two dancing
+     and eight being posed. The fallback stays for any model that turns up
+     without one. */
+  const CAST=['s','t'];
 
   function room(g, b, hw, hd, api){
     stop();
@@ -312,14 +315,18 @@ window.CLUB = (function(){
     dj={ holder:new THREE.Group(), model:null, bones:null, phase:0.8 };
     dj.holder.position.set(-0.2, 1.29, -hd+4.4);
     group.add(dj.holder);
-    /* One of the KIT characters, deliberately. Kyle and Mia are the two with
-       a real dance clip in them and that is exactly the wrong thing here —
-       a canned dance cannot have one hand on a platter, and their skeletons
-       are not the six named bones everything below reaches for. */
-    if(window.AVATAR) AVATAR.load('b').then(root=>{
+    /* She used to be a kit character, chosen because the hands-on-the-decks
+       pose is built out of six named bones and only the kit has them. With
+       the kit gone she is whichever of the two the player is not, and the
+       pose has to come from the clip she does have — so if there are no
+       bones to reach for, she dances instead of standing in her bind pose,
+       which is what "no bones and no clip" looked like. */
+    if(window.AVATAR) AVATAR.load(AVATAR.other()).then(root=>{
       if(!on || !dj || !dj.holder.parent) return;
       dj.holder.add(root); dj.model=root;
       dj.bones=bonesOf(root);
+      const rig=root.userData && root.userData.rig;
+      dj.real=!!(rig && rig.has('dance')) && !dj.bones.armL;
     }).catch(()=>{});
 
     /* --- the way in ------------------------------------------------------ */
@@ -439,7 +446,17 @@ window.CLUB = (function(){
      the other on the mixer, and nods. That difference is the only thing
      that says which of the twelve people in this room is running it. */
   function resident(dt, punch, dropHit){
-    if(!dj || !dj.model || !dj.bones) return;
+    if(!dj || !dj.model) return;
+    /* No bones to pose, but a dance to play. She is behind the decks rather
+       than on the floor, so she is slowed down and does not jump — a
+       resident bouncing as hard as the crowd is a resident who has stopped
+       running the room. */
+    if(dj.real && window.AVATAR){
+      AVATAR.animate(dj.model, dt*(0.55+0.45*energy), 'dance');
+      dj.holder.position.y = 1.29 + dropHit*Math.abs(Math.sin(t0*7))*0.22;
+      return;
+    }
+    if(!dj.bones) return;
     const bn=dj.bones;
     const ph=t0*(0.5+0.75*energy)*Math.PI*2*0.9 + dj.phase;
     const rest=o=>o && o.userData.rest;

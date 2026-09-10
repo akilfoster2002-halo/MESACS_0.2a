@@ -12,15 +12,20 @@ window.AVATAR = (function(){
   // order matters: chars.js unlocks the first FREE of these. Nia is moved up
   // so the four starting characters aren't all boys/bots — Cato slides back
   // to fifth, ready to unlock first once PER_MISSION rewards are turned on.
-  /* Kyle leads: he is the character this game is about, so he is the one
-     you are unless you go to the Wardrobe and say otherwise. The rest keep
-     the order they had. */
-  const IDS = 'stabndcefghijklmopqr'.split('');
-  // a name each, initial matching the file, so nobody is "Character G"
-  const NAMES = { s:'Kyle', t:'Mia',
-                  a:'Ash', b:'Bex', c:'Cato', d:'Dot', e:'Enzo', f:'Fin',
-                  g:'Gus', h:'Hana', i:'Iris', j:'Jax', k:'Kit', l:'Lex',
-                  m:'Mo',  n:'Nia', o:'Ozzy', p:'Pip', q:'Quinn', r:'Rae' };
+  /* TWO PEOPLE, BOTH OF THEM PROPERLY MADE.
+
+     There used to be twenty: Kyle, Mia, and eighteen out of the Kenney
+     blocky kit. The kit characters were what this game had before it had
+     anybody, and they are four bones and an idle — they cannot walk
+     convincingly, cannot dance, and stand next to Kyle looking like a
+     placeholder, because that is what they were. Nineteen choices of
+     placeholder is not more choice than one good one.
+
+     So the roster is the two rigged characters. Kyle leads: he is the
+     character this game is about, and he is the one you are unless you go
+     to the Mall and say otherwise. */
+  const IDS = 'st'.split('');
+  const NAMES = { s:'Kyle', t:'Mia' };
   /* ?v= on the asset, not just on the script. Without it a changed model
      is invisible for a day behind the server's cache header. */
   const V = ()=> '?v='+(window.ASSETV||'1');
@@ -169,6 +174,15 @@ window.AVATAR = (function(){
     chosen = CHARS[0].id;
     try{ localStorage.setItem('dq_char', chosen); }catch(e){}
   }
+  /* SOMEBODY WHO IS NOT YOU. The librarian, the guard on his beat and the
+     resident behind the decks all want a body that is not the one the
+     player is wearing — two of you in a room is a bug, not a cast. With a
+     roster of two that is simply the other one; the modulo is there so it
+     stays true if a third is ever added. */
+  function other(offset){
+    const i=CHARS.findIndex(c=>c.id===chosen);
+    return CHARS[((i<0?0:i) + (offset||1) + CHARS.length) % CHARS.length].id;
+  }
   function pick(id){
     chosen=id;
     try{ localStorage.setItem('dq_char',id); }catch(e){}
@@ -286,7 +300,7 @@ window.AVATAR = (function(){
     animate(model, dt, clipFor(dt, moving, running, onGround));
   }
 
-  return { CHARS, load, pick, attach, detach, update, orient, animate,
+  return { CHARS, load, pick, other, attach, detach, update, orient, animate,
            emote, canEmote, get emoting(){ return emoting>0; },
            get act(){ return acting; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };

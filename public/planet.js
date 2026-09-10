@@ -1373,7 +1373,14 @@ window.PLANET = (function(){
      labelling — which is what the first version did, and it read as one
      continuous wall of price tags. */
   function mallSpots(n, hw, hd){
-    const out=[], back=Math.min(n,8), x0=-hw+8, x1=hw-8;
+    const out=[], back=Math.min(n,8);
+    /* THE ROW IS AS WIDE AS IT NEEDS TO BE. It used to run the full width
+       of the back wall whatever was standing in it, which was right for
+       eight and absurd for two: the pair ended up thirty metres apart at
+       opposite ends of the hall, which is two people you walk between
+       rather than choose between. */
+    const span=Math.min((hw-8)*2, (back-1)*9);
+    const x0=-span/2, x1=span/2;
     for(let i=0;i<back;i++){
       const t=back===1?0.5:i/(back-1);
       out.push({ x:x0+t*(x1-x0), z:-hd+6, r:0 });
@@ -1910,8 +1917,7 @@ window.PLANET = (function(){
 
     if(window.AVATAR){
       // never the character the player is wearing: two of you is a bug, not a cast
-      const id = (AVATAR.chosen==='h') ? 'q' : 'h';
-      AVATAR.load(id).then(root=>{
+      AVATAR.load(AVATAR.other()).then(root=>{
         if(!ada || ada.g!==who || !on) return;
         who.add(root); ada.model=root;
       }).catch(()=>{});

@@ -7,7 +7,7 @@
    about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 4;                       // the four you can play as
+  const FREE = 2;                       // both of them, from the first minute
   const PER_MISSION = 0;                // the rest stay shut: set this above zero to
                                         // start handing them out per finished mission
 

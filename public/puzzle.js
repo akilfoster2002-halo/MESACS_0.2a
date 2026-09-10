@@ -76,7 +76,10 @@ window.PUZZLE = (function(){
 
     // guards, as real characters walking their beat
     for(const g of (O.guards||[])){
-      const mesh = await loadChar(g.char||'p');
+      /* Whoever the player is not. It used to be a kit character by name,
+         and the kit is gone — leaving the name would have put a guard on
+         patrol wearing the player's own face. */
+      const mesh = await loadChar(g.char || (window.AVATAR ? AVATAR.other() : 't'));
       const gy = built.heightAt(g.route[0][0]*U, g.route[0][1]*U);
       mesh.position.set(g.route[0][0]*U, gy, g.route[0][1]*U);
       G.roomGroup.add(mesh);

@@ -60,7 +60,11 @@ window.SHOP = (function(){
   /* Characters: the first four are yours, the rest are for sale. They used
      to be locked with no way to earn them, which is a promise the game never
      kept — now the ??? has a price on it. */
-  const FREE_CHARS=4;
+  /* Everybody, free. There are two of them and they are the two this game
+     is about; charging for half the cast is a paywall across the middle of
+     a two-person game. The ladder below still works if a third is ever
+     added — this is how many come free, not how many there are. */
+  const FREE_CHARS=2;
   function charItems(){
     if(!window.AVATAR) return [];
     return AVATAR.CHARS.map((c,i)=>({
