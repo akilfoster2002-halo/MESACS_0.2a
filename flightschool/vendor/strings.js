@@ -1101,7 +1101,24 @@ window.ES = {
   'It says 1, and you need <b>4</b>. Click the number and type <b>4</b>.':
     'Dice 1, y necesitas <b>4</b>. Haz clic en el número y escribe <b>4</b>.',
   'That is the whole program. Press <b>RUN</b>.':
-    'Ese es todo el programa. Pulsa <b>RUN</b>.'
+    'Ese es todo el programa. Pulsa <b>RUN</b>.',
+
+  /* ---------------------------------------------------- VOLTA, AND THE LOOP
+     The club's own words. The four track names stay as they are: KICK,
+     CLAP, HAT and BASS are what they are called on a mixer in Spanish
+     too, and a row labelled BOMBO is a row nobody can look up. */
+  'VOLTA':'VOLTA','KORO':'KORO',
+  'the small loud one':'la pequeña y ruidosa',
+  'everybody lands here':'aquí aterriza todo el mundo',
+  'your home planet':'tu planeta',
+  'THE LOOP':'EL BUCLE',
+  'The floor, and the decks are yours':'La pista, y los platos son tuyos',
+  'THE DECKS':'LOS PLATOS','play the set':'pon la sesión',
+  'The decks are at the back. <b>E</b> to play the set.':
+    'Los platos están al fondo. <b>E</b> para poner la sesión.',
+  'step away':'apartarse','DROP':'DROP','FILTER':'FILTRO','THE FLOOR':'LA PISTA',
+  'Click a square, or <b>1-4</b> pick a row, <b>← →</b> move, <b>space</b> toggle. Every sixteen steps it comes round again — that is the loop.':
+    'Haz clic en un cuadro, o <b>1-4</b> elige una fila, <b>← →</b> mueve, <b>espacio</b> enciende y apaga. Cada dieciséis pasos vuelve a empezar — eso es el bucle.'
 };
 window.LANG = 'en';
 function t(s,p){

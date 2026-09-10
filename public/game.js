@@ -525,6 +525,12 @@ function wireInput(){
     // field: typing "c" into a number slot must not close the editor around
     // it, and typing "p" into the chat must not pause the game.
     if(!typingInField(e)){
+      /* THE DECKS TAKE THE KEYBOARD WHILE THEY ARE UP, and take it first.
+         Arrows walk you round a planet everywhere else, D is a step to the
+         right, and space is a jump — all three are the instrument's while
+         somebody is playing it, and a DJ who moonwalks off the stage every
+         time they nudge the playhead is not a DJ. */
+      if(window.CLUB && CLUB.playing && CLUB.key(e)){ e.preventDefault(); return; }
       /* Find object → select object → program object. Looking at a thing and
          pressing the key opens ITS code, not whatever was open last. */
       /* On the planet E is the door key: look at a station or a building
@@ -575,6 +581,7 @@ function wireInput(){
   canvas.addEventListener('mousedown',()=>{
     if(!G.running) return;
     if(window.CODER && CODER.open) return;   // the editor needs the mouse
+    if(window.CLUB && CLUB.playing) return;  // and so do the decks
     lockPointer(canvas);
   });
   document.addEventListener('pointerlockchange',()=>{ G.locked=!!document.pointerLockElement; });

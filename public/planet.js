@@ -80,6 +80,36 @@ window.PLANET = (function(){
                                        [0.68,0.75,0.78],[0.34,0.38,0.42],[0.44,0.46,0.50]] }
   ];
 
+  /* WHAT GROWS ON A WORLD, because "a planet with a different sky" is the
+     same planet with a filter on it. What actually tells two worlds apart
+     from the ground is the things standing up out of it — so that is a
+     property of the world too, not a constant in scatter().
+
+     KORO grows wood: trees and boulders, a school field with a wood at the
+     edge of it. VOLTA grows glass. Nothing is alive on it; what comes out
+     of the ground is lit from inside, which is the only light there is on a
+     world whose sky is nearly black. */
+  const FLORA={
+    wood:{
+      trunk:0x6b4a34, leaf:0x4f9457, stone:0x7d7a86, tall:0.45,
+      pebble:[0x7d7a86,0x8b8578,0x6e6b74,0x94908a],
+      bud:[0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], budGlow:false
+    },
+    /* Spires and shards. The spire is a tall thin octahedron — four facets a
+       side, so it catches the light differently from every angle without
+       costing more than the cone it replaces — and it is emissive, because
+       on VOLTA it is doing the job the sun does everywhere else. */
+    crystal:{
+      trunk:0x2a1c48, leaf:0xff6ad5, stone:0x3a2a5e, tall:0.55, glow:true,
+      /* Thicker than KORO's woods per square metre, because on a world with
+         no grass, no weather and no animals these are the only thing between
+         two buildings and the horizon. */
+      density:2.4,
+      pebble:[0x3a2a5e,0x2b2044,0x46356e,0x241a3d],
+      bud:[0xff6ad5,0x8ff0ff,0xcdb4f6,0xff9aa2], budGlow:true
+    }
+  };
+
   /* Names, not numbers. "Planet 4713" is a save slot; "Veskaro" is a place. */
   const SYL_A=['Ve','Ta','Ori','Sol','Ky','Nu','Bra','Mel','Zan','Hal','Pyr','Cel',
                'Dro','Ish','Fen','Ora','Lum','Ras','Ther','Vex'];
@@ -129,21 +159,41 @@ window.PLANET = (function(){
     buildings:HUB_BUILDINGS,
     pad:{ lon:-34, lat:-9 }
   };
-  /* ------------------------------------------------------- the fight world
-     A third planet, and it exists for one building. The Gym is not on the
-     hub on purpose: flying somewhere to fight makes the fight an occasion
-     and keeps a room full of people writing missions from being a room
-     full of people challenging each other. Small and bare — there is one
-     thing to do here and the walk to it should be short. */
+  /* ------------------------------------------------------- the night world
+     VOLTA. Two buildings, and you can see both of them from the pad.
+
+     IT IS SMALL ON PURPOSE, and much smaller than it was. KORO is a school
+     with a wood round it and it wants a horizon you cannot see the end of;
+     this is a place you fly to for one evening, and the walk between the
+     door you came in by and the thing you came for should be forty seconds,
+     not four minutes. At a radius of 118 the lap is 741 metres against
+     KORO's two thousand, and the ground visibly falls away — which is the
+     other half of "small": a world you can tell is a ball by standing on it.
+
+     AND IT IS NOT A RECOLOURED KORO. Its own sky, its own soil, and glass
+     coming out of the ground instead of trees — see FLORA. Nothing grows
+     here and nothing is alive out on the surface; the only things that move
+     are inside THE LOOP. */
   const ARENA_BUILDINGS=[
-    { id:'gym', name:'THE GYM', em:'\u{1F916}', lon:0, lat:5, w:36, d:28, h:14, door:9,
-      wall:0x4a3550, roof:0xff9aa2, blurb:'Program a mech and fight' }
+    { id:'gym',  name:'THE GYM',  em:'\u{1F916}', lon:-27, lat:3, w:36, d:28, h:14, door:9,
+      wall:0x2b2340, roof:0xff9aa2, blurb:'Program a mech and fight' },
+    /* Named for what is in it. A DJ set is a loop that keeps going round
+       with things added and taken away, which is the block a student meets
+       in Mission 2 — and here it is a thing you dance to rather than a thing
+       you are marked on. */
+    { id:'club', name:'THE LOOP', em:'\u{1F3A7}', lon:27, lat:3, w:44, d:36, h:16, door:10,
+      wall:0x241a3d, roof:0xff6ad5, blurb:'The floor, and the decks are yours' }
   ];
+  /* Deep indigo up through violet, and never toward green or brown. The
+     brightest step is the one the club's own light falls on. */
+  const NIGHT_SOIL=[[0.09,0.06,0.18],[0.13,0.08,0.25],[0.18,0.11,0.33],
+                    [0.25,0.14,0.41],[0.11,0.07,0.21],[0.15,0.13,0.26]];
   const ARENA_WORLD={
-    id:'arena', kind:'arena', seed:7, name:'VOLTA', sub:'where the mechs fight',
-    radius:200, sky:BIOMES[2].sky, soil:BIOMES[2].soil, biome:'violet', relief:5.0,
+    id:'arena', kind:'arena', seed:7, name:'VOLTA', sub:'the small loud one',
+    radius:118, sky:0x08040f, soil:NIGHT_SOIL, biome:'neon', relief:2.4,
+    flora:'crystal', night:true,
     buildings:ARENA_BUILDINGS,
-    pad:{ lon:0, lat:-11 }
+    pad:{ lon:0, lat:-17 }
   };
   const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD];
   const worldById = id => id==='home' ? homeWorld()
@@ -195,12 +245,17 @@ window.PLANET = (function(){
      building's own frame, so this steps back along that side rather than
      guessing at a latitude — guessing put you behind the building as often
      as in front, which makes "walk to the door" a hunt. */
-  // far enough back to see the whole of whatever you are landing in front of
-  const LANDING_OFF=74;
+  /* Far enough back to see the whole of whatever you are landing in front
+     of — and NOT further, because on a small world "far enough back" walks
+     you over the horizon. Seventy-four metres is 13 degrees of KORO and 36
+     of VOLTA, and at 36 degrees the building you were meant to be looking
+     at has gone below the curve. So it is a fraction of the ball, capped at
+     the distance KORO has always used. */
+  const landingOff = ()=> Math.min(74, PR*0.24);
   function landingSpot(){
     const b=BUILDINGS[0];
     if(!b.frame) return dirOf(b.lon, b.lat-14);
-    return b.dir.clone().applyAxisAngle(b.frame.right, LANDING_OFF/PR).normalize();
+    return b.dir.clone().applyAxisAngle(b.frame.right, landingOff()/PR).normalize();
   }
   /* The tangent at `from` that points along the ground toward `to`. On a
      sphere you cannot subtract two positions and call it a direction — the
@@ -247,6 +302,7 @@ window.PLANET = (function(){
     if(window.CODER) CODER.hide();
     if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.CLUB) CLUB.stop();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
 
@@ -274,6 +330,7 @@ window.PLANET = (function(){
     on=true;
 
     sky();
+    sunLight();                    // day or night, before anything is baked
     padSpec(W);                    // in the list before the ground is made
     surface();
     BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
@@ -281,7 +338,10 @@ window.PLANET = (function(){
     scatter();                     // after the buildings: it works around them
     cover();                       // and the small stuff after the big stuff
     fireflies();                   // and then the things that are alive
-    wildlife(W.kind==='home' ? 10 : 18);
+    /* Nothing walks about on VOLTA. It is a rock somebody put two buildings
+       on, and the fauna the hub has is the hub's — a herd grazing outside a
+       nightclub is a different game. */
+    wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 18);
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
@@ -339,20 +399,27 @@ window.PLANET = (function(){
       color:0xdfe8ff, size:1.8, sizeAttenuation:true }));
     stars.userData.sky=true; G.roomGroup.add(stars);
     const neighbour=new THREE.Mesh(new THREE.SphereGeometry(150,48,32),
-      new THREE.MeshLambertMaterial({color:0x7c5cc4}));
+      new THREE.MeshLambertMaterial({color:W.night ? 0x3a2a5e : 0x7c5cc4}));
     neighbour.position.set(-520,180,-620);
     neighbour.userData.sky=true; G.roomGroup.add(neighbour);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(230,9,10,64),
       new THREE.MeshBasicMaterial({color:0xcdb4f6, transparent:true, opacity:.42}));
     ring.position.copy(neighbour.position); ring.rotation.set(1.15,0.3,0.2);
     ring.userData.sky=true; G.roomGroup.add(ring);
-    const sun=new THREE.Mesh(new THREE.SphereGeometry(34,24,18),
-      new THREE.MeshBasicMaterial({color:0xfff3d0}));
+    /* A star, or the far side of one. VOLTA is a night world — it is the
+       club planet, the sky is nearly black and the ground is lit by what is
+       coming out of it — so the thing up there is small, cold and a long way
+       off, and the light it throws (below) is a moon's rather than a sun's.
+       Same two meshes; three numbers apart. */
+    const NIGHT=!!W.night;
+    const sun=new THREE.Mesh(new THREE.SphereGeometry(NIGHT?16:34,24,18),
+      new THREE.MeshBasicMaterial({color:NIGHT?0xbfd0ff:0xfff3d0}));
     sun.position.set(420,300,-420);
     sun.userData.sky=true; G.roomGroup.add(sun);
     /* A halo, so the star is a light source rather than a white circle. */
-    const halo=new THREE.Mesh(new THREE.SphereGeometry(64,24,18),
-      new THREE.MeshBasicMaterial({color:0xffe9b0, transparent:true, opacity:0.18,
+    const halo=new THREE.Mesh(new THREE.SphereGeometry(NIGHT?34:64,24,18),
+      new THREE.MeshBasicMaterial({color:NIGHT?0xa8b8ff:0xffe9b0, transparent:true,
+                                   opacity:NIGHT?0.12:0.18,
                                    side:THREE.BackSide, depthWrite:false}));
     halo.position.copy(sun.position);
     halo.userData.sky=true; G.roomGroup.add(halo);
@@ -629,26 +696,41 @@ window.PLANET = (function(){
     const arc=a.angleTo(b.dir);
     return dir.angleTo(a)<arc+0.06 && dir.angleTo(b.dir)<arc+0.06;
   }
+  const floraOf = ()=> FLORA[W.flora||'wood'] || FLORA.wood;
   function scatter(){
-    const trunk=new THREE.MeshLambertMaterial({color:0x6b4a34});
-    const leaf =new THREE.MeshLambertMaterial({color:0x4f9457});
-    const stone=new THREE.MeshLambertMaterial({color:0x7d7a86});
+    const F=floraOf();
+    const trunk=new THREE.MeshLambertMaterial({color:F.trunk});
+    /* Emissive rather than lit, on a world where nothing is lighting it. A
+       Lambert crystal on VOLTA is a black lump with a rim on it. */
+    const leaf = F.glow ? new THREE.MeshBasicMaterial({color:F.leaf})
+                        : new THREE.MeshLambertMaterial({color:F.leaf});
+    const stone=new THREE.MeshLambertMaterial({color:F.stone});
     /* Four times the surface needs more on it, but every tree is two meshes
        and a school laptop pays for each one — so this is a compromise, and
        rocks (one mesh) get the larger share. */
     /* Four hundred over the whole ball rather than eight hundred and twenty.
-       A tree every so often is scenery; a tree every few paces is scrub. */
-    for(let i=0;i<400;i++){
+       A tree every so often is scenery; a tree every few paces is scrub.
+       PER UNIT OF SURFACE, though — four hundred spread over VOLTA is seven
+       times the density it is on KORO, and a wood you cannot walk through is
+       not scenery either. */
+    const n=Math.round(400*(F.density||1)*Math.min(1, (PR*PR)/(320*320)));
+    for(let i=0;i<n;i++){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
       if(BUILDINGS.some(b=>dir.angleTo(dirOf(b.lon,b.lat))*PR < b.w*1.2)) continue;
       if(onPath(dir)) continue;               // and not in the way of the door
       const g=new THREE.Group();
-      if(Math.random()<0.45){
+      if(Math.random()<F.tall){
         const h=3+Math.random()*3;
         const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.42,h,6), trunk);
         t1.position.y=h/2; g.add(t1);
-        const c=new THREE.Mesh(new THREE.IcosahedronGeometry(1.5+Math.random(),0), leaf);
+        /* A crown or a point. Both are one mesh on top of one stalk; the
+           difference between a tree and a spire is which solid it is and
+           whether it is lit from outside or from within. */
+        const c = F.glow
+          ? new THREE.Mesh(new THREE.OctahedronGeometry(1.1+Math.random()*0.7, 0), leaf)
+          : new THREE.Mesh(new THREE.IcosahedronGeometry(1.5+Math.random(), 0), leaf);
+        if(F.glow) c.scale.set(0.55, 1.9+Math.random(), 0.55);
         c.position.y=h+0.9; g.add(c);
       } else {
         const s=new THREE.Mesh(new THREE.IcosahedronGeometry(0.7+Math.random()*1.2,0), stone);
@@ -677,7 +759,8 @@ window.PLANET = (function(){
     const o=opts||{};
     const town=townDir(), fr=frameAt(town,0);
     const mesh=new THREE.InstancedMesh(geo,
-      new THREE.MeshLambertMaterial({ vertexColors:false }), count);
+      o.glow ? new THREE.MeshBasicMaterial({ vertexColors:false })
+             : new THREE.MeshLambertMaterial({ vertexColors:false }), count);
     mesh.castShadow=false; mesh.receiveShadow=true;   // too small to be worth a shadow
     mesh.userData.flat=true;
     const m=new THREE.Matrix4(), q=new THREE.Quaternion(), col=new THREE.Color();
@@ -732,16 +815,22 @@ window.PLANET = (function(){
      everything scattered here has to earn its place by being far enough from
      the last one to be seen as a separate thing. */
   function cover(){
+    const F=floraOf();
+    /* Both counts are for a world the size of KORO. Scaled by area, because
+       nine hundred pebbles on a ball a third the width is a gravel pit. */
+    const per = k => Math.round(k*Math.min(1, (PR*PR)/(320*320)));
     // pebbles, sparse, so bare ground has something to catch the light
     const peb=new THREE.IcosahedronGeometry(0.24, 0);
     peb.translate(0, 0.12, 0);
-    plant(peb, [0x7d7a86,0x8b8578,0x6e6b74,0x94908a], 900,
-          {min:0.7, max:1.9, townR:320, nearTown:0.5});
-    // and the occasional thing in flower, so the ground is not only green
+    plant(peb, F.pebble, per(900),
+          {min:0.7, max:1.9, townR:Math.min(320,PR), nearTown:0.5});
+    /* And the occasional thing in flower, so the ground is not only green —
+       or on VOLTA, the occasional thing that is lit, so the ground is not
+       only dark. Same instanced mesh, one flag apart. */
     const bud=new THREE.IcosahedronGeometry(0.16, 0);
     bud.translate(0, 0.62, 0);
-    plant(bud, [0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], 420,
-          {min:0.8, max:1.4, townR:260, nearTown:0.7});
+    plant(bud, F.bud, per(420),
+          {min:0.8, max:1.4, townR:Math.min(260,PR), nearTown:0.7, glow:F.budGlow});
   }
 
   /* ------------------------------------------------------- ray-traced light
@@ -985,8 +1074,21 @@ window.PLANET = (function(){
     put( (gap/2+side/2), hd, side, 1);
     put(0, hd, gap, 1, H-DOOR, DOOR);        // lintel, above head height
 
-    const roof=new THREE.Mesh(new THREE.BoxGeometry(b.w+2.4, 0.8, b.d+2.4),
-      new THREE.MeshLambertMaterial({color:b.roof}));
+    /* A DARK UNDERSIDE. A roof is a pastel slab so that it reads from the
+       air and across a field, and on KORO that is the only way you ever see
+       one. VOLTA is small enough that standing thirty metres from a building
+       puts your eye well below its eaves — the ground has curved that far in
+       thirty metres — and the first thing you saw of the Gym was two hundred
+       square metres of the wrong side of its lid. The overhang is trimmed and
+       the -y face is painted the shadow it should have been. */
+    const lid=new THREE.MeshLambertMaterial({color:b.roof});
+    /* A twentieth, and that is not a typo: THREE.Color holds linear values
+       and prints sRGB ones, so scaling by 0.05 here comes out around 24% on
+       screen. Scaling by "0.22" gave a mid pink. */
+    const under=new THREE.MeshLambertMaterial({
+      color:new THREE.Color(b.roof).multiplyScalar(0.05) });
+    const roof=new THREE.Mesh(new THREE.BoxGeometry(b.w+0.8, 0.8, b.d+0.8),
+      [lid, lid, lid, under, lid, lid]);       // +x -x +y -y +z -z
     roof.position.y=H+0.4;
     /* Marked as a lid, which means the ray-traced pass ignores it. A roof
        blocks the sky over the whole room, so counting it turns the entire
@@ -1036,6 +1138,12 @@ window.PLANET = (function(){
       });
     } else if(b.id==='gym'){
       gymroom(g, b, hw, hd);
+    } else if(b.id==='club'){
+      /* The club owns itself — its floor, its crowd, its lights and the
+         sound coming out of it are one thing and it is not this file's. All
+         it wants from the planet is the tools every interior uses. */
+      if(window.CLUB) CLUB.room(g, b, hw, hd, { panel, lam, t });
+      else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
     } else if(b.id==='mall'){
       mallroom(g, b, hw, hd);
     } else if(b.id==='mechanic'){
@@ -1070,7 +1178,13 @@ window.PLANET = (function(){
      smaller circle puts about a hundred and fifty in view. */
   let flies=null, flyHome=null, flyPhase=null, flyT=0;
   // and the texture is thrown away with the room, like everything else here
-  const FLIES=4000, FLY_R=170;
+  /* Four thousand over a hundred and seventy metres of KORO. Both numbers
+     are about a DENSITY, so both follow the ball: on VOLTA a 170-metre
+     cloud is wider than the planet, and four thousand of them inside it put
+     a firefly every few centimetres — which is not a summer evening, it is
+     fog. */
+  const FLIES_AT=4000, FLY_R_AT=170;
+  let FLIES=FLIES_AT, FLY_R=FLY_R_AT;
   /* A point with no texture is a SQUARE, and a field of one-metre white
      squares bobbing over the grass looks like a printing error rather than
      an insect. A soft round falloff is the whole difference. */
@@ -1090,6 +1204,8 @@ window.PLANET = (function(){
     return sparkTex;
   }
   function fireflies(){
+    FLY_R=Math.min(FLY_R_AT, PR*0.55);
+    FLIES=Math.round(FLIES_AT*Math.min(1, (FLY_R*FLY_R)/(FLY_R_AT*FLY_R_AT)));
     const town=townDir(), fr=frameAt(town,0);
     const pos=new Float32Array(FLIES*3);
     flyHome=new Array(FLIES);
@@ -1113,8 +1229,13 @@ window.PLANET = (function(){
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    /* Warm on a green world, cold on a violet one. Fireflies over grass and
+       whatever the glass on VOLTA is giving off are the same four thousand
+       points and the same one draw call; the colour is the whole difference
+       and it is the difference between a summer evening and a night out. */
     flies=new THREE.Points(g, new THREE.PointsMaterial({
-      color:0xfff0a0, size:0.62, sizeAttenuation:true, map:sparkTexture(),
+      color:(W.flora==='crystal') ? 0xc9a8ff : 0xfff0a0,
+      size:0.62, sizeAttenuation:true, map:sparkTexture(),
       transparent:true, opacity:0.95, depthWrite:false,
       blending:THREE.AdditiveBlending }));
     flies.frustumCulled=false;
@@ -2149,6 +2270,8 @@ window.PLANET = (function(){
 
   function walk(dt){
     if(!on || !me.dir) return;
+    // hands on the decks, not on the keys: WASD is the grid's while it is up
+    if(window.CLUB && CLUB.playing) return;
     const up=me.dir.clone().normalize();
 
     /* The mouse steers you on foot, and only turns your head in a car. */
@@ -2340,6 +2463,7 @@ window.PLANET = (function(){
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
                || id==='league' || id==='pvp' || id==='mecha'
+               || id==='club' || id==='decks'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
                || id==='takeship'
@@ -2367,6 +2491,11 @@ window.PLANET = (function(){
       document.querySelector('#hud').classList.remove('hidden');
       return MECH.start({ pvp:id==='pvp' });
     }
+    /* The decks do not take you anywhere. You are already standing at
+       them — the room is the point — so the set opens over the world the
+       way the Library does, and walking is held until you step away. */
+    if(id==='decks'){ if(window.CLUB) CLUB.take(); return; }
+    if(id==='club'){ say(t('The decks are at the back. <b>E</b> to play the set.')); return; }
     if(id==='takeship'){
       if(hasShip()){ say(t('It is already yours — it is on <b>THE PAD</b>.')); return; }
       takeShip(); return;
@@ -2524,6 +2653,21 @@ window.PLANET = (function(){
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
     mallTick(dt);
+    /* HOW MUCH OF THE CLUB YOU CAN HEAR, which is the club's business except
+       for the one thing only the planet knows: where you are standing. One
+       inside the room, falling off to nothing over the twenty metres outside
+       the door — so it leaks out onto the ground the way a club does, and is
+       silent from the Gym. */
+    if(window.CLUB && CLUB.active){
+      const cb=BUILDINGS.find(x=>x.id==='club');
+      let near=0;
+      if(cb && cb.dir){
+        const d=me.dir.angleTo(cb.dir)*PR;
+        const inner=Math.max(cb.w,cb.d)/2;
+        near = d<=inner ? 1 : Math.max(0, 1-(d-inner)/22);
+      }
+      CLUB.tick(dt, near);
+    }
     flyTick(dt); beastTick(dt);
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
@@ -2575,6 +2719,16 @@ window.PLANET = (function(){
      of a tower; at thirty it lays the whole tower across the grass, and it is
      the length of the shadow that tells you how tall the thing is. */
   const SUN_UP=120, SUN_SIDE=150, SUN_FWD=76;
+  /* And how BRIGHT it is, which is a property of the world. A directional
+     light at 1.62 is midday; on VOLTA it makes a black-skied planet read as
+     an overcast afternoon, and it washed out every emissive thing the world
+     is actually lit by. A fifth of it, gone cold, is a moon. */
+  const DAY={ i:1.62, c:0xfff2e0 }, NIGHT={ i:0.34, c:0xb9c8ff };
+  function sunLight(){
+    const s=G.sun; if(!s) return;
+    const k=W.night ? NIGHT : DAY;
+    s.intensity=k.i; s.color.setHex(k.c);
+  }
   function sunAt(){
     const s=G.sun; if(!s || !me.dir) return;
     const up=me.dir.clone().normalize();
@@ -2701,8 +2855,13 @@ window.PLANET = (function(){
   function drawMap(){
     const c=document.querySelector('#pmapC'); if(!c || !me.dir) return;
     const wrap=document.querySelector('#pmap'); if(wrap) wrap.classList.remove('hidden');
-    const x=c.getContext('2d'), W=c.width, H=c.height, cx=W/2, cy=H/2, R=W/2-8;
-    x.clearRect(0,0,W,H);
+    /* CW and CH, not W and H. `W` is THE WORLD in every other function in
+       this file, and calling the canvas width W here shadowed it for the
+       whole of this one — so the label at the bottom read t(undefined) and
+       came out blank rather than wrong, which is the kind of wrong nobody
+       reports. */
+    const x=c.getContext('2d'), CW=c.width, CH=c.height, cx=CW/2, cy=CH/2, R=CW/2-8;
+    x.clearRect(0,0,CW,CH);
 
     const up=me.dir.clone().normalize();
     const fwd=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
@@ -2751,14 +2910,19 @@ window.PLANET = (function(){
     x.beginPath();
     x.moveTo(cx, cy-7); x.lineTo(cx-5, cy+5); x.lineTo(cx+5, cy+5);
     x.closePath(); x.fill();
+    /* THE NAME OF THE BALL YOU ARE STANDING ON. It used to be the name of
+       the multiplayer lobby, which offline is nothing, so it said HOME
+       PLANET — on KORO, and on VOLTA, and on the home planet, all three.
+       Every world has had a name of its own since there was more than one
+       of them. */
     const nm=document.querySelector('#pmapName');
-    if(nm) nm.textContent = server && server.id ? t(server.name) : t('HOME PLANET');
+    if(nm) nm.textContent = t(W.name);
   }
 
   /* ---------------------------------------------------------------- HUD */
   function hud(){
     const n=document.querySelector('#missionName');
-    if(n) n.textContent = server && server.id ? t(server.name) : t('Home Planet');
+    if(n) n.textContent = t(W.name) + (W.sub ? ' \u2014 '+t(W.sub) : '');
     /* What is on THIS ball. It used to be the hub's four buildings written
        out by hand, which read as a lie the moment you flew anywhere: a
        student standing on the fight world was being told where the Library
@@ -2779,6 +2943,7 @@ window.PLANET = (function(){
     if(on && me.dir) backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
     on=false;
     if(window.MUSIC) MUSIC.stop();      // whatever you walked into, it is not out here
+    if(window.CLUB) CLUB.stop();        // and the club does not follow you off the planet
     // whatever we are walking into, we are not out here any more
     wentTo('inside');
     /* Let the last tour step notice it is done, then take the card away — its
@@ -2794,7 +2959,9 @@ window.PLANET = (function(){
     // buffer stretched to eighteen hundred fights with itself at that size
     G.camera.near=0.1; G.camera.far=220; G.camera.updateProjectionMatrix();
     if(G.sun){ G.sun.position.set(48,96,34); G.sun.target.position.set(0,0,0);
-               G.sun.target.updateMatrixWorld(); }
+               G.sun.target.updateMatrixWorld();
+               // and its daylight, or every flat room after VOLTA is a night room
+               G.sun.intensity=DAY.i; G.sun.color.setHex(DAY.c); }
   }
   function stop(){ leave(); }
 
