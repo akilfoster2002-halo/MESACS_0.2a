@@ -497,7 +497,15 @@ window.CLUB = (function(){
       const wave=Math.max(0, 1-Math.abs(rad-ph*1.25)*3.4);
       const base=0.035+0.06*energy;
       const lit=base + wave*(0.20+0.26*energy) + punch*0.05*energy + dropHit*0.34;
-      const hue=(0.86 - rad*0.22 + t0*0.03 + dropHit*0.20) % 1;
+      /* The drop does NOT change the colour. Shifting the hue on top of the
+         brightness turned the floor lime for two seconds — a different room,
+         not the same room hit harder. It gets brighter and it strobes; that
+         is what a drop is. */
+      /* A DRIFT, NOT A CYCLE. At 0.03 a second the floor went right round
+         the wheel in half a minute — through the greens and yellows, which
+         is a different room rather than the same room later. A twentieth of
+         that stays in the violets it is lit by. */
+      const hue=(0.86 - rad*0.22 + t0*0.0015) % 1;
       /* Capped WELL below white. A dance floor is the brightest thing in the
          room and still the darkest thing in the game — every value above
          about a half comes back as a pastel once the tone mapping has had
