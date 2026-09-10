@@ -1174,7 +1174,11 @@ window.ES = {
     '(+,+) luego (-,+) luego (-,-) luego (+,-). Dando la vuelta, solo cambia un signo cada vez.',
 
   'Wherever You Land':'Donde Sea Que Caigas',
-  'This is why absolute exists':'Para esto existe lo absoluto'
+  'This is why absolute exists':'Para esto existe lo absoluto',
+
+  /* the hint, which is where the answer used to be */
+  'Hint':'Pista','Show the whole thing':'Enséñamelo entero',
+  'Start with this':'EMPIEZA CON ESTO','The whole thing':'TODO'
 };
 window.LANG = 'en';
 function t(s,p){

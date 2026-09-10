@@ -198,3 +198,57 @@ test('an angle snaps to the mission\'s turn step, not always to a quarter', ()=>
   assert.match(code, /const ANGLE=\{[^}]*turnR[^}]*\}/,
     'and it knows which blocks carry degrees');
 });
+
+test('Flight School does not print the answer next to the question', ()=>{
+  const school = read('public/school.js');
+  const code = read('public/code.js');
+
+  /* This mission SETS a problem. The console used to print the worked
+     example beside the brief, which is right for the tutorial and the
+     corridor — those are demonstrations, and copying the thing you are
+     shown IS the exercise — and wrong here. */
+  assert.match(school, /CODE\.setGuide\(Object\.assign\(\{ hint:true \}/,
+    'Flight School asks for its worked example to be hidden');
+
+  const guide = code.slice(code.indexOf('function drawGuide'),
+                           code.indexOf('function drawGuide') + 2600);
+  assert.match(guide, /const behind = !!guide\.hint/,
+    'the console honours that flag');
+  assert.match(guide, /hintAt===0/, 'and shows a button before it shows anything');
+  /* Two goes, not one: the first block is usually the whole idea. */
+  assert.match(guide, /lines\.slice\(0,1\)/, 'the first hint is the first block');
+
+  /* And nothing is locked. A student who wants the answer gets the answer;
+     the toll is asking. */
+  assert.match(guide, /hintAt===1 \? lines\.slice\(0,1\) : lines/,
+    'the second press gives the whole thing');
+});
+
+test('every other mission keeps its worked example on the card', ()=>{
+  /* The flag is opt-in, so the demonstrations are untouched. If this ever
+     fails it means the hint was made the default, which is a decision about
+     five other missions and should be made on purpose. */
+  const code = read('public/code.js');
+  const guide = code.slice(code.indexOf('function drawGuide'),
+                           code.indexOf('function drawGuide') + 2600);
+  assert.match(guide, /if\(!behind\)\{[\s\S]{0,140}cg-code/,
+    'a guide without the flag still prints its code');
+  for(const f of ['nav.js', 'tutorial.js', 'race.js']){
+    const src = read('public/' + f);
+    assert.ok(/setGuide\(\{[\s\S]{0,200}code:/.test(src),
+      `${f} still hands its worked example straight to the card`);
+    assert.ok(!/hint:true/.test(src), `${f} has not been opted in by accident`);
+  }
+});
+
+test('a hint stays given across a retry, and goes back for a new level', ()=>{
+  const code = read('public/code.js');
+  const set = code.slice(code.indexOf('function setGuide'),
+                         code.indexOf('function setGuide') + 700);
+  /* Every mission tears its guide down on the way out and sets it up again
+     on the way in, so resetting whenever the guide changes at all made a
+     retry charge you for the answer twice. */
+  assert.match(set, /if\(g\)\{/, 'clearing the guide does not reset the hint');
+  assert.match(set, /if\(key!==guideKey\)\{ guideKey=key; hintAt=0; \}/,
+    'only a different question does');
+});

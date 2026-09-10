@@ -363,7 +363,13 @@ window.SCHOOL = (function(){
     if(CODE.hideTape) CODE.hideTape();   // the last level's run, still reading out
     // after setPalette, which resets it — see the note there
     if(CODE.setTurnStep) CODE.setTurnStep(K.turnStep || 90);
-    if(K.learn) CODE.setGuide(K.learn);
+    /* The idea stays on the card; the worked example goes behind a button.
+       This mission SETS a problem, and an answer printed beside the
+       question is not a problem anybody solves twice. Every other mission
+       leaves its guide as it was — the tutorial and the corridor are
+       demonstrations, where copying the thing you are shown IS the
+       exercise. One flag apart. */
+    if(K.learn) CODE.setGuide(Object.assign({ hint:true }, K.learn));
     hud(); say(t(K.brief));
     // the walkthrough belongs to level one and follows nobody into level two
     if(window.COACH) COACH.stop();

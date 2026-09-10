@@ -684,6 +684,28 @@ window.CODE = (function(){
 
   /* the walkthrough, so the thing you are copying is in front of you while
      you write it instead of behind the console */
+  /* THE ANSWER IS NOT ON THE SAME CARD AS THE QUESTION.
+
+     This used to print the mission's worked example beside its brief, and
+     for the missions that are demonstrations — the tutorial, the corridor —
+     that is right: you are being shown a thing, and copying it is the
+     exercise. Flight School is not that. It sets a problem and then had the
+     answer sitting two inches away in a monospace box, which is not a
+     puzzle anybody solves twice.
+
+     So a mission can ask for the code to be HIDDEN behind a button, and
+     then it comes out in two goes: the first block, and only after that the
+     whole thing. Two presses rather than one because the first block is
+     usually the whole idea and the rest is repeating it — and because
+     asking twice is a small enough toll to be fair and large enough to be
+     worth thinking first. Nothing is locked: a student who wants the answer
+     gets the answer. They just have to say so. */
+  let hintAt=0;
+  /* The worked example is written by the mission, not by anybody playing —
+     but it goes into a <pre> through innerHTML, and a lesson about angles
+     will sooner or later want to write a < in one. */
+  const esc = v => String(v==null?'':v)
+    .replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   function drawGuide(){
     const g=el.querySelector('#conGuide');
     if(!guide || !(guide.brief||guide.name||guide.text||guide.code)){
@@ -692,14 +714,35 @@ window.CODE = (function(){
     g.classList.remove('hidden');
     const skill = (guide.name||guide.text)
       ? `<div class="cg-skill"><b>${t(guide.name||'')}</b>${t(guide.text||'')}</div>` : '';
+
+    const lines=String(guide.code||'').split('\n').filter(l=>l.trim());
+    const behind = !!guide.hint && lines.length > 0;
+    let right='';
+    if(!behind){
+      right = guide.code ? `<pre class="cg-code">${esc(guide.code)}</pre>` : '';
+    } else if(hintAt===0){
+      right = `<button class="cg-hint" id="conHintBtn">\u{1F4A1} ${t('Hint')}</button>`;
+    } else {
+      const shown = hintAt===1 ? lines.slice(0,1) : lines;
+      const more  = hintAt===1 && lines.length>1
+        ? `<button class="cg-hint" id="conHintBtn">${t('Show the whole thing')}</button>` : '';
+      right = `<div class="cg-hinted">
+          <div class="cg-hintlbl">${t(hintAt===1 && lines.length>1
+              ? 'Start with this' : 'The whole thing')}</div>
+          <pre class="cg-code">${esc(shown.join('\n'))}</pre>${more}
+        </div>`;
+    }
+
     g.innerHTML=`<div class="con-lbl">${t('WHAT YOU ARE WRITING')}</div>
       <div class="cg-row">
         <div class="cg-txt">
           ${guide.brief ? `<div class="cg-brief">${t(guide.brief)}</div>` : ''}
           ${skill}
         </div>
-        ${guide.code ? `<pre class="cg-code">${guide.code}</pre>` : ''}
+        ${right}
       </div>`;
+    const hb=g.querySelector('#conHintBtn');
+    if(hb) hb.onclick=()=>{ hintAt++; drawGuide(); };
   }
   function hint(msg, kind){
     if(!el) return;
@@ -1100,7 +1143,24 @@ window.CODE = (function(){
     if(mode==='text'){ const ta=el.querySelector('#conTA'); ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length); }
   }
-  function setGuide(g){ guide = g || null; if(el && open) draw(); }
+  /* A NEW GUIDE IS A NEW QUESTION, so the hint goes back in its box. It is
+     keyed on the code rather than on object identity: a mission that hands
+     over the same level twice — a retry — should not have to earn the hint
+     again, and one that moves on should. */
+  let guideKey=null;
+  function setGuide(g){
+    /* Only a DIFFERENT question puts the hint back in its box. Clearing the
+       guide does not — every mission tears its guide down on the way out
+       and sets it up again on the way in, so keying on "is there one" meant
+       a retry of the same level made you ask for the answer a second time
+       after you had already been given it. */
+    if(g){
+      const key=String(g.name||'')+'|'+String(g.code||'');
+      if(key!==guideKey){ guideKey=key; hintAt=0; }
+    }
+    guide = g || null;
+    if(el && open) draw();
+  }
   function close(){ open=false; if(el) el.classList.add('hidden'); }
   function isOpen(){ return open; }
 

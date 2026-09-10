@@ -1220,6 +1220,15 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cg-skill b{display:block;color:var(--mint);font-size:15px;margin-bottom:2px}
 .cg-code{margin:0;background:#1d1730;border:2px solid var(--line);border-radius:9px;padding:7px 11px;
   font-size:13.5px;color:var(--sky);white-space:pre;min-width:140px}
+/* THE HINT. It sits where the answer used to sit, so the card does not
+   change shape when it is pressed — a panel that jumps when you ask for
+   help is a panel that has moved the thing you were reading. */
+.cg-hint{background:#2a1c48;border:2px solid var(--line);border-bottom-width:4px;
+  color:var(--star);border-radius:11px;padding:9px 15px;font-family:var(--font);
+  font-size:14.5px;white-space:nowrap;align-self:flex-start}
+.cg-hint:hover{border-color:var(--star);background:#33215a}
+.cg-hinted{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.cg-hintlbl{font-size:11px;letter-spacing:1.4px;color:var(--muted)}
 .wordbank{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start}
 .word{background:var(--c);border:none;border-radius:9px;padding:7px 10px;color:#fff;font:inherit;
   font-size:15px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3)}
@@ -1888,48 +1897,48 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='387';</script>
-<script src="lib/three.classic.js?v=387"></script>
-<script src="strings.js?v=387"></script>
-<script src="music.js?v=387"></script>
-<script src="net.js?v=387"></script>
-<script src="avatar.js?v=387"></script>
-<script src="zombies.js?v=387"></script>
-<script src="building.js?v=387"></script>
-<script src="levels.js?v=387"></script>
-<script src="program.js?v=387"></script>
-<script src="code.js?v=387"></script>
-<script src="mechsim.js?v=387"></script>
-<script src="mech.js?v=387"></script>
-<script src="intro.js?v=387"></script>
-<script src="mechacode.js?v=387"></script>
-<script src="mechaarena.js?v=387"></script>
-<script src="mecha.js?v=387"></script>
-<script src="workshop.js?v=387"></script>
-<script src="combat.js?v=387"></script>
-<script src="puzzle.js?v=387"></script>
-<script src="nav.js?v=387"></script>
-<script src="tutorial.js?v=387"></script>
-<script src="race.js?v=387"></script>
-<script src="flight.js?v=387"></script>
-<script src="sub.js?v=387"></script>
-<script src="school.js?v=387"></script>
-<script src="cruise.js?v=387"></script>
-<script src="club.js?v=387"></script>
-<script src="planet.js?v=387"></script>
-<script src="wallet.js?v=387"></script>
-<script src="shop.js?v=387"></script>
-<script src="library.js?v=387"></script>
-<script src="costumes.js?v=387"></script>
-<script src="missions.js?v=387"></script>
-<script src="coach.js?v=387"></script>
-<script src="owner.js?v=387"></script>
-<script src="blocks.js?v=387"></script>
-<script src="vm.js?v=387"></script>
-<script src="coder.js?v=387"></script>
-<script src="quiz.js?v=387"></script>
-<script src="chars.js?v=387"></script>
-<script src="menu.js?v=387"></script>
-<script src="game.js?v=387"></script>
+<script>window.ASSETV='389';</script>
+<script src="lib/three.classic.js?v=389"></script>
+<script src="strings.js?v=389"></script>
+<script src="music.js?v=389"></script>
+<script src="net.js?v=389"></script>
+<script src="avatar.js?v=389"></script>
+<script src="zombies.js?v=389"></script>
+<script src="building.js?v=389"></script>
+<script src="levels.js?v=389"></script>
+<script src="program.js?v=389"></script>
+<script src="code.js?v=389"></script>
+<script src="mechsim.js?v=389"></script>
+<script src="mech.js?v=389"></script>
+<script src="intro.js?v=389"></script>
+<script src="mechacode.js?v=389"></script>
+<script src="mechaarena.js?v=389"></script>
+<script src="mecha.js?v=389"></script>
+<script src="workshop.js?v=389"></script>
+<script src="combat.js?v=389"></script>
+<script src="puzzle.js?v=389"></script>
+<script src="nav.js?v=389"></script>
+<script src="tutorial.js?v=389"></script>
+<script src="race.js?v=389"></script>
+<script src="flight.js?v=389"></script>
+<script src="sub.js?v=389"></script>
+<script src="school.js?v=389"></script>
+<script src="cruise.js?v=389"></script>
+<script src="club.js?v=389"></script>
+<script src="planet.js?v=389"></script>
+<script src="wallet.js?v=389"></script>
+<script src="shop.js?v=389"></script>
+<script src="library.js?v=389"></script>
+<script src="costumes.js?v=389"></script>
+<script src="missions.js?v=389"></script>
+<script src="coach.js?v=389"></script>
+<script src="owner.js?v=389"></script>
+<script src="blocks.js?v=389"></script>
+<script src="vm.js?v=389"></script>
+<script src="coder.js?v=389"></script>
+<script src="quiz.js?v=389"></script>
+<script src="chars.js?v=389"></script>
+<script src="menu.js?v=389"></script>
+<script src="game.js?v=389"></script>
 </body>
 </html>
