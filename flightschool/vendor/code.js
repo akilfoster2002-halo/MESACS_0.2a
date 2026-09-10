@@ -183,6 +183,28 @@ window.CODE = (function(){
   const condColour = c => CONDCOL[c] || '#8fd3ff';
 
   /* ------------------------------------------------------------ model */
+  /* WHAT A BLOCK STARTS AT.
+
+     Every block that carries a number needs one, and this used to be a
+     chain of ifs — a list somebody had to remember to add to. The four
+     Motion blocks were added to NUMBLK and not to that chain, so `move`
+     came off the shelf reading "move undefined steps": not an error, not a
+     warning, just the word `undefined` in a box in front of a nine-year-old.
+
+     A table with a fallback cannot do that. A block missing from it starts
+     at zero, which may be the wrong number but is at least a number.
+
+       x = 2 is a lane number and starts at the middle lane;
+       x = x + 2 is a signed step and starts at one, because zero is a
+       block that does nothing;
+       an angle starts at a quarter turn, except `point in direction`,
+       which is a heading rather than an amount and starts facing East. */
+  const START={ setX:0, setY:0, addX:1, addY:1, turn:90,
+                move:1, turnR:90, turnL:90, point:0 };
+  /* The blocks whose number is a number of DEGREES, and which therefore
+     snap to the mission's turn step. */
+  const ANGLE={ turn:1, turnR:1, turnL:1, point:1 };
+
   function makeBlock(type){
     const b={id:uid++, type};
     if(type==='repeat'){ b.count=3; b.body=[]; }
@@ -191,10 +213,7 @@ window.CODE = (function(){
     if(type==='define'){ b.body=[]; }
     if(type==='goTo'||type==='glide'){ b.col=0; b.row=0; }   // centre of a centred grid
     if(type==='glide') b.secs=1;
-    // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
-    if(type==='setX'||type==='setY') b.n=0;    // the middle lane, on a centred grid
-    if(type==='addX'||type==='addY') b.n=1;
-    if(type==='turn') b.n=90;
+    if(NUMBLK[type]) b.n = START[type]===undefined ? 0 : START[type];
     return b;
   }
   function addBlock(type, n){
@@ -631,25 +650,31 @@ window.CODE = (function(){
         </div>`;
     }
     if(b.type==='goTo'||b.type==='glide'){
-      // two little counters rather than a typed number: a nine-year-old can
-      // read a lane off the screen and click to it, and it cannot go out of
-      // bounds by construction
-      const step=(what,val)=>`
-        <span class="blk-times">${t(what)}</span>
-        ${readonly?'':`<button class="cnt" data-act="${what}-" data-id="${b.id}">−</button>`}
-        <span class="cnt-n">${val}</span>
-        ${readonly?'':`<button class="cnt" data-act="${what}+" data-id="${b.id}">+</button>`}`;
+      /* A BOX YOU TYPE IN, not a pair of arrows.
+
+         These were two little steppers on the argument that a child can
+         read a lane off the screen and click to it, and that it cannot go
+         out of bounds by construction. On a nine-wide four-quadrant board
+         that argument stops paying: getting from 0 to -4 is four clicks on
+         a button the size of a fingernail, and every other number in this
+         language — every `change x by`, every `turn` — is already typed. It
+         is also the shape Scratch uses, which is the shape these students
+         have open in the other window. Bounds are enforced on the way out
+         instead of by construction. */
+      const num=(field,val,lead)=>
+        (lead?`<span class="blk-times">${lead}</span>`:'')
+        + (readonly ? `<span class="cnt-n">${val}</span>`
+          : `<input class="numin" type="text" inputmode="numeric"
+               data-num="${b.id}" data-field="${field}" value="${val}" size="3"
+               aria-label="${t(d.label)} ${lead||field}">`);
       /* Glide carries a THIRD number: how long it takes. goTo does not,
          because goTo is the one that does not take any time — that is the
          whole difference between them and the seconds are where it shows. */
-      const secs = b.type!=='glide' ? '' : `
-        ${readonly?'':`<button class="cnt" data-act="sec-" data-id="${b.id}">−</button>`}
-        <span class="cnt-n">${b.secs===undefined?1:b.secs}</span>
-        <span class="blk-times">${t('secs to')}</span>
-        ${readonly?'':`<button class="cnt" data-act="sec+" data-id="${b.id}">+</button>`}`;
+      const secs = b.type!=='glide' ? '' :
+        num('secs', b.secs===undefined?1:b.secs) + `<span class="blk-times">${t('secs to')}</span>`;
       return `<div class="blk" data-id="${b.id}" style="--c:${d.color}">
           <span class="blk-name">${b.type==='glide'?t('glide'):d.label}</span>
-          ${secs}${step('col',b.col)}${step('row',b.row)}
+          ${secs}${num('col', b.col, 'x:')}${num('row', b.row, 'y:')}
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
     }
@@ -867,14 +892,6 @@ window.CODE = (function(){
         if(btn.dataset.act==='inc' && b) b.count=Math.min(20,b.count+1);
         if(btn.dataset.act==='dec' && b) b.count=Math.max(1,b.count-1);
         if(btn.dataset.act==='cond' && b) b.cond = CONDS[(CONDS.indexOf(b.cond)+1)%CONDS.length];
-        // and the little steppers go the same distance either side of zero
-        if(btn.dataset.act==='col+' && b) b.col=clampCol(b.col+1);
-        if(btn.dataset.act==='col-' && b) b.col=clampCol(b.col-1);
-        if(btn.dataset.act==='row+' && b) b.row=clampRow(b.row+1);
-        if(btn.dataset.act==='row-' && b) b.row=clampRow(b.row-1);
-        const sec = v => Math.max(1, Math.min(9, v));
-        if(btn.dataset.act==='sec+' && b) b.secs=sec((b.secs===undefined?1:b.secs)+1);
-        if(btn.dataset.act==='sec-' && b) b.secs=sec((b.secs===undefined?1:b.secs)-1);
 
         draw();
       };
@@ -883,23 +900,40 @@ window.CODE = (function(){
        own preview keeps up, but the block is NOT redrawn until you leave the
        box — redrawing mid-word would take the caret away with it. */
     scriptEl.querySelectorAll('input[data-num]').forEach(inp=>{
+      /* Which number this box is. Most blocks carry one and call it `n`;
+         goTo and glide carry two or three, so the box says which. */
+      const field = inp.dataset.field || 'n';
+      const fit = (b, v) => {
+        if(field==='col')  return clampCol(v);
+        if(field==='row')  return clampRow(v);
+        if(field==='secs') return Math.max(1, Math.min(9, v));
+        return clampN(b.type, v);
+      };
       inp.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); };
       inp.onclick=e=>e.stopPropagation();
       inp.oninput=()=>{
         const b=findBlock(+inp.dataset.num); if(!b) return;
         const v=parseInt(inp.value,10);
-        if(!isNaN(v)) b.n=clampN(b.type, v);       // a lone "-" waits for a digit
+        if(!isNaN(v)) b[field]=fit(b, v);          // a lone "-" waits for a digit
         textEl.textContent=toText().join('\n') || '—';
       };
       inp.onblur=()=>{
         const b=findBlock(+inp.dataset.num); if(!b) return;
         let v=parseInt(inp.value,10);
-        if(isNaN(v)) v=b.n;
-        if(b.type==='turn'){                       // quarter turns only
-          v=Math.round(v/90)*90;
-          if(v===0) v=90;
+        if(isNaN(v)) v=b[field];
+        /* Angles snap to THIS MISSION'S turn step, not always to a quarter.
+           It used to be hardcoded to 90 for `turn` alone, so on the level
+           that exists to say an angle is just a number, typing 45 into the
+           box put 90 back — the one place in the game where the lesson and
+           the tool disagreed outright. And the three other blocks that take
+           an angle did not snap at all. */
+        if(field==='n' && ANGLE[b.type]){
+          const st=NUMSTEP[b.type]||90;
+          v=Math.round(v/st)*st;
+          // zero degrees is a block that does nothing; the smallest turn is one step
+          if(v===0 && b.type!=='point') v=st;
         }
-        b.n=clampN(b.type, v);
+        b[field]=fit(b, v);
         draw();
       };
     });

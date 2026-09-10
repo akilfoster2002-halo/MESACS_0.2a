@@ -146,3 +146,55 @@ test('the board is four quadrants, and the console can name a point in all of th
   assert.ok(code.includes('const clampCol = n => Math.max(-GRID.col'),
     'and clamps it symmetrically');
 });
+
+test('no block comes off the shelf reading "undefined"', ()=>{
+  const code = read('public/code.js');
+  const program = read('public/program.js');
+
+  /* Every block that carries a number needs a value the moment it is made.
+     The four Motion blocks were added to NUMBLK and not to the chain of ifs
+     that gave the others theirs, so `move` rendered as "move undefined
+     steps" — not an error, not a warning, just the word in a box. */
+  const numblk = (program.match(/const NUMBLK=\{([\s\S]*?)\};/)||[])[1];
+  assert.ok(numblk, 'program.js still declares NUMBLK');
+  const start = (code.match(/const START=\{([\s\S]*?)\};/)||[])[1];
+  assert.ok(start, 'code.js declares what each numbered block starts at');
+
+  for(const m of numblk.matchAll(/(\w+)\s*:/g))
+    assert.ok(new RegExp('\\b' + m[1] + '\\s*:').test(start),
+      `${m[1]} carries a number and has no starting value — it would render as "undefined"`);
+
+  /* And the fallback, so the next block added cannot reintroduce it. */
+  assert.match(code, /START\[type\]===undefined \? 0 : START\[type\]/,
+    'a block missing from START still starts at a number');
+});
+
+test('a coordinate is typed, not clicked up and down one at a time', ()=>{
+  const code = read('public/code.js');
+  const at = code.indexOf("if(b.type==='goTo'||b.type==='glide')");
+  const body = code.slice(at, at + 1800);
+  assert.ok(!/data-act="\$\{what\}\+"/.test(body) && !/data-act="col\+"/.test(body),
+    'go to and glide no longer use stepper arrows');
+  assert.match(body, /class="numin"[\s\S]*data-field="\$\{field\}"/,
+    'each of their numbers is a box you type in');
+  /* Three fields, and each has to say which one it is or they all write to
+     the same place. */
+  for(const f of ["num('col'", "num('row'", "num('secs'"])
+    assert.ok(body.includes(f), `${f} is missing`);
+  assert.match(code, /const field = inp\.dataset\.field \|\| 'n'/,
+    'the input handler reads which field it is editing');
+});
+
+test('an angle snaps to the mission\'s turn step, not always to a quarter', ()=>{
+  const code = read('public/code.js');
+  const at = code.indexOf("scriptEl.querySelectorAll('input[data-num]')");
+  const body = code.slice(at, at + 1800);
+  /* Hardcoding 90 here meant that on the one level whose whole point is
+     that an angle is just a number, typing 45 into the box put 90 back. */
+  assert.ok(!/v=Math\.round\(v\/90\)\*90/.test(body),
+    'the blur handler must not round every angle to a quarter turn');
+  assert.match(body, /NUMSTEP\[b\.type\]/,
+    'it rounds to the step this mission set');
+  assert.match(code, /const ANGLE=\{[^}]*turnR[^}]*\}/,
+    'and it knows which blocks carry degrees');
+});
