@@ -1019,8 +1019,8 @@ window.ES = {
      about a different button. */
   'FLIGHT SCHOOL':'ESCUELA DE VUELO',
   'Level {n} — {name}':'Nivel {n} — {name}',
-  'Coordinates, turns and glides — on a five-by-five grid.':
-    'Coordenadas, giros y planeos — en una cuadrícula de cinco por cinco.',
+  'Coordinates, turns and glides — on a four-quadrant grid.':
+    'Coordenadas, giros y planeos — en una cuadrícula de cuatro cuadrantes.',
   'You write a short program. The ship flies it. Nothing on this board moves until you tell it to.':
     'Tú escribes un programa corto. La nave lo vuela. Nada en este tablero se mueve hasta que tú lo digas.',
   'Start at level 1 ▶':'Empezar en el nivel 1 ▶',
@@ -1029,10 +1029,10 @@ window.ES = {
   'Press <b>C</b> to open the console, <b>RUN</b> to fly it.':
     'Pulsa <b>C</b> para abrir la consola y <b>RUN</b> para volarlo.',
   'Flight school passed':'Escuela de vuelo aprobada',
-  'Six levels: a coordinate, two axes, a heading, a glide, an angle that is not a corner, and a course with all of it on.':
-    'Seis niveles: una coordenada, dos ejes, un rumbo, un planeo, un ángulo que no es una esquina y un recorrido con todo junto.',
+  'Ten levels, all four quadrants, and every Motion block: move, the two turn arrows, point, go to, glide and the coordinates.':
+    'Diez niveles, los cuatro cuadrantes y todos los bloques de Movimiento: move, las dos flechas de giro, point, go to, glide y las coordenadas.',
 
-  /* the six levels */
+  /* the ten levels */
   'One Command':'Un Solo Comando',
   'A coordinate is two numbers':'Una coordenada son dos números',
   'x is across, y is up. Change one and you move along that axis.':
@@ -1077,8 +1077,8 @@ window.ES = {
 
   /* what the board says back */
   '✅ On the star.':'✅ En la estrella.',
-  '🏅 Flight school passed. Coordinates, turns and glides.':
-    '🏅 Escuela de vuelo aprobada. Coordenadas, giros y planeos.',
+  '🏅 Flight school passed. Four quadrants, and every block in Motion.':
+    '🏅 Escuela de vuelo aprobada. Cuatro cuadrantes y todos los bloques de Movimiento.',
   'You finished at ({x}, {y}). The star is at ({gx}, {gy}).':
     'Terminaste en ({x}, {y}). La estrella está en ({gx}, {gy}).',
   'You landed on the star, but missed a ring.':
@@ -1118,7 +1118,63 @@ window.ES = {
     'Los platos están al fondo. <b>E</b> para poner la sesión.',
   'step away':'apartarse','DROP':'DROP','FILTER':'FILTRO','THE FLOOR':'LA PISTA',
   'Click a square, or <b>1-4</b> pick a row, <b>← →</b> move, <b>space</b> toggle. Every sixteen steps it comes round again — that is the loop.':
-    'Haz clic en un cuadro, o <b>1-4</b> elige una fila, <b>← →</b> mueve, <b>espacio</b> enciende y apaga. Cada dieciséis pasos vuelve a empezar — eso es el bucle.'
+    'Haz clic en un cuadro, o <b>1-4</b> elige una fila, <b>← →</b> mueve, <b>espacio</b> enciende y apaga. Cada dieciséis pasos vuelve a empezar — eso es el bucle.',
+
+  /* ------------------------------- THE REST OF THE MOTION BLOCKS
+     The block FACES are translated, because a nine-year-old reads them; the
+     typed forms are not, because code is code and the parser reads English.
+     Same bargain the rest of the console already made. */
+  'move':'mueve','steps':'pasos','degrees':'grados',
+  'turn ↻':'gira ↻','turn ↺':'gira ↺',
+  'point in direction':'apunta en dirección',
+  'go to random position':'ve a una posición al azar',
+  'point towards the star':'apunta hacia la estrella',
+  'glide':'planea','secs to':'segundos a',
+  'Steps the way the nose is pointing':'Pasos hacia donde apunta el morro',
+  'Turn clockwise by that many degrees':'Gira en sentido horario esos grados',
+  'Turn counterclockwise by that many degrees':'Gira en sentido antihorario esos grados',
+  'Face that heading outright. 0 is East, 90 is North':
+    'Mira en ese rumbo directamente. 0 es Este, 90 es Norte',
+  'Somewhere on the board, and you do not get to know where':
+    'A algún punto del tablero, y no vas a saber cuál',
+  'Turn to face the goal, wherever you are':
+    'Gírate hacia la meta, estés donde estés',
+
+  /* the four quadrants, and the four diagonals */
+  'North-East':'Noreste','North-West':'Noroeste',
+  'South-West':'Suroeste','South-East':'Sureste',
+
+  /* ------------------------------------- the ten levels of Flight School */
+  'The Other Way':'Al Otro Lado',
+  'A minus sign is a direction':'Un signo menos es una dirección',
+  'Right is more x. Left is less. The number does not change size, only side.':
+    'A la derecha es más x. A la izquierda es menos. El número no cambia de tamaño, solo de lado.',
+  'The star is at <b>(-3, 0)</b> — the same distance as last time, the other way. <b>change x by -3</b>. One block.':
+    'La estrella está en <b>(-3, 0)</b> — la misma distancia que antes, al otro lado. <b>change x by -3</b>. Un bloque.',
+
+  'Down and Left':'Abajo y a la Izquierda',
+  'Both numbers can be negative':'Los dos números pueden ser negativos',
+  'Down is less y, the same way left is less x. Below and left of the origin, both are.':
+    'Abajo es menos y, igual que a la izquierda es menos x. Debajo y a la izquierda del origen, los dos lo son.',
+
+  'Point, Then Move':'Apunta, Luego Muévete',
+  'Steps go where the nose goes':'Los pasos van hacia donde va el morro',
+  'change x by does not care which way you face. move does — it is the only block here that reads your heading.':
+    'A change x by no le importa hacia dónde miras. A move sí — es el único bloque aquí que lee tu rumbo.',
+
+  'There, Or There Slowly':'Allí, o Allí Despacio',
+  'The same two numbers, with and without the time':
+    'Los mismos dos números, con y sin el tiempo',
+  'goTo puts you there. glide takes you there, and you can say how many seconds it spends doing it.':
+    'goTo te pone allí. glide te lleva allí, y tú dices cuántos segundos tarda.',
+
+  'All Four Quadrants':'Los Cuatro Cuadrantes',
+  'Each quarter has its own pair of signs':'Cada cuarto tiene su propia pareja de signos',
+  '(+,+) then (-,+) then (-,-) then (+,-). Going round, only one sign changes at a time.':
+    '(+,+) luego (-,+) luego (-,-) luego (+,-). Dando la vuelta, solo cambia un signo cada vez.',
+
+  'Wherever You Land':'Donde Sea Que Caigas',
+  'This is why absolute exists':'Para esto existe lo absoluto'
 };
 window.LANG = 'en';
 function t(s,p){

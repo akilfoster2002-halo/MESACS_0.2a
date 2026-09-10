@@ -1132,8 +1132,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.65)}
 .con-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1b2740;font-size:17px;letter-spacing:1px}
 .con-body{display:flex;gap:12px;padding:12px;overflow:auto;flex:1}
-.con-col{width:250px;display:flex;flex-direction:column;gap:6px;min-height:0}
-.con-col.grow{flex:1;width:auto}
+/* The columns do NOT shrink. On a narrow window three flexible columns
+   squeezed the block shelf to about a hundred pixels, and "point in
+   direction" came out as three words on three lines inside a block that is
+   meant to be read at a glance. The body already scrolls; scrolling to a
+   legible block beats reading a squashed one. */
+.con-col{flex:0 0 250px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.con-col.grow{flex:1 1 260px;width:auto}
 .con-lbl{font-size:12px;letter-spacing:1.6px;color:var(--muted)}
 #conPalette{display:flex;flex-direction:column;gap:8px}
 .palblk{background:var(--c);border:none;border-radius:12px;padding:10px 12px;color:#fff;text-align:left;

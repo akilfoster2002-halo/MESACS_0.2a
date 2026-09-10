@@ -135,12 +135,12 @@
      languages the lab does. The choice outlives the tab. */
   const COPY = [
     ['#fsTitle', 'FLIGHT SCHOOL'],
-    ['#fsTag',   'Coordinates, turns and glides — on a five-by-five grid.'],
+    ['#fsTag',   'Coordinates, turns and glides — on a four-quadrant grid.'],
     ['#fsBlurb', 'You write a short program. The ship flies it. Nothing on this board moves until you tell it to.'],
     ['#fsStart', 'Start at level 1 ▶'],
     ['#objTitle','MISSION'],
     ['#fsDoneTitle', 'Flight school passed'],
-    ['#fsDoneText',  'Six levels: a coordinate, two axes, a heading, a glide, an angle that is not a corner, and a course with all of it on.'],
+    ['#fsDoneText',  'Ten levels, all four quadrants, and every Motion block: move, the two turn arrows, point, go to, glide and the coordinates.'],
     ['#fsAgain', 'Back to the levels'],
     ['#fsHome',  '☰ Levels']
   ];

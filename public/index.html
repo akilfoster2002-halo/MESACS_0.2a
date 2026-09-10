@@ -1137,8 +1137,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.65)}
 .con-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1b2740;font-size:17px;letter-spacing:1px}
 .con-body{display:flex;gap:12px;padding:12px;overflow:auto;flex:1}
-.con-col{width:250px;display:flex;flex-direction:column;gap:6px;min-height:0}
-.con-col.grow{flex:1;width:auto}
+/* The columns do NOT shrink. On a narrow window three flexible columns
+   squeezed the block shelf to about a hundred pixels, and "point in
+   direction" came out as three words on three lines inside a block that is
+   meant to be read at a glance. The body already scrolls; scrolling to a
+   legible block beats reading a squashed one. */
+.con-col{flex:0 0 250px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.con-col.grow{flex:1 1 260px;width:auto}
 .con-lbl{font-size:12px;letter-spacing:1.6px;color:var(--muted)}
 #conPalette{display:flex;flex-direction:column;gap:8px}
 .palblk{background:var(--c);border:none;border-radius:12px;padding:10px 12px;color:#fff;text-align:left;
@@ -1883,48 +1888,48 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='378';</script>
-<script src="lib/three.classic.js?v=378"></script>
-<script src="strings.js?v=378"></script>
-<script src="music.js?v=378"></script>
-<script src="net.js?v=378"></script>
-<script src="avatar.js?v=378"></script>
-<script src="zombies.js?v=378"></script>
-<script src="building.js?v=378"></script>
-<script src="levels.js?v=378"></script>
-<script src="program.js?v=378"></script>
-<script src="code.js?v=378"></script>
-<script src="mechsim.js?v=378"></script>
-<script src="mech.js?v=378"></script>
-<script src="intro.js?v=378"></script>
-<script src="mechacode.js?v=378"></script>
-<script src="mechaarena.js?v=378"></script>
-<script src="mecha.js?v=378"></script>
-<script src="workshop.js?v=378"></script>
-<script src="combat.js?v=378"></script>
-<script src="puzzle.js?v=378"></script>
-<script src="nav.js?v=378"></script>
-<script src="tutorial.js?v=378"></script>
-<script src="race.js?v=378"></script>
-<script src="flight.js?v=378"></script>
-<script src="sub.js?v=378"></script>
-<script src="school.js?v=378"></script>
-<script src="cruise.js?v=378"></script>
-<script src="club.js?v=378"></script>
-<script src="planet.js?v=378"></script>
-<script src="wallet.js?v=378"></script>
-<script src="shop.js?v=378"></script>
-<script src="library.js?v=378"></script>
-<script src="costumes.js?v=378"></script>
-<script src="missions.js?v=378"></script>
-<script src="coach.js?v=378"></script>
-<script src="owner.js?v=378"></script>
-<script src="blocks.js?v=378"></script>
-<script src="vm.js?v=378"></script>
-<script src="coder.js?v=378"></script>
-<script src="quiz.js?v=378"></script>
-<script src="chars.js?v=378"></script>
-<script src="menu.js?v=378"></script>
-<script src="game.js?v=378"></script>
+<script>window.ASSETV='385';</script>
+<script src="lib/three.classic.js?v=385"></script>
+<script src="strings.js?v=385"></script>
+<script src="music.js?v=385"></script>
+<script src="net.js?v=385"></script>
+<script src="avatar.js?v=385"></script>
+<script src="zombies.js?v=385"></script>
+<script src="building.js?v=385"></script>
+<script src="levels.js?v=385"></script>
+<script src="program.js?v=385"></script>
+<script src="code.js?v=385"></script>
+<script src="mechsim.js?v=385"></script>
+<script src="mech.js?v=385"></script>
+<script src="intro.js?v=385"></script>
+<script src="mechacode.js?v=385"></script>
+<script src="mechaarena.js?v=385"></script>
+<script src="mecha.js?v=385"></script>
+<script src="workshop.js?v=385"></script>
+<script src="combat.js?v=385"></script>
+<script src="puzzle.js?v=385"></script>
+<script src="nav.js?v=385"></script>
+<script src="tutorial.js?v=385"></script>
+<script src="race.js?v=385"></script>
+<script src="flight.js?v=385"></script>
+<script src="sub.js?v=385"></script>
+<script src="school.js?v=385"></script>
+<script src="cruise.js?v=385"></script>
+<script src="club.js?v=385"></script>
+<script src="planet.js?v=385"></script>
+<script src="wallet.js?v=385"></script>
+<script src="shop.js?v=385"></script>
+<script src="library.js?v=385"></script>
+<script src="costumes.js?v=385"></script>
+<script src="missions.js?v=385"></script>
+<script src="coach.js?v=385"></script>
+<script src="owner.js?v=385"></script>
+<script src="blocks.js?v=385"></script>
+<script src="vm.js?v=385"></script>
+<script src="coder.js?v=385"></script>
+<script src="quiz.js?v=385"></script>
+<script src="chars.js?v=385"></script>
+<script src="menu.js?v=385"></script>
+<script src="game.js?v=385"></script>
 </body>
 </html>

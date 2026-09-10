@@ -32,8 +32,14 @@
    goal asks you to face somewhere, not to steer.
    ===================================================================== */
 window.SCHOOL = (function(){
-  const N=5;                          // 0..4 on both axes, exactly the sheet
-  const CELL=3.4;                     // world units between two gridlines
+  /* FOUR QUADRANTS. The board runs -H..+H on both axes with the origin in
+     the middle of it, because that is the axis a student meets everywhere
+     after this one and because three quarters of what a coordinate can be
+     was missing from a first-quadrant sheet. Every level below is placed in
+     terms of H, so widening the board is one number. */
+  const H=4;                          // -4..4, so nine lattice points a side
+  const N=2*H+1;
+  const CELL=2.4;                     // world units between two gridlines
   const STEP_MS=520;                  // one command, slow enough to follow
   const GLIDE_MS=1100;                // and a glide is meant to be watched
   const SKY=0x0a0e1c;
@@ -43,66 +49,114 @@ window.SCHOOL = (function(){
      0, north is 90, and `turn 90` is the counterclockwise button on the
      worksheet. A game that taught the other sign would be teaching a habit
      somebody has to unlearn. */
-  const COMPASS={ 0:'East', 90:'North', 180:'West', 270:'South' };
+  const COMPASS={ 0:'East',      45:'North-East', 90:'North',  135:'North-West',
+                  180:'West', 225:'South-West', 270:'South', 315:'South-East' };
 
+  /* TEN LEVELS, and the order is the argument.
+
+     One number, then two. Then the minus sign, which is the whole reason
+     for a four-quadrant board and the thing a first-quadrant sheet cannot
+     teach at all. Then heading, which is not position. Then glide, which is
+     both numbers at once. Then a lap of all four quadrants, which is where
+     the signs stop being a rule and become a picture. Then an angle that is
+     not a corner, then absolute against relative, then everything.
+
+     Every level says what it is FOR in `learn` — that card is on screen
+     while the program is being written, so it has to be the idea rather
+     than the instructions. */
   const LEVELS=[
     { id:'one', name:'One Command', budget:1, walk:true,
       pal:['addX','addY'],
-      start:{x:0,y:2,a:0}, goal:{x:4,y:2},
+      start:{x:0,y:0,a:0}, goal:{x:4,y:0},
       learn:{ name:'A coordinate is two numbers',
               text:'x is across, y is up. Change one and you move along that axis.',
               code:'change x by 4' },
-      brief:'Use <b>ONE</b> command to get from <b>(0, 2)</b> to the star at <b>(4, 2)</b>. Only <b>x</b> has changed — so only <b>x</b> needs a command.' },
+      brief:'Use <b>ONE</b> command to get from the origin <b>(0, 0)</b> to the star at <b>(4, 0)</b>. Only <b>x</b> has changed — so only <b>x</b> needs a command.' },
 
     { id:'both', name:'Both Axes', budget:2,
       pal:['addX','addY'],
-      start:{x:0,y:0,a:0}, goal:{x:3,y:4},
+      start:{x:0,y:0,a:0}, goal:{x:3,y:2},
       learn:{ name:'Two axes, two commands',
               text:'x and y are separate questions. Answer them one at a time.',
-              code:'change x by 3\nchange y by 4' },
-      brief:'From <b>(0, 0)</b> to <b>(3, 4)</b>. Both numbers have changed this time, and each one is its own command. <b>Two blocks.</b>' },
+              code:'change x by 3\nchange y by 2' },
+      brief:'From <b>(0, 0)</b> to <b>(3, 2)</b>. Both numbers have changed this time, and each one is its own command. <b>Two blocks.</b>' },
 
-    { id:'face', name:'Which Way You Face', budget:3,
-      pal:['addX','addY','turn'],
-      start:{x:1,y:0,a:0}, goal:{x:1,y:3,face:90},
+    { id:'left', name:'The Other Way', budget:1,
+      pal:['addX','addY'],
+      start:{x:0,y:0,a:0}, goal:{x:-3,y:0},
+      learn:{ name:'A minus sign is a direction',
+              text:'Right is more x. Left is less. The number does not change size, only side.',
+              code:'change x by -3' },
+      brief:'The star is at <b>(-3, 0)</b> — the same distance as last time, the other way. <b>change x by -3</b>. One block.' },
+
+    { id:'third', name:'Down and Left', budget:2,
+      pal:['addX','addY'],
+      start:{x:2,y:1,a:0}, goal:{x:-2,y:-3},
+      learn:{ name:'Both numbers can be negative',
+              text:'Down is less y, the same way left is less x. Below and left of the origin, both are.',
+              code:'change x by -4\nchange y by -4' },
+      brief:'From <b>(2, 1)</b> down to <b>(-2, -3)</b>. Count the squares, not the coordinates — you are moving <b>4</b> along each axis, and both of them backwards.' },
+
+    /* ------------------------------------------------ the heading blocks */
+    { id:'face', name:'Which Way You Face', budget:2,
+      pal:['addX','addY','turnL','turnR','turn'],
+      start:{x:-1,y:-2,a:0}, goal:{x:-1,y:2,face:90},
       learn:{ name:'Where you are is not which way you point',
-              text:'Moving along y does not turn you. Turning does not move you.',
-              code:'change y by 3\nturn 90' },
-      brief:'Get to <b>(1, 3)</b> <i>and</i> finish facing <b>North</b>. Moving up the board does not turn the ship — <b>turn 90</b> is counterclockwise, <b>turn -90</b> is clockwise.' },
+              text:'Moving along y does not turn you. Turning does not move you. The two arrows are one turn each way — or turn 90 and turn -90, which is the same pair written once.',
+              code:'change y by 4\nturn left 90' },
+      brief:'Get to <b>(-1, 2)</b> <i>and</i> finish facing <b>North</b>. Moving up the board does not turn the ship — <b>turn ↺</b> goes counterclockwise, <b>turn ↻</b> goes clockwise.' },
 
-    { id:'glide', name:'Glide', budget:1,
+    { id:'steps', name:'Point, Then Move', budget:2,
+      pal:['point','move','turnL','turnR'],
+      start:{x:0,y:0,a:0}, goal:{x:-4,y:0,face:180},
+      learn:{ name:'Steps go where the nose goes',
+              text:'change x by does not care which way you face. move does — it is the only block here that reads your heading.',
+              code:'point in direction 180\nmove 4 steps' },
+      brief:'No <b>change x by</b> this time. <b>Point</b> the ship at the star and <b>move</b> — steps go the way the nose is pointing. <b>0</b> is East, <b>90</b> is North, <b>180</b> is West.' },
+
+    /* --------------------------------------------- getting there quickly */
+    { id:'goto', name:'There, Or There Slowly', budget:3,
+      pal:['goTo','glide','turnR','turnL','move','point'],
+      start:{x:-4,y:-4,a:0}, goal:{x:3,y:3,face:270},
+      via:[{x:4,y:-4}],
+      learn:{ name:'The same two numbers, with and without the time',
+              text:'goTo puts you there. glide takes you there, and you can say how many seconds it spends doing it. Then face where you were told to.',
+              code:'goto 4,-4\nglide 2 secs to 3,3\nturn right 90' },
+      brief:'Touch the <b>ring</b> at <b>(4, -4)</b>, land on the star, and finish facing <b>South</b>. <b>go to</b> arrives instantly; <b>glide</b> crosses in front of you — and the number of <b>secs</b> is how long you get to watch it.' },
+
+    { id:'quads', name:'All Four Quadrants', budget:4,
       pal:['glide','addX','addY'],
-      start:{x:0,y:0,a:0}, goal:{x:4,y:4},
-      learn:{ name:'One command, both axes',
-              text:'glide goes to a point rather than adding to where you are — and you watch it cross.',
-              code:'glide to 4,4' },
-      brief:'From <b>(0, 0)</b> to <b>(4, 4)</b> in <b>ONE</b> block. <b>change x by</b> adds to where you are; <b>glide to</b> goes to the point itself — both numbers at once.' },
+      start:{x:0,y:0,a:0}, goal:{x:3,y:-3},
+      via:[{x:3,y:3},{x:-3,y:3},{x:-3,y:-3}],
+      learn:{ name:'Each quarter has its own pair of signs',
+              text:'(+,+) then (-,+) then (-,-) then (+,-). Going round, only one sign changes at a time.',
+              code:'glide 1 secs to 3,3\nglide 1 secs to -3,3\nglide 1 secs to -3,-3\nglide 1 secs to 3,-3' },
+      brief:'Once round the board: touch all three <b>rings</b> in order and land on the star. Watch what happens to the two signs as you go — <b>only one of them flips at each corner.</b>' },
 
-    { id:'angle', name:'An Angle That Is Not A Corner', budget:2,
-      turnStep:45,
-      pal:['glide','turn','addX','addY'],
-      start:{x:0,y:4,a:0}, goal:{x:3,y:1,face:45},
-      learn:{ name:'Any angle is a number',
-              text:'A turn does not have to be a quarter. 45 is half of one.',
-              code:'glide to 3,1\nturn 45' },
-      brief:'Land on <b>(3, 1)</b> pointing <b>halfway between East and North</b> — that is <b>45°</b>. A turn is just a number of degrees counterclockwise.' },
+    { id:'random', name:'Wherever You Land', budget:3,
+      pal:['goRnd','setX','setY','addX','addY'],
+      start:{x:0,y:0,a:0}, goal:{x:0,y:0},
+      learn:{ name:'This is why absolute exists',
+              text:'change x by is a step from here, and you do not know where here is. set x to is a place. Only one of them can get you home from nowhere in particular.',
+              code:'go to random position\nset x to 0\nset y to 0' },
+      brief:'Get thrown somewhere on the board, then come back to the <b>origin</b>. You cannot count the steps — you do not know where you will be. <b>set x to 0</b> and <b>set y to 0</b> do not need to know.' },
 
-    { id:'course', name:'The Course', budget:6,
+    { id:'course', name:'The Course', budget:4,
       turnStep:45,
-      pal:['glide','turn','addX','addY'],
-      start:{x:0,y:0,a:0}, goal:{x:4,y:3,face:180},
-      via:[{x:4,y:0},{x:2,y:2}],
+      pal:['glide','point','pointAt','move','turn','turnL','turnR','setX','setY','addX','addY'],
+      start:{x:0,y:0,a:0}, goal:{x:-3,y:0,face:225},
+      via:[{x:4,y:-2},{x:1,y:4}],
       learn:{ name:'All of it',
-              text:'Two marks to touch on the way, a point to land on, and a heading to finish on.',
-              code:'glide to 4,0\nglide to 2,2\nglide to 4,3\nturn 180' },
-      brief:'Touch both <b>rings</b> in order, land on the star at <b>(4, 3)</b>, and finish facing <b>West</b>. <b>Six blocks.</b>' }
+              text:'Two marks on the way, a star to land on, and a heading to finish on — and a turn that is not a corner. 45 is half a quarter.',
+              code:'glide 1 secs to 4,-2\nglide 1 secs to 1,4\npoint towards the star\nmove 4 steps' },
+      brief:'Touch both <b>rings</b> in order, then take the last leg <b>diagonally</b>: <b>point towards the star</b> turns you to face it from wherever you are, and <b>move</b> walks you down the diagonal. <b>Four blocks.</b>' }
   ];
 
   let on=false, L=null, busy=false, group=null, ship=null, wasFP=null, anim=null;
   let nextT=null;
 
-  const px = x => (x-(N-1)/2)*CELL;   // a coordinate, in world units
-  const pz = y => -(y-(N-1)/2)*CELL;  // y is UP the board, so it runs -z
+  const px = x => x*CELL;             // a coordinate, in world units
+  const pz = y => -y*CELL;            // y is UP the board, so it runs -z
 
   /* ------------------------------------------------------------- board */
   function label(txt, size){
@@ -118,16 +172,17 @@ window.SCHOOL = (function(){
   }
   function board(){
     const g=new THREE.Group();
-    const lo=-(N-1)/2*CELL, hi=(N-1)/2*CELL;
+    const lo=-H*CELL, hi=H*CELL;
 
     /* The gridlines, and then the two AXES drawn heavier on top of them.
        On the worksheet the axes are the thing you read the numbers off, so
-       they cannot be just two more faint lines. */
+       they cannot be just two more faint lines — and on a four-quadrant
+       board they are not the edge either, they are the middle. */
     const faint=new THREE.LineBasicMaterial({color:0x2f3d5c});
     const pts=[];
-    for(let i=0;i<N;i++){
-      pts.push(px(i),0,pz(0), px(i),0,pz(N-1));
-      pts.push(px(0),0,pz(i), px(N-1),0,pz(i));
+    for(let i=-H;i<=H;i++){
+      pts.push(px(i),0,pz(-H), px(i),0,pz(H));
+      pts.push(px(-H),0,pz(i), px(H),0,pz(i));
     }
     const lg=new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts),3));
@@ -136,21 +191,38 @@ window.SCHOOL = (function(){
     const axis=new THREE.MeshBasicMaterial({color:0x8ff0ff});
     const bar=(w,d,x,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.05,d), axis);
       m.position.set(x,0.01,z); g.add(m); };
-    bar((N-1)*CELL+CELL*0.6, 0.10, px(0)+((N-1)*CELL+CELL*0.6)/2-CELL*0.3, pz(0));
-    bar(0.10, (N-1)*CELL+CELL*0.6, px(0), pz(0)-((N-1)*CELL+CELL*0.6)/2+CELL*0.3);
-    // arrowheads, so the axes read as axes and not as a border
-    const head=(rot,x,z)=>{ const m=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.7,3), axis);
+    const over=CELL*0.6;                       // how far the axis runs past the last line
+    bar(2*hi+over*2, 0.09, 0, 0);              // x, through the origin
+    bar(0.09, 2*hi+over*2, 0, 0);              // y, through the origin
+    /* Arrowheads at BOTH ends now. A four-quadrant axis that only points
+       one way is a first-quadrant axis with extra squares on it. */
+    const head=(rot,x,z)=>{ const m=new THREE.Mesh(new THREE.ConeGeometry(0.24,0.6,3), axis);
       m.position.set(x,0.02,z); m.rotation.set(Math.PI/2,0,rot); g.add(m); };
-    head(-Math.PI/2, hi+CELL*0.42, pz(0));
-    head(0, px(0), lo-CELL*0.42);
+    head(-Math.PI/2, hi+over, 0);              // east
+    head( Math.PI/2, lo-over, 0);              // west
+    head(0,          0, lo-over);              // north
+    head(Math.PI,    0, hi+over);              // south
 
-    // the numbers, 0..4 down the x axis and up the y
-    for(let i=0;i<N;i++){
-      const lx=label(String(i)); lx.position.set(px(i), 0.02, pz(0)+0.95); g.add(lx);
-      if(i>0){ const ly=label(String(i)); ly.position.set(px(0)-0.95, 0.02, pz(i)); g.add(ly); }
+    /* The numbers. Zero is written ONCE, in the corner of the origin, the
+       way it is on paper — a 0 on each axis at the same point is two noughts
+       on top of each other. */
+    for(let i=-H;i<=H;i++){
+      if(i===0) continue;
+      const lx=label(String(i), 1.15); lx.position.set(px(i), 0.02, 0.80); g.add(lx);
+      const ly=label(String(i), 1.15); ly.position.set(-0.80, 0.02, pz(i)); g.add(ly);
     }
-    const ax=label('x',1.4); ax.position.set(hi+CELL*0.42, 0.02, pz(0)+0.95); g.add(ax);
-    const ay=label('y',1.4); ay.position.set(px(0)-0.95, 0.02, lo-CELL*0.42); g.add(ay);
+    const z0=label('0', 1.15); z0.position.set(-0.72, 0.02, 0.72); g.add(z0);
+    const ax=label('x',1.25); ax.position.set(hi+over, 0.02, 0.86); g.add(ax);
+    const ay=label('y',1.25); ay.position.set(-0.86, 0.02, lo-over); g.add(ay);
+
+    /* And the quadrants named, faintly, out at the corners. Nobody is asked
+       to learn the numerals — they are there so that "the third quadrant"
+       has somewhere to point when a teacher says it. */
+    const q=(txt,x,z)=>{ const m=label(txt, 1.6);
+      m.material.opacity=0.28; m.material.transparent=true;
+      m.position.set(x,0.02,z); g.add(m); };
+    const c=hi-CELL*0.55;
+    q('I', c, -c); q('II', -c, -c); q('III', -c, c); q('IV', c, c);
     return g;
   }
   /* A five-pointed star, because that is what is on the sheet. */
@@ -245,7 +317,7 @@ window.SCHOOL = (function(){
        inside; this one is played off a sheet of graph paper, and tilting
        the camera even a little makes reading a coordinate a job of
        perspective rather than of counting. */
-    const span=(N-1)*CELL;
+    const span=2*H*CELL;
     /* UP IS -Z, NOT +Y. Looking straight down, the camera's up vector is
        parallel to the direction it is looking, which leaves three with no
        way to decide which way round the picture goes — the board came out
@@ -258,9 +330,21 @@ window.SCHOOL = (function(){
     /* and a little to the right of the board's centre, which pushes the board
        left on screen and out from under the brief in the top corner — the
        star at (4, 2) was landing on the panel's edge. */
-    G.camera.position.set(CELL*0.6, span*1.75, -1.1);
+    /* A four-quadrant board is twice the width of the first-quadrant one it
+       replaces, so the camera comes in rather than the squares getting
+       smaller — 1.15 spans puts the whole of it on screen with room for the
+       brief, where 1.75 left it a postage stamp in the middle. */
+    /* A four-quadrant board is twice the width of the first-quadrant one it
+       replaces, so the camera comes in rather than the squares getting
+       smaller. Two offsets, both earned by looking at it: to the RIGHT of
+       centre, which pushes the board left and out from under the ten-row
+       mission panel, and DOWN the board a little (+z is toward the bottom
+       here), which lifts it clear of the console button sitting across the
+       bottom edge. */
+    const eyeX=CELL*1.15, eyeZ=CELL*0.30;
+    G.camera.position.set(eyeX, span*1.32, eyeZ);
     G.camera.up.set(0,0,-1);
-    G.camera.lookAt(CELL*0.6,0,-1.1);
+    G.camera.lookAt(eyeX, 0, eyeZ);
 
     /* setGrid takes the width of a CENTRED grid and keeps half of it — the
        flight's lanes run -1,0,1 — so it has to be handed twice this board
@@ -268,7 +352,10 @@ window.SCHOOL = (function(){
        gave a half-width of 1, and `change x by 4` was quietly clamped to 2:
        the first level of a mission about reading a coordinate, refusing to
        let you write the coordinate. */
-    CODE.setGrid(N*2-1, N*2-1);
+    /* setGrid takes the width of a CENTRED grid and keeps half of it, and
+       this board IS centred — so its own width is the right number and a
+       coordinate reaches H either side of the origin. */
+    CODE.setGrid(N, N);
     /* Quarter turns for the levels about facing, forty-fives for the one
        about angles — so a turn is a quarter until the moment the mission
        says an angle is just a number, and then it is any of them. */
@@ -284,9 +371,21 @@ window.SCHOOL = (function(){
   }
 
   function lay(snap){
+    /* THE HEADING IS NOT NEGATED. Three.js turns +x toward -z as the angle
+       grows — (1,0,0) becomes (cos a, 0, -sin a) — and on this board -z is
+       up the screen, which is north. So a heading of 90 rendered with -a
+       put the nose at +z, and +z is DOWN the screen: the ship faced south
+       every time the mission said north, and the two turn directions came
+       out backwards with it.
+
+       Nothing about the maths was wrong — `turn 90` really was ninety
+       degrees counterclockwise from east, judge() really did compare the
+       right numbers, and the level was marked correct while the picture
+       showed the opposite. That is what made it hard to see: only the
+       drawing was mirrored. */
     const tx=px(L.x), tz=pz(L.y), ta=L.a*Math.PI/180;
-    if(snap){ ship.position.set(tx,0.05,tz); ship.rotation.y=-ta; }
-    L.tx=tx; L.tz=tz; L.ta=-ta;
+    if(snap){ ship.position.set(tx,0.05,tz); ship.rotation.y=ta; }
+    L.tx=tx; L.tz=tz; L.ta=ta;
   }
 
   /* ------------------------------------------------------- the walkthrough
@@ -312,7 +411,7 @@ window.SCHOOL = (function(){
        minute is not the place to inherit a preference they have never set. */
     if(window.CODE && CODE.setMode) CODE.setMode('blocks');
     const steps=[
-      { say:'This is your ship, at <b>(0, 2)</b>. The star is at <b>(4, 2)</b>. Press <b>C</b> to open the console.',
+      { say:'This is your ship, at the origin <b>(0, 0)</b>. The star is at <b>(4, 0)</b>. Press <b>C</b> to open the console.',
         find:()=>document.querySelector('#codeBtn'),
         done:()=>!!(window.CODE && CODE.isOpen()),
         pal:[], rails:{run:false, clear:false, mode:false} },
@@ -359,11 +458,55 @@ window.SCHOOL = (function(){
     const go=(ms)=>move(()=>walk(steps, at+1), ms);
     if(s.name==='addX'){ L.x=clamp(L.x+(s.n|0)); lay(); return go(STEP_MS); }
     if(s.name==='addY'){ L.y=clamp(L.y+(s.n|0)); lay(); return go(STEP_MS); }
-    if(s.name==='glide'){ L.x=clamp(s.col|0); L.y=clamp(s.row|0); lay(); return go(GLIDE_MS); }
-    if(s.name==='turn'){ L.a=norm(L.a+(s.n|0)); lay(); return go(STEP_MS); }
+    /* The absolute pair. `change x by` is a step from here; `set x to` is a
+       place, and on a board with an origin in the middle of it that is a
+       different idea rather than a shorthand for the same one. */
+    if(s.name==='setX'){ L.x=clamp(s.n|0); lay(); return go(STEP_MS); }
+    if(s.name==='setY'){ L.y=clamp(s.n|0); lay(); return go(STEP_MS); }
+    if(s.name==='glide'){ L.x=clamp(s.col|0); L.y=clamp(s.row|0); lay();
+                          // the seconds on the block are the seconds it takes
+                          return go(Math.max(1,(s.secs===undefined?1:s.secs))*GLIDE_MS); }
+    if(s.name==='goTo'){ L.x=clamp(s.col|0); L.y=clamp(s.row|0); lay(true); return go(180); }
+
+    /* ------------------------------------------------- heading and steps */
+    /* The signed one, and the two arrows. Counterclockwise is positive here,
+       so the clockwise arrow subtracts — the arrow carries the sign, which
+       is what makes the pair easier to read than one number and a minus. */
+    if(s.name==='turn'){  L.a=norm(L.a+(s.n|0)); lay(); return go(STEP_MS); }
+    if(s.name==='turnL'){ L.a=norm(L.a+(s.n|0)); lay(); return go(STEP_MS); }
+    if(s.name==='turnR'){ L.a=norm(L.a-(s.n|0)); lay(); return go(STEP_MS); }
+    if(s.name==='point'){ L.a=norm(s.n|0); lay(); return go(STEP_MS); }
+    /* Face the star from wherever you are. atan2 gives the angle
+       counterclockwise from east, which is exactly what a heading is here,
+       and it is snapped to the turn step so the answer is a heading the
+       mission can actually be finished on. */
+    if(s.name==='pointAt'){
+      const st=(L.K.turnStep||90);
+      const d=Math.atan2(L.K.goal.y-L.y, L.K.goal.x-L.x)*180/Math.PI;
+      L.a=norm(Math.round(d/st)*st); lay(); return go(STEP_MS);
+    }
+    /* MOVE IS THE ONE BLOCK THAT READS THE HEADING. Everything else here is
+       arithmetic on a coordinate and does not care which way the nose is
+       pointing; without this, `turn` is a decoration you do at the end. On a
+       lattice a step is the nearest whole square in that direction, so a
+       heading of 45 walks the diagonal. */
+    if(s.name==='move'){
+      const r=L.a*Math.PI/180, n=s.n|0;
+      L.x=clamp(L.x+Math.round(Math.cos(r))*n);
+      L.y=clamp(L.y+Math.round(Math.sin(r))*n);
+      lay(); return go(STEP_MS);
+    }
+    /* Somewhere on the board, and nobody gets to know where — which is the
+       point of it: the block after this one has to work from anywhere. */
+    if(s.name==='goRnd'){
+      const pick=()=>Math.floor(Math.random()*(2*H+1))-H;
+      let nx=L.x, ny=L.y, tries=0;
+      while(nx===L.x && ny===L.y && tries++<20){ nx=pick(); ny=pick(); }
+      L.x=nx; L.y=ny; lay(); return go(GLIDE_MS);
+    }
     return walk(steps, at+1);
   }
-  const clamp = v => Math.max(0, Math.min(N-1, v));
+  const clamp = v => Math.max(-H, Math.min(H, v));
   const norm  = d => ((d%360)+360)%360;
 
   function move(then, ms){
@@ -395,7 +538,7 @@ window.SCHOOL = (function(){
     const rings=(K.via||[]).length===L.hit.length;
     if(at && facing && rings){
       const last=L.idx>=LEVELS.length-1;
-      say(last ? t('🏅 Flight school passed. Coordinates, turns and glides.')
+      say(last ? t('🏅 Flight school passed. Four quadrants, and every block in Motion.')
                : t('✅ On the star.'));
       if(last && window.PROGRESS) PROGRESS.complete('school');
       else nextT=setTimeout(()=>{ nextT=null; if(on) start(L.idx+1); }, 1500);

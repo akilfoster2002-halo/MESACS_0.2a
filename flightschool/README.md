@@ -1,8 +1,10 @@
 # Flight School — standalone
 
-A five-by-five coordinate grid you program a spaceship across. Six lessons:
-a coordinate, two axes, a heading, a glide, an angle that is not a corner,
-and a course with all of it on. English and Spanish.
+A four-quadrant coordinate grid you program a spaceship across. Ten
+lessons, from one command to a course you fly diagonally — and between
+them every block in Scratch's Motion drawer: `move`, both turn arrows,
+`point in direction`, `point towards`, `go to`, `go to random position`,
+`glide _ secs to`, and the four coordinate blocks. English and Spanish.
 
 This folder is the whole site. **No server, no account, no network** — open
 `index.html` off a static host and it runs.

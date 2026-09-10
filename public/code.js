@@ -43,6 +43,34 @@ window.CODE = (function(){
        "from anywhere" — but you watch it cross, so a coordinate stops being
        a place you appear at and becomes a place you go to. */
     glide    :{label:'glide to',     color:'#a8e6cf', help:'Move smoothly to that exact point'},
+    /* THE REST OF MOTION.
+
+       `move` walks the way the nose is pointing, which is the one block
+       here that reads the heading rather than a coordinate — without it a
+       turn is a decoration and everything is arithmetic on x and y.
+
+       Two turn arrows rather than one signed number, because that is what
+       is in front of a student in Scratch. The signed `turn` above is the
+       same idea written once instead of twice, and is taught after these.
+
+       `point in direction` is to a heading what `set x to` is to a
+       coordinate: it does not add, it decides. DEGREES ARE COUNTERCLOCKWISE
+       FROM EAST here, so 0 is right and 90 is up — the maths convention the
+       rest of this mission is built on, and NOT Scratch's, where 90 is
+       right. The help says so, because a number that means one thing in the
+       lesson and another in the tool is worse than no block at all. */
+    move     :{label:'move',         color:'#8fd3ff', unit:'steps',
+               help:'Steps the way the nose is pointing'},
+    turnR    :{label:'turn \u21bb',    color:'#ffd8a8', unit:'degrees',
+               help:'Turn clockwise by that many degrees'},
+    turnL    :{label:'turn \u21ba',    color:'#ffd8a8', unit:'degrees',
+               help:'Turn counterclockwise by that many degrees'},
+    point    :{label:'point in direction', color:'#ffd8a8',
+               help:'Face that heading outright. 0 is East, 90 is North'},
+    goRnd    :{label:'go to random position', color:'#cdb4f6',
+               help:'Somewhere on the board, and you do not get to know where'},
+    pointAt  :{label:'point towards the star', color:'#ffd8a8',
+               help:'Turn to face the goal, wherever you are'},
     /* The coordinates. x is the column and y is the row, and the pair of
        verbs is the whole idea:
          set x to 2      put x there, whatever it was   (absolute)
@@ -81,8 +109,13 @@ window.CODE = (function(){
   /* How far one press of a counter moves it. `turn` is a quarter by default
      because the flight only ever asks for quarters — but a mission that
      teaches angles has to be able to say otherwise, so it is settable. */
-  const NUMSTEP={ setX:1, setY:1, addX:1, addY:1, turn:90 };
-  function setTurnStep(deg){ NUMSTEP.turn=Math.max(1, Math.min(180, deg|0)) || 90; }
+  const NUMSTEP={ setX:1, setY:1, addX:1, addY:1, turn:90,
+                  move:1, turnR:90, turnL:90, point:90 };
+  function setTurnStep(deg){
+    const st=Math.max(1, Math.min(180, deg|0)) || 90;
+    // every block that takes an angle steps by the same amount
+    NUMSTEP.turn=NUMSTEP.turnR=NUMSTEP.turnL=NUMSTEP.point=st;
+  }
   /* How far goTo is allowed to count. The console does not know how big any
      one mission's grid is, so the mission says. */
   /* THE GRID IS CENTRED ON ZERO. Three lanes are -1, 0 and 1, not 0, 1 and
@@ -95,13 +128,25 @@ window.CODE = (function(){
   function setGrid(cols, rows){
     GRID={ col:Math.floor(((cols||3)-1)/2), row:Math.floor(((rows||3)-1)/2) };
   }
+  /* Every angle in the language is snapped to whatever this mission's turn
+     step is — a quarter until a level says an angle is just a number, and
+     then any of them. It used to live inside the `turn` parser; four blocks
+     take an angle now. */
+  const snapTurn = n => { const st=NUMSTEP.turn||90;
+                          return clampN('turn', Math.round(n/st)*st); };
+  const clampCol = n => Math.max(-GRID.col, Math.min(GRID.col, n));
+  const clampRow = n => Math.max(-GRID.row, Math.min(GRID.row, n));
   /* what the counter on a coordinate block is allowed to reach */
   function numRange(type){
     if(type==='setX') return [-GRID.col, GRID.col];
     if(type==='setY') return [-GRID.row, GRID.row];
     if(type==='addX') return [-2*GRID.col, 2*GRID.col];
     if(type==='addY') return [-2*GRID.row, 2*GRID.row];
-    if(type==='turn') return [-180, 180];
+    /* Steps go along the heading, so how far one can reach is the DIAGONAL
+       of the board rather than a side of it — the same allowance the two
+       change blocks get. */
+    if(type==='move') return [-2*Math.max(GRID.col,GRID.row), 2*Math.max(GRID.col,GRID.row)];
+    if(type==='turn'||type==='turnR'||type==='turnL'||type==='point') return [-180, 180];
     return [0,0];
   }
   const clampN=(type,v)=>{ const [lo,hi]=numRange(type); return Math.max(lo,Math.min(hi,v)); };
@@ -143,6 +188,7 @@ window.CODE = (function(){
     if(type==='until'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='define'){ b.body=[]; }
     if(type==='goTo'||type==='glide'){ b.col=0; b.row=0; }   // centre of a centred grid
+    if(type==='glide') b.secs=1;
     // x = 2 is a lane number; x = x + 2 is a signed step, so they clamp apart
     if(type==='setX'||type==='setY') b.n=0;    // the middle lane, on a centred grid
     if(type==='addX'||type==='addY') b.n=1;
@@ -219,13 +265,21 @@ window.CODE = (function(){
       } else if(b.type==='goTo'){
         s.push(pad+'goto '+b.col+','+b.row);
       } else if(b.type==='glide'){
-        s.push(pad+'glide to '+b.col+','+b.row);
+        s.push(pad+'glide '+(b.secs===undefined?1:b.secs)+' secs to '+b.col+','+b.row);
       } else if(b.type==='setX'||b.type==='setY'){
         s.push(pad+'set '+(b.type==='setX'?'x':'y')+' to '+b.n);
       } else if(b.type==='addX'||b.type==='addY'){
         s.push(pad+'change '+(b.type==='addX'?'x':'y')+' by '+b.n);
       } else if(b.type==='turn'){
         s.push(pad+'turn '+b.n);
+      } else if(b.type==='move'){
+        s.push(pad+'move '+b.n+' steps');
+      } else if(b.type==='turnR'){
+        s.push(pad+'turn right '+b.n);
+      } else if(b.type==='turnL'){
+        s.push(pad+'turn left '+b.n);
+      } else if(b.type==='point'){
+        s.push(pad+'point in direction '+b.n);
       } else s.push(pad+DEF[b.type].label);
     }
     return s;
@@ -237,7 +291,8 @@ window.CODE = (function(){
      to be something you could have built, and it runs down one code path. */
   const BY_WORD = {};
   Object.keys(DEF).forEach(k=>{
-    if(k==='repeat'||k==='ifc'||k==='until'||k==='define'||k==='goTo'||NUMBLK[k]) return;
+    if(k==='repeat'||k==='ifc'||k==='until'||k==='define'||k==='goTo'
+       ||k==='glide'||NUMBLK[k]) return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
   const palOps = () => palette.map(p => (typeof p==='string') ? p : p.op);
@@ -284,18 +339,33 @@ window.CODE = (function(){
       }
       if(low===IFLEAD.toLowerCase() || low==='if')
         return bad(i, t('Write the whole test, like <b>{w}</b>.',{w:IFLEAD+' '+CONDS[0]}));
-      if((m=low.match(/^glide +to +(\d+) *, *(\d+)$/))){
+      /* A COORDINATE CAN BE NEGATIVE. GRID holds a HALF-width — `set x to`
+         has always ranged over -GRID.col..GRID.col — and yet the two blocks
+         that take a whole coordinate would not read a minus sign and
+         clamped the number at zero. On a four-quadrant board that is three
+         quarters of the plane you cannot name; in Space Explorer, whose
+         goTo is measured from the middle lane, it was half the field. */
+      /* Both spellings: Scratch's "glide 2 secs to 3,-1" and the short
+         "glide to 3,-1", which is the same block with the seconds left at
+         one. Somebody copying the palette should be right, and so should
+         somebody who has stopped looking at it. */
+      if((m=low.match(/^glide +(\d+) +secs? +to +(-?\d+) *, *(-?\d+)$/))){
         if(!allowed('glide')) return bad(i, t('<b>glide</b> is not in this mission yet.'));
         const b=makeBlock('glide');
-        b.col=Math.max(0,Math.min(GRID.col,+m[1]));
-        b.row=Math.max(0,Math.min(GRID.row,+m[2]));
+        b.secs=Math.max(1,Math.min(9,+m[1]));
+        b.col=clampCol(+m[2]); b.row=clampRow(+m[3]);
         put(b); continue;
       }
-      if((m=low.match(/^goto +(\d+) *, *(\d+)$/))){
+      if((m=low.match(/^glide +to +(-?\d+) *, *(-?\d+)$/))){
+        if(!allowed('glide')) return bad(i, t('<b>glide</b> is not in this mission yet.'));
+        const b=makeBlock('glide');
+        b.secs=1; b.col=clampCol(+m[1]); b.row=clampRow(+m[2]);
+        put(b); continue;
+      }
+      if((m=low.match(/^goto +(-?\d+) *, *(-?\d+)$/))){
         if(!allowed('goTo')) return bad(i, t('<b>goTo</b> is not in this mission yet.'));
         const b=makeBlock('goTo');
-        b.col=Math.max(0,Math.min(GRID.col,+m[1]));
-        b.row=Math.max(0,Math.min(GRID.row,+m[2]));
+        b.col=clampCol(+m[1]); b.row=clampRow(+m[2]);
         put(b); continue;
       }
       if(low==='goto') return bad(i, t('<b>goTo</b> needs a column and a row, like <b>goto 1,-1</b>.'));
@@ -323,14 +393,36 @@ window.CODE = (function(){
         const b=makeBlock(type); b.n=clampN(type, +m[2]);
         put(b); continue;
       }
+      /* MOVE, THE TWO ARROWS, AND POINTING.
+
+         Scratch writes "move 10 steps" and "turn 15 degrees"; the trailing
+         noun is optional here, because a student copying off the palette
+         will type it and a student typing from memory will not, and being
+         right about which is not the lesson. */
+      if((m=low.match(/^move +(-?\d+)( +steps?)?$/))){
+        if(!allowed('move')) return bad(i, t('<b>move</b> is not in this mission yet.'));
+        const b=makeBlock('move'); b.n=clampN('move', +m[1]); put(b); continue;
+      }
+      if(low==='move') return bad(i, t('<b>move</b> needs a number, like <b>move 3 steps</b>.'));
+      if((m=low.match(/^turn +(right|cw|\u21bb) +(-?\d+)( +deg(rees?)?)?$/))){
+        if(!allowed('turnR')) return bad(i, t('<b>turn \u21bb</b> is not in this mission yet.'));
+        const b=makeBlock('turnR'); b.n=snapTurn(+m[2]); put(b); continue;
+      }
+      if((m=low.match(/^turn +(left|ccw|\u21ba) +(-?\d+)( +deg(rees?)?)?$/))){
+        if(!allowed('turnL')) return bad(i, t('<b>turn \u21ba</b> is not in this mission yet.'));
+        const b=makeBlock('turnL'); b.n=snapTurn(+m[2]); put(b); continue;
+      }
+      if((m=low.match(/^point +in +direction +(-?\d+)$/))){
+        if(!allowed('point')) return bad(i, t('<b>point in direction</b> is not in this mission yet.'));
+        const b=makeBlock('point'); b.n=snapTurn(+m[1]); put(b); continue;
+      }
       if((m=low.match(/^turn +(-?\d+)$/))){
         if(!allowed('turn')) return bad(i, t('<b>turn</b> is not in this mission yet.'));
         const b=makeBlock('turn');
         /* Snapped to whatever this mission's turn step is, not always to a
            quarter. Rounding every angle to 90 meant a level about 45° could
            not be written down. */
-        const st=NUMSTEP.turn||90;
-        b.n=clampN('turn', Math.round((+m[1])/st)*st) || st;
+        b.n=snapTurn(+m[1]) || (NUMSTEP.turn||90);
         put(b); continue;
       }
       if(low==='turn') return bad(i, t('<b>turn</b> needs an angle, like <b>turn 90</b>.'));
@@ -424,7 +516,7 @@ window.CODE = (function(){
        quarters. Otherwise Flight School's forty-fives follow the student
        into Space Explorer, where every turn is a quarter and a 45 is a
        crash — a setting leaking out of the mission that set it. */
-    NUMSTEP.turn=90;
+    setTurnStep(90);
     const key=v=>JSON.stringify(v);
     const same = palette && list && palette.length===list.length
               && palette.every((x,i)=>key(x)===key(list[i]));
@@ -532,6 +624,7 @@ window.CODE = (function(){
             : `<input class="numin" type="text" inputmode="numeric"
                  data-num="${b.id}" value="${b.n}" size="3"
                  aria-label="${t(d.label)}">`}
+          ${d.unit ? `<span class="blk-times">${t(d.unit)}</span>` : ''}
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
     }
@@ -544,9 +637,17 @@ window.CODE = (function(){
         ${readonly?'':`<button class="cnt" data-act="${what}-" data-id="${b.id}">−</button>`}
         <span class="cnt-n">${val}</span>
         ${readonly?'':`<button class="cnt" data-act="${what}+" data-id="${b.id}">+</button>`}`;
+      /* Glide carries a THIRD number: how long it takes. goTo does not,
+         because goTo is the one that does not take any time — that is the
+         whole difference between them and the seconds are where it shows. */
+      const secs = b.type!=='glide' ? '' : `
+        ${readonly?'':`<button class="cnt" data-act="sec-" data-id="${b.id}">−</button>`}
+        <span class="cnt-n">${b.secs===undefined?1:b.secs}</span>
+        <span class="blk-times">${t('secs to')}</span>
+        ${readonly?'':`<button class="cnt" data-act="sec+" data-id="${b.id}">+</button>`}`;
       return `<div class="blk" data-id="${b.id}" style="--c:${d.color}">
-          <span class="blk-name">${d.label}</span>
-          ${step('col',b.col)}${step('row',b.row)}
+          <span class="blk-name">${b.type==='glide'?t('glide'):d.label}</span>
+          ${secs}${step('col',b.col)}${step('row',b.row)}
           ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}
         </div>`;
     }
@@ -661,6 +762,13 @@ window.CODE = (function(){
                                out.push({w:'change y by -1', c:d.color}); }
       else if(type==='turn'){  out.push({w:'turn 90', c:d.color});
                                out.push({w:'turn -90', c:d.color}); }
+      else if(type==='glide'){ out.push({w:'glide 1 secs to 0,0', c:d.color}); }
+      else if(type==='move'){  out.push({w:'move 1 steps', c:d.color});
+                               out.push({w:'move -1 steps', c:d.color}); }
+      else if(type==='turnR'){ out.push({w:'turn right 90', c:d.color}); }
+      else if(type==='turnL'){ out.push({w:'turn left 90', c:d.color}); }
+      else if(type==='point'){ out.push({w:'point in direction 0', c:d.color});
+                               out.push({w:'point in direction 90', c:d.color}); }
       else                     out.push({w:d.label, c:d.color});
     });
     if(palOps().some(p=>p==='repeat'||p==='ifc'||p==='until'||p==='define'))
@@ -733,9 +841,15 @@ window.CODE = (function(){
              :type==='until'?t(UNTILLEAD)+' '+t(CONDS[0])
              :type==='ifc'?t(IFLEAD)+' '+t(CONDS[0])
              :type==='goTo'?t('goTo')+' 0,0'
+             :type==='glide'?t('glide to')+' 0,0'
              :type==='addX'?t('change x by')+' '+num(1):type==='addY'?t('change y by')+' '+num(1)
              :type==='setX'?t('set x to')+' '+num(0):type==='setY'?t('set y to')+' '+num(0)
-             :type==='turn'?t('turn')+' '+num(90):d.label}</b>
+             :type==='turn'?t('turn')+' '+num(90)
+             :type==='move'?t('move')+' '+num(1)+' '+t('steps')
+             :type==='turnR'?t('turn \u21bb')+' '+num(90)
+             :type==='turnL'?t('turn \u21ba')+' '+num(90)
+             :type==='point'?t('point in direction')+' '+num(0)
+             :t(d.label)}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
     paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>
@@ -751,10 +865,14 @@ window.CODE = (function(){
         if(btn.dataset.act==='inc' && b) b.count=Math.min(20,b.count+1);
         if(btn.dataset.act==='dec' && b) b.count=Math.max(1,b.count-1);
         if(btn.dataset.act==='cond' && b) b.cond = CONDS[(CONDS.indexOf(b.cond)+1)%CONDS.length];
-        if(btn.dataset.act==='col+' && b) b.col=Math.min(GRID.col,b.col+1);
-        if(btn.dataset.act==='col-' && b) b.col=Math.max(0,b.col-1);
-        if(btn.dataset.act==='row+' && b) b.row=Math.min(GRID.row,b.row+1);
-        if(btn.dataset.act==='row-' && b) b.row=Math.max(0,b.row-1);
+        // and the little steppers go the same distance either side of zero
+        if(btn.dataset.act==='col+' && b) b.col=clampCol(b.col+1);
+        if(btn.dataset.act==='col-' && b) b.col=clampCol(b.col-1);
+        if(btn.dataset.act==='row+' && b) b.row=clampRow(b.row+1);
+        if(btn.dataset.act==='row-' && b) b.row=clampRow(b.row-1);
+        const sec = v => Math.max(1, Math.min(9, v));
+        if(btn.dataset.act==='sec+' && b) b.secs=sec((b.secs===undefined?1:b.secs)+1);
+        if(btn.dataset.act==='sec-' && b) b.secs=sec((b.secs===undefined?1:b.secs)-1);
 
         draw();
       };

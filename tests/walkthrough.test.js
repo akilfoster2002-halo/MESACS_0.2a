@@ -96,3 +96,73 @@ test('the console button is available in the missions that are only a console', 
   for(const who of ['FLIGHT', 'SUB', 'SCHOOL'])
     assert.ok(m[1].includes(who), `${who} runs with G.running off and needs the console`);
 });
+
+/* NORTH HAS TO BE UP.
+
+   Flight School's headings are degrees counterclockwise from east, which is
+   what they are in a maths lesson: east 0, north 90. The board is read from
+   directly above with the camera's up vector pointing along world -z, so up
+   the screen IS -z, and the ship's nose must go there when the heading says
+   90.
+
+   It did not. three.js turns +x toward -z as an angle grows — (1,0,0)
+   becomes (cos a, 0, -sin a) — and the heading was being applied negated,
+   which sent the nose to +z. The ship faced south every time the mission
+   said north, and the two turn directions came out backwards with it.
+
+   Nothing else was wrong, which is why nobody caught it: `turn 90` really
+   was ninety degrees counterclockwise from east, judge() compared the right
+   numbers, and the level was marked CORRECT while the picture showed the
+   opposite. Only the drawing was mirrored.
+
+   So this is not a string match on the fix. It reads the two conventions
+   out of school.js — which way the rows are laid out, and what sign the
+   heading is applied with — and works out where the nose actually ends up. */
+function schoolConventions(){
+  const src = read('public/school.js');
+
+  const pz = src.match(/const pz\s*=\s*y\s*=>\s*(-?)/);
+  assert.ok(pz, 'school.js no longer maps rows to z with a pz()');
+  const rowSign = pz[1] === '-' ? -1 : 1;      // world z per +1 of row
+
+  const lay = src.slice(src.indexOf('function lay('), src.indexOf('function lay(') + 900);
+  const rot = lay.match(/ship\.rotation\.y\s*=\s*(-?)ta/);
+  assert.ok(rot, 'lay() no longer sets ship.rotation.y from ta');
+  const headSign = rot[1] === '-' ? -1 : 1;
+
+  const up = src.match(/G\.camera\.up\.set\(0,\s*0,\s*(-?1)\)/);
+  assert.ok(up, 'the board is no longer read with a z-axis camera up vector');
+  return { rowSign, headSign, screenUpZ: +up[1] };
+}
+
+test('north is up the screen, and so is a bigger row number', ()=>{
+  const { rowSign, headSign, screenUpZ } = schoolConventions();
+
+  /* Up the screen, in world z. */
+  assert.strictEqual(screenUpZ, -1,
+    'the camera reads the board with -z up; the rest of this assumes it');
+
+  // a bigger y must go UP, or the grid is upside down before anything moves
+  assert.strictEqual(Math.sign(rowSign), Math.sign(screenUpZ),
+    'row 4 must be higher up the screen than row 0');
+
+  /* Where the nose points, for a heading of `deg` counterclockwise from
+     east. The model's nose is +x in the ship group's frame, and three.js
+     rotates (1,0,0) to (cos t, 0, -sin t). */
+  const nose = deg => {
+    const t = headSign * deg * Math.PI/180;
+    return { x: Math.cos(t), z: -Math.sin(t) };
+  };
+  const near = (a,b) => Math.abs(a-b) < 1e-9;
+
+  const east = nose(0), north = nose(90), west = nose(180), south = nose(270);
+  assert.ok(near(east.x, 1) && near(east.z, 0),   'east points along +x, to the right');
+  assert.ok(near(north.z, screenUpZ),             'NORTH POINTS UP THE SCREEN');
+  assert.ok(near(west.x, -1),                     'west points left');
+  assert.ok(near(south.z, -screenUpZ),            'and south points down');
+
+  /* And the turn the brief promises: `turn 90` takes you from facing east
+     to facing north, which on a board with north up is counterclockwise. */
+  assert.ok(near(nose(45).z, screenUpZ*Math.SQRT1_2) && nose(45).x > 0,
+    'forty-five degrees is halfway between east and north, as the level says');
+});

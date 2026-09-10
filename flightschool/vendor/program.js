@@ -35,7 +35,20 @@
 (function(root){
 
   /* blocks that carry a typed number, and what that number is called */
-  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy', turn:'deg' };
+  /* THE MOTION BLOCKS THAT CARRY A NUMBER.
+
+     `move` is the one that makes a heading matter: every other block here
+     is arithmetic on a coordinate and does not care which way the ship is
+     pointing, and a mission that only has those can teach `turn` as a
+     decoration. Steps go where the nose goes.
+
+     turnR and turnL are the two arrows rather than one signed number,
+     because that is the block a student has in front of them in Scratch —
+     the signed `turn` is still here and is taught later as the same idea
+     written once instead of twice. `point` sets the heading outright, the
+     way `set x to` sets a coordinate. */
+  const NUMBLK={ setX:'col', setY:'row', addX:'dx', addY:'dy', turn:'deg',
+                 move:'steps', turnR:'deg', turnL:'deg', point:'deg' };
 
   /* how many blocks a tree is — a repeat counts as one, plus what is inside */
   function countBlocks(list){
@@ -102,8 +115,12 @@
         }
       } else if(b.type==='goTo'){
         out.push({name:'goTo', blockId:b.id, col:b.col, row:b.row});
+      } else if(b.type==='goRnd' || b.type==='pointAt'){
+        out.push({name:b.type, blockId:b.id});
       } else if(b.type==='glide'){
-        out.push({name:'glide', blockId:b.id, col:b.col, row:b.row});
+        // the seconds are Scratch's, and they are how long you watch it cross
+        out.push({name:'glide', blockId:b.id, col:b.col, row:b.row,
+                  secs:(b.secs===undefined?1:b.secs)});
       } else if(NUMBLK[b.type]){
         out.push({name:b.type, blockId:b.id, n:b.n});
       } else out.push({name:b.type, blockId:b.id});
