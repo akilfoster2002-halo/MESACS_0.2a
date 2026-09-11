@@ -16,7 +16,7 @@
    you are about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 3;                       // all of them, from the first minute
+  const FREE = 4;                       // all of them, from the first minute
   const PER_MISSION = 0;                // the rest stay shut: set this above zero to
                                         // start handing them out per finished mission
 

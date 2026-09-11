@@ -94,3 +94,18 @@ reliable once it is only ever asked about one limb at a time.
 Every number in a `.paint.json` is a **fraction of the figure**, never a length:
 height over height, width over the fingertip reach, depth over height. That is
 what lets the same spec paint the model at any scale.
+
+Two bands are off unless a character needs them, so nobody already painted
+changes when they are added:
+
+| | |
+|---|---|
+| `shortsHem` | below it the leg is BARE. The leg bones were unconditionally trousers, which paints a bare calf denim blue |
+| `hatLine` | above it the head is a HAT rather than hair — a lid on the hairline, the way the hairline is a lid on the face |
+
+**A character with no reference sheet is a character whose colours are a
+guess.** Savannah's palette was measured off her drawing with `png-read.js`;
+Carlos arrived with no reference, no UVs and no texture, so his hexes are a
+choice. His *bands* are not — they come from his own skeleton and the shape of
+his mesh. Drop a reference PNG beside a character and the colours can be
+measured instead of chosen.

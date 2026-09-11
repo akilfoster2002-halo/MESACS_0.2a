@@ -68,7 +68,7 @@ window.SHOP = (function(){
      actually about, and a paywall in front of one of three is a paywall in
      front of the game. The pricing below is still here and still works —
      it is what a fourth character would arrive behind. */
-  const FREE_CHARS=3;
+  const FREE_CHARS=4;
   function charItems(){
     if(!window.AVATAR) return [];
     return AVATAR.CHARS.map((c,i)=>({

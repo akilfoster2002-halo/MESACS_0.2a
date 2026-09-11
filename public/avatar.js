@@ -9,10 +9,8 @@
    walk.  Parsing again is cheap — the file is only fetched once.
    ===================================================================== */
 window.AVATAR = (function(){
-  // order matters: chars.js unlocks the first FREE of these. Nia is moved up
-  // so the four starting characters aren't all boys/bots — Cato slides back
-  // to fifth, ready to unlock first once PER_MISSION rewards are turned on.
-  /* THREE PEOPLE, ALL OF THEM PROPERLY MADE.
+  // order matters: chars.js unlocks the first FREE of these
+  /* FOUR PEOPLE, ALL OF THEM PROPERLY MADE.
 
      There used to be twenty: Kyle, Mia, and eighteen out of the Kenney
      blocky kit. The kit characters were what this game had before it had
@@ -21,13 +19,13 @@ window.AVATAR = (function(){
      placeholder, because that is what they were. Nineteen choices of
      placeholder is not more choice than one good one.
 
-     So the roster is the rigged characters, and Savannah is the third of
-     them — same skeleton, same clips, same scale as the other two (see
-     "glb files"/README.md for how she got here). Kyle leads: he is the
-     character this game is about, and he is the one you are unless you say
-     otherwise, which is now a keypress rather than a walk to the Mall. */
-  const IDS = 'stu'.split('');
-  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah' };
+     So the roster is the rigged characters — Kyle, Mia, Savannah and
+     Carlos — all on the same skeleton, the same clips and the same scale
+     (see "glb files"/README.md for how one gets here). Kyle leads: he is
+     the character this game is about, and he is the one you are unless you
+     say otherwise, which is now a keypress rather than a walk to the Mall. */
+  const IDS = 'stuv'.split('');
+  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah', v:'Carlos' };
   /* ?v= on the asset, not just on the script. Without it a changed model
      is invisible for a day behind the server's cache header. */
   const V = ()=> '?v='+(window.ASSETV||'1');

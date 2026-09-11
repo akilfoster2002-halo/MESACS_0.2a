@@ -1,0 +1,33 @@
+{
+  "note": [
+    "PLACEHOLDER COLOURS. Savannah's palette was measured off her reference",
+    "sheet with png-read.js; Carlos arrived with no reference, no UVs and no",
+    "texture, so every hex below is a choice rather than a measurement.",
+    "The BANDS are not guesses — they come from his own skeleton and the",
+    "shape of his mesh: boots to the ankle, bare leg, cargo shorts to the",
+    "hip, a loose tee to the collar, and a bucket hat over the hair.",
+    "Drop a reference PNG next to him and these can be measured instead."
+  ],
+  "B": {
+    "shoeTop":   0.150,
+    "shortsHem": 0.330,
+    "waistTop":  0.500,
+    "shirtHem":  0.500,
+    "collarTop": 0.790,
+    "sleeveEnd": 0.330,
+    "faceY":     0.862,
+    "faceR":     [0.115, 0.052],
+    "faceZ":     0.020,
+    "throat":    [0.830, 0.055],
+    "hairBack":  null,
+    "hatLine":   0.905
+  },
+  "C": {
+    "skin":   "#b5794f",
+    "hair":   "#1d1512",
+    "hat":    "#e2d8c4",
+    "jersey": "#2f7d78",
+    "jeans":  "#6d6a4a",
+    "shoe":   "#efece4"
+  }
+}

@@ -54,11 +54,23 @@ function paint(IN, OUT, SPEC){
   const B={ shoeTop:0.078, waistTop:0.600, shirtHem:0.638, collarTop:0.800,
             sleeveEnd:0.280, faceY:0.878, faceR:[0.105,0.056], faceZ:0.020,
             throat:[0.845,0.050], hairBack:null,
+            /* TWO THINGS A SECOND CHARACTER NEEDED AND THE FIRST DID NOT,
+               both null by default so nobody already painted changes.
+
+               shortsHem — below it the leg is BARE. The leg bones were
+               unconditionally trousers, which is right for somebody in
+               jeans and paints a bare calf denim blue.
+
+               hatLine — above it the head is a HAT rather than hair. It
+               sits above the hairline for the same reason the hairline
+               sits above the face: each one is a lid on the last. */
+            shortsHem:null, hatLine:null,
             watch:null, panel:null, emblem:null, ...(SPEC.B||{}) };
   const C={ skin:'#dda070', hair:'#1b100e', jersey:'#9c1521', panel:'#242b4a',
             emblem:'#141013', jeans:'#28313a', shoe:'#ded5cd', watch:'#b9bcc0',
-            ...(SPEC.C||{}) };
+            hat:'#e2d8c4', ...(SPEC.C||{}) };
   const SHADE={ jeans:{dark:0.62,lift:0.40}, jersey:{dark:0.50,lift:0.22},
+                hat:{dark:0.42,lift:0.24},
                 panel:{dark:0.50,lift:0.22}, emblem:{dark:0.30,lift:0.14},
                 hair:{dark:0.50,lift:0.16}, shoe:{dark:0.36,lift:0.24},
                 watch:{dark:0.30,lift:0.30}, skin:{dark:0.24,lift:0.06},
@@ -137,8 +149,13 @@ function paint(IN, OUT, SPEC){
        than failing. Height over height, width over reach, depth over
        height: all of it survives a scale. */
     const yN=(y-ymin)/(ymax-ymin), ax=Math.abs(x)/xmax, zN=z/(ymax-ymin);
-    if(L==='foot')  return yN<B.shoeTop ? 'shoe' : 'jeans';
-    if(L==='leg')   return 'jeans';
+    /* A boot rises past the ankle, so the top of it is a height and not a
+       bone — and above that it is whatever the leg is wearing, which for
+       somebody in shorts is their own leg. */
+    if(L==='foot')  return yN<B.shoeTop ? 'shoe'
+                         : (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
+    if(L==='leg')   return yN<B.shoeTop ? 'shoe'
+                         : (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
     if(L==='forearm'||L==='hand'){
       if(B.watch && ax>=B.watch[0] && ax<=B.watch[1] && x>0) return 'watch';
       return 'skin';
@@ -168,6 +185,9 @@ function paint(IN, OUT, SPEC){
          corners of forehead showing through at the temples and cut the
          jaw off square — the shape of a face is the cheapest way to make
          a flat patch of skin read as one. */
+      /* The hat goes on last and covers everything above its brim —
+         including the fringe, which is the point of a hat. */
+      if(B.hatLine && yN>B.hatLine) return 'hat';
       const fy=(yN-B.faceY)/B.faceR[1], fx=ax/B.faceR[0];
       if(zN>B.faceZ && fx*fx+fy*fy < 1) return 'skin';
       // and the throat below it, or she wears her hair over her windpipe

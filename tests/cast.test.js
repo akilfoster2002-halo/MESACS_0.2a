@@ -20,13 +20,14 @@ function roster(){
   return m[1].split('');
 }
 
-test('the cast is Kyle, Mia and Savannah, and Kyle is the one you start as', ()=>{
-  assert.deepStrictEqual(roster(), ['s','t','u']);
+test('the cast is Kyle, Mia, Savannah and Carlos, and Kyle is who you start as', ()=>{
+  assert.deepStrictEqual(roster(), ['s','t','u','v']);
   const names = read('public/avatar.js').match(/const NAMES\s*=\s*\{([^}]*)\}/);
   assert.ok(names, 'avatar.js still names them');
   assert.match(names[1], /s:'Kyle'/);
   assert.match(names[1], /t:'Mia'/);
   assert.match(names[1], /u:'Savannah'/);
+  assert.match(names[1], /v:'Carlos'/);
   /* The default is CHARS[0] rather than a random pick, and CHARS is built
      from IDS in order — so "Kyle leads" is a fact about the string above. */
   assert.match(read('public/avatar.js'), /chosen = CHARS\[0\]\.id/,
