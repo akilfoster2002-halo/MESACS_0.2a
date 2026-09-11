@@ -100,13 +100,18 @@ window.PLANET = (function(){
        costing more than the cone it replaces — and it is emissive, because
        on VOLTA it is doing the job the sun does everywhere else. */
     crystal:{
-      trunk:0x2a1c48, leaf:0xff6ad5, stone:0x3a2a5e, tall:0.55, glow:true,
+      /* Lifted, because these are the light source and not a decoration
+         standing in somebody else's. A saturated pink at full channel is
+         already as bright as an emissive material can be asked to go — so
+         what makes it shine harder is moving it TOWARDS WHITE, which is
+         what a real light does as it gets brighter. */
+      trunk:0x3a2a60, leaf:0xff92e4, stone:0x46356e, tall:0.55, glow:true,
       /* Thicker than KORO's woods per square metre, because on a world with
          no grass, no weather and no animals these are the only thing between
          two buildings and the horizon. */
       density:2.4,
-      pebble:[0x3a2a5e,0x2b2044,0x46356e,0x241a3d],
-      bud:[0xff6ad5,0x8ff0ff,0xcdb4f6,0xff9aa2], budGlow:true
+      pebble:[0x4a3a72,0x362a55,0x54437e,0x2e2350],
+      bud:[0xff9ae8,0xa8f6ff,0xdcc8ff,0xffb8bd], budGlow:true
     }
   };
 
@@ -1336,8 +1341,8 @@ window.PLANET = (function(){
        points and the same one draw call; the colour is the whole difference
        and it is the difference between a summer evening and a night out. */
     flies=new THREE.Points(g, new THREE.PointsMaterial({
-      color:(W.flora==='crystal') ? 0xc9a8ff : 0xfff0a0,
-      size:0.62, sizeAttenuation:true, map:sparkTexture(),
+      color:(W.flora==='crystal') ? 0xdcc4ff : 0xfff0a0,
+      size:(W.flora==='crystal') ? 0.78 : 0.62, sizeAttenuation:true, map:sparkTexture(),
       transparent:true, opacity:0.95, depthWrite:false,
       blending:THREE.AdditiveBlending }));
     flies.frustumCulled=false;
@@ -3260,11 +3265,43 @@ window.PLANET = (function(){
      light at 1.62 is midday; on VOLTA it makes a black-skied planet read as
      an overcast afternoon, and it washed out every emissive thing the world
      is actually lit by. A fifth of it, gone cold, is a moon. */
-  const DAY={ i:1.62, c:0xfff2e0 }, NIGHT={ i:0.34, c:0xb9c8ff };
+  /* THE WHOLE LIGHT RIG PER WORLD, not just the sun.
+
+     VOLTA is lit by the things growing on it rather than by a star, so the
+     numbers that make a hillside look right at noon make a crystal wood
+     look like a car park at dusk. It gets a brighter fill, a warmer-lifted
+     exposure and a sun that reads as a moon rather than as an absence.
+
+     `exposure` is the one that does the most work. The crystals are
+     emissive — nothing lights them, they ARE the light — and an emissive
+     surface has no headroom left in its colour, so the only way to make it
+     shine harder is to open the film up. The run between the planets
+     already does exactly this for the same reason (see cruise.js), so a
+     per-place exposure is a road this game has been down before. */
+  const DAY  ={ i:1.62, c:0xfff2e0, amb:0.16, hemi:0.46, exposure:1.05 };
+  const NIGHT={ i:0.46, c:0xc6d4ff, amb:0.27, hemi:0.60, exposure:1.28 };
+  let exposureWas=null;
   function sunLight(){
-    const s=G.sun; if(!s) return;
     const k=W.night ? NIGHT : DAY;
-    s.intensity=k.i; s.color.setHex(k.c);
+    const s=G.sun;
+    if(s){ s.intensity=k.i; s.color.setHex(k.c); }
+    if(G.amb)  G.amb.intensity=k.amb;
+    if(G.hemi) G.hemi.intensity=k.hemi;
+    if(G.renderer){
+      if(exposureWas===null) exposureWas=G.renderer.toneMappingExposure;
+      G.renderer.toneMappingExposure=k.exposure;
+    }
+  }
+  /* Hand the film and the fill back. Every flat room in the game is lit by
+     the same three lights, so a night world that kept its own would make
+     the next mission after VOLTA a night mission. */
+  function dayAgain(){
+    if(G.amb)  G.amb.intensity=DAY.amb;
+    if(G.hemi) G.hemi.intensity=DAY.hemi;
+    if(G.renderer && exposureWas!==null){
+      G.renderer.toneMappingExposure=exposureWas;
+      exposureWas=null;
+    }
   }
   function sunAt(){
     const s=G.sun; if(!s || !me.dir) return;
@@ -3512,6 +3549,7 @@ window.PLANET = (function(){
                G.sun.target.updateMatrixWorld();
                // and its daylight, or every flat room after VOLTA is a night room
                G.sun.intensity=DAY.i; G.sun.color.setHex(DAY.c); }
+    dayAgain();
   }
   function stop(){ leave(); }
 

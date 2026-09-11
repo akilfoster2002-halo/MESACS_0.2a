@@ -116,12 +116,29 @@ test('the club is torn down with the planet', ()=>{
     + 'nightclub playing on the title screen');
 });
 
-test('the sun is handed back on the way out', ()=>{
-  /* VOLTA turns the world's one directional light down to a moon. Every flat
-     room in the game borrows that same light. */
+test('the whole light rig is handed back on the way out', ()=>{
+  /* VOLTA is lit by what grows on it rather than by a star, so it does not
+     just turn the sun down to a moon — it lifts the fill and opens the
+     exposure, because an emissive crystal has no headroom left in its
+     colour and the only way to make it shine harder is to open the film.
+
+     EVERY FLAT ROOM IN THE GAME BORROWS ALL THREE. A night world that kept
+     them would make the next mission after VOLTA a night mission, lit by a
+     camera set for a crystal wood. */
   const src = planet();
-  assert.match(src, /const DAY=\{ i:1\.62/, 'the daylight it started with is written down');
-  assert.match(src, /G\.sun\.intensity=DAY\.i/, 'and given back in leave()');
+  assert.match(src, /const DAY\s*=\{ i:1\.62/, 'the daylight it started with is written down');
+  assert.match(src, /G\.sun\.intensity=DAY\.i/, 'the sun is given back in leave()');
+  for(const k of ['amb','hemi','exposure'])
+    assert.ok(new RegExp('DAY\\s*=\\{[^}]*\\b'+k+':').test(src),
+      `DAY does not say what its ${k} is, so leave() cannot restore it`);
+  assert.match(src, /function dayAgain\(\)/, 'nothing hands the fill and the film back');
+  assert.match(src, /function leave\(\)[\s\S]{0,1800}dayAgain\(\)/,
+    'leave() does not call it — the next flat room keeps VOLTA\'s lighting');
+  /* Restored to what was FOUND, not to a constant: the run between the
+     planets sets its own exposure too, and two places writing one number
+     from memory is how they drift. */
+  assert.match(src, /exposureWas===null\) exposureWas=G\.renderer\.toneMappingExposure/,
+    'the exposure it started with is not remembered');
 });
 
 test('a pattern row is as long as the sequencer says it is', ()=>{

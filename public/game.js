@@ -90,8 +90,13 @@ function init(){
      shadowed side going black. The old rig was four flat lights adding up to
      3.5, which lit every face of every box almost equally — nothing to cast,
      and nothing to see if it had. */
-  G.scene.add(new THREE.AmbientLight(0xdfe6ff, 0.16));
-  G.scene.add(new THREE.HemisphereLight(0xbfd8ff, 0xa88c6a, 0.46));
+  /* Kept on G, not dropped into the scene and forgotten. A night world
+     wants a different fill from a daylit one — see PLANET's light rig —
+     and a light you cannot reach is a light you cannot tune. */
+  G.amb  = new THREE.AmbientLight(0xdfe6ff, 0.16);
+  G.hemi = new THREE.HemisphereLight(0xbfd8ff, 0xa88c6a, 0.46);
+  G.scene.add(G.amb);
+  G.scene.add(G.hemi);
   const sun = new THREE.DirectionalLight(0xfff2e0, 1.62);
   sun.position.set(48, 96, 34);
   sun.castShadow = true;
@@ -346,6 +351,12 @@ function updateLeaveBtn(){
   const pb=$('#btnPublish');
   if(pb) pb.classList.toggle('hidden',
     !(G.room==='free' && window.VM && !VM.visiting && window.NET && NET.signedIn));
+  /* On the arcade's bench, LEAVE is how you get back to the shelf — so it
+     has to be there even though Free Play's room is what you are standing
+     in. Without this the only way out of your own workbench is the planet. */
+  if(window.ARCADE && ARCADE.building){
+    const lb=$('#btnLeave'); if(lb) lb.classList.remove('hidden');
+  }
 }
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
@@ -1072,6 +1083,10 @@ window.showResults=showResults;
 /* Every results screen lands here. Home is the planet now — the mission grid
    is a shortcut behind P, not the place you live. */
 function returnToDesktop(){
+  /* You came from the arcade, and the thing you were building belongs to
+     it — so LEAVE goes back to the shelf rather than dropping you outside
+     on VOLTA with no idea where your game went. */
+  if(window.ARCADE && ARCADE.building && ARCADE.leaveBench()) return;
   if(window.PLANET && MENU.homeworld) MENU.homeworld();
   else MENU.open();
 }

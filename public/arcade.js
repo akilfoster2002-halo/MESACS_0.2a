@@ -32,7 +32,15 @@
    ===================================================================== */
 window.ARCADE = (function(){
   const $ = s => document.querySelector(s);
-  let games=[], now=null, mode=null, busy=false;
+  let games=[], mine=[], now=null, mode=null, busy=false;
+  /* THE WORKBENCH. Its own slot, not Free Play's sandbox: the arcade is
+     where games are made now, and a child who walks into the arcade to
+     carry on with their game should not find whatever they were last
+     building in Free Play — nor lose it. Two rooms, two projects. */
+  const SLOT='dq_arcade_build';
+  /* What is on the bench, so PUBLISH can fill its own form in and a second
+     publish updates the cabinet rather than opening another one. */
+  let bench=null;
   /* The camera and the room we borrowed, so leaving puts them back. */
   let held=null;
 
@@ -64,8 +72,15 @@ window.ARCADE = (function(){
     if(document.pointerLockElement) document.exitPointerLock();
     G.running=false;
     $('#arTitle').textContent=t('THE ARCADE');
-    $('#arSub').textContent=t('Games made in Free Play. Play one, then tell them what you thought.');
+    $('#arSub').textContent=t('Play what your class has made, then tell them what you thought — or make one yourself.');
     $('#arBack').textContent=t('Back to VOLTA ▶');
+    const mk=$('#arMake');
+    if(mk){
+      mk.textContent=t('✚ MAKE A GAME');
+      mk.onclick=()=>make(null);
+      /* Making one is the half that needs a name to save under. */
+      mk.classList.toggle('hidden', !(window.NET && NET.signedIn));
+    }
     shelf();
   }
   function close(){
@@ -86,29 +101,98 @@ window.ARCADE = (function(){
           : t('Sign in to see what your class has made.')));
       return;
     }
+    /* Your own, so you can carry on with them. Failing quietly is right
+       here — not being able to list your drafts should not stop you
+       playing anybody else's. */
+    mine=[];
+    if(window.NET && NET.signedIn){
+      try{ mine=(await api('/arcade/mine/list')).games||[]; }catch(e){}
+    }
     grid.innerHTML='';
-    if(!games.length){
+    if(mine.length){
+      grid.appendChild(text('div','arhead', t('YOURS')));
+      mine.forEach(g=>grid.appendChild(cabinet(g, true)));
+      if(games.filter(g=>!isMine(g)).length)
+        grid.appendChild(text('div','arhead', t('EVERYBODY ELSE')));
+    }
+    const theirs=games.filter(g=>!isMine(g));
+    if(!theirs.length && !mine.length){
       grid.appendChild(text('div','arnote',
-        t('Nobody has published a game yet. Make one in Free Play and press PUBLISH.')));
+        t('Nobody has published a game yet. Press MAKE A GAME and be the first.')));
       return;
     }
-    games.forEach(g=>grid.appendChild(cabinet(g)));
+    theirs.forEach(g=>grid.appendChild(cabinet(g)));
   }
-  function cabinet(g){
+  const isMine = g => !!(window.NET && NET.me && NET.me.id===g.author_id);
+  function cabinet(g, editable){
     const b=document.createElement('button');
-    b.className='cab';
-    const top=text('div','cab-top', g.stage==='flat' ? t('2D') : t('3D'));
-    b.appendChild(top);
+    b.className='cab'+(editable?' own':'');
+    b.appendChild(text('div','cab-top', g.stage==='flat' ? t('2D') : t('3D')));
     b.appendChild(text('b','', g.title));
     b.appendChild(text('small','', g.blurb));
-    const by=text('div','cab-by', t('by {n}',{n:g.author}));
-    b.appendChild(by);
+    b.appendChild(text('div','cab-by', t('by {n}',{n:g.author})));
     const row=document.createElement('div'); row.className='cab-row';
     row.appendChild(text('span','cab-stars', g.votes ? stars(g.stars) : t('not rated yet')));
     row.appendChild(text('span','cab-plays', t('{n} plays',{n:g.plays})));
     b.appendChild(row);
-    b.onclick=()=>play(g.id);
+    if(editable){
+      /* One card, two answers, decided by what was under the pointer —
+         the same shape the mission cards use for START OVER. A nested
+         button is not a button a browser will give you. */
+      const e=text('span','cab-edit', '✎ '+t('OPEN'));
+      e.dataset.edit='1';
+      b.appendChild(e);
+    }
+    b.onclick=ev=>{
+      if(editable && ev.target && ev.target.closest && ev.target.closest('[data-edit]'))
+        return make(g);
+      play(g.id);
+    };
     return b;
+  }
+
+  /* ------------------------------------------------------- the workbench
+     Making a game happens HERE now, in the arcade, rather than in Free
+     Play. It is the same editor and the same VM — what changed is which
+     door it is behind, which is the one that matters: a cabinet you can
+     play and a bench you can build at, in the same room. */
+  async function make(g){
+    if(!(window.NET && NET.signedIn)) return say(t('Sign in to make a game.'));
+    if(busy) return;
+    bench = g ? { id:g.id, title:g.title, blurb:g.blurb, stage:g.stage } : null;
+    mode='building';
+    $('#arcade').classList.add('hidden');
+    $('#hud').classList.remove('hidden');
+    G.running=true; G.stats.t0=performance.now();
+    VM.useSlot(SLOT);
+    if(g){
+      /* Carrying on with one that is already in the arcade: fetch the
+         project rather than trusting the shelf row, which carries only
+         what a cabinet needs to show. */
+      busy=true;
+      try{ const r=await api('/arcade/'+g.id); VM.install(r.game.project, r.game.stage); }
+      catch(e){ busy=false; say(e.message); return open(); }
+      busy=false;
+    }
+    buildRoom('free');
+    if(!g && !VM.project.actors.length) VM.wipe();
+    updateLeaveBtn();
+    if(window.CODER) CODER.show ? CODER.show() : null;
+    /* No markup in these. say() sets textContent on purpose — everything
+       else this file puts on screen was written by a child — so a <b> here
+       would be four characters of angle brackets on the briefing card. */
+    say(g ? t('{n} — press C to open the blocks, then PUBLISH.',{n:g.title})
+          : t('A new game. Press C for the blocks, PUBLISH when it is ready.'));
+  }
+  /* Leaving the bench goes back to the shelf, not to the planet: you came
+     from the arcade and the thing you just made is on it. */
+  function leaveBench(){
+    if(mode!=='building') return false;
+    mode=null;
+    if(window.CODER && CODER.hide) CODER.hide();
+    if(window.VM) VM.useSlot(null);
+    open();
+    return true;
   }
 
   /* ------------------------------------------------------------- playing */
@@ -237,6 +321,9 @@ window.ARCADE = (function(){
     const title=$('#apubName'), blurb=$('#apubBlurb');
     title.placeholder=t('What is it called?');
     blurb.placeholder=t('One line about it');
+    /* Filled in from whatever is on the bench, so republishing is pressing
+       the button twice rather than retyping the name exactly. */
+    if(bench){ title.value=bench.title||''; blurb.value=bench.blurb||''; }
     $('#apubMsg').textContent='';
     /* The stage is a property of the project and is remembered with it, so
        this reads the answer rather than asking again every time. */
@@ -259,7 +346,13 @@ window.ARCADE = (function(){
           stage:VM.stage, project:VM.plain() });
         $('#apubMsg').textContent = r.updated ? t('Updated in the arcade.') : t('It is in the arcade.');
         if(window.beep) beep('star');
-        setTimeout(()=>el.classList.add('hidden'), 1100);
+        bench={ id:r.id, title:title.value.trim(), blurb:blurb.value.trim(), stage:VM.stage };
+        setTimeout(()=>{
+          el.classList.add('hidden');
+          /* Published from the bench? Then the shelf is where it went, and
+             seeing it land there is the whole point of pressing the button. */
+          if(mode==='building') leaveBench();
+        }, 1100);
       }catch(e){ $('#apubMsg').textContent=e.message; go.disabled=false; }
     };
     setTimeout(()=>title.focus(), 60);
@@ -285,8 +378,10 @@ window.ARCADE = (function(){
     return false;
   }
 
-  return { open, close, play, publish, tick, key, stop,
+  return { open, close, play, publish, make, tick, key, stop,
+           leaveBench,
            get playing(){ return mode==='playing'; },
+           get building(){ return mode==='building'; },
            get flat(){ return mode==='playing' && flat(); },
            get up(){ return !!mode; } };
 })();

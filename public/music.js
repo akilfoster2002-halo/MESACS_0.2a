@@ -132,7 +132,13 @@ window.MUSIC = (function(){
 
      It rides the same mute as the music, because a teacher who wants
      silence wants silence and does not care which subsystem is making it. */
-  const WIND={ lo:260, hi:1500, top:0.17, ease:0.14 };
+  /* `top` is how loud flat out is, and it is deliberately low. This plays
+     under a soundtrack in a room with thirty machines in it: the wind is
+     meant to tell you that you are moving, not to be the loudest thing in
+     the lesson. It is also squared against speed on the way in, so a
+     gentle drift is nearly silent and only the top of the throttle is
+     anywhere near this number. */
+  const WIND={ lo:260, hi:1500, top:0.085, ease:0.14 };
   let ctx=null, noise=null, air=null, band=null, level=0, offAt=0;
 
   function audio(){
@@ -209,7 +215,7 @@ window.MUSIC = (function(){
     const t=c.currentTime;
     f.frequency.setValueAtTime(180,t); f.frequency.exponentialRampToValueAtTime(1900,t+0.45);
     g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.22,t+0.08);
+    g.gain.exponentialRampToValueAtTime(0.11,t+0.08);
     g.gain.exponentialRampToValueAtTime(0.0001,t+0.6);
     src.connect(f); f.connect(g); g.connect(c.destination);
     src.start(t); src.stop(t+0.65);

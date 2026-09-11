@@ -232,8 +232,12 @@ FREE PLAY → PUBLISH → a cabinet on VOLTA → somebody plays it
                                          → the author reads that
 ```
 
-A game is made in Free Play, where the editor is, and published with the button
-in the top bar. The arcade is a building on VOLTA: a shelf of cabinets showing
+A game is made **in the arcade**. Walk into the building on VOLTA, press MAKE A
+GAME, and the block editor opens in the room behind it — a cabinet you can play
+and a bench you can build at, in the same room. Your own games sit at the top of
+the shelf with an OPEN chip that puts one back on the bench; publishing again
+updates that cabinet rather than opening a second. The bench has its own project
+slot, so it and Free Play's sandbox cannot overwrite each other. The arcade is a building on VOLTA: a shelf of cabinets showing
 title, author, stars and plays. Play one, press `Esc`, and you are asked what you
 thought — five stars and one optional line. Publishing again under the same name
 replaces the game rather than adding a second cabinet.

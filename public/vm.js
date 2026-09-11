@@ -66,6 +66,16 @@ window.VM = (function(){
     });
   }
   const isFlat = () => P.stage==='flat';
+  /* ADOPT, BUT AS YOUR OWN. Editing a game out of the arcade is the same
+     load as playing one and the opposite intent: it goes into the slot you
+     are working in, saving comes back on, and from there it is a project
+     like any other. Used for "edit mine"; adopt() stays the one for
+     "somebody else's, do not touch". */
+  function install(proj, stage){
+    adopt(proj, stage);
+    visiting=false;
+    save();
+  }
 
   /* ------------------------------------------------------------ actors */
   function geo(shape,size){
@@ -647,7 +657,7 @@ window.VM = (function(){
     get running(){ return running; },
     get threadCount(){ return threads.length; },
     enter, leave, step, save, load, wipe, reset, resetActor, dress, runBlock, ghostMesh, useSlot,
-    adopt, stageCam, reframe, plain,
+    adopt, install, stageCam, reframe, plain,
     get visiting(){ return visiting; },
     get flat(){ return isFlat(); },
     set stage(v){ P.stage = v==='flat'?'flat':'world'; save(); },

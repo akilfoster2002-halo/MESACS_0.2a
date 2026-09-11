@@ -105,3 +105,46 @@ test('the arcade is a door on VOLTA that use() knows about', ()=>{
     'walking is not held during a 2D game, so WASD answers twice');
   assert.match(game, /btnPublish/, 'there is no way to publish');
 });
+
+/* ------------------------------------------------------------------------
+   THE BENCH. Games are MADE in the arcade now, not in Free Play — you walk
+   into the building on VOLTA, press MAKE A GAME, and the block editor opens
+   in the room behind it. Which door it is behind is the whole point: a
+   cabinet you can play and a bench you can build at, in the same room. */
+test('the arcade has a workbench, and it is not Free Play\'s sandbox', ()=>{
+  const arc = read('public/arcade.js');
+  assert.match(arc, /function make\(g\)/, 'there is no way to start a game in the arcade');
+  assert.match(arc, /const SLOT='dq_arcade_build'/, 'the bench has no slot of its own');
+  /* Two rooms, two projects. A child who walks into the arcade to carry on
+     with their game must not find whatever they last built in Free Play —
+     nor lose it. */
+  assert.match(arc, /VM\.useSlot\(SLOT\)/, 'the bench does not open its own slot');
+  assert.match(arc, /VM\.install\(r\.game\.project, r\.game\.stage\)/,
+    'opening one of your own does not load it onto the bench');
+  const html = read('public/index.html');
+  assert.ok(html.includes('id="arMake"'), 'there is no MAKE A GAME button');
+
+  const vm = read('public/vm.js');
+  /* install() is adopt()'s opposite number: same load, opposite intent.
+     Editing yours turns saving back on; adopt() stays the one for
+     somebody else's. */
+  assert.match(vm, /function install\(proj, stage\)\{[\s\S]{0,200}visiting=false;[\s\S]{0,80}save\(\);/,
+    'install() does not hand the project back as your own');
+
+  const game = read('public/game.js');
+  /* You came from the arcade, so LEAVE goes back to the shelf. Dropping
+     somebody outside on VOLTA with no idea where their game went is the
+     one exit that reads as having lost it. */
+  assert.match(game, /ARCADE\.building && ARCADE\.leaveBench\(\)\) return;/,
+    'leaving the bench does not go back to the arcade');
+});
+
+test('nothing a child wrote is put on the briefing as markup', ()=>{
+  const arc = read('public/arcade.js');
+  /* say() sets textContent on purpose, because every other string this file
+     shows was written by a child. So the file's OWN strings cannot carry
+     tags either — they would come out as angle brackets on the card. */
+  for(const m of arc.matchAll(/say\(t\('([^']*)'/g))
+    assert.ok(!/<[a-z/]/i.test(m[1]),
+      `a briefing string carries markup and say() renders text: ${m[1]}`);
+});
