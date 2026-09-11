@@ -66,7 +66,7 @@ window.CRUISE = (function(){
   const where=new THREE.Vector3(), destAbs=new THREE.Vector3(), homeAbs=new THREE.Vector3();
   const toDest=new THREE.Vector3(), toHome=new THREE.Vector3();
   let startDist=TRIP, realDist=TRIP;
-  let keys={}, look={x:0,y:0}, exposureWas=1.05;
+  let keys={}, look={x:0,y:0}, exposureWas=1.05, hudWas=[];
   let phen=[], comets=[], rocks=null, destGlobe=null, homeGlobe=null, sun=null;
   let crowd=null, mates=new Map(), sent=0;
   let starA=null, starB=null, streaks=null;
@@ -538,7 +538,27 @@ window.CRUISE = (function(){
     pitch=Math.asin(Math.max(-1,Math.min(1,d.y)));
 
     G.running=false;
-    document.querySelector('#hud').classList.add('hidden');
+    /* HIDE THE HUD'S PIECES, NOT THE HUD.
+
+       The chat lives inside #hud, so hiding the container took the one
+       part of it this ride wants to keep with it — which is why the
+       CHAT.show() below has never put anything on the screen. Out between
+       the planets is the longest stretch in the game with nothing to do
+       but hold W, and it is the one place a class most wants to talk.
+
+       Each child is put back exactly as it was found, because several of
+       them were already hidden before the launch and turning them all on
+       at the end would hand the planet a health bar it is not using. */
+    hudWas=[];
+    const hudEl=document.querySelector('#hud');
+    if(hudEl){
+      hudEl.classList.remove('hidden');
+      [...hudEl.children].forEach(el=>{
+        if(el.id==='chat') return;
+        hudWas.push([el, el.classList.contains('hidden')]);
+        el.classList.add('hidden');
+      });
+    }
     const mw=document.querySelector('#mapwrap'); if(mw) mw.classList.add('hidden');
 
     if(G.roomGroup) G.scene.remove(G.roomGroup);
@@ -591,6 +611,8 @@ window.CRUISE = (function(){
        arrival — it assumes whoever took them down knows to. */
     G.renderer.toneMappingExposure=exposureWas;
     const h=document.querySelector('#hud'); if(h) h.classList.remove('hidden');
+    hudWas.forEach(([el,was])=>el.classList.toggle('hidden', was));
+    hudWas=[];
     const mw=document.querySelector('#mapwrap'); if(mw) mw.classList.remove('hidden');
     mates.clear(); crowd=null;
     field=null; ship=null; shipHull=null; phen=[]; comets=[]; rocks=null;
@@ -600,6 +622,27 @@ window.CRUISE = (function(){
   /* ------------------------------------------------------------ controls */
   function onKey(e){
     if(!on) return;
+    /* A KEYSTROKE AIMED AT THE CHAT BELONGS TO THE CHAT.
+
+       This listener is on the CAPTURE phase, so it sees every key before
+       anything else does. Without this guard, typing a message also flies
+       the ship — and worse, the letters that fly it are exactly the ones
+       preventDefault() swallows below, so the input never receives them.
+       A chat box you cannot type the word "wait" into is not a chat box.
+
+       Nothing stays held while you type, either: a W pressed as the first
+       letter of a word would otherwise be stuck down until you pressed and
+       released it again outside the field, with the engines on.
+
+       And Escape gets you out of the BOX rather than out of the flight.
+       Aborting a trip between planets because somebody finished a sentence
+       is not what that key should mean while a caret is blinking. */
+    if(window.typingInField && typingInField(e)){
+      for(const k in keys) keys[k]=false;
+      if(e.type==='keydown' && e.code==='Escape' && document.activeElement
+         && document.activeElement.blur) document.activeElement.blur();
+      return;
+    }
     if(e.type==='keydown' && e.code==='Escape'){ abort(); return; }
     keys[e.code]= e.type==='keydown';
     if(['KeyW','KeyS','KeyA','KeyD','Space','ShiftLeft','ShiftRight','KeyQ','KeyE',
