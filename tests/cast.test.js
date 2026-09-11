@@ -150,7 +150,7 @@ test('the quick change is wired to a key, a button and the freeze', ()=>{
     'B no longer opens the quick change');
   assert.match(game, /CHARS\.quickUp && CHARS\.quickKey\(e\)/,
     'the panel no longer takes the keyboard while it is up');
-  assert.match(game, /function frozen\(\)[\s\S]{0,240}CHARS\.quickUp/,
+  assert.match(game, /function frozen\(\)[\s\S]{0,600}CHARS\.quickUp/,
     'the world no longer holds still while the panel is up — you would walk off blind');
   assert.match(game, /on\('#btnWho'/, 'the HUD button is gone, so only a hotkey opens it');
   const html = read('public/index.html');

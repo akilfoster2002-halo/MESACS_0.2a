@@ -55,12 +55,12 @@ test('every world grows a flora that exists', ()=>{
     assert.ok(names.includes(m[1]), `a world grows '${m[1]}', which FLORA has not got`);
 });
 
-test('the two things on VOLTA are the Gym and the club', ()=>{
+test('the three things on VOLTA are the Gym, the club and the arcade', ()=>{
   const src = planet();
   const at = src.indexOf('const ARENA_BUILDINGS');
   const block = src.slice(at, src.indexOf('];', at));
   const ids = [...block.matchAll(/id:'([a-z]+)'/g)].map(m=>m[1]);
-  assert.deepStrictEqual(ids, ['gym','club']);
+  assert.deepStrictEqual(ids, ['gym','club','arcade']);
 });
 
 test('use() knows every id the club puts on a panel', ()=>{

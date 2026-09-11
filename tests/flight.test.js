@@ -73,7 +73,7 @@ test('R asks how you travel, and the panel takes the keyboard', ()=>{
     'R still gets straight into the car, so flying is unreachable');
   assert.match(game, /PLANET\.travelUp && PLANET\.travelKey\(e\)/,
     'the panel no longer takes the keyboard while it is up');
-  assert.match(game, /function frozen\(\)[\s\S]{0,320}PLANET\.travelUp/,
+  assert.match(game, /function frozen\(\)[\s\S]{0,600}PLANET\.travelUp/,
     'the world no longer holds still while the panel is up');
   const html = read('public/index.html');
   for(const id of ['travel','travelRow','travelTitle','travelHint'])

@@ -42,6 +42,48 @@ async function init(){
     );
     CREATE TABLE IF NOT EXISTS seen (id INT);
 
+    /* ------------------------------------------------------- the arcade
+       The one thing in this game a child makes that OTHER children read.
+
+       Chat is deliberately never written down — a room that empties forgets
+       every word of it — and that is the right call for something said in
+       passing. A game is the opposite: the whole point is that it outlives
+       the lesson and somebody else finds it. So it is stored, and because
+       it is stored it needs the things stored child-made work needs: an
+       author, a way for a teacher to take it down, and a size it cannot
+       exceed.
+
+       The project column is the same JSON the editor already keeps in
+       localStorage —
+       actors, variables, lists, custom blocks, messages. Storing it whole
+       means a published game is exactly the project that was played, and
+       loading one is the same code path as loading your own. */
+    CREATE TABLE IF NOT EXISTS games (
+      id         SERIAL PRIMARY KEY,
+      author_id  INTEGER NOT NULL REFERENCES users(id),
+      title      TEXT NOT NULL,
+      blurb      TEXT NOT NULL DEFAULT '',
+      stage      TEXT NOT NULL DEFAULT 'world',
+      project    JSONB NOT NULL,
+      plays      INTEGER NOT NULL DEFAULT 0,
+      hidden     BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    /* ONE VOTE PER PLAYER PER GAME, which the primary key enforces rather
+       than the code: changing your mind edits your rating instead of adding
+       a second one, and nobody can sit on a cabinet pushing a game up. */
+    CREATE TABLE IF NOT EXISTS game_votes (
+      game_id    INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id),
+      stars      INTEGER NOT NULL,
+      note       TEXT NOT NULL DEFAULT '',
+      hidden     BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (game_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS games_open ON games (hidden, updated_at DESC);
+
     /* Chat is not a table any more. It lives in the server's memory for as
        long as somebody is standing in the room and is thrown away the moment
        the room empties, so there is nothing here to create. An older messages

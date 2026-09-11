@@ -190,7 +190,13 @@ window.PLANET = (function(){
        in Mission 2 — and here it is a thing you dance to rather than a thing
        you are marked on. */
     { id:'club', name:'THE LOOP', em:'\u{1F3A7}', lon:27, lat:3, w:44, d:36, h:16, door:10,
-      wall:0x241a3d, roof:0xff6ad5, blurb:'The floor, and the decks are yours' }
+      wall:0x241a3d, roof:0xff6ad5, blurb:'The floor, and the decks are yours' },
+    /* THE ARCADE. Opposite the pad, so it is the first thing you walk
+       towards when you land. Games are MADE in Free Play, where the editor
+       is; this is where they are played by somebody who did not make them,
+       which is the half that was missing. */
+    { id:'arcade', name:'THE ARCADE', em:'\u{1F579}', lon:0, lat:26, w:40, d:30, h:15, door:9,
+      wall:0x1d2a4a, roof:0x8ff0ff, blurb:'Play what your class has made' }
   ];
   /* Deep indigo up through violet, and never toward green or brown. The
      brightest step is the one the club's own light falls on. */
@@ -2966,7 +2972,7 @@ window.PLANET = (function(){
     if(!id) return;
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
-    const known = id==='workshop' || id==='mall' || id==='library'
+    const known = id==='arcade' || id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
                || id==='league' || id==='pvp' || id==='mecha'
@@ -3001,6 +3007,14 @@ window.PLANET = (function(){
     /* The decks do not take you anywhere. You are already standing at
        them — the room is the point — so the set opens over the world the
        way the Library does, and walking is held until you step away. */
+    /* The arcade is a shelf, not a room: a gallery is a list of names and
+       stars, and cabinets you have to walk between would be a worse way to
+       read one. Same shape as the Wardrobe. */
+    if(id==='arcade'){
+      if(!window.ARCADE) return;
+      wentTo('gym'); leave();
+      return ARCADE.open();
+    }
     if(id==='decks'){ if(window.CLUB) CLUB.take(); return; }
     if(id==='club'){ say(t('The decks are at the back. <b>E</b> to play the set.')); return; }
     if(id==='takeship'){

@@ -28,8 +28,44 @@ window.VM = (function(){
   let group=null, threads=[], running=false, t0=0, uid=1;
 
   function blank(){
-    return { actors:[], vars:{}, lists:{}, procs:[], msgs:['message1'] };
+    /* `stage` is how the project wants to be LOOKED at, not a different
+       engine. 'world' is the room you walk around inside; 'flat' parks an
+       overhead camera on the floor plane and hands the keys to the game
+       instead of to your legs.
+
+       It works out to a camera and nothing else because the motion blocks
+       were already right for it: move/turn/point all act on x and z with
+       `dir` as a compass heading, which IS a top-down 2D stage. y is the
+       height off the floor, and a flat game simply never touches it. */
+    return { actors:[], vars:{}, lists:{}, procs:[], msgs:['message1'], stage:'world' };
   }
+  /* VISITING. Somebody else's game, opened out of the arcade, running in
+     this browser and belonging to another child. Nothing about it is
+     written down: save() goes quiet, so a clone spawned by their code, an
+     object their program moved, and the variables it set all vanish when
+     you walk out, and the project you get back is the one they published. */
+  let visiting=false;
+  function adopt(proj, stage){
+    quiet++; reset(); quiet--;
+    visiting=true;
+    const raw = proj || {};
+    Object.assign(P.vars, raw.vars||{});
+    Object.assign(P.lists, raw.lists||{});
+    (raw.procs||[]).forEach(x=>P.procs.push(x));
+    if(raw.msgs && raw.msgs.length){ P.msgs.length=0; raw.msgs.forEach(m=>P.msgs.push(m)); }
+    P.stage = stage || raw.stage || 'world';
+    uid = raw.uid || 1;
+    /* Deep-copied on the way in. The object handed over came from JSON the
+       page fetched, and the VM mutates actors as it runs — without this,
+       leaving and re-entering a game would start it half-played. */
+    (raw.actors||[]).forEach(a=>{
+      const c=JSON.parse(JSON.stringify(a));
+      c.mesh=null; c.bubble=null; c.isClone=false;
+      if(!c.home) c.home=snapshot(c);
+      P.actors.push(c);
+    });
+  }
+  const isFlat = () => P.stage==='flat';
 
   /* ------------------------------------------------------------ actors */
   function geo(shape,size){
@@ -507,16 +543,28 @@ window.VM = (function(){
      a mission and the sandbox you had built was overwritten by a mission ball.
      Nothing saves while a swap is in progress. */
   let quiet=0;
+  /* THE PROJECT AS PLAIN DATA, and the only thing that knows how.
+
+     An actor in memory carries its THREE.js mesh, and a mesh points back
+     at the actor through userData — so the live project cannot be handed
+     to JSON.stringify at all. It used to only matter to save(), which
+     built the clean copy inline; publishing to the arcade is a second
+     caller that needs exactly the same copy, and two places deciding what
+     a project consists of is one place too many. Clones are left out
+     because they are something the program made, not something the author
+     did. */
+  function plain(){
+    return {
+      actors:P.actors.filter(a=>!a.isClone).map(a=>({
+        id:a.id, name:a.name, shape:a.shape, colour:a.colour,
+        x:a.x, y:a.y, z:a.z, dir:a.dir, tilt:a.tilt, size:a.size, visible:a.visible,
+        scripts:a.scripts, vars:a.vars, isClone:false, home:a.home })),
+      vars:P.vars, lists:P.lists, procs:P.procs, msgs:P.msgs, uid, stage:P.stage
+    };
+  }
   function save(){
-    if(quiet) return;
-    try{
-      localStorage.setItem(KEY, JSON.stringify({
-        actors:P.actors.map(a=>({ id:a.id,name:a.name,shape:a.shape,colour:a.colour,
-          x:a.x,y:a.y,z:a.z,dir:a.dir,tilt:a.tilt,size:a.size,visible:a.visible,
-          scripts:a.scripts, vars:a.vars, isClone:a.isClone, home:a.home })).filter(a=>!a.isClone),
-        vars:P.vars, lists:P.lists, procs:P.procs, msgs:P.msgs, uid
-      }));
-    }catch(e){}
+    if(quiet || visiting) return;    // a visitor never writes on the author
+    try{ localStorage.setItem(KEY, JSON.stringify(plain())); }catch(e){}
   }
   function load(){
     let raw=null;
@@ -528,6 +576,7 @@ window.VM = (function(){
       (raw.procs||[]).forEach(x=>P.procs.push(x));
       if(raw.msgs&&raw.msgs.length){ P.msgs.length=0; raw.msgs.forEach(m=>P.msgs.push(m)); }
       uid=raw.uid||1;
+      P.stage = raw.stage==='flat' ? 'flat' : 'world';
       raw.actors.forEach(a=>{ a.mesh=null; a.bubble=null;
         if(!a.home) a.home=snapshot(a);   // saved before objects remembered a home
         P.actors.push(a); });
@@ -537,16 +586,53 @@ window.VM = (function(){
   /* ------------------------------------------------------------- mount */
   /* Which project the NEXT enter() will open. Set before the room is built,
      because the room is what calls enter(). */
-  function useSlot(slot){ KEY = slot || SANDBOX; }
+  function useSlot(slot){ KEY = slot || SANDBOX; visiting=false; }
   function enter(parent){
     if(group && group.parent) group.parent.remove(group);
-    load();
+    /* A visitor's project is already in P — adopt() put it there — and
+       load() would throw it away and open whatever this browser has in
+       the sandbox instead, which is the one thing a published game must
+       never turn into. */
+    if(!visiting) load();
     group=new THREE.Group(); parent.add(group);
     P.actors.forEach(build);
-    if(!P.actors.length) addActor({ name:'Blocky', x:0, y:1, z:0 });
+    if(!visiting && !P.actors.length) addActor({ name:'Blocky', x:0, y:1, z:0 });
     threads=[]; running=false; t0=performance.now();
   }
-  function leave(){ group=null; threads=[]; running=false; }
+  function leave(){ group=null; threads=[]; running=false; visiting=false; }
+  /* THE FLAT STAGE, which is a camera and not an engine.
+
+     Looking straight down the y axis at the floor puts x across the screen
+     and z up it, which is exactly the plane move/turn/point already work
+     in. Framed on everything the project contains rather than on a fixed
+     box, so a small game fills the screen and a big one fits — measured
+     once when the stage opens, not per frame, or a clone flying off the
+     edge slowly zooms the whole game out. */
+  let framed=0, flatCam=null;
+  function stageCam(aspect){
+    /* IT HAS TO BE AN ORTHOGRAPHIC CAMERA, not the room's perspective one
+       pushed a long way back. A flat game is played by reading positions
+       off the screen — is the ball level with the paddle yet — and under
+       perspective two objects the same distance apart are different
+       distances apart depending where they sit. */
+    if(!flatCam) flatCam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,400);
+    if(!framed){
+      let r=6;
+      P.actors.forEach(a=>{ r=Math.max(r, Math.abs(a.x)+a.size, Math.abs(a.z)+a.size); });
+      framed=r*1.25+2;
+    }
+    const h=framed, w=h*(aspect||1.6);
+    flatCam.left=-w; flatCam.right=w; flatCam.top=h; flatCam.bottom=-h;
+    flatCam.position.set(0, 120, 0);
+    /* +z has to point UP the screen. Looking straight down, the camera's
+       own up vector is the only thing that says which way round the floor
+       is, and the default lands north at the bottom. */
+    flatCam.up.set(0,0,-1);
+    flatCam.lookAt(0,0,0);
+    flatCam.updateProjectionMatrix();
+    return flatCam;
+  }
+  function reframe(){ framed=0; }
   function reset(){
     P.actors.slice().forEach(delActor);
     P.actors.length=0; P.procs.length=0; P.msgs.length=0; P.msgs.push('message1');
@@ -561,6 +647,11 @@ window.VM = (function(){
     get running(){ return running; },
     get threadCount(){ return threads.length; },
     enter, leave, step, save, load, wipe, reset, resetActor, dress, runBlock, ghostMesh, useSlot,
+    adopt, stageCam, reframe, plain,
+    get visiting(){ return visiting; },
+    get flat(){ return isFlat(); },
+    set stage(v){ P.stage = v==='flat'?'flat':'world'; save(); },
+    get stage(){ return P.stage||'world'; },
     addActor, delActor, build, sync, actorByName,
     greenFlag, stopAll, startHats,
     evalBlock, lookup, num, truthy

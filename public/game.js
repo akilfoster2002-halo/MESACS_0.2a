@@ -341,6 +341,11 @@ function updateLeaveBtn(){
   const b=$('#btnLeave'); if(!b) return;
   // nothing to leave when you are already home
   b.classList.toggle('hidden', G.hudOwner==='desktop' || G.hudOwner==='planet');
+  /* PUBLISH belongs where the editor is, and nowhere else. In somebody
+     else's game it would be an invitation to publish their work. */
+  const pb=$('#btnPublish');
+  if(pb) pb.classList.toggle('hidden',
+    !(G.room==='free' && window.VM && !VM.visiting && window.NET && NET.signedIn));
 }
 function buildRoom(name){
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
@@ -380,6 +385,7 @@ function buildFree(L){
   sign.position.set(0,8,-L.d/2+0.7); G.roomGroup.add(sign);
   document.querySelector('#mapwrap').classList.add('hidden');
   if(window.VM) VM.enter(G.roomGroup);
+  updateLeaveBtn();          // PUBLISH only exists once the room is Free Play
 }
 function buildArena(L){
   G.pos.set(0,EYE,L.d/2-6); G.yaw=0; G.pitch=0;
@@ -607,6 +613,9 @@ function wireInput(){
          somebody is playing it, and a DJ who moonwalks off the stage every
          time they nudge the playhead is not a DJ. */
       if(window.CLUB && CLUB.playing && CLUB.key(e)){ e.preventDefault(); return; }
+      /* Esc gets you out of somebody's game and into rating it. Before the
+         pointer-lock release below, or Esc would only free the mouse. */
+      if(window.ARCADE && ARCADE.key(e)){ e.preventDefault(); return; }
       /* THE QUICK CHANGE TAKES THE KEYBOARD WHILE IT IS UP, and takes it
          before anything else — its arrows walk the row, and left and right
          turn you round a planet everywhere else. */
@@ -718,6 +727,10 @@ function loop(now){
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
      typing player leaves the room holding a stale picture of them. */
+  /* SOMEBODY ELSE'S GAME. A flat one borrows the renderer's camera, and it
+     has to be swapped in before anything is drawn with it — which is here,
+     above the step that draws. */
+  if(window.ARCADE && ARCADE.playing) ARCADE.tick(dt);
   if(G.room==='free'){ VM.step(dt); CODER.tick(dt); if(window.MISSIONS) MISSIONS.tick(dt);
                        if(window.OWN) OWN.update(dt);      // whose object is whose
                        if(window.FREE) FREE.share(); }
@@ -752,6 +765,10 @@ function shade(){
   });
 }
 function frozen(){
+  /* In a 2D game the keys belong to the GAME. Walking on WASD while the
+     author's `when left arrow pressed` script is also reading them is two
+     things answering one key. */
+  if(window.ARCADE && ARCADE.flat) return true;
   return CODE.isOpen()
       || !!(window.CHARS && CHARS.quickUp)   // choosing a body is not a moment to walk
       || !!(window.PLANET && PLANET.travelUp)  // nor is choosing how to travel
@@ -996,6 +1013,7 @@ function wireUI(){
     const v=$('#view'); if(v && G.running) lockPointer(v);
   });
   on('#btnWho',()=>{ if(window.CHARS) CHARS.quickToggle(); });
+  on('#btnPublish',()=>{ if(window.ARCADE) ARCADE.publish(); });
 }
 function setLang(l){
   window.LANG=l;

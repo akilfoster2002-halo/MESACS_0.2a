@@ -20,7 +20,15 @@ const mecha = require('./mechalobby');
 const ARENA_HZ = require('../public/mechaarena.js').RULES.hz;
 
 const app = express();
+/* Sixteen kilobytes is the right ceiling for everything this server took
+   before the arcade: a name, a password, a line of chat, a program of a
+   couple of dozen blocks. A published GAME is a whole project — every
+   object, every script, every list — and a good one from a determined
+   nine-year-old is bigger than that. It gets its own limit on its own
+   route rather than lifting the ceiling on sign-in and chat, which have
+   no business ever being that large. */
 app.use(express.json({ limit:'16kb' }));
+const bigJson = express.json({ limit:'320kb' });
 /* Flight School also ships as a standalone site with no account and no
    network — see flightschool/README.md. It is served from here too, so a
    teacher who is already in KORO has a link to hand out rather than a
@@ -142,6 +150,145 @@ app.post('/api/progress', async (req,res)=>{
   const progress = req.body.progress||{};
   await db.q('UPDATE users SET progress=$1 WHERE id=$2',[JSON.stringify(progress), s.id]);
   ok(res,{});
+});
+
+/* ======================================================== the arcade
+   Games are made in Free Play, with the editor that is already there, and
+   published here so somebody else can play them.
+
+   EVERY STRING A CHILD WROTE IS CAPPED AND STORED AS TEXT. Titles and
+   notes are shown to other children, so the browser renders them with
+   textContent and the server never trusts a length. The project itself is
+   JSON and is never executed here — the server stores it and hands it
+   back; the only thing that runs it is the same VM that made it. */
+const CAP = (v,n) => String(v==null?'':v).slice(0,n).trim();
+const STARS = v => Math.max(1, Math.min(5, Math.round(+v||0)));
+
+/* What a cabinet shows without opening it. The project is deliberately
+   NOT in this list — it is the big half of a game and the arcade shows
+   thirty of them at once. */
+const SHELF = `g.id, g.title, g.blurb, g.stage, g.plays, g.author_id,
+               u.display AS author, g.updated_at,
+               COALESCE(v.votes,0)::int AS votes,
+               COALESCE(ROUND(v.avg::numeric,1),0)::float AS stars`;
+const SHELF_FROM = `FROM games g
+  JOIN users u ON u.id=g.author_id
+  LEFT JOIN (SELECT game_id, COUNT(*) AS votes, AVG(stars) AS avg
+             FROM game_votes WHERE hidden=false GROUP BY game_id) v ON v.game_id=g.id`;
+
+app.get('/api/arcade', async (req,res)=>{
+  try{
+    const r = await db.q(`SELECT ${SHELF} ${SHELF_FROM}
+      WHERE g.hidden=false ORDER BY g.updated_at DESC LIMIT 60`);
+    ok(res,{ games:r.rows });
+  }catch(e){ console.error(e); bad(res,500,'The arcade is not answering'); }
+});
+
+app.get('/api/arcade/:id', async (req,res)=>{
+  try{
+    const id=Number(req.params.id)||0;
+    const r = await db.q(`SELECT ${SHELF}, g.project ${SHELF_FROM}
+      WHERE g.id=$1 AND g.hidden=false`,[id]);
+    if(!r.rows.length) return bad(res,404,'No such game');
+    const notes = await db.q(
+      `SELECT v.stars, v.note, u.display FROM game_votes v
+       JOIN users u ON u.id=v.user_id
+       WHERE v.game_id=$1 AND v.hidden=false AND v.note<>''
+       ORDER BY v.created_at DESC LIMIT 20`,[id]);
+    ok(res,{ game:r.rows[0], notes:notes.rows });
+  }catch(e){ console.error(e); bad(res,500,'Could not open that game'); }
+});
+
+/* Publish, or republish. An author has one cabinet per title rather than a
+   new one per save — a class of thirty pressing PUBLISH after every change
+   is a wall of the same game otherwise. */
+app.post('/api/arcade', bigJson, async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  try{
+    const title = CAP(req.body.title, 40);
+    const blurb = CAP(req.body.blurb, 120);
+    const stage = req.body.stage==='flat' ? 'flat' : 'world';
+    const project = req.body.project;
+    if(!title) return bad(res,400,'Give your game a name');
+    if(!project || !Array.isArray(project.actors) || !project.actors.length)
+      return bad(res,400,'There is nothing in this project yet');
+    if(JSON.stringify(project).length > 300000)
+      return bad(res,400,'That project is too big to publish');
+    if(rateLimited('pub:'+s.id, 20, 60000)) return bad(res,429,'Slow down a little');
+    const mine = await db.q(
+      'SELECT id FROM games WHERE author_id=$1 AND lower(title)=lower($2)',[s.id,title]);
+    if(mine.rows.length){
+      const r = await db.q(
+        `UPDATE games SET blurb=$1, stage=$2, project=$3, hidden=false, updated_at=now()
+         WHERE id=$4 RETURNING id`,[blurb,stage,JSON.stringify(project),mine.rows[0].id]);
+      return ok(res,{ id:r.rows[0].id, updated:true });
+    }
+    const r = await db.q(
+      `INSERT INTO games (author_id,title,blurb,stage,project)
+       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      [s.id,title,blurb,stage,JSON.stringify(project)]);
+    ok(res,{ id:r.rows[0].id, updated:false });
+  }catch(e){ console.error(e); bad(res,500,'Could not publish that'); }
+});
+
+app.get('/api/arcade/mine/list', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  try{
+    const r = await db.q(`SELECT ${SHELF} ${SHELF_FROM}
+      WHERE g.author_id=$1 ORDER BY g.updated_at DESC`,[s.id]);
+    ok(res,{ games:r.rows });
+  }catch(e){ console.error(e); bad(res,500,'Could not read your games'); }
+});
+
+app.post('/api/arcade/:id/play', async (req,res)=>{
+  try{
+    await db.q('UPDATE games SET plays=plays+1 WHERE id=$1 AND hidden=false',
+               [Number(req.params.id)||0]);
+    ok(res,{});
+  }catch(e){ bad(res,500,'no'); }
+});
+
+/* A rating and, if they want, one line about why. Voting on your own game
+   is not a thing — it is the one vote that means nothing. */
+app.post('/api/arcade/:id/rate', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  try{
+    const id=Number(req.params.id)||0;
+    const g = await db.q('SELECT author_id FROM games WHERE id=$1 AND hidden=false',[id]);
+    if(!g.rows.length) return bad(res,404,'No such game');
+    if(g.rows[0].author_id===s.id) return bad(res,400,'You cannot rate your own game');
+    if(rateLimited('rate:'+s.id, 30, 60000)) return bad(res,429,'Slow down a little');
+    await db.q(
+      `INSERT INTO game_votes (game_id,user_id,stars,note) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (game_id,user_id)
+       DO UPDATE SET stars=EXCLUDED.stars, note=EXCLUDED.note, created_at=now()`,
+      [id, s.id, STARS(req.body.stars), CAP(req.body.note,140)]);
+    ok(res,{});
+  }catch(e){ console.error(e); bad(res,500,'Could not save that'); }
+});
+
+/* Taking it down. The author can, because it is theirs; a teacher can,
+   because thirty of these are going up in a room they are responsible
+   for. Hidden rather than deleted: a teacher who hides the wrong one
+   should be able to put it back. */
+app.post('/api/arcade/:id/hide', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  try{
+    const id=Number(req.params.id)||0;
+    const me = await db.q('SELECT role FROM users WHERE id=$1',[s.id]);
+    const teacher = me.rows.length && me.rows[0].role==='teacher';
+    const hidden = req.body.hidden!==false;
+    const r = await db.q(
+      teacher ? 'UPDATE games SET hidden=$2 WHERE id=$1 RETURNING id'
+              : 'UPDATE games SET hidden=$2 WHERE id=$1 AND author_id=$3 RETURNING id',
+      teacher ? [id,hidden] : [id,hidden,s.id]);
+    if(!r.rows.length) return bad(res,403,'Not yours to take down');
+    ok(res,{});
+  }catch(e){ console.error(e); bad(res,500,'Could not do that'); }
 });
 
 /* ------------------------------------------------------------ teacher */

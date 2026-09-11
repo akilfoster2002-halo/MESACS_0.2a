@@ -220,6 +220,47 @@ classmate overhead is a classmate walking across the field underneath you.
 character alive in their idle, so being somebody else is a keypress rather than
 a walk to the Mall.
 
+## The Arcade
+
+Everything needed to MAKE a game was already here — `blocks.js` is the language,
+`vm.js` runs it, `coder.js` edits it, Free Play is the room. What was missing was
+the half that makes any of it worth doing: somebody else playing it.
+
+```
+FREE PLAY → PUBLISH → a cabinet on VOLTA → somebody plays it
+                                         → they rate it
+                                         → the author reads that
+```
+
+A game is made in Free Play, where the editor is, and published with the button
+in the top bar. The arcade is a building on VOLTA: a shelf of cabinets showing
+title, author, stars and plays. Play one, press `Esc`, and you are asked what you
+thought — five stars and one optional line. Publishing again under the same name
+replaces the game rather than adding a second cabinet.
+
+**2D is a camera, not a second engine.** `move`, `turn` and `point towards`
+already act on x and z with `dir` as a compass heading, which *is* a top-down 2D
+stage — so a project marked flat gets an orthographic camera overhead and the
+keys are handed to the game instead of to your legs. Every motion block was
+already right for it.
+
+Three things it is careful about, all of them because this is the first thing in
+the game a child makes that other children read:
+
+- **A visitor never writes on the author.** `VM.adopt()` runs their project in
+  your browser with saving turned off, on a deep copy — their program can spawn
+  clones and set variables and none of it is kept. You cannot break a game by
+  playing it.
+- **Every word a child wrote is capped by the server and rendered with
+  `textContent`.** Both, because either alone is one mistake from a class
+  finding out.
+- **A teacher can take any game down.** Hidden rather than deleted, so hiding
+  the wrong one is reversible. Chat is never stored at all; a game is, and that
+  difference is the reason this needs a moderation path and chat does not.
+
+Publishing is the only route that accepts a large body — it gets its own 320kb
+limit, and sign-in and chat keep the 16kb ceiling they should always have had.
+
 ## Not built yet
 The intro cutscene and the rest of the villains
 (SYNTAXA — debugging, OFF-BY-ONE — counting from zero, NULLBYTE — the final boss)
