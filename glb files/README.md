@@ -103,9 +103,16 @@ changes when they are added:
 | `shortsHem` | below it the leg is BARE. The leg bones were unconditionally trousers, which paints a bare calf denim blue |
 | `hatLine` | above it the head is a HAT rather than hair — a lid on the hairline, the way the hairline is a lid on the face |
 
+Two more, added for Carlos and off by default for the same reason:
+
+| | |
+|---|---|
+| `sock` | `[top, stripe]` — the band between the shoe and the leg, and how tall one stripe is. `0` for a plain sock |
+| `sole` | below it the shoe is its sole. Nearly every shoe is two colours with a line across it, and a red high-top painted entirely red loses the part that says *shoe* |
+
 **A character with no reference sheet is a character whose colours are a
-guess.** Savannah's palette was measured off her drawing with `png-read.js`;
-Carlos arrived with no reference, no UVs and no texture, so his hexes are a
-choice. His *bands* are not — they come from his own skeleton and the shape of
-his mesh. Drop a reference PNG beside a character and the colours can be
-measured instead of chosen.
+guess.** Both Savannah and Carlos have one now, and both palettes were read
+off the drawing rather than chosen. Where a drawing and the mesh disagree,
+trust the drawing for HEIGHTS and the rig for WIDTHS: both characters'
+vertical landmarks land within about a percent of their own skeletons, and
+both drawings have proportionally longer arms than the model does.

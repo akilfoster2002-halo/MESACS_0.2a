@@ -1,33 +1,40 @@
 {
   "note": [
-    "PLACEHOLDER COLOURS. Savannah's palette was measured off her reference",
-    "sheet with png-read.js; Carlos arrived with no reference, no UVs and no",
-    "texture, so every hex below is a choice rather than a measurement.",
-    "The BANDS are not guesses — they come from his own skeleton and the",
-    "shape of his mesh: boots to the ankle, bare leg, cargo shorts to the",
-    "hip, a loose tee to the collar, and a bucket hat over the hair.",
-    "Drop a reference PNG next to him and these can be measured instead."
+    "Measured off Carlos's reference sheet. His drawn proportions agree with",
+    "his own skeleton closely — drawn shoulder 0.799 against rig 0.786, drawn",
+    "knee 0.270 against rig 0.266 — so the heights below are the drawing's and",
+    "the widths are corrected onto the rig (the drawn arms are proportionally",
+    "longer: the hand sits at 0.82 of the reach in the picture and 0.749 on",
+    "the mesh, so lateral numbers are scaled by 0.91).",
+    "Every number is a fraction of the figure, never a length."
   ],
   "B": {
-    "shoeTop":   0.150,
-    "shortsHem": 0.330,
-    "waistTop":  0.500,
-    "shirtHem":  0.500,
-    "collarTop": 0.790,
-    "sleeveEnd": 0.330,
-    "faceY":     0.862,
-    "faceR":     [0.115, 0.052],
+    "shoeTop":   0.111,
+    "sole":      0.030,
+    "sock":      [0.234, 0.0205],
+    "shortsHem": 0.278,
+    "waistTop":  0.564,
+    "shirtHem":  0.564,
+    "collarTop": 0.799,
+    "sleeveEnd": 0.380,
+    "faceY":     0.868,
+    "faceR":     [0.110, 0.050],
     "faceZ":     0.020,
-    "throat":    [0.830, 0.055],
+    "throat":    [0.838, 0.055],
     "hairBack":  null,
-    "hatLine":   0.905
+    "hatLine":   0.930,
+    "emblem":    [0.640, 0.760, 0.075]
   },
   "C": {
-    "skin":   "#b5794f",
-    "hair":   "#1d1512",
-    "hat":    "#e2d8c4",
-    "jersey": "#2f7d78",
-    "jeans":  "#6d6a4a",
-    "shoe":   "#efece4"
+    "skin":   "#8b5a3a",
+    "hair":   "#191313",
+    "hat":    "#c4212f",
+    "jersey": "#6b1b28",
+    "emblem": "#9aa0a4",
+    "jeans":  "#1b1b1e",
+    "sock":   "#a5222c",
+    "sock2":  "#17171a",
+    "shoe":   "#a5222c",
+    "sole":   "#efeae2"
   }
 }

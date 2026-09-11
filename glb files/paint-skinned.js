@@ -65,12 +65,26 @@ function paint(IN, OUT, SPEC){
                sits above the hairline for the same reason the hairline
                sits above the face: each one is a lid on the last. */
             shortsHem:null, hatLine:null,
+            /* A SOCK IS A BAND BETWEEN THE SHOE AND THE LEG, and a striped
+               one is that band asking which stripe it is in. Height is all
+               it takes: [top, stripe] where stripe is how tall one band of
+               colour is, or 0 for a plain sock. At the size a character is
+               on screen a three-pixel stripe still reads as pattern, which
+               a flat colour does not.
+
+               A SOLE IS THE SAME IDEA AT THE OTHER END. Nearly every shoe
+               is two colours with a line across it, and painting a red
+               high-top entirely red loses the one part of it that says
+               shoe rather than foot. */
+            sock:null, sole:null,
             watch:null, panel:null, emblem:null, ...(SPEC.B||{}) };
   const C={ skin:'#dda070', hair:'#1b100e', jersey:'#9c1521', panel:'#242b4a',
             emblem:'#141013', jeans:'#28313a', shoe:'#ded5cd', watch:'#b9bcc0',
-            hat:'#e2d8c4', ...(SPEC.C||{}) };
+            hat:'#e2d8c4', sock:'#a5222c', sock2:'#17171a', sole:'#efeae2',
+            ...(SPEC.C||{}) };
   const SHADE={ jeans:{dark:0.62,lift:0.40}, jersey:{dark:0.50,lift:0.22},
-                hat:{dark:0.42,lift:0.24},
+                hat:{dark:0.42,lift:0.24}, sock:{dark:0.40,lift:0.22},
+                sock2:{dark:0.34,lift:0.20}, sole:{dark:0.30,lift:0.22},
                 panel:{dark:0.50,lift:0.22}, emblem:{dark:0.30,lift:0.14},
                 hair:{dark:0.50,lift:0.16}, shoe:{dark:0.36,lift:0.24},
                 watch:{dark:0.30,lift:0.30}, skin:{dark:0.24,lift:0.06},
@@ -152,10 +166,17 @@ function paint(IN, OUT, SPEC){
     /* A boot rises past the ankle, so the top of it is a height and not a
        bone — and above that it is whatever the leg is wearing, which for
        somebody in shorts is their own leg. */
-    if(L==='foot')  return yN<B.shoeTop ? 'shoe'
-                         : (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
-    if(L==='leg')   return yN<B.shoeTop ? 'shoe'
-                         : (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
+    if(L==='foot' || L==='leg'){
+      if(yN<B.shoeTop) return (B.sole && yN<B.sole) ? 'sole' : 'shoe';
+      /* Above the shoe and below the sock's top: which stripe. A period of
+         zero is a plain sock, which is the same rule with the question
+         never asked. */
+      if(B.sock && yN<B.sock[0]){
+        if(!B.sock[1]) return 'sock';
+        return Math.floor((yN-B.shoeTop)/B.sock[1]) % 2 ? 'sock2' : 'sock';
+      }
+      return (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
+    }
     if(L==='forearm'||L==='hand'){
       if(B.watch && ax>=B.watch[0] && ax<=B.watch[1] && x>0) return 'watch';
       return 'skin';
