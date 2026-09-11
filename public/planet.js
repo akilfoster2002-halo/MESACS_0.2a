@@ -2768,7 +2768,8 @@ window.PLANET = (function(){
       `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
        &nbsp; <b>SPACE</b> ${t('jump')}<br>
        <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('how you travel')}
-       &nbsp; <b>B</b> ${t('who you are')} &nbsp; <b>P</b> ${t('pause')}`);
+       &nbsp; <b>B</b> ${t('who you are')} &nbsp; <b>O</b> ${t('who is here')}
+       &nbsp; <b>P</b> ${t('pause')}`);
   }
   /* ===================================================================
      HOW YOU GET ABOUT

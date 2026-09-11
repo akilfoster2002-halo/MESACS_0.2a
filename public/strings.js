@@ -109,6 +109,17 @@ window.ES = {
   /* --- carrying on where you stopped --- */
   'CARRY ON — LEVEL {n} ▶':'CONTINUAR — NIVEL {n} ▶','START OVER':'EMPEZAR DE NUEVO',
   'WHO DO YOU WANT TO BE?':'¿QUIÉN QUIERES SER?',
+  /* --- who is here --- */
+  'WHO IS HERE':'QUIÉN ESTÁ AQUÍ','who is here':'quién está aquí','you':'tú',
+  'Looking…':'Buscando…','Just signed in':'Recién conectados',
+  'Sign in to see who else is here.':'Inicia sesión para ver quién más está aquí.',
+  'Cannot reach the server right now.':'No se puede contactar con el servidor ahora mismo.',
+  'Nobody else is here yet. Free Play is where everyone meets.':'Nadie más está aquí todavía. En Juego Libre es donde se junta todo el mundo.',
+  '{n} online &nbsp;·&nbsp; O or Esc closes':'{n} en línea  ·  O o Esc cierra',
+  'outside':'fuera','in the Workshop':'en el Taller','at home':'en casa',
+  'in the Mall':'en el Centro Comercial','in a mission':'en una misión',
+  'in the Gym':'en el Gimnasio','flying between planets':'volando entre planetas',
+  'driving':'conduciendo','just arrived':'acaba de llegar',
   /* --- the arcade --- */
   'THE ARCADE':'LOS RECREATIVOS','Play what your class has made':'Juega lo que ha hecho tu clase',
   'Games made in Free Play. Play one, then tell them what you thought.':'Juegos hechos en Juego Libre. Juega uno y diles qué te pareció.',

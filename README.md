@@ -261,6 +261,23 @@ the game a child makes that other children read:
 Publishing is the only route that accepts a large body — it gets its own 320kb
 limit, and sign-in and chat keep the 16kb ceiling they should always have had.
 
+## Who is here
+
+`O`, or the 👥 button. A strip along the bottom listing everybody online,
+grouped by the room they are in, with their face and what they are doing —
+outside, in the Workshop, in a mission, driving, flying between planets.
+
+The server has always known this: `live` is every open socket, carrying the
+room it joined and the door it last walked through. Nothing ever showed it to
+anybody but a teacher, which is a strange gap in a game whose multiplayer pitch
+is that your class is in here with you.
+
+`/api/who` reads no tables, so it sits above the database gate with `/health`
+and `/servers` — but it does need a signed-in cookie, checked from the HMAC
+alone. A public endpoint listing the display names of a room full of children
+is not a thing to ship. Students only, which is the convention the in-world
+roster already follows: a teacher is not drawn as a body in a room either.
+
 ## Not built yet
 The intro cutscene and the rest of the villains
 (SYNTAXA — debugging, OFF-BY-ONE — counting from zero, NULLBYTE — the final boss)

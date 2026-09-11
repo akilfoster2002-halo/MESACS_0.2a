@@ -667,10 +667,28 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    A strip along the bottom rather than a card in the middle: you are
    looking at yourself standing on the planet, and a panel over the middle
    of the screen covers the one thing you are trying to look at. */
-#swap,#travel{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;
+#swap,#travel,#who{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;
   justify-content:center;padding-bottom:5vh;pointer-events:none;
   background:linear-gradient(to top,rgba(8,10,18,.72),rgba(8,10,18,0) 42%)}
-#swap.hidden,#travel.hidden{display:none}
+#swap.hidden,#travel.hidden,#who.hidden{display:none}
+/* who is here */
+.whorow{display:flex;gap:12px;align-items:flex-start;max-width:min(1000px,92vw);
+  max-height:46vh;overflow:auto;padding:2px}
+.whonote{color:var(--muted);font-size:13px;padding:14px 10px;text-align:center;width:100%}
+.whoroom{min-width:184px;border:3px solid var(--line);border-radius:14px;
+  background:rgba(20,16,38,.5);padding:8px 9px 7px;border-top-color:var(--a,#8fd3ff)}
+.whohead{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.whohead b{font-size:13px;letter-spacing:.3px;color:var(--a,#8fd3ff)}
+.whoem{font-size:15px;line-height:1}
+.whocount{margin-left:auto;font-size:11px;color:var(--muted)}
+.whoperson{display:flex;align-items:center;gap:7px;padding:3px 2px}
+.whoperson img{width:26px;height:32px;object-fit:contain;object-position:center top;
+  border-radius:6px;background:rgba(255,255,255,.05);flex:0 0 auto}
+.whonames{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.whoname{font-size:13px;font-weight:bold;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.whodoing{font-size:10.5px;color:var(--muted)}
+.whoperson.you .whoname{color:var(--mint)}
 .wayrow{display:flex;gap:10px}
 .waytile{width:118px;height:96px;border:3px solid var(--line);border-radius:16px;
   background:rgba(20,16,38,.55);cursor:pointer;color:var(--muted);

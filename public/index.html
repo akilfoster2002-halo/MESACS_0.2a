@@ -672,10 +672,28 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    A strip along the bottom rather than a card in the middle: you are
    looking at yourself standing on the planet, and a panel over the middle
    of the screen covers the one thing you are trying to look at. */
-#swap,#travel{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;
+#swap,#travel,#who{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;
   justify-content:center;padding-bottom:5vh;pointer-events:none;
   background:linear-gradient(to top,rgba(8,10,18,.72),rgba(8,10,18,0) 42%)}
-#swap.hidden,#travel.hidden{display:none}
+#swap.hidden,#travel.hidden,#who.hidden{display:none}
+/* who is here */
+.whorow{display:flex;gap:12px;align-items:flex-start;max-width:min(1000px,92vw);
+  max-height:46vh;overflow:auto;padding:2px}
+.whonote{color:var(--muted);font-size:13px;padding:14px 10px;text-align:center;width:100%}
+.whoroom{min-width:184px;border:3px solid var(--line);border-radius:14px;
+  background:rgba(20,16,38,.5);padding:8px 9px 7px;border-top-color:var(--a,#8fd3ff)}
+.whohead{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.whohead b{font-size:13px;letter-spacing:.3px;color:var(--a,#8fd3ff)}
+.whoem{font-size:15px;line-height:1}
+.whocount{margin-left:auto;font-size:11px;color:var(--muted)}
+.whoperson{display:flex;align-items:center;gap:7px;padding:3px 2px}
+.whoperson img{width:26px;height:32px;object-fit:contain;object-position:center top;
+  border-radius:6px;background:rgba(255,255,255,.05);flex:0 0 auto}
+.whonames{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.whoname{font-size:13px;font-weight:bold;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.whodoing{font-size:10.5px;color:var(--muted)}
+.whoperson.you .whoname{color:var(--mint)}
 .wayrow{display:flex;gap:10px}
 .waytile{width:118px;height:96px;border:3px solid var(--line);border-radius:16px;
   background:rgba(20,16,38,.55);cursor:pointer;color:var(--muted);
@@ -1769,6 +1787,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="topbar">
     <!-- the quick change. A hotkey wants a visible twin or nobody finds it -->
     <button class="btn small ghost" id="btnWho" title="Change character (B)">🙂</button>
+    <button class="btn small ghost" id="btnOnline" title="Who is here (O)">👥</button>
     <!-- only shown for a character who actually has an emote to play -->
     <button class="btn small ghost hidden" id="btnEmote" title="Dance">🕺</button>
     <!-- only in Free Play, which is where the editor is -->
@@ -1837,6 +1856,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
       <button class="btn ghost" id="apubCancel"></button>
       <button class="btn good" id="apubGo"></button>
     </div>
+  </div>
+</div>
+
+<!-- WHO IS HERE. Same strip along the bottom as the quick change and the
+     way you travel: a question about the world, asked while standing in it. -->
+<div id="who" class="hidden" role="dialog" aria-modal="false" aria-labelledby="whoTitle">
+  <div class="swapcard">
+    <h2 id="whoTitle"></h2>
+    <div class="whorow" id="whoRow"></div>
+    <div class="swaphint" id="whoHint"></div>
   </div>
 </div>
 
@@ -2098,49 +2127,50 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='402';</script>
-<script src="lib/three.classic.js?v=402"></script>
-<script src="strings.js?v=402"></script>
-<script src="music.js?v=402"></script>
-<script src="net.js?v=402"></script>
-<script src="avatar.js?v=402"></script>
-<script src="zombies.js?v=402"></script>
-<script src="building.js?v=402"></script>
-<script src="levels.js?v=402"></script>
-<script src="program.js?v=402"></script>
-<script src="code.js?v=402"></script>
-<script src="mechsim.js?v=402"></script>
-<script src="mech.js?v=402"></script>
-<script src="intro.js?v=402"></script>
-<script src="mechacode.js?v=402"></script>
-<script src="mechaarena.js?v=402"></script>
-<script src="mecha.js?v=402"></script>
-<script src="workshop.js?v=402"></script>
-<script src="combat.js?v=402"></script>
-<script src="puzzle.js?v=402"></script>
-<script src="nav.js?v=402"></script>
-<script src="tutorial.js?v=402"></script>
-<script src="race.js?v=402"></script>
-<script src="flight.js?v=402"></script>
-<script src="sub.js?v=402"></script>
-<script src="school.js?v=402"></script>
-<script src="cruise.js?v=402"></script>
-<script src="club.js?v=402"></script>
-<script src="arcade.js?v=402"></script>
-<script src="planet.js?v=402"></script>
-<script src="wallet.js?v=402"></script>
-<script src="shop.js?v=402"></script>
-<script src="library.js?v=402"></script>
-<script src="costumes.js?v=402"></script>
-<script src="missions.js?v=402"></script>
-<script src="coach.js?v=402"></script>
-<script src="owner.js?v=402"></script>
-<script src="blocks.js?v=402"></script>
-<script src="vm.js?v=402"></script>
-<script src="coder.js?v=402"></script>
-<script src="quiz.js?v=402"></script>
-<script src="chars.js?v=402"></script>
-<script src="menu.js?v=402"></script>
-<script src="game.js?v=402"></script>
+<script>window.ASSETV='404';</script>
+<script src="lib/three.classic.js?v=404"></script>
+<script src="strings.js?v=404"></script>
+<script src="music.js?v=404"></script>
+<script src="net.js?v=404"></script>
+<script src="avatar.js?v=404"></script>
+<script src="zombies.js?v=404"></script>
+<script src="building.js?v=404"></script>
+<script src="levels.js?v=404"></script>
+<script src="program.js?v=404"></script>
+<script src="code.js?v=404"></script>
+<script src="mechsim.js?v=404"></script>
+<script src="mech.js?v=404"></script>
+<script src="intro.js?v=404"></script>
+<script src="mechacode.js?v=404"></script>
+<script src="mechaarena.js?v=404"></script>
+<script src="mecha.js?v=404"></script>
+<script src="workshop.js?v=404"></script>
+<script src="combat.js?v=404"></script>
+<script src="puzzle.js?v=404"></script>
+<script src="nav.js?v=404"></script>
+<script src="tutorial.js?v=404"></script>
+<script src="race.js?v=404"></script>
+<script src="flight.js?v=404"></script>
+<script src="sub.js?v=404"></script>
+<script src="school.js?v=404"></script>
+<script src="cruise.js?v=404"></script>
+<script src="club.js?v=404"></script>
+<script src="who.js?v=404"></script>
+<script src="arcade.js?v=404"></script>
+<script src="planet.js?v=404"></script>
+<script src="wallet.js?v=404"></script>
+<script src="shop.js?v=404"></script>
+<script src="library.js?v=404"></script>
+<script src="costumes.js?v=404"></script>
+<script src="missions.js?v=404"></script>
+<script src="coach.js?v=404"></script>
+<script src="owner.js?v=404"></script>
+<script src="blocks.js?v=404"></script>
+<script src="vm.js?v=404"></script>
+<script src="coder.js?v=404"></script>
+<script src="quiz.js?v=404"></script>
+<script src="chars.js?v=404"></script>
+<script src="menu.js?v=404"></script>
+<script src="game.js?v=404"></script>
 </body>
 </html>

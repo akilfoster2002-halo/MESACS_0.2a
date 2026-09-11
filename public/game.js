@@ -620,6 +620,12 @@ function wireInput(){
          before anything else — its arrows walk the row, and left and right
          turn you round a planet everywhere else. */
       if(window.CHARS && CHARS.quickUp && CHARS.quickKey(e)){ e.preventDefault(); return; }
+      /* Who is here. It takes Esc while it is up, so it goes above the
+         panels that also want it. */
+      if(window.WHO && WHO.up && WHO.key(e)){ e.preventDefault(); return; }
+      if(e.code==='KeyO' && G.running && window.WHO){
+        e.preventDefault(); WHO.toggle(); return;
+      }
       /* B — who you are. The Mall is still where you buy one; this is for
          the ten times a lesson somebody just wants to be somebody else. */
       if(e.code==='KeyB' && G.running && window.CHARS && !CODE.isOpen()){
@@ -769,7 +775,8 @@ function frozen(){
      author's `when left arrow pressed` script is also reading them is two
      things answering one key. */
   if(window.ARCADE && ARCADE.flat) return true;
-  return CODE.isOpen()
+  return !!(window.WHO && WHO.up)          // reading the list is not walking
+      || CODE.isOpen()
       || !!(window.CHARS && CHARS.quickUp)   // choosing a body is not a moment to walk
       || !!(window.PLANET && PLANET.travelUp)  // nor is choosing how to travel
       || !$('#teach').classList.contains('hidden')     // reading instructions pauses the world
@@ -1013,6 +1020,7 @@ function wireUI(){
     const v=$('#view'); if(v && G.running) lockPointer(v);
   });
   on('#btnWho',()=>{ if(window.CHARS) CHARS.quickToggle(); });
+  on('#btnOnline',()=>{ if(window.WHO) WHO.toggle(); });
   on('#btnPublish',()=>{ if(window.ARCADE) ARCADE.publish(); });
 }
 function setLang(l){

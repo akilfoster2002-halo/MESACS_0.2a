@@ -70,7 +70,7 @@ const ok  = (res,data)=>res.json({ ok:true, ...data });
 /* Everything under /api needs Postgres except these two, which read no
    tables — so the game can still say honestly what is up and what rooms
    exist even when the database is not. */
-const NO_DB_NEEDED = ['/health','/servers'];
+const NO_DB_NEEDED = ['/health','/servers','/who'];
 app.use('/api',(req,res,next)=>{
   if(!db.ready && !NO_DB_NEEDED.includes(req.path))
     return res.status(503).json({ ok:false, error:'Sign-in is not connected yet (no database).' });
@@ -84,6 +84,45 @@ app.get('/api/servers',(req,res)=>{
   res.json({ ok:true, servers: SERVERS.map(s=>({ ...s, count:n[s.id]||0 })) });
 });
 const bad = (res,code,msg)=>res.status(code).json({ ok:false, error:msg });
+
+/* ===================================================== who else is here
+   The server has always known this — `live` is every open socket, with the
+   room it joined and the door it last walked through — and nothing ever
+   showed it to anybody but a teacher. In a game whose whole multiplayer
+   pitch is "your class is in here with you", not being able to find out
+   who is in here with you is a strange gap.
+
+   IT READS NO TABLES, so it sits above the database gate with /health and
+   /servers: the honest answer to "who is about" does not depend on
+   Postgres being up. It does need a signed-in cookie, which is checked
+   from the HMAC alone — a public endpoint listing the display names of a
+   room full of children is not a thing to ship.
+
+   STUDENTS ONLY, which is the convention the in-world roster already
+   follows: a teacher is not drawn as a body in the room either. Somebody
+   watching a class is not another child to go and find. */
+app.get('/api/who',(req,res)=>{
+  if(!auth.fromReq(req)) return bad(res,401,'not signed in');
+  const me = auth.fromReq(req);
+  const mine = [];
+  for(const [,p] of live){
+    if(p.role!=='student') continue;
+    mine.push({ id:p.id, display:p.display, char:p.char,
+                server:p.server || null,
+                /* Where they are in words the room has a name for. Anywhere
+                   else is simply null — see moveTo(): a place with no name
+                   is a place somebody has gone quietly, not a secret. */
+                where: WENT[p.at] || null,
+                riding: !!p.ride,
+                you: p.id===me.id });
+  }
+  mine.sort((a,b)=>String(a.display).localeCompare(String(b.display)));
+  const rooms = SERVERS.map(s=>({ ...s, people: mine.filter(p=>p.server===s.id) }));
+  /* Signed in, socket open, no room picked yet. They are online and they
+     are nowhere, and leaving them off the list makes the total lie. */
+  const lobby = mine.filter(p=>!p.server);
+  res.json({ ok:true, rooms, lobby, total:mine.length });
+});
 
 /* simple in-memory rate limit, enough to stop a bored student brute-forcing */
 const attempts = new Map();
