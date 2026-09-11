@@ -2460,12 +2460,15 @@ window.PLANET = (function(){
     me.bank += (wantBank-me.bank)*Math.min(1, dt*4);
 
     dome && domeTick();
-    streakTick(dt);
     /* HOW HARD THE AIR IS GOING PAST, which is the one number the sound
        needs. Squared inside MUSIC.wind, so a gentle drift is nearly silent
        and the top of the throttle is unmistakable. */
     if(window.MUSIC && MUSIC.wind) MUSIC.wind(Math.abs(me.air)/AIR.top);
     place(dt, moved, false);
+    /* AFTER place(), which is what moves the camera. The streaks are built
+       around the line from the lens to the character, so a camera one frame
+       stale aims them at where she was rather than where she is. */
+    streakTick(dt);
     if(window.GUN) GUN.update(dt, moved);
   }
 
@@ -2546,53 +2549,79 @@ window.PLANET = (function(){
     streak={ line, geo, pos, bits };
     G.roomGroup.add(line);
   }
-  const FRONT=16, BACK=-30;
+  const FRONT=46;
   function spawn(d){
     const a=Math.random()*Math.PI*2;
     return { d, cos:Math.cos(a), sin:Math.sin(a),
              /* Squared, so more of them sit near the axis than far out —
                 an even spread makes a tunnel with a hole down the middle. */
-             r:0.9+Math.pow(Math.random(),2)*5.2,
-             len:0.5+Math.random()*0.9 };
+             r:0.35+Math.pow(Math.random(),2)*2.4,
+             len:0.6+Math.random()*0.9 };
   }
+  /* WHICH WAY THE STREAKS POINT, and why it is not the way she is going.
+
+     A straight line in 3D projects to a screen line through the vanishing
+     point of its DIRECTION — and a direction's vanishing point depends on
+     the camera alone. Nothing about where the line sits moves it. So
+     streaks drawn along the travel direction converge wherever that
+     direction goes on screen, and the flight camera rides five metres
+     above the flight axis looking down at it, which puts that point well
+     above the character. Moving the bundle down does not help: it lands
+     the near ends on her and leaves the far ends converging over her head,
+     which is exactly the shape that reads as "coming from somewhere else".
+
+     Drawn along the CAMERA-TO-CHARACTER axis instead, the vanishing point
+     is by construction the place the character projects to — so every
+     streak, wherever it is in the tube, is a line aimed at her. That is
+     also what the effect is in the animation it comes from: speed lines
+     radiate from the subject, not from the horizon.
+
+     It costs almost nothing in honesty. The two axes differ by the angle
+     the camera is lifted through, which is about twenty degrees, and air
+     that rushes past twenty degrees off true is still air rushing past. */
   function streakTick(dt){
     if(!streak) return;
     const fast=Math.min(1, Math.abs(me.air)/AIR.top);
     streak.line.visible = fast>0.06;
     streak.line.material.opacity = 0.55*fast*fast;
     if(!streak.line.visible) return;
-    const up=me.dir.clone().normalize();
-    const fwd=me.fwd.clone().normalize();
-    const right=new THREE.Vector3().crossVectors(fwd, up).normalize();
-    /* CENTRED ON THE CHARACTER, not on the patch of ground under them.
-       worldPos(0) is where the body was PUT; the flying pose then lies
-       flat with the hips up and forward of it, so a tube of streaks built
-       around the placement point hangs above the person it is meant to be
-       rushing past. Ask the body where it ended up. */
+
     const O=(window.AVATAR && AVATAR.centre) ? AVATAR.centre(streak.at||(streak.at=new THREE.Vector3()))
                                              : worldPos(1.2);
+    const A=O.clone().sub(G.camera.position);
+    const eye=A.length();
+    if(eye<0.5) return;                       // first person: nothing to radiate from
+    A.multiplyScalar(1/eye);
+    /* A frame across the axis. The surface normal is the reference because
+       it is the one direction up here that is never parallel to the line of
+       sight — the camera always looks along the ground, never down it. */
+    const e1=new THREE.Vector3().crossVectors(A, me.dir).normalize();
+    const e2=new THREE.Vector3().crossVectors(A, e1).normalize();
+
     /* They stream past faster than you are actually going. A streak moving
        at exactly your speed sits still relative to you, which is the one
        thing it must not do. */
-    const flow=(Math.abs(me.air)*1.3+7)*Math.sign(me.air||1);
-    const long=2.2+Math.abs(me.air)*0.33;
+    const flow=Math.abs(me.air)*1.3+7;
+    const long=2.4+Math.abs(me.air)*0.36;
+    /* Recycled just before they reach the lens. A segment straddling the
+       camera is a line across the whole screen for one frame. */
+    const BACK=-(eye-1.6);
     const P=streak.pos;
     for(let i=0;i<STREAKS;i++){
       const b=streak.bits[i];
       b.d-=flow*dt;
-      if(b.d<BACK) Object.assign(b, spawn(FRONT+Math.random()*10));
-      else if(b.d>FRONT+12) Object.assign(b, spawn(BACK+Math.random()*6));
-      /* THE FAN. The further back a streak has come, the further out it
-         is — which is what parallax does and what makes the vanishing
-         point read as a direction of travel rather than a dot. */
-      const r=b.r*(1+Math.max(0,(FRONT-b.d))*0.055);
-      const ox=right.x*b.cos*r+up.x*b.sin*r;
-      const oy=right.y*b.cos*r+up.y*b.sin*r;
-      const oz=right.z*b.cos*r+up.z*b.sin*r;
-      const hx=O.x+fwd.x*b.d+ox, hy=O.y+fwd.y*b.d+oy, hz=O.z+fwd.z*b.d+oz;
-      const L=long*b.len*Math.sign(me.air||1);
-      P[i*6]=hx;            P[i*6+1]=hy;            P[i*6+2]=hz;
-      P[i*6+3]=hx-fwd.x*L;  P[i*6+4]=hy-fwd.y*L;    P[i*6+5]=hz-fwd.z*L;
+      if(b.d<BACK || b.d>FRONT+14) Object.assign(b, spawn(FRONT*(0.35+Math.random()*0.7)));
+      /* THE FAN. The nearer a streak has come, the further out it is —
+         which is what parallax does, and what turns a bundle of parallel
+         lines into a burst. */
+      const r=b.r*(1+Math.max(0,(FRONT-b.d))*0.05);
+      const ox=e1.x*b.cos*r+e2.x*b.sin*r;
+      const oy=e1.y*b.cos*r+e2.y*b.sin*r;
+      const oz=e1.z*b.cos*r+e2.z*b.sin*r;
+      const hx=O.x+A.x*b.d+ox, hy=O.y+A.y*b.d+oy, hz=O.z+A.z*b.d+oz;
+      const L=long*b.len;
+      P[i*6]=hx;            P[i*6+1]=hy;          P[i*6+2]=hz;
+      P[i*6+3]=hx+A.x*L;    P[i*6+4]=hy+A.y*L;    P[i*6+5]=hz+A.z*L;
     }
     streak.geo.attributes.position.needsUpdate=true;
     streak.geo.computeBoundingSphere();
