@@ -1,13 +1,22 @@
 /* =====================================================================
-   CHARS — the "choose your character" screen.
+   CHARS — who you are, on two surfaces.
 
-   Four are yours; the rest are locked and stay locked for now.  Whoever
-   you are looking at stands in a little turntable above the grid and plays
-   their idle, because a still PNG tells you nothing about who you are
-   about to be.
+   THE MALL is the shop: the whole roster, the ships, the coins you have
+   and what they buy. You walk to it, and it takes the screen.
+
+   THE QUICK CHANGE is a strip along the bottom of the game, opened with a
+   key, and it does exactly one thing — swap who you are, without going
+   anywhere. Walking across a planet to a building to change your shirt is
+   fine the first time and a chore every time after, and the character you
+   are is the one thing in this game a child fiddles with constantly.
+
+   Both show the characters ALIVE — standing in their idle, not a still
+   PNG and not the rest pose. A T-posed thumbnail reads as a model that
+   has not finished loading, and a still one tells you nothing about who
+   you are about to be.
    ===================================================================== */
 window.CHARS = (function(){
-  const FREE = 2;                       // both of them, from the first minute
+  const FREE = 3;                       // all of them, from the first minute
   const PER_MISSION = 0;                // the rest stay shut: set this above zero to
                                         // start handing them out per finished mission
 
@@ -345,5 +354,206 @@ window.CHARS = (function(){
   }
   function heroClose(){ if(heroRaf){ cancelAnimationFrame(heroRaf); heroRaf=0; } }
 
-  return { open, close, render, unlockedCount, isUnlocked, heroOpen, heroClose };
+  /* ================================================== the quick change
+     ONE GL CONTEXT FOR THE WHOLE ROW. A canvas each would be a context
+     each, and browsers hand out about sixteen before they start throwing
+     the oldest away — which on a lab Chromebook means the planet's own
+     canvas going white the moment this opens. So the row is real buttons
+     doing the hit-testing, focus and screen-reader work, and one canvas
+     lying underneath them painting each tile through a scissor rectangle.
+
+     The characters stand side by side in ONE scene, far enough apart not
+     to light or overlap each other, and the camera is moved to whichever
+     one is being drawn. One scene means one set of lights, which is the
+     only reason to prefer it over a scene each. */
+  let sw=null;                     // {renderer, scene, camera, models:Map}
+  let swOpen=false, swRaf=0, swLast=0, swPick=null;
+  const SPACING = 10;              // metres between them in the hidden scene
+
+  function swStage(){
+    if(sw) return sw;
+    const canvas=document.querySelector('#swapView');
+    if(!canvas) return null;
+    const renderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));
+    renderer.setClearColor(0x000000, 0);
+    renderer.autoClear=false;
+    const scene=new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xc3b4e6, 1.5));
+    const key=new THREE.DirectionalLight(0xfff3f8, 1.5); key.position.set(3,6,5);
+    const rim=new THREE.DirectionalLight(0x9fb4ff, 0.8);  rim.position.set(-4,3,-4);
+    scene.add(key, rim);
+    /* Orthographic, because a row of portraits at different distances from
+       one perspective camera is a row of people at different sizes. */
+    const camera=new THREE.OrthographicCamera(-1,1,1,-1,0.01,60);
+    sw={ renderer, scene, camera, models:new Map() };
+    return sw;
+  }
+
+  /* Every character the roster has, loaded once and kept. Three parses on
+     first open and none ever again. */
+  function swLoad(){
+    const v=swStage(); if(!v) return;
+    AVATAR.CHARS.forEach((c,i)=>{
+      if(v.models.has(c.id)) return;
+      v.models.set(c.id, null);                 // claim the slot before awaiting
+      AVATAR.load(c.id).then(m=>{
+        /* AT y=0, AND DO NOT MEASURE THE BOX TO FIND THE FEET. The box is
+           the REST pose — arms out, body centred on its own origin — and
+           the Mixamo clips are all authored with the character standing on
+           that origin instead. Offsetting by the rest-pose box lifted
+           everybody half a body height the moment the idle started playing
+           and cut their heads off the top of the tile. The clip puts the
+           feet on the floor; the same thing attach() relies on to stand
+           the player on the ground. */
+        m.position.set(i*SPACING, 0, 0);
+        v.scene.add(m); v.models.set(c.id, m);
+        AVATAR.animate(m, 0, 'idle');
+      }).catch(()=>v.models.delete(c.id));
+    });
+  }
+
+  function swTiles(){
+    const row=document.querySelector('#swapRow'); if(!row) return;
+    const items=window.SHOP ? SHOP.charItems() : [];
+    row.querySelectorAll('.swaptile').forEach(n=>n.remove());
+    AVATAR.CHARS.forEach((c,i)=>{
+      const it=items[i];
+      const owned=!it || SHOP.ownsChar(it);
+      const on=c.id===AVATAR.chosen;
+      const b=document.createElement('button');
+      b.className='swaptile'+(on?' on':'')+(owned?'':' locked');
+      b.dataset.c=c.id;
+      b.setAttribute('aria-pressed', on?'true':'false');
+      b.innerHTML=`${t(c.name)}${owned?'':`<span class="price">${it.price}¤</span>`}`;
+      b.onclick=()=>swChoose(c.id, owned);
+      row.appendChild(b);
+    });
+    swHint();
+  }
+  function swHint(msg){
+    const el=document.querySelector('#swapHint'); if(!el) return;
+    el.innerHTML = msg || t('<b>← →</b> pick &nbsp; <b>B</b> or <b>Esc</b> close');
+  }
+  function swChoose(id, owned){
+    /* THE SHOP STAYS IN THE SHOP. This panel switches between characters
+       you already have; buying one is a thing you do at the Mall, with the
+       coins and the price list in front of you. Two places selling the
+       same character is one place too many. */
+    if(!owned){ swHint(t('{n} is for sale at the Mall.',{n:t(nameOf(id))}));
+                if(window.beep) beep('bad'); return; }
+    AVATAR.pick(id);
+    swMark(id);
+    swHint();
+    if(window.beep) beep('pop');
+  }
+  const nameOf = id => (AVATAR.CHARS.find(c=>c.id===id)||{}).name || id;
+  function swMark(id){
+    document.querySelectorAll('#swapRow .swaptile').forEach(n=>{
+      const on=n.dataset.c===id;
+      n.classList.toggle('on', on);
+      n.setAttribute('aria-pressed', on?'true':'false');
+    });
+  }
+
+  /* Paint each tile through its own scissor rectangle. The canvas is laid
+     over the row, so a tile's rectangle IS the viewport to draw it in —
+     measured every frame, because the row moves when the window resizes
+     and a stale rectangle draws somebody's head in the next slot. */
+  function swDraw(dt){
+    const v=sw; if(!v) return;
+    const row=document.querySelector('#swapRow'); if(!row) return;
+    const rb=row.getBoundingClientRect();
+    const W=Math.max(1,Math.round(rb.width)), H=Math.max(1,Math.round(rb.height));
+    const c=v.renderer.domElement;
+    if(c.width!==W*v.renderer.getPixelRatio() || Math.round(parseFloat(c.style.width)||0)!==W){
+      v.renderer.setSize(W,H,true);
+    }
+    v.renderer.clear();
+    v.renderer.setScissorTest(true);
+    document.querySelectorAll('#swapRow .swaptile').forEach(tile=>{
+      const m=v.models.get(tile.dataset.c);
+      if(!m) return;
+      AVATAR.animate(m, dt, 'idle');
+      const tb=tile.getBoundingClientRect();
+      const x=tb.left-rb.left, y=rb.bottom-tb.bottom;     // GL counts up from the bottom
+      const w=Math.round(tb.width), h=Math.round(tb.height);
+      v.renderer.setViewport(x,y,w,h);
+      v.renderer.setScissor(x,y,w,h);
+      /* Framed head to foot with a little air, and a strip left at the
+         bottom for the name to sit over. load() makes everybody exactly
+         1.85 tall, so one framing does the whole row and nobody comes out
+         bigger than anybody else — which is the point of a row. */
+      const VIEW=2.45, EYELINE=0.88, aspect=w/h;
+      const cam=v.camera;
+      cam.left=-VIEW*aspect/2; cam.right=VIEW*aspect/2;
+      cam.top=VIEW/2; cam.bottom=-VIEW/2;
+      cam.updateProjectionMatrix();
+      cam.position.set(m.position.x, EYELINE, 3.2);
+      cam.lookAt(m.position.x, EYELINE, 0);
+      v.renderer.render(v.scene, cam);
+    });
+    v.renderer.setScissorTest(false);
+  }
+  function swLoop(now){
+    swRaf=requestAnimationFrame(swLoop);
+    const dt=Math.min((now-swLast)/1000, 0.05); swLast=now;
+    swDraw(dt);
+    /* And you, out on the planet behind the panel. The world is held still
+       while this is up, and whatever normally animates the player is inside
+       the part that is being held — so it is this panel's job to keep the
+       one character you are actually looking at alive. */
+    if(window.AVATAR && AVATAR.idle) AVATAR.idle(dt);
+  }
+
+  /* Arrow keys walk the row and Enter is the click a focused button already
+     understands, so this only has to move focus — and swallow the arrows,
+     or the planet behind turns while the panel is up. */
+  function swKey(e){
+    if(!swOpen) return false;
+    const k=e.code;
+    if(k==='Escape'||k==='KeyB'){ quickClose(); return true; }
+    const tiles=[...document.querySelectorAll('#swapRow .swaptile')];
+    if(!tiles.length) return false;
+    if(k==='ArrowLeft'||k==='ArrowRight'){
+      const i=Math.max(0, tiles.indexOf(document.activeElement));
+      const d=k==='ArrowRight'?1:-1;
+      tiles[(i+d+tiles.length)%tiles.length].focus();
+      return true;
+    }
+    if(k==='ArrowUp'||k==='ArrowDown') return true;   // not the planet's to turn
+    return false;
+  }
+
+  function quickOpen(){
+    if(swOpen) return;
+    const el=document.querySelector('#swap'); if(!el) return;
+    swOpen=true;
+    if(document.pointerLockElement) document.exitPointerLock();
+    const ttl=document.querySelector('#swapTitle');
+    if(ttl) ttl.textContent=t('WHO DO YOU WANT TO BE?');
+    swStage(); swLoad(); swTiles();
+    el.classList.remove('hidden');
+    if(!swRaf){ swLast=performance.now(); swRaf=requestAnimationFrame(swLoop); }
+    const cur=[...document.querySelectorAll('#swapRow .swaptile')]
+      .find(n=>n.dataset.c===AVATAR.chosen);
+    if(cur) cur.focus();
+  }
+  function quickClose(){
+    if(!swOpen) return;
+    swOpen=false;
+    const el=document.querySelector('#swap'); if(el) el.classList.add('hidden');
+    if(swRaf){ cancelAnimationFrame(swRaf); swRaf=0; }
+    /* Back to the game, and back to mouse-look — but only if the game is
+       what we came from. Opening this over a menu and handing the pointer
+       to a canvas nobody is looking at is how a menu stops taking clicks. */
+    if(window.G && G.running && window.lockPointer){
+      const view=document.querySelector('#view'); if(view) lockPointer(view);
+    }
+  }
+  function quickToggle(){ swOpen ? quickClose() : quickOpen(); }
+
+  return { open, close, render, unlockedCount, isUnlocked, heroOpen, heroClose,
+           quickOpen, quickClose, quickToggle, quickKey:swKey,
+           get quickUp(){ return swOpen; } };
 })();

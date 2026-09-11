@@ -102,9 +102,37 @@
      comes next — in the game, the planet. Without one it falls through to
      "start the next level", and the next level after the last one is the
      last one, forever. So there is one here, and it is the finish card. */
+  /* And school.js hands it the level it is OPENING, too, so it can be handed
+     back tomorrow. There is no account out here to hang it on, so it hangs on
+     the browser — which is the right scope for a site with no sign-in, and is
+     where this page already keeps the language. */
+  const AT_KEY = 'fs_at';
   window.PROGRESS = {
-    complete(){ setTimeout(()=>{ SCHOOL.stop(); show('#fsDone'); }, 1400); }
+    complete(){
+      try{ localStorage.removeItem(AT_KEY); }catch(e){}   // beaten: replay from one
+      setTimeout(()=>{ SCHOOL.stop(); show('#fsDone'); }, 1400);
+    },
+    reach(id, n){
+      const want = Math.max(0, n|0);
+      if(want <= PROGRESS.reached()) return;              // only ever forward
+      try{ localStorage.setItem(AT_KEY, String(want)); }catch(e){}
+      startLabel();
+    },
+    reached(){
+      let n = 0;
+      try{ n = +localStorage.getItem(AT_KEY) || 0; }catch(e){}
+      return Math.max(0, Math.min(SCHOOL.LEVELS.length - 1, n));
+    }
   };
+  /* The big green button is the one everybody presses, so it has to say
+     honestly which level it is about to open. The list under it is still how
+     you go back to an earlier one. */
+  function startLabel(){
+    const at = PROGRESS.reached(), el = $('#fsStart');
+    if(el) el.textContent = at
+      ? t('Carry on — level {n} ▶', { n: at + 1 })
+      : t('Start at level 1 ▶');
+  }
 
   /* ------------------------------------------------------- the screens */
   function show(sel){
@@ -148,6 +176,7 @@
     COPY.forEach(([sel, en]) => { const el = $(sel); if(el) el.textContent = t(en); });
     $('#fsFoot').innerHTML = t('Press <b>C</b> to open the console, <b>RUN</b> to fly it.');
     levels();
+    startLabel();                          // after COPY, which writes over it
     if(SCHOOL.active) SCHOOL.retry();      // redraw the board's own labels
     updateCodeBtn();
   }
@@ -163,7 +192,7 @@
     b.onclick = () => lang(b.dataset.lang));
 
   /* -------------------------------------------------------------- go */
-  $('#fsStart').onclick = () => play(0);
+  $('#fsStart').onclick = () => play(PROGRESS.reached());
   $('#fsAgain').onclick = () => { SCHOOL.stop(); show('#fsMenu'); };
   $('#fsHome').onclick  = () => { SCHOOL.stop(); CODE.close(); show('#fsMenu'); };
 

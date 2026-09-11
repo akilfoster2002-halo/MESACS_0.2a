@@ -163,7 +163,64 @@ No test framework to install — Node's own runner, over `program.js`, `mechsim.
 the combat triangle holds, that two mechas cannot walk through each other, and that the same two
 programs driven the same way produce the same fight twice.
 
+## Saved progress
+A lesson is forty minutes and a ten-level minigame is not, so the save has to remember
+more than "finished". Everything rides in one JSONB bag on the account — the same one
+that already carried coins and XP — so it follows a student to any machine in the lab.
+
+```
+at_<game>       the furthest level reached, written as each level OPENS.
+                Every minigame reopens there; finishing clears it, so a
+                replay starts at level 1. The mission card says which
+                level it is about to hand you, and carries a ↺ back to
+                the first one.
+spot_<world>    where you were standing on KORO, on VOLTA and on your
+                home planet — direction and heading only, because the
+                ground under you is generated and comes back the same.
+world           which of the three to open on.
+char            who you are. Chosen on the sign-up form now, rather than
+                found later in the Mall.
+```
+
+Writes are debounced: localStorage takes every one, Postgres gets at most one a
+second, and whatever is still owed is paid with `sendBeacon` on `pagehide` and on the
+first `visibilitychange` — a closed lid is how a session really ends, and it calls
+nothing else.
+
+## Getting about
+
+`R` asks how, rather than doing one thing: **on foot**, **drive**, **fly**. It was
+"get in the car" while a car was the only thing to get into.
+
+Flight is its own step rather than a flag inside walking, because it answers a
+question walking does not have: how high. The keys are the car's, so three
+quarters of it is already known — `W` go, `S` slow, `A D` turn, mouse looks —
+plus the two flying actually adds, `SPACE` up and `SHIFT` down. Airspeed and
+climb rate are *chased* rather than set, so letting go of `W` leaves you gliding
+and a turn at speed carries you wide; the body banks into the turn and pitches
+with the climb. Buildings still exist at altitude: `blocked()` asks the question
+at the height you are actually at, so flying over Mission Control is free and
+flying through it is not. Hold `SHIFT` at the bottom and you land.
+
+**Every world says how high its sky is**, because they are not the same size —
+a ceiling that let you climb higher than VOLTA is wide would put you above a
+marble. The last stretch of the climb fades in a wireframe shell, so the limit
+is something you can see coming rather than something you bump into.
+
+| world | radius | ceiling |
+|---|---|---|
+| KORO | 320 | 120 |
+| home planet | 200 | 95 |
+| VOLTA | 118 | 48 |
+
+Height travels over the network with the two coordinates and the heading, or a
+classmate overhead is a classmate walking across the field underneath you.
+
+`B` is the other shortcut: the quick change, a strip along the bottom with every
+character alive in their idle, so being somebody else is a keypress rather than
+a walk to the Mall.
+
 ## Not built yet
-The intro cutscene, mission select with saved progress, and the rest of the villains
+The intro cutscene and the rest of the villains
 (SYNTAXA — debugging, OFF-BY-ONE — counting from zero, NULLBYTE — the final boss)
 with the `if` / variable / function levels behind them.

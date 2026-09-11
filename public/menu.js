@@ -113,9 +113,14 @@ window.MENU = (function(){
       try{
         await NET.register({ username:$('#upUser').value.trim(),
                              display:$('#upName').value.trim(), password:$('#upPass').value });
-        afterSignIn();
+        /* AFTER the account exists, not before. afterSignIn() loads the
+           account's bag over the top of everything, and a brand new account's
+           bag is empty — so a character picked before this line would be
+           thrown away by the very next one. */
+        afterSignIn(newWho);
       }catch(err){ authMsg(err.message); }
     };
+    who();
       const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
     /* START asks who you are first. Everybody is handed one of the free
        characters on arrival, so choosing one is no longer a gate you have to
@@ -137,9 +142,53 @@ window.MENU = (function(){
     const ab=$('#aBack');   if(ab) ab.onclick=()=>start();
     $('#mLang').onclick=()=>setLang(window.LANG==='en'?'es':'en');
   }
-  function afterSignIn(){
+  /* ------------------------------------------------- who you want to be
+     ON THE WAY IN, rather than in a shop you have to find. There are two
+     characters and they are both free, so "which one?" is a question with a
+     real answer that a new account can be asked in the second it takes to
+     read it — and being handed Kyle by default meant half the lab never
+     found out Mia existed until somebody else was playing as her.
+
+     It is only on the sign-up form. Signing back in is not the moment to
+     ask: the account already knows the answer and re-asking it would be a
+     question with a wrong answer on the screen. */
+  let newWho = null;
+  function freeChars(){
+    if(!window.AVATAR) return [];
+    const free = window.SHOP ? SHOP.FREE_CHARS : AVATAR.CHARS.length;
+    return AVATAR.CHARS.slice(0, free);
+  }
+  function who(){
+    const row=$('#upWho'); if(!row || !window.AVATAR) return;
+    const cast=freeChars();
+    if(cast.length<2){ row.parentElement.classList.add('hidden'); return; }
+    const lbl=$('#upWhoLbl'); if(lbl) lbl.textContent=t('WHO DO YOU WANT TO BE?');
+    if(!cast.some(c=>c.id===newWho)) newWho=cast[0].id;   // Kyle, unless you say otherwise
+    row.innerHTML=cast.map(c=>
+      `<button type="button" class="whotile${c.id===newWho?' on':''}" data-who="${c.id}"
+         aria-pressed="${c.id===newWho?'true':'false'}">
+         <img src="${c.preview}" alt="" loading="lazy"><b>${c.name}</b></button>`).join('');
+    row.querySelectorAll('[data-who]').forEach(b=>{
+      b.onclick=()=>{
+        newWho=b.dataset.who;
+        /* Repaint by id rather than by node: the tick and the pressed state
+           have to agree, and re-rendering the row is the simplest way to be
+           sure they do. */
+        who();
+        if(window.beep) beep('pop');
+      };
+    });
+  }
+  /* `pickedWho` is passed only by the sign-up form. Everything else — signing
+     in, and the resume on boot — leaves it out and takes whoever the account
+     already says you are. */
+  function afterSignIn(pickedWho){
     const u=NET.me;
     if(u && u.progress) PROGRESS.load(u.progress);
+    if(window.AVATAR){
+      if(pickedWho) AVATAR.pick(pickedWho);   // a new account: the choice just made
+      else AVATAR.restore();                  // an old one: the choice it remembers
+    }
     homeworld();          // signing in lands you on the planet, not on a menu
   }
 
@@ -167,8 +216,14 @@ window.MENU = (function(){
       const needsIn = m.needsAccount && !NET.signedIn;
       const open_ = PROGRESS.unlocked(m.id) && !needsIn;
       const done  = PROGRESS.isDone(m.id);
+      /* WHERE YOU WERE UP TO. Nothing unfinished opens at the top any more,
+         so the tile has to say which level the button is about to hand you —
+         a card that says PLAY and then drops you into level 6 is a card that
+         lied. Levels are counted from one on the face of a card and from zero
+         everywhere underneath it, which is why the +1 is here and only here. */
+      const at = (open_ && !done && PROGRESS.reached) ? PROGRESS.reached(m.id) : 0;
       const b=document.createElement('button');
-      b.className='mis'+(open_?'':' locked')+(done?' done':'');
+      b.className='mis'+(open_?'':' locked')+(done?' done':'')+(at?' resume':'');
       b.style.setProperty('--a', m.a||'#8fd3ff');
       // level 0 is practice: it never locks, and finishing it invites a replay
       // rather than closing the door with a COMPLETE stamp
@@ -177,12 +232,31 @@ window.MENU = (function(){
                 : done ? (m.id==='tut' ? '⭐ '+t('PRACTISE AGAIN ▶')
                      : m.id==='race' ? '⭐ '+t('BEAT YOUR TIME ▶')
                      : m.id==='flight' ? '⭐ '+t('FLY IT AGAIN ▶') : '⭐ '+t('COMPLETE'))
+                : at ? '⏩ '+t('CARRY ON — LEVEL {n} ▶',{n:at+1})
                 // it sits in the course but gates nothing, so it never says
                 // "finish X first" and never makes anybody wait for it
                 : m.id==='flight' ? t('PLAY ANY TIME ▶') : t('PLAY ▶');
-      b.innerHTML=`<div class="em">${m.em}</div><b>${t(m.name)}</b>
+      /* AND A WAY BACK TO LEVEL ONE. Carrying on is what somebody wants nine
+         times in ten and it is what the card does; the tenth is a student who
+         wants another look at an early level, and without this there would be
+         no route to one — you would have to finish the whole mission first. */
+      const over = at ? `<span class="misover" data-over="1"
+                           >↺ ${t('START OVER')}</span>` : '';
+      b.innerHTML=`<div class="em">${m.em}</div>${over}<b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
-      b.onclick=()=>{ if(needsIn) return auth(); if(!open_) return; launch(m.id); };
+      b.onclick=e=>{
+        if(needsIn) return auth();
+        if(!open_) return;
+        /* One card, two answers, and which one is decided by what was under
+           the pointer — rather than by nesting a second control inside a
+           control, which is not a button a browser will let you have. */
+        if(e.target && e.target.closest && e.target.closest('[data-over]')){
+          if(PROGRESS.restart) PROGRESS.restart(m.id);
+          render();                    // and the card goes back to saying PLAY
+          return;
+        }
+        launch(m.id);
+      };
       grid.appendChild(b);
     });
   }
@@ -346,7 +420,12 @@ window.MENU = (function(){
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
-    PLANET.enter(NET.signedIn ? world : null);
+    /* ON THE BALL YOU WERE LAST STANDING ON, and at the spot on it. Both
+       are the planet's own business — it wrote them down — so all this has to
+       do is stop insisting on the hub. Somebody who signed out on VOLTA
+       signs back in on VOLTA; a first arrival has nothing saved and gets the
+       hub, which is what everybody used to get. */
+    PLANET.enter(NET.signedIn ? world : null, PLANET.lastWorld());
   }
   function enterServer(sv){
     hideAll();
@@ -371,6 +450,7 @@ window.MENU = (function(){
     $('#btnIn').textContent=t('Sign in ▶');
     $('#btnUp').textContent=t('Create my account ▶');
     $('#btnGuest').textContent=t('Play as a guest');
+    who();                    // its label and its faces, in the current language
     show('#auth');
   }
   /* who are you playing as */

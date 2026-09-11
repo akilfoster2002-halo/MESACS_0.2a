@@ -548,14 +548,26 @@ window.COMBAT = (function(){
     G.hits=G.hits.filter(h=>!h.userData.enemy && !h.userData.boss && !h.userData.range);
     enemies=[]; boss=null; bolts=[]; foeBolts=[];
   }
+  /* What the progress bag calls this mission. finish() has always asked the
+     same question the same way; a checkpoint has to agree with it or a
+     mission would be saved under one name and finished under another. */
+  const missionId = ()=> (mission && mission.id) || G.missionId;
   function startMission(id){
     mission=MISSIONS[id];
     hp=MAXHP; dead=false; drawHP();
     document.querySelector('#health').classList.remove('hidden');
-    startStage(0);
+    /* Back in at the wave you got to. A mission is four fights and a boss,
+       which is longer than a lesson — walking out after wave three and being
+       handed wave one again is the fastest way to make a student stop
+       walking back in. Beating it clears the mark, so a replay is a replay. */
+    let at=0;
+    if(window.PROGRESS && PROGRESS.reached)
+      at=Math.max(0, Math.min(mission.stages.length-1, PROGRESS.reached(missionId())));
+    startStage(at);
   }
   function startStage(n){
     stage=n; busy=false; stageDone=false; clearTimeout(checkT);
+    if(window.PROGRESS && PROGRESS.reach) PROGRESS.reach(missionId(), n);
     clearField();
     const st=mission.stages[n];
     CODE.setPalette(st.palette); CODE.clear();

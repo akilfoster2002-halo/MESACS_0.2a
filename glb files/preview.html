@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><title>character sheet</title>
+<!-- A look at a painted character before it goes anywhere near the game,
+     under the game's own three lights so what is judged here is what
+     ships. Serve the repository root and open /glb%20files/preview.html
+     — ?m=savannah.glb picks the model, and the strip along the bottom is
+     roughly the size a character actually is on screen, which is the only
+     size worth deciding anything at. -->
+<style>body{margin:0;background:#20242c;font:12px system-ui;color:#aeb8c8}
+canvas{display:block;margin:0 auto}</style>
+<canvas id="sheet" width="1280" height="880"></canvas>
+<script src="/public/lib/three.classic.js"></script>
+<script>
+const MODEL=new URLSearchParams(location.search).get('m')||'savannah.glb';
+const sheet=document.getElementById('sheet'), ctx=sheet.getContext('2d');
+ctx.fillStyle='#2b313b'; ctx.fillRect(0,0,sheet.width,sheet.height);
+const cv=document.createElement('canvas');
+const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,preserveDrawingBuffer:true});
+r.setPixelRatio(2);
+function draw(g,yaw,zoom,x,y,w,h){
+  cv.width=w; cv.height=h; r.setSize(w,h,false);
+  const sc=new THREE.Scene(); sc.background=new THREE.Color(0x2b313b);
+  const m=g.scene.clone(true);
+  m.traverse(o=>{ if(o.isMesh&&o.geometry.attributes.color){
+    o.material=o.material.clone(); o.material.vertexColors=true; o.material.needsUpdate=true; }});
+  sc.add(m);
+  sc.add(new THREE.AmbientLight(0xdfe6ff,0.16));
+  sc.add(new THREE.HemisphereLight(0xbfd8ff,0xa88c6a,0.46));
+  const sun=new THREE.DirectionalLight(0xfff2e0,1.62); sun.position.set(48,96,34); sc.add(sun);
+  const b=new THREE.Box3().setFromObject(m);
+  const s=b.getSize(new THREE.Vector3()), mid=b.getCenter(new THREE.Vector3());
+  const hh=s.y*zoom, aspect=w/h;
+  const ty = zoom<0.5 ? b.max.y-hh*0.55 : mid.y;
+  const cam=new THREE.OrthographicCamera(-hh*aspect/2,hh*aspect/2,hh/2,-hh/2,0.01,100);
+  const t=new THREE.Vector3(mid.x,ty,mid.z);
+  cam.position.set(t.x+Math.sin(yaw)*3, t.y+(zoom<0.5?0.10*hh:0), t.z+Math.cos(yaw)*3);
+  cam.lookAt(t);
+  r.render(sc,cam);
+  ctx.drawImage(cv,x,y,w,h);
+}
+function label(s,x,y){ ctx.fillStyle='#93a0b4'; ctx.font='bold 13px system-ui'; ctx.fillText(s,x,y); }
+new THREE.GLTFLoader().load(MODEL, g=>{
+  const A=[['FRONT',0],['3/4',0.7],['SIDE',Math.PI/2],['BACK',Math.PI]];
+  A.forEach(([n,yaw],i)=>{ draw(g,yaw,1.02,10+i*250,24,240,520); label(n,14+i*250,18); });
+  label('HEAD',1014,18);
+  [0,0.7,Math.PI].forEach((yaw,i)=>draw(g,yaw,0.26,1010,24+i*174,250,170));
+  label('AT THE SIZE SHE IS ON SCREEN',14,570);
+  [0,0.6,1.2,Math.PI/2,2.4,Math.PI,-1.2,-0.6].forEach((yaw,i)=>
+    draw(g,yaw,1.05,10+i*112,580,108,180));
+  document.title='ok';
+});
+</script>

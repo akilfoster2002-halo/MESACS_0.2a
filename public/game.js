@@ -391,29 +391,39 @@ function buildArena(L){
     else COMBAT.startMission(G.missionId);
   }, 60);
 }
+/* WHICH LEVEL A MINIGAME OPENS ON. Zero, unless you were interrupted part
+   of the way through it — every one of these games records the level it
+   opens (see PROGRESS.reach), so the door back in is the door you left by.
+   Nothing is ever resumed past the end: a game that was finished has had
+   its mark cleared by complete(), so a replay starts at the beginning. */
+function resumeAt(id){
+  if(!window.PROGRESS || !PROGRESS.reached) return 0;
+  return PROGRESS.reached(id);
+}
 function startMissionRoom(id){
   COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
   if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
-  if(id==='race'){ RACE.start(0); return; }      // and the circuit its own track
-  if(id==='nav'){ NAV.start(0); return; }        // the corridor is its own room
+  if(id==='race'){ RACE.start(resumeAt('race')); return; }   // and the circuit its own track
+  if(id==='nav'){ NAV.start(resumeAt('nav')); return; }      // the corridor is its own room
   /* Space Explorer opens with its own ten seconds of film — a ship in the
      rocks, which is what the next ninety are. Only on the way IN: the legs
      restart themselves constantly, and those go straight to FLIGHT.start()
      without passing through here. */
   if(id==='flight'){
-    if(window.INTRO) INTRO.play(()=>FLIGHT.start(0),
+    const at=resumeAt('flight');
+    if(window.INTRO) INTRO.play(()=>FLIGHT.start(at),
       { id:'flight', title:'SPACE EXPLORER' });
-    else FLIGHT.start(0);
+    else FLIGHT.start(at);
     return;
   }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
-  if(id==='sub'){ if(window.SUB) SUB.start(0); return; }
+  if(id==='sub'){ if(window.SUB) SUB.start(resumeAt('sub')); return; }
   /* Flight School draws its own sheet of graph paper. */
-  if(id==='school'){ if(window.SCHOOL) SCHOOL.start(0); return; }
+  if(id==='school'){ if(window.SCHOOL) SCHOOL.start(resumeAt('school')); return; }
   G.hudOwner='mission';
   G.missionId=id;
   G.arenaTitle = id==='m1'?'The Loop Chamber'
@@ -422,21 +432,74 @@ function startMissionRoom(id){
 }
 
 /* ------------------------------------------------------- progression */
+/* WHAT A SAVE HAS TO SURVIVE, and it is not "finished the mission".
+
+   A student gets forty minutes. Nobody finishes a ten-level minigame in
+   forty minutes, so a bag that only remembers WHOLE missions remembers
+   nothing at all about the lesson that just happened — sign out on level
+   seven, come back tomorrow, start again at level one. Two things go in
+   here beside the finished list:
+
+     at_<game>   the furthest level of a minigame you have reached, so
+                 tomorrow starts where today stopped. It is cleared by
+                 complete(), because replaying a mission you have beaten
+                 should start at the beginning and not at its last boss.
+     spot_<world>, world
+                 where you were standing on which planet, written by
+                 planet.js, so signing back in puts you where you were
+                 rather than back at the landing pad.
+
+   THE NETWORK HALF IS DEBOUNCED and the local half is not. Walking about
+   writes a position several times a minute; localStorage is free and
+   takes it every time, and Postgres gets one write a second at most.
+   Whatever is still owed is paid on the way out with a beacon, which is
+   the only kind of request a closing tab is allowed to finish. */
 const PROGRESS=(function(){
   const ORDER=['nav','m1','m2','m3','sub'];
+  const SAVE_MS=1200;
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
-  function save(){
-    try{ localStorage.setItem('dq_progress',JSON.stringify(done)); }catch(e){}
+  let owed=false, saveT=null;
+  function push(){
+    saveT=null;
+    if(!owed) return;
+    owed=false;
     if(window.NET && NET.signedIn) NET.saveProgress(done);   // follows the student to any machine
   }
+  function save(){
+    try{ localStorage.setItem('dq_progress',JSON.stringify(done)); }catch(e){}
+    owed=true;
+    if(saveT===null) saveT=setTimeout(push, SAVE_MS);
+  }
+  /* The tab is going. fetch() would be cancelled with it; a beacon is
+     handed to the browser and sent whether we are still here or not. */
+  function beacon(){
+    if(!owed || !(window.NET && NET.signedIn)) return;
+    owed=false; clearTimeout(saveT); saveT=null;
+    try{
+      const body=new Blob([JSON.stringify({ progress:done })],{ type:'application/json' });
+      if(navigator.sendBeacon && navigator.sendBeacon('/api/progress', body)) return;
+    }catch(e){}
+    if(window.NET) NET.saveProgress(done);
+  }
+  window.addEventListener('pagehide', beacon);
+  /* A phone or a Chromebook lid never fires pagehide — it hides the page
+     and may never wake it. Whatever is owed is paid the moment we stop
+     being looked at. */
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) beacon(); });
+
+  const AT = id => 'at_'+id;
   return {
     load(p){ done=p||{}; },
     all(){ return done; },
     complete(id){
       if(!id) return;
       const first=!done[id];
-      done[id]=true; save();
+      done[id]=true;
+      /* Beaten. Replaying starts at level one — a saved level is a place
+         you were interrupted, not a shortcut past a boss you have beaten. */
+      delete done[AT(id)];
+      save();
       /* Finishing pays, and the first time pays properly. award() handles the
          quarter rate on a repeat itself, so replaying is still worth doing. */
       if(window.WALLET && window.MENU)
@@ -453,6 +516,19 @@ const PROGRESS=(function(){
     get(k,d){ return done[k]===undefined ? d : done[k]; },
     quiet(k,v){ done[k]=v; },          // change a lot, then save() once
     quizScore(id){ return done['quiz_'+id]; },
+    /* ------------------------------------------------- the level you got to
+       Only ever forward. A minigame calls this as it opens each level, and
+       a student who beats level 6 and then replays level 2 has still been
+       to 6 — the saved place is the furthest they have got, not the last
+       board they happened to look at. */
+    reach(id,n){
+      if(!id) return;
+      const now=+done[AT(id)]||0, want=Math.max(0, n|0);
+      if(want<=now) return;
+      done[AT(id)]=want; save();
+    },
+    reached(id){ return +done[AT(id)]||0; },      // where to open at
+    restart(id){ if(!id) return; delete done[AT(id)]; save(); },
     unlocked(id){
       if(id==='free') return true;
       const i=ORDER.indexOf(id);
@@ -531,6 +607,15 @@ function wireInput(){
          somebody is playing it, and a DJ who moonwalks off the stage every
          time they nudge the playhead is not a DJ. */
       if(window.CLUB && CLUB.playing && CLUB.key(e)){ e.preventDefault(); return; }
+      /* THE QUICK CHANGE TAKES THE KEYBOARD WHILE IT IS UP, and takes it
+         before anything else — its arrows walk the row, and left and right
+         turn you round a planet everywhere else. */
+      if(window.CHARS && CHARS.quickUp && CHARS.quickKey(e)){ e.preventDefault(); return; }
+      /* B — who you are. The Mall is still where you buy one; this is for
+         the ten times a lesson somebody just wants to be somebody else. */
+      if(e.code==='KeyB' && G.running && window.CHARS && !CODE.isOpen()){
+        e.preventDefault(); CHARS.quickToggle(); return;
+      }
       /* Find object → select object → program object. Looking at a thing and
          pressing the key opens ITS code, not whatever was open last. */
       /* On the planet E is the door key: look at a station or a building
@@ -539,9 +624,14 @@ function wireInput(){
         const u=G.focused && G.focused.userData;
         if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
       }
-      // R gets you in and out of your car, out in the world where the car is
+      /* THE WAY YOU TRAVEL. R used to mean "get in the car", which was the
+         whole of the answer while a car was the only thing to get into.
+         It asks now, and the panel takes the keyboard while it is up —
+         first, like the decks and the quick change, because its arrows
+         walk a row and arrows turn you round a planet everywhere else. */
+      if(window.PLANET && PLANET.travelUp && PLANET.travelKey(e)){ e.preventDefault(); return; }
       if(e.code==='KeyR' && G.running && G.room==='planet'){
-        e.preventDefault(); PLANET.toggleRide(); return;
+        e.preventDefault(); PLANET.travel(); return;
       }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;
@@ -663,6 +753,8 @@ function shade(){
 }
 function frozen(){
   return CODE.isOpen()
+      || !!(window.CHARS && CHARS.quickUp)   // choosing a body is not a moment to walk
+      || !!(window.PLANET && PLANET.travelUp)  // nor is choosing how to travel
       || !$('#teach').classList.contains('hidden')     // reading instructions pauses the world
       || !$('#pause').classList.contains('hidden')
       || !$('#downed').classList.contains('hidden')
@@ -903,6 +995,7 @@ function wireUI(){
     if(window.AVATAR && AVATAR.emote('dance') && window.beep) beep('pop');
     const v=$('#view'); if(v && G.running) lockPointer(v);
   });
+  on('#btnWho',()=>{ if(window.CHARS) CHARS.quickToggle(); });
 }
 function setLang(l){
   window.LANG=l;
@@ -964,6 +1057,14 @@ requestAnimationFrame(loop);
   // straight into KORO — accounts still work underneath, they are just not
   // the first thing a student has to get past
   MENU.wireAuth();
-  try{ const u = await NET.resume(); if(u && u.progress) PROGRESS.load(u.progress); }catch(e){}
+  try{
+    const u = await NET.resume();
+    if(u && u.progress) PROGRESS.load(u.progress);
+    /* And put on whoever the account says you are. The bag has only just
+       arrived — AVATAR worked out a character from this browser before the
+       network had answered — so this is the first moment the question can be
+       asked of the account rather than of the machine. */
+    if(window.AVATAR && AVATAR.restore) AVATAR.restore();
+  }catch(e){}
   MENU.start();
 })();

@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8"><title>clip check</title>
+<!-- Does she move? Every clip, sampled across its own length, under the
+     game's lights. Serve the repository root and open
+     /glb%20files/preview-anim.html?m=savannah.glb
+
+     ONE MODEL, POSED AND RE-POSED, never a clone per frame. A plain
+     clone() of a SkinnedMesh in this build of three shares the original's
+     skeleton — avatar.js says so at the top of the file — so a mixer
+     built on the clone drives bones nothing is bound to, and every frame
+     comes out in the rest pose. Which looks exactly like a clip that
+     failed to load. -->
+<style>body{margin:0;background:#20242c;font:12px system-ui;color:#93a0b4}
+canvas{display:block;margin:0 auto}</style>
+<canvas id="sheet" width="1180" height="1220"></canvas>
+<script src="/public/lib/three.classic.js"></script>
+<script>
+const MODEL=new URLSearchParams(location.search).get('m')||'savannah.glb';
+const sheet=document.getElementById('sheet'), ctx=sheet.getContext('2d');
+ctx.fillStyle='#2b313b'; ctx.fillRect(0,0,sheet.width,sheet.height);
+const cv=document.createElement('canvas');
+const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,preserveDrawingBuffer:true});
+r.setPixelRatio(2);
+new THREE.GLTFLoader().load(MODEL, g=>{
+  const W=140,H=190;
+  const sc=new THREE.Scene(); sc.background=new THREE.Color(0x2b313b);
+  const m=g.scene;
+  m.traverse(o=>{ if(o.isMesh&&o.geometry.attributes.color){
+    o.material.vertexColors=true; o.material.needsUpdate=true; }});
+  sc.add(m);
+  sc.add(new THREE.AmbientLight(0xdfe6ff,0.16));
+  sc.add(new THREE.HemisphereLight(0xbfd8ff,0xa88c6a,0.46));
+  const sun=new THREE.DirectionalLight(0xfff2e0,1.62); sun.position.set(48,96,34); sc.add(sun);
+  const mixer=new THREE.AnimationMixer(m);
+  /* ONE CAMERA FOR THE WHOLE SHEET, framed on the rest pose. Reframing per
+     frame would hide the very thing this is checking: a jump that never
+     leaves the ground looks identical to one that does if the camera goes
+     up with it. */
+  const hgt=2.15, aspect=W/H;
+  const cam=new THREE.OrthographicCamera(-hgt*aspect/2,hgt*aspect/2,hgt/2,-hgt/2,0.01,100);
+  cam.position.set(1.1,0.55,2.7); cam.lookAt(0,0.50,0);
+  cv.width=W; cv.height=H; r.setSize(W,H,false);
+  g.animations.forEach((clip,row)=>{
+    ctx.fillStyle='#c6d2e4'; ctx.font='bold 13px system-ui';
+    ctx.fillText(clip.name.toUpperCase()+'   '+clip.duration.toFixed(2)+'s', 8, row*H+16);
+    const act=mixer.clipAction(clip); act.reset().setEffectiveWeight(1).play();
+    for(let i=0;i<8;i++){
+      mixer.setTime(clip.duration*i/8);
+      m.updateMatrixWorld(true);
+      r.render(sc,cam);
+      ctx.drawImage(cv, 20+i*W, row*H+22, W, H);
+    }
+    act.stop(); mixer.uncacheAction(clip);
+  });
+  document.title='ok';
+});
+</script>

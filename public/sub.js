@@ -335,6 +335,11 @@ window.SUB = (function(){
     clearTimeout(nextT); nextT=null;
     const idx=Math.max(0, Math.min(STAGES.length-1, n||0));
     const K=STAGES[idx];
+    /* WHERE WE GOT TO. Written as the level OPENS, not as it is passed:
+       a student who is halfway through this one and runs out of lesson has
+       still reached it, and should be handed it again tomorrow rather than
+       the one before it. */
+    if(window.PROGRESS && PROGRESS.reach) PROGRESS.reach('sub', idx);
     on=true; busy=false;
 
     G.running=false;

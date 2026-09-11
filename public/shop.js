@@ -64,7 +64,11 @@ window.SHOP = (function(){
      is about; charging for half the cast is a paywall across the middle of
      a two-person game. The ladder below still works if a third is ever
      added — this is how many come free, not how many there are. */
-  const FREE_CHARS=2;
+  /* Everybody in the roster is free. They are the three the game is
+     actually about, and a paywall in front of one of three is a paywall in
+     front of the game. The pricing below is still here and still works —
+     it is what a fourth character would arrive behind. */
+  const FREE_CHARS=3;
   function charItems(){
     if(!window.AVATAR) return [];
     return AVATAR.CHARS.map((c,i)=>({

@@ -140,7 +140,7 @@ window.PLANET = (function(){
       id:'home', kind:'home', seed,
       name:planetName(seed), sub:'your home planet',
       radius:200, sky:bio.sky, soil:bio.soil, biome:bio.key,
-      relief:6.5 + (seed>>>7)%6,
+      relief:6.5 + (seed>>>7)%6, ceiling:95,
       buildings:[
         { id:'house', name:planetName(seed)+' HOUSE', em:'\u{1F3E0}', lon:0, lat:2,
           w:26, d:22, h:12, door:8,
@@ -156,6 +156,14 @@ window.PLANET = (function(){
        rose out of the ground in front of you. At 320 it is past fifty and the
        curve reads as a planet rather than a hill you are always on top of. */
     radius:320, sky:0x070a1a, soil:BIOMES[0].soil, biome:'green', relief:9.5,
+    /* HOW HIGH YOU MAY FLY, in metres over the ground. A number per world
+       rather than one for the game: the whole reason VOLTA is a quarter of
+       the size of KORO is that you are meant to be able to see all of it,
+       and a ceiling that let you climb higher than the place is wide would
+       put you above a marble. Roughly a third of the radius keeps the
+       ground reading as ground — buildings still have size, the horizon
+       still curves — and it is far enough up to cross the map in one hop. */
+    ceiling:120,
     buildings:HUB_BUILDINGS,
     pad:{ lon:-34, lat:-9 }
   };
@@ -191,7 +199,7 @@ window.PLANET = (function(){
   const ARENA_WORLD={
     id:'arena', kind:'arena', seed:7, name:'VOLTA', sub:'the small loud one',
     radius:118, sky:0x08040f, soil:NIGHT_SOIL, biome:'neon', relief:2.4,
-    flora:'crystal', night:true,
+    flora:'crystal', night:true, ceiling:48,
     buildings:ARENA_BUILDINGS,
     pad:{ lon:0, lat:-17 }
   };
@@ -277,17 +285,97 @@ window.PLANET = (function(){
      here — there is nothing to race on a planet, so it is a faster way to
      cross one and a thing to be seen in. */
   let ride=null, rideId=null;
+  /* IN THE AIR. Flight is a third way of getting about rather than a mode
+     of walking: the keys mean different things, the camera sits somewhere
+     else, and gravity is not running. `flying` is the whole of the state —
+     everything else it needs is already on `me`, which is what a bird and
+     a person on foot genuinely have in common. */
+  let flying=false, dome=null;
   let statues=[];                    // the ones that turn on their plinths
   let aoStats=null;                  // what the ray-traced pass cost, for tuning
   /* You, as the planet sees you. G.pos is derived from this, never the
      other way round. */
   let me={ dir:null, fwd:null, alt:0, vy:0, onGround:true,
            spd:0,        // how fast the car is going, along its own nose
-           look:0 };     // where you are looking, which is not where it is going
+           look:0,       // where you are looking, which is not where it is going
+           /* IN THE AIR: airspeed along the nose, how fast you are climbing,
+              and how far the body is rolled into the turn. The last one is
+              a picture rather than a physics term — nothing is computed
+              from it — but a turn without a bank reads as a person being
+              dragged sideways rather than flying. */
+           air:0, climb:0, bank:0 };
   /* Where you were standing, PER WORLD. Fly home, walk about, fly back, and
      the hub should put you down beside the pad you left from — not at the
      spot you last stood on a different planet. */
   let lastYaw=0, backs={};
+  /* AND ON DISK, because `backs` on its own only remembers a session. Sign
+     out halfway across KORO and the planet used to forget you entirely: back
+     in, and you were standing on the landing pad again with the walk to
+     Mission Control still to do. A spot is six numbers and a world's name, so
+     it rides in the progress bag with the coins and the finished missions and
+     follows the account onto any machine in the lab.
+
+     ONLY THE DIRECTION AND THE HEADING ARE KEPT. How high the ground is under
+     you is generated from the world's own seed and comes out the same every
+     time, so it is asked for again on arrival rather than trusted from a file
+     — which is also what stops a stored altitude from dropping somebody
+     through a hill the day the terrain is tuned. */
+  const SPOT = id => 'spot_'+id;
+  const R4 = v => [Math.round(v.x*1e4)/1e4, Math.round(v.y*1e4)/1e4, Math.round(v.z*1e4)/1e4];
+  let spotAt=0, spotWas=null;
+  /* `force` is for the doors — leaving the planet writes wherever you are,
+     even if you have not moved since the last time. Without it, a step out to
+     the pad and straight into the ship would not be worth a write. */
+  function rememberSpot(force){
+    if(!on || !me.dir || !me.fwd) return;
+    backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
+    if(!window.PROGRESS || !PROGRESS.set) return;
+    /* Standing still is not news. A metre and a half of ground is under the
+       resolution of "put me back where I was" and saves a lesson's worth of
+       writes from somebody reading the sign outside Mission Control. */
+    if(!force && spotWas && spotWas.id===W.id && spotWas.dir.angleTo(me.dir)*PR < 1.5) return;
+    spotWas={ id:W.id, dir:me.dir.clone() };
+    PROGRESS.set(SPOT(W.id), { d:R4(me.dir), f:R4(me.fwd) });
+    /* And WHICH BALL, so signing back in lands you on the one you were on
+       rather than always on the hub. */
+    PROGRESS.set('world', W.id);
+  }
+  /* THE BAG IS THE AUTHORITY, and `backs` is only the fallback for somebody
+     playing with no storage at all. It has to be that way round: the bag is
+     what gets replaced when a different student signs in on the same machine,
+     and a session cache consulted first would have walked them out onto the
+     last child's spot.
+
+     Anything malformed is simply no spot. A stored position that cannot be
+     trusted has to read as a first landing — never as a player left standing
+     inside the planet. */
+  function savedSpot(id){
+    const raw=(window.PROGRESS && PROGRESS.get) ? PROGRESS.get(SPOT(id), null) : null;
+    const fallback = backs[id] || null;
+    if(!raw || !Array.isArray(raw.d) || !Array.isArray(raw.f)) return fallback;
+    if(raw.d.length!==3 || raw.f.length!==3) return fallback;
+    const dir=V(+raw.d[0]||0, +raw.d[1]||0, +raw.d[2]||0);
+    const fwd=V(+raw.f[0]||0, +raw.f[1]||0, +raw.f[2]||0);
+    if(!isFinite(dir.length()) || dir.lengthSq()<1e-6) return fallback;
+    dir.normalize();
+    /* SQUARE IT UP BEFORE IT IS USED. A heading rounded to four decimals is
+       no longer exactly tangent to the ball, and a basis built out of square
+       is a body that leans — the same failure the other players' headings had
+       to be fixed for further down. */
+    fwd.sub(dir.clone().multiplyScalar(fwd.dot(dir)));
+    if(!isFinite(fwd.length()) || fwd.lengthSq()<1e-6) return fallback;
+    fwd.normalize();
+    backs[id]={ dir, fwd };
+    return backs[id];
+  }
+  /* Which world to open on when nobody says. The bag's answer if it names one
+     we have, the hub otherwise — a name we do not recognise must never be a
+     student who cannot get back into the game. */
+  function lastWorld(){
+    if(!window.PROGRESS || !PROGRESS.get) return 'hub';
+    const id=PROGRESS.get('world','hub');
+    return WORLDS().some(w=>w.id===id) ? id : 'hub';
+  }
 
   const worldPos = extra => me.dir.clone().multiplyScalar(PR + me.alt + (extra||0));
 
@@ -346,7 +434,7 @@ window.PLANET = (function(){
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
-    const back=backs[W.id];
+    const back=savedSpot(W.id);
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
       /* First landing: stand out in front of Mission Control's door, looking
@@ -360,6 +448,11 @@ window.PLANET = (function(){
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
     me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
+    /* Every landing is on foot: the dome belonged to the world we left and
+       is gone with its room group, and a ceiling is a property of the ball
+       you are standing on. */
+    flying=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0;
+    if(window.AVATAR) AVATAR.posture(null);
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
     G.pos.copy(worldPos(EYE));
@@ -380,6 +473,9 @@ window.PLANET = (function(){
        Control and at the stations inside it, neither of which exists on
        another ball. Landing anywhere else is not a first arrival. */
     if(!toured() && W.kind==='hub'){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
+    /* On the record from the first frame, so a tab closed on the way in still
+       comes back to this planet rather than to the hub. */
+    spotAt=performance.now(); rememberSpot(true);
     if(window.updateLeaveBtn) updateLeaveBtn();
     if(window.updateCodeBtn) updateCodeBtn();
     lockPointer(document.querySelector('#view'));
@@ -2274,11 +2370,263 @@ window.PLANET = (function(){
     if(window.GUN) GUN.update(dt, moved);
   }
 
+  /* ===================================================================
+     FLIGHT
+
+     The three ways of crossing a planet answer three different questions.
+     Walking asks which way, driving asks which way and how fast, and this
+     one asks which way, how fast, and HOW HIGH — so it is its own function
+     rather than a flag inside walk(), where the third question would have
+     had to be ignored on every line.
+
+     WHAT THE KEYS DO, and why they are these keys: they are the car's.
+     W is go, S is slow, A and D turn, and the mouse looks — a child who
+     has driven here already knows three quarters of flying. The two new
+     ones are the two flying actually adds: SPACE up, SHIFT down.
+
+     Momentum is the point of "dynamic". Airspeed is chased rather than
+     set, so letting go of W leaves you gliding and a turn at speed carries
+     you wide. The climb rate is chased the same way, which is what stops
+     SPACE reading as a lift button.  */
+  const AIR={ top:34, accel:22, drag:6, back:-6,     // metres per second
+              turn:1.7, climb:16, rise:26,           // radians and metres per second
+              bank:0.62,                             // how far it rolls into a full turn
+              floor:1.4 };                           // how close to the ground you may hover
+  const ceilingOf = () => (W && W.ceiling) || 100;
+
+  function fly(dt, up){
+    /* The mouse turns you, exactly as it does on foot. */
+    const dy=G.yaw-lastYaw; lastYaw=G.yaw;
+    if(dy) me.fwd.applyAxisAngle(up, dy);
+    const turn=(G.keys.KeyA||G.keys.ArrowLeft?1:0)-(G.keys.KeyD||G.keys.ArrowRight?1:0);
+    if(turn) me.fwd.applyAxisAngle(up, AIR.turn*turn*dt);
+    // keep the heading tangent, or a long flight drifts out of square
+    me.fwd.sub(up.clone().multiplyScalar(me.fwd.dot(up)));
+    if(me.fwd.lengthSq()<1e-6) me.fwd.copy(frameAt(up,0).fwd);
+    me.fwd.normalize();
+
+    const want=(G.keys.KeyW||G.keys.ArrowUp?AIR.top:0)
+             + (G.keys.KeyS||G.keys.ArrowDown?AIR.back:0);
+    /* Chased, not set. The gap closes fast under power and slowly when you
+       let go, which is the difference between a glider and a cursor. */
+    const rate = want>me.air ? AIR.accel : AIR.drag;
+    me.air += Math.max(-rate*dt, Math.min(rate*dt, want-me.air));
+    if(Math.abs(me.air)<0.02) me.air=0;
+
+    const lift=(G.keys.Space?1:0)-(G.keys.ShiftLeft||G.keys.ShiftRight?1:0);
+    const wantClimb=lift*AIR.rise;
+    me.climb += Math.max(-AIR.climb*dt, Math.min(AIR.climb*dt, wantClimb-me.climb));
+
+    let moved=false;
+    if(Math.abs(me.air)>0.01){
+      const move=me.fwd.clone().multiplyScalar(Math.sign(me.air));
+      const axis=new THREE.Vector3().crossVectors(up, move).normalize();
+      /* The arc is longer up here: the same angle covers more ground the
+         further you are from the middle of the ball, so the radius the
+         speed is divided by has to include the height. Without it you fly
+         slower the higher you climb, which nothing explains. */
+      const ang=(Math.abs(me.air)*dt)/(PR+me.alt);
+      const want=me.dir.clone().applyAxisAngle(axis, ang).normalize();
+      /* WALLS STILL EXIST AT ALTITUDE. blocked() already asks the question
+         at the height you are actually at — it turns the point into the
+         building's own frame and checks the storeys — so flying OVER
+         Mission Control is free and flying THROUGH it is not. */
+      if(blocked(want)) me.air=0;
+      else {
+        me.dir.copy(want);
+        me.fwd.applyAxisAngle(axis, ang);
+        moved=true;
+        G.stats.steps += Math.abs(me.air)*dt;
+      }
+    }
+
+    /* THE CEILING, AND THE GROUND. Both are walls rather than surprises:
+       you stop rising and the dome lights up, or you stop falling and are
+       standing on your feet again. */
+    const floor=floorAt(me.dir), roof=floor+ceilingOf();
+    me.alt += me.climb*dt;
+    if(me.alt>=roof){ me.alt=roof; me.climb=Math.min(0,me.climb); }
+    if(me.alt<=floor+AIR.floor){
+      me.alt=floor+AIR.floor; me.climb=Math.max(0,me.climb);
+      // asking to go down while you are already as low as flight goes is
+      // the only thing "land" could possibly mean
+      if(lift<0) return land();
+    }
+    /* The roll is worked out from the turn you are actually making, which
+       includes the mouse — so leaning on the mouse banks you too. */
+    const rateNow = dt>0 ? (turn*AIR.turn + dy/dt) : 0;
+    const wantBank = Math.max(-1,Math.min(1, rateNow/AIR.turn)) * AIR.bank
+                   * Math.min(1, Math.abs(me.air)/12);
+    me.bank += (wantBank-me.bank)*Math.min(1, dt*4);
+
+    dome && domeTick();
+    streakTick(dt);
+    /* HOW HARD THE AIR IS GOING PAST, which is the one number the sound
+       needs. Squared inside MUSIC.wind, so a gentle drift is nearly silent
+       and the top of the throttle is unmistakable. */
+    if(window.MUSIC && MUSIC.wind) MUSIC.wind(Math.abs(me.air)/AIR.top);
+    place(dt, moved, false);
+    if(window.GUN) GUN.update(dt, moved);
+  }
+
+  /* Feet on the ground and the keys back to what they were. */
+  function land(){
+    flying=false;
+    me.air=0; me.climb=0; me.bank=0;
+    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true;
+    if(window.AVATAR) AVATAR.posture(null);
+    if(dome) dome.visible=false;
+    if(streak) streak.line.visible=false;
+    if(window.MUSIC && MUSIC.wind) MUSIC.wind(0);
+    keysFor(); dash();
+    say(t('Down. <b>R</b> for the way you travel.'));
+  }
+  function takeOff(){
+    if(ride) toggleRide();               // you cannot fly a car
+    flying=true;
+    me.air=0; me.climb=AIR.rise*0.5; me.bank=0; me.onGround=false; me.vy=0;
+    me.alt=Math.max(me.alt, floorAt(me.dir)+AIR.floor);
+    if(window.AVATAR) AVATAR.posture('fly');
+    buildDome(); buildStreaks();
+    if(window.MUSIC && MUSIC.whoosh) MUSIC.whoosh();
+    keysFor(); dash();
+    /* A body with no flying clip still flies — it just does it standing
+       up, playing whatever it was doing before, which reads as the whole
+       feature being broken rather than as one missing file. Say which it
+       is. In practice this means a stale model in the cache: bump the
+       asset version (npm run bump) and reload. */
+    if(window.AVATAR && !AVATAR.can('fly')){
+      say(t('Flying — but this character has no flying animation yet.'));
+      console.warn('AVATAR: no "fly" clip on '+AVATAR.chosen+
+                   ' — the cached model is probably older than the game (npm run bump)');
+      return;
+    }
+    say(t('<b>W</b> to fly, <b>A D</b> to turn, <b>SPACE</b> up, <b>SHIFT</b> down.'));
+  }
+
+  /* ================================================== motion streaks
+     WHAT SPEED LOOKS LIKE WHEN THERE IS NOTHING TO MEASURE IT AGAINST.
+
+     Flying a hundred metres up over open ground is the one place in this
+     game with no near scenery: the planet slides past far below, and at
+     any speed at all the screen barely changes. On foot the grass goes
+     past your knees and in a car the road does; up here nothing does, so
+     thirty-four metres a second and a standstill look identical.
+
+     So the air itself gets drawn. Lines streaming past the camera, spread
+     out from a point ahead the way they are in every flying shot ever
+     animated — which is not a stylistic nod, it is the actual geometry of
+     parallax: things near the axis you are travelling along slide slowly
+     and things off to the side tear past. They fan outward as they come
+     back, they lengthen with speed, and below a walking pace there are
+     none of them at all.
+
+     Kept in the frame around the player rather than in the world. A streak
+     is three numbers — how far ahead, which way out, and how far out —
+     rebuilt into world space each frame from the current basis, which is
+     also the only way this works on a ball: "behind you" is a different
+     direction every few steps. */
+  const STREAKS=150;
+  let streak=null;
+  function buildStreaks(){
+    if(streak || !G.roomGroup) return;
+    const pos=new Float32Array(STREAKS*6);
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    const line=new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+      color:0xdff2ff, transparent:true, opacity:0,
+      /* Additive, so they read as light rather than as wire. On a night
+         sky they glow; over daylit grass they go pale instead of drawing a
+         cage over the landscape, which is what a solid line would do. */
+      blending:THREE.AdditiveBlending, depthWrite:false }));
+    line.frustumCulled=false;
+    line.userData.sky=true;              // nothing to light, nothing to shadow
+    const bits=[];
+    for(let i=0;i<STREAKS;i++) bits.push(spawn(Math.random()*40-26));
+    streak={ line, geo, pos, bits };
+    G.roomGroup.add(line);
+  }
+  const FRONT=16, BACK=-30;
+  function spawn(d){
+    const a=Math.random()*Math.PI*2;
+    return { d, cos:Math.cos(a), sin:Math.sin(a),
+             /* Squared, so more of them sit near the axis than far out —
+                an even spread makes a tunnel with a hole down the middle. */
+             r:0.9+Math.pow(Math.random(),2)*5.2,
+             len:0.5+Math.random()*0.9 };
+  }
+  function streakTick(dt){
+    if(!streak) return;
+    const fast=Math.min(1, Math.abs(me.air)/AIR.top);
+    streak.line.visible = fast>0.06;
+    streak.line.material.opacity = 0.55*fast*fast;
+    if(!streak.line.visible) return;
+    const up=me.dir.clone().normalize();
+    const fwd=me.fwd.clone().normalize();
+    const right=new THREE.Vector3().crossVectors(fwd, up).normalize();
+    /* CENTRED ON THE CHARACTER, not on the patch of ground under them.
+       worldPos(0) is where the body was PUT; the flying pose then lies
+       flat with the hips up and forward of it, so a tube of streaks built
+       around the placement point hangs above the person it is meant to be
+       rushing past. Ask the body where it ended up. */
+    const O=(window.AVATAR && AVATAR.centre) ? AVATAR.centre(streak.at||(streak.at=new THREE.Vector3()))
+                                             : worldPos(1.2);
+    /* They stream past faster than you are actually going. A streak moving
+       at exactly your speed sits still relative to you, which is the one
+       thing it must not do. */
+    const flow=(Math.abs(me.air)*1.3+7)*Math.sign(me.air||1);
+    const long=2.2+Math.abs(me.air)*0.33;
+    const P=streak.pos;
+    for(let i=0;i<STREAKS;i++){
+      const b=streak.bits[i];
+      b.d-=flow*dt;
+      if(b.d<BACK) Object.assign(b, spawn(FRONT+Math.random()*10));
+      else if(b.d>FRONT+12) Object.assign(b, spawn(BACK+Math.random()*6));
+      /* THE FAN. The further back a streak has come, the further out it
+         is — which is what parallax does and what makes the vanishing
+         point read as a direction of travel rather than a dot. */
+      const r=b.r*(1+Math.max(0,(FRONT-b.d))*0.055);
+      const ox=right.x*b.cos*r+up.x*b.sin*r;
+      const oy=right.y*b.cos*r+up.y*b.sin*r;
+      const oz=right.z*b.cos*r+up.z*b.sin*r;
+      const hx=O.x+fwd.x*b.d+ox, hy=O.y+fwd.y*b.d+oy, hz=O.z+fwd.z*b.d+oz;
+      const L=long*b.len*Math.sign(me.air||1);
+      P[i*6]=hx;            P[i*6+1]=hy;            P[i*6+2]=hz;
+      P[i*6+3]=hx-fwd.x*L;  P[i*6+4]=hy-fwd.y*L;    P[i*6+5]=hz-fwd.z*L;
+    }
+    streak.geo.attributes.position.needsUpdate=true;
+    streak.geo.computeBoundingSphere();
+  }
+
+  /* THE EDGE OF THE SKY, drawn rather than described. A number in the
+     corner tells you there is a ceiling; a surface you can see coming tells
+     you where it is. It is a wireframe rather than a wall because the point
+     is to read the limit through it, not to have the world go blank. */
+  function buildDome(){
+    if(dome || !G.roomGroup) return;
+    const g=new THREE.SphereGeometry(PR+ceilingOf(), 48, 32);
+    dome=new THREE.LineSegments(new THREE.WireframeGeometry(g),
+      new THREE.LineBasicMaterial({ color:0x8fd3ff, transparent:true, opacity:0 }));
+    dome.userData.sky=true;            // not a thing to light or shadow
+    dome.renderOrder=-1;
+    G.roomGroup.add(dome);
+  }
+  /* Fades in over the last stretch of climb, so it is invisible for most of
+     a flight and unmistakable at the top of one. */
+  function domeTick(){
+    if(!dome) return;
+    const roof=floorAt(me.dir)+ceilingOf();
+    const near=Math.max(0, 1-(roof-me.alt)/28);
+    dome.visible = near>0.01;
+    dome.material.opacity = 0.42*near*near;
+  }
+
   function walk(dt){
     if(!on || !me.dir) return;
     // hands on the decks, not on the keys: WASD is the grid's while it is up
     if(window.CLUB && CLUB.playing) return;
     const up=me.dir.clone().normalize();
+    if(flying) return fly(dt, up);
 
     /* The mouse steers you on foot, and only turns your head in a car. */
     const dy=G.yaw-lastYaw; lastYaw=G.yaw;
@@ -2376,12 +2724,103 @@ window.PLANET = (function(){
       `<b>W</b> ${t('go')} &nbsp; <b>S</b> ${t('brake / reverse')}
        &nbsp; <b>A D</b> ${t('steer')} &nbsp; <b>${t('mouse')}</b> ${t('look around')}<br>
        <b>R</b> ${t('get out')} &nbsp; <b>E</b> ${t('go in')} &nbsp; <b>P</b> ${t('pause')}`);
+    else if(flying) keyHint(
+      `<b>W</b> ${t('fly')} &nbsp; <b>S</b> ${t('slow')} &nbsp; <b>A D</b> ${t('turn')}
+       &nbsp; <b>${t('mouse')}</b> ${t('look')}<br>
+       <b>SPACE</b> ${t('up')} &nbsp; <b>SHIFT</b> ${t('down')}
+       &nbsp; <b>R</b> ${t('how you travel')} &nbsp; <b>P</b> ${t('pause')}`);
     else keyHint(
       `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
        &nbsp; <b>SPACE</b> ${t('jump')}<br>
-       <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('get in the car')}
-       &nbsp; <b>P</b> ${t('pause')}`);
+       <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('how you travel')}
+       &nbsp; <b>B</b> ${t('who you are')} &nbsp; <b>P</b> ${t('pause')}`);
   }
+  /* ===================================================================
+     HOW YOU GET ABOUT
+
+     R used to be "get in the car", which is a fine key for a game with a
+     car in it and a poor one for a game with a car AND wings. So R asks
+     the question instead — and the answer is a row of three, because
+     three ways of travelling is a choice and not a toggle you have to
+     press twice to get past.
+
+     It reads and behaves like the quick change on B: a strip along the
+     bottom, the world still on the glass behind it, arrows and Enter. */
+  const WAYS = [
+    { id:'foot', em:'\u{1F6B6}', name:'On foot' },
+    { id:'car',  em:'\u{1F697}', name:'Drive' },
+    { id:'fly',  em:'\u{1F54A}', name:'Fly' }
+  ];
+  let travelUp=false;
+  const carAvailable = () => !!(window.SHOP && SHOP.CARS.some(c=>SHOP.ownsCar(c)));
+  const wayNow = () => flying ? 'fly' : ride ? 'car' : 'foot';
+
+  function travelOpen(){
+    if(travelUp || !on) return;
+    const el=document.querySelector('#travel'); if(!el) return;
+    travelUp=true;
+    if(document.pointerLockElement) document.exitPointerLock();
+    const ttl=document.querySelector('#travelTitle');
+    if(ttl) ttl.textContent=t('HOW DO YOU WANT TO GET ABOUT?');
+    const row=document.querySelector('#travelRow');
+    row.innerHTML='';
+    const now=wayNow();
+    WAYS.forEach(w=>{
+      const open = w.id!=='car' || carAvailable();
+      const b=document.createElement('button');
+      b.className='waytile'+(w.id===now?' on':'')+(open?'':' locked');
+      b.dataset.w=w.id;
+      b.setAttribute('aria-pressed', w.id===now?'true':'false');
+      b.innerHTML=`<span class="wayem">${w.em}</span><b>${t(w.name)}</b>`;
+      b.onclick=()=>travelPick(w.id, open);
+      row.appendChild(b);
+    });
+    travelHint();
+    el.classList.remove('hidden');
+    const cur=row.querySelector('.waytile.on')||row.firstChild;
+    if(cur) cur.focus();
+  }
+  function travelHint(msg){
+    const el=document.querySelector('#travelHint'); if(!el) return;
+    el.innerHTML = msg || t('<b>\u2190 \u2192</b> pick &nbsp; <b>R</b> or <b>Esc</b> close');
+  }
+  function travelClose(){
+    if(!travelUp) return;
+    travelUp=false;
+    const el=document.querySelector('#travel'); if(el) el.classList.add('hidden');
+    if(G.running && window.lockPointer){
+      const v=document.querySelector('#view'); if(v) lockPointer(v);
+    }
+  }
+  function travelPick(id, open){
+    if(!open){ travelHint(t('No car yet. The Mechanic sells them.'));
+               if(window.beep) beep('bad'); return; }
+    if(id===wayNow()){ travelClose(); return; }
+    if(window.beep) beep('pop');
+    if(flying && id!=='fly') land();
+    if(id==='car'){ if(!ride) toggleRide(); }
+    else if(ride && id!=='car') toggleRide();
+    if(id==='fly' && !flying) takeOff();
+    travelClose();
+  }
+  /* Arrows move focus and Enter is the click a button already understands,
+     so this only has to move the focus and swallow the keys — left and
+     right turn you round a planet everywhere else. */
+  function travelKey(e){
+    if(!travelUp) return false;
+    const k=e.code;
+    if(k==='Escape'||k==='KeyR'){ travelClose(); return true; }
+    const tiles=[...document.querySelectorAll('#travelRow .waytile')];
+    if(!tiles.length) return false;
+    if(k==='ArrowLeft'||k==='ArrowRight'){
+      const i=Math.max(0, tiles.indexOf(document.activeElement));
+      tiles[(i+(k==='ArrowRight'?1:-1)+tiles.length)%tiles.length].focus();
+      return true;
+    }
+    if(k==='ArrowUp'||k==='ArrowDown') return true;
+    return false;
+  }
+
   function toggleRide(){
     if(!on || !window.SHOP) return;
     if(rideId){ SHOP.equip(rideId); fitRide(); me.spd=0; me.look=0;
@@ -2420,10 +2859,34 @@ window.PLANET = (function(){
      over as you walk and a child throws the mouse across the room. */
   const CAM_BACK=6.2, CAM_UP=2.6;
   const CAR_BACK=12, CAR_UP=4.4;
+  /* HIGHER AND FURTHER BACK THAN ANYTHING ELSE. A flyer lies flat, so the
+     camera that works for a walker — just behind the shoulders — is parked
+     at the soles of their shoes looking up the length of them. Lifting it
+     and pulling it back turns that into the shot every flying game uses:
+     the body below you, the ground past it, and the horizon where the
+     horizon is. */
+  const FLY_BACK=12, FLY_UP=5.4;
   function place(dt, moving, running){
     const up=me.dir.clone().normalize();
     G.pos.copy(worldPos(EYE));
-    if(ride){
+    if(flying && window.AVATAR){
+      /* PITCH AND ROLL GO IN THROUGH `up`, not through the heading.
+         orient() flattens whatever forward it is handed against the up it
+         is handed — which is right, and is what keeps a walker upright on
+         a ball — so a nose tilted on its own comes back level. Tilting
+         BOTH by the same angle about the same axis pitches the whole body
+         and survives that flattening; rolling `up` about the nose after
+         that banks it, and leaves the nose where it was.
+
+         Movement never sees any of this. The heading that carries you
+         round the planet stays flat on the surface; this is the picture. */
+      const right=new THREE.Vector3().crossVectors(me.fwd, up).normalize();
+      const nose=Math.max(-0.55, Math.min(0.55, -me.climb/AIR.rise*0.5));
+      const u=up.clone().applyAxisAngle(right, nose);
+      const f=me.fwd.clone().applyAxisAngle(right, nose);
+      u.applyAxisAngle(f, me.bank);
+      AVATAR.orient(worldPos(0), u, f, dt, moving, running, false);
+    } else if(ride){
       const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
       const r=new THREE.Vector3().crossVectors(up, f).normalize();
       /* Local +Z is the nose, exactly as it is for the characters — so +Z
@@ -2451,8 +2914,17 @@ window.PLANET = (function(){
        a bend, or look at what you are driving past. */
     const camF = ride ? me.fwd.clone().applyAxisAngle(up, me.look) : me.fwd.clone();
     const camR = new THREE.Vector3().crossVectors(camF, up).normalize();
-    const back = ride ? CAR_BACK : CAM_BACK, lift = ride ? CAR_UP : CAM_UP;
-    const head=worldPos(ride ? 1.4 : EYE);
+    const back = flying ? FLY_BACK : ride ? CAR_BACK : CAM_BACK;
+    const lift = flying ? FLY_UP   : ride ? CAR_UP   : CAM_UP;
+    const head=worldPos(flying ? 1.2 : ride ? 1.4 : EYE);
+    /* LOOK WHERE YOU ARE GOING, not at your own hips. A flyer lies along
+       the direction of travel, so a camera aimed at the point they are
+       rotating about has them pointing straight away from it and stacked
+       into a single foreshortened column — the one shape that reads as
+       somebody standing still. Aiming a couple of metres up the track
+       puts the body in the lower half of the frame, along the diagonal,
+       and the ground it is crossing in the rest. */
+    if(flying) head.addScaledVector(camF, 1.6);
     const off=camF.clone().multiplyScalar(-back).addScaledVector(up, lift);
     off.applyAxisAngle(camR, G.pitch);
     G.camera.position.copy(head).add(off);
@@ -2582,7 +3054,8 @@ window.PLANET = (function(){
         g.add(nameTag(p.display));
         crowd.add(g);
         o={ g, char:null, model:null, dir:dirOf(p.x,p.z), tdir:dirOf(p.x,p.z),
-            head:p.yaw||0, thead:p.yaw||0, speed:0, act:null, ride:null, car:null };
+            head:p.yaw||0, thead:p.yaw||0, speed:0, act:null, ride:null, car:null,
+            up:+p.y||0, tup:+p.y||0 };
         others.set(p.id,o);
       }
       if(p.char && o.char!==p.char){
@@ -2605,7 +3078,7 @@ window.PLANET = (function(){
           if(o.model) o.model.visible=false;
         }).catch(()=>{});
       }
-      o.tdir=dirOf(p.x,p.z); o.thead=p.yaw||0; o.act=p.act||null;
+      o.tdir=dirOf(p.x,p.z); o.thead=p.yaw||0; o.act=p.act||null; o.tup=+p.y||0;
     });
     for(const [id,o] of others) if(!seen.has(id)){ crowd.remove(o.g); others.delete(id); }
   }
@@ -2655,6 +3128,12 @@ window.PLANET = (function(){
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();
     if(now-mapAt>80){ mapAt=now; drawMap(); dash(); }
+    /* WRITE DOWN WHERE WE ARE, now and then. leave() catches every door on
+       the planet, but a door is not how a session usually ends — a closed lid
+       and a closed tab are, and neither of them calls anything. Ten seconds is
+       far less ground than anybody would mind re-walking and far more than a
+       write is worth paying for. */
+    if(now-spotAt>10000){ spotAt=now; rememberSpot(false); }
     sunAt();
     // the statues turn slowly on their plinths, the way a museum piece does
     statues.forEach(st=>{ if(st.userData.spin) st.rotation.y += st.userData.spin*dt; });
@@ -2688,8 +3167,9 @@ window.PLANET = (function(){
       let d=o.thead-o.head; d=Math.atan2(Math.sin(d),Math.cos(d));
       o.head+=d*k;
       const f=frameAt(o.dir,o.head);
-      // everyone else stands on the same hills you do
-      o.g.position.copy(o.dir).multiplyScalar(PR + floorAt(o.dir));
+      // everyone else stands on the same hills you do — and flies over them
+      o.up += (o.tup-o.up)*k;
+      o.g.position.copy(o.dir).multiplyScalar(PR + floorAt(o.dir) + o.up);
       o.g.quaternion.setFromRotationMatrix(
         new THREE.Matrix4().makeBasis(f.right, f.up, f.fwd));
       // how fast they are actually crossing the ground, so the legs match it
@@ -2705,7 +3185,14 @@ window.PLANET = (function(){
         /* Not G.yaw: that is how far the mouse has been dragged, which means
            nothing on anybody else's screen. What travels is the heading in the
            frame under our own feet, which rebuilds anywhere on the ball. */
+        /* HEIGHT TRAVELS TOO, now that there is any. Two numbers and a
+           heading were the whole of where somebody was for as long as
+           everybody was on the ground; a flyer sent that way turns up on
+           everyone else's screen walking across the field underneath
+           themselves. `y` is metres over the ground rather than a radius,
+           so it means the same thing on a hill as on a beach. */
         NET.pos({ x:+ll.lon.toFixed(2), z:+ll.lat.toFixed(2), yaw:+heading().toFixed(3),
+                  y:+Math.max(0, me.alt-floorAt(me.dir)).toFixed(2),
                   char:AVATAR.chosen, act:AVATAR.act, ride:rideId, at:W.id });
       }
     }
@@ -2836,8 +3323,14 @@ window.PLANET = (function(){
     const nm=document.querySelector('#dName');
     if(nm) nm.textContent = me_ ? t(me_.name) : '';
     const rd=document.querySelector('#dRide');
-    if(rd) rd.textContent = ride && SHOP.car() ? t('driving {n}',{n:t(SHOP.car().name)})
-                                              : t('on foot');
+    /* IN THE AIR THE INTERESTING NUMBER IS THE HEIGHT, and it is only
+       interesting against the ceiling — "40m" means nothing, "40 of 120"
+       is a place in a climb. */
+    if(rd) rd.textContent = flying
+      ? t('flying \u2014 {a}m of {c}',{ a:Math.round(Math.max(0,me.alt-floorAt(me.dir))),
+                                     c:ceilingOf() })
+      : ride && SHOP.car() ? t('driving {n}',{n:t(SHOP.car().name)})
+      : t('on foot');
     const p=WALLET.progress();
     const lv=document.querySelector('#dLv'); if(lv) lv.textContent=t('Level')+' '+p.level;
     const bar=document.querySelector('#dBar');
@@ -2946,8 +3439,15 @@ window.PLANET = (function(){
      that takes your body off everybody else's field. */
   const wentTo = where => { if(window.NET && NET.live) NET.place(where); };
   function leave(){
-    if(on && me.dir) backs[W.id]={ dir:me.dir.clone(), fwd:me.fwd.clone() };
+    rememberSpot(true);
     on=false;
+    /* You are not in the air any more, wherever you are going. The posture
+       is AVATAR's and would otherwise follow you indoors, where it would
+       quietly outrank every walk in the building. */
+    flying=false; travelClose(); dome=null; streak=null;
+    me.air=0; me.climb=0; me.bank=0;
+    if(window.AVATAR) AVATAR.posture(null);
+    if(window.MUSIC && MUSIC.wind) MUSIC.wind(0);
     if(window.MUSIC) MUSIC.stop();      // whatever you walked into, it is not out here
     if(window.CLUB) CLUB.stop();        // and the club does not follow you off the planet
     // whatever we are walking into, we are not out here any more
@@ -2972,13 +3472,24 @@ window.PLANET = (function(){
   function stop(){ leave(); }
 
   return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
+           travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
+           get flying(){ return flying; }, land,
            get riding(){ return !!ride; },
            STATIONS, lonLat, frameAt, dirOf,
            get BUILDINGS(){ return BUILDINGS; },
            get PR(){ return PR; },
            get world(){ return W; },
            get ao(){ return aoStats; },
-           forget(){ backs={}; },
+           /* Forget where I stood — on every ball, on disk as well as in
+              this session, or "forget" would last until the next reload. */
+           forget(){
+             backs={}; spotWas=null;
+             if(window.PROGRESS && PROGRESS.set){
+               WORLDS().forEach(w=>PROGRESS.set(SPOT(w.id), null));
+               PROGRESS.set('world','hub');
+             }
+           },
+           lastWorld,
            get where(){ return me; },
            get active(){ return on; },
            get server(){ return server; } };

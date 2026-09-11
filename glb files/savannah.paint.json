@@ -1,0 +1,38 @@
+{
+  "note": [
+    "Measured off animations/Savannah/Savannah riggin png.png with png-read.js,",
+    "not picked by eye. Every number is a FRACTION of the figure and never a",
+    "length: yN is height with 0 at the sole and 1 at the crown, ax is |x| over",
+    "the fingertip reach, zN is depth over height. All read in the T-pose. That",
+    "is what lets the same spec paint the model at any scale — and the model is",
+    "stored at a hundredth of life size, to match the animation clips.",
+    "The drawing is stylised rather than a render of this mesh: its vertical",
+    "landmarks agree with the skeleton to about a percent, its widths are out by",
+    "over ten. So heights come from the picture and widths from the rig."
+  ],
+  "B": {
+    "shoeTop":   0.078,
+    "waistTop":  0.600,
+    "shirtHem":  0.638,
+    "collarTop": 0.800,
+    "sleeveEnd": 0.280,
+    "faceY":     0.878,
+    "faceR":     [0.105, 0.056],
+    "faceZ":     0.020,
+    "throat":    [0.845, 0.050],
+    "hairBack":  [-0.0923, 0.745],
+    "watch":     [0.735, 0.785],
+    "panel":     0.82,
+    "emblem":    [0.655, 0.770, 0.052]
+  },
+  "C": {
+    "skin":   "#e0a274",
+    "hair":   "#1b100e",
+    "jersey": "#9c1521",
+    "panel":  "#242b4a",
+    "emblem": "#15100f",
+    "jeans":  "#28313a",
+    "shoe":   "#ded5cd",
+    "watch":  "#c3c6ca"
+  }
+}

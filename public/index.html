@@ -163,6 +163,22 @@ button{font-family:var(--font);cursor:pointer}
 .authform input:focus{outline:none;border-color:var(--accent)}
 .authmsg{min-height:24px;font-size:15px;color:var(--bad);margin:8px 0}
 .authmsg.good{color:var(--good)}
+/* who you are, on the sign-up form. Two faces the size of the boxes above
+   them, so it reads as one more question on the form and not as a shop. */
+.whopick{width:min(340px,90%);margin-top:2px}
+.wholbl{font-size:12px;letter-spacing:1.6px;color:var(--muted);font-weight:bold;
+  text-align:center;margin-bottom:6px}
+.whorow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.whotile{border:3px solid var(--line);border-radius:14px;background:#1d1730;
+  padding:8px 4px 6px;cursor:pointer;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s,color .16s}
+.whotile img{width:100%;height:82px;object-fit:contain;object-position:center top}
+.whotile b{font-size:14px;letter-spacing:.4px}
+.whotile:hover{transform:translateY(-3px);border-color:var(--sky)}
+/* the chosen one has to keep reading as chosen with the mouse on it */
+.whotile.on,.whotile.on:hover{border-color:var(--mint);background:#2b3a4e;color:var(--mint);
+  box-shadow:0 0 0 3px rgba(168,230,207,.45)}
 .menucard{max-width:940px;width:min(940px,96%)}
 .menutop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;text-align:left}
 .menubtns{display:flex;gap:6px}
@@ -600,6 +616,64 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .mis .tagrow{margin-top:auto;font-size:12px;letter-spacing:1.4px;color:var(--a,#8fd3ff);font-weight:bold}
 .mis.locked{opacity:.5;cursor:not-allowed;filter:grayscale(.55)}
 .mis.done{border-color:var(--star)} .mis.done .tagrow{color:var(--star)}
+/* a mission you were part way through, and the way back to its first level.
+   The chip sits in the corner rather than under the tag, so the big obvious
+   thing to press is still "carry on" and starting over is a decision you
+   have to aim at. */
+.mis.resume{border-color:var(--a,#8fd3ff)}
+.mis .misover{position:absolute;top:10px;right:10px;z-index:2;
+  font-size:10px;letter-spacing:1.3px;font-weight:bold;
+  color:var(--muted);background:rgba(0,0,0,.34);
+  border:2px solid var(--line);border-radius:999px;padding:3px 9px;
+  transition:color .15s,border-color .15s,background .15s}
+.mis .misover:hover{color:var(--text);border-color:var(--a,#8fd3ff);background:rgba(0,0,0,.6)}
+
+/* ---------- the quick change ----------------------------------------
+   A strip along the bottom rather than a card in the middle: you are
+   looking at yourself standing on the planet, and a panel over the middle
+   of the screen covers the one thing you are trying to look at. */
+#swap,#travel{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;
+  justify-content:center;padding-bottom:5vh;pointer-events:none;
+  background:linear-gradient(to top,rgba(8,10,18,.72),rgba(8,10,18,0) 42%)}
+#swap.hidden,#travel.hidden{display:none}
+.wayrow{display:flex;gap:10px}
+.waytile{width:118px;height:96px;border:3px solid var(--line);border-radius:16px;
+  background:rgba(20,16,38,.55);cursor:pointer;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font:bold 13px system-ui;letter-spacing:.4px;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s,color .16s}
+.wayem{font-size:32px;line-height:1}
+.waytile:hover,.waytile:focus-visible{transform:translateY(-4px);border-color:var(--sky);
+  color:var(--text);outline:none}
+.waytile.on,.waytile.on:hover{border-color:var(--mint);color:var(--mint);
+  box-shadow:0 0 0 3px rgba(168,230,207,.4)}
+.waytile.locked{cursor:not-allowed;filter:grayscale(.7);opacity:.55}
+.swapcard{pointer-events:auto;background:var(--panel2);border:3px solid var(--line);
+  border-radius:20px;padding:12px 16px 10px;box-shadow:0 18px 40px rgba(0,0,0,.5);
+  animation:swapIn .18s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes swapIn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+#swapTitle{margin:0 0 8px;font-size:12.5px;letter-spacing:2.6px;color:var(--mint);
+  text-align:center;font-weight:bold}
+.swaprow{position:relative;display:flex;gap:10px}
+/* the canvas lies under the buttons and is never clicked: every tile is a
+   real button, so focus, Enter and a screen reader all work as normal */
+#swapView{position:absolute;left:0;top:0;pointer-events:none}
+.swaptile{position:relative;z-index:1;width:104px;height:150px;
+  border:3px solid var(--line);border-radius:16px;background:rgba(20,16,38,.55);
+  cursor:pointer;color:var(--muted);display:flex;flex-direction:column-reverse;
+  align-items:center;padding-bottom:6px;font:bold 12.5px system-ui;letter-spacing:.4px;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s,color .16s}
+.swaptile:hover,.swaptile:focus-visible{transform:translateY(-4px);border-color:var(--sky);
+  color:var(--text);outline:none}
+.swaptile.on,.swaptile.on:hover{border-color:var(--mint);color:var(--mint);
+  box-shadow:0 0 0 3px rgba(168,230,207,.4)}
+.swaptile.on::after{content:'✓';position:absolute;top:5px;right:7px;
+  width:19px;height:19px;border-radius:50%;background:var(--mint);color:#14312a;
+  font-size:12px;line-height:19px;text-align:center}
+.swaptile.locked{cursor:not-allowed;filter:grayscale(.7);opacity:.6}
+.swaptile .price{position:absolute;top:5px;left:7px;font-size:10.5px;color:var(--star)}
+.swaphint{text-align:center;font-size:11.5px;color:var(--muted);margin-top:8px;letter-spacing:.3px}
+.swaphint b{color:var(--text)}
 
 /* ---------- difficulty picker ---------- */
 .difflbl{font-size:11.5px;letter-spacing:2.2px;color:var(--mint);font-weight:bold;margin-top:4px}
@@ -1653,12 +1727,39 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
     <div id="chatHint"></div>
   </div>
   <div id="topbar">
+    <!-- the quick change. A hotkey wants a visible twin or nobody finds it -->
+    <button class="btn small ghost" id="btnWho" title="Change character (B)">🙂</button>
     <!-- only shown for a character who actually has an emote to play -->
     <button class="btn small ghost hidden" id="btnEmote" title="Dance">🕺</button>
     <button class="btn small ghost hidden" id="btnLeave">⏏ Leave</button>
     <button class="btn small ghost" id="btnMusic" title="Music on" aria-pressed="true">🎵</button>
     <button class="btn small ghost" id="btnLang">🌐 Español</button>
     <button class="btn small ghost" id="btnHelp">❔</button>
+  </div>
+</div>
+
+<!-- THE QUICK CHANGE. Not a screen: the planet stays on the glass behind it,
+     because the whole point is seeing yourself change where you are standing
+     rather than being taken somewhere to do it. -->
+<div id="swap" class="hidden" role="dialog" aria-modal="true" aria-labelledby="swapTitle">
+  <div class="swapcard">
+    <h2 id="swapTitle"></h2>
+    <div class="swaprow" id="swapRow">
+      <!-- one GL context for the lot, behind the buttons that do the hit-testing -->
+      <canvas id="swapView"></canvas>
+    </div>
+    <div class="swaphint" id="swapHint"></div>
+  </div>
+</div>
+
+<!-- HOW YOU GET ABOUT. Same shape as the quick change and for the same
+     reason: you are choosing between three ways of crossing the place you
+     are standing in, and a panel over the middle covers it. -->
+<div id="travel" class="hidden" role="dialog" aria-modal="true" aria-labelledby="travelTitle">
+  <div class="swapcard">
+    <h2 id="travelTitle"></h2>
+    <div class="wayrow" id="travelRow"></div>
+    <div class="swaphint" id="travelHint"></div>
   </div>
 </div>
 
@@ -1758,6 +1859,11 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
       <input id="upUser" maxlength="20" autocomplete="username" placeholder="username">
       <input id="upName" maxlength="16" placeholder="display name">
       <input id="upPass" type="password" maxlength="64" autocomplete="new-password" placeholder="password">
+      <!-- who you are, chosen on the way in rather than found later in a shop -->
+      <div class="whopick" role="radiogroup" aria-labelledby="upWhoLbl">
+        <div class="wholbl" id="upWhoLbl"></div>
+        <div class="whorow" id="upWho"></div>
+      </div>
       <button class="btn good" id="btnUp" type="submit"></button>
     </form>
     <div class="authmsg" id="authMsg"></div>
@@ -1904,48 +2010,48 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='392';</script>
-<script src="lib/three.classic.js?v=392"></script>
-<script src="strings.js?v=392"></script>
-<script src="music.js?v=392"></script>
-<script src="net.js?v=392"></script>
-<script src="avatar.js?v=392"></script>
-<script src="zombies.js?v=392"></script>
-<script src="building.js?v=392"></script>
-<script src="levels.js?v=392"></script>
-<script src="program.js?v=392"></script>
-<script src="code.js?v=392"></script>
-<script src="mechsim.js?v=392"></script>
-<script src="mech.js?v=392"></script>
-<script src="intro.js?v=392"></script>
-<script src="mechacode.js?v=392"></script>
-<script src="mechaarena.js?v=392"></script>
-<script src="mecha.js?v=392"></script>
-<script src="workshop.js?v=392"></script>
-<script src="combat.js?v=392"></script>
-<script src="puzzle.js?v=392"></script>
-<script src="nav.js?v=392"></script>
-<script src="tutorial.js?v=392"></script>
-<script src="race.js?v=392"></script>
-<script src="flight.js?v=392"></script>
-<script src="sub.js?v=392"></script>
-<script src="school.js?v=392"></script>
-<script src="cruise.js?v=392"></script>
-<script src="club.js?v=392"></script>
-<script src="planet.js?v=392"></script>
-<script src="wallet.js?v=392"></script>
-<script src="shop.js?v=392"></script>
-<script src="library.js?v=392"></script>
-<script src="costumes.js?v=392"></script>
-<script src="missions.js?v=392"></script>
-<script src="coach.js?v=392"></script>
-<script src="owner.js?v=392"></script>
-<script src="blocks.js?v=392"></script>
-<script src="vm.js?v=392"></script>
-<script src="coder.js?v=392"></script>
-<script src="quiz.js?v=392"></script>
-<script src="chars.js?v=392"></script>
-<script src="menu.js?v=392"></script>
-<script src="game.js?v=392"></script>
+<script>window.ASSETV='397';</script>
+<script src="lib/three.classic.js?v=397"></script>
+<script src="strings.js?v=397"></script>
+<script src="music.js?v=397"></script>
+<script src="net.js?v=397"></script>
+<script src="avatar.js?v=397"></script>
+<script src="zombies.js?v=397"></script>
+<script src="building.js?v=397"></script>
+<script src="levels.js?v=397"></script>
+<script src="program.js?v=397"></script>
+<script src="code.js?v=397"></script>
+<script src="mechsim.js?v=397"></script>
+<script src="mech.js?v=397"></script>
+<script src="intro.js?v=397"></script>
+<script src="mechacode.js?v=397"></script>
+<script src="mechaarena.js?v=397"></script>
+<script src="mecha.js?v=397"></script>
+<script src="workshop.js?v=397"></script>
+<script src="combat.js?v=397"></script>
+<script src="puzzle.js?v=397"></script>
+<script src="nav.js?v=397"></script>
+<script src="tutorial.js?v=397"></script>
+<script src="race.js?v=397"></script>
+<script src="flight.js?v=397"></script>
+<script src="sub.js?v=397"></script>
+<script src="school.js?v=397"></script>
+<script src="cruise.js?v=397"></script>
+<script src="club.js?v=397"></script>
+<script src="planet.js?v=397"></script>
+<script src="wallet.js?v=397"></script>
+<script src="shop.js?v=397"></script>
+<script src="library.js?v=397"></script>
+<script src="costumes.js?v=397"></script>
+<script src="missions.js?v=397"></script>
+<script src="coach.js?v=397"></script>
+<script src="owner.js?v=397"></script>
+<script src="blocks.js?v=397"></script>
+<script src="vm.js?v=397"></script>
+<script src="coder.js?v=397"></script>
+<script src="quiz.js?v=397"></script>
+<script src="chars.js?v=397"></script>
+<script src="menu.js?v=397"></script>
+<script src="game.js?v=397"></script>
 </body>
 </html>

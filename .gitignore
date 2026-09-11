@@ -6,8 +6,12 @@ node_modules/
 # they read and write are not — the 21 MB sculpt, the decimation ladder and
 # the Mixamo FBX downloads are sources and intermediates, and the only
 # output the game needs is already in public/characters/.
-glb files/*.glb
-glb files/*.obj
+# ANYWHERE under it, not just at the top. `glb files/*.glb` does not match
+# `glb files/mia/raw.glb`, and the decimation ladders in mia/ and ship/ are
+# ninety megabytes of intermediates that were one `git add` from being in
+# this repository for ever.
+glb files/**/*.glb
+glb files/**/*.obj
 glb files/rig/
 animations/
 

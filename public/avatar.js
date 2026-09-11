@@ -12,7 +12,7 @@ window.AVATAR = (function(){
   // order matters: chars.js unlocks the first FREE of these. Nia is moved up
   // so the four starting characters aren't all boys/bots — Cato slides back
   // to fifth, ready to unlock first once PER_MISSION rewards are turned on.
-  /* TWO PEOPLE, BOTH OF THEM PROPERLY MADE.
+  /* THREE PEOPLE, ALL OF THEM PROPERLY MADE.
 
      There used to be twenty: Kyle, Mia, and eighteen out of the Kenney
      blocky kit. The kit characters were what this game had before it had
@@ -21,11 +21,13 @@ window.AVATAR = (function(){
      placeholder, because that is what they were. Nineteen choices of
      placeholder is not more choice than one good one.
 
-     So the roster is the two rigged characters. Kyle leads: he is the
-     character this game is about, and he is the one you are unless you go
-     to the Mall and say otherwise. */
-  const IDS = 'st'.split('');
-  const NAMES = { s:'Kyle', t:'Mia' };
+     So the roster is the rigged characters, and Savannah is the third of
+     them — same skeleton, same clips, same scale as the other two (see
+     "glb files"/README.md for how she got here). Kyle leads: he is the
+     character this game is about, and he is the one you are unless you say
+     otherwise, which is now a keypress rather than a walk to the Mall. */
+  const IDS = 'stu'.split('');
+  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah' };
   /* ?v= on the asset, not just on the script. Without it a changed model
      is invisible for a day behind the server's cache header. */
   const V = ()=> '?v='+(window.ASSETV||'1');
@@ -151,6 +153,23 @@ window.AVATAR = (function(){
       seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration:0; }
     };
   }
+  /* KEEP BREATHING WHILE THE WORLD IS HELD STILL. Whatever normally drives
+     the player's body does it from inside the block a frozen world skips,
+     so a panel that freezes the game to ask you something leaves a statue
+     of yourself standing behind it. The quick change is exactly that panel,
+     and what it is asking you to look at is a character. */
+  function idle(dt){ if(model) animate(model, dt||0, 'idle'); }
+  /* CAN THE BODY YOU ARE WEARING DO THIS? play() leaves the current clip
+     alone when it cannot find the name — which is the right thing to do
+     and is also completely silent, so asking for a clip a model has not
+     got looks exactly like the clip playing and doing nothing. That cost
+     an afternoon once: the flying animation was in the file, and the
+     browser was serving yesterday's copy of the file from cache. */
+  function can(name){
+    const r = model && model.userData && model.userData.rig;
+    return !!(r && r.has(name));
+  }
+
   /* drive anything that came out of load() — the player, a guard, anyone */
   function animate(obj, dt, name){
     const r = obj && obj.userData && obj.userData.rig;
@@ -219,8 +238,21 @@ window.AVATAR = (function(){
      Naming a clip nobody has was the old way of saying the same thing;
      naming the real one costs them nothing and pays whoever has it. */
   let acting='idle';
+  /* A POSTURE OUTRANKS THE LEGS. Walk, sprint, jump and idle are all worked
+     out from how fast the body is crossing the ground and whether it is
+     touching it — which is the right question for somebody on their feet
+     and the wrong one for somebody in the air, where every answer it can
+     give is a person running on nothing.
+
+     So a caller that owns the body's whole situation — flight, and one day
+     swimming — says so once, and the legs stop being asked. An emote still
+     wins: dancing in mid-air is a thing a nine-year-old will try in the
+     first minute and there is no reason to stop them. */
+  let posture=null;
+  function setPosture(name){ posture = name || null; }
   function clipFor(dt, moving, running, onGround){
     return acting = emoteFrame(dt, moving)
+                 || posture
                  || (onGround===false ? 'jump'
                  : moving ? (running ? 'sprint' : 'walk') : 'idle');
   }
@@ -274,10 +306,67 @@ window.AVATAR = (function(){
     model=m;
     body=new THREE.Group(); body.add(m);
     G.roomGroup.add(body);
+    /* STAND THE NEW BODY WHERE THE OLD ONE WAS. A fresh Group is at the
+       origin, and on a planet the origin is the middle of the ball — so
+       swapping character while the world is held still put the new one
+       three hundred metres underground and the player simply vanished.
+       Nothing put it right afterwards either, because what normally moves
+       the body is the walking code, and that is the very thing a frozen
+       world is not running.
+
+       The pose matters as much as the place: without it the new body
+       stands in its bind pose, arms out, until something animates it. */
+    if(placed){
+      body.position.copy(placed.pos);
+      body.quaternion.copy(placed.quat);
+      body.visible=placed.vis;
+    }
+    /* IDLE, AT FULL WEIGHT, RIGHT NOW. play() normally crossfades over
+       0.18s, and a crossfade that has not been stepped yet is weight zero
+       — which is the bind pose. Asking for it with no fade and then
+       stepping the mixer once is the difference between a character and a
+       mannequin with its arms out. */
+    const r=m.userData.rig;
+    if(r){ r.play('idle', 0); r.update(0.05); }
+    /* The hips, found once. Whatever the body is doing, that bone is the
+       middle of it — see centre() below. */
+    hipBone=null;
+    m.traverse(o=>{ if(!hipBone && /Hips$/.test(o.name||'')) hipBone=o; });
     equip(m);                              // give them something to hold
   }
   function detach(){ if(body&&body.parent) body.parent.remove(body); body=null; model=null;
-                     emoting=0; emoteClip=null; }
+                     hipBone=null; emoting=0; emoteClip=null; }
+  /* WHERE THE BODY ACTUALLY IS, which is not where it was put.
+
+     Callers place the body at the ground under it and let the clip decide
+     the rest — which is right, and means the group's own position is the
+     character's FEET when they are standing and nowhere near them when
+     they are not. The flying pose lies flat with the hips a metre up and
+     the whole body a couple of metres along the nose, so anything that
+     wants to draw at the character rather than at the spot they are
+     standing on has to ask.
+
+     The hips are the answer. It is the root of every Mixamo clip and it
+     is the middle of a person in all of them. */
+  let hipBone=null;
+  function centre(out){
+    const v=out||new THREE.Vector3();
+    if(!body) return v;
+    if(hipBone){ hipBone.getWorldPosition(v); return v; }
+    return v.copy(body.position);
+  }
+  /* Where the body was last put, kept so a replacement can pick it up. Both
+     of the things that place one write here — the flat rooms, which turn a
+     body with a heading, and the planets, which stand it on a surface
+     normal — so one record covers both. */
+  let placed=null;
+  function remember(){
+    if(!body) return;
+    if(!placed) placed={ pos:new THREE.Vector3(), quat:new THREE.Quaternion(), vis:true };
+    placed.pos.copy(body.position);
+    placed.quat.copy(body.quaternion);
+    placed.vis=body.visible;
+  }
   /* On a round world a body cannot be placed with a y-rotation — it has to
      stand along the surface normal, which points somewhere different at every
      step. A caller that owns its own gravity hands the basis in and this puts
@@ -290,6 +379,7 @@ window.AVATAR = (function(){
     body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
     body.position.copy(pos);
     body.visible=!G.firstPerson;
+    remember();
     animate(model, dt, clipFor(dt, moving, running, onGround));
   }
   function update(dt, moving, running, onGround){
@@ -297,10 +387,31 @@ window.AVATAR = (function(){
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
     body.rotation.y = G.yaw + Math.PI;      // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
+    remember();
     animate(model, dt, clipFor(dt, moving, running, onGround));
   }
 
-  return { CHARS, load, pick, other, attach, detach, update, orient, animate,
+  /* WHO THE ACCOUNT SAYS YOU ARE. pick() has always written the choice into
+     the progress bag as well as into this browser, and nothing has ever read
+     it back — so the character followed the machine rather than the child.
+     Sit down at the other side of the lab and you were Kyle again.
+
+     It cannot be done where `chosen` is first worked out, at the top of this
+     file: the bag has not been fetched from the server yet when scripts run.
+     So it is a second, later question, asked by whoever loads a bag —
+     sign-in, sign-up and the resume on boot. A bag with no character in it
+     leaves this browser's choice exactly as it is, which is what makes it
+     safe to call whether anybody is signed in or not. */
+  function restore(){
+    if(!window.PROGRESS || !PROGRESS.get) return chosen;
+    const want=PROGRESS.get('char', null);
+    if(!want || want===chosen || !CHARS.some(c=>c.id===want)) return chosen;
+    pick(want);
+    return chosen;
+  }
+
+  return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle,
+           posture:setPosture, can, centre, get wearing(){ return posture; },
            emote, canEmote, get emoting(){ return emoting>0; },
            get act(){ return acting; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };

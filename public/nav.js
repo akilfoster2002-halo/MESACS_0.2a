@@ -99,6 +99,11 @@ window.NAV = (function(){
   async function start(n){
     const idx=Math.max(0, Math.min(STAGES.length-1, n||0));
     const S=STAGES[idx];
+    /* WHERE WE GOT TO. Written as the level OPENS, not as it is passed:
+       a student who is halfway through this one and runs out of lesson has
+       still reached it, and should be handed it again tomorrow rather than
+       the one before it. */
+    if(window.PROGRESS && PROGRESS.reach) PROGRESS.reach('nav', idx);
     busy=false;
     if(G.roomGroup) G.scene.remove(G.roomGroup);
     G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
