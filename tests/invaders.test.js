@@ -228,15 +228,17 @@ test('a handed swarm cannot win on one volley, however it is arranged', ()=>{
    the rules there and not here fails a test instead of passing one. */
 const COLS=11, MAXREP=20;                 // code.js caps the counter at 20
 function board(K){
-  const c0 = K.army.c0===undefined ? 1 : K.army.c0;
+  const c0 = K.army.c0===undefined ? 1 : K.army.c0, r0 = K.army.r0||0;
   const inv=[];
-  for(let r=0;r<K.army.rows;r++) for(let c=0;c<K.army.cols;c++) inv.push({c:c0+c, r});
+  for(let r=0;r<K.army.rows;r++) for(let c=0;c<K.army.cols;c++) inv.push({c:c0+c, r:r0+r});
   const f={ c0:K.fort.c0, c1:K.fort.c1, r:ROWS-1, shield:K.fort.shield, max:K.fort.shield,
             regrow:K.fort.regrow, rebuilds:!!K.fort.missRebuilds };
   const W={ inv, f, dir:1, misses:0, beats:0,
     get broken(){ return f.shield<=0; },
     get crashed(){ return inv.some(v=>v.r>=f.r); },
     over(){ return inv.some(v=>v.c>=f.c0 && v.c<=f.c1); },
+    edge(){ const lo=Math.min(...inv.map(v=>v.c)), hi=Math.max(...inv.map(v=>v.c));
+            return lo<=0 || hi>=COLS-1; },
     fire(){
       W.beats++;
       let dmg=0;
@@ -277,15 +279,60 @@ test('count the volleys: one is not enough, the right number is more than the bu
 
 test('no number: the biggest repeat there is falls short, and forever does not', ()=>{
   /* The whole stage is one claim — "repeat 20 is not enough" — and it is a
-     claim about three numbers that anybody could nudge. */
-  const K=INV.STAGES.find(s=>s.id==='forever');
-  assert.ok(K.pal.includes('repeat'), 'the student has to be able to TRY the biggest repeat');
-  const W=board(K); for(let i=0;i<MAXREP;i++) W.fire();
-  assert.ok(!W.broken, `repeat ${MAXREP} { fire() } breaks a shield of ${K.fort.shield} — so forever is optional`);
-  const F=board(K); let n=0;
-  while(!F.broken && n<200){ F.fire(); n++; }
-  assert.ok(F.broken, 'forever { fire() } never breaks it — the stage cannot be won');
-  assert.ok(n<=40, `forever takes ${n} volleys, which is a long time to watch the same thing`);
+     claim about three numbers that anybody could nudge. Its practice stage
+     makes the same claim with a bigger army, so both are checked. */
+  const both=INV.STAGES.filter(s=>s.learn.code==='forever\n  fire()\nend');
+  assert.strictEqual(both.length, 2, 'expected the forever stage and its practice');
+  for(const K of both){
+    assert.ok(K.pal.includes('repeat'), `"${K.id}": the student has to be able to TRY the biggest repeat`);
+    const W=board(K); for(let i=0;i<MAXREP;i++) W.fire();
+    assert.ok(!W.broken, `"${K.id}": repeat ${MAXREP} { fire() } breaks a shield of ${K.fort.shield} — so forever is optional`);
+    const F=board(K); let n=0;
+    while(!F.broken && n<200){ F.fire(); n++; }
+    assert.ok(F.broken, `"${K.id}": forever { fire() } never breaks it — the stage cannot be won`);
+    assert.ok(n<=40, `"${K.id}": forever takes ${n} volleys, which is a long time to watch the same thing`);
+  }
+});
+
+test('walk to the wall: the swarm starts off the wall, checks for it, and counting is worse', ()=>{
+  /* The slide's analogy as a board — you do not count the steps to a wall,
+     you check for it. So `at the edge` must be FALSE at the start, or the
+     until-loop is over before the first step; the loop must arrive and
+     three volleys must do it; and somebody who counts the steps instead
+     and counts one too many gets turned round by the wall and falls short,
+     which is the argument for the sensor. */
+  const K=INV.STAGES.find(s=>s.id==='wall');
+  assert.strictEqual(K.conds[0], 'at the edge', 'the until-block should come off the shelf already asking about the wall');
+  const W=board(K);
+  assert.ok(!W.edge(), 'the swarm starts against the wall, so repeat until at the edge stops before it starts');
+  let steps=0; while(!W.edge() && steps<COLS){ W.across(); steps++; }
+  assert.ok(W.edge(), 'across() never reaches the wall');
+  for(let i=0;i<3;i++) W.fire();
+  assert.ok(W.broken, `at the wall, three volleys leave the shield at ${W.f.shield}`);
+  const C=board(K); for(let i=0;i<steps+1;i++) C.across(); for(let i=0;i<3;i++) C.fire();
+  assert.ok(!C.broken, 'one step too many still wins, so watching for the wall is no better than counting');
+});
+
+test('the staircase: down a row at every wall wins; never descending, always descending, and the wrong question do not', ()=>{
+  const K=INV.STAGES.find(s=>s.id==='stairs');
+  assert.strictEqual(K.conds[0], 'at the edge', 'the if-block should come off the shelf already asking about the wall');
+  /* run a forever body until it wins, crashes, or has plainly stalled */
+  const play=(body, max=120)=>{ const W=board(K); for(let n=0;n<max;n++) for(const step of body){
+      if(W.crashed) return { crashed:true, beats:W.beats };
+      if(W.broken)  return { won:true, beats:W.beats };
+      step(W); } return { stalled:true, shield:W.f.shield }; };
+  const edge = W => W.edge();
+  const ans  = play([W=>W.across(), W=>W.fire(), W=>{ if(edge(W)) W.down(); }]);
+  assert.ok(ans.won, `the worked answer does not win: ${JSON.stringify(ans)}`);
+  assert.ok(ans.beats<=60, `the worked answer takes ${ans.beats} beats — too long to watch`);
+  const ans2 = play([W=>{ if(edge(W)) W.down(); }, W=>W.across(), W=>W.fire()]);
+  assert.ok(ans2.won, `asking before moving should win too: ${JSON.stringify(ans2)}`);
+  const noif = play([W=>W.across(), W=>W.fire()]);
+  assert.ok(noif.stalled, 'firing from the top without ever descending wins, so the if is decoration');
+  const dive = play([W=>W.across(), W=>W.down(), W=>W.fire()]);
+  assert.ok(dive.crashed, 'descending every pass should fly into the fortress');
+  const wrong = play([W=>W.across(), W=>W.fire(), W=>{ if(W.over()) W.down(); }]);
+  assert.ok(wrong.crashed, 'asking "over the fortress?" instead of "at the edge?" should fly into it');
 });
 
 test('break the shield: repeat until lets go and wins, forever flies into the wreck', ()=>{
@@ -359,31 +406,76 @@ test('nothing nests a loop in a loop until the last rung', ()=>{
     'the last stage should be the one loop-inside-a-loop');
 });
 
-test('the ladder follows the lesson: repeat, repeat, forever, until, the golden rule, then the grid', ()=>{
-  /* One loop a rung, in the order the slides teach them, and each rung's
-     worked answer is made of exactly the loop it is about. */
-  const want=[['repeat'],['repeat'],['forever'],['until'],['forever','ifc'],['repeat','repeat']];
-  const CONTAINER=new Set(['repeat','forever','until','ifc']);
-  // Array.from: STAGES is a vm-realm array, and deepStrictEqual compares prototypes
-  const got=Array.from(INV.STAGES).map(K=>Array.from(opsOf(K.learn.code)).filter(op=>CONTAINER.has(op)));
-  assert.deepStrictEqual(got, want, 'the loops on the ladder are not the lesson\'s, in the lesson\'s order');
+const CONTAINER=new Set(['repeat','forever','until','ifc']);
+const loopsIn = code => Array.from(opsOf(code)).filter(op=>CONTAINER.has(op));
+/* What a stage brings that no stage before it had: a loop block, or the
+   first loop inside a loop. Those are the two things worth a walkthrough. */
+function introduces(K, seen){
+  const fresh=loopsIn(K.learn.code).filter(op=>!seen.has(op));
+  const nests=loopDepths(K.learn.code).some(d=>d>0);
+  return { fresh, nests: nests && !seen.has('nest') };
+}
+
+test('every new loop is walked once, then practised before the next one arrives', ()=>{
+  /* INTRODUCED, THEN PRACTISED. A walkthrough shows where a block goes;
+     only writing it yourself shows that you know. So a stage that brings a
+     new loop is walked, a stage that brings nothing new is practice (no
+     coach, the answer behind the Hint button), and every walked stage but
+     the last is followed by a practice stage that uses the very loop it
+     just introduced. "It isn't just walkthrough after walkthrough." */
+  const S=Array.from(INV.STAGES);
+  const seen=new Set();
+  S.forEach((K,i)=>{
+    const { fresh, nests } = introduces(K, seen);
+    const isNew = fresh.length>0 || nests;
+    if(isNew){
+      assert.ok(K.walk && !K.practice,
+        `stage "${K.id}" introduces ${fresh.join('+')||'nesting'} and is not walked`);
+      if(i<S.length-1){
+        const next=S[i+1];
+        assert.ok(next.practice && !next.walk,
+          `stage "${next.id}" comes straight after "${K.id}" introduced ${fresh.join('+')||'nesting'} — it should be practice, not another walkthrough`);
+        fresh.forEach(op=>assert.ok(loopsIn(next.learn.code).includes(op),
+          `stage "${next.id}" is the practice for ${op} but its answer never uses it`));
+      }
+    } else {
+      assert.ok(K.practice && !K.walk,
+        `stage "${K.id}" introduces nothing new, so it should be practice rather than walked`);
+    }
+    fresh.forEach(op=>seen.add(op)); if(nests) seen.add('nest');
+  });
+  assert.ok(S.some(K=>K.practice), 'there is no practice on the ladder at all');
 });
 
-test('the first three rungs are one loop round one block', ()=>{
-  /* "Simple challenges that demonstrate loops": a loop and the one verb
-     inside it, and nothing else on the page. Two blocks, three times over,
-     with only the loop changing — which is how the difference between the
-     loops gets to be the only thing on screen. */
-  INV.STAGES.slice(0,3).forEach(K=>{
+test('a practice stage keeps its answer behind the hint button, and opens the console anyway', ()=>{
+  /* The worked answer stays in the table for these tests to check, but a
+     practice stage must not print it on the card — that is the console's
+     hint:true, first line for a click and the rest for another. */
+  for(const K of INV.STAGES){
+    if(!K.practice) continue;
+    assert.ok(K.learn && K.learn.code, `practice stage "${K.id}" has no worked answer to hint at`);
+    assert.ok(!K.walk, `practice stage "${K.id}" still has a walkthrough`);
+  }
+  const src=read('public/invaders.js');
+  assert.match(src, /K\.practice \? Object\.assign\(\{ hint:true \}, K\.learn\)/,
+    'practice stages do not hand the console a hidden answer');
+  assert.match(src, /if\(K\.practice\)\{[^}]*CODE\.show\(\)/,
+    'a practice stage should open the console by itself, like a walked one');
+});
+
+test('the first two rungs are one loop round one block', ()=>{
+  /* "Simple challenges that demonstrate loops": the walked rank and its
+     practice are a loop and the one verb inside it, and nothing else. */
+  INV.STAGES.slice(0,2).forEach(K=>{
     assert.strictEqual(K.budget, 2, `stage "${K.id}" should be a two-block stage`);
     assert.strictEqual(opsOf(K.learn.code).length, 2,
       `stage "${K.id}" shows a ${opsOf(K.learn.code).length}-block answer; the first rungs are a loop and one block`);
   });
 });
 
-test('the golden rule stands right before the grid, with the if inside the forever', ()=>{
-  const K=INV.STAGES[INV.STAGES.length-2];
-  assert.strictEqual(K.id, 'listen');
+test('the golden rule is walked, with the if inside the forever', ()=>{
+  const K=INV.STAGES.find(s=>s.id==='listen');
+  assert.ok(K && K.walk, 'the listener should be a walked stage');
   const code=K.learn.code;
   const fi=code.indexOf('forever'), ii=code.indexOf('if ');
   assert.ok(fi>=0 && ii>fi,
@@ -552,6 +644,7 @@ test('everything the swarm says, it can say in Spanish', ()=>{
   INV.STAGES.forEach(K=>{
     said.add(K.name);
     if(K.brief) said.add(K.brief);
+    if(K.stuck) said.add(K.stuck);
     if(K.learn){ said.add(K.learn.name); said.add(K.learn.text); }
     /* the walkthrough talks too, and it is the first thing a student reads */
     (K.walk||[]).forEach(s=>{ if(s.say) said.add(s.say); });

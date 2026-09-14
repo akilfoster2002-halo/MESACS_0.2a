@@ -14,6 +14,28 @@
    here. Every rung is one loop and a handful of blocks. Nothing nests
    until the end.
 
+   INTRODUCED, THEN PRACTISED. A block is walked the first time — the
+   console opens itself and the coach rings each thing to press — and
+   then, before the next block arrives, there is a stage with the same
+   loop, no coach, and a different job to do with it. A walkthrough shows
+   you where a block goes; only writing it yourself shows you that you
+   know. The practice stages carry the same worked answer in this table
+   as the walked ones, but they keep it behind the console's Hint button,
+   one line at a time, so that asking costs a click and thinking costs
+   nothing.
+
+     One Rank            walked      repeat, round spawn()
+     Count the Volleys   practice    repeat, round fire() — find the number
+     Two Ranks           practice    the rank loop twice, with a row between
+     No Number           walked      forever, where repeat 20 falls short
+     Past Counting       practice    forever or repeat? count and choose
+     Break the Shield    walked      repeat until, and a reason to stop
+     Walk to the Wall    practice    repeat until, with a different question
+     The Listener        walked      an if inside a forever
+     The Staircase       practice    an if inside a forever, the arcade's
+                                     own motion: down a row at every wall
+     The Grid            walked      a loop inside a loop — the final
+
      rank     repeat (N)          eight invaders is two blocks or it is
                                   eight. The budget makes the choice for
                                   you, which is the teacher's line about
@@ -75,10 +97,11 @@ window.INVADERS = (function(){
   const T=3.0;                    // world units per tile
   const STEP_MS=240;              // one action block
   const BOLT_MS=260;              // how long a bolt is drawn falling
-  /* How many passes of a loop count as "this is not going anywhere". About
-     twenty seconds of watching at one action a beat, which is long enough to
-     believe the program is working and short enough to still care why it is
-     not. */
+  /* How many beats without progress count as "this is not going anywhere".
+     Beats, not passes of the loop: a loop with two blocks in it goes round
+     half as often as one with one, and it is the watching that wears thin,
+     not the arithmetic. About eleven seconds — long enough to believe the
+     program is working and short enough to still care why it is not. */
   const PATIENCE=45;
   const SKY=0x05060f;
 
@@ -127,34 +150,41 @@ window.INVADERS = (function(){
          turn because the breach is checked before it. Seven invaders lose. */
       need:{ alive:8 } },
 
-    /* COUNT THE VOLLEYS. The same two blocks as the rank with a different
-       verb in the middle, and that is the point: the army is handed over
-       so the only thing the program decides is HOW MANY TIMES. Eight
-       invaders take eight off a shield of twenty that puts four back, so
-       one volley does nothing much, three leave it standing, and four break
-       it (20, 16, 12, 8, gone) — and
-       the number on the loop is the only thing a student ever edits to get
-       from the one to the other. This is "change the number once and the
-       whole behaviour changes", as a fortress. */
-    { id:'volley', name:'Count the Volleys', budget:2,
+    /* COUNT THE VOLLEYS — the first practice. The same two blocks as the
+       rank with a different verb in the middle, and no coach: the army is
+       handed over so the only thing the program decides is HOW MANY TIMES.
+       Eight invaders take eight off a shield of twenty that puts four back,
+       so one volley does nothing much, three leave it standing, and four
+       break it (20, 16, 12, 8, gone) — and the number on the loop is the
+       only thing a student ever edits to get from the one to the other.
+       This is "change the number once and the whole behaviour changes", as
+       a fortress, written by the student rather than pointed at. */
+    { id:'volley', name:'Count the Volleys', budget:2, practice:true,
       pal:['volley','repeat'],
       army:{ cols:8, rows:1 },
       fort:{ c0:1, c1:9, shield:20, regrow:4 },
-      walk:[
-        { say:'One volley is not enough. <b>Repeat</b> it.', sel:'#conPalette [data-add="repeat"]',
-          done:()=>has('repeat') },
-        { say:'Make it <b>4</b>.', sel:'#conScript .cnt[data-act="inc"]',
-          done:()=>count('repeat')===4 },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('repeat','volley') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>inside('repeat','volley') },
-        { say:'', sel:'#conRun', done:()=>busy }
-      ],
-      learn:{ name:'One number, four volleys',
-              text:'Written out, four volleys is four blocks. In a loop it is two — and one number changes all of it.',
+      learn:{ name:'Practice — a counted loop',
+              text:'The rank was <b>repeat</b> round <b>spawn()</b>. This is <b>repeat</b> round <b>fire()</b>, and the number is yours to find.',
               code:'repeat 4\n  fire()\nend' },
       brief:'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.' },
+
+    /* TWO RANKS — practice, and the seed of the final. A rank is a loop
+       the student has now written twice; this asks for it twice in one
+       program with a row dropped between. Five blocks is exactly enough
+       for that and not for anything written out, and one rank — even a
+       rank of ten, which is what repeat 20 gets you before the board runs
+       out — leaves the shield standing. By the grid, "four ranks the way
+       you built two" is a sentence about eleven blocks, and the loop round
+       the loop is the obvious move rather than a clever one. */
+    { id:'ranks', name:'Two Ranks', budget:5, practice:true,
+      pal:['spawn','nextRow','repeat'],
+      autoVolley:true,
+      fort:{ c0:1, c1:9, shield:12, regrow:5 },
+      learn:{ name:'Practice — the same loop twice',
+              text:'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another.',
+              code:'repeat 8\n  spawn()\nend\nnextRow()\nrepeat 8\n  spawn()\nend' },
+      brief:'Shield <b>12</b>. One rank cannot break it. Build <b>two</b> — you have <b>5 blocks</b>.',
+      need:{ alive:16 } },
 
     /* NO NUMBER. Slide three is "repeat (N) vs forever — the difference is
        how they stop", and the cleanest way to show a difference is to
@@ -179,6 +209,22 @@ window.INVADERS = (function(){
               text:'<b>repeat</b> counts to its number and stops. <b>forever</b> has no number — it stops when the mission does.',
               code:'forever\n  fire()\nend' },
       brief:'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.' },
+
+    /* PAST COUNTING — practice for forever, and it is a choice rather than
+       a copy: both loops are on the shelf, and the brief hands over three
+       numbers and asks which. Sixteen take sixteen off a shield of
+       ninety-six that puts twelve back — four a volley, twenty-four volleys,
+       and the counter stops at twenty. A student who counts finds out; a
+       student who tries repeat 20 and reads the bar finds out the same
+       thing a few seconds later. */
+    { id:'past', name:'Past Counting', budget:2, practice:true,
+      pal:['volley','repeat','forever'],
+      army:{ cols:8, rows:2 },
+      fort:{ c0:1, c1:9, shield:96, regrow:12 },
+      learn:{ name:'Practice — which loop?',
+              text:'Count what a volley takes off and what grows back. If no number reaches it, you know which loop.',
+              code:'forever\n  fire()\nend' },
+      brief:'Sixteen invaders. Shield <b>96</b>, <b>+12</b> a volley. Which loop?' },
 
     /* THE SHIELD. The same fight, plus a sensor and a reason to stop.
        Descending is how you get the volleys close enough to bite, and
@@ -212,6 +258,28 @@ window.INVADERS = (function(){
               text:'<b>forever</b> never stops — and here that flies the swarm into the wreck.',
               code:'repeat until the shield is down\n  fire()\n  down()\nend' },
       brief:'Shield <b>60</b>. Closer volleys bite harder, so <b>down()</b> — but <b>stop</b> the moment the shield falls, or the swarm flies into the wreck.' },
+
+    /* WALK TO THE WALL — practice for repeat until, with the slide's own
+       analogy made into a board: you do not count the steps to a wall, you
+       check for it. The fortress is against the right wall, the swarm
+       starts one column in from the left, and `repeat until at the edge`
+       round across() walks it there. Then three volleys. Somebody who
+       counts the steps instead gets it right at six and wrong at seven —
+       the seventh across turns the swarm round, and three volleys from a
+       column short leave the shield standing — which is the lesson about
+       watching for the signal, delivered by the board rather than by the
+       text. The swarm must NOT start against the wall: `at the edge` would
+       be true before the first step and the loop would be over before it
+       began. */
+    { id:'wall', name:'Walk to the Wall', budget:4, practice:true,
+      pal:['across','volley','until','repeat'],
+      army:{ cols:4, rows:2 },
+      fort:{ c0:7, c1:10, shield:20, regrow:2 },
+      conds:['at the edge','the shield is down','over the fortress'],
+      learn:{ name:'Practice — a loop that watches',
+              text:'You do not count the steps to a wall, you check for it. Walk <b>until at the edge</b>, then fire.',
+              code:'repeat until at the edge\n  across()\nend\nrepeat 3\n  fire()\nend' },
+      brief:'Fortress at the <b>right wall</b>. Walk <b>until at the edge</b> — then fire.' },
 
     /* THE LISTENER. The golden rule, and the only stage where WHERE you
        put a block matters more than which block it is. `across` walks the
@@ -252,6 +320,28 @@ window.INVADERS = (function(){
               text:'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.',
               code:'forever\n  across()\n  if over the fortress\n    fire()\n  end\nend' },
       brief:'Fortress in the <b>middle</b>. Fire at nothing and the shield <b>rebuilds</b>. Ask first — every pass.' },
+
+    /* THE STAIRCASE — practice for the if, and it is the arcade's own
+       motion: across, and down a row at every wall. The same board as the
+       listener with a different question in the if and a different block
+       inside it, which is what stops it being the listener copied out.
+       From where the swarm starts a volley takes off exactly what grows
+       back, so a program that never descends never wins; a program that
+       descends every pass is in the fortress in five; and a program that
+       asks the wrong question — down when over the fortress — flies into
+       it inside a sweep. Only the one that asks "at the edge?" every pass
+       comes down the stairs. It starts three rows down so the answer takes
+       nine seconds rather than twenty. */
+    { id:'stairs', name:'The Staircase', budget:5, practice:true,
+      pal:['across','volley','descend','forever','ifc'],
+      army:{ cols:4, rows:2, c0:0, r0:3 },
+      fort:{ c0:4, c1:6, shield:30, regrow:6 },
+      conds:['at the edge','over the fortress','the shield is down'],
+      learn:{ name:'Practice — a question inside the loop',
+              text:'Down a row at every wall, like the arcade. <b>if at the edge</b> is asked every pass — that is what turns the corner.',
+              code:'forever\n  across()\n  fire()\n  if at the edge\n    down()\n  end\nend' },
+      brief:'From up here a volley does nothing. <b>Down a row at every wall</b>, like the arcade — and fire on the way.',
+      stuck:'Round and round, and every volley grows straight back. Nothing bites from up here — come <b>down</b>.' },
 
     /* THE GRID — the final challenge. A rank was one loop; four ranks is
        that same loop with another one round it. The fortress is thick
@@ -298,7 +388,7 @@ window.INVADERS = (function(){
       learn:{ name:'A loop inside a loop',
               text:'The inside loop builds a rank. The outside one does it four times.',
               code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend' },
-      brief:'Shield <b>30</b>, <b>+7</b> a volley. One rank cannot dent it. Build <b>four</b>.',
+      brief:'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>.',
       need:{ alive:32 } }
   ];
 
@@ -453,8 +543,8 @@ window.INVADERS = (function(){
      `if` asked once at the start is asked from the wrong place. */
   function deploy(){
     const a=L.K.army; if(!a) return;
-    const c0 = a.c0===undefined ? X0 : a.c0;
-    for(let r=0;r<a.rows;r++) for(let c=0;c<a.cols;c++) addInvader(c0+c, Y0+r);
+    const c0 = a.c0===undefined ? X0 : a.c0, r0 = Y0 + (a.r0||0);
+    for(let r=0;r<a.rows;r++) for(let c=0;c<a.cols;c++) addInvader(c0+c, r0+r);
   }
 
   /* Where the formation is, as a box. across() and the edge test are both
@@ -526,15 +616,18 @@ window.INVADERS = (function(){
       return;
     }
     L.fired++;
-    const before=f.shield;
     f.shield -= dmg;
     if(f.shield<=0){ f.shield=0; L.idle=0; return; }    // breached before it can grow
     f.shield=Math.min(f.max, f.shield + f.regrow);
-    /* PROGRESS IS A SHIELD THAT WENT DOWN — net of the regrow, and not at
-       all once it is already on the floor. A volley that lands and changes
-       nothing is the loop going round for nothing, and that is what the
-       patience counter is for. */
-    if(f.shield<before) L.idle=0;
+    /* PROGRESS IS A NEW LOW — the shield lower, after the regrow, than it
+       has been at any point this run. Not merely "it went down": a swarm
+       sweeping at the wrong height takes nine off at the middle of the
+       fortress and three at its edge, grows six back each time, and so
+       wobbles between twenty-four and thirty for ever — going down every
+       other volley and getting nowhere. Only a new low is getting
+       somewhere, and a run that has not set one in a while is the loop
+       going round for nothing, which is what the patience counter is for. */
+    if(f.shield<L.low){ L.low=f.shield; L.idle=0; }
   }
 
   function drawBolt(v, hits){
@@ -598,7 +691,7 @@ window.INVADERS = (function(){
 
     const f=Object.assign({ r:ROWS-1 }, K.fort);
     f.max=f.shield;
-    L={ idx, K, inv:[], cur:{c:X0, r:Y0}, dir:1, fort:f, fired:0, missed:0, linger:0,
+    L={ idx, K, inv:[], cur:{c:X0, r:Y0}, dir:1, fort:f, fired:0, missed:0, linger:0, low:f.max,
         pc:0, steps:[], wait:0, guard:0, idle:0, over:false, lost:false, won:false };
 
     const fm=fortMesh(f);
@@ -611,8 +704,14 @@ window.INVADERS = (function(){
     CODE.setGrid(COLS, ROWS);
     CODE.setConditions(K.conds||CONDS_DEFAULT, { lead:'if', until:'repeat until' });
     CODE.setPalette(K.pal); CODE.setBudget(K.budget); CODE.clear();
-    if(K.learn) CODE.setGuide(K.learn);
+    /* A practice stage carries its worked answer like every other stage,
+       and keeps it behind the Hint button — first line, then the whole
+       thing, each for a click. The console still opens itself: the point
+       of practice is to write the program, not to find the key that opens
+       the editor. */
+    if(K.learn) CODE.setGuide(K.practice ? Object.assign({ hint:true }, K.learn) : K.learn);
     hud(); say(t(K.brief));
+    if(K.practice){ if(CODE.setMode) CODE.setMode('blocks'); CODE.show(); }
     /* A NEW STAGE IS WALKED, AND ONLY EVER ONCE. Every level here introduces
        a loop the one before it did not have, and being handed a palette with
        a block you have never seen on it is not an introduction. So the first
@@ -758,7 +857,7 @@ window.INVADERS = (function(){
     // a fresh run is a fresh board: the formation, the shield and the cursor
     live().forEach(v=>{ group.remove(v.mesh); });
     L.inv=[]; L.cur={c:X0, r:Y0}; L.dir=1; L.fired=0; L.missed=0; L.linger=0;
-    L.fort.shield=L.fort.max;
+    L.fort.shield=L.fort.max; L.low=L.fort.max;
     bolts.forEach(b=>group.remove(b.mesh)); bolts=[];
     /* A fortress you already blew up has to be standing again before the
        next run, or pressing RUN on a stage you have just beaten plays it
@@ -841,7 +940,7 @@ window.INVADERS = (function(){
 
            The big count below is the backstop that keeps an empty forever
            from locking the tab; this is the one that teaches. */
-        if(++L.idle>PATIENCE){ L.over=true; return stuck(L.steps[st.back]); }
+        if(L.idle>PATIENCE){ L.over=true; return stuck(L.steps[st.back]); }
         if(++L.guard>20000){ L.over=true; return stuck(L.steps[st.back]); }
         /* THE LOOP THAT WON AND WOULD NOT LET GO. On the stage about
            stopping, a forever that has broken the shield is still firing at
@@ -863,6 +962,7 @@ window.INVADERS = (function(){
       else if(st.name==='descend')doDescend();
       else if(st.name==='volley') doVolley();
       L.pc++;
+      L.idle++;                   // a beat that changed nothing is counted; one that did was just zeroed
       hud();
       return;                     // one action block a beat
     }
@@ -904,7 +1004,10 @@ window.INVADERS = (function(){
     finish(false, (loop && loop.cond)
       ? t('That loop is still going round. Nothing inside it changes <b>{c}</b> — what would have to happen for that to come true?',
           { c:t(loop.cond) })
-      : t('The swarm has gone round and round and nothing has changed. Is the block that was meant to do something <b>inside</b> the loop?'));
+      /* A stage can say what going round for nothing means on ITS board.
+         On the staircase the block is inside the loop all right — the
+         swarm is simply too far away for a volley to outrun the regrow. */
+      : t(L.K.stuck || 'The swarm has gone round and round and nothing has changed. Is the block that was meant to do something <b>inside</b> the loop?'));
   }
 
   function finish(ok, why){
@@ -988,7 +1091,8 @@ window.INVADERS = (function(){
         + (L.K.need && L.K.need.alive ? ` / ${L.K.need.alive} ${t('needed')}` : '')
         + `</li>`
         + STAGES.map((s,i)=>
-            `<li class="${i===L.idx?'cur':(i<L.idx?'done':'')}">${t(s.name)}</li>`).join('');
+            `<li class="${i===L.idx?'cur':(i<L.idx?'done':'')}">${t(s.name)}`
+            + (s.practice ? ` <small>${t('practice')}</small>` : '') + `</li>`).join('');
     }
     const h=document.querySelector('#hud'); if(h) h.classList.remove('hidden');
     if(window.keyHint) keyHint(`<b>C</b> ${t('write your program')} &nbsp; <b>RUN</b> ${t('launches the swarm')}`);
