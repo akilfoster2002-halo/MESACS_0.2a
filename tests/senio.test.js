@@ -282,9 +282,13 @@ test('the plunge pool is deep enough to swim in', ()=>{
   const src=read('public/islands.js');
   const d=+src.match(/const POOL_DEPTH=([\d.]+);/)[1];
   assert.ok(d>=6, `a ${d}m pool is a paddling pool — you would stand in it`);
-  /* and the water has to fill most of it, or it is a crater with a puddle */
-  const free=+src.match(/const surfY=POOL_DEPTH-([\d.]+);/)[1];
-  assert.ok(free<1.0, `the water sits ${free}m below the bank — that is a pit`);
+  /* THE SURFACE IS SET FROM THE RIM, not from the middle of the pool. A
+     basin dug out of a hillside has a rim that follows the hill, and water
+     levelled to the centre stands proud of the low side and runs out of it. */
+  assert.match(src, /const rimY = \(W\.basinRim && W\.basinRim\(base\)\)/,
+    'the water level is no longer taken from the rim');
+  assert.match(src, /\(rimY - 0\.45\) - groundY/,
+    'the water is not held below the rim');
 });
 
 test('the ground knows where the water is', ()=>{
@@ -294,7 +298,7 @@ test('the ground knows where the water is', ()=>{
   /* it must answer for the pool AND for the lake up on the island */
   const fn=src.slice(src.indexOf('function waterAt(dir)'));
   const body=fn.slice(0, fn.indexOf('\n  function floorAt'));
-  assert.match(body, /pool\.y \+ POOL_DEPTH/, 'the pool has no surface');
+  assert.match(body, /return pool\.surface;/, 'the pool has no surface');
   assert.match(body, /k\.alt \+ is\.lake\.y/, 'the sky lake has no surface');
 });
 

@@ -528,7 +528,16 @@ window.ISLANDS = (function(){
     /* The ground here has been dug out by POOL_DEPTH, so the water goes
        most of the way back up it — a basin with a hand's breadth of bank
        showing, rather than a puddle at the bottom of a crater. */
-    const surfY=POOL_DEPTH-0.55;
+    /* THE WATER STANDS AT THE RIM, LESS A LITTLE — and the rim is a number
+       planet.js works out by walking round the edge of the basin and taking
+       the LOWEST ground it finds. Referencing it to the middle of the pool
+       instead, as this did at first, puts the surface wherever the centre
+       happens to sit: on a rise, that is above the grass on every side and
+       the lake stands proud of the field with daylight under it. */
+    const rimY = (W.basinRim && W.basinRim(base));
+    const surfY = (rimY===null || rimY===undefined)
+                ? POOL_DEPTH-0.55
+                : (rimY - 0.45) - groundY;
     /* THE WATER IS A CAP, NOT A DISC — because the planet is a ball.
 
        A flat sheet laid in the pool's own tangent frame stays at one height
@@ -594,7 +603,7 @@ window.ISLANDS = (function(){
     stockLake(g, { x:0, z:0, r:pr, y:surfY }, 900);
 
     fall={ g, sheets, mist, top, drops, rings, drop, poolR:pr };
-    pool={ dir:base, y:groundY, r:pr };
+    pool={ dir:base, y:groundY, r:pr, surface:groundY+surfY };
 
     // and then it has somewhere to go
     river(base, groundY+surfY, pr);
@@ -845,7 +854,7 @@ window.ISLANDS = (function(){
   function waterAt(dir){
     if(pool){
       const off=Math.acos(Math.min(1, dir.dot(pool.dir)))*(W.PR);
-      if(dir.dot(pool.dir)>0 && off < pool.r) return pool.y + POOL_DEPTH - 0.55;
+      if(dir.dot(pool.dir)>0 && off < pool.r) return pool.surface;
     }
     for(const is of isles){
       if(is.bed===undefined) continue;

@@ -438,6 +438,7 @@ window.PLANET = (function(){
        longitude and radius, so it can be asked for long before there is any
        water — which is the only way the ground can be dug out for it. */
     basins = window.ISLANDS ? ISLANDS.spots({ id:W.id, PR, dirOf, frameAt }) : [];
+    seatBasins();                  // and level their rims before anything is dug
     surface();
     BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
     launchpad(W);                  // its plate, now that its patch is flat
@@ -452,7 +453,7 @@ window.PLANET = (function(){
        ceiling, and everything they need to stand themselves up on a sphere
        is handed over rather than reached for — this file owns the world, and
        sky.js should not be keeping a second copy of its radius. */
-    if(window.ISLANDS) ISLANDS.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH });
+    if(window.ISLANDS) ISLANDS.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH, basinRim });
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
@@ -741,24 +742,59 @@ window.PLANET = (function(){
      about where the bank is. The list is filled in before the ground is
      built, from geometry that does not need the ground to exist. */
   let basins=[];
-  function basinDrop(dir){
-    let d=0;
+  /* THE RIM IS THE LOWEST POINT ROUND THE EDGE, and finding it is the whole
+     job. Simply subtracting a bowl from the hills leaves a crater whose rim
+     follows the hillside — high on the uphill side and low on the downhill
+     one — and water poured into that runs straight out of the low side. From
+     below you see it as a slab of water standing proud of the grass with
+     daylight under its edge, which is exactly what it is.
+
+     So the ground inside a basin is eased down to the LOWEST height anywhere
+     on its rim before the bowl is dug out of it. That makes the rim level all
+     the way round, which is the only shape that holds water. */
+  function seatBasins(){
     for(const b of basins){
+      const fr=frameAt(b.dir,0);
+      let lo=Infinity;
+      for(let i=0;i<32;i++){
+        const a=i/32*Math.PI*2;
+        const head=fr.right.clone().multiplyScalar(Math.cos(a))
+                    .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+        const axis=new THREE.Vector3().crossVectors(b.dir, head).normalize();
+        const d=b.dir.clone().applyAxisAngle(axis, -b.r/PR).normalize();
+        lo=Math.min(lo, rawHeight(d));
+      }
+      b.rim=lo;
+    }
+  }
+  function basinCut(dir, h){
+    for(const b of basins){
+      if(b.rim===undefined) continue;
       const off=Math.acos(Math.min(1, dir.dot(b.dir)))*PR;
       if(off>=b.r) continue;
-      /* Squared falloff twice over: a bowl with a soft lip, so the bank
-         eases into the hillside instead of ending at a circle. */
       const u=off/b.r, s=1-u*u;
-      d=Math.max(d, b.depth*s*s);
+      /* Level first, dig second. The blend hands the ground back to the
+         hillside exactly at the rim, so there is no step at the edge. */
+      const blend=u*u*(3-2*u);
+      const base=b.rim + (h-b.rim)*blend;
+      h=Math.min(h, base - b.depth*s*s);
     }
-    return d;
+    return h;
   }
   const nearBasin = (dir, k) =>
     basins.some(b => Math.acos(Math.min(1, dir.dot(b.dir)))*PR < b.r*(k||1));
   const terrainH = dir => {
     const k=padK(dir);
     const h = k<=0 ? 0 : rawHeight(dir)*k;
-    return h - basinDrop(dir);
+    return basinCut(dir, h);
+  };
+  /* What the water in a basin may stand at: its rim, less a little. */
+  const basinRim = dir => {
+    for(const b of basins){
+      if(b.rim===undefined) continue;
+      if(Math.acos(Math.min(1, dir.dot(b.dir)))*PR < b.r) return b.rim;
+    }
+    return null;
   };
 
   /* ------------------------------------------------------------- the floor
