@@ -96,14 +96,14 @@ window.INVADERS = (function(){
          up and an empty shelf, because there is nothing else to do here. */
       walk:[
         { say:'Eight invaders. You have <b>two blocks</b>.', sel:'#conPalette [data-add="repeat"]',
-          done:()=>has('repeat'), pal:['repeat'], rails:{run:false,clear:false,mode:false} },
+          done:()=>has('repeat') },
         { say:'Make it <b>8</b>.', sel:'#conScript .cnt[data-act="inc"]',
-          done:()=>count('repeat')===8, pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>count('repeat')===8 },
         { say:'Click the loop to get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('repeat','spawn'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target() || inside('repeat','spawn') },
         { say:'', sel:'#conPalette [data-add="spawn"]',
-          done:()=>inside('repeat','spawn'), pal:['spawn'], rails:{run:false,clear:false,mode:false} },
-        { say:'', sel:'#conRun', done:()=>busy, pal:['repeat','spawn'], rails:{run:true} }
+          done:()=>inside('repeat','spawn') },
+        { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'Eight invaders, two blocks',
               text:'Both put eight on the board. Only one of them changes by editing a single number.',
@@ -123,19 +123,19 @@ window.INVADERS = (function(){
       fort:{ c0:1, c1:9, shield:30, regrow:7 },
       walk:[
         { say:'A rank was one loop. Four ranks is <b>two</b>.', sel:'#conPalette [data-add="repeat"]',
-          done:()=>has('repeat'), pal:['repeat'], rails:{run:false,clear:false,mode:false} },
+          done:()=>has('repeat') },
         { say:'<b>4</b> — one per rank.', sel:'#conScript .cnt[data-act="inc"]',
-          done:()=>count('repeat')===4, pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>count('repeat')===4 },
         { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || depth()>=2, pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target() || depth()>=2 },
         { say:'The rank you already know — <b>inside</b> this one.', sel:'#conPalette [data-add="repeat"]',
-          done:()=>depth()>=2, pal:['repeat'], rails:{run:false,clear:false,mode:false} },
+          done:()=>depth()>=2 },
         { say:'<b>8</b> across.', find:()=>inner('.cnt[data-act="inc"]'),
-          done:()=>innerCount()===8, pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>depth()>=2 && innerCount()===8 },
         { say:'Inside the <b>inner</b> one now.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
-          done:()=>target('inner') || deep('spawn'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target('inner') || deep('spawn') },
         { say:'', sel:'#conPalette [data-add="spawn"]',
-          done:()=>deep('spawn'), pal:['spawn'], rails:{run:false,clear:false,mode:false} },
+          done:()=>deep('spawn') },
         /* "Back out" is only back out once there is something to be out OF.
            Testing the drop target alone made this step true the moment you
            first clicked INTO the outer loop, five steps earlier — and COACH
@@ -143,11 +143,10 @@ window.INVADERS = (function(){
            rank got skipped and the walkthrough built a grid with no rank in
            it. A step that can be true before its own turn is not a step. */
         { say:'Click it again to step back <b>out</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
-          done:()=>inside('repeat','nextRow') || (deep('spawn') && target('outer')),
-          pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>inside('repeat','nextRow') || (deep('spawn') && target('outer')) },
         { say:'Drop a row, then round again.', sel:'#conPalette [data-add="nextRow"]',
-          done:()=>inside('repeat','nextRow'), pal:['nextRow'], rails:{run:false,clear:false,mode:false} },
-        { say:'', sel:'#conRun', done:()=>busy, pal:['repeat','spawn','nextRow'], rails:{run:true} }
+          done:()=>inside('repeat','nextRow') },
+        { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A loop inside a loop',
               text:'The inside loop builds a rank. The outside one does it four times.',
@@ -166,14 +165,14 @@ window.INVADERS = (function(){
       fort:{ c0:7, c1:9, shield:26, regrow:4, far:true },
       walk:[
         { say:'No number reaches it. This loop has none.', sel:'#conPalette [data-add="forever"]',
-          done:()=>has('forever'), pal:['forever'], rails:{run:false,clear:false,mode:false} },
+          done:()=>has('forever') },
         { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('forever','across'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target() || inside('forever','across') },
         { say:'', sel:'#conPalette [data-add="across"]',
-          done:()=>inside('forever','across'), pal:['across'], rails:{run:false,clear:false,mode:false} },
+          done:()=>inside('forever','across') },
         { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>inside('forever','volley'), pal:['volley'], rails:{run:false,clear:false,mode:false} },
-        { say:'', sel:'#conRun', done:()=>busy, pal:['forever','across','volley'], rails:{run:true} }
+          done:()=>inside('forever','volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A loop you cannot count',
               text:'No number to count to. <b>forever</b> runs until the mission ends.',
@@ -208,14 +207,14 @@ window.INVADERS = (function(){
       landAfter:true, returnFire:1,
       walk:[
         { say:'This one <b>stops</b>. That is the difference.', sel:'#conPalette [data-add="until"]',
-          done:()=>has('until'), pal:['until'], rails:{run:false,clear:false,mode:false} },
+          done:()=>has('until') },
         { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('until','volley'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target() || inside('until','volley') },
         { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>inside('until','volley'), pal:['volley'], rails:{run:false,clear:false,mode:false} },
+          done:()=>inside('until','volley') },
         { say:'Closer bites harder.', sel:'#conPalette [data-add="descend"]',
-          done:()=>inside('until','descend'), pal:['descend'], rails:{run:false,clear:false,mode:false} },
-        { say:'', sel:'#conRun', done:()=>busy, pal:['until','volley','descend'], rails:{run:true} }
+          done:()=>inside('until','descend') },
+        { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A loop that knows when to stop',
               text:'<b>forever</b> never stops — and here that flies the swarm into the wreck.',
@@ -236,18 +235,18 @@ window.INVADERS = (function(){
       conds:['over the fortress','at the edge','the shield is down'],
       walk:[
         { say:'', sel:'#conPalette [data-add="forever"]',
-          done:()=>has('forever'), pal:['forever'], rails:{run:false,clear:false,mode:false} },
+          done:()=>has('forever') },
         { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('forever','across'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target() || inside('forever','across') },
         { say:'It sweeps and turns by itself.', sel:'#conPalette [data-add="across"]',
-          done:()=>inside('forever','across'), pal:['across'], rails:{run:false,clear:false,mode:false} },
+          done:()=>inside('forever','across') },
         { say:'Ask <b>inside</b> the loop, not above it.', sel:'#conPalette [data-add="ifc"]',
-          done:()=>inside('forever','ifc'), pal:['ifc'], rails:{run:false,clear:false,mode:false} },
+          done:()=>inside('forever','ifc') },
         { say:'Now inside the <b>if</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
-          done:()=>target('if') || deep('volley'), pal:[], rails:{run:false,clear:false,mode:false} },
+          done:()=>target('if') || deep('volley') },
         { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>deep('volley'), pal:['volley'], rails:{run:false,clear:false,mode:false} },
-        { say:'', sel:'#conRun', done:()=>busy, pal:['forever','across','ifc','volley'], rails:{run:true} }
+          done:()=>deep('volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A question worth asking twice goes inside the loop',
               text:'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.',
@@ -272,9 +271,17 @@ window.INVADERS = (function(){
   /* the number on the OUTERMOST repeat, which is the one a step is asking for */
   function count(type){ const b=firstOf(type); return b ? b.count : 0; }
   /* the number on the DEEPEST one, for the rank inside the grid */
+  /* THE NUMBER ON A REPEAT THAT IS ACTUALLY INSIDE ANOTHER ONE — and the
+     "actually" is the whole fix. This used to return the deepest repeat's
+     count whatever its depth, so with a single loop on the page it answered
+     with THAT loop: a student who put 8 into the first repeat instead of 4
+     satisfied the step that waits for the inner rank, and the coach jumped
+     four ahead to "inside the inner one now" when there was no inner one and
+     one block on the page. A step that can come true before its own turn is
+     not a step. */
   function innerCount(){
     let best=null;
-    each(SCR(), (b,d)=>{ if(b.type==='repeat' && (!best || d>best.d)) best={b,d}; });
+    each(SCR(), (b,d)=>{ if(b.type==='repeat' && d>0 && (!best || d>best.d)) best={b,d}; });
     return best ? best.b.count : 0;
   }
   function inside(outer, op){
@@ -571,7 +578,92 @@ window.INVADERS = (function(){
        the blocks in the order they go together — and the moment it has been
        walked, that is remembered against the save, so coming back to a level
        you have already done hands you the palette and gets out of the way. */
-    if(K.walk && window.COACH && !taught(K.id)) teach(K);
+    /* THE FILM FIRST, THEN THE WALKTHROUGH. Once ever, and only on the way
+       into the first stage: a student who already knows what this is does not
+       want ten seconds of being told again. */
+    const seenFilm = !!(window.PROGRESS && PROGRESS.get && PROGRESS.get('inv_film'));
+    const walkIt = ()=>{ if(K.walk && window.COACH && !taught(K.id)) teach(K); };
+    if(idx===0 && !seenFilm && !film) startFilm(walkIt);
+    else walkIt();
+  }
+
+  /* ------------------------------------------------------------- the film
+     TEN SECONDS OF THE GAME PLAYING ITSELF, once, the first time anybody
+     opens the mission. Space Explorer has one and it is the reason a student
+     knows what that mission WANTS before they have pressed anything — a
+     briefing tells you the rules and a film tells you the point.
+
+     It is not a cutscene shot somewhere else. Every frame of it is the real
+     board doing the real thing: the fortress is the fortress, the invaders
+     are spawned by the same spawn() the student is about to write, and the
+     shield is the shield. A film made of the actual game cannot drift from
+     the game, and there is nothing in it a player is about to find out was
+     only a picture.
+
+     The letterbox, the caption and the SKIP button are the ones intro.js
+     already owns, so the two films look like the same film. */
+  const FILM=[
+    { at:0.0, cap:'A fortress, and a shield that grows back faster than one shot can chip it.' },
+    { at:2.8, cap:'You are not the ship. You are the swarm — and the whole swarm flies one program.' },
+    { at:5.6, cap:'So eight invaders is not eight blocks. It is a loop.' },
+    { at:8.4, cap:'Write the army. Break the fortress.' }
+  ];
+  const FILM_END=11.4;
+  let film=null;
+
+  function filmScreen(){
+    let el=document.querySelector('#intro');
+    if(!el){ el=document.createElement('div'); el.id='intro'; document.body.appendChild(el); }
+    el.className='';
+    el.innerHTML=
+      '<div class="in-bar top"></div><div class="in-bar bottom"></div>'+
+      '<div class="in-cap" id="inCap"></div>'+
+      '<div class="in-title" id="inTitle">'+t('THE SWARM')+'</div>'+
+      '<button class="in-skip" id="inSkip">'+t('SKIP ▶')+'</button>';
+    el.querySelector('#inSkip').onclick=()=>endFilm();
+    return el;
+  }
+  function startFilm(then){
+    film={ t:0, shot:-1, then, built:0 };
+    const el=filmScreen();
+    setTimeout(()=>{ const ti=el.querySelector('#inTitle'); if(ti) ti.classList.add('in-show'); }, 60);
+    if(window.CODE) CODE.close();
+    const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
+  }
+  function endFilm(){
+    const was=film; film=null;
+    const el=document.querySelector('#intro'); if(el) el.remove();
+    const b=document.querySelector('#briefing'); if(b) b.classList.remove('hidden');
+    if(window.PROGRESS && PROGRESS.set) PROGRESS.set('inv_film', 1);
+    if(was && was.then) was.then();
+  }
+  /* The film's own clock. It spawns a rank the way the student will, marches
+     it, fires, and lets the fortress go — on the real board, so what they
+     watch is what they are about to build. */
+  function filmTick(dt){
+    film.t+=dt;
+    const el=document.querySelector('#intro');
+    let i=-1;
+    for(let j=0;j<FILM.length;j++) if(film.t>=FILM[j].at) i=j;
+    if(i>=0 && i!==film.shot){
+      film.shot=i;
+      const cap=el && el.querySelector('#inCap');
+      if(cap){ cap.textContent=t(FILM[i].cap); cap.classList.remove('in-show');
+               void cap.offsetWidth; cap.classList.add('in-show'); }
+      const ti=el && el.querySelector('#inTitle');
+      if(ti && i>0) ti.classList.remove('in-show');
+    }
+    // the rank builds itself across the second caption
+    if(film.t>2.8 && film.built<8 && film.t > 2.8 + film.built*0.30){
+      doSpawn(); film.built++;
+    }
+    // and fires on the third
+    if(film.t>6.4 && !film.fired){ film.fired=true; doVolley(); hud(); }
+    if(film.t>7.4 && !film.broke){
+      film.broke=true;
+      L.fort.shield=0; blowUp(); hud();
+    }
+    if(film.t>=FILM_END) endFilm();
   }
 
   const TKEY = id => 'inv_walk_'+id;
@@ -584,18 +676,19 @@ window.INVADERS = (function(){
     CODE.show();
     COACH.start(K.walk, {
       host: ()=> (window.CODE && CODE.coachHost) ? CODE.coachHost() : null,
-      /* ON RAILS: while a step is live the palette is narrowed to the block
-         it is asking for, so the ringed button is also the ONLY button. That
-         is what makes this a walkthrough rather than a suggestion. */
+      /* THE WHOLE SHELF STAYS OUT. An earlier version narrowed the palette to
+         the one block each step was asking for, on the theory that the ringed
+         button should also be the only button. In front of a child it read as
+         the game being broken: you look down at BLOCKS and the column is
+         EMPTY, on a screen whose entire job is offering you blocks. The coach
+         rings what to press next; it does not need to take everything else
+         away to do it, and a student who wants to get ahead of it should be
+         able to. */
       onStep(s){
         if(!window.CODE) return;
-        if(!s){
-          CODE.setPalette(K.pal); CODE.setRails({});
-          if(window.PROGRESS && PROGRESS.set) PROGRESS.set(TKEY(K.id), 1);
-          return;
-        }
-        if(s.pal) CODE.setPalette(s.pal);
-        CODE.setRails(s.rails||{});
+        CODE.setPalette(K.pal);
+        CODE.setRails({});
+        if(!s && window.PROGRESS && PROGRESS.set) PROGRESS.set(TKEY(K.id), 1);
       }
     });
   }
@@ -641,6 +734,7 @@ window.INVADERS = (function(){
   function tick(dt){
     if(!on) return;
     dt=Math.min(dt, 0.05);
+    if(film){ filmTick(dt); flyBolts(dt); shine(); return; }
     // the walkthrough runs off the same frame as the mission it belongs to
     if(window.COACH) COACH.tick(dt);
     if(stars) stars.rotation.z += dt*0.006;
@@ -854,6 +948,7 @@ window.INVADERS = (function(){
     ['#crosshair','#focus'].forEach(q=>{
       const e=document.querySelector(q); if(e) e.classList.remove('hidden'); });
     if(!on) return;
+    if(film) endFilm();
     on=false; busy=false; L=null; group=null; stars=null;
     bolts=[]; boom=[];
     if(window.COACH) COACH.stop();

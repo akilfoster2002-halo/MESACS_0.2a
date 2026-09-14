@@ -1593,16 +1593,23 @@ window.PLANET = (function(){
          you walk past; a horseshoe is a hall you stand in the middle of, and
          every one of them turns to face whoever has just come through the
          gate. Two along the back and two down each side. */
+      /* THE MIDDLE OF THE BACK WALL IS THE BEST SEAT IN THE HALL — it is what
+         you are looking at the moment you come through the gate, framed by
+         the runner on the floor. The newest mission gets it. The Swarm went
+         in at the end of the list and so got the last spot in this array,
+         which is level with the doorway and turned obliquely towards it: you
+         walk straight past it on your way in and have to turn round to find
+         out it is there at all. */
       const spots=[
         { x:-13, z:-hd+11, r:0 },           // back wall, facing the door
         { x: 13, z:-hd+11, r:0 },
-        { x:  0, z:-hd+11, r:0 },           // and the middle of it, for the seventh
+        { x: hw-8, z: 22, r:-Math.PI/4 },   // beside the gate, on the right
         { x:-hw+8, z: 22, r: Math.PI/4 },   // and one more down the left
         { x:-hw+8, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
         { x:-hw+8, z:  7, r: Math.PI/4 },
         { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
         { x: hw-8, z:  7, r:-Math.PI/4 },
-        { x: hw-8, z: 22, r:-Math.PI/4 }    // the right-hand side's own far end
+        { x:  0, z:-hd+11, r:0 }            // dead ahead as you walk in
       ];
       /* A statue stands BEHIND its console, and a plinth is four metres square,
          so "behind" has to be somewhere there is four metres of room. Get that

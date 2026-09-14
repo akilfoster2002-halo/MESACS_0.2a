@@ -265,11 +265,11 @@ test('a walkthrough only ever reaches for blocks the stage hands out', ()=>{
     for(const op of palSteps(K))
       assert.ok(K.pal.includes(op),
         `stage "${K.id}" walks to "${op}", which is not in its palette`);
-    /* and the rails it sets must name real palette entries too */
+    /* THE SHELF IS NEVER NARROWED. Emptying it mid-walkthrough left a child
+       looking at a blank BLOCKS column on a screen whose whole job is
+       offering blocks, which reads as the game having broken. */
     for(const s of (K.walk||[]))
-      for(const op of (s.pal||[]))
-        assert.ok(K.pal.includes(op),
-          `stage "${K.id}" rails the shelf down to "${op}", which it never offers`);
+      assert.ok(!s.pal, `stage "${K.id}" still narrows the palette on a step`);
   }
 });
 
@@ -290,18 +290,16 @@ test('a walkthrough gets inside every loop it opens', ()=>{
   }
 });
 
-test('every walkthrough ends on RUN, with RUN switched back on', ()=>{
+test('every walkthrough ends on RUN, and never bolts a control shut', ()=>{
   for(const K of INV.STAGES){
     if(!K.walk) continue;
     const last=K.walk[K.walk.length-1];
     assert.match(last.sel||'', /#conRun/, `stage "${K.id}" does not end by pressing RUN`);
-    assert.notStrictEqual(last.rails && last.rails.run, false,
-      `stage "${K.id}" ends pointing at a RUN button it has railed off`);
-    /* and every step before it keeps RUN shut, so a half-built program
-       cannot be launched out from under the walkthrough */
-    K.walk.slice(0,-1).forEach((s,i)=>{
-      assert.strictEqual(s.rails && s.rails.run, false,
-        `stage "${K.id}" step ${i+1} leaves RUN live mid-walkthrough`);
+    /* Nothing is disabled any more. Running early is a thing a child will do
+       and the mission simply tells them what happened — which teaches more
+       than a greyed-out button does. */
+    K.walk.forEach((s,i)=>{
+      assert.ok(!s.rails, `stage "${K.id}" step ${i+1} still disables a control`);
     });
   }
 });
