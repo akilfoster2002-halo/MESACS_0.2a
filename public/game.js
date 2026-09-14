@@ -912,20 +912,33 @@ function togglePause(){
     `<div class="p-lbl">${t('SKILL YOU ARE USING')}</div>
      <div class="p-hint"><b>${$('#skName').textContent}</b><br>${$('#skText').textContent}
      <pre>${$('#skCode').textContent}</pre></div>`;
-  p.innerHTML=`<div class="card" style="max-width:640px;text-align:left">
-      <h1 style="text-align:center;margin-top:0">⏸ ${t('Paused')}</h1>
+  /* A LEAN CARD FOR THE SWARM. Its mission panel is on screen the whole
+     time — the stage list, the shield, the count — and so is the briefing,
+     so a card that repeats all of that and then lays out every mission in
+     the game is a wall of text between a student and the two things they
+     paused for: to get back, or to start over. The full card belongs to
+     the rooms you walk about in, where the panel is not always in view and
+     the jump row is how somebody who cannot find a door gets anywhere. */
+  const lean = !!(window.INVADERS && INVADERS.active);
+  const full = lean ? '' : `
       <div class="p-lbl">${t('MISSION')}</div>
       <div style="font-size:17px">${$('#missionName').textContent}</div>
       <ol class="p-objs">${$('#objList').innerHTML}</ol>
       <div class="p-lbl">${t('YOUR HINT')}</div>
       <div class="p-hint">${$('#briefing').innerHTML||'—'}</div>
-      ${sk}
-      <div class="p-lbl">${t('SOUND')}</div>
-      <div class="p-hint"><button class="btn ghost small" id="pMusic"></button></div>
+      ${sk}`;
+  const keysJump = lean ? '' : `
       <div class="p-lbl">${t('KEYS')}</div>
       <div class="p-hint">${$('#keys').innerHTML}</div>
       <div class="p-lbl">${t('JUMP TO A MISSION')}</div>
-      <div class="jumprow" id="pJump"></div>
+      <div class="jumprow" id="pJump"></div>`;
+  p.innerHTML=`<div class="card" style="max-width:${lean?440:640}px;text-align:left">
+      <h1 style="text-align:center;margin-top:0">⏸ ${t('Paused')}</h1>
+      ${lean ? `<div style="text-align:center;opacity:.75">${$('#missionName').textContent}</div>` : ''}
+      ${full}
+      <div class="p-lbl">${t('SOUND')}</div>
+      <div class="p-hint"><button class="btn ghost small" id="pMusic"></button></div>
+      ${keysJump}
       <div id="pOver"></div>
       <div style="text-align:center;margin-top:14px">
         <button class="btn good" id="pClose">${t('Back to the game ▶')}</button>
@@ -934,7 +947,7 @@ function togglePause(){
       </div>
     </div>`;
   p.classList.remove('hidden');
-  pauseJump();
+  if(!lean) pauseJump();
   pauseOver();
   $('#pClose').onclick=()=>togglePause();
   /* The music toggle lives in the top bar too, but the top bar is hidden in

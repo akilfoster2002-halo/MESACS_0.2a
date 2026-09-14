@@ -73,6 +73,19 @@ test('the pause card carries the button, asks once, and relaunches from level on
     'saying yes should restart the save and then relaunch the mission');
 });
 
+test('the swarm pauses to a lean card: no mission list, no hint, no jump row', ()=>{
+  /* The swarm's mission panel and briefing are on screen the whole time, so
+     the card only has to offer what you paused for — back, start over,
+     the sound, the way out. The full card, jump row and all, is for the
+     rooms you walk about in. */
+  const fn=game.slice(game.indexOf('function togglePause()'), game.indexOf('function pauseOver()'));
+  assert.match(fn, /const lean = !!\(window\.INVADERS && INVADERS\.active\)/, 'no lean card for the swarm');
+  assert.match(fn, /const full = lean \? '' :/, 'the lean card still carries the mission list and the hint');
+  assert.match(fn, /const keysJump = lean \? '' :/, 'the lean card still carries the keys and the jump row');
+  assert.match(fn, /if\(!lean\) pauseJump\(\);/, 'the jump row is drawn into a card that has no room for it');
+  assert.match(fn, /pauseOver\(\);/, 'the lean card lost the start-over button');
+});
+
 test('P pauses the board missions, and a paused board holds still', ()=>{
   /* The swarm, the trench, the flight and the school run with G.running off,
      and their corner promises "P pause & hint" all the same. */
