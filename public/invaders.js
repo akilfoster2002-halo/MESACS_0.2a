@@ -9,33 +9,47 @@
    question stops being "where do I move" and becomes "how many, and how
    long for" — which are the two questions `repeat` and `forever` answer.
 
-   THE LADDER IS THE LESSON, one slide at a time:
+   THE LADDER IS THE LESSON, one slide at a time — and the slides go from
+   the loop you can count to the loop you cannot, so that is the order
+   here. Every rung is one loop and a handful of blocks. Nothing nests
+   until the end.
 
-     rank    repeat (N)          eight invaders is two blocks or it is
-                                 sixteen. The budget makes the choice for
-                                 you, which is the teacher's line about
-                                 ten blocks versus one, made mechanical.
-     grid    a loop in a loop    a rank is a loop; four ranks is that loop
-                                 inside another one. Nothing else in this
-                                 course nests, and a grid is the shape
-                                 where nesting is the obvious move rather
-                                 than a clever one.
-     march   forever             the fortress is further than the board is
-                                 wide and there is no sensor yet, so there
-                                 is no N to count to. A loop that cannot
-                                 be counted is the definition of this one.
-     shield  repeat until        now there IS a sensor, and now stopping
-                                 matters: keep descending after the shield
-                                 falls and the swarm flies into the wreck.
-                                 forever wins the last stage and loses this
-                                 one, which is the whole of "the difference
-                                 is how they stop".
-     listen  if inside forever   the golden rule, as a boss. An `if` above
-                                 the loop asks once, at the start, from the
-                                 wrong side of the board, and the swarm
-                                 sails over the fortress for ever without
-                                 firing a shot. Put the same block one
-                                 level in and it asks every pass.
+     rank     repeat (N)          eight invaders is two blocks or it is
+                                  eight. The budget makes the choice for
+                                  you, which is the teacher's line about
+                                  ten blocks versus one, made mechanical.
+     volley   repeat (N), again   the army is handed over and the shield
+                                  grows back between volleys, so one volley
+                                  is not enough and four are. The same two
+                                  blocks as the rank; the only thing that
+                                  changed is the number, which is the whole
+                                  of "change the number once".
+     forever  forever             the biggest repeat there is counts to
+                                  twenty, and this shield takes more than
+                                  twenty volleys. A loop that cannot be
+                                  counted is the definition of this one.
+     until    repeat until        now there IS a sensor, and now stopping
+                                  matters: keep descending after the shield
+                                  falls and the swarm flies into the wreck.
+                                  forever wins the last stage and loses this
+                                  one, which is the whole of "the difference
+                                  is how they stop".
+     listen   if inside forever   the golden rule. An `if` above the loop
+                                  asks once, at the start, from the wrong
+                                  side of the board, and never fires. Put
+                                  the same block one level in and it asks
+                                  every pass — and a volley at nothing lets
+                                  the fortress rebuild, so asking is not
+                                  optional.
+     grid     a loop in a loop    the final challenge. A rank is a loop;
+                                  four ranks is that loop inside another
+                                  one. It is the only rung that nests two
+                                  loops, and it is last because getting
+                                  INTO the inner one and back OUT again is
+                                  the hardest thing the console asks of
+                                  anybody. The two rungs before it that put
+                                  a container in a container are the
+                                  rehearsal for it.
 
    WHY THE SHIELD REGROWS. It is the rule the drone boss in Mission 1
    already fights by, and it is here for the same reason: it makes the
@@ -113,10 +127,143 @@ window.INVADERS = (function(){
          turn because the breach is checked before it. Seven invaders lose. */
       need:{ alive:8 } },
 
-    /* THE GRID. A rank was one loop; four ranks is that same loop with
-       another one round it. The fortress is thick enough that no single
-       rank can break it, which is what makes the second loop the answer
-       rather than a bigger number in the first. */
+    /* COUNT THE VOLLEYS. The same two blocks as the rank with a different
+       verb in the middle, and that is the point: the army is handed over
+       so the only thing the program decides is HOW MANY TIMES. Eight
+       invaders take eight off a shield of twenty that puts four back, so
+       one volley does nothing much, three leave it standing, and four break
+       it (20, 16, 12, 8, gone) — and
+       the number on the loop is the only thing a student ever edits to get
+       from the one to the other. This is "change the number once and the
+       whole behaviour changes", as a fortress. */
+    { id:'volley', name:'Count the Volleys', budget:2,
+      pal:['volley','repeat'],
+      army:{ cols:8, rows:1 },
+      fort:{ c0:1, c1:9, shield:20, regrow:4 },
+      walk:[
+        { say:'One volley is not enough. <b>Repeat</b> it.', sel:'#conPalette [data-add="repeat"]',
+          done:()=>has('repeat') },
+        { say:'Make it <b>4</b>.', sel:'#conScript .cnt[data-act="inc"]',
+          done:()=>count('repeat')===4 },
+        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>target() || inside('repeat','volley') },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>inside('repeat','volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
+      ],
+      learn:{ name:'One number, four volleys',
+              text:'Written out, four volleys is four blocks. In a loop it is two — and one number changes all of it.',
+              code:'repeat 4\n  fire()\nend' },
+      brief:'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.' },
+
+    /* NO NUMBER. Slide three is "repeat (N) vs forever — the difference is
+       how they stop", and the cleanest way to show a difference is to
+       change nothing else. So this is the volley stage again with a shield
+       that takes twenty-four volleys, and the counter on a repeat only goes
+       to twenty. The biggest repeat there is leaves eight on the bar. The
+       loop with no number on it does not. */
+    { id:'forever', name:'No Number', budget:2,
+      pal:['volley','repeat','forever'],
+      army:{ cols:8, rows:1 },
+      fort:{ c0:1, c1:9, shield:48, regrow:6 },
+      walk:[
+        { say:'<b>repeat 20</b> is the biggest there is, and it falls short. This loop has <b>no number</b>.',
+          sel:'#conPalette [data-add="forever"]', done:()=>has('forever') },
+        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>target() || inside('forever','volley') },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>inside('forever','volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
+      ],
+      learn:{ name:'A loop with no number',
+              text:'<b>repeat</b> counts to its number and stops. <b>forever</b> has no number — it stops when the mission does.',
+              code:'forever\n  fire()\nend' },
+      brief:'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.' },
+
+    /* THE SHIELD. The same fight, plus a sensor and a reason to stop.
+       Descending is how you get the volleys close enough to bite, and
+       descending after the shield is gone flies the swarm into the wreck —
+       so forever, which won the last stage, loses this one.
+
+       landAfter: breaking the shield does not end the stage. If it did,
+       forever and repeat-until would be the same program here — both
+       breach on the same volley and both get frozen at the moment they
+       do, which is the opposite of the thing being taught. The fortress
+       is taken when your program LETS GO with the shield down, so the
+       loop that cannot let go cannot win. */
+    { id:'until', name:'Break the Shield', budget:3,
+      pal:['volley','descend','until','forever'],
+      army:{ cols:8, rows:2 },
+      fort:{ c0:1, c1:9, shield:60, regrow:8 },
+      conds:['the shield is down','over the fortress','at the edge'],
+      landAfter:true,
+      walk:[
+        { say:'This one <b>stops</b>. That is the difference.', sel:'#conPalette [data-add="until"]',
+          done:()=>has('until') },
+        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>target() || inside('until','volley') },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>inside('until','volley') },
+        { say:'Closer bites harder.', sel:'#conPalette [data-add="descend"]',
+          done:()=>inside('until','descend') },
+        { say:'', sel:'#conRun', done:()=>busy }
+      ],
+      learn:{ name:'A loop that knows when to stop',
+              text:'<b>forever</b> never stops — and here that flies the swarm into the wreck.',
+              code:'repeat until the shield is down\n  fire()\n  down()\nend' },
+      brief:'Shield <b>60</b>. Closer volleys bite harder, so <b>down()</b> — but <b>stop</b> the moment the shield falls, or the swarm flies into the wreck.' },
+
+    /* THE LISTENER. The golden rule, and the only stage where WHERE you
+       put a block matters more than which block it is. `across` walks the
+       formation to the wall and turns it round by itself, so the swarm
+       sweeps back and forth over the fortress on its own; the only thing
+       the program has to get right is asking, every single pass, whether
+       it is over the target yet.
+
+       missRebuilds is what makes the asking necessary rather than tidy. A
+       volley at empty sky used to cost nothing, and then `forever { across
+       fire }` won this stage without an `if` in it. Now a miss hands the
+       fortress its shield back, and the swarm misses at both walls — so the
+       program that fires every pass tops the shield up twice a sweep and
+       never gets below six. The fortress sits in the middle and the swarm
+       starts at the far left, off it, so an `if` ABOVE the loop asks once,
+       gets no, and the swarm sweeps for ever without a shot. */
+    { id:'listen', name:'The Listener', budget:4,
+      pal:['across','volley','forever','ifc'],
+      army:{ cols:4, rows:2, c0:0 },
+      fort:{ c0:4, c1:6, shield:30, regrow:0, missRebuilds:true, narrow:true },
+      conds:['over the fortress','at the edge','the shield is down'],
+      walk:[
+        { say:'', sel:'#conPalette [data-add="forever"]',
+          done:()=>has('forever') },
+        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>target() || inside('forever','across') },
+        { say:'It sweeps and turns by itself.', sel:'#conPalette [data-add="across"]',
+          done:()=>inside('forever','across') },
+        { say:'Ask <b>inside</b> the loop, not above it.', sel:'#conPalette [data-add="ifc"]',
+          done:()=>inside('forever','ifc') },
+        { say:'Now inside the <b>if</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
+          done:()=>target('if') || deep('volley') },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>deep('volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
+      ],
+      learn:{ name:'A question worth asking twice goes inside the loop',
+              text:'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.',
+              code:'forever\n  across()\n  if over the fortress\n    fire()\n  end\nend' },
+      brief:'Fortress in the <b>middle</b>. Fire at nothing and the shield <b>rebuilds</b>. Ask first — every pass.' },
+
+    /* THE GRID — the final challenge. A rank was one loop; four ranks is
+       that same loop with another one round it. The fortress is thick
+       enough that no single rank can break it, which is what makes the
+       second loop the answer rather than a bigger number in the first.
+
+       It is last on purpose. Nothing else in this course nests two loops,
+       and the walk through it is the longest here because it has to get the
+       student INTO the inner loop and back OUT of it again — the one thing
+       the console asks that has no picture on the shelf. By now they have
+       stepped into a loop on every rung and into an if inside a loop on the
+       one before this, so the click that used to be a mystery is a habit. */
     { id:'grid', name:'The Grid', budget:4,
       pal:['spawn','nextRow','repeat'],
       autoVolley:true,
@@ -152,107 +299,7 @@ window.INVADERS = (function(){
               text:'The inside loop builds a rank. The outside one does it four times.',
               code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend' },
       brief:'Shield <b>30</b>, <b>+7</b> a volley. One rank cannot dent it. Build <b>four</b>.',
-      need:{ alive:32 } },
-
-    /* THE MARCH. The fortress is off the right-hand edge of the board, so
-       there is no number to count to — not because the number is hidden
-       but because the swarm is pushed back whenever it stops advancing,
-       and a program that ends stops advancing. The only loop that outlasts
-       that is the one with no end on it. */
-    { id:'march', name:'The Long March', budget:3,
-      pal:['across','volley','forever','repeat'],
-      army:{ cols:8, rows:3 },
-      fort:{ c0:7, c1:9, shield:26, regrow:4, far:true },
-      walk:[
-        { say:'No number reaches it. This loop has none.', sel:'#conPalette [data-add="forever"]',
-          done:()=>has('forever') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('forever','across') },
-        { say:'', sel:'#conPalette [data-add="across"]',
-          done:()=>inside('forever','across') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>inside('forever','volley') },
-        { say:'', sel:'#conRun', done:()=>busy }
-      ],
-      learn:{ name:'A loop you cannot count',
-              text:'No number to count to. <b>forever</b> runs until the mission ends.',
-              code:'forever\n  across()\n  fire()\nend' },
-      brief:'The fortress is <b>off the board</b>. A program that ends stops advancing.',
-      need:{ fort:true } },
-
-    /* THE SHIELD. The same fight, plus a sensor and a reason to stop.
-       Descending is how you get the volleys close enough to bite, and
-       descending after the shield is gone flies the swarm into the wreck —
-       so forever, which won the last stage, loses this one. */
-    { id:'shield', name:'Break the Shield', budget:4,
-      pal:['volley','descend','until','repeat'],
-      army:{ cols:8, rows:2 },
-      fort:{ c0:1, c1:9, shield:44, regrow:5 },
-      conds:['the shield is down','over the fortress','at the edge'],
-      /* THE TWO THINGS THAT MAKE THIS STAGE ABOUT STOPPING.
-
-         landAfter: breaking the shield does not end the stage. If it did,
-         forever and repeat-until would be the same program here — both
-         breach on the same volley and both get frozen at the moment they
-         do, which is the opposite of the thing being taught. The fortress
-         is taken when your program LETS GO with the shield down, so the
-         loop that cannot let go cannot win.
-
-         returnFire: while the shield is up they shoot back, one invader a
-         volley. It is what stops the answer being a number somebody worked
-         out on paper: fewer invaders is less damage next volley, so the
-         count compounds rather than dividing, and asking is very much
-         easier than arithmetic. It is also why overshooting costs
-         something even before the wreck does. */
-      landAfter:true, returnFire:1,
-      walk:[
-        { say:'This one <b>stops</b>. That is the difference.', sel:'#conPalette [data-add="until"]',
-          done:()=>has('until') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('until','volley') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>inside('until','volley') },
-        { say:'Closer bites harder.', sel:'#conPalette [data-add="descend"]',
-          done:()=>inside('until','descend') },
-        { say:'', sel:'#conRun', done:()=>busy }
-      ],
-      learn:{ name:'A loop that knows when to stop',
-              text:'<b>forever</b> never stops — and here that flies the swarm into the wreck.',
-              code:'repeat until the shield is down\n  fire()\n  down()\nend' },
-      brief:'Closer volleys bite harder. But <b>stop</b> the moment the shield falls.',
-      need:{ fort:true } },
-
-    /* THE LISTENER. The golden rule, and the only stage where WHERE you
-       put a block matters more than which block it is. `across` walks the
-       formation to the wall and turns it round by itself, so the swarm
-       sweeps back and forth over the fortress on its own; the only thing
-       the program has to get right is asking, every single pass, whether
-       it is over the target yet. */
-    { id:'listen', name:'The Listener', budget:5,
-      pal:['across','volley','forever','ifc'],
-      army:{ cols:4, rows:2 },
-      fort:{ c0:4, c1:6, shield:30, regrow:3, narrow:true },
-      conds:['over the fortress','at the edge','the shield is down'],
-      walk:[
-        { say:'', sel:'#conPalette [data-add="forever"]',
-          done:()=>has('forever') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('forever','across') },
-        { say:'It sweeps and turns by itself.', sel:'#conPalette [data-add="across"]',
-          done:()=>inside('forever','across') },
-        { say:'Ask <b>inside</b> the loop, not above it.', sel:'#conPalette [data-add="ifc"]',
-          done:()=>inside('forever','ifc') },
-        { say:'Now inside the <b>if</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
-          done:()=>target('if') || deep('volley') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
-          done:()=>deep('volley') },
-        { say:'', sel:'#conRun', done:()=>busy }
-      ],
-      learn:{ name:'A question worth asking twice goes inside the loop',
-              text:'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.',
-              code:'forever\n  across()\n  if over the fortress\n    fire()\n  end\nend' },
-      brief:'Fortress in the <b>middle</b>. <b>across()</b> turns at the walls by itself.',
-      need:{ fort:true } }
+      need:{ alive:32 } }
   ];
 
   /* ------------------------------------------- what the walkthrough reads
@@ -400,6 +447,16 @@ window.INVADERS = (function(){
   }
   const live = () => L.inv.filter(v=>v.alive);
 
+  /* The stages that do not build their own army are handed one. It stands
+     where the spawn cursor would start unless the stage says otherwise —
+     the listener puts it against the far wall, off the fortress, so that an
+     `if` asked once at the start is asked from the wrong place. */
+  function deploy(){
+    const a=L.K.army; if(!a) return;
+    const c0 = a.c0===undefined ? X0 : a.c0;
+    for(let r=0;r<a.rows;r++) for(let c=0;c<a.cols;c++) addInvader(c0+c, Y0+r);
+  }
+
   /* Where the formation is, as a box. across() and the edge test are both
      about the whole swarm rather than any one invader in it. */
   function span(){
@@ -428,12 +485,6 @@ window.INVADERS = (function(){
      when to fire. */
   function doAcross(){
     const s=span(); if(!s) return;
-    if(L.K.fort.far){
-      /* The march stage has no wall to turn at — the fortress is off the
-         board to the right, and the swarm is walking towards it. */
-      L.travel++;
-      return;
-    }
     if((L.dir>0 && s.c1>=COLS-1) || (L.dir<0 && s.c0<=0)) L.dir=-L.dir;
     live().forEach(v=>{ v.c+=L.dir; });
     place();
@@ -453,7 +504,7 @@ window.INVADERS = (function(){
     const f=L.fort;
     let dmg=0;
     a.forEach(v=>{
-      const hits = L.K.fort.far ? (L.travel>=L.needTravel) : (v.c>=f.c0 && v.c<=f.c1);
+      const hits = v.c>=f.c0 && v.c<=f.c1;
       drawBolt(v, hits);
       if(!hits) return;
       /* One damage, plus one more for each row of the gap you have closed,
@@ -462,25 +513,28 @@ window.INVADERS = (function(){
       const gap=Math.max(0, f.r - v.r);
       dmg += 1 + Math.min(2, Math.max(0, 4-gap));
     });
-    if(!dmg) return;
-    L.idle=0;                          // and so is a shield that moved
-    f.shield -= dmg;
-    L.fired++;
-    if(f.shield<=0){ f.shield=0; return; }    // breached before it can grow
-    f.shield=Math.min(f.max, f.shield + f.regrow);
-    /* They shoot back, and it is the front rank that pays — the invaders
-       nearest the guns. Only while the shield is up: a wreck does not
-       return fire, so the cost of a wasted volley after the breach is the
-       wreck itself rather than another one of yours. */
-    if(L.K.returnFire){
-      const a2=live();
-      for(let k=0;k<L.K.returnFire && a2.length;k++){
-        let worst=a2[0];
-        a2.forEach(v=>{ if(v.r>worst.r) worst=v; });
-        worst.alive=false; group.remove(worst.mesh);
-        a2.splice(a2.indexOf(worst),1);
+    if(!dmg){
+      /* A VOLLEY AT NOTHING. On most stages it is nothing. On the listener
+         it is the fortress's breather: the shield comes back whole, and the
+         run is stopped after a few of them with a sentence about asking
+         first — because a program that fires at every column is the program
+         this stage exists to argue with, and it should lose out loud. */
+      if(f.missRebuilds && f.shield>0){
+        f.shield=f.max; L.missed++;
+        say(t('A volley at nothing — the shield rebuilt.'));
       }
+      return;
     }
+    L.fired++;
+    const before=f.shield;
+    f.shield -= dmg;
+    if(f.shield<=0){ f.shield=0; L.idle=0; return; }    // breached before it can grow
+    f.shield=Math.min(f.max, f.shield + f.regrow);
+    /* PROGRESS IS A SHIELD THAT WENT DOWN — net of the regrow, and not at
+       all once it is already on the floor. A volley that lands and changes
+       nothing is the loop going round for nothing, and that is what the
+       patience counter is for. */
+    if(f.shield<before) L.idle=0;
   }
 
   function drawBolt(v, hits){
@@ -488,8 +542,7 @@ window.INVADERS = (function(){
       new THREE.MeshBasicMaterial({color:hits?0xffb4a2:0x5a6b85}));
     m.position.set(wx(v.c), wy(v.r)-0.9, 0);
     group.add(m);
-    bolts.push({ mesh:m, t:0, x:wx(v.c), y0:wy(v.r)-0.9,
-                 y1: L.K.fort.far ? -6 : wy(L.fort.r)+1.4 });
+    bolts.push({ mesh:m, t:0, x:wx(v.c), y0:wy(v.r)-0.9, y1:wy(L.fort.r)+1.4 });
   }
 
   /* --------------------------------------------------------- the sensors
@@ -500,10 +553,7 @@ window.INVADERS = (function(){
     if(!cond || !L) return false;            // forever compiles to a test of nothing
     const f=L.fort, s=span();
     if(cond==='the shield is down') return f.shield<=0;
-    if(cond==='over the fortress'){
-      if(L.K.fort.far) return L.travel>=L.needTravel;
-      return !!s && live().some(v=>v.c>=f.c0 && v.c<=f.c1);
-    }
+    if(cond==='over the fortress') return !!s && live().some(v=>v.c>=f.c0 && v.c<=f.c1);
     if(cond==='at the edge') return !!s && (s.c0<=0 || s.c1>=COLS-1);
     return false;
   }
@@ -548,22 +598,14 @@ window.INVADERS = (function(){
 
     const f=Object.assign({ r:ROWS-1 }, K.fort);
     f.max=f.shield;
-    L={ idx, K, inv:[], cur:{c:X0, r:Y0}, dir:1, fort:f,
-        travel:0, needTravel:12, fired:0,
+    L={ idx, K, inv:[], cur:{c:X0, r:Y0}, dir:1, fort:f, fired:0, missed:0, linger:0,
         pc:0, steps:[], wait:0, guard:0, idle:0, over:false, lost:false, won:false };
 
     const fm=fortMesh(f);
-    /* The far fortress is drawn off the right of the board, small, so that
-       "it is out past the edge" is something you can see rather than
-       something the briefing claims. */
-    if(f.far) fm.position.set(wx(COLS-1)+T*4.5, wy(f.r), -14);
-    else fm.position.set((wx(f.c0)+wx(f.c1))/2, wy(f.r), 0);
+    fm.position.set((wx(f.c0)+wx(f.c1))/2, wy(f.r), 0);
     group.add(fm);
     L.fortMesh=fm;
-
-    // the stages that do not build their own army are handed one
-    if(K.army) for(let r=0;r<K.army.rows;r++)
-      for(let c=0;c<K.army.cols;c++) addInvader(X0+c, Y0+r);
+    deploy();
 
     camera();
     CODE.setGrid(COLS, ROWS);
@@ -705,14 +747,17 @@ window.INVADERS = (function(){
 
   /* --------------------------------------------------------------- run */
   function run(){
-    if(!on || busy) return;
+    /* Not guarded on busy. A forever loop has no end on it, so the way to
+       try the next idea is to press RUN on top of the last one — and since
+       a run starts from a fresh board anyway, there is nothing to protect. */
+    if(!on) return;
     const steps=(window.CODE && CODE.script && CODE.script.length)
       ? CODE.compile(CODE.script) : [];
     if(!steps.length){ say(t('Write a program first — press <b>C</b>.')); return; }
 
     // a fresh run is a fresh board: the formation, the shield and the cursor
     live().forEach(v=>{ group.remove(v.mesh); });
-    L.inv=[]; L.cur={c:X0, r:Y0}; L.dir=1; L.travel=0; L.fired=0;
+    L.inv=[]; L.cur={c:X0, r:Y0}; L.dir=1; L.fired=0; L.missed=0; L.linger=0;
     L.fort.shield=L.fort.max;
     bolts.forEach(b=>group.remove(b.mesh)); bolts=[];
     /* A fortress you already blew up has to be standing again before the
@@ -721,8 +766,7 @@ window.INVADERS = (function(){
        not advance on its own, so RUN is the obvious next thing to press. */
     boom.forEach(p=>group.remove(p.mesh)); boom=[];
     if(L.fortMesh) L.fortMesh.visible=true;
-    if(L.K.army) for(let r=0;r<L.K.army.rows;r++)
-      for(let c=0;c<L.K.army.cols;c++) addInvader(X0+c, Y0+r);
+    deploy();
 
     busy=true;
     L.pc=0; L.steps=steps; L.wait=0; L.guard=0; L.idle=0;
@@ -752,10 +796,15 @@ window.INVADERS = (function(){
        is down, which is the whole of the shield stage: the loop that never
        stops keeps descending after it has already won and flies into what
        it just broke. */
-    if(s && !L.K.fort.far && s.r1>=L.fort.r)
+    if(s && s.r1>=L.fort.r)
       return finish(false, breached
         ? t('The shield was down — and the swarm kept descending into the wreck.')
         : t('The swarm flew into the fortress.'));
+    /* Three volleys at empty sky is not bad luck, it is a program with no
+       question in it — and by the third rebuild the student has watched
+       the bar go back to full twice, which is the argument made. */
+    if(L.fort.missRebuilds && L.missed>=3)
+      return finish(false, t('Three volleys at nothing, and the shield rebuilt every time. Ask <b>if over the fortress</b> before every volley.'));
     /* Only a stage that was HANDED an army can lose one. The build stages
        open with an empty board on purpose — filling it is the exercise — so
        "there is nobody left" is a sentence about the stages that started
@@ -794,6 +843,15 @@ window.INVADERS = (function(){
            from locking the tab; this is the one that teaches. */
         if(++L.idle>PATIENCE){ L.over=true; return stuck(L.steps[st.back]); }
         if(++L.guard>20000){ L.over=true; return stuck(L.steps[st.back]); }
+        /* THE LOOP THAT WON AND WOULD NOT LET GO. On the stage about
+           stopping, a forever that has broken the shield is still firing at
+           a wreck — not descending into it, just never finishing — and the
+           swarm can fire at rubble for as long as anybody is willing to
+           watch. A few passes of that is enough to see what it is. */
+        if(L.K.landAfter && L.fort.shield<=0 && ++L.linger>8){
+          L.over=true;
+          return finish(false, t('The shield is down — and the loop is still going. It never lets go.'));
+        }
         continue;
       }
       if(st.name==='__if'){ L.pc = test(st.cond) ? L.pc+1 : st.jump; continue; }
@@ -811,12 +869,14 @@ window.INVADERS = (function(){
   }
 
   /* THE PROGRAM RAN OUT. What happens next is the difference between the
-     build stages and the march ones, and it is the lesson in both:
+     build stages and the firing ones, and it is the lesson in both:
 
        building   the rank you finished opens fire, and whether it breaks
                   the shield is a question about how many of them there are
-       marching   nothing keeps the swarm going, so it loses ground — which
-                  is why a program with an end on it cannot win that stage */
+       firing     the shield is whatever the volleys left it at, and if that
+                  is not zero the program was too short — a repeat that
+                  counted to the wrong number, or to any number at all on
+                  the stage where no number is enough */
   function programEnded(){
     /* LETTING GO IS THE WIN on a stage about stopping. The loop got out, the
        shield is down and the swarm is still flying — which is the sentence
@@ -827,10 +887,6 @@ window.INVADERS = (function(){
       if(L.fort.shield<=0) return finish(true);
       const n=live().length;
       return finish(false, t('{n} invaders is not enough — the shield grew back.',{n}));
-    }
-    if(L.K.fort.far && L.travel>0){
-      L.travel=Math.max(0, L.travel-3);
-      hud();
     }
     L.over=true;
     return finish(false, t('Your program ended. The fortress did not.'));
@@ -857,7 +913,7 @@ window.INVADERS = (function(){
       L.won=true;
       blowUp();
       const last=L.idx>=STAGES.length-1;
-      say(last ? t('🏅 The fortress is down. Counted, watched and never-ending — all three loops.')
+      say(last ? t('🏅 The fortress is down. Four blocks, thirty-two invaders — a loop inside a loop.')
                : t('✅ The fortress is down.'));
       if(last && window.PROGRESS) PROGRESS.complete('inv');
       else nextT=setTimeout(()=>{ nextT=null; if(on) start(L.idx+1); }, 1900);
@@ -926,6 +982,7 @@ window.INVADERS = (function(){
       o.innerHTML=
         `<li class="cur">🛡️ ${t('Shield')}: <b>${f.shield}</b> / ${f.max}`
         + (f.shield>0 && f.regrow ? ` <small>(+${f.regrow} ${t('a volley')})</small>` : '')
+        + (f.shield>0 && f.missRebuilds ? ` <small>(${t('rebuilds on a miss')})</small>` : '')
         + `</li>`
         + `<li>👾 ${t('Swarm')}: <b>${live().length}</b>`
         + (L.K.need && L.K.need.alive ? ` / ${L.K.need.alive} ${t('needed')}` : '')
@@ -962,7 +1019,7 @@ window.INVADERS = (function(){
               cannot be won is told apart from a program that cannot win by
               looking at the numbers, not at the screen. */
            get where(){ return L ? { stage:L.K.id, alive:live().length,
-                                     shield:L.fort.shield, travel:L.travel,
+                                     shield:L.fort.shield, missed:L.missed,
                                      pc:L.pc, over:!!L.over, won:!!L.won,
                                      lost:!!L.lost } : null; },
            get active(){ return on; },
