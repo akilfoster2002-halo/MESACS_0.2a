@@ -5,6 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Desktop Quest 0.2a — Mission: Linux</title>
 <style>
+/* =====================================================================
+   THE TYPEFACES — three monospaces, bundled, doing three different jobs.
+
+   This game is about writing code, so it is lettered in code type. But one
+   monospace everywhere is a wall: every glyph the same width AND the same
+   shape, with nothing to tell a heading from a hint from a program. So
+   there are three, and they are genuinely different faces rather than one
+   face at three weights:
+
+     SPACE MONO      the logo and the headings. Geometric, a bit retro, odd
+                     enough in the R and the G to be a title.
+     UBUNTU MONO     everything you read as words — buttons, briefings,
+                     labels, the HUD. Humanist and round, which is what
+                     makes it the legible one at nine years old.
+     JETBRAINS MONO  programs, and only programs. Tall x-height, a slashed
+                     zero and an l you cannot mistake for a 1 — drawn for
+                     exactly the job the console does.
+
+   THEY ARE VENDORED, NOT LINKED. The whole premise of this repo is a folder
+   you can open with no install and no network, and a <link> to a font CDN
+   would quietly break that on the first lab machine with the internet off.
+   These are five files, 84KB the lot, served from public/fonts. Ubuntu Mono
+   is under the Ubuntu Font Licence; Space Mono and JetBrains Mono are under
+   the SIL Open Font Licence. All three permit redistribution.
+
+   font-display:swap, so a slow disk shows the fallback stack and then
+   swaps — never a screen of nothing.
+   ===================================================================== */
+@font-face{font-family:'Space Mono';src:url('fonts/spacemono-700.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-400.woff2') format('woff2');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-700.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-400i.woff2') format('woff2');
+  font-weight:400;font-style:italic;font-display:swap}
+/* one variable file covers the whole weight range */
+@font-face{font-family:'JetBrains Mono';src:url('fonts/jetbrainsmono-var.woff2') format('woff2');
+  font-weight:400 700;font-style:normal;font-display:swap}
+</style>
+<style>
 *{box-sizing:border-box}
 :root{
   /* pastel-arcade: soft world, deep plum UI so the HUD still reads over it */
@@ -12,13 +53,44 @@
   --accent:#8fd3ff; --good:#a8e6cf; --warn:#ffd8a8; --bad:#ff9aa2; --star:#ffe9a8;
   --mint:#a8e6cf; --peach:#ffb4a2; --lav:#cdb4f6; --blush:#ffc8dd; --sky:#8fd3ff;
   --text:#f4f0ff; --muted:#bdb2d8;
-  --font:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
+
+  /* ---------------------------------------------- THE GAME IS SET IN CODE
+     This is a game about writing programs, and until now it was lettered in
+     Trebuchet while the only part that mattered — the console — was in
+     Menlo. Two typefaces, and the one a student is learning to read was the
+     one quarantined in a box.
+
+     It is monospace throughout now, in THREE faces that each do one job (see
+     the @font-face block above for what they are and why they are bundled
+     rather than linked). Every one of them falls back to the system mono, so
+     a machine that somehow cannot load them still gets code type — only less
+     of a difference between the roles. */
+  --mono-fallback: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas,
+                   "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+  --font:      'Ubuntu Mono',    var(--mono-fallback);   /* words */
+  --font-disp: 'Space Mono',     var(--mono-fallback);   /* titles */
+  --font-code: 'JetBrains Mono', var(--mono-fallback);   /* programs */
 }
 html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--text);font-family:var(--font);
   -webkit-user-select:none;user-select:none}
 canvas{display:block;width:100%;height:100%}
 .hidden{display:none !important}
 button{font-family:var(--font);cursor:pointer}
+/* ------------------------------------------------------- the three roles
+   Monospace is uniform by definition, so a heading cannot stand out by
+   being a different shape — it stands out by being OPENED UP. Tracking is
+   doing the job a display face would do in a proportional design. */
+h1,h2,h3,.scrtitle,.koro,.nuhead,.teach-card h2{
+  font-family:var(--font-disp);letter-spacing:.07em}
+.btn,.tab,.langbtn,.jumpbtn,.modebtn,.waytile{letter-spacing:.045em}
+/* Programs are set tight and unspaced: code is read as a shape, and letter
+   spacing is what stops a nine-year-old seeing `repeat 8` as one thing. */
+pre,code,textarea,#conText,#conTA,.blk,.palblk,#tape,.mk-line .op{
+  font-family:var(--font-code);letter-spacing:0}
+/* Anything that is a NUMBER a student is watching change — a shield, a
+   budget, a countdown, a coin total — holds its column while it counts. */
+.cnt-n,.con-budget,#conBudget,.dmg,#dFill,.d-clock,.coins,.wal-n,.hp-top,
+#objList b,.iter{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .btn{background:var(--accent);color:#123045;border:none;border-radius:14px;padding:12px 20px;
   font-size:18px;font-weight:bold;box-shadow:0 4px 0 #5aa8d6}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 #5aa8d6}
@@ -129,7 +201,7 @@ button{font-family:var(--font);cursor:pointer}
 #skill h4{margin:3px 0 5px;font-size:19px}
 #skill p{margin:0 0 8px;font-size:13.5px;color:var(--muted);line-height:1.4}
 #skill pre{margin:0;background:#1d1730;border:2px solid var(--line);border-radius:9px;padding:7px 9px;
-  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#8fd3ff;white-space:pre}
+  font-family:var(--font-code);font-size:12.5px;color:#8fd3ff;white-space:pre}
 #trigger{position:absolute;left:50%;top:calc(50% + 52px);transform:translateX(-50%);font-size:12px;
   letter-spacing:1.5px;color:var(--mint);text-shadow:0 2px 5px #000}
 #trigger.cool{color:var(--muted)}
@@ -139,7 +211,7 @@ button{font-family:var(--font);cursor:pointer}
 .p-objs{margin:6px 0;padding-left:18px;font-size:14.5px;color:var(--muted)}
 .p-objs li{list-style:none;padding:4px 0}
 .p-hint{background:#1d1730;border:2px solid var(--line);border-radius:10px;padding:9px 11px;font-size:15px}
-.p-hint pre{margin:6px 0 0;color:#8fd3ff;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.p-hint pre{margin:6px 0 0;color:#8fd3ff;font-family:var(--font-code);font-size:13px}
 #teach{position:fixed;inset:0;z-index:45;background:rgba(28,20,45,.86);display:flex;align-items:center;justify-content:center;padding:20px}
 .teach-card{width:min(600px,94%);background:var(--panel);border:3px solid var(--mint);border-radius:20px;
   padding:24px;text-align:center;box-shadow:0 26px 60px rgba(0,0,0,.6)}
@@ -147,7 +219,7 @@ button{font-family:var(--font);cursor:pointer}
 .teach-card h2{margin:6px 0 10px;font-size:28px}
 .teach-card p{font-size:17.5px;line-height:1.45;color:var(--text);margin:0 0 12px}
 .teach-card pre{text-align:left;background:#1d1730;border:3px solid var(--line);border-radius:12px;
-  padding:12px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:#8fd3ff;
+  padding:12px 14px;font-family:var(--font-code);font-size:15px;color:#8fd3ff;
   white-space:pre;overflow:auto;margin:0 0 14px}
 .teach-card .why{font-size:14.5px;color:var(--muted);margin-bottom:14px}
 
@@ -774,97 +846,75 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .screen.anim-in .card,.screen.anim-in .hero{animation:cardIn .5s cubic-bezier(.2,.9,.3,1.15) both .06s}
 @keyframes cardIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 
-/* ---------- start: the KORO title slide, alive underneath the logo ----- */
-#start{background:#4db3f5}     /* fallback colour while the photo loads */
-.bgwrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-.bgphoto{position:absolute;inset:-6%;
-  background:url('art/landing.jpg') center 62%/cover no-repeat;
-  animation:bgDrift 38s ease-in-out infinite alternate}
-@keyframes bgDrift{0%{transform:scale(1.05) translate(0,0)}100%{transform:scale(1.14) translate(-1.4%,-0.8%)}}
-/* a soft top-and-bottom fade so the title and HUD text keep their contrast
-   no matter where the photo's own sky and grass land after cropping */
-.bgfade{position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(8,26,48,.32) 0%,rgba(8,26,48,0) 26%,
-    rgba(8,26,48,0) 68%,rgba(6,20,38,.30) 100%)}
-/* a slow gleam off the coin in the background art, upper right */
-.glint{position:absolute;right:6%;top:34%;width:120px;height:120px;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,238,180,.65) 0%,rgba(255,233,168,0) 70%);
-  animation:glintPulse 4.2s ease-in-out infinite}
-@keyframes glintPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}
-/* a hint of light moving on the waterfalls, left side */
-.shimmer{position:absolute;width:60px;height:220px;left:5%;border-radius:50%;
-  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0) 75%);
-  filter:blur(3px);animation:shimmerFall 2.6s linear infinite}
-.shimmer.s1{top:20%}
-.shimmer.s2{top:38%;left:9%;width:40px;height:160px;animation-duration:3.4s;animation-delay:-1.2s;opacity:.7}
-@keyframes shimmerFall{0%{transform:translateY(-14%);opacity:0}15%{opacity:.9}100%{transform:translateY(14%);opacity:0}}
+/* ---------- start: the planet, live, with the logo in its sky ---------- */
+/* The whole backdrop is one canvas now. The photo it replaced brought a
+   bundle of CSS with it — clouds blowing across, a glint tuned to a coin in
+   the top right, shimmer tuned to a waterfall on the left — and every one of
+   those was pinned to a feature of that particular JPEG. None of them
+   survived it, and nothing here replaces them: the sky is space, the light
+   moves because a real light is moving, and the clouds are gone because the
+   camera is above them. */
+#start{background:#03050e}
+#titleView{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+/* Dark at the top so the logo has something to sit on, dark again at the
+   very bottom for the small print, and out of the way across the middle
+   where the planet's own limb is the picture. */
+.bgfade{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(120% 65% at 50% 108%, rgba(90,160,255,.16) 0%, rgba(3,5,14,0) 62%),
+    linear-gradient(180deg, rgba(3,5,14,.82) 0%, rgba(3,5,14,.30) 26%,
+      rgba(3,5,14,0) 48%, rgba(3,5,14,.55) 100%)}
 
-.sky{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
-.cloud{position:absolute;width:170px;height:52px;background:#fff;border-radius:60px;
-  filter:blur(1px);box-shadow:0 10px 0 rgba(120,180,230,.14);animation:blow linear infinite}
-.cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%}
-.cloud::before{width:76px;height:76px;left:26px;top:-34px}
-.cloud::after{width:54px;height:54px;right:28px;top:-24px}
-.cloud.c1{top:9%;left:-22%;transform:scale(1.05);opacity:.55;animation-duration:52s}
-.cloud.c2{top:20%;left:-30%;transform:scale(.7);opacity:.5;animation-duration:71s;animation-delay:-20s}
-.cloud.c3{top:3%;left:-40%;transform:scale(.5);opacity:.45;animation-duration:63s;animation-delay:-42s}
-.cloud.c4{top:30%;left:-26%;transform:scale(.42);opacity:.4;animation-duration:84s;animation-delay:-11s}
-@keyframes blow{ to{ left:130%; } }
+/* The screen is centred flex for every OTHER card in the game; this one
+   wants the full height so the logo can sit in the sky and the controls can
+   sit down on the planet, with the world itself left alone in between. */
+#start{align-items:stretch;justify-content:stretch;padding:0}
+.hero{position:relative;z-index:2;text-align:center;flex:1;display:flex;
+  flex-direction:column;align-items:center;
+  padding:min(7vh,72px) 20px min(4vh,36px)}
 
-/* dust motes drifting up through the whole scene, for a scene that never
-   quite sits still even when nobody has touched anything yet */
-.motes{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
-.motes span{position:absolute;bottom:-6%;width:6px;height:6px;border-radius:50%;
-  background:radial-gradient(circle,#fff 0%,rgba(255,255,255,0) 70%);
-  opacity:0;animation:moteRise linear infinite}
-.motes span:nth-child(1){left:8%;animation-duration:13s;animation-delay:0s}
-.motes span:nth-child(2){left:20%;width:4px;height:4px;animation-duration:17s;animation-delay:-4s}
-.motes span:nth-child(3){left:35%;animation-duration:15s;animation-delay:-9s}
-.motes span:nth-child(4){left:50%;width:5px;height:5px;animation-duration:19s;animation-delay:-2s}
-.motes span:nth-child(5){left:64%;animation-duration:14s;animation-delay:-7s}
-.motes span:nth-child(6){left:78%;width:4px;height:4px;animation-duration:18s;animation-delay:-12s}
-.motes span:nth-child(7){left:90%;animation-duration:16s;animation-delay:-5s}
-@keyframes moteRise{
-  0%{transform:translateY(0) translateX(0);opacity:0}
-  10%{opacity:.75}
-  90%{opacity:.35}
-  100%{transform:translateY(-92vh) translateX(18px);opacity:0}
-}
-
-.hero{position:relative;z-index:2;text-align:center;padding:10px 20px;display:flex;
-  flex-direction:column;align-items:center;justify-content:center}
-
-/* KORO: chunky, extruded, sitting in the sky like a logo should */
+/* KORO, in orbit. The old logo was navy-on-sky: a dark extrusion to lift it
+   off bright blue. Over space that reads as a hole, so it is inverted —
+   ice-white face, a cold rim, and a wide soft bloom doing the job the drop
+   shadow used to do. */
 .koro-xl{
-  font-family:"Arial Black","Arial Rounded MT Bold",Impact,system-ui,sans-serif;
-  font-size:clamp(58px,13vw,148px);font-weight:900;letter-spacing:.06em;
+  /* THE LOGO, IN THE GAME'S OWN FACE. It was Arial Black — the one piece of
+     lettering on the landing screen that had nothing to do with what the
+     game is. Monospace at its heaviest weight, opened right out: a word
+     where every letter occupies the same column reads as something typed,
+     which is the whole idea. */
+  font-family:var(--font-disp);
+  font-size:clamp(46px,10.5vw,124px);font-weight:900;letter-spacing:.17em;
+  /* the tracking adds a trailing gap, so shift back by half of it to stay
+     optically centred */
+  text-indent:.17em;
   margin:0;line-height:.95;
-  color:#fff;background:none;-webkit-background-clip:border-box;background-clip:border-box;
-  -webkit-text-stroke:clamp(3px,.9vw,9px) #17384f;
+  color:#eef6ff;
+  -webkit-text-stroke:clamp(2px,.5vw,5px) rgba(143,211,255,.55);
   paint-order:stroke fill;
   text-shadow:
-     0 4px 0 #1d4c6b, 0 8px 0 #1d4c6b, 0 12px 0 #17384f,
-     0 16px 0 #12293a, 0 20px 26px rgba(0,40,70,.45);
-  animation:koroFloat 4.6s ease-in-out infinite;
+     0 2px 0 rgba(60,110,190,.55),
+     0 4px 0 rgba(40,80,150,.40),
+     0 0 26px rgba(143,211,255,.55),
+     0 0 76px rgba(96,170,255,.40),
+     0 14px 48px rgba(0,10,30,.60);
+  animation:koroFloat 6.5s ease-in-out infinite;
   transform-origin:50% 100%}
 .koro-sub{font-weight:900;letter-spacing:.34em;font-size:clamp(11px,1.7vw,15px);
-  color:#0f3a54;text-transform:uppercase;margin:26px 0 0;opacity:.8}
+  color:#a8c8e8;text-transform:uppercase;margin:22px 0 0;opacity:.85;
+  text-shadow:0 2px 14px rgba(0,10,30,.9)}
 
-/* the island they stand on */
-.island{position:relative;width:min(400px,80vw);height:210px;margin:22px auto 0}
-#heroView{position:absolute;left:0;right:0;top:-26px;width:100%;height:210px;display:block;z-index:2}
-.island .grass{position:absolute;left:0;right:0;top:112px;height:66px;z-index:1;
-  border-radius:50%;background:linear-gradient(180deg,#8ede5f 0%,#5cb83f 60%,#489a33 100%);
-  box-shadow:inset 0 -6px 0 rgba(0,0,0,.10)}
-.island .dirt{position:absolute;left:24%;right:24%;top:150px;height:80px;z-index:0;
-  background:linear-gradient(180deg,#b9814f 0%,#8b5a33 70%,#6d4526 100%);
-  clip-path:polygon(0 0,100% 0,64% 100%,36% 100%)}
-.island .shade{position:absolute;left:10%;right:10%;top:222px;height:22px;border-radius:50%;
-  background:rgba(20,60,90,.16);filter:blur(6px)}
+/* The controls ride at the bottom, over the planet's own night side, so the
+   middle of the frame is left to the thing worth looking at. */
+/* THE WORDS LIVE IN THE SKY. Pushing the buttons to the foot of the screen
+   put START across the middle of the planet — punched a hole through the one
+   thing this screen has to show. Everything stacks from the top instead, and
+   the bottom half of the frame belongs to the world. */
+.hero .langrow{margin-top:18px}
 
 .btn.bigplay{font-size:clamp(20px,3vw,28px);padding:16px 56px;border-radius:22px;letter-spacing:4px;
   font-weight:900;background:#ffd44d;color:#5a3d00;border:4px solid #fff;
-  box-shadow:0 9px 0 #d9a600, 0 14px 24px rgba(0,50,80,.3);
+  box-shadow:0 9px 0 #d9a600, 0 14px 30px rgba(0,10,30,.55), 0 0 54px rgba(255,212,77,.30);
   animation:playPulse 2.6s ease-in-out infinite;margin-top:26px}
 .btn.bigplay:active{transform:translateY(5px);box-shadow:0 4px 0 #d9a600}
 @keyframes playPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
@@ -933,7 +983,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   .korobg i,.koro,.chr.on img,.bigplay,.chrtile:hover img,.chrtile.on img{animation:none}
   .mis,.chr,.mis .em,.chrtile{transition:none}
   .screen.anim-in,.screen.anim-out,.screen.anim-in .card,.screen.anim-in .hero{animation:none}
-  .bgphoto,.cloud,.motes span,.glint,.shimmer,.koro-xl,.btn.bigplay{animation:none}
+  .koro-xl,.btn.bigplay{animation:none}
 }
 
 
@@ -993,7 +1043,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .libit .li-top span{font-size:10.5px;letter-spacing:1.2px;color:var(--a)}
 .libit p{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.42}
 .libit pre{margin:7px 0 0;background:#141d31;border-radius:8px;padding:7px 9px;
-  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#8ff0ff;
+  font-family:var(--font-code);font-size:12.5px;color:#8ff0ff;
   white-space:pre-wrap;overflow-x:auto}
 .lib-none{grid-column:1/-1;text-align:center;color:var(--muted);padding:26px;font-size:15px}
 .lib-foot{padding:8px 14px;background:#1b2740;font-size:12px;color:var(--muted)}
@@ -1274,7 +1324,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .blk.num .cnt-n{min-width:30px}
 .numin{width:56px;padding:3px 7px;border-radius:8px;border:2px solid rgba(0,0,0,.3);
   background:rgba(0,0,0,.28);color:#fff;font-size:17px;font-weight:bold;text-align:center;
-  font-family:ui-monospace,Menlo,Consolas,monospace}
+  font-family:var(--font-code)}
 .numin:focus{outline:none;border-color:#fff;background:rgba(0,0,0,.45)}
 .cnt[disabled]{opacity:.3}
 
@@ -1306,6 +1356,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .blk.rep .blk-head{background:var(--c);border-radius:10px 10px 0 0;padding:8px 12px;display:flex;align-items:center;gap:7px;font-size:17px}
 .blk.rep .blk-body{margin-left:22px;border-left:8px solid var(--c);padding:8px 0 8px 10px;background:rgba(124,92,255,.10)}
 .blk.rep .blk-foot{height:14px;background:var(--c);border-radius:0 0 10px 10px;margin-right:auto}
+/* A FOREVER HAS NO NOTCH. Every other C-block's foot is a tab you can read
+   as "the next block goes under here"; a forever never reaches one, so its
+   foot is squared off and runs the full width instead. The shape is the
+   lesson — a student who cannot find the bump under it does not stack
+   anything there and never writes the block that silently never runs. */
+.blk.rep.flat .blk-foot{border-radius:0 0 10px 10px;margin-right:0;height:16px;
+  background:repeating-linear-gradient(135deg,var(--c) 0 7px,rgba(0,0,0,.22) 7px 14px)}
 .blk.rep.target .blk-head{outline:3px dashed #fff}
 .blk-x{margin-left:auto;background:rgba(0,0,0,.28);border:none;color:#fff;border-radius:7px;width:26px;height:26px;font-size:14px}
 .cnt{background:rgba(0,0,0,.3);border:none;color:#fff;border-radius:6px;width:26px;height:26px;font-size:17px;line-height:1}
@@ -1315,7 +1372,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .blk-empty{color:var(--muted);font-size:14px;padding:6px 8px;border:2px dashed var(--line);border-radius:8px}
 .blk-empty.big{text-align:center;padding:22px 8px;font-size:16px}
 #conText{flex:1;background:#0e1626;border:3px solid var(--line);border-radius:12px;padding:10px;margin:0;
-  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:#8ff0ff;white-space:pre;overflow:auto}
+  font-family:var(--font-code);font-size:15px;color:#8ff0ff;white-space:pre;overflow:auto}
 .con-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#1b2740}
 .con-hint{font-size:13.5px;color:var(--muted)}
 .con-budget{display:inline-block;background:#1d1730;border:2px solid var(--line);border-radius:9px;
@@ -1364,7 +1421,14 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cg-brief{color:var(--text);font-size:15px;line-height:1.5}
 .cg-brief b{color:var(--peach)}
 .cg-skill{margin-top:8px;padding-top:8px;border-top:2px solid var(--line);font-size:13px}
-.cg-skill b{display:block;color:var(--mint);font-size:15px;margin-bottom:2px}
+/* ONLY THE FIRST ONE IS THE HEADING. The card is built as
+   `<b>name</b>text`, and this rule used to catch every <b> in it — so a
+   mission that emphasised a word in its own sentence got that word thrown
+   onto its own line in mint, with the rest of the clause orphaned under it.
+   The name is the first child; anything a mission bolds inside its own prose
+   is emphasis, and stays in the line. */
+.cg-skill > b:first-child{display:block;color:var(--mint);font-size:15px;margin-bottom:2px}
+.cg-skill b{color:var(--text)}
 .cg-code{margin:0;background:#1d1730;border:2px solid var(--line);border-radius:9px;padding:7px 11px;
   font-size:13.5px;color:var(--sky);white-space:pre;min-width:140px}
 /* THE HINT. It sits where the answer used to sit, so the card does not
@@ -1381,7 +1445,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   font-size:15px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3)}
 .word:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
 #conTA{flex:1;min-height:230px;background:#12192b;border:2px solid var(--line);border-radius:12px;
-  padding:11px 13px;color:#eef3ff;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;
+  padding:11px 13px;color:#eef3ff;font-family:var(--font-code);font-size:16px;
   line-height:1.55;resize:none;outline:none}
 #conTA:focus{border-color:var(--mint)}
 .con-hint b{color:var(--text)}
@@ -1493,7 +1557,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .mk-line{font-size:13.5px;line-height:1.45;display:flex;gap:6px;align-items:baseline}
 .mk-line .who{font-weight:bold;min-width:14px}
 .mk-line.a .who{color:var(--sky)} .mk-line.b .who{color:var(--peach)}
-.mk-line .op{font-family:ui-monospace,Menlo,Consolas,monospace}
+.mk-line .op{font-family:var(--font-code)}
 .mk-t{color:var(--muted)} .mk-yes{color:var(--good);font-weight:bold} .mk-no{color:var(--bad);font-weight:bold}
 .mk-hit{color:var(--star);font-weight:bold} .mk-why{color:var(--muted);font-size:12.5px;font-style:italic}
 
@@ -1918,26 +1982,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <div id="pause" class="screen hidden"></div>
 
 <div id="start" class="screen hidden">
-  <div class="bgwrap" aria-hidden="true">
-    <div class="bgphoto"></div>
-    <span class="glint"></span>
-    <span class="shimmer s1"></span><span class="shimmer s2"></span>
-    <div class="bgfade"></div>
-  </div>
-  <div class="sky" aria-hidden="true">
-    <span class="cloud c1"></span><span class="cloud c2"></span>
-    <span class="cloud c3"></span><span class="cloud c4"></span>
-  </div>
-  <div class="motes" aria-hidden="true">
-    <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-  </div>
+  <!-- THE PLANET, LIVE. What stood here was a photograph of a meadow with
+       blocky figures in it, which is not what one second of this game looks
+       like. This is the real Senio — same noise, same soil, same buildings at
+       the same longitudes — turning, so the first thing anybody learns about
+       this world is the true thing: it is a ball, and it curves away. -->
+  <canvas id="titleView" aria-hidden="true"></canvas>
+  <div class="bgfade" aria-hidden="true"></div>
   <div class="hero">
     <h1 class="koro-xl">KORO</h1>
     <p class="koro-sub" id="sTag"></p>
-    <div class="island">
-      <canvas id="heroView"></canvas>
-      <span class="grass"></span><span class="dirt"></span><span class="shade"></span>
-    </div>
     <button class="btn good bigplay" id="btnStart">START</button>
     <!-- START goes to sign-in until there is an account behind it: the name
          over your head is what the class sees and what the work is saved to -->
@@ -2163,11 +2217,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="race.js?v=411"></script>
 <script src="flight.js?v=411"></script>
 <script src="sub.js?v=411"></script>
+<script src="invaders.js?v=411"></script>
 <script src="school.js?v=411"></script>
 <script src="cruise.js?v=411"></script>
 <script src="club.js?v=411"></script>
 <script src="who.js?v=411"></script>
 <script src="arcade.js?v=411"></script>
+<script src="islands.js?v=411"></script>
 <script src="planet.js?v=411"></script>
 <script src="wallet.js?v=411"></script>
 <script src="shop.js?v=411"></script>
@@ -2181,6 +2237,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="coder.js?v=411"></script>
 <script src="quiz.js?v=411"></script>
 <script src="chars.js?v=411"></script>
+<script src="title.js?v=411"></script>
 <script src="menu.js?v=411"></script>
 <script src="game.js?v=411"></script>
 </body>

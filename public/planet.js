@@ -85,7 +85,7 @@ window.PLANET = (function(){
      from the ground is the things standing up out of it — so that is a
      property of the world too, not a constant in scatter().
 
-     KORO grows wood: trees and boulders, a school field with a wood at the
+     Senio grows wood: trees and boulders, a school field with a wood at the
      edge of it. VOLTA grows glass. Nothing is alive on it; what comes out
      of the ground is lit from inside, which is the only light there is on a
      world whose sky is nearly black. */
@@ -106,7 +106,7 @@ window.PLANET = (function(){
          what makes it shine harder is moving it TOWARDS WHITE, which is
          what a real light does as it gets brighter. */
       trunk:0x3a2a60, leaf:0xff92e4, stone:0x46356e, tall:0.55, glow:true,
-      /* Thicker than KORO's woods per square metre, because on a world with
+      /* Thicker than Senio's woods per square metre, because on a world with
          no grass, no weather and no animals these are the only thing between
          two buildings and the horizon. */
       density:2.4,
@@ -155,7 +155,7 @@ window.PLANET = (function(){
     };
   }
   const HUB={
-    id:'hub', kind:'hub', seed:0, name:'KORO', sub:'everybody lands here',
+    id:'hub', kind:'hub', seed:0, name:'Senio', sub:'everybody lands here',
     /* Radius sets how hard the world curves. The horizon from the chase camera
        is roughly sqrt(2*PR*camHeight), so 92 put it 28 metres out and buildings
        rose out of the ground in front of you. At 320 it is past fifty and the
@@ -163,7 +163,7 @@ window.PLANET = (function(){
     radius:320, sky:0x070a1a, soil:BIOMES[0].soil, biome:'green', relief:9.5,
     /* HOW HIGH YOU MAY FLY, in metres over the ground. A number per world
        rather than one for the game: the whole reason VOLTA is a quarter of
-       the size of KORO is that you are meant to be able to see all of it,
+       the size of Senio is that you are meant to be able to see all of it,
        and a ceiling that let you climb higher than the place is wide would
        put you above a marble. Roughly a third of the radius keeps the
        ground reading as ground — buildings still have size, the horizon
@@ -175,15 +175,15 @@ window.PLANET = (function(){
   /* ------------------------------------------------------- the night world
      VOLTA. Two buildings, and you can see both of them from the pad.
 
-     IT IS SMALL ON PURPOSE, and much smaller than it was. KORO is a school
+     IT IS SMALL ON PURPOSE, and much smaller than it was. Senio is a school
      with a wood round it and it wants a horizon you cannot see the end of;
      this is a place you fly to for one evening, and the walk between the
      door you came in by and the thing you came for should be forty seconds,
      not four minutes. At a radius of 118 the lap is 741 metres against
-     KORO's two thousand, and the ground visibly falls away — which is the
+     Senio's two thousand, and the ground visibly falls away — which is the
      other half of "small": a world you can tell is a ball by standing on it.
 
-     AND IT IS NOT A RECOLOURED KORO. Its own sky, its own soil, and glass
+     AND IT IS NOT A RECOLOURED Senio. Its own sky, its own soil, and glass
      coming out of the ground instead of trees — see FLORA. Nothing grows
      here and nothing is alive out on the surface; the only things that move
      are inside THE LOOP. */
@@ -240,7 +240,8 @@ window.PLANET = (function(){
     { id:'m1',     em:'\u{1F9DF}', name:'Mission 2 — Loops',          a:'#a8e6cf' },
     { id:'m2',     em:'\u{1F52E}', name:'Mission 3 — Choices',        a:'#cdb4f6' },
     { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' },
-    { id:'sub',    em:'\u{1F30A}', name:'Mission 5 — The Trench',      a:'#8ff0ff' }
+    { id:'sub',    em:'\u{1F30A}', name:'Mission 5 — The Trench',      a:'#8ff0ff' },
+    { id:'inv',    em:'\u{1F47E}', name:'Mission 6 — The Swarm',       a:'#a8e6cf' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -266,10 +267,10 @@ window.PLANET = (function(){
      as in front, which makes "walk to the door" a hunt. */
   /* Far enough back to see the whole of whatever you are landing in front
      of — and NOT further, because on a small world "far enough back" walks
-     you over the horizon. Seventy-four metres is 13 degrees of KORO and 36
+     you over the horizon. Seventy-four metres is 13 degrees of Senio and 36
      of VOLTA, and at 36 degrees the building you were meant to be looking
      at has gone below the curve. So it is a fraction of the ball, capped at
-     the distance KORO has always used. */
+     the distance Senio has always used. */
   const landingOff = ()=> Math.min(74, PR*0.24);
   function landingSpot(){
     const b=BUILDINGS[0];
@@ -301,7 +302,7 @@ window.PLANET = (function(){
      else, and gravity is not running. `flying` is the whole of the state —
      everything else it needs is already on `me`, which is what a bird and
      a person on foot genuinely have in common. */
-  let flying=false, dome=null;
+  let flying=false, swimming=false, dome=null;
   let statues=[];                    // the ones that turn on their plinths
   let aoStats=null;                  // what the ray-traced pass cost, for tuning
   /* You, as the planet sees you. G.pos is derived from this, never the
@@ -320,7 +321,7 @@ window.PLANET = (function(){
      spot you last stood on a different planet. */
   let lastYaw=0, backs={};
   /* AND ON DISK, because `backs` on its own only remembers a session. Sign
-     out halfway across KORO and the planet used to forget you entirely: back
+     out halfway across Senio and the planet used to forget you entirely: back
      in, and you were standing on the landing pad again with the walk to
      Mission Control still to do. A spot is six numbers and a world's name, so
      it rides in the progress bag with the coins and the finished missions and
@@ -401,6 +402,7 @@ window.PLANET = (function(){
     if(window.CODER) CODER.hide();
     if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.INVADERS) INVADERS.stop();
     if(window.CLUB) CLUB.stop();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
@@ -411,10 +413,11 @@ window.PLANET = (function(){
     G.ground=null; G.vel.y=0; G.onGround=true;
     others.clear();
     statues=[]; ada=null; bays=[]; purseFace=null; padShip=null; padB=null;
-    mannequins=[]; flies=null; beasts=[]; sparkTex=null;
+    mannequins=[]; flies=null; beasts=[]; sparkTex=null; basins=[];
+    if(window.ISLANDS) ISLANDS.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
-    /* KORO'S THEME, and only on KORO. It is the hub's music, not the
+    /* SENIO'S THEME, and only on Senio. It is the hub's music, not the
        game's: the planet the missions are on gets it, and the arena, the
        home planet, the rooms indoors and the run between the planets do
        not. A theme that plays everywhere stops being a theme. */
@@ -431,6 +434,10 @@ window.PLANET = (function(){
     sky();
     sunLight();                    // day or night, before anything is baked
     padSpec(W);                    // in the list before the ground is made
+    /* AND THE HOLES BEFORE THAT. A pool's position comes off the island's own
+       longitude and radius, so it can be asked for long before there is any
+       water — which is the only way the ground can be dug out for it. */
+    basins = window.ISLANDS ? ISLANDS.spots({ id:W.id, PR, dirOf, frameAt }) : [];
     surface();
     BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
     launchpad(W);                  // its plate, now that its patch is flat
@@ -441,6 +448,11 @@ window.PLANET = (function(){
        on, and the fauna the hub has is the hub's — a herd grazing outside a
        nightclub is a different game. */
     wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 18);
+    /* AND THEN THE SKY. The islands hang over Senio inside the flight
+       ceiling, and everything they need to stand themselves up on a sphere
+       is handed over rather than reached for — this file owns the world, and
+       sky.js should not be keeping a second copy of its radius. */
+    if(window.ISLANDS) ISLANDS.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH });
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
@@ -462,7 +474,7 @@ window.PLANET = (function(){
     /* Every landing is on foot: the dome belonged to the world we left and
        is gone with its room group, and a ceiling is a property of the ball
        you are standing on. */
-    flying=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0;
+    flying=false; swimming=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0;
     if(window.AVATAR) AVATAR.posture(null);
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
@@ -716,7 +728,38 @@ window.PLANET = (function(){
     }
     return k;
   }
-  const terrainH = dir => { const k=padK(dir); return k<=0 ? 0 : rawHeight(dir)*k; };
+  /* ------------------------------------------------------------- basins
+     WHERE SOMETHING HAS DUG A HOLE. The launch pad flattens the ground it
+     stands on; a plunge pool has to do the opposite and sink it, for exactly
+     the same reason — water laid ON a hill is a blue disc pasted over grass,
+     with its own edge standing proud and whatever the scatter planted before
+     it growing up through the middle.
+
+     Carving it HERE rather than in the mesh is what makes it real: terrainH
+     is the collision, the shading, the tree planter and the grass, so one
+     subtraction moves all of them at once and none of them can disagree
+     about where the bank is. The list is filled in before the ground is
+     built, from geometry that does not need the ground to exist. */
+  let basins=[];
+  function basinDrop(dir){
+    let d=0;
+    for(const b of basins){
+      const off=Math.acos(Math.min(1, dir.dot(b.dir)))*PR;
+      if(off>=b.r) continue;
+      /* Squared falloff twice over: a bowl with a soft lip, so the bank
+         eases into the hillside instead of ending at a circle. */
+      const u=off/b.r, s=1-u*u;
+      d=Math.max(d, b.depth*s*s);
+    }
+    return d;
+  }
+  const nearBasin = (dir, k) =>
+    basins.some(b => Math.acos(Math.min(1, dir.dot(b.dir)))*PR < b.r*(k||1));
+  const terrainH = dir => {
+    const k=padK(dir);
+    const h = k<=0 ? 0 : rawHeight(dir)*k;
+    return h - basinDrop(dir);
+  };
 
   /* ------------------------------------------------------------- the floor
      A room is flat and the world is not, and that is a real contradiction,
@@ -774,13 +817,47 @@ window.PLANET = (function(){
      you stand on, indoors.  Zero out on the grass, so this is the ordinary
      case costing four dot products. */
   const FLOOR_COS=0.975;
-  function floorAt(dir){
+  /* Where the lid of a building is, and whether you are over it. The roof
+     slab is centred at H+0.4 and is 0.8 thick, so its top is H+0.8; the
+     overhang is 0.4 proud of the walls on every side. */
+  const roofTopOf = b => (b.H===undefined ? (b.h||9) : b.H) + 0.8;
+  const onRoofPlan = (b,x,z) =>
+    Math.abs(x) <= b.w/2 + 0.4 && Math.abs(z) <= b.d/2 + 0.4;
+
+  /* THE HIGHEST THING UNDER YOU — not the ground under everything.
+
+     This used to answer with the building's FLOOR whenever you were over
+     one, which is right on foot, because on foot you got in through the
+     door. In the air it is wrong, and it is the whole reason a roof was a
+     hologram: fly over the Mall, let go of the throttle, and you sink
+     through two hundred square metres of pastel lid and land on the tiles
+     underneath it.
+
+     So it takes the altitude you are ACTUALLY at. Over the footprint and
+     above the lid, the lid is the floor; anywhere else nothing has changed.
+     The tolerance is what lets you settle onto a roof rather than having to
+     arrive at exactly its height. */
+  function floorAt(dir, alt){
+    /* THE ISLANDS ARE ASKED FIRST, because they are over the top of
+       everything else: if you are standing on one, what is under the rest of
+       you is a hundred metres of air and then a building. They only answer
+       for the column above their own crown, so anywhere else this falls
+       straight through to the ground. */
+    if(window.ISLANDS && alt!==undefined){
+      const deck=ISLANDS.floorAt(dir, alt);
+      if(deck!==null && deck!==undefined) return deck;
+    }
     for(const b of BUILDINGS){
       if(!b.frame || dir.dot(b.dir)<FLOOR_COS) continue;
       const l=local(b, dir.clone().multiplyScalar(PR));
       if(plateOff(b,l.x,l.z)>=apronOf(b)) continue;
       // altitude is measured along the radius, and the floor is not square to it
-      return (plateY(b,l.x,l.z)+PR)/Math.max(0.5, dir.dot(b.dir)) - PR;
+      const radial = y => (y+PR)/Math.max(0.5, dir.dot(b.dir)) - PR;
+      if(alt!==undefined && onRoofPlan(b,l.x,l.z)){
+        const top=radial(roofTopOf(b));
+        if(alt >= top-0.4) return top;
+      }
+      return radial(plateY(b,l.x,l.z));
     }
     return terrainH(dir);            // out in the country, the ground is the hills
   }
@@ -818,13 +895,14 @@ window.PLANET = (function(){
     /* Four hundred over the whole ball rather than eight hundred and twenty.
        A tree every so often is scenery; a tree every few paces is scrub.
        PER UNIT OF SURFACE, though — four hundred spread over VOLTA is seven
-       times the density it is on KORO, and a wood you cannot walk through is
+       times the density it is on Senio, and a wood you cannot walk through is
        not scenery either. */
     const n=Math.round(400*(F.density||1)*Math.min(1, (PR*PR)/(320*320)));
     for(let i=0;i<n;i++){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
       if(BUILDINGS.some(b=>dir.angleTo(dirOf(b.lon,b.lat))*PR < b.w*1.2)) continue;
+      if(nearBasin(dir, 1.15)) continue;      // and not standing in the pool
       if(onPath(dir)) continue;               // and not in the way of the door
       const g=new THREE.Group();
       if(Math.random()<F.tall){
@@ -923,7 +1001,7 @@ window.PLANET = (function(){
      the last one to be seen as a separate thing. */
   function cover(){
     const F=floraOf();
-    /* Both counts are for a world the size of KORO. Scaled by area, because
+    /* Both counts are for a world the size of Senio. Scaled by area, because
        nine hundred pebbles on a ball a third the width is a gravel pit. */
     const per = k => Math.round(k*Math.min(1, (PR*PR)/(320*320)));
     // pebbles, sparse, so bare ground has something to catch the light
@@ -1117,8 +1195,10 @@ window.PLANET = (function(){
     x.strokeStyle='#'+tint.toString(16).padStart(6,'0');
     x.lineWidth=6; x.strokeRect(3,3,506,90);
     x.fillStyle='#eef3ff'; x.textAlign='center'; x.textBaseline='middle';
-    x.font='bold 46px "Trebuchet MS",system-ui,sans-serif';
-    x.fillText(text, 256, 52, 470);
+    /* Shrink to fit rather than let fillText's maxWidth condense the glyphs:
+       "CONTROL DE MISIONES" is half again as long as "MISSION CONTROL". */
+    fitFont(x, text, 42, 470);
+    x.fillText(text, 256, 52);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     return tex;
   }
@@ -1130,7 +1210,7 @@ window.PLANET = (function(){
     x.textAlign='center';
     x.font='92px system-ui,"Apple Color Emoji","Segoe UI Emoji"';
     x.fillText(emoji,128,130);
-    x.fillStyle='#eef3ff'; x.font='bold 26px "Trebuchet MS",system-ui,sans-serif';
+    x.fillStyle='#eef3ff'; x.font='bold 24px '+uiFont();
     /* A newline in the label is a break the caller MEANT — the price under
        the name, not wrapped in beside it. Before this, wrapping was purely by
        width and "Clover 340 ◆" came out as one run of words. */
@@ -1152,12 +1232,246 @@ window.PLANET = (function(){
      its walls, its panels and the boxes that stop you walking through them.
      That is what makes a building on the far side of the world no different
      from one at your feet. */
+  /* ------------------------------------------------------- the workshop
+     The one hall on Senio with nothing in it. It is where you build things
+     with your class, so it is furnished like somewhere things get built:
+     benches down both sides with work half-done on them, racks of stock
+     against the back wall, and a clear floor in the middle because that is
+     where the building actually happens. */
+  function workshopRoom(g, b, hw, hd){
+    const wood=new THREE.MeshLambertMaterial({color:0x6b4f3a});
+    const dark=new THREE.MeshLambertMaterial({color:0x4a3726});
+    const steel=new THREE.MeshLambertMaterial({color:0x8a93a8});
+    const PARTS=[0xffb4a2,0x8fd3ff,0xa8e6cf,0xcdb4f6,0xffe9a8];
+    const add=(geo,mat,x,y,z)=>{ const m=new THREE.Mesh(geo,mat);
+                                 m.position.set(x,y,z); g.add(m); return m; };
+
+    [-1,1].forEach(sx=>{
+      const x=sx*(hw-2.6);
+      for(let i=0;i<3;i++){
+        const z=-hd+5 + i*(b.d-10)/2.6;
+        // a bench: top, two trestles, and a tool rail behind it
+        add(new THREE.BoxGeometry(2.0,0.30,5.0), wood, x, 1.15, z);
+        [-1,1].forEach(sz=>add(new THREE.BoxGeometry(0.35,1.0,0.35), dark,
+                               x, 0.5, z+sz*2.0));
+        add(new THREE.BoxGeometry(0.25,1.5,4.6), steel, x+sx*0.85, 2.1, z);
+        /* HALF-BUILT THINGS. A clean bench is furniture; a bench with three
+           mismatched blocks on it is somebody's afternoon. */
+        for(let k=0;k<3;k++){
+          const c=PARTS[(i*3+k)%PARTS.length], h=0.5+((i+k)%3)*0.35;
+          add(new THREE.BoxGeometry(0.7,h,0.7), new THREE.MeshLambertMaterial({color:c}),
+              x-sx*0.3, 1.3+h/2, z-1.6+k*1.6);
+        }
+      }
+    });
+
+    // stock racks along the back, loaded with the same blocks the benches use
+    for(let i=0;i<4;i++){
+      const x=-hw+7 + i*(b.w-14)/3, z=-hd+1.9;
+      add(new THREE.BoxGeometry(4.0,0.25,1.4), steel, x, 1.5, z);
+      add(new THREE.BoxGeometry(4.0,0.25,1.4), steel, x, 3.0, z);
+      [-1,1].forEach(sx=>add(new THREE.BoxGeometry(0.3,3.2,1.4), steel, x+sx*1.85, 1.6, z));
+      for(let k=0;k<3;k++)
+        add(new THREE.BoxGeometry(0.9,0.9,0.9),
+            new THREE.MeshLambertMaterial({color:PARTS[(i+k)%PARTS.length]}),
+            x-1.2+k*1.2, (k%2?3.6:2.1), z);
+    }
+  }
+
+  /* ----------------------------------------------------- dressing a shed
+     WHAT MAKES A BOX A BUILDING.
+
+     Every one of these was four walls, a floor and a lid. From the air that
+     is a coloured rectangle; from the ground it is a wall with a hole in it.
+     Nothing below changes the footprint, the doorway or where you may walk —
+     it is the parts a real building has that a box does not, and each one is
+     doing a specific job:
+
+       a plinth     buildings stand ON something. Sunk into the apron and
+                    proud of the walls, so the thing rises out of the ground
+                    instead of being set down on top of it.
+       pilasters    a corner needs a vertical, or a long wall reads as a
+                    plane. These go in the collision, because you can see
+                    them and you must not walk through them.
+       a cornice    the line that says where wall stops and roof starts.
+                    Without it the lid looks balanced rather than carried.
+       windows      lit, in rows. This is the one that matters most from the
+                    air: a dark rectangle is a crate, and a rectangle with
+                    warm windows in it is somewhere with people inside.
+       steps        a door you step UP into is a threshold. Flush with the
+                    ground, it is a hole.
+
+     All of it is built from four shared materials rather than one per mesh:
+     a building is forty-odd extra boxes and forty-odd extra materials would
+     be forty-odd extra shader compiles on a machine that has none to spare. */
+  function dress(b, g, hw, hd, H, DOOR){
+    const stone=new THREE.MeshLambertMaterial({
+      color:new THREE.Color(b.wall).multiplyScalar(0.55) });
+    const trim =new THREE.MeshLambertMaterial({color:b.roof});
+    const sill =new THREE.MeshLambertMaterial({
+      color:new THREE.Color(b.roof).multiplyScalar(0.35) });
+    /* Basic, not Lambert: a window is a hole with a light behind it, so it
+       must not take its brightness from the sun outside. */
+    const glass=new THREE.MeshBasicMaterial({color:0xffe4a8});
+    const add=(geo,mat,x,y,z)=>{ const m=new THREE.Mesh(geo,mat);
+                                 m.position.set(x,y,z); g.add(m); return m; };
+
+    /* THE PLINTH. It reaches well below the floor because the apron slopes
+       away on every side — a base that stopped at ground level would show
+       its own underside downhill. */
+    add(new THREE.BoxGeometry(b.w+2.2, 3.2, b.d+2.2), stone, 0, -1.45, 0);
+    add(new THREE.BoxGeometry(b.w+1.4, 0.42, b.d+1.4), trim,  0,  0.21, 0);
+
+    // corner pilasters, and a cap on each so they finish rather than stop
+    const PW=Math.min(2.4, Math.max(1.4, b.w*0.05)), PH=H+1.1;
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
+      const x=sx*hw, z=sz*hd;
+      add(new THREE.BoxGeometry(PW,PH,PW), stone, x, PH/2, z);
+      add(new THREE.BoxGeometry(PW+0.55,0.55,PW+0.55), trim, x, PH+0.27, z);
+      b.solids.push({x1:x-PW/2,x2:x+PW/2,z1:z-PW/2,z2:z+PW/2,y1:0,y2:PH});
+    });
+
+    // the cornice, carrying the eaves
+    add(new THREE.BoxGeometry(b.w+1.7, 0.75, b.d+1.7), trim, 0, H-0.38, 0);
+
+    /* WINDOWS. One row under about fourteen metres, two above it, which is
+       the difference between a shed and a hall. They are three boxes each —
+       a recess, a pane and a sill — and they stop short of the corners so
+       they never grow out of a pilaster. */
+    const rows = H>14 ? 2 : 1;
+    const winH = Math.min(3.0, (H-3)/(rows+0.7));
+    function window_(x,y,z,wide,along){
+      const w = along==='x' ? wide : 0.5, d = along==='x' ? 0.5 : wide;
+      add(new THREE.BoxGeometry(w+0.9, winH+0.9, d+0.9), sill,  x, y, z);
+      add(new THREE.BoxGeometry(w, winH, d),             glass, x, y, z);
+      add(new THREE.BoxGeometry(w+1.2, 0.35, d+1.2),     trim,  x, y-winH/2-0.5, z);
+    }
+    /* A ROW EVENLY UP THE WALL, not bunched at the bottom. The first version
+       started the lowest row at 3.2 and stepped up by the window height,
+       which on an eighteen-metre keep put both rows in the bottom half and
+       left seven metres of blank blue above them. */
+    const yOf = r => H*(rows===1 ? 0.52 : (0.30 + r*0.34));
+    for(let r=0;r<rows;r++){
+      const y=yOf(r);
+      const runX = b.d - PW*2 - 4;
+      const nX = Math.max(2, Math.round(runX/7));
+      for(let i=0;i<nX;i++){
+        const z = -runX/2 + runX*(i+0.5)/nX;
+        window_( hw+0.05, y, z, 2.6, 'z');
+        window_(-hw-0.05, y, z, 2.6, 'z');
+      }
+      const runZ = b.w - PW*2 - 4;
+      const nZ = Math.max(2, Math.round(runZ/7));
+      for(let i=0;i<nZ;i++){
+        const x = -runZ/2 + runZ*(i+0.5)/nZ;
+        window_(x, y, -hd-0.05, 2.6, 'x');
+      }
+      /* THE FRONT, WHICH IS THE FACE EVERYBODY ACTUALLY WALKS UP TO. The
+         doorway is a nine-metre gap in a wall that can be sixty wide, so
+         "only above the door" left the front blank on every building big
+         enough to have a front. Anything clear of the opening gets a window;
+         only the strip directly over the doorway waits for the height. */
+      const DOORHALF=9/2+2.0;
+      for(let i=0;i<nZ;i++){
+        const x = -runZ/2 + runZ*(i+0.5)/nZ;
+        if(Math.abs(x) < DOORHALF && y < DOOR+winH/2+1.0) continue;
+        window_(x, y, hd+0.05, 2.6, 'x');
+      }
+    }
+
+    /* THE THRESHOLD. Three courses stepping down into the apron, and a
+       surround so the doorway is framed rather than punched. They are not in
+       the collision: the apron already ramps you up to the floor, and a step
+       you could walk into is a step that stops you in the doorway. */
+    for(let i=0;i<3;i++){
+      const out=1.1+i*1.15;
+      add(new THREE.BoxGeometry(9+2.4+i*1.4, 0.5, out*2), stone,
+          0, -0.25-i*0.5, hd+out);
+    }
+    [-1,1].forEach(sx=>{
+      add(new THREE.BoxGeometry(1.5, DOOR+1.6, 1.5), stone, sx*(9/2+0.75), (DOOR+1.6)/2, hd);
+    });
+    add(new THREE.BoxGeometry(9+3.0, 1.1, 1.6), trim, 0, DOOR+1.6, hd);
+    /* A LAMP EITHER SIDE OF THE DOOR, because the one thing every one of
+       these buildings is for is being walked into. */
+    [-1,1].forEach(sx=>{
+      add(new THREE.BoxGeometry(0.7,0.7,0.7), glass, sx*(9/2+0.75), DOOR+0.3, hd+1.0);
+    });
+  }
+
+  /* -------------------------------------------------------- the inside
+     A GENERIC ROOM, under whatever the building puts in it. Four of these
+     halls have their own furniture — the console horseshoe, the wardrobe,
+     the showroom, the reading room — and the rest had bare walls and a bare
+     floor, which is what a room looks like before anyone moves in.
+
+     This is the part that is the same in all of them: a floor with a border
+     rather than one flat colour, a rail round the walls at shoulder height,
+     beams overhead, and light coming off the walls instead of out of the
+     air. It goes in FIRST, so anything a specific room adds stands on top. */
+  function indoors(b, g, hw, hd, H, gap){
+    const wood =new THREE.MeshLambertMaterial({color:new THREE.Color(b.wall).multiplyScalar(0.7)});
+    const trim =new THREE.MeshLambertMaterial({color:b.roof});
+    const warm =new THREE.MeshBasicMaterial({color:0xffe4a8});
+    const add=(geo,mat,x,y,z,rot)=>{ const m=new THREE.Mesh(geo,mat);
+      m.position.set(x,y,z); if(rot) m.rotation.y=rot; g.add(m); return m; };
+
+    /* A BORDER ON THE FLOOR. Not decoration for its own sake: a room whose
+       floor runs edge to edge in one colour has no readable size, and these
+       halls are sixty metres across. */
+    add(new THREE.BoxGeometry(b.w-2.5, 0.14, b.d-2.5), trim, 0, 0.07, 0);
+    add(new THREE.BoxGeometry(b.w-5.5, 0.16, b.d-5.5), wood, 0, 0.09, 0);
+    /* and a runner out to the door, so the inlay does not stop in mid-air
+       where somebody is about to walk in */
+    add(new THREE.BoxGeometry(gap-1.0, 0.15, 3.4), wood, 0, 0.08, hd-1.6);
+
+    /* A RAIL ROUND THE WALLS, AND A SKIRTING UNDER IT — ROUND THE WALLS,
+       which is not the same as across the room. The first version ran both
+       of them the full width of all four sides, and the front wall of this
+       building is a sixty-metre run with a nine-metre HOLE in the middle of
+       it: the rail crossed the doorway at chest height and the skirting lay
+       over the threshold, so walking into Mission Control meant walking
+       through two blue sticks. A wall with a door in it is two walls. */
+    const run=[[0,-hd+0.6, b.w-1.6, 1],                 // back
+               [-hw+0.6, 0, 1, b.d-1.6],[ hw-0.6, 0, 1, b.d-1.6]];   // sides
+    const side=(b.w-gap)/2;                             // the front, either side
+    run.push([-(gap/2+side/2), hd-0.6, side-1.2, 1]);
+    run.push([ (gap/2+side/2), hd-0.6, side-1.2, 1]);
+    run.forEach(([x,z,w,d])=>{
+      add(new THREE.BoxGeometry(w===1?0.5:w, 0.5, d===1?0.5:d), trim, x, 3.1, z);
+      add(new THREE.BoxGeometry(w===1?0.7:w, 0.7, d===1?0.7:d), wood, x, 0.35, z);
+    });
+
+    /* BEAMS. A ceiling you can read the height of is a ceiling; a flat lid
+       eighteen metres up is a sky with a colour. */
+    const nB=Math.max(3, Math.round(b.d/9));
+    for(let i=0;i<nB;i++){
+      const z=-hd+ (i+0.5)*(b.d/nB);
+      add(new THREE.BoxGeometry(b.w-1.2, 0.8, 1.0), wood, 0, H-1.1, z);
+    }
+
+    /* SCONCES, down both long walls. Three point lights, not one per sconce:
+       the glowing box is what you SEE, and light enough of them and a lab
+       machine starts dropping frames for a difference nobody can name. */
+    const nL=Math.max(2, Math.round(b.d/11));
+    for(let i=0;i<nL;i++){
+      const z=-hd+ (i+0.5)*(b.d/nL);
+      [-1,1].forEach(sx=>{
+        add(new THREE.BoxGeometry(0.5,1.3,0.5), trim, sx*(hw-0.9), 4.6, z);
+        add(new THREE.BoxGeometry(0.8,0.8,0.8), warm, sx*(hw-1.3), 5.4, z);
+      });
+    }
+    const glow=new THREE.PointLight(0xffe0b0, 90, Math.max(b.w,b.d), 1.6);
+    glow.position.set(0, H*0.6, 0); g.add(glow);
+  }
+
   function build(b){
     const dir=dirOf(b.lon, b.lat);
     const g=new THREE.Group();
     const f=stand(g, dir, 0);
     G.roomGroup.add(g);
     b.g=g; b.dir=dir; b.frame=f; b.solids=[];
+    b.H=b.h||9;            // what floorAt() measures the lid from
     g.userData.b=b;
 
     /* Height is the building's own business now. A hall with six statues in
@@ -1182,7 +1496,7 @@ window.PLANET = (function(){
     put(0, hd, gap, 1, H-DOOR, DOOR);        // lintel, above head height
 
     /* A DARK UNDERSIDE. A roof is a pastel slab so that it reads from the
-       air and across a field, and on KORO that is the only way you ever see
+       air and across a field, and on Senio that is the only way you ever see
        one. VOLTA is small enough that standing thirty metres from a building
        puts your eye well below its eaves — the ground has curved that far in
        thirty metres — and the first thing you saw of the Gym was two hundred
@@ -1213,6 +1527,14 @@ window.PLANET = (function(){
                                    transparent:true, side:THREE.DoubleSide}));
     sign.position.set(0, H+1.2+HH/2, hd+0.25); g.add(sign);
 
+    /* EVERY building gets a base, corners, eaves, windows and a threshold,
+       and every one gets a floor with a border and light off its walls. The
+       rooms that furnish themselves do it on top of this rather than instead
+       of it — the Mall was never short of a wardrobe, it was short of a
+       skirting board. */
+    dress(b, g, hw, hd, H, DOOR);
+    indoors(b, g, hw, hd, H, gap);
+
     if(b.id==='missions'){
       castle(b, g, hw, hd, H, put);
       /* Round the room, not in a rank. Six consoles in a line is a corridor
@@ -1227,7 +1549,8 @@ window.PLANET = (function(){
         { x:-hw+8, z:-10, r: Math.PI/4 },   // down the left, turned toward the gate
         { x:-hw+8, z:  7, r: Math.PI/4 },
         { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
-        { x: hw-8, z:  7, r:-Math.PI/4 }
+        { x: hw-8, z:  7, r:-Math.PI/4 },
+        { x: hw-8, z: 22, r:-Math.PI/4 }    // the right-hand side's own far end
       ];
       /* A statue stands BEHIND its console, and a plinth is four metres square,
          so "behind" has to be somewhere there is four metres of room. Get that
@@ -1251,6 +1574,9 @@ window.PLANET = (function(){
          it wants from the planet is the tools every interior uses. */
       if(window.CLUB) CLUB.room(g, b, hw, hd, { panel, lam, t });
       else panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+    } else if(b.id==='workshop'){
+      panel(g,b, 0, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
+      workshopRoom(g, b, hw, hd);
     } else if(b.id==='mall'){
       mallroom(g, b, hw, hd);
     } else if(b.id==='mechanic'){
@@ -1285,7 +1611,7 @@ window.PLANET = (function(){
      smaller circle puts about a hundred and fifty in view. */
   let flies=null, flyHome=null, flyPhase=null, flyT=0;
   // and the texture is thrown away with the room, like everything else here
-  /* Four thousand over a hundred and seventy metres of KORO. Both numbers
+  /* Four thousand over a hundred and seventy metres of Senio. Both numbers
      are about a DENSITY, so both follow the ball: on VOLTA a 170-metre
      cloud is wider than the planet, and four thousand of them inside it put
      a firefly every few centimetres — which is not a summer evening, it is
@@ -2454,7 +2780,7 @@ window.PLANET = (function(){
     /* THE CEILING, AND THE GROUND. Both are walls rather than surprises:
        you stop rising and the dome lights up, or you stop falling and are
        standing on your feet again. */
-    const floor=floorAt(me.dir), roof=floor+ceilingOf();
+    const floor=floorAt(me.dir, me.alt), roof=floor+ceilingOf();
     me.alt += me.climb*dt;
     if(me.alt>=roof){ me.alt=roof; me.climb=Math.min(0,me.climb); }
     if(me.alt<=floor+AIR.floor){
@@ -2487,7 +2813,7 @@ window.PLANET = (function(){
   function land(){
     flying=false;
     me.air=0; me.climb=0; me.bank=0;
-    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true;
+    me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
     if(window.AVATAR) AVATAR.posture(null);
     if(dome) dome.visible=false;
     if(streak) streak.line.visible=false;
@@ -2497,9 +2823,10 @@ window.PLANET = (function(){
   }
   function takeOff(){
     if(ride) toggleRide();               // you cannot fly a car
+    swimming=false;                      // and you can take off out of water
     flying=true;
     me.air=0; me.climb=AIR.rise*0.5; me.bank=0; me.onGround=false; me.vy=0;
-    me.alt=Math.max(me.alt, floorAt(me.dir)+AIR.floor);
+    me.alt=Math.max(me.alt, floorAt(me.dir, me.alt)+AIR.floor);
     if(window.AVATAR) AVATAR.posture('fly');
     buildDome(); buildStreaks();
     if(window.MUSIC && MUSIC.whoosh) MUSIC.whoosh();
@@ -2682,8 +3009,8 @@ window.PLANET = (function(){
 
     const f =(G.keys.KeyW||G.keys.ArrowUp?1:0)-(G.keys.KeyS||G.keys.ArrowDown?1:0);
     const sd=(G.keys.KeyD?1:0)-(G.keys.KeyA?1:0);
-    const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight);
-    const spd=(running?11:6.5)*(ride?RIDE_SPEED:1);
+    const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !swimming;
+    const spd=swimming ? 3.4 : (running?11:6.5)*(ride?RIDE_SPEED:1);
 
     let moved=false;
     if(f||sd){
@@ -2712,13 +3039,46 @@ window.PLANET = (function(){
            || (sd ? tryMove(right.clone().multiplyScalar(sd)) : false);
       if(moved) G.stats.steps += spd*dt;
     }
-    // indoors the ground under you is the building's floor, not the ball
-    const floor=floorAt(me.dir);
-    if(me.onGround && G.keys.Space){ me.vy=JUMP; me.onGround=false; }
-    if(me.onGround) me.alt=floor;
-    else {
-      me.vy-=GRAV*dt; me.alt+=me.vy*dt;
-      if(me.alt<=floor){ me.alt=floor; me.vy=0; me.onGround=true; }
+    /* Indoors the ground under you is the building's floor, not the ball —
+       and up on the lid it is the lid, which is why the altitude goes in. */
+    const floor=floorAt(me.dir, me.alt);
+
+    /* ------------------------------------------------------- swimming
+       WATER IS NOT A FLOOR AND IT IS NOT A FALL. The plunge pool is eight
+       metres deep, so walking in off the bank used to mean sinking to the
+       bottom and standing there with the surface four metres over your head
+       — the ground was still the ground and gravity still won.
+
+       So: where there is water, and it is deeper than you are tall, the
+       surface becomes what you rest on. You float UP to it if you are
+       under, you stop falling, and the body goes horizontal — which is the
+       whole read of a person in water rather than a person in a hole.
+
+       The depth test is what stops the edges of a lake behaving like the
+       middle of one: ankle-deep water is something you wade through, and
+       being put into a swimming pose to cross a puddle is worse than
+       nothing. */
+    const surf = window.ISLANDS ? ISLANDS.waterAt(me.dir) : null;
+    const swimHere = surf!==null && (surf-floor) > 1.6 && me.alt < surf+0.35;
+    if(swimHere){
+      if(!swimming){ swimming=true; if(window.AVATAR) AVATAR.posture('swim'); }
+      /* Eased rather than snapped: you sink a little on the way in and come
+         back up, which is most of what entering water looks like. */
+      me.alt += (surf-me.alt)*Math.min(1, dt*3.2);
+      me.vy=0; me.onGround=false;
+    } else {
+      if(swimming){ swimming=false; if(window.AVATAR) AVATAR.posture(null); }
+      if(me.onGround && G.keys.Space){ me.vy=JUMP; me.onGround=false; }
+      /* WALKED OFF AN EDGE. Without this, stepping off a roof does not drop
+         you — it teleports you, because a grounded walker is pinned to
+         whatever floorAt last said and the answer changed by nine metres
+         between one frame and the next. */
+      else if(me.onGround && floor < me.alt-0.6){ me.onGround=false; me.vy=0; }
+      if(me.onGround) me.alt=floor;
+      else {
+        me.vy-=GRAV*dt; me.alt+=me.vy*dt;
+        if(me.alt<=floor){ me.alt=floor; me.vy=0; me.onGround=true; }
+      }
     }
     place(dt, moved, running);
     if(window.GUN) GUN.update(dt, moved);
@@ -2884,6 +3244,7 @@ window.PLANET = (function(){
   /* Would standing here put us inside a wall? Only buildings anywhere near
      are worth asking, which on a sphere is a cheap angular test. */
   function blocked(dir){
+    if(window.ISLANDS && ISLANDS.blocked(dir, me.alt)) return true;
     const p=dir.clone().multiplyScalar(PR + me.alt);
     for(const b of BUILDINGS){
       if(!b.frame || dir.angleTo(b.dir)*PR > b.w+b.d) continue;
@@ -3151,7 +3512,7 @@ window.PLANET = (function(){
     const c=document.createElement('canvas'); c.width=256; c.height=64;
     const x=c.getContext('2d');
     x.fillStyle='rgba(29,23,48,.85)'; x.fillRect(0,14,256,36);
-    x.fillStyle='#a8e6cf'; x.font='bold 26px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.fillStyle='#a8e6cf'; x.font='bold 24px '+uiFont(); x.textAlign='center';
     x.fillText(String(name||'').slice(0,16),128,42);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
@@ -3203,6 +3564,7 @@ window.PLANET = (function(){
       CLUB.tick(dt, near);
     }
     flyTick(dt); beastTick(dt);
+    if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){
@@ -3492,7 +3854,7 @@ window.PLANET = (function(){
     x.closePath(); x.fill();
     /* THE NAME OF THE BALL YOU ARE STANDING ON. It used to be the name of
        the multiplayer lobby, which offline is nothing, so it said HOME
-       PLANET — on KORO, and on VOLTA, and on the home planet, all three.
+       PLANET — on Senio, and on VOLTA, and on the home planet, all three.
        Every world has had a name of its own since there was more than one
        of them. */
     const nm=document.querySelector('#pmapName');

@@ -694,7 +694,7 @@ window.FLIGHT = (function(){
        flight does not run, so it is told once and put back on the way out. */
     if(wasFP===null) wasFP=!!G.firstPerson;
     G.firstPerson=false;
-    if(window.GUN) GUN.update(0,false);
+    if(window.GUN) GUN.carried(false);
     G.ground=null;
     G.pos.set(laneX(L.col), laneY(L.row), 0);
     G.yaw=0; G.pitch=0; G.vel.y=0; G.onGround=true;
@@ -1811,7 +1811,7 @@ window.FLIGHT = (function(){
     ship=null;
     G.ground=null;
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null;
-                      if(window.GUN) GUN.update(0,false); }
+                      if(window.GUN) GUN.carried(false); }
     const fb=document.querySelector('#fbeat'); if(fb) fb.classList.add('hidden');
     const rd=document.querySelector('#radar'); if(rd){ rd.classList.add('hidden'); rd.innerHTML=''; }
     document.querySelector('#mapwrap').classList.remove('hidden');

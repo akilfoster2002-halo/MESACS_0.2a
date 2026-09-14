@@ -53,7 +53,7 @@ window.MECHA = (function(){
     /* The blaster belongs to a person walking around a planet. There is
        nobody holding anything in here — you are outside a machine looking
        at it — so it goes away the way the flight deck puts it away. */
-    if(window.GUN) GUN.update(0,false);
+    if(window.GUN) GUN.carried(false);
     ['#mapwrap','#health','#skill','#trigger','#objectives','#crosshair','#focus','#briefing']
       .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     $('#hud').classList.remove('hidden');

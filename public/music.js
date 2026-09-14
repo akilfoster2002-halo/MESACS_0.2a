@@ -19,7 +19,7 @@
    ===================================================================== */
 window.MUSIC = (function(){
   const TRACKS = {
-    /* KORO's theme. It plays out on the hub — the planet the missions are
+    /* Senio's theme. It plays out on the hub — the planet the missions are
        on — and nowhere else: not on the title, not indoors, not on VOLTA
        and not between them. A theme that follows you everywhere is not a
        theme, it is a hold tone. */

@@ -39,9 +39,9 @@ window.CRUISE = (function(){
      wherever they happened to take off. Two people cannot see each other in
      two different frames — and this is also what lets one of you fly out
      while the other flies back, and pass. */
-  const KORO_AT  = new THREE.Vector3(0, 0, 0);
+  const SENIO_AT  = new THREE.Vector3(0, 0, 0);
   const VOLTA_AT = new THREE.Vector3(0, 0, -TRIP);
-  const spotOf = id => id==='arena' ? VOLTA_AT : KORO_AT;
+  const spotOf = id => id==='arena' ? VOLTA_AT : SENIO_AT;
 
   const ARRIVE = 780;                    // how close counts as orbit
   /* Something thirty-six kilometres away is past the far plane, and drawing
@@ -459,7 +459,7 @@ window.CRUISE = (function(){
     const c=document.createElement('canvas'); c.width=256; c.height=64;
     const x=c.getContext('2d');
     x.fillStyle='rgba(10,16,34,.82)'; x.fillRect(0,14,256,36);
-    x.fillStyle='#8ff0ff'; x.font='bold 26px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.fillStyle='#8ff0ff'; x.font='bold 24px '+uiFont(); x.textAlign='center';
     x.fillText(String(name||'').slice(0,16),128,42);
     const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace;
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx, transparent:true,
@@ -687,7 +687,7 @@ window.CRUISE = (function(){
        <div class="cmark" id="cmark"><i></i></div>`;
     document.body.appendChild(el);
     document.querySelector('#cdest').textContent=
-      t('COURSE: {n}',{n: dest==='arena' ? 'VOLTA' : 'KORO'});
+      t('COURSE: {n}',{n: dest==='arena' ? 'VOLTA' : 'Senio'});
   }
   function say(msg, big){
     const b=document.querySelector('#briefing'); if(!b) return;
@@ -911,7 +911,7 @@ window.CRUISE = (function(){
   /* ------------------------------------------------------------- arriving */
   function land(){
     done=true;
-    say(t('Entering orbit over {n}…',{n: dest==='arena'?'VOLTA':'KORO'}), true);
+    say(t('Entering orbit over {n}…',{n: dest==='arena'?'VOLTA':'Senio'}), true);
     if(document.pointerLockElement) document.exitPointerLock();
     setTimeout(()=>{
       if(!on) return;

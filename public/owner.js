@@ -33,7 +33,7 @@ window.OWN = (function(){
     const c=document.createElement('canvas'); c.width=256; c.height=64;
     const x=c.getContext('2d');
     const s=String(text||'').slice(0,16);
-    x.font='bold 25px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.font='bold 23px '+uiFont(); x.textAlign='center';
     const w=Math.min(248, x.measureText(s).width+30);
     x.fillStyle='rgba(14,20,34,.82)';
     x.beginPath();

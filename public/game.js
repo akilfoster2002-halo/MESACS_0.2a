@@ -130,6 +130,43 @@ function resize(){
 }
 
 /* ------------------------------------------------------- canvas labels */
+/* THE SIGNS IN THE WORLD ARE LETTERED LIKE THE PAGE. Building nameplates,
+   the badge over somebody's head, the sign outside Mission Control: all of
+   them are text painted into a canvas and hung in the scene, and every one
+   of them used to name Trebuchet by hand. They ask the stylesheet instead,
+   so the game has ONE typeface setting rather than eleven copies of one.
+   Read once — this runs per texture, and getComputedStyle is not free. */
+let _uiFont=null;
+function uiFont(){
+  if(_uiFont===null){
+    try{ _uiFont=getComputedStyle(document.documentElement)
+                  .getPropertyValue('--font').trim(); }catch(e){ _uiFont=''; }
+    if(!_uiFont) _uiFont='ui-monospace,Menlo,Consolas,monospace';
+  }
+  return _uiFont;
+}
+window.uiFont=uiFont;
+/* SHRINK TO FIT, DO NOT SQUASH. fillText's own maxWidth argument does not
+   wrap and does not shrink — it SCALES THE GLYPHS HORIZONTALLY, so a label
+   one character too long comes out condensed. On a proportional face that is
+   ugly; on a monospace one it is self-defeating, because equal-width letters
+   are the entire reason for the typeface. Step the size down until the string
+   fits honestly.
+
+   It matters most in Spanish. "MISSION CONTROL" fits the sign over the door
+   with two pixels to spare and "CONTROL DE MISIONES" is half as long again,
+   so the sign a Spanish-reading student walks up to was the one that came out
+   squeezed — the wrong half of the room to take the compromise. */
+function fitFont(x, text, px, maxW, weight){
+  const w = weight===undefined ? 'bold ' : (weight ? weight+' ' : '');
+  let s=Math.round(px);
+  for(; s>8; s--){
+    x.font = w + s + 'px ' + uiFont();
+    if(x.measureText(text).width <= maxW) break;
+  }
+  return s;
+}
+window.fitFont=fitFont;
 const texCache = {};
 function panelTexture(emoji, label, bg, fg){
   const key = emoji+'|'+label+'|'+bg;
@@ -142,7 +179,7 @@ function panelTexture(emoji, label, bg, fg){
   x.font='120px "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif';
   x.fillText(emoji, 128, 150);
   x.fillStyle=fg||'#ffffff';
-  x.font='bold 30px "Trebuchet MS",system-ui,sans-serif';
+  fitFont(x, label, 27, 232);
   x.fillText(label, 128, 210);
   const tex=new THREE.CanvasTexture(c);
   tex.colorSpace=THREE.SRGBColorSpace;
@@ -154,8 +191,11 @@ function textTexture(lines, bg, size){
   x.fillStyle=bg; x.fillRect(0,0,256,256);
   x.strokeStyle='rgba(255,255,255,.25)'; x.lineWidth=5; x.strokeRect(4,4,248,248);
   x.fillStyle='#eef3ff'; x.textAlign='center';
-  x.font='bold '+(size||30)+'px "Trebuchet MS",system-ui,sans-serif';
-  lines.forEach((l,i)=>x.fillText(l, 128, 70 + i*44));
+  /* Per LINE, because one long word must not shrink the short line above it.
+     This plate had no width limit at all, so a Spanish arena name simply ran
+     off both ends of its own canvas. */
+  lines.forEach((l,i)=>{ fitFont(x, l, (size||30)*0.9, 232);
+                         x.fillText(l, 128, 70 + i*44); });
   const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
   return tex;
 }
@@ -243,11 +283,19 @@ const GUN=(function(){
     get chosen(){ return chosen; },
     get models(){ return MODELS; },
     kick(){ kick=1; if(flash){ flash.visible=true; setTimeout(()=>flash.visible=false,70); } },
+    /* IS ANYBODY HOLDING IT. This used to be decided inside update(), which
+       is only called while you are walking about — so the moment a mission
+       ended the question stopped being asked and the answer stayed at
+       whatever it was. The gun hangs off the CAMERA, and the camera draws
+       every frame whether a menu is over it or not, so a stale `true` left a
+       blaster floating across the title screen and the character picker,
+       visible for the quarter-second a screen spends fading out. One owner,
+       asked once a frame, from the loop. */
+    carried(on){ if(g) g.visible = !!on; },
     update(dt, moving){
       if(!g) return;
       kick=Math.max(0, kick-dt*7);
       bob+= moving? dt*9 : 0;
-      g.visible=!!G.firstPerson;
       g.position.set(HOME.x + Math.sin(bob)*0.02,
                      HOME.y + Math.abs(Math.cos(bob))*0.018 - kick*0.05,
                      HOME.z + kick*0.20);
@@ -317,7 +365,8 @@ function updateCodeBtn(){
   // mission you cannot open the console in is a mission you cannot play.
   const flying = !!(window.FLIGHT && FLIGHT.active);
   const piloted = flying
-    || !!(window.SUB && SUB.active) || !!(window.SCHOOL && SCHOOL.active);
+    || !!(window.SUB && SUB.active) || !!(window.SCHOOL && SCHOOL.active)
+    || !!(window.INVADERS && INVADERS.active);
   const usable = (G.running || piloted) && !CODE.isOpen() &&
     (PUZZLE.active || NAV.active || piloted || (G.hudOwner==='mission' && G.missionId));
   if(usable===codeBtnState) return;
@@ -421,6 +470,7 @@ function startMissionRoom(id){
   COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
   if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+  if(window.INVADERS) INVADERS.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(resumeAt('race')); return; }   // and the circuit its own track
   if(id==='nav'){ NAV.start(resumeAt('nav')); return; }      // the corridor is its own room
@@ -439,6 +489,9 @@ function startMissionRoom(id){
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
   if(id==='sub'){ if(window.SUB) SUB.start(resumeAt('sub')); return; }
+  /* The swarm draws its own board and looks at it side on, the way the
+     trench draws its own seabed. */
+  if(id==='inv'){ if(window.INVADERS) INVADERS.start(resumeAt('inv')); return; }
   /* Flight School draws its own sheet of graph paper. */
   if(id==='school'){ if(window.SCHOOL) SCHOOL.start(resumeAt('school')); return; }
   G.hudOwner='mission';
@@ -472,6 +525,20 @@ function startMissionRoom(id){
    Whatever is still owed is paid on the way out with a beacon, which is
    the only kind of request a closing tab is allowed to finish. */
 const PROGRESS=(function(){
+  /* THE CHAIN, AND WHAT IS DELIBERATELY NOT IN IT.
+
+     Each id here needs the one before it finished. That spine is right for
+     the missions that build on each other — Choices is not worth opening
+     before Loops — but a station left OUT of this list is open from the
+     first minute, and three of them already are: Level 0, Flight School and
+     Space Explorer.
+
+     The Swarm is the fourth, and for the same reason those are. It is the
+     game that goes with a thirty-minute lesson on loops, so the class that
+     is having that lesson today has to be able to walk into it today. Chain
+     it behind the Trench and a teacher's whole period is spent getting four
+     missions out of the way before the one they came for. What gates it is
+     the lesson, not the save file. */
   const ORDER=['nav','m1','m2','m3','sub'];
   const SAVE_MS=1200;
   let done={};
@@ -681,10 +748,12 @@ function wireInput(){
        button. Without this, C is dead in the one mission whose whole mechanic
        is pressing C. FLIGHT.busy is deliberately NOT in the guard list below:
        freezing the field MID-run is the point of it. */
-    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active) || (window.SCHOOL && SCHOOL.active));
+    const flyingNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active) || (window.SCHOOL && SCHOOL.active)
+                         || (window.INVADERS && INVADERS.active));
     if((e.code==='KeyC'||e.code==='Tab') && (G.running||flyingNow) && !typingInField(e)
        && (PUZZLE.active || NAV.active || TUTOR.active || RACE.active
            || (window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active) || (window.SCHOOL && SCHOOL.active)
+           || (window.INVADERS && INVADERS.active)
            || G.room==='arena')
        && !COMBAT.busy && !COMBAT.dead && !PUZZLE.busy && !NAV.busy && !TUTOR.busy && !RACE.busy){
       e.preventDefault();
@@ -734,6 +803,7 @@ function loop(now){
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
   if(window.SUB && SUB.active) SUB.tick(dt);       // the current runs while you write
   if(window.SCHOOL && SCHOOL.active) SCHOOL.tick(dt);  // and the avatar finishes its move
+  if(window.INVADERS && INVADERS.active) INVADERS.tick(dt);   // and the swarm keeps flying
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* The live arena runs on the frame rather than inside the frozen-world
@@ -762,7 +832,18 @@ function loop(now){
     if(G.room==='free') FREE.tick(dt);
   }
   shade();
+  /* NOBODY IS HOLDING A GUN ON A MENU. Decided here rather than wherever the
+     last room left it, because this is the line that draws — and a full
+     screen over the top is not cover: a screen fading out is transparent for
+     a quarter of a second, which is exactly when the phantom was seen. */
+  if(window.GUN) GUN.carried(G.running && G.firstPerson && !overlayUp());
   G.renderer.render(G.scene,G.camera);
+}
+/* Is one of the full-screen cards up — sign-in, the character picker, the
+   mission grid, the title? They all carry .screen, and while any of them is
+   showing the 3D canvas behind it is scenery nobody asked for. */
+function overlayUp(){
+  return !!document.querySelector('.screen:not(.hidden)');
 }
 /* Every room builds its own meshes and none of them think about shadows, so
    rather than teach seven builders the same lesson, the flags go on once per
@@ -1061,6 +1142,7 @@ CODE.onRun=(steps)=>{
   if(window.MECH && MECH.active) MECH.run();
   else if(window.SUB && SUB.active) SUB.run();
   else if(window.SCHOOL && SCHOOL.active) SCHOOL.run();
+  else if(window.INVADERS && INVADERS.active) INVADERS.run();
   else if(window.FLIGHT && FLIGHT.active) FLIGHT.run(steps);
   else if(RACE.active) RACE.run(steps);
   else if(TUTOR.active) TUTOR.run(steps);

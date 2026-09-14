@@ -791,6 +791,105 @@ window.ES = {
   'Write a whole assignment, like <b>x = 2</b> or <b>x = x + 1</b>.':
     'Escribe una asignación completa, como <b>x = 2</b> o <b>x = x + 1</b>.',
 
+  /* ---------- the swarm: loops, in the shape of an invasion ---------- */
+  'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
+  'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
+  'One Rank':'Una Fila','The Grid':'La Cuadrícula','The Long March':'La Marcha Larga',
+  'Break the Shield':'Rompe el Escudo','The Listener':'El Oyente',
+  'Shield':'Escudo','a volley':'por descarga','needed':'necesarios',
+  'launches the swarm':'lanza el enjambre',
+  'The swarm has its orders.':'El enjambre tiene sus órdenes.',
+  'The swarm is gone.':'El enjambre ha desaparecido.',
+  'The swarm flew into the fortress.':'El enjambre chocó contra la fortaleza.',
+  'The shield was down — and the swarm kept descending into the wreck.':
+    'El escudo había caído — y el enjambre siguió bajando hacia las ruinas.',
+  'Your program ended. The fortress did not.':'Tu programa terminó. La fortaleza no.',
+  '{n} invaders is not enough — the shield grew back.':
+    '{n} invasores no bastan — el escudo volvió a crecer.',
+  'That did not break it.':'Eso no lo rompió.',
+  /* the trench has always said this one too, and has always said it in
+     English — t() falls back to its key, so a missing line is invisible */
+  'Press <b>C</b> and try again.':'Presiona <b>C</b> e inténtalo de nuevo.',
+  '✅ The fortress is down.':'✅ La fortaleza ha caído.',
+  '🏅 The fortress is down. Counted, watched and never-ending — all three loops.':
+    '🏅 La fortaleza ha caído. Contado, vigilado y sin fin — los tres bucles.',
+  'That loop is still going round. Nothing inside it changes <b>{c}</b> — what would have to happen for that to come true?':
+    'Ese bucle sigue dando vueltas. Nada adentro cambia <b>{c}</b> — ¿qué tendría que pasar para que se volviera verdadera?',
+  'The swarm has gone round and round and nothing has changed. Is the block that was meant to do something <b>inside</b> the loop?':
+    'El enjambre ha dado vueltas y vueltas y nada ha cambiado. ¿Está <b>dentro</b> del bucle el bloque que debía hacer algo?',
+  /* the sensors */
+  'the shield is down':'el escudo ha caído','over the fortress':'sobre la fortaleza',
+  'at the edge':'en el borde',
+  /* the blocks this mission adds */
+  'forever':'por siempre',
+  'spawn()':'aparecer()','nextRow()':'siguienteFila()','across()':'cruzar()',
+  'down()':'bajar()','fire()':'disparar()',
+  'Put one invader here, and step the cursor right':
+    'Pon un invasor aquí y mueve el cursor a la derecha',
+  'Drop the cursor to the start of the next row down':
+    'Baja el cursor al inicio de la siguiente fila',
+  'The whole formation slides one column sideways':
+    'Toda la formación se desliza una columna de lado',
+  'The whole formation drops one row towards the fortress':
+    'Toda la formación baja una fila hacia la fortaleza',
+  'Every invader in the swarm fires once, straight down':
+    'Cada invasor del enjambre dispara una vez, hacia abajo',
+  'Do the blocks inside over and over, until the mission ends':
+    'Repite los bloques de adentro una y otra vez, hasta que la misión termine',
+  '<b>forever</b> is not in this mission yet.':'<b>por siempre</b> no está en esta misión todavía.',
+  /* what each stage is teaching */
+  'Eight invaders, two blocks':'Ocho invasores, dos bloques',
+  'Both put eight on the board. Only one of them changes by editing a single number.':
+    'Escribir aparecer() ocho veces y escribirlo una vez dentro de un repetir ponen los mismos ocho invasores en el tablero. Uno de ellos lo cambias editando un solo número.',
+  'A loop inside a loop':'Un bucle dentro de un bucle',
+  'The inside loop builds a rank. The outside one does it four times.':
+    'El bucle de adentro construye una fila. El de afuera lo hace cuatro veces, bajando una fila entre cada una. Dos números, y la formación es lo que tú decidas.',
+  'A loop you cannot count':'Un bucle que no puedes contar',
+  'No number to count to. <b>forever</b> runs until the mission ends.':
+    'No sabes cuántos pasos hacen falta, y todavía no hay sensor que preguntar. por siempre repite los bloques de adentro hasta que la misión termine — y la misión termina cuando la fortaleza cae.',
+  'A loop that knows when to stop':'Un bucle que sabe cuándo parar',
+  '<b>forever</b> never stops — and here that flies the swarm into the wreck.':
+    'por siempre nunca para, y aquí eso es fatal — el enjambre sigue bajando y choca con las ruinas. repetir hasta hace el mismo trabajo y sale en cuanto la prueba se vuelve verdadera.',
+  'A question worth asking twice goes inside the loop':
+    'Una pregunta que vale la pena hacer dos veces va dentro del bucle',
+  'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.':
+    'Un si encima del bucle se pregunta una vez, antes de que el enjambre se mueva, y nunca más. El mismo bloque un nivel adentro se pregunta en cada vuelta — así dispara en cuanto la formación está sobre el objetivo.',
+  /* the briefings */
+  'Shield <b>8</b>, and it grows back. You need <b>eight invaders</b> — in <b>2 blocks</b>.':
+    'El escudo de la fortaleza aguanta en <b>8</b> y vuelve a crecer entre descargas, así que unos pocos invasores nunca lo romperán — necesitas una <b>fila completa de ocho</b>. Tienes un presupuesto de <b>2 bloques</b>. Ocho apariciones no caben; <b>repetir 8</b> sí.',
+  'Shield <b>30</b>, <b>+7</b> a volley. One rank cannot dent it. Build <b>four</b>.':
+    'Este escudo aguanta en <b>30</b> y crece <b>7</b> por descarga — una fila de ocho no lo abolla. Construye <b>cuatro filas de ocho</b>. La fila que ya sabes escribir va <i>dentro</i> de otro repetir.',
+  'The fortress is <b>off the board</b>. A program that ends stops advancing.':
+    'La fortaleza está <b>más allá del borde del tablero</b> y el enjambre pierde terreno cada vez que tu programa se queda sin bloques. Aquí no hay número que contar. Usa <b>por siempre</b>: cruzar, disparar, y seguir.',
+  'Closer volleys bite harder. But <b>stop</b> the moment the shield falls.':
+    'Las descargas de cerca muerden más, así que <b>bajar()</b> es como rompes un escudo de <b>44</b> — pero el enjambre se destruye si sigue bajando hacia la ruina. Para en el momento exacto con <b>repetir hasta que el escudo ha caído</b>.',
+  'Fortress in the <b>middle</b>. <b>across()</b> turns at the walls by itself.':
+    'La fortaleza mide <b>tres columnas, en el centro</b>, y <b>cruzar()</b> da la vuelta al enjambre en las paredes por su cuenta. Disparar en otro lado se desperdicia. Pon el <b>si</b> <i>dentro</i> del <b>por siempre</b> para que se pregunte en cada vuelta.',
+
+  /* the walkthrough, one move a step */
+  'Click the loop to get <b>inside</b> it.':'Haz clic en el bucle para entrar <b>adentro</b>.',
+  'Get <b>inside</b> it.':'Entra <b>adentro</b>.',
+  'The rank you already know — <b>inside</b> this one.':'La fila que ya sabes — <b>dentro</b> de este.',
+  'Inside the <b>inner</b> one now.':'Ahora dentro del <b>de adentro</b>.',
+  'Click it again to step back <b>out</b>.':'Haz clic otra vez para salir <b>afuera</b>.',
+  'Now inside the <b>if</b>.':'Ahora dentro del <b>si</b>.',
+  'Eight invaders. You have <b>two blocks</b>.':'Ocho invasores. Tienes <b>dos bloques</b>.',
+  'Make it <b>8</b>.':'Ponlo en <b>8</b>.',
+  'Now <b>inside</b> it.':'Ahora <b>adentro</b>.',
+  'A rank was one loop. Four ranks is <b>two</b>.':'Una fila era un bucle. Cuatro filas son <b>dos</b>.',
+  '<b>4</b> — one per rank.':'<b>4</b> — una por fila.',
+  'Click it to go <b>inside</b>.':'Haz clic para entrar <b>adentro</b>.',
+  'The rank you already know.':'La fila que ya sabes hacer.',
+  '<b>8</b> across.':'<b>8</b> de ancho.',
+  'Back <b>out</b> — click the inside loop.':'Vuelve <b>afuera</b> — haz clic en el bucle de adentro.',
+  'Drop a row, then round again.':'Baja una fila y otra vuelta.',
+  'No number reaches it. This loop has none.':'Ningún número llega. Este bucle no tiene.',
+  'This one <b>stops</b>. That is the difference.':'Este sí <b>para</b>. Esa es la diferencia.',
+  'Closer bites harder.':'De cerca muerde más.',
+  'It sweeps and turns by itself.':'Barre y da la vuelta solo.',
+  'Ask <b>inside</b> the loop, not above it.':'Pregunta <b>dentro</b> del bucle, no encima.',
+  'Click the <b>if</b> to go in.':'Haz clic en el <b>si</b> para entrar.',
+
   /* ---------- the home planet ---------- */
   'Home Planet':'Planeta Base',
   'MISSION CONTROL':'CONTROL DE MISIONES','THE WORKSHOP':'EL TALLER','THE WARDROBE':'EL VESTUARIO','THE MALL':'EL CENTRO',
@@ -1163,7 +1262,7 @@ window.ES = {
      The club's own words. The four track names stay as they are: KICK,
      CLAP, HAT and BASS are what they are called on a mixer in Spanish
      too, and a row labelled BOMBO is a row nobody can look up. */
-  'VOLTA':'VOLTA','KORO':'KORO',
+  'VOLTA':'VOLTA','KORO':'KORO','Senio':'Senio',
   'the small loud one':'la pequeña y ruidosa',
   'everybody lands here':'aquí aterriza todo el mundo',
   'your home planet':'tu planeta',

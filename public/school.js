@@ -160,7 +160,7 @@ window.SCHOOL = (function(){
   function label(txt, size){
     const c=document.createElement('canvas'); c.width=c.height=64;
     const x=c.getContext('2d');
-    x.fillStyle='#cfe3ff'; x.font='bold 40px "Trebuchet MS",sans-serif';
+    x.fillStyle='#cfe3ff'; x.font='bold 36px '+uiFont();
     x.textAlign='center'; x.textBaseline='middle';
     x.fillText(txt,32,34);
     const tx=new THREE.CanvasTexture(c); tx.colorSpace=THREE.SRGBColorSpace;

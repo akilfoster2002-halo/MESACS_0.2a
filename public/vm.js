@@ -215,7 +215,7 @@ window.VM = (function(){
     const x=c.getContext('2d');
     x.fillStyle='rgba(255,255,255,.94)';
     x.beginPath(); x.roundRect(2,2,252,60,14); x.fill();
-    x.fillStyle='#241d38'; x.font='bold 26px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.fillStyle='#241d38'; x.font='bold 24px '+uiFont(); x.textAlign='center';
     x.fillText(String(text).slice(0,20),128,42);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));

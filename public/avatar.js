@@ -129,13 +129,136 @@ window.AVATAR = (function(){
     return gun;
   }
 
+  /* ----------------------------------------------------------- swimming
+     THESE CHARACTERS HAVE NO SWIM ANIMATION. Six clips each — idle, walk,
+     sprint, jump, dance, fly — and swimming is not one of them, so the first
+     version of this borrowed `fly` and you could tell: the body was right,
+     lying flat in the water, but the arms were pinned out in front of it in
+     a superman pose and nothing moved. A person floating rigidly across a
+     pool is not swimming, they are drowning politely.
+
+     So the clip is BUILT, here, out of the rig the characters already carry.
+     It is a plain Mixamo skeleton with names we can rely on, and an
+     AnimationClip is only keyframes — there is nothing to import.
+
+     THE FLY POSE IS THE STARTING POSITION AND NOTHING ELSE. What it is
+     genuinely right about is the torso: face down, spine level, legs
+     trailing. So every bone starts from fly's first frame and the limbs are
+     then driven over the top of it — a front crawl, because at the distance
+     you see a swimmer in this game an alternating overarm is legible and a
+     breaststroke is a shrug.
+
+     The whole stroke is one loop: arms opposed, legs fluttering at twice the
+     rate, and a roll through the spine tied to the arms, because a crawl
+     without the roll looks like somebody being dragged. */
+  const SWIM_SECS=2.8, SWIM_KEYS=28;
+  function buildSwim(clips){
+    const fly=clips.find(c=>c.name==='fly');
+    if(!fly || typeof THREE.QuaternionKeyframeTrack!=='function') return null;
+
+    const base={}, keep=[];
+    for(const tr of fly.tracks){
+      const q=tr.name.match(/^(.*)\.quaternion$/);
+      if(q){ base[q[1]]=[tr.values[0],tr.values[1],tr.values[2],tr.values[3]]; continue; }
+      /* Position and scale are HELD at the first frame. Without them the
+         hips drift wherever the fly clip was taking them and the swimmer
+         slowly climbs out of the water. */
+      const n=tr.values.length / (tr.times.length||1);
+      keep.push(new tr.constructor(tr.name, [0, SWIM_SECS],
+        [...tr.values.slice(0,n), ...tr.values.slice(0,n)]));
+    }
+    if(!Object.keys(base).length) return null;
+
+    const times=[];
+    for(let i=0;i<=SWIM_KEYS;i++) times.push(i/SWIM_KEYS*SWIM_SECS);
+    const tracks=[...keep];
+    const B=new THREE.Quaternion(), O=new THREE.Quaternion(), AX=new THREE.Vector3();
+    const moved=new Set();
+
+    /* `fn(u)` returns [axis x,y,z, angle] for that point in the stroke. */
+    function drive(bone, fn){
+      const bv=base[bone]; if(!bv) return;
+      moved.add(bone);
+      const vals=[];
+      for(let i=0;i<=SWIM_KEYS;i++){
+        const [ax,ay,az,ang]=fn(i/SWIM_KEYS);
+        B.set(bv[0],bv[1],bv[2],bv[3]);
+        O.setFromAxisAngle(AX.set(ax,ay,az).normalize(), ang);
+        B.multiply(O);
+        vals.push(B.x,B.y,B.z,B.w);
+      }
+      tracks.push(new THREE.QuaternionKeyframeTrack(bone+'.quaternion', times, vals));
+    }
+    const TAU=Math.PI*2;
+    // the two arms, half a stroke apart
+    [['Left',0],['Right',0.5]].forEach(([side,ph])=>{
+      const sgn = side==='Left' ? 1 : -1;
+      drive('mixamorig:'+side+'Arm', u=>{
+        const a=(u+ph)%1;
+        return [1,0,0, Math.sin(a*TAU)*1.15];        // the windmill
+      });
+      drive('mixamorig:'+side+'ForeArm', u=>{
+        const a=(u+ph)%1;
+        // the elbow bends on the recovery and straightens on the catch
+        return [1,0,0, 0.45 + Math.max(0, Math.sin(a*TAU+1.2))*0.75];
+      });
+      drive('mixamorig:'+side+'Shoulder', u=>{
+        const a=(u+ph)%1;
+        return [0,0,1, sgn*Math.sin(a*TAU)*0.18];
+      });
+      // and the legs, fluttering at twice the rate and a quarter the size
+      drive('mixamorig:'+side+'UpLeg', u=>{
+        const a=(u+ph)%1;
+        return [1,0,0, Math.sin(a*TAU*2)*0.30];
+      });
+      drive('mixamorig:'+side+'Leg', u=>{
+        const a=(u+ph)%1;
+        return [1,0,0, 0.18 + Math.max(0, Math.sin(a*TAU*2+0.9))*0.34];
+      });
+    });
+    // the roll, spread down the spine so it reads as the body and not the chest
+    [['mixamorig:Spine',0.10],['mixamorig:Spine1',0.10],['mixamorig:Spine2',0.08]]
+      .forEach(([bone,amt])=>drive(bone, u=>[0,0,1, Math.sin(u*TAU)*amt]));
+    // the head lifts for air on one side of the stroke
+    drive('mixamorig:Head', u=>[0,1,0, Math.sin(u*TAU)*0.30]);
+
+    /* Everything the stroke does NOT move is pinned to the fly pose, or the
+       mixer leaves it wherever the last clip put it — which is a swimmer
+       with a walking man's shoulders. */
+    Object.keys(base).forEach(bone=>{
+      if(moved.has(bone)) return;
+      const v=base[bone];
+      tracks.push(new THREE.QuaternionKeyframeTrack(bone+'.quaternion',
+        [0, SWIM_SECS], [...v, ...v]));
+    });
+    const clip=new THREE.AnimationClip('swim', SWIM_SECS, tracks);
+    return clip;
+  }
+
+  /* Only if the rig has nothing to build one from. */
+  const ALIAS={ swim:'fly' };
   /* idle / walk / sprint, crossfaded so nobody pops between poses */
   function rig(root, clips){
     if(!clips.length) return null;
+    /* The swim is authored per model, because it is built out of that
+       model's own fly pose and its own bone names. */
+    if(!clips.some(c=>c.name==='swim')){
+      const sw=buildSwim(clips);
+      if(sw) clips=clips.concat(sw);
+    }
     const mixer=new THREE.AnimationMixer(root);
     let cur=null, curName=null;
     return {
       play(name, fade){
+        /* A POSTURE MAY NAME A CLIP THE MODEL HAS NOT GOT. These four
+           characters carry six animations and none of them is a swim, so
+           swimming asks for 'swim' and is given 'fly' — which is the right
+           substitute and not a lazy one: both are the body held HORIZONTAL
+           with the legs trailing, which is the whole difference between a
+           person in water and a person standing in it. The day a real swim
+           clip is baked into the characters, this alias stops being used
+           without anything else changing. */
+        name = ALIAS[name] && !clips.some(c=>c.name===name) ? ALIAS[name] : name;
         if(curName===name) return;
         const clip=clips.find(c=>c.name===name);
         if(!clip) return;

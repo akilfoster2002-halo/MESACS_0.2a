@@ -26,13 +26,52 @@ one drone teaches a command, five identical drones make a loop the obvious move,
 regrows his shield between programs so clicking RUN repeatedly cannot win — only a loop can.
 
 ## What's built
+- **Title screen** — the planet **Senio**, live and turning, drawn by the same value
+  noise and soil ramp as the world you land on. Not a picture of the game: the game's world,
+  with its towns coming round the limb. (KORO is the name of the game; Senio is the planet.)
+- **Senio** — the hub world. Buildings that stand on something: a plinth cut into the apron,
+  corner pilasters, eaves, lit window rows and a stepped threshold, with a furnished room behind
+  every door. **You can land on the roofs.**
+- **The sky islands** — four of them hanging over Senio inside the flight ceiling, and ordinary
+  ground as far as the game is concerned: fly up, land, walk about. **The Falls** carries a lake
+  that runs off its rim, falls the whole way down to a plunge pool, and **leaves the pool along a
+  river** — which finds its own course by steepest descent over the terrain that is already there,
+  so the water runs downhill because the hill is downhill. It is the only water on Senio, which is
+  why the fish and turtles live there. The turtles walk somewhere, stop, and do nothing for a
+  while, which is most of what a turtle does.
 - **Hub** — the desktop plaza: walk up to icon-doors, one click selects, double-click opens,
   the red ✕ is the only way out of an app. Live minimap of the desktop layout.
 - **Mission 1 — Loops (THE LOOPER)** — block-based code console (`C` to open, time freezes),
   four stages, and a boss that forces `repeat`.
+- **The Swarm — Loops & Conditionals** — Space Invaders with the authorship turned round:
+  you write one program and the whole formation flies it. Five stages that walk the Level 2
+  lesson in order — `repeat (N)`, a loop inside a loop, `forever`, `repeat until`, and an
+  `if` inside a `forever`. Every stage is **walked the first time it opens**: the console
+  opens itself, the shelf narrows to the one block being asked for, and the coach rings it —
+  so the words are a handful and the screen does the explaining.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
 - Bilingual English / Español throughout, including the villain's taunts.
+
+## How it is lettered
+A game about writing code is set in code type — three monospaces, each with one job:
+
+| | face | where |
+|---|---|---|
+| display | **Space Mono** | the logo, screen titles |
+| interface | **Ubuntu Mono** | buttons, briefings, labels, the HUD — and the signs in the 3D world |
+| code | **JetBrains Mono** | programs, and only programs: blocks, the text mirror, the tape |
+
+They are **bundled, not linked** (`public/fonts`, 84KB for the set) because the whole
+premise is a folder that opens with no install and no network — a font CDN would quietly
+un-letter the game on the first lab machine with the internet off. Ubuntu Mono is under the
+Ubuntu Font Licence; Space Mono and JetBrains Mono are under the SIL Open Font Licence.
+All three allow redistribution. Each role falls back to the system monospace.
+
+Canvas text in the 3D world reads the same CSS variable the page does, so there is one
+typeface setting rather than eleven copies of one — and labels that outgrow their sign
+**shrink to fit** rather than being condensed by `fillText`'s `maxWidth`, which matters most
+in Spanish (`CONTROL DE MISIONES` against `MISSION CONTROL`).
 
 ## Controls
 | | |
@@ -138,6 +177,9 @@ game.js      engine: renderer, movement, rooms, minimap, desktop missions
 program.js   the block language with no screen attached — compile, count, validate
 code.js      block console: palette, drag, text mode, walkthroughs
 combat.js    drones, boss, Mission 1 script
+islands.js   the sky islands: the rock, the lake, the waterfall and the wildlife
+title.js     the landing screen: Senio in orbit, its weather, and the stars behind it
+invaders.js  the swarm: five loop stages, the fortress, and the shield that regrows
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
 mechacode.js the standing-orders language: events, sensors, decide(), the trace
@@ -153,6 +195,9 @@ lib/         three.js, bundled as a classic script so file:// still works
 `levels.js` and `strings.js` are the files to edit for new content; the engine shouldn't need touching.
 New chassis and arenas go in `mechsim.js`; new league opponents go in `mech.js`. New sensors,
 events and actions for the live arena go in `mechacode.js`, and what they cost goes with them.
+A new stage for The Swarm is a row in `invaders.js`'s `STAGES`: the palette it hands out, the
+fortress it puts up, and what counts as done — and `tests/invaders.test.js` will tell you if the
+numbers you picked have quietly made its loop optional.
 
 ## Tests
 ```bash
@@ -174,7 +219,7 @@ at_<game>       the furthest level reached, written as each level OPENS.
                 replay starts at level 1. The mission card says which
                 level it is about to hand you, and carries a ↺ back to
                 the first one.
-spot_<world>    where you were standing on KORO, on VOLTA and on your
+spot_<world>    where you were standing on Senio, on VOLTA and on your
                 home planet — direction and heading only, because the
                 ground under you is generated and comes back the same.
 world           which of the three to open on.
@@ -207,9 +252,12 @@ a ceiling that let you climb higher than VOLTA is wide would put you above a
 marble. The last stretch of the climb fades in a wireframe shell, so the limit
 is something you can see coming rather than something you bump into.
 
+The sky islands hang between 48m and 95m over Senio, inside its 120m ceiling — a deck you
+cannot reach is worse than no deck at all, and `tests/senio.test.js` checks the arithmetic.
+
 | world | radius | ceiling |
 |---|---|---|
-| KORO | 320 | 120 |
+| Senio | 320 | 120 |
 | home planet | 200 | 95 |
 | VOLTA | 118 | 48 |
 

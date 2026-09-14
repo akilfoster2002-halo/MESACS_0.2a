@@ -21,7 +21,6 @@ window.CHARS = (function(){
                                         // start handing them out per finished mission
 
   let view=null, previewing=null, raf=0, last=0;
-  let hero=null, heroRaf=0, heroLast=0;
 
   function unlockedCount(){
     let done=0;
@@ -309,50 +308,9 @@ window.CHARS = (function(){
   }
   function close(){ stop(); }
 
-  /* ------------------------------------------- the one on the landing */
-  function heroStage(){
-    if(hero) return hero;
-    const canvas=document.querySelector('#heroView');
-    if(!canvas) return null;
-    const renderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));
-    const scene=new THREE.Scene();
-    const camera=new THREE.PerspectiveCamera(28, 1, 0.1, 60);
-    camera.position.set(0, 0.20, 3.9); camera.lookAt(0, 0.02, 0);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xbfe0ff, 1.7));
-    const key=new THREE.DirectionalLight(0xfff6e8, 1.6); key.position.set(3,6,5);
-    scene.add(key);
-    const turntable=new THREE.Group(); scene.add(turntable);
-    hero={renderer, scene, camera, turntable, current:null, who:null};
-    return hero;
-  }
-  async function heroShow(){
-    const h=heroStage(); if(!h) return;
-    if(h.who===AVATAR.chosen) return;
-    const want=AVATAR.chosen;
-    let m; try{ m=await AVATAR.load(want); }catch(e){ return; }
-    if(AVATAR.chosen!==want) return;
-    if(h.current) h.turntable.remove(h.current);
-    m.position.y=-0.9; h.turntable.add(m); h.current=m; h.who=want;
-    AVATAR.animate(m, 0, 'idle');
-  }
-  function heroLoop(now){
-    heroRaf=requestAnimationFrame(heroLoop);
-    const dt=Math.min((now-heroLast)/1000, 0.05); heroLast=now;
-    if(!hero) return;
-    const c=hero.renderer.domElement;
-    const w=c.clientWidth||300, ht=c.clientHeight||190;
-    hero.renderer.setSize(w,ht,false);
-    hero.camera.aspect=w/ht; hero.camera.updateProjectionMatrix();
-    hero.turntable.rotation.y = Math.sin(now/2600)*0.5;   // looks around, does not spin
-    if(hero.current) AVATAR.animate(hero.current, dt, 'idle');
-    hero.renderer.render(hero.scene, hero.camera);
-  }
-  function heroOpen(){
-    heroShow();
-    if(!heroRaf){ heroLast=performance.now(); heroRaf=requestAnimationFrame(heroLoop); }
-  }
-  function heroClose(){ if(heroRaf){ cancelAnimationFrame(heroRaf); heroRaf=0; } }
+  /* The landing screen used to stand the chosen character on a little
+     island here, off its own GL context. It is a planet now, and title.js
+     owns it — see #titleView. */
 
   /* ================================================== the quick change
      ONE GL CONTEXT FOR THE WHOLE ROW. A canvas each would be a context
@@ -553,7 +511,7 @@ window.CHARS = (function(){
   }
   function quickToggle(){ swOpen ? quickClose() : quickOpen(); }
 
-  return { open, close, render, unlockedCount, isUnlocked, heroOpen, heroClose,
+  return { open, close, render, unlockedCount, isUnlocked,
            quickOpen, quickClose, quickToggle, quickKey:swKey,
            get quickUp(){ return swOpen; } };
 })();

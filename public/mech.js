@@ -162,7 +162,7 @@ window.MECH = (function(){
     on=true; phase='setup';
     pvp=!!(opts && opts.pvp); mySide='A';
     G.running=false;
-    if(window.CHARS) CHARS.heroClose();
+    if(window.TITLE) TITLE.close();
     $('#hud').classList.add('hidden');
     /* A teaching card left up from another mission freezes the world —
        frozen() counts it — so the arena would build and then never tick. */
@@ -252,7 +252,7 @@ window.MECH = (function(){
     if(window.AVATAR) AVATAR.detach();
     if(wasFP===null) wasFP=!!G.firstPerson;
     G.firstPerson=false;
-    if(window.GUN) GUN.update(0,false);
+    if(window.GUN) GUN.carried(false);
     $('#crosshair').classList.add('hidden');
     $('#focus').classList.add('hidden');
     /* Empty, it is still a white box sitting over the floor. It comes back
@@ -1202,7 +1202,7 @@ window.MECH = (function(){
     $('#crosshair').classList.remove('hidden');
     $('#briefing').classList.remove('hidden');
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null;
-                      if(window.GUN) GUN.update(0,false); }
+                      if(window.GUN) GUN.carried(false); }
     if(window.CODE){ CODE.close(); CODE.hideTape(); CODE.setGuide(null);
                      CODE.setAside(null,null); CODE.setBudget(0);
                      CODE.setConditions(['red','blue']); CODE.setGrid(3,3); }

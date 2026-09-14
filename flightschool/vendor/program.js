@@ -107,6 +107,22 @@
         walk(b.body, out, guard, depth, root);
         out.push({name:'__loop', blockId:b.id, back:at});
         out[at].jump=out.length;
+      } else if(b.type==='forever'){
+        /* FOREVER IS `repeat until <nothing>`. It is the same two steps with
+           the same jumps, and the only difference is a test that can never
+           come true — which is exactly what the word means and exactly what
+           makes it the one loop a program does not end by finishing.
+
+           So it compiles to __until with a NULL condition rather than to a
+           step of its own, and every runner that already steps an until-loop
+           gets forever for nothing: a runner asks its own world whether the
+           test is true, and no world has ever answered yes to nothing. What
+           stops a forever loop is the mission ending, not the program. */
+        const at=out.length;
+        out.push({name:'__until', blockId:b.id, cond:null, jump:0});
+        walk(b.body, out, guard, depth, root);
+        out.push({name:'__loop', blockId:b.id, back:at});
+        out[at].jump=out.length;
       } else if(b.type==='call'){
         const def=findDefine(root);
         if(def && depth<4){

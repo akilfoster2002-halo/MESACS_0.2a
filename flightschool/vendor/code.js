@@ -98,7 +98,26 @@ window.CODE = (function(){
     dash     :{label:'dash()',       color:'#ffd8a8', help:'Two tiles forward at once — expensive, and it can overshoot'},
     /* The first loop whose length nobody knows when they write it. repeat 5
        is counted out at compile time; this one has to be tested every pass. */
-    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'}
+    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'},
+    /* THE THIRD LOOP, and the only one with no number and no test. repeat
+       counts, repeat-until watches, and this one simply does not stop — so
+       what ends it is the mission, not the program. It is drawn with a FLAT
+       BOTTOM on purpose: there is no notch under a forever because nothing
+       stacked there could ever run, and a shape a student can see is worth
+       more than a warning they have to read. */
+    forever  :{label:'forever',      color:'#cdb4f6', flat:true,
+               help:'Do the blocks inside over and over, until the mission ends'},
+
+    /* --------------------------------------------------------- the swarm
+       One program, flown by every invader in the formation at once. The
+       verbs are deliberately not the ship's: you are not steering a thing
+       here, you are saying what a HUNDRED things do, and `spawn()` is the
+       block that makes that difference visible on the first line. */
+    spawn    :{label:'spawn()',      color:'#a8e6cf', help:'Put one invader here, and step the cursor right'},
+    nextRow  :{label:'nextRow()',    color:'#ffe9a8', help:'Drop the cursor to the start of the next row down'},
+    across   :{label:'across()',     color:'#8fd3ff', help:'The whole formation slides one column sideways'},
+    descend  :{label:'down()',       color:'#ffd8a8', help:'The whole formation drops one row towards the fortress'},
+    volley   :{label:'fire()',       color:'#ffb4a2', help:'Every invader in the swarm fires once, straight down'}
   };
   /* The shape of the language — which blocks carry a number, how a tree of
      them compiles, how many blocks it is — lives in program.js, because the
@@ -210,6 +229,7 @@ window.CODE = (function(){
     if(type==='repeat'){ b.count=3; b.body=[]; }
     if(type==='ifc'){ b.cond=CONDS[0]; b.body=[]; }
     if(type==='until'){ b.cond=CONDS[0]; b.body=[]; }
+    if(type==='forever'){ b.body=[]; }
     if(type==='define'){ b.body=[]; }
     if(type==='goTo'||type==='glide'){ b.col=0; b.row=0; }   // centre of a centred grid
     if(type==='glide') b.secs=1;
@@ -280,6 +300,9 @@ window.CODE = (function(){
       } else if(b.type==='until'){
         s.push(pad+UNTILLEAD+' '+b.cond);
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
+      } else if(b.type==='forever'){
+        s.push(pad+'forever');
+        s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
       } else if(b.type==='define'){
         s.push(pad+'define combo');
         s=s.concat(toText(b.body, depth+1)); s.push(pad+'end');
@@ -312,7 +335,7 @@ window.CODE = (function(){
      to be something you could have built, and it runs down one code path. */
   const BY_WORD = {};
   Object.keys(DEF).forEach(k=>{
-    if(k==='repeat'||k==='ifc'||k==='until'||k==='define'||k==='goTo'
+    if(k==='repeat'||k==='ifc'||k==='until'||k==='forever'||k==='define'||k==='goTo'
        ||k==='glide'||NUMBLK[k]) return;
     BY_WORD[DEF[k].label.toLowerCase()] = k;
   });
@@ -350,6 +373,10 @@ window.CODE = (function(){
         if(CONDS.indexOf(m[1])<0)
           return bad(i, t('<b>{w}</b> is not something you can test for here.',{w:m[1]}));
         const b=makeBlock('until'); b.cond=m[1]; put(b); stack.push(b); continue;
+      }
+      if(low==='forever'){
+        if(!allowed('forever')) return bad(i, t('<b>forever</b> is not in this mission yet.'));
+        const b=makeBlock('forever'); put(b); stack.push(b); continue;
       }
       if(low==='repeat') return bad(i, t('<b>repeat</b> needs a number after it, like <b>repeat 3</b>.'));
       if((m=low.match(leadRe(IFLEAD)))){
@@ -596,7 +623,7 @@ window.CODE = (function(){
 
   function blockHTML(b, readonly){
     const d=DEF[b.type];
-    if(b.type==='ifc' || b.type==='until' || b.type==='define'){
+    if(b.type==='ifc' || b.type==='until' || b.type==='forever' || b.type==='define'){
       const isTarget = dropTarget && dropTarget.id===b.id;
       /* if and repeat-until are the same block wearing different words: a
          test, then a body. Only the lead-in tells them apart, which is
@@ -604,10 +631,13 @@ window.CODE = (function(){
       const test = (lead)=>`<span class="blk-name">${t(lead)}</span>
            ${readonly?`<span class="cnt-n">${t(b.cond)}</span>`
              :`<button class="cond" data-act="cond" data-id="${b.id}" style="--sw:${condColour(b.cond)}">${t(b.cond)}</button>`}`;
-      const head = b.type==='ifc'   ? test(IFLEAD)
-                 : b.type==='until' ? test(UNTILLEAD)
+      const head = b.type==='ifc'     ? test(IFLEAD)
+                 : b.type==='until'   ? test(UNTILLEAD)
+                 : b.type==='forever' ? `<span class="blk-name">${t('forever')}</span>`
                  : `<span class="blk-name">${t('define combo')}</span>`;
-      return `<div class="blk rep ${isTarget?'target':''}" data-id="${b.id}" style="--c:${d.color}">
+      /* A forever has no notch under it, because nothing put there could
+         ever run. The shape is the warning. */
+      return `<div class="blk rep ${isTarget?'target':''}${d.flat?' flat':''}" data-id="${b.id}" style="--c:${d.color}">
           <div class="blk-head">${head}
             ${readonly?'':`<button class="blk-x" data-act="del" data-id="${b.id}">✕</button>`}</div>
           <div class="blk-body" data-body="${b.id}">${b.body.map(c=>blockHTML(c,readonly)).join('') ||
@@ -822,6 +852,7 @@ window.CODE = (function(){
       if(type==='repeat')      out.push({w:'repeat 3', c:d.color});
       else if(type==='ifc')    CONDS.forEach(c=>out.push({w:IFLEAD+' '+c, c:d.color}));
       else if(type==='until')  CONDS.forEach(c=>out.push({w:UNTILLEAD+' '+c, c:d.color}));
+      else if(type==='forever') out.push({w:'forever', c:d.color});
       else if(type==='define') out.push({w:'define combo', c:d.color});
       else if(type==='goTo')   out.push({w:'goto 0,0', c:d.color});
       else if(type==='setX')   out.push({w:'set x to 1', c:d.color});
@@ -841,7 +872,7 @@ window.CODE = (function(){
                                out.push({w:'point in direction 90', c:d.color}); }
       else                     out.push({w:d.label, c:d.color});
     });
-    if(palOps().some(p=>p==='repeat'||p==='ifc'||p==='until'||p==='define'))
+    if(palOps().some(p=>p==='repeat'||p==='ifc'||p==='until'||p==='forever'||p==='define'))
       out.push({w:'end', c:'#5a4b85'});
     return out;
   }

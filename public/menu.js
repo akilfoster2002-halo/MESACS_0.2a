@@ -31,7 +31,8 @@ window.MENU = (function(){
   function hideAll(){
     SCREENS.forEach(x=>{ const e=$(x); if(e) e.classList.add('hidden'); });
     showing=null;
-    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
+    if(window.CHARS) CHARS.close();
+    if(window.TITLE) TITLE.close();
   }
 
   /* The cards on the main grid, not the coding missions.
@@ -280,6 +281,7 @@ window.MENU = (function(){
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.INVADERS) INVADERS.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -292,7 +294,7 @@ window.MENU = (function(){
     const si=$('#sSignIn');
     if(si) si.textContent = NET.signedIn ? '👤 '+NET.nameOf() : t('Sign in / Create an account');
     if(document.pointerLockElement) document.exitPointerLock();
-    show('#start', ()=>{ if(window.CHARS) CHARS.heroOpen(); });
+    show('#start', ()=>{ if(window.TITLE) TITLE.open(); });
   }
   /* The server browser. A fixed list, each showing how many people are
      standing in it right now, so a class can agree on one by looking. */
@@ -300,7 +302,7 @@ window.MENU = (function(){
   async function servers(){
     G.running=false;
     $('#hud').classList.add('hidden');
-    if(window.CHARS) CHARS.heroClose();
+    if(window.TITLE) TITLE.close();
     $('#svTitle').textContent=t('PICK A SERVER');
     $('#svSub').textContent=t('Anyone in the same server can see and talk to each other.');
     $('#svBack').textContent='◀';
@@ -416,7 +418,8 @@ window.MENU = (function(){
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();
-    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
+    if(window.CHARS) CHARS.close();
+    if(window.TITLE) TITLE.close();
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
@@ -441,7 +444,7 @@ window.MENU = (function(){
   function auth(){
     G.running=false;
     $('#hud').classList.add('hidden');
-    if(window.CHARS) CHARS.heroClose();
+    if(window.TITLE) TITLE.close();
     const guest=$('#btnGuest'); if(guest) guest.classList.toggle('hidden', signInUp);
     $('#aTitle').textContent=t('SIGN IN');
     $('#aSub').textContent=t('Sign in to play. Your account saves your progress on any computer.');
@@ -457,7 +460,7 @@ window.MENU = (function(){
   function chars(){
     G.running=false;
     $('#hud').classList.add('hidden');
-    if(window.CHARS) CHARS.heroClose();
+    if(window.TITLE) TITLE.close();
     show('#chars', ()=>{ if(window.CHARS) CHARS.open(); });
   }
   function open(){
@@ -465,13 +468,15 @@ window.MENU = (function(){
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.INVADERS) INVADERS.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
     $('#quiz').classList.add('hidden');
     $('#cert').classList.add('hidden');
     $('#downed').classList.add('hidden');
-    if(window.CHARS){ CHARS.close(); CHARS.heroClose(); }
+    if(window.CHARS) CHARS.close();
+    if(window.TITLE) TITLE.close();
     if(document.pointerLockElement) document.exitPointerLock();
     render();
     show('#menu');
@@ -504,6 +509,7 @@ window.FREE = (function(){
   function enter(sv, missionId){
     room = sv || { id:null, name:'Workshop' };
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop(); if(window.FLIGHT) FLIGHT.stop();
+    if(window.INVADERS) INVADERS.stop();
     if(window.MISSIONS) MISSIONS.stop();
     G.missionId=null; G.arenaTitle=t(room.name);
     /* the room is what opens the project, so say which one before building it */
@@ -540,7 +546,7 @@ window.FREE = (function(){
     const c=document.createElement('canvas'); c.width=256; c.height=64;
     const x=c.getContext('2d');
     x.fillStyle='rgba(29,23,48,.85)'; x.fillRect(0,14,256,36);
-    x.fillStyle='#a8e6cf'; x.font='bold 26px "Trebuchet MS",sans-serif'; x.textAlign='center';
+    x.fillStyle='#a8e6cf'; x.font='bold 24px '+uiFont(); x.textAlign='center';
     x.fillText(name.slice(0,16),128,42);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));

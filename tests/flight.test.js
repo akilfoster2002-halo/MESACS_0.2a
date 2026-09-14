@@ -9,7 +9,7 @@
    a character export's "clip" is a two-key T-pose. A character without it
    flies across a planet running on nothing.
 
-   THE CEILING HAS TO EXIST PER WORLD. VOLTA is a quarter the size of KORO
+   THE CEILING HAS TO EXIST PER WORLD. VOLTA is a quarter the size of Senio
    on purpose; one ceiling for the game would put you above it like a
    marble.
 
