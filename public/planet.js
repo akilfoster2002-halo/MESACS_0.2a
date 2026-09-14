@@ -347,7 +347,10 @@ window.PLANET = (function(){
        writes from somebody reading the sign outside Mission Control. */
     if(!force && spotWas && spotWas.id===W.id && spotWas.dir.angleTo(me.dir)*PR < 1.5) return;
     spotWas={ id:W.id, dir:me.dir.clone() };
-    PROGRESS.set(SPOT(W.id), { d:R4(me.dir), f:R4(me.fwd) });
+    /* Nothing writes the hub's spot, because nothing reads it — Senio lands
+       you at its door however you left it. Still worth saying WHICH ball you
+       were on, though, so signing back in does not always drop you here. */
+    if(W.kind!=='hub') PROGRESS.set(SPOT(W.id), { d:R4(me.dir), f:R4(me.fwd) });
     /* And WHICH BALL, so signing back in lands you on the one you were on
        rather than always on the hub. */
     PROGRESS.set('world', W.id);
@@ -458,15 +461,28 @@ window.PLANET = (function(){
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
-    const back=savedSpot(W.id);
+    /* SENIO ALWAYS LANDS YOU IN THE SAME PLACE, and that is deliberate rather
+       than a missing feature. A hub is somewhere you arrive: the door you are
+       being sent to is in front of you, the sign over it is readable, and the
+       walk to it is the same walk every time — which is what makes it a place
+       a class can be told to go to rather than a place each of them wakes up
+       somewhere different in. Being put back wherever you happened to log out
+       is right for a world you were exploring and wrong for the one everybody
+       starts from: it turns "meet me outside Mission Control" into a hunt for
+       whichever hillside you left off on.
+
+       The other worlds keep it. A home planet is yours and a night world is
+       somewhere you were part-way through looking at, and on both of those
+       being put back where you were is the whole point. */
+    const back = W.kind==='hub' ? null : savedSpot(W.id);
     if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
-      /* First landing: stand out in front of Mission Control's door, looking
-         straight at it. Not "somewhere near it" — the door is on the +z side
-         of the building's own frame, so step back along that side and then
-         face the building. Spawning at a fixed latitude used to put you
-         behind it as often as in front, which makes the first instruction a
-         student ever gets ("walk to the door") a hunt. */
+      /* Out in front of Mission Control's door, looking straight at it. Not
+         "somewhere near it" — the door is on the +z side of the building's
+         own frame, so step back along that side and then face the building.
+         Spawning at a fixed latitude used to put you behind it as often as
+         in front, which makes the first instruction a student ever gets
+         ("walk to the door") a hunt. */
       // far enough back that the whole building and its sign are in frame
       me.dir=landingSpot();
       me.fwd=facing(me.dir, BUILDINGS[0].dir);

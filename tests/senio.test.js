@@ -328,3 +328,35 @@ test('a character with no swim clip still swims', ()=>{
   assert.match(av, /const ALIAS=\{ swim:'fly' \}/, 'there is no fallback for a missing swim clip');
   assert.match(av, /name = ALIAS\[name\] && !clips\.some/, 'the alias is never applied');
 });
+
+/* --------------------------------------------------- where you land
+   A hub is somewhere you ARRIVE. The door you are being sent to is in front
+   of you, the sign over it is readable, and the walk is the same walk every
+   time — which is what lets a teacher say "meet me outside Mission Control"
+   and have it mean one place. Being put back wherever you logged out is
+   right for a world you were exploring and wrong for the one everybody
+   starts from. */
+
+test('Senio always lands you at the same spot', ()=>{
+  const src=read('public/planet.js');
+  assert.match(src, /const back = W\.kind==='hub' \? null : savedSpot\(W\.id\);/,
+    'the hub restores a saved spot again — every student wakes up somewhere different');
+  /* and it must not WRITE one either: an unread spot is churn on a bag that
+     is pushed to the network */
+  assert.match(src, /if\(W\.kind!=='hub'\) PROGRESS\.set\(SPOT\(W\.id\)/,
+    'the hub is still saving a position nothing reads');
+});
+
+test('the worlds you explore still remember where you were', ()=>{
+  /* The exemption is the hub's alone. A home planet is yours and VOLTA is
+     somewhere you were part-way through looking at; on both of those being
+     put back where you were is the entire point. */
+  const src=read('public/planet.js');
+  assert.match(src, /function savedSpot\(id\)/, 'nothing restores a position any more');
+  assert.match(src, /W\.kind==='hub' \? null : savedSpot/,
+    'the exemption is not scoped to the hub');
+  assert.ok(!/const back = null;/.test(src), 'every world has lost its saved spot');
+  /* and which ball you were on is still worth keeping, or signing back in
+     always drops you on Senio */
+  assert.match(src, /PROGRESS\.set\('world', W\.id\)/, 'the world you were on is not saved');
+});

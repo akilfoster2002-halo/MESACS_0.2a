@@ -219,9 +219,11 @@ at_<game>       the furthest level reached, written as each level OPENS.
                 replay starts at level 1. The mission card says which
                 level it is about to hand you, and carries a ↺ back to
                 the first one.
-spot_<world>    where you were standing on Senio, on VOLTA and on your
-                home planet — direction and heading only, because the
-                ground under you is generated and comes back the same.
+spot_<world>    where you were standing on VOLTA and on your home planet —
+                direction and heading only, because the ground under you is
+                generated and comes back the same. NOT Senio: the hub always
+                lands you outside Mission Control's door, so the walk to the
+                first instruction is the same walk for everybody.
 world           which of the three to open on.
 char            who you are. Chosen on the sign-up form now, rather than
                 found later in the Mall.
