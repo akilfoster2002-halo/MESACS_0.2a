@@ -277,6 +277,11 @@ window.ES = {
   'Your teacher muted the chat for you.':'Tu maestro te silenció el chat.','You can chat again.':'Ya puedes chatear otra vez.',
   'Your teacher cleared the chat.':'Tu maestro borró el chat.',
   'Paused':'En pausa','YOUR HINT':'TU PISTA','KEYS':'TECLAS',
+  /* the pause card's way back to level one of the mission you are in */
+  'THIS MISSION':'ESTA MISIÓN','Start from the beginning':'Empezar desde el principio',
+  'Back to <b>level 1</b>, with the walkthroughs again. Everything you have done in this mission starts over.':
+    'Vuelves al <b>nivel 1</b>, con las guías otra vez. Todo lo que has hecho en esta misión empieza de nuevo.',
+  'Yes, start over':'Sí, empezar de nuevo','Keep going':'Seguir jugando',
   'Back to the game ▶':'Volver al juego ▶','Leave to the menu':'Salir al menú','or press SPACE':'o presiona ESPACIO',
   'Sign in to save your progress and play with your class':'Inicia sesión para guardar tu progreso y jugar con tu clase',
   'I have an account':'Ya tengo cuenta','New student':'Estudiante nuevo',

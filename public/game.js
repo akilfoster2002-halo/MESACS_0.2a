@@ -540,6 +540,7 @@ const PROGRESS=(function(){
      missions out of the way before the one they came for. What gates it is
      the lesson, not the save file. */
   const ORDER=['nav','m1','m2','m3','sub'];
+  const LEVELED=new Set(['race','nav','flight','m1','m2','m3','sub','school','inv']);
   const SAVE_MS=1200;
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
@@ -612,7 +613,23 @@ const PROGRESS=(function(){
       done[AT(id)]=want; save();
     },
     reached(id){ return +done[AT(id)]||0; },      // where to open at
-    restart(id){ if(!id) return; delete done[AT(id)]; save(); },
+    /* THE MISSIONS THAT HAVE LEVELS — the ones "start from the beginning"
+       means something for. Level 0 and the league have no levels to go back
+       to, so a restart of those would be a button that does nothing. */
+    leveled(id){ return LEVELED.has(id); },
+    /* START OVER. Back to level one AND back to never having been shown:
+       every flag a mission files under its own name — the walkthroughs it
+       has walked, the film it has played — goes too, so a student who asks
+       for the beginning gets the beginning, coach and all, not level one
+       with the help switched off. What stays is the COMPLETE stamp and the
+       quiz score: those are things that happened, and taking a finished
+       mission back would lock every mission that needed it. */
+    restart(id){
+      if(!id) return;
+      delete done[AT(id)];
+      Object.keys(done).forEach(k=>{ if(k.indexOf(id+'_')===0) delete done[k]; });
+      save();
+    },
     unlocked(id){
       if(id==='free') return true;
       const i=ORDER.indexOf(id);
@@ -731,7 +748,13 @@ function wireInput(){
         if(on && !CODER.open){ e.preventDefault(); CODER.openOn(on); return; }
         if(e.code==='KeyC'){ e.preventDefault(); CODER.toggle(); return; }
       }
-      if(e.code==='KeyP' && G.running){ e.preventDefault(); togglePause(); return; }
+      /* The board missions — the flight, the trench, the school, the swarm —
+         run with G.running off because there is no body to walk. They have a
+         mission panel, a hint and a corner that says "P pause & hint", so P
+         has to answer there too. */
+      const boardNow = !!((window.FLIGHT && FLIGHT.active) || (window.SUB && SUB.active)
+                        || (window.SCHOOL && SCHOOL.active) || (window.INVADERS && INVADERS.active));
+      if(e.code==='KeyP' && (G.running || boardNow)){ e.preventDefault(); togglePause(); return; }
       if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
     }
     /* Wherever the chat panel is up — the planet as much as Free Play — ENTER
@@ -799,11 +822,16 @@ function loop(now){
   updateEmoteBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
   if(RACE.active) RACE.tick(dt);   // and the clock keeps running while you write
-  if(window.FLIGHT && FLIGHT.active) FLIGHT.tick(dt);   // and the field keeps arriving
+  /* The console does not stop a board mission — the field keeps arriving
+     while you write, which is the point of it — but the pause card does.
+     A student who pressed P to read the hint should not come back to a
+     swarm that flew into the fortress while they were reading. */
+  const paused = !$('#pause').classList.contains('hidden');
+  if(window.FLIGHT && FLIGHT.active && !paused) FLIGHT.tick(dt);   // and the field keeps arriving
   if(window.MECH && MECH.active) MECH.tick(dt);   // and the arena keeps orbiting while you write
-  if(window.SUB && SUB.active) SUB.tick(dt);       // the current runs while you write
-  if(window.SCHOOL && SCHOOL.active) SCHOOL.tick(dt);  // and the avatar finishes its move
-  if(window.INVADERS && INVADERS.active) INVADERS.tick(dt);   // and the swarm keeps flying
+  if(window.SUB && SUB.active && !paused) SUB.tick(dt);       // the current runs while you write
+  if(window.SCHOOL && SCHOOL.active && !paused) SCHOOL.tick(dt);  // and the avatar finishes its move
+  if(window.INVADERS && INVADERS.active && !paused) INVADERS.tick(dt);   // and the swarm keeps flying
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
   /* The live arena runs on the frame rather than inside the frozen-world
@@ -898,6 +926,7 @@ function togglePause(){
       <div class="p-hint">${$('#keys').innerHTML}</div>
       <div class="p-lbl">${t('JUMP TO A MISSION')}</div>
       <div class="jumprow" id="pJump"></div>
+      <div id="pOver"></div>
       <div style="text-align:center;margin-top:14px">
         <button class="btn good" id="pClose">${t('Back to the game ▶')}</button>
         <button class="btn ghost small" id="pHome">${t('Back to the planet')}</button>
@@ -906,6 +935,7 @@ function togglePause(){
     </div>`;
   p.classList.remove('hidden');
   pauseJump();
+  pauseOver();
   $('#pClose').onclick=()=>togglePause();
   /* The music toggle lives in the top bar too, but the top bar is hidden in
      half the rooms and invisible to anybody who has paused to read. This is
@@ -916,6 +946,38 @@ function togglePause(){
   const ph=$('#pHome');
   if(ph) ph.onclick=()=>{ p.classList.add('hidden'); MENU.homeworld(); };
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };
+}
+/* START THIS MISSION FROM THE BEGINNING. A save that always carries on is
+   right nine times in ten; the tenth is a student who wants level one back —
+   to do it properly this time, or to see the walkthrough again — and a
+   teacher standing at their shoulder who wants the same. It asks once,
+   inside the card rather than in a browser dialog, and says exactly what it
+   is about to do: back to level one and the coach again, and nothing about
+   the medal, because a finished mission stays finished. */
+function pauseOver(){
+  const box=$('#pOver'); if(!box) return;
+  const id=G.missionId;
+  if(!id || !PROGRESS.leveled || !PROGRESS.leveled(id)){ box.innerHTML=''; return; }
+  const ask=()=>{
+    box.innerHTML=`<div class="p-lbl">${t('THIS MISSION')}</div>
+      <div class="p-hint"><button class="btn ghost small" id="pOverBtn">↺ ${t('Start from the beginning')}</button></div>`;
+    $('#pOverBtn').onclick=confirm_;
+  };
+  const confirm_=()=>{
+    box.innerHTML=`<div class="p-lbl">${t('THIS MISSION')}</div>
+      <div class="p-hint">${t('Back to <b>level 1</b>, with the walkthroughs again. Everything you have done in this mission starts over.')}<br>
+        <button class="btn good small" id="pOverYes" style="margin-top:8px">↺ ${t('Yes, start over')}</button>
+        <button class="btn ghost small" id="pOverNo" style="margin-top:8px">${t('Keep going')}</button></div>`;
+    $('#pOverNo').onclick=ask;
+    $('#pOverYes').onclick=()=>{
+      PROGRESS.restart(id);
+      $('#pause').classList.add('hidden');
+      $('#hud').classList.remove('hidden');
+      if(window.PLANET && PLANET.active) PLANET.leave();
+      startMissionRoom(id);
+    };
+  };
+  ask();
 }
 /* The planet is how you are meant to get to a mission, but a walk across it
    should never be the only way — this is the old grid, folded into the pause

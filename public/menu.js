@@ -241,7 +241,11 @@ window.MENU = (function(){
          times in ten and it is what the card does; the tenth is a student who
          wants another look at an early level, and without this there would be
          no route to one — you would have to finish the whole mission first. */
-      const over = at ? `<span class="misover" data-over="1"
+      /* Mid-way, or finished: both have a beginning to go back to. A finished
+         mission already opens at level one, but only START OVER brings the
+         walkthroughs back with it. Level 0 has no levels and never shows it. */
+      const canOver = (at || done) && PROGRESS.leveled && PROGRESS.leveled(m.id);
+      const over = canOver ? `<span class="misover" data-over="1"
                            >↺ ${t('START OVER')}</span>` : '';
       b.innerHTML=`<div class="em">${m.em}</div>${over}<b>${t(m.name)}</b>
                    <small>${t(m.blurb)}</small><div class="tagrow">${tag}</div>`;
