@@ -792,6 +792,13 @@ window.ES = {
     'Escribe una asignación completa, como <b>x = 2</b> o <b>x = x + 1</b>.',
 
   /* ---------- the swarm: loops, in the shape of an invasion ---------- */
+  /* the ten seconds of film it opens with */
+  'THE SWARM':'EL ENJAMBRE',
+  'SKIP ▶':'SALTAR ▶',
+  'A fortress, and a shield that grows back faster than one shot can chip it.':'Una fortaleza, y un escudo que crece más rápido de lo que un disparo lo desgasta.',
+  'You are not the ship. You are the swarm — and the whole swarm flies one program.':'No eres la nave. Eres el enjambre — y todo el enjambre vuela un solo programa.',
+  'So eight invaders is not eight blocks. It is a loop.':'Así que ocho invasores no son ocho bloques. Son un bucle.',
+  'Write the army. Break the fortress.':'Escribe el ejército. Rompe la fortaleza.',
   'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
   'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
   'One Rank':'Una Fila','The Grid':'La Cuadrícula','The Long March':'La Marcha Larga',
