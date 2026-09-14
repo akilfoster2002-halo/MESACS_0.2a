@@ -806,7 +806,7 @@ window.ES = {
   'Write the army. Break the fortress.':'Escribe el ejército. Rompe la fortaleza.',
   'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
   'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
-  'One Rank':'Una Fila','Count the Volleys':'Cuenta las Descargas','Two Ranks':'Dos Filas',
+  'One Rank':'Una Fila','Count the Volleys':'Cuenta las Descargas','Drop a Row':'Baja una Fila','Two Ranks':'Dos Filas',
   'No Number':'Sin Número','Past Counting':'Más Allá de Contar','Break the Shield':'Rompe el Escudo',
   'Walk to the Wall':'Camina hasta la Pared','The Listener':'El Oyente','The Staircase':'La Escalera',
   'The Grid':'La Cuadrícula',
@@ -826,8 +826,12 @@ window.ES = {
      English — t() falls back to its key, so a missing line is invisible */
   'Press <b>C</b> and try again.':'Presiona <b>C</b> e inténtalo de nuevo.',
   '✅ The fortress is down.':'✅ La fortaleza ha caído.',
-  '🏅 The fortress is down. Four blocks, thirty-two invaders — a loop inside a loop.':
-    '🏅 La fortaleza ha caído. Cuatro bloques, treinta y dos invasores — un bucle dentro de un bucle.',
+  '🏅 The fortress is down. Five blocks, thirty-two invaders — a loop inside a loop.':
+    '🏅 La fortaleza ha caído. Cinco bloques, treinta y dos invasores — un bucle dentro de un bucle.',
+  'The shield is down — but the outline is not. Every invader goes where the frame asks.':
+    'El escudo ha caído — pero el contorno no está lleno. Cada invasor va donde pide el marco.',
+  'Nobody fired. The swarm fires when you say <b>fire()</b>.':
+    'Nadie disparó. El enjambre dispara cuando dices <b>disparar()</b>.',
   'A volley at nothing — the shield rebuilt.':'Una descarga a la nada — el escudo se reconstruyó.',
   'Three volleys at nothing, and the shield rebuilt every time. Ask <b>if over the fortress</b> before every volley.':
     'Tres descargas a la nada, y el escudo se reconstruyó cada vez. Pregunta <b>si sobre la fortaleza</b> antes de cada descarga.',
@@ -860,9 +864,12 @@ window.ES = {
     'Repite los bloques de adentro una y otra vez, hasta que la misión termine',
   '<b>forever</b> is not in this mission yet.':'<b>por siempre</b> no está en esta misión todavía.',
   /* what each stage is teaching */
-  'Eight invaders, two blocks':'Ocho invasores, dos bloques',
-  'Both put eight on the board. Only one of them changes by editing a single number.':
-    'Escribir aparecer() ocho veces y escribirlo una vez dentro de un repetir ponen los mismos ocho invasores en el tablero. Uno de ellos lo cambias editando un solo número.',
+  'Eight invaders, three blocks':'Ocho invasores, tres bloques',
+  'Eight spawns written out is eight blocks. A loop is one — and then the whole rank fires.':
+    'Ocho aparecer() escritos uno por uno son ocho bloques. Un bucle es uno — y luego dispara toda la fila.',
+  'The next row':'La siguiente fila',
+  '<b>spawn()</b> fills the frame and steps it right. <b>nextRow()</b> drops the frame to the start of the row below.':
+    '<b>aparecer()</b> llena el marco y lo mueve a la derecha. <b>siguienteFila()</b> baja el marco al inicio de la fila de abajo.',
   'A loop inside a loop':'Un bucle dentro de un bucle',
   'The inside loop builds a rank. The outside one does it four times.':
     'El bucle de adentro construye una fila. El de afuera lo hace cuatro veces, bajando una fila entre cada una. Dos números, y la formación es lo que tú decidas.',
@@ -870,8 +877,8 @@ window.ES = {
   'The rank was <b>repeat</b> round <b>spawn()</b>. This is <b>repeat</b> round <b>fire()</b>, and the number is yours to find.':
     'La fila era <b>repetir</b> alrededor de <b>aparecer()</b>. Esto es <b>repetir</b> alrededor de <b>disparar()</b>, y el número lo encuentras tú.',
   'Practice — the same loop twice':'Práctica — el mismo bucle dos veces',
-  'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another.':
-    'Una fila es un bucle que ya conoces. Construye una, baja una fila con <b>siguienteFila()</b>, construye otra.',
+  'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another — then fire.':
+    'Una fila es un bucle que ya conoces. Construye una, baja una fila con <b>siguienteFila()</b>, construye otra — y luego dispara.',
   'Practice — which loop?':'Práctica — ¿cuál bucle?',
   'Count what a volley takes off and what grows back. If no number reaches it, you know which loop.':
     'Cuenta lo que quita una descarga y lo que vuelve a crecer. Si ningún número llega, ya sabes cuál bucle.',
@@ -892,14 +899,16 @@ window.ES = {
   'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.':
     'Un si encima del bucle se pregunta una vez, antes de que el enjambre se mueva, y nunca más. El mismo bloque un nivel adentro se pregunta en cada vuelta — así dispara en cuanto la formación está sobre el objetivo.',
   /* the briefings */
-  'Shield <b>8</b>, and it grows back. You need <b>eight invaders</b> — in <b>2 blocks</b>.':
-    'El escudo de la fortaleza aguanta en <b>8</b> y vuelve a crecer entre descargas, así que unos pocos invasores nunca lo romperán — necesitas una <b>fila completa de ocho</b>. Tienes un presupuesto de <b>2 bloques</b>. Ocho apariciones no caben; <b>repetir 8</b> sí.',
-  'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>. Fill the outline.':
-    'Escudo <b>30</b>, <b>+7</b> por descarga. Cuatro filas como construiste dos son <b>once bloques</b>. Tienes <b>cuatro</b>. Rellena el contorno.',
+  'Shield <b>8</b>, and it grows back. Eight invaders, then <b>fire()</b> — in <b>3 blocks</b>.':
+    'Escudo <b>8</b>, y vuelve a crecer. Ocho invasores, y luego <b>disparar()</b> — en <b>3 bloques</b>.',
+  'One under the other. Fill the <b>outline</b> — <b>nextRow()</b> is how you get down there.':
+    'Uno debajo del otro. Rellena el <b>contorno</b> — con <b>siguienteFila()</b> bajas hasta allí.',
+  'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>twelve blocks</b>. You have <b>five</b>. Fill the outline.':
+    'Escudo <b>30</b>, <b>+7</b> por descarga. Cuatro filas como construiste dos son <b>doce bloques</b>. Tienes <b>cinco</b>. Rellena el contorno.',
   'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.':
     'Escudo <b>20</b>, <b>+4</b> por descarga. Ocho invasores hacen <b>8</b>, así que una descarga no basta — y tienes <b>2 bloques</b>.',
-  'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, in <b>5 blocks</b>.':
-    'Escudo <b>12</b> — una fila no puede romperlo. Rellena el <b>contorno</b>: dos filas, en <b>5 bloques</b>.',
+  'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, then fire, in <b>6 blocks</b>.':
+    'Escudo <b>12</b> — una fila no puede romperlo. Rellena el <b>contorno</b>: dos filas, luego dispara, en <b>6 bloques</b>.',
   'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.':
     'Escudo <b>48</b>, <b>+6</b> por descarga. <b>repetir 20</b> es el repetir más grande que hay — y no basta.',
   'Sixteen invaders. Shield <b>96</b>, <b>+12</b> a volley. Which loop?':
@@ -920,7 +929,16 @@ window.ES = {
   'Inside the <b>inner</b> one now.':'Ahora dentro del <b>de adentro</b>.',
   'Click it again to step back <b>out</b>.':'Haz clic otra vez para salir <b>afuera</b>.',
   'Now inside the <b>if</b>.':'Ahora dentro del <b>si</b>.',
-  'Eight invaders. You have <b>two blocks</b>.':'Ocho invasores. Tienes <b>dos bloques</b>.',
+  'Eight invaders. You have <b>three blocks</b>.':'Ocho invasores. Tienes <b>tres bloques</b>.',
+  '<b>spawn()</b> fills the frame and steps it right.':'<b>aparecer()</b> llena el marco y lo mueve a la derecha.',
+  'Click the loop again to step back <b>out</b>.':'Haz clic en el bucle otra vez para salir <b>afuera</b>.',
+  'Now <b>fire()</b> — every invader, once.':'Ahora <b>disparar()</b> — cada invasor, una vez.',
+  'One invader, in the frame.':'Un invasor, en el marco.',
+  '<b>nextRow()</b> drops the frame to the row below.':'<b>siguienteFila()</b> baja el marco a la fila de abajo.',
+  'Another, under the first.':'Otro, debajo del primero.',
+  '<b>across()</b> slides the whole swarm one column. At the wall it turns.':
+    '<b>cruzar()</b> desliza todo el enjambre una columna. En la pared da la vuelta.',
+  'Out of the <b>outer</b> loop now.':'Ahora sal del bucle de <b>afuera</b>.',
   'Make it <b>8</b>.':'Ponlo en <b>8</b>.',
   '<b>repeat 20</b> is the biggest there is, and it falls short. This loop has <b>no number</b>.':
     '<b>repetir 20</b> es el más grande que hay, y se queda corto. Este bucle <b>no tiene número</b>.',

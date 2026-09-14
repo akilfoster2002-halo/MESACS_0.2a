@@ -185,6 +185,20 @@ test('every shield grows back, so no shield can simply be worn down', ()=>{
       `straight-line program would beat it, and the loop becomes optional`);
 });
 
+test('a build stage is won only when the outline is filled', ()=>{
+  /* Drop a Row is two slots stacked, and spawn() spawn() fire() — the second
+     invader beside the first instead of under it — does the same two damage
+     to a shield of two. Only the outline tells those apart, so the breach
+     has to ask it. */
+  const src=read('public/invaders.js');
+  assert.match(src, /if\(breached && !L\.K\.landAfter\)\{\s*if\(!goalFilled\(\)\)/,
+    'the win on a build stage does not check the outline');
+  const K=INV.STAGES.find(s=>s.id==='row');
+  assert.ok(K && K.goal.cols===1 && K.goal.rows===2, 'Drop a Row should be two slots, one under the other');
+  assert.ok(volley(1, 2, ROWS-1) >= K.fort.shield,
+    'two invaders side by side do not break the shield, so the outline rule is never exercised here');
+});
+
 test('every build stage draws the shape it is asking for, and the shape is the number', ()=>{
   /* "Build two ranks" is a sentence a student has to picture; an outline of
      the formation on the board is not. So every stage that starts with an
@@ -201,16 +215,16 @@ test('every build stage draws the shape it is asking for, and the shape is the n
 });
 
 test('a built swarm wins only at full strength, and one rank short loses', ()=>{
-  /* THE BUILD STAGES ARE SIZED, NOT TIMED. They are the two where a single
+  /* THE BUILD STAGES ARE SIZED, NOT TIMED. They are the ones where a single
      volley is supposed to decide it, so the shield has to sit in the gap
      between "the formation the mission asked for" and "one rank less than
      that" — which is what makes the number of invaders the point, and
      therefore what makes the loop that puts them there the point. */
   const fortRow=ROWS-1;
   for(const K of INV.STAGES){
-    if(!K.autoVolley) continue;
-    const cols=8, rows=K.need.alive/cols;
-    assert.ok(Number.isInteger(rows), `stage "${K.id}" is not a whole number of ranks`);
+    if(!K.goal) continue;
+    const cols=K.goal.cols, rows=K.goal.rows;
+    assert.ok(K.pal.includes('volley'), `build stage "${K.id}" cannot say fire() — nothing fires by itself any more`);
     const full=volley(rows, cols, fortRow);
     const short=volley(rows-1, cols, fortRow);
     assert.ok(full >= K.fort.shield,
@@ -296,16 +310,19 @@ test('no number: the biggest repeat there is falls short, and forever does not',
   /* The whole stage is one claim — "repeat 20 is not enough" — and it is a
      claim about three numbers that anybody could nudge. Its practice stage
      makes the same claim with a bigger army, so both are checked. */
-  const both=INV.STAGES.filter(s=>s.learn.code==='forever\n  fire()\nend');
-  assert.strictEqual(both.length, 2, 'expected the forever stage and its practice');
+  const both=['forever','past'].map(id=>INV.STAGES.find(s=>s.id===id));
   for(const K of both){
     assert.ok(K.pal.includes('repeat'), `"${K.id}": the student has to be able to TRY the biggest repeat`);
-    const W=board(K); for(let i=0;i<MAXREP;i++) W.fire();
-    assert.ok(!W.broken, `"${K.id}": repeat ${MAXREP} { fire() } breaks a shield of ${K.fort.shield} — so forever is optional`);
+    const sweeps = K.learn.code.includes('across()');
+    const pass = W => { if(sweeps) W.across(); W.fire(); };
+    const W=board(K); for(let i=0;i<MAXREP;i++) pass(W);
+    assert.ok(!W.broken, `"${K.id}": repeat ${MAXREP} round the worked body breaks a shield of ${K.fort.shield} — so forever is optional`);
+    const S=board(K); for(let i=0;i<MAXREP;i++) S.fire();
+    assert.ok(!S.broken, `"${K.id}": repeat ${MAXREP} { fire() } standing still breaks it — so forever is optional`);
     const F=board(K); let n=0;
-    while(!F.broken && n<200){ F.fire(); n++; }
-    assert.ok(F.broken, `"${K.id}": forever { fire() } never breaks it — the stage cannot be won`);
-    assert.ok(n<=40, `"${K.id}": forever takes ${n} volleys, which is a long time to watch the same thing`);
+    while(!F.broken && n<200){ pass(F); n++; }
+    assert.ok(F.broken, `"${K.id}": the worked answer never breaks it — the stage cannot be won`);
+    assert.ok(F.beats<=60, `"${K.id}": the worked answer takes ${F.beats} beats, which is a long time to watch`);
   }
 });
 
@@ -423,21 +440,25 @@ test('nothing nests a loop in a loop until the last rung', ()=>{
 
 const CONTAINER=new Set(['repeat','forever','until','ifc']);
 const loopsIn = code => Array.from(opsOf(code)).filter(op=>CONTAINER.has(op));
-/* What a stage brings that no stage before it had: a loop block, or the
-   first loop inside a loop. Those are the two things worth a walkthrough. */
+/* What a stage brings that no stage before it had: any block — a loop or a
+   verb — or the first loop inside a loop. Every one of those is worth a
+   walkthrough, and a verb is not exempt: "every invader fires once" on the
+   shelf is not being shown. */
 function introduces(K, seen){
-  const fresh=loopsIn(K.learn.code).filter(op=>!seen.has(op));
+  const fresh=Array.from(opsOf(K.learn.code)).filter((op,i,a)=>!seen.has(op) && a.indexOf(op)===i);
   const nests=loopDepths(K.learn.code).some(d=>d>0);
   return { fresh, nests: nests && !seen.has('nest') };
 }
 
-test('every new loop is walked once, then practised before the next one arrives', ()=>{
+test('every new block is walked once, then practised before the next one arrives', ()=>{
   /* INTRODUCED, THEN PRACTISED. A walkthrough shows where a block goes;
      only writing it yourself shows that you know. So a stage that brings a
-     new loop is walked, a stage that brings nothing new is practice (no
-     coach, the answer behind the Hint button), and every walked stage but
-     the last is followed by a practice stage that uses the very loop it
-     just introduced. "It isn't just walkthrough after walkthrough." */
+     new block is walked, and its walk rings that block; a stage that brings
+     nothing new is practice (no coach, the answer behind the Hint button);
+     and every walked stage but the last is followed by a practice stage
+     that uses every loop it introduced and only blocks already shown.
+     "You should never drop a new block into the flow without it having a
+     walkthrough level." */
   const S=Array.from(INV.STAGES);
   const seen=new Set();
   S.forEach((K,i)=>{
@@ -446,12 +467,17 @@ test('every new loop is walked once, then practised before the next one arrives'
     if(isNew){
       assert.ok(K.walk && !K.practice,
         `stage "${K.id}" introduces ${fresh.join('+')||'nesting'} and is not walked`);
+      const rung=palSteps(K);
+      fresh.forEach(op=>assert.ok(rung.includes(op),
+        `stage "${K.id}" introduces ${op} but its walkthrough never rings it`));
       if(i<S.length-1){
         const next=S[i+1];
         assert.ok(next.practice && !next.walk,
           `stage "${next.id}" comes straight after "${K.id}" introduced ${fresh.join('+')||'nesting'} — it should be practice, not another walkthrough`);
-        fresh.forEach(op=>assert.ok(loopsIn(next.learn.code).includes(op),
+        fresh.filter(op=>CONTAINER.has(op)).forEach(op=>assert.ok(loopsIn(next.learn.code).includes(op),
           `stage "${next.id}" is the practice for ${op} but its answer never uses it`));
+        assert.ok(fresh.some(op=>opsOf(next.learn.code).includes(op)),
+          `stage "${next.id}" practises nothing that "${K.id}" introduced`);
       }
     } else {
       assert.ok(K.practice && !K.walk,
@@ -474,18 +500,24 @@ test('a practice stage keeps its answer behind the hint button, and opens the co
   const src=read('public/invaders.js');
   assert.match(src, /K\.practice \? Object\.assign\(\{ hint:true \}, K\.learn\)/,
     'practice stages do not hand the console a hidden answer');
+  /* and the coach from the stage before is gone: its strip lives in the
+     console, which RUN closed, so it could not clear itself */
+  assert.match(src, /if\(window\.COACH\) COACH\.stop\(\);\s*hud\(\);/,
+    'a new stage does not stop the last walkthrough, so a practice stage opens on its last step');
   assert.match(src, /if\(K\.practice\)\{[^}]*CODE\.show\(\)/,
     'a practice stage should open the console by itself, like a walked one');
 });
 
-test('the first two rungs are one loop round one block', ()=>{
-  /* "Simple challenges that demonstrate loops": the walked rank and its
-     practice are a loop and the one verb inside it, and nothing else. */
+test('the first two rungs are one loop round one block, and a fire()', ()=>{
+  /* "Simple challenges that demonstrate loops": the walked rank is a loop
+     round one verb and then the volley; its practice is a loop round one
+     verb. One loop each, and nothing over three blocks. */
   INV.STAGES.slice(0,2).forEach(K=>{
-    assert.strictEqual(K.budget, 2, `stage "${K.id}" should be a two-block stage`);
-    assert.strictEqual(opsOf(K.learn.code).length, 2,
-      `stage "${K.id}" shows a ${opsOf(K.learn.code).length}-block answer; the first rungs are a loop and one block`);
+    assert.ok(K.budget<=3, `stage "${K.id}" should be a three-block stage at most`);
+    assert.strictEqual(loopsIn(K.learn.code).length, 1, `stage "${K.id}" should have exactly one loop`);
   });
+  assert.deepStrictEqual(Array.from(opsOf(INV.STAGES[0].learn.code)), ['repeat','spawn','volley'],
+    'the first stage is a rank, then fire()');
 });
 
 test('the golden rule is walked, with the if inside the forever', ()=>{

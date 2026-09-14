@@ -24,12 +24,21 @@
    one line at a time, so that asking costs a click and thinking costs
    nothing.
 
-     One Rank            walked      repeat, round spawn()
+   EVERY BLOCK, NOT JUST EVERY LOOP. A verb that turns up for the first
+   time on a practice stage is a block nobody was shown, and "every
+   invader fires once" on the shelf is not being shown. So the walked
+   stages introduce the verbs the practice after them needs, and the
+   coach rings each one — which is why the first stage ends with fire()
+   rather than the swarm firing by itself, and why there is a tiny walked
+   stage for nextRow() before the two ranks that need it.
+
+     One Rank            walked      repeat, spawn(), fire()
      Count the Volleys   practice    repeat, round fire() — find the number
+     Drop a Row          walked      nextRow(): one invader under another
      Two Ranks           practice    the rank loop twice, with a row between
-     No Number           walked      forever, where repeat 20 falls short
+     No Number           walked      forever, across() — repeat 20 falls short
      Past Counting       practice    forever or repeat? count and choose
-     Break the Shield    walked      repeat until, and a reason to stop
+     Break the Shield    walked      repeat until, down(), and a reason to stop
      Walk to the Wall    practice    repeat until, with a different question
      The Listener        walked      an if inside a forever
      The Staircase       practice    an if inside a forever, the arcade's
@@ -113,15 +122,24 @@ window.INVADERS = (function(){
      A stage is the palette it hands out, the fortress it puts up, and
      what counts as done. Everything else is the same engine. */
   const STAGES=[
-    /* ONE RANK. The budget is two, and eight invaders need eight spawns,
+    /* ONE RANK. The budget is three, and eight invaders need eight spawns,
        so the only program that fits is the one with a loop in it. This is
        the whole of slide two and it is deliberately the first thing that
        happens: the lesson is not "a loop is neater", it is "a loop is the
-       only version of this that you are allowed to write". */
-    { id:'rank', name:'One Rank', budget:2,
-      pal:['spawn','repeat'],
-      autoVolley:true, goal:{ cols:8, rows:1 },
-      fort:{ c0:1, c1:9, shield:8, regrow:3 },
+       only version of this that you are allowed to write".
+
+       Then fire(). The swarm used to open fire by itself when the program
+       ended, which made fire() a block that turned up on the next stage
+       with nobody having shown it. Now the first program ends the way the
+       film does — write the army, break the fortress — and the walk rings
+       the click that steps back OUT of the loop before it, because that is
+       the click a first program most often gets wrong. The shield grows
+       back the whole eight, so a fire() left INSIDE the loop still only
+       wins on the eighth pass, with the eighth invader. */
+    { id:'rank', name:'One Rank', budget:3,
+      pal:['spawn','volley','repeat'],
+      goal:{ cols:8, rows:1 },
+      fort:{ c0:1, c1:9, shield:8, regrow:8 },
       /* POINTED AT, NOT EXPLAINED. COACH rings the real button and the rails
          narrow the shelf to the one block being asked for, so the words only
          have to NAME the move — the screen already says where.
@@ -132,20 +150,27 @@ window.INVADERS = (function(){
          program comes out wrong. So it is a step, with the loop itself lit
          up and an empty shelf, because there is nothing else to do here. */
       walk:[
-        { say:'Eight invaders. You have <b>two blocks</b>.', sel:'#conPalette [data-add="repeat"]',
+        { say:'Eight invaders. You have <b>three blocks</b>.', sel:'#conPalette [data-add="repeat"]',
           done:()=>has('repeat') },
         { say:'Make it <b>8</b>.', sel:'#conScript .cnt[data-act="inc"]',
           done:()=>count('repeat')===8 },
         { say:'Click the loop to get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || inside('repeat','spawn') },
-        { say:'', sel:'#conPalette [data-add="spawn"]',
+        { say:'<b>spawn()</b> fills the frame and steps it right.', sel:'#conPalette [data-add="spawn"]',
           done:()=>inside('repeat','spawn') },
+        /* Only true once there IS a spawn to be outside of — the same rule
+           the grid learnt: a step that can come true before its turn is not
+           a step. */
+        { say:'Click the loop again to step back <b>out</b>.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>has('volley') || (inside('repeat','spawn') && !target()) },
+        { say:'Now <b>fire()</b> — every invader, once.', sel:'#conPalette [data-add="volley"]',
+          done:()=>has('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
-      learn:{ name:'Eight invaders, two blocks',
-              text:'Both put eight on the board. Only one of them changes by editing a single number.',
-              code:'repeat 8\n  spawn()\nend' },
-      brief:'Shield <b>8</b>, and it grows back. You need <b>eight invaders</b> — in <b>2 blocks</b>.',
+      learn:{ name:'Eight invaders, three blocks',
+              text:'Eight spawns written out is eight blocks. A loop is one — and then the whole rank fires.',
+              code:'repeat 8\n  spawn()\nend\nfire()' },
+      brief:'Shield <b>8</b>, and it grows back. Eight invaders, then <b>fire()</b> — in <b>3 blocks</b>.',
       /* Eight bolts against a shield of eight, and the regrow never gets a
          turn because the breach is checked before it. Seven invaders lose. */
       need:{ alive:8 } },
@@ -168,22 +193,53 @@ window.INVADERS = (function(){
               code:'repeat 4\n  fire()\nend' },
       brief:'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.' },
 
+    /* DROP A ROW — the walkthrough for nextRow(), and nothing else. Two
+       invaders, one under the other, and four blocks with no loop in them,
+       because the only thing being shown is what the verb does: spawn()
+       fills the frame and steps it right, nextRow() drops the frame to the
+       start of the row below. With the cursor on the board that is
+       something you watch happen rather than read. The outline is two
+       slots stacked, and the stage is only won when both are filled — so
+       spawn() spawn() fire(), which puts the second invader beside the
+       first instead of under it, breaks the shield and still loses, with a
+       sentence about the frame. */
+    { id:'row', name:'Drop a Row', budget:4,
+      pal:['spawn','nextRow','volley'],
+      goal:{ cols:1, rows:2 },
+      fort:{ c0:1, c1:9, shield:2, regrow:2 },
+      walk:[
+        { say:'One invader, in the frame.', sel:'#conPalette [data-add="spawn"]',
+          done:()=>has('spawn') },
+        { say:'<b>nextRow()</b> drops the frame to the row below.', sel:'#conPalette [data-add="nextRow"]',
+          done:()=>has('nextRow') },
+        { say:'Another, under the first.', sel:'#conPalette [data-add="spawn"]',
+          done:()=>SCR().filter(b=>b.type==='spawn').length>=2 },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>has('volley') },
+        { say:'', sel:'#conRun', done:()=>busy }
+      ],
+      learn:{ name:'The next row',
+              text:'<b>spawn()</b> fills the frame and steps it right. <b>nextRow()</b> drops the frame to the start of the row below.',
+              code:'spawn()\nnextRow()\nspawn()\nfire()' },
+      brief:'One under the other. Fill the <b>outline</b> — <b>nextRow()</b> is how you get down there.',
+      need:{ alive:2 } },
+
     /* TWO RANKS — practice, and the seed of the final. A rank is a loop
        the student has now written twice; this asks for it twice in one
-       program with a row dropped between. Five blocks is exactly enough
+       program with a row dropped between. Six blocks is exactly enough
        for that and not for anything written out, and one rank — even a
        rank of ten, which is what repeat 20 gets you before the board runs
        out — leaves the shield standing. By the grid, "four ranks the way
        you built two" is a sentence about eleven blocks, and the loop round
        the loop is the obvious move rather than a clever one. */
-    { id:'ranks', name:'Two Ranks', budget:5, practice:true,
-      pal:['spawn','nextRow','repeat'],
-      autoVolley:true, goal:{ cols:8, rows:2 },
+    { id:'ranks', name:'Two Ranks', budget:6, practice:true,
+      pal:['spawn','nextRow','volley','repeat'],
+      goal:{ cols:8, rows:2 },
       fort:{ c0:1, c1:9, shield:12, regrow:5 },
       learn:{ name:'Practice — the same loop twice',
-              text:'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another.',
-              code:'repeat 8\n  spawn()\nend\nnextRow()\nrepeat 8\n  spawn()\nend' },
-      brief:'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, in <b>5 blocks</b>.',
+              text:'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another — then fire.',
+              code:'repeat 8\n  spawn()\nend\nnextRow()\nrepeat 8\n  spawn()\nend\nfire()' },
+      brief:'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, then fire, in <b>6 blocks</b>.',
       need:{ alive:16 } },
 
     /* NO NUMBER. Slide three is "repeat (N) vs forever — the difference is
@@ -192,22 +248,29 @@ window.INVADERS = (function(){
        that takes twenty-four volleys, and the counter on a repeat only goes
        to twenty. The biggest repeat there is leaves eight on the bar. The
        loop with no number on it does not. */
-    { id:'forever', name:'No Number', budget:2,
-      pal:['volley','repeat','forever'],
+    { id:'forever', name:'No Number', budget:3,
+      pal:['across','volley','repeat','forever'],
       army:{ cols:8, rows:1 },
       fort:{ c0:1, c1:9, shield:48, regrow:6 },
+      /* across() is introduced here, walked, because the stage after next
+         needs it and a verb has to be shown before it is asked for. It is
+         not what wins this stage — the shield falls to the volleys — but a
+         swarm that keeps sliding while the loop keeps going is the picture
+         of a loop with no end, and at the wall it turns round by itself. */
       walk:[
         { say:'<b>repeat 20</b> is the biggest there is, and it falls short. This loop has <b>no number</b>.',
           sel:'#conPalette [data-add="forever"]', done:()=>has('forever') },
         { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
-          done:()=>target() || inside('forever','volley') },
+          done:()=>target() || inside('forever','across') },
+        { say:'<b>across()</b> slides the whole swarm one column. At the wall it turns.',
+          sel:'#conPalette [data-add="across"]', done:()=>inside('forever','across') },
         { say:'', sel:'#conPalette [data-add="volley"]',
           done:()=>inside('forever','volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A loop with no number',
               text:'<b>repeat</b> counts to its number and stops. <b>forever</b> has no number — it stops when the mission does.',
-              code:'forever\n  fire()\nend' },
+              code:'forever\n  across()\n  fire()\nend' },
       brief:'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.' },
 
     /* PAST COUNTING — practice for forever, and it is a choice rather than
@@ -217,8 +280,8 @@ window.INVADERS = (function(){
        and the counter stops at twenty. A student who counts finds out; a
        student who tries repeat 20 and reads the bar finds out the same
        thing a few seconds later. */
-    { id:'past', name:'Past Counting', budget:2, practice:true,
-      pal:['volley','repeat','forever'],
+    { id:'past', name:'Past Counting', budget:3, practice:true,
+      pal:['across','volley','repeat','forever'],
       army:{ cols:8, rows:2 },
       fort:{ c0:1, c1:9, shield:96, regrow:12 },
       learn:{ name:'Practice — which loop?',
@@ -354,9 +417,9 @@ window.INVADERS = (function(){
        the console asks that has no picture on the shelf. By now they have
        stepped into a loop on every rung and into an if inside a loop on the
        one before this, so the click that used to be a mystery is a habit. */
-    { id:'grid', name:'The Grid', budget:4,
-      pal:['spawn','nextRow','repeat'],
-      autoVolley:true, goal:{ cols:8, rows:4 },
+    { id:'grid', name:'The Grid', budget:5,
+      pal:['spawn','nextRow','volley','repeat'],
+      goal:{ cols:8, rows:4 },
       fort:{ c0:1, c1:9, shield:30, regrow:7 },
       walk:[
         { say:'A rank was one loop. Four ranks is <b>two</b>.', sel:'#conPalette [data-add="repeat"]',
@@ -383,12 +446,18 @@ window.INVADERS = (function(){
           done:()=>inside('repeat','nextRow') || (deep('spawn') && target('outer')) },
         { say:'Drop a row, then round again.', sel:'#conPalette [data-add="nextRow"]',
           done:()=>inside('repeat','nextRow') },
+        /* the OUTER head is the first .blk.rep in the document, so this
+           selector lands on it and not on the rank inside */
+        { say:'Out of the <b>outer</b> loop now.', sel:'#conScript .blk.rep > .blk-head',
+          done:()=>has('volley') || (inside('repeat','nextRow') && !target()) },
+        { say:'', sel:'#conPalette [data-add="volley"]',
+          done:()=>has('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A loop inside a loop',
               text:'The inside loop builds a rank. The outside one does it four times.',
-              code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend' },
-      brief:'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>. Fill the outline.',
+              code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend\nfire()' },
+      brief:'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>twelve blocks</b>. You have <b>five</b>. Fill the outline.',
       need:{ alive:32 } }
   ];
 
@@ -627,6 +696,16 @@ window.INVADERS = (function(){
     L.cursor=cursorMesh(); group.add(L.cursor);
     placeCursor();
   }
+  /* Every slot of the outline has an invader standing in it. Extra invaders
+     are fine — a rank of nine still holds a rank of eight — but an invader
+     beside the frame instead of under it is not the shape that was asked
+     for, however much damage it does. */
+  function goalFilled(){
+    const g=L.K.goal; if(!g) return true;
+    for(let r=0;r<g.rows;r++) for(let c=0;c<g.cols;c++)
+      if(!L.inv.some(v=>v.alive && v.c===X0+c && v.r===Y0+r)) return false;
+    return true;
+  }
   function placeCursor(){
     const m=L && L.cursor; if(!m) return;
     const off = L.cur.c>=COLS || L.cur.r>=ROWS;   // walked off the board: nothing to point at
@@ -776,6 +855,12 @@ window.INVADERS = (function(){
        of practice is to write the program, not to find the key that opens
        the editor. */
     if(K.learn) CODE.setGuide(K.practice ? Object.assign({ hint:true }, K.learn) : K.learn);
+    /* The last walkthrough is over, whatever it was doing. It ended by
+       pressing RUN, which closed the console, which is the one place its
+       strip lives — so it could not clear the strip itself, and a practice
+       stage that never starts a walkthrough of its own would open the
+       console on "STEP 5 OF 5" of the stage before. */
+    if(window.COACH) COACH.stop();
     hud(); say(t(K.brief));
     if(K.practice){ if(CODE.setMode) CODE.setMode('blocks'); CODE.show(); }
     /* A NEW STAGE IS WALKED, AND ONLY EVER ONCE. Every level here introduces
@@ -980,7 +1065,11 @@ window.INVADERS = (function(){
     /* On most stages the breach IS the win. On a stage about stopping it is
        not: the fortress is taken when your program lets go with the shield
        down, and a loop with no way out never lets go. */
-    if(breached && !L.K.landAfter) return finish(true);
+    if(breached && !L.K.landAfter){
+      if(!goalFilled())
+        return finish(false, t('The shield is down — but the outline is not. Every invader goes where the frame asks.'));
+      return finish(true);
+    }
 
     L.wait-=dt*1000;
     if(L.wait>0) return;
@@ -1035,11 +1124,13 @@ window.INVADERS = (function(){
     }
   }
 
-  /* THE PROGRAM RAN OUT. What happens next is the difference between the
-     build stages and the firing ones, and it is the lesson in both:
+  /* THE PROGRAM RAN OUT with the fortress still standing. What that means
+     is the difference between the build stages and the firing ones, and it
+     is the lesson in both:
 
-       building   the rank you finished opens fire, and whether it breaks
-                  the shield is a question about how many of them there are
+       building   the rank you finished fired once, and whether it broke the
+                  shield is a question about how many of them there were —
+                  or it never fired at all, which is its own sentence
        firing     the shield is whatever the volleys left it at, and if that
                   is not zero the program was too short — a repeat that
                   counted to the wrong number, or to any number at all on
@@ -1049,13 +1140,14 @@ window.INVADERS = (function(){
        shield is down and the swarm is still flying — which is the sentence
        `repeat until` writes and `forever` cannot. */
     if(L.K.landAfter && L.fort.shield<=0) return finish(true);
-    if(L.K.autoVolley && !L.fired){
-      doVolley(); hud();
-      if(L.fort.shield<=0) return finish(true);
-      const n=live().length;
-      return finish(false, t('{n} invaders is not enough — the shield grew back.',{n}));
-    }
     L.over=true;
+    /* On a build stage the program is the army and one volley, so what went
+       wrong is one of two things and each gets its own sentence: nobody
+       fired, or not enough of them did. */
+    if(L.K.goal && !L.fired)
+      return finish(false, t('Nobody fired. The swarm fires when you say <b>fire()</b>.'));
+    if(L.K.goal)
+      return finish(false, t('{n} invaders is not enough — the shield grew back.',{n:live().length}));
     return finish(false, t('Your program ended. The fortress did not.'));
   }
 
@@ -1083,7 +1175,7 @@ window.INVADERS = (function(){
       L.won=true;
       blowUp();
       const last=L.idx>=STAGES.length-1;
-      say(last ? t('🏅 The fortress is down. Four blocks, thirty-two invaders — a loop inside a loop.')
+      say(last ? t('🏅 The fortress is down. Five blocks, thirty-two invaders — a loop inside a loop.')
                : t('✅ The fortress is down.'));
       if(last && window.PROGRESS) PROGRESS.complete('inv');
       else nextT=setTimeout(()=>{ nextT=null; if(on) start(L.idx+1); }, 1900);

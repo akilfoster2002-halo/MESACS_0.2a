@@ -44,14 +44,16 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
 - **Mission 1 — Loops (THE LOOPER)** — block-based code console (`C` to open, time freezes),
   four stages, and a boss that forces `repeat`.
 - **The Swarm — Loops & Conditionals** — Space Invaders with the authorship turned round:
-  you write one program and the whole formation flies it. Ten stages that walk the Level 2
+  you write one program and the whole formation flies it. Eleven stages that walk the Level 2
   lesson in the lesson's order — `repeat (N)`, `forever`, `repeat until`, an `if` inside a
   `forever` — and a loop inside a loop as the **final challenge**, the only stage that nests
-  two loops. Every new block is **introduced, then practised**: the stage that brings it is
-  walked (the console opens itself and the coach rings the next block), and the stage after
-  it is practice — the same loop, a different job, no coach, and the answer behind a Hint
-  button, one line at a time. Count the volleys, build two ranks, walk to the wall, come
-  down the staircase the way the arcade does.
+  two loops. Every new block — loop or verb — is **introduced, then practised**: the stage
+  that brings it is walked (the console opens itself and the coach rings each block, and
+  no block ever turns up on a shelf before it has been walked), and the stage after it is
+  practice — the same loop, a different job, no coach, and the answer behind a Hint button,
+  one line at a time. The build stages draw the formation they ask for as an outline to fill,
+  with a cursor showing where the next `spawn()` lands. Count the volleys, build two ranks,
+  walk to the wall, come down the staircase the way the arcade does.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
 - Bilingual English / Español throughout, including the villain's taunts.
