@@ -892,12 +892,12 @@ window.ES = {
   /* the briefings */
   'Shield <b>8</b>, and it grows back. You need <b>eight invaders</b> — in <b>2 blocks</b>.':
     'El escudo de la fortaleza aguanta en <b>8</b> y vuelve a crecer entre descargas, así que unos pocos invasores nunca lo romperán — necesitas una <b>fila completa de ocho</b>. Tienes un presupuesto de <b>2 bloques</b>. Ocho apariciones no caben; <b>repetir 8</b> sí.',
-  'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>.':
-    'Escudo <b>30</b>, <b>+7</b> por descarga. Cuatro filas como construiste dos son <b>once bloques</b>. Tienes <b>cuatro</b>.',
+  'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>. Fill the outline.':
+    'Escudo <b>30</b>, <b>+7</b> por descarga. Cuatro filas como construiste dos son <b>once bloques</b>. Tienes <b>cuatro</b>. Rellena el contorno.',
   'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.':
     'Escudo <b>20</b>, <b>+4</b> por descarga. Ocho invasores hacen <b>8</b>, así que una descarga no basta — y tienes <b>2 bloques</b>.',
-  'Shield <b>12</b>. One rank cannot break it. Build <b>two</b> — you have <b>5 blocks</b>.':
-    'Escudo <b>12</b>. Una fila no puede romperlo. Construye <b>dos</b> — tienes <b>5 bloques</b>.',
+  'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, in <b>5 blocks</b>.':
+    'Escudo <b>12</b> — una fila no puede romperlo. Rellena el <b>contorno</b>: dos filas, en <b>5 bloques</b>.',
   'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.':
     'Escudo <b>48</b>, <b>+6</b> por descarga. <b>repetir 20</b> es el repetir más grande que hay — y no basta.',
   'Sixteen invaders. Shield <b>96</b>, <b>+12</b> a volley. Which loop?':

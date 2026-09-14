@@ -185,6 +185,21 @@ test('every shield grows back, so no shield can simply be worn down', ()=>{
       `straight-line program would beat it, and the loop becomes optional`);
 });
 
+test('every build stage draws the shape it is asking for, and the shape is the number', ()=>{
+  /* "Build two ranks" is a sentence a student has to picture; an outline of
+     the formation on the board is not. So every stage that starts with an
+     empty board carries a goal shape — and that shape has to be exactly the
+     count the stage needs to win, standing where the cursor will put it. */
+  for(const K of INV.STAGES){
+    const builds = K.pal.includes('spawn');
+    if(!builds){ assert.ok(!K.goal, `stage "${K.id}" hands out an army and draws an outline too`); continue; }
+    assert.ok(K.goal && K.goal.rows>0 && K.goal.cols>0, `build stage "${K.id}" draws no outline to fill`);
+    assert.strictEqual(K.goal.rows*K.goal.cols, K.need.alive,
+      `stage "${K.id}" outlines ${K.goal.rows*K.goal.cols} invaders and needs ${K.need.alive}`);
+    assert.ok(1+K.goal.cols<=COLS, `stage "${K.id}" outlines a rank wider than the board`);
+  }
+});
+
 test('a built swarm wins only at full strength, and one rank short loses', ()=>{
   /* THE BUILD STAGES ARE SIZED, NOT TIMED. They are the two where a single
      volley is supposed to decide it, so the shield has to sit in the gap

@@ -120,7 +120,7 @@ window.INVADERS = (function(){
        only version of this that you are allowed to write". */
     { id:'rank', name:'One Rank', budget:2,
       pal:['spawn','repeat'],
-      autoVolley:true,
+      autoVolley:true, goal:{ cols:8, rows:1 },
       fort:{ c0:1, c1:9, shield:8, regrow:3 },
       /* POINTED AT, NOT EXPLAINED. COACH rings the real button and the rails
          narrow the shelf to the one block being asked for, so the words only
@@ -178,12 +178,12 @@ window.INVADERS = (function(){
        the loop is the obvious move rather than a clever one. */
     { id:'ranks', name:'Two Ranks', budget:5, practice:true,
       pal:['spawn','nextRow','repeat'],
-      autoVolley:true,
+      autoVolley:true, goal:{ cols:8, rows:2 },
       fort:{ c0:1, c1:9, shield:12, regrow:5 },
       learn:{ name:'Practice — the same loop twice',
               text:'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another.',
               code:'repeat 8\n  spawn()\nend\nnextRow()\nrepeat 8\n  spawn()\nend' },
-      brief:'Shield <b>12</b>. One rank cannot break it. Build <b>two</b> — you have <b>5 blocks</b>.',
+      brief:'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, in <b>5 blocks</b>.',
       need:{ alive:16 } },
 
     /* NO NUMBER. Slide three is "repeat (N) vs forever — the difference is
@@ -356,7 +356,7 @@ window.INVADERS = (function(){
        one before this, so the click that used to be a mystery is a habit. */
     { id:'grid', name:'The Grid', budget:4,
       pal:['spawn','nextRow','repeat'],
-      autoVolley:true,
+      autoVolley:true, goal:{ cols:8, rows:4 },
       fort:{ c0:1, c1:9, shield:30, regrow:7 },
       walk:[
         { say:'A rank was one loop. Four ranks is <b>two</b>.', sel:'#conPalette [data-add="repeat"]',
@@ -388,7 +388,7 @@ window.INVADERS = (function(){
       learn:{ name:'A loop inside a loop',
               text:'The inside loop builds a rank. The outside one does it four times.',
               code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend' },
-      brief:'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>.',
+      brief:'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>eleven blocks</b>. You have <b>four</b>. Fill the outline.',
       need:{ alive:32 } }
   ];
 
@@ -479,6 +479,50 @@ window.INVADERS = (function(){
     return g;
   }
 
+  /* THE SHAPE YOU ARE ASKED FOR, drawn on the board before you have written
+     a line. "Build two ranks" is a sentence a student has to picture; an
+     outline of sixteen invaders standing where they will stand is not.
+     Edges rather than a faint solid, because an outline reads as a slot to
+     fill and a faint solid reads as an invader that has not loaded. A real
+     invader landing on one covers it exactly, which is the whole feedback:
+     the outline fills in as the program runs. */
+  function ghostMesh(){
+    const g=new THREE.Group();
+    /* Edges AND a faint fill. A WebGL line is one pixel wide whatever the
+       screen, and on a lab monitor with the brightness down one pixel of
+       mint on black is nothing; the fill is what makes the slot a shape
+       from across the room, and the edges are what make it a shape rather
+       than a smudge. */
+    const line=new THREE.LineBasicMaterial({ color:0xa8e6cf, transparent:true, opacity:0.6 });
+    const fill=new THREE.MeshBasicMaterial({ color:0xa8e6cf, transparent:true, opacity:0.13, depthWrite:false });
+    const slot=(w,h,d,x,y)=>{
+      const geo=new THREE.BoxGeometry(w,h,d);
+      const f=new THREE.Mesh(geo, fill); f.position.set(x,y,0); g.add(f);
+      const l=new THREE.LineSegments(new THREE.EdgesGeometry(geo), line); l.position.set(x,y,0); g.add(l);
+    };
+    slot(1.7,1.0,1.0, 0,0);
+    [-0.62,0.62].forEach(x=>slot(0.3,0.55,0.3, x,-0.72));
+    return g;
+  }
+  /* WHERE THE NEXT spawn() GOES. The cursor was a pair of numbers nobody
+     could see, which made nextRow() a block you had to take on trust. A
+     frame on the tile makes both verbs literal: spawn() fills the frame
+     and steps it right, nextRow() drops it to the start of the row below.
+     It is the colour of the nextRow block on the shelf, on purpose. */
+  function cursorMesh(){
+    /* Four bars rather than a line, for the same one-pixel reason. */
+    const g=new THREE.Group();
+    const mat=new THREE.MeshBasicMaterial({ color:0xffe9a8, transparent:true, opacity:0.9 });
+    const W=2.4, H=2.3, T=0.13;
+    [[0, H/2, W, T],[0,-H/2, W, T],[-W/2, 0, T, H],[W/2, 0, T, H]].forEach(([x,y,w,h])=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.06), mat);
+      m.position.set(x,y,0); g.add(m);
+    });
+    g.position.z=0.9;
+    g.userData.mat=mat;
+    return g;
+  }
+
   function fortMesh(f){
     const g=new THREE.Group();
     const w=(f.c1-f.c0+1)*T;
@@ -566,8 +610,29 @@ window.INVADERS = (function(){
     if(L.cur.c>=COLS){ return; }          // off the right-hand edge: nothing to do
     addInvader(L.cur.c, L.cur.r);
     L.cur.c++;
+    placeCursor();
   }
-  function doNextRow(){ L.cur.c=X0; L.cur.r++; }
+  function doNextRow(){ L.cur.c=X0; L.cur.r++; placeCursor(); }
+
+  /* The outline and the cursor exist only on the stages that build: a
+     handed army has nothing to fill in and no cursor to follow. */
+  function drawGoal(){
+    const g=L.K.goal; if(!g) return;
+    L.ghosts=[];
+    for(let r=0;r<g.rows;r++) for(let c=0;c<g.cols;c++){
+      const m=ghostMesh();
+      m.position.set(wx(X0+c), wy(Y0+r), -0.6);   // behind, so a real invader covers it
+      group.add(m); L.ghosts.push(m);
+    }
+    L.cursor=cursorMesh(); group.add(L.cursor);
+    placeCursor();
+  }
+  function placeCursor(){
+    const m=L && L.cursor; if(!m) return;
+    const off = L.cur.c>=COLS || L.cur.r>=ROWS;   // walked off the board: nothing to point at
+    m.visible=!off;
+    if(!off) m.position.set(wx(L.cur.c), wy(L.cur.r), 0.9);
+  }
 
   /* ACROSS TURNS ITSELF ROUND AT THE WALL. That is the arcade behaviour and
      it is also what makes the last stage about the `if` rather than about
@@ -699,6 +764,7 @@ window.INVADERS = (function(){
     group.add(fm);
     L.fortMesh=fm;
     deploy();
+    drawGoal();
 
     camera();
     CODE.setGrid(COLS, ROWS);
@@ -866,6 +932,7 @@ window.INVADERS = (function(){
     boom.forEach(p=>group.remove(p.mesh)); boom=[];
     if(L.fortMesh) L.fortMesh.visible=true;
     deploy();
+    placeCursor();
 
     busy=true;
     L.pc=0; L.steps=steps; L.wait=0; L.guard=0; L.idle=0;
@@ -1052,6 +1119,8 @@ window.INVADERS = (function(){
      standing, which reads as a bug rather than as nearly-won. */
   function shine(){
     if(!L || !L.fortMesh) return;
+    // it breathes, but never below half: a cursor you can catch invisible is not a cursor
+    if(L.cursor) L.cursor.userData.mat.opacity = 0.75 + 0.25*Math.sin(performance.now()/260);
     const segs=L.fortMesh.userData.segs; if(!segs) return;
     const k=L.fort.max ? Math.max(0, L.fort.shield/L.fort.max) : 0;
     const lit=L.fort.shield>0 ? Math.max(1, Math.ceil(k*segs.length)) : 0;
