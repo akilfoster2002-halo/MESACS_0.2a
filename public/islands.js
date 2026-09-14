@@ -529,9 +529,30 @@ window.ISLANDS = (function(){
        most of the way back up it — a basin with a hand's breadth of bank
        showing, rather than a puddle at the bottom of a crater. */
     const surfY=POOL_DEPTH-0.55;
-    const water=new THREE.Mesh(new THREE.CircleGeometry(pr, 36),
-      new THREE.MeshLambertMaterial({color:WATER, transparent:true, opacity:0.86}));
-    water.rotation.x=-Math.PI/2; water.position.y=surfY; g.add(water);
+    /* THE WATER IS A CAP, NOT A DISC — because the planet is a ball.
+
+       A flat sheet laid in the pool's own tangent frame stays at one height
+       while the ground curves away under it, so by the rim it rides almost a
+       metre clear of the bank: a lake with daylight under its edge. Every
+       vertex goes at a constant ALTITUDE instead, which is what "level"
+       means on a sphere — the surface dips to follow the world and meets the
+       ground the whole way round.
+
+       And it reaches PAST the waterline rather than up to it. A surface that
+       stops exactly where the bank rises leaves a seam wherever the two
+       disagree by a centimetre; tucked under, there is nothing to see. */
+    const R0=W.PR+groundY;
+    const wgeo=new THREE.RingGeometry(0.001, pr*1.10, 56, 10);
+    wgeo.rotateX(-Math.PI/2);
+    const wp=wgeo.attributes.position;
+    for(let i=0;i<wp.count;i++){
+      const d=Math.hypot(wp.getX(i), wp.getZ(i));
+      wp.setY(i, Math.sqrt(Math.max(0,(R0+surfY)*(R0+surfY) - d*d)) - R0);
+    }
+    wgeo.computeVertexNormals();
+    const water=new THREE.Mesh(wgeo,
+      new THREE.MeshLambertMaterial({color:WATER, transparent:true, opacity:0.88}));
+    g.add(water);
     /* The rim is open on the downstream side, or the river would be running
        out through a wall of boulders. */
     for(let i=0;i<18;i++){
@@ -540,7 +561,10 @@ window.ISLANDS = (function(){
       const sz=0.55+rnd(i*7)*0.95;   // knee to chest, not house-sized
       const bo=new THREE.Mesh(new THREE.IcosahedronGeometry(sz,0),
         new THREE.MeshLambertMaterial({color:ROCK[i%ROCK.length]}));
-      bo.position.set(Math.cos(a)*pr*1.02, POOL_DEPTH*0.55, Math.sin(a)*pr*1.02);
+      const br=pr*1.02;
+      bo.position.set(Math.cos(a)*br,
+        Math.sqrt(Math.max(0,(R0+surfY)*(R0+surfY) - br*br)) - R0 - sz*0.35,
+        Math.sin(a)*br);
       bo.rotation.set(rnd(i)*3, rnd(i+9)*3, rnd(i+4)*3);
       g.add(bo);
     }
@@ -558,7 +582,7 @@ window.ISLANDS = (function(){
       const rg=new THREE.Mesh(new THREE.RingGeometry(0.92, 1.0, 44),
         new THREE.MeshBasicMaterial({color:0xdff0ff, transparent:true,
           opacity:0.45, side:THREE.DoubleSide, depthWrite:false }));
-      rg.rotation.x=-Math.PI/2; rg.position.y=surfY+0.06;
+      rg.rotation.x=-Math.PI/2; rg.position.y=surfY+0.10;
       g.add(rg);
       rings.push({ m:rg, t:i/4 });
     }
