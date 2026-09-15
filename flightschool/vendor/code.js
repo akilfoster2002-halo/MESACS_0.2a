@@ -1233,6 +1233,11 @@ window.CODE = (function(){
     if(!el) build();
     if(pal) setPalette(pal);
     open=true; el.classList.remove('hidden'); draw();
+    /* The console is a panel over the game, and the briefing bubble lives
+       along the bottom edge it does not quite cover — so with the console
+       up, the bubble's last line peeked out underneath it, in every mission.
+       While the console is open the page says so, and the bubble is hidden. */
+    document.body.classList.add('con-open');
     if(document.pointerLockElement) document.exitPointerLock();
     if(mode==='text'){ const ta=el.querySelector('#conTA'); ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length); }
@@ -1255,7 +1260,7 @@ window.CODE = (function(){
     guide = g || null;
     if(el && open) draw();
   }
-  function close(){ open=false; if(el) el.classList.add('hidden'); }
+  function close(){ open=false; if(el) el.classList.add('hidden'); document.body.classList.remove('con-open'); }
   function isOpen(){ return open; }
 
   function run(){

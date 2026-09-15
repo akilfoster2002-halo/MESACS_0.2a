@@ -502,8 +502,10 @@ test('a practice stage keeps its answer behind the hint button, and opens the co
     'practice stages do not hand the console a hidden answer');
   /* and the coach from the stage before is gone: its strip lives in the
      console, which RUN closed, so it could not clear itself */
-  assert.match(src, /if\(window\.COACH\) COACH\.stop\(\);\s*hud\(\);/,
-    'a new stage does not stop the last walkthrough, so a practice stage opens on its last step');
+  const st=src.slice(src.indexOf('function start(n){'), src.indexOf('function start(n){')+8000);
+  const stopAt=st.indexOf('COACH.stop()'), shelfAt=st.indexOf('CODE.setPalette(K.pal)');
+  assert.ok(stopAt>=0, 'a new stage does not stop the last walkthrough, so a practice stage opens on its last step');
+  assert.ok(stopAt<shelfAt, 'the old walkthrough is stopped AFTER the new shelf is set — stopping it re-applies the old shelf');
   assert.match(src, /if\(K\.practice\)\{[^}]*CODE\.show\(\)/,
     'a practice stage should open the console by itself, like a walked one');
 });
@@ -542,6 +544,23 @@ test('the film puts the HUD away and brings it back, and a repaint mid-film does
   assert.match(film, /\['#hud','#briefing'\]\.forEach/, 'the film does not put the HUD away');
   assert.match(film, /filmHid\.forEach\(sel=>\{[^}]*classList\.remove\('hidden'\)/, 'the film never brings the HUD back');
   assert.match(src, /if\(h && !film\) h\.classList\.remove\('hidden'\)/, 'hud() brings the HUD back in the middle of the film');
+});
+
+test('the bubble is for verdicts: no stage brief, hidden at the start, hidden under the console', ()=>{
+  /* Every stage used to open with a paragraph in the bubble, and every word
+     of it was already on screen — the numbers in the panel, the budget on
+     the console, the task on the card. A teacher called it confusing and
+     they were right. */
+  for(const K of INV.STAGES) assert.ok(!K.brief, `stage "${K.id}" still carries a brief for the bubble`);
+  const src=read('public/invaders.js');
+  assert.ok(!/say\(t\(K\.brief\)\)/.test(src), 'a stage still says its brief into the bubble');
+  assert.match(src, /bub\.innerHTML=''; bub\.classList\.add\('hidden'\)/, 'a stage does not open with the bubble put away');
+  const css=read('public/index.html');
+  assert.match(css, /body\.con-open #briefing\{display:none\}/, 'the bubble still shows under the open console');
+  assert.match(css, /#briefing:empty\{display:none\}/, 'an empty bubble still draws');
+  const code=read('public/code.js');
+  assert.match(code, /document\.body\.classList\.add\('con-open'\)/, 'the console does not mark the page while it is open');
+  assert.match(code, /document\.body\.classList\.remove\('con-open'\)/, 'the console does not unmark the page when it closes');
 });
 
 test('the briefing bubble sits clear of the code console button', ()=>{

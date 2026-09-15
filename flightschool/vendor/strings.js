@@ -806,14 +806,13 @@ window.ES = {
   'Write the army. Break the fortress.':'Escribe el ejército. Rompe la fortaleza.',
   'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
   'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
-  'One Rank':'Una Fila','Count the Volleys':'Cuenta las Descargas','Drop a Row':'Baja una Fila','Two Ranks':'Dos Filas',
-  'No Number':'Sin Número','Past Counting':'Más Allá de Contar','Break the Shield':'Rompe el Escudo',
+  'One Row':'Una Fila','Set the Count':'Fija el Conteo','Drop a Row':'Baja una Fila','Two Rows':'Dos Filas',
+  'Infinite Loop':'Bucle Infinito','Which Loop?':'¿Cuál Bucle?','Repeat Until':'Repetir Hasta',
   'Walk to the Wall':'Camina hasta la Pared','The Listener':'El Oyente','The Staircase':'La Escalera',
-  'The Grid':'La Cuadrícula',
+  'Nested Loops':'Bucles Anidados',
   'rebuilds on a miss':'se reconstruye si fallas','practice':'práctica',
   'Shield':'Escudo','a volley':'por descarga','needed':'necesarios',
   'launches the swarm':'lanza el enjambre',
-  'The swarm has its orders.':'El enjambre tiene sus órdenes.',
   'The swarm is gone.':'El enjambre ha desaparecido.',
   'The swarm flew into the fortress.':'El enjambre chocó contra la fortaleza.',
   'The shield was down — and the swarm kept descending into the wreck.':
@@ -826,8 +825,8 @@ window.ES = {
      English — t() falls back to its key, so a missing line is invisible */
   'Press <b>C</b> and try again.':'Presiona <b>C</b> e inténtalo de nuevo.',
   '✅ The fortress is down.':'✅ La fortaleza ha caído.',
-  '🏅 The fortress is down. Five blocks, thirty-two invaders — a loop inside a loop.':
-    '🏅 La fortaleza ha caído. Cinco bloques, treinta y dos invasores — un bucle dentro de un bucle.',
+  '🏅 The fortress is down. Five blocks, thirty-two invaders — a nested loop.':
+    '🏅 La fortaleza ha caído. Cinco bloques, treinta y dos invasores — un bucle anidado.',
   'The shield is down — but the outline is not. Every invader goes where the frame asks.':
     'El escudo ha caído — pero el contorno no está lleno. Cada invasor va donde pide el marco.',
   'Nobody fired. The swarm fires when you say <b>fire()</b>.':
@@ -864,68 +863,46 @@ window.ES = {
     'Repite los bloques de adentro una y otra vez, hasta que la misión termine',
   '<b>forever</b> is not in this mission yet.':'<b>por siempre</b> no está en esta misión todavía.',
   /* what each stage is teaching */
-  'Eight invaders, three blocks':'Ocho invasores, tres bloques',
-  'Eight spawns written out is eight blocks. A loop is one — and then the whole rank fires.':
+  'A count-controlled loop':'Un bucle controlado por conteo',
+  'Eight spawns written out is eight blocks. A loop is one — and then the whole row fires.':
     'Ocho aparecer() escritos uno por uno son ocho bloques. Un bucle es uno — y luego dispara toda la fila.',
   'The next row':'La siguiente fila',
   '<b>spawn()</b> fills the frame and steps it right. <b>nextRow()</b> drops the frame to the start of the row below.':
     '<b>aparecer()</b> llena el marco y lo mueve a la derecha. <b>siguienteFila()</b> baja el marco al inicio de la fila de abajo.',
-  'A loop inside a loop':'Un bucle dentro de un bucle',
-  'The inside loop builds a rank. The outside one does it four times.':
-    'El bucle de adentro construye una fila. El de afuera lo hace cuatro veces, bajando una fila entre cada una. Dos números, y la formación es lo que tú decidas.',
-  'Practice — a counted loop':'Práctica — un bucle contado',
-  'The rank was <b>repeat</b> round <b>spawn()</b>. This is <b>repeat</b> round <b>fire()</b>, and the number is yours to find.':
-    'La fila era <b>repetir</b> alrededor de <b>aparecer()</b>. Esto es <b>repetir</b> alrededor de <b>disparar()</b>, y el número lo encuentras tú.',
+  'A nested loop':'Un bucle anidado',
+  'The inner loop builds a row. The outer loop runs it four times.':
+    'El bucle interno construye una fila. El bucle externo lo ejecuta cuatro veces.',
+  'Practice — a count-controlled loop':'Práctica — un bucle controlado por conteo',
+  'The row was <b>repeat</b> round <b>spawn()</b>. This is <b>repeat</b> round <b>fire()</b>, and the count is yours to find.':
+    'La fila era <b>repetir</b> alrededor de <b>aparecer()</b>. Esto es <b>repetir</b> alrededor de <b>disparar()</b>, y el conteo lo encuentras tú.',
   'Practice — the same loop twice':'Práctica — el mismo bucle dos veces',
-  'A rank is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another — then fire.':
+  'A row is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another — then fire.':
     'Una fila es un bucle que ya conoces. Construye una, baja una fila con <b>siguienteFila()</b>, construye otra — y luego dispara.',
   'Practice — which loop?':'Práctica — ¿cuál bucle?',
   'Count what a volley takes off and what grows back. If no number reaches it, you know which loop.':
     'Cuenta lo que quita una descarga y lo que vuelve a crecer. Si ningún número llega, ya sabes cuál bucle.',
-  'Practice — a loop that watches':'Práctica — un bucle que vigila',
-  'You do not count the steps to a wall, you check for it. Walk <b>until at the edge</b>, then fire.':
-    'No cuentas los pasos hasta una pared, la compruebas. Camina <b>hasta que en el borde</b>, y luego dispara.',
-  'Practice — a question inside the loop':'Práctica — una pregunta dentro del bucle',
-  'Down a row at every wall, like the arcade. <b>if at the edge</b> is asked every pass — that is what turns the corner.':
-    'Una fila abajo en cada pared, como en el arcade. <b>si en el borde</b> se pregunta en cada vuelta — eso es lo que dobla la esquina.',
-  'A loop with no number':'Un bucle sin número',
-  '<b>repeat</b> counts to its number and stops. <b>forever</b> has no number — it stops when the mission does.':
-    '<b>repetir</b> cuenta hasta su número y para. <b>por siempre</b> no tiene número — para cuando termina la misión.',
-  'A loop that knows when to stop':'Un bucle que sabe cuándo parar',
-  '<b>forever</b> never stops — and here that flies the swarm into the wreck.':
-    'por siempre nunca para, y aquí eso es fatal — el enjambre sigue bajando y choca con las ruinas. repetir hasta hace el mismo trabajo y sale en cuanto la prueba se vuelve verdadera.',
+  'Practice — a condition-controlled loop':'Práctica — un bucle controlado por condición',
+  'You do not count the steps to a wall, you check the condition. Walk <b>until at the edge</b>, then fire.':
+    'No cuentas los pasos hasta una pared, compruebas la condición. Camina <b>hasta que en el borde</b>, y luego dispara.',
+  'Practice — a conditional inside the loop':'Práctica — un condicional dentro del bucle',
+  'Down a row at every wall, like the arcade. <b>if at the edge</b> is checked every iteration — that is what turns the corner.':
+    'Una fila abajo en cada pared, como en el arcade. <b>si en el borde</b> se comprueba en cada iteración — eso es lo que dobla la esquina.',
+  'An infinite loop':'Un bucle infinito',
+  '<b>repeat</b> is count-controlled: it counts to its number and stops. <b>forever</b> is infinite — it stops when the mission does.':
+    '<b>repetir</b> está controlado por conteo: cuenta hasta su número y para. <b>por siempre</b> es infinito — para cuando termina la misión.',
+  'A condition-controlled loop':'Un bucle controlado por condición',
+  '<b>forever</b> never stops — here that flies the swarm into the wreck. <b>repeat until</b> stops the moment its condition is true.':
+    '<b>por siempre</b> nunca para — aquí eso lanza el enjambre contra las ruinas. <b>repetir hasta</b> para en cuanto su condición es verdadera.',
   'A question worth asking twice goes inside the loop':
     'Una pregunta que vale la pena hacer dos veces va dentro del bucle',
   'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.':
     'Un si encima del bucle se pregunta una vez, antes de que el enjambre se mueva, y nunca más. El mismo bloque un nivel adentro se pregunta en cada vuelta — así dispara en cuanto la formación está sobre el objetivo.',
   /* the briefings */
-  'Shield <b>8</b>, and it grows back. Eight invaders, then <b>fire()</b> — in <b>3 blocks</b>.':
-    'Escudo <b>8</b>, y vuelve a crecer. Ocho invasores, y luego <b>disparar()</b> — en <b>3 bloques</b>.',
-  'One under the other. Fill the <b>outline</b> — <b>nextRow()</b> is how you get down there.':
-    'Uno debajo del otro. Rellena el <b>contorno</b> — con <b>siguienteFila()</b> bajas hasta allí.',
-  'Shield <b>30</b>, <b>+7</b> a volley. Four ranks the way you built two is <b>twelve blocks</b>. You have <b>five</b>. Fill the outline.':
-    'Escudo <b>30</b>, <b>+7</b> por descarga. Cuatro filas como construiste dos son <b>doce bloques</b>. Tienes <b>cinco</b>. Rellena el contorno.',
-  'Shield <b>20</b>, <b>+4</b> a volley. Eight invaders do <b>8</b>, so one volley will not do — and you have <b>2 blocks</b>.':
-    'Escudo <b>20</b>, <b>+4</b> por descarga. Ocho invasores hacen <b>8</b>, así que una descarga no basta — y tienes <b>2 bloques</b>.',
-  'Shield <b>12</b> — one rank cannot break it. Fill the <b>outline</b>: two ranks, then fire, in <b>6 blocks</b>.':
-    'Escudo <b>12</b> — una fila no puede romperlo. Rellena el <b>contorno</b>: dos filas, luego dispara, en <b>6 bloques</b>.',
-  'Shield <b>48</b>, <b>+6</b> a volley. <b>repeat 20</b> is the biggest repeat there is — and it is not enough.':
-    'Escudo <b>48</b>, <b>+6</b> por descarga. <b>repetir 20</b> es el repetir más grande que hay — y no basta.',
-  'Sixteen invaders. Shield <b>96</b>, <b>+12</b> a volley. Which loop?':
-    'Dieciséis invasores. Escudo <b>96</b>, <b>+12</b> por descarga. ¿Cuál bucle?',
-  'Fortress at the <b>right wall</b>. Walk <b>until at the edge</b> — then fire.':
-    'Fortaleza en la <b>pared derecha</b>. Camina <b>hasta que en el borde</b> — y luego dispara.',
-  'From up here a volley does nothing. <b>Down a row at every wall</b>, like the arcade — and fire on the way.':
-    'Desde aquí arriba una descarga no hace nada. <b>Una fila abajo en cada pared</b>, como en el arcade — y dispara por el camino.',
-  'Shield <b>60</b>. Closer volleys bite harder, so <b>down()</b> — but <b>stop</b> the moment the shield falls, or the swarm flies into the wreck.':
-    'Escudo <b>60</b>. De cerca las descargas muerden más, así que <b>bajar()</b> — pero <b>para</b> en cuanto caiga el escudo, o el enjambre choca con las ruinas.',
-  'Fortress in the <b>middle</b>. Fire at nothing and the shield <b>rebuilds</b>. Ask first — every pass.':
-    'Fortaleza en el <b>centro</b>. Dispara a la nada y el escudo <b>se reconstruye</b>. Pregunta primero — en cada vuelta.',
 
   /* the walkthrough, one move a step */
   'Click the loop to get <b>inside</b> it.':'Haz clic en el bucle para entrar <b>adentro</b>.',
   'Get <b>inside</b> it.':'Entra <b>adentro</b>.',
-  'The rank you already know — <b>inside</b> this one.':'La fila que ya sabes — <b>dentro</b> de este.',
+  'The row loop you already know — <b>inside</b> this one.':'El bucle de la fila que ya sabes — <b>dentro</b> de este.',
   'Inside the <b>inner</b> one now.':'Ahora dentro del <b>de adentro</b>.',
   'Click it again to step back <b>out</b>.':'Haz clic otra vez para salir <b>afuera</b>.',
   'Now inside the <b>if</b>.':'Ahora dentro del <b>si</b>.',
@@ -943,8 +920,8 @@ window.ES = {
   '<b>repeat 20</b> is the biggest there is, and it falls short. This loop has <b>no number</b>.':
     '<b>repetir 20</b> es el más grande que hay, y se queda corto. Este bucle <b>no tiene número</b>.',
   'Now <b>inside</b> it.':'Ahora <b>adentro</b>.',
-  'A rank was one loop. Four ranks is <b>two</b>.':'Una fila era un bucle. Cuatro filas son <b>dos</b>.',
-  '<b>4</b> — one per rank.':'<b>4</b> — una por fila.',
+  'A row was one loop. Four rows is <b>two</b> — one nested in the other.':'Una fila era un bucle. Cuatro filas son <b>dos</b> — uno anidado en el otro.',
+  '<b>4</b> — one per row.':'<b>4</b> — una por fila.',
   'Click it to go <b>inside</b>.':'Haz clic para entrar <b>adentro</b>.',
   'The rank you already know.':'La fila que ya sabes hacer.',
   '<b>8</b> across.':'<b>8</b> de ancho.',

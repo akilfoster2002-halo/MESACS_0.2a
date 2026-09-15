@@ -52,8 +52,10 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   no block ever turns up on a shelf before it has been walked), and the stage after it is
   practice — the same loop, a different job, no coach, and the answer behind a Hint button,
   one line at a time. The build stages draw the formation they ask for as an outline to fill,
-  with a cursor showing where the next `spawn()` lands. Count the volleys, build two ranks,
-  walk to the wall, come down the staircase the way the arcade does.
+  with a cursor showing where the next `spawn()` lands. The names are the lesson's own —
+  count-controlled, infinite, condition-controlled, conditional, nested — and the speech
+  bubble is kept for verdicts only. Set the count, build two rows, walk to the wall, come
+  down the staircase the way the arcade does.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
 - Bilingual English / Español throughout, including the villain's taunts.

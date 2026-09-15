@@ -129,6 +129,9 @@ pre,code,textarea,#conText,#conTA,.blk,.palblk,#tape,.mk-line .op{
   background:#fff6fb;color:#2a2140;border:3px solid var(--blush);border-radius:18px;padding:12px 18px;
   font-size:19px;line-height:1.35;box-shadow:0 12px 34px rgba(0,0,0,.55)}
 #briefing b{color:#a4407a}
+/* and never under the code console — see CODE.show() */
+body.con-open #briefing{display:none}
+#briefing:empty{display:none}
 /* ---- CORNERED. On a board you read by counting squares, the brief cannot
    sit across the middle of the screen. Flight School puts it under the level
    list in the top right, where it reads as one column of information with
