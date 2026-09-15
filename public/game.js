@@ -408,6 +408,11 @@ function updateLeaveBtn(){
   }
 }
 function buildRoom(name){
+  /* Same two reasons as startMissionRoom(), because Free Play is reached
+     without going through it: a planet left running owns the keys, and a
+     body that thinks it is still flying keeps the clip that says so. */
+  if(window.PLANET && PLANET.active) PLANET.stop();
+  if(window.AVATAR) AVATAR.posture(null);
   if(G.roomGroup){ G.scene.remove(G.roomGroup); }
   G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
   G.solids=[]; G.hits=[]; G.selected=null; G.focused=null;
@@ -467,6 +472,25 @@ function resumeAt(id){
   return PROGRESS.reached(id);
 }
 function startMissionRoom(id){
+  /* GET OFF THE PLANET FIRST, and note that this is not the same thing as
+     having walked out of its door. PLANET.use() takes you to a mission by
+     way of leave(), which puts the body back on its feet, hands the flat
+     rooms their camera and their daylight back and writes down where you
+     were standing. Nothing else does: pause, Quit, and pick a mission off
+     the grid, and the planet is still ON underneath the mission you just
+     opened — still ticking, still redrawing its own minimap over the
+     mission's, still moving the sun, and still taking WASD, because
+     step() hands movement to PLANET.walk() for as long as PLANET.active.
+     A mission room is somewhere you are not on a planet. Say so. */
+  if(window.PLANET && PLANET.active) PLANET.stop();
+  /* AND YOU ARE NOT IN THE AIR. A posture is the planet saying it owns the
+     whole situation of the body — flying, swimming — and it outranks every
+     walk, idle and jump for as long as it is set. leave() clears one; the
+     route above never did, so you arrived lying flat on the floor running
+     the flight clip on a carpet. Kept separate from the line above because
+     a mission opened from another mission has a posture to clear and no
+     planet to leave. */
+  if(window.AVATAR) AVATAR.posture(null);
   COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
   if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();

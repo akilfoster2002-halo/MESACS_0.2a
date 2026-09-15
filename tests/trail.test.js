@@ -381,3 +381,58 @@ test('everything the trail says, it can say in Spanish', ()=>{
   assert.deepStrictEqual(missing, [],
     missing.length+' string(s) reach the screen with no Spanish');
 });
+
+/* =====================================================================
+   ARRIVING IN A ROOM.
+
+   Two things a mission inherits from wherever you came from, both of
+   which are invisible until they are wrong, and both of which were:
+
+   THE PLANET. PLANET.use() takes you to a mission by way of leave() —
+   it puts the body back on its feet, hands the flat rooms their camera
+   and their daylight back, and writes down where you were standing.
+   Nothing else does. Pause, Quit, pick a mission off the grid, and the
+   planet is still ON underneath it: still ticking, still drawing its own
+   minimap over the mission's, and still taking WASD, because step()
+   hands movement to PLANET.walk() for as long as PLANET.active.
+
+   THE POSTURE. It is the planet saying it owns the whole situation of
+   the body, and it outranks every walk, idle and jump while it is set.
+   Leave a world in mid-flight by that same route and you arrive lying
+   flat on the floor, running the flight clip on a carpet.
+
+   These are asserted against the source because game.js cannot be
+   loaded under Node — it wants THREE and a document at load — which is
+   how the rest of this file checks it too.
+   ===================================================================== */
+test('every door into a room gets you off the planet and back on your feet', ()=>{
+  const game=read('public/game.js');
+  /* the body of each function, up to the next top-level `function` */
+  const bodyOf = name => {
+    const at=game.indexOf('function '+name+'(');
+    assert.ok(at>=0, name+'() is gone');
+    const rest=game.slice(at+1);
+    const end=rest.indexOf('\nfunction ');
+    return rest.slice(0, end<0 ? rest.length : end);
+  };
+  for(const door of ['startMissionRoom','buildRoom']){
+    const body=bodyOf(door);
+    assert.match(body, /PLANET\.active\)\s*PLANET\.stop\(\)/,
+      door+'() leaves the planet running underneath the room it builds');
+    assert.match(body, /AVATAR\.posture\(null\)/,
+      door+'() leaves the body in whatever posture the planet set');
+  }
+});
+
+test('the posture is cleared where a room is built, not where a body is attached', ()=>{
+  /* attach() is also what the quick change calls, and somebody who presses
+     B at four hundred metres is still flying. Clearing it there would drop
+     them into a run on nothing — so the reset belongs to the room, and
+     AVATAR must not have opinions about it. */
+  const avatar=read('public/avatar.js');
+  const at=avatar.indexOf('function attach(');
+  assert.ok(at>=0, 'AVATAR.attach() is gone');
+  const body=avatar.slice(at, avatar.indexOf('\n  function ', at+10));
+  assert.ok(!/posture\s*=/.test(body) && !/setPosture\(/.test(body),
+    'attach() now resets the posture — changing character in mid-air will drop the flight clip');
+});
