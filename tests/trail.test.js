@@ -436,3 +436,38 @@ test('the posture is cleared where a room is built, not where a body is attached
   assert.ok(!/posture\s*=/.test(body) && !/setPosture\(/.test(body),
     'attach() now resets the posture — changing character in mid-air will drop the flight clip');
 });
+
+test('a flat room poses the whole body, not just its heading', ()=>{
+  /* THE ONE THAT ACTUALLY PUT YOU ON THE FLOOR.
+
+     `rotation` is an Euler, and writing one of its three numbers leaves the
+     other two exactly as they were. In a flat room a body only ever turns
+     about y, so `body.rotation.y = …` looks complete — and is, until you
+     arrive from a planet. There, orient() builds the body's quaternion from
+     the surface normal, three.js decomposes it back into an Euler with real
+     x and z in it (seventy degrees of x at Senio's front door), and attach()
+     carries that pose into the next room so a character swapped in mid-air
+     keeps it. The heading then updates about a y the body is no longer
+     standing on, and the result idles on its back for ever.
+
+     So: all three, every frame. Asserted against the source because
+     avatar.js wants THREE and a live G at load, which is how the rest of
+     this file checks the browser files too. */
+  const avatar=read('public/avatar.js');
+  const at=avatar.indexOf('function update(dt, moving, running, onGround)');
+  assert.ok(at>=0, 'AVATAR.update() is gone');
+  const body=avatar.slice(at, avatar.indexOf('\n  function ', at+10));
+
+  assert.ok(!/body\.rotation\.[xyz]\s*=/.test(body),
+    'update() writes a single rotation component again — the other two are ' +
+    'inherited from whatever posed the body last, and on a planet that is a tilt');
+  assert.match(body, /body\.rotation\.set\(\s*0\s*,[^)]*,\s*0\s*\)/,
+    'update() no longer zeroes x and z, so a body walking in off a planet keeps its tilt');
+
+  /* and the planet's own path must still build a full basis, or standing on
+     a ball stops working — which is the obvious wrong way to "fix" this */
+  const oAt=avatar.indexOf('function orient(');
+  const orient=avatar.slice(oAt, avatar.indexOf('\n  function ', oAt+10));
+  assert.match(orient, /setFromRotationMatrix/,
+    'orient() no longer poses from a basis — a body on a sphere stands on its surface normal');
+});

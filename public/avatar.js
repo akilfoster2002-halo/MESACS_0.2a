@@ -506,7 +506,21 @@ window.AVATAR = (function(){
   function update(dt, moving, running, onGround){
     if(!body) return;
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
-    body.rotation.y = G.yaw + Math.PI;      // the model faces +z, the camera looks -z
+    /* THE WHOLE ROTATION, not just the heading. A flat room's floor is flat,
+       so a body in one only ever turns about y — but `rotation` is an Euler
+       and writing one of its three numbers leaves the other two alone.
+
+       On a ball the body does not stand on y at all: orient() builds its
+       quaternion from the surface normal, and three.js decomposes that back
+       into an Euler with real x and z in it — 70 degrees of them at Senio's
+       front door. attach() then carries that pose into the new room so a
+       character swapped in mid-air keeps it. So walking off a planet into
+       any flat room left a body turning correctly about a y it was no longer
+       standing on: lying on its back at seventy degrees, idling, for ever.
+
+       set() writes all three. Nothing else here has an opinion about x or z,
+       which is exactly why nobody noticed they were being inherited. */
+    body.rotation.set(0, G.yaw + Math.PI, 0);   // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
     remember();
     animate(model, dt, clipFor(dt, moving, running, onGround));
