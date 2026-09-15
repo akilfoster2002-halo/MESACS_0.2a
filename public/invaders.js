@@ -163,25 +163,25 @@ window.INVADERS = (function(){
          program comes out wrong. So it is a step, with the loop itself lit
          up and an empty shelf, because there is nothing else to do here. */
       walk:[
-        { say:'Eight invaders. You have <b>three blocks</b>.', sel:'#conPalette [data-add="repeat"]',
+        { say:'Make 8 invaders with 3 blocks. Start with <b>repeat</b>.', sel:'#conPalette [data-add="repeat"]',
           done:()=>has('repeat') },
-        { say:'Make it <b>8</b>.', sel:'#conScript .cnt[data-act="inc"]',
+        { say:'Click <b>+</b> until it says <b>8</b>.', sel:'#conScript .cnt[data-act="inc"]',
           done:()=>count('repeat')===8 },
-        { say:'Click the loop to get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>repeat</b> block. Now new blocks go <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || inside('repeat','spawn') },
-        { say:'<b>spawn()</b> fills the frame and steps it right.', sel:'#conPalette [data-add="spawn"]',
+        { say:'Add <b>spawn()</b>. It makes one invader in the yellow frame.', sel:'#conPalette [data-add="spawn"]',
           done:()=>inside('repeat','spawn') },
         /* Only true once there IS a spawn to be outside of — the same rule
            the grid learnt: a step that can come true before its turn is not
            a step. */
-        { say:'Click the loop again to step back <b>out</b>.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>repeat</b> block again. Now new blocks go <b>after</b> it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>has('volley') || (inside('repeat','spawn') && !target()) },
-        { say:'Now <b>fire()</b> — every invader, once.', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>. Every invader shoots once.', sel:'#conPalette [data-add="volley"]',
           done:()=>has('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A count-controlled loop',
-              text:'Eight spawns written out is eight blocks. A loop is one — and then the whole row fires.',
+              text:'<b>repeat 8</b> runs the block inside it 8 times. That makes 8 invaders with 2 blocks instead of 8. Then <b>fire()</b> makes them all shoot.',
               code:'repeat 8\n  spawn()\nend\nfire()' },
       /* Eight bolts against a shield of eight, and the regrow never gets a
          turn because the breach is checked before it. Seven invaders lose. */
@@ -201,7 +201,7 @@ window.INVADERS = (function(){
       army:{ cols:8, rows:1 },
       fort:{ c0:1, c1:9, shield:20, regrow:4 },
       learn:{ name:'Practice — a count-controlled loop',
-              text:'The row was <b>repeat</b> round <b>spawn()</b>. This is <b>repeat</b> round <b>fire()</b>, and the count is yours to find.',
+              text:'Goal: break the shield. Put <b>fire()</b> inside a <b>repeat</b>. Each volley takes 8 off the shield, and the shield grows back 4. Pick a number big enough to break it.',
               code:'repeat 4\n  fire()\nend' }, },
 
     /* DROP A ROW — the walkthrough for nextRow(), and nothing else. Two
@@ -219,18 +219,18 @@ window.INVADERS = (function(){
       goal:{ cols:1, rows:2 },
       fort:{ c0:1, c1:9, shield:2, regrow:2 },
       walk:[
-        { say:'One invader, in the frame.', sel:'#conPalette [data-add="spawn"]',
+        { say:'Add <b>spawn()</b>. It makes one invader in the yellow frame.', sel:'#conPalette [data-add="spawn"]',
           done:()=>has('spawn') },
-        { say:'<b>nextRow()</b> drops the frame to the row below.', sel:'#conPalette [data-add="nextRow"]',
+        { say:'Add <b>nextRow()</b>. It moves the frame down to the next row.', sel:'#conPalette [data-add="nextRow"]',
           done:()=>has('nextRow') },
-        { say:'Another, under the first.', sel:'#conPalette [data-add="spawn"]',
+        { say:'Add <b>spawn()</b> again. This invader goes under the first one.', sel:'#conPalette [data-add="spawn"]',
           done:()=>SCR().filter(b=>b.type==='spawn').length>=2 },
-        { say:'', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>.', sel:'#conPalette [data-add="volley"]',
           done:()=>has('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'The next row',
-              text:'<b>spawn()</b> fills the frame and steps it right. <b>nextRow()</b> drops the frame to the start of the row below.',
+              text:'<b>spawn()</b> makes an invader where the yellow frame is, then moves the frame right. <b>nextRow()</b> moves the frame down to the start of the next row.',
               code:'spawn()\nnextRow()\nspawn()\nfire()' },
       need:{ alive:2 } },
 
@@ -247,7 +247,7 @@ window.INVADERS = (function(){
       goal:{ cols:8, rows:2 },
       fort:{ c0:1, c1:9, shield:12, regrow:5 },
       learn:{ name:'Practice — the same loop twice',
-              text:'A row is a loop you already know. Build one, drop a row with <b>nextRow()</b>, build another — then fire.',
+              text:'Goal: fill the outline — 2 rows of 8 — then fire. <b>repeat 8</b> with <b>spawn()</b> inside makes one row. Put <b>nextRow()</b> between the two rows. You have 6 blocks.',
               code:'repeat 8\n  spawn()\nend\nnextRow()\nrepeat 8\n  spawn()\nend\nfire()' },
       need:{ alive:16 } },
 
@@ -267,18 +267,18 @@ window.INVADERS = (function(){
          swarm that keeps sliding while the loop keeps going is the picture
          of a loop with no end, and at the wall it turns round by itself. */
       walk:[
-        { say:'<b>repeat 20</b> is the biggest there is, and it falls short. This loop has <b>no number</b>.',
+        { say:'This shield needs more than 20 volleys, and <b>repeat</b> only goes up to 20. Use <b>forever</b>. It has no number — it never stops.',
           sel:'#conPalette [data-add="forever"]', done:()=>has('forever') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>forever</b> block so new blocks go inside it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || inside('forever','across') },
-        { say:'<b>across()</b> slides the whole swarm one column. At the wall it turns.',
+        { say:'Add <b>across()</b>. It moves all the invaders one step sideways. At the wall they turn around.',
           sel:'#conPalette [data-add="across"]', done:()=>inside('forever','across') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>.', sel:'#conPalette [data-add="volley"]',
           done:()=>inside('forever','volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'An infinite loop',
-              text:'<b>repeat</b> is count-controlled: it counts to its number and stops. <b>forever</b> is infinite — it stops when the mission does.',
+              text:'<b>repeat</b> is a count-controlled loop: it runs a set number of times, then stops. <b>forever</b> is an infinite loop: it runs until the game ends.',
               code:'forever\n  across()\n  fire()\nend' }, },
 
     /* PAST COUNTING — practice for forever, and it is a choice rather than
@@ -293,7 +293,7 @@ window.INVADERS = (function(){
       army:{ cols:8, rows:2 },
       fort:{ c0:1, c1:9, shield:96, regrow:12 },
       learn:{ name:'Practice — which loop?',
-              text:'Count what a volley takes off and what grows back. If no number reaches it, you know which loop.',
+              text:'Goal: break the shield. Each volley takes 16 off, and the shield grows back 12. Work out how many volleys you need. If it is more than 20, <b>repeat</b> cannot do it — use <b>forever</b>.',
               code:'forever\n  fire()\nend' }, },
 
     /* THE SHIELD. The same fight, plus a sensor and a reason to stop.
@@ -314,18 +314,18 @@ window.INVADERS = (function(){
       conds:['the shield is down','over the fortress','at the edge'],
       landAfter:true,
       walk:[
-        { say:'This one <b>stops</b>. That is the difference.', sel:'#conPalette [data-add="until"]',
+        { say:'Add <b>repeat until</b>. It keeps going until the shield is down — then it stops.', sel:'#conPalette [data-add="until"]',
           done:()=>has('until') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>repeat until</b> block so new blocks go inside it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || inside('until','volley') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>.', sel:'#conPalette [data-add="volley"]',
           done:()=>inside('until','volley') },
-        { say:'Closer bites harder.', sel:'#conPalette [data-add="descend"]',
+        { say:'Add <b>down()</b>. Closer invaders do more damage.', sel:'#conPalette [data-add="descend"]',
           done:()=>inside('until','descend') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A condition-controlled loop',
-              text:'<b>forever</b> never stops — here that flies the swarm into the wreck. <b>repeat until</b> stops the moment its condition is true.',
+              text:'<b>repeat until the shield is down</b> checks the shield every time, and stops when the shield is gone. <b>forever</b> would keep going down after the shield breaks and crash into the fortress.',
               code:'repeat until the shield is down\n  fire()\n  down()\nend' }, },
 
     /* WALK TO THE WALL — practice for repeat until, with the slide's own
@@ -346,7 +346,7 @@ window.INVADERS = (function(){
       fort:{ c0:7, c1:10, shield:20, regrow:2 },
       conds:['at the edge','the shield is down','over the fortress'],
       learn:{ name:'Practice — a condition-controlled loop',
-              text:'You do not count the steps to a wall, you check the condition. Walk <b>until at the edge</b>, then fire.',
+              text:'Goal: break the shield by the right wall. First move the invaders to the wall: put <b>across()</b> inside <b>repeat until at the edge</b>. Then fire 3 times with another loop.',
               code:'repeat until at the edge\n  across()\nend\nrepeat 3\n  fire()\nend' }, },
 
     /* THE LISTENER. The golden rule, and the only stage where WHERE you
@@ -370,22 +370,22 @@ window.INVADERS = (function(){
       fort:{ c0:4, c1:6, shield:30, regrow:0, missRebuilds:true, narrow:true },
       conds:['over the fortress','at the edge','the shield is down'],
       walk:[
-        { say:'', sel:'#conPalette [data-add="forever"]',
+        { say:'Add <b>forever</b>.', sel:'#conPalette [data-add="forever"]',
           done:()=>has('forever') },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>forever</b> block so new blocks go inside it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || inside('forever','across') },
-        { say:'It sweeps and turns by itself.', sel:'#conPalette [data-add="across"]',
+        { say:'Add <b>across()</b>. The invaders move back and forth on their own.', sel:'#conPalette [data-add="across"]',
           done:()=>inside('forever','across') },
-        { say:'Ask <b>inside</b> the loop, not above it.', sel:'#conPalette [data-add="ifc"]',
+        { say:'Add <b>if over the fortress</b>. It goes <b>inside</b> the loop, so it checks every time.', sel:'#conPalette [data-add="ifc"]',
           done:()=>inside('forever','ifc') },
-        { say:'Now inside the <b>if</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
+        { say:'Click the <b>if</b> block so the next block goes inside it.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
           done:()=>target('if') || deep('volley') },
-        { say:'', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>. Now they only shoot when they are over the fortress.', sel:'#conPalette [data-add="volley"]',
           done:()=>deep('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
-      learn:{ name:'A question worth asking twice goes inside the loop',
-              text:'Above the loop it is asked once. <b>Inside</b>, it is asked every pass.',
+      learn:{ name:'A conditional inside a loop',
+              text:'<b>if</b> checks its condition once. Inside a <b>forever</b> loop it checks again every time, so the invaders react as they move. If you fire when nobody is over the fortress, the shield rebuilds.',
               code:'forever\n  across()\n  if over the fortress\n    fire()\n  end\nend' }, },
 
     /* THE STAIRCASE — practice for the if, and it is the arcade's own
@@ -405,9 +405,9 @@ window.INVADERS = (function(){
       fort:{ c0:4, c1:6, shield:30, regrow:6 },
       conds:['at the edge','over the fortress','the shield is down'],
       learn:{ name:'Practice — a conditional inside the loop',
-              text:'Down a row at every wall, like the arcade. <b>if at the edge</b> is checked every iteration — that is what turns the corner.',
+              text:'Goal: break the shield. From up here the shots are too weak. Move like the real arcade game: <b>across()</b>, and each time the invaders reach a wall, <b>down()</b> one row. Use <b>if at the edge</b> inside a <b>forever</b> loop, and <b>fire()</b> every time.',
               code:'forever\n  across()\n  fire()\n  if at the edge\n    down()\n  end\nend' },
-      stuck:'Round and round, and every volley grows straight back. Nothing bites from up here — come <b>down</b>.' },
+      stuck:'The invaders are too far away — every volley grows straight back. Use <b>down()</b> to move closer.' },
 
     /* THE GRID — the final challenge. A rank was one loop; four ranks is
        that same loop with another one round it. The fortress is thick
@@ -425,19 +425,19 @@ window.INVADERS = (function(){
       goal:{ cols:8, rows:4 },
       fort:{ c0:1, c1:9, shield:30, regrow:7 },
       walk:[
-        { say:'A row was one loop. Four rows is <b>two</b> — one nested in the other.', sel:'#conPalette [data-add="repeat"]',
+        { say:'You need 4 rows. Start with a <b>repeat</b> for the rows.', sel:'#conPalette [data-add="repeat"]',
           done:()=>has('repeat') },
-        { say:'<b>4</b> — one per row.', sel:'#conScript .cnt[data-act="inc"]',
+        { say:'Click <b>+</b> until it says <b>4</b>. One for each row.', sel:'#conScript .cnt[data-act="inc"]',
           done:()=>count('repeat')===4 },
-        { say:'Get <b>inside</b> it.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>repeat 4</b> block so new blocks go inside it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>target() || depth()>=2 },
-        { say:'The row loop you already know — <b>inside</b> this one.', sel:'#conPalette [data-add="repeat"]',
+        { say:'Add another <b>repeat</b> inside it. This one makes a row.', sel:'#conPalette [data-add="repeat"]',
           done:()=>depth()>=2 },
-        { say:'<b>8</b> across.', find:()=>inner('.cnt[data-act="inc"]'),
+        { say:'Click <b>+</b> until it says <b>8</b>. 8 invaders in a row.', find:()=>inner('.cnt[data-act="inc"]'),
           done:()=>depth()>=2 && innerCount()===8 },
-        { say:'Inside the <b>inner</b> one now.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
+        { say:'Click the <b>repeat 8</b> block so new blocks go inside it.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
           done:()=>target('inner') || deep('spawn') },
-        { say:'', sel:'#conPalette [data-add="spawn"]',
+        { say:'Add <b>spawn()</b>.', sel:'#conPalette [data-add="spawn"]',
           done:()=>deep('spawn') },
         /* "Back out" is only back out once there is something to be out OF.
            Testing the drop target alone made this step true the moment you
@@ -445,20 +445,20 @@ window.INVADERS = (function(){
            stands past the last step that is already true, so the whole inner
            rank got skipped and the walkthrough built a grid with no rank in
            it. A step that can be true before its own turn is not a step. */
-        { say:'Click it again to step back <b>out</b>.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
+        { say:'Click the <b>repeat 8</b> block again to get out of it.', sel:'#conScript .blk.rep .blk.rep > .blk-head',
           done:()=>inside('repeat','nextRow') || (deep('spawn') && target('outer')) },
-        { say:'Drop a row, then round again.', sel:'#conPalette [data-add="nextRow"]',
+        { say:'Add <b>nextRow()</b>. After each row, move down one.', sel:'#conPalette [data-add="nextRow"]',
           done:()=>inside('repeat','nextRow') },
         /* the OUTER head is the first .blk.rep in the document, so this
            selector lands on it and not on the rank inside */
-        { say:'Out of the <b>outer</b> loop now.', sel:'#conScript .blk.rep > .blk-head',
+        { say:'Click the <b>repeat 4</b> block to get out of it.', sel:'#conScript .blk.rep > .blk-head',
           done:()=>has('volley') || (inside('repeat','nextRow') && !target()) },
-        { say:'', sel:'#conPalette [data-add="volley"]',
+        { say:'Add <b>fire()</b>.', sel:'#conPalette [data-add="volley"]',
           done:()=>has('volley') },
         { say:'', sel:'#conRun', done:()=>busy }
       ],
       learn:{ name:'A nested loop',
-              text:'The inner loop builds a row. The outer loop runs it four times.',
+              text:'A loop inside a loop is a nested loop. The inner loop (<b>repeat 8</b>) makes one row. The outer loop (<b>repeat 4</b>) runs the inner loop 4 times — one row each time.',
               code:'repeat 4\n  repeat 8\n    spawn()\n  end\n  nextRow()\nend\nfire()' },
       need:{ alive:32 } }
   ];
@@ -757,7 +757,7 @@ window.INVADERS = (function(){
          this stage exists to argue with, and it should lose out loud. */
       if(f.missRebuilds && f.shield>0){
         f.shield=f.max; L.missed++;
-        say(t('A volley at nothing — the shield rebuilt.'));
+        say(t('You fired at nothing. The shield rebuilt.'));
       }
       return;
     }
@@ -902,10 +902,10 @@ window.INVADERS = (function(){
      The letterbox, the caption and the SKIP button are the ones intro.js
      already owns, so the two films look like the same film. */
   const FILM=[
-    { at:0.0, cap:'A fortress, and a shield that grows back faster than one shot can chip it.' },
-    { at:2.8, cap:'You are not the ship. You are the swarm — and the whole swarm flies one program.' },
-    { at:5.6, cap:'So eight invaders is not eight blocks. It is a loop.' },
-    { at:8.4, cap:'Write the army. Break the fortress.' }
+    { at:0.0, cap:'This fortress has a shield. It grows back after every attack.' },
+    { at:2.8, cap:'You control the invaders. One program moves all of them.' },
+    { at:5.6, cap:'To make 8 invaders you do not need 8 blocks. You need a loop.' },
+    { at:8.4, cap:'Write the program. Break the shield.' }
   ];
   const FILM_END=11.4;
   let film=null;
@@ -1068,25 +1068,25 @@ window.INVADERS = (function(){
        it just broke. */
     if(s && s.r1>=L.fort.r)
       return finish(false, breached
-        ? t('The shield was down — and the swarm kept descending into the wreck.')
-        : t('The swarm flew into the fortress.'));
+        ? t('The shield was already down, but your loop kept going down and crashed. Use a loop that stops.')
+        : t('The invaders crashed into the fortress. Do not go down so far.'));
     /* Three volleys at empty sky is not bad luck, it is a program with no
        question in it — and by the third rebuild the student has watched
        the bar go back to full twice, which is the argument made. */
     if(L.fort.missRebuilds && L.missed>=3)
-      return finish(false, t('Three volleys at nothing, and the shield rebuilt every time. Ask <b>if over the fortress</b> before every volley.'));
+      return finish(false, t('You fired 3 times at nothing, and the shield rebuilt each time. Only fire over the fortress: use <b>if over the fortress</b>.'));
     /* Only a stage that was HANDED an army can lose one. The build stages
        open with an empty board on purpose — filling it is the exercise — so
        "there is nobody left" is a sentence about the stages that started
        with somebody. */
     if(L.K.army && !live().length && !L.won)
-      return finish(false, t('The swarm is gone.'));
+      return finish(false, t('All the invaders are gone.'));
     /* On most stages the breach IS the win. On a stage about stopping it is
        not: the fortress is taken when your program lets go with the shield
        down, and a loop with no way out never lets go. */
     if(breached && !L.K.landAfter){
       if(!goalFilled())
-        return finish(false, t('The shield is down — but the outline is not. Every invader goes where the frame asks.'));
+        return finish(false, t('The shield is down, but the outline is not filled. Put the invaders where the outline is.'));
       return finish(true);
     }
 
@@ -1124,7 +1124,7 @@ window.INVADERS = (function(){
            watch. A few passes of that is enough to see what it is. */
         if(L.K.landAfter && L.fort.shield<=0 && ++L.linger>8){
           L.over=true;
-          return finish(false, t('The shield is down — and the loop is still going. It never lets go.'));
+          return finish(false, t('The shield is down, but your loop never stops. Use <b>repeat until the shield is down</b>.'));
         }
         continue;
       }
@@ -1164,10 +1164,10 @@ window.INVADERS = (function(){
        wrong is one of two things and each gets its own sentence: nobody
        fired, or not enough of them did. */
     if(L.K.goal && !L.fired)
-      return finish(false, t('Nobody fired. The swarm fires when you say <b>fire()</b>.'));
+      return finish(false, t('Nobody fired. Add <b>fire()</b> at the end.'));
     if(L.K.goal)
-      return finish(false, t('{n} invaders is not enough — the shield grew back.',{n:live().length}));
-    return finish(false, t('Your program ended. The fortress did not.'));
+      return finish(false, t('{n} invaders is not enough. The shield grew back. Fill the outline.',{n:live().length}));
+    return finish(false, t('Your program ended, but the shield is still up. You need more volleys.'));
   }
 
   /* BOTH WHITEBOARD BUGS COME OUT HERE, and they are not the same bug, so
@@ -1180,12 +1180,12 @@ window.INVADERS = (function(){
      question a teacher would ask next. */
   function stuck(loop){
     finish(false, (loop && loop.cond)
-      ? t('That loop is still going round. Nothing inside it changes <b>{c}</b> — what would have to happen for that to come true?',
+      ? t('Your loop keeps going. Nothing inside it can make <b>{c}</b> true. Which block is missing?',
           { c:t(loop.cond) })
       /* A stage can say what going round for nothing means on ITS board.
          On the staircase the block is inside the loop all right — the
          swarm is simply too far away for a volley to outrun the regrow. */
-      : t(L.K.stuck || 'The swarm has gone round and round and nothing has changed. Is the block that was meant to do something <b>inside</b> the loop?'));
+      : t(L.K.stuck || 'Your loop keeps going, but nothing changes. Is the important block <b>inside</b> the loop?'));
   }
 
   function finish(ok, why){
@@ -1194,13 +1194,13 @@ window.INVADERS = (function(){
       L.won=true;
       blowUp();
       const last=L.idx>=STAGES.length-1;
-      say(last ? t('🏅 The fortress is down. Five blocks, thirty-two invaders — a nested loop.')
-               : t('✅ The fortress is down.'));
+      say(last ? t('🏅 You broke the shield! 32 invaders from 5 blocks — that is a nested loop.')
+               : t('✅ You broke the shield!'));
       if(last && window.PROGRESS) PROGRESS.complete('inv');
       else nextT=setTimeout(()=>{ nextT=null; if(on) start(L.idx+1); }, 1900);
     } else {
       L.lost=true;
-      say('💥 '+(why||t('That did not break it.'))+' '+t('Press <b>C</b> and try again.'));
+      say('💥 '+(why||t('That did not break the shield.'))+' '+t('Press <b>C</b> and try again.'));
     }
     hud();
   }
@@ -1264,10 +1264,10 @@ window.INVADERS = (function(){
       const f=L.fort;
       o.innerHTML=
         `<li class="cur">🛡️ ${t('Shield')}: <b>${f.shield}</b> / ${f.max}`
-        + (f.shield>0 && f.regrow ? ` <small>(+${f.regrow} ${t('a volley')})</small>` : '')
-        + (f.shield>0 && f.missRebuilds ? ` <small>(${t('rebuilds on a miss')})</small>` : '')
+        + (f.shield>0 && f.regrow ? ` <small>(+${f.regrow} ${t('after each volley')})</small>` : '')
+        + (f.shield>0 && f.missRebuilds ? ` <small>(${t('rebuilds if you miss')})</small>` : '')
         + `</li>`
-        + `<li>👾 ${t('Swarm')}: <b>${live().length}</b>`
+        + `<li>👾 ${t('Invaders')}: <b>${live().length}</b>`
         + (L.K.need && L.K.need.alive ? ` / ${L.K.need.alive} ${t('needed')}` : '')
         + `</li>`
         + STAGES.map((s,i)=>
@@ -1276,7 +1276,7 @@ window.INVADERS = (function(){
     }
     // the film has the HUD put away, and a repaint mid-film must not bring it back
     const h=document.querySelector('#hud'); if(h && !film) h.classList.remove('hidden');
-    if(window.keyHint) keyHint(`<b>C</b> ${t('write your program')} &nbsp; <b>RUN</b> ${t('launches the swarm')}`);
+    if(window.keyHint) keyHint(`<b>C</b> ${t('write your program')} &nbsp; <b>RUN</b> ${t('runs it')}`);
   }
   function say(msg){
     const b=document.querySelector('#briefing'); if(!b) return;

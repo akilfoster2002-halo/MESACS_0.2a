@@ -25,8 +25,8 @@ window.CODE = (function(){
     shootRed :{label:'shootRed()',   color:'#ff9aa2', help:'Fire a RED bolt — breaks red shields'},
     shootBlue:{label:'shootBlue()',  color:'#8fd3ff', help:'Fire a BLUE bolt — breaks blue shields'},
     wait     :{label:'wait()',       color:'#bdb2d8', help:'Pause for a moment'},
-    repeat   :{label:'repeat',       color:'#cdb4f6', help:'Do the blocks inside, again and again'},
-    ifc      :{label:'if',           color:'#a8e6cf', help:'Only do the blocks inside IF it is true'},
+    repeat   :{label:'repeat',       color:'#cdb4f6', help:'Run the blocks inside this many times'},
+    ifc      :{label:'if',           color:'#a8e6cf', help:'Run the blocks inside only if the condition is true'},
     call     :{label:'combo()',      color:'#ffe9a8', help:'Run the blocks you put in DEFINE combo'},
     define   :{label:'define combo', color:'#ffd8a8', help:'Teach the gun a move once, then call it'},
     forward  :{label:'forward()',    color:'#a8e6cf', help:'Walk forward one tile'},
@@ -98,7 +98,7 @@ window.CODE = (function(){
     dash     :{label:'dash()',       color:'#ffd8a8', help:'Two tiles forward at once — expensive, and it can overshoot'},
     /* The first loop whose length nobody knows when they write it. repeat 5
        is counted out at compile time; this one has to be tested every pass. */
-    until    :{label:'repeat until', color:'#cdb4f6', help:'Keep doing the blocks inside until the test comes true'},
+    until    :{label:'repeat until', color:'#cdb4f6', help:'Run the blocks inside again and again until the condition is true'},
     /* THE THIRD LOOP, and the only one with no number and no test. repeat
        counts, repeat-until watches, and this one simply does not stop — so
        what ends it is the mission, not the program. It is drawn with a FLAT
@@ -106,18 +106,18 @@ window.CODE = (function(){
        stacked there could ever run, and a shape a student can see is worth
        more than a warning they have to read. */
     forever  :{label:'forever',      color:'#cdb4f6', flat:true,
-               help:'Do the blocks inside over and over, until the mission ends'},
+               help:'Run the blocks inside again and again until the game ends'},
 
     /* --------------------------------------------------------- the swarm
        One program, flown by every invader in the formation at once. The
        verbs are deliberately not the ship's: you are not steering a thing
        here, you are saying what a HUNDRED things do, and `spawn()` is the
        block that makes that difference visible on the first line. */
-    spawn    :{label:'spawn()',      color:'#a8e6cf', help:'Put one invader here, and step the cursor right'},
-    nextRow  :{label:'nextRow()',    color:'#ffe9a8', help:'Drop the cursor to the start of the next row down'},
-    across   :{label:'across()',     color:'#8fd3ff', help:'The whole formation slides one column sideways'},
-    descend  :{label:'down()',       color:'#ffd8a8', help:'The whole formation drops one row towards the fortress'},
-    volley   :{label:'fire()',       color:'#ffb4a2', help:'Every invader in the swarm fires once, straight down'}
+    spawn    :{label:'spawn()',      color:'#a8e6cf', help:'Make one invader in the yellow frame, then move the frame right'},
+    nextRow  :{label:'nextRow()',    color:'#ffe9a8', help:'Move the frame down to the start of the next row'},
+    across   :{label:'across()',     color:'#8fd3ff', help:'Move all the invaders one step sideways'},
+    descend  :{label:'down()',       color:'#ffd8a8', help:'Move all the invaders down one row'},
+    volley   :{label:'fire()',       color:'#ffb4a2', help:'Every invader shoots once'}
   };
   /* The shape of the language — which blocks carry a number, how a tree of
      them compiles, how many blocks it is — lives in program.js, because the
