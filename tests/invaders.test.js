@@ -148,7 +148,7 @@ test('the first stage cannot be brute-forced — a rank costs more than the budg
     `${K.budget} — raise the budget to ${K.need.alive} and the loop becomes optional`);
 });
 
-test('the grid needs a second loop, not a bigger first one', ()=>{
+test('the nested-loop stage needs a second loop, not a bigger first one', ()=>{
   /* One rank is as wide as the board, so 32 invaders cannot be one rank —
      the only way to that number is more rows, and the only way to more
      rows inside the budget is a loop around the loop. */
@@ -175,28 +175,149 @@ function volley(rows, cols, fortRow){
   return d;
 }
 
-test('every shield grows back, so no shield can simply be worn down', ()=>{
-  /* Two ways back: a little after every volley, or all of it after a volley
-     at nothing. The listener uses the second, because what it is teaching is
-     WHEN to fire rather than how many times. */
-  for(const K of INV.STAGES)
-    assert.ok(K.fort.regrow > 0 || K.fort.missRebuilds,
-      `stage "${K.id}" has a shield that never grows back — a long enough ` +
-      `straight-line program would beat it, and the loop becomes optional`);
+/* ------------------------------------------------ the board, as hits
+   Enough of the engine to play a stage on paper, written out again rather
+   than imported so that a change to the rules there and not here fails a
+   test instead of passing one. A volley is ONE HIT if any invader is over
+   the fortress; a volley at nothing rebuilds the shield where the stage
+   says so; across() turns at the wall. Nothing grows back. */
+const COLS=11, MAXREP=20;                 // code.js caps the counter at 20
+function board(K){
+  const c0 = (K.army && K.army.c0!==undefined) ? K.army.c0 : 1;
+  const inv=[];
+  if(K.army) for(let r=0;r<K.army.rows;r++) for(let c=0;c<K.army.cols;c++) inv.push({c:c0+c, r});
+  const f={ c0:K.fort.c0, c1:K.fort.c1, shield:K.fort.shield, max:K.fort.shield, rebuilds:!!K.fort.missRebuilds };
+  const W={ inv, f, dir:1, misses:0, beats:0,
+    get broken(){ return f.shield<=0; },
+    over(){ return inv.some(v=>v.c>=f.c0 && v.c<=f.c1); },
+    fire(){
+      W.beats++;
+      if(!W.over()){ if(f.rebuilds && f.shield>0){ f.shield=f.max; W.misses++; } return; }
+      f.shield=Math.max(0, f.shield-1);
+    },
+    across(){
+      W.beats++;
+      const lo=Math.min(...inv.map(v=>v.c)), hi=Math.max(...inv.map(v=>v.c));
+      if((W.dir>0 && hi>=COLS-1) || (W.dir<0 && lo<=0)) W.dir=-W.dir;
+      inv.forEach(v=>v.c+=W.dir);
+    }
+  };
+  return W;
+}
+/* How many blocks a worked answer would be with every loop written out.
+   A forever cannot be written out at all. */
+function flat(code){
+  const lines=linesOf(code);
+  const walk=i=>{
+    let n=0;
+    while(i<lines.length){
+      const l=lines[i];
+      if(l==='end') return [n, i+1];
+      const m=l.match(/^repeat (\d+)$/);
+      if(m){ const [inner, j]=walk(i+1); n+=inner*(+m[1]); i=j; continue; }
+      if(l==='forever') return [Infinity, lines.length];
+      if(/^if /.test(l)){ const [inner, j]=walk(i+1); n+=inner+1; i=j; continue; }
+      n+=1; i++;
+    }
+    return [n, i];
+  };
+  return walk(0)[0];
+}
+
+test('nothing grows back: a shield is a count of hits, and the panel says so', ()=>{
+  for(const K of INV.STAGES){
+    assert.ok(!('regrow' in K.fort), `stage "${K.id}" still has a regrow`);
+    assert.ok(Number.isInteger(K.fort.shield) && K.fort.shield>=1, `stage "${K.id}" has no whole number of hits`);
+  }
+  const src=read('public/invaders.js');
+  assert.match(src, /f\.shield=Math\.max\(0, f\.shield-1\)/, 'a volley does not take exactly one hit off');
+  assert.match(src, /const SEG=Math\.max\(1, f\.shield\|0\)/, 'the fortress does not show one segment per hit');
+  assert.match(src, /\$\{t\('hits left'\)\}/, 'the panel does not say how many hits are left');
+});
+
+test('the loop is forced by the budget: no worked answer fits written out', ()=>{
+  /* THE LESSON, AS ARITHMETIC. With nothing growing back, the only thing
+     that stops a student writing fire() four times is that four blocks do
+     not fit in two — so on every stage the unrolled answer must be over
+     budget, or the loop is decoration. */
+  for(const K of INV.STAGES){
+    const n=flat(K.learn.code);
+    assert.ok(n > K.budget,
+      `stage "${K.id}": the answer written out is ${n} blocks under a budget of ${K.budget} — the loop is optional`);
+  }
+});
+
+test('a handed swarm cannot win on one volley', ()=>{
+  for(const K of INV.STAGES){
+    if(!K.army) continue;
+    assert.ok(K.fort.shield > 1, `stage "${K.id}": a shield of ${K.fort.shield} falls to one fire()`);
+  }
+});
+
+test('set the count: the count is the hits, and more than the budget', ()=>{
+  const K=INV.STAGES.find(s=>s.id==='volley');
+  const n=+K.learn.code.match(/repeat (\d+)/)[1];
+  assert.strictEqual(n, K.fort.shield, 'the number on the loop should be exactly the hits the shield takes');
+  assert.ok(n > K.budget, `${n} fire() blocks written out is ${n} against a budget of ${K.budget}`);
+});
+
+test('build, then fire: fire() inside the build loop is too early, and the answer is two loops in a row', ()=>{
+  const K=INV.STAGES.find(s=>s.id==='then');
+  assert.ok(K.practice, 'Build, Then Fire should be practice');
+  assert.ok(K.fort.shield < K.goal.cols,
+    'the shield must fall before the row is finished if fire() is inside the build loop — or the mistake is invisible');
+  assert.deepStrictEqual(Array.from(loopDepths(K.learn.code)), [0,0], 'the answer is two loops, one after the other, not nested');
+  const src=read('public/invaders.js');
+  assert.match(src, /L\.pc<L\.steps\.length\s*\? t\('You fired too early/, 'firing before the outline is full is not told apart from a program that simply ended');
+});
+
+test('a column: nextRow() inside the loop; two rows: nextRow() between the loops', ()=>{
+  /* The picture that makes placement visible: the same two blocks build a
+     column with nextRow() inside the loop and rows with it between loops. */
+  const col=INV.STAGES.find(s=>s.id==='column'), rows=INV.STAGES.find(s=>s.id==='ranks');
+  assert.ok(col.walk && col.goal.cols===1 && col.goal.rows>1, 'A Column should be walked and tall');
+  assert.match(col.learn.code, /^repeat \d+\n  spawn\(\)\n  nextRow\(\)\nend/, 'the column answer should have nextRow() inside the loop');
+  assert.ok(rows.practice && rows.goal.rows===2, 'Two Rows should be practice with two rows');
+  assert.match(rows.learn.code, /^repeat 8\n  spawn\(\)\nend\nnextRow\(\)\nrepeat 8/, 'the two-rows answer should have nextRow() between the loops');
+  const src=read('public/invaders.js');
+  assert.match(src, /which loop <b>nextRow\(\)<\/b> is in/, 'a wrong shape gets no sentence about where nextRow() is');
+});
+
+test('no number: the biggest repeat there is falls short, and forever does not', ()=>{
+  for(const id of ['forever','past']){
+    const K=INV.STAGES.find(s=>s.id===id);
+    assert.ok(K.pal.includes('repeat'), `"${id}": the student has to be able to TRY the biggest repeat`);
+    assert.ok(K.fort.shield > MAXREP, `"${id}": repeat ${MAXREP} { fire() } breaks a shield of ${K.fort.shield} — so forever is optional`);
+    const W=board(K); let n=0; while(!W.broken && n<200){ W.fire(); n++; }
+    assert.ok(W.broken && n<=40, `"${id}": forever takes ${n} volleys, which is a long time to watch the same thing`);
+  }
+});
+
+test('the listener and its practice need the if: firing every pass rebuilds the shield at a wall', ()=>{
+  for(const id of ['listen','over']){
+    const K=INV.STAGES.find(s=>s.id===id);
+    assert.ok(K.fort.missRebuilds, `"${id}": a volley at nothing has to cost something, or the if is decoration`);
+    assert.strictEqual(K.conds[0], 'over the fortress', `"${id}": the if should come off the shelf already asking the right question`);
+    const blind=board(K);
+    assert.ok(!blind.over(), `"${id}": the swarm starts over the fortress, so an if ABOVE the loop would fire`);
+    for(let i=0;i<80;i++){ blind.across(); blind.fire(); }
+    assert.ok(!blind.broken, `"${id}": forever { across() fire() } wins without an if in it`);
+    assert.ok(blind.misses>=3, `"${id}": only ${blind.misses} misses in eighty passes — the run is never told why it is losing`);
+    const asks=board(K); let n=0;
+    while(!asks.broken && n<80){ asks.across(); if(asks.over()) asks.fire(); n++; }
+    assert.ok(asks.broken, `"${id}": the worked answer never breaks it`);
+    assert.ok(asks.beats<=60, `"${id}": the worked answer takes ${asks.beats} beats`);
+  }
 });
 
 test('a build stage is won only when the outline is filled', ()=>{
-  /* Drop a Row is two slots stacked, and spawn() spawn() fire() — the second
-     invader beside the first instead of under it — does the same two damage
-     to a shield of two. Only the outline tells those apart, so the breach
-     has to ask it. */
+  /* A Column is three slots stacked, and spawn() spawn() spawn() fire() —
+     three invaders side by side — is the same one hit to a shield of one.
+     Only the outline tells those apart, so the breach has to ask it. */
   const src=read('public/invaders.js');
-  assert.match(src, /if\(breached && !L\.K\.landAfter\)\{\s*if\(!goalFilled\(\)\)/,
-    'the win on a build stage does not check the outline');
-  const K=INV.STAGES.find(s=>s.id==='row');
-  assert.ok(K && K.goal.cols===1 && K.goal.rows===2, 'Drop a Row should be two slots, one under the other');
-  assert.ok(volley(1, 2, ROWS-1) >= K.fort.shield,
-    'two invaders side by side do not break the shield, so the outline rule is never exercised here');
+  assert.match(src, /if\(breached\)\{\s*if\(!goalFilled\(\)\)/, 'the win on a build stage does not check the outline');
+  const K=INV.STAGES.find(s=>s.id==='column');
+  assert.strictEqual(K.fort.shield, 1, 'a column stage is about the shape, not the hits');
 });
 
 test('every build stage draws the shape it is asking for, and the shape is the number', ()=>{
@@ -214,203 +335,11 @@ test('every build stage draws the shape it is asking for, and the shape is the n
   }
 });
 
-test('a built swarm wins only at full strength, and one rank short loses', ()=>{
-  /* THE BUILD STAGES ARE SIZED, NOT TIMED. They are the ones where a single
-     volley is supposed to decide it, so the shield has to sit in the gap
-     between "the formation the mission asked for" and "one rank less than
-     that" — which is what makes the number of invaders the point, and
-     therefore what makes the loop that puts them there the point. */
-  const fortRow=ROWS-1;
-  for(const K of INV.STAGES){
-    if(!K.goal) continue;
-    const cols=K.goal.cols, rows=K.goal.rows;
-    assert.ok(K.pal.includes('volley'), `build stage "${K.id}" cannot say fire() — nothing fires by itself any more`);
-    const full=volley(rows, cols, fortRow);
-    const short=volley(rows-1, cols, fortRow);
-    assert.ok(full >= K.fort.shield,
-      `stage "${K.id}": the formation it asks for does ${full} and the shield is ` +
-      `${K.fort.shield} — it cannot be won`);
-    assert.ok(short < K.fort.shield,
-      `stage "${K.id}": ${rows-1} ranks already does ${short} against ${K.fort.shield} — ` +
-      `the last rank is not needed, so neither is building it properly`);
-  }
-});
-
-test('a handed swarm cannot win on one volley, however it is arranged', ()=>{
-  /* The firing stages are timed rather than sized: the army is handed to
-     you, so the only thing your program decides is how many volleys it
-     lasts for. A shield that falls to the first one would make every loop
-     in those stages decoration. */
-  for(const K of INV.STAGES){
-    if(!K.army) continue;
-    const one=volley(K.army.rows, K.army.cols, ROWS-1);
-    assert.ok(K.fort.shield > one,
-      `stage "${K.id}": a shield of ${K.fort.shield} falls to a single volley worth ${one}`);
-  }
-});
-
-/* ------------------------------------------ the board, in arithmetic
-   Enough of the engine to play a stage on paper: the same damage rule as
-   doVolley(), the same regrow, the same rebuild on a miss, the same turn at
-   the wall, and the same "the swarm is in the fortress" row. Nothing here
-   is copied from invaders.js — it is written out again so that a change to
-   the rules there and not here fails a test instead of passing one. */
-const COLS=11, MAXREP=20;                 // code.js caps the counter at 20
-function board(K){
-  const c0 = K.army.c0===undefined ? 1 : K.army.c0, r0 = K.army.r0||0;
-  const inv=[];
-  for(let r=0;r<K.army.rows;r++) for(let c=0;c<K.army.cols;c++) inv.push({c:c0+c, r:r0+r});
-  const f={ c0:K.fort.c0, c1:K.fort.c1, r:ROWS-1, shield:K.fort.shield, max:K.fort.shield,
-            regrow:K.fort.regrow, rebuilds:!!K.fort.missRebuilds };
-  const W={ inv, f, dir:1, misses:0, beats:0,
-    get broken(){ return f.shield<=0; },
-    get crashed(){ return inv.some(v=>v.r>=f.r); },
-    over(){ return inv.some(v=>v.c>=f.c0 && v.c<=f.c1); },
-    edge(){ const lo=Math.min(...inv.map(v=>v.c)), hi=Math.max(...inv.map(v=>v.c));
-            return lo<=0 || hi>=COLS-1; },
-    fire(){
-      W.beats++;
-      let dmg=0;
-      for(const v of inv){
-        if(v.c<f.c0 || v.c>f.c1) continue;
-        const gap=Math.max(0, f.r-v.r);
-        dmg += 1 + Math.min(2, Math.max(0, 4-gap));
-      }
-      if(!dmg){ if(f.rebuilds && f.shield>0){ f.shield=f.max; W.misses++; } return; }
-      f.shield-=dmg;
-      if(f.shield<=0){ f.shield=0; return; }
-      f.shield=Math.min(f.max, f.shield+f.regrow);
-    },
-    down(){ W.beats++; inv.forEach(v=>v.r++); },
-    across(){
-      W.beats++;
-      const lo=Math.min(...inv.map(v=>v.c)), hi=Math.max(...inv.map(v=>v.c));
-      if((W.dir>0 && hi>=COLS-1) || (W.dir<0 && lo<=0)) W.dir=-W.dir;
-      inv.forEach(v=>v.c+=W.dir);
-    }
-  };
-  return W;
-}
-
-test('count the volleys: one is not enough, the right number is more than the budget, and it wins', ()=>{
-  /* The number the walkthrough says is the number that works — and it is
-     bigger than the budget, so fire() written out that many times does not
-     fit, and a loop is the only program that does. One short must lose, or
-     the number is not the point. */
-  const K=INV.STAGES.find(s=>s.id==='volley');
-  const n=+K.learn.code.match(/repeat (\d+)/)[1];
-  assert.ok(n > K.budget, `${n} volleys written out is ${n} blocks against a budget of ${K.budget}`);
-  const W=board(K); for(let i=0;i<n;i++) W.fire();
-  assert.ok(W.broken, `repeat ${n} { fire() } leaves the shield at ${W.f.shield}`);
-  const S=board(K); for(let i=0;i<n-1;i++) S.fire();
-  assert.ok(!S.broken, `repeat ${n-1} already wins, so the number on the loop does not matter`);
-});
-
-test('no number: the biggest repeat there is falls short, and forever does not', ()=>{
-  /* The whole stage is one claim — "repeat 20 is not enough" — and it is a
-     claim about three numbers that anybody could nudge. Its practice stage
-     makes the same claim with a bigger army, so both are checked. */
-  const both=['forever','past'].map(id=>INV.STAGES.find(s=>s.id===id));
-  for(const K of both){
-    assert.ok(K.pal.includes('repeat'), `"${K.id}": the student has to be able to TRY the biggest repeat`);
-    const sweeps = K.learn.code.includes('across()');
-    const pass = W => { if(sweeps) W.across(); W.fire(); };
-    const W=board(K); for(let i=0;i<MAXREP;i++) pass(W);
-    assert.ok(!W.broken, `"${K.id}": repeat ${MAXREP} round the worked body breaks a shield of ${K.fort.shield} — so forever is optional`);
-    const S=board(K); for(let i=0;i<MAXREP;i++) S.fire();
-    assert.ok(!S.broken, `"${K.id}": repeat ${MAXREP} { fire() } standing still breaks it — so forever is optional`);
-    const F=board(K); let n=0;
-    while(!F.broken && n<200){ pass(F); n++; }
-    assert.ok(F.broken, `"${K.id}": the worked answer never breaks it — the stage cannot be won`);
-    assert.ok(F.beats<=60, `"${K.id}": the worked answer takes ${F.beats} beats, which is a long time to watch`);
-  }
-});
-
-test('walk to the wall: the swarm starts off the wall, checks for it, and counting is worse', ()=>{
-  /* The slide's analogy as a board — you do not count the steps to a wall,
-     you check for it. So `at the edge` must be FALSE at the start, or the
-     until-loop is over before the first step; the loop must arrive and
-     three volleys must do it; and somebody who counts the steps instead
-     and counts one too many gets turned round by the wall and falls short,
-     which is the argument for the sensor. */
-  const K=INV.STAGES.find(s=>s.id==='wall');
-  assert.strictEqual(K.conds[0], 'at the edge', 'the until-block should come off the shelf already asking about the wall');
-  const W=board(K);
-  assert.ok(!W.edge(), 'the swarm starts against the wall, so repeat until at the edge stops before it starts');
-  let steps=0; while(!W.edge() && steps<COLS){ W.across(); steps++; }
-  assert.ok(W.edge(), 'across() never reaches the wall');
-  for(let i=0;i<3;i++) W.fire();
-  assert.ok(W.broken, `at the wall, three volleys leave the shield at ${W.f.shield}`);
-  const C=board(K); for(let i=0;i<steps+1;i++) C.across(); for(let i=0;i<3;i++) C.fire();
-  assert.ok(!C.broken, 'one step too many still wins, so watching for the wall is no better than counting');
-});
-
-test('the staircase: down a row at every wall wins; never descending, always descending, and the wrong question do not', ()=>{
-  const K=INV.STAGES.find(s=>s.id==='stairs');
-  assert.strictEqual(K.conds[0], 'at the edge', 'the if-block should come off the shelf already asking about the wall');
-  /* run a forever body until it wins, crashes, or has plainly stalled */
-  const play=(body, max=120)=>{ const W=board(K); for(let n=0;n<max;n++) for(const step of body){
-      if(W.crashed) return { crashed:true, beats:W.beats };
-      if(W.broken)  return { won:true, beats:W.beats };
-      step(W); } return { stalled:true, shield:W.f.shield }; };
-  const edge = W => W.edge();
-  const ans  = play([W=>W.across(), W=>W.fire(), W=>{ if(edge(W)) W.down(); }]);
-  assert.ok(ans.won, `the worked answer does not win: ${JSON.stringify(ans)}`);
-  assert.ok(ans.beats<=60, `the worked answer takes ${ans.beats} beats — too long to watch`);
-  const ans2 = play([W=>{ if(edge(W)) W.down(); }, W=>W.across(), W=>W.fire()]);
-  assert.ok(ans2.won, `asking before moving should win too: ${JSON.stringify(ans2)}`);
-  const noif = play([W=>W.across(), W=>W.fire()]);
-  assert.ok(noif.stalled, 'firing from the top without ever descending wins, so the if is decoration');
-  const dive = play([W=>W.across(), W=>W.down(), W=>W.fire()]);
-  assert.ok(dive.crashed, 'descending every pass should fly into the fortress');
-  const wrong = play([W=>W.across(), W=>W.fire(), W=>{ if(W.over()) W.down(); }]);
-  assert.ok(wrong.crashed, 'asking "over the fortress?" instead of "at the edge?" should fly into it');
-});
-
-test('break the shield: repeat until lets go and wins, forever flies into the wreck', ()=>{
-  /* fire() then down(), over and over. The until-loop leaves after the volley
-     that breaks the shield, and the down() after that volley must not put
-     the swarm in the fortress — or the right answer crashes too. The
-     forever keeps going, and must crash, or it is as good as the until. */
-  const K=INV.STAGES.find(s=>s.id==='until');
-  assert.ok(K.landAfter, 'breaking the shield must not end the stage by itself');
-  assert.ok(K.pal.includes('forever'), 'the student has to be able to try the loop that does not stop');
-  const W=board(K); let passes=0;
-  while(!W.broken){
-    assert.ok(!W.crashed, 'the swarm reached the fortress before the shield broke');
-    W.fire(); W.down(); passes++;
-    assert.ok(passes<20, 'fire+down never breaks this shield');
-  }
-  assert.ok(!W.crashed, 'the down() after the breaking volley flies the right answer into the wreck');
-  // and the forever, which cannot leave, keeps descending
-  let more=0; while(!W.crashed && more<10){ W.fire(); W.down(); more++; }
-  assert.ok(W.crashed, 'forever { fire() down() } never reaches the wreck, so it is as good as repeat until');
-});
-
-test('the listener: firing every pass rebuilds the shield at both walls, asking first breaks it', ()=>{
-  /* The `if` has to be NECESSARY. The swarm misses at the two walls and a
-     miss hands the fortress its shield back, so between one wall and the
-     other there must not be enough damage to break it — and with the if,
-     which skips the misses, there must be. */
-  const K=INV.STAGES.find(s=>s.id==='listen');
-  assert.ok(K.fort.missRebuilds, 'a volley at nothing has to cost something, or the if is decoration');
-  const blind=board(K);
-  assert.ok(!blind.over(), 'the swarm starts over the fortress, so an if ABOVE the loop would fire');
-  let low=blind.f.shield;
-  for(let i=0;i<60;i++){ blind.across(); blind.fire(); low=Math.min(low, blind.f.shield); }
-  assert.ok(!blind.broken, 'forever { across() fire() } wins without an if in it');
-  assert.ok(blind.misses>=3, `only ${blind.misses} misses in sixty passes — the run never gets told why it is losing`);
-  const asks=board(K); let n=0;
-  while(!asks.broken && n<60){ asks.across(); if(asks.over()) asks.fire(); n++; }
-  assert.ok(asks.broken, 'forever { across() if over the fortress { fire() } } never breaks it');
-  assert.ok(asks.beats<=40, `the right answer takes ${asks.beats} beats`);
-});
-
 /* Which lines of a worked answer are loops, and how deep each one sits
    inside other loops. The `if` is a container but not a loop, so it does
    not count — the listener nests an if in a forever and is still one loop
    deep. */
-const LOOP=/^(repeat \d+|repeat until .+|forever)$/;
+const LOOP=/^(repeat \d+|forever)$/;
 function loopDepths(code){
   const out=[]; const stack=[];
   for(const line of linesOf(code)){
@@ -422,20 +351,19 @@ function loopDepths(code){
   return out;
 }
 
-test('nothing nests a loop in a loop until the last rung', ()=>{
-  /* THE FINAL CHALLENGE IS THE ONLY ONE THAT NESTS TWO LOOPS. Getting into
-     the inner loop and back out again is the hardest thing the console asks
-     of anybody, and putting it second — where it used to be — was the whole
-     of "the levels are too hard". */
-  const S=INV.STAGES;
-  S.slice(0,-1).forEach(K=>{
-    assert.ok(loopDepths(K.learn.code).every(d=>d===0),
-      `stage "${K.id}" puts a loop inside a loop, and it is not the last stage`);
-  });
-  const last=S[S.length-1];
-  assert.strictEqual(last.id, 'grid', 'the ladder should end on the grid');
-  assert.ok(loopDepths(last.learn.code).some(d=>d>0),
-    'the last stage should be the one loop-inside-a-loop');
+test('nothing nests a loop in a loop until the final challenge, and everything after it does', ()=>{
+  /* NESTED LOOPS ARE THE FINAL CHALLENGE: walked once, then practised once.
+     Getting into the inner loop and back out again is the hardest thing the
+     console asks of anybody, and putting it second — where it used to be —
+     was the whole of "the levels are too hard". */
+  const S=Array.from(INV.STAGES);
+  const at=S.findIndex(K=>K.id==='grid');
+  assert.ok(at>=0, 'the nested-loop stage is gone');
+  S.slice(0,at).forEach(K=>assert.ok(loopDepths(K.learn.code).every(d=>d===0),
+    `stage "${K.id}" puts a loop inside a loop before the nested-loop stage`));
+  S.slice(at).forEach(K=>assert.ok(loopDepths(K.learn.code).some(d=>d>0),
+    `stage "${K.id}" comes after the nested-loop stage and does not nest`));
+  assert.ok(S[at].walk && S[S.length-1].practice, 'nesting should be walked, then practised, and that is the end');
 });
 
 const CONTAINER=new Set(['repeat','forever','until','ifc']);
@@ -476,7 +404,9 @@ test('every new block is walked once, then practised before the next one arrives
           `stage "${next.id}" comes straight after "${K.id}" introduced ${fresh.join('+')||'nesting'} — it should be practice, not another walkthrough`);
         fresh.filter(op=>CONTAINER.has(op)).forEach(op=>assert.ok(loopsIn(next.learn.code).includes(op),
           `stage "${next.id}" is the practice for ${op} but its answer never uses it`));
-        assert.ok(fresh.some(op=>opsOf(next.learn.code).includes(op)),
+        if(nests) assert.ok(loopDepths(next.learn.code).some(d=>d>0),
+          `stage "${next.id}" is the practice for nesting but its answer does not nest`);
+        else assert.ok(fresh.some(op=>opsOf(next.learn.code).includes(op)),
           `stage "${next.id}" practises nothing that "${K.id}" introduced`);
       }
     } else {

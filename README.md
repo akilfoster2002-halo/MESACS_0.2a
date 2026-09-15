@@ -44,18 +44,18 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
 - **Mission 1 — Loops (THE LOOPER)** — block-based code console (`C` to open, time freezes),
   four stages, and a boss that forces `repeat`.
 - **The Swarm — Loops & Conditionals** — Space Invaders with the authorship turned round:
-  you write one program and the whole formation flies it. Eleven stages that walk the Level 2
-  lesson in the lesson's order — `repeat (N)`, `forever`, `repeat until`, an `if` inside a
-  `forever` — and a loop inside a loop as the **final challenge**, the only stage that nests
-  two loops. Every new block — loop or verb — is **introduced, then practised**: the stage
-  that brings it is walked (the console opens itself and the coach rings each block, and
-  no block ever turns up on a shelf before it has been walked), and the stage after it is
-  practice — the same loop, a different job, no coach, and the answer behind a Hint button,
-  one line at a time. The build stages draw the formation they ask for as an outline to fill,
-  with a cursor showing where the next `spawn()` lands. The names are the lesson's own —
-  count-controlled, infinite, condition-controlled, conditional, nested — and the speech
-  bubble is kept for verdicts only. Set the count, build two rows, walk to the wall, come
-  down the staircase the way the arcade does.
+  you write one program and the whole formation flies it. Eleven stages, built around
+  **placement — what goes inside a loop and what goes after it** — with `nextRow()` as the
+  star, because `nextRow()` inside a loop builds a column and `nextRow()` between loops builds
+  rows, and a shape is something you can see. `repeat (N)`, `forever`, an `if` inside a
+  `forever`, and nested loops as the **final challenge**. The shield is a count of hits: every
+  `fire()` that lands takes one off, the fortress shows exactly that many segments, and the
+  block budget is what forces the loop. Every new block is **introduced, then practised**: the
+  stage that brings it is walked (the console opens itself and the coach rings each block), and
+  the stage after it is practice — no coach, the answer behind a Hint button. The build stages
+  draw the formation they ask for as an outline to fill, with a cursor showing where the next
+  `spawn()` lands, and wrong placement gets its own sentence: *you fired too early*, *look
+  where the invaders went*.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
 - Bilingual English / Español throughout, including the villain's taunts.

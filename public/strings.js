@@ -800,8 +800,8 @@ window.ES = {
   /* the ten seconds of film it opens with */
   'THE SWARM':'EL ENJAMBRE',
   'SKIP ▶':'SALTAR ▶',
-  'This fortress has a shield. It grows back after every attack.':
-    'Esta fortaleza tiene un escudo. Vuelve a crecer después de cada ataque.',
+  'This fortress has a shield. Every fire() that lands takes one hit off it.':
+    'Esta fortaleza tiene un escudo. Cada disparar() que llega le quita un golpe.',
   'You control the invaders. One program moves all of them.':
     'Tú controlas a los invasores. Un solo programa los mueve a todos.',
   'To make 8 invaders you do not need 8 blocks. You need a loop.':
@@ -810,46 +810,42 @@ window.ES = {
   'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
   'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
   /* the stages */
-  'One Row':'Una Fila','Set the Count':'Fija el Conteo','Drop a Row':'Baja una Fila','Two Rows':'Dos Filas',
-  'Infinite Loop':'Bucle Infinito','Which Loop?':'¿Cuál Bucle?','Repeat Until':'Repetir Hasta',
-  'Walk to the Wall':'Camina hasta la Pared','The Listener':'El Oyente','The Staircase':'La Escalera',
-  'Nested Loops':'Bucles Anidados',
+  'One Row':'Una Fila','Set the Count':'Fija el Conteo','Build, Then Fire':'Construye, Luego Dispara',
+  'A Column':'Una Columna','Two Rows':'Dos Filas',
+  'Infinite Loop':'Bucle Infinito','Which Loop?':'¿Cuál Bucle?',
+  'The Listener':'El Oyente','Over the Fortress':'Sobre la Fortaleza',
+  'Nested Loops':'Bucles Anidados','The Big Grid':'La Cuadrícula Grande',
   /* the mission panel */
-  'Shield':'Escudo','after each volley':'después de cada descarga','rebuilds if you miss':'se reconstruye si fallas',
+  'Shield':'Escudo','hits left':'golpes restantes','rebuilds if you miss':'se reconstruye si fallas',
   'Invaders':'Invasores','needed':'necesarios','practice':'práctica',
   'runs it':'lo ejecuta',
   /* what a run came to */
   '✅ You broke the shield!':'✅ ¡Rompiste el escudo!',
-  '🏅 You broke the shield! 32 invaders from 5 blocks — that is a nested loop.':
-    '🏅 ¡Rompiste el escudo! 32 invasores con 5 bloques — eso es un bucle anidado.',
+  '🏅 You broke the shield! 25 invaders from 5 blocks — that is a nested loop.':
+    '🏅 ¡Rompiste el escudo! 25 invasores con 5 bloques — eso es un bucle anidado.',
   'That did not break the shield.':'Eso no rompió el escudo.',
   'Press <b>C</b> and try again.':'Presiona <b>C</b> e inténtalo de nuevo.',
   'All the invaders are gone.':'Ya no queda ningún invasor.',
-  'The invaders crashed into the fortress. Do not go down so far.':
-    'Los invasores chocaron contra la fortaleza. No bajes tanto.',
-  'The shield was already down, but your loop kept going down and crashed. Use a loop that stops.':
-    'El escudo ya había caído, pero tu bucle siguió bajando y chocó. Usa un bucle que pare.',
-  'Your program ended, but the shield is still up. You need more volleys.':
-    'Tu programa terminó, pero el escudo sigue en pie. Necesitas más descargas.',
-  '{n} invaders is not enough. The shield grew back. Fill the outline.':
-    '{n} invasores no bastan. El escudo volvió a crecer. Rellena el contorno.',
-  'Nobody fired. Add <b>fire()</b> at the end.':'Nadie disparó. Añade <b>disparar()</b> al final.',
-  'The shield is down, but the outline is not filled. Put the invaders where the outline is.':
-    'El escudo ha caído, pero el contorno no está lleno. Pon los invasores donde está el contorno.',
+  'Your program ended, but the shield is still up — it needs {n} more hits.':
+    'Tu programa terminó, pero el escudo sigue en pie — necesita {n} golpes más.',
+  'Your program ended, but the shield is still up — it needs 1 more hit.':
+    'Tu programa terminó, pero el escudo sigue en pie — necesita 1 golpe más.',
+  'Nobody fired. Add <b>fire()</b> after the loop.':'Nadie disparó. Añade <b>disparar()</b> después del bucle.',
+  'You fired too early — the outline is not filled yet. Put <b>fire()</b> after the loop that builds it.':
+    'Disparaste demasiado pronto — el contorno todavía no está lleno. Pon <b>disparar()</b> después del bucle que lo construye.',
+  'The shield is down, but the outline is not filled. Look where the invaders went — check the numbers on your loops, and which loop <b>nextRow()</b> is in.':
+    'El escudo ha caído, pero el contorno no está lleno. Mira adónde fueron los invasores — revisa los números de tus bucles, y en qué bucle está <b>siguienteFila()</b>.',
+  'The outline is not filled. Look where the invaders went — check the numbers on your loops, and which loop <b>nextRow()</b> is in.':
+    'El contorno no está lleno. Mira adónde fueron los invasores — revisa los números de tus bucles, y en qué bucle está <b>siguienteFila()</b>.',
   'You fired at nothing. The shield rebuilt.':'Disparaste a la nada. El escudo se reconstruyó.',
   'You fired 3 times at nothing, and the shield rebuilt each time. Only fire over the fortress: use <b>if over the fortress</b>.':
     'Disparaste 3 veces a la nada, y el escudo se reconstruyó cada vez. Dispara solo sobre la fortaleza: usa <b>si sobre la fortaleza</b>.',
-  'The shield is down, but your loop never stops. Use <b>repeat until the shield is down</b>.':
-    'El escudo ha caído, pero tu bucle nunca para. Usa <b>repetir hasta que el escudo ha caído</b>.',
   'Your loop keeps going. Nothing inside it can make <b>{c}</b> true. Which block is missing?':
     'Tu bucle sigue y sigue. Nada adentro puede hacer que <b>{c}</b> sea verdad. ¿Qué bloque falta?',
   'Your loop keeps going, but nothing changes. Is the important block <b>inside</b> the loop?':
     'Tu bucle sigue y sigue, pero nada cambia. ¿Está el bloque importante <b>dentro</b> del bucle?',
-  'The invaders are too far away — every volley grows straight back. Use <b>down()</b> to move closer.':
-    'Los invasores están muy lejos — cada descarga vuelve a crecer al instante. Usa <b>bajar()</b> para acercarte.',
   /* the sensors */
-  'the shield is down':'el escudo ha caído','over the fortress':'sobre la fortaleza',
-  'at the edge':'en el borde',
+  'over the fortress':'sobre la fortaleza','at the edge':'en el borde',
   /* the blocks this mission adds, and what the shelf says about them */
   'forever':'por siempre',
   'spawn()':'aparecer()','nextRow()':'siguienteFila()','across()':'cruzar()',
@@ -866,59 +862,58 @@ window.ES = {
   '<b>forever</b> is not in this mission yet.':'<b>por siempre</b> no está en esta misión todavía.',
   /* the cards: what each stage is teaching */
   'A count-controlled loop':'Un bucle controlado por conteo',
-  '<b>repeat 8</b> runs the block inside it 8 times. That makes 8 invaders with 2 blocks instead of 8. Then <b>fire()</b> makes them all shoot.':
-    '<b>repetir 8</b> ejecuta el bloque de adentro 8 veces. Así haces 8 invasores con 2 bloques en vez de 8. Luego <b>disparar()</b> hace que todos disparen.',
+  '<b>repeat 8</b> runs the block inside it 8 times. That makes 8 invaders with 2 blocks instead of 8. <b>fire()</b> goes <b>after</b> the loop, so the whole row shoots together.':
+    '<b>repetir 8</b> ejecuta el bloque de adentro 8 veces. Así haces 8 invasores con 2 bloques en vez de 8. <b>disparar()</b> va <b>después</b> del bucle, para que toda la fila dispare junta.',
   'Practice — a count-controlled loop':'Práctica — un bucle controlado por conteo',
-  'Goal: break the shield. Put <b>fire()</b> inside a <b>repeat</b>. Each volley takes 8 off the shield, and the shield grows back 4. Pick a number big enough to break it.':
-    'Meta: rompe el escudo. Pon <b>disparar()</b> dentro de un <b>repetir</b>. Cada descarga le quita 8 al escudo, y el escudo vuelve a crecer 4. Elige un número lo bastante grande para romperlo.',
-  'The next row':'La siguiente fila',
-  '<b>spawn()</b> makes an invader where the yellow frame is, then moves the frame right. <b>nextRow()</b> moves the frame down to the start of the next row.':
-    '<b>aparecer()</b> hace un invasor donde está el marco amarillo, y luego mueve el marco a la derecha. <b>siguienteFila()</b> mueve el marco abajo, al inicio de la siguiente fila.',
-  'Practice — the same loop twice':'Práctica — el mismo bucle dos veces',
-  'Goal: fill the outline — 2 rows of 8 — then fire. <b>repeat 8</b> with <b>spawn()</b> inside makes one row. Put <b>nextRow()</b> between the two rows. You have 6 blocks.':
-    'Meta: rellena el contorno — 2 filas de 8 — y luego dispara. <b>repetir 8</b> con <b>aparecer()</b> adentro hace una fila. Pon <b>siguienteFila()</b> entre las dos filas. Tienes 6 bloques.',
+  'Goal: break the shield. It takes 4 hits, and each <b>fire()</b> is one hit. Put <b>fire()</b> inside a <b>repeat</b> and set the number.':
+    'Meta: rompe el escudo. Aguanta 4 golpes, y cada <b>disparar()</b> es un golpe. Pon <b>disparar()</b> dentro de un <b>repetir</b> y fija el número.',
+  'Practice — what goes in which loop':'Práctica — qué va en cada bucle',
+  'Goal: build a row of 6, then hit the shield 3 times. Use one <b>repeat</b> for <b>spawn()</b> and another <b>repeat</b> for <b>fire()</b>, one after the other. If <b>fire()</b> is inside the spawn loop, it fires before the row is finished.':
+    'Meta: construye una fila de 6, y luego golpea el escudo 3 veces. Usa un <b>repetir</b> para <b>aparecer()</b> y otro <b>repetir</b> para <b>disparar()</b>, uno después del otro. Si <b>disparar()</b> está dentro del bucle de aparecer, dispara antes de terminar la fila.',
+  'nextRow() inside the loop':'siguienteFila() dentro del bucle',
+  '<b>spawn()</b> makes an invader in the yellow frame, then moves the frame right. <b>nextRow()</b> moves the frame down to the start of the next row. Both inside the loop: each new invader goes under the last one — a column.':
+    '<b>aparecer()</b> hace un invasor en el marco amarillo, y luego mueve el marco a la derecha. <b>siguienteFila()</b> mueve el marco abajo, al inicio de la siguiente fila. Los dos dentro del bucle: cada invasor nuevo va debajo del anterior — una columna.',
+  'Practice — nextRow() between loops':'Práctica — siguienteFila() entre bucles',
+  'Goal: fill the outline — 2 rows of 8 — then fire. <b>repeat 8</b> with <b>spawn()</b> inside makes one row. Put <b>nextRow()</b> after the first loop, not inside it — inside, it would make a column. Then another row loop, then <b>fire()</b>.':
+    'Meta: rellena el contorno — 2 filas de 8 — y luego dispara. <b>repetir 8</b> con <b>aparecer()</b> adentro hace una fila. Pon <b>siguienteFila()</b> después del primer bucle, no adentro — adentro haría una columna. Luego otro bucle de fila, y luego <b>disparar()</b>.',
   'An infinite loop':'Un bucle infinito',
   '<b>repeat</b> is a count-controlled loop: it runs a set number of times, then stops. <b>forever</b> is an infinite loop: it runs until the game ends.':
     '<b>repetir</b> es un bucle controlado por conteo: se ejecuta un número fijo de veces y luego para. <b>por siempre</b> es un bucle infinito: se ejecuta hasta que termina el juego.',
   'Practice — which loop?':'Práctica — ¿cuál bucle?',
-  'Goal: break the shield. Each volley takes 16 off, and the shield grows back 12. Work out how many volleys you need. If it is more than 20, <b>repeat</b> cannot do it — use <b>forever</b>.':
-    'Meta: rompe el escudo. Cada descarga le quita 16, y el escudo vuelve a crecer 12. Calcula cuántas descargas necesitas. Si son más de 20, <b>repetir</b> no puede — usa <b>por siempre</b>.',
-  'A condition-controlled loop':'Un bucle controlado por condición',
-  '<b>repeat until the shield is down</b> checks the shield every time, and stops when the shield is gone. <b>forever</b> would keep going down after the shield breaks and crash into the fortress.':
-    '<b>repetir hasta que el escudo ha caído</b> comprueba el escudo cada vez, y para cuando el escudo ya no está. <b>por siempre</b> seguiría bajando después de romper el escudo y chocaría contra la fortaleza.',
-  'Practice — a condition-controlled loop':'Práctica — un bucle controlado por condición',
-  'Goal: break the shield by the right wall. First move the invaders to the wall: put <b>across()</b> inside <b>repeat until at the edge</b>. Then fire 3 times with another loop.':
-    'Meta: rompe el escudo junto a la pared derecha. Primero mueve a los invasores hasta la pared: pon <b>cruzar()</b> dentro de <b>repetir hasta que en el borde</b>. Luego dispara 3 veces con otro bucle.',
+  'Goal: break the shield. Count how many hits it takes. If it is more than 20, <b>repeat</b> cannot do it — use <b>forever</b>.':
+    'Meta: rompe el escudo. Cuenta cuántos golpes aguanta. Si son más de 20, <b>repetir</b> no puede — usa <b>por siempre</b>.',
   'A conditional inside a loop':'Un condicional dentro de un bucle',
   '<b>if</b> checks its condition once. Inside a <b>forever</b> loop it checks again every time, so the invaders react as they move. If you fire when nobody is over the fortress, the shield rebuilds.':
     '<b>si</b> comprueba su condición una vez. Dentro de un bucle <b>por siempre</b> la comprueba otra vez cada vuelta, así que los invasores reaccionan mientras se mueven. Si disparas cuando nadie está sobre la fortaleza, el escudo se reconstruye.',
   'Practice — a conditional inside the loop':'Práctica — un condicional dentro del bucle',
-  'Goal: break the shield. From up here the shots are too weak. Move like the real arcade game: <b>across()</b>, and each time the invaders reach a wall, <b>down()</b> one row. Use <b>if at the edge</b> inside a <b>forever</b> loop, and <b>fire()</b> every time.':
-    'Meta: rompe el escudo. Desde aquí arriba los disparos son muy débiles. Muévete como en el juego de arcade: <b>cruzar()</b>, y cada vez que los invasores lleguen a una pared, <b>bajar()</b> una fila. Usa <b>si en el borde</b> dentro de un bucle <b>por siempre</b>, y <b>disparar()</b> cada vez.',
+  'Goal: break the shield on the right. The invaders sweep back and forth with <b>across()</b>. Only fire when they are over the fortress — if you fire at nothing, the shield rebuilds. Put the <b>if</b> inside the <b>forever</b> loop.':
+    'Meta: rompe el escudo de la derecha. Los invasores van y vienen con <b>cruzar()</b>. Dispara solo cuando estén sobre la fortaleza — si disparas a la nada, el escudo se reconstruye. Pon el <b>si</b> dentro del bucle <b>por siempre</b>.',
   'A nested loop':'Un bucle anidado',
-  'A loop inside a loop is a nested loop. The inner loop (<b>repeat 8</b>) makes one row. The outer loop (<b>repeat 4</b>) runs the inner loop 4 times — one row each time.':
-    'Un bucle dentro de otro bucle es un bucle anidado. El bucle interno (<b>repetir 8</b>) hace una fila. El bucle externo (<b>repetir 4</b>) ejecuta el bucle interno 4 veces — una fila cada vez.',
+  'A loop inside a loop is a nested loop. The inner loop (<b>repeat 8</b>) makes one row. The outer loop (<b>repeat 4</b>) runs the inner loop 4 times — one row each time. <b>nextRow()</b> goes inside the outer loop, after the inner one.':
+    'Un bucle dentro de otro bucle es un bucle anidado. El bucle interno (<b>repetir 8</b>) hace una fila. El bucle externo (<b>repetir 4</b>) ejecuta el bucle interno 4 veces — una fila cada vez. <b>siguienteFila()</b> va dentro del bucle externo, después del interno.',
+  'Practice — a nested loop':'Práctica — un bucle anidado',
+  'Goal: fill the outline — 5 rows of 5 — then fire. The inner <b>repeat</b> makes one row with <b>spawn()</b>. The outer <b>repeat</b> runs it once per row, with <b>nextRow()</b> after the inner loop. Set both numbers.':
+    'Meta: rellena el contorno — 5 filas de 5 — y luego dispara. El <b>repetir</b> interno hace una fila con <b>aparecer()</b>. El <b>repetir</b> externo lo ejecuta una vez por fila, con <b>siguienteFila()</b> después del bucle interno. Fija los dos números.',
   /* the walkthroughs, one move a step */
   'Make 8 invaders with 3 blocks. Start with <b>repeat</b>.':'Haz 8 invasores con 3 bloques. Empieza con <b>repetir</b>.',
   'Click <b>+</b> until it says <b>8</b>.':'Haz clic en <b>+</b> hasta que diga <b>8</b>.',
   'Click the <b>repeat</b> block. Now new blocks go <b>inside</b> it.':'Haz clic en el bloque <b>repetir</b>. Ahora los bloques nuevos van <b>adentro</b>.',
   'Add <b>spawn()</b>. It makes one invader in the yellow frame.':'Añade <b>aparecer()</b>. Hace un invasor en el marco amarillo.',
   'Click the <b>repeat</b> block again. Now new blocks go <b>after</b> it.':'Haz clic en el bloque <b>repetir</b> otra vez. Ahora los bloques nuevos van <b>después</b>.',
-  'Add <b>fire()</b>. Every invader shoots once.':'Añade <b>disparar()</b>. Cada invasor dispara una vez.',
-  'Add <b>nextRow()</b>. It moves the frame down to the next row.':'Añade <b>siguienteFila()</b>. Mueve el marco a la siguiente fila.',
-  'Add <b>spawn()</b> again. This invader goes under the first one.':'Añade <b>aparecer()</b> otra vez. Este invasor va debajo del primero.',
+  'Add <b>fire()</b> after the loop. Every invader shoots once.':'Añade <b>disparar()</b> después del bucle. Cada invasor dispara una vez.',
+  'Make a column of 3. Start with <b>repeat</b> — it already says 3.':'Haz una columna de 3. Empieza con <b>repetir</b> — ya dice 3.',
+  'Click the <b>repeat</b> block so new blocks go inside it.':'Haz clic en el bloque <b>repetir</b> para que los bloques nuevos vayan adentro.',
+  'Add <b>spawn()</b>.':'Añade <b>aparecer()</b>.',
+  'Add <b>nextRow()</b> inside the loop too. It moves the frame down, so the next invader goes under this one.':
+    'Añade <b>siguienteFila()</b> también dentro del bucle. Mueve el marco hacia abajo, así que el siguiente invasor va debajo de este.',
+  'Click the <b>repeat</b> block again so new blocks go after it.':'Haz clic en el bloque <b>repetir</b> otra vez para que los bloques nuevos vayan después.',
   'Add <b>fire()</b>.':'Añade <b>disparar()</b>.',
-  'This shield needs more than 20 volleys, and <b>repeat</b> only goes up to 20. Use <b>forever</b>. It has no number — it never stops.':
-    'Este escudo necesita más de 20 descargas, y <b>repetir</b> solo llega a 20. Usa <b>por siempre</b>. No tiene número — nunca para.',
+  'This shield takes 24 hits, and <b>repeat</b> only goes up to 20. Use <b>forever</b>. It has no number — it never stops.':
+    'Este escudo aguanta 24 golpes, y <b>repetir</b> solo llega a 20. Usa <b>por siempre</b>. No tiene número — nunca para.',
   'Click the <b>forever</b> block so new blocks go inside it.':'Haz clic en el bloque <b>por siempre</b> para que los bloques nuevos vayan adentro.',
+  'Add <b>forever</b>.':'Añade <b>por siempre</b>.',
   'Add <b>across()</b>. It moves all the invaders one step sideways. At the wall they turn around.':
     'Añade <b>cruzar()</b>. Mueve todos los invasores un paso de lado. En la pared dan la vuelta.',
-  'Add <b>repeat until</b>. It keeps going until the shield is down — then it stops.':
-    'Añade <b>repetir hasta</b>. Sigue hasta que el escudo caiga — y entonces para.',
-  'Click the <b>repeat until</b> block so new blocks go inside it.':'Haz clic en el bloque <b>repetir hasta</b> para que los bloques nuevos vayan adentro.',
-  'Add <b>down()</b>. Closer invaders do more damage.':'Añade <b>bajar()</b>. Los invasores más cerca hacen más daño.',
-  'Add <b>forever</b>.':'Añade <b>por siempre</b>.',
-  'Add <b>across()</b>. The invaders move back and forth on their own.':'Añade <b>cruzar()</b>. Los invasores van y vienen solos.',
   'Add <b>if over the fortress</b>. It goes <b>inside</b> the loop, so it checks every time.':
     'Añade <b>si sobre la fortaleza</b>. Va <b>dentro</b> del bucle, para que compruebe cada vez.',
   'Click the <b>if</b> block so the next block goes inside it.':'Haz clic en el bloque <b>si</b> para que el siguiente bloque vaya adentro.',
@@ -929,9 +924,9 @@ window.ES = {
   'Add another <b>repeat</b> inside it. This one makes a row.':'Añade otro <b>repetir</b> adentro. Este hace una fila.',
   'Click <b>+</b> until it says <b>8</b>. 8 invaders in a row.':'Haz clic en <b>+</b> hasta que diga <b>8</b>. 8 invasores en una fila.',
   'Click the <b>repeat 8</b> block so new blocks go inside it.':'Haz clic en el bloque <b>repetir 8</b> para que los bloques nuevos vayan adentro.',
-  'Add <b>spawn()</b>.':'Añade <b>aparecer()</b>.',
   'Click the <b>repeat 8</b> block again to get out of it.':'Haz clic en el bloque <b>repetir 8</b> otra vez para salir de él.',
-  'Add <b>nextRow()</b>. After each row, move down one.':'Añade <b>siguienteFila()</b>. Después de cada fila, baja una.',
+  'Add <b>nextRow()</b>. It goes after each row — inside the outer loop, not the inner one.':
+    'Añade <b>siguienteFila()</b>. Va después de cada fila — dentro del bucle externo, no del interno.',
   'Click the <b>repeat 4</b> block to get out of it.':'Haz clic en el bloque <b>repetir 4</b> para salir de él.',
 
   /* ---------- the home planet ---------- */
