@@ -529,6 +529,32 @@ test('the golden rule is walked, with the if inside the forever', ()=>{
     'the worked answer must put the if INSIDE the forever, not above it');
 });
 
+/* ------------------------------------------------------ the screen */
+
+test('the film puts the HUD away and brings it back, and a repaint mid-film does not', ()=>{
+  /* The captions run along the bottom and so does the [C] Code Console
+     button; a film that leaves the HUD up writes its second line across
+     the button. Space Explorer's film hides #hud for its ten seconds and
+     restores what it hid; this one has to as well — and its own hud(),
+     which un-hides #hud on every repaint, must hold off while it plays. */
+  const src=read('public/invaders.js');
+  const film=src.slice(src.indexOf('function startFilm('), src.indexOf('function filmTick('));
+  assert.match(film, /\['#hud','#briefing'\]\.forEach/, 'the film does not put the HUD away');
+  assert.match(film, /filmHid\.forEach\(sel=>\{[^}]*classList\.remove\('hidden'\)/, 'the film never brings the HUD back');
+  assert.match(src, /if\(h && !film\) h\.classList\.remove\('hidden'\)/, 'hud() brings the HUD back in the middle of the film');
+});
+
+test('the briefing bubble sits clear of the code console button', ()=>{
+  /* Both are bottom-centre. The bubble is two lines of 19px text in 12px
+     of padding and a 3px border — about 80px — and the button is about
+     50px tall, so the bubble\'s bottom must clear the button\'s top. */
+  const css=read('public/index.html');
+  const px=(sel)=>{ const m=css.match(new RegExp(sel.replace('.','\\.')+'\\{[^}]*?bottom:(\\d+)px')); assert.ok(m, 'no bottom for '+sel); return +m[1]; };
+  const brief=px('#briefing'), btn=px('.codebtn'), health=px('#health');
+  assert.ok(brief >= btn+56, `the briefing (bottom ${brief}px) sits on the code button (bottom ${btn}px, ~50px tall)`);
+  assert.ok(btn >= health+40, `the code button (bottom ${btn}px) sits on the health bar (bottom ${health}px)`);
+});
+
 /* -------------------------------------------------- the walkthroughs
    Every stage here introduces a loop the one before it did not have, so
    every stage is walked the first time it opens. What makes a walkthrough

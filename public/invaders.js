@@ -915,17 +915,30 @@ window.INVADERS = (function(){
     el.querySelector('#inSkip').onclick=()=>endFilm();
     return el;
   }
+  /* THE FILM OWNS THE SCREEN. Space Explorer's film hides the HUD for its
+     ten seconds and puts it back after, and this one has to do the same:
+     the captions sit along the bottom, and so does the [C] Code Console
+     button, so a film that left the HUD up wrote its second line straight
+     across the button. What was hidden is written down and restored,
+     because a HUD that was already hidden must not be conjured up. */
+  let filmHid=[];
   function startFilm(then){
     film={ t:0, shot:-1, then, built:0 };
     const el=filmScreen();
     setTimeout(()=>{ const ti=el.querySelector('#inTitle'); if(ti) ti.classList.add('in-show'); }, 60);
     if(window.CODE) CODE.close();
-    const b=document.querySelector('#briefing'); if(b) b.classList.add('hidden');
+    filmHid=[];
+    ['#hud','#briefing'].forEach(sel=>{
+      const e=document.querySelector(sel); if(!e) return;
+      if(!e.classList.contains('hidden')) filmHid.push(sel);
+      e.classList.add('hidden');
+    });
   }
   function endFilm(){
     const was=film; film=null;
     const el=document.querySelector('#intro'); if(el) el.remove();
-    const b=document.querySelector('#briefing'); if(b) b.classList.remove('hidden');
+    filmHid.forEach(sel=>{ const e=document.querySelector(sel); if(e) e.classList.remove('hidden'); });
+    filmHid=[];
     if(window.PROGRESS && PROGRESS.set) PROGRESS.set('inv_film', 1);
     if(was && was.then) was.then();
   }
@@ -1255,7 +1268,8 @@ window.INVADERS = (function(){
             `<li class="${i===L.idx?'cur':(i<L.idx?'done':'')}">${t(s.name)}`
             + (s.practice ? ` <small>${t('practice')}</small>` : '') + `</li>`).join('');
     }
-    const h=document.querySelector('#hud'); if(h) h.classList.remove('hidden');
+    // the film has the HUD put away, and a repaint mid-film must not bring it back
+    const h=document.querySelector('#hud'); if(h && !film) h.classList.remove('hidden');
     if(window.keyHint) keyHint(`<b>C</b> ${t('write your program')} &nbsp; <b>RUN</b> ${t('launches the swarm')}`);
   }
   function say(msg){

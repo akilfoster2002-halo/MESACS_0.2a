@@ -120,7 +120,12 @@ pre,code,textarea,#conText,#conTA,.blk,.palblk,#tape,.mk-line .op{
 #objList li.cur{border-left-color:var(--star);color:var(--text);background:#1b2740}
 #objList li.done{border-left-color:var(--good);color:var(--good);text-decoration:line-through}
 
-#briefing{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);max-width:620px;
+/* The brief sits ABOVE the [C] Code Console button, never on it. Both are
+   bottom-centre, and at 110px the bubble's lower edge came down over the
+   button's top half in every mission that uses this bubble — the button was
+   read by whatever the bubble did not cover. 134 clears a two-line bubble
+   off a button whose top is at 120; the health bar below both is untouched. */
+#briefing{position:absolute;left:50%;bottom:134px;transform:translateX(-50%);max-width:620px;
   background:#fff6fb;color:#2a2140;border:3px solid var(--blush);border-radius:18px;padding:12px 18px;
   font-size:19px;line-height:1.35;box-shadow:0 12px 34px rgba(0,0,0,.55)}
 #briefing b{color:#a4407a}
@@ -290,7 +295,7 @@ pre,code,textarea,#conText,#conTA,.blk,.palblk,#tape,.mk-line .op{
 .keyhint{margin-top:10px;font-size:14px;color:var(--muted);letter-spacing:.5px}
 .keyhint kbd,.codebtn kbd{background:#1d1730;border:2px solid var(--line);border-bottom-width:4px;
   border-radius:8px;padding:1px 9px;font-family:inherit;font-weight:bold;color:var(--star)}
-.codebtn{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);pointer-events:auto;
+.codebtn{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);pointer-events:auto;
   display:flex;align-items:center;gap:10px;background:rgba(46,37,71,.96);color:var(--text);
   border:3px solid var(--mint);border-radius:16px;padding:11px 20px;font-size:19px;font-weight:bold;
   box-shadow:0 8px 24px rgba(0,0,0,.5);cursor:pointer}

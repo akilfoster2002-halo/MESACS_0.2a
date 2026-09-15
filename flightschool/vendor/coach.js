@@ -189,14 +189,28 @@ window.COACH = (function(){
     const sk=document.querySelector('#coachSkip');
     if(sk) sk.onclick=()=>stop();
     /* sit beside what is being pointed at, and never off the edge */
-    if(near && near.width>0){
+    const beside=r=>{
       const w=232, gap=14;
-      let x=near.right+gap, y=near.top-6;
-      if(x+w > innerWidth-10) x=Math.max(10, near.left-w-gap);
-      y=Math.max(10, Math.min(y, innerHeight-150));
+      let x=r.right+gap, y=r.top-6;
+      if(x+w > innerWidth-10) x=Math.max(10, r.left-w-gap);
+      // as low as its own height allows, not a guess at it: a guess of 150
+      // shoved a 110px card up into the briefing above the button
+      y=Math.max(10, Math.min(y, innerHeight-(p.offsetHeight||140)-10));
       p.style.left=x+'px'; p.style.top=y+'px';
       p.style.right=''; p.style.bottom=''; p.style.transform='';
-    } else {
+    };
+    /* NOTHING TO SIT BESIDE means the thing being pointed at is a block on a
+       shelf inside a console that is closed. The next thing to press is the
+       button that opens it, so the card sits beside that — which also keeps
+       it off the briefing and the button, the two things that already share
+       the bottom-centre of the screen, and which a card dropped at
+       bottom:96px landed squarely on top of. */
+    const cb=document.querySelector('#codeBtn');
+    const cbr=(!near || !near.width) && cb && !cb.classList.contains('hidden')
+      ? cb.getBoundingClientRect() : null;
+    if(near && near.width>0) beside(near);
+    else if(cbr && cbr.width>0) beside(cbr);
+    else {
       p.style.left='50%'; p.style.top=''; p.style.bottom='96px';
       p.style.right=''; p.style.transform='translateX(-50%)';
     }
