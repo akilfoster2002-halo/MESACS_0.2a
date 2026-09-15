@@ -396,7 +396,11 @@ pre,code,textarea,#conText,#conTA,.blk,.palblk,#tape,.mk-line .op{
 .blk.dragging{opacity:.92;transform:rotate(-1.5deg) scale(1.03);
   box-shadow:0 10px 26px rgba(0,0,0,.55)}
 .blk.lifted{opacity:.32}
+/* held back over the shelf: about to be let go of */
+.dragging.discard{opacity:.4;transform:rotate(-1.5deg) scale(.96)}
 #conScript .blk{cursor:grab;touch-action:none}
+/* the shelf is picked up from as well as clicked, on a tablet too */
+#conPalette .palblk{cursor:grab;touch-action:none}
 #conScript .blk:active{cursor:grabbing}
 #conScript .blk button,#conScript .blk input{cursor:pointer;touch-action:auto}
 /* dragging: a ghost under the cursor, and the gap it would land in */

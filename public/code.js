@@ -234,11 +234,13 @@ window.CODE = (function(){
     if(NUMBLK[type]) b.n = START[type]===undefined ? 0 : START[type];
     return b;
   }
-  function addBlock(type, n){
+  /* A block off the shelf — the same one whether it was clicked or dragged,
+     so the budget is asked the same question either way. */
+  function newBlock(type, n){
     if(budget && countBlocks()>=budget){
       hint(t('Out of blocks. Find a shorter way.'), 'err');
       if(window.beep) beep('bad');
-      return;
+      return null;
     }
     const b=makeBlock(type);
     /* A pinned number. A walkthrough that says "click change y by 1" and
@@ -246,6 +248,10 @@ window.CODE = (function(){
        the student to distrust it — so the shelf can carry the value as well
        as the block, and what arrives is what was promised. */
     if(n!==undefined && n!==null && 'n' in b) b.n=n;
+    return b;
+  }
+  function addBlock(type, n){
+    const b=newBlock(type, n); if(!b) return;
     if(dropTarget && dropTarget.body) dropTarget.body.push(b);
     else script.push(b);
     if(window.beep) beep('pop');
@@ -922,7 +928,7 @@ window.CODE = (function(){
     paletteEl.className='';
     hint(dropTarget
       ? t('Blocks go inside the repeat.')
-      : t('Click a block to add it.'));
+      : t('Click a block to add it — or drag it where you want it.'));
     budgetOut(countBlocks());
 
     /* A shelf entry is either a block type or a type WITH the number already
@@ -951,11 +957,16 @@ window.CODE = (function(){
              :t(d.label)}</b>
         <small>${t(d.help)}</small></button>`;
     }).join('');
-    paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>
-      addBlock(b.dataset.add, b.dataset.n===undefined ? undefined : +b.dataset.n));
+    paletteEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+      /* A drag that ends back over the shelf is a pointerup on a shelf
+         button, which the browser turns into a click. That click is the end
+         of the drag, not a request for another block. */
+      if(swallowClick){ swallowClick=false; return; }
+      addBlock(b.dataset.add, b.dataset.n===undefined ? undefined : +b.dataset.n);
+    });
 
     scriptEl.innerHTML = script.length ? script.map(b=>blockHTML(b,false)).join('')
-      : `<div class="blk-empty big">${t('Click a block on the left.')}</div>`;
+      : `<div class="blk-empty big">${t('Click a block on the left — or drag one here.')}</div>`;
     scriptEl.querySelectorAll('[data-act]').forEach(btn=>{
       btn.onclick=e=>{
         e.stopPropagation();
@@ -1041,7 +1052,7 @@ window.CODE = (function(){
      every tap on a repeat block would be a one-pixel drag and the tap that
      is supposed to open it for nesting would be eaten. */
   const DRAG_SLOP=5;
-  let drag=null;
+  let drag=null, swallowClick=false;
 
   function listOf(id){                    // the array a block lives in
     let found=null;
@@ -1086,20 +1097,41 @@ window.CODE = (function(){
     if(!m){ m=document.createElement('div'); m.id='dropLine'; document.body.appendChild(m); }
     return m;
   }
-  function startDrag(b, node, ev){
+  /* FROM THE SHELF TOO. A shelf button is picked up the same way a block in
+     the program is, and the same ghost and drop line follow it — the block
+     itself is only made at the moment it lands, so a drag that comes back
+     to the shelf has made nothing, and a budget that is already full says
+     so at the drop rather than at the pickup. `shelf` carries what to make. */
+  function startDrag(b, node, ev, shelf){
     const r=node.getBoundingClientRect();
     const ghost=node.cloneNode(true);
     ghost.classList.add('dragging');
     Object.assign(ghost.style, { position:'fixed', left:r.left+'px', top:r.top+'px',
       width:r.width+'px', margin:'0', pointerEvents:'none', zIndex:120 });
     document.body.appendChild(ghost);
-    node.classList.add('lifted');
-    drag={ b, node, ghost, dx:ev.clientX-r.left, dy:ev.clientY-r.top, slot:null };
+    if(!shelf) node.classList.add('lifted');
+    drag={ b, node, ghost, shelf:shelf||null, dx:ev.clientX-r.left, dy:ev.clientY-r.top, slot:null, onShelf:false };
   }
+  const overShelf = ev => {
+    const r=paletteEl.getBoundingClientRect();
+    return ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom;
+  };
   function moveDrag(ev){
     if(!drag) return;
     drag.ghost.style.left=(ev.clientX-drag.dx)+'px';
     drag.ghost.style.top =(ev.clientY-drag.dy)+'px';
+    /* BACK ON THE SHELF is where a block goes to be got rid of — the same
+       gesture Scratch uses, and the one a child tries first. Over the shelf
+       there is no gap to land in, the line goes out, and the ghost dims to
+       say it is about to be let go of. A block picked up off the shelf and
+       put back has simply not been made. */
+    drag.onShelf=overShelf(ev);
+    drag.ghost.classList.toggle('discard', drag.onShelf && !drag.shelf);
+    if(drag.onShelf){
+      drag.slot=null;
+      const m=document.querySelector('#dropLine'); if(m) m.style.display='none';
+      return;
+    }
     /* Nearest gap to the pointer. Distance, not "is it inside this box",
        because the gap at the end of a list has no box to be inside. */
     let best=null, bd=1e9;
@@ -1119,12 +1151,24 @@ window.CODE = (function(){
     !!(node && drag && drag.node && (node===drag.node || drag.node.contains(node)));
   function endDrag(){
     if(!drag) return;
-    const { b, slot }=drag;
+    const { b, slot, shelf, onShelf }=drag;
     drag.ghost.remove();
     drag.node.classList.remove('lifted');
     const m=document.querySelector('#dropLine'); if(m) m.style.display='none';
     drag=null;
-    if(!slot) return draw();
+    if(shelf){
+      // a new block, landing where the line was — or nowhere, if it came back
+      if(!slot) return draw();
+      // a refused block changed nothing, and a redraw would wipe the hint that says why
+      const nb=newBlock(shelf.type, shelf.n); if(!nb) return;
+      slot.list.splice(Math.max(0,Math.min(slot.index, slot.list.length)), 0, nb);
+      if(window.beep) beep('pop');
+      return draw();
+    }
+    if(!slot){
+      if(onShelf){ removeBlock(b.id); if(window.beep) beep('pop'); }
+      return draw();
+    }
     const from=listOf(b.id); if(!from) return draw();
     const at=from.indexOf(b);
     let to=slot.index;
@@ -1135,34 +1179,51 @@ window.CODE = (function(){
     if(window.beep) beep('pop');
     draw();
   }
+  /* One press, and a drag only once the pointer has MOVED — a tap stays a
+     tap, which is what opens a loop for nesting and what adds a block from
+     the shelf. Shared by the blocks in the program and the buttons on the
+     shelf; `pick` says what is being picked up. */
+  function grab(node, ev, pick){
+    if(ev.button) return;
+    // the ✕, the steppers and the number box are controls, not handles
+    if(ev.target.closest('button:not(.palblk), input')) return;
+    /* The innermost block wins. A block inside a repeat is inside the
+       repeat's element too, so without this the press starts TWO drags —
+       and the outer one, being the loop that contains the thing you are
+       holding, rules out every place you could put it down. */
+    ev.stopPropagation();
+    const got=pick(); if(!got) return;
+    const sx=ev.clientX, sy=ev.clientY;
+    let live=false;
+    const move=e=>{
+      if(!live && Math.hypot(e.clientX-sx, e.clientY-sy) < DRAG_SLOP) return;
+      if(!live){ live=true; startDrag(got.b, node, {clientX:sx, clientY:sy}, got.shelf); }
+      e.preventDefault();
+      moveDrag(e);
+    };
+    const up=()=>{
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if(!live) return;
+      /* the click the browser is about to make out of this pointerup is the
+         end of a drag — and if it never comes, the flag must not wait for
+         the next honest click to eat */
+      if(got.shelf){ swallowClick=true; setTimeout(()=>{ swallowClick=false; }, 0); }
+      endDrag();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
   function wireDrag(){
     scriptEl.querySelectorAll('.blk').forEach(node=>{
-      node.onpointerdown=ev=>{
-        if(ev.button) return;
-        // the ✕, the steppers and the number box are controls, not handles
-        if(ev.target.closest('button, input')) return;
-        /* The innermost block wins. A block inside a repeat is inside the
-           repeat's element too, so without this the press starts TWO drags —
-           and the outer one, being the loop that contains the thing you are
-           holding, rules out every place you could put it down. */
-        ev.stopPropagation();
-        const b=findBlock(+node.dataset.id); if(!b) return;
-        const sx=ev.clientX, sy=ev.clientY;
-        let live=false;
-        const move=e=>{
-          if(!live && Math.hypot(e.clientX-sx, e.clientY-sy) < DRAG_SLOP) return;
-          if(!live){ live=true; startDrag(b, node, {clientX:sx, clientY:sy}); }
-          e.preventDefault();
-          moveDrag(e);
-        };
-        const up=()=>{
-          window.removeEventListener('pointermove', move);
-          window.removeEventListener('pointerup', up);
-          if(live) endDrag();
-        };
-        window.addEventListener('pointermove', move);
-        window.addEventListener('pointerup', up);
-      };
+      node.onpointerdown=ev=>grab(node, ev, ()=>{
+        const b=findBlock(+node.dataset.id); return b ? { b } : null;
+      });
+    });
+    paletteEl.querySelectorAll('[data-add]').forEach(node=>{
+      node.onpointerdown=ev=>grab(node, ev, ()=>({
+        b:null, shelf:{ type:node.dataset.add, n:node.dataset.n===undefined ? undefined : +node.dataset.n }
+      }));
     });
   }
 

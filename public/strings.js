@@ -1057,9 +1057,9 @@ window.ES = {
   'One step cannot cross the field. goTo can.':'Un paso no cruza el campo. goTo sí.',
   'One gap per beat, always a <b>corner</b>. Four corners, three times, <b>six blocks</b>.':
     'Un hueco por tiempo, siempre una <b>esquina</b>. Cuatro esquinas, tres veces, <b>seis bloques</b>.',
-  'Click a block to add it.':'Pulsa un bloque para añadirlo.',
+  'Click a block to add it — or drag it where you want it.':'Pulsa un bloque para añadirlo — o arrástralo adonde lo quieras.',
   'Blocks go inside the repeat.':'Los bloques van dentro del repeat.',
-  'Click a block on the left.':'Pulsa un bloque de la izquierda.',
+  'Click a block on the left — or drag one here.':'Pulsa un bloque de la izquierda — o arrastra uno hasta aquí.',
   'Out of blocks. Find a shorter way.':'Sin bloques. Busca una forma más corta.',
   'One instruction per line.':'Una instrucción por línea.',
   'Write something first.':'Escribe algo primero.',
