@@ -1048,22 +1048,20 @@ window.TRAIL = (function(){
     if(panel.id==='terminal' && panel.tab!=='rule'){
       body = panel.tab==='night' ? nightPane() : namePane();
     } else {
+      /* ONE PICTURE OF THE RULE, NOT TWO. This printed the rule as source
+         and then drew a condition/true/false diagram of the same rule
+         underneath it — the condition twice, both actions twice, ninety
+         words on screen before a nine-year-old could press anything. The
+         source IS that diagram. All the diagram added was a mark saying
+         which way each test went, so that is all it adds now, on the line
+         it belongs to. */
       body = `
       ${mac.lead ? `<p class="mi-lead">${esc(say(mac.lead))}</p>` : ''}
       <section class="mi-sec">
-        <h4>${say('WHAT THIS MACHINE DOES')}</h4>
-        <pre class="mi-src">${src.map((l,i)=>{
-          const bi=Math.floor(i/2);
-          const tr=out ? out.trace[bi] : null;
-          const cls = !tr ? '' : tr.ran ? ' ran' : tr.tested ? ' no' : ' skip';
-          return `<span class="mi-l${cls}">${esc(l)}</span>`;
-        }).join('')}</pre>
+        <h4>${say('WHAT IT DECIDES')}</h4>
+        ${ladder(m, out)}
       </section>
       ${switchPane(m, mac)}
-      <section class="mi-sec">
-        <h4>${say('WHAT HAPPENS')}</h4>
-        ${m.rule.branches.length>2 ? ladder(m, out) : flow(m, out)}
-      </section>
       ${resultPane(m, out, ran)}
       ${logPane(mac)}
       ${historyPane(m)}`;
@@ -1096,7 +1094,7 @@ window.TRAIL = (function(){
             <small>${esc(say(v.hint||''))} — ${
               m.state[v.v]?say('in your notebook'):say('not found yet')}</small>
           </div>`).join('')}</div>
-        <p class="mi-note">${say('These are not switches. They are what you have actually found \u2014 the terminal cannot read evidence you have not got.')}</p>
+        <p class="mi-note">${say('Not switches \u2014 what you have found. It cannot read evidence you have not got.')}</p>
         <div class="mi-run">
           <button class="btn good" id="miRun">\u25B6 ${say('CROSS-REFERENCE')}</button>
         </div>
@@ -1122,45 +1120,32 @@ window.TRAIL = (function(){
     </section>`;
   }
 
-  /* The two-branch picture the mission is named for:
-       CONDITION  →  TRUE / FALSE  →  ACTION                            */
-  function flow(m, out){
-    const KL=K(), br=m.rule.branches;
-    const cond=KL.text(br[0].cond);
-    const tr=out ? out.trace[0] : null;
-    const yes=br[0], no=br[1]||null;
-    const val = tr && tr.tested ? tr.value : null;
-    return `<div class="fl">
-      <div class="fl-lbl">${say('CONDITION')}</div>
-      <div class="fl-cond">${esc(cond)}</div>
-      <div class="fl-arrow">↓</div>
-      <div class="fl-split">
-        <div class="fl-side yes${val===true?' on':''}">
-          <b>${say('IF TRUE')}</b><code>${esc(yes.action)}</code>
-          <small>${esc(say(yes.note||''))}</small></div>
-        <div class="fl-side no${val===false?' on':''}">
-          <b>${say('IF FALSE')}</b>
-          <code>${no?esc(no.action):say('nothing at all')}</code>
-          <small>${esc(say(no ? (no.note||'') : (m.mac.falls||'')))}</small></div>
-      </div>
-    </div>`;
-  }
-
-  /* The ladder, which is the only way to show what elif really does:
-     a branch under a true one is not false, it was never asked. */
+  /* The rule, as the source it is, with one mark per line saying which way
+     that test went. It is the only way to show what elif really does — a
+     branch under a true one is not false, it was never asked — and for a
+     plain if/else it is equally the condition, the true side and the false
+     side, which is why nothing draws those a second time any more. */
   function ladder(m, out){
     const KL=K(), br=m.rule.branches, can=!!m.mac.swap;
     const rows=br.map((b,i)=>{
       const tr=out ? out.trace[i] : null;
       const cls = !tr ? '' : tr.ran ? 'ran' : tr.tested ? 'no' : 'skip';
-      const mark = !tr ? '' : tr.ran ? (b.kind==='else'?say('reached'):'TRUE')
-                 : tr.tested ? 'FALSE' : say('never asked');
+      /* NEVER ASKED is the whole lesson and it must not be spent on the
+         wrong row. A branch with a condition that was skipped really was
+         never asked — that is why moving a line changes the answer. An
+         else has no test to ask, so when it is skipped it was simply not
+         reached, and saying otherwise teaches the distinction wrong. */
+      const mark = !tr ? ''
+                 : tr.ran ? (b.kind==='else' ? say('run') : 'TRUE')
+                 : tr.tested ? 'FALSE'
+                 : b.kind==='else' ? say('not reached') : say('never asked');
       const movable = can && b.kind!=='else';
+      const head = b.kind==='else' ? '<i>else</i>:'
+                 : `<i>${b.kind}</i> ${esc(KL.text(b.cond))}:`;
       return `<li class="lrow ${cls}">
-        <span class="lkw">${b.kind}</span>
-        <code class="lcond">${b.cond?esc(KL.text(b.cond)):''}</code>
+        <code class="lsrc">${head}</code>
         <span class="lmark">${mark}</span>
-        <em class="lact">${esc(b.action)}</em>
+        <code class="lact">${esc(b.action)}</code>
         ${movable?`<span class="lmv">
           <button data-mv="${i}" data-dir="-1" ${i===0?'disabled':''} title="${say('move up')}">▲</button>
           <button data-mv="${i}" data-dir="1" ${i>=br.length-2?'disabled':''} title="${say('move down')}">▼</button>
@@ -1185,19 +1170,20 @@ window.TRAIL = (function(){
     </table></div>`;
   }
 
+  /* Only once there is one. A RESULT heading over a paragraph telling you
+     to press the button directly above it is furniture, and it was the
+     third thing on the panel. The branch notes live HERE rather than beside
+     every branch for ever: what a machine WOULD do is the rule, which is
+     already on screen; what it just DID is news. */
   function resultPane(m, out, ran){
-    if(!out) return `<section class="mi-sec mi-wait">
-      <h4>${say('RESULT')}</h4>
-      <p class="mi-note">${m.mac.locked
-        ? say('Press CROSS-REFERENCE. Whatever it can say is decided by what is in your notebook.')
-        : say('Set the readings and press RUN TEST. A test that comes out the way you did not expect is the useful kind.')}</p>
-    </section>`;
+    if(!out) return '';
     const act=ACTIONS[out.action]||null;
+    const note = out.note || (out.action ? '' : m.mac.falls);
     return `<section class="mi-sec">
       <h4>${say('RESULT')}</h4>
       <div class="mi-res ${out.action?'':'none'}">
         <code>${esc(out.action||say('nothing happens'))}</code>
-        <p>${esc(say(out.note||(out.action?'':'No branch was true, and there is no else. The machine does nothing at all — which is an answer.')))}</p>
+        ${note?`<p>${esc(say(note))}</p>`:''}
         ${act&&act.line?`<p class="mi-world">▸ ${esc(say(act.line))}</p>`:''}
       </div>
     </section>`;

@@ -1490,6 +1490,55 @@ window.ES = {
   'IDLE':'EN REPOSO','ACTIVE':'ACTIVA','UNLOCKED':'ABIERTA','LOCKED':'CERRADA',
   'ALERT':'ALERTA','ERROR':'ERROR',
 
+
+  /* ---- the inspector, after the great trim: the rule is the diagram, so
+     nothing says the condition or the actions twice any more ---- */
+  'WHAT IT DECIDES':'LO QUE DECIDE','run':'se ejecutó','not reached':'no se llegó',
+  'Not switches — what you have found. It cannot read evidence you have not got.':
+    'No son interruptores — es lo que has encontrado. No puede leer pruebas que no tienes.',
+
+  'Watches the pad under Bay 14.':'Vigila la placa del Muelle 14.',
+  'The pad has been dead since the 14th, so the robot is never told it arrived.':
+    'La placa lleva muerta desde el día 14, así que al robot nunca le dicen que llegó.',
+  'The weight plate. All it can see.':'La placa de peso. Es todo lo que ve.',
+  'KR-9 is told the package is down.':'A KR-9 le dicen que el paquete está en el suelo.',
+  'Nothing. There is no else.':'Nada. No hay else.',
+
+  'Decides for itself when it has finished.':'Decide solo cuándo ha terminado.',
+  'Not broken. Doing what it was told, for ever, because its question is never answered yes.':
+    'No está roto. Hace lo que le dijeron, para siempre, porque su pregunta nunca se responde que sí.',
+  'What the bay sensor last told it.':'Lo último que le dijo el sensor del muelle.',
+  'It comes home and puts the crate down.':'Vuelve a casa y deja la caja.',
+  'It sets off again. 1,206 times so far.':'Sale otra vez. Van 1.206 veces.',
+
+  'The only way onto the loading side.':'La única entrada a la zona de carga.',
+  'Two ways in where there was one. Find the pair that opens it without a badge.':
+    'Dos entradas donde había una. Encuentra la pareja que la abre sin credencial.',
+  'A real badge. You have not got one.':'Una credencial de verdad. Tú no tienes.',
+  'A crew code, for when a reader fails.':'Un código de cuadrilla, para cuando falla un lector.',
+  'Either answer was enough.':'Con cualquiera de las dos bastaba.',
+  'Both answers were no.':'Las dos respuestas fueron no.',
+
+  'Runs the loop line.':'Recorre la línea circular.',
+  'It stopped at a station that closed four years ago. So both were true.':
+    'Paró en una estación cerrada hace cuatro años. Así que las dos eran verdaderas.',
+  'Cleared to leave the loop.':'Con permiso para salir de la línea.',
+  'A handset. Somebody presses it.':'Una radio. Alguien la pulsa.',
+  'It pulls in at the old platform.':'Entra en el viejo andén.',
+
+  'Answers the first branch that is true.':'Responde a la primera rama que es verdadera.',
+  'The log for the 14th is blank. Work out which branch opened this door.':
+    'El registro del día 14 está en blanco. Averigua qué rama abrió esta puerta.',
+  'Opens everything. Writes nothing down.':'Lo abre todo. No escribe nada.',
+  'A crew signing in. This branch logs it.':'Una cuadrilla fichando. Esta rama lo anota.',
+  'Asks a supervisor first.':'Primero pregunta a un supervisor.',
+  'Open — and nothing is written to the log.':'Abierta — y no se escribe nada en el registro.',
+  'Open, and the log takes a name.':'Abierta, y el registro se queda con un nombre.',
+  'It asks a supervisor. Nobody answers.':'Le pregunta a un supervisor. No contesta nadie.',
+  'The door stays shut.':'La puerta sigue cerrada.',
+
+  'Ilana Vey’s own machine.':'La propia máquina de Ilana Vey.',
+
   /* ---- signs and places ---- */
   'BAY 14':'MUELLE 14','BAY 17':'MUELLE 17','DEPOT':'ALMACÉN',
   'pad · no signal':'placa · sin señal','empty · 2 years':'vacío · 2 años',

@@ -1858,63 +1858,35 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .mi-note{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .mi-note.good{color:var(--good)}
 
-/* the rule, as source */
-.mi-src{margin:0;padding:10px 12px;background:#0a1020;border:2px solid #2b2350;border-radius:11px;
-  font-size:13.5px;line-height:1.6;color:#b9c6e8;white-space:pre;overflow-x:auto}
-.mi-l{display:block;border-left:3px solid transparent;padding-left:8px;margin-left:-8px}
-.mi-l.ran{color:var(--good);border-left-color:var(--good);background:rgba(168,230,207,.07)}
-.mi-l.no{color:#7b86ad}
-.mi-l.skip{color:#4e567a;font-style:italic}
+/* THE RULE, WHICH IS ALSO THE DIAGRAM.
 
-/* the switches */
-.mi-sw{display:flex;flex-direction:column;gap:7px}
-.mi-swrow{display:flex;align-items:center;gap:9px;background:#141d33;border:2px solid #2b2350;
-  border-radius:11px;padding:7px 9px}
-.mi-swid{flex:1;min-width:0}
-.mi-swid code{font-size:13.5px;color:var(--sky)}
-.mi-swid small{display:block;font-size:11.5px;color:var(--muted);line-height:1.35;margin-top:2px}
-.mi-tf{display:flex;gap:4px;flex:none}
-.tf{background:#221b36;color:#6f7aa0;border:2px solid #2b2350;border-radius:9px;
-  padding:6px 9px;font-size:11.5px;font-weight:bold;letter-spacing:.07em}
-.tf.on{background:var(--good);color:#11402f;border-color:var(--good)}
-.tf.off{background:#3a2430;color:var(--bad);border-color:#5c3646}
-.mi-run{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
-
-/* CONDITION -> TRUE/FALSE -> ACTION, which is the whole picture */
-.fl{background:#101a2e;border:2px solid #2b2350;border-radius:13px;padding:12px}
-.fl-lbl{text-align:center;font-size:10.5px;letter-spacing:.18em;color:var(--muted)}
-.fl-cond{text-align:center;font-family:var(--font-code);font-size:15px;color:var(--star);
-  margin:5px 0 2px;word-break:break-word}
-.fl-arrow{text-align:center;color:var(--line);font-size:20px;line-height:1}
-.fl-split{display:flex;gap:9px}
-.fl-side{flex:1;background:#0a1020;border:2px solid #2b2350;border-radius:11px;padding:9px;
-  opacity:.5;transition:border-color .15s,opacity .15s}
-.fl-side b{display:block;font-size:10.5px;letter-spacing:.14em;color:var(--muted);margin-bottom:4px}
-.fl-side code{display:block;font-size:13px;color:#b9c6e8;word-break:break-word}
-.fl-side small{display:block;font-size:11.5px;color:var(--muted);line-height:1.4;margin-top:5px}
-.fl-side.yes.on{opacity:1;border-color:var(--good)}
-.fl-side.yes.on b,.fl-side.yes.on code{color:var(--good)}
-.fl-side.no.on{opacity:1;border-color:var(--warn)}
-.fl-side.no.on b,.fl-side.no.on code{color:var(--warn)}
-
-/* the ladder, where being UNASKED is a state of its own */
-.lad{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
-.lrow{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;
-  background:#101a2e;border:2px solid #2b2350;border-left-width:5px;border-radius:11px;padding:7px 9px}
-.lkw{font-family:var(--font-code);font-size:12.5px;color:var(--lav);font-weight:bold}
-.lcond{font-size:13px;color:#b9c6e8;min-width:0;word-break:break-word}
-.lmark{font-size:10px;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
-.lact{grid-column:1/-1;font-style:normal;font-family:var(--font-code);font-size:12.5px;
-  color:#7b86ad;padding-left:4px}
-.lrow.ran{border-left-color:var(--good)}
-.lrow.ran .lmark{color:var(--good)} .lrow.ran .lact{color:var(--good)}
-.lrow.no{border-left-color:#4a3f6b;opacity:.75}
+   Each branch is two code lines — the test and what it does — with one
+   mark to the right saying which way that test went when you last ran it.
+   TRUE, FALSE, or "never asked", which is the state elif is all about and
+   the one a truth table cannot show you. There used to be a second block
+   under this drawing the same condition and the same two actions again as
+   a flowchart; this is that flowchart, set in the language it is written
+   in. */
+.lad{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.lrow{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;
+  column-gap:10px;row-gap:2px;
+  background:#0a1020;border:2px solid #2b2350;border-left-width:5px;
+  border-radius:11px;padding:8px 11px}
+.lsrc{grid-column:1;font-size:13.5px;color:#b9c6e8;word-break:break-word;line-height:1.5}
+.lsrc i{font-style:normal;color:var(--lav);font-weight:bold}
+.lmark{grid-column:2;font-size:10px;letter-spacing:.11em;color:#5f6a90;white-space:nowrap;
+  text-transform:uppercase}   /* one column, one voice: TRUE, FALSE, NEVER ASKED */
+.lact{grid-column:1/3;font-size:13.5px;color:#7b86ad;padding-left:2.2ch;line-height:1.5}
+.lrow.ran{border-left-color:var(--good);background:rgba(168,230,207,.06)}
+.lrow.ran .lmark{color:var(--good)}
+.lrow.ran .lsrc{color:#d6e4ff} .lrow.ran .lact{color:var(--good)}
+.lrow.no{border-left-color:#4a3f6b;opacity:.72}
 .lrow.no .lmark{color:var(--warn)}
-.lrow.skip{border-left-color:#2b2350;opacity:.45}
+.lrow.skip{border-left-color:#2b2350;opacity:.42}
 .lrow.skip .lmark{color:var(--bad);font-style:italic}
 /* the handles that move a line, beside the line they move and spanning
    both of its rows — not orphaned underneath it */
-.lmv{grid-column:4;grid-row:1/span 2;align-self:center;display:flex;flex-direction:column;gap:3px}
+.lmv{grid-column:3;grid-row:1/span 2;align-self:center;display:flex;flex-direction:column;gap:3px}
 .lmv button{background:#221b36;border:1px solid #3b3059;color:var(--muted);border-radius:6px;
   font-size:10px;line-height:1;padding:5px 8px}
 .lmv button:disabled{opacity:.25}
@@ -2455,55 +2427,55 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='414';</script>
-<script src="lib/three.classic.js?v=414"></script>
-<script src="strings.js?v=414"></script>
-<script src="music.js?v=414"></script>
-<script src="net.js?v=414"></script>
-<script src="avatar.js?v=414"></script>
-<script src="zombies.js?v=414"></script>
-<script src="building.js?v=414"></script>
-<script src="levels.js?v=414"></script>
-<script src="program.js?v=414"></script>
-<script src="code.js?v=414"></script>
-<script src="mechsim.js?v=414"></script>
-<script src="mech.js?v=414"></script>
-<script src="intro.js?v=414"></script>
-<script src="mechacode.js?v=414"></script>
-<script src="mechaarena.js?v=414"></script>
-<script src="mecha.js?v=414"></script>
-<script src="workshop.js?v=414"></script>
-<script src="combat.js?v=414"></script>
-<script src="logic.js?v=414"></script>
-<script src="trail.js?v=414"></script>
-<script src="puzzle.js?v=414"></script>
-<script src="nav.js?v=414"></script>
-<script src="tutorial.js?v=414"></script>
-<script src="race.js?v=414"></script>
-<script src="flight.js?v=414"></script>
-<script src="sub.js?v=414"></script>
-<script src="invaders.js?v=414"></script>
-<script src="school.js?v=414"></script>
-<script src="cruise.js?v=414"></script>
-<script src="club.js?v=414"></script>
-<script src="who.js?v=414"></script>
-<script src="arcade.js?v=414"></script>
-<script src="islands.js?v=414"></script>
-<script src="planet.js?v=414"></script>
-<script src="wallet.js?v=414"></script>
-<script src="shop.js?v=414"></script>
-<script src="library.js?v=414"></script>
-<script src="costumes.js?v=414"></script>
-<script src="missions.js?v=414"></script>
-<script src="coach.js?v=414"></script>
-<script src="owner.js?v=414"></script>
-<script src="blocks.js?v=414"></script>
-<script src="vm.js?v=414"></script>
-<script src="coder.js?v=414"></script>
-<script src="quiz.js?v=414"></script>
-<script src="chars.js?v=414"></script>
-<script src="title.js?v=414"></script>
-<script src="menu.js?v=414"></script>
-<script src="game.js?v=414"></script>
+<script>window.ASSETV='415';</script>
+<script src="lib/three.classic.js?v=415"></script>
+<script src="strings.js?v=415"></script>
+<script src="music.js?v=415"></script>
+<script src="net.js?v=415"></script>
+<script src="avatar.js?v=415"></script>
+<script src="zombies.js?v=415"></script>
+<script src="building.js?v=415"></script>
+<script src="levels.js?v=415"></script>
+<script src="program.js?v=415"></script>
+<script src="code.js?v=415"></script>
+<script src="mechsim.js?v=415"></script>
+<script src="mech.js?v=415"></script>
+<script src="intro.js?v=415"></script>
+<script src="mechacode.js?v=415"></script>
+<script src="mechaarena.js?v=415"></script>
+<script src="mecha.js?v=415"></script>
+<script src="workshop.js?v=415"></script>
+<script src="combat.js?v=415"></script>
+<script src="logic.js?v=415"></script>
+<script src="trail.js?v=415"></script>
+<script src="puzzle.js?v=415"></script>
+<script src="nav.js?v=415"></script>
+<script src="tutorial.js?v=415"></script>
+<script src="race.js?v=415"></script>
+<script src="flight.js?v=415"></script>
+<script src="sub.js?v=415"></script>
+<script src="invaders.js?v=415"></script>
+<script src="school.js?v=415"></script>
+<script src="cruise.js?v=415"></script>
+<script src="club.js?v=415"></script>
+<script src="who.js?v=415"></script>
+<script src="arcade.js?v=415"></script>
+<script src="islands.js?v=415"></script>
+<script src="planet.js?v=415"></script>
+<script src="wallet.js?v=415"></script>
+<script src="shop.js?v=415"></script>
+<script src="library.js?v=415"></script>
+<script src="costumes.js?v=415"></script>
+<script src="missions.js?v=415"></script>
+<script src="coach.js?v=415"></script>
+<script src="owner.js?v=415"></script>
+<script src="blocks.js?v=415"></script>
+<script src="vm.js?v=415"></script>
+<script src="coder.js?v=415"></script>
+<script src="quiz.js?v=415"></script>
+<script src="chars.js?v=415"></script>
+<script src="title.js?v=415"></script>
+<script src="menu.js?v=415"></script>
+<script src="game.js?v=415"></script>
 </body>
 </html>

@@ -211,89 +211,89 @@
        nothing does. Everything after this adds to it. */
     { id:'sensor', em:'\u{1F4E1}', name:'BAY SENSOR', where:'depot',
       teach:'if', concept:'if',
-      sub:'Reads the pad under Bay 14 and tells the robot when a package is down.',
-      vars:[{ v:'package_on_pad', hint:'The weight plate under the bay. It is what the sensor can actually see.' }],
+      sub:'Watches the pad under Bay 14.',
+      vars:[{ v:'package_on_pad', hint:'The weight plate. All it can see.' }],
       rule:{ branches:[
         { kind:'if', cond:VAR('package_on_pad'), action:'mark_delivered()',
-          note:'The sensor tells the robot the package is down.' }
+          note:'KR-9 is told the package is down.' }
       ]},
       /* the whole point of a bare if: when it is false the machine does
          NOTHING, and nothing is a result too */
-      falls:'Nothing. There is no else — the sensor just says nothing at all.',
-      lead:'The pad under Bay 14 has been dead since the 14th. The sensor never fires, so the robot is never told it has arrived.',
+      falls:'Nothing. There is no else.',
+      lead:'The pad has been dead since the 14th, so the robot is never told it arrived.',
       log:'02:02 · BAY 14 PAD — INPUT DISCONNECTED · by '+CODE },
 
     /* 2. THE DELIVERY ROBOT — if / else. Two roads out of one question,
        and the robot is standing on the wrong one. */
     { id:'robot', em:'\u{1F916}', name:'DELIVERY ROBOT KR-9', where:'depot',
       teach:'if / else', concept:'else',
-      sub:'Carries what the depot gives it, and decides for itself when it is finished.',
-      vars:[{ v:'package_delivered', hint:'What the bay sensor told it. Nobody has told it anything since the 14th.' }],
+      sub:'Decides for itself when it has finished.',
+      vars:[{ v:'package_delivered', hint:'What the bay sensor last told it.' }],
       rule:{ branches:[
         { kind:'if', cond:VAR('package_delivered'), action:'return_to_station()',
-          note:'It comes home and puts down what it is carrying.' },
+          note:'It comes home and puts the crate down.' },
         { kind:'else', action:'continue_delivery()',
-          note:'It sets off for the bay again. It has done this 1,206 times.' }
+          note:'It sets off again. 1,206 times so far.' }
       ]},
-      lead:'It is not broken and it is not lost. It is doing exactly what it was told, for ever, because the question it asks is never answered yes.',
+      lead:'Not broken. Doing what it was told, for ever, because its question is never answered yes.',
       log:'02:02 · ROUTE REWRITTEN BAY 14 → BAY 17 · by '+CODE },
 
     /* 3. THE SECURITY GATE — or. The modification is one word long and
        it is the whole crime. */
     { id:'gate', em:'\u{1F6A7}', name:'PERIMETER GATE 3', where:'gate',
       teach:'or', concept:'or',
-      sub:'The only way onto the loading side. It was a badge reader until somebody gave it a second way to say yes.',
-      vars:[{ v:'badge_valid', hint:'A real badge, read at the post. You have not got one.' },
-            { v:'maintenance_override', hint:'A code a maintenance crew can key in when a badge reader fails.' }],
+      sub:'The only way onto the loading side.',
+      vars:[{ v:'badge_valid', hint:'A real badge. You have not got one.' },
+            { v:'maintenance_override', hint:'A crew code, for when a reader fails.' }],
       was:{ branches:[
         { kind:'if', cond:VAR('badge_valid'), action:'open_gate()' },
         { kind:'else', action:'deny_entry()' } ]},
       rule:{ branches:[
         { kind:'if', cond:OR(VAR('badge_valid'), VAR('maintenance_override')),
-          action:'open_gate()', note:'The barrier drops. Either answer was enough.' },
-        { kind:'else', action:'deny_entry()', note:'It stays down. Both answers were no.' }
+          action:'open_gate()', note:'Either answer was enough.' },
+        { kind:'else', action:'deny_entry()', note:'Both answers were no.' }
       ]},
-      lead:'Two ways in where there used to be one. Find the combination that opens it without a badge — that is the combination somebody used.',
+      lead:'Two ways in where there was one. Find the pair that opens it without a badge.',
       log:'02:14 · OPENED · badge_valid=FALSE · maintenance_override=TRUE · code '+CODE },
 
     /* 4. THE TRANSIT CAR — and. Both, or it does not happen, which is
        why one stop at a closed station is not an accident. */
     { id:'transit', em:'\u{1F686}', name:'TRANSIT CAR 2', where:'transit',
       teach:'and', concept:'and',
-      sub:'Runs the loop line. It has no reason to stop at a station that closed four years ago.',
-      vars:[{ v:'authorized_vehicle', hint:'Whether this car is cleared to leave the loop.' },
-            { v:'emergency_signal', hint:'Raised from a handset. Somebody has to actually press it.' }],
+      sub:'Runs the loop line.',
+      vars:[{ v:'authorized_vehicle', hint:'Cleared to leave the loop.' },
+            { v:'emergency_signal', hint:'A handset. Somebody presses it.' }],
       rule:{ branches:[
         { kind:'if', cond:AND(VAR('authorized_vehicle'), VAR('emergency_signal')),
-          action:'stop_at_station()', note:'It pulls in at the old platform and opens its doors.' },
+          action:'stop_at_station()', note:'It pulls in at the old platform.' },
         { kind:'else', action:'continue_route()', note:'It runs straight past.' }
       ]},
-      lead:'One of these on its own does nothing. It stopped, so both were true — and one of them is a button somebody had to hold.',
+      lead:'It stopped at a station that closed four years ago. So both were true.',
       log:'02:31 · STOP AT OLD YARD · handset '+CODE+' · held 41s' },
 
     /* 5. THE MAINTENANCE DOOR — if / elif / else, and the order of it is
        the thing that was hidden. */
     { id:'door', em:'\u{1F510}', name:'MAINTENANCE DOOR', where:'maint',
       teach:'if / elif / else', concept:'elif',
-      sub:'Four ways to ask one question, and it only ever answers the first one that is true.',
-      vars:[{ v:'emergency', hint:'A building-wide alarm. It opens everything, and it writes nothing down.' },
-            { v:'maintenance_mode', hint:'A crew signing in to work. This branch logs who, and when.' },
-            { v:'employee_badge', hint:'An ordinary badge. It asks somebody upstairs first.' }],
+      sub:'Answers the first branch that is true.',
+      vars:[{ v:'emergency', hint:'Opens everything. Writes nothing down.' },
+            { v:'maintenance_mode', hint:'A crew signing in. This branch logs it.' },
+            { v:'employee_badge', hint:'Asks a supervisor first.' }],
       rule:{ branches:[
         { kind:'if',   cond:VAR('emergency'), action:'unlock()',
-          note:'Open. Nothing is written to the log — an emergency has no time for paperwork.' },
+          note:'Open — and nothing is written to the log.' },
         { kind:'elif', cond:VAR('maintenance_mode'), action:'unlock_and_log()',
-          note:'Open, and the log gets a name and a time.' },
+          note:'Open, and the log takes a name.' },
         { kind:'elif', cond:VAR('employee_badge'), action:'request_confirmation()',
-          note:'It asks the supervisor. Somebody has to answer.' },
-        { kind:'else', action:'remain_locked()', note:'Nothing happens. The door stays shut.' }
+          note:'It asks a supervisor. Nobody answers.' },
+        { kind:'else', action:'remain_locked()', note:'The door stays shut.' }
       ]},
       /* The experiment that finishes the mission's teaching: the same
          three switches, the same four branches, one line moved. */
       swap:{ from:0, to:1,
         ask:'Move maintenance_mode above emergency and run the same test again.',
         found:'Same switches. Same branches. A different answer — and this time it writes a name down.' },
-      lead:'The maintenance log for '+NIGHT+' is blank. Not wiped — blank. Work out which branch opened this door and you will know why nothing was ever written.',
+      lead:'The log for '+NIGHT+' is blank. Work out which branch opened this door.',
       log:'02:48 · UNLOCK · branch 1 (emergency) · NOT LOGGED · override '+CODE },
 
     /* 6. THE ENGINEER'S TERMINAL — everything at once, and the only
@@ -301,7 +301,7 @@
        set by what has actually been found. */
     { id:'terminal', em:'\u{1F5A5}', name:'ENGINEER’S TERMINAL', where:'eng',
       teach:'combining conditions', concept:'combine',
-      sub:'Ilana Vey’s own machine. It has been waiting four years for somebody to come and run it.',
+      sub:'Ilana Vey’s own machine.',
       /* locked:true — the inspector shows these as read-only readings off
          the notebook rather than as switches, because the whole point is
          that a cross-reference is only as true as the evidence under it */
