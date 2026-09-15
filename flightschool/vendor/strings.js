@@ -812,19 +812,24 @@ window.ES = {
   'Mission 6 — The Swarm':'Misión 6 — El Enjambre',
   'The Swarm':'El Enjambre','Swarm':'Enjambre','Swarm {n} — {name}':'Enjambre {n} — {name}',
   /* the stages */
-  'One Row':'Una Fila','Set the Count':'Fija el Conteo','Build, Then Fire':'Construye, Luego Dispara',
-  'A Column':'Una Columna','Two Rows':'Dos Filas',
+  'One Row':'Una Fila','Set the Count':'Fija el Conteo','A Longer Row':'Una Fila Más Larga',
+  'Build, Then Fire':'Construye, Luego Dispara',
+  'A Column':'Una Columna','A Taller Column':'Una Columna Más Alta','Two Rows':'Dos Filas',
+  'A Wall':'Un Muro','Leave It Out':'Déjalo Fuera','Fill and Fire':'Rellena y Dispara',
+  'Across the Sky':'Cruzando el Cielo','Mind the Gap':'Cuidado con la Distancia',
+  'March and Fire':'Marcha y Dispara',
   'Infinite Loop':'Bucle Infinito','Which Loop?':'¿Cuál Bucle?',
-  'The Listener':'El Oyente','Over the Fortress':'Sobre la Fortaleza',
+  'The Endless Sweep':'El Barrido Sin Fin','Count It Out':'Cuéntalo',
   'Nested Loops':'Bucles Anidados','The Big Grid':'La Cuadrícula Grande',
+  'The Last Fortress':'La Última Fortaleza',
   /* the mission panel */
   'Shield':'Escudo','hits left':'golpes restantes','rebuilds if you miss':'se reconstruye si fallas',
   'Invaders':'Invasores','needed':'necesarios','practice':'práctica',
   'runs it':'lo ejecuta',
   /* what a run came to */
   '✅ You broke the shield!':'✅ ¡Rompiste el escudo!',
-  '🏅 You broke the shield! 25 invaders from 5 blocks — that is a nested loop.':
-    '🏅 ¡Rompiste el escudo! 25 invasores con 5 bloques — eso es un bucle anidado.',
+  '🏅 The last fortress is down. 18 invaders and 5 hits, from 6 blocks — every one of them a loop.':
+    '🏅 Cayó la última fortaleza. 18 invasores y 5 golpes, con 6 bloques — y todos son bucles.',
   'That did not break the shield.':'Eso no rompió el escudo.',
   'Press <b>C</b> and try again.':'Presiona <b>C</b> e inténtalo de nuevo.',
   'All the invaders are gone.':'Ya no queda ningún invasor.',
@@ -840,14 +845,15 @@ window.ES = {
   'The outline is not filled. Look where the invaders went — check the numbers on your loops, and which loop <b>nextRow()</b> is in.':
     'El contorno no está lleno. Mira adónde fueron los invasores — revisa los números de tus bucles, y en qué bucle está <b>siguienteFila()</b>.',
   'You fired at nothing. The shield rebuilt.':'Disparaste a la nada. El escudo se reconstruyó.',
-  'You fired 3 times at nothing, and the shield rebuilt each time. Only fire over the fortress: use <b>if over the fortress</b>.':
-    'Disparaste 3 veces a la nada, y el escudo se reconstruyó cada vez. Dispara solo sobre la fortaleza: usa <b>si sobre la fortaleza</b>.',
-  'Your loop keeps going. Nothing inside it can make <b>{c}</b> true. Which block is missing?':
-    'Tu bucle sigue y sigue. Nada adentro puede hacer que <b>{c}</b> sea verdad. ¿Qué bloque falta?',
+  'You fired 3 times before you got there, and the shield rebuilt each time. Finish the <b>across()</b> loop first, then fire in a loop of its own.':
+    'Disparaste 3 veces antes de llegar, y el escudo se reconstruyó cada vez. Termina primero el bucle de <b>cruzar()</b>, y luego dispara en un bucle aparte.',
+  'A <b>forever</b> loop never ends, so the <b>fire()</b> under it never runs. You know this number — count the slots and use <b>repeat</b>.':
+    'Un bucle <b>por siempre</b> nunca termina, así que el <b>disparar()</b> de abajo nunca se ejecuta. Este número lo sabes — cuenta los huecos y usa <b>repetir</b>.',
   'Your loop keeps going, but nothing changes. Is the important block <b>inside</b> the loop?':
     'Tu bucle sigue y sigue, pero nada cambia. ¿Está el bloque importante <b>dentro</b> del bucle?',
-  /* the sensors */
-  'over the fortress':'sobre la fortaleza','at the edge':'en el borde',
+  /* 'at the edge' is the cruise's and the plaza's; the swarm has no sensors,
+     because it has no conditional to read one */
+  'at the edge':'en el borde',
   /* the blocks this mission adds, and what the shelf says about them */
   'forever':'por siempre',
   'spawn()':'aparecer()','nextRow()':'siguienteFila()','across()':'cruzar()',
@@ -884,18 +890,45 @@ window.ES = {
   'Practice — which loop?':'Práctica — ¿cuál bucle?',
   'Goal: break the shield. Count how many hits it takes. If it is more than 20, <b>repeat</b> cannot do it — use <b>forever</b>.':
     'Meta: rompe el escudo. Cuenta cuántos golpes aguanta. Si son más de 20, <b>repetir</b> no puede — usa <b>por siempre</b>.',
-  'A conditional inside a loop':'Un condicional dentro de un bucle',
-  '<b>if</b> checks its condition once. Inside a <b>forever</b> loop it checks again every time, so the invaders react as they move. If you fire when nobody is over the fortress, the shield rebuilds.':
-    '<b>si</b> comprueba su condición una vez. Dentro de un bucle <b>por siempre</b> la comprueba otra vez cada vuelta, así que los invasores reaccionan mientras se mueven. Si disparas cuando nadie está sobre la fortaleza, el escudo se reconstruye.',
-  'Practice — a conditional inside the loop':'Práctica — un condicional dentro del bucle',
-  'Goal: break the shield on the right. The invaders sweep back and forth with <b>across()</b>. Only fire when they are over the fortress — if you fire at nothing, the shield rebuilds. Put the <b>if</b> inside the <b>forever</b> loop.':
-    'Meta: rompe el escudo de la derecha. Los invasores van y vienen con <b>cruzar()</b>. Dispara solo cuando estén sobre la fortaleza — si disparas a la nada, el escudo se reconstruye. Pon el <b>si</b> dentro del bucle <b>por siempre</b>.',
+  'Practice — the count is on the board':'Práctica — el conteo está en el tablero',
+  'Goal: fill the outline, then fire. Count the empty slots first — that number goes on the <b>repeat</b>. The program is the same one as before; only the number changed.':
+    'Meta: rellena el contorno y luego dispara. Cuenta primero los huecos vacíos — ese número va en el <b>repetir</b>. El programa es el mismo de antes; solo cambió el número.',
+  'Practice — the body stays the same':'Práctica — el cuerpo no cambia',
+  'Goal: fill the outline — a column of 6 — then fire. Same two blocks inside the loop as last time, <b>spawn()</b> then <b>nextRow()</b>. Only the number changes.':
+    'Meta: rellena el contorno — una columna de 6 — y luego dispara. Los mismos dos bloques dentro del bucle que la vez pasada, <b>aparecer()</b> y luego <b>siguienteFila()</b>. Solo cambia el número.',
+  'Practice — a body of three blocks':'Práctica — un cuerpo de tres bloques',
+  'Goal: fill the outline — 5 rows of 2 — then fire. One pass of the loop has to build a whole row of 2 and then move down: <b>spawn()</b>, <b>spawn()</b>, <b>nextRow()</b>. That is the part that repeats, so all three go inside.':
+    'Meta: rellena el contorno — 5 filas de 2 — y luego dispara. Una vuelta del bucle tiene que construir una fila entera de 2 y luego bajar: <b>aparecer()</b>, <b>aparecer()</b>, <b>siguienteFila()</b>. Esa es la parte que se repite, así que los tres van adentro.',
+  'Practice — not everything belongs in the loop':'Práctica — no todo va dentro del bucle',
+  'Goal: fill the outline — one row of 9 — then fire. <b>nextRow()</b> is on the shelf, and this shape does not need it: put it inside the loop and you get a column instead of a row. Use only the blocks the shape asks for.':
+    'Meta: rellena el contorno — una fila de 9 — y luego dispara. <b>siguienteFila()</b> está en el estante, y esta forma no lo necesita: ponlo dentro del bucle y te sale una columna en vez de una fila. Usa solo los bloques que la forma pide.',
+  'Practice — one loop, one job':'Práctica — un bucle, un trabajo',
+  'Goal: fill the outline — 2 rows of 4 — and then hit the shield 4 times. That is three loops, one after the other: a row, a row, and the firing. <b>nextRow()</b> goes between the two build loops, and <b>fire()</b> goes in its own loop at the end.':
+    'Meta: rellena el contorno — 2 filas de 4 — y luego golpea el escudo 4 veces. Son tres bucles, uno tras otro: una fila, otra fila, y los disparos. <b>siguienteFila()</b> va entre los dos bucles que construyen, y <b>disparar()</b> va en su propio bucle al final.',
+  'One loop to get there, one to fire':'Un bucle para llegar, otro para disparar',
+  '<b>across()</b> moves every invader one step sideways. The fortress is 5 steps away, so <b>repeat 5</b> round <b>across()</b> gets the swarm there — and the firing loop goes <b>after</b> it. Fire on the way and you shoot at empty sky, and the shield rebuilds.':
+    '<b>cruzar()</b> mueve a cada invasor un paso de lado. La fortaleza está a 5 pasos, así que <b>repetir 5</b> alrededor de <b>cruzar()</b> lleva al enjambre hasta allá — y el bucle de disparos va <b>después</b>. Si disparas en el camino, le disparas al cielo vacío, y el escudo se reconstruye.',
+  'Practice — count the steps, then the hits':'Práctica — cuenta los pasos, luego los golpes',
+  'Goal: break the shield on the right. Count how many steps <b>across()</b> needs before the swarm is over the fortress, and put that number on the first loop. The second loop fires. Fire too early and the shield rebuilds.':
+    'Meta: rompe el escudo de la derecha. Cuenta cuántos pasos necesita <b>cruzar()</b> para que el enjambre quede sobre la fortaleza, y pon ese número en el primer bucle. El segundo bucle dispara. Si disparas demasiado pronto, el escudo se reconstruye.',
+  'Practice — two blocks in one body':'Práctica — dos bloques en un cuerpo',
+  'Goal: break the shield with 3 blocks. There is no room for two loops, so <b>across()</b> and <b>fire()</b> both go inside the same <b>repeat</b>: the swarm shoots on every step it takes. The early shots miss; the rest land.':
+    'Meta: rompe el escudo con 3 bloques. No hay espacio para dos bucles, así que <b>cruzar()</b> y <b>disparar()</b> van los dos dentro del mismo <b>repetir</b>: el enjambre dispara en cada paso que da. Los primeros disparos fallan; los demás llegan.',
+  'Practice — when you cannot count it':'Práctica — cuando no puedes contarlo',
+  'Goal: break the shield. The swarm sweeps to the wall and back, so some passes hit and some miss, and there is no way to count how many it takes. When you cannot work the number out, use <b>forever</b>. Both blocks go inside it.':
+    'Meta: rompe el escudo. El enjambre barre hasta la pared y vuelve, así que unas vueltas aciertan y otras fallan, y no hay manera de contar cuántas hacen falta. Cuando no puedes sacar el número, usa <b>por siempre</b>. Los dos bloques van adentro.',
+  'Practice — when forever is wrong':'Práctica — cuándo por siempre está mal',
+  'Goal: fill the outline — a row of 7 — then fire. <b>forever</b> is on the shelf, and it cannot work here: nothing after a <b>forever</b> ever runs, so the <b>fire()</b> would never happen. You know the number, so count it out and use <b>repeat</b>.':
+    'Meta: rellena el contorno — una fila de 7 — y luego dispara. <b>por siempre</b> está en el estante, y aquí no puede funcionar: nada de lo que va después de un <b>por siempre</b> se ejecuta nunca, así que el <b>disparar()</b> jamás ocurriría. El número lo sabes, así que cuéntalo y usa <b>repetir</b>.',
   'A nested loop':'Un bucle anidado',
   'A loop inside a loop is a nested loop. The inner loop (<b>repeat 8</b>) makes one row. The outer loop (<b>repeat 4</b>) runs the inner loop 4 times — one row each time. <b>nextRow()</b> goes inside the outer loop, after the inner one.':
     'Un bucle dentro de otro bucle es un bucle anidado. El bucle interno (<b>repetir 8</b>) hace una fila. El bucle externo (<b>repetir 4</b>) ejecuta el bucle interno 4 veces — una fila cada vez. <b>siguienteFila()</b> va dentro del bucle externo, después del interno.',
   'Practice — a nested loop':'Práctica — un bucle anidado',
   'Goal: fill the outline — 5 rows of 5 — then fire. The inner <b>repeat</b> makes one row with <b>spawn()</b>. The outer <b>repeat</b> runs it once per row, with <b>nextRow()</b> after the inner loop. Set both numbers.':
     'Meta: rellena el contorno — 5 filas de 5 — y luego dispara. El <b>repetir</b> interno hace una fila con <b>aparecer()</b>. El <b>repetir</b> externo lo ejecuta una vez por fila, con <b>siguienteFila()</b> después del bucle interno. Fija los dos números.',
+  'Practice — all of it':'Práctica — todo junto',
+  'Goal: fill the outline — 3 rows of 6 — and then hit the shield 5 times. The nested loop builds the grid, exactly as before. Then one more <b>repeat</b>, outside both of them, for the firing.':
+    'Meta: rellena el contorno — 3 filas de 6 — y luego golpea el escudo 5 veces. El bucle anidado construye la cuadrícula, igual que antes. Luego un <b>repetir</b> más, fuera de los dos, para los disparos.',
   /* the walkthroughs, one move a step */
   'Make 8 invaders with 3 blocks. Start with <b>repeat</b>.':'Haz 8 invasores con 3 bloques. Empieza con <b>repetir</b>.',
   'Click <b>+</b> until it says <b>8</b>.':'Haz clic en <b>+</b> hasta que diga <b>8</b>.',
@@ -914,12 +947,20 @@ window.ES = {
     'Este escudo aguanta 24 golpes, y <b>repetir</b> solo llega a 20. Usa <b>por siempre</b>. No tiene número — nunca para.',
   'Click the <b>forever</b> block so new blocks go inside it.':'Haz clic en el bloque <b>por siempre</b> para que los bloques nuevos vayan adentro.',
   'Add <b>forever</b>.':'Añade <b>por siempre</b>.',
-  'Add <b>across()</b>. It moves all the invaders one step sideways. At the wall they turn around.':
-    'Añade <b>cruzar()</b>. Mueve todos los invasores un paso de lado. En la pared dan la vuelta.',
-  'Add <b>if over the fortress</b>. It goes <b>inside</b> the loop, so it checks every time.':
-    'Añade <b>si sobre la fortaleza</b>. Va <b>dentro</b> del bucle, para que compruebe cada vez.',
-  'Click the <b>if</b> block so the next block goes inside it.':'Haz clic en el bloque <b>si</b> para que el siguiente bloque vaya adentro.',
-  'Add <b>fire()</b>. Now they only shoot when they are over the fortress.':'Añade <b>disparar()</b>. Ahora solo disparan cuando están sobre la fortaleza.',
+  'The fortress is over on the right, out of range. Move there first: add <b>repeat</b>.':
+    'La fortaleza está a la derecha, fuera de alcance. Primero muévete hasta allá: añade <b>repetir</b>.',
+  'Click <b>+</b> until it says <b>5</b>. That is 5 steps sideways.':
+    'Haz clic en <b>+</b> hasta que diga <b>5</b>. Son 5 pasos de lado.',
+  'Add <b>across()</b>. It moves every invader one step sideways.':
+    'Añade <b>cruzar()</b>. Mueve a cada invasor un paso de lado.',
+  'Add a second <b>repeat</b>. The moving is done; this loop is for firing.':
+    'Añade un segundo <b>repetir</b>. Ya terminaste de moverte; este bucle es para disparar.',
+  'Click <b>+</b> until it says <b>4</b>. The shield takes 4 hits.':
+    'Haz clic en <b>+</b> hasta que diga <b>4</b>. El escudo aguanta 4 golpes.',
+  'Click the second <b>repeat</b> block so new blocks go inside it.':
+    'Haz clic en el segundo bloque <b>repetir</b> para que los bloques nuevos vayan adentro.',
+  'Add <b>fire()</b>. They are over the fortress by now, so every shot lands.':
+    'Añade <b>disparar()</b>. Para entonces ya están sobre la fortaleza, así que cada disparo llega.',
   'You need 4 rows. Start with a <b>repeat</b> for the rows.':'Necesitas 4 filas. Empieza con un <b>repetir</b> para las filas.',
   'Click <b>+</b> until it says <b>4</b>. One for each row.':'Haz clic en <b>+</b> hasta que diga <b>4</b>. Uno por cada fila.',
   'Click the <b>repeat 4</b> block so new blocks go inside it.':'Haz clic en el bloque <b>repetir 4</b> para que los bloques nuevos vayan adentro.',
@@ -1374,7 +1415,455 @@ window.ES = {
 
   /* the hint, which is where the answer used to be */
   'Hint':'Pista','Show the whole thing':'Enséñamelo entero',
-  'Start with this':'EMPIEZA CON ESTO','The whole thing':'TODO'
+  'Start with this':'EMPIEZA CON ESTO','The whole thing':'TODO',
+
+  /* ================================================================
+     MISSION 7 — THE ENGINEER'S TRAIL
+     A mystery is carried by its prose, so this is the largest block in
+     this file. Machine LOGS are translated too: they are read on the
+     screen by a child, not parsed by anything, and a log that stays in
+     English is the one place in the mission where the evidence would
+     stop being readable. Names, codes and the source of the rules do
+     not move — `badge_valid` is the same identifier in both languages,
+     because it is the identifier the machine actually uses.
+     ================================================================ */
+  /* ---- the mission, the HUD, the map ---- */
+  'Mission 7 — The Engineer’s Trail':'Misión 7 — El Rastro de la Ingeniera',
+  'A robot that will not stop, a gate that opens for nobody. Read the machines’ conditions and work out who did it.':
+    'Un robot que no se detiene, una puerta que se abre para nadie. Lee las condiciones de las máquinas y averigua quién lo hizo.',
+  'THE ENGINEER’S TRAIL':'EL RASTRO DE LA INGENIERA',
+  'Koro service district · 02:00':'Distrito de servicios de Koro · 02:00',
+  'DISTRICT MAP':'PLANO DEL DISTRITO',
+  'machine':'máquina','witness':'testigo',
+  'Something in this district does not add up. Walk up to a machine and press <b>E</b>.':
+    'Algo en este distrito no cuadra. Acércate a una máquina y presiona <b>E</b>.',
+  'Back on the trail. <b>N</b> opens your notebook.':
+    'De vuelta al rastro. <b>N</b> abre tu libreta.',
+  'inspect {n}':'inspeccionar {n}','talk to {n}':'hablar con {n}','examine {n}':'examinar {n}',
+  'Close':'Cerrar','Back to Koro':'Volver a Koro',
+
+  /* ---- the objectives ---- */
+  'Investigate the unusual machine behaviour around Koro.':
+    'Investiga el comportamiento extraño de las máquinas en Koro.',
+  'Four machines in this district are behaving strangely. Start with the one that is moving.':
+    'Cuatro máquinas de este distrito se comportan de forma extraña. Empieza por la que se mueve.',
+  'Find out why the delivery robot never finishes its round.':
+    'Averigua por qué el robot de reparto nunca termina su ronda.',
+  'Look at what it asks itself, and give it the other answer.':
+    'Mira lo que se pregunta a sí mismo, y dale la otra respuesta.',
+  'Open what the robot has been carrying.':'Abre lo que el robot ha estado cargando.',
+  'It set it down on its dock in the depot.':'Lo dejó en su base, en el almacén.',
+  'Find out why the perimeter gate opened for somebody with no badge.':
+    'Averigua por qué la puerta del perímetro se abrió para alguien sin credencial.',
+  'Two conditions, and only one of them has to be true. Work out which pair opens it.':
+    'Dos condiciones, y solo una tiene que ser verdadera. Descubre qué pareja la abre.',
+  'Find out why a transit car stops at a station that closed.':
+    'Averigua por qué un vagón se detiene en una estación cerrada.',
+  'This one needs BOTH of its conditions. That is what makes the stop deliberate.':
+    'Esta necesita LAS DOS condiciones. Por eso la parada fue a propósito.',
+  'Search the old yard.':'Registra la vieja estación.',
+  'Something heavy was dragged along that platform.':
+    'Algo pesado fue arrastrado por ese andén.',
+  'Get the maintenance door open — and find out why the log for the 14th is blank.':
+    'Abre la puerta de mantenimiento — y averigua por qué el registro del día 14 está en blanco.',
+  'Four branches, and it only ever answers the first one that is true. Try moving a line.':
+    'Cuatro ramas, y solo responde a la primera que es verdadera. Prueba a mover una línea.',
+  'Find the engineer’s terminal.':'Encuentra la terminal de la ingeniera.',
+  'Through the door the maintenance machine was holding shut.':
+    'Detrás de la puerta que la máquina de mantenimiento mantenía cerrada.',
+  'Cross-reference the four overrides.':'Cruza los cuatro permisos especiales.',
+  'The terminal needs all four. Run a test on every machine that has a log.':
+    'La terminal necesita los cuatro. Haz una prueba en cada máquina que tenga registro.',
+  'Put the night of the 14th in order.':'Ordena la noche del día 14.',
+  'Every machine prints the time it acted. Read them off.':
+    'Cada máquina imprime la hora en que actuó. Léelas.',
+  'Name who was responsible.':'Di quién fue el responsable.',
+  'An override is issued to a crew, not to a person. Somebody keeps the roster.':
+    'Un permiso especial se da a una CUADRILLA, no a una persona. Alguien guarda la lista del personal.',
+  '{n} of {m} clues filed':'{n} de {m} pistas archivadas',
+  'notebook':'libreta','CASE CLOSED':'CASO CERRADO',
+  'Every machine in this district was doing exactly what it was told. Somebody told it.':
+    'Cada máquina de este distrito hacía exactamente lo que le dijeron. Alguien se lo dijo.',
+
+  'It tries to close and stops — you are standing in the gap.':
+    'Intenta cerrarse y se para — estás en medio del hueco.',
+
+  /* the six states a machine lamp and its chip can be in */
+  'IDLE':'EN REPOSO','ACTIVE':'ACTIVA','UNLOCKED':'ABIERTA','LOCKED':'CERRADA',
+  'ALERT':'ALERTA','ERROR':'ERROR',
+
+  /* ---- signs and places ---- */
+  'BAY 14':'MUELLE 14','BAY 17':'MUELLE 17','DEPOT':'ALMACÉN',
+  'pad · no signal':'placa · sin señal','empty · 2 years':'vacío · 2 años',
+  'PERIMETER GATE 3':'PUERTA DE PERÍMETRO 3','badge readers only':'solo lectores de credencial',
+  'LOOP LINE · PLATFORM 1':'LÍNEA CIRCULAR · ANDÉN 1',
+  'THE OLD YARD':'LA VIEJA ESTACIÓN','closed · 4 years':'cerrada · 4 años',
+  'MAINTENANCE':'MANTENIMIENTO','THE DEPOT':'EL ALMACÉN','LOADING BAYS':'MUELLES DE CARGA',
+  'SERVICE ROAD':'CALLE DE SERVICIO','TRANSIT PLATFORM':'ANDÉN DE TRANSPORTE',
+  'THE LOOP LINE':'LA LÍNEA CIRCULAR','THE ENGINEER’S ROOM':'EL CUARTO DE LA INGENIERA',
+  'On the map.':'En el plano.','You have not been in here yet.':'Todavía no has entrado aquí.',
+
+  /* ---- the inspector ---- */
+  'WHAT THIS MACHINE DOES':'LO QUE HACE ESTA MÁQUINA',
+  'SET THE READINGS':'AJUSTA LAS LECTURAS',
+  'WHAT THE TERMINAL CAN READ':'LO QUE LA TERMINAL PUEDE LEER',
+  'WHAT HAPPENS':'LO QUE PASA','RESULT':'RESULTADO',
+  'RUN TEST':'HACER LA PRUEBA','CROSS-REFERENCE':'CRUZAR DATOS',
+  'every combination':'todas las combinaciones','hide the table':'ocultar la tabla',
+  'it does':'hace','CONDITION':'CONDICIÓN','IF TRUE':'SI ES VERDADERO','IF FALSE':'SI ES FALSO',
+  'nothing at all':'nada en absoluto','nothing':'nada','nothing happens':'no pasa nada',
+  'never asked':'nunca se preguntó','reached':'se llegó aquí',
+  'move up':'subir','move down':'bajar',
+  'DIAGNOSTIC LOG':'REGISTRO DE DIAGNÓSTICO','TESTS YOU HAVE RUN':'PRUEBAS QUE HAS HECHO',
+  'in your notebook':'en tu libreta','not found yet':'aún sin encontrar',
+  'Set the readings and press RUN TEST. A test that comes out the way you did not expect is the useful kind.':
+    'Ajusta las lecturas y presiona HACER LA PRUEBA. La prueba que sale como no esperabas es la que sirve.',
+  'Press CROSS-REFERENCE. Whatever it can say is decided by what is in your notebook.':
+    'Presiona CRUZAR DATOS. Lo que pueda decir lo decide lo que hay en tu libreta.',
+  'These are not switches. They are what you have actually found — the terminal cannot read evidence you have not got.':
+    'Esto no son interruptores. Es lo que de verdad has encontrado — la terminal no puede leer pruebas que no tienes.',
+  'Move maintenance_mode above emergency and run the same test again.':
+    'Mueve maintenance_mode por encima de emergency y repite la misma prueba.',
+  'Same switches. Same branches. A different answer — and this time it writes a name down.':
+    'Los mismos interruptores. Las mismas ramas. Otra respuesta — y esta vez sí escribe un nombre.',
+
+  /* ---- the notebook ---- */
+  'NOTEBOOK':'LIBRETA','Notebook (N)':'Libreta (N)','FILED':'ARCHIVADO',
+  '{n} of {m} filed':'{n} de {m} archivadas',
+  'CODE RULES':'REGLAS DE CÓDIGO','EVIDENCE':'PRUEBAS','PEOPLE':'PERSONAS',
+  'PLACES':'LUGARES','WHERE I AM':'DÓNDE VOY','RIGHT NOW':'AHORA MISMO',
+  'Nothing filed here yet.':'Aquí todavía no hay nada.',
+
+  /* ---- the machines ---- */
+  'BAY SENSOR':'SENSOR DEL MUELLE',
+  'Reads the pad under Bay 14 and tells the robot when a package is down.':
+    'Lee la placa del Muelle 14 y le dice al robot cuándo el paquete está en el suelo.',
+  'The pad under Bay 14 has been dead since the 14th. The sensor never fires, so the robot is never told it has arrived.':
+    'La placa del Muelle 14 está muerta desde el día 14. El sensor nunca se dispara, así que al robot nunca le dicen que ya llegó.',
+  'The weight plate under the bay. It is what the sensor can actually see.':
+    'La placa de peso del muelle. Es lo único que el sensor puede ver.',
+  'The sensor tells the robot the package is down.':
+    'El sensor le dice al robot que el paquete está en el suelo.',
+  'Nothing. There is no else — the sensor just says nothing at all.':
+    'Nada. No hay else — el sensor simplemente no dice nada.',
+  '02:02 · BAY 14 PAD — INPUT DISCONNECTED · by M-4471':
+    '02:02 · PLACA MUELLE 14 — ENTRADA DESCONECTADA · por M-4471',
+  'The pad lights. The sensor tells KR-9 the package is down.':
+    'La placa se enciende. El sensor le dice a KR-9 que el paquete está en el suelo.',
+  'The pad is lit. KR-9 has been told the package is down — go and run <b>its</b> test.':
+    'La placa está encendida. Ya le dijeron a KR-9 que el paquete está en el suelo — ve y haz <b>su</b> prueba.',
+
+  'DELIVERY ROBOT KR-9':'ROBOT DE REPARTO KR-9',
+  'Carries what the depot gives it, and decides for itself when it is finished.':
+    'Lleva lo que el almacén le da, y decide solo cuándo ha terminado.',
+  'It is not broken and it is not lost. It is doing exactly what it was told, for ever, because the question it asks is never answered yes.':
+    'No está roto ni perdido. Hace exactamente lo que le dijeron, para siempre, porque la pregunta que hace nunca se responde que sí.',
+  'What the bay sensor told it. Nobody has told it anything since the 14th.':
+    'Lo que le dijo el sensor del muelle. Nadie le ha dicho nada desde el día 14.',
+  'It comes home and puts down what it is carrying.':
+    'Vuelve a casa y deja lo que lleva encima.',
+  'It sets off for the bay again. It has done this 1,206 times.':
+    'Sale otra vez hacia el muelle. Lleva 1.206 veces haciéndolo.',
+  '02:02 · ROUTE REWRITTEN BAY 14 → BAY 17 · by M-4471':
+    '02:02 · RUTA REESCRITA MUELLE 14 → MUELLE 17 · por M-4471',
+  'KR-9 turns round, comes home, and sets the crate down on its dock.':
+    'KR-9 da la vuelta, vuelve a casa y deja la caja en su base.',
+  'KR-9 sets off for Bay 17 again. It has done this 1,206 times.':
+    'KR-9 sale otra vez hacia el Muelle 17. Lleva 1.206 veces haciéndolo.',
+  'KR-9 is on its dock, and whatever it has been carrying is on the floor beside it.':
+    'KR-9 está en su base, y lo que llevaba encima está en el suelo, a su lado.',
+
+  'Perimeter gate 3':'Puerta de perímetro 3',
+  'The only way onto the loading side. It was a badge reader until somebody gave it a second way to say yes.':
+    'La única entrada a la zona de carga. Era un lector de credenciales hasta que alguien le dio una segunda forma de decir que sí.',
+  'Two ways in where there used to be one. Find the combination that opens it without a badge — that is the combination somebody used.':
+    'Dos entradas donde antes había una. Encuentra la combinación que la abre sin credencial — esa es la que alguien usó.',
+  'A real badge, read at the post. You have not got one.':
+    'Una credencial de verdad, leída en el puesto. Tú no tienes una.',
+  'A code a maintenance crew can key in when a badge reader fails.':
+    'Un código que una cuadrilla de mantenimiento puede teclear cuando falla el lector.',
+  'The barrier drops. Either answer was enough.':
+    'La barrera baja. Con cualquiera de las dos respuestas bastaba.',
+  'It stays down. Both answers were no.':'Sigue cerrada. Las dos respuestas fueron no.',
+  '02:14 · OPENED · badge_valid=FALSE · maintenance_override=TRUE · code M-4471':
+    '02:14 · ABIERTA · badge_valid=FALSE · maintenance_override=TRUE · código M-4471',
+  'The barrier drops. The loading side is open.':
+    'La barrera baja. La zona de carga está abierta.',
+  'The barrier stays down and the post flashes red.':
+    'La barrera sigue cerrada y el puesto parpadea en rojo.',
+
+  'TRANSIT CAR 2':'VAGÓN 2','Transit car 2':'Vagón 2',
+  'Runs the loop line. It has no reason to stop at a station that closed four years ago.':
+    'Recorre la línea circular. No tiene ningún motivo para parar en una estación cerrada hace cuatro años.',
+  'One of these on its own does nothing. It stopped, so both were true — and one of them is a button somebody had to hold.':
+    'Cada una por su cuenta no hace nada. Paró, así que las dos eran verdaderas — y una de ellas es un botón que alguien tuvo que mantener pulsado.',
+  'Whether this car is cleared to leave the loop.':
+    'Si este vagón tiene permiso para salir de la línea.',
+  'Raised from a handset. Somebody has to actually press it.':
+    'Se lanza desde un radioteléfono. Alguien tiene que pulsarlo de verdad.',
+  'It pulls in at the old platform and opens its doors.':
+    'Entra en el viejo andén y abre las puertas.',
+  'It runs straight past.':'Pasa de largo.',
+  '02:31 · STOP AT OLD YARD · handset M-4471 · held 41s':
+    '02:31 · PARADA EN LA VIEJA ESTACIÓN · radio M-4471 · pulsado 41 s',
+  'Car 2 leaves the loop, runs to the old yard and opens its doors.':
+    'El Vagón 2 sale de la línea, va a la vieja estación y abre las puertas.',
+  'Car 2 runs straight past the old platform. The shutter stays down.':
+    'El Vagón 2 pasa de largo el viejo andén. La reja sigue bajada.',
+  'Car 2 is standing at the old platform with its doors open. The shutter is up.':
+    'El Vagón 2 está parado en el viejo andén con las puertas abiertas. La reja está subida.',
+
+  'MAINTENANCE DOOR':'PUERTA DE MANTENIMIENTO','Maintenance door':'Puerta de mantenimiento',
+  'Four ways to ask one question, and it only ever answers the first one that is true.':
+    'Cuatro formas de hacer una pregunta, y solo responde a la primera que es verdadera.',
+  'The maintenance log for the 14th is blank. Not wiped — blank. Work out which branch opened this door and you will know why nothing was ever written.':
+    'El registro de mantenimiento del día 14 está en blanco. No borrado — en blanco. Averigua qué rama abrió esta puerta y sabrás por qué nunca se escribió nada.',
+  'A building-wide alarm. It opens everything, and it writes nothing down.':
+    'Una alarma de todo el edificio. Lo abre todo, y no escribe nada.',
+  'A crew signing in to work. This branch logs who, and when.':
+    'Una cuadrilla fichando para trabajar. Esta rama anota quién, y cuándo.',
+  'An ordinary badge. It asks somebody upstairs first.':
+    'Una credencial normal. Primero le pregunta a alguien de arriba.',
+  'Open. Nothing is written to the log — an emergency has no time for paperwork.':
+    'Abierta. No se escribe nada en el registro — una emergencia no tiene tiempo para papeleo.',
+  'Open, and the log gets a name and a time.':
+    'Abierta, y el registro se queda con un nombre y una hora.',
+  'It asks the supervisor. Somebody has to answer.':
+    'Le pregunta al supervisor. Alguien tiene que contestar.',
+  'Nothing happens. The door stays shut.':'No pasa nada. La puerta sigue cerrada.',
+  '02:48 · UNLOCK · branch 1 (emergency) · NOT LOGGED · override M-4471':
+    '02:48 · APERTURA · rama 1 (emergency) · SIN REGISTRAR · permiso M-4471',
+  'The door opens. Nothing is written to the log.':
+    'La puerta se abre. No se escribe nada en el registro.',
+  'The door opens — and the log takes a name and a time.':
+    'La puerta se abre — y el registro se queda con un nombre y una hora.',
+  'It asks a supervisor for confirmation. At this hour, nobody answers.':
+    'Le pide confirmación a un supervisor. A esta hora no contesta nadie.',
+
+  'ENGINEER’S TERMINAL':'TERMINAL DE LA INGENIERA',
+  'Ilana Vey’s own machine. It has been waiting four years for somebody to come and run it.':
+    'La propia máquina de Ilana Vey. Lleva cuatro años esperando a que alguien venga a ejecutarla.',
+  'Four machines, four overrides. Cross-reference them.':
+    'Cuatro máquinas, cuatro permisos especiales. Crúzalos.',
+  'The robot’s route, rewritten at 02:02.':'La ruta del robot, reescrita a las 02:02.',
+  'The gate, opened at 02:14 with no badge.':'La puerta, abierta a las 02:14 sin credencial.',
+  'The car, stopped at the old yard at 02:31.':'El vagón, parado en la vieja estación a las 02:31.',
+  'The door, unlocked at 02:48 and never logged.':'La puerta, abierta a las 02:48 y nunca registrada.',
+  'All four overrides carry one code: M-4471 · MAINT CREW 4.':
+    'Los cuatro permisos llevan un mismo código: M-4471 · CUADRILLA MANT. 4.',
+  'Some of it. Not enough to put one person at all four machines.':
+    'Una parte. No basta para poner a una sola persona en las cuatro máquinas.',
+  'Nothing to cross-reference yet.':'Todavía no hay nada que cruzar.',
+  'Four overrides. One code. The terminal prints a crew.':
+    'Cuatro permisos. Un código. La terminal imprime una cuadrilla.',
+  'Not enough. A trail with a gap in it names nobody.':
+    'No basta. Un rastro con un hueco no acusa a nadie.',
+  'Nothing to cross-reference. Go and read the machines.':
+    'No hay nada que cruzar. Ve y lee las máquinas.',
+
+  /* ---- things you find ---- */
+  'BAY 17 TRIP COUNTER':'CONTADOR DE VIAJES DEL MUELLE 17',
+  'TRIPS LOGGED SINCE THE 14th: <b>1,206</b><br>ITEMS SIGNED FOR: <b>0</b><br>The bay itself is empty, and has been for two years.':
+    'VIAJES REGISTRADOS DESDE EL DÍA 14: <b>1.206</b><br>ARTÍCULOS FIRMADOS: <b>0</b><br>El muelle está vacío, y lleva dos años así.',
+  'THE CRATE':'LA CAJA',
+  'KR-9 is carrying it, and KR-9 is not stopping. Find out what would make it stop.':
+    'KR-9 la lleva encima, y KR-9 no para. Averigua qué lo haría parar.',
+  'Sealed with a maintenance tie, not a depot seal. No consignment number, no signature, and a scuff on every corner from 1,206 round trips.':
+    'Cerrada con una brida de mantenimiento, no con un precinto del almacén. Sin número de envío, sin firma, y una rozadura en cada esquina de 1.206 viajes de ida y vuelta.',
+  'LOADING STUB':'RESGUARDO DE CARGA',
+  'One line, torn off a pad and left on the rail:<br><b>OUTBOUND · the 14th · 02:20 · authorised M-4471</b>':
+    'Una línea, arrancada de un talonario y dejada en la barandilla:<br><b>SALIDA · día 14 · 02:20 · autorizado M-4471</b>',
+  'TOOL TAG, AT THE END OF A DRAG MARK':'ETIQUETA DE HERRAMIENTA, AL FINAL DE UNA MARCA DE ARRASTRE',
+  'The dust is scored in a straight line from the platform edge to the wall. At the end of it, face down: a maintenance tool tag.':
+    'El polvo está rayado en línea recta desde el borde del andén hasta la pared. Al final, boca abajo: una etiqueta de herramienta de mantenimiento.',
+  'out of reach':'fuera de alcance','added to your notebook':'añadido a tu libreta',
+
+  /* ---- the witnesses ---- */
+  'depot dispatcher':'encargado del almacén','security officer':'oficial de seguridad',
+  'transit operator':'operador de transporte','maintenance technician':'técnica de mantenimiento',
+  'ASK ABOUT':'PREGÚNTALE POR',
+  'Nothing to ask yet. Go and read a machine, then come back.':
+    'Todavía no hay nada que preguntar. Ve a leer una máquina y vuelve.',
+  '{n} more question(s) will make sense once you have found more.':
+    '{n} pregunta(s) más tendrán sentido cuando encuentres más cosas.',
+
+  'KR-9 has been going out to Bay 17 and coming back with the same crate since the 14th. I have re-tasked it four times. It goes to 17.':
+    'KR-9 lleva desde el día 14 yendo al Muelle 17 y volviendo con la misma caja. Le he cambiado la tarea cuatro veces. Se va al 17.',
+  'Why Bay 17? What is in Bay 17?':'¿Por qué el Muelle 17? ¿Qué hay en el Muelle 17?',
+  'Nothing is in Bay 17. It has been empty since we moved the cold store. That is what makes it a good place to put something you do not want signed for — nobody counts an empty bay.':
+    'En el Muelle 17 no hay nada. Está vacío desde que movimos la cámara fría. Por eso es un buen sitio para dejar algo que no quieres que nadie firme — nadie cuenta un muelle vacío.',
+  'Who re-tasked the robot on the 14th?':'¿Quién le cambió la tarea al robot el día 14?',
+  'A night dispatch. It came in at two in the morning under a maintenance code, not under a person — I only ever see the code. M-4471, if that means anything to you.':
+    'Una orden nocturna. Entró a las dos de la madrugada con un código de mantenimiento, no con una persona — yo solo veo el código. M-4471, por si te dice algo.',
+  'Does the depot sign anything out to maintenance crews?':
+    '¿El almacén le presta algo a las cuadrillas de mantenimiento?',
+  'Handsets. Emergency handsets, one per crew, signed out at the gate post. Ask Vale — she keeps that book.':
+    'Radioteléfonos. Radios de emergencia, una por cuadrilla, que se firman en el puesto de la puerta. Pregúntale a Vale — ella lleva ese libro.',
+
+  'Gate 3 opened at 02:14 on the 14th and I was standing at this post. Nobody walked through it with a badge. I know, because I would have read it.':
+    'La Puerta 3 se abrió a las 02:14 del día 14 y yo estaba en este puesto. Nadie pasó con una credencial. Lo sé, porque la habría leído yo.',
+  'Then how did it open?':'¿Entonces cómo se abrió?',
+  'That is what I have been asking for four years. A badge reader that opens for nobody is a broken reader, they told me. It is not broken. Look at it yourself.':
+    'Eso llevo cuatro años preguntando. Un lector que se abre para nadie es un lector roto, me dijeron. No está roto. Míralo tú mismo.',
+  'The log says maintenance_override was TRUE.':'El registro dice que maintenance_override era TRUE.',
+  'Then it was an override. Those are issued to a CREW, not to a person — that is the whole trouble with them. The code on that one is M-4471. Crew four.':
+    'Entonces fue un permiso especial. Esos se dan a una CUADRILLA, no a una persona — ese es todo el problema. El código de ese es M-4471. Cuadrilla cuatro.',
+  'Could it have been your badge?':'¿Pudo ser tu credencial?',
+  'My badge is valid, so the log would say badge_valid TRUE. It says FALSE. Whoever came through had no badge at all — which rules out every badge holder in this district, me first.':
+    'Mi credencial es válida, así que el registro diría badge_valid TRUE. Dice FALSE. Quien pasó no llevaba credencial ninguna — lo que descarta a todos los que tenemos una en este distrito, yo la primera.',
+  'Who signed out crew four’s emergency handset?':
+    '¿Quién firmó la radio de emergencia de la cuadrilla cuatro?',
+  'Signed out on the 12th, never returned. Signed out to the crew, again. I can tell you it was used — I cannot tell you by whom. Nell keeps the roster.':
+    'Firmada el día 12, nunca devuelta. Otra vez a nombre de la cuadrilla. Te puedo decir que se usó — no te puedo decir quién. Nell lleva la lista del personal.',
+
+  'Car 2 stopped at the old yard. That station shut four years ago. There is no platform crew, no lighting, and no reason on this line to stop there.':
+    'El Vagón 2 paró en la vieja estación. Esa estación cerró hace cuatro años. No hay personal de andén, no hay luz, y no hay ningún motivo en esta línea para parar ahí.',
+  'Can a car stop somewhere on its own?':'¿Un vagón puede parar solo en algún sitio?',
+  'It cannot. It needs to be cleared to leave the loop AND it needs an emergency signal, both, or it runs straight through. One of those without the other is nothing.':
+    'No puede. Necesita permiso para salir de la línea Y necesita una señal de emergencia, las dos, o pasa de largo. Una sin la otra no es nada.',
+  'Where does an emergency signal come from?':'¿De dónde sale una señal de emergencia?',
+  'A handset. Somebody has to hold the button down — mine logged 41 seconds. That is not a fault, that is a thumb. And the handset was M-4471.':
+    'De una radio. Alguien tiene que mantener el botón pulsado — la mía registró 41 segundos. Eso no es una avería, eso es un pulgar. Y la radio era la M-4471.',
+  'What is at the old yard?':'¿Qué hay en la vieja estación?',
+  'Dust and a drag mark. I went and looked, the week after. Something heavy went along that platform and nobody ever told me what.':
+    'Polvo y una marca de arrastre. Fui a mirar, la semana siguiente. Algo pesado pasó por ese andén y nunca me dijeron qué.',
+
+  'You are the first person to come down here about this. I have been saying for four years that somebody changed my machines.':
+    'Eres la primera persona que baja aquí por esto. Llevo cuatro años diciendo que alguien cambió mis máquinas.',
+  'Changed them how?':'¿Cambiadas cómo?',
+  'Somebody added conditions. Not broken — ADDED. A gate with a second way to say yes, a door that answers on the wrong branch. That is not wear. That is somebody who could write.':
+    'Alguien añadió condiciones. No rotas — AÑADIDAS. Una puerta con una segunda forma de decir que sí, otra que responde por la rama equivocada. Eso no es desgaste. Eso es alguien que sabía programar.',
+  'Who could write like that?':'¿Quién sabía programar así?',
+  'Ilana Vey. Systems engineer here for eleven years. She left on the 9th and her access was revoked the same day — five days before any of this. Whatever she did, she did it before.':
+    'Ilana Vey. Ingeniera de sistemas aquí durante once años. Se fue el día 9 y le quitaron el acceso ese mismo día — cinco días antes de todo esto. Lo que hiciera, lo hizo antes.',
+  'The maintenance log for the 14th is blank.':'El registro de mantenimiento del día 14 está en blanco.',
+  'Of course it is. An emergency unlock is not logged — that branch comes first and it never gets as far as the one that writes. Somebody knew the order.':
+    'Claro que sí. Una apertura de emergencia no se registra — esa rama va primero y nunca llega a la que escribe. Alguien sabía el orden.',
+  'Who is on crew four?':'¿Quién está en la cuadrilla cuatro?',
+  'Crew four is a night crew and on the 14th it was one man: Marek Tolan, night logistics supervisor. I am crew two. It is on the roster on the wall behind you.':
+    'La cuadrilla cuatro es de noche y el día 14 era un solo hombre: Marek Tolan, supervisor de logística nocturna. Yo soy de la cuadrilla dos. Está en la lista de la pared que tienes detrás.',
+
+  /* ---- the notebook's entries ---- */
+  'Bay 14 sensor':'Sensor del Muelle 14',
+  'if package_on_pad: mark_delivered() — and nothing at all when it is false.':
+    'if package_on_pad: mark_delivered() — y nada en absoluto cuando es falso.',
+  'Delivery robot KR-9':'Robot de reparto KR-9',
+  'if package_delivered: return_to_station() else: continue_delivery(). Route rewritten Bay 14 → Bay 17 at 02:02, under M-4471.':
+    'if package_delivered: return_to_station() else: continue_delivery(). Ruta reescrita Muelle 14 → Muelle 17 a las 02:02, con M-4471.',
+  'if badge_valid or maintenance_override: open_gate(). The `or` was added — the gate used to ask one question.':
+    'if badge_valid or maintenance_override: open_gate(). El `or` fue añadido — antes la puerta hacía una sola pregunta.',
+  'if authorized_vehicle and emergency_signal: stop_at_station(). Both, or it runs past.':
+    'if authorized_vehicle and emergency_signal: stop_at_station(). Las dos, o pasa de largo.',
+  'if emergency: unlock() / elif maintenance_mode: unlock_and_log() / elif employee_badge: request_confirmation() / else: remain_locked().':
+    'if emergency: unlock() / elif maintenance_mode: unlock_and_log() / elif employee_badge: request_confirmation() / else: remain_locked().',
+  'The order is the hiding place':'El orden es el escondite',
+  'emergency is tested first, so maintenance_mode is never asked — and it is maintenance_mode that writes the log. Move it up and the same inputs leave a name behind.':
+    'emergency se comprueba primero, así que a maintenance_mode nunca se le pregunta — y es maintenance_mode la que escribe el registro. Súbela y las mismas entradas dejan un nombre.',
+  'Crate in Bay 17':'Caja en el Muelle 17',
+  'Sealed, unsigned, and never counted. The robot has been carrying it out and back since the 14th.':
+    'Precintada, sin firmar y nunca contada. El robot la lleva de ida y vuelta desde el día 14.',
+  'Loading stub, secure side':'Resguardo de carga, zona segura',
+  'One line, no signature: OUTBOUND · the 14th · 02:20 · authorised M-4471.':
+    'Una línea, sin firma: SALIDA · día 14 · 02:20 · autorizado M-4471.',
+  'Tool tag, old yard platform':'Etiqueta de herramienta, andén de la vieja estación',
+  'A drag mark in the dust, and a maintenance tool tag at the end of it: MAINT CREW 4 · M-4471.':
+    'Una marca de arrastre en el polvo, y al final una etiqueta de herramienta: CUADRILLA MANT. 4 · M-4471.',
+  'Ilana Vey’s note':'La nota de Ilana Vey',
+  '“I could not make anyone listen. So I taught the machines to keep saying it until somebody read them.”':
+    '«No conseguí que nadie me escuchara. Así que enseñé a las máquinas a seguir diciéndolo hasta que alguien las leyera.»',
+  'Dima — Bay 17 is empty':'Dima — el Muelle 17 está vacío',
+  'Nothing is stored there and nothing is counted there. A good place to leave something nobody signs for.':
+    'Allí no se guarda nada y no se cuenta nada. Un buen sitio para dejar algo que nadie firma.',
+  'Vale — nobody walked through':'Vale — no pasó nadie',
+  'She was at the post at 02:14. The gate opened and no badge was read.':
+    'Estaba en el puesto a las 02:14. La puerta se abrió y no se leyó ninguna credencial.',
+  'Rook — a car cannot stop itself':'Rook — un vagón no puede pararse solo',
+  'It needs clearance AND a signal. Either one alone does nothing.':
+    'Necesita permiso Y señal. Cualquiera de las dos por su cuenta no hace nada.',
+  'Nell — conditions were ADDED':'Nell — se AÑADIERON condiciones',
+  'Not faults. Somebody who could write changed what the machines ask.':
+    'No son averías. Alguien que sabía programar cambió lo que preguntan las máquinas.',
+  'Nell — why the log is blank':'Nell — por qué el registro está en blanco',
+  'An emergency unlock is not logged, and it is tested first. Nothing was erased; nothing was ever written.':
+    'Una apertura de emergencia no se registra, y se comprueba primero. No se borró nada; nunca se escribió nada.',
+  'Nell — crew four, that night':'Nell — la cuadrilla cuatro, esa noche',
+  'MAINT CREW 4 ran one man on the 14th: Marek Tolan, night logistics supervisor.':
+    'La CUADRILLA MANT. 4 tenía a un solo hombre el día 14: Marek Tolan, supervisor de logística nocturna.',
+  'Vale is ruled out':'Vale queda descartada',
+  'The gate log says badge_valid = FALSE. A badge holder walking through would read TRUE. Whoever came through had no badge.':
+    'El registro de la puerta dice badge_valid = FALSE. Si hubiera pasado alguien con credencial, diría TRUE. Quien pasó no llevaba ninguna.',
+  'Ilana Vey is ruled out':'Ilana Vey queda descartada',
+  'She left on the 9th and her access was revoked the same day — five days before the 14th.':
+    'Se fue el día 9 y le quitaron el acceso ese mismo día — cinco días antes del 14.',
+  'Override 1 of 4 — depot':'Permiso 1 de 4 — almacén',
+  '02:02 · robot route rewritten · M-4471':'02:02 · ruta del robot reescrita · M-4471',
+  'Override 2 of 4 — gate':'Permiso 2 de 4 — puerta',
+  '02:14 · opened with no badge · M-4471':'02:14 · abierta sin credencial · M-4471',
+  'Override 3 of 4 — transit':'Permiso 3 de 4 — transporte',
+  '02:31 · stop at the old yard · M-4471':'02:31 · parada en la vieja estación · M-4471',
+  'Override 4 of 4 — maintenance':'Permiso 4 de 4 — mantenimiento',
+  '02:48 · unlocked on emergency, unlogged · M-4471':
+    '02:48 · abierta por emergencia, sin registrar · M-4471',
+
+  /* ---- the night, the name, and the debrief ---- */
+  'THE NIGHT':'LA NOCHE','NAME THEM':'DI SU NOMBRE',
+  'Four machines acted that night, and every one of them printed the time it did. Put them in the order they happened.':
+    'Esa noche actuaron cuatro máquinas, y cada una imprimió la hora en que lo hizo. Ponlas en el orden en que pasaron.',
+  'CONFIRM THE ORDER':'CONFIRMAR EL ORDEN',
+  'That is the night. 02:02, 02:14, 02:31, 02:48.':'Esa es la noche. 02:02, 02:14, 02:31, 02:48.',
+  '{n} of the 4 are in the right place. Every machine prints its own time — go and read them off.':
+    '{n} de las 4 están en su sitio. Cada máquina imprime su propia hora — ve y léelas.',
+  'A delivery robot carries a sealed crate to an empty bay.':
+    'Un robot de reparto lleva una caja precintada a un muelle vacío.',
+  'The perimeter gate opens with no badge, on a maintenance override.':
+    'La puerta del perímetro se abre sin credencial, con un permiso de mantenimiento.',
+  'A transit car leaves the loop and stops at the abandoned station.':
+    'Un vagón sale de la línea y para en la estación abandonada.',
+  'The maintenance door unlocks on the branch that writes nothing down.':
+    'La puerta de mantenimiento se abre por la rama que no escribe nada.',
+  'Every one of the four overrides carries the same code: <b>M-4471 · MAINT CREW 4</b>.':
+    'Los cuatro permisos llevan el mismo código: <b>M-4471 · CUADRILLA MANT. 4</b>.',
+  'An override is issued to a CREW, not to a person. You cannot put a name to a crew code from here — somebody in this district keeps the roster.':
+    'Un permiso especial se da a una CUADRILLA, no a una persona. Desde aquí no puedes ponerle un nombre a un código de cuadrilla — alguien en este distrito guarda la lista.',
+  'who keeps the roster?':'¿quién guarda la lista?',
+  'The maintenance technician, in the room next door.':'La técnica de mantenimiento, en el cuarto de al lado.',
+  'Four overrides, one code, one crew, one night. Name them.':
+    'Cuatro permisos, un código, una cuadrilla, una noche. Di su nombre.',
+  'night logistics supervisor · MAINT CREW 4':'supervisor de logística nocturna · CUADRILLA MANT. 4',
+  'former systems engineer':'antigua ingeniera de sistemas',
+  'maintenance technician · crew 2':'técnica de mantenimiento · cuadrilla 2',
+  'That is the one.':'Es ese.','Not this one.':'Este no.',
+  'One man on crew four on the 14th, and crew four’s code is on all four overrides: the robot at 02:02, the gate at 02:14, the car at 02:31 and the door at 02:48.':
+    'Un solo hombre en la cuadrilla cuatro el día 14, y el código de la cuadrilla cuatro está en los cuatro permisos: el robot a las 02:02, la puerta a las 02:14, el vagón a las 02:31 y la puerta de mantenimiento a las 02:48.',
+  'She wrote the modifications — but her access ended on the 9th, five days before. The trail is hers. The night is not.':
+    'Ella escribió las modificaciones — pero su acceso terminó el día 9, cinco días antes. El rastro es suyo. La noche no.',
+  'The gate log reads badge_valid = FALSE. Any badge holder walking through would have made it TRUE. It rules her out rather than in.':
+    'El registro de la puerta dice badge_valid = FALSE. Cualquiera con credencial lo habría puesto en TRUE. Eso la descarta, no la acusa.',
+  'Crew two, not crew four, and she is the one who kept reporting the machines. The override code is not hers.':
+    'Cuadrilla dos, no cuatro, y es la que llevaba años avisando de las máquinas. El código del permiso no es suyo.',
+  'A theory that turns out wrong is still how you get to the right one. Try another.':
+    'Una teoría que sale mal sigue siendo el camino a la buena. Prueba con otra.',
+  'FILE THE CASE':'CERRAR EL CASO','FILED AGAINST':'ACUSADO',
+  'THE NIGHT OF THE 14th':'LA NOCHE DEL DÍA 14',
+  'WHAT YOU ACTUALLY USED':'LO QUE DE VERDAD USASTE',
+  '“MACHINES DON’T MAKE RANDOM DECISIONS. THEY FOLLOW RULES.”':
+    '«LAS MÁQUINAS NO DECIDEN AL AZAR. SIGUEN REGLAS.»',
+  'Ilana Vey could not make anybody listen, so she taught four machines to keep saying it until somebody read them. You read them. <b>Change the condition. Change the outcome.</b>':
+    'Ilana Vey no consiguió que nadie la escuchara, así que enseñó a cuatro máquinas a seguir diciéndolo hasta que alguien las leyera. Tú las leíste. <b>Cambia la condición. Cambia el resultado.</b>',
+  'if':'if','else':'else','or':'or','and':'and',
+  'elif, and order':'elif, y el orden','conditions together':'condiciones juntas',
+  'A condition is a question with a yes or a no. If the answer is yes, something happens. The bay sensor has nothing else — when it is no, nothing happens at all, and nothing is an answer too.':
+    'Una condición es una pregunta con un sí o un no. Si la respuesta es sí, pasa algo. El sensor del muelle no tiene else — cuando es no, no pasa nada en absoluto, y eso también es una respuesta.',
+  'else is the other road. KR-9 goes home or it sets off again, and there is no third thing it can do — which is why it could be trapped by feeding it one wrong answer for ever.':
+    'else es el otro camino. KR-9 vuelve a casa o sale otra vez, y no hay una tercera cosa que pueda hacer — por eso se le pudo atrapar dándole una respuesta equivocada para siempre.',
+  'or needs only one of them. That is why adding one word to the gate was enough: the badge did not have to be valid any more, it only had to not be the only way in.':
+    'a or le basta con una. Por eso bastó con añadir una palabra a la puerta: la credencial ya no tenía que ser válida, solo tenía que dejar de ser la única entrada.',
+  'and needs both. A car that stops has been cleared AND signalled, so a stop at a closed station is two deliberate things, not one fault.':
+    'and necesita las dos. Un vagón que para tiene permiso Y señal, así que una parada en una estación cerrada son dos cosas a propósito, no una avería.',
+  'elif is only asked when everything above it was false. emergency sits above maintenance_mode, so the branch that writes the log was never reached — the record was not erased, it was never written.':
+    'a elif solo se le pregunta cuando todo lo de arriba fue falso. emergency está encima de maintenance_mode, así que nunca se llegó a la rama que escribe el registro — no se borró nada, nunca se escribió.',
+  'Four separate machines, four separate answers, and one and-of-all-four that only comes out true if the same person is behind every one of them.':
+    'Cuatro máquinas distintas, cuatro respuestas distintas, y un and de las cuatro que solo sale verdadero si detrás de todas está la misma persona.'
 };
 window.LANG = 'en';
 function t(s,p){

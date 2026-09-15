@@ -471,6 +471,7 @@ function startMissionRoom(id){
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
   if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
   if(window.INVADERS) INVADERS.stop();
+  if(window.TRAIL) TRAIL.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(resumeAt('race')); return; }   // and the circuit its own track
   if(id==='nav'){ NAV.start(resumeAt('nav')); return; }      // the corridor is its own room
@@ -486,6 +487,9 @@ function startMissionRoom(id){
     return;
   }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
+  /* The investigation builds its own district out of the same kit the
+     infiltration site is built from, and walks it with the same legs. */
+  if(id==='trail'){ if(window.TRAIL) TRAIL.start(); return; }
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
   if(id==='sub'){ if(window.SUB) SUB.start(resumeAt('sub')); return; }
@@ -540,7 +544,7 @@ const PROGRESS=(function(){
      missions out of the way before the one they came for. What gates it is
      the lesson, not the save file. */
   const ORDER=['nav','m1','m2','m3','sub'];
-  const LEVELED=new Set(['race','nav','flight','m1','m2','m3','sub','school','inv']);
+  const LEVELED=new Set(['race','nav','flight','m1','m2','m3','sub','school','inv','trail']);
   const SAVE_MS=1200;
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
@@ -730,6 +734,10 @@ function wireInput(){
          pressing the key opens ITS code, not whatever was open last. */
       /* On the planet E is the door key: look at a station or a building
          panel and it takes you in. Nothing else on the planet uses E. */
+      /* The district takes E and N while you are in it. It goes above the
+         planet's door key because both rooms cannot be open at once and
+         this one is the more specific claim. */
+      if(window.TRAIL && TRAIL.active && TRAIL.key(e)){ e.preventDefault(); return; }
       if(e.code==='KeyE' && G.running && G.room==='planet'){
         const u=G.focused && G.focused.userData;
         if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
@@ -834,6 +842,11 @@ function loop(now){
   if(window.INVADERS && INVADERS.active && !paused) INVADERS.tick(dt);   // and the swarm keeps flying
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
+  /* The district keeps running with a panel open: the whole idea of the
+     inspector is that you change a condition and WATCH the machine do
+     something about it, which cannot happen if the world stops dead the
+     moment you open the rule. */
+  if(window.TRAIL && TRAIL.active) TRAIL.tick(dt);
   /* The live arena runs on the frame rather than inside the frozen-world
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */
@@ -855,6 +868,7 @@ function loop(now){
     if(PUZZLE.active) PUZZLE.update(dt);
     focusScan();
     if(PUZZLE.active) PUZZLE.map();
+    else if(window.TRAIL && TRAIL.active) TRAIL.map();
     else if(!NAV.active && G.room) drawMap();   // the corridors have no map
     if(G.room==='arena'&&!PUZZLE.active&&!NAV.active) COMBAT.update(dt);
     if(G.room==='free') FREE.tick(dt);
@@ -899,6 +913,7 @@ function frozen(){
       || CODE.isOpen()
       || !!(window.CHARS && CHARS.quickUp)   // choosing a body is not a moment to walk
       || !!(window.PLANET && PLANET.travelUp)  // nor is choosing how to travel
+      || !!(window.TRAIL && TRAIL.busy)        // nor is reading a machine's mind
       || !$('#teach').classList.contains('hidden')     // reading instructions pauses the world
       || !$('#pause').classList.contains('hidden')
       || !$('#downed').classList.contains('hidden')
@@ -1101,7 +1116,9 @@ function focusScan(){
       // than saying nothing at all
       box.innerHTML = t(u.label) + '<small>' +
         (locked ? '🔒 '+t('Locked')
-                : u.kind==='npc' ? t('E — ask') : t('E — go in')) + '</small>';
+                : u.kind==='npc' ? t('E — ask')
+                : u.kind==='machine' ? t('E — inspect')
+                : u.kind==='find' ? t('E — examine') : t('E — go in')) + '</small>';
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
@@ -1207,7 +1224,17 @@ function setLang(l){
   $('#mapTitle').textContent=t('DESKTOP MAP');
   $('#missionName').textContent=t('Basic Training — The Desktop');
   keyHint(null);
-  if(G.running && G.room) buildRoom(G.room);
+  /* ONLY A ROOM THAT IS A LEVELS ROW CAN BE REBUILT FROM ONE. The planet,
+     the corridor, the infiltration site and the district all build
+     themselves, and buildRoom() would go looking for a row that is not
+     there — which is how pressing Español anywhere but Free Play or the
+     arena used to throw. */
+  if(G.running && G.room && window.LEVELS[G.room]) buildRoom(G.room);
+  /* The district's signs are painted onto canvases in whatever language was
+     current when they were drawn, so it rebuilds itself rather than sitting
+     there half-translated. Nothing is lost: every bit of the investigation
+     is in the save bag, and start() reads it back. */
+  else if(window.TRAIL && TRAIL.active) TRAIL.start();
   if(window.MENU) MENU.render();
 }
 CODE.onRun=(steps)=>{

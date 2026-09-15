@@ -43,21 +43,33 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   the red ✕ is the only way out of an app. Live minimap of the desktop layout.
 - **Mission 1 — Loops (THE LOOPER)** — block-based code console (`C` to open, time freezes),
   four stages, and a boss that forces `repeat`.
-- **The Swarm — Loops & Conditionals** — Space Invaders with the authorship turned round:
-  you write one program and the whole formation flies it. Eleven stages, built around
-  **placement — what goes inside a loop and what goes after it** — with `nextRow()` as the
-  star, because `nextRow()` inside a loop builds a column and `nextRow()` between loops builds
-  rows, and a shape is something you can see. `repeat (N)`, `forever`, an `if` inside a
-  `forever`, and nested loops as the **final challenge**. The shield is a count of hits: every
+- **The Swarm — Loops** — Space Invaders with the authorship turned round: you write one
+  program and the whole formation flies it. **Twenty stages, and every one of them is a loop —
+  there is no `if` in this game, no repeat-until and no sensor.** The ladder asks the four
+  questions a loop asks: **what goes in the body**, **how many times**, **what goes after the
+  end**, and **which loop it is** — `repeat (N)` when you know the number, `forever` when you
+  cannot work it out, and never `forever` with something waiting after it, because nothing
+  after it runs. `nextRow()` is the star, because `nextRow()` inside a loop builds a column and
+  `nextRow()` between loops builds rows, and a shape is something you can see; `across()` moves
+  the swarm into range, so *move there, THEN fire* is a placement lesson rather than a
+  condition; and nested loops are the **final challenge**. The shield is a count of hits: every
   `fire()` that lands takes one off, the fortress shows exactly that many segments, and the
   block budget is what forces the loop. Every new block is **introduced, then practised**: the
   stage that brings it is walked (the console opens itself and the coach rings each block), and
   the stage after it is practice — no coach, the answer behind a Hint button. The build stages
   draw the formation they ask for as an outline to fill, with a cursor showing where the next
   `spawn()` lands, and wrong placement gets its own sentence: *you fired too early*, *look
-  where the invaders went*.
+  where the invaders went*, *you fired 3 times before you got there*.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
+- **Mission 7 — The Engineer's Trail (conditionals)** — the first mission that asks a student
+  to **read** a program instead of writing one, and the only one that is a **detective story**.
+  A delivery robot that will not stop, a gate that opens for nobody, a train that stops at a
+  station that closed four years ago and a door whose log for that night is blank. Walk up to
+  any of them, press `E`, and the **Machine Inspector** shows you the rule it is actually
+  obeying, the switches that feed it, and a `RUN TEST` button — and the district does the thing
+  while the rule is still on the screen beside it. Nobody is told they are in a lesson about
+  `if`; they are told to find out who did it.
 - Bilingual English / Español throughout, including the villain's taunts.
 
 ## How it is lettered
@@ -186,13 +198,17 @@ code.js      block console: palette, drag, text mode, walkthroughs
 combat.js    drones, boss, Mission 1 script
 islands.js   the sky islands: the rock, the lake, the waterfall and the wildlife
 title.js     the landing screen: Senio in orbit, its weather, and the stars behind it
-invaders.js  the swarm: five loop stages, the fortress, and the shield that regrows
+invaders.js  the swarm: twenty loop stages, the fortress, and the shield you count
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
 mechacode.js the standing-orders language: events, sensors, decide(), the trace
 mechaarena.js the live fight, stepped 20×/s — no DOM, no clock, Node too
 mecha.js     the 3D arena you drive: camera, input, HUD, the why-it-did-that feed
 workshop.js  the robot you click, and the block editor for whichever part
+logic.js     the decision engine every Koro machine thinks with — conditions
+             as trees, ladders of branches, truth tables. No DOM, Node too
+trail.js     The Engineer's Trail: the district, the machines, the witnesses,
+             the inspector, the notebook and the case
 levels.js    room layouts — edit this to add levels
 strings.js   every word, in both languages
 tests/       node --test, no dependencies — run with `npm test`
@@ -204,7 +220,11 @@ New chassis and arenas go in `mechsim.js`; new league opponents go in `mech.js`.
 events and actions for the live arena go in `mechacode.js`, and what they cost goes with them.
 A new stage for The Swarm is a row in `invaders.js`'s `STAGES`: the palette it hands out, the
 fortress it puts up, and what counts as done — and `tests/invaders.test.js` will tell you if the
-numbers you picked have quietly made its loop optional.
+numbers you picked have quietly made its loop optional, play the stage through with the worked
+answer you wrote for it, and refuse a conditional block anywhere on the ladder.
+A new **machine** is a row in `logic.js`'s `MACHINES` and a row per action in `trail.js`'s
+`ACTIONS`; a new **witness** is a row in `PEOPLE`; a new **clue** is a row in `CLUES`. Nothing
+in the inspector knows what a gate is, so a rule about loops or variables draws itself.
 
 ## Tests
 ```bash
@@ -338,6 +358,56 @@ and `/servers` — but it does need a signed-in cookie, checked from the HMAC
 alone. A public endpoint listing the display names of a room full of children
 is not a thing to ship. Students only, which is the convention the in-world
 roster already follows: a teacher is not drawn as a body in a room either.
+
+## The Engineer's Trail
+A mystery you solve by reading machines, and the answer to a question this game had not
+asked before: **what does a student do with a program somebody else wrote?**
+
+```
+OBSERVE → FORM A THEORY → INSPECT THE RULE → SET THE READINGS → RUN → UPDATE THE THEORY
+```
+
+The district is a text floor plan — one string per row, exactly like the infiltration site —
+walked with the same legs, the same collision and the same over-the-shoulder camera as
+everywhere else. The witnesses are the same rigged characters you could be wearing. `E` means
+what it has always meant. None of it is a second engine.
+
+**A machine is a rule, some switches, and a mapping from what it decides to what the district
+does about it.** That is the whole abstraction, and it is why the mission teaches six ideas
+with one panel and no special cases:
+
+| where | the rule | the idea |
+|---|---|---|
+| Bay 14 sensor | `if package_on_pad:` | a bare **if** — and *nothing* is an answer too |
+| Delivery robot KR-9 | `if … else …` | **else**: two roads, and it is stuck on the wrong one |
+| Perimeter gate 3 | `if badge_valid or maintenance_override:` | **or**: one word, added, was the whole crime |
+| Transit car 2 | `if authorized_vehicle and emergency_signal:` | **and**: a stop is two deliberate things |
+| Maintenance door | `if / elif / elif / else` | **elif**, and that **order is meaning** |
+| The engineer's terminal | an `and` of all four | **combining** conditions over real evidence |
+
+The maintenance door is the one the mission is really about. `emergency` sits above
+`maintenance_mode`, and it is `maintenance_mode` that writes the log — so the branch that
+would have recorded who came through that night was never *asked*. Nothing was erased.
+Nothing was ever written. The inspector draws unasked branches as their own state, greyed and
+labelled **never asked**, because a branch under a true one is not false; and the ▲▼ handles
+let a student move one line and watch the same switches produce a different answer.
+
+**The terminal has no switches.** Its four readings are what is actually in the notebook, so
+the cross-reference is only as true as the evidence under it — which is the point being made
+rather than a puzzle about it.
+
+**Nobody is punished for a wrong theory.** A test that comes out the way you did not expect
+prints its result like any other; a wrong name gets a sentence explaining what rules that
+person out, and an invitation to try another.
+
+Four witnesses each know one true thing and have a reason to know it — the officer knows what
+a gate log looks like and nothing about a delivery round. `tests/trail.test.js` asserts that
+no single one of them can both name the man and carry the code, so the case cannot be
+short-circuited by talking to the right person.
+
+Progress rides in the same save bag as everything else, so the investigation survives a
+closed lid: the gate you opened is open when you come back, the crate is still on the dock,
+and the notebook is as you left it. Solving it clears the bag, so a replay is a new case.
 
 ## Not built yet
 The intro cutscene and the rest of the villains

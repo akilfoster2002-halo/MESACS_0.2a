@@ -71,6 +71,8 @@ window.MENU = (function(){
      blurb:'define combo. OFF-BY-ONE always has one more.'},
     {id:'sub',   g:'course',  em:'🌊', a:'#8ff0ff', name:'Mission 5 — The Trench',
      blurb:'A submersible in a current that never stops. Sense the rock, choose the turn, and loop so it keeps watching.'},
+    {id:'trail', g:'course',  em:'🔎', a:'#ffc8dd', name:'Mission 7 — The Engineer\u2019s Trail',
+     blurb:'A robot that will not stop, a gate that opens for nobody. Read the machines\u2019 conditions and work out who did it.'},
     {id:'mech',  g:'arena',   em:'🤖', a:'#ffd8a8', name:'The Mech League',
      blurb:'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
@@ -276,6 +278,7 @@ window.MENU = (function(){
              flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
              m2:'Mission 3 — Choices', m3:'Mission 4 — Functions',
              sub:'Mission 5 — The Trench', school:'Flight School — Motion',
+             inv:'Mission 6 — The Swarm', trail:'Mission 7 — The Engineer\u2019s Trail',
              mech:'The Mech League'})[id]||id;
   }
 
@@ -286,6 +289,7 @@ window.MENU = (function(){
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
+    if(window.TRAIL) TRAIL.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -473,6 +477,7 @@ window.MENU = (function(){
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
+    if(window.TRAIL) TRAIL.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');

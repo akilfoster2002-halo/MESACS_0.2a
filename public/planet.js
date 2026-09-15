@@ -241,7 +241,11 @@ window.PLANET = (function(){
     { id:'m2',     em:'\u{1F52E}', name:'Mission 3 — Choices',        a:'#cdb4f6' },
     { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' },
     { id:'sub',    em:'\u{1F30A}', name:'Mission 5 — The Trench',      a:'#8ff0ff' },
-    { id:'inv',    em:'\u{1F47E}', name:'Mission 6 — The Swarm',       a:'#a8e6cf' }
+    { id:'inv',    em:'\u{1F47E}', name:'Mission 6 — The Swarm',       a:'#a8e6cf' },
+    /* The first mission in the course that asks a student to READ a
+       program rather than write one. It is a detective story and the
+       conditionals are the magnifying glass. */
+    { id:'trail',  em:'\u{1F50E}', name:'Mission 7 — The Engineer\u2019s Trail', a:'#ffc8dd' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -406,6 +410,7 @@ window.PLANET = (function(){
     if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
+    if(window.TRAIL) TRAIL.stop();
     if(window.CLUB) CLUB.stop();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
@@ -1609,7 +1614,11 @@ window.PLANET = (function(){
         { x:-hw+8, z:  7, r: Math.PI/4 },
         { x: hw-8, z:-10, r:-Math.PI/4 },   // and down the right
         { x: hw-8, z:  7, r:-Math.PI/4 },
-        { x:  0, z:-hd+11, r:0 }            // dead ahead as you walk in
+        { x:  0, z:-hd+11, r:0 },           // dead ahead as you walk in
+        /* Down the left, turned in towards the middle of the hall. Not the
+           back wall: the Swarm has that and taking it away from a mission
+           that is already there would move a landmark a class has learnt. */
+        { x:-15, z: 14, r: Math.PI/5 }
       ];
       /* A statue stands BEHIND its console, and a plinth is four metres square,
          so "behind" has to be somewhere there is four metres of room. Get that
@@ -2637,6 +2646,28 @@ window.PLANET = (function(){
         top.add(sh);
       }
       top.userData.spin=0.20;
+    }
+    if(id==='trail'){
+      /* A road that forks, and a lens over the fork. One arm mint and one
+         peach, because the whole mission is that a condition has two
+         answers and only one of them is happening. */
+      const stem=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.9,0.26), lam(0x8fd3ff));
+      stem.position.y=-0.1; top.add(stem);
+      [[-1,0xa8e6cf],[1,0xffb4a2]].forEach(([sx,c])=>{
+        const arm=new THREE.Mesh(new THREE.BoxGeometry(0.22,1.05,0.22), lam(c));
+        arm.position.set(sx*0.34, 0.75, 0); arm.rotation.z=-sx*0.55; top.add(arm);
+        const tip=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,8), lam(c));
+        tip.position.set(sx*0.62, 1.2, 0); top.add(tip);
+      });
+      const lens=new THREE.Mesh(new THREE.TorusGeometry(0.46,0.075,8,26), lam(0xffe9a8));
+      lens.position.set(0,1.45,0.35); top.add(lens);
+      const glass=new THREE.Mesh(new THREE.CircleGeometry(0.44,22),
+        new THREE.MeshLambertMaterial({color:0x8ff0ff, transparent:true, opacity:0.32,
+                                       side:THREE.DoubleSide}));
+      glass.position.set(0,1.45,0.35); top.add(glass);
+      const grip=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.6,8), lam(0xffe9a8));
+      grip.position.set(-0.34,1.08,0.35); grip.rotation.z=0.72; top.add(grip);
+      top.userData.spin=0.30;
     }
     if(id==='sub'){
       /* The submersible on its plinth — a capsule with a tower and a
