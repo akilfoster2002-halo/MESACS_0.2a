@@ -149,33 +149,33 @@ window.TRAIL = (function(){
      and you add rows here, and nothing else in the file changes. */
   const ACTIONS={
     'mark_delivered()':   { status:'ACTIVE',  world:'sensorOn',
-      line:'The pad lights. The sensor tells KR-9 the package is down.' },
+      line:'The pad lights. KR-9 is told the package is down.' },
     'return_to_station()':{ status:'ACTIVE',  world:'robotHome',
-      line:'KR-9 turns round, comes home, and sets the crate down on its dock.' },
+      line:'KR-9 comes home and puts the crate down.' },
     'continue_delivery()':{ status:'ACTIVE',  world:'robotOut',
-      line:'KR-9 sets off for Bay 17 again. It has done this 1,206 times.' },
+      line:'KR-9 sets off for Bay 17 again.' },
     'open_gate()':        { status:'UNLOCKED',world:'gateOpen',
-      line:'The barrier drops. The loading side is open.' },
+      line:'The barrier drops. Either answer was enough.' },
     'deny_entry()':       { status:'LOCKED',  world:'gateShut',
-      line:'The barrier stays down and the post flashes red.' },
+      line:'The barrier stays down. Both answers were no.' },
     'stop_at_station()':  { status:'ACTIVE',  world:'carStops',
-      line:'Car 2 leaves the loop, runs to the old yard and opens its doors.' },
+      line:'Car 2 leaves the loop and pulls in at the old platform.' },
     'continue_route()':   { status:'IDLE',    world:'carRuns',
-      line:'Car 2 runs straight past the old platform. The shutter stays down.' },
+      line:'Car 2 runs straight past. The shutter stays down.' },
     'unlock()':           { status:'UNLOCKED',world:'doorOpen',
       line:'The door opens. Nothing is written to the log.' },
     'unlock_and_log()':   { status:'UNLOCKED',world:'doorOpenLogged',
-      line:'The door opens — and the log takes a name and a time.' },
+      line:'The door opens, and the log takes a name and a time.' },
     'request_confirmation()':{ status:'ALERT', world:'doorAsk',
-      line:'It asks a supervisor for confirmation. At this hour, nobody answers.' },
+      line:'It asks a supervisor. At this hour, nobody answers.' },
     'remain_locked()':    { status:'LOCKED',  world:'doorShut',
       line:'Nothing happens. The door stays shut.' },
     'one_operator()':     { status:'ALERT',   world:'crossOk',
-      line:'Four overrides. One code. The terminal prints a crew.' },
+      line:'Four overrides, one code: M-4471 · MAINT CREW 4.' },
     'partial_trail()':    { status:'IDLE',    world:null,
-      line:'Not enough. A trail with a gap in it names nobody.' },
+      line:'Not enough. A trail with a gap names nobody.' },
     'no_trail()':         { status:'IDLE',    world:null,
-      line:'Nothing to cross-reference. Go and read the machines.' }
+      line:'Nothing to cross-reference yet.' }
   };
   const LAMP={ IDLE:0x5a4b85, ACTIVE:0x8fd3ff, UNLOCKED:0xa8e6cf,
                LOCKED:0xffd8a8, ALERT:0xff9aa2, ERROR:0xff9aa2 };
@@ -1322,9 +1322,12 @@ window.TRAIL = (function(){
       <pre class="mi-log">${esc(say(mac.log))}</pre>
     </section>`;
   }
+  /* Two or more. One row under a heading saying TESTS YOU HAVE RUN 1 is a
+     list telling you what you did half a second ago; it earns its place
+     when there is a pattern in it to see. */
   function historyPane(m){
     const h=m.history||[];
-    if(!h.length) return '';
+    if(h.length<2) return '';
     return `<section class="mi-sec">
       <h4>${say('TESTS YOU HAVE RUN')} <span class="mi-n">${h.length}</span></h4>
       <ul class="mi-hist">${h.slice(-6).reverse().map(r=>`<li>

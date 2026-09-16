@@ -1557,6 +1557,32 @@ window.ES = {
   'That is the whole mission: read the rule, change a reading, watch what the machine does. <b>N</b> is your notebook.':
     'Esa es toda la misión: lee la regla, cambia una lectura, mira lo que hace la máquina. <b>N</b> es tu libreta.',
 
+  /* ---- one line per action, after the note/line duplication was cut ---- */
+  'The pad lights. KR-9 is told the package is down.':
+    'La placa se enciende. A KR-9 le dicen que el paquete está en el suelo.',
+  'The pad under Bay 14 has been dead since the 14th.':
+    'La placa del Muelle 14 lleva muerta desde el día 14.',
+  'Not broken, and not lost. It has made this trip 1,206 times.':
+    'Ni roto ni perdido. Lleva 1.206 viajes iguales.',
+  'KR-9 comes home and puts the crate down.':'KR-9 vuelve a casa y deja la caja.',
+  'KR-9 sets off for Bay 17 again.':'KR-9 sale otra vez hacia el Muelle 17.',
+  'The barrier stays down. Both answers were no.':
+    'La barrera sigue bajada. Las dos respuestas fueron no.',
+  'It stopped at a station that closed four years ago.':
+    'Paró en una estación que cerró hace cuatro años.',
+  'Car 2 leaves the loop and pulls in at the old platform.':
+    'El Vagón 2 sale de la línea y entra en el viejo andén.',
+  'Car 2 runs straight past. The shutter stays down.':
+    'El Vagón 2 pasa de largo. La reja sigue bajada.',
+  'The door opens, and the log takes a name and a time.':
+    'La puerta se abre, y el registro se queda con un nombre y una hora.',
+  'It asks a supervisor. At this hour, nobody answers.':
+    'Le pregunta a un supervisor. A esta hora no contesta nadie.',
+  'Four overrides, one code: M-4471 · MAINT CREW 4.':
+    'Cuatro permisos, un código: M-4471 · CUADRILLA MANT. 4.',
+  'Not enough. A trail with a gap names nobody.':
+    'No basta. Un rastro con un hueco no acusa a nadie.',
+
   /* ---- signs and places ---- */
   'BAY 14':'MUELLE 14','BAY 17':'MUELLE 17','DEPOT':'ALMACÉN',
   'pad · no signal':'placa · sin señal','empty · 2 years':'vacío · 2 años',

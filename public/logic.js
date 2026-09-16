@@ -214,28 +214,25 @@
       sub:'Watches the pad under Bay 14.',
       vars:[{ v:'package_on_pad', hint:'The weight plate. All it can see.' }],
       rule:{ branches:[
-        { kind:'if', cond:VAR('package_on_pad'), action:'mark_delivered()',
-          note:'KR-9 is told the package is down.' }
+        { kind:'if', cond:VAR('package_on_pad'), action:'mark_delivered()' }
       ]},
       /* the whole point of a bare if: when it is false the machine does
          NOTHING, and nothing is a result too */
       falls:'Nothing. There is no else.',
-      lead:'The pad has been dead since the 14th, so the robot is never told it arrived.',
+      lead:'The pad under Bay 14 has been dead since the 14th.',
       log:'02:02 · BAY 14 PAD — INPUT DISCONNECTED · by '+CODE },
 
     /* 2. THE DELIVERY ROBOT — if / else. Two roads out of one question,
        and the robot is standing on the wrong one. */
     { id:'robot', em:'\u{1F916}', name:'DELIVERY ROBOT KR-9', where:'depot',
       teach:'if / else', concept:'else',
-      sub:'Decides for itself when it has finished.',
+      
       vars:[{ v:'package_delivered', hint:'What the bay sensor last told it.' }],
       rule:{ branches:[
-        { kind:'if', cond:VAR('package_delivered'), action:'return_to_station()',
-          note:'It comes home and puts the crate down.' },
-        { kind:'else', action:'continue_delivery()',
-          note:'It sets off again. 1,206 times so far.' }
+        { kind:'if', cond:VAR('package_delivered'), action:'return_to_station()' },
+        { kind:'else', action:'continue_delivery()' }
       ]},
-      lead:'Not broken. Doing what it was told, for ever, because its question is never answered yes.',
+      lead:'Not broken, and not lost. It has made this trip 1,206 times.',
       log:'02:02 · ROUTE REWRITTEN BAY 14 → BAY 17 · by '+CODE },
 
     /* 3. THE SECURITY GATE — or. The modification is one word long and
@@ -250,8 +247,8 @@
         { kind:'else', action:'deny_entry()' } ]},
       rule:{ branches:[
         { kind:'if', cond:OR(VAR('badge_valid'), VAR('maintenance_override')),
-          action:'open_gate()', note:'Either answer was enough.' },
-        { kind:'else', action:'deny_entry()', note:'Both answers were no.' }
+          action:'open_gate()' },
+        { kind:'else', action:'deny_entry()' }
       ]},
       lead:'Two ways in where there was one. Find the pair that opens it without a badge.',
       log:'02:14 · OPENED · badge_valid=FALSE · maintenance_override=TRUE · code '+CODE },
@@ -265,28 +262,25 @@
             { v:'emergency_signal', hint:'A handset. Somebody presses it.' }],
       rule:{ branches:[
         { kind:'if', cond:AND(VAR('authorized_vehicle'), VAR('emergency_signal')),
-          action:'stop_at_station()', note:'It pulls in at the old platform.' },
-        { kind:'else', action:'continue_route()', note:'It runs straight past.' }
+          action:'stop_at_station()' },
+        { kind:'else', action:'continue_route()' }
       ]},
-      lead:'It stopped at a station that closed four years ago. So both were true.',
+      lead:'It stopped at a station that closed four years ago.',
       log:'02:31 · STOP AT OLD YARD · handset '+CODE+' · held 41s' },
 
     /* 5. THE MAINTENANCE DOOR — if / elif / else, and the order of it is
        the thing that was hidden. */
     { id:'door', em:'\u{1F510}', name:'MAINTENANCE DOOR', where:'maint',
       teach:'if / elif / else', concept:'elif',
-      sub:'Answers the first branch that is true.',
+      
       vars:[{ v:'emergency', hint:'Opens everything. Writes nothing down.' },
             { v:'maintenance_mode', hint:'A crew signing in. This branch logs it.' },
             { v:'employee_badge', hint:'Asks a supervisor first.' }],
       rule:{ branches:[
-        { kind:'if',   cond:VAR('emergency'), action:'unlock()',
-          note:'Open — and nothing is written to the log.' },
-        { kind:'elif', cond:VAR('maintenance_mode'), action:'unlock_and_log()',
-          note:'Open, and the log takes a name.' },
-        { kind:'elif', cond:VAR('employee_badge'), action:'request_confirmation()',
-          note:'It asks a supervisor. Nobody answers.' },
-        { kind:'else', action:'remain_locked()', note:'The door stays shut.' }
+        { kind:'if',   cond:VAR('emergency'), action:'unlock()' },
+        { kind:'elif', cond:VAR('maintenance_mode'), action:'unlock_and_log()' },
+        { kind:'elif', cond:VAR('employee_badge'), action:'request_confirmation()' },
+        { kind:'else', action:'remain_locked()' }
       ]},
       /* The experiment that finishes the mission's teaching: the same
          three switches, the same four branches, one line moved. */
@@ -314,14 +308,12 @@
         { kind:'if',
           cond:AND(AND(VAR('depot_override'), VAR('gate_override')),
                    AND(VAR('transit_override'), VAR('door_override'))),
-          action:'one_operator()',
-          note:'All four overrides carry one code: '+CODE+' · '+CREW+'.' },
+          action:'one_operator()' },
         { kind:'elif',
           cond:OR(OR(VAR('depot_override'), VAR('gate_override')),
                   OR(VAR('transit_override'), VAR('door_override'))),
-          action:'partial_trail()',
-          note:'Some of it. Not enough to put one person at all four machines.' },
-        { kind:'else', action:'no_trail()', note:'Nothing to cross-reference yet.' }
+          action:'partial_trail()' },
+        { kind:'else', action:'no_trail()' }
       ]},
       lead:'Four machines, four overrides. Cross-reference them.' }
   ];
