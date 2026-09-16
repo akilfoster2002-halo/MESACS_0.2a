@@ -214,9 +214,44 @@ window.PLANET = (function(){
     buildings:ARENA_BUILDINGS,
     pad:{ lon:0, lat:-17 }
   };
-  const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD];
+  /* ======================================================== RYU
+     THE WORLD YOU ARRIVE ON, and the reason the game has a `cast` at all.
+
+     Senio is where the course is. This is not that: it is the first ball
+     under your feet when you open the game, and the thing that happens
+     when you land on it is that you become somebody. `cast` names the
+     character — everyone out on this ball is Robin, whoever they picked
+     in the Mall and whoever they will be again the moment they leave.
+     enter() puts it on and takes it off; nothing here writes to the save
+     bag, so the choice survives the visit untouched.
+
+     SHUTTLE, because you did not fly here. Every other course in the game
+     is flown in a ship you had to buy, and a player who arrives on their
+     first minute has no ship and no coins to buy one with — so the pad
+     that put them down here is the pad that takes them back, and it does
+     not ask. Without that this world is a room with the door painted on.
+
+     Ochre, so it cannot be mistaken for Senio at a glance: the two green
+     worlds in this game are the hub and whichever home planet the seed
+     rolled, and arriving somewhere that looks like the place you already
+     know is not arriving anywhere. */
+  const RYU_WORLD={
+    id:'ryu', kind:'ryu', seed:11, name:'RYU', sub:'where everybody is Robin',
+    radius:240, sky:BIOMES[1].sky, soil:BIOMES[1].soil, biome:'ochre',
+    relief:7.5, ceiling:80, flora:'wood',
+    cast:'w', shuttle:true, course:'hub',
+    /* NOTHING BUILT ON IT YET. A door with no room behind it is worse than
+       no door: use() drops any id it does not know, so an invented
+       building would stand there with a sign on it and swallow the key.
+       The pad appends itself, which is what you land beside and what you
+       leave by. */
+    buildings:[],
+    pad:{ lon:0, lat:-12 }
+  };
+  const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD, RYU_WORLD];
   const worldById = id => id==='home' ? homeWorld()
-                        : id==='arena' ? ARENA_WORLD : HUB;
+                        : id==='arena' ? ARENA_WORLD
+                        : id==='ryu' ? RYU_WORLD : HUB;
 
   /* The live world, and the things every other function in this file reads
      off it. They were consts when there was only ever one planet. */
@@ -425,6 +460,12 @@ window.PLANET = (function(){
     if(window.ISLANDS) ISLANDS.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
+    /* WHO EVERYBODY IS HERE. Before the body is attached below and before
+       anybody else is painted into the crowd, so the first frame of this
+       world already has the right person standing in it rather than the
+       old one for a beat. A world with no cast clears it, which is how
+       you turn back into yourself by leaving. */
+    if(window.AVATAR) AVATAR.setCast(W.cast || null);
     /* SENIO'S THEME, and only on Senio. It is the hub's music, not the
        game's: the planet the missions are on gets it, and the arena, the
        home planet, the rooms indoors and the run between the planets do
@@ -518,6 +559,15 @@ window.PLANET = (function(){
        Control and at the stations inside it, neither of which exists on
        another ball. Landing anywhere else is not a first arrival. */
     if(!toured() && W.kind==='hub'){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
+    /* AND SAY WHAT JUST HAPPENED TO YOU. A player who picked Carlos and
+       walks out of the shuttle in somebody else's body, with nothing
+       anywhere saying why, has not arrived on a planet — they have found a
+       bug. One line, once, on the way in. */
+    if(W.cast && window.AVATAR){
+      const who=(AVATAR.CHARS.find(c=>c.id===W.cast)||{}).name || W.cast;
+      setTimeout(()=>{ if(on && W.cast) say(t('{p} takes your shape. Out here everyone is <b>{n}</b>.',
+                                             {p:W.name, n:who})); }, 900);
+    }
     /* On the record from the first frame, so a tab closed on the way in still
        comes back to this planet rather than to the hub. */
     spotAt=performance.now(); rememberSpot(true);
@@ -2106,15 +2156,20 @@ window.PLANET = (function(){
        route is a thing somebody has to survey — so the only one loaded is
        the run out to VOLTA, and the way home from it. The other worlds are
        still in WORLDS(); they are just not on the charts yet. */
-    const to = W.id==='arena' ? 'hub' : 'arena';
+    /* The world says where its own pad goes when it cares to. Senio and
+       VOLTA are still each other's only surveyed course; RYU's is the way
+       back, which is the only route off it. */
+    const to = W.course || (W.id==='arena' ? 'hub' : 'arena');
     padPanel=panel(g, b, 0, 9.4, '\u{1F6F8}',
-      navLabel(to), 'fly:'+to, hasShip()?'#12304a':'#3a2a1b', 0.78, Math.PI);
+      navLabel(to), 'fly:'+to, (hasShip()||W.shuttle)?'#12304a':'#3a2a1b', 0.78, Math.PI);
   }
   let padPanel=null;
   function navLabel(to){
     const n=worldById(to).name;
-    return hasShip() ? t('LAUNCH')+'\n'+t('COURSE: {n}',{n})
-                     : t('NO SHIP')+'\n'+t('SEE THE MECHANIC');
+    /* The sign on a shuttle pad never says NO SHIP: not owning one is not
+       what is standing between you and this particular departure. */
+    return (hasShip() || W.shuttle) ? t('LAUNCH')+'\n'+t('COURSE: {n}',{n})
+                                    : t('NO SHIP')+'\n'+t('SEE THE MECHANIC');
   }
   /* Leaving a world and arriving at another used to be one call — enter()
      rebuilds everything that makes a world, so a teleport was free. It is
@@ -2124,8 +2179,26 @@ window.PLANET = (function(){
   function travel(to){
     const id = to || (W.kind==='home' ? 'hub' : 'home');
     if(id===W.id) return;
-    if(!hasShip()){
+    /* A SHUTTLE WORLD LETS YOU OFF. Everywhere else the pad is a thing
+       you use your own ship on, and having to buy one is the point. A
+       world the game DROPPED you on is the one case where that rule
+       strands somebody: no ship, no coins, and the mechanic who sells
+       ships is on the planet they cannot get to. The craft that brought
+       them is still on the pad. */
+    if(!W.shuttle && !hasShip()){
       say(t('You have no ship. <b>THE MECHANIC</b> has one waiting.'));
+      return;
+    }
+    /* A SHUTTLE IS NOT A FLIGHT. CRUISE knows where two planets are —
+       Senio and VOLTA — and every other id it is handed comes back as
+       Senio, so a run from a third world to Senio would start and end at
+       the same point in space: a course of zero length, a heading off a
+       vector with no direction in it, and a player left sitting in a ship
+       pointed at nothing. The way off a world the game put you on is the
+       craft that brought you, and it simply takes you. */
+    if(W.shuttle && !hasShip()){
+      leave(); enter(server, id);
+      say(t('The shuttle sets you down on {n}.',{n:worldById(id).name}));
       return;
     }
     if(!window.CRUISE){                      // the flight failed to load: walk it in
@@ -3558,11 +3631,23 @@ window.PLANET = (function(){
             up:+p.y||0, tup:+p.y||0 };
         others.set(p.id,o);
       }
-      if(p.char && o.char!==p.char){
-        o.char=p.char;
-        AVATAR.load(p.char).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m;
-                                      m.visible=!o.car; o.g.add(m); })
-                           .catch(()=>{});
+      /* THROUGH THE CAST, not straight off the wire. Everybody keeps
+         sending who they actually chose — that is what the Mall and the
+         roster are about and it should not be rewritten by a place — and
+         each of us decides locally what body that means HERE. On a world
+         with a cast the whole field turns into Robin; everywhere else
+         bodyOf() hands back exactly what arrived.
+
+         Compared on the RESOLVED body, so somebody who changes character
+         behind a cast does not cause a reload that could not change
+         anything, and so the crowd redresses itself if a cast ever
+         changed under it. */
+      const want = p.char && AVATAR.bodyOf(p.char);
+      if(want && o.char!==want){
+        o.char=want;
+        AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m;
+                                    m.visible=!o.car; o.g.add(m); })
+                         .catch(()=>{});
       }
       /* Somebody who gets into a car has to be SEEN to get into a car. The
          same swap the driver makes — body away, car under them — made from
@@ -3850,7 +3935,12 @@ window.PLANET = (function(){
   function dash(){
     const el=document.querySelector('#dash'); if(!el || !window.WALLET) return;
     el.classList.remove('hidden');
-    const me_=AVATAR.CHARS.find(c=>c.id===AVATAR.chosen);
+    /* THE FACE IN THE CORNER IS THE BODY YOU ARE IN, not the one you own.
+       On a world that casts everybody, the dashboard showing the character
+       you picked while a different one walks about underneath it is the
+       game disagreeing with itself in the two places a player looks
+       first. bodyOf() is the chosen character everywhere else. */
+    const me_=AVATAR.bodyDef(AVATAR.bodyOf(AVATAR.chosen));
     const face=document.querySelector('#dFace');
     if(face && me_ && face.getAttribute('src')!==me_.preview) face.src=me_.preview;
     const nm=document.querySelector('#dName');

@@ -32,6 +32,34 @@ window.AVATAR = (function(){
   const CHARS = IDS.map(c=>({ id:c, name:NAMES[c] || ('Character '+c.toUpperCase()),
     model:`characters/models/character-${c}.glb`+V(),
     preview:`characters/previews/character-${c}.png`+V() }));
+  /* ------------------------------------------------- bodies off the roster
+     ROBIN IS NOT SOMEBODY YOU CAN PICK, and that is the whole of what she
+     is. She is not a fifth shirt in the Mall, she is not for sale, she is
+     not in the quick change and nobody chooses her: she is what RYU turns
+     you into, and the only way to be her is to be standing on it.
+
+     So she lives here rather than in CHARS. CHARS is the ROSTER — who you
+     can be, what the Mall sells, what the wardrobe shows, who a witness or
+     a librarian is cast from — and every one of those is a list of people
+     you own. BODIES is everything the game can put on screen, which is
+     that list plus the ones a place hands you. Two words, because they
+     were one word doing two jobs and the wardrobe grew a character nobody
+     was allowed to choose.
+
+     The model and the thumbnail are built exactly like the roster's: she
+     is `character-w` on disk, and the dashboard draws her face on RYU. */
+  const CAST_ONLY = ['w'];
+  const CAST_NAMES = { w:'Robin' };
+  const BODIES = CHARS.concat(CAST_ONLY.map(c=>({
+    id:c, name:CAST_NAMES[c] || ('Character '+c.toUpperCase()),
+    model:`characters/models/character-${c}.glb`+V(),
+    preview:`characters/previews/character-${c}.png`+V() })));
+  /* Anything the game may have to STAND UP, roster or not. load() asks
+     this; the Mall asks CHARS. A miss still falls back to the first
+     character rather than throwing — a body that fails to resolve should
+     be the wrong person, never a hole in the world. */
+  const bodyDef = id => BODIES.find(c=>c.id===id) || CHARS[0];
+
   const BASE = 'characters/models/';     // so the .glb finds its texture
   const TALL = 1.85;                     // how tall a person stands, in world units
   const HELD = 0.70;                     // and how long the blaster in their hand reads
@@ -41,7 +69,7 @@ window.AVATAR = (function(){
   let loader=null, gunProto=null;
 
   function file(id){
-    const def = CHARS.find(c=>c.id===id) || CHARS[0];
+    const def = bodyDef(id);
     if(!bytes.has(def.id))
       bytes.set(def.id, fetch(def.model).then(r=>{
         if(!r.ok) throw new Error('missing '+def.model);
@@ -314,6 +342,35 @@ window.AVATAR = (function(){
     chosen = CHARS[0].id;
     try{ localStorage.setItem('dq_char', chosen); }catch(e){}
   }
+  /* ------------------------------------------------------------- the cast
+     A PLACE CAN DECIDE WHO EVERYBODY IS. Walk onto the world that sets one
+     and you are Robin; walk off it and you are whoever you picked, still,
+     because this never touches the choice — `chosen` is what you own and
+     what the Mall and the roster talk about, and the cast is only what is
+     standing in the room.
+
+     Which is the whole reason it is a separate word. Forcing the body by
+     calling pick() would have worked exactly once: it writes to the save
+     bag, so the first visit would have quietly sold the player's own
+     character and given them no way to notice, let alone refuse.
+
+     It applies to PLAYERS — you, and everybody else out on the same ball,
+     since paint() resolves their bodies through here too. The scenery
+     keeps its own faces: a planet where the librarian and the guard and
+     the three people on the dance floor are all the same character is not
+     a cast, it is a bug that renders. */
+  let cast = null;
+  const bodyOf = id => cast || id;
+  function setCast(id){
+    /* Against BODIES and not the roster, or the one character this exists
+       to put on nobody would be the one character it refuses. */
+    const next = (id && BODIES.some(c=>c.id===id)) ? id : null;
+    if(next===cast) return cast;
+    cast=next;
+    if(body) attach();          // change who is standing there, now, not next room
+    return cast;
+  }
+
   /* SOMEBODY WHO IS NOT YOU. The librarian, the guard on his beat and the
      resident behind the decks all want a body that is not the one the
      player is wearing — two of you in a room is a bug, not a cast. With a
@@ -419,7 +476,7 @@ window.AVATAR = (function(){
   async function attach(){
     const seq=++attachSeq;
     let m;
-    try{ m=await load(chosen); }
+    try{ m=await load(bodyOf(chosen)); }
     catch(e){ console.warn('character failed to load',e); return; }
     if(seq!==attachSeq) return;            // they picked again while this loaded
     if(!G.roomGroup){ detach(); return; }  // nowhere to stand
@@ -546,6 +603,7 @@ window.AVATAR = (function(){
   }
 
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle,
+           setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            emote, canEmote, get emoting(){ return emoting>0; },
            get act(){ return acting; },

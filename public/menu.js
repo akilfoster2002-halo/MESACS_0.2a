@@ -431,12 +431,19 @@ window.MENU = (function(){
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
-    /* ON THE BALL YOU WERE LAST STANDING ON, and at the spot on it. Both
-       are the planet's own business — it wrote them down — so all this has to
-       do is stop insisting on the hub. Somebody who signed out on VOLTA
-       signs back in on VOLTA; a first arrival has nothing saved and gets the
-       hub, which is what everybody used to get. */
-    PLANET.enter(NET.signedIn ? world : null, PLANET.lastWorld());
+    /* YOU ARRIVE ON RYU. Not on the ball you were last standing on —
+       which is what this used to do, and is the right rule for a game you
+       are in the middle of rather than one you are opening. Entering is a
+       TRANSPORT now: the door into this game is a landing on a world that
+       is not the hub, and the thing that happens when you land is that you
+       become Robin. That is the same event every time, for everybody, and
+       it is not an event if you can skip it by having logged out
+       somewhere else.
+
+       PLANET.lastWorld() is untouched and still writing down where you
+       were: leave RYU by its pad and the rest of the game is exactly as it
+       was. */
+    PLANET.enter(NET.signedIn ? world : null, 'ryu');
   }
   function enterServer(sv){
     hideAll();

@@ -1,0 +1,108 @@
+<!doctype html><meta charset="utf-8"><title>preview png</title>
+<!-- The roster thumbnail, 256x328 on transparency, rendered from the model
+     itself. Serve the repository root and open
+     /glb%20files/preview-png.html?m=robin.glb
+
+     The four characters already in the game have one of these each and
+     nothing in the pipeline made them, so the fifth had nowhere to come
+     from. menu.js, chars.js and shop.js all draw `character-<id>.png`, and
+     a missing one is a broken-image icon in three different places.
+
+     IN THE IDLE, NOT THE REST POSE. A T-posed thumbnail reads as a model
+     that has not finished loading — chars.js says so about its own
+     turntable — and the whole job of this picture is to say who somebody
+     is before they put them on.
+
+     The page leaves the result in `window.PNG` as base64 as well as
+     drawing it, and with `&save=<path>` POSTs it to png-sink.js, which
+     writes it where it belongs. A canvas cannot save a file on its own:
+     everything it can do with toDataURL ends in a downloads folder under
+     a name the browser chose. -->
+<style>body{margin:0;background:#20242c;font:12px system-ui;color:#aeb8c8;
+  display:flex;gap:18px;align-items:center;justify-content:center;height:100vh}
+#out{background:
+  linear-gradient(45deg,#2b313b 25%,transparent 25%,transparent 75%,#2b313b 75%),
+  linear-gradient(45deg,#2b313b 25%,#353b47 25%,#353b47 75%,#2b313b 75%);
+  background-size:16px 16px;background-position:0 0,8px 8px}</style>
+<img id="out" width="256" height="328">
+<pre id="msg">rendering…</pre>
+<script src="/public/lib/three.classic.js"></script>
+<script>
+const MODEL=new URLSearchParams(location.search).get('m')||'robin.glb';
+const W=256, H=328, SS=2;                 // rendered at 2x and let the img downscale
+const cv=document.createElement('canvas');
+cv.width=W*SS; cv.height=H*SS;
+const r=new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true,
+                                 preserveDrawingBuffer:true});
+r.setClearColor(0x000000, 0);
+r.setSize(W*SS, H*SS, false);
+
+new THREE.GLTFLoader().load(MODEL, g=>{
+  const sc=new THREE.Scene();                      // no background: transparent
+  const m=g.scene;
+  m.traverse(o=>{ if(o.isMesh){ o.frustumCulled=false;
+    if(o.geometry.attributes.color){ o.material.vertexColors=true;
+                                     o.material.needsUpdate=true; } }});
+  sc.add(m);
+  /* chars.js's own lights, so the thumbnail and the turntable beside it
+     are lit the same way and one does not look like a different model. */
+  sc.add(new THREE.HemisphereLight(0xffffff, 0xc3b4e6, 1.5));
+  const key=new THREE.DirectionalLight(0xfff3f8, 1.5); key.position.set(3,6,5);
+  const rim=new THREE.DirectionalLight(0x9fb4ff, 0.8);  rim.position.set(-4,3,-4);
+  sc.add(key, rim);
+
+  const idle=(g.animations||[]).find(c=>c.name==='idle') || (g.animations||[])[0];
+  if(idle){
+    const mixer=new THREE.AnimationMixer(m);
+    mixer.clipAction(idle).play();
+    mixer.setTime(idle.duration*0.25);              // a quarter in, off the loop seam
+  }
+  m.updateMatrixWorld(true);
+
+  /* FRAMED ON THE POSED BODY, not on the rest pose. The arms come down in
+     the idle and a box measured before that is a T-pose's box — half of it
+     empty air, with the character shrunk into the middle of the frame. */
+  const b=new THREE.Box3().setFromObject(m);
+  const s=b.getSize(new THREE.Vector3()), mid=b.getCenter(new THREE.Vector3());
+  const hh=s.y*1.06, aspect=W/H;                   // a little air top and bottom
+  const cam=new THREE.OrthographicCamera(-hh*aspect/2, hh*aspect/2, hh/2, -hh/2, 0.01, 100);
+  cam.position.set(mid.x, mid.y, mid.z + Math.max(4, s.z*8 + 3));
+  cam.lookAt(mid);
+  r.render(sc, cam);
+
+  /* DOWN TO 256x328 BEFORE IT IS EXPORTED. The render is at twice that
+     for the antialiasing; exporting the big canvas would have shipped a
+     thumbnail four times the weight of the four beside it, which is a
+     strange thing for the fifth character to be. */
+  const out=document.createElement('canvas');
+  out.width=W; out.height=H;
+  const octx=out.getContext('2d');
+  octx.imageSmoothingQuality='high';
+  octx.drawImage(cv, 0, 0, W, H);
+  const url=out.toDataURL('image/png');
+  document.getElementById('out').src=url;
+  window.PNG=url.slice(url.indexOf(',')+1);
+  const msg=document.getElementById('msg');
+  const lines=[MODEL, W+'×'+H, Math.round(window.PNG.length*3/4/1024)+' KB',
+               'clip: '+(idle?idle.name:'none')];
+  msg.textContent=lines.join('\n');
+  document.title='ok';
+
+  /* AND THEN PUT IT WHERE IT GOES, if asked. png-sink.js is listening on
+     8792 and writes under the repository; without &save this is still
+     just a page with a picture on it. */
+  const save=new URLSearchParams(location.search).get('save');
+  if(!save) return;
+  const SINK=new URLSearchParams(location.search).get('sink')||'http://localhost:8792';
+  fetch(SINK+'/'+encodeURIComponent(save), {method:'POST', body:window.PNG})
+    .then(r=>r.text().then(t=>{
+      msg.textContent=lines.concat(r.ok ? 'saved \u2192 '+save : 'SAVE FAILED: '+t).join('\n');
+      document.title = r.ok ? 'saved' : 'failed'; }))
+    /* png-sink.js is something somebody has to have remembered to start,
+       so say which one is missing rather than "failed to fetch". */
+    .catch(e=>{ msg.textContent=lines.concat('NO SINK at '+SINK,
+      'start it:  node "glb files/png-sink.js"').join('\n');
+      document.title='failed'; });
+}, undefined, e=>{ document.getElementById('msg').textContent='FAILED '+MODEL;
+                  document.title='failed'; });
+</script>

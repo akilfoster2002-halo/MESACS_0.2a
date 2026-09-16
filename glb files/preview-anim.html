@@ -11,17 +11,22 @@
      failed to load. -->
 <style>body{margin:0;background:#20242c;font:12px system-ui;color:#93a0b4}
 canvas{display:block;margin:0 auto}</style>
-<canvas id="sheet" width="1180" height="1220"></canvas>
+<canvas id="sheet" width="1180"></canvas>
 <script src="/public/lib/three.classic.js"></script>
 <script>
 const MODEL=new URLSearchParams(location.search).get('m')||'savannah.glb';
 const sheet=document.getElementById('sheet'), ctx=sheet.getContext('2d');
-ctx.fillStyle='#2b313b'; ctx.fillRect(0,0,sheet.width,sheet.height);
 const cv=document.createElement('canvas');
 const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,preserveDrawingBuffer:true});
 r.setPixelRatio(2);
 new THREE.GLTFLoader().load(MODEL, g=>{
   const W=140,H=190;
+  /* THE SHEET IS AS TALL AS THE MODEL HAS CLIPS. It used to be a fixed
+     1220, which is six rows — so a character carrying nine of them was
+     checked on the first six and the last three were simply not drawn,
+     with nothing on the page saying so. */
+  sheet.height=g.animations.length*H+8;
+  ctx.fillStyle='#2b313b'; ctx.fillRect(0,0,sheet.width,sheet.height);
   const sc=new THREE.Scene(); sc.background=new THREE.Color(0x2b313b);
   const m=g.scene;
   m.traverse(o=>{ if(o.isMesh&&o.geometry.attributes.color){

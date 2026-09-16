@@ -1,0 +1,59 @@
+{
+  "note": [
+    "Read off Robin's reference sheet. Every number is a fraction of the",
+    "figure and never a length: yN is height with 0 at the sole and 1 at the",
+    "crown, ax is |x| over the fingertip reach, zN is depth over height, all",
+    "in the T-pose — which is what lets the same spec paint the model at any",
+    "scale, and the model is stored at a hundredth of life size to match the",
+    "animation clips.",
+    "Where the drawing and the mesh disagree, trust the drawing for HEIGHTS",
+    "and the rig for WIDTHS, as with Savannah and Carlos. Here they agree",
+    "closely down the arm — drawn elbow 0.585 of the reach against 0.590 on",
+    "the mesh — and the drawn wrist is the usual few percent further out",
+    "(0.844 against 0.777), so lateral numbers are the rig's.",
+    "What the mesh said, by sorting every vertex into the limb its heaviest",
+    "joint drives: boot 0.000-0.090 with the shaft rising past it, leg",
+    "0.063-0.535, hips 0.481-0.621, torso 0.594-0.870, shoulder 0.761-0.830,",
+    "upper arm ax 0.307-0.597, forearm 0.586-0.779, neck 0.834-0.864,",
+    "head 0.847-1.000.",
+    "NOT PAINTED, because none of it survives the size she is on screen: the",
+    "camo on the trousers, the rips in them, the lacing up the front of the",
+    "corset, the cross on the necklace and the two small tattoos."
+  ],
+  "B": {
+    "shoeTop":   0.221,
+    "sole":      0.034,
+    "shortsHem": null,
+    "sock":      null,
+    "waistTop":  0.606,
+    "shirtHem":  0.617,
+    "collarTop": 0.790,
+    "neckline":  0.748,
+    "sleeveStart": 0.190,
+    "sleeveEnd": 0.360,
+    "watch":     [0.760, 0.840],
+    "watchBoth": true,
+    "faceY":     0.893,
+    "faceR":     [0.115, 0.047],
+    "faceZ":     0.020,
+    "throat":    [0.870, 0.080],
+    "hairBack":  [-0.080, 0.700],
+    "hatLine":   null,
+    "bands": [
+      [0.576, 0.606, "belt"],
+      [0.803, 0.821, "choker"]
+    ]
+  },
+  "C": {
+    "skin":   "#f0c9a6",
+    "hair":   "#bf9455",
+    "jersey": "#41343f",
+    "sleeve": "#1f1c22",
+    "jeans":  "#414a35",
+    "shoe":   "#1c1b1f",
+    "sole":   "#e9e6df",
+    "belt":   "#1a171c",
+    "choker": "#1a171c",
+    "watch":  "#1a171c"
+  }
+}

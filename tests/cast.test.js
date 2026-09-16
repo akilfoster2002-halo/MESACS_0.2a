@@ -168,3 +168,108 @@ test('the quick change is wired to a key, a button and the freeze', ()=>{
   assert.match(chars, /setScissorTest\(true\)/,
     'the row is no longer drawn through scissor rectangles');
 });
+
+
+/* ---------------------------------------------------------------- the cast
+   A PLACE THAT DECIDES WHO EVERYBODY IS. RYU puts every player in Robin on
+   the way in and takes her off again on the way out, and the one thing that
+   must never happen is for it to do that by SELLING the player's own
+   character — the choice lives in the save bag and a world is not allowed to
+   write to it. */
+/* ROBIN IS NOT ON THE ROSTER. She is what RYU turns you into and there is no
+   other way to be her: not in the wardrobe, not in the quick change, not for
+   sale. The roster is who you can CHOOSE; BODIES is everything the game can
+   stand up, which is the roster plus the ones a place hands you. */
+test('Robin can be worn but never chosen', ()=>{
+  const avatar = read('public/avatar.js');
+  assert.ok(!roster().includes('w'), 'Robin is on the roster: the Mall now sells her');
+
+  assert.match(avatar, /const CAST_ONLY = \['w'\]/, 'Robin is a body off the roster');
+  assert.match(avatar, /const BODIES = CHARS\.concat\(/, 'and BODIES is the roster plus those');
+  /* load() has to find her, or the one thing she exists for — being cast —
+     falls back to CHARS[0] and RYU quietly puts everybody in Kyle. */
+  assert.match(avatar, /const def = bodyDef\(id\);/,
+    'load() resolves through BODIES, or a cast-only body comes back as Kyle');
+  assert.match(avatar, /BODIES\.some\(c=>c\.id===id\)/,
+    'setCast accepts a body that is not on the roster');
+
+  /* Nothing that offers a CHOICE may read BODIES. Each of these builds a
+     grid, a price list or a picker out of the roster, and a character in one
+     of them is a character somebody can become without going to RYU. */
+  for(const f of ['chars.js','shop.js','menu.js']){
+    const src = read('public/' + f);
+    assert.ok(!/AVATAR\.BODIES/.test(src),
+      `${f} picks from BODIES: Robin is choosable there`);
+  }
+  /* And the dashboard, which shows the body rather than the choice, must
+     read the wider list or it cannot name her at all. */
+  assert.match(read('public/planet.js'), /AVATAR\.bodyDef\(AVATAR\.bodyOf\(AVATAR\.chosen\)\)/,
+    'the dashboard names the body you are in, cast or not');
+
+  const fs2 = require('fs');
+  for(const f of ['public/characters/models/character-w.glb',
+                  'public/characters/previews/character-w.png'])
+    assert.ok(fs2.existsSync(path.join(__dirname, '..', f)), f + ' is installed');
+});
+
+test('a world can cast everybody without touching what they chose', ()=>{
+  const avatar = read('public/avatar.js');
+  assert.match(avatar, /function setCast\(/, 'AVATAR can be told who everybody is here');
+  assert.match(avatar, /const bodyOf = id => cast \|\| id/,
+    'and resolves any character through it');
+  /* The body that gets attached is the resolved one, not the chosen one —
+     otherwise the cast is a value nothing reads. */
+  assert.match(avatar, /load\(bodyOf\(chosen\)\)/,
+    'your own body goes through the cast');
+
+  const setCast = avatar.slice(avatar.indexOf('function setCast('),
+                               avatar.indexOf('function other('));
+  assert.ok(!/PROGRESS\.set|localStorage\.setItem/.test(setCast),
+    'setCast writes to the save bag: a visit would sell the player their own character');
+
+  const planet = read('public/planet.js');
+  assert.match(planet, /AVATAR\.setCast\(W\.cast \|\| null\)/,
+    'entering a world puts its cast on, and entering one without a cast takes it off');
+  assert.match(planet, /AVATAR\.bodyOf\(p\.char\)/,
+    'everybody else on the ball is resolved through the cast too');
+});
+
+test('RYU is where you arrive, and you can get off it without a ship', ()=>{
+  const planet = read('public/planet.js');
+  const world = planet.match(/const RYU_WORLD=\{[\s\S]*?\n  \};/);
+  assert.ok(world, 'planet.js still declares RYU');
+  assert.match(world[0], /cast:'w'/, 'RYU casts Robin');
+  assert.match(world[0], /shuttle:true/, 'and lets you leave by the craft that brought you');
+  assert.match(planet, /const WORLDS = \(\)=>\[[^\]]*RYU_WORLD/,
+    'RYU is in WORLDS, or lastWorld() will refuse to remember it');
+  assert.match(planet, /id==='ryu' \? RYU_WORLD/, 'and worldById can find it');
+
+  /* The trap this closes: a first-minute player is put on a world whose only
+     exit asks for a ship they have no coins to buy, and the shop that sells
+     one is on the planet they cannot reach. */
+  assert.match(planet, /if\(!W\.shuttle && !hasShip\(\)\)/,
+    'a shuttle world does not ask for a ship');
+  /* And does not hand the trip to CRUISE, which knows where exactly two
+     planets are and answers Senio for everything else — a course from a
+     third world to Senio is zero long. */
+  assert.match(planet, /if\(W\.shuttle && !hasShip\(\)\)\{\s*\n\s*leave\(\); enter\(/,
+    'a shuttle sets you down rather than flying a zero-length course');
+
+  assert.match(read('public/menu.js'), /PLANET\.enter\(NET\.signedIn \? world : null, 'ryu'\)/,
+    'entering the game lands on RYU');
+});
+
+test('Robin has every clip the rig can drive', ()=>{
+  /* The five characters share one skeleton and one set of names, and
+     rig.play() leaves the current clip alone when it cannot find the one it
+     was asked for — so a character missing a clip does not fail, it just
+     flies in its idle pose and says nothing about why. */
+  const fs2 = require('fs');
+  const file = path.join(__dirname, '..', 'public/characters/models/character-w.glb');
+  assert.ok(fs2.existsSync(file), 'character-w.glb is installed');
+  const b = fs2.readFileSync(file);
+  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  const clips = (json.animations || []).map(a => a.name);
+  for(const want of ['idle','walk','sprint','jump','dance','fly','swim','salsa','flip'])
+    assert.ok(clips.includes(want), `Robin has no '${want}' clip: ${clips.join(', ')}`);
+});

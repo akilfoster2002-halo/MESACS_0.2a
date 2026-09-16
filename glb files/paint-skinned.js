@@ -77,7 +77,38 @@ function paint(IN, OUT, SPEC){
                high-top entirely red loses the one part of it that says
                shoe rather than foot. */
             sock:null, sole:null,
-            watch:null, panel:null, emblem:null, ...(SPEC.B||{}) };
+            /* A BAND ROUND THE BODY — a belt, a choker, a waistband.
+               Each one is [bottom, top, colour name] in the same
+               fractions as everything else, and the list is read in
+               order, so a buckle laid over a belt goes after it.
+
+               THEY ARE ONLY EVER ASKED ABOUT THE BODY COLUMN. In a
+               T-pose both arms run straight through the height a choker
+               sits at, and a belt that also painted two wrists is not a
+               belt. Hips, torso, neck and head are the only limbs a
+               band round the body can cross. */
+            bands:null,
+            /* WHERE THE GARMENT STOPS AND THE PERSON STARTS, on the body
+               rather than on the neck. collarTop already answers this for
+               the head and the neck, and a T-shirt does not need it asked
+               twice — its collar goes all the way up to them. An
+               off-shoulder top does: the bustline is the top of the
+               clothing and everything over it, the collarbone, the throat
+               and both shoulders, is bare. Null is a garment with no
+               neckline, which is what the first two characters wear. */
+            neckline:null,
+            /* ONE WRIST OR BOTH. A watch goes on one arm, which is why
+               this was ever a question; a pair of studded bracelets goes
+               on two, and the side test that made the watch a watch put
+               the second one on nobody. */
+            /* THE SLEEVE'S INNER EDGE. A shirt's sleeve starts at the
+               neck and the only question is where it ends, so this is
+               zero and sleeveEnd did all the work. A strap that sits off
+               the shoulder starts partway out, and without an inner edge
+               it climbs back up the trapezius to the collar. */
+            sleeveStart:0,
+            watch:null, watchBoth:false,
+            panel:null, emblem:null, ...(SPEC.B||{}) };
   const C={ skin:'#dda070', hair:'#1b100e', jersey:'#9c1521', panel:'#242b4a',
             emblem:'#141013', jeans:'#28313a', shoe:'#ded5cd', watch:'#b9bcc0',
             hat:'#e2d8c4', sock:'#a5222c', sock2:'#17171a', sole:'#efeae2',
@@ -154,6 +185,14 @@ function paint(IN, OUT, SPEC){
     const yN=(y-ymin)/(ymax-ymin), zN=z/(ymax-ymin);
     return zN < B.hairBack[0] && yN > B.hairBack[1];
   }
+  /* Which band, if any, this height falls in. Bands are the one part of
+     the spec that names its own colours, so a character can carry a belt
+     and a choker without either of them becoming a word in here. */
+  function bandAt(yN){
+    if(!B.bands) return null;
+    for(const b of B.bands) if(yN>=b[0] && yN<=b[1]) return b[2];
+    return null;
+  }
   function classify(x,y,z,L){
     /* EVERY NUMBER IN THE SPEC IS A FRACTION OF THE FIGURE, none of them a
        length. The same model is stored at a hundredth of life size to match
@@ -178,7 +217,7 @@ function paint(IN, OUT, SPEC){
       return (B.shortsHem && yN<B.shortsHem) ? 'skin' : 'jeans';
     }
     if(L==='forearm'||L==='hand'){
-      if(B.watch && ax>=B.watch[0] && ax<=B.watch[1] && x>0) return 'watch';
+      if(B.watch && ax>=B.watch[0] && ax<=B.watch[1] && (B.watchBoth || x>0)) return 'watch';
       return 'skin';
     }
     /* THE SLEEVE IS A LENGTH ALONG THE ARM, and in a T-pose that is a
@@ -190,9 +229,14 @@ function paint(IN, OUT, SPEC){
        and a sleeve that stopped at a bone boundary on one and a distance
        on the other left a red thumbprint on the shoulder cap. */
     if(L==='arm'||L==='shoulder'){
-      if(ax>=B.sleeveEnd) return 'skin';
+      if(ax>=B.sleeveEnd || ax<B.sleeveStart) return 'skin';
       if(hairBehind(y,z)) return 'hair';
-      return 'jersey';
+      /* A SLEEVE IS NOT ALWAYS THE SAME GARMENT AS THE BODY. On a shirt
+         it is, which is why this was one colour for two characters; on an
+         off-shoulder top the black cap over the deltoid and the corset
+         under it are two pieces that happen to touch. Undefined leaves
+         the sleeve as the shirt, so nobody already painted changes. */
+      return C.sleeve ? 'sleeve' : 'jersey';
     }
     if(L==='head'||L==='neck'){
       /* HAIR HANGS PAST THE JAW, and past the collar, and lands on the
@@ -201,6 +245,9 @@ function paint(IN, OUT, SPEC){
          head and the front of her collarbone are the same slice of the
          same body. What tells them apart is that hair is BEHIND. */
       if(hairBehind(y,z)) return 'hair';
+      /* UNDER THE HAIR AND OVER EVERYTHING ELSE. A choker is worn on the
+         throat, not on the hair hanging in front of it. */
+      const bandN=bandAt(yN); if(bandN) return bandN;
       if(yN<B.collarTop) return 'jersey';                 // the collar
       /* The face is a window in the hair, and an oval one. A box left
          corners of forehead showing through at the temples and cut the
@@ -217,6 +264,13 @@ function paint(IN, OUT, SPEC){
     }
     // hips and the spine: three garments stacked up one torso
     if(hairBehind(y,z)) return 'hair';
+    /* THE BELT BEFORE THE WAIST, because a belt is worn over the top of
+       whichever of the two garments it crosses — and it crosses both. */
+    const band=bandAt(yN); if(band) return band;
+    /* And above the neckline there is no garment at all. This sits under
+       the band and over everything else for the same reason the choker
+       does: a collar you are not wearing cannot be the thing on top. */
+    if(B.neckline && yN>B.neckline) return 'skin';
     if(yN<B.waistTop) return 'jeans';
     if(yN<B.shirtHem) return 'skin';                      // the bare midriff
     if(B.emblem && zN>0 && yN>B.emblem[0] && yN<B.emblem[1]){
