@@ -99,8 +99,11 @@ window.IONFIX = (function(){
       #ionfix .note{margin-top:14px;padding:12px 14px;border-radius:10px;
              background:#2a2118;border:2px dashed #b08a4a;color:#e8c98a;
              font:400 14px/1.6 ui-monospace,monospace;white-space:pre-wrap}
-      #ionfix .note-h{color:#b08a4a;font-size:11px;letter-spacing:.1em;
-             text-transform:uppercase;margin-bottom:8px;white-space:normal}
+      #ionfix .note-h{color:#ffb4a2;font-size:11.5px;letter-spacing:.09em;
+             text-transform:uppercase;margin-bottom:10px;white-space:normal;
+             font-family:ui-monospace,monospace;line-height:1.5}
+      #ionfix .note-t{margin-top:10px;padding-top:9px;border-top:1px dashed #b08a4a66;
+             color:#e8c98a;white-space:normal;font-size:13px;opacity:.9}
       .ifrun{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
       .ifbtn{border:0;border-radius:11px;padding:11px 20px;cursor:pointer;
              font:700 14px/1 ui-monospace,monospace;letter-spacing:.08em}
@@ -348,8 +351,9 @@ window.IONFIX = (function(){
        if(r.note){
          const el=document.createElement('div');
          el.className='note';
-         el.innerHTML = '<div class="note-h">'+say('\u2026and this, at the end. Commented out. Never run.')+'</div>'
-           + r.note.lines.map(l=>'<div>'+esc(l)+'</div>').join('');
+         el.innerHTML = '<div class="note-h">'+say(r.note.head)+'</div>'
+           + r.note.lines.map(l=>'<div>'+esc(l)+'</div>').join('')
+           + (r.note.tell ? '<div class="note-t">'+say(r.note.tell)+'</div>' : '');
          u.script.appendChild(el);
          try{ el.scrollIntoView({ behavior:'smooth', block:'center' }); }catch(e){}
        }
@@ -357,7 +361,7 @@ window.IONFIX = (function(){
        then out of the way: the thing they fixed is behind this panel and
        the whole point is watching it get up. */
     setTimeout(()=>{ close(); if(opts && opts.onFixed) opts.onFixed(); },
-               r.note ? 4200 : 1100);
+               r.note ? 5600 : 1100);
   }
 
   /* ----------------------------------------------------------------- open */

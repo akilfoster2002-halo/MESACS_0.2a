@@ -142,3 +142,58 @@ test('the bench refuses to bolt on a rover that cannot get there', ()=>{
   assert.match(src, /if\(!R\.verdict\(state\)\.ok\) return;/,
     'bolt() would save a build that cannot reach the tower');
 });
+
+/* ------------------------------------------------- the rover in the world */
+test('the rover is a prop, not a building', ()=>{
+  /* IT GREW WALLS. Everything in BUILDINGS goes through build(), which
+     makes a building — four walls, a roof and a door — so pushing the
+     rover into that list wrapped a shed around the vehicle. Walking out of
+     the house put Robin inside it, looking at the back of a wall. */
+  const fs = require('fs');
+  const path = require('path');
+  const planet = fs.readFileSync(path.join(__dirname,'..','public/planet.js'),'utf8');
+  assert.match(planet, /id:'rover'[\s\S]{0,80}prop:true/,
+    'the rover does not mark itself a prop');
+  assert.match(planet, /if\(b\.id!=='pad' && !b\.prop\) build\(b\)/,
+    'build() still runs over props');
+  /* And props are not kept between visits, or every arrival pushes another
+     copy onto a list that already has last visit's. */
+  assert.match(planet, /filter\(b=>b\.id!=='pad' && !b\.prop\)/,
+    'props survive setWorld and accumulate');
+});
+
+test('you press E at the rover itself, not at a post beside it', ()=>{
+  /* A console on a post has a SIDE: at +2.6 it is behind the vehicle, at
+     -2.6 it is behind you, and either way you walk up to a rover and the
+     button is somewhere else. A vehicle is not a door. */
+  const fs = require('fs');
+  const path = require('path');
+  const planet = fs.readFileSync(path.join(__dirname,'..','public/planet.js'),'utf8');
+  assert.match(planet, /hold\.userData=\{ kind:'machine', label:'THE ROVER', enter:'rover' \}/,
+    'the rover has no hit owner, so nothing focuses it');
+  assert.match(planet, /m\.traverse\(o=>\{ if\(o\.isMesh\)\{ o\.userData\.owner=hold; G\.hits\.push\(o\); \} \}\)/,
+    'the model is not registered as something you can look at');
+});
+
+test('the house has a door onto the planet, and it lands clear of itself', ()=>{
+  const fs = require('fs');
+  const path = require('path');
+  const house = fs.readFileSync(path.join(__dirname,'..','public/house.js'),'utf8');
+  assert.match(house, /function outside\(\)/, 'there is no way out of the house');
+  assert.match(house, /PLANET\.enter\(null, 'ryu', OUTSIDE\)/,
+    'leaving does not put you on RYU at a named spot');
+  const m = house.match(/const OUTSIDE = \{ lon:([\d.]+), lat:(-?[\d.]+) \}/);
+  assert.ok(m, 'the landing spot is gone');
+  /* The house is 28 wide on lon 0 at a radius of 240: half-width 14 units
+     is 3.34 degrees. The chase camera then sits 5.6 units behind you, and
+     on a planet nothing pulls it out of a wall — so the spot has to clear
+     the building by more than the camera's own arm. */
+  const lon = +m[1];
+  const units = lon * Math.PI/180 * 240;
+  assert.ok(units > 14 + 5.6,
+    `the door comes out ${units.toFixed(1)} units from the house centre; `+
+    'the wall is at 14 and the camera trails 5.6 behind');
+  assert.match(fs.readFileSync(path.join(__dirname,'..','public/game.js'),'utf8'),
+    /HOUSE\.active && HOUSE\.outside && HOUSE\.outside\(\)/,
+    'LEAVE does not use the front door');
+});

@@ -339,8 +339,14 @@ test('a character with no swim clip still swims', ()=>{
 
 test('Senio always lands you at the same spot', ()=>{
   const src=read('public/planet.js');
-  assert.match(src, /const back = W\.kind==='hub' \? null : savedSpot\(W\.id\);/,
+  /* THE HUB IS STILL THE EXEMPTION, however the line is spelled. A caller
+     may now name a landing spot — walking out of the house on RYU comes
+     out of the house's own door — and that outranks the bag for one
+     arrival; what must never come back is the hub reading a saved one. */
+  assert.match(src, /const back = at \? null : \(W\.kind==='hub' \? null : savedSpot\(W\.id\)\);/,
     'the hub restores a saved spot again — every student wakes up somewhere different');
+  assert.match(src, /function enter\(sv, worldId, at\)/,
+    'enter() no longer takes a landing spot, so the house has no door');
   /* and it must not WRITE one either: an unread spot is churn on a bag that
      is pushed to the network */
   assert.match(src, /if\(W\.kind!=='hub'\) PROGRESS\.set\(SPOT\(W\.id\)/,

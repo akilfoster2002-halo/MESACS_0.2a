@@ -275,7 +275,13 @@ window.PLANET = (function(){
        second visit would find last visit's pad still in it — pointing at a
        group that was thrown away with the old room. Drop it and let the
        rebuild put a fresh one back. */
-    BUILDINGS = w.buildings = w.buildings.filter(b=>b.id!=='pad');
+    /* PROPS ARE NOT BUILDINGS and they are not kept. The pad appends
+       itself when the world is built and so does the rover, so a second
+       visit would find last visit's copies still in the list — pointing at
+       groups that were thrown away with the old room, and getting pushed
+       again on top. Both are `prop:true` now rather than the pad being
+       excluded by name, because the next one of these will be too. */
+    BUILDINGS = w.buildings = w.buildings.filter(b=>b.id!=='pad' && !b.prop);
     RELIEF=w.relief; SOIL=w.soil.map(c=>({c}));
     BUILDINGS.forEach(b=>{ b.g=null; b.dir=null; b.frame=null; b.solids=[]; });
   }
@@ -451,7 +457,13 @@ window.PLANET = (function(){
   const worldPos = extra => me.dir.clone().multiplyScalar(PR + me.alt + (extra||0));
 
   /* ---------------------------------------------------------------- build */
-  function enter(sv, worldId){
+  /* WHERE TO PUT SOMEBODY DOWN, when the caller knows better than the save
+     bag does. Walking out of the house is the case: the room you were in
+     is a building on this ball, so you should come out of its door — and
+     a student who reached that room from Mission Control has never stood
+     on RYU and has no saved spot to be put back at. {lon,lat} in, and it
+     outranks the bag for exactly one arrival. */
+  function enter(sv, worldId, at){
     server = sv || null;
     // whichever ball we are standing on decides its own size, sky and soil
     setWorld(worldById(worldId || (W?W.id:'hub')));
@@ -508,7 +520,11 @@ window.PLANET = (function(){
     basins = window.ISLANDS ? ISLANDS.spots({ id:W.id, PR, dirOf, frameAt }) : [];
     seatBasins();                  // and level their rims before anything is dug
     surface();
-    BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
+    /* A PROP DOES NOT GET WALLS. build() makes a building — four walls, a
+       roof and a door — and the rover went through it, so walking out of
+       the house put you inside a shed that had grown around the vehicle.
+       It is a model on a patch of ground; that is all it ever was. */
+    BUILDINGS.forEach(b=>{ if(b.id!=='pad' && !b.prop) build(b); });
     launchpad(W);                  // its plate, now that its patch is flat
     roverBuild();                  // and the rover on its own patch
     scatter();                     // after the buildings: it works around them
@@ -540,8 +556,17 @@ window.PLANET = (function(){
        The other worlds keep it. A home planet is yours and a night world is
        somewhere you were part-way through looking at, and on both of those
        being put back where you were is the whole point. */
-    const back = W.kind==='hub' ? null : savedSpot(W.id);
-    if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
+    const back = at ? null : (W.kind==='hub' ? null : savedSpot(W.id));
+    if(at){
+      /* Facing whatever is nearest, so you come out looking at something
+         rather than at the horizon. */
+      me.dir=dirOf(at.lon, at.lat);
+      let near=null, nd=1e9;
+      BUILDINGS.forEach(b=>{ if(!b.dir) return;
+        const d=b.dir.distanceTo(me.dir); if(d>0.001 && d<nd){ nd=d; near=b; } });
+      me.fwd = near ? facing(me.dir, near.dir) : frameAt(me.dir,0).fwd.clone();
+    }
+    else if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
       /* Out in front of Mission Control's door, looking straight at it. Not
          "somewhere near it" — the door is on the +z side of the building's
@@ -584,7 +609,12 @@ window.PLANET = (function(){
        anywhere saying why, has not arrived on a planet — they have found a
        bug. One line, once, on the way in. */
     if(W.cast && window.AVATAR){
-      const who=(AVATAR.CHARS.find(c=>c.id===W.cast)||{}).name || W.cast;
+      /* THROUGH bodyDef, NOT CHARS. Robin is deliberately not on the
+         roster — she is the one body only a place can hand you — so
+         looking her up in the list of characters you can CHOOSE found
+         nothing, and the line read "out here everyone is w". */
+      const who=(AVATAR.bodyDef ? AVATAR.bodyDef(W.cast)
+                                : AVATAR.CHARS.find(c=>c.id===W.cast) || {}).name || W.cast;
       setTimeout(()=>{ if(on && W.cast) say(t('{p} takes your shape. Out here everyone is <b>{n}</b>.',
                                              {p:W.name, n:who})); }, 900);
     }
@@ -2139,7 +2169,8 @@ window.PLANET = (function(){
     roverB=null;
     if(!w || w.id!=='ryu' || !window.GARAGE) return;
     const spot={ lon:5, lat:-2 };
-    roverB={ id:'rover', name:'THE ROVER', em:'\u{1F69C}', lon:spot.lon, lat:spot.lat,
+    roverB={ id:'rover', name:'THE ROVER', em:'\u{1F69C}', prop:true,
+             lon:spot.lon, lat:spot.lat,
              w:8, d:8, h:0, roof:0xffd8a8, dir:dirOf(spot.lon, spot.lat),
              frame:null, g:null, solids:[] };
     BUILDINGS.push(roverB);
@@ -2155,10 +2186,19 @@ window.PLANET = (function(){
        at the side of it rather than up its exhaust. */
     m.rotation.y=-Math.PI/2;
     g.add(m);
-    b.solids.push({ x1:b.dir.x-2, x2:b.dir.x+2, z1:b.dir.z-2, z2:b.dir.z+2, y1:0, y2:2 });
-    panel(g, b, 0, 2.6, '\u{1F527}',
-          t('THE ROVER')+'\n'+t(GARAGE.saved() ? 'CHANGE THE PARTS' : 'BUILD IT'),
-          'rover', '#3a2a1b', 0.62, Math.PI);
+    b.solids.push({ x1:-1.2, x2:1.2, z1:-1.5, z2:1.5, y1:0, y2:1.7 });
+
+    /* THE ROVER IS THE THING YOU PRESS E AT. It had a console on a post
+       beside it, like a mission door, and a post has a SIDE — put it at
+       +2.6 and it is behind the vehicle, put it at -2.6 and it is behind
+       you, and either way you walk up to a rover and the button is
+       somewhere else. A vehicle is not a door. So every mesh of it is a
+       hit that owns the same holder, and it can be pressed from wherever
+       you happen to be standing when you reach it. */
+    const hold=new THREE.Object3D();
+    hold.userData={ kind:'machine', label:'THE ROVER', enter:'rover' };
+    g.add(hold);
+    m.traverse(o=>{ if(o.isMesh){ o.userData.owner=hold; G.hits.push(o); } });
   }
 
   function padSpec(w){
@@ -2168,7 +2208,7 @@ window.PLANET = (function(){
     /* A roof colour and an emoji it will never wear, because the MAP draws
        every building from those two fields and a pad you cannot find on the
        map is a pad you cannot fly home from. */
-    padB={ id:'pad', name:'THE PAD', em:'\u{1F6F8}', lon:spot.lon, lat:spot.lat,
+    padB={ id:'pad', name:'THE PAD', em:'\u{1F6F8}', prop:true, lon:spot.lon, lat:spot.lat,
            w:26, d:26, h:0, roof:0x8ff0ff, dir, frame:null, g:null, solids:[] };
     BUILDINGS.push(padB);
   }

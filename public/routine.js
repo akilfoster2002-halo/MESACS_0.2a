@@ -264,17 +264,30 @@
   }
 
   /* ====================================================== THE NOTE
-     NOT A FAULT. It is the last thing in his routine, it is commented out
-     so it has never run, and it is not in his handwriting. The console
-     only shows it once the program works, because until then there is a
-     robot on the floor and nobody is reading footnotes. */
+     NOT A FAULT, AND NOT LEFT BY ANYBODY WHO LIVES HERE. It is the last
+     thing in his routine, commented out so it has never run, and it is
+     addressed TO him — which means somebody opened him up, wrote it, and
+     closed him again while he was on the floor. That is the fact worth
+     landing, and it lands on the second line rather than the fourth: a
+     note that only says "do not tell her" is gossip. A note that starts by
+     telling him he will not remember it having been written is somebody
+     standing in the room.
+
+     The console only shows it once the program works, because until then
+     there is a robot on the floor and nobody reads footnotes with a robot
+     on the floor. */
   const NOTE = {
+    head: 'There is something else in here. Five lines at the end of his '
+        + 'routine, commented out, addressed to him.',
     lines: [
-      '# ion — if she asks where the spare cells went,',
-      '# say the crate was empty when it arrived.',
-      '# she does not need to come out to the tower.',
-      '#                                    — E.'
+      '# patched 04:12. this line will not be in your log.',
+      '# you have never met me. you were never opened.',
+      '# if she asks about the cells: the crate came empty.',
+      '# keep her off the tower road.',
+      '#                                              \u2014 E.'
     ],
+    /* What is wrong with it, in one line, for the moment the panel closes. */
+    tell: 'His log has no gap in it. Whoever wrote this took the gap out too.',
     who: 'E.'
   };
 

@@ -92,6 +92,23 @@ window.HOUSE = (function(){
   const W = (tx,tz) => [tx*U(), tz*U()];
   const ION_AT = [16, 36];          // the tile marked G, in world units
   const DOOR_Z = 24;                // the wall the doorway is in
+  /* WHERE THE FRONT DOOR COMES OUT. The house stands at lon 0, lat -2 on
+     RYU and the rover is parked at lon 5 — so stepping outside puts you
+     between the two, looking at the thing you were just told you needed.
+     Slightly south of the house so you are in front of it rather than
+     inside its footprint. */
+  /* CLEAR OF THE HOUSE, AND OF THE CAMERA BEHIND YOU. Two goes at this.
+     The house is 28 by 24 centred on lon 0, which at a radius of 240 is
+     about 3.3 degrees of half-width, so the first spot — 2.4 degrees out —
+     was INSIDE the building and the screen was black. The second, at 3.9,
+     put Robin outside and left the CHASE CAMERA in the wall: it sits five
+     and a half units behind her, and on a planet nothing pulls it out of
+     a solid the way it does indoors. A raycast out of the lens hit the
+     roof at three metres.
+     So: past the rover rather than short of it. She comes out looking at
+     the thing she was just told she needs, with her own house behind it
+     and nothing between the camera and open ground. */
+  const OUTSIDE = { lon:6.3, lat:-2.4 };
 
   /* ===================================================================
      REPLAY  —  TEMPORARY, AND THE ONE LINE THAT TURNS IT OFF.
@@ -123,10 +140,15 @@ window.HOUSE = (function(){
      Everywhere else in this game E is "go in", and G.room==='house' is not
      a room anything else routes it for — so this is the only listener that
      wants it and it keeps to itself. */
+  const atDoor = () => G.pos.z < 8;      // the front of the first room
   function onKey(e){
-    if(!on || !L || !L.askE) return;
-    if(e.code!=='KeyE' || !nearIon()) return;
-    L.eHit=true;
+    if(!on || !L || e.code!=='KeyE') return;
+    if(L.askE && nearIon()){ L.eHit=true; return; }
+    if(L.askOut && atDoor()){ L.outHit=true; return; }
+    /* AND ONCE THE STORY IS OVER, the front door simply works. A house you
+       can only leave at the one moment a scene offered it to you is a
+       room with a cutscene for a door. */
+    if(!L.askE && !L.askOut && atDoor() && !(window.SCENE && SCENE.active)) outside();
   }
 
   /* ===================================================================
@@ -356,10 +378,20 @@ window.HOUSE = (function(){
       brief(say('Ion is up and about.'));
       return;
     }
+    /* AND ONE LAST LOOK BEFORE THE STORY STARTS. enter() is a long async
+       function — a kit to load, a character to attach, a robot to fetch —
+       and LEAVE is a live button the whole time. Walk out during the load
+       and stop() runs, and then this resumes and plays the opening scene
+       of a room that is not on screen any more: a dialogue bar over the
+       planet, with the camera being driven by a house nobody is in. Every
+       other await in here is guarded; this was the gap after the last
+       one. */
+    if(!on) return;
     if(!keyHook){ keyHook=onKey; addEventListener('keydown', keyHook); }
     if(!window.SCENE){ brief(say('Through the door.')); return; }
     SCENE.play(story(), { faces:FACES,
-      end:()=>{ G.running=true; prompt_(null); openConsole(); } });
+      end:()=>{ if(!on) return;
+                G.running=true; prompt_(null); openConsole(); } });
   }
 
   /* One slab over the whole footprint, facing down. The rooms are lit from
@@ -447,6 +479,21 @@ window.HOUSE = (function(){
     ];
   }
 
+  /* OUT OF THE FRONT DOOR AND ONTO THE PLANET. There was no way out of
+     here at all: LEAVE goes to whichever ball you were last standing on,
+     and a student who reached this room from Mission Control has never
+     stood on RYU — so it put them on Senio, a world away from the rover
+     they had just been told to go and build. Now leaving the house means
+     leaving the house. */
+  function outside(){
+    if(!window.PLANET) return false;
+    stop();
+    document.querySelector('#hud').classList.remove('hidden');
+    G.running=true;
+    PLANET.enter(null, 'ryu', OUTSIDE);
+    return true;
+  }
+
   /* The console is a separate module: it is a lesson, and it has no idea
      there is a house around it. */
   function openConsole(){
@@ -480,21 +527,33 @@ window.HOUSE = (function(){
         who:'Ion', say:say_('Good morning, Robin. You fixed my legs.') },
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] },
         who:'Robin', say:say_('Pancakes. In a minute.') },
-      /* AND THE THING SHE READ ON THE WAY OUT. The note is not a fault and
-         nothing was wrong with it — it is four commented-out lines at the
-         end of his routine, in somebody else's handwriting, and it is the
-         only part of this morning that does not add up. */
-      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] }, ease:1.1,
-        who:'Robin', say:say_('Ion. There is a note at the end of your routine.') },
+      /* AND THE THING AT THE END OF HIM. Nothing was wrong with it and it
+         never ran — five commented-out lines, addressed to him, by
+         somebody who opened him up while he was on the floor. It is the
+         only part of this morning that does not add up, and the beat it
+         turns on is not the secret, it is that he has no memory of it. */
+      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] }, ease:1.2,
+        who:'Robin', say:say_('Ion. There are five lines at the end of your routine.') },
       { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] },
-        who:'Ion',   say:say_('…I have no memory of writing that.') },
-      { shot:{ eye:[18.9, 1.15, 33.4], at:[16, 0.9, 36] }, ease:1.0,
-        who:'Robin', say:say_('“If she asks where the spare cells went, say the crate was empty.”') },
-      { shot:{ eye:[18.9, 1.15, 33.4], at:[16, 0.9, 36] },
-        who:'Robin', say:say_('Signed <b>E.</b> — and it says I do not need to come out to the tower.') },
-      { shot:{ eye:[20.8, 2.0, 31.6], at:[16, 1.0, 36] }, ease:1.1,
+        who:'Robin', say:say_('They are addressed to you.') },
+      { shot:{ eye:[18.9, 1.1, 33.5], at:[16, 0.9, 36] }, ease:1.2,
+        who:'Ion',   say:say_('\u2026I did not write those.') },
+      { shot:{ eye:[18.9, 1.1, 33.5], at:[16, 0.9, 36] },
+        who:'Robin', say:say_('\u201cPatched 04:12. This line will not be in your log.\u201d') },
+      { shot:{ eye:[18.3, 0.95, 34.1], at:[16, 0.88, 36] }, ease:1.1,
+        who:'Ion',   say:say_('My log has no gap at 04:12. My log has no gap anywhere.') },
+      { shot:{ eye:[18.3, 0.95, 34.1], at:[16, 0.88, 36] },
+        who:'Robin', say:say_('Then whoever was inside you took the gap out as well.') },
+      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] }, ease:1.3,
+        who:'Robin', say:say_('\u201cYou have never met me. You were never opened.\u201d Signed <b>E.</b>') },
+      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] },
+        who:'Ion',   say:say_('I have never met anybody called E.') },
+      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] },
+        who:'Robin', say:say_('No. You have not.') },
+      { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] }, ease:1.1,
+        who:'Robin', say:say_('The last line says to keep me off the tower road.') },
+      { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
         who:'Ion',   say:say_('Mr Einstein is at the tower. It is a long way out.') },
-      { free:true, who:'Robin', say:say_('Then I need something to get there in.') }
     ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); after(); } });
   }
 
@@ -502,7 +561,10 @@ window.HOUSE = (function(){
      not built yet; this is the door it will be behind, and it says so
      rather than pretending there is nothing there. */
   function after(){
-    brief(say('Ion is up. The tower is a long way out \u2014 you will need a vehicle.'));
+    /* And straight out of the door. The rover is a hundred paces away and
+       the scene has just finished telling her she needs it; making her
+       hunt for a way out of her own house is not suspense. */
+    if(!outside()) brief(say('Ion is up. The tower is a long way out \u2014 you will need a vehicle.'));
   }
 
   function brief(msg){
@@ -541,6 +603,9 @@ window.HOUSE = (function(){
     /* The E prompt follows her about: up when she is over him, down when
        she is not. */
     if(L.askE) prompt_(nearIon() ? say('E \u2014 open Ion\u2019s console') : null);
+    else if(L.askOut) prompt_(atDoor() ? say('E \u2014 go outside') : say('Back to the front door'));
+    else if(!(window.SCENE && SCENE.active))
+      prompt_(atDoor() ? say('E \u2014 go outside') : null);
 
     const lift=L.ion && L.ion.lift;
     if(lift){
@@ -551,5 +616,5 @@ window.HOUSE = (function(){
     }
   }
 
-  return { enter, stop, tick, get active(){ return on; }, PLAN, ION_TALL };
+  return { enter, stop, tick, outside, get active(){ return on; }, PLAN, ION_TALL };
 })();

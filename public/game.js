@@ -1309,6 +1309,11 @@ function returnToDesktop(){
      it — so LEAVE goes back to the shelf rather than dropping you outside
      on VOLTA with no idea where your game went. */
   if(window.ARCADE && ARCADE.building && ARCADE.leaveBench()) return;
+  /* LEAVING THE HOUSE MEANS LEAVING THE HOUSE. It is a room in a building
+     on RYU, so the way out of it is its own front door — not the last ball
+     you happened to stand on, which for anybody who reached it from
+     Mission Control is Senio, a world away from the rover parked outside. */
+  if(window.HOUSE && HOUSE.active && HOUSE.outside && HOUSE.outside()) return;
   if(window.PLANET && MENU.homeworld) MENU.homeworld();
   else MENU.open();
 }

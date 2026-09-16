@@ -172,6 +172,18 @@ test('the note only turns up once the program works, and is not a fault', ()=>{
   for(const l of r.note.lines)
     assert.match(l, /^#/, 'a line of the note is not commented out: '+l);
   assert.match(r.note.lines.join(' '), /tower/, 'it has to point somewhere');
+  /* AND IT HAS TO READ AS AN INTRUSION rather than as a memo. Somebody
+     opened him, wrote to him, and closed him again — the line that lands
+     is the one telling him he will not remember it, not the secret. */
+  const body = r.note.lines.join(' ').toLowerCase();
+  assert.match(body, /log|remember|never opened/,
+    'nothing in the note says it was hidden from him');
+  assert.match(body, /\byou\b/, 'the note is not addressed to Ion');
+  assert.ok(r.note.head && /addressed to him|else in here/i.test(r.note.head),
+    'the panel does not say who it is addressed to');
+  assert.ok(r.note.tell && r.note.tell.length > 20,
+    'there is no sting for the moment the panel closes');
+  assert.match(r.note.who, /^E/, 'it has to be signed');
 });
 
 test('nothing a player can click breaks it', ()=>{
@@ -194,4 +206,16 @@ test('the trace is what the console draws, and every line is labelled', ()=>{
     R.run(s).trace.forEach(l=>kinds.add(l.kind));
   for(const k of kinds)
     assert.ok(['hat','loop','in','if','do','good','bad'].includes(k), 'unknown trace kind: '+k);
+});
+
+test('the note says how many lines it has, and has that many', ()=>{
+  /* It said four and shipped five. A note that cannot count itself is a
+     note nobody wrote, which is the opposite of the effect. */
+  const n = R.run({ loop:'repeat', times:4, stride:10, where:'is',
+                    hot:'is', batter:'is', join:'and' }).note;
+  const WORDS = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7 };
+  const m = n.head.toLowerCase().match(/\b(one|two|three|four|five|six|seven)\b/);
+  assert.ok(m, 'the header does not say how many lines there are');
+  assert.strictEqual(WORDS[m[1]], n.lines.length,
+    `the header says ${m[1]} and there are ${n.lines.length}`);
 });
