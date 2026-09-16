@@ -62,7 +62,7 @@ window.IONFIX = (function(){
               line-height:1.5;color:#efe9ff}
       #ifstep.clear{border-color:#a8e6cf;color:#cdf3e2}
       #ifstep b{color:#ffd8a8}
-      #ifstep .no{display:block;font:700 10px/1 ui-monospace,monospace;
+      #ifstep > .no{display:block;font:700 10px/1 ui-monospace,monospace;
                   letter-spacing:.14em;text-transform:uppercase;color:#9b8fc4;
                   margin-bottom:5px}
       /* THE BLOCKS THEMSELVES ARE NOT STYLED HERE. .blk, .blk-rep,
@@ -80,6 +80,27 @@ window.IONFIX = (function(){
       #ionfix .ring{outline:4px solid #ffd8a8;outline-offset:3px;border-radius:9px;
              animation:ifring 1.4s ease-in-out infinite}
       @keyframes ifring{50%{outline-color:#ffd8a866}}
+      #ionfix .bool-side{display:inline-flex;align-items:center;gap:6px;font-size:16px}
+      #ionfix .cond.join{font-weight:700;letter-spacing:.06em}
+      /* The vocabulary, under the step that needs it. CODE's palette says
+         what every block does; somebody meeting AND for the first time in
+         the middle of a repair deserves the same sentence. */
+      #ionfix .vocab{margin-top:9px;padding-top:8px;border-top:1px solid #4a3f6b;
+             color:#bcb0e0;font-size:13.5px}
+      #ionfix .morns{margin-top:10px;border-collapse:collapse;font-size:13px;width:100%}
+      #ionfix .morns th{color:#9b8fc4;font-weight:600;text-align:left;
+             text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;padding:2px 8px 4px 0}
+      #ionfix .morns td{padding:3px 8px 3px 0;border-top:1px solid #372c56}
+      #ionfix .morns tr.m-ok td{color:#a8e6cf}
+      #ionfix .morns tr.m-no td{color:#ff9aa2;font-weight:700}
+      /* SOMEBODY ELSE'S HANDWRITING. Not a block — it is commented out and
+         it never ran, and drawing it as a block would say it is part of
+         the program. A torn strip of paper taped inside the case. */
+      #ionfix .note{margin-top:14px;padding:12px 14px;border-radius:10px;
+             background:#2a2118;border:2px dashed #b08a4a;color:#e8c98a;
+             font:400 14px/1.6 ui-monospace,monospace;white-space:pre-wrap}
+      #ionfix .note-h{color:#b08a4a;font-size:11px;letter-spacing:.1em;
+             text-transform:uppercase;margin-bottom:8px;white-space:normal}
       .ifrun{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
       .ifbtn{border:0;border-radius:11px;padding:11px 20px;cursor:pointer;
              font:700 14px/1 ui-monospace,monospace;letter-spacing:.08em}
@@ -147,7 +168,7 @@ window.IONFIX = (function(){
 
      `--c` is the block's colour, and the colours are code.js's own for the
      same block: repeat and forever purple, if mint, move blue. */
-  const C = { loop:'#cdb4f6', ifc:'#a8e6cf', move:'#8fd3ff', act:'#bdb2d8' };
+  const C = { loop:'#cdb4f6', ifc:'#a8e6cf', bool:'#9fe6b4', move:'#8fd3ff', act:'#bdb2d8' };
 
   /* A forever has no notch under it, because nothing put there could ever
      run. The shape is the warning — code.js says so, and it is the whole
@@ -182,17 +203,17 @@ window.IONFIX = (function(){
      Scratch and in blocks.js. code.js's own `if` has no else — it is a
      console for programs that run once — so this is its head, its body and
      its foot with a second bar between them. */
+  /* THE OUTER IF AND THE INNER ONE. Two C-blocks, the second inside the
+     first's body, which is what a nested condition IS — and drawing it any
+     other way would teach a shape that does not exist. */
   function ifBlock(s){
     return `<div class="blk rep" style="--c:${C.ifc}">
         <div class="blk-head">
           <span class="blk-name">${say('if he')}</span>
-          <button class="cond" id="iftest">${say(s.test)}</button>
+          <button class="cond" id="ifwhere">${say(s.where)}</button>
           <span class="blk-times">${say('in the kitchen')}</span>
         </div>
-        <div class="blk-body">
-          <div class="blk" style="--c:${C.act}">
-            <span class="blk-name">${say('make breakfast')}</span></div>
-        </div>
+        <div class="blk-body">${boolBlock(s)}</div>
         <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
         <div class="blk-body">
           <div class="blk" style="--c:${C.act}">
@@ -202,16 +223,48 @@ window.IONFIX = (function(){
       </div>`;
   }
 
+  /* THE BOOLEAN. Two questions and the word that joins them, and all three
+     are buttons — because which of them is wrong is the thing being
+     assessed, and a student has to be able to try the other one. */
+  function boolBlock(s){
+    return `<div class="blk rep" style="--c:${C.bool}">
+        <div class="blk-head">
+          <span class="blk-name">${say('if')}</span>
+          <span class="bool-side">${say('the pan')}
+            <button class="cond" id="ifhot">${say(s.hot)}</button>
+            ${say('hot')}</span>
+          <button class="cond join" id="ifjoin">${say(s.join)}</button>
+          <span class="bool-side">${say('there')}
+            <button class="cond" id="ifbatter">${say(s.batter)}</button>
+            ${say('batter')}</span>
+        </div>
+        <div class="blk-body">
+          <div class="blk" style="--c:${C.act}">
+            <span class="blk-name">${say('make pancakes')}</span></div>
+        </div>
+        <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
+        <div class="blk-body">
+          <div class="blk" style="--c:${C.act}">
+            <span class="blk-name">${say('wait')}</span></div>
+        </div>
+        <div class="blk-foot"></div>
+      </div>`;
+  }
+
   function draw(){
-    const u=dom(), s=state, Rt=R();
+    const u=dom(), s=state;
     u.script.innerHTML = loopHead(s) + ifBlock(s);
 
     const on_=(id,fn)=>{ const e=$('#'+id,u.el); if(e) e.onclick=fn; };
     const set=(k,v)=>{ state[k]=v; state=R().tidy(state); draw(); };
-    on_('ifloop', ()=>set('loop', s.loop==='repeat' ? 'forever' : 'repeat'));
-    on_('ifdec',  ()=>set('times', s.times-1));
-    on_('ifinc',  ()=>set('times', s.times+1));
-    on_('iftest', ()=>set('test', s.test==='is' ? 'is not' : 'is'));
+    const flip=k=>()=>set(k, state[k]==='is' ? 'is not' : 'is');
+    on_('ifloop',  ()=>set('loop', s.loop==='repeat' ? 'forever' : 'repeat'));
+    on_('ifdec',   ()=>set('times', s.times-1));
+    on_('ifinc',   ()=>set('times', s.times+1));
+    on_('ifwhere', flip('where'));
+    on_('ifhot',   flip('hot'));
+    on_('ifbatter',flip('batter'));
+    on_('ifjoin',  ()=>set('join', s.join==='and' ? 'or' : 'and'));
     const n=$('#ifstride',u.el);
     if(n){
       /* Typed, like every other number in this language. Read on the way
@@ -229,23 +282,46 @@ window.IONFIX = (function(){
      Redrawn on every change, because it is read off the program rather
      than counted: fix the faults in any order and the step that is still
      wrong is the one on screen. Undo a fix and its step comes back. */
-  const HOLE = { loop:'ifloop', times:'iftimes', stride:'ifstride', test:'iftest' };
+  const HOLE = { loop:'ifloop', times:'iftimes', stride:'ifstride',
+                 where:'ifwhere', hot:'ifhot', batter:'ifbatter', join:'ifjoin' };
+
+  /* EVERY MORNING, WHILE THEY ARE LOOKING AT THE RULE. A boolean cannot be
+     checked by reading it — that is the whole reason it is hard — so the
+     four mornings are on screen next to it, with what the rule does to
+     each one and what it should have done. It is the arithmetic line of
+     the motion step, for a question that has no arithmetic in it. */
+  function table(){
+    const rows=R().mornings(state);
+    return `<table class="morns"><tr>
+        <th>${say('pan')}</th><th>${say('batter')}</th>
+        <th>${say('he')}</th><th></th></tr>` +
+      rows.map(r=>`<tr class="${r.ok?'m-ok':'m-no'}">
+        <td>${r.hot?say('hot'):say('cold')}</td>
+        <td>${r.batter?say('yes'):say('no')}</td>
+        <td>${r.got?say('cooks'):say('waits')}</td>
+        <td>${r.ok?'\u2713':say('should {w}',{w:r.want?say('cook'):say('wait')})}</td>
+      </tr>`).join('') + '</table>';
+  }
+
   function walk(){
     const u=dom(), st=R().step(state);
     if(!st){
       u.step.className='clear';
-      u.step.innerHTML='<span class="no">'+say('All three')+'</span>'+
+      u.step.innerHTML='<span class="no">'+say('All six')+'</span>'+
         say('That is the program. Press <b>RUN</b> and watch him.');
       return;
     }
     u.step.className='';
     u.step.innerHTML='<span class="no">'+
-      say('Fault {n} of {m}',{n:st.n,m:st.of})+'</span>'+st.say;
+      say('Fault {n} of {m}',{n:st.n,m:st.of})+
+      ' \u00b7 <em>'+say(st.topic)+'</em></span>'+
+      st.say +
+      (st.help ? '<div class="vocab">'+st.help+'</div>' : '') +
+      (st.id==='bool' ? table() : '');
     const e=$('#'+HOLE[st.hole], u.el);
     if(e) e.classList.add('ring');
   }
 
-  /* --------------------------------------------------------------- run it */
   function runIt(){
     const u=dom(), r=R().run(state);
     u.trace.innerHTML = r.trace.map(l=>`<div class="${l.kind}">${esc(l.text)}</div>`).join('');
@@ -263,10 +339,25 @@ window.IONFIX = (function(){
     if(done) return;
     done=true;
     u.go.disabled=true;
-    /* A beat to read the last line of the trace, and then out of the way:
-       the thing they fixed is lying on the floor behind this panel and
+    /* ================================================ AND THE NOTE
+       The last thing in his routine, commented out so it has never run,
+       and not in his handwriting. It is shown only now: until the program
+       works there is a robot on the floor, and nobody reads footnotes with
+       a robot on the floor. Appended to the program rather than to the
+       trace, because it is a thing that is IN him. */
+       if(r.note){
+         const el=document.createElement('div');
+         el.className='note';
+         el.innerHTML = '<div class="note-h">'+say('\u2026and this, at the end. Commented out. Never run.')+'</div>'
+           + r.note.lines.map(l=>'<div>'+esc(l)+'</div>').join('');
+         u.script.appendChild(el);
+         try{ el.scrollIntoView({ behavior:'smooth', block:'center' }); }catch(e){}
+       }
+    /* Long enough to read four lines of somebody else's handwriting, and
+       then out of the way: the thing they fixed is behind this panel and
        the whole point is watching it get up. */
-    setTimeout(()=>{ close(); if(opts && opts.onFixed) opts.onFixed(); }, 1100);
+    setTimeout(()=>{ close(); if(opts && opts.onFixed) opts.onFixed(); },
+               r.note ? 4200 : 1100);
   }
 
   /* ----------------------------------------------------------------- open */

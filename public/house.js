@@ -479,9 +479,30 @@ window.HOUSE = (function(){
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] }, ease:1.0,
         who:'Ion', say:say_('Good morning, Robin. You fixed my legs.') },
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('Pancakes?') },
-      { free:true, who:'Ion', say:say_('Pancakes.') }
-    ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); } });
+        who:'Robin', say:say_('Pancakes. In a minute.') },
+      /* AND THE THING SHE READ ON THE WAY OUT. The note is not a fault and
+         nothing was wrong with it — it is four commented-out lines at the
+         end of his routine, in somebody else's handwriting, and it is the
+         only part of this morning that does not add up. */
+      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] }, ease:1.1,
+        who:'Robin', say:say_('Ion. There is a note at the end of your routine.') },
+      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] },
+        who:'Ion',   say:say_('…I have no memory of writing that.') },
+      { shot:{ eye:[18.9, 1.15, 33.4], at:[16, 0.9, 36] }, ease:1.0,
+        who:'Robin', say:say_('“If she asks where the spare cells went, say the crate was empty.”') },
+      { shot:{ eye:[18.9, 1.15, 33.4], at:[16, 0.9, 36] },
+        who:'Robin', say:say_('Signed <b>E.</b> — and it says I do not need to come out to the tower.') },
+      { shot:{ eye:[20.8, 2.0, 31.6], at:[16, 1.0, 36] }, ease:1.1,
+        who:'Ion',   say:say_('Mr Einstein is at the tower. It is a long way out.') },
+      { free:true, who:'Robin', say:say_('Then I need something to get there in.') }
+    ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); after(); } });
+  }
+
+  /* WHAT IS NEXT, and it is deliberately only a sentence. The vehicle is
+     not built yet; this is the door it will be behind, and it says so
+     rather than pretending there is nothing there. */
+  function after(){
+    brief(say('Ion is up. The tower is a long way out \u2014 you will need a vehicle.'));
   }
 
   function brief(msg){
