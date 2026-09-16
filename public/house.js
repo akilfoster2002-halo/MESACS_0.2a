@@ -33,6 +33,16 @@ window.HOUSE = (function(){
   const U = () => (window.BUILDING && BUILDING.UNIT) || 4;
   const say_ = (s,p) => (window.t ? t(s,p) : s);
   const say = say_;
+  /* WHAT ION CALLS YOU. He used to say "Robin", because that is who you
+     were made into the moment you landed. You arrive as yourself now, so
+     the name is yours and it goes in as a parameter — which also means
+     the Spanish line keeps the same {n} and nobody translates a username.
+     See avatar.js: myName() is the one place that decides this. */
+  const ME = () => (window.AVATAR && AVATAR.myName) ? AVATAR.myName() : say_('you');
+  /* AND WHEN HE IS STUTTERING IT. The stutter was written into the
+     string — "R-Robin" — which only works for a name beginning with R.
+     Built off the first letter instead, so it stutters whoever you are. */
+  const stut = n => (n && n.length) ? (n[0] + '-' + n) : n;
 
   /* ------------------------------------------------------------ the plan
        #  wall      W  window wall     D  doorway
@@ -401,14 +411,13 @@ window.HOUSE = (function(){
   async function enter(){
     if(window.PLANET && PLANET.active) PLANET.stop();
     if(window.AVATAR) AVATAR.posture(null);
-    /* ROBIN'S HOUSE, AND IT SAYS SO ITSELF. You reach it from RYU, which
-       has already cast her, so this is the same answer twice — until it
-       is not. PLANET.stop() runs a line above, and a room that inherits
-       who it is from whichever world happened to load it is a room that
-       is Kyle's the first time it is opened from anywhere else. The cast
-       still does not touch what the player chose, and setCast is a no-op
-       when it is already her. */
-    if(window.AVATAR && AVATAR.setCast) AVATAR.setCast('w');
+    /* AND IT NO LONGER DECIDES WHO YOU ARE. This used to cast Robin, the
+       way RYU did, so that the house was hers whichever door you came in
+       by. It is your house now: you wake up in it as whoever you picked,
+       under whatever name you signed in with, and Ion says that name. The
+       cast is cleared rather than set, because leaving a stale one on
+       would be the old behaviour with extra steps. */
+    if(window.AVATAR && AVATAR.setCast) AVATAR.setCast(null);
     if(G.roomGroup) G.scene.remove(G.roomGroup);
     G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
     G.solids=[]; G.hits=[]; G.selected=null; G.focused=null;
@@ -540,9 +549,12 @@ window.HOUSE = (function(){
      second, and then a prompt — every one of them a camera already in the
      room rather than anything built for the purpose.
      =================================================================== */
+  /* ONLY THE PEOPLE WHO ARE NOT YOU. The player's portrait is whoever
+     they happen to be wearing, and SCENE looks that up itself off
+     `who:'you'` — a face pinned here would be a second answer to the same
+     question, and it would be Robin's whoever you had picked. */
   const FACES = {
-    Robin: 'characters/previews/character-w.png',
-    Ion:   'characters/previews/ion.png'
+    Ion: 'characters/previews/ion.png'
   };
 
   function prompt_(text){
@@ -579,27 +591,27 @@ window.HOUSE = (function(){
     return [
       /* --- room one: she is awake and she is hungry ------------------- */
       { shot:{ eye:[26, 5.4, 6], at:[16, 1.3, 13] }, ease:0,
-        who:'Robin', say:say('Nnngh. Morning.') },
+        who:'you', say:say('Nnngh. Morning.') },
       { shot:{ eye:[20.5, 2.5, 7.5], at:[16, 1.5, 12.5] }, ease:1.1,
-        who:'Robin', say:say('Ion? Are you up?') },
+        who:'you', say:say('Ion? Are you up?') },
       { shot:{ eye:[16, 3.0, 8], at:[16, 1.6, DOOR_Z] }, ease:1.0,
-        who:'Robin', say:say('You said you would do pancakes.') },
+        who:'you', say:say('You said you would do pancakes.') },
       /* --- and then she has to walk ---------------------------------- */
-      { free:true, who:'Robin', say:say('\u2026Ion?'),
+      { free:true, who:'you', say:say('\u2026Ion?'),
         wait:()=> G.pos.z > DOOR_Z + 2,
         on:()=>{ G.yaw=Math.PI; G.pitch=0.02; prompt_(say('Through the door')); },
         off:()=>prompt_(null) },
       /* --- room two: he is on the floor ------------------------------ */
       { shot:{ eye:[22.5, 1.5, 30], at:[16, 0.6, 36] }, ease:1.3, fade:false,
-        who:'Robin', say:say('Ion!') },
+        who:'you', say:say('Ion!') },
       { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] }, ease:1.4,
-        who:'Ion',   say:say('\u2026m-morning\u2026 R-Robin\u2026') },
+        who:'Ion',   say:say('\u2026m-morning\u2026 {n}\u2026',{n:stut(ME())}) },
       { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] },
         who:'Ion',   say:say('my legs will not\u2026 my legs will not\u2026 my legs will not\u2026') },
       { shot:{ eye:[19.5, 1.9, 32], at:[16, 0.5, 36] }, ease:1.0,
-        who:'Robin', say:say('He is stuck in a loop. Something in his morning routine is broken.') },
+        who:'you', say:say('He is stuck in a loop. Something in his morning routine is broken.') },
       /* --- and the player is handed the controls back ---------------- */
-      { free:true, who:'Robin', say:say('Let me look at his console.'),
+      { free:true, who:'you', say:say('Let me look at his console.'),
         /* LATCHED, not polled. G.keys.KeyE is true only while the key is
            physically down, and a beat that watches it on the frame can
            miss a quick tap between two frames entirely — the prompt stays
@@ -650,7 +662,7 @@ window.HOUSE = (function(){
        appears where the camera is already looking. */
     SCENE.play([
       { shot:{ eye:[17.8, 1.45, 33.4], at:[16, 0.80, 36] }, ease:1.1, hold:1.4,
-        who:'Robin', say:say('Let me see his morning routine.') }
+        who:'you', say:say('Let me see his morning routine.') }
     ], { faces:FACES, end:()=>{
       if(!on) return;
       IONFIX.open({
@@ -699,9 +711,9 @@ window.HOUSE = (function(){
       { shot:{ eye:[20.5, 1.6, 31.5], at:[16, 0.8, 36] }, ease:0.9,
         who:'Ion', say:say_('\u2026oh. Oh! That is much better.') },
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] }, ease:1.0,
-        who:'Ion', say:say_('Good morning, Robin. You fixed my legs.') },
+        who:'Ion', say:say_('Good morning, {n}. You fixed my legs.',{n:ME()}) },
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('Pancakes. In a minute.') },
+        who:'you', say:say_('Pancakes. In a minute.') },
 
       /* --- and the lights -------------------------------------------
          HELD, NOT PROMPTED, from here to the end of it. Every beat below
@@ -709,12 +721,12 @@ window.HOUSE = (function(){
          thing this cannot be is something the player is operating. She
          cannot stop it and neither can they. */
       { shot:ROOM, ease:0.8, hold:2.6, on:lightsOut },
-      { shot:ROOM, hold:1.5, who:'Robin', say:say_('\u2026Ion? What is wrong with the lights?') },
+      { shot:ROOM, hold:1.5, who:'you', say:say_('\u2026Ion? What is wrong with the lights?') },
 
       /* --- and then he is on the floor again ------------------------- */
       { shot:FLOOR, ease:0.45, hold:1.9, on:I('fit'),
-        who:'Ion',  say:say_('R-Robin \u2014 there is s-something in my \u2014') },
-      { shot:FLOOR, hold:1.6, who:'Robin', say:say_('ION!') },
+        who:'Ion',  say:say_('{n} \u2014 there is s-something in my \u2014',{n:stut(ME())}) },
+      { shot:FLOOR, hold:1.6, who:'you', say:say_('ION!') },
 
       /* --- somebody else, using his mouth ----------------------------
          FOUR SHORT SENTENCES A NINE-YEAR-OLD READS ONCE.
@@ -751,15 +763,15 @@ window.HOUSE = (function(){
          already have. Eight lines became seven and none of them has a
          timestamp in it. */
       { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] }, ease:1.3,
-        who:'Ion',   say:say_('\u2026Robin? Why am I on the floor?') },
+        who:'Ion',   say:say_('\u2026{n}? Why am I on the floor?',{n:ME()}) },
       { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('You were talking. But it was not you talking.') },
+        who:'you', say:say_('You were talking. But it was not you talking.') },
       { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] }, ease:1.1,
         who:'Ion',   say:say_('I do not remember talking. I do not remember falling over.') },
       { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] },
         who:'Ion',   say:say_('Somebody changed my code while I was asleep. I have been hacked.') },
       { shot:{ eye:[20.8, 1.9, 32.0], at:[16, 1.0, 36] }, ease:1.2,
-        who:'Robin', say:say_('That was them just now. Using your voice.') },
+        who:'you', say:say_('That was them just now. Using your voice.') },
       /* THE ONE IDEA WORTH A WHOLE LINE, and it is the reason the mission
          goes anywhere: he cannot check himself. Said as a picture rather
          than as a principle, because "I am the thing doing the reading"
@@ -769,7 +781,7 @@ window.HOUSE = (function(){
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
         who:'Ion',   say:say_('I need the Mechanic. Someone who is not me has to look inside me.') },
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('Then we take the ship. Come on.') },
+        who:'you', say:say_('Then we take the ship. Come on.') },
     ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); after(); } });
   }
 

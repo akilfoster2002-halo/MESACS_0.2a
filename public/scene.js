@@ -8,7 +8,7 @@
 
    A BEAT is one shot and at most one line:
 
-     { who:'Robin', say:'Ion? Breakfast?',
+     { who:'you', say:'Ion? Breakfast?',        'you' is the player, by name
        shot:{ eye:[x,y,z], at:[x,y,z] },   where the camera is, and on what
        ease:0.9,                           seconds to GLIDE there (0 cuts)
        hold:2.2,                           advance on a timer, or
@@ -22,7 +22,7 @@
    attention moves; a hard cut to the floor of the next room reads as a
    different scene rather than as noticing something. Every move is eased
    in and out, from wherever the camera actually was, so a beat that
-   starts behind Robin's shoulder arrives without a seam.
+   starts behind the player's shoulder arrives without a seam.
 
    WHAT IT TAKES OVER. The camera, and only while a beat says so. `shot`
    means SCENE is driving: G.running goes false, step() stops, the player
@@ -93,13 +93,41 @@ window.SCENE = (function(){
     return ui;
   }
 
+  /* ============================================== WHO IS SPEAKING
+     A BEAT THAT SAYS `who:'you'` MEANS THE PLAYER, and this is the only
+     place that knows what that resolves to.
+
+     Every scene in this game used to name the player in the beat itself,
+     which was fine for exactly as long as the player was always the same
+     person. They are not: they arrive as whoever they picked, under
+     whatever name they signed in with, so a scene cannot know what to
+     write on the bar when it is authored.
+
+     AND A NAME IS NOT TRANSLATED. `say_` runs every other label through
+     the string table, which is right for `The Mechanic` and wrong for
+     somebody's username — a student called `Mia` should not have their
+     name quietly swapped for the Spanish for Mia. So the sentinel is
+     resolved after translation and never through it. */
+  const YOU='you';
+  const nameOfYou = () => {
+    try{ if(window.AVATAR && AVATAR.myName) return AVATAR.myName(); }catch(e){}
+    try{ if(window.NET && NET.me && NET.me.display) return NET.me.display; }catch(e){}
+    return say_('You');
+  };
+  const faceOfYou = () => {
+    try{ if(window.AVATAR && AVATAR.myFace) return AVATAR.myFace(); }catch(e){}
+    return null;
+  };
+
   function line(b){
     const u=dom();
     if(!b.say){ u.bar.classList.add('hidden'); return; }
     u.bar.classList.remove('hidden');
-    u.who.textContent = b.who ? say_(b.who) : '';
+    const mine = b.who===YOU;
+    u.who.textContent = mine ? nameOfYou() : (b.who ? say_(b.who) : '');
     u.text.textContent = say_(b.say);
-    const face = b.face || (ctx.faces && ctx.faces[b.who]) || null;
+    const face = b.face || (mine ? faceOfYou() : null)
+               || (ctx.faces && ctx.faces[b.who]) || null;
     u.face.className = face ? '' : 'none';
     if(face) u.face.src = face;
     /* The prompt only appears on a beat the player has to answer. A beat

@@ -215,15 +215,19 @@ window.PLANET = (function(){
     pad:{ lon:0, lat:-17 }
   };
   /* ======================================================== RYU
-     THE WORLD YOU ARRIVE ON, and the reason the game has a `cast` at all.
+     THE WORLD YOU ARRIVE ON.
 
      Senio is where the course is. This is not that: it is the first ball
-     under your feet when you open the game, and the thing that happens
-     when you land on it is that you become somebody. `cast` names the
-     character — everyone out on this ball is Robin, whoever they picked
-     in the Mall and whoever they will be again the moment they leave.
-     enter() puts it on and takes it off; nothing here writes to the save
-     bag, so the choice survives the visit untouched.
+     under your feet when you open the game, and the story happens here.
+
+     IT USED TO SET A `cast`, which is to say that landing on it turned
+     every player into Robin whoever they had picked in the Mall, and
+     turned them back on the way out. The machinery was careful — it never
+     wrote to the save bag, so the choice survived — and it was still the
+     wrong trade: the one ball where anything happens was the one place a
+     student could not be the character they chose, and every line of
+     dialogue on it called them by somebody else's name. Robin is on the
+     roster now and this world casts nobody.
 
      SHUTTLE, because you did not fly here. Every other course in the game
      is flown in a ship you had to buy, and a player who arrives on their
@@ -236,10 +240,16 @@ window.PLANET = (function(){
      rolled, and arriving somewhere that looks like the place you already
      know is not arriving anywhere. */
   const RYU_WORLD={
-    id:'ryu', kind:'ryu', seed:11, name:'RYU', sub:'where everybody is Robin',
+    id:'ryu', kind:'ryu', seed:11, name:'RYU', sub:'the mission with one door',
     radius:240, sky:BIOMES[1].sky, soil:BIOMES[1].soil, biome:'ochre',
     relief:7.5, ceiling:80, flora:'wood',
-    cast:'w',
+    /* AND NO CAST. This world used to set `cast:'w'`, which turned every
+       player on it into Robin — the story was written for her and the
+       ball simply put her on. It is the wrong trade: a student picks a
+       character, wears it for six missions, and then the one ball where
+       anything happens takes it off them and puts somebody else's name in
+       every line. You arrive as yourself now. Robin is on the roster, so
+       anybody who wants to be her can choose to be. */
     /* A MISSION, NOT A WORLD YOU LIVE ON — and that is one word rather
        than four rules, because every rule that follows from it follows
        automatically.
@@ -2671,8 +2681,14 @@ window.PLANET = (function(){
       TAIL : { eye:at(-5.5, 3.5, 8), at:at(-4, 4.5, 0) } };
   }
 
-  const FACES={ Robin:'characters/previews/character-w.png',
-                Ion:'characters/previews/ion.png' };
+  /* WHAT ION CALLS YOU. Robin's name used to be written into his lines
+     because she was who RYU turned you into; you arrive as yourself now,
+     so it goes in as a parameter. avatar.js decides what it resolves to. */
+  const ME = () => (window.AVATAR && AVATAR.myName) ? AVATAR.myName() : t('you');
+  /* ONLY THE PEOPLE WHO ARE NOT YOU. The player's portrait is whoever
+     they are wearing and SCENE looks it up itself from `who:'you'` — a
+     face pinned here would be a second answer, and it would be Robin's. */
+  const FACES={ Ion:'characters/previews/ion.png' };
 
   /* The four lines, and then the panel. Returns false if there is nothing
      to play them over, so the caller can fall through to the checklist
@@ -2682,13 +2698,13 @@ window.PLANET = (function(){
     if(!b || !b.g || !b.frame || !window.SCENE) return false;
     const S=shipShots(b);
     SCENE.play([
-      { shot:S.TAIL,  ease:1.2, who:'Robin',
+      { shot:S.TAIL,  ease:1.2, who:'you',
         say:t('She is still smoking.') },
       { shot:S.WIDE,  ease:1.1, who:'Ion',
         say:t('She will not start. She cannot tell if she is safe to start.') },
       { shot:S.CLOSE, ease:1.0, who:'Ion',
         say:t('Her safety rules have lost the part that does the comparing.') },
-      { shot:S.CLOSE, who:'Robin',
+      { shot:S.CLOSE, who:'you',
         say:t('Then I put them back. Nine rules, one word each.') }
     ], { faces:FACES, end:()=>{
       if(!on) return;
@@ -2707,9 +2723,9 @@ window.PLANET = (function(){
        be a second set of numbers to keep in step with her. */
     const S=shipShots(b);
     SCENE.play([
-      { shot:S.WIDE,  ease:1.2, who:'Robin', say:t('In you get.') },
-      { shot:S.CLOSE, ease:1.1, who:'Ion',   say:t('Thank you, Robin.') },
-      { shot:S.CLOSE, who:'Robin', say:t('The Mechanic can look inside you properly.') },
+      { shot:S.WIDE,  ease:1.2, who:'you', say:t('In you get.') },
+      { shot:S.CLOSE, ease:1.1, who:'Ion',   say:t('Thank you, {n}.',{n:ME()}) },
+      { shot:S.CLOSE, who:'you', say:t('The Mechanic can look inside you properly.') },
       { shot:S.CLOSE, who:'Ion',   say:t('And then we find out who E. is.') },
       { shot:S.AWAY,  ease:1.6, hold:2.4 }
     ], { faces:FACES, end:()=>{ G.running=true; embark(); }});
@@ -3353,7 +3369,7 @@ window.PLANET = (function(){
     const ROOM ={ eye:at(4.5, 3.4, -2), at:at(-1.5, 1.6, 2.2) };
     const BED  ={ eye:at(1.6, 2.4, 5.0), at:at(-1.5, 1.3, 2.2) };
     SCENE.play([
-      { shot:ROOM, ease:1.2, who:'Robin',
+      { shot:ROOM, ease:1.2, who:'you',
         say:t('This is Ion. He was on the floor for a week.') },
       { shot:BED,  ease:1.0, who:'The Mechanic',
         say:t('Put him down. I will look properly.') },
@@ -3365,11 +3381,10 @@ window.PLANET = (function(){
          rule, which is the only currency this game actually deals in. */
       { shot:ROOM, ease:1.0, who:'The Mechanic',
         say:t('Not for nothing, though. Work my belt while I do it.') },
-      { shot:ROOM, who:'Robin', say:t('What does it do?') },
+      { shot:ROOM, who:'you', say:t('What does it do?') },
       { shot:ROOM, who:'The Mechanic',
         say:t('Sorts parts. It needs the rules writing. You will see.') }
-    ], { faces:{ Robin:'characters/previews/character-w.png',
-                 Ion:'characters/previews/ion.png' },
+    ], { faces:FACES,
          end:()=>{
            if(!on) return;
            try{ if(window.PROGRESS) PROGRESS.set(HANDED,1); }catch(e){}
@@ -3427,10 +3442,9 @@ window.PLANET = (function(){
     const ROOM={ eye:at_(4.5, 3.4, -2),  at:at_(-1.5, 1.6, 2.2) };
     SCENE.play([
       { shot:BED, ease:1.1, who:'The Mechanic', say:t('Belt is running. Good rules.') },
-      { shot:BED, who:'Ion', say:t('Robin? I can feel my hands.') },
-      { shot:ROOM, ease:1.0, who:'Robin', say:t('Told you he was worth the trip.') }
-    ], { faces:{ Robin:'characters/previews/character-w.png',
-                 Ion:'characters/previews/ion.png' },
+      { shot:BED, who:'Ion', say:t('{n}? I can feel my hands.',{n:ME()}) },
+      { shot:ROOM, ease:1.0, who:'you', say:t('Told you he was worth the trip.') }
+    ], { faces:FACES,
          end:()=>{ if(on){ G.running=true; finishIon(); } }});
   }
   function finishIon(){
@@ -3495,9 +3509,9 @@ window.PLANET = (function(){
     const GLASS={ eye:at(-1.0, 2.6, 0.0), at:at(1.4, 2.0, 8.0) };
     SCENE.play([
       { shot:HIM,   ease:1.2, who:'Mr Einstein', say:t('You got here. Good.') },
-      { shot:HIM,   who:'Robin', say:t('Somebody was inside Ion. They signed it E.') },
+      { shot:HIM,   who:'you', say:t('Somebody was inside Ion. They signed it E.') },
       { shot:GLASS, ease:1.4, who:'Mr Einstein', say:t('I know. That is why I am up here.') }
-    ], { faces:{ Robin:'characters/previews/character-w.png' },
+    ], { faces:FACES,
          end:()=>{ if(on) G.running=true; }});
   }
 

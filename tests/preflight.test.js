@@ -699,11 +699,17 @@ test('the brief says what is broken, and it is the checklist that is broken', ()
                              planet.indexOf('function board()'));
   assert.ok(brief, 'there is no brief');
   assert.match(brief, /SCENE\.play\(/, 'the brief is not a scene');
-  /* BOTH OF THEM ARE IN IT. Robin asks and Ion answers: a brief where one
-     person explains the mission to nobody is a briefing screen with a
-     portrait on it. */
-  for(const who of ['Robin','Ion'])
+  /* BOTH OF THEM ARE IN IT. The player asks and Ion answers: a brief where
+     one person explains the mission to nobody is a briefing screen with a
+     portrait on it.
+
+     `who:'you'` IS THE PLAYER, BY NAME. It used to say `who:'Robin'`,
+     because RYU turned everybody into her; the bar now reads whatever
+     name the player signed in with, and SCENE is the only thing that
+     knows how to resolve that. */
+  for(const who of ['you','Ion'])
     assert.ok(brief.includes(`who:'${who}'`), who+' says nothing in the brief');
+  assert.ok(!/who:'Robin'/.test(brief), "the brief still calls the player Robin");
   /* WHAT IS WRONG WITH HER IS HER RULES. If the ship is damaged then
      filling in nine comparisons is a strange way to mend it, and the
      mission is nonsense dressed as a lesson. */
@@ -854,8 +860,9 @@ test('the Mechanic is a person, in the tower, and finishing there is Mission 8',
                             planet.indexOf('function layIon()'));
   assert.match(bare.slice(bare.indexOf('function handOver()')).slice(0,1400),
     /SCENE\.play\(/, 'the handover is not a scene');
-  for(const who of ['Robin','Ion','The Mechanic'])
+  for(const who of ['you','Ion','The Mechanic'])
     assert.ok(hand.includes(`who:'${who}'`), who+' says nothing at the handover');
+  assert.ok(!/who:'Robin'/.test(hand), 'the handover still calls the player Robin');
 
   /* AND HE IS VISIBLY THERE AFTERWARDS. A handover you are told about and
      cannot see did not happen. */

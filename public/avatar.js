@@ -24,8 +24,11 @@ window.AVATAR = (function(){
      (see "glb files"/README.md for how one gets here). Kyle leads: he is
      the character this game is about, and he is the one you are unless you
      say otherwise, which is now a keypress rather than a walk to the Mall. */
-  const IDS = 'stuv'.split('');
-  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah', v:'Carlos' };
+  /* ROBIN IS ON THE ROSTER NOW, and she is on it as a character rather
+     than as a costume the game puts you in. See the paragraph below for
+     what that used to mean and why it changed. */
+  const IDS = 'stuvw'.split('');
+  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah', v:'Carlos', w:'Robin' };
   /* ?v= on the asset, not just on the script. Without it a changed model
      is invisible for a day behind the server's cache header. */
   const V = ()=> '?v='+(window.ASSETV||'1');
@@ -33,23 +36,32 @@ window.AVATAR = (function(){
     model:`characters/models/character-${c}.glb`+V(),
     preview:`characters/previews/character-${c}.png`+V() }));
   /* ------------------------------------------------- bodies off the roster
-     ROBIN IS NOT SOMEBODY YOU CAN PICK, and that is the whole of what she
-     is. She is not a fifth shirt in the Mall, she is not for sale, she is
-     not in the quick change and nobody chooses her: she is what RYU turns
-     you into, and the only way to be her is to be standing on it.
+     ROBIN USED TO BE SOMEBODY YOU COULD NOT PICK. She was not a fifth
+     shirt in the Mall, she was not for sale and nobody chose her: she was
+     what RYU turned you into, and the only way to be her was to stand on
+     it. The whole story was written for a girl called Robin and every
+     mission on that ball quietly replaced whoever you had spent the game
+     becoming.
 
-     So she lives here rather than in CHARS. CHARS is the ROSTER — who you
-     can be, what the Mall sells, what the wardrobe shows, who a witness or
-     a librarian is cast from — and every one of those is a list of people
-     you own. BODIES is everything the game can put on screen, which is
-     that list plus the ones a place hands you. Two words, because they
-     were one word doing two jobs and the wardrobe grew a character nobody
-     was allowed to choose.
+     THAT IS THE WRONG TRADE. A student picks a character, wears it for
+     six missions, walks onto the one ball where the story happens — and
+     is somebody else, with somebody else's name in every line of
+     dialogue. The character they chose is the one thing in this game that
+     is theirs before they have earned anything, and a cutscene is a poor
+     reason to take it off them.
 
-     The model and the thumbnail are built exactly like the roster's: she
-     is `character-w` on disk, and the dashboard draws her face on RYU. */
-  const CAST_ONLY = ['w'];
-  const CAST_NAMES = { w:'Robin' };
+     So Robin is on the roster like everybody else, and RYU no longer
+     casts anybody. You arrive as who you are, Ion says YOUR name, and if
+     you want to be Robin you can be — by choosing her, which is the only
+     way anybody becomes anybody else in this game.
+
+     BODIES STAYS. It is everything the game can stand up, which is the
+     roster plus anything a place hands out, and a place may still hand
+     one out; nothing does today. Keeping the two words costs a line and
+     collapsing them would have to be undone by whoever next writes a
+     scene that needs a body nobody owns. */
+  const CAST_ONLY = [];
+  const CAST_NAMES = {};
   const BODIES = CHARS.concat(CAST_ONLY.map(c=>({
     id:c, name:CAST_NAMES[c] || ('Character '+c.toUpperCase()),
     model:`characters/models/character-${c}.glb`+V(),
@@ -602,7 +614,36 @@ window.AVATAR = (function(){
     return chosen;
   }
 
+  /* ================================================== WHAT TO CALL YOU
+     EVERY NPC IN THIS GAME USED TO SAY "ROBIN", because the story was
+     written for her and she was who you were made into. Now that you
+     arrive as yourself, they have to have something to call you, and the
+     only honest answer is the name you signed in with.
+
+     THE FALLBACKS ARE IN ORDER OF HOW MUCH THEY ARE YOURS. A signed-in
+     display name is what you chose to be called. Without one — a lab
+     machine with no account, a guest run, the server down — the next
+     truest thing is the character you picked, because you picked it. Only
+     if both are missing does anybody fall back to a word, and it is the
+     roster's first name rather than "Guest", so a line of dialogue never
+     reads "Good morning, Guest."
+
+     ONE FUNCTION, AND EVERY SCENE ASKS IT. A second copy of this decision
+     is a second answer, and the one place it would show up is halfway
+     through a cutscene with two different names in it. */
+  function myName(){
+    try{ if(window.NET && NET.me && NET.me.display) return NET.me.display; }catch(e){}
+    const c=bodyDef(chosen);
+    return (c && c.name) || CHARS[0].name;
+  }
+  /* And the face beside the name: whoever you are actually wearing. */
+  function myFace(){
+    const c=bodyDef(cast || chosen);
+    return (c && c.preview) || CHARS[0].preview;
+  }
+
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle,
+           myName, myFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            emote, canEmote, get emoting(){ return emoting>0; },

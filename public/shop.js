@@ -68,7 +68,10 @@ window.SHOP = (function(){
      actually about, and a paywall in front of one of three is a paywall in
      front of the game. The pricing below is still here and still works —
      it is what a fourth character would arrive behind. */
-  const FREE_CHARS=4;
+  /* All five, Robin included. She joined the roster and a character
+     behind a price is a character a student cannot be on their first
+     day, which is the one day the choice actually matters. */
+  const FREE_CHARS=5;
   function charItems(){
     if(!window.AVATAR) return [];
     return AVATAR.CHARS.map((c,i)=>({

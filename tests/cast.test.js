@@ -20,14 +20,15 @@ function roster(){
   return m[1].split('');
 }
 
-test('the cast is Kyle, Mia, Savannah and Carlos, and Kyle is who you start as', ()=>{
-  assert.deepStrictEqual(roster(), ['s','t','u','v']);
+test('the cast is Kyle, Mia, Savannah, Carlos and Robin, and Kyle leads', ()=>{
+  assert.deepStrictEqual(roster(), ['s','t','u','v','w']);
   const names = read('public/avatar.js').match(/const NAMES\s*=\s*\{([^}]*)\}/);
   assert.ok(names, 'avatar.js still names them');
   assert.match(names[1], /s:'Kyle'/);
   assert.match(names[1], /t:'Mia'/);
   assert.match(names[1], /u:'Savannah'/);
   assert.match(names[1], /v:'Carlos'/);
+  assert.match(names[1], /w:'Robin'/);
   /* The default is CHARS[0] rather than a random pick, and CHARS is built
      from IDS in order — so "Kyle leads" is a fact about the string above. */
   assert.match(read('public/avatar.js'), /chosen = CHARS\[0\]\.id/,
@@ -171,27 +172,35 @@ test('the quick change is wired to a key, a button and the freeze', ()=>{
 
 
 /* ---------------------------------------------------------------- the cast
-   A PLACE THAT DECIDES WHO EVERYBODY IS. RYU puts every player in Robin on
-   the way in and takes her off again on the way out, and the one thing that
-   must never happen is for it to do that by SELLING the player's own
-   character — the choice lives in the save bag and a world is not allowed to
-   write to it. */
-/* ROBIN IS NOT ON THE ROSTER. She is what RYU turns you into and there is no
-   other way to be her: not in the wardrobe, not in the quick change, not for
-   sale. The roster is who you can CHOOSE; BODIES is everything the game can
-   stand up, which is the roster plus the ones a place hands you. */
-test('Robin can be worn but never chosen', ()=>{
-  const avatar = read('public/avatar.js');
-  assert.ok(!roster().includes('w'), 'Robin is on the roster: the Mall now sells her');
+   NOTHING CASTS THE PLAYER ANY MORE. RYU used to put every player in Robin
+   on the way in and take her off again on the way out, so the one ball
+   where the story happens quietly replaced whoever a student had spent six
+   missions becoming. She is on the roster now and the worlds leave you
+   alone; if you want to be her, you choose her.
 
-  assert.match(avatar, /const CAST_ONLY = \['w'\]/, 'Robin is a body off the roster');
-  assert.match(avatar, /const BODIES = CHARS\.concat\(/, 'and BODIES is the roster plus those');
-  /* load() has to find her, or the one thing she exists for — being cast —
-     falls back to CHARS[0] and RYU quietly puts everybody in Kyle. */
+   The machinery stays, because a place is still ALLOWED to hand out a body
+   and the rule that mattered about it still matters: it may never do so by
+   writing to the save bag, because the choice is the player's. */
+test('Robin is chosen like anybody else, and no world casts her', ()=>{
+  const avatar = read('public/avatar.js');
+  assert.ok(roster().includes('w'), 'Robin is off the roster again: she cannot be chosen');
+
+  assert.match(avatar, /const BODIES = CHARS\.concat\(/, 'BODIES is the roster plus any cast-only bodies');
   assert.match(avatar, /const def = bodyDef\(id\);/,
     'load() resolves through BODIES, or a cast-only body comes back as Kyle');
   assert.match(avatar, /BODIES\.some\(c=>c\.id===id\)/,
     'setCast accepts a body that is not on the roster');
+
+  /* AND NO WORLD SETS ONE. A `cast` on RYU is the old behaviour returning:
+     it would put every player in Robin again and the name in the dialogue
+     would stop being theirs. */
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  assert.ok(!/cast:\s*'w'/.test(bare), "RYU casts Robin again: the player's own character is taken off them");
+  const house = read('public/house.js').replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  assert.ok(!/setCast\('w'\)/.test(house), 'the house casts Robin again');
+  assert.match(house, /setCast\(null\)/,
+    'the house leaves whatever cast the last world set, which is the old behaviour with extra steps');
 
   /* Nothing that offers a CHOICE may read BODIES. Each of these builds a
      grid, a price list or a picker out of the roster, and a character in one
@@ -354,4 +363,54 @@ test('every way INTO Koro opens on Senio, and no way back does', ()=>{
       f+' asks homeworld() for a particular world: leaving a room would move the player');
   assert.match(read('public/game.js'), /MENU\.homeworld\(\)/,
     'the pause card sends the player to a world instead of back to their own');
+});
+
+test('no NPC anywhere calls the player by a hard-coded name', ()=>{
+  /* THE WHOLE POINT OF THE CHANGE. The player arrives as whoever they
+     picked, under whatever name they signed in with, so every line that
+     names them has to take that name as a parameter. One `who:'Robin'`
+     or one "Good morning, Robin" left behind is a cutscene that calls a
+     student by somebody else's name, and it will be in the middle of the
+     one scene the whole mission was built towards.
+
+     Comments are stripped first: the paragraphs explaining why this
+     changed necessarily contain the word, and matching them would make
+     this test pass or fail on prose. */
+  const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  for(const f of ['house.js','planet.js','scene.js','routine.js','game.js']){
+    const code = bare(read('public/'+f));
+    assert.ok(!/who:\s*'Robin'/.test(code),
+      `${f} still labels a line of dialogue Robin`);
+    /* Robin's name inside a spoken string. The player's name arrives as
+       {n}; a bare "Robin" in a say() is one somebody forgot. */
+    const spoken = code.match(/say_?\(\s*'[^']*Robin[^']*'|t\(\s*'[^']*Robin[^']*'/g);
+    assert.strictEqual(spoken, null,
+      `${f} has a line of dialogue with Robin's name written into it: ${spoken}`);
+  }
+});
+
+test('the player has one name and one face, and they come from one place', ()=>{
+  const avatar = read('public/avatar.js');
+  /* ONE FUNCTION DECIDES. A second copy of "what do we call the player"
+     is a second answer, and the place it shows up is halfway through a
+     cutscene with two different names in it. */
+  assert.match(avatar, /function myName\(\)/, 'nothing decides what to call the player');
+  assert.match(avatar, /function myFace\(\)/, 'nothing decides which portrait is the player');
+  /* The username wins, because it is the name they chose to be called.
+     Without one, the character they picked — never a word like "Guest",
+     which would read as "Good morning, Guest." */
+  assert.match(avatar, /NET\.me\.display/, 'the signed-in name is not preferred');
+  assert.match(avatar, /CHARS\[0\]\.name/, 'there is no last-resort name');
+
+  /* AND THE SCENE BAR ASKS IT RATHER THAN BEING TOLD. */
+  const scene = read('public/scene.js');
+  assert.match(scene, /const YOU='you'/, 'SCENE has no sentinel for the player');
+  assert.match(scene, /AVATAR\.myName/, 'SCENE does not ask who the player is');
+  assert.match(scene, /AVATAR\.myFace/, 'SCENE does not ask what the player looks like');
+  /* A USERNAME IS NOT TRANSLATED. Every other label goes through the
+     string table, which is right for `The Mechanic` and wrong for a
+     person: a student called Mia should not find their name swapped for
+     the Spanish for Mia. */
+  assert.match(scene, /mine \? nameOfYou\(\) : \(b\.who \? say_\(b\.who\) : ''\)/,
+    "the player's own name is run through the translation table");
 });
