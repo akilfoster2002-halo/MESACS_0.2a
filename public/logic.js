@@ -400,11 +400,11 @@
      game. */
   const CLUES = {
     /* machine rules, filed as the player reads each machine */
-    sensor_rule:{ tab:'rules', head:'Bay 14 sensor', body:'if package_on_pad: mark_delivered() — and nothing at all when it is false.' },
-    robot_rule: { tab:'rules', head:'Delivery robot KR-9', body:'if package_delivered: return_to_station() else: continue_delivery(). Route rewritten Bay 14 → Bay 17 at 02:02, under '+CODE+'.' },
-    gate_rule:  { tab:'rules', head:'Perimeter gate 3', body:'if badge_valid or maintenance_override: open_gate(). The `or` was added — the gate used to ask one question.' },
-    transit_rule:{tab:'rules', head:'Transit car 2', body:'if authorized_vehicle and emergency_signal: stop_at_station(). Both, or it runs past.' },
-    door_rule:  { tab:'rules', head:'Maintenance door', body:'if emergency: unlock() / elif maintenance_mode: unlock_and_log() / elif employee_badge: request_confirmation() / else: remain_locked().' },
+    sensor_rule:{ tab:'rules', head:'Bay 14 sensor', on:'sensor', body:'Nothing at all when it is false. It has no else.' },
+    robot_rule: { tab:'rules', head:'Delivery robot KR-9', on:'robot', body:'Route rewritten Bay 14 → Bay 17 at 02:02, under '+CODE+'.' },
+    gate_rule:  { tab:'rules', head:'Perimeter gate 3', on:'gate', body:'The `or` was added. The gate used to ask one question.' },
+    transit_rule:{tab:'rules', head:'Transit car 2', on:'transit', body:'Both, or it runs past.' },
+    door_rule:  { tab:'rules', head:'Maintenance door', on:'door', body:'Four branches. It answers the first one that is true.' },
     order_matters:{tab:'rules', head:'The order is the hiding place', body:'emergency is tested first, so maintenance_mode is never asked — and it is maintenance_mode that writes the log. Move it up and the same inputs leave a name behind.' },
 
     /* physical things */

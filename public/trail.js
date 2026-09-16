@@ -1166,7 +1166,6 @@ window.TRAIL = (function(){
 
   function drawMachine(){
     const m=L.machines[panel.id], mac=m.mac, KL=K();
-    const src=KL.source(m.rule);
     const out=panel.out;
     const ran = out ? out.trace.find(x=>x.ran) : null;
     const tabs = panel.id==='terminal' ? termTabs() : '';
@@ -1247,42 +1246,67 @@ window.TRAIL = (function(){
     </section>`;
   }
 
-  /* The rule, as the source it is, with one mark per line saying which way
-     that test went. It is the only way to show what elif really does — a
-     branch under a true one is not false, it was never asked — and for a
-     plain if/else it is equally the condition, the true side and the false
-     side, which is why nothing draws those a second time any more. */
+  /* ------------------------------------------------- THE RULE, IN BLOCKS
+     This is a block game. Every other mission hands a student a palette
+     and a script made of C-shaped blocks, and this one was showing them
+     Python — the only screen in KORO where code is text. So the rule is
+     built out of the same blocks the console uses: `.blk.rep` with a
+     head, a mouth and a foot, mint for the branch, the action stacked
+     inside it. Nothing here is a new visual language; it is the one the
+     game already speaks.
+
+     AND THE CONDITION IS MADE OF READINGS YOU CAN SEE. Each Boolean is a
+     pill that is LIT when that reading is true right now, and an `and` or
+     an `or` is a block holding two of them that is itself lit when it
+     comes out true. Flip a switch and watch it travel: one pill lights,
+     the `or` around it lights because either is enough, the `and` next to
+     it stays dark because both is not. That is the whole of Mission 3 and
+     Mission 4, said in colour, before anybody presses RUN. */
+  function condHTML(node, state){
+    const KL=K();
+    if(!node) return '';
+    const lit = KL.value(node, state) ? ' t' : '';
+    if(node.k==='var')
+      return `<span class="tb-b${lit}">${esc(node.v)}</span>`;
+    if(node.k==='cmp')
+      return `<span class="tb-b${lit}">${esc(node.v)} ${esc(node.op)} ${esc(String(node.n))}</span>`;
+    if(node.k==='not')
+      return `<span class="tb-op${lit}"><i>${say('not')}</i>${condHTML(node.a, state)}</span>`;
+    return `<span class="tb-op${lit}">${condHTML(node.a, state)}`
+         + `<i>${node.k==='and'?say('and'):say('or')}</i>`
+         + `${condHTML(node.b, state)}</span>`;
+  }
+  /* A branch is one C-block: the test in its head, what it does stacked in
+     its mouth. Which way the test went last time is a tag on the head —
+     TRUE, FALSE, or NEVER ASKED, the state elif is all about and the one a
+     truth table cannot show you. */
   function ladder(m, out){
-    const KL=K(), br=m.rule.branches, can=!!m.mac.swap;
+    const br=m.rule.branches, can=!!m.mac.swap;
     const rows=br.map((b,i)=>{
       const tr=out ? out.trace[i] : null;
       const cls = !tr ? '' : tr.ran ? 'ran' : tr.tested ? 'no' : 'skip';
-      /* NEVER ASKED is the whole lesson and it must not be spent on the
-         wrong row. A branch with a condition that was skipped really was
-         never asked — that is why moving a line changes the answer. An
-         else has no test to ask, so when it is skipped it was simply not
-         reached, and saying otherwise teaches the distinction wrong. */
-      const mark = !tr ? ''
-                 : tr.ran ? (b.kind==='else' ? say('run') : 'TRUE')
+      const mark = !tr ? '' : tr.ran ? (b.kind==='else' ? say('run') : 'TRUE')
                  : tr.tested ? 'FALSE'
                  : b.kind==='else' ? say('not reached') : say('never asked');
       const movable = can && b.kind!=='else';
-      const head = b.kind==='else' ? '<i>else</i>:'
-                 : `<i>${b.kind}</i> ${esc(KL.text(b.cond))}:`;
-      return `<li class="lrow ${cls}">
-        <code class="lsrc">${head}</code>
-        <span class="lmark">${mark}</span>
-        <code class="lact">${esc(b.action)}</code>
-        ${movable?`<span class="lmv">
-          <button data-mv="${i}" data-dir="-1" ${i===0?'disabled':''} title="${say('move up')}">▲</button>
-          <button data-mv="${i}" data-dir="1" ${i>=br.length-2?'disabled':''} title="${say('move down')}">▼</button>
-        </span>`:''}
-      </li>`;
+      return `<div class="blk rep tb-br ${cls}">
+        <div class="blk-head">
+          <b>${b.kind}</b>
+          ${b.cond ? condHTML(b.cond, m.state) : ''}
+          ${mark?`<span class="tb-mark">${mark}</span>`:''}
+          ${movable?`<span class="lmv">
+            <button data-mv="${i}" data-dir="-1" ${i===0?'disabled':''} title="${say('move up')}">\u25B2</button>
+            <button data-mv="${i}" data-dir="1" ${i>=br.length-2?'disabled':''} title="${say('move down')}">\u25BC</button>
+          </span>`:''}
+        </div>
+        <div class="blk-body"><div class="blk tb-act">${esc(b.action)}</div></div>
+        <div class="blk-foot"></div>
+      </div>`;
     }).join('');
     /* the nudge goes away once it has been taken: an instruction that is
        still on the screen after you have followed it reads as a failure */
     const askIt = can && !has('order_matters');
-    return `<ol class="lad">${rows}</ol>
+    return `<div class="tb-rule">${rows}</div>
       ${askIt?`<p class="mi-note">${esc(say(m.mac.swap.ask))}</p>`:''}`;
   }
 
@@ -1630,7 +1654,17 @@ window.TRAIL = (function(){
                : noteTab==='theory' ? theoryPane()
                : ids.filter(k=>KL.CLUES[k].tab===noteTab).map(k=>{
                    const c=KL.CLUES[k];
-                   return `<li><b>${esc(say(c.head))}</b><p>${say(c.body)}</p></li>`;
+                   /* A filed RULE is drawn as the blocks it is, out of the
+                      machine it came off, rather than retyped as a line of
+                      text — the notebook is where a student goes to compare
+                      two rules, and comparing two pictures is the whole
+                      point of them being pictures. */
+                   const m=c.on ? L && L.machines[c.on] : null;
+                   const mac=c.on ? KL.machine(c.on) : null;
+                   return `<li><b>${esc(say(c.head))}</b>
+                     ${mac?`<div class="nb-rule">${
+                       ladder({ rule:mac.rule, state:(m&&m.state)||{}, mac }, null)}</div>`:''}
+                     <p>${say(c.body)}</p></li>`;
                  }).join('') || `<li class="nb-none">${say('Nothing filed here yet.')}</li>`;
     noteHost().innerHTML=`
       <div class="nb-card">

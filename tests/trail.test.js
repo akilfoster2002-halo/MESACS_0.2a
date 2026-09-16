@@ -477,3 +477,44 @@ test('a flat room poses the whole body, not just its heading', ()=>{
   assert.match(orient, /setFromRotationMatrix/,
     'orient() no longer poses from a basis — a body on a sphere stands on its surface normal');
 });
+
+test('no rule is written out as text anywhere a student reads', ()=>{
+  /* THIS IS A BLOCK GAME. Every other mission hands a student a palette and
+     a script built out of C-shaped blocks; this one was the single screen in
+     KORO showing Python. The rules are drawn from the machine table now — by
+     the inspector and by the notebook — so a rule spelled out in prose is
+     both a duplicate of the picture beside it and the wrong language.
+
+     Caught by shape rather than by eye: an `if ...:` or a bare `name()` in
+     any sentence a student reads means somebody has typed a rule out again
+     instead of drawing it. Action names are allowed in a RESULT, which
+     names the one branch that ran, so only the source-shaped forms fail. */
+  const T=loadTrail();
+  const prose=[];
+  Object.entries(K.CLUES).forEach(([k,c])=>prose.push(['CLUES.'+k, c.body]));
+  K.MACHINES.forEach(m=>{ prose.push([m.id+'.lead', m.lead]);
+                          prose.push([m.id+'.sub', m.sub]);
+                          (m.vars||[]).forEach(v=>prose.push([m.id+'.'+v.v, v.hint])); });
+  K.PEOPLE.forEach(p=>p.lines.forEach(l=>prose.push([p.id+'/'+l.id, l.a])));
+  T.STAGES.forEach(s=>{ prose.push([s.id+'.obj', s.obj]); prose.push([s.id+'.hint', s.hint]); });
+
+  const SOURCE=/\b(?:if|elif|else)\b[^.]*:\s*[a-z_]+\(\)/;   // a rule, typed out
+  const bad=prose.filter(([,t])=>t && SOURCE.test(t))
+                 .map(([w,t])=>w+': '+t);
+  assert.deepStrictEqual(bad, [],
+    'a rule is written out in prose instead of being drawn as blocks');
+});
+
+test('the inspector and the notebook draw rules with the same builder', ()=>{
+  /* One ladder(), used twice. If the notebook ever grows its own renderer
+     the two will drift, and a rule filed in the notebook that does not look
+     like the rule on the machine is worse than no notebook at all. */
+  const src=read('public/trail.js');
+  assert.strictEqual((src.match(/function ladder\(/g)||[]).length, 1,
+    'there is more than one rule renderer');
+  assert.match(src, /nb-rule[\s\S]{0,160}ladder\(/,
+    'the notebook no longer draws its rules with ladder()');
+  /* and the blocks are the console's own classes, not a second visual language */
+  assert.match(src, /class="blk rep tb-br/, 'the rule is not built from .blk.rep');
+  assert.match(src, /class="blk tb-act"/,   'the action is not a .blk');
+});

@@ -1858,39 +1858,58 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .mi-note{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .mi-note.good{color:var(--good)}
 
-/* THE RULE, WHICH IS ALSO THE DIAGRAM.
+/* THE RULE, IN THE BLOCKS THE GAME ALREADY SPEAKS.
 
-   Each branch is two code lines — the test and what it does — with one
-   mark to the right saying which way that test went when you last ran it.
-   TRUE, FALSE, or "never asked", which is the state elif is all about and
-   the one a truth table cannot show you. There used to be a second block
-   under this drawing the same condition and the same two actions again as
-   a flowchart; this is that flowchart, set in the language it is written
-   in. */
-.lad{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-.lrow{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;
-  column-gap:10px;row-gap:2px;
-  background:#0a1020;border:2px solid #2b2350;border-left-width:5px;
-  border-radius:11px;padding:8px 11px}
-.lsrc{grid-column:1;font-size:13.5px;color:#b9c6e8;word-break:break-word;line-height:1.5}
-.lsrc i{font-style:normal;color:var(--lav);font-weight:bold}
-.lmark{grid-column:2;font-size:10px;letter-spacing:.11em;color:#5f6a90;white-space:nowrap;
-  text-transform:uppercase}   /* one column, one voice: TRUE, FALSE, NEVER ASKED */
-.lact{grid-column:1/3;font-size:13.5px;color:#7b86ad;padding-left:2.2ch;line-height:1.5}
-.lrow.ran{border-left-color:var(--good);background:rgba(168,230,207,.06)}
-.lrow.ran .lmark{color:var(--good)}
-.lrow.ran .lsrc{color:#d6e4ff} .lrow.ran .lact{color:var(--good)}
-.lrow.no{border-left-color:#4a3f6b;opacity:.72}
-.lrow.no .lmark{color:var(--warn)}
-.lrow.skip{border-left-color:#2b2350;opacity:.42}
-.lrow.skip .lmark{color:var(--bad);font-style:italic}
-/* the handles that move a line, beside the line they move and spanning
-   both of its rows — not orphaned underneath it */
-.lmv{grid-column:3;grid-row:1/span 2;align-self:center;display:flex;flex-direction:column;gap:3px}
-.lmv button{background:#221b36;border:1px solid #3b3059;color:var(--muted);border-radius:6px;
-  font-size:10px;line-height:1;padding:5px 8px}
-.lmv button:disabled{opacity:.25}
-.lmv button:not(:disabled):hover{color:var(--star);border-color:var(--star)}
+   Built from the console's own .blk / .blk.rep — head, mouth, foot — so a
+   student reads a rule here the same way they read a script they wrote
+   themselves. The console's blocks are sized for a full-screen editor, so
+   everything below is scoped under #insp and scaled to a side panel; none
+   of it touches the editor.
+
+   The Booleans inside a head are pills that LIGHT when that reading is
+   true right now, and an and/or is a block round two of them that lights
+   when it comes out true. Flipping a switch makes the truth travel up the
+   condition in front of you — which is `and` and `or` taught in colour
+   rather than in a paragraph. */
+#insp .tb-rule{display:flex;flex-direction:column;gap:5px}
+#insp .tb-br{--c:#a8e6cf;margin:0}
+#insp .tb-br .blk-head{padding:7px 10px;font-size:13.5px;gap:6px;color:#18332a;
+  flex-wrap:wrap;align-items:center}
+#insp .tb-br .blk-head b{font-family:var(--font-code);font-weight:bold;letter-spacing:.02em}
+#insp .tb-br .blk-body{margin-left:16px;border-left-width:7px;padding:6px 0 6px 9px;
+  background:rgba(168,230,207,.07)}
+#insp .tb-br .blk-foot{height:11px}
+#insp .blk.tb-act{--c:#2e3a5c;font-size:13px;padding:6px 10px;margin:0;color:#cfe0ff;
+  font-family:var(--font-code);box-shadow:0 2px 0 rgba(0,0,0,.35);display:inline-flex}
+
+/* a reading, and whether it is true at this moment */
+#insp .tb-b{display:inline-block;font-family:var(--font-code);font-size:12.5px;
+  background:rgba(255,255,255,.62);color:#3a3357;border-radius:999px;padding:2px 9px;
+  border:2px solid transparent;transition:background .12s,color .12s,border-color .12s}
+#insp .tb-b.t{background:#18332a;color:#8ff0c0;border-color:#4fd39a}
+/* and / or, which is a block holding two of them */
+#insp .tb-op{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;
+  background:rgba(0,0,0,.14);border-radius:999px;padding:2px 6px}
+#insp .tb-op.t{background:rgba(24,51,42,.55)}
+#insp .tb-op i{font-style:normal;font-family:var(--font-code);font-size:11.5px;
+  font-weight:bold;color:#2b4a3c;letter-spacing:.06em}
+#insp .tb-op.t i{color:#8ff0c0}
+
+/* which way this test went, last time it was asked */
+#insp .tb-mark{margin-left:auto;font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+  color:#2b4a3c;opacity:.72;white-space:nowrap}
+#insp .tb-br.ran{box-shadow:0 0 0 2px var(--good)}
+#insp .tb-br.ran .tb-mark{opacity:1;color:#18332a}
+#insp .tb-br.no{opacity:.62}
+#insp .tb-br.skip{opacity:.34}
+#insp .tb-br.skip .tb-mark{font-style:italic}
+
+/* the handles that move a line, in the head of the block they move */
+.lmv{display:flex;gap:3px;margin-left:6px}
+.lmv button{background:rgba(0,0,0,.22);border:none;color:#18332a;border-radius:6px;
+  font-size:10px;line-height:1;padding:5px 7px}
+.lmv button:disabled{opacity:.28}
+.lmv button:not(:disabled):hover{background:rgba(0,0,0,.4);color:#fff}
 
 /* every combination, worked */
 .mi-tbl{margin-top:10px;overflow-x:auto;border:2px solid #2b2350;border-radius:11px}
@@ -2018,6 +2037,30 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   border-radius:11px;padding:8px 10px}
 .nb-list li b{display:block;font-size:12.5px;color:var(--star);margin-bottom:4px}
 .nb-list li p{margin:0;font-size:12.5px;line-height:1.55;color:var(--text)}
+/* a rule filed in the notebook is the same blocks it is on the machine,
+   scaled down — the whole reason to draw one is to be able to compare it
+   with the one filed under it */
+.nb-rule{margin:0 0 7px}
+.nb-rule .tb-rule{gap:4px}
+.nb-rule .tb-br{--c:#a8e6cf}
+.nb-rule .tb-br .blk-head{padding:5px 8px;font-size:12px;gap:5px;color:#18332a;flex-wrap:wrap}
+.nb-rule .tb-br .blk-body{margin-left:13px;border-left-width:6px;padding:5px 0 5px 7px;
+  background:rgba(168,230,207,.07)}
+.nb-rule .tb-br .blk-foot{height:9px}
+.nb-rule .blk.tb-act{--c:#2e3a5c;font-size:11.5px;padding:5px 8px;margin:0;color:#cfe0ff;
+  font-family:var(--font-code);display:inline-flex;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.nb-rule .tb-b{display:inline-block;font-family:var(--font-code);font-size:11.5px;
+  background:rgba(255,255,255,.62);color:#3a3357;border-radius:999px;padding:1px 7px}
+.nb-rule .tb-op{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;
+  background:rgba(0,0,0,.14);border-radius:999px;padding:1px 5px}
+.nb-rule .tb-op i{font-style:normal;font-family:var(--font-code);font-size:11px;
+  font-weight:bold;color:#2b4a3c}
+/* the notebook styles every <b> in an entry as its star-coloured heading,
+   which caught the if/elif/else keyword inside a block head and left it
+   mint on mint. A keyword is part of the block, not a heading. */
+.nb-rule .blk-head b{display:inline;margin:0;font-size:12px;color:#18332a;
+  font-family:var(--font-code);letter-spacing:.02em}
+.nb-rule .tb-mark,.nb-rule .lmv{display:none}   /* no verdicts, no handles: it is a record */
 .nb-list li .nb-hint{color:var(--muted);margin-top:5px}
 .nb-list li.nb-done{opacity:.55;border-left-color:var(--good)}
 .nb-list li.nb-done b{color:var(--good);margin:0}
@@ -2442,55 +2485,55 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='417';</script>
-<script src="lib/three.classic.js?v=417"></script>
-<script src="strings.js?v=417"></script>
-<script src="music.js?v=417"></script>
-<script src="net.js?v=417"></script>
-<script src="avatar.js?v=417"></script>
-<script src="zombies.js?v=417"></script>
-<script src="building.js?v=417"></script>
-<script src="levels.js?v=417"></script>
-<script src="program.js?v=417"></script>
-<script src="code.js?v=417"></script>
-<script src="mechsim.js?v=417"></script>
-<script src="mech.js?v=417"></script>
-<script src="intro.js?v=417"></script>
-<script src="mechacode.js?v=417"></script>
-<script src="mechaarena.js?v=417"></script>
-<script src="mecha.js?v=417"></script>
-<script src="workshop.js?v=417"></script>
-<script src="combat.js?v=417"></script>
-<script src="logic.js?v=417"></script>
-<script src="trail.js?v=417"></script>
-<script src="puzzle.js?v=417"></script>
-<script src="nav.js?v=417"></script>
-<script src="tutorial.js?v=417"></script>
-<script src="race.js?v=417"></script>
-<script src="flight.js?v=417"></script>
-<script src="sub.js?v=417"></script>
-<script src="invaders.js?v=417"></script>
-<script src="school.js?v=417"></script>
-<script src="cruise.js?v=417"></script>
-<script src="club.js?v=417"></script>
-<script src="who.js?v=417"></script>
-<script src="arcade.js?v=417"></script>
-<script src="islands.js?v=417"></script>
-<script src="planet.js?v=417"></script>
-<script src="wallet.js?v=417"></script>
-<script src="shop.js?v=417"></script>
-<script src="library.js?v=417"></script>
-<script src="costumes.js?v=417"></script>
-<script src="missions.js?v=417"></script>
-<script src="coach.js?v=417"></script>
-<script src="owner.js?v=417"></script>
-<script src="blocks.js?v=417"></script>
-<script src="vm.js?v=417"></script>
-<script src="coder.js?v=417"></script>
-<script src="quiz.js?v=417"></script>
-<script src="chars.js?v=417"></script>
-<script src="title.js?v=417"></script>
-<script src="menu.js?v=417"></script>
-<script src="game.js?v=417"></script>
+<script>window.ASSETV='418';</script>
+<script src="lib/three.classic.js?v=418"></script>
+<script src="strings.js?v=418"></script>
+<script src="music.js?v=418"></script>
+<script src="net.js?v=418"></script>
+<script src="avatar.js?v=418"></script>
+<script src="zombies.js?v=418"></script>
+<script src="building.js?v=418"></script>
+<script src="levels.js?v=418"></script>
+<script src="program.js?v=418"></script>
+<script src="code.js?v=418"></script>
+<script src="mechsim.js?v=418"></script>
+<script src="mech.js?v=418"></script>
+<script src="intro.js?v=418"></script>
+<script src="mechacode.js?v=418"></script>
+<script src="mechaarena.js?v=418"></script>
+<script src="mecha.js?v=418"></script>
+<script src="workshop.js?v=418"></script>
+<script src="combat.js?v=418"></script>
+<script src="logic.js?v=418"></script>
+<script src="trail.js?v=418"></script>
+<script src="puzzle.js?v=418"></script>
+<script src="nav.js?v=418"></script>
+<script src="tutorial.js?v=418"></script>
+<script src="race.js?v=418"></script>
+<script src="flight.js?v=418"></script>
+<script src="sub.js?v=418"></script>
+<script src="invaders.js?v=418"></script>
+<script src="school.js?v=418"></script>
+<script src="cruise.js?v=418"></script>
+<script src="club.js?v=418"></script>
+<script src="who.js?v=418"></script>
+<script src="arcade.js?v=418"></script>
+<script src="islands.js?v=418"></script>
+<script src="planet.js?v=418"></script>
+<script src="wallet.js?v=418"></script>
+<script src="shop.js?v=418"></script>
+<script src="library.js?v=418"></script>
+<script src="costumes.js?v=418"></script>
+<script src="missions.js?v=418"></script>
+<script src="coach.js?v=418"></script>
+<script src="owner.js?v=418"></script>
+<script src="blocks.js?v=418"></script>
+<script src="vm.js?v=418"></script>
+<script src="coder.js?v=418"></script>
+<script src="quiz.js?v=418"></script>
+<script src="chars.js?v=418"></script>
+<script src="title.js?v=418"></script>
+<script src="menu.js?v=418"></script>
+<script src="game.js?v=418"></script>
 </body>
 </html>

@@ -1494,6 +1494,10 @@ window.ES = {
   /* ---- the inspector, after the great trim: the rule is the diagram, so
      nothing says the condition or the actions twice any more ---- */
   'WHAT IT DECIDES':'LO QUE DECIDE','run':'se ejecutó','not reached':'no se llegó',
+  /* the operators inside a condition block. They stay as they are: they are
+     the words the machine's own rule is written in, and a student reading
+     `and` on the block reads `and` in every other mission too. */
+  'and':'and','or':'or','not':'not',
   'Not switches — what you have found. It cannot read evidence you have not got.':
     'No son interruptores — es lo que has encontrado. No puede leer pruebas que no tienes.',
 
@@ -1580,6 +1584,18 @@ window.ES = {
     'Cuatro permisos, un código: M-4471 · CUADRILLA MANT. 4.',
   'Not enough. A trail with a gap names nobody.':
     'No basta. Un rastro con un hueco no acusa a nadie.',
+
+  /* ---- notebook rule entries: the blocks are drawn, so these are only
+     the thing the blocks cannot say ---- */
+  'Nothing at all when it is false. It has no else.':
+    'Nada en absoluto cuando es falso. No tiene else.',
+  'Route rewritten Bay 14 → Bay 17 at 02:02, under M-4471.':
+    'Ruta reescrita Muelle 14 → Muelle 17 a las 02:02, con M-4471.',
+  'The `or` was added. The gate used to ask one question.':
+    'El `or` fue añadido. Antes la puerta hacía una sola pregunta.',
+  'Both, or it runs past.':'Las dos, o pasa de largo.',
+  'Four branches. It answers the first one that is true.':
+    'Cuatro ramas. Responde a la primera que es verdadera.',
 
   /* ---- signs and places ---- */
   'BAY 14':'MUELLE 14','BAY 17':'MUELLE 17','DEPOT':'ALMACÉN',
@@ -1939,7 +1955,7 @@ window.ES = {
     '«LAS MÁQUINAS NO DECIDEN AL AZAR. SIGUEN REGLAS.»',
   'Ilana Vey could not make anybody listen, so she taught four machines to keep saying it until somebody read them. You read them. <b>Change the condition. Change the outcome.</b>':
     'Ilana Vey no consiguió que nadie la escuchara, así que enseñó a cuatro máquinas a seguir diciéndolo hasta que alguien las leyera. Tú las leíste. <b>Cambia la condición. Cambia el resultado.</b>',
-  'if':'if','else':'else','or':'or','and':'and',
+  'if':'if','else':'else',
   'elif, and order':'elif, y el orden','conditions together':'condiciones juntas',
   'A condition is a question with a yes or a no. If the answer is yes, something happens. The bay sensor has nothing else — when it is no, nothing happens at all, and nothing is an answer too.':
     'Una condición es una pregunta con un sí o un no. Si la respuesta es sí, pasa algo. El sensor del muelle no tiene else — cuando es no, no pasa nada en absoluto, y eso también es una respuesta.',
