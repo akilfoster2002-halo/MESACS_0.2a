@@ -306,7 +306,7 @@ test('the panel draws the vocabulary and asks preflight.js everything', ()=>{
      a tenth word added to preflight.js has to appear on screen by itself,
      or the list a student reads and the list the console accepts are two
      lists. */
-  assert.match(fix, /\bR\.WORDS\.map/, 'the word bank is not drawn from WORDS');
+  assert.match(fix, /\b(?:R|P\(\))\.WORDS\.map/, 'the word bank is not drawn from WORDS');
   assert.match(fix, /\b(?:R|P\(\))\.run\(state\)/, 'the panel decides for itself whether it passed');
   assert.match(fix, /\b(?:R|P\(\))\.step\(state\)/, 'the panel picks its own next blank');
   assert.match(fix, /\b(?:R|P\(\))\.refuse\(/, 'the panel writes its own refusals');
@@ -355,4 +355,70 @@ test('the model is installed and carries its own colour', ()=>{
     'obj2glb no longer carries the material runs through');
   assert.match(read('glb files/paint-ship.js'), /B\.parts \|\| \{\}/,
     'paint-ship no longer reads them');
+});
+
+test('the panel asks one question at a time, in as few words as it can', ()=>{
+  /* IT USED TO BE A COCKPIT. Nine rules down the left, a running trace
+     down the right, a step card, a vocabulary line, a refusal line and a
+     fourteen-blank counter — all on screen while a nine-year-old decided
+     between `<` and `<=`. Every piece was defensible alone and together
+     they were somewhere to get lost. */
+  const fix = read('public/shipfix.js');
+
+  /* ONE CHECK ON SCREEN, chosen by an index rather than by drawing them
+     all and highlighting one. */
+  assert.match(fix, /const check = \(\) => P\(\)\.CHECKS\[at\]/,
+    'the panel no longer draws a single check at a time');
+  assert.ok(!/CHECKS\.map\(c=>\{/.test(fix), 'the whole checklist is being drawn again');
+  /* And the trace column is gone: the readings under the question are the
+     feedback, so a second running commentary is a second thing to read. */
+  assert.ok(!/sftrace|What the gauges did/.test(fix),
+    'the panel still carries a trace column beside the question');
+
+  /* FORWARD IS EARNED, and it is the only way on. */
+  assert.match(fix, /function forward\(\)\{[\s\S]{0,200}?if\(!R\.done\(check\(\)\.id, state\)\) return;/,
+    'the NEXT button does not check that the question was answered');
+  assert.match(fix, /at < R\.CHECKS\.length-1/, 'nothing advances to the next check');
+  assert.match(fix, /R\.run\(state\)/, 'the last step does not run the whole pre-flight');
+
+  /* PROGRESS WITHOUT WORDS. */
+  assert.match(fix, /sfdot/, 'there is no wordless progress indicator');
+  /* The CODE, not the commentary — the paragraph above the dots names the
+     phrase they replaced in order to say what they replaced. */
+  const code = fix.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/filled in/.test(code), 'the panel still counts blanks at the player in words');
+  assert.ok(!/RUN PRE-FLIGHT/.test(code), 'there is still a separate run step to find');
+});
+
+test('nothing a student reads is longer than a breath', ()=>{
+  /* THE WHOLE POINT OF THE REDESIGN, counted rather than admired. Every
+     sentence the panel shows comes from preflight.js, so it can be
+     measured here — and if one of them grows, this is what says so. */
+  const words = t => t.replace(/<[^>]+>/g,'').trim().split(/\s+/).length;
+
+  for(const c of P.CHECKS){
+    assert.ok(words(c.says) <= 10,
+      `${c.id}'s rule is ${words(c.says)} words: "${c.says.replace(/<[^>]+>/g,'')}"`);
+    assert.ok(c.name.length <= 12, `${c.id}'s heading is too long: ${c.name}`);
+  }
+  /* A chip is a symbol and a label short enough to sit under it. */
+  for(const w of P.WORDS)
+    assert.ok(words(w.name) <= 3, `the label for ${w.id} is ${words(w.name)} words: ${w.name}`);
+
+  /* The step says the rule and nothing else — it used to append the
+     failing reading in twenty words, describing a row of a table the
+     student is already looking at, which is already red. */
+  const st = P.step({});
+  assert.strictEqual(st.say, P.checkOf(st.id).says,
+    'the step has started explaining the table instead of showing it');
+  /* And the one nudge, when every blank is full and it still does not
+     match, is a short one. */
+  const answer = SOLVED();
+  const wrong = { ...answer, [P.key('cargo','op')]:'<' };
+  const miss = P.step(wrong).miss;
+  assert.ok(miss && words(miss) <= 9, 'the nudge is a paragraph: '+miss);
+
+  /* Refusals too: one line about what kind of word it is. */
+  for(const [w,k] of [['and','cmp'], ['<','join'], ['>=','neg']])
+    assert.ok(words(P.refuse(w,k)) <= 14, `the refusal for ${w} in a ${k} blank is too long`);
 });

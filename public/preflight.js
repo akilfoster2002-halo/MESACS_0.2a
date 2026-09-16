@@ -45,23 +45,23 @@
      compares two numbers, it is the wrong PART OF SPEECH, and a console
      that just says "no" there has taught nothing. */
   const WORDS = [
-    { id:'<',   kind:'cmp',  name:'is less than',
+    { id:'<',   kind:'cmp',  name:'less than',
       help:'True when the left number is smaller. 5 < 9.' },
-    { id:'>',   kind:'cmp',  name:'is more than',
+    { id:'>',   kind:'cmp',  name:'more than',
       help:'True when the left number is bigger. 9 > 5. NOT true when they are equal.' },
-    { id:'<=',  kind:'cmp',  name:'is at most',
+    { id:'<=',  kind:'cmp',  name:'at most',
       help:'Less than <b>or the same</b>. 5 <= 5 is true; 6 <= 5 is not.' },
-    { id:'>=',  kind:'cmp',  name:'is at least',
+    { id:'>=',  kind:'cmp',  name:'at least',
       help:'More than <b>or the same</b>. 5 >= 5 is true; 4 >= 5 is not.' },
-    { id:'==',  kind:'cmp',  name:'is exactly',
+    { id:'==',  kind:'cmp',  name:'the same as',
       help:'True only when the two are the same number. One = sets a value; two == asks a question.' },
-    { id:'!=',  kind:'cmp',  name:'is anything but',
+    { id:'!=',  kind:'cmp',  name:'not the same',
       help:'True when they are <b>not</b> the same. The ! means not.' },
-    { id:'and', kind:'join', name:'both are true',
+    { id:'and', kind:'join', name:'both',
       help:'Joins two questions. True only when BOTH sides are true.' },
-    { id:'or',  kind:'join', name:'either is true',
+    { id:'or',  kind:'join', name:'either',
       help:'Joins two questions. True when EITHER side is true — or both.' },
-    { id:'not', kind:'neg',  name:'flip it over',
+    { id:'not', kind:'neg',  name:'the opposite',
       help:'Turns the answer round. <b>not</b> (5 &lt; 9) is false, because 5 &lt; 9 is true.' }
   ];
   const wordOf = id => WORDS.find(w=>w.id===id) || null;
@@ -87,7 +87,7 @@
      place the difference between them is visible. */
   const CHECKS = [
     { id:'fuel', name:'FUEL', word:'>=',
-      says: 'There has to be <b>at least 20</b> units in the tank.',
+      says: 'Fuel must be <b>at least 20</b>.',
       form: { t:'cmp', gauge:'fuel', op:'#op', rhs:20 },
       gauges:['fuel'],
       /* 20 exactly is the whole check: "at least 20" includes 20, and
@@ -95,39 +95,39 @@
       reads: [ { fuel:34, pass:true }, { fuel:20, pass:true }, { fuel:12, pass:false } ] },
 
     { id:'core', name:'CORE HEAT', word:'<',
-      says: 'The core has to be <b>below 900</b>. 900 is not below 900.',
+      says: 'Heat must be <b>under 900</b>.',
       form: { t:'cmp', gauge:'core', op:'#op', rhs:900 },
       gauges:['core'],
       reads: [ { core:640, pass:true }, { core:899, pass:true },
                { core:900, pass:false }, { core:1180, pass:false } ] },
 
     { id:'cargo', name:'CARGO', word:'<=',
-      says: 'She will lift <b>400 at the most</b>. Exactly 400 is fine.',
+      says: 'Load must be <b>400 or less</b>.',
       form: { t:'cmp', gauge:'load', op:'#op', rhs:400 },
       gauges:['load'],
       reads: [ { load:275, pass:true }, { load:400, pass:true }, { load:410, pass:false } ] },
 
     { id:'pad', name:'PAD', word:'>',
-      says: 'The pad has to be <b>above freezing</b>. Freezing itself is not above it.',
+      says: 'The pad must be <b>warmer than 0</b>.',
       form: { t:'cmp', gauge:'pad', op:'#op', rhs:0 },
       gauges:['pad'],
       reads: [ { pad:6, pass:true }, { pad:0, pass:false }, { pad:-9, pass:false } ] },
 
     { id:'key', name:'IGNITION', word:'==',
-      says: 'The key has to be <b>exactly at 1</b> — armed. 0 is off and 2 is already turning.',
+      says: 'The key must be <b>exactly 1</b>.',
       form: { t:'cmp', gauge:'key', op:'#op', rhs:1 },
       gauges:['key'],
       reads: [ { key:1, pass:true }, { key:0, pass:false }, { key:2, pass:false } ] },
 
     { id:'heading', name:'HEADING', word:'!=',
-      says: 'Anything <b>but 180</b>. 180 is straight at the moon.',
+      says: 'Heading must be <b>anything but 180</b>.',
       form: { t:'cmp', gauge:'heading', op:'#op', rhs:180 },
       gauges:['heading'],
       reads: [ { heading:90, pass:true }, { heading:275, pass:true },
                { heading:180, pass:false } ] },
 
     { id:'cabin', name:'CABIN AIR', word:'and',
-      says: 'Pressure has to be <b>above 8 and below 40</b>. Both, or nobody breathes.',
+      says: 'Air must be <b>over 8</b> and <b>under 40</b>.',
       form: { t:'join', op:'#join',
               a:{ t:'cmp', gauge:'psi', op:'#lo', rhs:8 },
               b:{ t:'cmp', gauge:'psi', op:'#hi', rhs:40 } },
@@ -136,8 +136,7 @@
                { psi:5, pass:false }, { psi:60, pass:false } ] },
 
     { id:'power', name:'POWER', word:'or',
-      says: 'She flies on <b>either cell</b> — the main one or the backup. '
-          + 'A cell reading below zero is draining, which is worse than empty.',
+      says: 'One cell must be <b>over 0</b>. Either will do.',
       form: { t:'join', op:'#join',
               a:{ t:'cmp', gauge:'main',   op:'#m', rhs:0 },
               b:{ t:'cmp', gauge:'backup', op:'#b', rhs:0 } },
@@ -154,7 +153,7 @@
                { main:-3, backup:5, pass:true } ] },
 
     { id:'thrust', name:'THRUST', word:'not',
-      says: 'The thrusters must <b>not</b> be reversed. Reversed is anything below zero.',
+      says: 'Thrust must <b>not</b> be under 0.',
       form: { t:'not', neg:'#neg', in:{ t:'cmp', gauge:'thrust', op:'#op', rhs:0 } },
       gauges:['thrust'],
       reads: [ { thrust:-4, pass:false }, { thrust:0, pass:true }, { thrust:12, pass:true } ] }
@@ -329,15 +328,15 @@
         id:c.id, name:c.name, says:c.says, hole:key(at.check, at.slot), kind:at.kind,
         n: CHECKS.indexOf(c)+1, of: CHECKS.length,
         need: empty ? 'fill' : 'fix',
-        /* The sentence under the rule. It describes the reading that came
-           out wrong; it never names the word that would fix it. */
-        say: empty
-          ? c.says
-          : c.says + ' — ' + (bad
-              ? `but with ${c.gauges.map(g=>`<b>${g} at ${bad.reading[g]}</b>`).join(' and ')} `
-                + `your rule says <b>${bad.got?'PASS':'HOLD'}</b> and the log says `
-                + `<b>${bad.want?'PASS':'HOLD'}</b>.`
-              : 'and it does not match the log yet.')
+        /* THE SENTENCE IS THE RULE AND NOTHING ELSE. It used to carry the
+           failing reading with it — "but with fuel at 20 your rule says
+           PASS and the log says HOLD" — which is twenty words describing a
+           row of a table the student is already looking at, and the row is
+           already red. Say the rule; let the table say the rest. */
+        say: c.says,
+        /* One nudge, only once every blank is full and it still does not
+           match. Six words, pointing at the table rather than at a word. */
+        miss: (!empty && bad) ? 'Not yet \u2014 look at the red line.' : null
       };
     }
     return null;
@@ -350,18 +349,16 @@
     const w=wordOf(wordId);
     if(!w) return 'That is not one of the words.';
     if(w.kind===slotKind) return null;
-    if(slotKind==='cmp')
-      return w.kind==='join'
-        ? `<b>${w.id}</b> joins two questions together. This blank is between two numbers, `
-        + 'and it wants a word that compares them.'
-        : `<b>not</b> flips one question over. This blank is between two numbers, `
-        + 'and it wants a word that compares them.';
-    if(slotKind==='join')
-      return w.kind==='cmp'
-        ? `<b>${w.id}</b> compares two numbers. This blank is between two whole questions, `
-        + 'and it wants a word that joins them.'
-        : `<b>not</b> flips one question over rather than joining two.`;
-    return `<b>${w.id}</b> does not flip a question over. Only <b>not</b> does that.`;
+    /* WHAT KIND OF WORD IT IS, in one line. These nine are three different
+       parts of speech, and a console that only says "no" has taught
+       nothing — but it does not need a paragraph to say so either. */
+    const wants = slotKind==='cmp'  ? 'compares two numbers'
+                : slotKind==='join' ? 'joins two questions'
+                :                     'flips a question over';
+    const does  = w.kind==='cmp'  ? 'compares two numbers'
+                : w.kind==='join' ? 'joins two questions'
+                :                   'flips a question over';
+    return `<b>${w.id}</b> ${does}. This blank ${wants}.`;
   }
 
   const API = { WORDS, CHECKS, CMP,
