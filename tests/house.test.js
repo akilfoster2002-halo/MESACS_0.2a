@@ -187,5 +187,12 @@ test('the story runs on scenes, and the console is a separate lesson', ()=>{
      it is guessing — the step on screen is read off the program and the
      block it is about is ringed. */
   assert.match(fix, /R\(\)\.step\(state\)/, 'the console never asks which fault to point at');
-  assert.match(fix, /classList\.add\('bad'\)/, 'nothing on screen is ever ringed');
+  assert.match(fix, /classList\.add\('ring'\)/, 'nothing on screen is ever ringed');
+  /* THE CONSOLE'S OWN BLOCKS, not a second drawing of them. .blk and its
+     parts are global in index.html and belong to code.js; a panel that
+     restyled them would drift away from the shape every other mission
+     uses, which is the whole reason a student recognises it. */
+  assert.match(fix, /class="blk rep/, 'the program is not drawn as console blocks');
+  assert.match(fix, /blk-head|blk-body|blk-foot/, 'the C-blocks do not wrap');
+  assert.ok(!/^\s*\.blk\{/m.test(fix), 'ionfix.js restyles .blk instead of using the real one');
 });

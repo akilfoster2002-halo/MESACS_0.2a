@@ -65,22 +65,21 @@ window.IONFIX = (function(){
       #ifstep .no{display:block;font:700 10px/1 ui-monospace,monospace;
                   letter-spacing:.14em;text-transform:uppercase;color:#9b8fc4;
                   margin-bottom:5px}
-      .blk{border-radius:9px;padding:9px 12px;margin:0 0 7px;color:#16202b;
-           font:600 15px/1.35 system-ui,sans-serif;display:flex;flex-wrap:wrap;
-           align-items:center;gap:7px;box-shadow:0 2px 0 #0003}
-      .blk.nest{margin-left:22px}
-      .blk .lbl{opacity:.85}
-      .hole{background:#fffffff0;border:2px solid #16202bcc;border-radius:7px;
-            font:700 15px/1 ui-monospace,monospace;color:#16202b;padding:4px 7px;
-            min-width:52px;text-align:center}
-      select.hole{padding:4px 5px}
-      input.hole{width:62px}
+      /* THE BLOCKS THEMSELVES ARE NOT STYLED HERE. .blk, .blk-rep,
+         .blk-head, .blk-body, .blk-foot, .cnt, .cnt-n and .numin are all
+         global in index.html and belong to code.js; a second set of rules
+         for them here would be a second drawing of the same block, drifting
+         away from the one every other mission uses. These four are the only
+         things this panel adds. */
+      #ionfix .blk-head.mid{border-radius:0;margin-left:22px}
+      #ionfix .cond{background:rgba(0,0,0,.3);border:none;color:#fff;
+             border-radius:8px;padding:4px 10px;font:inherit;font-size:16px;cursor:pointer}
       /* THE BLOCK THE STEP IS ABOUT, ringed. A walkthrough that says "the
-         loop" and leaves a student hunting for which of four white boxes
-         is the loop has not pointed at anything. */
-      .hole.bad{border-color:#ffd8a8;box-shadow:0 0 0 4px #ffd8a866;
-                animation:ifring 1.4s ease-in-out infinite}
-      @keyframes ifring{50%{box-shadow:0 0 0 7px #ffd8a833}}
+         loop" and leaves a student hunting for which control is the loop
+         has not pointed at anything. */
+      #ionfix .ring{outline:4px solid #ffd8a8;outline-offset:3px;border-radius:9px;
+             animation:ifring 1.4s ease-in-out infinite}
+      @keyframes ifring{50%{outline-color:#ffd8a866}}
       .ifrun{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
       .ifbtn{border:0;border-radius:11px;padding:11px 20px;cursor:pointer;
              font:700 14px/1 ui-monospace,monospace;letter-spacing:.08em}
@@ -135,45 +134,94 @@ window.IONFIX = (function(){
   /* ------------------------------------------------------------- drawing */
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function block(cat, fallback, nest, inner){
-    return `<div class="blk${nest?' nest':''}" style="background:${tint(cat,fallback)}">${inner}</div>`;
+  /* THE CONSOLE'S OWN BLOCKS, not a second drawing of them.
+
+     `.blk`, `.blk-rep`, `.blk-head`, `.blk-body`, `.blk-foot`, `.cnt`,
+     `.cnt-n`, `.numin` are all styled globally in index.html, and code.js
+     builds exactly this markup for the Swarm, the Trench and Space
+     Explorer. Emitting the same thing here means Ion's routine IS a Koro
+     program rather than something that resembles one: the C-blocks wrap,
+     the notch is under the loop, the counter is the same counter, and a
+     student who has done the Swarm recognises the shape before they read
+     a word of it.
+
+     `--c` is the block's colour, and the colours are code.js's own for the
+     same block: repeat and forever purple, if mint, move blue. */
+  const C = { loop:'#cdb4f6', ifc:'#a8e6cf', move:'#8fd3ff', act:'#bdb2d8' };
+
+  /* A forever has no notch under it, because nothing put there could ever
+     run. The shape is the warning — code.js says so, and it is the whole
+     of fault one. */
+  function loopHead(s){
+    /* THE WORD IS THE CONTROL. A separate little swap icon beside it is a
+       thing to find before it is a thing to press; code.js makes the
+       condition itself the button for exactly that reason, and a loop that
+       is the wrong loop is answered by clicking the loop. */
+    const kind = s.loop==='repeat'
+      ? `<button class="cond" id="ifloop">${say('repeat')}</button>
+         <button class="cnt" id="ifdec">\u2212</button>
+         <span class="cnt-n" id="iftimes">${s.times}</span>
+         <button class="cnt" id="ifinc">+</button>
+         <span class="blk-times">${say('times')}</span>`
+      : `<button class="cond" id="ifloop">${say('forever')}</button>`;
+    return `<div class="blk rep${s.loop==='forever'?' flat':''}" style="--c:${C.loop}">
+        <div class="blk-head">${kind}</div>
+        <div class="blk-body">
+          <div class="blk num" style="--c:${C.move}">
+            <span class="blk-name">${say('move')}</span>
+            <input class="numin" id="ifstride" type="text" inputmode="numeric"
+                   value="${s.stride}" size="3" aria-label="${say('steps')}">
+            <span class="blk-times">${say('steps')}</span>
+          </div>
+        </div>
+        <div class="blk-foot"></div>
+      </div>`;
   }
+
+  /* IF AND ELSE AS ONE BLOCK WITH TWO BODIES, which is the shape it has in
+     Scratch and in blocks.js. code.js's own `if` has no else — it is a
+     console for programs that run once — so this is its head, its body and
+     its foot with a second bar between them. */
+  function ifBlock(s){
+    return `<div class="blk rep" style="--c:${C.ifc}">
+        <div class="blk-head">
+          <span class="blk-name">${say('if he')}</span>
+          <button class="cond" id="iftest">${say(s.test)}</button>
+          <span class="blk-times">${say('in the kitchen')}</span>
+        </div>
+        <div class="blk-body">
+          <div class="blk" style="--c:${C.act}">
+            <span class="blk-name">${say('make breakfast')}</span></div>
+        </div>
+        <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
+        <div class="blk-body">
+          <div class="blk" style="--c:${C.act}">
+            <span class="blk-name">${say('say \u201cmy legs will not\u2026\u201d')}</span></div>
+        </div>
+        <div class="blk-foot"></div>
+      </div>`;
+  }
+
   function draw(){
     const u=dom(), s=state, Rt=R();
-    u.script.innerHTML =
-      block('events','#ffd8a8',false, `<span class="lbl">${say('when ▶ clicked')}</span>`) +
-      block('control','#ffb4a2',false,
-        `<select class="hole" id="ifloop">
-           <option value="forever"${s.loop==='forever'?' selected':''}>${say('forever')}</option>
-           <option value="repeat"${s.loop==='repeat'?' selected':''}>${say('repeat')}</option>
-         </select>` +
-        (s.loop==='repeat'
-          ? `<input class="hole" id="iftimes" type="number" min="0" max="${Rt.REPEAT_MAX}" value="${s.times}">
-             <span class="lbl">${say('times')}</span>`
-          : '')) +
-      block('motion','#8fd3ff',true,
-        `<span class="lbl">${say('move')}</span>
-         <input class="hole" id="ifstride" type="number" min="0" max="${Rt.STRIDE_MAX}" value="${s.stride}">
-         <span class="lbl">${say('steps')}</span>`) +
-      block('control','#ffb4a2',false,
-        `<span class="lbl">${say('if he')}</span>
-         <select class="hole" id="iftest">
-           <option value="is"${s.test==='is'?' selected':''}>${say('is')}</option>
-           <option value="is not"${s.test==='is not'?' selected':''}>${say('is not')}</option>
-         </select>
-         <span class="lbl">${say('in the kitchen')}</span>`) +
-      block('looks','#cdb4f6',true, `<span class="lbl">${say('make breakfast')}</span>`) +
-      block('control','#ffb4a2',false, `<span class="lbl">${say('else')}</span>`) +
-      block('looks','#cdb4f6',true, `<span class="lbl">${say('say “my legs will not…”')}</span>`);
+    u.script.innerHTML = loopHead(s) + ifBlock(s);
 
-    const bind=(id,key,num)=>{
-      const e=$('#'+id,u.el); if(!e) return;
-      e.onchange=()=>{ state[key] = num ? +e.value : e.value;
-                       state=R().tidy(state); draw(); };
-      if(num) e.oninput=e.onchange;
-    };
-    bind('ifloop','loop'); bind('iftimes','times',true);
-    bind('ifstride','stride',true); bind('iftest','test');
+    const on_=(id,fn)=>{ const e=$('#'+id,u.el); if(e) e.onclick=fn; };
+    const set=(k,v)=>{ state[k]=v; state=R().tidy(state); draw(); };
+    on_('ifloop', ()=>set('loop', s.loop==='repeat' ? 'forever' : 'repeat'));
+    on_('ifdec',  ()=>set('times', s.times-1));
+    on_('ifinc',  ()=>set('times', s.times+1));
+    on_('iftest', ()=>set('test', s.test==='is' ? 'is not' : 'is'));
+    const n=$('#ifstride',u.el);
+    if(n){
+      /* Typed, like every other number in this language. Read on the way
+         out rather than clamped on the way in, or a box you are half way
+         through emptying snaps to 0 under your hands. */
+      n.oninput=()=>{ const v=n.value.replace(/[^0-9]/g,'');
+                      if(v!==n.value) n.value=v;
+                      state.stride=+v||0; walk(); };
+      n.onchange=()=>set('stride', +n.value||0);
+    }
     walk();
   }
 
@@ -194,15 +242,22 @@ window.IONFIX = (function(){
     u.step.innerHTML='<span class="no">'+
       say('Fault {n} of {m}',{n:st.n,m:st.of})+'</span>'+st.say;
     const e=$('#'+HOLE[st.hole], u.el);
-    if(e) e.classList.add('bad');
+    if(e) e.classList.add('ring');
   }
 
   /* --------------------------------------------------------------- run it */
   function runIt(){
     const u=dom(), r=R().run(state);
     u.trace.innerHTML = r.trace.map(l=>`<div class="${l.kind}">${esc(l.text)}</div>`).join('');
-    u.why.textContent = r.ok ? '' : (r.why || '');
+    u.why.innerHTML = r.ok ? '' : (r.why || '');
     u.win.classList.toggle('hidden', !r.ok);
+    /* AND SCROLL TO IT. The two columns wrap into one on anything narrower
+       than about seven hundred, which puts "what Ion does" below the whole
+       program — so pressing RUN and failing looked exactly like pressing
+       RUN and nothing happening. The trace is the answer to the button;
+       it has to be where the button was. */
+    try{ u.trace.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    catch(e){ u.trace.scrollIntoView(false); }
     if(!r.ok) return;
     u.win.textContent = say('Breakfast. He is up.');
     if(done) return;
