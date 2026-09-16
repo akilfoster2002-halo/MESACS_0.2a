@@ -290,6 +290,7 @@ window.MENU = (function(){
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
+    if(window.HOUSE) HOUSE.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');
@@ -485,6 +486,7 @@ window.MENU = (function(){
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
+    if(window.HOUSE) HOUSE.stop();
     NET.disconnect(); CHAT.hide();
     $('#hud').classList.add('hidden');
     $('#done').classList.add('hidden');

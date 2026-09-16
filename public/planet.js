@@ -240,12 +240,15 @@ window.PLANET = (function(){
     radius:240, sky:BIOMES[1].sky, soil:BIOMES[1].soil, biome:'ochre',
     relief:7.5, ceiling:80, flora:'wood',
     cast:'w', shuttle:true, course:'hub',
-    /* NOTHING BUILT ON IT YET. A door with no room behind it is worse than
-       no door: use() drops any id it does not know, so an invented
-       building would stand there with a sign on it and swallow the key.
-       The pad appends itself, which is what you land beside and what you
-       leave by. */
-    buildings:[],
+    /* ONE DOOR, AND A ROOM BEHIND IT. Everything else on this ball is
+       still ground — see house.js for what is inside. An id `use()` does
+       not know is dropped on the floor, so the route below is not
+       optional decoration: without it this is a shed with a sign on it. */
+    buildings:[
+      { id:'ryuhouse', name:'HOME', em:'\u{1F3E0}', lon:0, lat:-2,
+        w:28, d:24, h:12, door:9,
+        wall:0x4b4030, roof:0xe8c9a0, blurb:'Two rooms. Somebody is not answering' }
+    ],
     pad:{ lon:0, lat:-12 }
   };
   const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD, RYU_WORLD];
@@ -446,6 +449,7 @@ window.PLANET = (function(){
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
+    if(window.HOUSE) HOUSE.stop();
     if(window.CLUB) CLUB.stop();
     CODE.close(); CODE.hideTape(); CODE.setGuide(null); CODE.setBudget(0);
     if(window.VM) VM.leave();
@@ -3502,7 +3506,8 @@ window.PLANET = (function(){
     if(!id) return;
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
-    const known = id==='arcade' || id==='workshop' || id==='mall' || id==='library'
+    const known = id==='ryuhouse'
+               || id==='arcade' || id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
                || id==='league' || id==='pvp' || id==='mecha'
@@ -3560,6 +3565,16 @@ window.PLANET = (function(){
     if(id==='counter'){ wentTo('counter'); leave(); return MENU.chars(); }
     /* The library does not take you anywhere — it opens over the world, so
        you can look a word up and still be standing where you were. */
+    /* THE HOUSE ON RYU. `house` was taken — it is the one on your home
+       planet, and it opens Free Play — so this one is named for the ball
+       it stands on rather than quietly changing what the other one means. */
+    if(id==='ryuhouse'){
+      if(!window.HOUSE) return;
+      wentTo('ryuhouse'); leave();
+      document.querySelector('#hud').classList.remove('hidden');
+      HOUSE.enter();
+      return;
+    }
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
     // the mechanic has no screen: the room IS the shop, so walking in is it
     if(id==='mechanic'){ say(t('Walk down the bays. <b>E</b> at a price to buy it.')); return; }

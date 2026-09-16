@@ -1,0 +1,62 @@
+{
+  "note": [
+    "Read off Ion's reference sheet. He is painted BY PART rather than by",
+    "garment — see LIMBS in paint-skinned.js — because a machine is not",
+    "wearing anything and 'where does the sleeve end' is not a question he",
+    "has an answer to. Which colour a piece of him is IS which piece it is,",
+    "and the rig already knows that.",
+    "Every number is a fraction of the figure: yN is height with 0 at the",
+    "sole and 1 at the crown, ax is |x| over the fingertip reach, zN is",
+    "depth over height, all read in the T-pose.",
+    "The drawing and the mesh agree closely. Drawn neck 0.662-0.697 against",
+    "a rig that puts it at 0.662-0.720; drawn head bottom 0.697 against",
+    "0.677. What the mesh said: foot 0.000-0.108, leg 0.076-0.422, hips",
+    "0.333-0.540, torso 0.480-0.702, shoulder 0.495-0.647, arm ax",
+    "0.110-0.473, forearm ax 0.408-0.780, hand ax 0.724-1.000, neck",
+    "0.662-0.720, head 0.677-1.000 — a third of him is head.",
+    "The eyes were MEASURED, not placed. They are modelled — two discs and a",
+    "mouth bar standing a hair proud of a recessed panel — but only a hair:",
+    "the whole screen sits between zN 0.165 and 0.190, so depth cannot tell",
+    "them from the panel. Taking the frontmost group and clustering it by",
+    "SIGNED x finds them exactly: left at x -0.177 r 0.047, right at x 0.190",
+    "r 0.045, both at y 0.808 r 0.026. Their radii come out at 0.565 of the",
+    "width, against the 0.536 a truly round disc would give at this scale,",
+    "which is how we know they are discs and not ovals.",
+    "NOT PAINTED: the salmon rings on the head bolts, the shoulder and the",
+    "knees, and the mouth bar under the eyes — the rings are geometry no",
+    "height can find, and the mouth is three vertices across."
+  ],
+  "B": {
+    "LIMBS": {
+      "head":     "shell",
+      "neck":     "joint",
+      "torso":    [[0.505, "joint"], [0.640, "shell"], "joint"],
+      "hips":     [[0.355, "joint"], "shell"],
+      "shoulder": "joint",
+      "arm":      "plate",
+      "forearm":  "plate",
+      "hand":     "joint",
+      "leg":      [[0.240, "plate"], "shell"],
+      "foot":     [[0.025, "joint"], "plate"]
+    },
+    "faceZ":   0.150,
+    "faceY":   0.835,
+    "faceR":   [0.270, 0.132],
+    "facePow": 4,
+    "eyes":    [0.808, 0.184, 0.052, 0.029]
+  },
+  "C": {
+    "shell":  "#ddd5c3",
+    "plate":  "#5f6d90",
+    "joint":  "#2e3444",
+    "screen": "#3f4a6b",
+    "eye":    "#f2f4f8"
+  },
+  "SHADE": {
+    "shell":  { "dark": 0.34, "lift": 0.18 },
+    "plate":  { "dark": 0.38, "lift": 0.20 },
+    "joint":  { "dark": 0.30, "lift": 0.26 },
+    "screen": { "dark": 0.16, "lift": 0.10 },
+    "eye":    { "dark": 0.06, "lift": 0.04 }
+  }
+}

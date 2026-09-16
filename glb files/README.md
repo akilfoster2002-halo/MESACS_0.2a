@@ -193,3 +193,77 @@ for where the clothing crosses them. Guessing a band and looking at the render i
 much slower than it sounds: the first pass had the belt sitting exactly on the
 bare midriff and the choker covering the entire throat, and neither is visible at
 the size a character is on screen.
+
+
+## Ion, and painting a machine
+
+Ion is a robot, he is nobody's character — you cannot wear him, buy him or be
+cast as him — and he lies on the floor of the second room of the house on RYU.
+`house.js` loads him directly rather than through `AVATAR`, which normalises
+every body to the height of a person and hands back something the Mall expects
+to be able to sell.
+
+His FBX carries the mesh **and** the clip, so the two halves come out with
+opposite tools — `fbx2glb.js` ignores animation on purpose and `fbx2clip.js`
+reads nothing else:
+
+```bash
+cd "glb files"
+node fbx2glb.js  "../animations/Ion/Ion (beathless).fbx" ion-rigged.glb
+node fbx2clip.js "../animations/Ion/Ion (beathless).fbx" rig/breathless.glb
+node paint-skinned.js ion-rigged.glb ion-painted.glb ion.paint.json
+node merge-clips.js ion-painted.glb ion.glb dropbase \
+  breathless=rig/breathless.glb inplace=breathless
+cp ion.glb ../public/characters/models/ion.glb
+npm run bump
+```
+
+**A person is painted by garment and a machine is painted by part.** Every band
+above — a hem, a collar, where the sleeve ends — answers *what is this vertex
+wearing*, and none of those questions mean anything about Ion. He is not
+dressed, he is assembled, and which colour a piece of him is IS which piece of
+him it is, which the rig already knows. A spec with `LIMBS` in it takes a
+separate path through `classify()` and never touches the garment rules:
+
+```json
+"LIMBS": {
+  "head": "shell",
+  "leg":  [[0.240, "plate"], "shell"],
+  "foot": [[0.025, "joint"], "plate"]
+}
+```
+
+A colour name, or a list of `[upTo, name]` steps ending in a default — because
+one bone often carries two panels, like the thigh and the shin that share `leg`.
+Two more came with him: `facePow`, which rounds the corners of the face oval
+into the squircle a display bolted to a box actually is (2 is the ellipse
+everybody already has, 8 is nearly a rectangle), and `eyes`, a pair of discs on
+it.
+
+### Measure the face, do not place it
+
+Ion's eyes and mouth are **modelled** — discs standing proud of a recessed
+panel — but only just: the whole screen sits between zN 0.165 and 0.190, so
+depth cannot separate them from it. Taking the frontmost group and clustering
+it by **signed x** finds them exactly, and the answer was nothing like the
+guess: left eye at x −0.177 r 0.047, right at x 0.190 r 0.045, both at y 0.808.
+Placed by eye at ax 0.135 they had landed half on and half off the geometry and
+rendered as two cream spikes.
+
+A disc is round when `rY / rAx` equals `xmax / H` for the model — 0.536 here.
+Ion's came out at 0.565, which is how we know they are discs and not ovals.
+
+## Two things that do not work on a SkinnedMesh
+
+**`Box3.setFromObject` cannot see a pose.** It transforms the geometry's bounds
+by `matrixWorld` and never asks the skeleton, so it hands back the BIND pose's
+box however an animation has posed the model. It does not throw and it does not
+return anything obviously wrong — it returns the same plausible number every
+frame. Used to drop Ion onto the floor it lifted him a T-pose's worth into the
+air. `house.js` asks the skin instead, through `applyBoneTransform`, which
+pushes a bind-pose vertex through the skeleton exactly as the vertex shader
+does.
+
+**Mixamo keeps the hips at a standing height even in a clip that lays the body
+flat**, and `inplace` only flattens the fore/aft drift. Out of the box Ion lies
+down two thirds of a metre above the tile, in a pose that is otherwise perfect.

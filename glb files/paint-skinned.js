@@ -108,7 +108,38 @@ function paint(IN, OUT, SPEC){
                it climbs back up the trapezius to the collar. */
             sleeveStart:0,
             watch:null, watchBoth:false,
-            panel:null, emblem:null, ...(SPEC.B||{}) };
+            panel:null, emblem:null,
+            /* ================================================ A ROBOT
+               A PERSON IS PAINTED BY GARMENT AND A MACHINE IS PAINTED BY
+               PART. Everything above this line answers "what is this
+               vertex wearing" — a sleeve, a hem, a collar — and none of
+               those questions mean anything about Ion. He is not dressed;
+               he is ASSEMBLED, and which colour a piece of him is IS
+               which piece of him it is. The rig already knows that, and
+               it is the same answer limbOf() has been giving all along.
+
+               So a spec with LIMBS in it takes a different path through
+               classify() and never touches the garment rules. Each entry
+               is a colour name, or a list of `[upTo, name]` steps ending
+               in a default — because one bone often carries two panels,
+               like the thigh and the shin that share `leg`:
+
+                 "leg":  [[0.24, "plate"], "shell"]
+                 "head": "shell"
+
+               Off by default, so nobody in clothes goes near it. */
+            LIMBS:null,
+            /* THE SCREEN IS NOT AN OVAL. faceR draws an ellipse, which is
+               the right shape for a face and the wrong one for a display
+               bolted to a box. The exponent rounds the corners instead:
+               2 is the ellipse everybody already has, 4 a squircle, 8
+               nearly a rectangle. */
+            facePow:2,
+            /* Two of them, on the screen, `[y, ax, rAx, rY]`. Ion is a
+               head with a face drawn on it and very little else — take the
+               eyes off and what is lying on the floor is a crate. */
+            eyes:null,
+            ...(SPEC.B||{}) };
   const C={ skin:'#dda070', hair:'#1b100e', jersey:'#9c1521', panel:'#242b4a',
             emblem:'#141013', jeans:'#28313a', shoe:'#ded5cd', watch:'#b9bcc0',
             hat:'#e2d8c4', sock:'#a5222c', sock2:'#17171a', sole:'#efeae2',
@@ -193,6 +224,35 @@ function paint(IN, OUT, SPEC){
     for(const b of B.bands) if(yN>=b[0] && yN<=b[1]) return b[2];
     return null;
   }
+  /* A colour name, or a list of [upTo, name] steps ending in a default. */
+  function step(spec, yN){
+    if(typeof spec === 'string') return spec;
+    if(!Array.isArray(spec)) return null;
+    for(const s of spec){
+      if(typeof s === 'string') return s;       // the default, last
+      if(yN < s[0]) return s[1];
+    }
+    return null;
+  }
+  /* ------------------------------------------------------ the machine
+     The garment rules never run for one of these. A band still does, so
+     a robot can carry a stripe, and the face is still a shape on the
+     front of the head — it is just a screen rather than a face. */
+  function machine(L, yN, ax, zN){
+    if(L==='head' && zN > B.faceZ){
+      const fx=ax/B.faceR[0], fy=(yN-B.faceY)/B.faceR[1];
+      const p=B.facePow;
+      if(Math.pow(Math.abs(fx),p) + Math.pow(Math.abs(fy),p) < 1){
+        if(B.eyes){
+          const ex=(ax-B.eyes[1])/B.eyes[2], ey=(yN-B.eyes[0])/B.eyes[3];
+          if(ex*ex + ey*ey < 1) return 'eye';
+        }
+        return 'screen';
+      }
+    }
+    const band=bandAt(yN); if(band) return band;
+    return step(B.LIMBS[L], yN) || step(B.LIMBS.torso, yN) || 'shell';
+  }
   function classify(x,y,z,L){
     /* EVERY NUMBER IN THE SPEC IS A FRACTION OF THE FIGURE, none of them a
        length. The same model is stored at a hundredth of life size to match
@@ -202,6 +262,7 @@ function paint(IN, OUT, SPEC){
        than failing. Height over height, width over reach, depth over
        height: all of it survives a scale. */
     const yN=(y-ymin)/(ymax-ymin), ax=Math.abs(x)/xmax, zN=z/(ymax-ymin);
+    if(B.LIMBS) return machine(L, yN, ax, zN);
     /* A boot rises past the ankle, so the top of it is a height and not a
        bone — and above that it is whatever the leg is wearing, which for
        somebody in shorts is their own leg. */

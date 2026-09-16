@@ -496,6 +496,7 @@ function startMissionRoom(id){
   if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
   if(window.INVADERS) INVADERS.stop();
   if(window.TRAIL) TRAIL.stop();
+  if(window.HOUSE) HOUSE.stop();
   if(id==='tut'){ TUTOR.start(); return; }       // level 0 builds its own plaza
   if(id==='race'){ RACE.start(resumeAt('race')); return; }   // and the circuit its own track
   if(id==='nav'){ NAV.start(resumeAt('nav')); return; }      // the corridor is its own room
@@ -871,6 +872,7 @@ function loop(now){
      something about it, which cannot happen if the world stops dead the
      moment you open the rule. */
   if(window.TRAIL && TRAIL.active) TRAIL.tick(dt);
+  if(window.HOUSE && HOUSE.active) HOUSE.tick(dt);
   /* The live arena runs on the frame rather than inside the frozen-world
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */
