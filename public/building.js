@@ -76,7 +76,18 @@ window.BUILDING = (function(){
     return kit;
   }
 
-  async function build(plans, group){
+  /* HOW MANY COURSES OF WALL GO ON TOP OF EACH OTHER. One is the kit's own
+     wall height, which is about four and a half world units — right for a
+     corridor and low for a room. A room you can see the top of on every
+     wall at once reads as a box you are inside rather than as a place, and
+     the chase camera makes it worse: it sits nearly three units over the
+     head and the lid has to come down to meet it.
+
+     Extra courses are WALL, whatever the first one was. A doorway is a
+     hole in the bottom of a wall, not a slot running up it, and a second
+     window directly over the first is a greenhouse. */
+  async function build(plans, group, opts){
+    const courses = Math.max(1, Math.round((opts && opts.courses) || 1));
     const K = await measure();
     const floors = (typeof plans[0] === 'string') ? [plans] : plans;
 
@@ -129,15 +140,22 @@ window.BUILDING = (function(){
             for(const [dx,dz] of DIRS){
               const n = at(k, x+dx, z+dz);
               if(n !== ' ' && !walkable(n)) continue;
-              add(c==='W' ? 'wall-window-square' : 'wall',
-                  wx + dx*UNIT/2, wz + dz*UNIT/2, surf, dx ? 0 : Math.PI/2, PAINT.wall);
+              for(let u=0; u<courses; u++)
+                add(u===0 && c==='W' ? 'wall-window-square' : 'wall',
+                    wx + dx*UNIT/2, wz + dz*UNIT/2, surf + u*K.wall,
+                    dx ? 0 : Math.PI/2, PAINT.wall);
               faced=true;
             }
-            if(!faced) add('column-wide', wx, wz, surf, 0, PAINT.post);
-            solids.push(cell(wx, wz, base, K));
+            if(!faced)
+              for(let u=0; u<courses; u++)
+                add('column-wide', wx, wz, surf + u*K.wall, 0, PAINT.post);
+            solids.push(cell(wx, wz, base, K, courses));
           }
 
-          if(c === '+'){ add('column', wx, wz, surf, 0, PAINT.post); solids.push(cell(wx,wz,base,K)); }
+          if(c === '+'){
+            for(let u=0; u<courses; u++) add('column', wx, wz, surf + u*K.wall, 0, PAINT.post);
+            solids.push(cell(wx,wz,base,K,courses));
+          }
 
           /* A doorway sits in the face of the wall it pierces, one frame
              per side, so a thick wall reads as a real door reveal. */
@@ -146,6 +164,11 @@ window.BUILDING = (function(){
               if(!walkable(at(k, x+dx, z+dz))) continue;
               add('wall-doorway-square', wx + dx*UNIT/2, wz + dz*UNIT/2,
                   surf, dx ? 0 : Math.PI/2, PAINT.door);
+              /* and plain wall above it, or a taller room leaves a slot of
+                 daylight over every door */
+              for(let u=1; u<courses; u++)
+                add('wall', wx + dx*UNIT/2, wz + dz*UNIT/2, surf + u*K.wall,
+                    dx ? 0 : Math.PI/2, PAINT.wall);
             }
 
           if(stair){
@@ -214,9 +237,16 @@ window.BUILDING = (function(){
           if(cells.length < 3) continue;                 // a nook, not a room
           const mx=cells.reduce((a,c)=>a+c[0],0)/cells.length;
           const mz=cells.reduce((a,c)=>a+c[1],0)/cells.length;
-          const reach=Math.max(14, Math.sqrt(cells.length)*UNIT*1.6);
-          const lamp=new THREE.PointLight(0xffeccf, 26, reach, 1.6);
-          lamp.position.set(mx*UNIT, k*K.storey + K.storey*0.86, mz*UNIT);
+          /* UP WHERE THE CEILING IS. Hung at a single storey's height in a
+             room stacked two courses tall, the lamp sits halfway up the
+             wall: the floor is lit, the top half of every wall is not,
+             and the room reads as a cellar with a lantern in it. And the
+             reach has to grow with the room, or a bigger floor is a
+             darker one. */
+          const lit_h = K.slab + K.wall*courses;
+          const reach=Math.max(14, Math.sqrt(cells.length)*UNIT*1.6 + lit_h);
+          const lamp=new THREE.PointLight(0xffeccf, 26*Math.max(1,courses*0.8), reach, 1.6);
+          lamp.position.set(mx*UNIT, k*K.storey + lit_h*0.88, mz*UNIT);
           group.add(lamp);
         }
 
@@ -275,13 +305,16 @@ window.BUILDING = (function(){
     }
 
     return { solids, spots, unit:UNIT, storey:K.storey, slab:K.slab,
+             courses, wall:K.wall, height:K.slab + K.wall*courses,
              heightAt, ceilingAt, at:(x,z)=>at(0,x,z), walkable, floors };
   }
 
-  /* a wall tile blocks the storey it stands on, and only that storey */
-  function cell(wx, wz, base, K){
+  /* a wall tile blocks the storey it stands on, and only that storey —
+     all the way up it, however many courses were stacked there, or the
+     chase camera climbs over a wall it cannot see the top of */
+  function cell(wx, wz, base, K, courses){
     return { x1:wx-UNIT/2, x2:wx+UNIT/2, z1:wz-UNIT/2, z2:wz+UNIT/2,
-             y1:base, y2:base + K.storey };
+             y1:base, y2:base + K.slab + K.wall*Math.max(1, courses||1) };
   }
 
   return { build, piece, UNIT };

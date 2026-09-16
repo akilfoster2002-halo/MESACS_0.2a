@@ -699,6 +699,11 @@ function wireInput(){
     }
     G.keys[e.code]=true;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    /* A LINE OF DIALOGUE ANSWERS FIRST. SPACE is jump and E is go-in
+       everywhere else in this game, and during a scene they are both
+       "next" — so this has to run before either of them is read as what
+       it usually means, or advancing the story also makes Robin jump. */
+    if(window.SCENE && SCENE.active && SCENE.key(e)){ e.preventDefault(); return; }
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
     if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
@@ -873,6 +878,10 @@ function loop(now){
      moment you open the rule. */
   if(window.TRAIL && TRAIL.active) TRAIL.tick(dt);
   if(window.HOUSE && HOUSE.active) HOUSE.tick(dt);
+  /* ABOVE THE STEP THAT DRAWS, and outside the frozen-world block: a
+     scene owns the camera precisely while G.running is false, so ticking
+     it inside `if(G.running)` would freeze the shot it is holding. */
+  if(window.SCENE && SCENE.active) SCENE.tick(dt);
   /* The live arena runs on the frame rather than inside the frozen-world
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */

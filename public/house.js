@@ -28,7 +28,8 @@ window.HOUSE = (function(){
   /* Read off the kit rather than copied from it: two constants that have
      to agree are two constants that eventually do not. */
   const U = () => (window.BUILDING && BUILDING.UNIT) || 4;
-  const say = (s,p) => (window.t ? t(s,p) : s);
+  const say_ = (s,p) => (window.t ? t(s,p) : s);
+  const say = say_;
 
   /* ------------------------------------------------------------ the plan
        #  wall      W  window wall     D  doorway
@@ -37,24 +38,41 @@ window.HOUSE = (function(){
           which is the closest thing it has to "a person is on this tile".
           Ion is the only one, and he is not standing.
 
-     Two rooms of five by three tiles. At four world units a tile that is
-     twenty by twelve each, which is a room you cross in a few steps —
-     the point of the walk is the door, not the distance. */
+     Two rooms of seven by five tiles — twenty-eight by twenty world units
+     each, and two courses of wall over them. The first version was five by
+     three under a single course and it read as a box somebody was shut
+     in: at four units a tile, a room only three tiles deep puts a wall in
+     front of the camera before the camera has finished pulling back, and a
+     ceiling at four and a half sits barely above the chase camera's own
+     height. Wider, deeper and twice as tall is the same two rooms and a
+     completely different place to stand in. */
+  const COURSES = 2;
   const PLAN = [
-    '###W###',
-    '#.....#',
-    '#..S..#',
-    '#.....#',
-    '###D###',
-    '#.....#',
-    '#..G..#',
-    '#.....#',
-    '###W###'
+    '####W####',
+    '#.......#',
+    '#.......#',
+    '#...S...#',
+    '#.......#',
+    '#.......#',
+    '####D####',
+    '#.......#',
+    '#.......#',
+    '#...G...#',
+    '#.......#',
+    '#.......#',
+    '####W####'
   ];
 
   /* The model, the mixer, and nothing else: he has one clip and it plays
      for as long as the room is open. */
-  const ION_MODEL = 'characters/models/ion.glb';
+  /* ?v= ON THE ASSET, not just on the script. Models are served with
+     max-age=86400 and every other model in this game is fetched with the
+     version on it — avatar.js says so and "glb files"/README.md says so
+     twice. Without it a changed model is invisible for a day: Ion was
+     re-merged with an idle clip in him, the page loaded yesterday's copy
+     that had only the breathless one, and up() found no clip to stand
+     into and returned quietly. He lay on the floor being congratulated. */
+  const ION_MODEL = () => 'characters/models/ion.glb?v=' + (window.ASSETV || '1');
   /* How tall he stands, in world units, measured in the REST pose before
      a clip has moved anything. A person in this game is 1.85 (AVATAR.TALL)
      and Ion comes up to about the chest of one, which is what the
@@ -67,7 +85,31 @@ window.HOUSE = (function(){
      shoulder rests on is a face, not a vertex. */
   const SIT_STRIDE = 3;
 
-  let on=false, L=null, loader=null;
+  /* WHERE THE TILES ARE, in world units, so a shot can be written down
+     rather than worked out. The plan is nine by thirteen at four units a
+     tile: room one is z 4..24, room two is z 28..44, and both run x 4..28
+     with the middle at 16. */
+  const W = (tx,tz) => [tx*U(), tz*U()];
+  const ION_AT = [16, 36];          // the tile marked G, in world units
+  const DOOR_Z = 24;                // the wall the doorway is in
+
+  /* Has he been fixed? Kept in the save bag, so a student who gets him up
+     and comes back tomorrow does not find him on the floor again. */
+  const FIXED='ion_fixed';
+  const fixed = () => { try{ return !!(window.PROGRESS && PROGRESS.get(FIXED,0)); }
+                        catch(e){ return false; } };
+
+  let on=false, L=null, loader=null, keyHook=null;
+
+  /* E, while she is standing over him and the story is asking for it.
+     Everywhere else in this game E is "go in", and G.room==='house' is not
+     a room anything else routes it for — so this is the only listener that
+     wants it and it keeps to itself. */
+  function onKey(e){
+    if(!on || !L || !L.askE) return;
+    if(e.code!=='KeyE' || !nearIon()) return;
+    L.eHit=true;
+  }
 
   /* ===================================================================
      ION
@@ -82,7 +124,7 @@ window.HOUSE = (function(){
   async function ion(spot){
     loader = loader || new THREE.GLTFLoader();
     const g = await new Promise((res,rej)=>
-      loader.load(ION_MODEL, res, undefined, rej));
+      loader.load(ION_MODEL(), res, undefined, rej));
     if(!on || !L) return;
     const root=g.scene;
     root.traverse(o=>{
@@ -127,9 +169,27 @@ window.HOUSE = (function(){
       return;
     }
     const mixer=new THREE.AnimationMixer(root);
-    mixer.clipAction(clip).play();
+    const down=mixer.clipAction(clip);
+    down.play();
     mixer.update(0);
-    L.ion={ grp, root, mixer };
+    /* AND THE CLIP HE GETS UP INTO. It is rig/idle.glb — the same idle
+       every person in this game stands in — retargeted onto him by bone
+       name, which works because he is a Mixamo skeleton like the rest of
+       them and costs nothing but a merge. Crossfaded rather than cut: a
+       robot who has just been mended and snaps to attention in one frame
+       looks repaired, not relieved. */
+    const stand=(g.animations||[]).find(c=>c.name==='idle');
+    L.ion={ grp, root, mixer, standing:false };
+    L.ion.up=()=>{
+      if(L.ion.standing || !stand) return;
+      L.ion.standing=true;
+      const a=mixer.clipAction(stand);
+      a.reset().setEffectiveWeight(1).play();
+      down.crossFadeTo(a, 1.4, false);
+      /* He came to rest lying down; standing puts his feet back under him,
+         so the drop that sat him on the floor has to be undone with him. */
+      L.ion.lift = { from:grp.position.y, to:spot.y, t:0 };
+    };
     /* AND NOW PUT HIM ON THE FLOOR, which the clip does not do. Mixamo
        keeps the hips at a standing height even in a clip that lays the
        body flat, and `inplace` only flattens the fore/aft drift — so out
@@ -194,21 +254,25 @@ window.HOUSE = (function(){
     /* Indoors with the lights on. BUILDING hangs a lamp over the middle of
        every room it can flood-fill, so the sun's only job in here is to
        keep the corners from going black. */
-    G.scene.background=new THREE.Color(0x1a1622);
+    /* MORNING, because the first thing that happens here is breakfast. The
+       windows are the reason to bother: a room lit only by its own lamp is
+       a room at night whatever the plan says, and the story starts with
+       somebody getting up. */
+    G.scene.background=new THREE.Color(0x2b2536);
     G.scene.fog=null;
-    if(G.sun){ G.sun.intensity=0.24; G.sun.color.setHex(0xffe6c8);
-               G.sun.position.set(30,80,24);
-               if(G.sun.target){ G.sun.target.position.set(12,0,16);
+    if(G.sun){ G.sun.intensity=0.62; G.sun.color.setHex(0xffe8cc);
+               G.sun.position.set(40,70,40);
+               if(G.sun.target){ G.sun.target.position.set(16,0,24);
                                  G.sun.target.updateMatrixWorld(); } }
-    if(G.amb)  G.amb.intensity=0.24;
-    if(G.hemi){ G.hemi.intensity=0.40; G.hemi.color.setHex(0xffd9b0);
-                G.hemi.groundColor.setHex(0x2a2334); }
+    if(G.amb)  G.amb.intensity=0.42;
+    if(G.hemi){ G.hemi.intensity=0.70; G.hemi.color.setHex(0xffe2bd);
+                G.hemi.groundColor.setHex(0x3a3348); }
 
     G.room='house'; G.hudOwner='house'; G.missionId=null; G.running=true;
     G.firstPerson=false;
     on=true;
 
-    const built=await BUILDING.build(PLAN, G.roomGroup);
+    const built=await BUILDING.build(PLAN, G.roomGroup, { courses:COURSES });
     if(!on) return;                    // somebody left while the kit loaded
     L={ built, ion:null, t:0 };
     G.solids=built.solids.slice();
@@ -223,7 +287,7 @@ window.HOUSE = (function(){
        you watch your own house from the garden.
        Capping it under the roof puts the camera back in the room, where
        the walls can do their job. */
-    const LID=built.storey;
+    const LID=built.height;
     G.ceiling=(wx,wz,from)=>Math.min(built.ceilingAt(wx,wz,from), LID);
     roof(LID);
     G.vel.y=0; G.onGround=true;
@@ -251,8 +315,20 @@ window.HOUSE = (function(){
     const mn=$('#missionName'); if(mn) mn.textContent=say('RYU — the house');
     if(window.updateLeaveBtn) updateLeaveBtn();
     if(window.updateCodeBtn) updateCodeBtn();
-    brief(say('Through the door.'));
-    if(window.lockPointer) lockPointer($('#view'));
+
+    /* THE STORY, unless it has already happened. A student who mended him
+       yesterday walks into a house with a working robot in it, which is
+       the correct thing to find and not a scene to sit through again. */
+    if(fixed()){
+      if(L.ion && L.ion.up) L.ion.up();
+      if(window.lockPointer) lockPointer($('#view'));
+      brief(say('Ion is up and about.'));
+      return;
+    }
+    if(!keyHook){ keyHook=onKey; addEventListener('keydown', keyHook); }
+    if(!window.SCENE){ brief(say('Through the door.')); return; }
+    SCENE.play(story(), { faces:FACES,
+      end:()=>{ G.running=true; prompt_(null); openConsole(); } });
   }
 
   /* One slab over the whole footprint, facing down. The rooms are lit from
@@ -263,10 +339,107 @@ window.HOUSE = (function(){
     const cols=PLAN.reduce((n,r)=>Math.max(n,r.length),0), rows=PLAN.length;
     const g=new THREE.Mesh(
       new THREE.PlaneGeometry(cols*U(), rows*U()),
-      new THREE.MeshLambertMaterial({ color:0x6d6478, side:THREE.FrontSide }));
+      new THREE.MeshLambertMaterial({ color:0x8d8496, side:THREE.FrontSide }));
     g.rotation.x=Math.PI/2;                 // face down, at the people under it
     g.position.set((cols-1)/2*U(), y, (rows-1)/2*U());
     G.roomGroup.add(g);
+  }
+
+  /* ===================================================================
+     THE STORY
+     Robin gets up, goes to ask her robot for breakfast, and finds him on
+     the floor. Three shots for the first room, a walk, three for the
+     second, and then a prompt — every one of them a camera already in the
+     room rather than anything built for the purpose.
+     =================================================================== */
+  const FACES = {
+    Robin: 'characters/previews/character-w.png',
+    Ion:   'characters/previews/ion.png'
+  };
+
+  function prompt_(text){
+    const e=$('#usePrompt'); if(!e) return;
+    if(!text){ e.classList.add('hidden'); return; }
+    e.textContent=text; e.classList.remove('hidden');
+  }
+  const nearIon = () =>
+    Math.hypot(G.pos.x-ION_AT[0], G.pos.z-ION_AT[1]) < 5.5;
+  /* TURN HER TOWARDS HIM before the controls come back. A cinematic beat
+     moves the CAMERA and leaves the body's heading wherever the last beat
+     of play put it — so W after a shot that looked at Ion from the side
+     walks her past him and into the far wall, which is exactly what it
+     did. G.yaw is the heading the chase camera and the walking both read,
+     and this is the one moment anybody knows which way is interesting. */
+  function faceIon(){
+    G.yaw = Math.atan2(-(ION_AT[0]-G.pos.x), -(ION_AT[1]-G.pos.z));
+    G.pitch = -0.08;
+  }
+
+  function story(){
+    const say=say_;
+    return [
+      /* --- room one: she is awake and she is hungry ------------------- */
+      { shot:{ eye:[26, 5.4, 6], at:[16, 1.3, 13] }, ease:0,
+        who:'Robin', say:say('Nnngh. Morning.') },
+      { shot:{ eye:[20.5, 2.5, 7.5], at:[16, 1.5, 12.5] }, ease:1.1,
+        who:'Robin', say:say('Ion? Are you up?') },
+      { shot:{ eye:[16, 3.0, 8], at:[16, 1.6, DOOR_Z] }, ease:1.0,
+        who:'Robin', say:say('You said you would do pancakes.') },
+      /* --- and then she has to walk ---------------------------------- */
+      { free:true, who:'Robin', say:say('\u2026Ion?'),
+        wait:()=> G.pos.z > DOOR_Z + 2,
+        on:()=>{ G.yaw=Math.PI; G.pitch=0.02; prompt_(say('Through the door')); },
+        off:()=>prompt_(null) },
+      /* --- room two: he is on the floor ------------------------------ */
+      { shot:{ eye:[22.5, 1.5, 30], at:[16, 0.6, 36] }, ease:1.3, fade:false,
+        who:'Robin', say:say('Ion!') },
+      { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] }, ease:1.4,
+        who:'Ion',   say:say('\u2026m-morning\u2026 R-Robin\u2026') },
+      { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] },
+        who:'Ion',   say:say('my legs will not\u2026 my legs will not\u2026 my legs will not\u2026') },
+      { shot:{ eye:[19.5, 1.9, 32], at:[16, 0.5, 36] }, ease:1.0,
+        who:'Robin', say:say('He is stuck in a loop. Something in his morning routine is broken.') },
+      /* --- and the player is handed the controls back ---------------- */
+      { free:true, who:'Robin', say:say('Let me look at his console.'),
+        /* LATCHED, not polled. G.keys.KeyE is true only while the key is
+           physically down, and a beat that watches it on the frame can
+           miss a quick tap between two frames entirely — the prompt stays
+           up and the key appears to do nothing, which is the worst kind
+           of bug to be on the receiving end of. onKey() sets a flag that
+           stays set. */
+        wait:()=> !!(L && L.eHit),
+        /* The prompt is put up by the frame, not by the beat: it is only
+           true when she is standing over him, and a prompt that offers a
+           key that does nothing is worse than no prompt. */
+        on:()=>{ faceIon(); if(L){ L.askE=true; L.eHit=false; } },
+        off:()=>{ if(L){ L.askE=false; L.eHit=false; } prompt_(null); } }
+    ];
+  }
+
+  /* The console is a separate module: it is a lesson, and it has no idea
+     there is a house around it. */
+  function openConsole(){
+    if(!window.IONFIX){ brief(say_('His console will not open.')); return; }
+    IONFIX.open({
+      onFixed: ()=>{ try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
+                     mended(); }
+    });
+  }
+
+  /* He gets up. One shot, because the thing that changed is worth looking
+     at and the player just earned it. */
+  function mended(){
+    if(!on || !L) return;
+    if(L.ion && L.ion.mixer && L.ion.up) L.ion.up();
+    SCENE.play([
+      { shot:{ eye:[20.5, 1.6, 31.5], at:[16, 0.8, 36] }, ease:0.9,
+        who:'Ion', say:say_('\u2026oh. Oh! That is much better.') },
+      { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] }, ease:1.0,
+        who:'Ion', say:say_('Good morning, Robin. You fixed my legs.') },
+      { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] },
+        who:'Robin', say:say_('Pancakes?') },
+      { free:true, who:'Ion', say:say_('Pancakes.') }
+    ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); } });
   }
 
   function brief(msg){
@@ -279,6 +452,11 @@ window.HOUSE = (function(){
   function stop(){
     if(!on) return;
     on=false; L=null;
+    if(keyHook){ removeEventListener('keydown', keyHook); keyHook=null; }
+    if(window.SCENE) SCENE.stop();
+    if(window.IONFIX) IONFIX.close();
+    prompt_(null);
+    G.running=true;              // a scene left it false; the next room wants it
     clearTimeout(brief._t);
     const b=$('#briefing'); if(b) b.classList.add('hidden');
     /* Hand the shared HUD back the way we found it. Nobody else owns these
@@ -295,6 +473,19 @@ window.HOUSE = (function(){
     if(!on || !L) return;
     L.t += dt;
     if(L.ion && L.ion.mixer) L.ion.mixer.update(dt);
+    /* Back up to the tile over the same second and a half the crossfade
+       takes, so he rises with the pose rather than after it. */
+    /* The E prompt follows her about: up when she is over him, down when
+       she is not. */
+    if(L.askE) prompt_(nearIon() ? say('E \u2014 open Ion\u2019s console') : null);
+
+    const lift=L.ion && L.ion.lift;
+    if(lift){
+      lift.t=Math.min(1, lift.t + dt/1.4);
+      const u=lift.t*lift.t*(3-2*lift.t);
+      L.ion.grp.position.y = lift.from + (lift.to-lift.from)*u;
+      if(lift.t>=1) L.ion.lift=null;
+    }
   }
 
   return { enter, stop, tick, get active(){ return on; }, PLAN, ION_TALL };
