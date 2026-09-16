@@ -2209,8 +2209,33 @@ window.PLANET = (function(){
      press E at exists from the first frame, whether or not a megabyte has
      finished coming down the wire. */
   let shipB=null, shipProto=null;
-  const SHIP_FILE = () => 'ships/e45.glb?v=' + (window.ASSETV || '1');
+  /* TWO FILES, CUT ALONG THE AUTHOR'S OWN LINE. The E-45 arrived as one
+     mesh with two materials in it, and a canopy welded to the hull is not
+     a door — so obj2glb emits the faces of each material as its own glb
+     (`only=` / `skip=`). Neither piece has moved from where it was drawn,
+     so they meet again exactly and nothing has to be aligned here. */
+  const HULL_FILE   = () => 'ships/e45-hull.glb?v='   + (window.ASSETV || '1');
+  const CANOPY_FILE = () => 'ships/e45-canopy.glb?v=' + (window.ASSETV || '1');
   const SHIP_LEN  = 11;            // nose to tail, in world units
+  /* THE HINGE, in the model's own units before it is scaled.
+
+     The canopy is a bubble over the forward half: it runs from the nose at
+     z -2.94 back to z 0.10, and the OBJ is drawn +Y up with the nose down
+     -Z. So the hinge is its REAR edge — the line across the ship at z
+     0.10 — and it swings up and back over the spine, which is what the
+     original animation does with it (169 degrees, twice, in the Sketchfab
+     clip: open, and then closed again thirteen seconds later).
+
+     One axis and one point, rather than a rig. A rotation about a line is
+     what a hinge IS, and a skinned skeleton to express it would be a
+     skeleton with one joint in it. */
+  const HINGE = { z: 0.10, y: 1.10 };   // the pivot, in model units
+  /* WHICH WAY IT SWINGS, found by opening it and looking rather than by
+     reasoning about the sign. Positive lifts the forward end of the glass
+     up and back off the cockpit — a fighter canopy, hinged at its rear
+     edge. 1.0 is about fifty-seven degrees: clear enough to climb into and
+     short of the point where it stands up like a sail. */
+  const CANOPY_OPEN = 1.0;              // radians
   function shipSpec(w){
     shipB=null;
     if(!w || w.id!=='ryu') return;
@@ -2223,8 +2248,12 @@ window.PLANET = (function(){
   }
   /* One fetch per session, shared by every group that wants one. */
   function shipModel(){
-    if(!shipProto) shipProto = new Promise((res,rej)=>
-      new THREE.GLTFLoader().load(SHIP_FILE(), g=>res(g.scene), undefined, rej));
+    if(!shipProto){
+      const load = url => new Promise((res,rej)=>
+        new THREE.GLTFLoader().load(url, g=>res(g.scene), undefined, rej));
+      shipProto = Promise.all([load(HULL_FILE()), load(CANOPY_FILE())])
+                         .then(([hull, canopy])=>({ hull, canopy }));
+    }
     return shipProto;
   }
   /* WHERE THE SHIP RESTS, which is not the bottom of its bounding box.
@@ -2279,12 +2308,28 @@ window.PLANET = (function(){
 
     shipModel().then(proto=>{
       if(!on || b.g!==g) return;          // the world moved on while it loaded
-      const o=proto.clone(true);
-      o.traverse(m=>{ if(!m.isMesh) return;
+      const dress = o => { o.traverse(m=>{ if(!m.isMesh) return;
         m.material=m.material.clone();
         m.material.vertexColors=true;     // it carries its colour in the mesh
         m.frustumCulled=false;
-      });
+      }); return o; };
+      const hull   = dress(proto.hull.clone(true));
+      const canopy = dress(proto.canopy.clone(true));
+
+      /* THE HINGE IS A GROUP, and the canopy hangs off it at the offset it
+         was drawn at. Move the group and the canopy swings; the group
+         itself never moves, so nothing has to be put back. */
+      const hinge=new THREE.Group();
+      hinge.position.set(0, HINGE.y, HINGE.z);
+      canopy.position.set(0, -HINGE.y, -HINGE.z);
+      hinge.add(canopy);
+
+      /* ONE FRAME FOR BOTH HALVES, so the scale and the drop that put the
+         hull on the tile carry the canopy with them. They were cut out of
+         one model and have never moved apart. */
+      const o=new THREE.Group();
+      o.add(hull); o.add(hinge);
+
       /* SCALED BY LENGTH, NEVER BY THE BOX. The E-45 has an antenna mast
          standing most of its own height above the hull, so its bounding
          box is two thirds needle — scale that to a sensible height and you
@@ -2306,8 +2351,34 @@ window.PLANET = (function(){
       spin.add(o); spin.rotation.y=-Math.PI/2;
       g.add(spin);
       o.traverse(m=>{ if(m.isMesh){ m.userData.owner=hold; G.hits.push(m); } });
+      b.hinge=hinge;
+      /* Open already, if she was cleared on an earlier visit: a ship you
+         got into yesterday is not shut this morning. */
+      hinge.rotation.x = shipOpen() ? CANOPY_OPEN : 0;
       G.scene.updateMatrixWorld(true);
     }).catch(e=>console.warn('PLANET: the E-45 failed to load', e));
+  }
+
+  /* HAS SHE BEEN CLEARED? The canopy is the only thing in this world that
+     remembers the pre-flight, so it is the only thing that has to ask. */
+  const shipOpen = () => { try{ return !!(window.PROGRESS && PROGRESS.get('ship_cleared',0)); }
+                           catch(e){ return false; } };
+  /* AND OPENING IT IS A THING YOU WATCH. A canopy that is shut in one
+     frame and open in the next has not opened, it has cut — and this is
+     the moment the mission has been working towards, so it is worth the
+     second and a half it takes. */
+  let canopyLift=null;
+  function canopyOpen(){
+    const b=shipB;
+    if(!b || !b.hinge) return;
+    canopyLift={ from:b.hinge.rotation.x, to:CANOPY_OPEN, t:0, for:1.6, hinge:b.hinge };
+  }
+  function canopyTick(dt){
+    const c=canopyLift; if(!c) return;
+    c.t=Math.min(1, c.t + dt/c.for);
+    const u=c.t*c.t*(3-2*c.t);
+    c.hinge.rotation.x = c.from + (c.to-c.from)*u;
+    if(c.t>=1) canopyLift=null;
   }
 
   function padSpec(w){
@@ -3794,6 +3865,7 @@ window.PLANET = (function(){
       SHIPFIX.open({ onCleared: ()=>{
         if(!on) return;
         try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
+        canopyOpen();
         /* WHERE THE MECHANIC IS, said in the only terms that are true now.
            This used to say "take the shuttle from the pad", and there is no
            pad: RYU is a mission with one door, and the way to anywhere else
@@ -3952,6 +4024,7 @@ window.PLANET = (function(){
   function tick(dt){
     if(!on) return;
     tourTick(dt);
+    canopyTick(dt);
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();

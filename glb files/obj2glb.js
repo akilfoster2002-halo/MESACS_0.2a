@@ -20,6 +20,20 @@
    lose. paint-ship.js reads it; everything else ignores it. */
 const fs=require('fs');
 const IN=process.argv[2], OUT=process.argv[3];
+/* WHICH PARTS OF IT. `only=Material.004` emits just the faces the author
+   had that material switched on for; `skip=Material.004` emits everything
+   else. Both take a comma-separated list.
+
+   THIS IS HOW A MODEL COMES APART. The E-45's canopy is one material and
+   the hull is another, and the canopy has to become its own object before
+   it can be hinged open — a door welded to the wall is not a door. Doing
+   it here, off the author's own material runs, means the two halves are
+   cut along the line the author drew and meet again exactly: nothing has
+   to be aligned afterwards, because neither piece ever moved. */
+const pick = (k)=>{ const a=process.argv.find(x=>x.startsWith(k+'='));
+                    return a ? a.slice(k.length+1).split(',').map(s=>s.trim()) : null; };
+const ONLY=pick('only'), SKIP=pick('skip');
+const wanted = name => (!ONLY || ONLY.includes(name)) && (!SKIP || !SKIP.includes(name));
 const src=fs.readFileSync(IN,'utf8');
 
 const V=[], N=[];
@@ -29,7 +43,9 @@ const key=new Map(), P=[], NN=[], I=[];
    two runs, because that is what the file says and merging them would be
    this tool having an opinion. */
 const GROUPS=[];
+let mtlNow=null;
 const openRun=name=>{
+  mtlNow=name;
   const last=GROUPS[GROUPS.length-1];
   if(last) last.count = I.length/3 - last.start;
   GROUPS.push({ name, start:I.length/3, count:0 });
@@ -43,6 +59,12 @@ for(const raw of src.split('\n')){
   }
   if(raw.startsWith('usemtl')){ openRun(raw.slice(6).trim()); continue; }
   if(raw.charCodeAt(0)!==102 || raw[1]!==' ') continue;   // 'f '
+  /* A face nobody asked for is skipped whole, and skipped BEFORE its
+     corners are keyed — so a vertex used only by faces that are not
+     wanted never reaches the output at all, and the piece that comes out
+     is the piece rather than the piece plus the rest of the model's
+     vertices sitting at the origin. */
+  if(!wanted(mtlNow)) continue;
   const parts=raw.trim().split(/\s+/).slice(1);
   const idx=parts.map(c=>{
     let k=key.get(c);

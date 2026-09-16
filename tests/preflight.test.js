@@ -328,8 +328,23 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
     "use() does not know 'ship': E would do nothing");
   assert.match(planet, /if\(id==='ship'\)\{[\s\S]{0,200}SHIPFIX\.open\(/,
     'E at the ship does not open the checklist');
-  assert.match(planet, /ships\/e45\.glb\?v=' \+ \(window\.ASSETV/,
-    'the ship model is fetched without ?v=ASSETV: a changed model will not reach anybody');
+  /* BOTH HALVES OF HER, and both with the version on. Models are served
+     with max-age=86400; one fetched without ?v= is yesterday's copy for a
+     day, and a canopy a day out of step with its hull is a hole. */
+  for(const f of ['e45-hull','e45-canopy'])
+    assert.ok(new RegExp("ships/"+f+"\\.glb\\?v=' *\\+ *\\(window\\.ASSETV").test(planet),
+      f+'.glb is fetched without ?v=ASSETV, or not at all');
+  for(const f of ['public/ships/e45-hull.glb','public/ships/e45-canopy.glb'])
+    assert.ok(fs.existsSync(path.join(__dirname,'..',f)), f+' is not installed');
+
+  /* THE CANOPY IS A DOOR, so it is hinged rather than welded: its own
+     file, its own group, and one axis to turn about. */
+  assert.match(planet, /const HINGE = \{/, 'the canopy has no hinge');
+  assert.match(planet, /hinge\.rotation\.x/, 'nothing ever turns it');
+  assert.match(planet, /canopyOpen\(\);/, 'clearing the pre-flight does not open her up');
+  assert.match(planet, /canopyTick\(dt\)/, 'nothing drives the canopy: it would snap open');
+  assert.match(planet, /shipOpen\(\) \? CANOPY_OPEN : 0/,
+    'a ship cleared yesterday is shut again this morning');
   /* THE ROVER IS RETIRED, and its lesson with it. A file left on the page
      that nothing routes is a second vehicle mission nobody can reach. */
   for(const f of ['public/rover.js','public/garage.js'])

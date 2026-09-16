@@ -135,6 +135,35 @@ those 744 faces in 2017, `obj2glb.js` now carries those runs through in
 stops being a guess. `canopyZ0`/`canopyZ1` are set past 1 to turn the geometric
 rule off entirely, since nothing is left for it to find.
 
+**Splitting her in two.** The canopy has to open, and a canopy welded to the
+hull is not a door — so `obj2glb.js` takes `only=` and `skip=`, which emit just
+the faces the author had a given material switched on for:
+
+```bash
+node obj2glb.js "$OBJ" /tmp/e45-hull.glb   skip=Material.004
+node obj2glb.js "$OBJ" /tmp/e45-canopy.glb only=Material.004
+node paint-ship.js /tmp/e45-hull.glb   e45-hull.glb   '{"nose":"-z","engine":0.10,"glow":0.035,
+                                                       "canopyZ0":9,"canopyZ1":9,
+                                                       "C":{"hull":"#c6ccd8","engine":"#23252c","glow":"#8ff0ff"}}'
+node paint-ship.js /tmp/e45-canopy.glb e45-canopy.glb '{"nose":"-z","parts":{"Material.004":"glass"},
+                                                       "C":{"glass":"#5b93e0"}}'
+```
+
+14,732 + 1,488 = 16,220 triangles, which is the whole model: the cut is exact
+because it is the author's own line, and neither piece moves, so they meet again
+without anything being aligned. `planet.js` hangs the canopy off a hinge group at
+its rear edge and turns it — see `HINGE` and `CANOPY_OPEN` there.
+
+**The other moving parts are not reachable this way.** The Sketchfab FBX has a
+small rig: `Bone.002` swings the canopy 169 degrees (open at 1s, shut again at
+18s), and four more bones move 354 vertices of a second object called `Cube.000`.
+But the OBJ has only two materials in it — `ship` and `Material.004` — so
+`Cube.000` is merged into the hull and cannot be cut out by material. Getting
+those parts means teaching `fbx2glb.js` to read a file with four geometries and
+three skins in it, which it cannot: it takes `Geometry[0]`, which in that file is
+a four-vertex Sketchfab backdrop, and then a cluster indexes vertex 10698 and it
+throws.
+
 **The aerial.** Thirty-one of her twelve thousand vertices hang below the hull on
 a needle, so `Box3.min.y` is a number about the wrong part of the ship: sitting
 her on it parks her a metre and a half in the air. `planet.js` throws away the
