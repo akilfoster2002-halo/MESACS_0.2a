@@ -253,3 +253,79 @@ test('the console hands the story over and keeps none of it', ()=>{
   assert.ok(!/note/.test(read('public/routine.js').replace(/\/\*[\s\S]*?\*\//g,'')),
     'routine.js still carries a note through the interpreter');
 });
+
+test('the story leads her out of the door; it does not put her outside', ()=>{
+  /* THE BUG THIS EXISTS TO STOP COMING BACK. after() used to call
+     outside(), which tears the house down and rebuilds RYU with Robin
+     standing on it — so the scene ended in the second room and the next
+     frame was the planet. The one piece of geography this mission has
+     (a front door, and the ship parked outside it) was never something
+     anybody did, only something that happened to them. */
+  const house = read('public/house.js');
+  const after = house.slice(house.indexOf('function after()'),
+                            house.indexOf('function brief('));
+  assert.ok(after, 'house.js no longer has an after()');
+  assert.ok(!/outside\(\)/.test(after),
+    'the end of the story still teleports her onto the planet');
+  assert.match(after, /askOut=true/, 'nothing points her at the door');
+  assert.match(after, /faceDoor\(\)/, 'she is not even turned to face the way out');
+
+  /* AND THE PROMPT HAS TO LEAD HER, from anywhere in the house — the door
+     is two rooms away from where the scene leaves her. */
+  assert.match(house, /L\.askOut\) prompt_\(atDoor\(\) \? say\('E \\u2014 go outside'\) : say\('Back to the front door'\)\)/,
+    'the way out is not signposted from the far room');
+
+  /* THE DOOR IS A DOOR, whatever the story is pointing at. `askOut` used
+     to also GATE it, so the one moment the game most wanted her to leave
+     was the one moment E at the door did nothing. */
+  const keyAt = house.indexOf('function onKey(');
+  /* The CODE of onKey, not its commentary — the paragraph inside it is
+     about askOut not gating the door, and says the word to say so. */
+  const key = house.slice(keyAt, house.indexOf('/* =====', keyAt))
+                   .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/askOut/.test(key), 'askOut gates the front door instead of labelling it');
+  assert.match(key, /atDoor\(\) && !\(window\.SCENE && SCENE\.active\)\) outside\(\)/,
+    'E at the front door does not open it');
+
+  /* And what she is walking TOWARDS is named on both sides of it. */
+  assert.match(house, /const ERRAND = [\s\S]{0,200}front door/, 'the errand does not name the door');
+  assert.match(house, /const ATSHIP = [\s\S]{0,200}E-45/, 'nothing tells her where the ship is');
+  assert.match(house, /if\(sent\) setTimeout/, 'the errand does not survive the trip outside');
+});
+
+test('the hacker says three things and none of them is jargon', ()=>{
+  /* IT WAS A CHANGELOG. "PATCHED 04:12. THIS LINE IS NOT IN HIS LOG." is a
+     timestamp, a verb out of version control and a noun for a file nobody
+     has explained, all before the first full stop — and the line after it
+     asked about the rover's spare CELLS, which have not existed since the
+     rover was retired. The most confusing sentence in the game was
+     pointing at something that was not there any more. */
+  const house = read('public/house.js');
+  const mended = house.slice(house.indexOf('function mended()'),
+                             house.indexOf('WHAT IS NEXT'));
+  /* The source spells its em-dashes and quotes as \uXXXX escapes, so the
+     text a player reads is not the text a regex over the FILE sees. */
+  const unesc = t => t.replace(/\\u([0-9a-fA-F]{4})/g,
+                              (_,h)=>String.fromCharCode(parseInt(h,16)));
+  const lines = [...mended.matchAll(/say_\('([^']*)'\)/g)].map(m=>unesc(m[1]));
+  const said = lines.join(' ');
+
+  for(const dead of ['04:12', 'PATCHED', 'LOG', 'CRATE', 'CELLS'])
+    assert.ok(!said.includes(dead),
+      `the reveal still says "${dead}" — jargon, or a thing the game no longer has`);
+
+  /* THREE FACTS AND A SIGNATURE. Take any one out and the mission stops
+     making sense: why he fell over, why he cannot just check himself, and
+     where he is asking to be taken. */
+  assert.match(said, /changed (his|my) code/i, 'nobody says what was actually done to him');
+  assert.match(said, /not remember|will not remember/i, 'nobody says he cannot remember it');
+  assert.match(said, /TOWER/, 'the warning about the tower is gone');
+  assert.match(said, /\u2014 E\./, 'it is not signed');
+  assert.match(said, /Mechanic/, 'he never asks to be taken anywhere');
+
+  /* AND THE SENTENCES ARE SHORT. Nothing here should need reading twice;
+     the old version had a sixteen-word line about being the thing doing
+     the reading. */
+  const long = lines.filter(l => l.replace(/<[^>]+>/g,'').split(/\s+/).length > 19);
+  assert.deepStrictEqual(long, [], 'a line of the reveal is too long to read once');
+});

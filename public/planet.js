@@ -4293,10 +4293,16 @@ window.PLANET = (function(){
        student standing on the fight world was being told where the Library
        was. The buildings already carry their own name and their own line. */
     const o=document.querySelector('#objList');
+    /* AND THE PAD ONLY IF THERE IS ONE. This line was appended
+       unconditionally, which was true of every world that had ever had
+       this panel — and then RYU stopped having a pad. A mission world with
+       one door was telling the player, in the list of what is here, that
+       they could fly to another planet from it. The list is what is HERE;
+       `W.pad` is whether the pad is. */
     if(o) o.innerHTML = BUILDINGS.filter(b=>b.id!=='pad')
       .map((b,i)=>`<li${i?'':' class="cur"'}>${b.em} ${t(b.name)}${
         b.blurb? ' — '+t(b.blurb) : ''}</li>`)
-      .concat(`<li>\u{1F6F8} ${t('The Pad')} — ${t('fly to another planet')}</li>`)
+      .concat(W.pad ? [`<li>\u{1F6F8} ${t('The Pad')} — ${t('fly to another planet')}</li>`] : [])
       .join('');
     say(t('Walk into a building. <b>E</b> to go in.'));
   }

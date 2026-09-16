@@ -254,6 +254,9 @@ test('RYU has one door, and it is the Ion station on the floor of Mission Contro
   /* And no other world charts a course TO it. */
   for(const m of planet.matchAll(/course:'([a-z]+)'/g))
     assert.notStrictEqual(m[1], 'ryu', 'a world still flies to RYU');
+  /* And the panel that lists what is here does not offer one either. */
+  assert.match(planet, /\.concat\(W\.pad \?/,
+    'the objective list still advertises a pad on every world, including the ones without one');
   /* Nothing launches from a mission even if something calls travel(). */
   assert.match(planet, /function travel\(to\)\{[\s\S]{0,600}?if\(W\.mission\)\{/,
     'travel() will still fly you off a mission world');

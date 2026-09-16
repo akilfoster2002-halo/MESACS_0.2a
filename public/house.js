@@ -147,11 +147,11 @@ window.HOUSE = (function(){
   function onKey(e){
     if(!on || !L || e.code!=='KeyE') return;
     if(L.askE && nearIon()){ L.eHit=true; return; }
-    if(L.askOut && atDoor()){ L.outHit=true; return; }
-    /* AND ONCE THE STORY IS OVER, the front door simply works. A house you
-       can only leave at the one moment a scene offered it to you is a
-       room with a cutscene for a door. */
-    if(!L.askE && !L.askOut && atDoor() && !(window.SCENE && SCENE.active)) outside();
+    /* AND THE FRONT DOOR SIMPLY WORKS. A house you can only leave at the
+       one moment a scene offered it to you is a room with a cutscene for a
+       door. `askOut` does not gate it — it only changes what the prompt
+       SAYS, so the story can point at the door without owning it. */
+    if(atDoor() && !(window.SCENE && SCENE.active)) outside();
   }
 
   /* ===================================================================
@@ -558,10 +558,21 @@ window.HOUSE = (function(){
      walks her past him and into the far wall, which is exactly what it
      did. G.yaw is the heading the chase camera and the walking both read,
      and this is the one moment anybody knows which way is interesting. */
-  function faceIon(){
-    G.yaw = Math.atan2(-(ION_AT[0]-G.pos.x), -(ION_AT[1]-G.pos.z));
-    G.pitch = -0.08;
+  function faceAt(x, z, pitch){
+    G.yaw = Math.atan2(-(x-G.pos.x), -(z-G.pos.z));
+    G.pitch = pitch===undefined ? -0.08 : pitch;
   }
+  const faceIon  = ()=>faceAt(ION_AT[0], ION_AT[1]);
+  /* And the way OUT, for the moment the story hands the controls back and
+     wants her to walk rather than be moved.
+
+     NOT DOOR_Z. That is the doorway BETWEEN the two rooms — the one she
+     came through to find him — and aiming her at it turned her round to
+     face the room she was already standing in. The front of the house is
+     low z, which is what atDoor() has always meant; FRONT_Z is a point
+     past the front wall so she squares up to it rather than to a corner. */
+  const FRONT_Z = 2;
+  const faceDoor = ()=>faceAt(16, FRONT_Z, 0.02);
 
   function story(){
     const say=say_;
@@ -612,10 +623,19 @@ window.HOUSE = (function(){
      leaving the house. */
   function outside(){
     if(!window.PLANET) return false;
+    /* WAS SHE SENT, or is she just going out? Read before stop() clears L.
+       The errand is only worth repeating on the far side of the door for
+       somebody the story has just pointed through it. */
+    const sent = !!(L && L.askOut);
     stop();
     document.querySelector('#hud').classList.remove('hidden');
     G.running=true;
     PLANET.enter(null, 'ryu', OUTSIDE);
+    /* AND THE NEXT STEP GOES OUT WITH HER. PLANET posts its own arrival
+       hint over the top of anything said before it, so this waits for it
+       to finish greeting her and then says where the ship is — which is
+       the whole reason she came outside. */
+    if(sent) setTimeout(()=>{ if(window.PLANET && PLANET.active) brief(ATSHIP()); }, 900);
     return true;
   }
 
@@ -696,61 +716,92 @@ window.HOUSE = (function(){
         who:'Ion',  say:say_('R-Robin \u2014 there is s-something in my \u2014') },
       { shot:FLOOR, hold:1.6, who:'Robin', say:say_('ION!') },
 
-      /* --- somebody else, using his mouth ---------------------------- */
+      /* --- somebody else, using his mouth ----------------------------
+         FOUR SHORT SENTENCES A NINE-YEAR-OLD READS ONCE.
+
+         This used to be jargon: "PATCHED 04:12. THIS LINE IS NOT IN HIS
+         LOG." — a timestamp, a verb out of a changelog, and a noun for a
+         file nobody has told a child about, all before the first full
+         stop. It also still asked Robin about the spare CELLS, which were
+         the rover's and the rover is gone, so the most confusing line in
+         the game was the one pointing at something that no longer exists.
+
+         THREE FACTS AND A SIGNATURE, and nothing else in them. Somebody
+         changed his code. He will not remember it. Stay away from the
+         tower. Everything the old version said that was not one of those
+         three was atmosphere bought with a child's attention. */
       { shot:FLOOR, hold:2.6, who:'???',
-        say:say_('PATCHED 04:12. THIS LINE IS NOT IN HIS LOG.') },
+        say:say_('I CHANGED HIS CODE WHILE HE WAS ASLEEP.') },
       { shot:OVER, ease:1.0, hold:2.6, who:'???',
-        say:say_('HE HAS NEVER MET ME. HE WAS NEVER OPENED.') },
-      { shot:OVER, hold:2.6, who:'???',
-        say:say_('IF SHE ASKS ABOUT THE CELLS \u2014 THE CRATE CAME EMPTY.') },
+        say:say_('HE WILL NOT REMEMBER ME. I MADE SURE OF THAT.') },
       { shot:FLOOR, ease:0.9, hold:2.6, who:'???',
-        say:say_('KEEP HER OFF THE TOWER ROAD.') },
+        say:say_('STAY AWAY FROM THE TOWER, ROBIN.') },
       { shot:FLOOR, hold:2.2, who:'???', say:say_('\u2014 E.') },
 
       /* --- and it lets go -------------------------------------------- */
       { shot:FLOOR, hold:2.0, on:()=>{ I('rise')(); lightsBack(); } },
 
-      /* --- the rest is his, and the player gets SPACE back ----------- */
+      /* --- the rest is his, and the player gets SPACE back -----------
+         SHORT SENTENCES AND ORDINARY WORDS. There were nine lines here
+         and most of them were the same fact said again in a more abstract
+         way: no record of speaking, no record of falling, no gap in the
+         log, and somebody who took the hole out after themselves. A
+         nine-year-old who has just watched a robot fall over does not
+         need the fact four times, they need it once, in words they
+         already have. Eight lines became seven and none of them has a
+         timestamp in it. */
       { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] }, ease:1.3,
-        who:'Ion',   say:say_('\u2026Robin? Why am I on the floor again?') },
+        who:'Ion',   say:say_('\u2026Robin? Why am I on the floor?') },
       { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('You were talking. It was not you doing the talking.') },
+        who:'Robin', say:say_('You were talking. But it was not you talking.') },
       { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] }, ease:1.1,
-        who:'Ion',   say:say_('I have no record of speaking. I have no record of falling.') },
+        who:'Ion',   say:say_('I do not remember talking. I do not remember falling over.') },
       { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] },
-        who:'Ion',   say:say_('And my morning routine was changed at 04:12. I did not change it.') },
-      { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] },
-        who:'Ion',   say:say_('My log has no gap at 04:12. My log has no gap anywhere.') },
+        who:'Ion',   say:say_('Somebody changed my code while I was asleep. I have been hacked.') },
       { shot:{ eye:[20.8, 1.9, 32.0], at:[16, 1.0, 36] }, ease:1.2,
-        who:'Robin', say:say_('Then somebody has been inside you \u2014 and took the hole out after them.') },
-      { shot:{ eye:[20.8, 1.9, 32.0], at:[16, 1.0, 36] },
-        who:'Ion',   say:say_('My code has been hacked, Robin. I do not know what else is in me.') },
+        who:'Robin', say:say_('That was them just now. Using your voice.') },
+      /* THE ONE IDEA WORTH A WHOLE LINE, and it is the reason the mission
+         goes anywhere: he cannot check himself. Said as a picture rather
+         than as a principle, because "I am the thing doing the reading"
+         is a true sentence that explains nothing to a child. */
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] }, ease:1.1,
-        who:'Ion',   say:say_('And I cannot read my own code from the inside. I am the thing doing the reading.') },
+        who:'Ion',   say:say_('I cannot check my own code. I would be using the broken part to look at the broken part.') },
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
-        who:'Ion',   say:say_('Take me to the Mechanic. Somebody has to open me up who is not me.') },
+        who:'Ion',   say:say_('I need the Mechanic. Someone who is not me has to look inside me.') },
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
-        who:'Robin', say:say_('The Mechanic. And then whoever E. is can explain the tower road.') },
+        who:'Robin', say:say_('Then we take the ship. Come on.') },
     ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); after(); } });
   }
 
-  /* WHAT IS NEXT, and it is deliberately only a sentence. He asked to be
-     taken to the Mechanic and that is where this goes; the tower is the
-     thing she has just been warned off, which is a different kind of
-     signpost and worth keeping in the same breath. */
-  const ERRAND = ()=>say('Ion has been hacked. He asked for <b>THE MECHANIC</b> \u2014 '
-                      + 'and somebody wants you off the tower road.');
+  /* ===================================================================
+     WHAT IS NEXT, AND SHE WALKS IT.
+
+     THIS USED TO TELEPORT HER. after() called outside(), which tears the
+     house down and rebuilds RYU with Robin standing on it — so the scene
+     ended in the second room and the next frame was the planet. The walk
+     she had just been told to make was made for her, and a player who had
+     spent five minutes in two rooms was somewhere else without having
+     moved. Worse: the one piece of geography this mission has — the house
+     has a front door, and the ship is parked outside it — was never
+     something anybody did, only something that happened to them.
+
+     So the controls come back where she is standing, she is turned to
+     face the way out, and the prompt walks her there: "back to the front
+     door" from the far room, "E — go outside" once she reaches it. The
+     door was always able to do this; after() was just never asking it to.
+     =================================================================== */
+  const ERRAND = ()=>say('Ion needs the Mechanic. The <b>ship</b> is outside \u2014 '
+                      + 'out through the front door.');
+  const ATSHIP = ()=>say('The <b>E-45</b> is parked beside the house. '
+                      + 'Walk up to her and press <b>E</b>.');
   function after(){
-    /* And straight out of the door. The ship is a hundred paces away and
-       he has just asked to be carried somewhere; making her hunt for a
-       way out of her own house is not suspense. */
-    if(!outside()){ brief(ERRAND()); return; }
-    /* AND THE ERRAND GOES OUT WITH HER. The only place he says where to
-       take him is a line of dialogue that has just closed, and the planet
-       posts its own arrival hint over the top of anything said before it
-       — so this is said again, once, on the other side of the door, after
-       PLANET has finished greeting her. */
-    setTimeout(()=>{ if(!on && window.PLANET && PLANET.active) brief(ERRAND()); }, 900);
+    if(!L) return;
+    /* `askOut` is a label, not a lock — see onKey(). It says the story is
+       pointing at the door, which is what changes the prompt from silence
+       into a direction she can follow from anywhere in the house. */
+    L.askOut=true;
+    faceDoor();
+    brief(ERRAND());
   }
 
   function brief(msg){
