@@ -93,10 +93,28 @@ window.HOUSE = (function(){
   const ION_AT = [16, 36];          // the tile marked G, in world units
   const DOOR_Z = 24;                // the wall the doorway is in
 
+  /* ===================================================================
+     REPLAY  —  TEMPORARY, AND THE ONE LINE THAT TURNS IT OFF.
+
+     Set true, every visit to this house starts at the top: Robin wakes up,
+     walks through, finds him on the floor and opens the console with all
+     three faults back in it. That is what you want while the mission is
+     being BUILT — there is no other way to look at the opening twenty
+     seconds again — and it is not what you want shipped, because a
+     student who mended him yesterday should walk in on a robot that is
+     working.
+
+     Set it to false and everything below goes back to reading the save
+     bag. Nothing else has to change: the flag is still written when he is
+     mended, so the day this comes off, the memory is already there.
+     =================================================================== */
+  const ALWAYS_REPLAY = true;
+
   /* Has he been fixed? Kept in the save bag, so a student who gets him up
      and comes back tomorrow does not find him on the floor again. */
   const FIXED='ion_fixed';
-  const fixed = () => { try{ return !!(window.PROGRESS && PROGRESS.get(FIXED,0)); }
+  const fixed = () => { if(ALWAYS_REPLAY) return false;
+                        try{ return !!(window.PROGRESS && PROGRESS.get(FIXED,0)); }
                         catch(e){ return false; } };
 
   let on=false, L=null, loader=null, keyHook=null;
@@ -328,7 +346,8 @@ window.HOUSE = (function(){
     if(window.updateLeaveBtn) updateLeaveBtn();
     if(window.updateCodeBtn) updateCodeBtn();
 
-    /* THE STORY, unless it has already happened. A student who mended him
+    /* THE STORY, unless it has already happened — see ALWAYS_REPLAY,
+       which is on, so for now it always happens. A student who mended him
        yesterday walks into a house with a working robot in it, which is
        the correct thing to find and not a scene to sit through again. */
     if(fixed()){
