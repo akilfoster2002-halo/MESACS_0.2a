@@ -862,9 +862,26 @@ test('the Mechanic is a person, in the tower, and finishing there is Mission 8',
   assert.match(bare, /function layIon\(/, 'Ion is never put on the cradle');
   const lay = planet.slice(planet.indexOf('function layIon()'),
                            planet.indexOf('function einstein()'));
-  assert.match(lay, /rotation\.z=Math\.PI\/2/, 'Ion stands on the bench instead of lying on it');
-  assert.match(lay, /root\.rotation\.y=Math\.PI\/2/,
-    'Ion lies in his export T-pose, with one arm through the table and one at the ceiling');
+  /* LYING ON HIS BACK IS THREE AXES AT ONCE. A model stands up its own
+     +Y, faces its own +Z and holds its arms along its own X, and putting
+     it on a table has to send all three somewhere: head along the bench,
+     face at the ceiling, arms across it.
+
+     The first version turned him about one axis and then spun the model
+     inside its wrapper to tidy the arms up — two of the three, which from
+     most angles looks like a fix and leaves his spine across the bench
+     with half of him over the edge. One Euler, applied Z then X. */
+  assert.match(lay, /body\.rotation\.set\(-Math\.PI\/2, 0, -Math\.PI\/2\)/,
+    'Ion is not laid on his back along the bench');
+  assert.ok(!/root\.rotation/.test(lay),
+    'the model is spun inside its wrapper again — one Euler does all three axes');
+  /* AND HE RESTS ON THE TOP RATHER THAN IN IT. The cradle slab is centred
+     at y+1.0 and is 0.4 thick, so its surface is y+1.2; a body on its
+     back is about 0.4 through the chest. */
+  const bed = planet.match(/bed:\{x:(-?[\d.]+), y:y\+([\d.]+), z:(-?[\d.]+)\}/);
+  assert.ok(bed, 'the cradle position has been renamed');
+  assert.ok(+bed[2] > 1.2 && +bed[2] < 1.6,
+    `Ion's origin is y+${bed[2]}, which puts him through the cradle top at y+1.2 or floating over it`);
 });
 
 test('the lift can never outrun the floor it is carrying you on', ()=>{

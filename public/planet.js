@@ -3260,18 +3260,21 @@ window.PLANET = (function(){
     const fill=new THREE.PointLight(0xdfe9ff, 70, 26, 1.5);
     fill.position.set(0, y+4.5, 0); g.add(fill);
 
-    /* THE MECHANIC. The person, not the shop — and she is what Ion was
+    /* THE MECHANIC. The person, not the shop — and he is what Ion was
        asking for from the moment he was found on the floor. */
-    /* WHERE HE ENDS UP LYING. Measured to the bench rather than to the
-       room: his feet at the near end, his head towards the far one, and
-       a quarter metre proud of the top so he rests ON it. */
-    mechB={ b, y, bed:{x:-0.6, y:y+1.45, z:2.2}, g, ion:null };
-    /* BESIDE THE CRADLE, NOT BEHIND IT. She was at z 4.2, which is on the
+    /* WHERE HE ENDS UP LYING, measured to the bench rather than to the
+       room. The cradle's top is y+1.2 (its slab is centred at y+1.0 and
+       is 0.4 thick); laid on his back a body is about 0.4 through the
+       chest, so his origin sits 0.2 above that and his back rests on the
+       surface. `x` is his FEET — he extends about 1.8 towards the head
+       end — so -2.4 puts the middle of him on the middle of the bench. */
+    mechB={ b, y, bed:{x:-2.4, y:y+1.4, z:2.2}, g, ion:null };
+    /* BESIDE THE CRADLE, NOT BEHIND IT. He was at z 4.2, which is on the
        far side of a bench two and a half metres deep — so from the lift,
-       which is the only direction anybody arrives from, the bench cut her
+       which is the only direction anybody arrives from, the bench cut him
        off at the neck and the room read as a nameplate floating over a
-       table. At the end of it she is in the clear from the door and still
-       obviously working at the thing she is standing next to. */
+       table. At the end of it he is in the clear from the door and still
+       obviously working at the thing he is standing next to. */
     person(g, b, 3.4, y, 2.2, t('THE MECHANIC'), 'towermech', 2, 0x8ff0ff);
   }
 
@@ -3329,7 +3332,16 @@ window.PLANET = (function(){
                          catch(e){ return false; } };
   function handOver(){
     if(!mechB){ return; }
-    if(handed()){ say(t('He is in good hands. The lift goes up from the back.')); return; }
+    /* ALREADY HANDED OVER? Then what he is owed is the only thing left.
+       A student who shuts the belt panel half way through has not undone
+       anything and must not be locked out of the rest of the mission — E
+       at the Mechanic puts them back on the belt, with the jobs they had
+       already passed still passed. */
+    if(handed()){
+      if(!worked()){ theBelt(); return; }
+      say(t('He is in good hands. The lift goes up from the back.'));
+      return;
+    }
     if(!window.SCENE){ return; }
     const b=mechB.b, F=b.frame, y=mechB.y;
     const P0=b.g.position.clone();
@@ -3347,16 +3359,83 @@ window.PLANET = (function(){
         say:t('Put him down. I will look properly.') },
       { shot:BED,  who:'Ion', say:t('She fixed my legs herself, you know.') },
       { shot:BED,  who:'The Mechanic',
-        say:t('Then she did the hard part. Go up — he is expecting you.') }
+        say:t('Then she did the hard part. I will do the rest.') },
+      /* AND HE WANTS PAYING. Not in coins — Robin has coins and spending
+         them would be a menu. He is short-handed and she can write a
+         rule, which is the only currency this game actually deals in. */
+      { shot:ROOM, ease:1.0, who:'The Mechanic',
+        say:t('Not for nothing, though. Work my belt while I do it.') },
+      { shot:ROOM, who:'Robin', say:t('What does it do?') },
+      { shot:ROOM, who:'The Mechanic',
+        say:t('Sorts parts. It needs the rules writing. You will see.') }
     ], { faces:{ Robin:'characters/previews/character-w.png',
                  Ion:'characters/previews/ion.png' },
          end:()=>{
            if(!on) return;
-           try{ if(window.PROGRESS){ PROGRESS.set(HANDED,1); PROGRESS.complete('ion'); } }catch(e){}
+           try{ if(window.PROGRESS) PROGRESS.set(HANDED,1); }catch(e){}
            G.running=true;
            layIon();
-           say(t('<b>Mission 8 complete.</b> The lift goes to <b>THE TOP</b>.'));
+           theBelt();
          }});
+  }
+
+  /* ===================================================================
+     THE BELT, WHICH IS WHAT SHE PAYS HIM WITH.
+
+     The mission does not end at the handover any more. He takes Ion and
+     asks for a morning's work in return, and the work is a lesson: three
+     ladders of conditions, and the order of them decides where a part
+     goes. sorter.js is the job and sortfix.js is the screen; neither of
+     them knows there is a tower around it.
+
+     WHY PAYMENT AND NOT A FAVOUR. A lesson that arrives because somebody
+     wants you to learn something is homework. A lesson that arrives
+     because a man is holding your friend's chest open and would like a
+     hand is a reason, and it is the same five minutes either way.
+     =================================================================== */
+  const WORKED='ion_belt';
+  const worked = () => { try{ return !!(window.PROGRESS && PROGRESS.get(WORKED,0)); }
+                         catch(e){ return false; } };
+  function theBelt(){
+    if(!window.SORTFIX){
+      /* The panel is the payment, so if it cannot open there is nothing
+         to withhold the repair for. Better a mission that finishes than
+         one that cannot. */
+      finishIon();
+      return;
+    }
+    say(t('<b>THE BELT.</b> Put his rules in an order that works.'));
+    SORTFIX.open({ onDone: ()=>{
+      if(!on) return;
+      try{ if(window.PROGRESS) PROGRESS.set(WORKED,1); }catch(e){}
+      mended();
+    }});
+  }
+
+  /* HE KEEPS HIS SIDE OF IT, and this is where Mission 8 ends. */
+  function mended(){
+    if(!on || !window.SCENE){ finishIon(); return; }
+    const b=mechB && mechB.b;
+    if(!b || !b.frame){ finishIon(); return; }
+    const y=mechB.y, F=b.frame, P0=b.g.position.clone();
+    const at_=(x,yy,z)=>P0.clone()
+      .add(F.right.clone().multiplyScalar(x))
+      .add(F.up.clone().multiplyScalar(y+yy))
+      .add(F.fwd.clone().multiplyScalar(z))
+      .toArray();
+    const BED ={ eye:at_(1.6, 2.4, 5.0), at:at_(-1.5, 1.3, 2.2) };
+    const ROOM={ eye:at_(4.5, 3.4, -2),  at:at_(-1.5, 1.6, 2.2) };
+    SCENE.play([
+      { shot:BED, ease:1.1, who:'The Mechanic', say:t('Belt is running. Good rules.') },
+      { shot:BED, who:'Ion', say:t('Robin? I can feel my hands.') },
+      { shot:ROOM, ease:1.0, who:'Robin', say:t('Told you he was worth the trip.') }
+    ], { faces:{ Robin:'characters/previews/character-w.png',
+                 Ion:'characters/previews/ion.png' },
+         end:()=>{ if(on){ G.running=true; finishIon(); } }});
+  }
+  function finishIon(){
+    try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
+    say(t('<b>Mission 8 complete.</b> The lift goes to <b>THE TOP</b>.'));
   }
   /* And he is on the cradle afterwards, because a handover you are told
      about and cannot see is a handover that did not happen. Built here
@@ -3365,26 +3444,35 @@ window.PLANET = (function(){
      handed over. */
   function layIon(){
     if(!mechB || mechB.ion) return;
-    /* TWO ROTATIONS, AND THE SECOND ONE IS NOT OPTIONAL. Laying a model
-       down is rotation.z — his spine goes from world up to world X, which
-       is the way the bench is long. That alone leaves him in the T-pose
-       the file was exported in with his spine sideways, so one arm points
-       at the ceiling and the other goes through the table. Spinning him a
-       quarter turn about his OWN up-axis afterwards swings both arms into
-       the horizontal, which is a person lying on their back.
+    /* LYING ON HIS BACK, which is three axes and not one.
 
-       The wrapper carries the first and the model carries the second,
-       because they are about different axes and doing both on one Euler
-       depends on an order nobody should have to remember. */
+       A character model stands up its own +Y, faces its own +Z and holds
+       its arms along its own X. Putting it on a table means sending all
+       three somewhere new at once: his head along the bench (+X), his
+       face at the ceiling (+Y), and his arms across the bench (+Z).
+
+       THE FIRST ATTEMPT TURNED HIM ON ONE AXIS and then spun the model
+       inside its wrapper to tidy up the arms, which is two of the three
+       and looked from most angles like a fix. It was not: his spine ended
+       up across the bench rather than along it, his face pointed at the
+       wall, and half of him hung over the edge — a shape that reads as a
+       body until you walk round it.
+
+       Three axes at once is one Euler, and this is that Euler: about Z
+       first, then about X, both a quarter turn back. Three.js applies the
+       default 'XYZ' order as Rx·Ry·Rz — rightmost first — so writing it
+       in one call gets the Z turn before the X turn, which is the order
+       this needs. Checked by standing the camera at the table and looking
+       along it, because the world-axis bounding box of a rotated body on
+       a tilted room tells you nothing. */
     const body=new THREE.Group();
     body.position.set(mechB.bed.x, mechB.bed.y, mechB.bed.z);
-    body.rotation.z=Math.PI/2;          // lying down, not standing on the bench
+    body.rotation.set(-Math.PI/2, 0, -Math.PI/2);
     mechB.g.add(body);
     mechB.ion=body;
     if(window.AVATAR)
       AVATAR.load('ion').then(root=>{
         if(!mechB || mechB.ion!==body) return;
-        root.rotation.y=Math.PI/2;      // arms to his sides, not to the roof
         body.add(root);
       }).catch(()=>{});
   }
