@@ -1539,6 +1539,22 @@ window.ES = {
 
   'Ilana Vey’s own machine.':'La propia máquina de Ilana Vey.',
 
+  /* ---- the walked opening, and where to go next ---- */
+  'KR-9':'KR-9',
+  'That robot has carried the same crate to the same empty bay since the 14th. Walk over to it — hold <b>W</b>.':
+    'Ese robot lleva la misma caja al mismo muelle vacío desde el día 14. Acércate — mantén <b>W</b>.',
+  'Look at it and press <b>E</b>. Every machine here will show you the rule it is obeying.':
+    'Míralo y presiona <b>E</b>. Cada máquina de aquí te enseña la regla que obedece.',
+  'That is its rule. It asks one question, and the answer picks which of the two things below it happens.':
+    'Esa es su regla. Hace una pregunta, y la respuesta elige cuál de las dos cosas de abajo pasa.',
+  'It is asking whether the package was delivered, and the answer has been no for four years. Give it the other one.':
+    'Pregunta si el paquete se entregó, y lleva cuatro años siendo que no. Dale la otra respuesta.',
+  'Now run it.':'Ahora ejecútala.',
+  'Close the panel and watch KR-9. You changed one reading, and the district did something different.':
+    'Cierra el panel y mira a KR-9. Cambiaste una lectura, y el distrito hizo otra cosa.',
+  'That is the whole mission: read the rule, change a reading, watch what the machine does. <b>N</b> is your notebook.':
+    'Esa es toda la misión: lee la regla, cambia una lectura, mira lo que hace la máquina. <b>N</b> es tu libreta.',
+
   /* ---- signs and places ---- */
   'BAY 14':'MUELLE 14','BAY 17':'MUELLE 17','DEPOT':'ALMACÉN',
   'pad · no signal':'placa · sin señal','empty · 2 years':'vacío · 2 años',

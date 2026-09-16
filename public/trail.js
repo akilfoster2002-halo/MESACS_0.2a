@@ -182,39 +182,43 @@ window.TRAIL = (function(){
 
   /* ------------------------------------------------------- the mission */
   const STAGES=[
+    /* Pointed at KR-9 itself rather than at the depot it belongs to: the
+       first objective says "start with the one that is moving", and an
+       arrow aimed at the middle of a yard the robot has already driven out
+       of is aimed at the wrong thing. */
     { id:'arrive', obj:'Investigate the unusual machine behaviour around Koro.',
       hint:'Four machines in this district are behaving strangely. Start with the one that is moving.',
-      at:'depot', done:s=>!!s.clues.robot_rule || !!s.clues.sensor_rule },
+      where:'KR-9', at:'robot', done:s=>!!s.clues.robot_rule || !!s.clues.sensor_rule },
     { id:'robot', obj:'Find out why the delivery robot never finishes its round.',
       hint:'Look at what it asks itself, and give it the other answer.',
-      at:'robot', done:s=>!!s.flags.crate_home },
+      where:'KR-9', at:'robot', done:s=>!!s.flags.crate_home },
     { id:'crate', obj:'Open what the robot has been carrying.',
       hint:'It set it down on its dock in the depot.',
-      at:'1', done:s=>!!s.clues.crate },
+      where:'THE DEPOT', at:'1', done:s=>!!s.clues.crate },
     { id:'gate', obj:'Find out why the perimeter gate opened for somebody with no badge.',
       hint:'Two conditions, and only one of them has to be true. Work out which pair opens it.',
-      at:'2', done:s=>!!s.clues.manifest },
+      where:'PERIMETER GATE 3', at:'2', done:s=>!!s.clues.manifest },
     { id:'transit', obj:'Find out why a transit car stops at a station that closed.',
       hint:'This one needs BOTH of its conditions. That is what makes the stop deliberate.',
-      at:'3', done:s=>!!s.flags.car_berthed },
+      where:'TRANSIT PLATFORM', at:'3', done:s=>!!s.flags.car_berthed },
     { id:'station', obj:'Search the old yard.',
       hint:'Something heavy was dragged along that platform.',
-      at:'k', done:s=>!!s.clues.tag },
+      where:'THE OLD YARD', at:'k', done:s=>!!s.clues.tag },
     { id:'door', obj:'Get the maintenance door open — and find out why the log for the 14th is blank.',
       hint:'Four branches, and it only ever answers the first one that is true. Try moving a line.',
-      at:'4', done:s=>!!s.clues.order_matters && !!s.flags.door_open },
+      where:'MAINTENANCE', at:'4', done:s=>!!s.clues.order_matters && !!s.flags.door_open },
     { id:'terminal', obj:'Find the engineer’s terminal.',
       hint:'Through the door the maintenance machine was holding shut.',
-      at:'5', done:s=>!!s.clues.note },
+      where:'THE ENGINEER’S ROOM', at:'5', done:s=>!!s.clues.note },
     { id:'cross', obj:'Cross-reference the four overrides.',
       hint:'The terminal needs all four. Run a test on every machine that has a log.',
-      at:'5', done:s=>!!s.flags.crossref },
+      where:'THE ENGINEER’S ROOM', at:'5', done:s=>!!s.flags.crossref },
     { id:'night', obj:'Put the night of the 14th in order.',
       hint:'Every machine prints the time it acted. Read them off.',
-      at:'5', done:s=>!!s.flags.timeline },
+      where:'THE ENGINEER’S ROOM', at:'5', done:s=>!!s.flags.timeline },
     { id:'name', obj:'Name who was responsible.',
       hint:'An override is issued to a crew, not to a person. Somebody keeps the roster.',
-      at:'5', done:s=>!!s.flags.named }
+      where:'THE ENGINEER’S ROOM', at:'5', done:s=>!!s.flags.named }
   ];
 
   /* ------------------------------------------------------------- state
@@ -349,6 +353,7 @@ window.TRAIL = (function(){
     noteButton();
     ambience(true);
     advance(); paintObj(); paintNote();
+    walkThrough();
     brief(S.stage===0
       ? say('Something in this district does not add up. Walk up to a machine and press <b>E</b>.')
       : say('Back on the trail. <b>N</b> opens your notebook.'));
@@ -358,6 +363,7 @@ window.TRAIL = (function(){
   function stop(quiet){
     if(!on && !L && !quiet) return;
     on=false;
+    if(window.COACH) COACH.stop();
     closePanel(true); hideNote();
     ambience(false);
     if(L && L.waypoint && L.waypoint.g.parent) L.waypoint.g.parent.remove(L.waypoint.g);
@@ -798,6 +804,7 @@ window.TRAIL = (function(){
     carTick(dt);
     peopleTick(dt);
     lampTick(dt);
+    if(window.COACH) COACH.tick(dt);
     if(!frozen()) { prompt_(); waypoint(); }
   }
   function frozen(){
@@ -813,9 +820,21 @@ window.TRAIL = (function(){
     }
   }
   const ROUND_T=11;            // seconds for one leg of KR-9's round
+  /* IT STOPS FOR PEOPLE. A delivery robot does, and this one has to: its
+     round is eleven seconds a leg, which is almost exactly walking pace,
+     so a student told to "walk over to it and press E" was being sent on a
+     chase they could not win — the prompt appearing and then going again
+     as it trundled off. Standing near it holds it where it is. It does not
+     stop being stuck; it stops being unreachable, which is the difference
+     between a machine you can investigate and a machine you cannot. */
+  const ROBOT_WAIT=5.2;
   function robotTick(dt){
     const r=L.robot; if(!r) return;
     r.eye.material.color.setHex(r.mode==='round' ? 0xff9aa2 : 0x8ff0ff);
+    const p=r.g.position;
+    r.held = r.mode==='round' &&
+             Math.hypot(p.x-G.pos.x, p.z-G.pos.z) < ROBOT_WAIT;
+    if(r.held) return;                              // waiting for you to move
     if(r.mode==='round'){
       r.k += (dt/ROUND_T)*r.dir;
       if(r.k>=1){ r.k=1; r.hold+=dt; if(r.hold>1.4){ r.hold=0; r.dir=-1; } }
@@ -920,33 +939,140 @@ window.TRAIL = (function(){
     p.innerHTML='<kbd>E</kbd> '+esc(word);
   }
 
-  /* A ring on the ground under whatever the objective is about. The
-     walkthrough on Senio draws one of these; this one is permanent,
-     because an investigation is not a walkthrough — it never tells you
-     the answer, it only says which way the next question is. */
+
+  /* ------------------------------------------------------ THE FIRST FIVE
+     Every other mission in this game is WALKED — a card, a ring, and the
+     thing you have to touch actually pointed at — and this one was not,
+     which left a student standing on a service road at two in the morning
+     with a sentence in the corner and no idea what a machine even was.
+
+     It walks the ONE loop the whole mission is made of, on the machine
+     that is easiest to care about because it is the one that is moving:
+     find it, open it, read the rule, change a reading, run it, watch the
+     district obey. Nothing after this is walked. It never says what any
+     answer is — step four points at a switch, not at a conclusion.
+
+     Every step is checked against the world, so a student who works ahead
+     is never told to do what they have already done, and a student who
+     wanders off comes back to the step they were on. Once, ever: the flag
+     rides in the same bag as the rest, and START OVER clears it with
+     everything else under `trail_`. */
+  function walkThrough(){
+    if(!window.COACH) return;
+    if(PROGRESS.get('trail_walked')) return;
+    if(S.stage>0 || Object.keys(S.clues).length) return;   // not a first arrival
+    PROGRESS.set('trail_walked', 1);
+    const bot = () => L && L.robot ? L.robot.g.position : null;
+    const near = d => { const p=bot(); return !!p && Math.hypot(p.x-G.pos.x, p.z-G.pos.z) < d; };
+    const onRobot = () => !!panel && panel.kind==='machine' && panel.id==='robot';
+    COACH.start([
+      { say:'That robot has carried the same crate to the same empty bay since the 14th. Walk over to it \u2014 hold <b>W</b>.',
+        at:()=>{ const p=bot(); return p ? { x:p.x, y:1, z:p.z, size:2 } : null; },
+        done:()=>near(13) },
+      { say:'Look at it and press <b>E</b>. Every machine here will show you the rule it is obeying.',
+        at:()=>{ const p=bot(); return p ? { x:p.x, y:1, z:p.z, size:2 } : null; },
+        done:()=>onRobot() || !!S.clues.robot_rule },
+      { say:'That is its rule. It asks one question, and the answer picks which of the two things below it happens.',
+        done:()=>onRobot() && !!S.flags.read_rule },
+      { say:'It is asking whether the package was delivered, and the answer has been no for four years. Give it the other one.',
+        sel:'#insp [data-set="package_delivered"][data-val="1"]',
+        done:()=>!!(L.machines.robot && L.machines.robot.state.package_delivered) },
+      { say:'Now run it.',
+        sel:'#miRun', done:()=>!!S.tests.robot },
+      { say:'Close the panel and watch KR-9. You changed one reading, and the district did something different.',
+        done:()=>!!S.flags.crate_home }
+    ], { finish:'That is the whole mission: read the rule, change a reading, watch what the machine does. <b>N</b> is your notebook.' });
+  }
+  /* Step three wants "they have had a moment with the rule on screen",
+     which is not a thing the world records — so the panel records it. */
+  function readRule(){
+    if(!panel || panel.kind!=='machine') return;
+    clearTimeout(readRule._t);
+    readRule._t=setTimeout(()=>{ if(panel && panel.kind==='machine') flag('read_rule'); }, 2200);
+  }
+
+  /* ------------------------------------------------- WHERE TO GO NEXT
+     An investigation is not a walkthrough — it must never say what the
+     answer is. But "which way do I walk" is not the answer to anything,
+     and a district of rooms and corridors will swallow a student whole
+     if that is left to a line of text in a corner.
+
+     So two things, and between them you are never lost:
+
+     A MARKER YOU CAN SEE THROUGH WALLS. The first version of this was a
+     ring on the floor with ordinary depth testing, which meant it was
+     behind a wall almost every moment of the mission and therefore did
+     nothing at all. depthTest off and a renderOrder above the world: a
+     slim beam and a chevron, faint enough to ignore and impossible to
+     lose.
+
+     AND A COMPASS THAT NAMES THE PLACE. The beam says where; the chip
+     under the crosshair says what it is and how far, and its arrow
+     points there whether the beam is in shot or not — which is what
+     turns "somewhere over there" into "the depot, forty metres, behind
+     you". It fades out as you arrive, because an arrow pointing at your
+     own feet is noise. */
+  const SEEN = c => new THREE.MeshBasicMaterial({ color:c, transparent:true,
+                      opacity:0.5, depthTest:false, depthWrite:false });
   function waypoint(){
     const st=stage(), aim=aimOf(st);
-    if(!aim){ if(L.waypoint) L.waypoint.g.visible=false; return; }
+    if(!aim){
+      if(L.waypoint) L.waypoint.g.visible=false;
+      const c=$('#tAim'); if(c) c.classList.add('hidden');
+      return;
+    }
     if(!L.waypoint){
       const g=new THREE.Group();
-      const m=()=>new THREE.MeshBasicMaterial({color:0xffe9a8, transparent:true, opacity:0.75});
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.09,8,40), m());
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.7,0.08,8,36), SEEN(0xffe9a8));
       ring.rotation.x=-Math.PI/2; ring.position.y=0.08; g.add(ring);
-      const dart=new THREE.Mesh(new THREE.ConeGeometry(0.4,0.95,12), m());
+      /* the beam is what you actually navigate by: it is the only part
+         tall enough to clear the walls between you and it */
+      const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,9,6), SEEN(0xffe9a8));
+      beam.position.y=4.5; beam.material.opacity=0.22; g.add(beam);
+      const dart=new THREE.Mesh(new THREE.ConeGeometry(0.42,1.0,12), SEEN(0xffe9a8));
       dart.rotation.x=Math.PI; g.add(dart);
-      g.userData.flat=true;
+      g.renderOrder=4;
+      g.traverse(o=>{ o.renderOrder=4; o.userData.flat=true; });
       G.roomGroup.add(g);
-      L.waypoint={ g, ring, dart };
+      L.waypoint={ g, ring, dart, beam };
     }
     const w=L.waypoint;
     w.g.visible=true;
     w.g.position.set(aim.x, 0, aim.z);
     w.ring.rotation.z += 0.02;
     w.dart.position.y = 3.3 + Math.sin(L.t*2.6)*0.22;
-    // faded once you are standing on it: a marker over your own feet is noise
     const d=Math.hypot(aim.x-G.pos.x, aim.z-G.pos.z);
-    const a=Math.max(0, Math.min(0.8, (d-3)/9));
-    w.ring.material.opacity=a; w.dart.material.opacity=a;
+    // faded as you arrive: a marker over your own feet is noise
+    const a=Math.max(0, Math.min(1, (d-3)/7));
+    w.ring.material.opacity=0.5*a;
+    w.dart.material.opacity=0.5*a;
+    w.beam.material.opacity=0.22*a;
+    compass(aim, d, st);
+  }
+  /* The bearing to the objective in the frame of whoever is looking, so
+     the arrow means "that way from here" rather than "north". */
+  function compass(aim, d, st){
+    let c=$('#tAim');
+    if(!c){
+      c=document.createElement('div'); c.id='tAim';
+      c.innerHTML='<i></i><b></b><span></span>';
+      /* INSIDE the objective panel, as its first row. Floating it at the
+         top of the screen put it straight through the panel's own title at
+         anything under about a thousand pixels — and "where" belongs with
+         "what" anyway: one place a student looks to find out what they are
+         doing and which way it is. */
+      const obj=$('#objectives'), list=$('#objList');
+      if(obj && list) obj.insertBefore(c, list); else ($('#hud')||document.body).appendChild(c);
+    }
+    if(d<3.2){ c.classList.add('hidden'); return; }
+    c.classList.remove('hidden');
+    const fx=-Math.sin(G.yaw), fz=-Math.cos(G.yaw);       // where you face
+    const rx= Math.cos(G.yaw), rz=-Math.sin(G.yaw);       // and your right
+    const tx=aim.x-G.pos.x, tz=aim.z-G.pos.z;
+    const bearing=Math.atan2(tx*rx+tz*rz, tx*fx+tz*fz);   // 0 = dead ahead
+    c.firstChild.style.transform='rotate('+bearing.toFixed(3)+'rad)';
+    c.children[1].textContent=say(st.where||'');
+    c.children[2].textContent=Math.round(d)+'m';
   }
   function aimOf(st){
     if(!st || !st.at) return null;
@@ -1022,6 +1148,7 @@ window.TRAIL = (function(){
     if(mac.locked) readings(m);
     file(({sensor:'sensor_rule', robot:'robot_rule', gate:'gate_rule',
            transit:'transit_rule', door:'door_rule', terminal:'note'})[id]);
+    readRule();
     used(mac.concept);
     drawMachine();
   }

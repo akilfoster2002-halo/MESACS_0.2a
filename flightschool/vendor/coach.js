@@ -88,7 +88,11 @@ window.COACH = (function(){
     const r=document.querySelector('#coachRing'); if(r) r.remove();
     const host = ctx && ctx.host ? ctx.host() : null;
     unmark();
-    say(t('That is the whole idea: your blocks moved a thing in the world.'), true);
+    /* What the walkthrough was FOR, which is not the same sentence in every
+       mission. The default is the block missions' — your blocks moved a
+       thing — and a mission whose walkthrough is about reading a rule
+       rather than writing one says so instead. */
+    say((ctx && ctx.finish) || t('That is the whole idea: your blocks moved a thing in the world.'), true);
     clearLater(host);
   }
 

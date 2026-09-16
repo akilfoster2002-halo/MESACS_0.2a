@@ -368,7 +368,13 @@ test('everything the trail says, it can say in Spanish', ()=>{
   K.LESSONS.forEach(l=>{ add(l.head); add(l.body); });
   T.ZONES.forEach(z=>add(z.name));
   T.FINDS.forEach(f=>{ add(f.name); add(f.body); add(f.locked); });
-  T.STAGES.forEach(s=>{ add(s.obj); add(s.hint); });
+  T.STAGES.forEach(s=>{ add(s.obj); add(s.hint); add(s.where); });
+  /* the walked opening: COACH runs every step's text through t() too, and a
+     walkthrough that reverts to English is the worst thing to lose */
+  for(const m of src.matchAll(/say:'((?:[^'\\]|\\.)*)'/g))            // COACH step
+    add(JSON.parse('"'+m[1].replace(/\\'/g,"'").replace(/"/g,'\\"')+'"'));
+  for(const m of src.matchAll(/finish:'((?:[^'\\]|\\.)*)'/g))
+    add(JSON.parse('"'+m[1].replace(/\\'/g,"'").replace(/"/g,'\\"')+'"'));
   Object.values(T.ACTIONS).forEach(a=>add(a.line));
   /* the status chip is a word on the screen as much as anything else is */
   Object.values(T.ACTIONS).forEach(a=>add(a.status));
