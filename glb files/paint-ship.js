@@ -8,9 +8,16 @@
    "this is the canopy" is a statement about where a triangle sits, not
    something the model knows about itself.
 
-   NOSE IS +Z here, tail is -Z. The game's ships fly nose-first down -Z, so
-   the model is turned half a circle when it is loaded, not here — the file
-   stays as its author left it. */
+   WHICH END IS THE NOSE IS AN ARGUMENT, because models do not agree. The
+   first ship this painted was authored nose-forward down +Z and is turned
+   half a circle when it is loaded; the E-45 was authored the other way up
+   and needs no turn at all, because the game's ships fly down -Z. Either
+   way the file stays as its author left it and this is told which end is
+   which: `nose:'-z'` flips the one number every region is measured from.
+
+   Get it wrong and nothing errors. The bands simply land on the far end of
+   the ship — the canopy on the tail fin, the exhaust glow on the nose —
+   and you get a plausible-looking aircraft painted backwards. */
 const fs=require('fs');
 const NC={SCALAR:1,VEC2:2,VEC3:3,VEC4:4};
 const CS={5120:1,5121:1,5122:2,5123:2,5125:4,5126:4};
@@ -70,8 +77,38 @@ const cav=new Float32Array(nv);
     cav[v]=Math.max(-1,Math.min(1,(d/L)*2.6)); }
 }
 
+/* 0 = tail, 1 = nose, whichever way round the file was authored. */
+const noseAt = (B.nose||'+z').toLowerCase()==='-z' ? -1 : 1;
+const zOf = z => noseAt>0 ? (z-mn[2])/span[2] : (mx[2]-z)/span[2];
+
+/* WHAT THE MODEL ALREADY KNOWS ABOUT ITSELF.
+
+   obj2glb carries the author's `usemtl` runs through as triangle ranges,
+   and `parts` maps a material name onto one of the region names below —
+   so "this is the canopy glass" stops being a guess about where a triangle
+   sits and becomes a fact the file has been carrying since 2017. Anything
+   not named, or named `null`, falls through to classify() and is decided
+   by geometry the way it always was.
+
+   IT IS WORTH THE PLUMBING because the geometry rule cannot do this one.
+   The E-45's canopy is half the length of its fuselage and sits at the
+   same height as the spine either side of it; "high up, near the centre
+   line, forward of the wings" selects most of the aircraft. */
+const PARTS = B.parts || {};
+const byTri = new Uint8Array(0);
+const named = [];                 // [{from, to, part}], in triangles
+for(const run of ((g.meshes[0].extras||{}).groups)||[]){
+  const part = PARTS[run.name];
+  if(!part) continue;
+  named.push({ from:run.start, to:run.start+run.count, part });
+}
+const partAt = tri => {
+  for(const r of named) if(tri>=r.from && tri<r.to) return r.part;
+  return null;
+};
+
 function classify(x,y,z){
-  const zN=(z-mn[2])/span[2];              // 0 = tail, 1 = nose
+  const zN=zOf(z);
   const yN=(y-mn[1])/span[1];
   const ax=Math.abs(x)/(span[0]/2);
   if(zN < B.glow)   return 'glow';          // the very back of the engines
@@ -90,7 +127,7 @@ for(let f=0;f<I.length;f+=3){
   const cx=(P[t[0]*3]+P[t[1]*3]+P[t[2]*3])/3;
   const cy=(P[t[0]*3+1]+P[t[1]*3+1]+P[t[2]*3+1])/3;
   const cz=(P[t[0]*3+2]+P[t[1]*3+2]+P[t[2]*3+2])/3;
-  const part=classify(cx,cy,cz); tally[part]=(tally[part]||0)+1;
+  const part=partAt(f/3) || classify(cx,cy,cz); tally[part]=(tally[part]||0)+1;
   const base=rgb(C[part]), sh=SHADE[part];
   for(const v of t){
     const k=v+'|'+part;

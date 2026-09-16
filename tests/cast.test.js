@@ -234,37 +234,72 @@ test('a world can cast everybody without touching what they chose', ()=>{
     'everybody else on the ball is resolved through the cast too');
 });
 
-test('RYU is where you arrive, and you can get off it without a ship', ()=>{
+test('RYU has one door, and it is the Ion station on the floor of Mission Control', ()=>{
   const planet = read('public/planet.js');
   const world = planet.match(/const RYU_WORLD=\{[\s\S]*?\n  \};/);
   assert.ok(world, 'planet.js still declares RYU');
   assert.match(world[0], /cast:'w'/, 'RYU casts Robin');
-  assert.match(world[0], /shuttle:true/, 'and lets you leave by the craft that brought you');
-  assert.match(planet, /const WORLDS = \(\)=>\[[^\]]*RYU_WORLD/,
-    'RYU is in WORLDS, or lastWorld() will refuse to remember it');
+  assert.match(world[0], /mission:'hub'/, 'RYU is not declared a mission world');
+  assert.match(planet, /const WORLDS = \(\)=>\[[^\]]*RYU_WORLD/, 'RYU is in WORLDS');
   assert.match(planet, /id==='ryu' \? RYU_WORLD/, 'and worldById can find it');
 
-  /* The trap this closes: a first-minute player is put on a world whose only
-     exit asks for a ship they have no coins to buy, and the shop that sells
-     one is on the planet they cannot reach. */
-  assert.match(planet, /if\(!W\.shuttle && !hasShip\(\)\)/,
-    'a shuttle world does not ask for a ship');
-  /* And does not hand the trip to CRUISE, which knows where exactly two
-     planets are and answers Senio for everything else — a course from a
-     third world to Senio is zero long. */
-  assert.match(planet, /if\(W\.shuttle && !hasShip\(\)\)\{\s*\n\s*leave\(\); enter\(/,
-    'a shuttle sets you down rather than flying a zero-length course');
+  /* THE TRAP THIS CLOSES, and it is the one the shuttle used to be here to
+     close in the other direction. RYU had a pad with a LAUNCH sign on it
+     pointed at Senio, so the story had two front doors and two ways out —
+     and a student could walk into it halfway through, or wander off it
+     mid-scene, with no idea either had happened. One door now. */
+  assert.ok(!/shuttle:\s*true/.test(world[0]), 'RYU still declares a shuttle');
+  assert.ok(!/\bpad:\s*\{/.test(world[0]), 'RYU still declares a launch pad');
+  assert.ok(!/course:/.test(world[0]), 'RYU still charts a course off itself');
+  /* And no other world charts a course TO it. */
+  for(const m of planet.matchAll(/course:'([a-z]+)'/g))
+    assert.notStrictEqual(m[1], 'ryu', 'a world still flies to RYU');
+  /* Nothing launches from a mission even if something calls travel(). */
+  assert.match(planet, /function travel\(to\)\{[\s\S]{0,600}?if\(W\.mission\)\{/,
+    'travel() will still fly you off a mission world');
 
+  /* THE ONE DOOR. The station on the wall of Mission Control, and it is the
+     station that opens the house — an id use() does not know is dropped on
+     the floor, so this is not optional decoration. */
+  const menu = read('public/menu.js');
+  assert.match(menu, /ion:'Mission 8/, 'the mission has a name wherever missions are named');
+  assert.match(planet, /\{ id:'ion',/, 'there is no station on the wall');
+  assert.match(read('public/game.js'), /if\(id==='ion'\)\{ if\(window\.HOUSE\) HOUSE\.enter\(\)/,
+    'the station does not open the house');
   /* AND NOT ON THE WAY IN. Landing every student on RYU put a story in
      front of everybody who opened Koro whether they had come for it or
-     not; it is Mission 8 now and the front door is the hub again. */
-  const menu = read('public/menu.js');
-  assert.match(menu, /PLANET\.enter\(NET\.signedIn \? world : null, PLANET\.lastWorld\(\)\)/,
-    'entering the game no longer forces RYU');
-  assert.match(menu, /ion:'Mission 8/, 'the mission has a name wherever missions are named');
-  assert.match(read('public/planet.js'), /\{ id:'ion',/, 'and a station on the wall');
-  assert.match(read('public/game.js'), /if\(id==='ion'\)\{ if\(window\.HOUSE\) HOUSE\.enter\(\)/,
-    'and the station opens the house');
+     not. The front door of the game is Senio. */
+  assert.match(menu, /PLANET\.enter\(NET\.signedIn \? world : null, where \|\| PLANET\.lastWorld\(\)\)/,
+    'entering the game no longer asks where to land');
+});
+
+test('leaving the Robin Ryu mission comes out at Mission Control', ()=>{
+  /* EVERY OTHER MISSION IN THIS GAME COMES OUT IN THE SAME PLACE — the
+     door of Mission Control on Senio — because the hub is the one world
+     PLANET refuses to restore a saved spot on. RYU used to be the
+     exception by accident: LEAVE stepped you out of the house onto the
+     planet, and pressing it again rebuilt the world you were standing on,
+     which was RYU. There was no way out of the mission at all. */
+  const planet = read('public/planet.js');
+  assert.match(planet, /const leaveTo = \(\) => \(W && W\.mission\) \|\| null;/,
+    'planet.js no longer says where a mission hands you back to');
+  assert.match(planet, /lastWorld, leaveTo,/, 'and does not export it');
+
+  const game = read('public/game.js');
+  assert.match(game, /MENU\.homeworld\(PLANET\.leaveTo && PLANET\.leaveTo\(\)\)/,
+    'LEAVE does not ask the world where it hands you back to');
+  assert.ok(!/HOUSE\.active && HOUSE\.outside/.test(game),
+    'LEAVE still steps out of the front door instead of leaving the mission');
+  /* The front door is still a door, and it is still E. */
+  assert.match(read('public/house.js'), /atDoor\(\) && !\(window\.SCENE && SCENE\.active\)\) outside\(\)/,
+    'E at the front door no longer goes outside');
+
+  /* AND A MISSION IS NEVER WHAT YOU COME BACK TO. Signing in resumes the
+     ball you were last on; a story you were half way through is not one. */
+  assert.match(planet, /if\(!W\.mission\) PROGRESS\.set\('world', W\.id\)/,
+    'a mission world is written to the save bag as somewhere you live');
+  assert.match(planet, /return \(w && !w\.mission\) \? id : 'hub';/,
+    'lastWorld() would still hand back a mission world');
 });
 
 test('Robin has every clip the rig can drive', ()=>{
@@ -280,4 +315,40 @@ test('Robin has every clip the rig can drive', ()=>{
   const clips = (json.animations || []).map(a => a.name);
   for(const want of ['idle','walk','sprint','jump','dance','fly','swim','salsa','flip'])
     assert.ok(clips.includes(want), `Robin has no '${want}' clip: ${clips.join(', ')}`);
+});
+
+test('every way INTO Koro opens on Senio, and no way back does', ()=>{
+  /* A class told to meet outside Mission Control was thirty children each
+     waking up wherever they last logged out — one on their own home
+     planet, one half way through the story on RYU, one in the dark on
+     VOLTA. The front door is one door now.
+
+     AND ONLY THE FRONT DOOR. homeworld() is also what every BACK button
+     out of a room calls — the mecha bench, the arcade shelf, the wardrobe,
+     the pause card's HOME — and a back button that teleports you across
+     the system is not a back button. Those pass nothing and get the ball
+     they were standing on. */
+  const menu = read('public/menu.js');
+  const ways = {
+    "btnGuest": /#btnGuest'\); if\(guest\) guest\.onclick=\(\)=>\{ homeworld\('hub'\); \}/,
+    "btnStart": /#btnStart'\); if\(st\) st\.onclick=\(\)=>\{ NET\.signedIn \? homeworld\('hub'\)/,
+    "afterSignIn": /homeworld\('hub'\);\s*\/\/ signing in/
+  };
+  for(const [name, re] of Object.entries(ways))
+    assert.match(menu, re, name+' is a way into Koro that does not land on Senio');
+
+  /* Senio is the hub, and the hub is the one world PLANET refuses to
+     restore a saved spot on — which is what makes "the same spawn" true
+     rather than merely intended. */
+  const planet = read('public/planet.js');
+  assert.match(planet, /id:'hub',[^\n]*name:'Senio'/, "the hub is no longer called Senio");
+  assert.match(planet, /const back = at \? null : \(W\.kind==='hub' \? null : savedSpot\(W\.id\)\)/,
+    'the hub restores a saved spot: entering Koro would land you somewhere different each time');
+
+  /* And the rooms still come back to where they came from. */
+  for(const f of ['public/mech.js','public/workshop.js','public/arcade.js','public/chars.js'])
+    assert.match(read(f), /MENU\.homeworld\(\)/,
+      f+' asks homeworld() for a particular world: leaving a room would move the player');
+  assert.match(read('public/game.js'), /MENU\.homeworld\(\)/,
+    'the pause card sends the player to a world instead of back to their own');
 });

@@ -1309,12 +1309,18 @@ function returnToDesktop(){
      it — so LEAVE goes back to the shelf rather than dropping you outside
      on VOLTA with no idea where your game went. */
   if(window.ARCADE && ARCADE.building && ARCADE.leaveBench()) return;
-  /* LEAVING THE HOUSE MEANS LEAVING THE HOUSE. It is a room in a building
-     on RYU, so the way out of it is its own front door — not the last ball
-     you happened to stand on, which for anybody who reached it from
-     Mission Control is Senio, a world away from the rover parked outside. */
-  if(window.HOUSE && HOUSE.active && HOUSE.outside && HOUSE.outside()) return;
-  if(window.PLANET && MENU.homeworld) MENU.homeworld();
+  /* LEAVING THE ROBIN RYU MISSION MEANS LEAVING IT, and it comes out where
+     every other mission comes out: the door of Mission Control, on Senio.
+
+     LEAVE USED TO BE THE FRONT DOOR. The house is a room in a building on
+     RYU, so this button stepped you out of it and onto the planet — which
+     is a reasonable thing for a door to do and the wrong thing for LEAVE
+     to do, because it meant there was no way out of the mission at all.
+     You came out of the house onto RYU, pressed LEAVE again, and the world
+     you were last standing on was RYU, so it built RYU and put you back
+     down on it. The front door is still the front door; it is E, and
+     house.js has always answered it. */
+  if(window.PLANET && MENU.homeworld) MENU.homeworld(PLANET.leaveTo && PLANET.leaveTo());
   else MENU.open();
 }
 function begin(){ MENU.open(); }

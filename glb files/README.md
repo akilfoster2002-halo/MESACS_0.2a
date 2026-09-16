@@ -98,6 +98,50 @@ of the 180° sign flips the reference has between neighbouring keys.
 `animations/rigs/Swimming.fbx` is converted too (`rig/swim.glb`) and merged into
 nobody: there is nothing to swim in yet.
 
+## The E-45
+
+Robin's ship, parked beside the house on RYU. It arrives as a 2017 Blender export
+with two materials, UVs and four JPEGs, and none of that survives — nothing in
+this game ships a texture. What survives is the **geometry** and, crucially, the
+**material names**.
+
+```bash
+cd "glb files"
+node obj2glb.js "../animations/vehicles/E-45-Aircraft/E 45 Aircraft_obj.obj" /tmp/e45-raw.glb
+node paint-ship.js /tmp/e45-raw.glb e45.glb '{
+  "nose":"-z",
+  "parts":{"Material.004":"glass"},
+  "engine":0.10, "glow":0.035, "canopyZ0":9, "canopyZ1":9,
+  "C":{"hull":"#c6ccd8","canopy":"#1b2447","glass":"#5b93e0",
+       "engine":"#23252c","glow":"#8ff0ff"}
+}'
+cp e45.glb ../public/ships/e45.glb
+npm run bump
+```
+
+**`nose:"-z"`.** Models do not agree about which way they face. The first ship
+was authored nose-forward down `+z`; this one is the other way round, which is
+already the direction the game's ships fly, so it needs no turn at load. Get it
+wrong and nothing errors — the bands land on the far end and you get a plausible
+aircraft painted backwards, canopy on the tail fin.
+
+**`parts` beats bands.** `paint-ship.js` finds a canopy by asking where a
+triangle sits: high up, near the centre line, forward of the wings. That rule
+cannot find this one — the E-45's canopy is half the length of its fuselage and
+sits at the same height as the spine either side of it, so the rule selects most
+of the aircraft. But the author had `usemtl Material.004` switched on for exactly
+those 744 faces in 2017, `obj2glb.js` now carries those runs through in
+`meshes[0].extras.groups`, and `parts` maps the name onto a region. The canopy
+stops being a guess. `canopyZ0`/`canopyZ1` are set past 1 to turn the geometric
+rule off entirely, since nothing is left for it to find.
+
+**The aerial.** Thirty-one of her twelve thousand vertices hang below the hull on
+a needle, so `Box3.min.y` is a number about the wrong part of the ship: sitting
+her on it parks her a metre and a half in the air. `planet.js` throws away the
+lowest one per cent instead — see `restOf()` there. It is the same argument
+`house.js` makes about Ion in reverse: there the extreme was real and the box was
+wrong, here the box is honest and the extreme is a whisker.
+
 ## Painting by bone
 
 `paint-rigged.js` paints in height bands, which is the right amount of
@@ -211,12 +255,28 @@ reads nothing else:
 cd "glb files"
 node fbx2glb.js  "../animations/Ion/Ion (beathless).fbx" ion-rigged.glb
 node fbx2clip.js "../animations/Ion/Ion (beathless).fbx" rig/breathless.glb
+node fbx2clip.js "../animations/rigs/Laying Seizure.fbx" rig/seizure.glb
 node paint-skinned.js ion-rigged.glb ion-painted.glb ion.paint.json
 node merge-clips.js ion-painted.glb ion.glb dropbase \
-  breathless=rig/breathless.glb inplace=breathless
+  breathless=rig/breathless.glb idle=rig/idle.glb seizure=rig/seizure.glb \
+  inplace=breathless,seizure
 cp ion.glb ../public/characters/models/ion.glb
 npm run bump
 ```
+
+**Three clips, and he is a robot with one animation in his own FBX.** The
+other two are the generic Mixamo rig's, retargeted onto him by bone name for
+nothing but the merge — `idle` is the one every person in this game stands in,
+so being mended looks like standing up rather than like a robot going rigid,
+and `seizure` is `animations/rigs/Laying Seizure.fbx`, which is what being
+hacked looks like. `idle` drops twelve channels on the way in: bones that rig
+has and he has not, which is exactly what retargeting a person onto a machine
+should do and not a warning worth acting on.
+
+Both floor clips need `inplace` and both need dropping onto the tile, by their
+own amount — see *Two things that do not work on a SkinnedMesh* below. Lying
+still and thrashing do not put the same part of him lowest, so `house.js`
+measures the seizure across its whole five seconds and takes the lowest sample.
 
 **A person is painted by garment and a machine is painted by part.** Every band
 above — a hem, a collar, where the sleeve ends — answers *what is this vertex

@@ -70,6 +70,14 @@ test('Ion is installed, and carries the clip that lays him down', ()=>{
   assert.ok(clips.includes('breathless'),
     `Ion has no 'breathless' clip (${clips.join(', ') || 'none at all'}) — ` +
     'he would lie in his rest pose, standing to attention on the floor');
+  /* AND THE TWO HE IS MOVED INTO. `idle` is what being mended looks like
+     and `seizure` is what being hacked looks like; a model shipped
+     without either leaves house.js crossfading to nothing, which is a
+     robot who stands perfectly still through the whole of it and nothing
+     anywhere saying why. */
+  for(const c of ['idle','seizure'])
+    assert.ok(clips.includes(c),
+      `Ion has no '${c}' clip (${clips.join(', ')}) — see "glb files"/README.md`);
   /* He is painted by part rather than by garment, which means vertex
      colours: a mesh that arrived with none is a white robot. */
   const prim = json.meshes[0].primitives[0];
@@ -195,4 +203,53 @@ test('the story runs on scenes, and the console is a separate lesson', ()=>{
   assert.match(fix, /class="blk rep/, 'the program is not drawn as console blocks');
   assert.match(fix, /blk-head|blk-body|blk-foot/, 'the C-blocks do not wrap');
   assert.ok(!/^\s*\.blk\{/m.test(fix), 'ionfix.js restyles .blk instead of using the real one');
+});
+
+/* --------------------------------------------------------- the reveal */
+test('the hack is something that happens to Ion, not a note about him', ()=>{
+  const house = read('public/house.js');
+  const mended = house.slice(house.indexOf('function mended()'),
+                             house.indexOf('function after()'));
+  assert.ok(mended, 'house.js no longer has a mended()');
+
+  /* THE THREE THINGS THAT MAKE IT A SCENE. Take any one of them out and
+     it degrades back into what it replaced: somebody reading lines off a
+     panel. */
+  assert.match(mended, /on:\s*lightsOut/, 'the lights never go');
+  assert.match(mended, /I\('fit'\)/, 'he never goes down: the message is delivered standing up');
+  assert.match(mended, /lightsBack\(\)/, 'the lights never come back on');
+
+  /* AND HE HAS TO GET BACK UP, or the mission ends with a robot on the
+     floor and a brief telling the player to carry him somewhere. */
+  assert.match(mended, /I\('rise'\)/, 'he is left seizing on the floor');
+
+  /* THE VOICE IS NOT HIS, and the way the player is told that is the
+     portrait going away — FACES has no entry for it, on purpose. */
+  assert.match(mended, /who:'\?\?\?'/, 'the message comes out in Ion\'s own name');
+  const faces = house.slice(house.indexOf('const FACES'), house.indexOf('function prompt_'));
+  assert.ok(!/\?\?\?/.test(faces), 'the voice has a portrait: it would read as Ion saying it');
+
+  /* HE SAYS WHAT HAPPENED TO HIM, in his own words, afterwards — the
+     whole reason this is worth a seizure is that the fact lands on him
+     and not on a student reading a diff. */
+  assert.match(mended, /hacked/i, 'nobody ever says his code was hacked');
+  assert.match(mended, /Mechanic/, 'he never says where to take him');
+
+  /* AND THE LIGHTS ARE HANDED BACK. G.sun, G.amb and G.hemi are the
+     page's, not this room's; walking out mid-flicker used to be a planet
+     at dusk for no reason. */
+  assert.match(house, /function stop\(\)\{[\s\S]{0,400}?lightsRestore\(\);[\s\S]{0,40}L=null/,
+    'stop() drops L before putting the intensities back, so nothing is put back');
+});
+
+test('the console hands the story over and keeps none of it', ()=>{
+  /* It used to hold the screen for five and a half seconds after a
+     working RUN while a student read five commented-out lines. The
+     console is a lesson; the reveal is the room's. */
+  const fix = read('public/ionfix.js');
+  assert.ok(!/r\.note/.test(fix), 'the console still draws a note');
+  assert.ok(!/5600/.test(fix), 'the console still holds the screen to be read');
+  assert.match(fix, /onFixed/, 'the console never tells the house it worked');
+  assert.ok(!/note/.test(read('public/routine.js').replace(/\/\*[\s\S]*?\*\//g,'')),
+    'routine.js still carries a note through the interpreter');
 });

@@ -19,9 +19,12 @@
                 the door was ever opened.
 
    WHAT IS NEW: Ion. He is not a character you can wear and he does not
-   go through AVATAR — he is a model with one clip, and that clip is the
-   whole of what he is doing. See ion() below for why he is loaded here
-   rather than added to the roster.
+   go through AVATAR — he is a model with three clips, and which of the
+   three he is in is the whole of this morning: breathing on the floor,
+   standing in the idle every person in this game stands in, and the one
+   nobody put in his routine. See ion() below for why he is loaded here
+   rather than added to the roster, and mended() for what the third clip
+   is for.
    ===================================================================== */
 window.HOUSE = (function(){
   const $ = (s,r=document)=>r.querySelector(s);
@@ -93,7 +96,7 @@ window.HOUSE = (function(){
   const ION_AT = [16, 36];          // the tile marked G, in world units
   const DOOR_Z = 24;                // the wall the doorway is in
   /* WHERE THE FRONT DOOR COMES OUT. The house stands at lon 0, lat -2 on
-     RYU and the rover is parked at lon 5 — so stepping outside puts you
+     RYU and the ship is parked at lon 5 — so stepping outside puts you
      between the two, looking at the thing you were just told you needed.
      Slightly south of the house so you are in front of it rather than
      inside its footprint. */
@@ -105,7 +108,7 @@ window.HOUSE = (function(){
      and a half units behind her, and on a planet nothing pulls it out of
      a solid the way it does indoors. A raycast out of the lens hit the
      roof at three metres.
-     So: past the rover rather than short of it. She comes out looking at
+     So: past the ship rather than short of it. She comes out looking at
      the thing she was just told she needs, with her own house behind it
      and nothing between the camera and open ground. */
   const OUTSIDE = { lon:6.3, lat:-2.4 };
@@ -198,8 +201,9 @@ window.HOUSE = (function(){
     grp.add(root);
     G.roomGroup.add(grp);
 
-    const clip=(g.animations||[]).find(c=>c.name==='breathless') || (g.animations||[])[0];
-    if(!clip){
+    const clipOf = n => (g.animations||[]).find(c=>c.name===n);
+    const lying = clipOf('breathless') || (g.animations||[])[0];
+    if(!lying){
       /* Silent on purpose everywhere else — rig.play() leaves the current
          clip alone when it cannot find one — and that is exactly how a
          model served from yesterday's cache looks like a robot standing
@@ -208,29 +212,26 @@ window.HOUSE = (function(){
       L.ion={ grp, root, mixer:null };
       return;
     }
+    /* THREE POSTURES, AND THIS MORNING IS WHICH ONE HE IS IN.
+
+       `down`  is the clip he came with: he is breathing and nothing else.
+       `stand` is rig/idle.glb — the same idle every person in this game
+               stands in — retargeted onto him by bone name, which works
+               because he is a Mixamo skeleton like the rest of them and
+               costs nothing but a merge.
+       `fit`   is rig/seizure.glb, and it is the one nobody put in his
+               routine. It is a LAYING clip, so it takes him off his feet
+               by itself: he does not have to be knocked down, the pose is
+               the falling. */
     const mixer=new THREE.AnimationMixer(root);
-    const down=mixer.clipAction(clip);
-    down.play();
-    mixer.update(0);
-    /* AND THE CLIP HE GETS UP INTO. It is rig/idle.glb — the same idle
-       every person in this game stands in — retargeted onto him by bone
-       name, which works because he is a Mixamo skeleton like the rest of
-       them and costs nothing but a merge. Crossfaded rather than cut: a
-       robot who has just been mended and snaps to attention in one frame
-       looks repaired, not relieved. */
-    const stand=(g.animations||[]).find(c=>c.name==='idle');
-    L.ion={ grp, root, mixer, standing:false };
-    L.ion.up=()=>{
-      if(L.ion.standing || !stand) return;
-      L.ion.standing=true;
-      const a=mixer.clipAction(stand);
-      a.reset().setEffectiveWeight(1).play();
-      down.crossFadeTo(a, 1.4, false);
-      /* He came to rest lying down; standing puts his feet back under him,
-         so the drop that sat him on the floor has to be undone with him. */
-      L.ion.lift = { from:grp.position.y, to:spot.y, t:0 };
-    };
-    /* AND NOW PUT HIM ON THE FLOOR, which the clip does not do. Mixamo
+    const A={ down:mixer.clipAction(lying) };
+    for(const [k,n] of [['stand','idle'],['fit','seizure']]){
+      const c=clipOf(n);
+      if(c) A[k]=mixer.clipAction(c);
+      else console.warn(`HOUSE: Ion has no "${n}" clip; he will not ${k==='stand'?'get up':'go down'}`);
+    }
+
+    /* AND NOW PUT HIM ON THE FLOOR, which the clips do not do. Mixamo
        keeps the hips at a standing height even in a clip that lays the
        body flat, and `inplace` only flattens the fore/aft drift — so out
        of the box he lies down in mid-air, two thirds of a metre over the
@@ -244,11 +245,135 @@ window.HOUSE = (function(){
        changes, and drops him a T-pose's worth through the floor. Bones
        are honest but they are inside him; the lowest one is a forearm and
        the arm around it is what actually touches the ground.
-       So ask the skin. */
-    root.updateMatrixWorld(true);
-    const low=floorOf(root);
-    if(low!==null) grp.position.y += spot.y - low;
-    else console.warn('HOUSE: cannot skin Ion to the floor; he will lie where the clip puts him');
+       So ask the skin.
+
+       ONCE PER FLOOR POSE, because they are not the same shape. Lying
+       still and thrashing put different parts of him lowest, and a
+       seizure measured off the breathing clip either floats him or saws
+       his shoulder through the tile. The thrash is sampled across its
+       whole length and the LOWEST sample wins, so the one frame he is
+       furthest over is the frame that decides and no part of him ever
+       goes through the floor.
+
+       THE WORLD MATRIX IS THE HALF THAT WAS MISSING. floorOf() reads
+       world coordinates, and `root.updateMatrixWorld()` builds root's off
+       its PARENT's, which nothing had updated — so the lowest point came
+       back measured from the group's origin instead of from the tile and
+       the correction was a slab thick, every time, in his favour. Ask the
+       group to update itself and the arithmetic below is the arithmetic
+       it always claimed to be. */
+    const base=grp.position.y;
+    const THRASH=[0, 0.7, 1.4, 2.1, 2.8, 3.5, 4.2, 4.9];
+    function tile(act, times){
+      let low=Infinity;
+      for(const at of times){
+        for(const k in A) A[k].stop();
+        act.reset().setEffectiveWeight(1).play();
+        mixer.setTime(at);
+        grp.updateMatrixWorld(true);
+        const y=floorOf(root);
+        if(y!==null && y<low) low=y;
+      }
+      for(const k in A) A[k].stop();
+      if(isFinite(low)) return base + (spot.y - low);
+      console.warn('HOUSE: cannot skin Ion to the floor; he will lie where the clip puts him');
+      return base;
+    }
+    /* Measured now, with nobody looking, because measuring a pose means
+       standing him in it — and KEYED BY THE POSE, not by what it looks
+       like from outside. go() reads Y[name] with the name of the clip it
+       is fading to, so a height filed under anything else is an undefined
+       the group's y quietly becomes NaN from. */
+    const Y={ stand:spot.y, down:tile(A.down,[0]),
+              fit: A.fit ? tile(A.fit, THRASH) : spot.y };
+
+    L.ion={ grp, root, mixer, pose:'down', glide:null };
+    /* ONE WAY TO CHANGE WHAT HE IS DOING, because the body and the tile
+       have to move together: every one of these poses sits at its own
+       height and a crossfade that left the group where it was would slide
+       him through the floor half way through. Crossfaded rather than cut
+       — a robot who has just been mended and snaps to attention in one
+       frame looks repaired, not relieved — and the fade is the argument
+       for how long the drop takes, so he arrives with the pose. */
+    function go(name, fade){
+      const a=A[name];
+      if(!a || L.ion.pose===name) return;
+      /* AND A HEIGHT FILED UNDER THE SAME NAME. A pose with no entry in Y
+         is an `undefined` that the group's y becomes NaN from on the very
+         first frame of the glide — and a NaN position does not throw, does
+         not warn and does not draw. Ion simply is not in the room, and the
+         shot that was meant to be him getting up is an empty floor. */
+      const to=Y[name];
+      if(to===undefined) console.warn('HOUSE: no floor height for pose "'+name+'"');
+      const from=A[L.ion.pose];
+      a.reset().setEffectiveWeight(1).play();
+      if(from) from.crossFadeTo(a, fade, false);
+      L.ion.pose=name;
+      L.ion.glide={ from:grp.position.y, t:0, for:fade,
+                    to: to===undefined ? grp.position.y : to };
+    }
+    L.ion.up   = ()=>go('stand', 1.4);
+    L.ion.fit  = ()=>go('fit',   0.30);   // nothing about this one is gentle
+    L.ion.rise = ()=>go('stand', 1.7);
+
+    A.down.play();
+    mixer.update(0);
+    grp.position.y=Y.down;
+  }
+
+  /* ===================================================================
+     THE LIGHTS GOING
+
+     BUILDING hangs a PointLight over the middle of every room it can
+     flood-fill and does not hand them back, so they are found by walking
+     the room rather than by growing a return value nobody else reads.
+     The sun and the two ambients go with them: a flicker that leaves the
+     fill light alone is a lamp with a loose connection, and this is not a
+     lamp.
+
+     AUTHORED, NOT RANDOM. A random flicker reads as weather. This is a
+     pattern — out, back, out longer, one stab far too bright, and then a
+     brown-out that does not recover — and it is the same every time,
+     which is what makes it a thing being DONE rather than a thing going
+     wrong.
+     =================================================================== */
+  const FLICKER=[[0,0],[.08,1],[.14,.02],[.26,1.4],[.33,0],[.48,.9],[.55,.05],
+                 [.63,2.1],[.72,.08],[.88,.5],[.98,.03],[1.16,1.2],[1.26,.06],
+                 [1.5,.3],[1.66,.08],[1.95,.26],[2.3,.1]];
+  const BROWN=0.22;            // where the room sits while he is not his own
+  const COMEBACK=1.6;          // seconds for it to come up again afterwards
+
+  function lightsOut(){
+    if(!L || L.lit) return;
+    const bulbs=[];
+    G.roomGroup.traverse(o=>{ if(o.isPointLight) bulbs.push({ o, i:o.intensity }); });
+    for(const o of [G.sun, G.amb, G.hemi]) if(o) bulbs.push({ o, i:o.intensity });
+    L.lit={ t:0, back:null, bulbs };
+  }
+  function lightsBack(){ if(L && L.lit && L.lit.back===null) L.lit.back=0; }
+
+  /* What every light in the room is multiplied by, this frame. */
+  function litLevel(l){
+    if(l.back!==null){
+      const u=Math.min(1, l.back/COMEBACK);
+      return BROWN + (1-BROWN)*(u*u*(3-2*u));
+    }
+    const end=FLICKER[FLICKER.length-1][0];
+    if(l.t < end){ let v=1; for(const [at,k] of FLICKER){ if(l.t<at) break; v=k; } return v; }
+    /* AND THEN IT STAYS DOWN, unsteadily. A room that flickers and
+       recovers is a loose connection; a room that flickers and then sits
+       at a fifth, with something still pulling on it, is whatever is
+       doing it still being there. */
+    return Math.max(0, BROWN + 0.05*Math.sin(l.t*21) + 0.035*Math.sin(l.t*6.7));
+  }
+
+  /* Hand every intensity back exactly as it was found. G.sun, G.amb and
+     G.hemi are the page's, not this room's, and a house that walks out
+     leaving them at a fifth is a planet at dusk for no reason. */
+  function lightsRestore(){
+    if(!L || !L.lit) return;
+    for(const b of L.lit.bulbs) b.o.intensity=b.i;
+    L.lit=null;
   }
 
   /* The lowest point of a POSED skinned mesh, in world units — the one
@@ -482,7 +607,7 @@ window.HOUSE = (function(){
   /* OUT OF THE FRONT DOOR AND ONTO THE PLANET. There was no way out of
      here at all: LEAVE goes to whichever ball you were last standing on,
      and a student who reached this room from Mission Control has never
-     stood on RYU — so it put them on Senio, a world away from the rover
+     stood on RYU — so it put them on Senio, a world away from the ship
      they had just been told to go and build. Now leaving the house means
      leaving the house. */
   function outside(){
@@ -515,11 +640,41 @@ window.HOUSE = (function(){
     }});
   }
 
-  /* He gets up. One shot, because the thing that changed is worth looking
-     at and the player just earned it. */
+  /* ===================================================================
+     HE GETS UP — AND THEN SOMETHING ELSE DOES.
+
+     THIS IS THE REVEAL, AND IT USED TO BE A FOOTNOTE. Five commented-out
+     lines were appended to the console after a working RUN, read in a
+     panel the student had already finished with, and then narrated back
+     to them line by line in dialogue. Everything about it was told rather
+     than shown: the antagonist of this game arrived as a diff, and the
+     worst thing that has ever happened to Ion happened to a text box.
+
+     So it happens to HIM. The repair works, he thanks her, and in the
+     half second where everybody is relieved the lights go — and he goes
+     down with them. What comes out of him while he is on the floor is not
+     his voice and not addressed to him: it is the person who was inside
+     him at four in the morning, saying it to her face. Then it lets go.
+
+     AND THE WORST PART IS HIS. He has no record of any of it — not of
+     being opened, not of speaking — which is the same fact the note used
+     to carry and is now something he has to say out loud about himself.
+
+     THE VOICE HAS NO FACE. Every other line in this game comes with a
+     portrait; FACES has no entry for `???`, so the panel beside the
+     dialogue goes blank for exactly as long as somebody else is using his
+     mouth, and comes back when he does.
+     =================================================================== */
   function mended(){
     if(!on || !L) return;
-    if(L.ion && L.ion.mixer && L.ion.up) L.ion.up();
+    const I = fn => ()=>{ if(L && L.ion && L.ion[fn]) L.ion[fn](); };
+    if(L.ion && L.ion.mixer) I('up')();
+    /* Where the camera stands for the flicker, and it is a WIDE — the
+       thing that changed is the room, not his face, and a close-up of a
+       robot in the dark is a robot in the dark. */
+    const ROOM  ={ eye:[16.4, 3.6, 30.2], at:[16, 1.5, 37] };
+    const FLOOR ={ eye:[18.5, 0.92, 33.2], at:[16, 0.75, 36] };
+    const OVER  ={ eye:[19.6, 1.45, 32.7], at:[16, 0.80, 36] };
     SCENE.play([
       { shot:{ eye:[20.5, 1.6, 31.5], at:[16, 0.8, 36] }, ease:0.9,
         who:'Ion', say:say_('\u2026oh. Oh! That is much better.') },
@@ -527,44 +682,75 @@ window.HOUSE = (function(){
         who:'Ion', say:say_('Good morning, Robin. You fixed my legs.') },
       { shot:{ eye:[21.5, 2.2, 31], at:[16, 1.0, 36] },
         who:'Robin', say:say_('Pancakes. In a minute.') },
-      /* AND THE THING AT THE END OF HIM. Nothing was wrong with it and it
-         never ran — five commented-out lines, addressed to him, by
-         somebody who opened him up while he was on the floor. It is the
-         only part of this morning that does not add up, and the beat it
-         turns on is not the secret, it is that he has no memory of it. */
-      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] }, ease:1.2,
-        who:'Robin', say:say_('Ion. There are five lines at the end of your routine.') },
-      { shot:{ eye:[19.8, 1.4, 32.6], at:[16, 0.95, 36] },
-        who:'Robin', say:say_('They are addressed to you.') },
-      { shot:{ eye:[18.9, 1.1, 33.5], at:[16, 0.9, 36] }, ease:1.2,
-        who:'Ion',   say:say_('\u2026I did not write those.') },
-      { shot:{ eye:[18.9, 1.1, 33.5], at:[16, 0.9, 36] },
-        who:'Robin', say:say_('\u201cPatched 04:12. This line will not be in your log.\u201d') },
-      { shot:{ eye:[18.3, 0.95, 34.1], at:[16, 0.88, 36] }, ease:1.1,
+
+      /* --- and the lights -------------------------------------------
+         HELD, NOT PROMPTED, from here to the end of it. Every beat below
+         runs on a timer instead of waiting for SPACE, because the one
+         thing this cannot be is something the player is operating. She
+         cannot stop it and neither can they. */
+      { shot:ROOM, ease:0.8, hold:2.6, on:lightsOut },
+      { shot:ROOM, hold:1.5, who:'Robin', say:say_('\u2026Ion? What is wrong with the lights?') },
+
+      /* --- and then he is on the floor again ------------------------- */
+      { shot:FLOOR, ease:0.45, hold:1.9, on:I('fit'),
+        who:'Ion',  say:say_('R-Robin \u2014 there is s-something in my \u2014') },
+      { shot:FLOOR, hold:1.6, who:'Robin', say:say_('ION!') },
+
+      /* --- somebody else, using his mouth ---------------------------- */
+      { shot:FLOOR, hold:2.6, who:'???',
+        say:say_('PATCHED 04:12. THIS LINE IS NOT IN HIS LOG.') },
+      { shot:OVER, ease:1.0, hold:2.6, who:'???',
+        say:say_('HE HAS NEVER MET ME. HE WAS NEVER OPENED.') },
+      { shot:OVER, hold:2.6, who:'???',
+        say:say_('IF SHE ASKS ABOUT THE CELLS \u2014 THE CRATE CAME EMPTY.') },
+      { shot:FLOOR, ease:0.9, hold:2.6, who:'???',
+        say:say_('KEEP HER OFF THE TOWER ROAD.') },
+      { shot:FLOOR, hold:2.2, who:'???', say:say_('\u2014 E.') },
+
+      /* --- and it lets go -------------------------------------------- */
+      { shot:FLOOR, hold:2.0, on:()=>{ I('rise')(); lightsBack(); } },
+
+      /* --- the rest is his, and the player gets SPACE back ----------- */
+      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] }, ease:1.3,
+        who:'Ion',   say:say_('\u2026Robin? Why am I on the floor again?') },
+      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 1.0, 36] },
+        who:'Robin', say:say_('You were talking. It was not you doing the talking.') },
+      { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] }, ease:1.1,
+        who:'Ion',   say:say_('I have no record of speaking. I have no record of falling.') },
+      { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] },
+        who:'Ion',   say:say_('And my morning routine was changed at 04:12. I did not change it.') },
+      { shot:{ eye:[19.4, 1.35, 33.0], at:[16, 0.95, 36] },
         who:'Ion',   say:say_('My log has no gap at 04:12. My log has no gap anywhere.') },
-      { shot:{ eye:[18.3, 0.95, 34.1], at:[16, 0.88, 36] },
-        who:'Robin', say:say_('Then whoever was inside you took the gap out as well.') },
-      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] }, ease:1.3,
-        who:'Robin', say:say_('\u201cYou have never met me. You were never opened.\u201d Signed <b>E.</b>') },
-      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] },
-        who:'Ion',   say:say_('I have never met anybody called E.') },
-      { shot:{ eye:[20.4, 1.7, 32.2], at:[16, 0.95, 36] },
-        who:'Robin', say:say_('No. You have not.') },
+      { shot:{ eye:[20.8, 1.9, 32.0], at:[16, 1.0, 36] }, ease:1.2,
+        who:'Robin', say:say_('Then somebody has been inside you \u2014 and took the hole out after them.') },
+      { shot:{ eye:[20.8, 1.9, 32.0], at:[16, 1.0, 36] },
+        who:'Ion',   say:say_('My code has been hacked, Robin. I do not know what else is in me.') },
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] }, ease:1.1,
-        who:'Robin', say:say_('The last line says to keep me off the tower road.') },
+        who:'Ion',   say:say_('And I cannot read my own code from the inside. I am the thing doing the reading.') },
       { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
-        who:'Ion',   say:say_('Mr Einstein is at the tower. It is a long way out.') },
+        who:'Ion',   say:say_('Take me to the Mechanic. Somebody has to open me up who is not me.') },
+      { shot:{ eye:[21.2, 2.1, 31.6], at:[16, 1.0, 36] },
+        who:'Robin', say:say_('The Mechanic. And then whoever E. is can explain the tower road.') },
     ], { faces:FACES, end:()=>{ G.running=true; prompt_(null); after(); } });
   }
 
-  /* WHAT IS NEXT, and it is deliberately only a sentence. The vehicle is
-     not built yet; this is the door it will be behind, and it says so
-     rather than pretending there is nothing there. */
+  /* WHAT IS NEXT, and it is deliberately only a sentence. He asked to be
+     taken to the Mechanic and that is where this goes; the tower is the
+     thing she has just been warned off, which is a different kind of
+     signpost and worth keeping in the same breath. */
+  const ERRAND = ()=>say('Ion has been hacked. He asked for <b>THE MECHANIC</b> \u2014 '
+                      + 'and somebody wants you off the tower road.');
   function after(){
-    /* And straight out of the door. The rover is a hundred paces away and
-       the scene has just finished telling her she needs it; making her
-       hunt for a way out of her own house is not suspense. */
-    if(!outside()) brief(say('Ion is up. The tower is a long way out \u2014 you will need a vehicle.'));
+    /* And straight out of the door. The ship is a hundred paces away and
+       he has just asked to be carried somewhere; making her hunt for a
+       way out of her own house is not suspense. */
+    if(!outside()){ brief(ERRAND()); return; }
+    /* AND THE ERRAND GOES OUT WITH HER. The only place he says where to
+       take him is a line of dialogue that has just closed, and the planet
+       posts its own arrival hint over the top of anything said before it
+       — so this is said again, once, on the other side of the door, after
+       PLANET has finished greeting her. */
+    setTimeout(()=>{ if(!on && window.PLANET && PLANET.active) brief(ERRAND()); }, 900);
   }
 
   function brief(msg){
@@ -576,6 +762,12 @@ window.HOUSE = (function(){
 
   function stop(){
     if(!on) return;
+    /* BEFORE L GOES, because the bulbs and the intensities they were found
+       at are on it — and three of them are the page's own lights, not this
+       room's. A house that walks out half way through the flicker and
+       leaves G.sun at a fifth is a planet at dusk for no reason anybody
+       standing on it can see. */
+    lightsRestore();
     on=false; L=null;
     if(keyHook){ removeEventListener('keydown', keyHook); keyHook=null; }
     if(window.SCENE) SCENE.stop();
@@ -607,12 +799,26 @@ window.HOUSE = (function(){
     else if(!(window.SCENE && SCENE.active))
       prompt_(atDoor() ? say('E \u2014 go outside') : null);
 
-    const lift=L.ion && L.ion.lift;
-    if(lift){
-      lift.t=Math.min(1, lift.t + dt/1.4);
-      const u=lift.t*lift.t*(3-2*lift.t);
-      L.ion.grp.position.y = lift.from + (lift.to-lift.from)*u;
-      if(lift.t>=1) L.ion.lift=null;
+    /* THE TILE MOVES WITH THE POSE. Every posture he has sits at its own
+       height — see tile() — and go() hands the drop over here with the
+       same number of seconds the crossfade is taking, so he arrives on
+       the floor with the pose rather than after it. */
+    const gl=L.ion && L.ion.glide;
+    if(gl){
+      gl.t=Math.min(1, gl.t + dt/Math.max(0.01, gl.for));
+      const u=gl.t*gl.t*(3-2*gl.t);
+      L.ion.grp.position.y = gl.from + (gl.to-gl.from)*u;
+      if(gl.t>=1) L.ion.glide=null;
+    }
+
+    /* And the room, while somebody else has hold of it. */
+    const l=L.lit;
+    if(l){
+      l.t+=dt;
+      if(l.back!==null) l.back+=dt;
+      const k=litLevel(l);
+      for(const b of l.bulbs) b.o.intensity=b.i*k;
+      if(l.back!==null && l.back>=COMEBACK) lightsRestore();
     }
   }
 

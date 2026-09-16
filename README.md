@@ -70,6 +70,31 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   obeying, the switches that feed it, and a `RUN TEST` button — and the district does the thing
   while the rule is still on the screen beside it. Nobody is told they are in a lesson about
   `if`; they are told to find out who did it.
+- **Mission 8 — Ion (conditionals and boolean logic)** — reached from the Ion station on
+  the floor of Mission Control, which is the only door RYU has. You wake up in a house and
+  your robot is on the floor of the next room, saying half a sentence over and over. His
+  morning routine is open on his chest, and **seven of its nine decisions are about asking the
+  right question**: one `if` for whether he got to the kitchen, and under it a rule that makes
+  pancakes when the pan is hot **and** there is batter, and an `else if` that has to catch
+  every morning the first one turned down. The only rule that does is the first one turned
+  inside out — both sides flipped and `and` swapped for `or` — which is De Morgan's law,
+  arrived at by reading a table of four mornings rather than by being told its name. The last
+  `else` is `wait`, and it should never run: a morning that reaches it is a morning neither
+  question caught. Nothing is marked against an answer key — the console runs the program and
+  shows what Ion did on every morning there is. Then the lights go out, and it turns out
+  somebody else has been in his code.
+- **Mission 9 — The E-45 (boolean vocabulary)** — Ion has asked to be taken to the
+  Mechanic, and the ship parked outside the house will not start. Her pre-flight
+  checklist has had the **operators taken out of it**. Nine safety rules
+  and nine words — `<` `>` `<=` `>=` `==` `!=` `and` `or` `not` — one word to a rule, with
+  the whole vocabulary on screen the entire time and what each one is called written under
+  it. The hard part is never remembering the name, it is the **boundary**: every rule is
+  judged against readings out of the ship's own log, and the log always contains the line
+  where the two words a student confuses come apart. FUEL is tried at exactly 20, CARGO at
+  exactly 400, the pad at exactly freezing — which is the only place "at least" and "more
+  than" are different things. Put `and` between two numbers and the console explains what
+  `and` is for rather than saying no: these nine are three different parts of speech, and
+  knowing which is which is most of knowing them.
 - Bilingual English / Español throughout, including the villain's taunts.
 
 ## How it is lettered
@@ -209,6 +234,14 @@ logic.js     the decision engine every Koro machine thinks with — conditions
              as trees, ladders of branches, truth tables. No DOM, Node too
 trail.js     The Engineer's Trail: the district, the machines, the witnesses,
              the inspector, the notebook and the case
+routine.js   Ion's morning routine: the program, the two rules and the four
+             mornings they are judged on. No DOM, Node too
+ionfix.js    his console — the blocks, the walkthrough and the morning table
+house.js     the house on RYU: two rooms, the robot on the floor of one, and
+             what happens to him after you mend him
+preflight.js the E-45's checklist: nine rules, nine words, and the log they
+             are judged against. No DOM, Node too
+shipfix.js   the pre-flight panel — the word bank, the blanks and the readings
 levels.js    room layouts — edit this to add levels
 strings.js   every word, in both languages
 tests/       node --test, no dependencies — run with `npm test`

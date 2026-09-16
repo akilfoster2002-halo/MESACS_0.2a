@@ -44,7 +44,7 @@ window.IONFIX = (function(){
               justify-content:center;background:#0a0710e8;
               font:400 15px/1.5 system-ui,sans-serif;color:#efe9ff}
       #ionfix.hidden{display:none}
-      .ifwrap{width:min(940px,calc(100vw - 40px));max-height:calc(100vh - 56px);
+      .ifwrap{width:min(1080px,calc(100vw - 40px));max-height:calc(100vh - 56px);
               background:#171225;border:2px solid #6b5f8f;border-radius:18px;
               box-shadow:0 24px 70px #000b;display:flex;flex-direction:column;overflow:hidden}
       .ifhead{display:flex;align-items:center;gap:12px;padding:14px 18px;
@@ -54,7 +54,14 @@ window.IONFIX = (function(){
       .ifhead b{font:700 15px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#8ff0ff}
       .ifhead span{color:#9b8fc4;font-size:13px}
       .ifbody{display:flex;gap:18px;padding:18px;overflow:auto;flex-wrap:wrap}
-      .ifcol{flex:1 1 380px;min-width:320px}
+      /* THE PROGRAM GETS THE WIDER HALF. Two equal columns is right when
+         both hold the same kind of thing; here one holds a nested program
+         with two conditions in it and the other holds a list of short
+         lines. Split evenly, the trace had room to spare and the rules
+         were wrapping three deep. Both still collapse to one column on
+         anything narrower than about seven hundred. */
+      .ifcol{flex:1 1 340px;min-width:300px}
+      .ifcol.wide{flex:1.5 1 460px}
       .ifcol h3{font:700 11px/1 ui-monospace,monospace;letter-spacing:.12em;
                 text-transform:uppercase;color:#9b8fc4;margin:0 0 10px}
       #ifstep{background:#241d33;border:2px solid #7a6ab0;border-left-width:6px;
@@ -80,8 +87,24 @@ window.IONFIX = (function(){
       #ionfix .ring{outline:4px solid #ffd8a8;outline-offset:3px;border-radius:9px;
              animation:ifring 1.4s ease-in-out infinite}
       @keyframes ifring{50%{outline-color:#ffd8a866}}
-      #ionfix .bool-side{display:inline-flex;align-items:center;gap:6px;font-size:16px}
+      #ionfix .bool-side{display:inline-flex;align-items:center;gap:6px;font-size:16px;
+             white-space:nowrap}
       #ionfix .cond.join{font-weight:700;letter-spacing:.06em}
+      /* A CONDITION IS LONGER THAN A LOOP IS, and it has to be allowed to
+         fall onto a second line. code.js's heads hold "repeat 4 times" and
+         are built never to wrap; these hold two questions and the word
+         between them, nested two C-blocks deep, in a column three hundred
+         pixels wide once both indents are paid for. Unwrapped, the head ran
+         off the right edge of its own block and "else if" broke in half
+         around the condition beside it — "else the if pan is hot" is not a
+         thing anybody can read a rule out of.
+
+         The notebook's rule builder wraps its heads for the same reason;
+         see .nb-rule .tb-br .blk-head in index.html. What is NOT changed
+         here is how a block LOOKS: same colour, same radius, same padding,
+         same font. It is only allowed to be two lines tall. */
+      #ionfix .blk.rep > .blk-head{flex-wrap:wrap;row-gap:5px}
+      #ionfix .blk-name{white-space:nowrap}
       /* The vocabulary, under the step that needs it. CODE's palette says
          what every block does; somebody meeting AND for the first time in
          the middle of a repair deserves the same sentence. */
@@ -93,17 +116,6 @@ window.IONFIX = (function(){
       #ionfix .morns td{padding:3px 8px 3px 0;border-top:1px solid #372c56}
       #ionfix .morns tr.m-ok td{color:#a8e6cf}
       #ionfix .morns tr.m-no td{color:#ff9aa2;font-weight:700}
-      /* SOMEBODY ELSE'S HANDWRITING. Not a block — it is commented out and
-         it never ran, and drawing it as a block would say it is part of
-         the program. A torn strip of paper taped inside the case. */
-      #ionfix .note{margin-top:14px;padding:12px 14px;border-radius:10px;
-             background:#2a2118;border:2px dashed #b08a4a;color:#e8c98a;
-             font:400 14px/1.6 ui-monospace,monospace;white-space:pre-wrap}
-      #ionfix .note-h{color:#ffb4a2;font-size:11.5px;letter-spacing:.09em;
-             text-transform:uppercase;margin-bottom:10px;white-space:normal;
-             font-family:ui-monospace,monospace;line-height:1.5}
-      #ionfix .note-t{margin-top:10px;padding-top:9px;border-top:1px dashed #b08a4a66;
-             color:#e8c98a;white-space:normal;font-size:13px;opacity:.9}
       .ifrun{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
       .ifbtn{border:0;border-radius:11px;padding:11px 20px;cursor:pointer;
              font:700 14px/1 ui-monospace,monospace;letter-spacing:.08em}
@@ -132,7 +144,7 @@ window.IONFIX = (function(){
              <span>${say('His motors will not take a stride longer than 10.')}</span></div>
       </div>
       <div class="ifbody">
-        <div class="ifcol"><h3>${say('The program')}</h3>
+        <div class="ifcol wide"><h3>${say('The program')}</h3>
           <div id="ifstep"></div>
           <div id="ifscript"></div>
           <div class="ifrun">
@@ -202,10 +214,10 @@ window.IONFIX = (function(){
       </div>`;
   }
 
-  /* IF AND ELSE AS ONE BLOCK WITH TWO BODIES, which is the shape it has in
-     Scratch and in blocks.js. code.js's own `if` has no else — it is a
-     console for programs that run once — so this is its head, its body and
-     its foot with a second bar between them. */
+  /* IF, ELSE IF AND ELSE AS ONE BLOCK WITH THREE BODIES, which is the
+     shape it has in Scratch and in blocks.js. code.js's own `if` has no
+     else — it is a console for programs that run once — so this is its
+     head, its bodies and its foot with a bar between each pair. */
   /* THE OUTER IF AND THE INNER ONE. Two C-blocks, the second inside the
      first's body, which is what a nested condition IS — and drawing it any
      other way would teach a shape that does not exist. */
@@ -216,7 +228,7 @@ window.IONFIX = (function(){
           <button class="cond" id="ifwhere">${say(s.where)}</button>
           <span class="blk-times">${say('in the kitchen')}</span>
         </div>
-        <div class="blk-body">${boolBlock(s)}</div>
+        <div class="blk-body">${rulesBlock(s)}</div>
         <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
         <div class="blk-body">
           <div class="blk" style="--c:${C.act}">
@@ -226,24 +238,57 @@ window.IONFIX = (function(){
       </div>`;
   }
 
-  /* THE BOOLEAN. Two questions and the word that joins them, and all three
+  /* ONE BOOLEAN. Two questions and the word that joins them, and all three
      are buttons — because which of them is wrong is the thing being
-     assessed, and a student has to be able to try the other one. */
-  function boolBlock(s){
+     assessed, and a student has to be able to try the other one.
+
+     `which` is 'cook' or 'tell', and it is the only difference between the
+     two of them: the same three controls, the same two facts, asked twice
+     about different mornings. Drawing them from one function is the point
+     rather than a saving — a student who can see that the second rule is
+     the first rule's controls in different positions is most of the way to
+     working out what those positions have to be. */
+  function boolSide(s, which){
+    const r=R().RULES.find(x=>x.id===which);
+    return `<span class="bool-side">${say('the pan')}
+        <button class="cond" id="if${which}hot">${say(s[r.hot])}</button>
+        ${say('hot')}</span>
+      <button class="cond join" id="if${which}join">${say(s[r.join])}</button>
+      <span class="bool-side">${say('there')}
+        <button class="cond" id="if${which}batter">${say(s[r.batter])}</button>
+        ${say('batter')}</span>`;
+  }
+
+  /* THE TWO RULES, IN THE ORDER HE ASKS THEM.
+
+     THE `else if` IS THE LESSON AND IT HAS TO LOOK LIKE ONE. Drawn as two
+     separate `if` blocks stacked, it would say that both questions are
+     always asked — which is the mistake this whole step exists to correct.
+     One block with two condition bars and a final plain `else` says what
+     actually happens: the second question is only reached when the first
+     said no, and the bottom of it is where a morning ends up when neither
+     of them wanted it.
+
+     AND THE LAST BODY IS A DEAD END ON PURPOSE. `wait` is the only thing
+     in this program that should never run; leaving it visible is what lets
+     "he waits" in the table mean something. */
+  function rulesBlock(s){
     return `<div class="blk rep" style="--c:${C.bool}">
         <div class="blk-head">
           <span class="blk-name">${say('if')}</span>
-          <span class="bool-side">${say('the pan')}
-            <button class="cond" id="ifhot">${say(s.hot)}</button>
-            ${say('hot')}</span>
-          <button class="cond join" id="ifjoin">${say(s.join)}</button>
-          <span class="bool-side">${say('there')}
-            <button class="cond" id="ifbatter">${say(s.batter)}</button>
-            ${say('batter')}</span>
+          ${boolSide(s, 'cook')}
         </div>
         <div class="blk-body">
           <div class="blk" style="--c:${C.act}">
             <span class="blk-name">${say('make pancakes')}</span></div>
+        </div>
+        <div class="blk-head mid">
+          <span class="blk-name">${say('else if')}</span>
+          ${boolSide(s, 'tell')}
+        </div>
+        <div class="blk-body">
+          <div class="blk" style="--c:${C.act}">
+            <span class="blk-name">${say('say \u201cwe cannot cook yet\u201d')}</span></div>
         </div>
         <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
         <div class="blk-body">
@@ -261,13 +306,22 @@ window.IONFIX = (function(){
     const on_=(id,fn)=>{ const e=$('#'+id,u.el); if(e) e.onclick=fn; };
     const set=(k,v)=>{ state[k]=v; state=R().tidy(state); draw(); };
     const flip=k=>()=>set(k, state[k]==='is' ? 'is not' : 'is');
+    const swap=k=>()=>set(k, state[k]==='and' ? 'or' : 'and');
     on_('ifloop',  ()=>set('loop', s.loop==='repeat' ? 'forever' : 'repeat'));
     on_('ifdec',   ()=>set('times', s.times-1));
     on_('ifinc',   ()=>set('times', s.times+1));
     on_('ifwhere', flip('where'));
-    on_('ifhot',   flip('hot'));
-    on_('ifbatter',flip('batter'));
-    on_('ifjoin',  ()=>set('join', s.join==='and' ? 'or' : 'and'));
+    /* BOTH RULES, OFF THE SAME LIST routine.js KEYS THEM BY. Six controls
+       written out by hand here is six chances for `iftellbatter` to be
+       wired to `tellHot`, and a swap button that silently changes the
+       wrong side of the wrong rule is the worst bug this panel could
+       have — the student presses the thing the walkthrough ringed and the
+       table answers about something else. */
+    R().RULES.forEach(r=>{
+      on_('if'+r.id+'hot',    flip(r.hot));
+      on_('if'+r.id+'batter', flip(r.batter));
+      on_('if'+r.id+'join',   swap(r.join));
+    });
     const n=$('#ifstride',u.el);
     if(n){
       /* Typed, like every other number in this language. Read on the way
@@ -285,24 +339,64 @@ window.IONFIX = (function(){
      Redrawn on every change, because it is read off the program rather
      than counted: fix the faults in any order and the step that is still
      wrong is the one on screen. Undo a fix and its step comes back. */
-  const HOLE = { loop:'ifloop', times:'iftimes', stride:'ifstride',
-                 where:'ifwhere', hot:'ifhot', batter:'ifbatter', join:'ifjoin' };
+  /* WHICH CONTROL A STEP IS ABOUT, by the name routine.js calls it. The
+     two rules' six entries are built off RULES rather than typed out, for
+     the same reason their handlers are: a ring that lands on the other
+     rule's control points a student at a block that is not wrong.
+
+     ASKED FOR, NOT BUILT AT LOAD. Every other reference to routine.js in
+     this file goes through R() precisely so that the order the two script
+     tags happen to be in is not load-bearing, and a map built once at load
+     would be the one line in here that is. */
+  function holes(){
+    const h={ loop:'ifloop', times:'iftimes', stride:'ifstride', where:'ifwhere' };
+    (R().RULES||[]).forEach(r=>{ h[r.hot]='if'+r.id+'hot';
+                                 h[r.batter]='if'+r.id+'batter';
+                                 h[r.join]='if'+r.id+'join'; });
+    return h;
+  }
 
   /* EVERY MORNING, WHILE THEY ARE LOOKING AT THE RULE. A boolean cannot be
      checked by reading it — that is the whole reason it is hard — so the
      four mornings are on screen next to it, with what the rule does to
      each one and what it should have done. It is the arithmetic line of
-     the motion step, for a question that has no arithmetic in it. */
-  function table(){
-    const rows=R().mornings(state);
+     the motion step, for a question that has no arithmetic in it.
+
+     AND IT ANSWERS THE QUESTION THE STEP IS ASKING, which is not always
+     the same question. While the first rule is being fixed the only thing
+     that matters is whether he COOKS on a morning: the second rule is
+     still wrong, so a full table shows red rows that are somebody else's
+     fault and a count underneath it that does not match them. It said
+     "2 of the four mornings come out wrong" over three red rows, which is
+     the console contradicting itself on screen.
+
+     So the cook step gets a cook table — does he, should he — and the
+     `else if` step gets the whole thing, by which time the whole thing is
+     what the student is responsible for. */
+  /* WHAT HE DID, and WHAT HE SHOULD HAVE DONE. Two lists rather than one,
+     because the second column is read after the word "should" and the
+     first is not — one map gave "waits" and "should says so". */
+  const DID   = { cook:'cooks',  tell:'says so', wait:'waits' };
+  const OUGHT = { cook:'cook',   tell:'say so',  wait:'wait'  };
+  function table(which){
+    const rows = which==='cook'
+      ? R().MORNINGS.map(m=>{
+          const got=R().fires(state, m, 'cook'), want=R().should(m)==='cook';
+          return { hot:m.hot, batter:m.batter, ok:got===want,
+                   did: got ? say('cooks') : say('does not'),
+                   ought: want ? say('cook') : say('not cook') };
+        })
+      : R().mornings(state).map(r=>({ hot:r.hot, batter:r.batter, ok:r.ok,
+                   did:   say(DID[r.got]    || r.got),
+                   ought: say(OUGHT[r.want] || r.want) }));
     return `<table class="morns"><tr>
         <th>${say('pan')}</th><th>${say('batter')}</th>
         <th>${say('he')}</th><th></th></tr>` +
       rows.map(r=>`<tr class="${r.ok?'m-ok':'m-no'}">
         <td>${r.hot?say('hot'):say('cold')}</td>
         <td>${r.batter?say('yes'):say('no')}</td>
-        <td>${r.got?say('cooks'):say('waits')}</td>
-        <td>${r.ok?'\u2713':say('should {w}',{w:r.want?say('cook'):say('wait')})}</td>
+        <td>${r.did}</td>
+        <td>${r.ok?'\u2713':say('should {w}',{w:r.ought})}</td>
       </tr>`).join('') + '</table>';
   }
 
@@ -310,7 +404,11 @@ window.IONFIX = (function(){
     const u=dom(), st=R().step(state);
     if(!st){
       u.step.className='clear';
-      u.step.innerHTML='<span class="no">'+say('All six')+'</span>'+
+      /* NOT A COUNT. It said "All six" when there were six decisions and
+         went on saying it when there were nine — a label that has to be
+         kept in step with a number nobody remembers it depends on is a
+         label that is wrong within a month. */
+      u.step.innerHTML='<span class="no">'+say('Nothing left')+'</span>'+
         say('That is the program. Press <b>RUN</b> and watch him.');
       return;
     }
@@ -320,8 +418,8 @@ window.IONFIX = (function(){
       ' \u00b7 <em>'+say(st.topic)+'</em></span>'+
       st.say +
       (st.help ? '<div class="vocab">'+st.help+'</div>' : '') +
-      (st.id==='bool' ? table() : '');
-    const e=$('#'+HOLE[st.hole], u.el);
+      (st.id==='cook' || st.id==='tell' ? table(st.id) : '');
+    const e=$('#'+holes()[st.hole], u.el);
     if(e) e.classList.add('ring');
   }
 
@@ -342,26 +440,15 @@ window.IONFIX = (function(){
     if(done) return;
     done=true;
     u.go.disabled=true;
-    /* ================================================ AND THE NOTE
-       The last thing in his routine, commented out so it has never run,
-       and not in his handwriting. It is shown only now: until the program
-       works there is a robot on the floor, and nobody reads footnotes with
-       a robot on the floor. Appended to the program rather than to the
-       trace, because it is a thing that is IN him. */
-       if(r.note){
-         const el=document.createElement('div');
-         el.className='note';
-         el.innerHTML = '<div class="note-h">'+say(r.note.head)+'</div>'
-           + r.note.lines.map(l=>'<div>'+esc(l)+'</div>').join('')
-           + (r.note.tell ? '<div class="note-t">'+say(r.note.tell)+'</div>' : '');
-         u.script.appendChild(el);
-         try{ el.scrollIntoView({ behavior:'smooth', block:'center' }); }catch(e){}
-       }
-    /* Long enough to read four lines of somebody else's handwriting, and
-       then out of the way: the thing they fixed is behind this panel and
-       the whole point is watching it get up. */
-    setTimeout(()=>{ close(); if(opts && opts.onFixed) opts.onFixed(); },
-               r.note ? 5600 : 1100);
+    /* AND OUT OF THE WAY. The console used to hold the screen here for
+       five and a half seconds while a student read five commented-out
+       lines somebody else had left at the end of his routine — the whole
+       reveal of who has been inside him, delivered as a footnote to a
+       panel they had already finished with. It is a scene now, and it is
+       his, so the only thing left to do here is get off the screen: the
+       thing they fixed is behind this panel and the point is watching it
+       get up. */
+    setTimeout(()=>{ close(); if(opts && opts.onFixed) opts.onFixed(); }, 1100);
   }
 
   /* ----------------------------------------------------------------- open */

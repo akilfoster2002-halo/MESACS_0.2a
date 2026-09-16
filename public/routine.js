@@ -2,30 +2,68 @@
    ION'S MORNING ROUTINE — the program, and what happens when it runs.
 
    It lives on its own for the same reason logic.js does: a lesson about
-   loops is only worth anything if the thing a student changes in the
+   conditions is only worth anything if the thing a student changes in the
    console is the thing the robot on the floor actually obeys. One
    interpreter, no DOM in it, called by the console and tested under Node.
 
-   FOUR IDEAS, SIX DECISIONS. The program is one program — it is his
-   morning and it reads as one — but every part of it is broken in a way
-   that asks about something different:
+   THIS IS A CONDITIONALS AND BOOLEAN LOGIC LESSON. It did not used to be:
+   it was four ideas with one decision each, and half of them were about
+   loops. Half a lesson on loops is a fine thing to be in the middle of
+   once, and it is not what this mission is for — so the loop and the
+   walking stay, because they are the SYMPTOM Robin walks in on and the
+   opening scene is built out of them, and everything after them is now
+   about asking the right question:
 
-     MOTION        move ( ? ) steps            how far one stride goes
-     LOOPS         ( forever | repeat ( ? ) )  which loop, and how many
+     LOOPS         ( forever | repeat ( ? ) )   which loop — 1 decision
+     MOTION        move ( ? ) steps             how far — 1 decision
      CONDITIONALS  if he ( is | is not ) in the kitchen
-     BOOLEANS      if < pan ( is ) hot > ( and | or ) < there ( is ) batter >
+                   ...and a second `if` that only gets asked when the
+                   first one says no
+     BOOLEANS      two rules, three decisions each: which way round each
+                   side reads, and whether they are joined by `and` or `or`
 
-   THE BOOLEAN IS JUDGED ON FOUR MORNINGS, NOT ONE. A rule about `and` that
+   Seven of the nine decisions are about a question rather than about a
+   number, and the two that are not are the two you meet in the first
+   fifteen seconds.
+
+   TWO RULES, AND THE SECOND ONE IS WHY `or` EXISTS.
+
+       if      < pan (is) hot >     and < there (is) batter >     -> cook
+       else if < pan (is not) hot >  or < there (is not) batter > -> say so
+       else                                                      -> wait
+
+   The first rule is the only thing a two-term `and` can be: he cooks when
+   BOTH are true. The second has to catch every morning the first one
+   missed, and the only rule that does is both sides flipped and the join
+   swapped — which is De Morgan's law, arrived at by a nine-year-old
+   reading a table of four mornings rather than by being told its name.
+
+   AND THE LAST `else` NEVER RUNS. That is not a mistake, it is the
+   answer: once both questions are right there is no morning left over,
+   and `he waits` in the table is the console's way of saying a morning
+   fell through both of them. A student who sees `waits` anywhere has a
+   rule that does not cover what it should.
+
+   EVERY RULE IS JUDGED ON FOUR MORNINGS, NOT ONE. A rule about `and` that
    is only ever tried on the morning it was written for is a rule nobody
-   has tested: `or` gets that morning right too. So the rule is run against
-   every combination of hot pan and batter there is, and it has to get all
-   four right — which is the only way to tell somebody has understood the
-   difference rather than found a setting that worked once.
+   has tested: `or` gets that morning right too. So both rules are run
+   against every combination of hot pan and batter there is, and all four
+   have to come out right — which is the only way to tell somebody has
+   understood the difference rather than found a setting that worked once.
+   Exactly one pair of rules survives that; see the tests.
 
    NOTHING IS MARKED AGAINST AN ANSWER KEY. There is no list of correct
    values in here. run() walks the program and reports what Ion DID, and
    whether that counts is about the breakfast. `repeat 4 [move 10]` and
    `repeat 5 [move 8]` are both forty steps and both open the door.
+
+   AND THE STORY IS NOT IN HERE. There used to be a fifth thing in his
+   routine — commented-out lines somebody else had written, handed back
+   with a working program — and the reveal of the game's antagonist was a
+   footnote a student read in a panel and then closed. It is a scene now:
+   house.js flashes the lights, puts him back on the floor and lets
+   whoever wrote those lines say them out loud through him. This file is
+   a program and a trace again, and the run has no `note` on it.
    ===================================================================== */
 (function(root){
   const K = (typeof require==='function' && typeof module!=='undefined')
@@ -42,71 +80,115 @@
   const STRIDE_MAX = 10;
   const REPEAT_MAX = 12;
 
-  /* EVERY MORNING THERE IS. The rule has to be right on all four, and the
-     console draws them as a table — four rows somebody can point at. */
+  /* EVERY MORNING THERE IS. Both rules have to be right on all four, and
+     the console draws them as a table — four rows somebody can point at. */
   const MORNINGS = [
     { hot:true,  batter:true  },
     { hot:true,  batter:false },
     { hot:false, batter:true  },
     { hot:false, batter:false }
   ];
-  /* He should cook when the pan is hot AND there is batter, and wait
-     otherwise. Written as a function of the morning rather than as a
-     string, so the checker and the table cannot drift apart. */
-  const should = m => m.hot && m.batter;
+  /* WHAT HE OUGHT TO DO, as a function of the morning rather than as a
+     string, so the checker and the table cannot drift apart. Cook when the
+     pan is hot AND there is batter; on every other morning say which of
+     them is missing. There is no morning on which the right answer is to
+     stand there — which is exactly what makes `waits` in the table legible
+     as "that morning fell through both rules". */
+  const should = m => (m.hot && m.batter) ? 'cook' : 'tell';
 
-  /* What the console finds when it opens him up. */
+  /* THE TWO RULES, AND THE ORDER THEY ARE ASKED IN. Flat keys rather than
+     nested ones, because the console rings a CONTROL by id and `cookJoin`
+     is a control. Named in pairs so the two rules read as two rules. */
+  const RULES = [
+    { id:'cook', hot:'cookHot', batter:'cookBatter', join:'cookJoin' },
+    { id:'tell', hot:'tellHot', batter:'tellBatter', join:'tellJoin' }
+  ];
+  const ruleOf = which => RULES.find(x=>x.id===which) || RULES[0];
+
+  /* What the console finds when it opens him up.
+
+     THE SECOND RULE IS BROKEN BY BEING THE FIRST ONE AGAIN. `pan is hot
+     and there is batter` in the `else if` can never be true there — the
+     `if` above it has already taken every morning that satisfies it — so
+     he falls through to `wait` on three mornings out of four. It is the
+     most useful wrong answer there is: it is what you get by copying the
+     line above you, and the table says so in one glance. */
   const broken = () => ({
-    loop:'forever', times:1, stride:0,      // loops + motion
-    where:'is not',                          // the conditional
-    hot:'is not', batter:'is', join:'or'     // the boolean
+    loop:'forever', times:1, stride:0,                     // loops + motion
+    where:'is not',                                        // the conditional
+    cookHot:'is not', cookBatter:'is', cookJoin:'or',      // the `and` rule
+    tellHot:'is', tellBatter:'is', tellJoin:'and'          // the `or` rule
   });
 
   const clamp=(n,lo,hi)=>Math.max(lo, Math.min(hi, Math.round(+n||0)));
-  const yn = v => v==='is' ? 'is' : 'is not';
+  const yn  = v => v==='is'  ? 'is'  : 'is not';
+  const aor = v => v==='and' ? 'and' : 'or';
   function tidy(s){
     s=s||{};
-    return { loop:   s.loop==='repeat' ? 'repeat' : 'forever',
-             times:  clamp(s.times, 0, REPEAT_MAX),
-             stride: clamp(s.stride, 0, STRIDE_MAX),
-             where:  yn(s.where),
-             hot:    yn(s.hot),
-             batter: yn(s.batter),
-             join:   s.join==='and' ? 'and' : 'or' };
+    return { loop:    s.loop==='repeat' ? 'repeat' : 'forever',
+             times:   clamp(s.times, 0, REPEAT_MAX),
+             stride:  clamp(s.stride, 0, STRIDE_MAX),
+             where:   yn(s.where),
+             cookHot: yn(s.cookHot), cookBatter: yn(s.cookBatter),
+             cookJoin:aor(s.cookJoin),
+             tellHot: yn(s.tellHot), tellBatter: yn(s.tellBatter),
+             tellJoin:aor(s.tellJoin) };
   }
 
-  /* ------------------------------------------------------------ the rule
-     Built as a logic.js tree rather than evaluated by hand, so `and`, `or`
+  /* ------------------------------------------------------------ the rules
+     Built as logic.js trees rather than evaluated by hand, so `and`, `or`
      and `not` mean here exactly what they mean in every other machine in
-     this game — and so the console can print the rule by asking the same
+     this game — and so the console can print a rule by asking the same
      evaluator to write it out. */
-  function tree(s){
+  function tree(s, which){
     if(!K) return null;
+    const r=ruleOf(which);
     const leaf = (name, sense) => sense==='is' ? K.VAR(name) : K.NOT(K.VAR(name));
-    const a=leaf('hot', s.hot), b=leaf('batter', s.batter);
-    return s.join==='and' ? K.AND(a,b) : K.OR(a,b);
+    const a=leaf('hot', s[r.hot]), b=leaf('batter', s[r.batter]);
+    return s[r.join]==='and' ? K.AND(a,b) : K.OR(a,b);
   }
-  function fires(s, m){
-    const t=tree(s);
+  /* Does this rule fire on this morning? */
+  function fires(s, m, which){
+    const r=ruleOf(which);
+    const t=tree(s, r.id);
     if(t) return !!K.value(t, { hot:m.hot, batter:m.batter });
     /* logic.js is the evaluator; this is only ever reached if it failed to
        load, and a silently different answer would be worse than none. */
-    const a = s.hot==='is' ? m.hot : !m.hot;
-    const b = s.batter==='is' ? m.batter : !m.batter;
-    return s.join==='and' ? (a && b) : (a || b);
+    const a = s[r.hot]==='is' ? m.hot : !m.hot;
+    const b = s[r.batter]==='is' ? m.batter : !m.batter;
+    return s[r.join]==='and' ? (a && b) : (a || b);
   }
-  /* The rule in words, for the table's heading. */
-  const ruleText = s => { const t=tree(s); return t ? K.text(t)
-    : (s.hot==='is'?'':'not ')+'hot '+s.join+' '+(s.batter==='is'?'':'not ')+'batter'; };
+  /* AND THE ORDER IS THE LESSON. `else if` is only asked when the `if`
+     above it said no — so a second rule that overlaps the first is not
+     wrong so much as unreachable, which is a different mistake and reads
+     as a different row in the table. */
+  function does(s, m){
+    if(fires(s, m, 'cook')) return 'cook';
+    if(fires(s, m, 'tell')) return 'tell';
+    return 'wait';
+  }
+  /* A rule in words, for a heading or a trace line. */
+  const ruleText = (s, which) => {
+    const t=tree(s, which);
+    if(t) return K.text(t);
+    const r=ruleOf(which);
+    return (s[r.hot]==='is'?'':'not ')+'hot '+s[r.join]+' '
+         + (s[r.batter]==='is'?'':'not ')+'batter';
+  };
 
-  /* Which mornings the rule gets wrong, and what he did on each. */
+  /* Which mornings come out wrong, and what he did on each. */
   function mornings(s){
+    s=tidy(s);
     return MORNINGS.map(m=>{
-      const got=fires(s,m), want=should(m);
+      const got=does(s,m), want=should(m);
       return { hot:m.hot, batter:m.batter, got, want, ok:got===want,
-               did: got ? 'cooks' : 'waits' };
+               did: got==='cook' ? 'cooks' : got==='tell' ? 'says so' : 'waits' };
     });
   }
+  /* Is the FIRST rule wrong, on its own terms? Asked without reference to
+     the second, so the walkthrough can send somebody at one rule at a time
+     and the `else if` is never blamed for a mistake made above it. */
+  const cookWrong = s => MORNINGS.some(m => fires(s,m,'cook') !== (should(m)==='cook'));
 
   /* --------------------------------------------------------------- run */
   function run(state){
@@ -145,12 +227,17 @@
                why: why(s, reached, fired, []) };
     }
 
-    /* AND THEN THE RULE, on every morning there is. */
+    /* AND THEN THE TWO RULES, on every morning there is. Both are printed
+       before either is judged, because the SHAPE on screen — one question,
+       and then a second one asked only when the first says no — is as much
+       the thing being taught as either rule is. */
     const rows=mornings(s);
-    step(`if < pan ${s.hot} hot > ${s.join} < there ${s.batter} batter >`, 'if');
+    step(`if < pan ${s.cookHot} hot > ${s.cookJoin} < there ${s.cookBatter} batter >`, 'if');
+    step(`else if < pan ${s.tellHot} hot > ${s.tellJoin} < there ${s.tellBatter} batter >`, 'if');
     rows.forEach(r=>{
       const m=(r.hot?'hot pan':'cold pan')+', '+(r.batter?'batter':'no batter');
-      step(`  ${m} → he ${r.did}` + (r.ok ? '' : `  (he should ${r.want?'cook':'wait'})`),
+      step(`  ${m} → he ${r.did}`
+           + (r.ok ? '' : `  (he should ${r.want==='cook'?'cook':'say so'})`),
            r.ok ? 'good' : 'bad');
     });
 
@@ -159,8 +246,7 @@
 
     const ok = reached && fired && allRight;
     return { trace, dist, reached, fired, rows, ok, stuck:false,
-             why: ok ? null : why(s, reached, fired, rows),
-             note: ok ? NOTE : null };
+             why: ok ? null : why(s, reached, fired, rows) };
   }
 
   /* WHAT TO SAY WHEN IT DID NOT WORK — about the program, never about the
@@ -178,21 +264,33 @@
     if(bad.length){
       const r=bad[0];
       const m=(r.hot?'a hot pan':'a cold pan')+' and '+(r.batter?'batter':'no batter');
-      return `On a morning with ${m} he ${r.did}, and he should ${r.want?'cook':'wait'}. `
-           + `${bad.length} of the four mornings come out wrong.`;
+      /* `waits` is its own diagnosis. It is the only outcome the program
+         should never reach, so a morning that reaches it did not fail a
+         rule — it got past both of them without either one looking at it. */
+      const tail = r.got==='wait'
+        ? ' That morning fell past both questions without either one catching it.'
+        : '';
+      return `On a morning with ${m} he ${r.did}, and he should `
+           + `${r.want==='cook' ? 'cook' : 'say why he cannot'}. `
+           + `${bad.length} of the four mornings come out wrong.` + tail;
     }
     return 'Not yet.';
   }
 
   /* ================================================== THE WALKTHROUGH
-     SIX FAULTS IS SIX TOO MANY TO BE HANDED AT ONCE. A student who opens
-     this and sees a whole program with no idea which part of it is the
-     problem is not debugging, they are guessing — so the console is
+     NINE DECISIONS IS NINE TOO MANY TO BE HANDED AT ONCE. A student who
+     opens this and sees a whole program with no idea which part of it is
+     the problem is not debugging, they are guessing — so the console is
      WALKED, one fault at a time, with the block it is about ringed.
 
-     IT READS THE PROGRAM, NOT A COUNTER. `at` is whichever step is still
-     unsatisfied, so fixing them out of order works, and undoing a fix
-     brings its step back rather than stranding somebody past it.
+     IT READS THE PROGRAM, NOT A COUNTER. `step` returns whichever entry is
+     still unsatisfied, so fixing them out of order works, and undoing a
+     fix brings its step back rather than stranding somebody past it.
+
+     AND THE TWO RULES ARE TWO STEPS, in the order they are asked in. The
+     `else if` is only ever reached when the `if` above it says no, so
+     pointing somebody at the second rule while the first is still wrong is
+     pointing them at a symptom of a mistake that is not there.
 
      `help` is the vocabulary. CODE's palette carries a line on every block
      saying what it does, and a student meeting `and` for the first time in
@@ -223,30 +321,66 @@
       say: 'He gets there now — and then makes breakfast in the hallway. Read '
          + 'the <b>if</b> out loud: it fires when he is <b>not</b> in the kitchen.' },
 
-    /* THE BOOLEAN, DIAGNOSED FROM THE TABLE RATHER THAN FROM THE ANSWER.
+    /* RULE ONE, DIAGNOSED FROM THE TABLE RATHER THAN FROM THE ANSWER.
        Which control gets ringed is a judgement — a rule that fires when
        only one of the two holds is an `or` problem, and a rule that misses
        the morning it should catch has something negated — but WHETHER it
        is wrong is never a judgement. It is four mornings, checked. */
-    { id:'bool', topic:'BOOLEANS',
+    { id:'cook', topic:'BOOLEANS',
       hole: s => {
-        const rows=mornings(s);
-        const half = rows.some(r=>!r.ok && (r.hot !== r.batter));
-        if(half && s.join!=='and') return 'join';
-        if(s.hot!=='is') return 'hot';
-        if(s.batter!=='is') return 'batter';
-        return 'join';
+        const half = MORNINGS.some(m => m.hot!==m.batter
+                                     && fires(s,m,'cook') !== (should(m)==='cook'));
+        if(half && s.cookJoin!=='and') return 'cookJoin';
+        if(s.cookHot!=='is') return 'cookHot';
+        if(s.cookBatter!=='is') return 'cookBatter';
+        return 'cookJoin';
       },
-      bad: s => mornings(s).some(r=>!r.ok),
+      bad: cookWrong,
       help: '<b>and</b> is true only when BOTH sides are true. <b>or</b> is true '
           + 'when EITHER side is. <b>is not</b> flips a side over.',
+      say: s => {
+        const bad=MORNINGS.filter(m => fires(s,m,'cook') !== (should(m)==='cook'));
+        const m=bad[0];
+        const w=(m.hot?'a hot pan':'a cold pan')+' and '+(m.batter?'batter':'no batter');
+        const did=fires(s,m,'cook') ? 'starts cooking' : 'does not cook';
+        return 'Start with the first <b>if</b> — the one that makes pancakes. He '
+             + 'should only cook when the pan is hot <b>and</b> there is batter. '
+             + 'On a morning with ' + w + ' he <b>' + did + '</b>, and '
+             + bad.length + ' of the four mornings come out wrong.';
+      } },
+
+    /* RULE TWO, WHICH IS THE ONE WORTH THE MISSION. It is only asked on
+       the mornings the first rule turned down, so the only rule that
+       catches all of them is the first one turned inside out: both sides
+       flipped and `and` become `or`. Nobody is told that. The table shows
+       `waits` on a morning he should be explaining himself, and `waits` is
+       a thing this program should never do — which is a fact about the
+       SHAPE of an if/else-if/else and not about pancakes. */
+    { id:'tell', topic:'CONDITIONALS + BOOLEANS',
+      hole: s => {
+        const rows=mornings(s);
+        /* A rule that misses the mornings where exactly one thing is wrong
+           is an `and` where an `or` belongs: two flipped sides joined by
+           `and` only fire when BOTH things are wrong at once. */
+        const half = rows.some(r=>!r.ok && (r.hot !== r.batter));
+        if(half && s.tellJoin!=='or') return 'tellJoin';
+        if(s.tellHot!=='is not') return 'tellHot';
+        if(s.tellBatter!=='is not') return 'tellBatter';
+        return 'tellJoin';
+      },
+      bad: s => mornings(s).some(r=>!r.ok),
+      help: '<b>else if</b> is only asked when the <b>if</b> above it said no — so '
+          + 'it has to catch every morning that one turned down. The last '
+          + '<b>else</b> is what happens when neither of them caught it, and '
+          + '<b>he should never get that far</b>.',
       say: s => {
         const bad=mornings(s).filter(r=>!r.ok);
         const r=bad[0];
         const m=(r.hot?'a hot pan':'a cold pan')+' and '+(r.batter?'batter':'no batter');
-        return 'He should only cook when the pan is hot <b>and</b> there is batter. '
-             + 'Right now, on a morning with ' + m + ', he <b>' + r.did + '</b> — '
-             + 'and ' + bad.length + ' of the four mornings come out wrong.';
+        return 'Breakfast is right. Now the <b>else if</b> — the one that says why '
+             + 'he cannot cook. On a morning with ' + m + ' he <b>' + r.did
+             + '</b>, and he is never meant to just stand there: every morning the '
+             + 'first rule turns down, this one has to catch.';
       } }
   ];
 
@@ -263,37 +397,9 @@
     return null;
   }
 
-  /* ====================================================== THE NOTE
-     NOT A FAULT, AND NOT LEFT BY ANYBODY WHO LIVES HERE. It is the last
-     thing in his routine, commented out so it has never run, and it is
-     addressed TO him — which means somebody opened him up, wrote it, and
-     closed him again while he was on the floor. That is the fact worth
-     landing, and it lands on the second line rather than the fourth: a
-     note that only says "do not tell her" is gossip. A note that starts by
-     telling him he will not remember it having been written is somebody
-     standing in the room.
-
-     The console only shows it once the program works, because until then
-     there is a robot on the floor and nobody reads footnotes with a robot
-     on the floor. */
-  const NOTE = {
-    head: 'There is something else in here. Five lines at the end of his '
-        + 'routine, commented out, addressed to him.',
-    lines: [
-      '# patched 04:12. this line will not be in your log.',
-      '# you have never met me. you were never opened.',
-      '# if she asks about the cells: the crate came empty.',
-      '# keep her off the tower road.',
-      '#                                              \u2014 E.'
-    ],
-    /* What is wrong with it, in one line, for the moment the panel closes. */
-    tell: 'His log has no gap in it. Whoever wrote this took the gap out too.',
-    who: 'E.'
-  };
-
-  const API = { KITCHEN, STRIDE_MAX, REPEAT_MAX, MORNINGS, NOTE,
+  const API = { KITCHEN, STRIDE_MAX, REPEAT_MAX, MORNINGS, RULES,
                 broken, tidy, run, step, STEPS,
-                mornings, fires, ruleText, should };
+                mornings, fires, does, ruleText, should };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.ROUTINE=API;
 })(typeof self!=='undefined' ? self : this);

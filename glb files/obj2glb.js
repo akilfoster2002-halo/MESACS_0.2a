@@ -4,13 +4,36 @@
    a vertex that is shared between two faces with different normals is one
    `v` and two corners. glTF has no such thing: one vertex, one normal. So
    corners are keyed by the PAIR and split where they disagree — which is
-   what makes a hard edge stay hard. */
+   what makes a hard edge stay hard.
+
+   AND THE MATERIAL NAMES COME WITH IT. Not the materials — there are no
+   textures in this game and nothing here reads a .mtl — but the RUNS:
+   which triangles the author had `usemtl glass` switched on for. That is
+   the model saying which part of itself is the canopy, and it is worth
+   incomparably more than any band a painter can guess from a bounding box.
+   The E-45's canopy is half the length of its fuselage and sits at the
+   same height as the spine beside it; no rule about "high up and near the
+   centre line" finds it, and the file knew all along.
+
+   It rides in `meshes[0].extras.groups` as {name, start, count} in
+   TRIANGLES, so it survives being copied about and there is no sidecar to
+   lose. paint-ship.js reads it; everything else ignores it. */
 const fs=require('fs');
 const IN=process.argv[2], OUT=process.argv[3];
 const src=fs.readFileSync(IN,'utf8');
 
 const V=[], N=[];
 const key=new Map(), P=[], NN=[], I=[];
+/* The runs, in triangles. A run is opened by the first `usemtl` and closed
+   by the next one or by the end of the file; a material named twice gets
+   two runs, because that is what the file says and merging them would be
+   this tool having an opinion. */
+const GROUPS=[];
+const openRun=name=>{
+  const last=GROUPS[GROUPS.length-1];
+  if(last) last.count = I.length/3 - last.start;
+  GROUPS.push({ name, start:I.length/3, count:0 });
+};
 let line='', at=0;
 for(const raw of src.split('\n')){
   if(raw.charCodeAt(0)===118){                 // 'v'
@@ -18,6 +41,7 @@ for(const raw of src.split('\n')){
     if(raw[1]==='n'){ const p=raw.split(/\s+/); N.push(+p[1],+p[2],+p[3]); continue; }
     continue;
   }
+  if(raw.startsWith('usemtl')){ openRun(raw.slice(6).trim()); continue; }
   if(raw.charCodeAt(0)!==102 || raw[1]!==' ') continue;   // 'f '
   const parts=raw.trim().split(/\s+/).slice(1);
   const idx=parts.map(c=>{
@@ -34,6 +58,8 @@ for(const raw of src.split('\n')){
   for(let i=1;i+1<idx.length;i++) I.push(idx[0], idx[i], idx[i+1]);   // fan, for quads
 }
 const nv=P.length/3;
+/* Close the last run now the triangles are all in. */
+if(GROUPS.length) GROUPS[GROUPS.length-1].count = I.length/3 - GROUPS[GROUPS.length-1].start;
 
 /* An OBJ need not carry normals, and a decimator often drops them. Without
    any, every face gets the same up vector and the model renders as a flat
@@ -67,7 +93,8 @@ for(let i=0;i<nv;i++) for(let k=0;k<3;k++){const v=P[i*3+k]; if(v<mn[k])mn[k]=v;
 const g={ asset:{version:'2.0',generator:'obj2glb'}, scene:0, scenes:[{nodes:[0]}],
   nodes:[{mesh:0,name:'ship'}],
   materials:[{pbrMetallicRoughness:{baseColorFactor:[1,1,1,1],metallicFactor:0,roughnessFactor:0.85}}],
-  meshes:[{primitives:[{attributes:{POSITION:0,NORMAL:1},indices:2,material:0,mode:4}]}],
+  meshes:[{primitives:[{attributes:{POSITION:0,NORMAL:1},indices:2,material:0,mode:4}],
+           ...(GROUPS.length ? {extras:{groups:GROUPS}} : {})}],
   accessors:[
     {bufferView:0,componentType:5126,count:nv,type:'VEC3',min:mn,max:mx},
     {bufferView:1,componentType:5126,count:nv,type:'VEC3'},

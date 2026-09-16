@@ -124,12 +124,12 @@ window.MENU = (function(){
       }catch(err){ authMsg(err.message); }
     };
     who();
-      const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld(); };
+      const guest=$('#btnGuest'); if(guest) guest.onclick=()=>{ homeworld('hub'); };
     /* START asks who you are first. Everybody is handed one of the free
        characters on arrival, so choosing one is no longer a gate you have to
        pass before you are allowed to play — the Wardrobe is where you change
        it, along with your ship and your car. */
-    const st=$('#btnStart'); if(st) st.onclick=()=>{ NET.signedIn ? homeworld() : auth(); };
+    const st=$('#btnStart'); if(st) st.onclick=()=>{ NET.signedIn ? homeworld('hub') : auth(); };
     // and this screen is reached FROM the planet now, so back means back there
     const cb=$('#cBack');    if(cb) cb.onclick=()=>homeworld();
     // picking a character is the last screen before the world: Continue lands
@@ -192,7 +192,7 @@ window.MENU = (function(){
       if(pickedWho) AVATAR.pick(pickedWho);   // a new account: the choice just made
       else AVATAR.restore();                  // an old one: the choice it remembers
     }
-    homeworld();          // signing in lands you on the planet, not on a menu
+    homeworld('hub');     // signing in lands you on Senio, not on a menu
   }
 
   /* -------------------------------------------------------- the menu */
@@ -423,7 +423,19 @@ window.MENU = (function(){
      planet on your own if you are a guest. Nobody chooses a server first —
      you land on one and can move later. */
   let world=null;
-  async function homeworld(){
+  /* `where` is the ball to open on, and it is the difference between a way
+     IN to Koro and a way BACK from a room.
+
+     A WAY IN names 'hub': START, the guest button and signing in all put
+     you down on Senio, in front of Mission Control, every time — see the
+     paragraph at PLANET.enter below.
+
+     A WAY BACK names nothing and gets the ball you were standing on. The
+     mecha bench, the arcade shelf, the wardrobe, the pause card's HOME —
+     every one of those is a room you stepped into FROM a planet, and a
+     back button that teleports you across the system is not a back
+     button. */
+  async function homeworld(where){
     if(!NET.signedIn && signInUp) return auth();
     hideAll();
     $('#hud').classList.remove('hidden');
@@ -433,16 +445,28 @@ window.MENU = (function(){
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
-    /* ON THE BALL YOU WERE LAST STANDING ON. This briefly landed everybody
-       on RYU instead, which put a story — Robin, her house and a robot on
-       the floor of it — in front of every student who opened Koro, whether
-       or not that was the thing they had come to do. It is a MISSION now,
-       and it is reached the way the other missions are: off the wall in
-       Mission Control. See 'ion' in STATIONS.
+    /* ON SENIO, IN FRONT OF MISSION CONTROL, EVERY TIME YOU COME IN.
 
-       Somebody who signed out on VOLTA signs back in on VOLTA; a first
-       arrival has nothing saved and gets the hub. */
-    PLANET.enter(NET.signedIn ? world : null, PLANET.lastWorld());
+       The way in used to open on whichever ball you were last standing on,
+       which is the right answer for a world you are exploring and the
+       wrong one for a front door. A class told to meet outside Mission
+       Control was thirty children each waking up somewhere different: one
+       on a hillside on their own home planet, one on RYU in the middle of
+       a story they had left half-told, one in the dark on VOLTA. The first
+       instruction of every lesson became "first, get back to Senio".
+
+       So the front door is one door, and the callers that ARE the front
+       door say so by naming it — see `where` above. Senio is the hub,
+       everybody's world and the same for everyone, and PLANET already
+       refuses to restore a saved spot on a hub for exactly this reason: so
+       naming it is the whole of it. Same ball, same patch of ground, same
+       building in front of you, whatever you were doing last.
+
+       NOTHING IS LOST BY IT. Where you were on every other world is still
+       written down and still honoured the moment you fly back, or step out
+       of a room onto it — see savedSpot(). This is about where the game
+       OPENS, not about what it remembers. */
+    PLANET.enter(NET.signedIn ? world : null, where || PLANET.lastWorld());
   }
   function enterServer(sv){
     hideAll();

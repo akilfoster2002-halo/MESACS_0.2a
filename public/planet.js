@@ -239,7 +239,24 @@ window.PLANET = (function(){
     id:'ryu', kind:'ryu', seed:11, name:'RYU', sub:'where everybody is Robin',
     radius:240, sky:BIOMES[1].sky, soil:BIOMES[1].soil, biome:'ochre',
     relief:7.5, ceiling:80, flora:'wood',
-    cast:'w', shuttle:true, course:'hub',
+    cast:'w',
+    /* A MISSION, NOT A WORLD YOU LIVE ON — and that is one word rather
+       than four rules, because every rule that follows from it follows
+       automatically.
+
+       THERE IS ONE DOOR. RYU is reached from the Ion station on the floor
+       of Mission Control and from nowhere else: no course leads here, no
+       pad stands here, and signing back in never resumes here. It used to
+       have a shuttle pad with a LAUNCH sign on it pointed at Senio, which
+       made it a place you could be in two ways and leave in two ways — and
+       a story with two front doors is a story a student can walk into
+       halfway through.
+
+       `mission` is where LEAVE comes out, and it is the same place every
+       other mission in this game comes out: the door of Mission Control.
+       Nothing about the way out of Robin's story should be special, and
+       everything about it used to be. */
+    mission:'hub',
     /* ONE DOOR, AND A ROOM BEHIND IT. Everything else on this ball is
        still ground — see house.js for what is inside. An id `use()` does
        not know is dropped on the floor, so the route below is not
@@ -257,8 +274,10 @@ window.PLANET = (function(){
       { id:'tower', name:'THE TOWER', em:'\u{1F5FC}', lon:30, lat:4,
         w:16, d:16, h:34, door:8,
         wall:0x3a3550, roof:0x8ff0ff, blurb:'Mr Einstein is up there' }
-    ],
-    pad:{ lon:0, lat:-12 }
+    ]
+    /* AND NO PAD. padSpec() builds one wherever a world declares a spot,
+       with a LAUNCH panel on it and a course in the sign — and there is
+       nowhere to launch to from here. See `mission` above. */
   };
   const WORLDS = ()=>[HUB, homeWorld(), ARENA_WORLD, RYU_WORLD];
   const worldById = id => id==='home' ? homeWorld()
@@ -276,7 +295,7 @@ window.PLANET = (function(){
        group that was thrown away with the old room. Drop it and let the
        rebuild put a fresh one back. */
     /* PROPS ARE NOT BUILDINGS and they are not kept. The pad appends
-       itself when the world is built and so does the rover, so a second
+       itself when the world is built and so does the ship, so a second
        visit would find last visit's copies still in the list — pointing at
        groups that were thrown away with the old room, and getting pushed
        again on top. Both are `prop:true` now rather than the pad being
@@ -414,8 +433,10 @@ window.PLANET = (function(){
        were on, though, so signing back in does not always drop you here. */
     if(W.kind!=='hub') PROGRESS.set(SPOT(W.id), { d:R4(me.dir), f:R4(me.fwd) });
     /* And WHICH BALL, so signing back in lands you on the one you were on
-       rather than always on the hub. */
-    PROGRESS.set('world', W.id);
+       rather than always on the hub — unless it is a mission, which is a
+       place you were sent and not a place you live. Writing RYU here would
+       be the story quietly becoming somebody's home planet. */
+    if(!W.mission) PROGRESS.set('world', W.id);
   }
   /* THE BAG IS THE AUTHORITY, and `backs` is only the fallback for somebody
      playing with no storage at all. It has to be that way round: the bag is
@@ -451,8 +472,17 @@ window.PLANET = (function(){
   function lastWorld(){
     if(!window.PROGRESS || !PROGRESS.get) return 'hub';
     const id=PROGRESS.get('world','hub');
-    return WORLDS().some(w=>w.id===id) ? id : 'hub';
+    const w=WORLDS().find(x=>x.id===id);
+    /* A name we do not recognise must never be a student who cannot get
+       back into the game — and neither must a mission world, whether it
+       got in here before `mission` existed or by some route nobody has
+       thought of yet. */
+    return (w && !w.mission) ? id : 'hub';
   }
+  /* WHERE LEAVE COMES OUT. Nothing for a world you live on: the button
+     means "out of whatever room I am in" and you stay on your ball. A
+     mission names the world it hands you back to. */
+  const leaveTo = () => (W && W.mission) || null;
 
   const worldPos = extra => me.dir.clone().multiplyScalar(PR + me.alt + (extra||0));
 
@@ -513,7 +543,7 @@ window.PLANET = (function(){
     sky();
     sunLight();                    // day or night, before anything is baked
     padSpec(W);                    // in the list before the ground is made
-    roverSpec(W);                  // and so is whatever is parked outside
+    shipSpec(W);                   // and so is whatever is parked outside
     /* AND THE HOLES BEFORE THAT. A pool's position comes off the island's own
        longitude and radius, so it can be asked for long before there is any
        water — which is the only way the ground can be dug out for it. */
@@ -521,12 +551,12 @@ window.PLANET = (function(){
     seatBasins();                  // and level their rims before anything is dug
     surface();
     /* A PROP DOES NOT GET WALLS. build() makes a building — four walls, a
-       roof and a door — and the rover went through it, so walking out of
-       the house put you inside a shed that had grown around the vehicle.
+       roof and a door — and the parked vehicle went through it, so walking
+       out of the house put you inside a shed that had grown around it.
        It is a model on a patch of ground; that is all it ever was. */
     BUILDINGS.forEach(b=>{ if(b.id!=='pad' && !b.prop) build(b); });
     launchpad(W);                  // its plate, now that its patch is flat
-    roverBuild();                  // and the rover on its own patch
+    shipBuild();                   // and the ship on its own patch
     scatter();                     // after the buildings: it works around them
     cover();                       // and the small stuff after the big stuff
     fireflies();                   // and then the things that are alive
@@ -2159,46 +2189,125 @@ window.PLANET = (function(){
   /* Registered BEFORE the ground is generated, because the ground asks
      BUILDINGS which patches of itself to flatten — and a pad that joins the
      list afterwards gets a landing field with a hill through it. */
-  /* ------------------------------------------------------------ the rover
-     Parked beside the house, and built out of whatever the bench last said
-     it was made of. It is not a building — it has no door and you do not
-     go inside it — so it follows the launchpad: a spec in the list so the
-     map can draw it, and a group stood on the sphere afterwards. */
-  let roverB=null;
-  function roverSpec(w){
-    roverB=null;
-    if(!w || w.id!=='ryu' || !window.GARAGE) return;
+  /* ------------------------------------------------------------- the ship
+     THE E-45, grounded on the patch beside the house. It is not a building
+     — it has no door and you do not go inside it — so it follows the
+     launchpad: a spec in the list so the map can draw it, and a group
+     stood on the sphere afterwards.
+
+     THERE USED TO BE A ROVER HERE and it was a different lesson: twelve
+     power cells, wheels against treads, and a route you could not afford.
+     The ship is the pre-flight checklist instead — see preflight.js — and
+     it is the one Robin actually needs, because Ion has just asked to be
+     taken to the Mechanic and the Mechanic is on Senio.
+
+     LOADED, NOT BUILT. The rover was assembled out of whichever parts the
+     bench last said it was made of, so its model WAS its spec; the E-45 is
+     a model somebody drew, and the thing that changes about it is which of
+     its safety rules pass. So the group goes up empty and the mesh is
+     dropped into it when it arrives — the ship you can walk up to and
+     press E at exists from the first frame, whether or not a megabyte has
+     finished coming down the wire. */
+  let shipB=null, shipProto=null;
+  const SHIP_FILE = () => 'ships/e45.glb?v=' + (window.ASSETV || '1');
+  const SHIP_LEN  = 11;            // nose to tail, in world units
+  function shipSpec(w){
+    shipB=null;
+    if(!w || w.id!=='ryu') return;
     const spot={ lon:5, lat:-2 };
-    roverB={ id:'rover', name:'THE ROVER', em:'\u{1F69C}', prop:true,
-             lon:spot.lon, lat:spot.lat,
-             w:8, d:8, h:0, roof:0xffd8a8, dir:dirOf(spot.lon, spot.lat),
-             frame:null, g:null, solids:[] };
-    BUILDINGS.push(roverB);
+    shipB={ id:'ship', name:'THE E-45', em:'\u{1F680}', prop:true,
+            lon:spot.lon, lat:spot.lat,
+            w:14, d:14, h:0, roof:0x8ff0ff, dir:dirOf(spot.lon, spot.lat),
+            frame:null, g:null, solids:[] };
+    BUILDINGS.push(shipB);
   }
-  function roverBuild(){
-    const b=roverB; if(!b) return;
+  /* One fetch per session, shared by every group that wants one. */
+  function shipModel(){
+    if(!shipProto) shipProto = new Promise((res,rej)=>
+      new THREE.GLTFLoader().load(SHIP_FILE(), g=>res(g.scene), undefined, rej));
+    return shipProto;
+  }
+  /* WHERE THE SHIP RESTS, which is not the bottom of its bounding box.
+
+     THE E-45 HAS AN AERIAL. A needle of thirty-one vertices — out of
+     twelve thousand — hangs below the hull, and Box3 is perfectly correct
+     that it is the lowest thing on the model. Sitting the ship on it
+     parked her the length of the aerial in the air, hovering beside the
+     house with her shadow underneath, and nothing anywhere said why: the
+     number was right, it was just a number about the wrong part of the
+     ship.
+
+     So ask the hull instead, by throwing away the lowest one per cent of
+     her. It is the same argument house.js makes about Ion — the corner a
+     shoulder rests on is a face and not a vertex — for the opposite
+     shape: there the extreme was a real part of him and the BOX was
+     wrong, here the box is honest and the extreme is a whisker. */
+  function restOf(o){
+    const ys=[], v=new THREE.Vector3();
+    o.traverse(m=>{
+      if(!m.isMesh || !m.geometry || !m.geometry.attributes.position) return;
+      const pos=m.geometry.attributes.position;
+      /* Every fourth vertex. Three thousand samples put the aerial at
+         eight of them, which is still well inside the one per cent that
+         gets thrown away, and it costs a millisecond once. */
+      for(let i=0;i<pos.count;i+=4){ v.fromBufferAttribute(pos,i); m.localToWorld(v); ys.push(v.y); }
+    });
+    if(!ys.length) return 0;
+    ys.sort((a,b)=>a-b);
+    return ys[Math.floor(ys.length*0.01)];
+  }
+
+  function shipBuild(){
+    const b=shipB; if(!b) return;
     const g=new THREE.Group();
     b.g=g;
     b.frame=stand(g, b.dir, 0, terrainH(b.dir));
     G.roomGroup.add(g);
-    const m=GARAGE.model(GARAGE.saved());
-    /* Turned to face the house, so walking out of the door you are looking
-       at the side of it rather than up its exhaust. */
-    m.rotation.y=-Math.PI/2;
-    g.add(m);
-    b.solids.push({ x1:-1.2, x2:1.2, z1:-1.5, z2:1.5, y1:0, y2:1.7 });
-
-    /* THE ROVER IS THE THING YOU PRESS E AT. It had a console on a post
-       beside it, like a mission door, and a post has a SIDE — put it at
-       +2.6 and it is behind the vehicle, put it at -2.6 and it is behind
-       you, and either way you walk up to a rover and the button is
-       somewhere else. A vehicle is not a door. So every mesh of it is a
-       hit that owns the same holder, and it can be pressed from wherever
-       you happen to be standing when you reach it. */
+    /* A SOLID AND A HOLDER FIRST, both the size the ship will be, so you
+       cannot walk through the spot it is about to occupy and E works the
+       moment you reach it. */
+    b.solids.push({ x1:-2.2, x2:2.2, z1:-5.5, z2:5.5, y1:0, y2:3.4 });
+    /* THE SHIP IS THE THING YOU PRESS E AT. The rover before it had a
+       console on a post beside it, like a mission door — and a post has a
+       SIDE, so you walked up to a vehicle and the button was somewhere
+       else. A vehicle is not a door. Every mesh of it owns the same
+       holder, and it can be pressed from wherever you are standing when
+       you reach it. */
     const hold=new THREE.Object3D();
-    hold.userData={ kind:'machine', label:'THE ROVER', enter:'rover' };
+    hold.userData={ kind:'machine', label:'THE E-45', enter:'ship' };
     g.add(hold);
-    m.traverse(o=>{ if(o.isMesh){ o.userData.owner=hold; G.hits.push(o); } });
+
+    shipModel().then(proto=>{
+      if(!on || b.g!==g) return;          // the world moved on while it loaded
+      const o=proto.clone(true);
+      o.traverse(m=>{ if(!m.isMesh) return;
+        m.material=m.material.clone();
+        m.material.vertexColors=true;     // it carries its colour in the mesh
+        m.frustumCulled=false;
+      });
+      /* SCALED BY LENGTH, NEVER BY THE BOX. The E-45 has an antenna mast
+         standing most of its own height above the hull, so its bounding
+         box is two thirds needle — scale that to a sensible height and you
+         park a toy. Length is the dimension anybody means by "how big is
+         the ship". */
+      o.updateMatrixWorld(true);
+      const raw=new THREE.Box3().setFromObject(o);
+      const len=(raw.max.z-raw.min.z)||1;
+      o.scale.setScalar(SHIP_LEN/len);
+      o.updateMatrixWorld(true);
+      /* Centred over the patch and sat on the ground, measured after the
+         scale rather than guessed before it — and the two are measured
+         DIFFERENTLY, which is the whole of the paragraph below. */
+      const box=new THREE.Box3().setFromObject(o);
+      o.position.set(-(box.min.x+box.max.x)/2, -restOf(o), -(box.min.z+box.max.z)/2);
+      /* Parked across the doorway rather than pointing at it, so walking
+         out of the house you see the length of her. */
+      const spin=new THREE.Group();
+      spin.add(o); spin.rotation.y=-Math.PI/2;
+      g.add(spin);
+      o.traverse(m=>{ if(m.isMesh){ m.userData.owner=hold; G.hits.push(m); } });
+      G.scene.updateMatrixWorld(true);
+    }).catch(e=>console.warn('PLANET: the E-45 failed to load', e));
   }
 
   function padSpec(w){
@@ -2276,6 +2385,14 @@ window.PLANET = (function(){
   function travel(to){
     const id = to || (W.kind==='home' ? 'hub' : 'home');
     if(id===W.id) return;
+    /* NOTHING FLIES OFF A MISSION. There is no pad here to press, so this
+       is only reachable by a route nobody has thought of — and the honest
+       answer to it is the one the button in the corner already gives,
+       rather than a ship that appears because a code path allowed it. */
+    if(W.mission){
+      say(t('Nothing launches from here. <b>LEAVE</b> takes you back to Mission Control.'));
+      return;
+    }
     /* A SHUTTLE WORLD LETS YOU OFF. Everywhere else the pad is a thing
        you use your own ship on, and having to buy one is the point. A
        world the game DROPPED you on is the one case where that rule
@@ -3599,7 +3716,7 @@ window.PLANET = (function(){
     if(!id) return;
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
-    const known = id==='ryuhouse' || id==='rover'
+    const known = id==='ryuhouse' || id==='ship'
                || id==='arcade' || id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
@@ -3668,20 +3785,21 @@ window.PLANET = (function(){
       HOUSE.enter();
       return;
     }
-    /* THE BENCH. It does not take you anywhere — you stay on the planet,
-       standing beside the thing you are changing, and it is rebuilt under
-       you when you bolt the parts on. */
-    if(id==='rover'){
-      if(!window.GARAGE) return;
-      GARAGE.open({ onBuilt: ()=>{
+    /* THE PRE-FLIGHT. It does not take you anywhere — you stay on the
+       planet, standing beside the ship whose checklist you are filling in,
+       and nothing about her is rebuilt when you are done, because nothing
+       about her CHANGED. Nine rules got their words back. */
+    if(id==='ship'){
+      if(!window.SHIPFIX) return;
+      SHIPFIX.open({ onCleared: ()=>{
         if(!on) return;
-        /* Rebuilt rather than patched: the model IS the spec, so the only
-           honest way to show a new one is to make a new one. */
-        if(roverB && roverB.g){ G.roomGroup.remove(roverB.g);
-                                BUILDINGS=W.buildings=BUILDINGS.filter(x=>x!==roverB); }
-        roverSpec(W); roverBuild();
-        G.scene.updateMatrixWorld(true);
-        say(t('Bolted on. Now it needs somewhere to go.'));
+        try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
+        /* WHERE THE MECHANIC IS, said in the only terms that are true now.
+           This used to say "take the shuttle from the pad", and there is no
+           pad: RYU is a mission with one door, and the way to anywhere else
+           is back out through it. */
+        say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Senio; '
+            + '<b>LEAVE</b> takes you back to Mission Control.'));
       }});
       return;
     }
@@ -4238,7 +4356,7 @@ window.PLANET = (function(){
                PROGRESS.set('world','hub');
              }
            },
-           lastWorld,
+           lastWorld, leaveTo,
            get where(){ return me; },
            get active(){ return on; },
            get server(){ return server; } };
