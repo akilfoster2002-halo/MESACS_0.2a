@@ -365,9 +365,27 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
   assert.match(embark, /shipB\.solids\.length=0/,
     'the parked ship keeps its collision box: she takes off through her own hull');
   const arrive = planet.slice(planet.indexOf('function arriveTick()'),
-                              planet.indexOf('function arriveTick()') + 900);
-  assert.match(arrive, /PROGRESS\.complete\('ion'\)/, 'reaching the tower does not finish the mission');
+                              planet.indexOf('function padSpec('));
   assert.match(arrive, /AVATAR\.attach\(\)/, 'she arrives still invisible, inside a ship that is gone');
+  /* ARRIVING IS NOT FINISHING. Landing used to call complete('ion'), which
+     ended Mission 8 outside the building — Ion asked for somebody who
+     could look inside him properly and the mission paid off before anybody
+     had. It ends at the cradle now.
+
+     CODE ONLY, NOT COMMENTS. The first version of this check matched the
+     whole slice, and the paragraph explaining the move contains the very
+     string it was looking for — so it went on passing after the call it
+     was guarding had gone. Strip the comments before asserting about what
+     the code does. */
+  const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  assert.ok(!/PROGRESS\.complete\(/.test(bare(arrive)),
+    'landing at the tower still finishes the mission on the tarmac');
+  const hand = planet.slice(planet.indexOf('function handOver()'),
+                            planet.indexOf('function layIon()'));
+  assert.ok(hand, 'there is no handover');
+  assert.match(bare(hand), /PROGRESS\.complete\('ion'\)/,
+    'handing Ion to the Mechanic does not finish Mission 8');
+  assert.match(bare(hand), /PROGRESS\.set\(HANDED,1\)/, 'the handover is not remembered');
   assert.match(planet, /aboard=false; shipRide=null; arrived=false;/,
     'leaving the world leaves her aboard a ship that no longer exists');
   /* AND THE PROMPT CHANGES WITH THE CANOPY, or it tells you to inspect a
@@ -696,4 +714,238 @@ test('the brief says what is broken, and it is the checklist that is broken', ()
      the player standing at a ship having watched a cutscene about it. */
   assert.match(brief, /if\(then\) then\(\);/, 'the brief ends and nothing happens');
   assert.match(brief, /G\.running=true;/, 'the brief ends with the world still frozen');
+});
+
+test('every flag Mission 8 writes is forgotten when you start it over', ()=>{
+  /* PROGRESS.restart(id) deletes the keys beginning with `id + '_'`, and
+     Mission 8's id is `ion` (arriveTick calls PROGRESS.complete('ion')).
+     That prefix is the whole mechanism — a flag filed anywhere else
+     survives a restart silently.
+
+     THIS HAS ALREADY HAPPENED ONCE. The ship's cleared state was called
+     `ship_cleared`, so "start over" left it set: the canopy was drawn
+     already open, the smoke never appeared, and E went straight to the
+     boarding cutscene past the checklist the student had just asked to
+     do again. The brief's flag WAS under `ion_` and was forgotten, so the
+     two halves of one mission disagreed about whether it had happened.
+
+     Read off the source rather than listed here, so a tenth flag added
+     next year is caught without anybody remembering to add it. */
+  const src = read('public/planet.js') + read('public/house.js');
+
+  /* Every save key written as a bare string literal, plus the ones written
+     through a const — both forms are in use and only checking one of them
+     is how the last of these got in. */
+  const keys = new Set();
+  for(const m of src.matchAll(/PROGRESS\.set\(\s*'([a-z0-9_]+)'/g)) keys.add(m[1]);
+  for(const m of src.matchAll(/const\s+[A-Z][A-Z_]*\s*=\s*'([a-z0-9_]+)'\s*;/g)) keys.add(m[1]);
+
+  /* The keys that belong to the PLAYER rather than to this mission, and
+     must NOT be forgotten by a restart: where they are standing, which
+     planet they are on, their world seed, and the things they own. A
+     restart replays a story; it does not repossess a ship. */
+  const theirs = new Set(['home_seed','world','has_ship']);
+
+  /* Anything to do with the E-45, the house or Ion is mission state. */
+  const mission = [...keys].filter(k=>!theirs.has(k) && !/^at_|^spot_|^quiz_/.test(k))
+                           .filter(k=>/ship|ion|canopy|preflight|brief|fixed|cleared/.test(k));
+  assert.ok(mission.length >= 3, 'no mission flags found — the patterns above have gone stale');
+  for(const k of mission)
+    assert.ok(k.startsWith('ion_'),
+      `'${k}' is mission state but is not under the 'ion_' prefix, so `
+      + 'PROGRESS.restart("ion") will not forget it and "start over" will '
+      + 'skip the part of Mission 8 it guards');
+});
+
+/* =====================================================================
+   THE TOWER — three floors, a lift, and the room Mission 8 ends in.
+
+   It was fifty-eight units of hollow shell with windows. You flew two
+   hundred units to reach it, landed, and the mission ended outside it.
+   ===================================================================== */
+
+test('the tower has floors, and the floors are where the windows are', ()=>{
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+
+  assert.match(bare, /function towerRoom\(/, 'the tower has no interior');
+  assert.match(bare, /b\.id==='tower'[\s\S]{0,80}towerRoom\(/,
+    'nothing routes the tower to its interior, so it is a shell again');
+
+  /* THE FLOORS ARE DERIVED, NOT TYPED. dress() puts this building's rows
+     of windows at fixed fractions of its height; a deck typed in by hand
+     lands across the glass and seals the storey into a blue box, which is
+     what 19 and 40 did. The stops have to be read off the same formula
+     the walls are built from. */
+  assert.match(bare, /function towerStopsFor\(b\)/, 'the floor heights are hard-coded again');
+  assert.ok(!/\{ y:19,|\{ y:40,/.test(bare), 'a floor height is typed in rather than derived');
+
+  /* And the derivation has to agree with the wall builder. Both numbers
+     are read out of the source rather than restated here, so a change to
+     either side fails this instead of quietly misaligning a storey. */
+  const dressRows = planet.match(/const rows = H>14 \? 2 : 1;/);
+  assert.ok(dressRows, 'dress() no longer decides rows the way towerStopsFor assumes');
+  const stops = planet.slice(planet.indexOf('function towerStopsFor'),
+                             planet.indexOf('let TOWER_STOPS'));
+  assert.match(stops, /H>14 \? 2 : 1/, 'towerStopsFor has drifted from dress()');
+  assert.match(stops, /0\.30 \+ r\*0\.34/, 'towerStopsFor no longer uses the window rows');
+
+  /* A DECK UNDER EVERY WINDOW ROW, at the heights the tower actually is.
+     Computed here the way the source says to, so this is a check on the
+     arithmetic landing inside the glass rather than a copy of the answer. */
+  const H=58, rows=2, winH=Math.min(3.0,(H-3)/(rows+0.7));
+  for(let r=0;r<rows;r++){
+    const centre=H*(0.30+r*0.34), deck=Math.round((centre-winH/2-0.2)*10)/10;
+    assert.ok(deck > centre-winH/2-0.6 && deck < centre-winH/2+0.1,
+      `floor ${r} at ${deck} does not sit just under the window at ${centre}`);
+    assert.ok(deck+2.2 < centre+winH/2,
+      `floor ${r} puts standing eye height above the top of its own window`);
+  }
+});
+
+test('the lift is a deck that moves, and cannot stop between floors', ()=>{
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+
+  /* THE WHOLE LIFT. floorAt() reads a deck's height every frame and a
+     grounded walker is pinned to whatever it returns, so a slab whose y
+     changes carries whoever is on it. If floorAt stops consulting decks,
+     the lift becomes a platform that slides out from under you. */
+  assert.match(bare, /if\(alt!==undefined && b\.decks\)/,
+    'floorAt no longer asks about interior floors: the lift would leave you behind');
+  assert.match(bare, /L\.deck\.y=y;/, 'the lift moves its picture but not its floor');
+  assert.match(bare, /function liftTick\(/, 'nothing drives the lift');
+  assert.match(bare, /liftTick\(dt\);/, 'liftTick is never called, so the lift never moves');
+
+  /* ONE BUTTON, AND IT WRAPS. No floor list, no way to be stuck: press it
+     again and you are somewhere. */
+  const go = planet.slice(planet.indexOf('function liftGo()'),
+                          planet.indexOf('const LIFT_FOR'));
+  assert.match(go, /% TOWER_STOPS\.length/, 'the lift does not wrap: the top is a dead end');
+  assert.match(go, /if\(lift\.t<1\)/,
+    'the lift can be re-called mid-travel, which drops you through a floor that has moved');
+
+  /* AND ITS CONSOLE LEAVES NO SOLID BEHIND. panel() pushes a collision box
+     the size of the console; here that box would stand in the square metre
+     you have to occupy to press it, and would stay at ground level while
+     the console rode away up the shaft. */
+  const room = planet.slice(planet.indexOf('function towerRoom('),
+                            planet.indexOf('function liftFace('));
+  assert.match(room, /b\.solids\.pop\(\);/,
+    "the lift console's collision box is left in the shaft");
+});
+
+test('the Mechanic is a person, in the tower, and finishing there is Mission 8', ()=>{
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+
+  /* A PERSON, NOT A SHOP. The Mechanic on Senio sells cars off plinths;
+     the one Ion asked for is somebody who can look inside him. */
+  assert.match(bare, /function workshop\(/, 'there is no workshop');
+  assert.match(bare, /person\(g, b, [^)]*'THE MECHANIC'[^)]*\)|THE MECHANIC/,
+    'nobody is standing in the workshop');
+  assert.match(bare, /'towermech'/, 'the Mechanic cannot be spoken to');
+  assert.match(bare, /id==='towermech'/, "use() does not know 'towermech': E would do nothing");
+
+  /* CONTAINED IN MISSION 8. The point of moving the Mechanic here is that
+     the mission no longer sends the player to another planet to end it, so
+     the handover must be what completes it. */
+  const hand = planet.slice(planet.indexOf('function handOver()'),
+                            planet.indexOf('function layIon()'));
+  assert.match(bare.slice(bare.indexOf('function handOver()')).slice(0,1400),
+    /SCENE\.play\(/, 'the handover is not a scene');
+  for(const who of ['Robin','Ion','The Mechanic'])
+    assert.ok(hand.includes(`who:'${who}'`), who+' says nothing at the handover');
+
+  /* AND HE IS VISIBLY THERE AFTERWARDS. A handover you are told about and
+     cannot see did not happen. */
+  assert.match(bare, /function layIon\(/, 'Ion is never put on the cradle');
+  const lay = planet.slice(planet.indexOf('function layIon()'),
+                           planet.indexOf('function einstein()'));
+  assert.match(lay, /rotation\.z=Math\.PI\/2/, 'Ion stands on the bench instead of lying on it');
+  assert.match(lay, /root\.rotation\.y=Math\.PI\/2/,
+    'Ion lies in his export T-pose, with one arm through the table and one at the ceiling');
+});
+
+test('the lift can never outrun the floor it is carrying you on', ()=>{
+  /* THE ONE THING THAT MAKES A MOVING DECK WORK. floorAt() hands a
+     grounded walker the deck's height every frame, but only while they
+     are within DECK_GRIP of it. If the deck climbs further than that
+     between two frames it steps out from under its rider and carries on
+     up empty — and because it only happens on a frame that HITCHES, it
+     works every time anybody tries it by hand.
+
+     game.js clamps dt, eased travel peaks at 1.5x its average, so the
+     whole safety property is: peak speed x longest frame < grip. All
+     four numbers are read out of the source, so moving a floor, changing
+     the clamp or speeding the lift up fails this instead of producing a
+     lift that occasionally leaves somebody behind. */
+  const planet = read('public/planet.js');
+  const game   = read('public/game.js');
+
+  const grip  = +planet.match(/const DECK_GRIP=([\d.]+);/)[1];
+  const speed = +planet.match(/const LIFT_SPEED = (\d+);/)[1];
+  const minFor= +planet.match(/const LIFT_MIN\s+= ([\d.]+);/)[1];
+  const dtMax = +game.match(/const dt=Math\.min\(\(now-last\)\/1000, ([\d.]+)\);/)[1];
+  assert.ok(grip && speed && minFor && dtMax, 'one of the four numbers has been renamed');
+
+  /* Every hop this lift can be asked to make, including the wrap from the
+     top back to the ground, which is the longest and the one nobody
+     tests by hand. */
+  const H=58, rows=2, winH=Math.min(3.0,(H-3)/(rows+0.7));
+  const stops=[0];
+  for(let r=0;r<rows;r++) stops.push(Math.round((H*(0.30+r*0.34)-winH/2-0.2)*10)/10);
+  for(let i=0;i<stops.length;i++){
+    const far=Math.abs(stops[(i+1)%stops.length]-stops[i]);
+    if(!far) continue;
+    const secs=Math.max(minFor, far/speed);
+    const step=(far*1.5/secs)*dtMax;         // the worst single frame
+    assert.ok(step < grip,
+      `a ${far}-unit ride moves ${step.toFixed(2)} on a ${dtMax}s frame, `
+      + `past the ${grip} grip — the lift would leave its rider on the floor below`);
+  }
+});
+
+test('a floor high up agrees with the walls around it', ()=>{
+  /* THE SUBTLEST THING IN THE TOWER, and it is a fact about spheres.
+
+     A building is a flat box laid tangent to the ball, and a player is a
+     direction plus an altitude. Going straight UP from a spot off the
+     middle of a room carries you OUTWARD in that box's own axes: at 35
+     units up on a radius of 240, a spot 6 metres from the centre is 6.9
+     from it.
+
+     blocked() measures a player against walls at their own radius;
+     floorAt() measured them against floors at GROUND radius. So the two
+     disagreed by over a metre at the top of the tower. It showed up as a
+     lift that carried you up perfectly and then would not let you off:
+     the rider had drifted into the back wall on the way, was overlapping
+     a solid, and could not walk in any direction at all.
+
+     Both must read the same frame, and the shaft must sit far enough
+     inboard that the drift never puts a rider inside a wall. */
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+
+  assert.match(bare, /const la=local\(b, dir\.clone\(\)\.multiplyScalar\(PR\+alt\)\);/,
+    'floorAt measures decks at ground radius again, so floors and walls disagree high up');
+  assert.match(bare, /if\(la\.x < d\.x1 \|\| la\.x > d\.x2 \|\| la\.z < d\.z1 \|\| la\.z > d\.z2\)/,
+    'the deck footprint test does not use the at-altitude position');
+
+  /* AND THE SHAFT IS INBOARD ENOUGH TO SURVIVE THE DRIFT. Read the real
+     numbers out of the source: the shaft, the tower's depth, and the wall
+     thickness dress() builds, so moving any of them fails here rather
+     than stranding somebody at the top. */
+  const sh = planet.match(/const SHAFT = \{ x1:(-?[\d.]+), x2:(-?[\d.]+), z1:(-?[\d.]+), z2:(-?[\d.]+) \}/);
+  assert.ok(sh, 'the shaft has been renamed');
+  const z1=+sh[3];
+  const H=58, D=16, PRad=240;                 // the tower, and RYU's radius
+  const inner = -(D/2) + 0.5;                  // the inside face of the back wall
+  const winH=Math.min(3.0,(H-3)/2.7);
+  const top = Math.round((H*(0.30+0.34)-winH/2-0.2)*10)/10;
+  const spread = 1 + top/PRad;                 // how far a rider drifts out by then
+  const backOfCar = z1*spread;
+  assert.ok(backOfCar > inner,
+    `the back of the lift car reaches ${backOfCar.toFixed(2)} at the top floor, `
+    + `past the wall's inner face at ${inner} — a rider would arrive inside it and be stuck`);
 });

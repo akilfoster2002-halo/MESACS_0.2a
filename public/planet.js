@@ -308,7 +308,8 @@ window.PLANET = (function(){
        excluded by name, because the next one of these will be too. */
     BUILDINGS = w.buildings = w.buildings.filter(b=>b.id!=='pad' && !b.prop);
     RELIEF=w.relief; SOIL=w.soil.map(c=>({c}));
-    BUILDINGS.forEach(b=>{ b.g=null; b.dir=null; b.frame=null; b.solids=[]; });
+    BUILDINGS.forEach(b=>{ b.g=null; b.dir=null; b.frame=null; b.solids=[]; b.decks=[]; });
+    lift=null; mechB=null; folk=[];   // the tower went with the world that held it
   }
   const STATIONS=[
     { id:'tut',    em:'\u{1F3AE}', name:'Level 0 — Basics',           a:'#ffe9a8' },
@@ -1020,6 +1021,8 @@ window.PLANET = (function(){
      you stand on, indoors.  Zero out on the grass, so this is the ordinary
      case costing four dot products. */
   const FLOOR_COS=0.975;
+  /* How far below a floor you can be and still be standing on it. */
+  const DECK_GRIP=0.5;
   /* Where the lid of a building is, and whether you are over it. The roof
      slab is centred at H+0.4 and is 0.8 thick, so its top is H+0.8; the
      overhang is 0.4 proud of the walls on every side. */
@@ -1059,6 +1062,52 @@ window.PLANET = (function(){
       if(alt!==undefined && onRoofPlan(b,l.x,l.z)){
         const top=radial(roofTopOf(b));
         if(alt >= top-0.4) return top;
+      }
+      /* ------------------------------------------------- FLOORS INSIDE
+         A BUILDING USED TO BE ONE STOREY AND A LID. Everything on this
+         planet is a room with a floor at zero and a roof you can land on,
+         and for a showroom or a library that is the whole truth. The tower
+         is fifty-eight units of it, and "Mr Einstein is up there" is a
+         sentence about a place the floor system had no way to express.
+
+         So a building may carry `decks`: slabs at a height, each with a
+         footprint in the building's own frame. THE HIGHEST ONE YOU ARE AT
+         OR ABOVE WINS, which is the same rule the islands answer by and
+         for the same reason — what is under you is the nearest thing
+         below you, not the ground under everything.
+
+         AND THE LIFT IS JUST A DECK THAT MOVES. Nothing here knows that:
+         it reads `d.y` every frame, so a slab whose height changes carries
+         whoever is standing on it, because a grounded walker is pinned to
+         whatever this returns. That is the entire lift. */
+      if(alt!==undefined && b.decks){
+        /* MEASURED AT YOUR OWN RADIUS, the way blocked() measures a wall.
+
+           `l` above is the plan position at GROUND radius, which is what
+           the roof test wants. A building is a flat box tangent to a ball,
+           so going straight up from a point off its centre carries you
+           OUTWARD in the box's own axes: at thirty-five units up on a
+           radius of two hundred and forty, a spot six metres from the
+           middle of the room is seven metres from it. Walls are tested in
+           the spread-out frame and floors were tested in the flat one, so
+           the two disagreed by over a metre at the top of the tower — you
+           could stand on a deck whose edge you had visually walked past,
+           and the same spread pushed a lift rider into the back wall on
+           the way up. Same frame for both, and they agree at every
+           height. */
+        const la=local(b, dir.clone().multiplyScalar(PR+alt));
+        let best=null;
+        for(const d of b.decks){
+          if(la.x < d.x1 || la.x > d.x2 || la.z < d.z1 || la.z > d.z2) continue;
+          const top=radial(d.y);
+          /* DECK_GRIP is the same half-metre of grace the islands give
+             you, so you settle onto a deck rather than having to arrive
+             at exactly its height — and stepping off one drops you past
+             it. It is also the budget the lift's speed is derived from:
+             see liftTick(). */
+          if(alt >= top-DECK_GRIP && (best===null || top>best)) best=top;
+        }
+        if(best!==null) return best;
       }
       return radial(plateY(b,l.x,l.z));
     }
@@ -1673,7 +1722,7 @@ window.PLANET = (function(){
     const g=new THREE.Group();
     const f=stand(g, dir, 0);
     G.roomGroup.add(g);
-    b.g=g; b.dir=dir; b.frame=f; b.solids=[];
+    b.g=g; b.dir=dir; b.frame=f; b.solids=[]; b.decks=[];
     b.H=b.h||9;            // what floorAt() measures the lid from
     g.userData.b=b;
 
@@ -1800,6 +1849,8 @@ window.PLANET = (function(){
       mallroom(g, b, hw, hd);
     } else if(b.id==='mechanic'){
       showroom(g, b, hw, hd);
+    } else if(b.id==='tower'){
+      towerRoom(g, b, hw, hd);
     } else if(b.id==='library'){
       panel(g,b, -5.5, -hd+3.2, b.em, t(b.blurb), b.id, '#22406b', 0.85, 0);
       reading(g, b, hw, hd, H);
@@ -2395,7 +2446,18 @@ window.PLANET = (function(){
 
   /* HAS SHE BEEN CLEARED? The canopy is the only thing in this world that
      remembers the pre-flight, so it is the only thing that has to ask. */
-  const shipOpen = () => { try{ return !!(window.PROGRESS && PROGRESS.get('ship_cleared',0)); }
+  /* FILED UNDER THE MISSION, and that prefix is load-bearing. PROGRESS
+     .restart(id) forgets every key beginning with `id + '_'`, which is how
+     "start over" takes a mission's walkthroughs and films back with it.
+     This was called `ship_cleared`, and Mission 8's id is `ion` — so it
+     survived a restart, and a student who asked for the beginning got a
+     ship that was already cleared: canopy standing open, no smoke, and
+     E going straight to the boarding cutscene past a checklist they had
+     asked to do again. The brief never played either, because ITS flag is
+     under `ion_` and was correctly forgotten, leaving the two halves of
+     the same mission disagreeing about whether it had happened. */
+  const CLEARED='ion_ship_cleared';
+  const shipOpen = () => { try{ return !!(window.PROGRESS && PROGRESS.get(CLEARED,0)); }
                            catch(e){ return false; } };
 
   /* ===================================================================
@@ -2731,8 +2793,13 @@ window.PLANET = (function(){
     land();
     disembark();
     if(window.AVATAR) AVATAR.attach();
-    try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
-    say(t('<b>THE TOWER.</b> Mr Einstein is up there \u2014 and so, somewhere, is E.'));
+    /* ARRIVING IS NOT FINISHING ANY MORE. This used to call
+       PROGRESS.complete('ion') here, which ended Mission 8 in the car
+       park outside the building: Ion asked for somebody who could look
+       inside him properly, and the mission paid off before anybody had.
+       The workshop on the tower's middle floor is where that happens and
+       where the mission now ends — see handOver(). */
+    say(t('<b>THE TOWER.</b> Walk in — the <b>MECHANIC</b> is up the lift.'));
   }
 
   function padSpec(w){
@@ -2848,6 +2915,502 @@ window.PLANET = (function(){
     const back=W.id;
     leave();
     CRUISE.launch(server, id, back);
+  }
+
+
+  /* ===================================================================
+     THE TOWER — three floors and the lift that joins them.
+
+     IT WAS FIFTY-EIGHT UNITS OF NOTHING. The tower is placed so that it is
+     just visible from the front door and can only be reached by flying,
+     and both of those are load-bearing: the gap you cannot cross on foot
+     is the mission. Then you land at it, and it is a hollow shell with
+     windows. `Mr Einstein is up there` was a sentence about a place the
+     game had no way to let anybody go.
+
+     WHY THE MECHANIC LIVES HERE. Ion asks to be taken to the Mechanic.
+     There is a Mechanic on Senio and it sells cars — it is a showroom,
+     and the person in the story who can "look inside you properly" was
+     never in it. Sending a player back to Senio to finish Mission 8 also
+     means the mission's last beat happens on a different planet, two
+     loading screens after the thing that set it up. So the Mechanic is on
+     the tower's middle floor, and Mission 8 begins and ends on RYU.
+
+     THREE STOPS, and they are three because the story has three: you
+     arrive, you hand Ion over, and you go up to the person the whole
+     thing has been pointing at.
+
+         0    GROUND      where you walk in
+        19    THE WORKSHOP  the Mechanic, and Ion's examination
+        40    THE TOP     Mr Einstein, and the view
+
+     THE LIFT IS AGAINST THE BACK WALL rather than up the middle. A shaft
+     in the centre of a sixteen-metre room leaves four corridors round it
+     and no floor; against a wall it leaves one room per storey, which is
+     what each of these floors actually needs to be.
+     =================================================================== */
+  /* WHERE THE FLOORS ARE, AND IT IS THE WINDOWS THAT DECIDE.
+
+     THE FIRST VERSION TYPED IN 19 AND 40, which looked reasonable against
+     a fifty-eight metre tower and was wrong twice: shell() puts this
+     building's two rows of windows at 30% and 64% of its height — 17.4
+     and 37.1 — so a deck at 19 lays its floor directly ACROSS the glass.
+     Both storeys came out as sealed blue boxes, and the top one is a room
+     whose entire reason to exist is that you can see out of it.
+
+     So the stops are read off the same formula the walls are built from.
+     A deck sits just under its row's sill, which puts three metres of
+     window at standing height in front of anybody who steps out of the
+     lift. Re-derived per building, so a tower of a different height still
+     gets floors with windows in them. */
+  function towerStopsFor(b){
+    const H=b.h||9;
+    const rows = H>14 ? 2 : 1;
+    const winH = Math.min(3.0, (H-3)/(rows+0.7));
+    const yOf = r => H*(rows===1 ? 0.52 : (0.30 + r*0.34));
+    const deck = r => Math.round((yOf(r) - winH/2 - 0.2)*10)/10;
+    const names=['THE WORKSHOP','THE TOP'];
+    const out=[{ y:0, name:'GROUND' }];
+    for(let r=0;r<rows;r++) out.push({ y:deck(r), name:names[r] || 'FLOOR '+(r+1) });
+    return out;
+  }
+  let TOWER_STOPS = [{ y:0, name:'GROUND' }];
+  /* The shaft, in the building's own frame. Everything else about a floor
+     is "the part of it that is not this". */
+  /* THE SHAFT, AND IT IS OFF THE BACK WALL ON PURPOSE.
+
+     It began flat against it, which is where a lift belongs in a real
+     building and is wrong in a room that is a flat box tangent to a
+     sphere. A rider goes straight UP the radius, and that carries them
+     outward in the building's own axes — about fifteen per cent by the
+     top floor — so somebody who steps into a car at the back of the room
+     arrives a metre deeper into the back wall than they started,
+     overlapping a solid and unable to walk in any direction at all. It
+     looked perfect: the car drew correctly and the ride worked, and you
+     simply could not get out at the other end.
+
+     So the whole car sits well inside the room, where fifteen per cent of
+     its distance from the middle is comfortably less than the clearance
+     to a wall. The floors tile round it on all four sides rather than
+     three. */
+  const SHAFT = { x1:-2.2, x2:2.2, z1:-5.6, z2:-1.6 };
+  let lift=null;                  // {g, at, to, t, panel}
+  let mechB=null;                 // the workshop, once it is standing
+
+  function towerRoom(g, b, hw, hd){
+    b.decks=[];
+    TOWER_STOPS=towerStopsFor(b);
+    const wall=new THREE.MeshLambertMaterial({color:0x2e2a44});
+    const deckMat=new THREE.MeshLambertMaterial({color:0x4a4668});
+    const trim=new THREE.MeshLambertMaterial({color:0x8ff0ff});
+
+    /* ---- the floors themselves --------------------------------------
+       Each storey above the ground is a slab with the shaft cut out of
+       it, which as rectangles is the room in front plus the two strips
+       either side of the shaft. Drawn AND registered from the same three
+       numbers, so what you can see and what you can stand on cannot drift
+       apart. */
+    const parts = [
+      { x1:-hw, x2:hw, z1:SHAFT.z2, z2:hd },                  // in front of it
+      { x1:-hw, x2:hw, z1:-hd, z2:SHAFT.z1 },                 // behind it
+      { x1:-hw, x2:SHAFT.x1, z1:SHAFT.z1, z2:SHAFT.z2 },      // and either side
+      { x1:SHAFT.x2, x2:hw, z1:SHAFT.z1, z2:SHAFT.z2 }
+    ];
+    TOWER_STOPS.forEach((st,i)=>{
+      if(i===0) return;                 // the ground is the building's own plate
+      parts.forEach(q=>{
+        const w=q.x2-q.x1, d=q.z2-q.z1;
+        const slab=new THREE.Mesh(new THREE.BoxGeometry(w,0.4,d), deckMat);
+        slab.position.set((q.x1+q.x2)/2, st.y-0.2, (q.z1+q.z2)/2);
+        slab.userData.flat=true;
+        g.add(slab);
+        b.decks.push({ y:st.y, x1:q.x1, x2:q.x2, z1:q.z1, z2:q.z2 });
+      });
+      /* A RAIL ROUND THE SHAFT OPENING, because a hole in the floor you
+         cannot see is a hole you walk into. It is a solid as well as a
+         picture: the way down is the lift, not the drop. */
+      const bar=new THREE.Mesh(new THREE.BoxGeometry(SHAFT.x2-SHAFT.x1,0.9,0.25), trim);
+      bar.position.set(0, st.y+0.45, SHAFT.z2+0.1);
+      g.add(bar);
+    });
+
+    /* ---- the lift ----------------------------------------------------
+       A platform, and a panel standing on it. The platform is a deck like
+       any other, so standing on it while it moves is not a special case
+       anywhere in the walk loop — floorAt() reads its height every frame
+       and a grounded walker is pinned to whatever floorAt says. */
+    const car=new THREE.Group();
+    const floorSlab=new THREE.Mesh(
+      new THREE.BoxGeometry(SHAFT.x2-SHAFT.x1, 0.35, SHAFT.z2-SHAFT.z1), deckMat);
+    floorSlab.position.y=-0.175; floorSlab.userData.flat=true; car.add(floorSlab);
+    /* Three posts and a roof, so from outside it reads as a cage going up
+       the back of the tower rather than a tile sliding through the air. */
+    [[SHAFT.x1+0.3,SHAFT.z1+0.3],[SHAFT.x2-0.3,SHAFT.z1+0.3],
+     [SHAFT.x1+0.3,SHAFT.z2-0.3],[SHAFT.x2-0.3,SHAFT.z2-0.3]].forEach(([px,pz])=>{
+      const post=new THREE.Mesh(new THREE.BoxGeometry(0.22,2.8,0.22), trim);
+      post.position.set(px, 1.4, pz-((SHAFT.z1+SHAFT.z2)/2)); car.add(post);
+    });
+    const lamp=new THREE.PointLight(0xbfe9ff, 90, 26, 1.5);
+    lamp.position.set(0, 2.5, 0); car.add(lamp);
+    car.position.set(0, 0, (SHAFT.z1+SHAFT.z2)/2);
+    g.add(car);
+    b.decks.push({ y:0, x1:SHAFT.x1, x2:SHAFT.x2, z1:SHAFT.z1, z2:SHAFT.z2, lift:true });
+    const deck=b.decks[b.decks.length-1];
+
+    /* THE ONE BUTTON. It goes to the next stop up and wraps round to the
+       ground from the top, so there is no menu, no floor list, and no way
+       to be stuck between two storeys — press it again and you are
+       somewhere, always. The face says where it is GOING, not where it
+       is, because the question anybody has in a lift is the former. */
+    const p=panel(g, b, 0, SHAFT.z1+0.7, '↑',
+                  t('LIFT')+'\n'+t(TOWER_STOPS[1].name), 'lift', '#1b2740', 0.55, 0);
+    car.add(p);
+    p.position.set(0, 0, SHAFT.z1+0.7-((SHAFT.z1+SHAFT.z2)/2));
+    /* AND ITS SOLID GOES. panel() pushes a box the size of the console so
+       you cannot walk through a station — right everywhere else, and
+       wrong here twice over: the box would stand in the one square metre
+       of floor you have to be standing on to press it, and it would stay
+       at ground level for ever while the console it describes rode away
+       up the shaft. The car's own walls are what stop you here. */
+    b.solids.pop();
+
+    lift={ g:car, deck, at:0, from:0, to:0, t:1, panel:p, b };
+
+    /* ---- what is on each floor -------------------------------------- */
+    towerLobby(g, b, hw, hd);
+    workshop(g, b, hw, hd, TOWER_STOPS[1].y);
+    towerTop(g, b, hw, hd, TOWER_STOPS[2].y);
+  }
+
+  /* Where the lift is going next, said on its own face. */
+  function liftFace(){
+    if(!lift || !lift.panel) return;
+    const next=(lift.at+1) % TOWER_STOPS.length;
+    const face=lift.panel.userData.glow;
+    if(!face) return;
+    if(face.material.map) face.material.map.dispose();
+    face.material.map=panelTex('↑', t('LIFT')+'\n'+t(TOWER_STOPS[next].name), '#1b2740');
+    face.material.needsUpdate=true;
+  }
+  /* Called by E on the panel. Refuses while it is moving, because a lift
+     that changes its mind halfway is a lift that drops you through a
+     floor that is no longer under you. */
+  function liftGo(){
+    if(!lift) return;
+    if(lift.t<1){ say(t('It is already moving.')); return; }
+    lift.from=TOWER_STOPS[lift.at].y;
+    lift.at=(lift.at+1) % TOWER_STOPS.length;
+    lift.to=TOWER_STOPS[lift.at].y;
+    lift.t=0;
+    if(window.beep) beep('pop');
+    say(t('<b>{n}</b>',{n:t(TOWER_STOPS[lift.at].name)}));
+  }
+  /* HOW FAST, AND IT IS NOT A MATTER OF TASTE.
+
+     A rider stays on this thing because floorAt() hands them the deck's
+     height every frame, and it only does that while they are within
+     DECK_GRIP of it — half a metre. So the deck may never climb more than
+     half a metre BETWEEN TWO FRAMES, or it steps out from under whoever
+     is on it and carries on up empty, leaving them standing on the ground
+     floor watching it go.
+
+     The worst frame is the longest one: game.js clamps dt to 0.05, so the
+     bound is `peak speed × 0.05 < 0.5`, i.e. under ten units a second at
+     the fastest point of the ride. Eased travel peaks at 1.5× its average,
+     so holding the average to LIFT_SPEED = 5 puts the peak at 7.5 and the
+     worst frame at 0.375 — comfortably inside the grip with room for the
+     floors to move without this having to be re-derived.
+
+     THE FIRST VERSION WAS A FIXED FOUR SECONDS scaled by an inverse
+     distance, which made SHORT hops the fast ones: fifteen metres went by
+     in about a second and a half, peaking near fifteen units a second and
+     0.75 of a metre on a slow frame. It worked every time it was tried,
+     because it only comes apart on a frame that hitches. */
+  const LIFT_SPEED = 5;               // units a second, averaged over the ride
+  const LIFT_MIN   = 1.2;             // and never snappier than this
+  function liftTick(dt){
+    const L=lift; if(!L || L.t>=1) return;
+    const far=Math.abs(L.to-L.from);
+    const forSecs=Math.max(LIFT_MIN, far/LIFT_SPEED);
+    L.t=Math.min(1, L.t + dt/forSecs);
+    const u=L.t*L.t*(3-2*L.t);
+    const y=L.from + (L.to-L.from)*u;
+    L.g.position.y=y;
+    L.deck.y=y;                       // what the player is standing on
+    if(L.t>=1) liftFace();
+  }
+
+
+  /* A person standing in a room, which on this planet means three things:
+     a group at their feet, an invisible box the size of a body so the
+     raycast has something to hit from the first frame, and a model that
+     turns up later or does not turn up at all. Lifted out of librarian(),
+     which did all three inline and is now the second caller rather than
+     the only one.
+
+     `y` is the floor they are standing on — the librarian is on the
+     ground and did not need one; the Mechanic is nineteen units up. */
+  let folk=[];                    // the people standing in the tower
+  function person(g, b, x, y, z, who, opens, charOffset, tint){
+    const grp=new THREE.Group();
+    grp.position.set(x, y+0.1, z);     // the tenth of a metre a model's feet hang low
+    g.add(grp);
+    const hit=new THREE.Mesh(new THREE.BoxGeometry(1.5,2.1,1.2),
+      new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true,
+                                    opacity:0, depthWrite:false }));
+    hit.position.set(x, y+1.15, z); g.add(hit);
+    hit.userData.owner=grp;
+    grp.userData={ kind:'npc', label:who, enter:opens };
+    G.hits.push(hit);
+    const tag = window.OWN ? OWN.plate(who, tint||0xffe9a8) : null;
+    if(tag){ tag.position.set(x, y+2.8, z); tag.scale.set(3.4,0.85,1); g.add(tag); }
+    const me_={ g:grp, b, x, y, z, model:null, yaw:0 };
+    folk.push(me_);
+    if(window.AVATAR){
+      AVATAR.load(AVATAR.other(charOffset||1)).then(root=>{
+        if(!on || !grp.parent) return;
+        grp.add(root); me_.model=root;
+      }).catch(()=>{});
+    }
+    return grp;
+  }
+  /* BREATHING, AND TURNING TO LOOK AT YOU. A loaded body with nothing
+     driving it stands in the T-pose the file was exported in, which is
+     not a person, it is a diagram of one — and the whole reason there is
+     somebody in this room rather than a console is that Ion asked for a
+     PERSON. Same two things the librarian does, for the same reason, and
+     now out of one list rather than one variable.
+
+     The floor goes into the distance test. Two of these are twenty-one
+     units apart up the same shaft, and without the height the Mechanic
+     turns to follow somebody who is standing on the floor above her. */
+  function folkTick(dt){
+    if(!folk.length || !window.AVATAR) return;
+    for(const f of folk){
+      if(!f.b || !f.b.frame) continue;
+      const l=local(f.b, worldPos(0));
+      const near = Math.abs(l.x-f.x)<11 && Math.abs(l.z-f.z)<13
+                && Math.abs(l.y-f.y)<4;
+      const want = near ? Math.atan2(l.x-f.x, l.z-f.z) : 0;
+      let d=want-f.yaw;
+      while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2;
+      f.yaw += d*Math.min(1, 4*dt);
+      f.g.rotation.y=f.yaw;
+      if(f.model) AVATAR.animate(f.model, dt, 'idle');
+    }
+  }
+
+  /* ---------------------------------------------------------- GROUND
+     A lobby, and it is deliberately nearly empty. This is the first room
+     of a building the player has just flown two hundred units to reach,
+     and the only thing it has to do is make the lift obvious — so the
+     lift is lit, everything else is dark, and there is one sign. */
+  function towerLobby(g, b, hw, hd){
+    const lampMat=new THREE.MeshBasicMaterial({color:0xbfe9ff});
+    [-hw+2.5, hw-2.5].forEach(x=>{
+      const strip=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,hd*1.2), lampMat);
+      strip.position.set(x, 5.4, 1); g.add(strip);
+      const pl=new THREE.PointLight(0xbfe9ff, 120, 30, 1.5);
+      pl.position.set(x, 5, 1); g.add(pl);
+    });
+    panel(g, b, hw-3.2, hd-3.4, '\u{1F5FC}',
+          t('THE TOWER')+'\n'+t('Mr Einstein is at the top'), 'towersign', '#22406b', 0.6, -Math.PI/4);
+  }
+
+  /* ------------------------------------------------------- THE WORKSHOP
+     WHERE MISSION 8 ACTUALLY ENDS. Ion asked to be taken to somebody who
+     could look inside him properly, and this is the room where that
+     happens: a cradle with a lamp over it, racks of parts down one wall,
+     and the Mechanic standing beside it.
+
+     THE CRADLE IS EMPTY UNTIL HE IS IN IT, which is the only piece of
+     state this room has. Before the handover it is a bench with a light
+     on; afterwards Ion is lying on it. */
+  function workshop(g, b, hw, hd, y){
+    const steel=new THREE.MeshLambertMaterial({color:0x5b6478});
+    const dark=new THREE.MeshLambertMaterial({color:0x35304a});
+
+    /* the cradle, across the middle of the room */
+    const bed=new THREE.Mesh(new THREE.BoxGeometry(5.2,0.4,2.4), steel);
+    bed.position.set(-1.5, y+1.0, 2.2); g.add(bed);
+    [[-3.6,1.2],[0.6,1.2],[-3.6,3.2],[0.6,3.2]].forEach(([lx,lz])=>{
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(0.3,1.0,0.3), dark);
+      leg.position.set(lx, y+0.5, lz); g.add(leg);
+    });
+    b.solids.push({x1:-4.1,x2:1.1,z1:1.0,z2:3.4,y1:y,y2:y+1.3});
+    /* the lamp over it, which is what makes it read as a table somebody
+       works at rather than a shelf */
+    const hood=new THREE.Mesh(new THREE.ConeGeometry(1.1,0.9,14), dark);
+    hood.position.set(-1.5, y+3.4, 2.2); g.add(hood);
+    const bulb=new THREE.PointLight(0xfff2d8, 150, 20, 1.6);
+    bulb.position.set(-1.5, y+2.8, 2.2); g.add(bulb);
+
+    /* parts down the back wall — a workshop with nothing on its shelves
+       is an office */
+    const bits=[0x8fd3ff,0xffb4a2,0xa8e6cf,0xcdb4f6,0xffe9a8];
+    for(let k=0;k<4;k++){
+      const shelf=new THREE.Mesh(new THREE.BoxGeometry(hw*0.8,0.18,1.2), dark);
+      shelf.position.set(hw-3.2, y+1.2+k*1.1, -1.5);
+      shelf.rotation.y=Math.PI/2; g.add(shelf);
+      for(let i=0;i<4;i++){
+        const it=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), lam(bits[(i+k)%bits.length]));
+        it.position.set(hw-3.2, y+1.6+k*1.1, -4.2+i*1.8); g.add(it);
+      }
+    }
+    const fill=new THREE.PointLight(0xdfe9ff, 70, 26, 1.5);
+    fill.position.set(0, y+4.5, 0); g.add(fill);
+
+    /* THE MECHANIC. The person, not the shop — and she is what Ion was
+       asking for from the moment he was found on the floor. */
+    /* WHERE HE ENDS UP LYING. Measured to the bench rather than to the
+       room: his feet at the near end, his head towards the far one, and
+       a quarter metre proud of the top so he rests ON it. */
+    mechB={ b, y, bed:{x:-0.6, y:y+1.45, z:2.2}, g, ion:null };
+    /* BESIDE THE CRADLE, NOT BEHIND IT. She was at z 4.2, which is on the
+       far side of a bench two and a half metres deep — so from the lift,
+       which is the only direction anybody arrives from, the bench cut her
+       off at the neck and the room read as a nameplate floating over a
+       table. At the end of it she is in the clear from the door and still
+       obviously working at the thing she is standing next to. */
+    person(g, b, 3.4, y, 2.2, t('THE MECHANIC'), 'towermech', 2, 0x8ff0ff);
+  }
+
+  /* ------------------------------------------------------------ THE TOP
+     WHERE THE NEXT THING STARTS. Mr Einstein is the name the mission has
+     been carrying since Ion said it, and this is the first time anybody
+     has been able to get to him.
+
+     AND IT IS NOT A LOOKOUT, THOUGH IT LOOKS LIKE IT SHOULD BE. The floor
+     is set just under a row of the tower's own windows, so the room has
+     three metres of bright panel at standing height all the way round and
+     reads as being high up — but you cannot actually see through them.
+     A window in this game is decoration on the outside of a solid wall:
+     the pane is a box drawn INSIDE a larger sill box, so the glass is
+     never visible from either side, and the wall behind both is whole.
+     Making one room see out would mean cutting holes in geometry every
+     building on every planet shares. Worth doing one day; it is not what
+     a lift and three floors were for. */
+  function towerTop(g, b, hw, hd, y){
+    const dark=new THREE.MeshLambertMaterial({color:0x35304a});
+    /* a desk at the window, with the note on it */
+    const desk=new THREE.Mesh(new THREE.BoxGeometry(5.0,0.3,2.0), dark);
+    desk.position.set(0, y+1.1, hd-3.0); g.add(desk);
+    b.solids.push({x1:-2.5,x2:2.5,z1:hd-4.0,z2:hd-2.0,y1:y,y2:y+1.3});
+    const paper=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.04,1.5),
+      new THREE.MeshLambertMaterial({color:0xf0ead8}));
+    paper.position.set(-1.2, y+1.28, hd-3.0); paper.rotation.y=0.2; g.add(paper);
+
+    const glow=new THREE.PointLight(0xbfe9ff, 110, 28, 1.5);
+    glow.position.set(0, y+4.2, 0); g.add(glow);
+
+    person(g, b, 1.4, y, hd-4.6, t('MR EINSTEIN'), 'einstein', 3, 0xffd8a8);
+  }
+
+
+  /* ===================================================================
+     HANDING ION OVER, WHICH IS THE END OF MISSION 8.
+
+     IT USED TO END ON THE TARMAC. Landing within thirty units of the
+     tower called PROGRESS.complete('ion') and said "Mr Einstein is up
+     there" — so the mission's last act was arriving outside a building,
+     and the thing Ion actually asked for never happened on screen. He
+     wanted somebody who could look inside him properly; the player flew
+     him two hundred units to get it; and then the mission ended in a car
+     park.
+
+     So it ends where it was always going to: on the cradle, with the
+     Mechanic looking at him. Landing is now an arrival and says so.
+
+     ONCE. `ion_handed` is under the mission's own prefix, so starting
+     over brings this back with the brief and the smoke — the same rule
+     the checklist's flag had to be renamed to obey. */
+  const HANDED='ion_handed';
+  const handed = () => { try{ return !!(window.PROGRESS && PROGRESS.get(HANDED,0)); }
+                         catch(e){ return false; } };
+  function handOver(){
+    if(!mechB){ return; }
+    if(handed()){ say(t('He is in good hands. The lift goes up from the back.')); return; }
+    if(!window.SCENE){ return; }
+    const b=mechB.b, F=b.frame, y=mechB.y;
+    const P0=b.g.position.clone();
+    const at=(x,yy,z)=>P0.clone()
+      .add(F.right.clone().multiplyScalar(x))
+      .add(F.up.clone().multiplyScalar(y+yy))
+      .add(F.fwd.clone().multiplyScalar(z))
+      .toArray();
+    const ROOM ={ eye:at(4.5, 3.4, -2), at:at(-1.5, 1.6, 2.2) };
+    const BED  ={ eye:at(1.6, 2.4, 5.0), at:at(-1.5, 1.3, 2.2) };
+    SCENE.play([
+      { shot:ROOM, ease:1.2, who:'Robin',
+        say:t('This is Ion. He was on the floor for a week.') },
+      { shot:BED,  ease:1.0, who:'The Mechanic',
+        say:t('Put him down. I will look properly.') },
+      { shot:BED,  who:'Ion', say:t('She fixed my legs herself, you know.') },
+      { shot:BED,  who:'The Mechanic',
+        say:t('Then she did the hard part. Go up — he is expecting you.') }
+    ], { faces:{ Robin:'characters/previews/character-w.png',
+                 Ion:'characters/previews/ion.png' },
+         end:()=>{
+           if(!on) return;
+           try{ if(window.PROGRESS){ PROGRESS.set(HANDED,1); PROGRESS.complete('ion'); } }catch(e){}
+           G.running=true;
+           layIon();
+           say(t('<b>Mission 8 complete.</b> The lift goes to <b>THE TOP</b>.'));
+         }});
+  }
+  /* And he is on the cradle afterwards, because a handover you are told
+     about and cannot see is a handover that did not happen. Built here
+     rather than with the room: before this beat the bench is empty, and
+     an Ion lying on it from the moment you walk in has already been
+     handed over. */
+  function layIon(){
+    if(!mechB || mechB.ion) return;
+    /* TWO ROTATIONS, AND THE SECOND ONE IS NOT OPTIONAL. Laying a model
+       down is rotation.z — his spine goes from world up to world X, which
+       is the way the bench is long. That alone leaves him in the T-pose
+       the file was exported in with his spine sideways, so one arm points
+       at the ceiling and the other goes through the table. Spinning him a
+       quarter turn about his OWN up-axis afterwards swings both arms into
+       the horizontal, which is a person lying on their back.
+
+       The wrapper carries the first and the model carries the second,
+       because they are about different axes and doing both on one Euler
+       depends on an order nobody should have to remember. */
+    const body=new THREE.Group();
+    body.position.set(mechB.bed.x, mechB.bed.y, mechB.bed.z);
+    body.rotation.z=Math.PI/2;          // lying down, not standing on the bench
+    mechB.g.add(body);
+    mechB.ion=body;
+    if(window.AVATAR)
+      AVATAR.load('ion').then(root=>{
+        if(!mechB || mechB.ion!==body) return;
+        root.rotation.y=Math.PI/2;      // arms to his sides, not to the roof
+        body.add(root);
+      }).catch(()=>{});
+  }
+
+  /* MR EINSTEIN, at the top, and he is deliberately not an ending. The
+     mission is already paid off downstairs; this is the thread the game
+     picks up next — E was in Ion at four in the morning and nobody knows
+     who E is yet. He is allowed to not answer. */
+  function einstein(){
+    if(!window.SCENE){ say(t('He is looking out of the window.')); return; }
+    const b=BUILDINGS.find(x=>x.id==='tower');
+    if(!b || !b.frame) return;
+    const y=TOWER_STOPS[2].y, F=b.frame, P0=b.g.position.clone();
+    const at=(x,yy,z)=>P0.clone()
+      .add(F.right.clone().multiplyScalar(x))
+      .add(F.up.clone().multiplyScalar(y+yy))
+      .add(F.fwd.clone().multiplyScalar(z))
+      .toArray();
+    const HIM  ={ eye:at(-2.2, 2.2, 1.0), at:at(1.4, 1.6, 4.0) };
+    const GLASS={ eye:at(-1.0, 2.6, 0.0), at:at(1.4, 2.0, 8.0) };
+    SCENE.play([
+      { shot:HIM,   ease:1.2, who:'Mr Einstein', say:t('You got here. Good.') },
+      { shot:HIM,   who:'Robin', say:t('Somebody was inside Ion. They signed it E.') },
+      { shot:GLASS, ease:1.4, who:'Mr Einstein', say:t('I know. That is why I am up here.') }
+    ], { faces:{ Robin:'characters/previews/character-w.png' },
+         end:()=>{ if(on) G.running=true; }});
   }
 
   /* --------------------------------------------------------- the mechanic
@@ -4183,6 +4746,7 @@ window.PLANET = (function(){
     const known = id==='ryuhouse' || id==='ship'
                || id==='arcade' || id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
+               || id==='lift' || id==='towermech' || id==='einstein' || id==='towersign'
                || id==='launch' || id==='house' || id==='counter'
                || id==='league' || id==='pvp' || id==='mecha'
                || id==='club' || id==='decks'
@@ -4268,6 +4832,11 @@ window.PLANET = (function(){
       openFix();
       return;
     }
+    /* ------------------------------------------------------- the tower */
+    if(id==='lift'){ liftGo(); return; }
+    if(id==='towersign'){ say(t('The lift is at the back. <b>E</b> on it to go up.')); return; }
+    if(id==='towermech'){ handOver(); return; }
+    if(id==='einstein'){ einstein(); return; }
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
     // the mechanic has no screen: the room IS the shop, so walking in is it
     if(id==='mechanic'){ say(t('Walk down the bays. <b>E</b> at a price to buy it.')); return; }
@@ -4297,7 +4866,7 @@ window.PLANET = (function(){
     if(!on || !window.SHIPFIX) return;
     SHIPFIX.open({ onCleared: ()=>{
         if(!on) return;
-        try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
+        try{ if(window.PROGRESS) PROGRESS.set(CLEARED,1); }catch(e){}
         canopyOpen();
         shipVerb();
         /* WHERE THE MECHANIC IS, said in the only terms that are true now.
@@ -4437,6 +5006,8 @@ window.PLANET = (function(){
     tourTick(dt);
     canopyTick(dt);
     smokeTick(dt);
+    liftTick(dt);
+    folkTick(dt);
     arriveTick();
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */
