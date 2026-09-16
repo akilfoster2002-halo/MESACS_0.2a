@@ -2355,6 +2355,7 @@ window.PLANET = (function(){
       /* Open already, if she was cleared on an earlier visit: a ship you
          got into yesterday is not shut this morning. */
       hinge.rotation.x = shipOpen() ? CANOPY_OPEN : 0;
+      shipVerb();
       G.scene.updateMatrixWorld(true);
     }).catch(e=>console.warn('PLANET: the E-45 failed to load', e));
   }
@@ -2379,6 +2380,70 @@ window.PLANET = (function(){
     const u=c.t*c.t*(3-2*c.t);
     c.hinge.rotation.x = c.from + (c.to-c.from)*u;
     if(c.t>=1) canopyLift=null;
+  }
+  /* WHAT THE PROMPT SAYS. One machine, two jobs: you inspect her until the
+     checklist passes and you climb into her afterwards. The word has to
+     change with the canopy or the prompt is telling you to inspect a ship
+     that is standing open waiting for you. */
+  function shipVerb(){
+    const b=shipB; if(!b || !b.g) return;
+    b.g.traverse(o=>{ if(o.userData && o.userData.enter==='ship')
+                        o.userData.verb = shipOpen() ? 'E \u2014 get in' : null; });
+  }
+
+  /* ===================================================================
+     GETTING IN, WHICH IS THE END OF THE MISSION.
+
+     Ion asked to be taken to the Mechanic and the Mechanic is on Senio —
+     and nothing flies from RYU to Senio, because RYU is a mission with one
+     door and the way to anywhere else is back out through it. So climbing
+     in IS leaving: she takes him up, and the mission hands the player back
+     where every mission hands them back, which is the floor of Mission
+     Control, on the planet the Mechanic is actually on.
+
+     THE SHOTS ARE IN THE SHIP'S OWN FRAME. A cutscene on a sphere cannot
+     be written down as three numbers — the ship is two hundred and forty
+     units from the middle of the world and "above" is whichever way is out
+     — so every camera position here is an offset along the ship's own
+     right, up and forward, which stand() worked out when it put her on the
+     ground.
+     =================================================================== */
+  function board(){
+    const b=shipB;
+    if(!b || !b.g || !b.frame || !window.SCENE) return false;
+    const P0=b.g.position.clone(), F=b.frame;
+    const at=(r,u,f)=>P0.clone()
+      .add(F.right.clone().multiplyScalar(r))
+      .add(F.up.clone().multiplyScalar(u))
+      .add(F.fwd.clone().multiplyScalar(f))
+      .toArray();
+    const FACES={ Robin:'characters/previews/character-w.png',
+                  Ion:'characters/previews/ion.png' };
+    /* THE SHIP LIES ACROSS THIS FRAME, NOT ALONG IT. She is parked broadside
+       to the house — shipBuild() turns her a quarter circle so you see her
+       length on the way out of the door — so her nose points along the
+       frame's RIGHT and her flank faces its FORWARD. Offsetting along
+       `right` to get a side-on shot puts the camera up her exhaust, which
+       is the first thing these three did. Found by standing the camera at
+       each of them and looking. */
+    const WIDE  ={ eye:at(0,    5, 14),  at:at(0, 2, 0) };   // her whole length
+    const CLOSE ={ eye:at(4.5,  3, 7.5), at:at(3, 2, 0) };   // the open canopy
+    const AWAY  ={ eye:at(-4,   9, 20),  at:at(0, 2, 0) };   // pulling back
+    SCENE.play([
+      { shot:WIDE,  ease:1.2, who:'Robin', say:t('In you get.') },
+      { shot:CLOSE, ease:1.1, who:'Ion',   say:t('Thank you, Robin.') },
+      { shot:CLOSE, who:'Robin', say:t('The Mechanic can look inside you properly.') },
+      { shot:CLOSE, who:'Ion',   say:t('And then we find out who E. is.') },
+      { shot:AWAY,  ease:1.6, hold:2.4 }
+    ], { faces:FACES, end:()=>{
+      try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
+      G.running=true;
+      /* OUT THE ONE DOOR. returnToDesktop() is what LEAVE is wired to, and
+         a second way out of this mission that behaved slightly differently
+         is exactly the thing RYU had to stop having. */
+      if(window.returnToDesktop) returnToDesktop();
+    }});
+    return true;
   }
 
   function padSpec(w){
@@ -3861,11 +3926,17 @@ window.PLANET = (function(){
        and nothing about her is rebuilt when you are done, because nothing
        about her CHANGED. Nine rules got their words back. */
     if(id==='ship'){
+      /* CLEARED ALREADY? Then the canopy is standing open and she is
+         waiting to be climbed into, and re-opening a checklist that has
+         nine ticks on it is the game asking a question it already has the
+         answer to. */
+      if(shipOpen() && board()) return;
       if(!window.SHIPFIX) return;
       SHIPFIX.open({ onCleared: ()=>{
         if(!on) return;
         try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
         canopyOpen();
+        shipVerb();
         /* WHERE THE MECHANIC IS, said in the only terms that are true now.
            This used to say "take the shuttle from the pad", and there is no
            pad: RYU is a mission with one door, and the way to anywhere else

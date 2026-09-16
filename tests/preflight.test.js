@@ -326,8 +326,21 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
   assert.match(planet, /enter:'ship'/, 'nothing on the planet opens the pre-flight');
   assert.match(planet, /const known = id==='ryuhouse' \|\| id==='ship'/,
     "use() does not know 'ship': E would do nothing");
-  assert.match(planet, /if\(id==='ship'\)\{[\s\S]{0,200}SHIPFIX\.open\(/,
+  /* E DOES TWO THINGS, in the order the mission needs them: the checklist
+     while she is shut, and climbing in once she is open. */
+  assert.match(planet, /if\(id==='ship'\)\{[\s\S]{0,600}SHIPFIX\.open\(/,
     'E at the ship does not open the checklist');
+  assert.match(planet, /if\(shipOpen\(\) && board\(\)\) return;/,
+    'E at a cleared ship re-opens a checklist with nine ticks on it');
+  assert.match(planet, /PROGRESS\.complete\('ion'\)/, 'getting in does not finish the mission');
+  assert.match(planet, /if\(window\.returnToDesktop\) returnToDesktop\(\);/,
+    'boarding invents its own way out instead of using the one LEAVE uses');
+  /* AND THE PROMPT CHANGES WITH THE CANOPY, or it tells you to inspect a
+     ship that is standing open waiting for you. */
+  assert.match(planet, /verb = shipOpen\(\) \? 'E \\u2014 get in' : null/,
+    'the prompt never stops saying inspect');
+  assert.match(read('public/game.js'), /u\.verb \? t\(u\.verb\)/,
+    'game.js ignores a prop that names its own verb');
   /* BOTH HALVES OF HER, and both with the version on. Models are served
      with max-age=86400; one fetched without ?v= is yesterday's copy for a
      day, and a canopy a day out of step with its hull is a hole. */
@@ -355,14 +368,26 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
     assert.match(html, new RegExp(`<script src="${f}\\?v=\\d+"></script>`), f+' is not on the page');
 });
 
-test('the model is installed and carries its own colour', ()=>{
-  const file = path.join(__dirname, '..', 'public/ships/e45.glb');
-  assert.ok(fs.existsSync(file), 'e45.glb is installed');
-  const b = fs.readFileSync(file);
-  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
-  const prim = json.meshes[0].primitives[0];
-  assert.ok(prim.attributes.COLOR_0,
-    'the E-45 has no vertex colours — nothing in this game ships a texture, so it would render white');
+test('the model is installed, in two halves, and carries its own colour', ()=>{
+  /* TWO FILES, CUT ALONG THE AUTHOR'S OWN MATERIAL LINE. A canopy welded
+     to the hull cannot open, and a third file with the whole ship in it
+     would be a third copy of the same mesh to keep in step. */
+  let tris = 0;
+  for (const f of ['e45-hull.glb', 'e45-canopy.glb']) {
+    const file = path.join(__dirname, '..', 'public/ships', f);
+    assert.ok(fs.existsSync(file), f + ' is not installed');
+    const b = fs.readFileSync(file);
+    const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+    const prim = json.meshes[0].primitives[0];
+    assert.ok(prim.attributes.COLOR_0,
+      f + ' has no vertex colours — nothing in this game ships a texture, so it would render white');
+    tris += json.accessors[prim.indices].count / 3;
+  }
+  /* And together they are the whole aeroplane and not a bit of it. */
+  assert.strictEqual(tris, 16220,
+    'the two halves do not add up to the model they were cut from');
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'public/ships/e45.glb')),
+    'the undivided ship is still installed: a third copy of the same mesh');
   /* AND THE CANOPY CAME FROM THE FILE, not from a band. obj2glb carries the
      author's `usemtl` runs through; without them the painter guesses the
      canopy from a bounding box and puts it on the tail fin. */

@@ -1154,6 +1154,13 @@ function focusScan(){
       // than saying nothing at all
       box.innerHTML = t(u.label) + '<small>' +
         (locked ? '🔒 '+t('Locked')
+                /* AND A THING CAN SAY ITS OWN VERB. `kind` is what something
+                   IS and that is usually enough — but the E-45 is one
+                   machine you inspect until her checklist passes and climb
+                   into afterwards, and "E — inspect" on an open canopy is
+                   the prompt saying the wrong thing at the one moment it
+                   matters most. */
+                : u.verb ? t(u.verb)
                 : u.kind==='npc' ? t('E — ask')
                 : u.kind==='machine' ? t('E — inspect')
                 : u.kind==='find' ? t('E — examine') : t('E — go in')) + '</small>';
