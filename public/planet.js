@@ -2253,7 +2253,7 @@ window.PLANET = (function(){
      short of the point where it stands up like a sail. */
   const CANOPY_OPEN = 1.0;              // radians
   function shipSpec(w){
-    shipB=null;
+    shipB=null; smoke=null;   // the puffs went with the world that held them
     if(!w || w.id!=='ryu') return;
     const spot={ lon:5, lat:-2 };
     shipB={ id:'ship', name:'THE E-45', em:'\u{1F680}', prop:true,
@@ -2368,6 +2368,23 @@ window.PLANET = (function(){
       g.add(spin);
       o.traverse(m=>{ if(m.isMesh){ m.userData.owner=hold; G.hits.push(m); } });
       b.hinge=hinge;
+      /* SHE IS SMOKING, and that is the whole brief. A student walks out
+         of the house and has to work out, with nobody telling them, which
+         of the things on this hillside is the mission — and a parked ship
+         looks exactly like a parked ship. So the one that needs something
+         doing to it is the one with smoke coming off it.
+
+         OVER THE TAIL, IN HER OWN FRAME. `o` has just been centred over
+         the patch and sat on the ground, so in the frame `spin` hands the
+         puffs she runs from -SHIP_LEN/2 at the nose to +SHIP_LEN/2 at the
+         tail with her belly on y 0 — and the exhaust is the far end of
+         that, whatever the mesh happens to measure.
+
+         NOT box.max.y FOR THE HEIGHT. This ship's bounding box is two
+         thirds antenna — the same fact restOf() is written about — so the
+         top of it is a needle standing most of her height above the hull,
+         and smoke pinned there would pour off the mast. */
+      smokeBuild(spin, SHIP_LEN);
       /* Open already, if she was cleared on an earlier visit: a ship you
          got into yesterday is not shut this morning. */
       hinge.rotation.x = shipOpen() ? CANOPY_OPEN : 0;
@@ -2380,6 +2397,107 @@ window.PLANET = (function(){
      remembers the pre-flight, so it is the only thing that has to ask. */
   const shipOpen = () => { try{ return !!(window.PROGRESS && PROGRESS.get('ship_cleared',0)); }
                            catch(e){ return false; } };
+
+  /* ===================================================================
+     THE SMOKE, WHICH IS THE BRIEF.
+
+     THE MISSION USED TO BE INVISIBLE. She walks out of the house, and on
+     the hillside there is a house, a tower on the horizon and a ship —
+     and nothing about any of them says which one is the thing to go and
+     do. The ship reads as scenery, because a parked ship IS scenery
+     nine times out of ten, and the only thing that ever said otherwise
+     was a line of briefing text in the corner that a nine-year-old has
+     already walked away from.
+
+     So she smokes. It is the one piece of visual language that needs no
+     reading at all and no translating — a machine with smoke coming off
+     it is a machine with something wrong with it, and every child who
+     has ever seen a cartoon knows it. The ship that needs fixing is the
+     one that is smoking, and when it stops smoking it is fixed.
+
+     AND IT STOPS ON THE CLEAR, not on a timer and not on the canopy.
+     The pre-flight passing is the moment something was actually mended,
+     so that is the moment the smoke thins out and goes — over a couple
+     of seconds, because smoke that vanishes between two frames was never
+     smoke, it was a sprite being switched off.
+
+     EIGHT BOXES AND NO TEXTURE. This is the same trick mecha.js plays on
+     a dying core, for the same reason: a puff is a cube with a low
+     opacity on it, and eight of them on staggered phases read as a plume
+     from twenty metres away, which is the only distance anybody sees
+     this from. They are made once, with the ship, because a world that
+     starts allocating geometry when you walk round a corner is a world
+     that hitches when you walk round a corner.
+     =================================================================== */
+  /* TWELVE RATHER THAN EIGHT. Eight read as eight cubes; twelve overlap
+     enough to read as one column of smoke, and a dozen unlit boxes costs
+     nothing anybody can measure. */
+  const PUFFS = 12;
+  const SMOKE_FADE = 2.2;               // seconds to clear, once she passes
+  let smoke=null;                       // the puffs, and how strong they are
+  function smokeBuild(parent, len){
+    smoke={ puffs:[], strength: shipOpen() ? 0 : 1 };
+    for(let i=0;i<PUFFS;i++){
+      /* PALE, ON A WORLD WITH NO DAYLIGHT IN IT. Smoke is dark grey
+         everywhere except here: RYU's sky is very nearly black, and a
+         dark plume against it is a hole in the stars that reads as
+         nothing at all — which is what the first version of this was.
+         An unlit material over a black background means opacity IS
+         brightness, so the puffs are near-white and stay fairly opaque,
+         and what makes them dissipate is that they GROW. */
+      const puff=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.6),
+        new THREE.MeshBasicMaterial({ color:0xd8d2e0, transparent:true,
+                                      opacity:0, depthWrite:false }));
+      /* SPREAD ALONG THEIR OWN LIVES, not started together. Eight puffs
+         born on the same frame are one puff drawn eight times. */
+      puff.userData.t = i/PUFFS;
+      puff.userData.seed = i;
+      /* TURNED OFF THE AXES, and each one differently. A cube square to
+         the camera is unmistakably a cube; the same cube rotated on all
+         three axes is a lump, and a column of lumps is smoke. This is the
+         whole difference between this reading as a plume and reading as a
+         stack of boxes, and it costs one line. */
+      puff.rotation.set(i*1.1, i*0.7, i*1.9);
+      parent.add(puff);
+      smoke.puffs.push(puff);
+    }
+    smoke.tail = len*0.5;               // where the exhaust is, in her frame
+    smokeTick(0);                       // pose them before the first frame
+  }
+  /* Rising, drifting and growing, the way a puff of smoke does: up off the
+     tail, thinning as it goes, and wandering a little on the way so eight
+     of them are not one column. */
+  function smokeTick(dt){
+    if(!smoke) return;
+    /* A cleared ship stops smoking, and a ship that was already cleared
+       when she was built never starts. */
+    const want = shipOpen() ? 0 : 1;
+    if(smoke.strength!==want)
+      smoke.strength = want > smoke.strength
+        ? Math.min(1, smoke.strength + dt/0.4)
+        : Math.max(0, smoke.strength - dt/SMOKE_FADE);
+    const s=smoke.strength;
+    smoke.puffs.forEach(p=>{
+      const i=p.userData.seed;
+      /* Each on its own clock, so they do not pulse in step. */
+      p.userData.t = (p.userData.t + dt*(0.34 + 0.05*i)) % 1;
+      const u=p.userData.t;
+      p.position.set(Math.sin(u*3.1 + i)*(0.6 + u*1.6),
+                     2.2 + u*5.5,
+                     smoke.tail - 0.6 + Math.cos(u*2.4 + i)*0.4);
+      /* Growing as it climbs. This is what makes it read as smoke rather
+         than as a row of boxes — and on a black sky it is the only thing
+         that can, because fading is the one tool that does not work. */
+      p.scale.setScalar(1.1 + u*3.2);
+      /* THINNING, BUT NEVER TO NOTHING while she is broken: from most of
+         the way opaque at the tail to about a third of it at the top, so
+         the plume has a shape without any of it disappearing into the
+         sky. `s` is the whole plume going out when she is mended, which
+         is the only thing here that ever reaches zero. */
+      p.material.opacity = s * (0.62 - u*0.30);
+      p.visible = s > 0.01;
+    });
+  }
   /* AND OPENING IT IS A THING YOU WATCH. A canopy that is shut in one
      frame and open in the next has not opened, it has cut — and this is
      the moment the mission has been working towards, so it is worth the
@@ -2424,33 +2542,114 @@ window.PLANET = (function(){
      right, up and forward, which stand() worked out when it put her on the
      ground.
      =================================================================== */
-  function board(){
-    const b=shipB;
-    if(!b || !b.g || !b.frame || !window.SCENE) return false;
+  /* ===================================================================
+     WHY SHE NEEDS FIXING — asked and answered before anybody is handed a
+     blank.
+
+     THE CHECKLIST USED TO ARRIVE OUT OF NOWHERE. You pressed E at a ship
+     and a panel came up with fourteen blanks in it and the word FUEL at
+     the top, and the only account of why any of that was happening was
+     the mission title. A student who does not know what a pre-flight is
+     for cannot tell the difference between a puzzle and a chore, and this
+     one is nine minutes long.
+
+     So the smoke gets explained by the people standing in front of it.
+     Four lines, and they do three things in this order: Robin sees what
+     the player has already seen, Ion says what is actually broken, and
+     Robin says what she is about to do about it. Nobody recites what an
+     operator is — that is the panel's job and the panel is better at it —
+     and nobody says the words `and`, `or` or `not` out loud, because the
+     whole lesson is meeting them one at a time in a place where only one
+     of them will do.
+
+     WHAT IS BROKEN IS THE CHECKLIST, NOT THE ENGINE. This matters more
+     than it looks. If the ship is damaged then filling in nine rules is a
+     strange way to mend it, and the mission is nonsense dressed as a
+     lesson. So the fault is her SAFETY RULES: the E-45 will not start
+     because she cannot tell whether she is safe to start, the comparisons
+     that decide it have been lost, and putting them back is repairing
+     her. That is a true thing about real machines and it is the reason
+     the panel is the repair rather than a quiz about it.
+
+     ONCE. It is a scene, and a scene you have watched is a scene that is
+     in the way — so the flag is filed under the mission's own name, which
+     means "start over" brings it back with everything else.
+     =================================================================== */
+  const SEEN='ion_shipbrief';
+  const briefed = () => { try{ return !!(window.PROGRESS && PROGRESS.get(SEEN,0)); }
+                          catch(e){ return false; } };
+
+  /* The camera offsets every shot at the ship is written in. Hers, not the
+     world's: she is two hundred and forty units from the middle of a ball
+     and "above" is whichever way is out, so a shot here is an offset along
+     her own right, up and forward. Shared by the brief and the boarding,
+     because they are shots of the same ship from the same three places. */
+  function shipShots(b){
     const P0=b.g.position.clone(), F=b.frame;
     const at=(r,u,f)=>P0.clone()
       .add(F.right.clone().multiplyScalar(r))
       .add(F.up.clone().multiplyScalar(u))
       .add(F.fwd.clone().multiplyScalar(f))
       .toArray();
-    const FACES={ Robin:'characters/previews/character-w.png',
-                  Ion:'characters/previews/ion.png' };
-    /* THE SHIP LIES ACROSS THIS FRAME, NOT ALONG IT. She is parked broadside
-       to the house — shipBuild() turns her a quarter circle so you see her
-       length on the way out of the door — so her nose points along the
-       frame's RIGHT and her flank faces its FORWARD. Offsetting along
-       `right` to get a side-on shot puts the camera up her exhaust, which
-       is the first thing these three did. Found by standing the camera at
+    /* THE SHIP LIES ACROSS THIS FRAME, NOT ALONG IT. She is parked
+       broadside to the house — shipBuild() turns her a quarter circle so
+       you see her length on the way out of the door — so her nose points
+       along the frame's RIGHT and her flank faces its FORWARD. Offsetting
+       along `right` to get a side-on shot puts the camera up her exhaust,
+       which is the first thing these did. Found by standing the camera at
        each of them and looking. */
-    const WIDE  ={ eye:at(0,    5, 14),  at:at(0, 2, 0) };   // her whole length
-    const CLOSE ={ eye:at(4.5,  3, 7.5), at:at(3, 2, 0) };   // the open canopy
-    const AWAY  ={ eye:at(-4,   9, 20),  at:at(0, 2, 0) };   // pulling back
+    return { at,
+      WIDE : { eye:at(0,    5, 14),  at:at(0, 2, 0) },   // her whole length
+      CLOSE: { eye:at(4.5,  3, 7.5), at:at(3, 2, 0) },   // the open canopy
+      AWAY : { eye:at(-4,   9, 20),  at:at(0, 2, 0) },   // pulling back
+      /* AND ONE THE BOARDING NEVER NEEDED: up at the tail, where the
+         smoke is. The brief opens on the fault rather than on the ship,
+         because the fault is the thing the scene is about — and a wide of
+         a parked ship is a postcard. */
+      TAIL : { eye:at(-5.5, 3.5, 8), at:at(-4, 4.5, 0) } };
+  }
+
+  const FACES={ Robin:'characters/previews/character-w.png',
+                Ion:'characters/previews/ion.png' };
+
+  /* The four lines, and then the panel. Returns false if there is nothing
+     to play them over, so the caller can fall through to the checklist
+     rather than leaving the player pressing E at a silent ship. */
+  function shipBrief(then){
+    const b=shipB;
+    if(!b || !b.g || !b.frame || !window.SCENE) return false;
+    const S=shipShots(b);
     SCENE.play([
-      { shot:WIDE,  ease:1.2, who:'Robin', say:t('In you get.') },
-      { shot:CLOSE, ease:1.1, who:'Ion',   say:t('Thank you, Robin.') },
-      { shot:CLOSE, who:'Robin', say:t('The Mechanic can look inside you properly.') },
-      { shot:CLOSE, who:'Ion',   say:t('And then we find out who E. is.') },
-      { shot:AWAY,  ease:1.6, hold:2.4 }
+      { shot:S.TAIL,  ease:1.2, who:'Robin',
+        say:t('She is still smoking.') },
+      { shot:S.WIDE,  ease:1.1, who:'Ion',
+        say:t('She will not start. She cannot tell if she is safe to start.') },
+      { shot:S.CLOSE, ease:1.0, who:'Ion',
+        say:t('Her safety rules have lost the part that does the comparing.') },
+      { shot:S.CLOSE, who:'Robin',
+        say:t('Then I put them back. Nine rules, one word each.') }
+    ], { faces:FACES, end:()=>{
+      if(!on) return;
+      try{ if(window.PROGRESS) PROGRESS.set(SEEN,1); }catch(e){}
+      G.running=true;
+      if(then) then();
+    }});
+    return true;
+  }
+
+  function board(){
+    const b=shipB;
+    if(!b || !b.g || !b.frame || !window.SCENE) return false;
+    /* The same three places the brief was shot from — she has not moved
+       and neither has the house, so a second copy of these offsets would
+       be a second set of numbers to keep in step with her. */
+    const S=shipShots(b);
+    SCENE.play([
+      { shot:S.WIDE,  ease:1.2, who:'Robin', say:t('In you get.') },
+      { shot:S.CLOSE, ease:1.1, who:'Ion',   say:t('Thank you, Robin.') },
+      { shot:S.CLOSE, who:'Robin', say:t('The Mechanic can look inside you properly.') },
+      { shot:S.CLOSE, who:'Ion',   say:t('And then we find out who E. is.') },
+      { shot:S.AWAY,  ease:1.6, hold:2.4 }
     ], { faces:FACES, end:()=>{ G.running=true; embark(); }});
     return true;
   }
@@ -4061,18 +4260,12 @@ window.PLANET = (function(){
          answer to. */
       if(shipOpen() && board()) return;
       if(!window.SHIPFIX) return;
-      SHIPFIX.open({ onCleared: ()=>{
-        if(!on) return;
-        try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
-        canopyOpen();
-        shipVerb();
-        /* WHERE THE MECHANIC IS, said in the only terms that are true now.
-           This used to say "take the shuttle from the pad", and there is no
-           pad: RYU is a mission with one door, and the way to anywhere else
-           is back out through it. */
-        say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Senio; '
-            + '<b>LEAVE</b> takes you back to Mission Control.'));
-      }});
+      /* THE REASON FIRST, THE BLANKS SECOND — and only ever once. The
+         brief plays over the ship she is standing at and hands straight
+         on to the panel; if it cannot play, or has played already, the
+         panel opens on its own and nothing is waited for. */
+      if(!briefed() && shipBrief(openFix)) return;
+      openFix();
       return;
     }
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
@@ -4096,6 +4289,24 @@ window.PLANET = (function(){
     leave();
     document.querySelector('#hud').classList.remove('hidden');
     startMissionRoom(id);
+  }
+
+  /* The checklist itself, lifted out of use() so the brief has something to
+     hand on to when it finishes. */
+  function openFix(){
+    if(!on || !window.SHIPFIX) return;
+    SHIPFIX.open({ onCleared: ()=>{
+        if(!on) return;
+        try{ if(window.PROGRESS) PROGRESS.set('ship_cleared',1); }catch(e){}
+        canopyOpen();
+        shipVerb();
+        /* WHERE THE MECHANIC IS, said in the only terms that are true now.
+           This used to say "take the shuttle from the pad", and there is no
+           pad: RYU is a mission with one door, and the way to anywhere else
+           is back out through it. */
+        say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Senio; '
+            + '<b>LEAVE</b> takes you back to Mission Control.'));
+      }});
   }
   function say(msg){
     // the tour is already talking, in the same corner — same reason as flight
@@ -4225,6 +4436,7 @@ window.PLANET = (function(){
     if(!on) return;
     tourTick(dt);
     canopyTick(dt);
+    smokeTick(dt);
     arriveTick();
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */

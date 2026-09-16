@@ -33,6 +33,23 @@
    NEXT IS EARNED. The button does not appear until the rule matches every
    reading, so the only way forward is through the question — and arriving
    at it is the moment the check came right, which is worth a button.
+
+   AND IT INTRODUCES ITSELF. Everything above is about what is NOT on the
+   screen, and a panel can be cut to five parts and still be five parts a
+   nine-year-old has never seen arranged this way before. So the first
+   time it opens, those five parts say what they are, one per click, each
+   lit where it stands: the rule, its blank, the nine words, the log, and
+   what the log is for. Six clicks, and placing a word ends it early —
+   the tour is there to get somebody to their first click, not to be sat
+   through.
+
+   THE BOUNDARY GETS ONE SENTENCE OF ITS OWN. `>` and `>=` agree about
+   every number in the world except one, and preflight.js puts that one
+   number in every log on purpose. When a finished rule disagrees with the
+   log on exactly that reading, the panel says which line to look at and
+   what the rule is doing to the ship there — once per check. It is the
+   only place this console volunteers anything, and it is the one mistake
+   worth volunteering about.
    ===================================================================== */
 window.SHIPFIX = (function(){
   const $ = (s,r=document)=>r.querySelector(s);
@@ -44,6 +61,31 @@ window.SHIPFIX = (function(){
   let armed=null;        // the blank a word would land in
   let note=null;         // the last refusal, if there is one
   let at=0;              // which check is on screen
+
+  /* ================================================== THE WALKTHROUGH
+     WHICH STEP OF THE TOUR IS TALKING, or -1 for a panel that is getting
+     on with it. It counts up on a click and it never counts back down:
+     the tour happens once, on the first check, and then this is -1 for
+     the rest of the mission.
+
+     WHY IT IS NOT A `PROGRESS` FLAG. A tour that is remembered across
+     sessions is a tour a student gets exactly one attempt at, on the day
+     they happened to click through it fastest — and the only way to see
+     it again is to wipe the save. It is six clicks. Anybody who shuts the
+     console and opens it again is somebody who wants them. */
+  let tour=-1;
+  /* Whether the boundary line has been offered on this check yet. One
+     nudge per check, not one per redraw: the panel redraws on every
+     click, and a sentence that reappears every time a word moves is a
+     sentence nobody reads twice. */
+  let edged=null;
+
+  /* NOT `step`. preflight.js already exports a step() — the one that
+     reads the board and says which blank to ring — and this panel calls
+     it. Two things called step in one file, one of them about the
+     walkthrough and one about the checklist, is the shape of bug this
+     codebase has been bitten by before. */
+  const tourStep = () => (tour>=0 && tour < P().TOUR.length) ? P().TOUR[tour] : null;
 
   function dom(){
     if(ui) return ui;
@@ -110,6 +152,36 @@ window.SHIPFIX = (function(){
       .sfnote{margin:14px 0 0;padding:9px 12px;border-radius:9px;
               background:#3a2230;border:2px solid #ff9aa2;color:#ffd3d8;font-size:14px}
       .sfmiss{margin:14px 0 0;color:#ffd8a8;font-size:15px;text-align:center}
+
+      /* ---- the walkthrough ----------------------------------------
+         A BUBBLE THAT SITS WITH WHAT IT IS ABOUT, rather than a banner
+         across the top. Every step of the tour names one of the four
+         boxes on this panel, and the bubble is drawn INSIDE that box's
+         slot in the layout — so "this is her log" is a sentence with the
+         log directly under it and no arrow is needed to say which thing
+         "this" is. */
+      .sfsteer{display:flex;align-items:center;gap:12px;margin:14px 0 0;
+               padding:11px 14px;border-radius:12px;
+               background:#1a2c26;border:2px solid #57c79a;color:#d6f5e8}
+      .sfsteer p{margin:0;flex:1;font-size:15.5px;line-height:1.4}
+      .sfsteer button{border:0;border-radius:9px;padding:9px 16px;cursor:pointer;
+                      background:#57c79a;color:#07241a;
+                      font:700 12px/1 ui-monospace,monospace;letter-spacing:.08em}
+      /* THE BOUNDARY LINE IS NOT THE TOUR and must not look like it. It
+         arrives when a finished rule disagrees with the log, which is a
+         different thing happening for a different reason — so it is the
+         panel's warning colour, not its teaching colour. */
+      .sfsteer.edge{background:#332a1c;border-color:#ffd8a8;color:#ffe9c9}
+      .sfsteer.edge button{background:#ffd8a8;color:#2b1f0d}
+
+      /* WHAT THE STEP IS POINTING AT, lit where it stands. The tour never
+         moves anything — the ring is drawn outside the border, on a box
+         that is already in the flow — because a walkthrough whose first
+         act is to shift the thing it is describing has taught the student
+         that pressing on is unsafe. */
+      .sflit{outline:3px solid #57c79a;outline-offset:5px;border-radius:14px;
+             animation:sflit 1.5s ease-in-out infinite}
+      @keyframes sflit{50%{outline-color:#57c79a55}}
 
       /* ---- the readings ---- */
       .sfreads{margin:18px 0 0;border-collapse:collapse;width:100%;
@@ -195,11 +267,32 @@ window.SHIPFIX = (function(){
      cannot take them — which says "wrong kind of word" without spending a
      sentence on it. Dimmed, not disabled: they still answer when clicked,
      and the answer is the sentence about what they are for. */
-  function bank(kind){
-    return `<div class="sfbank">` + P().WORDS.map(w=>`
+  function bank(kind, lit){
+    return `<div class="sfbank${lit?' sflit':''}">` + P().WORDS.map(w=>`
       <button class="sfw ${w.kind}${kind && w.kind!==kind ? ' dim' : ''}" data-w="${esc(w.id)}">
         <b>${esc(w.id)}</b><i>${say(w.name)}</i>
       </button>`).join('') + `</div>`;
+  }
+
+  /* THE BUBBLE, drawn only in the box the live step names. Called once
+     per region, and every call but one returns the empty string — which
+     is what puts the sentence next to the thing it is about without any
+     region having to know the tour exists. */
+  function steer(tp, where){
+    if(!tp || tp.at!==where) return '';
+    const last = tour >= P().TOUR.length-1;
+    return `<div class="sfsteer"><p>${esc(say(tp.say))}</p>
+      <button data-tour="1">${say(last ? 'GOT IT' : 'NEXT')}</button></div>`;
+  }
+
+  /* THE BOUNDARY LINE. preflight.js decides whether there is one — it is
+     the file that knows what the edge of a rule is — and this only
+     decides whether now is the moment to say it: not while the tour is
+     still talking, not twice on the same check, and not at all until the
+     rule is finished and disagrees with the log. */
+  function nudge(c){
+    if(edged===c.id) return null;
+    return P().edge(c.id, state);
   }
 
   function dots(){
@@ -217,14 +310,36 @@ window.SHIPFIX = (function(){
     if(!armed || !inCheck(armed, c)) armed = mine ? mine.hole : firstSlot(c);
     const kind = armedKind();
 
+    /* THE TOUR, OR THE BOUNDARY, OR NEITHER — never two at once. Both are
+       one green-ish box in the same place saying one sentence, and a
+       panel that stacks them is a panel with two things to read again. */
+    const tp = tourStep();
+    const eg = tp ? null : nudge(c);
+
     u.body.innerHTML =
       `<div class="sfsys">${esc(c.name)}</div>` +
       `<p class="sfsays">${c.says}</p>` +
-      `<div class="sfrule">${ruleHTML(c)}</div>` +
-      bank(kind) +
+      `<div class="sfrule${tp && tp.at==='rule' ? ' sflit' : ''}">${ruleHTML(c)}</div>` +
+      steer(tp, 'rule') +
+      bank(kind, tp && tp.at==='bank') +
+      steer(tp, 'bank') +
       (note ? `<div class="sfnote">${note}</div>` : '') +
-      (!note && mine && mine.miss ? `<div class="sfmiss">${esc(mine.miss)}</div>` : '') +
-      reads(c);
+      (!note && !tp && !eg && mine && mine.miss
+         ? `<div class="sfmiss">${esc(mine.miss)}</div>` : '') +
+      (eg ? `<div class="sfsteer edge"><p>${esc(eg.say)}</p>
+              <button data-edge="1">${say('OK')}</button></div>` : '') +
+      `<div class="${tp && tp.at==='reads' ? 'sflit' : ''}">${reads(c)}</div>` +
+      steer(tp, 'reads');
+
+    /* ONE CLICK MOVES THE TOUR ON, and the last one ends it — there is no
+       way back through it, because a walkthrough with a BACK button is a
+       walkthrough a nine-year-old plays instead of the game. */
+    u.body.querySelectorAll('[data-tour]').forEach(b=>{
+      b.onclick=()=>{ tour = tour+1 >= P().TOUR.length ? -1 : tour+1; draw(); };
+    });
+    u.body.querySelectorAll('[data-edge]').forEach(b=>{
+      b.onclick=()=>{ edged=c.id; draw(); };
+    });
 
     u.body.querySelectorAll('[data-slot]').forEach(b=>{
       b.onclick=()=>{
@@ -263,6 +378,11 @@ window.SHIPFIX = (function(){
     const no=R.refuse(wordId, sl.kind);
     if(no){ note=no; draw(); return; }
     note=null;
+    /* AND THE TOUR IS OVER, because the thing it was working towards has
+       happened. A walkthrough that carries on explaining what a word bank
+       is to somebody who has just used the word bank is a walkthrough
+       being read past. */
+    tour=-1;
     state[armed]=wordId;
     state=R.tidy(state);
     /* On to the next blank IN THIS RULE, so a three-blank question is
@@ -277,7 +397,7 @@ window.SHIPFIX = (function(){
     const R=P();
     if(!R.done(check().id, state)) return;
     if(at < R.CHECKS.length-1){
-      at++; armed=null; note=null;
+      at++; armed=null; note=null; edged=null;
       draw();
       try{ dom().body.scrollTop=0; }catch(e){}
       return;
@@ -300,6 +420,11 @@ window.SHIPFIX = (function(){
     if(open) return;
     if(!P()){ console.warn('SHIPFIX: preflight.js is not loaded'); return; }
     opts=o||{}; open=true; done=false; armed=null; note=null; at=0;
+    /* THE TOUR RUNS FROM THE TOP, every time the console is opened. See
+       the note on `tour` — six clicks is not a thing worth remembering
+       across sessions, and a student who wants past it is one click from
+       past it. */
+    tour=0; edged=null;
     state=P().blank();
     const u=dom();
     u.el.classList.remove('hidden');

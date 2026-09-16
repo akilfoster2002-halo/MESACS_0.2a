@@ -326,12 +326,29 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
   assert.match(planet, /enter:'ship'/, 'nothing on the planet opens the pre-flight');
   assert.match(planet, /const known = id==='ryuhouse' \|\| id==='ship'/,
     "use() does not know 'ship': E would do nothing");
-  /* E DOES TWO THINGS, in the order the mission needs them: the checklist
-     while she is shut, and climbing in once she is open. */
-  assert.match(planet, /if\(id==='ship'\)\{[\s\S]{0,600}SHIPFIX\.open\(/,
-    'E at the ship does not open the checklist');
-  assert.match(planet, /if\(shipOpen\(\) && board\(\)\) return;/,
+  /* E DOES THREE THINGS NOW, in the order the mission needs them: the
+     brief the first time, the checklist while she is shut, and climbing
+     in once she is open. Sliced rather than matched with a window — the
+     same argument embark() gets below: a regex with a character budget in
+     it fails by counting, which says nothing about the code. */
+  const ship = planet.slice(planet.indexOf("if(id==='ship'){"),
+                            planet.indexOf("if(id==='library')"));
+  assert.ok(ship, "use() has no branch for 'ship'");
+  assert.match(ship, /openFix\(\);/, 'E at the ship does not open the checklist');
+  assert.match(planet, /function openFix\(\)\{[\s\S]{0,200}SHIPFIX\.open\(/,
+    'and nothing behind that name opens it either');
+  assert.match(ship, /if\(shipOpen\(\) && board\(\)\) return;/,
     'E at a cleared ship re-opens a checklist with nine ticks on it');
+  /* THE REASON BEFORE THE BLANKS. A checklist that arrives with no account
+     of why it is being filled in is a worksheet, and the brief is the only
+     thing that says what is wrong with her. It has to run FIRST, and it
+     has to hand on to the panel rather than just ending. */
+  assert.match(ship, /if\(!briefed\(\) && shipBrief\(openFix\)\) return;/,
+    'the checklist opens with no brief in front of it, or the brief drops the player');
+  /* And it is once: a scene you have watched is a scene in the way. */
+  assert.match(planet, /const SEEN='ion_shipbrief'/,
+    'the brief is not remembered, so it plays every single time E is pressed');
+  assert.match(planet, /PROGRESS\.set\(SEEN,1\)/, 'nothing ever writes that flag');
   /* GETTING IN IS THE START OF THE FLIGHT, and arriving at the tower is
      what finishes the mission. Boarding used to end it on the spot, which
      made the E-45 a cutscene with a checklist in front of it. */
@@ -527,4 +544,156 @@ test('a mission world lends you neither a car nor a jetpack', ()=>{
     'the jetpack still works on a mission world');
   /* And the one flight that IS the mission goes through the same door. */
   assert.match(planet, /!aboard &&/, 'the ship cannot take off either, which is the whole mission');
+});
+
+/* =====================================================================
+   THE SMOKE, THE BRIEF AND THE WALKTHROUGH — the three things that turn
+   a panel with fourteen blanks in it into a mission somebody can start
+   on their own.
+
+   ALL THREE FAIL SILENTLY AND IDENTICALLY. Smoke that is never ticked is
+   a ship that looks fine; a brief that never fires is a checklist with no
+   reason attached; a tour whose steps are never drawn is a panel that
+   looks exactly like the panel did before. Nothing throws and nothing
+   logs, and the only symptom is a nine-year-old who does not know that
+   the ship on the hillside is the mission.
+   ===================================================================== */
+
+test('the boundary is what the console volunteers, and only the boundary', ()=>{
+  /* THE ONE MISTAKE WORTH A SENTENCE. `>` and `>=` agree about every
+     number in the world except 20, and FUEL puts 20 in its log on
+     purpose — so a rule that is wrong at exactly 20 is a rule whose
+     author has not met the idea of a boundary yet, and that is worth
+     saying out loud once. Every other kind of wrong is not. */
+  const at = w => ({ [P.key('fuel','op')]: w });
+
+  /* `>` at the boundary: her rule stops a ship with exactly 20 in it. */
+  const tight = P.edge('fuel', at('>'));
+  assert.ok(tight, '> at 20 is the mistake this is for, and it says nothing');
+  assert.strictEqual(tight.gauge, 'fuel');
+  assert.strictEqual(tight.value, 20, 'it points at a reading that is not the edge');
+  assert.match(tight.say, /stops her/, 'a rule that is too tight is not described as too tight');
+
+  /* CARGO IS THE MIRROR, and the same mistake: `<` shuts out a load of
+     exactly 400, which the log says is fine. One word out, one row red,
+     and it is the row the whole check was built around. */
+  const cargo = P.edge('cargo', { [P.key('cargo','op')]: '<' });
+  assert.ok(cargo, '< at 400 is the same mistake, and cargo says nothing about it');
+  assert.strictEqual(cargo.value, 400, 'it points at a reading that is not the edge');
+  assert.match(cargo.say, /stops her/, 'a rule that is too tight is not described as too tight');
+  /* AND THE OTHER DIRECTION READS DIFFERENTLY. A rule that is too LOOSE
+     is clearing a ship that should be held, which is not the same mistake
+     and must not be the same sentence. PAD at exactly freezing: `>=`
+     clears a pad the log holds. */
+  const loose = P.edge('pad', { [P.key('pad','op')]: '>=' });
+  assert.ok(loose, 'the pad has a boundary too');
+  assert.strictEqual(loose.value, 0);
+  assert.match(loose.say, /clears her/,
+    'a rule that is too loose is described as if it were too tight');
+
+  /* NOT WHEN THEY ARE RIGHT. The right answer must never be nudged, or
+     the sentence means nothing. */
+  assert.strictEqual(P.edge('fuel', at('>=')), null,
+    'the correct rule is told to look at the line it already got right');
+  /* NOT WHILE IT IS EMPTY. An unanswered check is not a wrong one. */
+  assert.strictEqual(P.edge('fuel', {}), null, 'a blank rule is nudged about a mistake');
+  /* NOT WHEN THE EDGE IS FINE AND SOMETHING ELSE BROKE. `<` on FUEL is
+     wrong everywhere, including 20 — but `==` is wrong at 34 and 12 and
+     RIGHT at 20, so there is nothing about the boundary to say. */
+  assert.strictEqual(P.edge('fuel', at('==')), null,
+    'a rule that got the boundary right is lectured about the boundary');
+  /* AND NEVER ON A JOINED RULE, which has two thresholds and therefore no
+     single edge to point at. */
+  for(const id of ['cabin','power'])
+    assert.strictEqual(P.edge(id, P.blank()), null, id+' claims to have one boundary');
+});
+
+test('the walkthrough is six steps, and every one points somewhere real', ()=>{
+  assert.ok(Array.isArray(P.TOUR) && P.TOUR.length >= 4,
+    'there is no walkthrough to run');
+  /* EVERY STEP NAMES A BOX THE PANEL ACTUALLY DRAWS. A step pointing at a
+     region shipfix.js has no branch for is a step that lights nothing up
+     and reads as a sentence about the wrong thing. */
+  const fix = read('public/shipfix.js');
+  for(const s of P.TOUR){
+    assert.ok(s.say && s.at, 'a tour step with nothing to say or nothing to point at');
+    assert.ok(/^[a-z]+$/.test(s.at), 'a region name that is a selector');
+    assert.ok(fix.includes(`'${s.at}'`),
+      `the tour points at ${s.at} and shipfix.js has no such region`);
+    /* THE SAME NINE-WORD BUDGET THE REST OF THE FILE IS WRITTEN TO. A
+       walkthrough is read by somebody who is already lost; a step that
+       needs reading twice is worse than no step. */
+    assert.ok(s.say.split(/\s+/).length <= 9,
+      `"${s.say}" is longer than the panel's own sentences`);
+  }
+  /* AND IT ENDS AT THE THING IT IS FOR, which is a click on a word. */
+  assert.match(P.TOUR[P.TOUR.length-1].say, /[Cc]lick/,
+    'the tour never says what to press');
+});
+
+test('the panel draws the walkthrough from TOUR, and gets out of the way', ()=>{
+  const fix = read('public/shipfix.js');
+  /* NOT TYPED OUT. A seventh step added to preflight.js has to appear on
+     screen by itself, the same argument the word bank is built on. */
+  assert.match(fix, /P\(\)\.TOUR/, 'the tour is not drawn from TOUR');
+  assert.match(fix, /P\(\)\.edge\(/, 'the panel decides for itself where a boundary is');
+  /* IT STARTS WHEN THE CONSOLE DOES. */
+  assert.match(fix, /tour=0;/, 'the tour never starts');
+  /* AND PLACING A WORD ENDS IT. Somebody who has worked out what to press
+     has finished with a walkthrough about what to press. */
+  const place = fix.slice(fix.indexOf('function place('), fix.indexOf('function forward('));
+  assert.match(place, /tour=-1;/, 'the tour talks over a student who is already playing');
+  /* ONE BUBBLE AT A TIME. The tour and the boundary line are the same box
+     in the same place; a panel that can show both shows two things to
+     read where it promised one. */
+  assert.match(fix, /const eg = tp \? null : nudge\(c\)/,
+    'the tour and the boundary line can be on screen together');
+});
+
+test('the E-45 smokes until she is mended, and stops because she is mended', ()=>{
+  const planet = read('public/planet.js');
+  /* THE PUFFS EXIST, ARE BUILT WITH HER, AND ARE DRIVEN. Any one of the
+     three missing is a ship that never smokes and says nothing about it. */
+  assert.match(planet, /function smokeBuild\(/, 'nothing builds the smoke');
+  assert.match(planet, /smokeBuild\(spin, SHIP_LEN\)/,
+    'the smoke is never built, or is built somewhere it cannot follow her');
+  assert.match(planet, /smokeTick\(dt\);/, 'nothing drives the smoke: it would hang still');
+  /* TIED TO THE PRE-FLIGHT, not to a timer and not to the canopy. The
+     clear is the moment something was actually mended. */
+  const tick = planet.slice(planet.indexOf('function smokeTick('),
+                            planet.indexOf('function shipVerb('));
+  assert.ok(tick, 'there is no smokeTick()');
+  assert.match(tick, /shipOpen\(\)/,
+    'the smoke does not ask whether she has been cleared, so it never stops');
+  /* AND IT FADES. Smoke that is gone between two frames was a sprite
+     being switched off, which is not a thing anybody reads as mending. */
+  assert.match(planet, /SMOKE_FADE/, 'the smoke vanishes in one frame');
+  /* IT GOES WITH THE WORLD THAT HELD IT. The puffs hang off a group that
+     is thrown away when you leave; a module-level handle to it kept
+     across worlds is a tick writing into a scene that is gone. */
+  assert.match(planet, /shipB=null; smoke=null;/,
+    'the puffs outlive the ship they were hung on');
+});
+
+test('the brief says what is broken, and it is the checklist that is broken', ()=>{
+  const planet = read('public/planet.js');
+  const brief = planet.slice(planet.indexOf('function shipBrief('),
+                             planet.indexOf('function board()'));
+  assert.ok(brief, 'there is no brief');
+  assert.match(brief, /SCENE\.play\(/, 'the brief is not a scene');
+  /* BOTH OF THEM ARE IN IT. Robin asks and Ion answers: a brief where one
+     person explains the mission to nobody is a briefing screen with a
+     portrait on it. */
+  for(const who of ['Robin','Ion'])
+    assert.ok(brief.includes(`who:'${who}'`), who+' says nothing in the brief');
+  /* WHAT IS WRONG WITH HER IS HER RULES. If the ship is damaged then
+     filling in nine comparisons is a strange way to mend it, and the
+     mission is nonsense dressed as a lesson. */
+  assert.match(brief, /safety rules/i,
+    'the brief never says what is actually broken, so the panel is a non sequitur');
+  assert.match(brief, /smoking/i, 'the brief never mentions the smoke it opens on');
+  /* AND IT HANDS ON. A scene that ends without calling anything leaves
+     the player standing at a ship having watched a cutscene about it. */
+  assert.match(brief, /if\(then\) then\(\);/, 'the brief ends and nothing happens');
+  assert.match(brief, /G\.running=true;/, 'the brief ends with the world still frozen');
 });

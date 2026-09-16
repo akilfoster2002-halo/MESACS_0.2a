@@ -342,6 +342,92 @@
     return null;
   }
 
+  /* ================================================== THE FIRST TIME
+     A PANEL IS NOT SELF-EXPLANATORY BECAUSE IT IS TIDY. The console opens
+     on five things at once — a system name, a rule in English, the same
+     rule with holes in it, nine words, and a table of readings — and
+     every one of them is doing a different job. An adult reads the layout
+     and infers the job. A nine-year-old reads the biggest text, presses
+     the brightest thing, and if that does not obviously do something,
+     stops.
+
+     So the first time it opens, the five parts introduce themselves, one
+     per click, each pointing at the thing it is about. Five steps is the
+     whole of it: what the rule is, what the words are, what the table is,
+     what the table is FOR, and what to press. Then it gets out of the
+     way and does not come back.
+
+     WHAT `at` MEANS is a region of the panel, not a selector — this file
+     has never known there is a screen and is not going to start. shipfix.js
+     owns the mapping from these five names to the four boxes it drew.
+
+     THE LAST STEP IS NOT A STEP, it is the handover: it names the ringed
+     blank and then the tour is over, because the next thing that should
+     happen is a click on a word and a tour that is still talking over
+     that is a tour in the way. */
+  const TOUR = [
+    { at:'rule',  say:'This is one of her safety rules.' },
+    { at:'rule',  say:'The blank is the part she lost.' },
+    { at:'bank',  say:'One of these nine words goes in it.' },
+    { at:'reads', say:'This is her log. Real readings, already judged.' },
+    { at:'reads', say:'Your rule has to agree with every line.' },
+    { at:'rule',  say:'Click a word. It lands in the ringed blank.' }
+  ];
+
+  /* ------------------------------------------------- AND THE BOUNDARY.
+     THE ONE MISTAKE WORTH CATCHING BY NAME. Every check in here is built
+     so that the two words a student actually confuses disagree on exactly
+     one reading — fuel at 20, cargo at 400, a pad at freezing — and that
+     reading is in the log precisely so the console can show them the
+     difference rather than assert it.
+
+     But a red row only says "this line is wrong". On the FIRST check a
+     student has ever filled in, it is worth spending one sentence saying
+     which line and why it is the interesting one, because the whole of
+     `>` against `>=` is in it and everything after this check assumes
+     they have met the idea once.
+
+     ONLY WHEN IT IS THE BOUNDARY THAT BROKE. If their rule fails on a
+     reading that is not the edge they have not made this mistake, they
+     have made a different one, and a sentence about 20 would be a
+     sentence about something they did not do. Returns null the rest of
+     the time, which is most of the time.
+
+     THE QUESTION IS ASKED, NOT ANSWERED. "Is 20 at least 20?" is a thing
+     a nine-year-old can answer out loud and then go and act on. "You
+     want >= because at least includes the boundary" is the answer to a
+     question they were never asked, and it reads as a correction. */
+  function edge(checkId, state){
+    const c=checkOf(checkId), s=tidy(state);
+    if(!c) return null;
+    const rows=rowsOf(checkId, s);
+    if(!rows.length || rows.some(r=>r.blank)) return null;   // not finished
+    if(rows.every(r=>r.ok)) return null;                     // not wrong
+    /* The boundary row is the reading that is EXACTLY the number the rule
+       is about — read off the rule's own right-hand side, so a check whose
+       threshold is edited cannot leave this pointing at the old one. */
+    const rhs = (function find(n){
+      if(!n) return null;
+      if(n.t==='cmp')  return n.rhs;
+      if(n.t==='not')  return find(n.in);
+      return null;                       // a joined rule has two, and neither
+    })(c.form);                          // is THE boundary — so say nothing
+    if(rhs===null) return null;
+    const g=c.gauges[0];
+    const row=rows.find(r=>r.reading[g]===rhs);
+    if(!row || row.ok) return null;      // the edge is not what they got wrong
+    /* SAID AS WHAT THEIR RULE IS DOING TO HER, which is a different
+       sentence depending on which way they got it round — and the
+       difference is the entire lesson. A rule that is too tight is
+       refusing a ship that is fine; a rule that is too loose is clearing
+       one that is not. Both are one word out, and they are not the same
+       mistake. */
+    return { gauge:g, value:rhs, want:row.want,
+             say: row.want
+               ? `Look at ${g} ${rhs}. Your rule stops her. Should it?`
+               : `Look at ${g} ${rhs}. Your rule clears her. Should it?` };
+  }
+
   /* Why a word will not go in a slot — the part of speech, said out loud.
      Returned rather than thrown, because it is a sentence for the student
      and not an error for the console. */
@@ -361,10 +447,10 @@
     return `<b>${w.id}</b> ${does}. This blank ${wants}.`;
   }
 
-  const API = { WORDS, CHECKS, CMP,
+  const API = { WORDS, CHECKS, CMP, TOUR,
                 wordOf, kindOf, inKind, checkOf, slotsOf, SLOTS, key, hole,
                 blank, tidy, filled, total,
-                value, rowsOf, done, begun, run, text, why, step, refuse };
+                value, rowsOf, done, begun, run, text, why, step, refuse, edge };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.PREFLIGHT=API;
 })(typeof self!=='undefined' ? self : this);
