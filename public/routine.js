@@ -108,7 +108,57 @@
     return 'He made breakfast somewhere that is not the kitchen.';
   }
 
-  const API = { KITCHEN, STRIDE_MAX, REPEAT_MAX, broken, tidy, run };
+  /* ================================================== THE WALKTHROUGH
+     THREE FAULTS IS THREE TOO MANY TO BE HANDED AT ONCE. A student who
+     opens this and sees a whole program with no idea which part of it is
+     the problem is not debugging, they are guessing — so the console is
+     WALKED, one fault at a time, with the block it is about ringed on the
+     screen. It is the same discipline the first mission uses: every step
+     names what it wants and how it knows it happened, and a student who
+     works the next one out on their own is never told to do the thing
+     they have already done.
+
+     IT READS THE PROGRAM, NOT A COUNTER. `at` is whichever step is still
+     unsatisfied, so fixing them out of order works, and undoing a fix
+     brings its step back rather than stranding somebody past it. That is
+     the difference between a walkthrough and a slideshow.
+
+     None of these say what to TYPE. "Change forever to repeat" names a
+     block; "put 4 in it" would be the answer, and the arithmetic is the
+     part worth doing. */
+  const STEPS = [
+    { id:'loop', hole:'loop',
+      bad: s => s.loop!=='repeat',
+      say: 'This loop never ends, so nothing after it ever runs \u2014 which is '
+         + 'why he is stuck saying half a sentence. A <b>forever</b> loop is the '
+         + 'wrong loop when something has to happen afterwards. Change it to '
+         + '<b>repeat</b>.' },
+    { id:'far', hole: s => s.stride===0 ? 'stride' : 'times',
+      bad: s => s.times * s.stride < KITCHEN,
+      say: s => 'Now count. The kitchen is <b>' + KITCHEN + '</b> steps away and his '
+         + 'motors will not take a stride longer than <b>' + STRIDE_MAX + '</b>. '
+         + 'Right now the loop walks him ' + s.times + ' \u00d7 ' + s.stride
+         + ' = <b>' + (s.times*s.stride) + '</b>.' },
+    { id:'test', hole:'test',
+      bad: s => s.test!=='is',
+      say: 'He gets there now \u2014 and then makes breakfast in the hallway. Read '
+         + 'the <b>if</b> out loud: it fires when he is <b>not</b> in the kitchen. '
+         + 'That is backwards.' }
+  ];
+  /* The step the console is on, or null when the program is right. */
+  function step(state){
+    const s=tidy(state);
+    for(const st of STEPS){
+      if(!st.bad(s)) continue;
+      return { id:st.id,
+               hole: typeof st.hole==='function' ? st.hole(s) : st.hole,
+               say:  typeof st.say==='function'  ? st.say(s)  : st.say,
+               n: STEPS.indexOf(st)+1, of: STEPS.length };
+    }
+    return null;
+  }
+
+  const API = { KITCHEN, STRIDE_MAX, REPEAT_MAX, broken, tidy, run, STEPS, step };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.ROUTINE=API;
 })(typeof self!=='undefined' ? self : this);

@@ -183,4 +183,9 @@ test('the story runs on scenes, and the console is a separate lesson', ()=>{
   assert.match(fix, /R\(\)\.run\(state\)/, 'the console asks routine.js what happened');
   assert.ok(!/stride===10|times===4|test==='is'\s*&&/.test(fix),
     'ionfix.js marks against an answer key instead of running the program');
+  /* AND IT IS WALKED. Three faults handed over at once is not debugging,
+     it is guessing — the step on screen is read off the program and the
+     block it is about is ringed. */
+  assert.match(fix, /R\(\)\.step\(state\)/, 'the console never asks which fault to point at');
+  assert.match(fix, /classList\.add\('bad'\)/, 'nothing on screen is ever ringed');
 });

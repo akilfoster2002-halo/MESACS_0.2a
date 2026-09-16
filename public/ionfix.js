@@ -57,6 +57,14 @@ window.IONFIX = (function(){
       .ifcol{flex:1 1 380px;min-width:320px}
       .ifcol h3{font:700 11px/1 ui-monospace,monospace;letter-spacing:.12em;
                 text-transform:uppercase;color:#9b8fc4;margin:0 0 10px}
+      #ifstep{background:#241d33;border:2px solid #7a6ab0;border-left-width:6px;
+              border-radius:12px;padding:11px 14px;margin:0 0 12px;font-size:14px;
+              line-height:1.5;color:#efe9ff}
+      #ifstep.clear{border-color:#a8e6cf;color:#cdf3e2}
+      #ifstep b{color:#ffd8a8}
+      #ifstep .no{display:block;font:700 10px/1 ui-monospace,monospace;
+                  letter-spacing:.14em;text-transform:uppercase;color:#9b8fc4;
+                  margin-bottom:5px}
       .blk{border-radius:9px;padding:9px 12px;margin:0 0 7px;color:#16202b;
            font:600 15px/1.35 system-ui,sans-serif;display:flex;flex-wrap:wrap;
            align-items:center;gap:7px;box-shadow:0 2px 0 #0003}
@@ -67,7 +75,12 @@ window.IONFIX = (function(){
             min-width:52px;text-align:center}
       select.hole{padding:4px 5px}
       input.hole{width:62px}
-      .hole.bad{border-color:#c0392b;box-shadow:0 0 0 3px #c0392b44}
+      /* THE BLOCK THE STEP IS ABOUT, ringed. A walkthrough that says "the
+         loop" and leaves a student hunting for which of four white boxes
+         is the loop has not pointed at anything. */
+      .hole.bad{border-color:#ffd8a8;box-shadow:0 0 0 4px #ffd8a866;
+                animation:ifring 1.4s ease-in-out infinite}
+      @keyframes ifring{50%{box-shadow:0 0 0 7px #ffd8a833}}
       .ifrun{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
       .ifbtn{border:0;border-radius:11px;padding:11px 20px;cursor:pointer;
              font:700 14px/1 ui-monospace,monospace;letter-spacing:.08em}
@@ -96,7 +109,9 @@ window.IONFIX = (function(){
              <span>${say('His motors will not take a stride longer than 10.')}</span></div>
       </div>
       <div class="ifbody">
-        <div class="ifcol"><h3>${say('The program')}</h3><div id="ifscript"></div>
+        <div class="ifcol"><h3>${say('The program')}</h3>
+          <div id="ifstep"></div>
+          <div id="ifscript"></div>
           <div class="ifrun">
             <button class="ifbtn ifgo" id="ifgo">${say('RUN')}</button>
             <button class="ifbtn ifout" id="ifclose">${say('CLOSE')}</button>
@@ -109,7 +124,7 @@ window.IONFIX = (function(){
         </div>
       </div></div>`;
     document.body.appendChild(el);
-    ui={ el, script:$('#ifscript',el), trace:$('#iftrace',el),
+    ui={ el, script:$('#ifscript',el), step:$('#ifstep',el), trace:$('#iftrace',el),
          why:$('#ifwhy',el), win:$('#ifwin',el),
          go:$('#ifgo',el), shut:$('#ifclose',el) };
     ui.go.onclick=()=>runIt();
@@ -159,6 +174,27 @@ window.IONFIX = (function(){
     };
     bind('ifloop','loop'); bind('iftimes','times',true);
     bind('ifstride','stride',true); bind('iftest','test');
+    walk();
+  }
+
+  /* ------------------------------------------------------- the walkthrough
+     Redrawn on every change, because it is read off the program rather
+     than counted: fix the faults in any order and the step that is still
+     wrong is the one on screen. Undo a fix and its step comes back. */
+  const HOLE = { loop:'ifloop', times:'iftimes', stride:'ifstride', test:'iftest' };
+  function walk(){
+    const u=dom(), st=R().step(state);
+    if(!st){
+      u.step.className='clear';
+      u.step.innerHTML='<span class="no">'+say('All three')+'</span>'+
+        say('That is the program. Press <b>RUN</b> and watch him.');
+      return;
+    }
+    u.step.className='';
+    u.step.innerHTML='<span class="no">'+
+      say('Fault {n} of {m}',{n:st.n,m:st.of})+'</span>'+st.say;
+    const e=$('#'+HOLE[st.hole], u.el);
+    if(e) e.classList.add('bad');
   }
 
   /* --------------------------------------------------------------- run it */

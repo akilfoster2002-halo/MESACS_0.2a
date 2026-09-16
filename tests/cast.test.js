@@ -255,8 +255,16 @@ test('RYU is where you arrive, and you can get off it without a ship', ()=>{
   assert.match(planet, /if\(W\.shuttle && !hasShip\(\)\)\{\s*\n\s*leave\(\); enter\(/,
     'a shuttle sets you down rather than flying a zero-length course');
 
-  assert.match(read('public/menu.js'), /PLANET\.enter\(NET\.signedIn \? world : null, 'ryu'\)/,
-    'entering the game lands on RYU');
+  /* AND NOT ON THE WAY IN. Landing every student on RYU put a story in
+     front of everybody who opened Koro whether they had come for it or
+     not; it is Mission 8 now and the front door is the hub again. */
+  const menu = read('public/menu.js');
+  assert.match(menu, /PLANET\.enter\(NET\.signedIn \? world : null, PLANET\.lastWorld\(\)\)/,
+    'entering the game no longer forces RYU');
+  assert.match(menu, /ion:'Mission 8/, 'the mission has a name wherever missions are named');
+  assert.match(read('public/planet.js'), /\{ id:'ion',/, 'and a station on the wall');
+  assert.match(read('public/game.js'), /if\(id==='ion'\)\{ if\(window\.HOUSE\) HOUSE\.enter\(\)/,
+    'and the station opens the house');
 });
 
 test('Robin has every clip the rig can drive', ()=>{

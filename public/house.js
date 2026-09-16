@@ -299,7 +299,19 @@ window.HOUSE = (function(){
     const sp=built.spots.spawn;
     G.pos.set(sp.x*U(), sp.y+1.7, sp.z*U());
     G.yaw=Math.PI; G.pitch=0.02;
-    if(window.AVATAR) AVATAR.attach();
+    /* AND STAND HER THERE, NOW. attach() hangs the body in the room and
+       step() is what normally moves it under G.pos — but the first beat of
+       the story is a cinematic, so G.running is false and step() never
+       runs. Reached from the planet that did not show, because the body
+       had already been placed by the room we came from; reached from
+       Mission Control it is the first room there has been, and the wide
+       shot opened on an empty floor with Robin at the origin.
+       Awaited, because attach() has to fetch a character first. */
+    if(window.AVATAR){
+      try{ await AVATAR.attach(); }catch(e){}
+      if(!on) return;
+      AVATAR.update(0.016, false, false, true);
+    }
 
     /* And Ion on the floor of the second one. `G` in the plan is a tile
        somebody stands on; there is one of them and he is on it. */
@@ -420,10 +432,21 @@ window.HOUSE = (function(){
      there is a house around it. */
   function openConsole(){
     if(!window.IONFIX){ brief(say_('His console will not open.')); return; }
-    IONFIX.open({
-      onFixed: ()=>{ try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
-                     mended(); }
-    });
+    /* A SHOT OF THE PANEL FIRST. The console is about to take most of the
+       screen, and opening it straight from a shot of the room gives a
+       student no idea what the row of lights they are about to program
+       even belongs to. One glide down onto his open chest, and the rail
+       appears where the camera is already looking. */
+    SCENE.play([
+      { shot:{ eye:[17.8, 1.45, 33.4], at:[16, 0.80, 36] }, ease:1.1, hold:1.4,
+        who:'Robin', say:say('Let me see his morning routine.') }
+    ], { faces:FACES, end:()=>{
+      if(!on) return;
+      IONFIX.open({
+        onFixed: ()=>{ try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
+                       mended(); }
+      });
+    }});
   }
 
   /* He gets up. One shot, because the thing that changed is worth looking

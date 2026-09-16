@@ -515,6 +515,9 @@ function startMissionRoom(id){
   /* The investigation builds its own district out of the same kit the
      infiltration site is built from, and walks it with the same legs. */
   if(id==='trail'){ if(window.TRAIL) TRAIL.start(); return; }
+  /* Ion's is a house: two rooms out of the same kit, with a story told
+     over them and a broken robot on the floor of the second. */
+  if(id==='ion'){ if(window.HOUSE) HOUSE.enter(); return; }
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
   if(id==='sub'){ if(window.SUB) SUB.start(resumeAt('sub')); return; }

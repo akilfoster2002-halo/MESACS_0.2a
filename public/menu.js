@@ -278,6 +278,7 @@ window.MENU = (function(){
              flight:'Mission 1 — Space Explorer', m1:'Mission 2 — Loops',
              m2:'Mission 3 — Choices', m3:'Mission 4 — Functions',
              sub:'Mission 5 — The Trench', school:'Flight School — Motion',
+             ion:'Mission 8 \u2014 Ion',
              inv:'Mission 6 — The Swarm', trail:'Mission 7 — The Engineer\u2019s Trail',
              mech:'The Mech League'})[id]||id;
   }
@@ -432,19 +433,16 @@ window.MENU = (function(){
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
-    /* YOU ARRIVE ON RYU. Not on the ball you were last standing on —
-       which is what this used to do, and is the right rule for a game you
-       are in the middle of rather than one you are opening. Entering is a
-       TRANSPORT now: the door into this game is a landing on a world that
-       is not the hub, and the thing that happens when you land is that you
-       become Robin. That is the same event every time, for everybody, and
-       it is not an event if you can skip it by having logged out
-       somewhere else.
+    /* ON THE BALL YOU WERE LAST STANDING ON. This briefly landed everybody
+       on RYU instead, which put a story — Robin, her house and a robot on
+       the floor of it — in front of every student who opened Koro, whether
+       or not that was the thing they had come to do. It is a MISSION now,
+       and it is reached the way the other missions are: off the wall in
+       Mission Control. See 'ion' in STATIONS.
 
-       PLANET.lastWorld() is untouched and still writing down where you
-       were: leave RYU by its pad and the rest of the game is exactly as it
-       was. */
-    PLANET.enter(NET.signedIn ? world : null, 'ryu');
+       Somebody who signed out on VOLTA signs back in on VOLTA; a first
+       arrival has nothing saved and gets the hub. */
+    PLANET.enter(NET.signedIn ? world : null, PLANET.lastWorld());
   }
   function enterServer(sv){
     hideAll();

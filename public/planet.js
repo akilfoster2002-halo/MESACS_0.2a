@@ -283,7 +283,12 @@ window.PLANET = (function(){
     /* The first mission in the course that asks a student to READ a
        program rather than write one. It is a detective story and the
        conditionals are the magnifying glass. */
-    { id:'trail',  em:'\u{1F50E}', name:'Mission 7 — The Engineer\u2019s Trail', a:'#ffc8dd' }
+    { id:'trail',  em:'\u{1F50E}', name:'Mission 7 — The Engineer\u2019s Trail', a:'#ffc8dd' },
+    /* ION. The one mission that is somebody's kitchen rather than a board,
+       a field or a district — and a mission rather than the front door,
+       which is what it briefly was. A story every student is dropped into
+       on the way in is not a story they chose. */
+    { id:'ion',    em:'\u{1F916}', name:'Mission 8 \u2014 Ion', a:'#8ff0ff' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -1672,7 +1677,12 @@ window.PLANET = (function(){
         /* Down the left, turned in towards the middle of the hall. Not the
            back wall: the Swarm has that and taking it away from a mission
            that is already there would move a landmark a class has learnt. */
-        { x:-15, z: 14, r: Math.PI/5 }
+        { x:-15, z: 14, r: Math.PI/5 },
+        /* Down the right, mirroring the one opposite, for Ion. The spots
+           array is indexed by station and falls back to the LAST one when
+           it runs short, so a station with nowhere of its own is not an
+           error — it is two consoles standing inside each other. */
+        { x: 15, z: 14, r:-Math.PI/5 }
       ];
       /* A statue stands BEHIND its console, and a plinth is four metres square,
          so "behind" has to be somewhere there is four metres of room. Get that

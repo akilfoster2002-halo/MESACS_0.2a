@@ -100,3 +100,61 @@ test('the trace is what the console draws, and every line is labelled', ()=>{
   for(const k of kinds)
     assert.ok(['hat','loop','in','if','do','good','bad'].includes(k), 'unknown trace kind: '+k);
 });
+
+/* ------------------------------------------------------- the walkthrough */
+test('the console is walked one fault at a time, in order', ()=>{
+  const seen=[];
+  let s = R.broken();
+  for(let i=0;i<10 && R.step(s); i++){
+    const st = R.step(s);
+    seen.push(st.id);
+    /* Fix whatever the step is about, the smallest way, and ask again. */
+    if(st.id==='loop') s = { ...s, loop:'repeat' };
+    else if(st.id==='far') s = { ...s, stride:R.STRIDE_MAX, times:4 };
+    else if(st.id==='test') s = { ...s, test:'is' };
+  }
+  assert.deepStrictEqual(seen, ['loop','far','test'],
+    'the walkthrough has to reach every fault, and the loop first');
+  assert.strictEqual(R.step(s), null, 'and stop when there is nothing left to say');
+  assert.strictEqual(R.run(s).ok, true, 'a program with no steps left has to actually work');
+});
+
+test('the walkthrough is read off the program, not counted', ()=>{
+  /* Fix them out of order and the step on screen is whichever is still
+     wrong — a student who works the next one out unprompted is never told
+     to do the thing they have already done. */
+  const early = R.step({ stride:10, loop:'forever', times:4, test:'is' });
+  assert.strictEqual(early.id, 'loop', 'the loop is still wrong and still the step');
+  const s2 = { stride:10, loop:'repeat', times:4, test:'is not' };
+  assert.strictEqual(R.step(s2).id, 'test', 'the first two are done; do not repeat them');
+  /* And undoing a fix brings its step back rather than stranding anybody. */
+  assert.strictEqual(R.step({ ...s2, loop:'forever' }).id, 'loop');
+});
+
+test('each step points at a block that is on the screen', ()=>{
+  const HOLES = new Set(['loop','times','stride','test']);
+  const probes = [ R.broken(),
+    { stride:0, loop:'repeat', times:1, test:'is not' },
+    { stride:10, loop:'repeat', times:1, test:'is not' },
+    { stride:10, loop:'repeat', times:4, test:'is not' } ];
+  for(const p of probes){
+    const st=R.step(p);
+    assert.ok(st, 'every broken program has something to say about it');
+    assert.ok(HOLES.has(st.hole), 'step points at an unknown hole: '+st.hole);
+    assert.ok(st.say && st.say.length>40, 'a step that says nothing is not a step');
+  }
+  /* THE STRIDE ONE MOVES. Nought steps is a different mistake from too few
+     passes, and the ring has to be on the number that is wrong. */
+  assert.strictEqual(R.step({stride:0,  loop:'repeat', times:4, test:'is'}).hole, 'stride');
+  assert.strictEqual(R.step({stride:10, loop:'repeat', times:1, test:'is'}).hole, 'times');
+});
+
+test('no step ever hands over the answer', ()=>{
+  /* "Change forever to repeat" names a block. "Put 4 in it" is the
+     arithmetic, and the arithmetic is the part worth doing. */
+  const far = R.step({ stride:10, loop:'repeat', times:1, test:'is not' });
+  assert.ok(!/\b4\b/.test(far.say.replace(/40/g,'')),
+    'the step tells them the number of repeats instead of the two facts');
+  assert.match(far.say, /40/, 'it does give them how far the kitchen is');
+  assert.match(far.say, /10/, 'and the longest stride his motors take');
+});
