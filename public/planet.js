@@ -247,7 +247,16 @@ window.PLANET = (function(){
     buildings:[
       { id:'ryuhouse', name:'HOME', em:'\u{1F3E0}', lon:0, lat:-2,
         w:28, d:24, h:12, door:9,
-        wall:0x4b4030, roof:0xe8c9a0, blurb:'Two rooms. Somebody is not answering' }
+        wall:0x4b4030, roof:0xe8c9a0, blurb:'Two rooms. Somebody is not answering' },
+      /* THE TOWER, AND IT IS MEANT TO BE JUST VISIBLE. At a radius of 240
+         the horizon from head height is about 28 units, and a thing H tall
+         is seen from 28 + sqrt(2*240*H) — so a 34-high tower shows from
+         about 156. Thirty degrees of longitude is 126 units, which puts it
+         over the curve as a spike you can see from the doorstep and cannot
+         possibly walk to. That gap is the mission. */
+      { id:'tower', name:'THE TOWER', em:'\u{1F5FC}', lon:30, lat:4,
+        w:16, d:16, h:34, door:8,
+        wall:0x3a3550, roof:0x8ff0ff, blurb:'Mr Einstein is up there' }
     ],
     pad:{ lon:0, lat:-12 }
   };
@@ -492,6 +501,7 @@ window.PLANET = (function(){
     sky();
     sunLight();                    // day or night, before anything is baked
     padSpec(W);                    // in the list before the ground is made
+    roverSpec(W);                  // and so is whatever is parked outside
     /* AND THE HOLES BEFORE THAT. A pool's position comes off the island's own
        longitude and radius, so it can be asked for long before there is any
        water — which is the only way the ground can be dug out for it. */
@@ -500,6 +510,7 @@ window.PLANET = (function(){
     surface();
     BUILDINGS.forEach(b=>{ if(b.id!=='pad') build(b); });
     launchpad(W);                  // its plate, now that its patch is flat
+    roverBuild();                  // and the rover on its own patch
     scatter();                     // after the buildings: it works around them
     cover();                       // and the small stuff after the big stuff
     fireflies();                   // and then the things that are alive
@@ -2118,6 +2129,38 @@ window.PLANET = (function(){
   /* Registered BEFORE the ground is generated, because the ground asks
      BUILDINGS which patches of itself to flatten — and a pad that joins the
      list afterwards gets a landing field with a hill through it. */
+  /* ------------------------------------------------------------ the rover
+     Parked beside the house, and built out of whatever the bench last said
+     it was made of. It is not a building — it has no door and you do not
+     go inside it — so it follows the launchpad: a spec in the list so the
+     map can draw it, and a group stood on the sphere afterwards. */
+  let roverB=null;
+  function roverSpec(w){
+    roverB=null;
+    if(!w || w.id!=='ryu' || !window.GARAGE) return;
+    const spot={ lon:5, lat:-2 };
+    roverB={ id:'rover', name:'THE ROVER', em:'\u{1F69C}', lon:spot.lon, lat:spot.lat,
+             w:8, d:8, h:0, roof:0xffd8a8, dir:dirOf(spot.lon, spot.lat),
+             frame:null, g:null, solids:[] };
+    BUILDINGS.push(roverB);
+  }
+  function roverBuild(){
+    const b=roverB; if(!b) return;
+    const g=new THREE.Group();
+    b.g=g;
+    b.frame=stand(g, b.dir, 0, terrainH(b.dir));
+    G.roomGroup.add(g);
+    const m=GARAGE.model(GARAGE.saved());
+    /* Turned to face the house, so walking out of the door you are looking
+       at the side of it rather than up its exhaust. */
+    m.rotation.y=-Math.PI/2;
+    g.add(m);
+    b.solids.push({ x1:b.dir.x-2, x2:b.dir.x+2, z1:b.dir.z-2, z2:b.dir.z+2, y1:0, y2:2 });
+    panel(g, b, 0, 2.6, '\u{1F527}',
+          t('THE ROVER')+'\n'+t(GARAGE.saved() ? 'CHANGE THE PARTS' : 'BUILD IT'),
+          'rover', '#3a2a1b', 0.62, Math.PI);
+  }
+
   function padSpec(w){
     padB=null;
     const spot=w.pad; if(!spot) return;
@@ -3516,7 +3559,7 @@ window.PLANET = (function(){
     if(!id) return;
     /* Only ever the ids the panels actually carry. Anything else used to fall
        through to startMissionRoom() and build an arena out of a typo. */
-    const known = id==='ryuhouse'
+    const known = id==='ryuhouse' || id==='rover'
                || id==='arcade' || id==='workshop' || id==='mall' || id==='library'
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='launch' || id==='house' || id==='counter'
@@ -3583,6 +3626,23 @@ window.PLANET = (function(){
       wentTo('ryuhouse'); leave();
       document.querySelector('#hud').classList.remove('hidden');
       HOUSE.enter();
+      return;
+    }
+    /* THE BENCH. It does not take you anywhere — you stay on the planet,
+       standing beside the thing you are changing, and it is rebuilt under
+       you when you bolt the parts on. */
+    if(id==='rover'){
+      if(!window.GARAGE) return;
+      GARAGE.open({ onBuilt: ()=>{
+        if(!on) return;
+        /* Rebuilt rather than patched: the model IS the spec, so the only
+           honest way to show a new one is to make a new one. */
+        if(roverB && roverB.g){ G.roomGroup.remove(roverB.g);
+                                BUILDINGS=W.buildings=BUILDINGS.filter(x=>x!==roverB); }
+        roverSpec(W); roverBuild();
+        G.scene.updateMatrixWorld(true);
+        say(t('Bolted on. Now it needs somewhere to go.'));
+      }});
       return;
     }
     if(id==='library'){ if(window.LIBRARY) LIBRARY.open(); return; }
