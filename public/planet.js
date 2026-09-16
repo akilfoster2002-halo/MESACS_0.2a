@@ -267,12 +267,18 @@ window.PLANET = (function(){
         wall:0x4b4030, roof:0xe8c9a0, blurb:'Two rooms. Somebody is not answering' },
       /* THE TOWER, AND IT IS MEANT TO BE JUST VISIBLE. At a radius of 240
          the horizon from head height is about 28 units, and a thing H tall
-         is seen from 28 + sqrt(2*240*H) — so a 34-high tower shows from
-         about 156. Thirty degrees of longitude is 126 units, which puts it
-         over the curve as a spike you can see from the doorstep and cannot
-         possibly walk to. That gap is the mission. */
-      { id:'tower', name:'THE TOWER', em:'\u{1F5FC}', lon:30, lat:4,
-        w:16, d:16, h:34, door:8,
+         is seen from 28 + sqrt(2*240*H).
+
+         IT MOVED, AND IT HAD TO GROW TO STAY WHERE IT WAS. Forty-five
+         degrees of longitude is about 190 units from the front door, which
+         is a flight rather than a long walk — and a 34-high tower drops
+         below the curve at 156, so at 190 the spike on the horizon would
+         simply have stopped being there. 58 high shows from 195. Further
+         away and exactly as visible: the gap you cannot cross on foot is
+         the mission, and being able to SEE what you cannot reach is what
+         makes it one. */
+      { id:'tower', name:'THE TOWER', em:'\u{1F5FC}', lon:45, lat:4,
+        w:16, d:16, h:58, door:8,
         wall:0x3a3550, roof:0x8ff0ff, blurb:'Mr Einstein is up there' }
     ]
     /* AND NO PAD. padSpec() builds one wherever a world declares a spot,
@@ -384,6 +390,12 @@ window.PLANET = (function(){
      everything else it needs is already on `me`, which is what a bird and
      a person on foot genuinely have in common. */
   let flying=false, swimming=false, dome=null;
+  /* ABOARD THE E-45. Not a `ride` — a ride is a car, it drives on the
+     ground and RIDE_SPEED and the drive camera all belong to it. This is
+     the same idea one layer over: the body is detached, a vehicle is posed
+     where the body would have been, and the flight that carries it is the
+     flight this game already has. */
+  let aboard=false, shipRide=null;
   let statues=[];                    // the ones that turn on their plinths
   let aoStats=null;                  // what the ray-traced pass cost, for tuning
   /* You, as the planet sees you. G.pos is derived from this, never the
@@ -613,6 +625,10 @@ window.PLANET = (function(){
        is gone with its room group, and a ceiling is a property of the ball
        you are standing on. */
     flying=false; swimming=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0;
+    /* AND NOT STILL ABOARD. shipRide belonged to the room group that has
+       just been thrown away, so `aboard` without it is a flight with
+       nothing in it and a body that never comes back. */
+    aboard=false; shipRide=null; arrived=false;
     if(window.AVATAR) AVATAR.posture(null);
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
@@ -2435,15 +2451,89 @@ window.PLANET = (function(){
       { shot:CLOSE, who:'Robin', say:t('The Mechanic can look inside you properly.') },
       { shot:CLOSE, who:'Ion',   say:t('And then we find out who E. is.') },
       { shot:AWAY,  ease:1.6, hold:2.4 }
-    ], { faces:FACES, end:()=>{
-      try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
-      G.running=true;
-      /* OUT THE ONE DOOR. returnToDesktop() is what LEAVE is wired to, and
-         a second way out of this mission that behaved slightly differently
-         is exactly the thing RYU had to stop having. */
-      if(window.returnToDesktop) returnToDesktop();
-    }});
+    ], { faces:FACES, end:()=>{ G.running=true; embark(); }});
     return true;
+  }
+
+  /* ===================================================================
+     AND THEN SHE IS IN IT.
+
+     The parked ship goes, Robin goes with her — she is inside, not beside
+     — and a second copy of the E-45 is posed wherever the player is, nose
+     forward. Flying it is the flight this game already has: W to fly, A D
+     to turn, SPACE up, SHIFT down. The only new thing is what is on screen
+     while you do it.
+
+     A SECOND COPY RATHER THAN THE PARKED ONE MOVED. The one on the ground
+     is a BUILDING — it is in BUILDINGS, it owns solids that stop you
+     walking through it, and the shadow baker has already traced light into
+     it where it stands. Flying that is flying a piece of the scenery, with
+     its collision box still sitting over the patch by the house.
+     =================================================================== */
+  function embark(){
+    if(aboard) return;
+    aboard=true;
+    /* The parked one is gone: she is the one you are flying. Its solids go
+       with it, or she takes off through her own collision box. */
+    if(shipB){ if(shipB.g) shipB.g.visible=false; shipB.solids.length=0; }
+    if(window.AVATAR) AVATAR.detach();         // she is inside it, not beside it
+    shipModel().then(proto=>{
+      if(!on || !aboard) return;
+      const dress = o => { o.traverse(m=>{ if(!m.isMesh) return;
+        m.material=m.material.clone(); m.material.vertexColors=true; m.frustumCulled=false; });
+        return o; };
+      const body=new THREE.Group();
+      body.add(dress(proto.hull.clone(true)));
+      body.add(dress(proto.canopy.clone(true)));   // shut again, with her in it
+      body.updateMatrixWorld(true);
+      const raw=new THREE.Box3().setFromObject(body);
+      body.scale.setScalar(SHIP_LEN/((raw.max.z-raw.min.z)||1));
+      body.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(body);
+      body.position.set(-(box.min.x+box.max.x)/2, -(box.min.y+box.max.y)/2,
+                        -(box.min.z+box.max.z)/2);
+      /* NOSE ALONG +Z, which is the direction place() calls forward for
+         everything it poses. The model is drawn nose down -Z, so it is
+         turned half a circle here — the same half circle SHOP turns its
+         ships through, and for the same reason. */
+      const spin=new THREE.Group(); spin.add(body); spin.rotation.y=Math.PI;
+      shipRide=new THREE.Group(); shipRide.add(spin);
+      G.roomGroup.add(shipRide);
+      G.scene.updateMatrixWorld(true);
+    }).catch(e=>console.warn('PLANET: the E-45 will not fly', e));
+    takeOff();
+    say(t('<b>W</b> to fly, <b>A D</b> to turn, <b>SPACE</b> up, <b>SHIFT</b> down. '
+        + 'The tower is the tall one.'));
+  }
+
+  /* Put her away again — leaving the world, or arriving. */
+  function disembark(){
+    aboard=false;
+    if(shipRide && shipRide.parent) shipRide.parent.remove(shipRide);
+    shipRide=null;
+  }
+
+  /* ARRIVING, which is the only thing the flight is for.
+
+     Watched rather than triggered, because there is nothing to press: she
+     flies at a tower and at some point she is at it. Thirty units is about
+     seven seconds out at cruise and comfortably wider than the tower's own
+     footprint, so it fires on the approach rather than on a collision —
+     you are told you have arrived while the thing is still growing in the
+     window, which is what arriving feels like. */
+  const ARRIVE = 30;
+  let arrived=false;
+  function arriveTick(){
+    if(!aboard || arrived) return;
+    const tower=BUILDINGS.find(b=>b.id==='tower');
+    if(!tower || !tower.dir) return;
+    if(me.dir.angleTo(tower.dir)*PR > ARRIVE) return;
+    arrived=true;
+    land();
+    disembark();
+    if(window.AVATAR) AVATAR.attach();
+    try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
+    say(t('<b>THE TOWER.</b> Mr Einstein is up there \u2014 and so, somewhere, is E.'));
   }
 
   function padSpec(w){
@@ -3335,6 +3425,11 @@ window.PLANET = (function(){
     say(t('Down. <b>R</b> for the way you travel.'));
   }
   function takeOff(){
+    /* THE SHIP IS NOT THE JETPACK. `aboard` is the mission's own flight and
+       it comes through here on purpose; anything else asking to fly on a
+       mission world is the player reaching for a way round it. */
+    if(!aboard && !wayOpen('fly')){
+      say(t('Not here. <b>THE E-45</b> is how you travel on this one.')); return; }
     if(ride) toggleRide();               // you cannot fly a car
     swimming=false;                      // and you can take off out of water
     flying=true;
@@ -3607,6 +3702,16 @@ window.PLANET = (function(){
   /* Put whatever you are riding under you, and take the body away — a
      character standing inside a car reads as a bug rather than a driver,
      which is the same reason the Circuit leaves them in the pits. */
+  /* One place that decides where the flown ship is and which way it points,
+     so the airborne branch and the on-the-ground branch cannot drift. It
+     sits a little above the point the player rotates about, because that
+     point is somebody's feet and a ship has no feet. */
+  function poseShip(u, f){
+    const r=new THREE.Vector3().crossVectors(u, f).normalize();
+    shipRide.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f));
+    shipRide.position.copy(worldPos(1.2));
+  }
+
   function fitRide(){
     /* Ask the shop whether it is yours, not the wallet. A free car was never
        bought, so it is not in the owned list — checking the wallet directly
@@ -3626,6 +3731,7 @@ window.PLANET = (function(){
       keysFor();
     }).catch(()=>{ ride=null; rideId=null; });
   }
+  const SHIP_BACK=19, SHIP_UP=6;      // the chase camera, for eleven metres of ship
   const RIDE_SPEED=1.9;
   /* Get in and get out, out here, without walking to a menu to do it. R
      summons whichever car you have — the one you own if you have not chosen,
@@ -3667,6 +3773,14 @@ window.PLANET = (function(){
   ];
   let travelUp=false;
   const carAvailable = () => !!(window.SHOP && SHOP.CARS.some(c=>SHOP.ownsCar(c)));
+  /* ON A MISSION YOU GET ABOUT THE WAY THE MISSION SAYS. Robin's car and
+     Robin's jetpack are things she owns on her own worlds; inside a story
+     they are two ways to be somewhere the story did not put you — over the
+     tower before you have a reason to go, or across the ridge on foot in a
+     vehicle the mission is not about. The E-45 is the way to travel here
+     and she is earned. `foot` always stays: a world you cannot walk on is
+     not a world. */
+  const wayOpen = id => id==='foot' || !(W && W.mission);
   const wayNow = () => flying ? 'fly' : ride ? 'car' : 'foot';
 
   function travelOpen(){
@@ -3680,7 +3794,7 @@ window.PLANET = (function(){
     row.innerHTML='';
     const now=wayNow();
     WAYS.forEach(w=>{
-      const open = w.id!=='car' || carAvailable();
+      const open = wayOpen(w.id) && (w.id!=='car' || carAvailable());
       const b=document.createElement('button');
       b.className='waytile'+(w.id===now?' on':'')+(open?'':' locked');
       b.dataset.w=w.id;
@@ -3707,8 +3821,10 @@ window.PLANET = (function(){
     }
   }
   function travelPick(id, open){
-    if(!open){ travelHint(t('No car yet. The Mechanic sells them.'));
-               if(window.beep) beep('bad'); return; }
+    if(!open){
+      travelHint(!wayOpen(id) ? t('Not here. <b>THE E-45</b> is how you travel on this one.')
+                              : t('No car yet. The Mechanic sells them.'));
+      if(window.beep) beep('bad'); return; }
     if(id===wayNow()){ travelClose(); return; }
     if(window.beep) beep('pop');
     if(flying && id!=='fly') land();
@@ -3737,6 +3853,7 @@ window.PLANET = (function(){
 
   function toggleRide(){
     if(!on || !window.SHOP) return;
+    if(!wayOpen('car')){ say(t('Not here. <b>THE E-45</b> is how you travel on this one.')); return; }
     if(rideId){ SHOP.equip(rideId); fitRide(); me.spd=0; me.look=0;
                 keysFor(); say(t('Back on foot.')); return; }
     let c=SHOP.car();
@@ -3800,7 +3917,16 @@ window.PLANET = (function(){
       const u=up.clone().applyAxisAngle(right, nose);
       const f=me.fwd.clone().applyAxisAngle(right, nose);
       u.applyAxisAngle(f, me.bank);
-      AVATAR.orient(worldPos(0), u, f, dt, moving, running, false);
+      /* THE SHIP FLIES THE WAY THE FLYER DOES, because it is the same
+         flight — the nose drops as you climb and she banks into a turn off
+         exactly the numbers that tilt a person. Robin is not posed at all
+         while she is aboard: she is inside. */
+      if(aboard){ if(shipRide) poseShip(u, f); }
+      else AVATAR.orient(worldPos(0), u, f, dt, moving, running, false);
+    } else if(aboard && shipRide){
+      /* On the ground with her still in it. Level, nose along the heading. */
+      const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
+      poseShip(up, f);
     } else if(ride){
       const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
       const r=new THREE.Vector3().crossVectors(up, f).normalize();
@@ -3829,9 +3955,12 @@ window.PLANET = (function(){
        a bend, or look at what you are driving past. */
     const camF = ride ? me.fwd.clone().applyAxisAngle(up, me.look) : me.fwd.clone();
     const camR = new THREE.Vector3().crossVectors(camF, up).normalize();
-    const back = flying ? FLY_BACK : ride ? CAR_BACK : CAM_BACK;
-    const lift = flying ? FLY_UP   : ride ? CAR_UP   : CAM_UP;
-    const head=worldPos(flying ? 1.2 : ride ? 1.4 : EYE);
+    /* A SHIP IS NOT A PERSON-SHAPED THING. FLY_BACK is set for a body a
+       couple of metres long; eleven metres of E-45 at that distance fills
+       the screen and you cannot see what you are flying towards. */
+    const back = aboard ? SHIP_BACK : flying ? FLY_BACK : ride ? CAR_BACK : CAM_BACK;
+    const lift = aboard ? SHIP_UP   : flying ? FLY_UP   : ride ? CAR_UP   : CAM_UP;
+    const head=worldPos(aboard ? 2.4 : flying ? 1.2 : ride ? 1.4 : EYE);
     /* LOOK WHERE YOU ARE GOING, not at your own hips. A flyer lies along
        the direction of travel, so a camera aimed at the point they are
        rotating about has them pointing straight away from it and stacked
@@ -4096,6 +4225,7 @@ window.PLANET = (function(){
     if(!on) return;
     tourTick(dt);
     canopyTick(dt);
+    arriveTick();
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();

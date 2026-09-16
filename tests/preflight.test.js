@@ -332,9 +332,27 @@ test('the ship is on RYU, is what E opens, and the rover is gone', ()=>{
     'E at the ship does not open the checklist');
   assert.match(planet, /if\(shipOpen\(\) && board\(\)\) return;/,
     'E at a cleared ship re-opens a checklist with nine ticks on it');
-  assert.match(planet, /PROGRESS\.complete\('ion'\)/, 'getting in does not finish the mission');
-  assert.match(planet, /if\(window\.returnToDesktop\) returnToDesktop\(\);/,
-    'boarding invents its own way out instead of using the one LEAVE uses');
+  /* GETTING IN IS THE START OF THE FLIGHT, and arriving at the tower is
+     what finishes the mission. Boarding used to end it on the spot, which
+     made the E-45 a cutscene with a checklist in front of it. */
+  assert.match(planet, /end:\(\)=>\{ G\.running=true; embark\(\); \}/,
+    'the boarding scene does not hand over to the flight');
+  /* Sliced rather than matched with a window: embark() is a long function
+     and a regex with a character budget in it fails by counting, which
+     says nothing about the code. */
+  const embark = planet.slice(planet.indexOf('function embark()'),
+                              planet.indexOf('function disembark()'));
+  assert.ok(embark, 'there is no embark()');
+  assert.match(embark, /takeOff\(\);/, 'climbing in does not take off');
+  assert.match(embark, /AVATAR\.detach\(\)/, 'Robin is left standing beside the ship she is flying');
+  assert.match(embark, /shipB\.solids\.length=0/,
+    'the parked ship keeps its collision box: she takes off through her own hull');
+  const arrive = planet.slice(planet.indexOf('function arriveTick()'),
+                              planet.indexOf('function arriveTick()') + 900);
+  assert.match(arrive, /PROGRESS\.complete\('ion'\)/, 'reaching the tower does not finish the mission');
+  assert.match(arrive, /AVATAR\.attach\(\)/, 'she arrives still invisible, inside a ship that is gone');
+  assert.match(planet, /aboard=false; shipRide=null; arrived=false;/,
+    'leaving the world leaves her aboard a ship that no longer exists');
   /* AND THE PROMPT CHANGES WITH THE CANOPY, or it tells you to inspect a
      ship that is standing open waiting for you. */
   assert.match(planet, /verb = shipOpen\(\) \? 'E \\u2014 get in' : null/,
@@ -461,4 +479,52 @@ test('nothing a student reads is longer than a breath', ()=>{
   /* Refusals too: one line about what kind of word it is. */
   for(const [w,k] of [['and','cmp'], ['<','join'], ['>=','neg']])
     assert.ok(words(P.refuse(w,k)) <= 14, `the refusal for ${w} in a ${k} blank is too long`);
+});
+
+test('the tower is further, and still on the horizon', ()=>{
+  /* A THING YOU CAN SEE AND CANNOT REACH IS THE MISSION. Move the tower out
+     without growing it and it drops below the curve — the gap is still
+     there and the reason to cross it is not. At a radius of 240 the
+     horizon from head height is about 28 units and a thing H tall is seen
+     from 28 + sqrt(2*240*H). */
+  const planet = read('public/planet.js');
+  /* To the end of the record, not to the first close brace — the emoji is
+     written \u{1F5FC} and that brace comes first. */
+  const tAt = planet.indexOf("{ id:'tower'");
+  const tower = planet.slice(tAt, planet.indexOf('}', planet.indexOf('blurb:', tAt)) + 1);
+  const lon = +tower.match(/lon:(-?\d+)/)[1];
+  const lat = +tower.match(/lat:(-?\d+)/)[1];
+  const h   = +tower.match(/h:(\d+)/)[1];
+  const hAt = planet.indexOf("{ id:'ryuhouse'");
+  const house = planet.slice(hAt, planet.indexOf('}', planet.indexOf('blurb:', hAt)) + 1);
+  const hlon = +house.match(/lon:(-?\d+)/)[1], hlat = +house.match(/lat:(-?\d+)/)[1];
+
+  const PR = 240;
+  const away = Math.hypot(lon - hlon, lat - hlat) * Math.PI / 180 * PR;
+  const seen = 28 + Math.sqrt(2 * PR * h);
+
+  assert.ok(away > 160, `the tower is only ${away.toFixed(0)} units out — that is a walk`);
+  assert.ok(seen > away,
+    `a ${h}-high tower is visible from ${seen.toFixed(0)} and stands at ${away.toFixed(0)}: `
+    + 'it is below the curve, so nobody can see the thing they are being sent to');
+});
+
+test('a mission world lends you neither a car nor a jetpack', ()=>{
+  /* Robin's car and Robin's jetpack are things she owns on her own worlds.
+     Inside a story they are two ways to be somewhere the story did not put
+     you — over the tower before there is a reason to go, or across the
+     gap in a vehicle the mission is not about. The E-45 is how you travel
+     here and she has to be earned. */
+  const planet = read('public/planet.js');
+  assert.match(planet, /const wayOpen = id => id==='foot' \|\| !\(W && W\.mission\);/,
+    'nothing decides which ways to travel a world allows');
+  /* The menu greys them, and the two functions behind it refuse as well —
+     a menu is a picture of a rule, not the rule. */
+  assert.match(planet, /const open = wayOpen\(w\.id\) &&/, 'the travel menu offers them anyway');
+  assert.match(planet, /function toggleRide\(\)\{[\s\S]{0,200}?if\(!wayOpen\('car'\)\)/,
+    'a car can still be summoned on a mission world');
+  assert.match(planet, /function takeOff\(\)\{[\s\S]{0,400}?if\(!aboard && !wayOpen\('fly'\)\)/,
+    'the jetpack still works on a mission world');
+  /* And the one flight that IS the mission goes through the same door. */
+  assert.match(planet, /!aboard &&/, 'the ship cannot take off either, which is the whole mission');
 });
