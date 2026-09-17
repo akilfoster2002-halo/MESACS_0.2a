@@ -612,9 +612,14 @@ window.HOUSE = (function(){
       { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] }, ease:1.4,
         who:'Ion',   say:say('\u2026m-morning\u2026 {n}\u2026',{n:stut(ME())}) },
       { shot:{ eye:[18.6, 0.85, 33], at:[16, 0.45, 36] },
-        who:'Ion',   say:say('my legs will not\u2026 my legs will not\u2026 my legs will not\u2026') },
+        who:'Ion',   say:say('I cannot tell\u2026 I cannot tell\u2026 I cannot tell\u2026') },
       { shot:{ eye:[19.5, 1.9, 32], at:[16, 0.5, 36] }, ease:1.0,
-        who:'you', say:say('He is stuck in a loop. Something in his morning routine is broken.') },
+        /* IT USED TO SAY "he is stuck in a loop", which was true of the
+           lesson underneath it when that lesson was about loops. It is two
+           yes/no questions now, so the line points at those instead — a
+           student primed to look for a loop and handed a pair of booleans
+           has been told to look at the wrong thing by the game itself. */
+        who:'you', say:say('He cannot work out whether he can cook. Something is wrong with what he asks himself.') },
       /* --- and the player is handed the controls back ---------------- */
       { free:true, who:'you', say:say('Let me look at his console.'),
         /* LATCHED, not polled. G.keys.KeyE is true only while the key is
@@ -667,7 +672,7 @@ window.HOUSE = (function(){
        appears where the camera is already looking. */
     SCENE.play([
       { shot:{ eye:[17.8, 1.45, 33.4], at:[16, 0.80, 36] }, ease:1.1, hold:1.4,
-        who:'you', say:say('Let me see his morning routine.') }
+        who:'you', say:say('Let me see what he is asking.') }
     ], { faces:FACES, end:()=>{
       if(!on) return;
       IONFIX.open({

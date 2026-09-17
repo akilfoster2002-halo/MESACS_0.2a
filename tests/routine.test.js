@@ -1,341 +1,233 @@
-/* ION'S MORNING ROUTINE — the assessment, with no screen attached.
+/* ION'S MORNING QUESTIONS — the first boolean lesson, with no screen.
 
-   NINE DECISIONS, SEVEN OF THEM ABOUT A QUESTION. This is a conditionals
-   and boolean logic lesson: one `if`, one `else if` that is only asked
-   when the first says no, and two two-term rules over the same two facts.
-   If the interpreter is wrong then the console lies to a student about
-   what their program did, which is worse than no lesson at all — so it is
-   tested the way logic.js is, under Node, against the same evaluator the
-   machines in this game think with. */
+   Two yes/no facts make exactly four mornings, so the table here is not a
+   sample: it is every morning there is. A rule that is right on all four
+   is right full stop, which is a stronger thing than any later lesson in
+   this mission can say — the belt has to CHOOSE its parts, because its
+   gauges are numbers, and choosing is weaker than covering.
+
+   THIS USED TO BE A LADDER. One `if` about the kitchen and an
+   if/else-if/else inside it, with a loop and a stride in front; the ORDER
+   of the branches was half the lesson. The course teaches booleans and
+   operators now, so the order is gone and what is left is two independent
+   questions asked of the same morning. */
 const test = require('node:test');
 const assert = require('node:assert');
-const R = require('../public/routine.js');
 const fs = require('fs');
 const path = require('path');
+const R = require('../public/routine.js');
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 
-/* The one program that works. Both rules are written out rather than
-   derived, so a change to either of them fails here first. */
-const RIGHT = { loop:'repeat', times:4, stride:10, where:'is',
-                cookHot:'is',     cookBatter:'is',     cookJoin:'and',
+const V = ['is','is not'], J = ['and','or'];
+/* Every pair of questions this console can express: sixty-four in all. */
+function everyPair(){
+  const out=[];
+  for(const a of V) for(const b of V) for(const c of J)
+    for(const d of V) for(const e of V) for(const f of J)
+      out.push({ cookHot:a, cookBatter:b, cookJoin:c,
+                 tellHot:d, tellBatter:e, tellJoin:f });
+  return out;
+}
+const RIGHT = { cookHot:'is',     cookBatter:'is',     cookJoin:'and',
                 tellHot:'is not', tellBatter:'is not', tellJoin:'or' };
 
-const SENSES = ['is','is not'], JOINS = ['and','or'];
-
-/* ---------------------------------------------------------- the faults */
-test('what the player walks in on is broken in every idea at once', ()=>{
-  const r = R.run(R.broken());
-  assert.strictEqual(r.ok, false);
-  assert.strictEqual(r.stuck, true, 'the symptom is the forever loop');
-  const topics = R.STEPS.map(s=>s.topic);
-  for(const want of ['LOOPS','MOTION + LOOPS','CONDITIONALS','BOOLEANS',
-                     'CONDITIONALS + BOOLEANS'])
-    assert.ok(topics.includes(want), 'nothing assesses '+want);
-
-  /* AND THE WEIGHT IS ON THE QUESTIONS. Loops and the walking are the
-     symptom Robin finds him in and they are worth one decision each; the
-     mission is the two conditionals and the two booleans hanging off
-     them. If that balance ever tips back, this is the lesson quietly
-     becoming a different lesson. */
-  const asks = topics.filter(t=>/CONDITIONALS|BOOLEANS/.test(t)).length;
-  assert.ok(asks > topics.length - asks,
-    `only ${asks} of ${topics.length} steps are about a condition`);
+test('there are four mornings, and they are all of them', ()=>{
+  /* Two yes/no facts. Four rows is not a choice about how much to test,
+     it is the complete truth table — and the reason this level can make a
+     promise the later ones cannot. */
+  assert.strictEqual(R.MORNINGS.length, 4, 'the table is no longer every morning');
+  const seen=new Set(R.MORNINGS.map(m=>`${!!m.hot}/${!!m.batter}`));
+  assert.strictEqual(seen.size, 4, 'two mornings are the same morning');
 });
 
-test('a forever loop never reaches the line after it', ()=>{
-  const r = R.run({ ...RIGHT, loop:'forever' });
-  assert.strictEqual(r.ok, false, 'everything else is right and it still cannot work');
-  assert.ok(!/in the kitchen —/.test(r.trace.map(l=>l.text).join(' ')),
-    'the `if` is never even asked');
+test('what the player walks in on is wrong, and wrong in both questions', ()=>{
+  const b=R.broken();
+  assert.strictEqual(R.run(b).ok, false, 'he opens already working');
+  assert.ok(R.wrong(b,'cook'), 'the first question is already right');
+  assert.ok(R.wrong(b,'tell'), 'the second question is already right');
+  /* AND IT IS THE USEFUL KIND OF WRONG. The second question is the first
+     one copied unflipped, which is what anybody gets by reading the line
+     above and doing it again. */
+  assert.strictEqual(b.tellHot, 'is', 'the second question is not the copied-line mistake');
+  assert.strictEqual(b.tellBatter, 'is', 'the second question is not the copied-line mistake');
 });
 
-test('a loop that is too short stops short, and says by how much', ()=>{
-  const r = R.run({ ...RIGHT, times:2 });
-  assert.strictEqual(r.dist, 20);
-  assert.match(r.why, /20/, 'the diagnosis does the arithmetic with them');
+test('exactly one pair of questions survives four mornings', ()=>{
+  /* THE WHOLE ASSESSMENT. A rule about `and` that is only ever tried on
+     the morning it was written for is a rule nobody has tested — `or`
+     gets that morning right too. Judged on all four, one pair stands. */
+  const wins=everyPair().filter(s=>R.run(s).ok);
+  assert.strictEqual(wins.length, 1,
+    `${wins.length} pairs pass, not 1: `
+    + wins.map(s=>R.ruleText(s,'cook')+' / '+R.ruleText(s,'tell')).join(' | '));
+  assert.deepStrictEqual(R.tidy(wins[0]), R.tidy(RIGHT));
 });
 
-test('the loop cannot be dodged', ()=>{
-  /* Without a cap on the stride, `repeat 1 [move 40]` walks him there in
-     one hop and the lesson about loops is one nobody attends. */
-  assert.ok(R.STRIDE_MAX < R.KITCHEN, 'one stride reaches the kitchen');
-  assert.strictEqual(R.run({ ...RIGHT, times:1, stride:R.STRIDE_MAX }).ok, false);
-  assert.ok(Math.ceil(R.KITCHEN / R.STRIDE_MAX) >= 4, 'that is barely a loop');
-});
-
-/* --------------------------------------------------------- conditionals */
-test('an inverted outer if makes breakfast in the hallway', ()=>{
-  const r = R.run({ ...RIGHT, stride:0, where:'is not' });
-  assert.strictEqual(r.reached, false);
-  assert.strictEqual(r.fired, true, 'the wrong question got a yes');
-  assert.strictEqual(r.ok, false, 'and breakfast in the hallway is not breakfast');
-});
-
-test('the second rule is only asked when the first one says no', ()=>{
-  /* THE WHOLE OF `else if`, and the reason the answer to the second rule
-     is not obvious. Give both rules the SAME condition. It is true on the
-     hot-pan-and-batter morning, so on two stacked `if`s he would cook and
-     then announce he cannot — and in a chain the second one is never
-     asked at all. Which is also why this is the wrong answer a student
-     reaches for first: copying the line above you produces a branch that
-     can never run. */
-  const copied = { ...RIGHT, tellHot:'is', tellBatter:'is', tellJoin:'and' };
-  const both = { hot:true, batter:true };
-  assert.strictEqual(R.fires(copied, both, 'cook'), true);
-  assert.strictEqual(R.fires(copied, both, 'tell'), true, 'the probe is not a copy');
-  assert.strictEqual(R.does(copied, both), 'cook',
-    'the `else if` was asked about a morning the `if` above it had already taken');
-  /* And on every morning the first rule turns down, a copy catches
-     nothing: the branch is unreachable, not merely wrong. */
+test('the second question is the first one turned inside out', ()=>{
+  /* DE MORGAN, ARRIVED AT RATHER THAN NAMED. "Something is missing" has
+     to be true on exactly the mornings "I can cook" is false, and the
+     only way to write that with these controls is both sides flipped and
+     the join swapped. Nobody is told; the table shows it. */
+  assert.strictEqual(RIGHT.cookJoin, 'and');
+  assert.strictEqual(RIGHT.tellJoin, 'or');
+  assert.notStrictEqual(RIGHT.cookHot, RIGHT.tellHot);
+  assert.notStrictEqual(RIGHT.cookBatter, RIGHT.tellBatter);
+  /* And it is not a claim about the shape: on every morning the two
+     answers must genuinely be opposites. */
   for(const m of R.MORNINGS)
-    if(!R.fires(copied, m, 'cook'))
-      assert.strictEqual(R.fires(copied, m, 'tell'), false,
-        'a copy of the first rule fired where the first rule did not');
+    assert.notStrictEqual(R.fires(R.tidy(RIGHT), m, 'cook'),
+                          R.fires(R.tidy(RIGHT), m, 'tell'),
+      `both questions answer the same on ${m.hot?'hot':'cold'}/${m.batter?'batter':'none'}`);
 });
 
-test('a morning that reaches the last else is a morning nothing caught', ()=>{
-  /* `wait` is the only outcome this program should never produce, and it
-     is the console's way of saying a morning fell through both rules. A
-     correct program must never produce it; the one the player walks in on
-     must, or the shape of an if/else-if/else is never on screen. */
-  assert.ok(R.mornings(RIGHT).every(r=>r.got!=='wait'),
-    'the finished program still leaves a morning uncaught');
-  const copied = { ...RIGHT, tellHot:'is', tellBatter:'is', tellJoin:'and' };
-  const fell = R.mornings(copied).filter(r=>r.got==='wait');
-  assert.strictEqual(fell.length, 3,
-    'copying the first rule into the `else if` has to strand the mornings it turned down');
-  assert.match(R.run(copied).why, /fell past both/,
-    'nothing tells the player the morning was not caught by anything');
-});
-
-/* ------------------------------------------------------------ the rules */
-test('exactly one pair of rules survives four mornings', ()=>{
-  /* THE WHOLE POINT OF A TRUTH TABLE. A rule tried on one morning proves
-     nothing — `or` gets the hot-pan-and-batter morning right too. Run
-     every pair of rules the console can express against every morning
-     there is, and precisely one may pass.
-
-     There are sixty-four pairs. That there is one answer rather than
-     several is not a nicety: a console with two right answers cannot ring
-     the control that is wrong, because neither of them is. */
-  const pass=[];
-  for(const cookHot of SENSES) for(const cookBatter of SENSES) for(const cookJoin of JOINS)
-    for(const tellHot of SENSES) for(const tellBatter of SENSES) for(const tellJoin of JOINS){
-      const s={ ...RIGHT, cookHot, cookBatter, cookJoin, tellHot, tellBatter, tellJoin };
-      if(R.mornings(s).every(r=>r.ok))
-        pass.push(R.ruleText(s,'cook') + ' | ' + R.ruleText(s,'tell'));
-    }
-  assert.deepStrictEqual(pass, ['hot and batter | not hot or not batter'],
-    'more than one pair passes: the table is not discriminating');
-});
-
-test('the second rule is the first one turned inside out', ()=>{
-  /* DE MORGAN, WITHOUT THE NAME. The `else if` has to catch exactly the
-     mornings the `if` turned down, and the only two-term rule that does is
-     both sides flipped and the join swapped. A nine-year-old gets there by
-     reading four rows; this is the same statement, checked. */
-  for(const m of R.MORNINGS)
-    assert.strictEqual(R.fires(RIGHT, m, 'tell'), !R.fires(RIGHT, m, 'cook'),
-      'the two rules are not each other\'s opposite on every morning');
-  assert.strictEqual(RIGHT.tellJoin, RIGHT.cookJoin==='and' ? 'or' : 'and');
-  assert.notStrictEqual(RIGHT.tellHot, RIGHT.cookHot);
-  assert.notStrictEqual(RIGHT.tellBatter, RIGHT.cookBatter);
-});
-
-test('or fires on the two half-mornings, which is how you can see it is or', ()=>{
-  const rows = R.mornings({ ...RIGHT, cookJoin:'or' });
-  const wrong = rows.filter(r=>!r.ok);
-  assert.strictEqual(wrong.length, 2);
-  for(const r of wrong)
-    assert.notStrictEqual(r.hot, r.batter, 'only the one-true mornings should differ');
-});
-
-test('both rules use logic.js rather than a second evaluator', ()=>{
-  const K = require('../public/logic.js');
-  for(const rule of R.RULES)
-    for(const join of JOINS) for(const hot of SENSES) for(const batter of SENSES)
-      for(const m of R.MORNINGS){
-        const s={ ...RIGHT, [rule.hot]:hot, [rule.batter]:batter, [rule.join]:join };
-        const mine = R.fires(s, m, rule.id);
-        const leaf = (n,sense)=> sense==='is' ? K.VAR(n) : K.NOT(K.VAR(n));
-        const t = join==='and' ? K.AND(leaf('hot',hot), leaf('batter',batter))
-                               : K.OR (leaf('hot',hot), leaf('batter',batter));
-        assert.strictEqual(mine, !!K.value(t, { hot:m.hot, batter:m.batter }),
-          'the console and the machines disagree about '+R.ruleText(s, rule.id));
-      }
-});
-
-test('a rule that is right needs no morning to be lucky', ()=>{
-  const r = R.run(RIGHT);
-  assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.rows.length, 4);
-  assert.ok(r.rows.every(x=>x.ok));
-});
-
-/* ------------------------------------------------------ the walkthrough */
-test('the console is walked one decision at a time, in the order he asks them', ()=>{
-  const FIX = { loop:{loop:'repeat'}, stride:{stride:R.STRIDE_MAX}, times:{times:4},
-                where:{where:'is'},
-                cookJoin:{cookJoin:'and'}, cookHot:{cookHot:'is'},
-                cookBatter:{cookBatter:'is'},
-                tellJoin:{tellJoin:'or'}, tellHot:{tellHot:'is not'},
-                tellBatter:{tellBatter:'is not'} };
-  const seen=[];
-  let s = R.broken();
-  for(let i=0;i<20 && R.step(s); i++){
-    const st = R.step(s);
-    seen.push(st.id + ':' + st.hole);
-    assert.ok(FIX[st.hole], 'the walkthrough points at a control nothing can set: '+st.hole);
-    s = { ...s, ...FIX[st.hole] };
+test('and and or come apart on the half-mornings', ()=>{
+  /* THE TWO MORNINGS WHERE EXACTLY ONE THING IS WRONG are the only place
+     `and` and `or` disagree, which is why they are in the table and why
+     the copied-line mistake is visible at all. */
+  const half=R.MORNINGS.filter(m=>m.hot!==m.batter);
+  assert.strictEqual(half.length, 2, 'the half-mornings have gone');
+  for(const which of ['cook','tell']){
+    const good=R.tidy(RIGHT);
+    const flipped=Object.assign({}, good,
+      { [which+'Join']: good[which+'Join']==='and' ? 'or' : 'and' });
+    assert.ok(half.some(m=>R.fires(flipped,m,which)!==R.fires(good,m,which)),
+      `swapping the ${which} join changes nothing on a half-morning`);
   }
-  assert.deepStrictEqual(seen,
-    ['loop:loop', 'far:stride', 'far:times', 'where:where',
-     'cook:cookJoin', 'cook:cookHot',
-     'tell:tellJoin', 'tell:tellHot', 'tell:tellBatter'],
-    'the walkthrough has to reach every decision, in a sensible order');
-  assert.strictEqual(R.step(s), null, 'and stop when there is nothing left to say');
-  assert.strictEqual(R.run(s).ok, true, 'a program with no steps left has to work');
-
-  /* AND THE SECOND RULE IS NEVER BLAMED FOR THE FIRST ONE'S MISTAKE. The
-     `else if` is only reached when the `if` above it says no, so a wrong
-     first rule makes the second one look wrong too — pointing a student
-     at it then is pointing them at a symptom. */
-  const cookBroken = seen.findIndex(x=>x.startsWith('cook:'));
-  const tellFirst  = seen.findIndex(x=>x.startsWith('tell:'));
-  assert.ok(cookBroken >= 0 && tellFirst > cookBroken,
-    'the walkthrough reaches the `else if` before the `if` above it is right');
 });
 
-test('the walkthrough is read off the program, not counted', ()=>{
-  assert.strictEqual(R.step({ ...RIGHT, loop:'forever' }).id, 'loop',
-    'the loop is still wrong and still the step');
-  assert.strictEqual(R.step({ ...RIGHT, cookJoin:'or' }).id, 'cook',
-    'the ones before it are done; do not repeat them');
-  assert.strictEqual(R.step({ ...RIGHT, tellJoin:'and' }).id, 'tell',
-    'a wrong `else if` with everything above it right is the `else if`');
-  assert.strictEqual(R.step({ ...RIGHT, cookJoin:'or', tellJoin:'and' }).id, 'cook',
-    'the first rule comes first even when both are wrong');
-  assert.strictEqual(R.step({ ...RIGHT, loop:'forever', tellJoin:'and' }).id, 'loop',
-    'and undoing an early fix brings its step back');
+test('a morning nothing answers is its own diagnosis', ()=>{
+  /* `stands there` is the only outcome this program should never reach:
+     every morning is either one he can cook or one where something is
+     missing. A morning that reaches it had both questions say no. */
+  const copied=R.broken();
+  const rows=R.mornings(copied);
+  assert.ok(rows.some(r=>r.got==='nothing' || r.got==='both'),
+    'the broken pair never produces a morning nothing answers');
+  const why=R.run(copied).why;
+  assert.ok(why && /says nothing|both questions/.test(why),
+    `the explanation does not name what went wrong: ${why}`);
 });
 
-test('every step names a control, a topic and a word', ()=>{
-  const HOLES = new Set(['loop','times','stride','where',
-                         'cookHot','cookBatter','cookJoin',
-                         'tellHot','tellBatter','tellJoin']);
-  const probes = [ R.broken(),
-    { ...R.broken(), loop:'repeat' },
-    { ...R.broken(), loop:'repeat', stride:10 },
-    { ...RIGHT, where:'is not' },
-    { ...RIGHT, cookJoin:'or' },
-    { ...RIGHT, cookHot:'is not' },
-    { ...RIGHT, cookBatter:'is not' },
-    { ...RIGHT, tellJoin:'and' },
-    { ...RIGHT, tellHot:'is' },
-    { ...RIGHT, tellBatter:'is' } ];
-  for(const p of probes){
-    const st=R.step(p);
-    assert.ok(st, 'every broken program has something to say about it');
-    assert.ok(HOLES.has(st.hole), 'step points at an unknown control: '+st.hole);
-    assert.ok(st.topic, 'a step with no topic cannot be labelled');
-    /* VOCAB. A student meeting `and` for the first time in the middle of a
-       repair gets the same sentence CODE's palette would have given them. */
-    assert.ok(st.help && st.help.length>30, st.id+' has no vocabulary line');
-    assert.ok(st.say && st.say.length>40, 'a step that says nothing is not a step');
+test('both questions use logic.js rather than a second evaluator', ()=>{
+  /* `and`, `or` and `not` have to mean here exactly what they mean in
+     every other machine in this game. A second table of truth in this
+     file would be a second answer no test ever sees. */
+  const src=bare(read('public/routine.js'));
+  for(const call of ['K\\.AND\\(','K\\.OR\\(','K\\.NOT\\(','K\\.value\\('])
+    assert.ok(new RegExp(call).test(src),
+      'routine.js does not build or evaluate its rules with logic.js');
+  /* The hand-rolled branch is a fallback for logic.js failing to load and
+     must agree with it everywhere, or a student on a bad connection gets
+     a different lesson. */
+  for(const s of everyPair()) for(const m of R.MORNINGS) for(const w of ['cook','tell']){
+    const side = k => s[w+k]==='is' ? m[k==='Hot'?'hot':'batter'] : !m[k==='Hot'?'hot':'batter'];
+    const t = s[w+'Join']==='and' ? (side('Hot') && side('Batter'))
+                                  : (side('Hot') || side('Batter'));
+    assert.strictEqual(R.fires(R.tidy(s), m, w), t, 'the fallback and logic.js disagree');
   }
+});
+
+test('there are no conditionals and no loops left in it', ()=>{
+  /* THE COURSE TEACHES BOOLEANS AND OPERATORS. This lesson had a loop, a
+     stride, an outer `if` about the kitchen and an if/else-if/else whose
+     order was half the point. All of it went. */
+  const src=bare(read('public/routine.js'));
+  const fix=bare(read('public/ionfix.js'));
+  for(const [name, code] of [['routine.js',src],['ionfix.js',fix]]){
+    for(const gone of ['KITCHEN','STRIDE_MAX','REPEAT_MAX','stride','ifwhere','loopHead'])
+      assert.ok(!new RegExp('\\b'+gone+'\\b').test(code),
+        `${name} still carries ${gone} from the loops-and-conditionals lesson`);
+  }
+  /* And the state a student can build has six keys, all of them boolean. */
+  const keys=Object.keys(R.tidy({})).sort();
+  assert.deepStrictEqual(keys,
+    ['cookBatter','cookHot','cookJoin','tellBatter','tellHot','tellJoin'],
+    'the program still carries something that is not a boolean decision');
+});
+
+test('the console is walked one question at a time, in the order they are written', ()=>{
+  /* Six decisions handed over at once are still six. The walk goes in the
+     order the questions appear, not in the order they happen to be wrong,
+     so fixing the second first does not move the first out of the way. */
+  assert.deepStrictEqual(R.STEPS.map(s=>s.id), ['cook','tell'],
+    'the walk is no longer the two questions');
+  const b=R.broken();
+  assert.strictEqual(R.step(b).id, 'cook', 'the walk does not start at the first question');
+  const half=Object.assign({}, b, { cookHot:'is', cookBatter:'is', cookJoin:'and' });
+  assert.strictEqual(R.step(half).id, 'tell', 'fixing the first question does not advance the walk');
+  assert.strictEqual(R.step(RIGHT), null, 'a finished program still has a step on screen');
+});
+
+test('every step rings one of the two questions own controls', ()=>{
+  /* A ring that lands on nothing, or on the other question's control,
+     points a student at a block that is not wrong. */
+  const fix=read('public/ionfix.js');
+  for(const s of everyPair()){
+    const st=R.step(s);
+    if(!st) continue;
+    assert.ok(st.hole, `the ${st.id} step rings nothing`);
+    const r=R.RULES.find(x=>[x.hot,x.batter,x.join].includes(st.hole));
+    assert.ok(r, `${st.hole} is not one of the two questions' controls`);
+  }
+  /* And the panel builds those ids off RULES rather than typing them out,
+     so a ring cannot point at a control that is not drawn. */
+  assert.match(fix, /id="if\$\{which\}hot"/, 'the console no longer builds its control ids from RULES');
+  assert.match(fix, /on_\('if'\+r\.id\+'hot'/, 'the console no longer wires its controls from RULES');
 });
 
 test('no step ever hands over the answer', ()=>{
-  const far = R.step({ ...R.broken(), loop:'repeat', stride:10 });
-  assert.ok(!/\b4\b/.test(far.say.replace(/40/g,'')),
-    'the step tells them the number of repeats instead of the two facts');
-  assert.match(far.say, /40/, 'it does give them how far the kitchen is');
-  assert.match(far.say, /10/, 'and the longest stride his motors take');
-  /* NEITHER RULE'S STEP MAY NAME THE OPERATOR TO USE. Both describe a
-     morning and what he did on it; the student decides what that means.
-     `and` may appear in the first one because the SPEC is "hot and
-     batter" — what may not appear is an instruction to change one
-     operator into the other. */
-  for(const p of [{ ...RIGHT, cookJoin:'or' }, { ...RIGHT, tellJoin:'and' },
-                  { ...RIGHT, tellHot:'is' }]){
-    const st=R.step(p);
-    assert.ok(!/\bchange\b[^.]*\b(and|or)\b/i.test(st.say),
-      st.id+' dictates the operator instead of describing the morning');
-    assert.ok(!/\bis not\b[^.]*\binstead\b/i.test(st.say),
-      st.id+' hands over which way round the side goes');
+  /* A console that says "choose and" has replaced the lesson with a hint.
+     Each step says what the question has to be true of and which morning
+     it is getting wrong; what to press is the student's to work out. */
+  for(const s of everyPair()){
+    const st=R.step(s);
+    if(!st) continue;
+    const said=(st.say||'')+' '+(st.help||'');
+    assert.ok(!/choose <b>and<\/b>|pick <b>and<\/b>|set it to/i.test(said),
+      `the ${st.id} step tells the student what to press: ${said}`);
   }
-});
-
-/* ------------------------------------------------- the reveal is not here
-   IT USED TO BE. A working RUN handed back five commented-out lines to
-   append to the console, and the reveal of who has been inside Ion was a
-   footnote a student read in a panel they had already finished with. It
-   is a scene now — house.js flashes the lights, puts him back on the
-   floor and lets whoever wrote those lines say them out loud through him
-   — and this file is a program and a trace again. */
-test('a run carries no story, however well the program works', ()=>{
-  for(const s of [R.broken(), { ...RIGHT, cookJoin:'or' }, RIGHT]){
-    const r = R.run(s);
-    assert.ok(!('note' in r), 'run() still hands the console something to reveal');
-  }
-  assert.strictEqual(R.NOTE, undefined, 'routine.js still exports the note');
-  /* And the console must not have kept a place to put one. */
-  const fix = read('public/ionfix.js');
-  assert.ok(!/r\.note|className='note'/.test(fix),
-    'ionfix.js still draws the note the run no longer hands it');
 });
 
 test('nothing a player can click breaks it', ()=>{
-  for(const junk of [undefined, null, {}, {loop:7,times:'x',stride:-9,where:0,cookJoin:null},
-                     {...RIGHT, times:1e9, stride:1e9}]){
-    const r = R.run(junk);
-    assert.ok(Array.isArray(r.trace) && r.trace.length);
+  /* tidy() is the gate: every one of the sixty-four states this console
+     can reach has to run and report, and nothing may throw. */
+  for(const s of everyPair()){
+    const r=R.run(s);
+    assert.ok(Array.isArray(r.rows) && r.rows.length===4, 'a state produced no table');
     assert.strictEqual(typeof r.ok, 'boolean');
-    const st = R.step(junk);
-    assert.ok(st===null || typeof st.say==='string');
+    if(!r.ok) assert.ok(r.why && r.why.length>10, 'a wrong program explains nothing');
+    else assert.strictEqual(r.why, null, 'a right program explains itself anyway');
   }
-  const big = R.tidy({ ...RIGHT, times:1e9, stride:1e9 });
-  assert.strictEqual(big.stride, R.STRIDE_MAX);
-  assert.strictEqual(big.times, R.REPEAT_MAX);
-  /* An unknown rule is the first one rather than a crash: `fires(s,m)`
-     with no third argument is how the fallback evaluator is reached. */
-  assert.strictEqual(R.fires(RIGHT, R.MORNINGS[0]), R.fires(RIGHT, R.MORNINGS[0], 'cook'));
-  assert.strictEqual(R.fires(RIGHT, R.MORNINGS[0], 'nonsense'),
-                     R.fires(RIGHT, R.MORNINGS[0], 'cook'));
+  /* And rubbish in is not a crash. */
+  for(const junk of [null, undefined, {}, {cookJoin:'xor', tellHot:42}])
+    assert.strictEqual(R.run(junk).rows.length, 4, 'junk state broke the run');
 });
 
 test('the trace is what the console draws, and every line is labelled', ()=>{
-  const kinds = new Set();
-  for(const s of [R.broken(), RIGHT, { ...RIGHT, cookJoin:'or' },
-                  { ...RIGHT, where:'is not' }, { ...RIGHT, tellJoin:'and' }])
-    R.run(s).trace.forEach(l=>kinds.add(l.kind));
-  for(const k of kinds)
-    assert.ok(['hat','loop','in','if','do','good','bad'].includes(k), 'unknown trace kind: '+k);
-  /* BOTH RULES ARE PRINTED, in the order he asks them, even when the first
-     one already took every morning — the shape is what is being taught. */
-  const text = R.run(RIGHT).trace.map(l=>l.text).join('\n');
-  assert.match(text, /\nif < pan is hot > and < there is batter >/);
-  assert.match(text, /\nelse if < pan is not hot > or < there is not batter >/);
+  const r=R.run(R.broken());
+  assert.ok(r.trace.length>=6, 'the trace is too short to be the program and the table');
+  for(const line of r.trace){
+    assert.ok(typeof line.text==='string' && line.text.length, 'a trace line with no text');
+    assert.ok(['do','if','in','good','bad','loop'].includes(line.kind),
+      `a trace line labelled ${line.kind}, which the console cannot colour`);
+  }
+  /* BOTH QUESTIONS ARE PRINTED BEFORE EITHER IS JUDGED, because the shape
+     on screen is part of what is being taught. */
+  const ifs=r.trace.filter(l=>l.kind==='if');
+  assert.strictEqual(ifs.length, 2, 'the two questions are not both printed');
+  assert.ok(r.trace.indexOf(ifs[1]) < r.trace.findIndex(l=>l.kind==='good'||l.kind==='bad'),
+    'a morning is judged before both questions have been printed');
 });
 
-/* ------------------------------------------------------------ the console
-   The panel is drawn by hand, so the controls it draws and the controls
-   routine.js rings are two lists that can drift. These are the checks
-   that fail when they do. */
-test('the console draws a control for every decision, and rings the right one', ()=>{
-  const fix = read('public/ionfix.js');
-  for(const id of ['ifloop','iftimes','ifstride','ifwhere'])
-    assert.ok(fix.includes(`id="${id}"`) || fix.includes(`id="${id}"`),
-      'the console draws no '+id);
-  /* The six rule controls are emitted from one template over RULES, which
-     is what stops `iftellbatter` being wired to the cook rule's side. */
-  assert.match(fix, /id="if\$\{which\}hot"/, 'the rule sides are not drawn from RULES');
-  assert.match(fix, /id="if\$\{which\}join"/, 'the joins are not drawn from RULES');
-  assert.match(fix, /R\(\)\.RULES\.forEach/, 'the handlers are typed out rather than built');
-  /* AND THE else-if IS ONE BLOCK. Two stacked `if`s would say both
-     questions are always asked, which is the mistake the step exists to
-     correct. */
-  assert.match(fix, /say\('else if'\)/, 'the second rule is not drawn as an `else if`');
-  assert.ok((fix.match(/blk-head mid/g)||[]).length >= 3,
-    'the if / else-if / else block does not have three bars');
+test('a run carries no story, however well the program works', ()=>{
+  /* The reveal is a scene in house.js: the lights go, he goes down with
+     them, and somebody else speaks through him. It used to be five
+     commented-out lines appended to a panel the student had finished
+     with. */
+  const r=R.run(RIGHT);
+  assert.strictEqual(r.ok, true);
+  assert.ok(!('note' in r), 'the run carries a story note again');
+  assert.ok(!/E\.|four in the morning/.test(JSON.stringify(r.trace)),
+    'the reveal is back in the trace');
 });

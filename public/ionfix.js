@@ -141,7 +141,7 @@ window.IONFIX = (function(){
       <div class="ifhead">
         <img src="characters/previews/ion.png" alt="">
         <div><b>ION · morning routine</b><br>
-             <span>${say('His motors will not take a stride longer than 10.')}</span></div>
+             <span>${say('Two questions. Four mornings. Both have to be right on all of them.')}</span></div>
       </div>
       <div class="ifbody">
         <div class="ifcol wide"><h3>${say('The program')}</h3>
@@ -185,69 +185,27 @@ window.IONFIX = (function(){
      same block: repeat and forever purple, if mint, move blue. */
   const C = { loop:'#cdb4f6', ifc:'#a8e6cf', bool:'#9fe6b4', move:'#8fd3ff', act:'#bdb2d8' };
 
-  /* A forever has no notch under it, because nothing put there could ever
-     run. The shape is the warning — code.js says so, and it is the whole
-     of fault one. */
-  function loopHead(s){
-    /* THE WORD IS THE CONTROL. A separate little swap icon beside it is a
-       thing to find before it is a thing to press; code.js makes the
-       condition itself the button for exactly that reason, and a loop that
-       is the wrong loop is answered by clicking the loop. */
-    const kind = s.loop==='repeat'
-      ? `<button class="cond" id="ifloop">${say('repeat')}</button>
-         <button class="cnt" id="ifdec">\u2212</button>
-         <span class="cnt-n" id="iftimes">${s.times}</span>
-         <button class="cnt" id="ifinc">+</button>
-         <span class="blk-times">${say('times')}</span>`
-      : `<button class="cond" id="ifloop">${say('forever')}</button>`;
-    return `<div class="blk rep${s.loop==='forever'?' flat':''}" style="--c:${C.loop}">
-        <div class="blk-head">${kind}</div>
-        <div class="blk-body">
-          <div class="blk num" style="--c:${C.move}">
-            <span class="blk-name">${say('move')}</span>
-            <input class="numin" id="ifstride" type="text" inputmode="numeric"
-                   value="${s.stride}" size="3" aria-label="${say('steps')}">
-            <span class="blk-times">${say('steps')}</span>
-          </div>
-        </div>
-        <div class="blk-foot"></div>
-      </div>`;
-  }
+  /* TWO QUESTIONS, NEITHER ABOVE THE OTHER.
 
-  /* IF, ELSE IF AND ELSE AS ONE BLOCK WITH THREE BODIES, which is the
-     shape it has in Scratch and in blocks.js. code.js's own `if` has no
-     else — it is a console for programs that run once — so this is its
-     head, its bodies and its foot with a bar between each pair. */
-  /* THE OUTER IF AND THE INNER ONE. Two C-blocks, the second inside the
-     first's body, which is what a nested condition IS — and drawing it any
-     other way would teach a shape that does not exist. */
-  function ifBlock(s){
-    return `<div class="blk rep" style="--c:${C.ifc}">
-        <div class="blk-head">
-          <span class="blk-name">${say('if he')}</span>
-          <button class="cond" id="ifwhere">${say(s.where)}</button>
-          <span class="blk-times">${say('in the kitchen')}</span>
-        </div>
-        <div class="blk-body">${rulesBlock(s)}</div>
-        <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
-        <div class="blk-body">
-          <div class="blk" style="--c:${C.act}">
-            <span class="blk-name">${say('say \u201cmy legs will not\u2026\u201d')}</span></div>
-        </div>
-        <div class="blk-foot"></div>
-      </div>`;
-  }
+     THIS WAS A LADDER AND THE LADDER WAS THE LESSON. One `if` about the
+     kitchen, and inside it an `if` / `else if` / `else` whose ORDER
+     decided what he did — a second rule that overlapped the first was not
+     wrong so much as unreachable. It taught conditionals, which is not
+     what this course teaches any more.
 
-  /* ONE BOOLEAN. Two questions and the word that joins them, and all three
-     are buttons — because which of them is wrong is the thing being
-     assessed, and a student has to be able to try the other one.
+     WHAT IS LEFT IS BETTER FIRST. Take the order away and the two rules
+     stop being one thing asked in sequence and become two questions asked
+     of the same morning, each with a yes or a no, neither able to hide
+     behind the other. Drawn as two blocks side by side in the script
+     rather than one block with bars across it, because that shape is the
+     claim: these are asked together.
 
-     `which` is 'cook' or 'tell', and it is the only difference between the
-     two of them: the same three controls, the same two facts, asked twice
-     about different mornings. Drawing them from one function is the point
-     rather than a saving — a student who can see that the second rule is
-     the first rule's controls in different positions is most of the way to
-     working out what those positions have to be. */
+     `which` is 'cook' or 'tell', and it is the only difference between
+     them: the same three controls, the same two facts, asked twice about
+     the same four mornings. Drawing them from one function is the point
+     rather than a saving — a student who can see that the second question
+     is the first one's controls in different positions is most of the way
+     to working out what those positions have to be. */
   function boolSide(s, which){
     const r=R().RULES.find(x=>x.id===which);
     return `<span class="bool-side">${say('the pan')}
@@ -259,41 +217,19 @@ window.IONFIX = (function(){
         ${say('batter')}</span>`;
   }
 
-  /* THE TWO RULES, IN THE ORDER HE ASKS THEM.
-
-     THE `else if` IS THE LESSON AND IT HAS TO LOOK LIKE ONE. Drawn as two
-     separate `if` blocks stacked, it would say that both questions are
-     always asked — which is the mistake this whole step exists to correct.
-     One block with two condition bars and a final plain `else` says what
-     actually happens: the second question is only reached when the first
-     said no, and the bottom of it is where a morning ends up when neither
-     of them wanted it.
-
-     AND THE LAST BODY IS A DEAD END ON PURPOSE. `wait` is the only thing
-     in this program that should never run; leaving it visible is what lets
-     "he waits" in the table mean something. */
-  function rulesBlock(s){
+  /* One question and what he does when the answer is yes. A flat block
+     with a head and one body: no `else`, no second bar, nothing under it
+     that only runs when something else did not. */
+  function askBlock(s, which, then_){
+    const r=R().RULES.find(x=>x.id===which);
     return `<div class="blk rep" style="--c:${C.bool}">
         <div class="blk-head">
-          <span class="blk-name">${say('if')}</span>
-          ${boolSide(s, 'cook')}
+          <span class="blk-name">${say(r.name)}</span>
+          ${boolSide(s, which)}
         </div>
         <div class="blk-body">
           <div class="blk" style="--c:${C.act}">
-            <span class="blk-name">${say('make pancakes')}</span></div>
-        </div>
-        <div class="blk-head mid">
-          <span class="blk-name">${say('else if')}</span>
-          ${boolSide(s, 'tell')}
-        </div>
-        <div class="blk-body">
-          <div class="blk" style="--c:${C.act}">
-            <span class="blk-name">${say('say \u201cwe cannot cook yet\u201d')}</span></div>
-        </div>
-        <div class="blk-head mid"><span class="blk-name">${say('else')}</span></div>
-        <div class="blk-body">
-          <div class="blk" style="--c:${C.act}">
-            <span class="blk-name">${say('wait')}</span></div>
+            <span class="blk-name">${say(then_)}</span></div>
         </div>
         <div class="blk-foot"></div>
       </div>`;
@@ -301,16 +237,13 @@ window.IONFIX = (function(){
 
   function draw(){
     const u=dom(), s=state;
-    u.script.innerHTML = loopHead(s) + ifBlock(s);
+    u.script.innerHTML = askBlock(s, 'cook', 'make pancakes')
+                       + askBlock(s, 'tell', 'say \u201cwe cannot cook yet\u201d');
 
     const on_=(id,fn)=>{ const e=$('#'+id,u.el); if(e) e.onclick=fn; };
     const set=(k,v)=>{ state[k]=v; state=R().tidy(state); draw(); };
     const flip=k=>()=>set(k, state[k]==='is' ? 'is not' : 'is');
     const swap=k=>()=>set(k, state[k]==='and' ? 'or' : 'and');
-    on_('ifloop',  ()=>set('loop', s.loop==='repeat' ? 'forever' : 'repeat'));
-    on_('ifdec',   ()=>set('times', s.times-1));
-    on_('ifinc',   ()=>set('times', s.times+1));
-    on_('ifwhere', flip('where'));
     /* BOTH RULES, OFF THE SAME LIST routine.js KEYS THEM BY. Six controls
        written out by hand here is six chances for `iftellbatter` to be
        wired to `tellHot`, and a swap button that silently changes the
@@ -322,16 +255,6 @@ window.IONFIX = (function(){
       on_('if'+r.id+'batter', flip(r.batter));
       on_('if'+r.id+'join',   swap(r.join));
     });
-    const n=$('#ifstride',u.el);
-    if(n){
-      /* Typed, like every other number in this language. Read on the way
-         out rather than clamped on the way in, or a box you are half way
-         through emptying snaps to 0 under your hands. */
-      n.oninput=()=>{ const v=n.value.replace(/[^0-9]/g,'');
-                      if(v!==n.value) n.value=v;
-                      state.stride=+v||0; walk(); };
-      n.onchange=()=>set('stride', +n.value||0);
-    }
     walk();
   }
 
@@ -349,7 +272,10 @@ window.IONFIX = (function(){
      tags happen to be in is not load-bearing, and a map built once at load
      would be the one line in here that is. */
   function holes(){
-    const h={ loop:'ifloop', times:'iftimes', stride:'ifstride', where:'ifwhere' };
+    /* Nothing but the two questions' six controls now. The loop, the
+       stride and the kitchen `if` were the other four, and they went with
+       the lesson they belonged to. */
+    const h={};
     (R().RULES||[]).forEach(r=>{ h[r.hot]='if'+r.id+'hot';
                                  h[r.batter]='if'+r.id+'batter';
                                  h[r.join]='if'+r.id+'join'; });
@@ -376,19 +302,31 @@ window.IONFIX = (function(){
   /* WHAT HE DID, and WHAT HE SHOULD HAVE DONE. Two lists rather than one,
      because the second column is read after the word "should" and the
      first is not — one map gave "waits" and "should says so". */
-  const DID   = { cook:'cooks',  tell:'says so', wait:'waits' };
-  const OUGHT = { cook:'cook',   tell:'say so',  wait:'wait'  };
+  const DID   = { cook:'cooks',  tell:'says so', nothing:'stands there', both:'tries both' };
+  const OUGHT = { cook:'cook',   tell:'say so' };
+  /* ONE QUESTION AT A TIME WHILE ONE QUESTION IS WHAT THEY OWE.
+
+     While the first is being fixed the only thing that matters is what IT
+     answers on a morning: the second is still wrong, so a table of what he
+     DOES shows red rows that are somebody else's fault and a count
+     underneath that does not match them. So each step gets a table of its
+     own question — does it say yes, should it — and once both are right
+     the whole thing is what the student is responsible for.
+
+     BOTH COLUMNS COME OUT OF mornings(), which judges each question
+     separately for exactly this reason. */
   function table(which){
-    const rows = which==='cook'
-      ? R().MORNINGS.map(m=>{
-          const got=R().fires(state, m, 'cook'), want=R().should(m)==='cook';
-          return { hot:m.hot, batter:m.batter, ok:got===want,
-                   did: got ? say('cooks') : say('does not'),
-                   ought: want ? say('cook') : say('not cook') };
-        })
-      : R().mornings(state).map(r=>({ hot:r.hot, batter:r.batter, ok:r.ok,
-                   did:   say(DID[r.got]    || r.got),
-                   ought: say(OUGHT[r.want] || r.want) }));
+    const rows = R().mornings(state).map(r=>{
+      if(which==='cook' || which==='tell'){
+        const q=r[which];
+        return { hot:r.hot, batter:r.batter, ok:q.ok,
+                 did:   q.got  ? say('yes') : say('no'),
+                 ought: q.want ? say('yes') : say('no') };
+      }
+      return { hot:r.hot, batter:r.batter, ok:r.ok,
+               did:   say(DID[r.got] || r.got),
+               ought: say(OUGHT[r.cook.want ? 'cook' : 'tell']) };
+    });
     return `<table class="morns"><tr>
         <th>${say('pan')}</th><th>${say('batter')}</th>
         <th>${say('he')}</th><th></th></tr>` +
