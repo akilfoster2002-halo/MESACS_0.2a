@@ -1,29 +1,29 @@
 /* =====================================================================
-   THE BELT PANEL — a ladder you can move, and a log that answers back.
+   THE BELT PANEL — one expression, and a log that answers back.
 
-   NOTHING IS DRAGGED. A branch moves with an arrow beside it, for the
-   same reason shipfix.js places a word with a click: a nine-year-old on a
-   trackpad, in a browser, with a 3D world running behind the panel,
-   should not be asked to drag anything. Two buttons per line and the
-   ladder is in any order you like.
+   ONE QUESTION ON THE SCREEN, which is the same rule shipfix.js is built
+   to: the Mechanic's sentence, the expression with its blanks, the words
+   that go in them, and the parts the belt has already been judged on.
+   Nothing else.
 
-   THE LADDER IS NUMBERED AND THE NUMBERS MATTER. `if` on top, `elif`
-   under it, `else` pinned at the bottom — drawn from the order the
-   student actually built rather than from the order they were written in,
-   so the thing on screen and the thing being run are one ladder.
+   NOTHING IS DRAGGED AND NOTHING IS ORDERED. A blank is clicked and a
+   word is clicked, for the same reason the pre-flight places a word with
+   a click — a nine-year-old on a trackpad, in a browser, with a 3D world
+   running behind the panel, should not be asked to drag anything.
 
-   THE BELT IS UNDER IT, ALWAYS. Five or six parts, what your ladder does
-   with each, and what the Mechanic says should happen. Same two columns
-   as the pre-flight's readings and for the same reason: a rule cannot be
+   THE BELT IS UNDER IT, ALWAYS. Six or seven parts, what your expression
+   says about each, and what the Mechanic says. Same two columns as the
+   pre-flight's readings and for the same reason: an expression cannot be
    checked by reading it, so the log does the checking and the student
    does the thinking.
 
-   AND ONE SENTENCE ABOUT SHADOWING, WHEN IT IS EARNED. A line that can
-   never run is invisible — it is right there, spelled correctly, doing
-   nothing — so when the belt disagrees and sorter.js can name a line
-   nothing ever reaches, the panel says which line and stops. It is the
-   only thing this console volunteers, and it is the one mistake worth
-   volunteering about.
+   AND WHEN IT COMES APART, THE PIECES ARE SHOWN WORKED. A compound
+   expression is the first thing in this game whose answer is not visible
+   in any one part of it — `cracked or heat > 900` on a cool cracked part
+   is YES because of a word at one end and not the other. So the panel
+   takes one wrong part and writes the expression out again with every
+   piece replaced by what it actually came out as. It never says which
+   word is wrong; that is the student's to find.
    ===================================================================== */
 window.SORTFIX = (function(){
   const $ = (s,r=document)=>r.querySelector(s);
@@ -34,8 +34,9 @@ window.SORTFIX = (function(){
 
   let ui=null, state=null, opts=null, open=false, done=false;
   let at=0;              // which job is on screen
-  let armed=null;        // the blank a chip would land in
+  let armed=null;        // the blank a word would land in
   let note=null;
+  let passed={};
 
   const job = () => S().JOBS[at];
 
@@ -47,7 +48,7 @@ window.SORTFIX = (function(){
                justify-content:center;background:#0b0a12ee;
                font:400 15px/1.5 system-ui,sans-serif;color:#eae6f5}
       #sortfix.hidden{display:none}
-      .sxwrap{width:min(660px,calc(100vw - 32px));max-height:calc(100vh - 48px);
+      .sxwrap{width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 48px);
               background:#15121f;border:2px solid #6b5f8f;border-radius:18px;
               box-shadow:0 24px 70px #000b;display:flex;flex-direction:column;overflow:hidden}
       .sxhead{display:flex;align-items:center;gap:12px;padding:12px 18px;
@@ -61,49 +62,48 @@ window.SORTFIX = (function(){
       .sxbody{padding:18px 20px 16px;overflow:auto}
       .sxsys{font:700 12px/1 ui-monospace,monospace;letter-spacing:.14em;
              text-transform:uppercase;color:#a396c4;margin-bottom:7px}
-      .sxsays{font-size:19px;line-height:1.45;color:#f4f0ff;margin:0 0 16px}
+      .sxsays{font-size:19px;line-height:1.45;color:#f4f0ff;margin:0 0 18px}
 
-      /* ---- the ladder ---- */
-      .sxrung{display:flex;align-items:center;gap:10px;margin:0 0 7px;
-              background:#1b1729;border:2px solid #3b3158;border-radius:12px;
-              padding:9px 11px;font:400 17px/1.35 ui-monospace,monospace}
-      .sxrung.els{border-style:dashed;color:#b9aed6}
-      .sxmv{display:flex;flex-direction:column;gap:3px}
-      .sxmv button{width:26px;height:19px;border:0;border-radius:6px;cursor:pointer;
-                   background:#3b3158;color:#eae6f5;font:700 11px/1 ui-monospace,monospace}
-      .sxmv button:hover{background:#574a7f}
-      .sxmv button:disabled{opacity:.25;cursor:default}
-      .sxkw{color:#ffb4a2;font-weight:700}
-      .sxact{margin-left:auto;font-weight:700;letter-spacing:.06em}
-      .sxcond{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+      /* ---- the expression, big, in the middle ---- */
+      .sxexpr{display:flex;align-items:center;justify-content:center;gap:9px;
+              flex-wrap:wrap;background:#1b1729;border:2px solid #3b3158;
+              border-radius:14px;padding:17px 14px;
+              font:400 21px/1.4 ui-monospace,monospace;color:#e6e0f5}
       .sxg{color:#8fd3ff} .sxn{color:#ffd8a8} .sxp{color:#7f74a0}
-      .sxslot{min-width:54px;height:32px;border-radius:8px;border:2px dashed #7a6aa8;
+      .sxkw{color:#ffb4a2;font-weight:700}
+      .sxslot{min-width:56px;height:36px;border-radius:9px;border:2px dashed #7a6aa8;
               background:#120f1c;color:#a8e6cf;cursor:pointer;
-              font:700 16px/1 ui-monospace,monospace;display:inline-flex;
-              align-items:center;justify-content:center;padding:0 9px}
+              font:700 19px/1 ui-monospace,monospace;display:inline-flex;
+              align-items:center;justify-content:center;padding:0 10px}
       .sxslot.full{border-style:solid;background:#241f38;border-color:#6b5f8f}
+      .sxslot.join{color:#ffb4a2}
       .sxslot:hover{border-color:#a8e6cf}
       .sxslot.armed{outline:3px solid #ffd8a8;outline-offset:2px;
                     animation:sxring 1.4s ease-in-out infinite}
       @keyframes sxring{50%{outline-color:#ffd8a866}}
 
-      /* ---- the chips ---- */
-      .sxbank{display:flex;gap:6px;flex-wrap:wrap;margin:13px 0 0}
+      /* ---- the words ---- */
+      .sxbank{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0;justify-content:center}
       .sxc{border:2px solid #4a3f72;background:#241f38;border-radius:9px;
-           padding:7px 12px;cursor:pointer;color:#eae6f5;
-           font:700 15px/1 ui-monospace,monospace}
+           padding:8px 14px;cursor:pointer;color:#eae6f5;
+           font:700 16px/1 ui-monospace,monospace}
       .sxc:hover{border-color:#a8e6cf}
-      .sxc.dim{opacity:.26}
+      .sxc.join{color:#ffb4a2}
 
       .sxnote{margin:12px 0 0;padding:9px 12px;border-radius:9px;
               background:#3a2230;border:2px solid #ff9aa2;color:#ffd3d8;font-size:14px}
-      /* THE SHADOW LINE. Its own colour, because it is not "you got a
-         number wrong" — it is "this line cannot ever run", which is a
-         different kind of news. */
-      .sxdead{margin:12px 0 0;padding:10px 13px;border-radius:10px;
-              background:#332a1c;border:2px solid #ffd8a8;color:#ffe9c9;font-size:15px}
-      .sxdead b{color:#fff}
-      .sxhint{margin:12px 0 0;color:#b9aed6;font-size:14px;text-align:center}
+      .sxhint{margin:13px 0 0;color:#b9aed6;font-size:14px;text-align:center}
+
+      /* ---- the expression, worked, on the part it gets wrong ---- */
+      .sxwork{margin:14px 0 0;padding:11px 13px;border-radius:10px;
+              background:#332a1c;border:2px solid #ffd8a8;color:#ffe9c9}
+      .sxwork .lead{font-size:13.5px;color:#e8d3ae;margin-bottom:7px}
+      .sxwork .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+                   font:400 16px/1.7 ui-monospace,monospace}
+      .sxpiece{background:#241d10;border:1px solid #6b5a38;border-radius:7px;padding:2px 8px}
+      .sxpiece i{font-style:normal;font-weight:700;margin-left:6px}
+      .sxyes i{color:#a8e6cf} .sxno i{color:#ff9aa2}
+      .sxwork .out{margin-left:auto;font-weight:700}
 
       /* ---- the belt ---- */
       .sxbelt{margin:16px 0 0;border-collapse:collapse;width:100%;
@@ -145,133 +145,125 @@ window.SORTFIX = (function(){
   }
 
   /* --------------------------------------------------------- drawing
-     THE LADDER AS THE STUDENT BUILT IT, not as it was written down. The
-     order comes out of the state, the keyword comes out of the position,
-     and a condition is drawn off its own tree so what is on screen and
-     what KLOGIC walks are one statement. */
-  function condHTML(n){
-    if(!n) return '';
-    if(n.k==='var') return `<span class="sxg">${esc(n.v)}</span>`;
-    if(n.k==='not') return `<span class="sxp">not (</span>${condHTML(n.a)}<span class="sxp">)</span>`;
+     THE EXPRESSION OFF ITS OWN TREE, so the thing on screen and the thing
+     KLOGIC evaluates are one statement. A hole is a button; anything
+     already written is text. */
+  function exprHTML(n){
+    if(!n || typeof n!=='object') return '';
+    /* A hole where the joining word goes: the two sides are written and
+       what holds them together is the question. */
+    if(typeof n.k==='string' && n.k[0]==='#')
+      return exprHTML(n.a) + slot(n.k, 'join') + exprHTML(n.b);
     if(n.k==='and' || n.k==='or')
-      return `${condHTML(n.a)} <span class="sxkw">${n.k}</span> ${condHTML(n.b)}`;
+      return exprHTML(n.a) + `<span class="sxkw">${n.k}</span>` + exprHTML(n.b);
+    if(n.k==='not')
+      return `<span class="sxkw">not</span><span class="sxp">(</span>`
+           + exprHTML(n.a) + `<span class="sxp">)</span>`;
+    if(n.k==='var') return `<span class="sxg">${esc(n.v)}</span>`;
     if(n.k==='cmp')
-      return slot(n.v,'gauge','sxg') + slot(n.op,'op','') + slot(n.n,'n','sxn');
+      return piece(n.v,'gauge','sxg') + piece(n.op,'op','') + piece(n.n,'n','sxn');
     return '';
   }
-  /* A hole is a button; anything already written is just text. */
-  function slot(v, kind, cls){
-    if(typeof v==='string' && v[0]==='#'){
-      const got=(state.fill||{})[v];
-      return `<button class="sxslot ${got?'full':''}${armed===v?' armed':''}"
-                data-slot="${esc(v)}" data-kind="${kind}">${got!==undefined&&got!==null&&got!==''?esc(got):'&nbsp;'}</button>`;
-    }
-    return `<span class="${cls}">${esc(v)}</span>`;
+  const piece = (v, kind, cls) =>
+    (typeof v==='string' && v[0]==='#') ? slot(v, kind)
+                                        : `<span class="${cls}">${esc(v)}</span>`;
+  function slot(h, kind){
+    const got=(state.fill||{})[h];
+    const has = got!==undefined && got!==null && got!=='';
+    return `<button class="sxslot ${kind==='join'?'join':''}${has?' full':''}${armed===h?' armed':''}"
+              data-slot="${esc(h)}">${has?esc(got):'&nbsp;'}</button>`;
   }
 
-  function ladderHTML(j){
-    const order=(state.order||j.branches.map((_,i)=>i));
-    const isElse = i => j.branches[i] && j.branches[i].kind==='else';
-    const body=order.filter(i=>!isElse(i)), tail=order.filter(isElse);
-    const movable = j.kind!=='fill';
-    let out='';
-    body.forEach((bi,pos)=>{
-      const b=j.branches[bi];
-      out+=`<div class="sxrung">
-        ${movable ? `<span class="sxmv">
-          <button data-up="${pos}" ${pos===0?'disabled':''}>&#9650;</button>
-          <button data-dn="${pos}" ${pos===body.length-1?'disabled':''}>&#9660;</button>
-        </span>` : ''}
-        <span class="sxkw">${pos===0?'if':'elif'}</span>
-        <span class="sxcond">${condHTML(b.cond)}</span>
-        <span class="sxp">:</span>
-        <span class="sxact" style="color:${tintOf(b.action)}">${esc(b.action)}</span>
-      </div>`;
-    });
-    tail.forEach(bi=>{
-      const b=j.branches[bi];
-      out+=`<div class="sxrung els">
-        ${movable ? `<span class="sxmv"><button disabled>&#9650;</button><button disabled>&#9660;</button></span>` : ''}
-        <span class="sxkw">else</span><span class="sxp">:</span>
-        <span class="sxact" style="color:${tintOf(b.action)}">${esc(b.action)}</span>
-      </div>`;
-    });
-    return out;
-  }
-  const tintOf = id => { const b=S().BINS.find(x=>x.id===id); return b?b.tint:'#eae6f5'; };
-
-  /* THE CHIPS for whichever blank is armed. Only the ones that could go in
-     it — a gauge chip in a number blank is not a wrong answer, it is a
-     category error, and offering it would be offering nonsense. */
+  /* THE WORDS for whichever blank is armed, and only the ones that could
+     go in it. A gauge offered for a number blank is not a wrong answer,
+     it is a category error, and offering it would be offering nonsense. */
   function bankHTML(j){
     if(!armed) return '';
     const h=S().holes(j).find(x=>x.slot===armed);
     if(!h) return '';
     return `<div class="sxbank">` + h.choices.map(c=>
-      `<button class="sxc" data-chip="${esc(c)}">${esc(c)}</button>`).join('') + `</div>`;
+      `<button class="sxc ${h.kind==='join'?'join':''}" data-chip="${esc(c)}">${esc(c)}</button>`
+    ).join('') + `</div>`;
+  }
+
+  /* THE EXPRESSION WORKED OUT ON ONE PART. sorter.js decides whether
+     there is anything to show and what the pieces came out as; this only
+     draws them. */
+  function workHTML(j){
+    const w=S().why(j, state);
+    if(!w) return '';
+    const gauges=j.vars.map(g=>`${g} ${w.part[g]===undefined?'?'
+        : (g==='cracked' ? (w.part[g]?say('yes'):say('no')) : w.part[g])}`).join(', ');
+    const row=w.parts.map(p=>{
+      if(p.join) return `<span class="sxkw">${esc(p.join)}</span>`;
+      if(p.close) return `<span class="sxp">)</span>`
+        + `<i class="${p.value?'sxyes':'sxno'}" style="font-style:normal;font-weight:700">`
+        + ` ${p.value?say('YES'):say('NO')}</i>`;
+      if(p.open) return `<span class="sxkw">${esc(p.text)}</span><span class="sxp">(</span>`;
+      return `<span class="sxpiece ${p.value?'sxyes':'sxno'}">${esc(p.text)}`
+           + `<i>${p.value?say('YES'):say('NO')}</i></span>`;
+    }).join(' ');
+    return `<div class="sxwork">
+      <div class="lead">${say('With {g}, your rule says {a}. He says {b}.',
+        { g:gauges, a:w.got?say('TAKE'):say('LEAVE'), b:w.want?say('TAKE'):say('LEAVE') })}</div>
+      <div class="row">${row}</div></div>`;
   }
 
   function beltHTML(j){
-    const rs=S().rows(j, state);
-    const gauges=j.vars;
+    const rs=S().rows(j, state), gauges=j.vars;
     return `<table class="sxbelt"><tr>`
       + gauges.map(g=>`<th>${esc(g)}</th>`).join('')
-      + `<th>${say('your ladder')}</th><th>${say('should be')}</th></tr>`
+      + `<th>${say('your rule')}</th><th>${say('he says')}</th></tr>`
       + rs.map(r=>`<tr class="${r.blank?'r-idle':r.ok?'r-ok':'r-no'}">`
         + gauges.map(g=>`<td>${r.part[g]===undefined?'—'
             : (g==='cracked' ? (r.part[g]?say('yes'):say('no')) : r.part[g])}</td>`).join('')
-        + `<td>${r.got || '—'}</td>`
-        + `<td>${r.want}${r.ok?'  ✓':''}</td></tr>`).join('')
+        + `<td>${r.got===null ? '—' : (r.got?say('TAKE'):say('LEAVE'))}</td>`
+        + `<td>${r.want?say('TAKE'):say('LEAVE')}${r.ok?'  ✓':''}</td></tr>`).join('')
       + `</table>`;
   }
 
   function dots(){
     const u=dom(), J=S().JOBS;
     u.dots.innerHTML = J.map((j,i)=>
-      `<span class="sxdot${S().done(j,stateFor(i))?' done':''}${i===at?' at':''}"></span>`).join('');
+      `<span class="sxdot${passed[j.id]?' done':''}${i===at?' at':''}"></span>`).join('');
   }
-  /* Only the job on screen has live state; the others are drawn as
-     unfinished unless they have already been passed. */
-  let passed={};
-  const stateFor = i => i===at ? state : (passed[S().JOBS[i].id] || S().blank(S().JOBS[i]));
 
   function draw(){
     const u=dom(), j=job();
     if(!j) return;
-    const d=S().dead(j, state), m=S().miss(j, state);
+    const work=workHTML(j);
 
     u.body.innerHTML =
       `<div class="sxsys">${esc(j.name)}</div>` +
       `<p class="sxsays">${esc(say(j.says))}</p>` +
-      ladderHTML(j) +
+      `<div class="sxexpr">${exprHTML(j.form)}</div>` +
       bankHTML(j) +
       (note ? `<div class="sxnote">${esc(note)}</div>` : '') +
-      (!note && d ? `<div class="sxdead">${say('Nothing ever reaches')}
-          <b>${esc(d.text)} → ${esc(d.action)}</b>. ${say('Something above it catches those first.')}</div>` : '') +
-      (!note && !d && m ? `<div class="sxhint">${say('Look at the red line.')}</div>` : '') +
-      (!note && !d && !m ? `<div class="sxhint">${esc(say(j.hint))}</div>` : '') +
+      (!note && work ? work : '') +
+      (!note && !work ? `<div class="sxhint">${esc(say(j.hint))}</div>` : '') +
       beltHTML(j);
 
-    u.body.querySelectorAll('[data-up]').forEach(b=>{
-      b.onclick=()=>{ const p=+b.dataset.up; state=S().move(j,state,p,p-1); note=null; draw(); };
-    });
-    u.body.querySelectorAll('[data-dn]').forEach(b=>{
-      b.onclick=()=>{ const p=+b.dataset.dn; state=S().move(j,state,p,p+1); note=null; draw(); };
-    });
     u.body.querySelectorAll('[data-slot]').forEach(b=>{
       b.onclick=()=>{
         const k=b.dataset.slot;
         /* A filled blank clicked again empties itself, which is the only
-           way back out of an answer you have changed your mind about. */
+           way back out of a word you have changed your mind about. */
         if((state.fill||{})[k]!==undefined){
           const f=Object.assign({}, state.fill); delete f[k];
           state=Object.assign({}, state, { fill:f }); armed=k;
-        } else armed = armed===k ? null : k;
+        }
+        /* AN EMPTY BLANK CLICKED IS AN EMPTY BLANK ARMED, even when it is
+           the one already ringed. It used to toggle: place a word, the
+           next blank arms itself and starts flashing, and clicking the
+           flashing thing — which is the one obvious move — put the word
+           list away. Nothing says "click me" like a ring that pulses, and
+           nothing is less deserved than being punished for it. */
+        else armed = k;
         note=null; draw();
       };
     });
     u.body.querySelectorAll('[data-chip]').forEach(b=>{
-      b.onclick=()=>{ place(b.dataset.chip); };
+      b.onclick=()=>place(b.dataset.chip);
     });
 
     const ok=S().done(j, state), last = at===S().JOBS.length-1;
@@ -286,12 +278,14 @@ window.SORTFIX = (function(){
     const h=S().holes(j).find(x=>x.slot===armed);
     if(!h) return;
     /* Numbers arrive as text off a data attribute and have to go back in
-       as numbers, or `heat >= "800"` compares a gauge to a string and the
-       whole ladder quietly stops meaning anything. */
+       as numbers, or `heat < "900"` compares a gauge to a string and the
+       whole expression quietly stops meaning anything. */
     const v = h.kind==='n' ? Number(chip) : chip;
     const f=Object.assign({}, state.fill||{}); f[armed]=v;
     state=Object.assign({}, state, { fill:f });
     note=null;
+    /* On to the next empty blank, so a three-blank expression is three
+       clicks rather than three clicks and two hunts. */
     const rest=S().holes(j).map(x=>x.slot).filter(sl=>(state.fill||{})[sl]===undefined);
     armed = rest[0] || null;
     draw();
@@ -300,9 +294,9 @@ window.SORTFIX = (function(){
   function forward(){
     const J=S().JOBS, j=job();
     if(!S().done(j, state)) return;
-    passed[j.id]=state;
+    passed[j.id]=true;
     if(at < J.length-1){
-      at++; state=S().blank(J[at]); armed=null; note=null;
+      at++; state=S().blank(); armed=null; note=null;
       draw();
       try{ dom().body.scrollTop=0; }catch(e){}
       return;
@@ -319,7 +313,7 @@ window.SORTFIX = (function(){
     if(open) return;
     if(!S() || !K()){ console.warn('SORTFIX: sorter.js or logic.js is not loaded'); return; }
     opts=o||{}; open=true; done=false; at=0; armed=null; note=null; passed={};
-    state=S().blank(S().JOBS[0]);
+    state=S().blank();
     const u=dom();
     u.el.classList.remove('hidden');
     u.go.disabled=false;

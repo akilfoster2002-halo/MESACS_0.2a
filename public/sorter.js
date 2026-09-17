@@ -1,44 +1,44 @@
 /* =====================================================================
-   THE MECHANIC'S BELT — three ladders, and the order of them is the
-   lesson.
+   THE MECHANIC'S BELT — one question per part, and the question is an
+   expression you build out of and, or and not.
 
    WHAT THIS TEACHES, AND WHY IT IS NOT THE PRE-FLIGHT AGAIN. shipfix.js
-   teaches the nine WORDS a condition is made of — `<` against `<=`, and
-   which of them means "at least". The Engineer's Trail teaches READING a
-   ladder somebody else wrote and working out who must have opened a gate.
-   Neither of them ever asks a student to WRITE one, and writing one has a
-   difficulty all of its own that neither can reach:
+   meets each of the nine words once, in a place where only that word will
+   do: `>=` in a rule about "at least", `and` in a rule with a floor and a
+   ceiling, `not` over a single comparison. That is meeting a vocabulary.
 
-       A BRANCH UNDER A TRUE ONE IS NOT FALSE. IT IS NEVER ASKED.
+   This is USING it. Every job here is one expression with several
+   conditions in it, and the difficulty is no longer which word means what
+   — it is what a whole expression comes out as when the parts of it
+   disagree. Three things live in that gap and nothing else in the game
+   reaches them:
 
-   That is the whole of it. `heat > 900` is a perfectly good condition and
-   it can still be dead code, because `heat > 400` sits above it and every
-   part over 900 is also over 400. Nothing about the condition is wrong.
-   Nothing a student can see by reading it is wrong. It only shows up when
-   a part at 1200 degrees rolls past and goes to the COOLER, and the only
-   way to understand why is to be told which branches the machine never
-   looked at — which is exactly what KLOGIC.run() already reports.
+     TWO GAUGES AT ONCE. The pre-flight's `and` joins two facts about the
+     same number (psi over 8, psi under 40). Joining two DIFFERENT gauges
+     is the ordinary case in real code and it reads differently: there is
+     no single dial to picture.
 
-   SO THE ENGINE IS KLOGIC AND THERE IS NO SECOND ONE. logic.js has the
-   condition tree, the operators, the ladder walker and the trace with
-   `tested:false` on the branches that were skipped. A second evaluator in
-   here would be a second answer that no test ever sees — the same
-   argument preflight.js makes about shipfix.js, and the reason that file
-   has no comparison table in it either.
+     A BARE BOOLEAN IS ALREADY A QUESTION. `cracked` does not need
+     comparing to anything, and `not cracked` is how you say it is fine.
+     A student who has just learnt `==` reaches for `cracked == 0` every
+     time; the short form is here to be met.
 
-   WHAT A JOB IS. A ladder with holes in it and a belt of parts that have
-   already been judged:
+     AND `not` OVER A GROUP, which is the whole of the third job. "Leave
+     the cracked ones, leave the hot ones" becomes `not (cracked or hot)`,
+     and almost everybody writes `not (cracked and hot)` first, because
+     the English had an "and" in it. Those two disagree on exactly the
+     parts where one thing is wrong and the other is fine, and the belt
+     carries both of them.
 
-     order : the branches arrive shuffled and the conditions are written.
-             The student moves lines. Nothing else.
-     fill  : the order is right and a condition has a blank in it.
-     both  : neither is given.
+   NO LADDERS, NO BRANCHES, NO ORDER. There is one expression and it is
+   true or it is false. Nothing here is sequenced, nothing shadows
+   anything, and the belt asks every part the same single question.
 
-   THE BELT IS THE ASSESSMENT, and every part on it is chosen. There is
-   always one that only comes out right when the specific rule sits above
-   the general one, because a belt that never carries a part over 900 is a
-   belt that cannot tell a student which of two orders they have picked —
-   the same argument preflight.js makes about trying FUEL at exactly 20.
+   THE ENGINE IS KLOGIC AND THERE IS NO SECOND ONE. logic.js has the
+   condition tree and the operator table, and `value()` is a boolean
+   evaluator with no ladder in it. A second evaluator here would be a
+   second answer that no test ever sees — the same argument preflight.js
+   makes about shipfix.js.
 
    NO DOM, AND IT RUNS UNDER NODE. sortfix.js is the screen.
    ===================================================================== */
@@ -47,140 +47,136 @@
   const L = () => (typeof module!=='undefined' && module.exports)
                   ? require('./logic.js') : root.KLOGIC;
 
-  /* ------------------------------------------------------------ the bins
-     Where a part can end up. Three, and they are three because two would
-     not need a ladder and four would not teach anything three does not. */
-  const BINS = [
-    { id:'SCRAP',  name:'SCRAP',  tint:'#ff9aa2' },
-    { id:'COOLER', name:'COOLER', tint:'#8fd3ff' },
-    { id:'SHELF',  name:'SHELF',  tint:'#a8e6cf' }
-  ];
-
-  /* --------------------------------------------------------- the pieces
-     What a student can put in a blank. Three kinds, and they are kept
-     apart for the same reason preflight.js keeps `and` out of a slot that
-     compares two numbers: a wrong KIND of answer is a different mistake
-     from a wrong answer, and a console that cannot tell them apart has
-     taught nothing.
-
-       gauge : something the belt can read off a part
-       op    : how to compare it
-       n     : a number to compare it against                            */
+  /* --------------------------------------------------------- the gauges
+     What the belt can read off a part. Two numbers and one yes/no, so an
+     expression can join two different dials or lean on a bare boolean. */
   const GAUGES = [
     { id:'heat',    name:'heat' },
+    { id:'load',    name:'load' },
     { id:'cracked', name:'cracked', bool:true }
   ];
   const OPS_OK = ['<','<=','>','>=','==','!='];
+  const JOINS  = ['and','or'];
 
-  /* ------------------------------------------------------------- the job
-     `want` is what the Mechanic says each part should do, and it is
-     written as a plain function of the part rather than as a second
-     ladder — a second ladder would be the answer key, and a student's
-     ladder would be marked by comparing it to the one we already had.
-     This way the belt is a description of the JOB and any ladder that
-     satisfies it is right. */
+  /* ------------------------------------------------------------ the jobs
+     `want` is what the Mechanic says about each part, written as a plain
+     function rather than as a second expression — a second expression
+     would be the answer key, and a student's work would be marked by
+     comparing it to one we already had. This way the belt describes the
+     JOB, and any expression that satisfies it is right.
+
+     THE ARM EITHER TAKES A PART OR LEAVES IT. One question, one answer,
+     and the answer is a boolean. */
   const JOBS = [
     /* ---------------------------------------------------------- one
-       ORDER ONLY. Every condition is written and correct; three of the
-       four lines are in the wrong order. The belt carries a part at 1200
-       which is both over 900 and over 400, so the two orders disagree on
-       it and on nothing else. */
-    { id:'order', kind:'order', name:'SORTING',
-      says: 'Put my rules in the right order.',
-      hint: 'The first true line wins. Nothing under it is even asked.',
+       BOTH AT ONCE, ACROSS TWO GAUGES. The belt carries every mix of
+       whole against cracked and hot against cool, so `and` and `or`
+       disagree on three of the six parts and there is no passing by
+       accident. The boundary of "cool" is on it twice, at 899 and 900,
+       because `<` and `<=` agree everywhere else in the world. */
+    { id:'both', name:'THE ARM',
+      says: 'Take a part only if it is cool AND not cracked.',
+      hint: 'Two things at once. What joins them?',
       vars: ['heat','cracked'],
-      /* The order they arrive in, which is wrong on purpose. */
-      branches: [
-        { cond:{ k:'cmp', v:'heat', op:'>', n:400 }, action:'COOLER' },
-        { cond:{ k:'cmp', v:'heat', op:'>', n:900 }, action:'SCRAP'  },
-        { cond:{ k:'var', v:'cracked' },             action:'SCRAP'  },
-        { kind:'else',                               action:'SHELF'  }
-      ],
+      form: { k:'#j1', a:{ k:'cmp', v:'heat', op:'#o1', n:'#n1' },
+                       b:{ k:'not', a:{ k:'var', v:'cracked' } } },
+      pick: { '#j1':JOINS, '#o1':OPS_OK, '#n1':[200,400,900] },
       belt: [
-        { heat:1200, cracked:0 },      // over 900 AND over 400: the whole lesson
-        { heat:620,  cracked:0 },
-        { heat:180,  cracked:0 },
-        { heat:120,  cracked:1 },      // cool, but cracked
-        { heat:950,  cracked:1 }
+        { heat:120,  cracked:0 },
+        { heat:899,  cracked:0 },
+        { heat:900,  cracked:0 },      // the boundary of "cool"
+        { heat:120,  cracked:1 },      // cool but cracked: `or` takes it
+        { heat:1200, cracked:1 },
+        { heat:1200, cracked:0 }       // hot but whole: `or` takes it too
       ],
-      want: p => p.cracked ? 'SCRAP' : p.heat>900 ? 'SCRAP'
-               : p.heat>400 ? 'COOLER' : 'SHELF' },
+      want: p => p.heat<900 && !p.cracked },
 
     /* ---------------------------------------------------------- two
-       FILL THE BLANK. The order is right and cannot be changed; two
-       conditions have holes in them. The belt tries the boundary of each,
-       so `>` and `>=` come apart on it. */
-    { id:'fill', kind:'fill', name:'THE CUT-OFF',
-      says: 'The numbers moved. Write the two lines again.',
-      hint: 'Try it at exactly the number. That is where two answers differ.',
-      vars: ['heat','cracked'],
-      branches: [
-        { cond:{ k:'var', v:'cracked' },                       action:'SCRAP'  },
-        { cond:{ k:'cmp', v:'#g1', op:'#o1', n:'#n1' },         action:'SCRAP'  },
-        { cond:{ k:'cmp', v:'#g2', op:'#o2', n:'#n2' },         action:'COOLER' },
-        { kind:'else',                                         action:'SHELF'  }
-      ],
-      /* What goes in each blank is never written down. The belt decides. */
-      pick: { '#g1':GAUGES.map(g=>g.id), '#o1':OPS_OK, '#n1':[200,400,500,800],
-              '#g2':GAUGES.map(g=>g.id), '#o2':OPS_OK, '#n2':[200,400,500,800] },
+       EITHER WILL DO, two different gauges again. The belt carries one
+       part that passes each side alone, one that passes both and one that
+       passes neither, so `and` is wrong on two of them. */
+    { id:'either', name:'THE SECOND ARM',
+      says: 'Take it if it is light OR cool. Either will do.',
+      hint: 'One of them is enough. Both is fine too.',
+      vars: ['load','heat'],
+      form: { k:'#j1', a:{ k:'cmp', v:'load', op:'#o1', n:'#n1' },
+                       b:{ k:'cmp', v:'heat', op:'#o2', n:'#n2' } },
+      pick: { '#j1':JOINS, '#o1':OPS_OK, '#n1':[200,400,900],
+                           '#o2':OPS_OK, '#n2':[200,400,900] },
       belt: [
-        { heat:800, cracked:0 },       // exactly the scrap line
-        { heat:799, cracked:0 },
-        { heat:500, cracked:0 },       // exactly the cooler line
-        { heat:499, cracked:0 },
-        { heat:60,  cracked:0 },
-        { heat:60,  cracked:1 }
+        { load:120, heat:1200 },       // light only
+        { load:800, heat:150  },       // cool only
+        { load:120, heat:150  },       // both
+        { load:800, heat:1200 },       // neither
+        { load:200, heat:1200 },       // the boundary of "light"
+        { load:800, heat:400  },       // and of "cool"
+        /* BETWEEN THE TWO CANDIDATE NUMBERS. Without this the belt had
+           nothing carrying a heat between 200 and 400, so `heat < 200`
+           and `heat < 400` agreed on every part and the job had three
+           right answers. A check that cannot tell two answers apart
+           cannot tell a student which one they picked. */
+        { load:800, heat:300  }
       ],
-      want: p => p.cracked ? 'SCRAP' : p.heat>=800 ? 'SCRAP'
-               : p.heat>=500 ? 'COOLER' : 'SHELF' },
+      want: p => p.load<200 || p.heat<400 },
 
-    /* ---------------------------------------------------------- three
-       BOTH, AND A RULE THAT NEEDS TWO THINGS AT ONCE. A cracked part is
-       only worth scrapping if it is also hot; a cool cracked one is worth
-       mending, so the top line is an `and`. Order still matters: the
-       mend line has to sit above the plain scrap line or it is never
-       asked. */
-    { id:'both', kind:'both', name:'THE NEW RULE',
-      says: 'A cool cracked part is worth mending. Hot ones are not.',
-      hint: 'Two things at once is one line, not two.',
+    /* -------------------------------------------------------- three
+       NOT OVER A GROUP, and this is the job the other two are for.
+
+       The Mechanic says it with an "and" in it — leave the cracked ones
+       AND leave the hot ones — and the expression that means that is
+       `not (cracked or hot)`. Writing `not (cracked and hot)` is the
+       first thing nearly everybody does, and it only rejects the parts
+       where BOTH are wrong: a cool cracked part and a hot whole one both
+       come back onto the belt. So the belt carries one of each, and they
+       are the two rows that go red. */
+    { id:'neither', name:'THE REJECT ARM',
+      says: 'Leave the cracked ones. Leave the hot ones. Take the rest.',
+      hint: 'One "not" over the group. Mind which word goes inside it.',
       vars: ['heat','cracked'],
-      branches: [
-        { cond:{ k:'and', a:{ k:'var', v:'cracked' },
-                          b:{ k:'cmp', v:'#g1', op:'#o1', n:'#n1' } }, action:'SHELF'  },
-        { cond:{ k:'var', v:'cracked' },                               action:'SCRAP'  },
-        { cond:{ k:'cmp', v:'#g2', op:'#o2', n:'#n2' },                action:'COOLER' },
-        { kind:'else',                                                 action:'SHELF'  }
-      ],
-      pick: { '#g1':GAUGES.map(g=>g.id), '#o1':OPS_OK, '#n1':[100,300,600,900],
-              '#g2':GAUGES.map(g=>g.id), '#o2':OPS_OK, '#n2':[100,300,600,900] },
+      form: { k:'not', a:{ k:'#j1', a:{ k:'var', v:'cracked' },
+                                    b:{ k:'cmp', v:'heat', op:'#o1', n:'#n1' } } },
+      pick: { '#j1':JOINS, '#o1':OPS_OK, '#n1':[200,400,900] },
       belt: [
-        { heat:90,  cracked:1 },       // cool and cracked: mend it
-        { heat:300, cracked:1 },       // the boundary of "cool"
-        { heat:301, cracked:1 },
-        { heat:800, cracked:1 },       // hot and cracked: scrap
-        { heat:700, cracked:0 },
-        { heat:50,  cracked:0 }
+        { heat:150,  cracked:0 },
+        { heat:899,  cracked:0 },
+        { heat:150,  cracked:1 },      // cracked but cool
+        { heat:1200, cracked:0 },      // hot but whole
+        { heat:1200, cracked:1 },      // both wrong
+        { heat:900,  cracked:0 }       // the boundary
       ],
-      want: p => (p.cracked && p.heat<=300) ? 'SHELF'
-               : p.cracked ? 'SCRAP'
-               : p.heat>300 ? 'COOLER' : 'SHELF' }
+      want: p => !(p.cracked || p.heat>=900) }
   ];
   const jobOf = id => JOBS.find(j=>j.id===id) || null;
 
   /* ------------------------------------------------------------- state
-     What a student has built: an order for the branches, and something in
-     each blank. Nothing is filled in to start with — an empty blank is
-     not a wrong answer and is never counted as one. */
-  function blank(job){
-    return { order: job.branches.map((_,i)=>i), fill: {} };
-  }
+     What a student has put in each blank. Nothing to start with — an
+     empty blank is not a wrong answer and is never counted as one. */
+  const blank = () => ({ fill:{} });
 
-  /* Every hole in a job, as {slot, kind, choices}. Walked by the screen to
-     draw the blanks and by the tests to fill them. */
+  /* Every hole in a job, as {slot, kind, choices}, in reading order.
+     Walked by the screen to draw the blanks and by the tests to fill
+     them. A slot written twice is one blank, not two. */
   function holes(job){
     const out=[];
     const walk = n => {
       if(!n || typeof n!=='object') return;
+      /* A JOINING BLANK IS WRITTEN BETWEEN ITS TWO SIDES, so it is
+         collected between them too.
+
+         It used to be pushed on the way IN, before either side, which put
+         it first in this list while it sat third on the screen. Nothing
+         looked wrong: the expression drew correctly and every blank was
+         fillable. But `holes()` is also what the panel walks to decide
+         which blank to arm NEXT after a word is placed — so the ring
+         jumped from the operator to the joining word in the middle and
+         back to the number, and the word list changed under a student who
+         was reading left to right. Same order as the screen, always. */
+      if(typeof n.k==='string' && n.k[0]==='#'){
+        walk(n.a);
+        out.push({ slot:n.k, kind:'join', choices:(job.pick&&job.pick[n.k])||JOINS });
+        walk(n.b);
+        return;
+      }
       if(n.k==='cmp'){
         for(const [key,kind] of [['v','gauge'],['op','op'],['n','n']]){
           const h=n[key];
@@ -191,166 +187,124 @@
       }
       walk(n.a); walk(n.b);
     };
-    (job.branches||[]).forEach(b=>walk(b.cond));
-    /* One entry per slot, in the order they are read. A slot that appears
-       twice in one ladder is one blank, not two. */
+    walk(job.form);
     const seen=new Set();
     return out.filter(h=>seen.has(h.slot) ? false : (seen.add(h.slot), true));
   }
 
-  /* The ladder as KLOGIC wants it: branches in the student's order, holes
-     replaced by whatever they have put in them, and `kind` recomputed so
-     whichever line is on top is the `if`. A ladder that starts with
-     `elif` is not a ladder. */
+  /* The expression as KLOGIC wants it, with every hole replaced by what
+     the student put in it. A hole still empty makes the whole thing null:
+     an expression with a gap in it has no value, which is a different
+     thing from being false. */
   function build(job, state){
-    const s=state||blank(job);
-    const fill=s.fill||{};
-    const put = n => {
-      if(!n || typeof n!=='object') return n;
-      if(n.k==='cmp'){
-        const v=sub(n.v), op=sub(n.op), num=sub(n.n);
-        if(v===null || op===null || num===null) return null;   // a hole: no answer
-        return { k:'cmp', v, op, n:num };
-      }
-      if(n.k==='var') return n;
-      const a=put(n.a), b=put(n.b);
-      if(a===null || (n.b!==undefined && b===null)) return null;
-      return Object.assign({}, n, { a, b });
-    };
+    const fill=(state&&state.fill)||{};
     const sub = h => {
       if(typeof h!=='string' || h[0]!=='#') return h;
       const v=fill[h];
       return (v===undefined || v===null || v==='') ? null : v;
     };
-    /* The else is pinned to the bottom wherever the student left it — it
-       is not a condition and there is nothing for it to be above. */
-    const listed=(s.order||job.branches.map((_,i)=>i)).map(i=>job.branches[i]).filter(Boolean);
-    const body=listed.filter(b=>b.kind!=='else');
-    const tail=listed.filter(b=>b.kind==='else');
-    const branches=body.map((b,i)=>({ kind: i===0?'if':'elif',
-                                      cond: put(b.cond), action:b.action }))
-                       .concat(tail.map(b=>({ kind:'else', action:b.action })));
-    return { branches };
+    const put = n => {
+      if(!n || typeof n!=='object') return n;
+      const kind = (typeof n.k==='string' && n.k[0]==='#') ? sub(n.k) : n.k;
+      if(kind===null) return null;
+      if(kind==='cmp'){
+        const v=sub(n.v), op=sub(n.op), num=sub(n.n);
+        if(v===null || op===null || num===null) return null;
+        return { k:'cmp', v, op, n:num };
+      }
+      if(kind==='var') return { k:'var', v:n.v };
+      if(kind==='not'){ const a=put(n.a); return a===null ? null : { k:'not', a }; }
+      const a=put(n.a), b=put(n.b);
+      if(a===null || b===null) return null;
+      return { k:kind, a, b };
+    };
+    return put(job.form);
   }
 
-  /* Is every blank filled? A ladder with a hole in it has no answer at
-     all, which is a different thing from a wrong one. */
   const filled = (job, state) =>
-    holes(job).every(h => { const v=(state&&state.fill||{})[h.slot];
+    holes(job).every(h => { const v=((state&&state.fill)||{})[h.slot];
                             return v!==undefined && v!==null && v!==''; });
 
+  /* KLOGIC reads a boolean off the state by name, and a part carries
+     `cracked` as 0 or 1 so the belt's column reads like a gauge. */
+  function stateOf(part){
+    const st=Object.assign({}, part);
+    st.cracked=!!part.cracked;
+    return st;
+  }
+
   /* ---------------------------------------------------------------- run
-     What the ladder did to every part on the belt, and what the job says
-     it should have done. KLOGIC walks it; nothing here decides anything. */
+     What the expression says about every part, against what the Mechanic
+     says. KLOGIC evaluates; nothing here decides anything.
+
+     AN UNFINISHED EXPRESSION ANSWERS NOTHING. Left to itself a missing
+     piece reads as not-true, so every part would come out NO and the belt
+     would fill with confident red before the student had touched it — a
+     column of mistakes they have not made yet. */
   function rows(job, state){
-    const K=L(), rule=build(job, state);
-    /* A LADDER WITH A HOLE IN IT HAS NO ANSWER, and that is not the same
-       thing as a wrong one.
-
-       Left to itself the walker does something perfectly reasonable and
-       completely misleading here: a branch whose condition is still blank
-       evaluates as not-true, so every part falls through to the `else`
-       and the belt fills up with confident answers — half of them red —
-       before the student has typed anything at all. The first thing they
-       would see is a column of mistakes they have not made yet.
-
-       So an unfinished ladder reports nothing, the way the pre-flight
-       draws a dash in a rule it cannot evaluate. */
-    const waiting=!filled(job, state);
+    const K=L(), tree=build(job, state), waiting=!filled(job, state);
     return job.belt.map(part=>{
-      const want=job.want(part);
-      if(waiting) return { part, got:null, want, ok:false, blank:true,
-                           branch:-1, trace:[] };
-      const st=Object.assign({}, part);
-      /* KLOGIC reads booleans off the state by name, and a part carries
-         `cracked` as 0 or 1 so the belt reads like a gauge. */
-      st.cracked = !!part.cracked;
-      let r;
-      try{ r=K.run(rule, st); }catch(e){ r={ branch:-1, action:null, trace:[] }; }
-      return { part, got:r.action, want, ok: r.action===want,
-               blank:false, branch:r.branch, trace:r.trace };
+      const want=!!job.want(part);
+      if(waiting || !tree) return { part, got:null, want, ok:false, blank:true };
+      let got=null;
+      try{ got=K.value(tree, stateOf(part)); }catch(e){ got=null; }
+      return { part, got, want, ok: got!==null && !!got===want, blank:got===null };
     });
   }
 
-  /* Finished and right: every part on the belt goes where the job says. */
-  function done(job, state){
+  const done = (job, state) => {
     if(!filled(job, state)) return false;
     const rs=rows(job, state);
     return rs.length>0 && rs.every(r=>r.ok);
-  }
+  };
 
-  /* ------------------------------------------------- what to say about it
-     A BRANCH THAT WAS NEVER ASKED is the one thing this lesson exists to
-     show, and it is invisible in the ladder itself — the line is right
-     there, spelled correctly, doing nothing. So when a ladder is finished
-     and still wrong, look for a line the belt never once reached and name
-     it. KLOGIC already marks them `tested:false`.
+  /* ------------------------------------------- WHERE IT COMES APART
+     THE ONE THING THIS CONSOLE VOLUNTEERS, and it is the only thing that
+     makes a compound expression learnable: for the first part it gets
+     wrong, what each PIECE of the expression said about that part.
 
-     Only when it is the actual fault. A ladder can have an unreachable
-     line and still route every part correctly (the line is redundant, not
-     wrong), and telling somebody off for that would be telling them off
-     for something that works. */
-  function dead(job, state){
-    if(!filled(job, state)) return null;
-    const rs=rows(job, state);
-    if(rs.every(r=>r.ok)) return null;
-    const K=L(), rule=build(job, state), list=rule.branches||[];
+     `NO and YES` is a sentence a nine-year-old can finish. Reading
+     `cracked or heat > 900` and working out in their head what it does to
+     a part that is cool and cracked is not — that is precisely the step
+     they are here to practise, and watching the machine take it once is
+     how anybody learns to take it themselves.
 
-    /* SHADOWED IS NOT THE SAME AS NEVER EVALUATED, and the difference is
-       the entire bug this function exists to report.
-
-       Put `heat > 400` above `heat > 900` and the 900 line still gets
-       LOOKED AT all day — every cool part reaches it and finds it false.
-       It is simply never TRUE by the time anything gets to it, because
-       everything that would satisfy it was caught one line up. Counting
-       the lines the belt never reached therefore finds nothing at all,
-       which is what the first version of this did.
-
-       So: a line that never RUNS, although its own condition is true of
-       some part on the belt all by itself. That is exactly "something
-       above this is eating your cases", and it is the only thing here
-       worth saying out loud. */
-    for(let i=0;i<list.length;i++){
-      const b=list[i];
-      if(b.kind==='else' || !b.cond) continue;
-      const ranAny=rs.some(r=>(r.trace||[]).some(tr=>tr.i===i && tr.ran));
-      if(ranAny) continue;
-      const trueAny=job.belt.some(part=>{
-        const st=Object.assign({}, part); st.cracked=!!part.cracked;
-        try{ return !!K.value(b.cond, st); }catch(e){ return false; }
-      });
-      if(!trueAny) continue;          // not shadowed, just never applicable
-      return { at:i, action:b.action, text:K.text(b.cond) };
-    }
-    return null;
-  }
-
-  /* The first part the ladder gets wrong, said as what happened to it. */
-  function miss(job, state){
+     NOTHING IS SAID ABOUT WHICH WORD IS WRONG. The pieces are shown with
+     their values and the whole answer at the end; what to change is the
+     student's to work out. */
+  function why(job, state){
     if(!filled(job, state)) return null;
     const bad=rows(job, state).find(r=>!r.ok);
     if(!bad) return null;
-    return { part:bad.part, got:bad.got, want:bad.want };
+    const K=L(), st=stateOf(bad.part), tree=build(job, state);
+    /* The expression flattened to its readable pieces, each with what it
+       came out as on this part, depth-first so they appear in the order
+       they are written on screen. */
+    const parts=[];
+    (function walk(n){
+      if(!n) return;
+      if(n.k==='and' || n.k==='or'){ walk(n.a); parts.push({ join:n.k }); walk(n.b); return; }
+      if(n.k==='not'){
+        /* The value goes on the CLOSING bracket, not the opening one.
+           `not(=YES cracked=YES and heat>=900=NO )` reads as though the
+           word "not" were itself true of something; `not ( cracked=YES
+           and heat>=900=NO ) =YES` reads as what it is — a group, worked
+           out, and then flipped. */
+        let v=null; try{ v=K.value(n, st); }catch(e){}
+        parts.push({ text:'not', open:true });
+        walk(n.a);
+        parts.push({ close:true, value:v });
+        return;
+      }
+      let v=null;
+      try{ v=K.value(n, st); }catch(e){}
+      parts.push({ text:K.text(n), value:v });
+    })(tree);
+    return { part:bad.part, got:bad.got, want:bad.want, parts };
   }
 
-  /* ------------------------------------------------------------ moving
-     Reorder is KLOGIC's, so the rule about which line becomes the `if`
-     and where an `else` may sit is written once. This only moves the
-     student's index list about. */
-  function move(job, state, from, to){
-    const s=state||blank(job);
-    const order=(s.order||[]).slice();
-    /* The else stays at the bottom: it is not a condition and there is
-       nothing for it to be above. */
-    const isElse = i => job.branches[i] && job.branches[i].kind==='else';
-    const body=order.filter(i=>!isElse(i)), tail=order.filter(isElse);
-    if(from<0 || from>=body.length || to<0 || to>=body.length) return s;
-    body.splice(to, 0, body.splice(from,1)[0]);
-    return Object.assign({}, s, { order: body.concat(tail) });
-  }
-
-  const API = { BINS, GAUGES, OPS_OK, JOBS, jobOf,
-                blank, holes, build, filled, rows, done, dead, miss, move };
+  const API = { GAUGES, OPS_OK, JOINS, JOBS, jobOf,
+                blank, holes, build, filled, rows, done, why };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.SORTER=API;
 })(typeof self!=='undefined' ? self : this);

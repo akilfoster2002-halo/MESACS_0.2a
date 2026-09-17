@@ -3383,7 +3383,7 @@ window.PLANET = (function(){
         say:t('Not for nothing, though. Work my belt while I do it.') },
       { shot:ROOM, who:'you', say:t('What does it do?') },
       { shot:ROOM, who:'The Mechanic',
-        say:t('Sorts parts. It needs the rules writing. You will see.') }
+        say:t('The arm picks parts off it. You write what it takes.') }
     ], { faces:FACES,
          end:()=>{
            if(!on) return;
@@ -3399,9 +3399,9 @@ window.PLANET = (function(){
 
      The mission does not end at the handover any more. He takes Ion and
      asks for a morning's work in return, and the work is a lesson: three
-     ladders of conditions, and the order of them decides where a part
-     goes. sorter.js is the job and sortfix.js is the screen; neither of
-     them knows there is a tower around it.
+     expressions, each one question the belt's arm asks of every part that
+     comes past. sorter.js is the job and sortfix.js is the screen;
+     neither of them knows there is a tower around it.
 
      WHY PAYMENT AND NOT A FAVOUR. A lesson that arrives because somebody
      wants you to learn something is homework. A lesson that arrives
@@ -3419,7 +3419,7 @@ window.PLANET = (function(){
       finishIon();
       return;
     }
-    say(t('<b>THE BELT.</b> Put his rules in an order that works.'));
+    say(t('<b>THE BELT.</b> Write the rule the arm picks by.'));
     SORTFIX.open({ onDone: ()=>{
       if(!on) return;
       try{ if(window.PROGRESS) PROGRESS.set(WORKED,1); }catch(e){}

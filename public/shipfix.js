@@ -347,7 +347,11 @@ window.SHIPFIX = (function(){
         /* A filled blank clicked again empties itself, which is the only
            way back out of a word you have changed your mind about. */
         if(state[k]){ delete state[k]; armed=k; }
-        else armed = armed===k ? null : k;
+        /* AN EMPTY BLANK CLICKED IS AN EMPTY BLANK ARMED, even when it is
+           already the ringed one. This used to toggle, so clicking the
+           blank that is flashing at you — the one obvious move — put the
+           word bank away. */
+        else armed = k;
         note=null; draw();
       };
     });
