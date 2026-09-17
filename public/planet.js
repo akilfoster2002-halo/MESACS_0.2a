@@ -714,6 +714,11 @@ window.PLANET = (function(){
     keysFor();
     hud(); dash(); drawMap();
     connect();
+    /* AND NO CHAT WINDOW OVER A STORY. connect() is what puts it up and
+       it refuses on a mission world — but the panel is a page element,
+       not something this world owns, so one left open by the hub would
+       still be sitting over Ion on the kitchen floor. */
+    if(solo() && window.CHAT) CHAT.hide();
     /* The walkthrough is about the hub's front door — it points at Mission
        Control and at the stations inside it, neither of which exists on
        another ball. Landing anywhere else is not a first arrival. */
@@ -5897,7 +5902,28 @@ window.PLANET = (function(){
      Presence carries two numbers and a heading. On a ball those two numbers
      are longitude and latitude rather than x and z: the same two slots, read
      differently, because where you are on a sphere is two angles. */
+  /* ================================================ A MISSION IS PLAYED ALONE
+     RYU IS A STORY AND STORIES DO NOT HAVE A CROWD IN THEM.
+
+     Every ball in this game shares one presence system, and RYU was in it
+     by default: a class of thirty all opening Mission 8 at once were
+     thirty people on the same hillside, watching each other walk into the
+     same house to find the same robot on the same floor. The one thing
+     the cold open is for — you came downstairs and he was on the floor —
+     does not survive four other students standing in the kitchen.
+
+     BOTH DIRECTIONS, because either one alone is half a fix. Not drawing
+     anybody leaves you broadcasting from inside a story, so you appear on
+     THEIR hillside; not broadcasting leaves them drawn on yours.
+
+     WHAT IS NOT SWITCHED OFF is presence itself. wentTo('mission') has
+     already told the server this player is in a mission, so the who's-here
+     list is right, the chat they left behind is intact, and walking back
+     out to Senio puts them in the room again with nothing to reconnect. */
+  const solo = () => !!(W && W.mission);
+
   function connect(){
+    if(solo()) return;
     if(!server || !server.id || !window.NET) return;
     NET.connect(server.id, {
       players:list=>paint(list),
@@ -5911,6 +5937,15 @@ window.PLANET = (function(){
   }
   function paint(list){
     if(!crowd) return;
+    /* A LATE PACKET IS STILL A PACKET. The socket does not stop the moment
+       a mission world is entered — it is the hub's connection and it is
+       kept on purpose — so this runs on RYU with a list of everybody, and
+       without this line it would draw the ones who are also there. */
+    if(solo()){
+      others.forEach(o=>{ if(o.g && o.g.parent) o.g.parent.remove(o.g); });
+      others.clear();
+      return;
+    }
     const seen=new Set();
     list.forEach(p=>{
       if(window.NET && NET.me && p.id===NET.me.id) return;
@@ -6078,7 +6113,7 @@ window.PLANET = (function(){
       o.speed += (v-o.speed)*Math.min(1,dt*8);
       if(o.model && !o.ride) AVATAR.animate(o.model, dt, doing(o));
     }
-    if(window.NET && NET.live){
+    if(window.NET && NET.live && !solo()){
       const now=performance.now();
       if(now-sent>90){
         sent=now;

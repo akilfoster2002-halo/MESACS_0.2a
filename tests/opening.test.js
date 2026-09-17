@@ -404,3 +404,51 @@ test('you may fly on RYU, and the roof is above the arena', ()=>{
   assert.ok(ceil > tall + 40,
     'the flight ceiling is '+ceil+' and the machines are '+tall+' tall');
 });
+
+test('a mission is played alone', ()=>{
+  /* RYU IS A STORY AND STORIES DO NOT HAVE A CROWD IN THEM. Every ball in
+     this game shares one presence system and RYU was in it by default: a
+     class of thirty opening Mission 8 at once were thirty people on the
+     same hillside, watching each other walk into the same house to find
+     the same robot on the same floor. The cold open does not survive four
+     other students standing in the kitchen. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /const solo = \(\) => !!\(W && W\.mission\);/,
+    'nothing marks a world as played alone');
+
+  /* BOTH DIRECTIONS, because either one alone is half a fix: not drawing
+     anybody leaves you broadcasting from inside a story, so you appear on
+     THEIR hillside; not broadcasting leaves them drawn on yours. */
+  const conn=planet.slice(planet.indexOf('function connect()'),
+                          planet.indexOf('function paint(list)'));
+  assert.match(conn, /if\(solo\(\)\) return;/, 'a mission world still opens a chat socket');
+
+  const paint=planet.slice(planet.indexOf('function paint(list)'),
+                           planet.indexOf('function paint(list)')+900);
+  assert.match(paint, /if\(solo\(\)\)\{/,
+    'a late packet on a mission world still draws whoever is in it');
+  assert.match(paint, /others\.clear\(\)/,
+    'anybody already drawn is left standing in the story');
+
+  assert.match(planet, /if\(window\.NET && NET\.live && !solo\(\)\)\{/,
+    'the player still broadcasts their position from inside a mission');
+
+  /* AND NO CHAT WINDOW OVER IT. connect() is what puts the panel up and
+     it refuses now — but the panel is a page element, so one left open by
+     the hub would still be sitting over Ion on the kitchen floor. */
+  assert.match(planet, /if\(solo\(\) && window\.CHAT\) CHAT\.hide\(\);/,
+    'a chat window from the hub can follow you into the mission');
+
+  /* WHAT IS NOT SWITCHED OFF IS PRESENCE ITSELF: wentTo('mission') has
+     already told the server where this player is, so the who's-here list
+     stays right and walking back out needs no reconnect. */
+  assert.match(planet, /const wentTo = where => \{ if\(window\.NET && NET\.live\) NET\.place\(where\); \};/,
+    'the mission no longer tells the server that it is where the player went');
+  assert.ok(!/NET\.disconnect\(\)/.test(planet),
+    'the mission drops the socket, so coming back out has to dial again');
+
+  /* AND RYU IS THE WORLD THIS IS ABOUT. */
+  const ryuAt=planet.indexOf("id:'ryu'");
+  const ryu=planet.slice(ryuAt, planet.indexOf("buildings:[", ryuAt));
+  assert.match(ryu, /mission:'hub'/, 'RYU is no longer marked as a mission, so it is shared again');
+});
