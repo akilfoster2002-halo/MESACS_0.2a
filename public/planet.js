@@ -2958,6 +2958,35 @@ window.PLANET = (function(){
   }
   /* A few metres to one side of wherever the player is standing, so
      stepping out does not leave you inside her. */
+  /* ===================================================================
+     GETTING OUT, AT ANY POINT, WHICH THERE WAS NO WAY TO DO.
+
+     Boarding the E-45 was a one-way door. The only thing in the whole
+     file that ever called disembark() was arriveTick, which fires within
+     thirty units of the tower — so a student who took off and flew
+     anywhere else, or who got in and changed their mind, was in the
+     cockpit for good. W A S D flew it, SPACE and SHIFT moved it up and
+     down, and nothing at all got them out of it. The only way back to
+     being a person was to fly at the tower until the game let them go.
+
+     R, WHICH IS THE KEY THE CAR ALREADY USES for exactly this. It is
+     "get out of the thing you are in" everywhere else on this planet,
+     and a second key for a second vehicle is a second thing to remember.
+
+     IT LANDS FIRST. Stepping out of a ship at sixty units is a fall, and
+     land() is what arriveTick has always used — it puts the body back on
+     its feet, clears the flying posture and sets the altitude to the
+     ground under wherever she has got to. */
+  function leaveShip(){
+    if(!aboard) return false;
+    land();
+    disembark();
+    if(window.AVATAR) AVATAR.attach();
+    keysFor(); dash();
+    say(t('Out. She is parked where you left her.'));
+    return true;
+  }
+
   function parkHere(){
     const b=shipB;
     if(!b || !b.g) return;
@@ -5456,7 +5485,16 @@ window.PLANET = (function(){
   /* what the keys do depends on whether you are in the car */
   function keysFor(){
     if(!window.keyHint) return;
-    if(ride) keyHint(
+    /* ABOARD FIRST, because `flying` is true as well while she is in the
+       air — and the flying hints below say "R how you travel", which was
+       the only thing on screen while somebody was sealed in a cockpit
+       with no way out. */
+    if(aboard) keyHint(
+      `<b>W</b> ${t('fly')} &nbsp; <b>S</b> ${t('slow')} &nbsp; <b>A D</b> ${t('turn')}
+       &nbsp; <b>${t('mouse')}</b> ${t('look')}<br>
+       <b>SPACE</b> ${t('up')} &nbsp; <b>SHIFT</b> ${t('down')}
+       &nbsp; <b>R</b> ${t('get out')} &nbsp; <b>P</b> ${t('pause')}`);
+    else if(ride) keyHint(
       `<b>W</b> ${t('go')} &nbsp; <b>S</b> ${t('brake / reverse')}
        &nbsp; <b>A D</b> ${t('steer')} &nbsp; <b>${t('mouse')}</b> ${t('look around')}<br>
        <b>R</b> ${t('get out')} &nbsp; <b>E</b> ${t('go in')} &nbsp; <b>P</b> ${t('pause')}`);
@@ -6548,6 +6586,7 @@ window.PLANET = (function(){
   function stop(){ leave(); }
 
   return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
+           leaveShip, get aboard(){ return aboard; },
            specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
            get flying(){ return flying; }, land,

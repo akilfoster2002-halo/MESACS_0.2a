@@ -67,8 +67,14 @@ test('every world says how high you may fly over it', ()=>{
 
 test('R asks how you travel, and the panel takes the keyboard', ()=>{
   const game = read('public/game.js');
-  assert.match(game, /e\.code==='KeyR'[\s\S]{0,160}PLANET\.travel\(\)/,
-    'R no longer opens the travel panel');
+  /* THE PLANET'S OWN R, sliced rather than matched inside a window: there
+     are three earlier `KeyR` lines in this file for the retry keys, and a
+     window wide enough to clear the comments in this branch is wide
+     enough to start at one of those instead. */
+  const rBranch=game.slice(game.indexOf("if(e.code==='KeyR' && G.running && G.room==='planet')"),
+                           game.indexOf("if((e.code==='KeyC'||e.code==='KeyE')"));
+  assert.ok(rBranch.length>40, "the planet's R handler has gone");
+  assert.match(rBranch, /PLANET\.travel\(\)/, 'R no longer opens the travel panel');
   assert.doesNotMatch(game, /e\.code==='KeyR'[\s\S]{0,120}PLANET\.toggleRide\(\)/,
     'R still gets straight into the car, so flying is unreachable');
   assert.match(game, /PLANET\.travelUp && PLANET\.travelKey\(e\)/,

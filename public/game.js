@@ -810,7 +810,13 @@ function wireInput(){
          walk a row and arrows turn you round a planet everywhere else. */
       if(window.PLANET && PLANET.travelUp && PLANET.travelKey(e)){ e.preventDefault(); return; }
       if(e.code==='KeyR' && G.running && G.room==='planet'){
-        e.preventDefault(); PLANET.travel(); return;
+        e.preventDefault();
+        /* ABOARD THE E-45, R IS THE WAY OUT — the same key the car uses,
+           and checked before the travel panel because a player sealed in
+           a cockpit does not want to be asked how they would like to get
+           about. */
+        if(window.PLANET.aboard && PLANET.leaveShip()) return;
+        PLANET.travel(); return;
       }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;

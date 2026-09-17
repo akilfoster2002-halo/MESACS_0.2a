@@ -452,3 +452,42 @@ test('a mission is played alone', ()=>{
   const ryu=planet.slice(ryuAt, planet.indexOf("buildings:[", ryuAt));
   assert.match(ryu, /mission:'hub'/, 'RYU is no longer marked as a mission, so it is shared again');
 });
+
+test('you can get out of the ship, at any point', ()=>{
+  /* BOARDING WAS A ONE-WAY DOOR. The only thing in the whole file that
+     ever called disembark() was arriveTick, which fires within thirty
+     units of the tower — so a student who took off and flew anywhere
+     else, or who got in and changed their mind, was in the cockpit for
+     good. W A S D flew it, SPACE and SHIFT moved it, and nothing at all
+     got them out. The only way back to being a person was to fly at the
+     tower until the game let go. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /function leaveShip\(\)/, 'there is no way out of the E-45');
+  const out=planet.slice(planet.indexOf('function leaveShip()'),
+                         planet.indexOf('function parkHere()'));
+  assert.match(out, /if\(!aboard\) return false;/, 'leaving works when you are not in it');
+  /* IT LANDS FIRST. Stepping out at sixty units is a fall. */
+  assert.match(out, /land\(\);/, 'you step out of a moving ship into the air');
+  assert.match(out, /disembark\(\);/, 'the flying copy is left in the sky');
+  assert.match(out, /AVATAR\.attach\(\)/, 'you get out and there is no body');
+
+  /* R, WHICH IS THE KEY THE CAR ALREADY USES for exactly this. */
+  const game=bare(read('public/game.js'));
+  assert.match(game, /if\(window\.PLANET\.aboard && PLANET\.leaveShip\(\)\) return;/,
+    'R does not get you out of the ship');
+  /* AND BEFORE THE TRAVEL PANEL, because somebody sealed in a cockpit
+     does not want to be asked how they would like to get about. */
+  const r=game.slice(game.indexOf("if(e.code==='KeyR' && G.running && G.room==='planet')"),
+                     game.indexOf("if((e.code==='KeyC'||e.code==='KeyE')"));
+  assert.ok(r.indexOf('leaveShip') < r.indexOf('PLANET.travel()'),
+    'the travel panel opens before the ship will let you out');
+
+  /* AND THE HINT SAYS SO. `flying` is true as well while she is airborne,
+     and the flying hints say "R how you travel" — which was the only
+     thing on screen while somebody was sealed in. */
+  const keys=planet.slice(planet.indexOf('function keysFor()'),
+                          planet.indexOf('function keysFor()')+1400);
+  assert.match(keys, /if\(aboard\) keyHint\(/, 'the key hints have no line for being aboard');
+  assert.ok(keys.indexOf('if(aboard)') < keys.indexOf('else if(ride)'),
+    'the aboard hint is checked after flying, so it never shows');
+});
