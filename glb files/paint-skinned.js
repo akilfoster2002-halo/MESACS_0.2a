@@ -109,6 +109,9 @@ function paint(IN, OUT, SPEC){
             sleeveStart:0,
             watch:null, watchBoth:false,
             panel:null, emblem:null,
+            /* A STRIP DOWN THE FRONT ONLY, as [halfWidth, yFrom, yTo] —
+               a waistcoat under an open jacket. See classify(). */
+            front:null,
             /* ================================================ A ROBOT
                A PERSON IS PAINTED BY GARMENT AND A MACHINE IS PAINTED BY
                PART. Everything above this line answers "what is this
@@ -141,13 +144,15 @@ function paint(IN, OUT, SPEC){
             eyes:null,
             ...(SPEC.B||{}) };
   const C={ skin:'#dda070', hair:'#1b100e', jersey:'#9c1521', panel:'#242b4a',
+            front:'#8a7f6a',
             emblem:'#141013', jeans:'#28313a', shoe:'#ded5cd', watch:'#b9bcc0',
             hat:'#e2d8c4', sock:'#a5222c', sock2:'#17171a', sole:'#efeae2',
             ...(SPEC.C||{}) };
   const SHADE={ jeans:{dark:0.62,lift:0.40}, jersey:{dark:0.50,lift:0.22},
                 hat:{dark:0.42,lift:0.24}, sock:{dark:0.40,lift:0.22},
                 sock2:{dark:0.34,lift:0.20}, sole:{dark:0.30,lift:0.22},
-                panel:{dark:0.50,lift:0.22}, emblem:{dark:0.30,lift:0.14},
+                panel:{dark:0.50,lift:0.22}, front:{dark:0.42,lift:0.18},
+                emblem:{dark:0.30,lift:0.14},
                 hair:{dark:0.50,lift:0.16}, shoe:{dark:0.36,lift:0.24},
                 watch:{dark:0.30,lift:0.30}, skin:{dark:0.24,lift:0.06},
                 ...(SPEC.SHADE||{}) };
@@ -345,6 +350,17 @@ function paint(IN, OUT, SPEC){
       const w=halfW[slice(y)];
       if(Math.abs(x) > B.panel*w) return 'panel';
     }
+    /* ------------------------------------------- AN OPEN JACKET
+       `panel` is the OUTSIDE of the torso, which is what a suit's side
+       panels are. A waistcoat under an open jacket is the opposite: a
+       strip down the FRONT, with the jacket round it and behind it.
+
+       So `front` is a second strip and it is the one that needs depth.
+       Without the z test the same strip appears down the spine, and the
+       character is wearing his waistcoat back to front from every angle
+       but the one he is usually seen from. Off unless a spec asks. */
+    if(B.front && zN > 0 && ax < B.front[0]*(halfW[slice(y)]/xmax)
+       && yN >= B.front[1] && yN <= B.front[2]) return 'front';
     return 'jersey';
   }
 

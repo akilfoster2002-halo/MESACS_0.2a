@@ -13,6 +13,7 @@
    slower way of copying one. Normals ARE recomputed, because welding is
    exactly the operation that changes them. */
 const fs=require('fs');
+let pruned=0;   // accessors the weld replaced and this file no longer carries
 const NC={SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT4:16};
 const CS={5120:1,5121:1,5122:2,5123:2,5125:4,5126:4};
 
@@ -122,6 +123,19 @@ g.accessors.push({bufferView:addView(ibuf,34963), byteOffset:0,
                   componentType:5125, count:NI.length, type:'SCALAR'});
 prim.indices=g.accessors.length-1;
 
+/* AND THROW THE OLD ARRAYS AWAY — see prune.js. Welding appends the new
+   accessors and repoints the primitive at them; the ones it replaced are
+   still in the file, referenced by nothing, carrying every byte of the
+   unwelded mesh. It never shows up because nothing reads an accessor
+   nobody points at: the model loads, animates and looks right, and the
+   only symptom is the download. */
+{
+  const {prune}=require('./prune.js');
+  const r=prune(g, Buffer.concat(chunks));
+  chunks.length=0; chunks.push(r.bin);
+  pruned=r.dropped;
+}
+
 const BIN=Buffer.concat(chunks);
 g.buffers=[{byteLength:BIN.length}];
 let js=Buffer.from(JSON.stringify(g),'utf8');
@@ -134,4 +148,5 @@ fs.writeFileSync(OUT, Buffer.concat([head,jh,js,bh,BIN]));
 console.log('welded  verts '+nv.toLocaleString()+' -> '+outV.toLocaleString(),
   ' tris '+(I.length/3).toLocaleString()+' -> '+(NI.length/3).toLocaleString(),
   degenerate?('  ('+degenerate+' collapsed)'):'',
+  pruned?('  ('+pruned+' dead accessors pruned)'):'',
   ' ', (fs.statSync(IN).size/1048576).toFixed(1)+' MB -> '+(fs.statSync(OUT).size/1048576).toFixed(1)+' MB');

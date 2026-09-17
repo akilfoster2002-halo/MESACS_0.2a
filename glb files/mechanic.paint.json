@@ -1,0 +1,127 @@
+{
+  "note": [
+    "THE MECHANIC. A rumpled old man in a brown tweed suit: wild white",
+    "hair, round glasses, a white moustache, an open jacket over a",
+    "waistcoat and a shirt, a dark red bow tie, brown trousers and heavy",
+    "brown shoes. Painted off the reference sheet.",
+    "",
+    "Every number is a fraction of the figure: yN is height with 0 at the",
+    "sole and 1 at the crown, ax is |x| over the fingertip reach, all read",
+    "in the T-pose the rig is bound in.",
+    "",
+    "THE BANDS ARE MEASURED, NOT PLACED. What the rig said, per bone:",
+    "  foot   0.000-0.143      shin  0.096-0.209    thigh 0.189-0.428",
+    "  hips   0.356-0.498      spine 0.476-0.552    spine1 0.543-0.609",
+    "  spine2 0.570-0.753      neck  0.751-0.755    head  0.751-1.000",
+    "  shoulder ax 0.149-0.222 arm ax 0.161-0.554",
+    "  forearm  ax 0.532-0.719 hand ax 0.733-0.858",
+    "So the chin is at 0.751 and the cuff is at 0.73, and both of those are",
+    "the mesh's own numbers rather than a guess off the drawing.",
+    "",
+    "A THIRD OF THE MESH IS HEAD \u2014 37,686 vertices of the 81,084 \u2014 and",
+    "nearly all of that is hair. It is the one thing about this character",
+    "the whole mass of it rather than just the crown.",
+    "",
+    "THE JACKET IS OPEN, which the painter could not say until now. `panel`",
+    "is the OUTSIDE of the torso and a waistcoat is the inside, so `front`",
+    "is a new strip that takes depth into account \u2014 see classify() in",
+    "paint-skinned.js. Without the z test the waistcoat appears down his",
+    "spine as well.",
+    "",
+    "NOT PAINTED: the glasses and the moustache. Both are geometry sitting",
+    "on the face at a scale no height band can find, and a band wide enough",
+    "to catch the glasses takes the eyes with it. At the distance this",
+    "character is ever seen from \u2014 standing in a workshop, several metres",
+    "off \u2014 the white hair and the brown suit are the whole read.",
+    "",
+    "NO hatLine. It is the first thing the head branch tests and it returns",
+    "before the face is considered \u2014 which is exactly right for a hat, whose",
+    "whole point is covering the fringe, and exactly wrong for hair. Painting",
+    "this head with one gave him a white face. `hair` is the colour and the",
+    "face is the window in it, which is what the head branch already does.",
+    "",
+    "NOT PAINTED: the moustache. It is modelled, it sits inside the face",
+    "ellipse, and bands do not reach the head \u2014 so it comes out skin. At the",
+    "distance he is seen from it reads as a face, and the alternative is a",
+    "white bar across the whole head at that height."
+  ],
+  "B": {
+    "sole": 0.022,
+    "shoeTop": 0.105,
+    "waistTop": 0.47,
+    "shirtHem": 0.432,
+    "collarTop": 0.735,
+    "sleeveStart": 0.0,
+    "sleeveEnd": 0.73,
+    "panel": 0.62,
+    "front": [
+      0.42,
+      0.47,
+      0.7
+    ],
+    "bands": [
+      [
+        0.7,
+        0.735,
+        "shirt"
+      ],
+      [
+        0.676,
+        0.7,
+        "emblem"
+      ]
+    ],
+    "faceY": 0.845,
+    "faceR": [
+      0.165,
+      0.078
+    ],
+    "faceZ": 0.02,
+    "throat": [
+      0.755,
+      0.03
+    ]
+  },
+  "C": {
+    "skin": "#e0b394",
+    "hair": "#e8e4dc",
+    "jersey": "#6b4a33",
+    "panel": "#6b4a33",
+    "front": "#8d7a5e",
+    "shirt": "#efe9dc",
+    "emblem": "#6d2230",
+    "jeans": "#5a4632",
+    "shoe": "#4a3123",
+    "sole": "#2e1f16"
+  },
+  "SHADE": {
+    "hair": {
+      "dark": 0.22,
+      "lift": 0.14
+    },
+    "jersey": {
+      "dark": 0.4,
+      "lift": 0.16
+    },
+    "panel": {
+      "dark": 0.44,
+      "lift": 0.16
+    },
+    "front": {
+      "dark": 0.36,
+      "lift": 0.18
+    },
+    "jeans": {
+      "dark": 0.38,
+      "lift": 0.14
+    },
+    "shoe": {
+      "dark": 0.34,
+      "lift": 0.12
+    },
+    "skin": {
+      "dark": 0.24,
+      "lift": 0.06
+    }
+  }
+}

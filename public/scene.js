@@ -242,7 +242,37 @@ window.SCENE = (function(){
     if(ui){ ui.bar.classList.add('hidden'); fade(false); }
   }
 
+  /* ============================================ WHO IS TALKING, OUT LOUD
+     A BODY THAT SPEAKS SHOULD MOVE. Every character in this game stood
+     perfectly still through every line they had, because the only thing
+     driving a clip was whether the body was walking — and nobody walks
+     during a cutscene. Four minutes of Mission 8 is people talking to each
+     other, and all of it was delivered by statues.
+
+     So the bar says who is speaking and anybody who wants to know can
+     ask. This is the only place that knows, because this is the only
+     place that has the beat.
+
+     TWO CLIPS, ALTERNATING BY LINE. There are two talking animations and
+     the reason to have two is that one, repeated across six consecutive
+     lines, is a loop rather than a person. Which one is picked from the
+     beat's own index, so the same line always animates the same way and
+     two lines running never do. */
+  const speakerOf = () => {
+    if(!on) return null;
+    const b=beats && beats[at];
+    return (b && b.say) ? (b.who || null) : null;
+  };
+
   return { play, tick, next, key, stop, fade,
            get active(){ return on; },
-           get beat(){ return on ? at : -1; } };
+           get beat(){ return on ? at : -1; },
+           /* The `who` of the line on screen, or null between lines. For
+              the player this is the sentinel YOU rather than their name:
+              a caller asking "is this me" should not have to know what
+              the name resolved to. */
+           get speaker(){ return speakerOf(); },
+           get YOU(){ return YOU; },
+           get playerTalking(){ return speakerOf()===YOU; },
+           get talkClip(){ return (at % 2) ? 'talk2' : 'talk'; } };
 })();

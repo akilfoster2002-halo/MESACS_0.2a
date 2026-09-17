@@ -62,10 +62,36 @@ window.AVATAR = (function(){
      scene that needs a body nobody owns. */
   const CAST_ONLY = [];
   const CAST_NAMES = {};
+  /* ------------------------------------------------ people with names
+     NOT EVERY BODY IS A LETTER. The roster is `character-<letter>.glb`
+     because it is a roster — a numbered set of shirts somebody picks
+     from. Ion is a robot on a kitchen floor and the Mechanic is a man in
+     a tweed suit; neither is a shirt, neither is pickable, and giving
+     them letters would put them in a sequence they are not part of.
+
+     AND `load()` FALLS BACK SILENTLY, which is the right thing to do with
+     a typo — a body that fails to resolve should be the wrong person,
+     never a hole in the world — and a trap for a body that exists and is
+     simply not listed. `AVATAR.load('ion')` fetched Kyle, and what lay on
+     the Mechanic's cradle at the end of Mission 8 was Kyle, face up,
+     being called Ion by everybody in the room.
+
+     ION IS STILL NOT HERE, and that is deliberate. He is a PROP: a robot
+     a room stands up and lays on a table, not a body anybody wears or is
+     cast as, and he comes up to the chest of a person rather than being
+     normalised to one's height. house.js loads him with its own loader
+     for exactly that reason and planet.js now does the same. What belongs
+     in this list is what the game may put a PERSON in. */
+  const NAMED = [
+    { id:'mechanic', name:'The Mechanic',
+      model:'characters/models/mechanic.glb'+V(),
+      preview:'characters/previews/mechanic.png'+V() }
+  ];
   const BODIES = CHARS.concat(CAST_ONLY.map(c=>({
     id:c, name:CAST_NAMES[c] || ('Character '+c.toUpperCase()),
     model:`characters/models/character-${c}.glb`+V(),
-    preview:`characters/previews/character-${c}.png`+V() })));
+    preview:`characters/previews/character-${c}.png`+V() })))
+    .concat(NAMED);
   /* Anything the game may have to STAND UP, roster or not. load() asks
      this; the Mall asks CHARS. A miss still falls back to the first
      character rather than throwing — a body that fails to resolve should
@@ -440,11 +466,34 @@ window.AVATAR = (function(){
      first minute and there is no reason to stop them. */
   let posture=null;
   function setPosture(name){ posture = name || null; }
+  /* A LINE OF DIALOGUE IS A THING THE BODY DOES. The player stood
+     perfectly still through every line they had, because the only thing
+     choosing a clip was whether they were walking — and nobody walks in a
+     cutscene. SCENE knows whose line is on screen; this asks.
+
+     UNDER WALKING, OVER STANDING. It sits exactly where a state that is
+     not a state belongs: an emote still wins, a posture still wins, and
+     moving still wins, because a character gesturing while they sprint is
+     worse than one standing quietly. In practice a shot freezes them
+     anyway, so `moving` is false and this is what is left.
+
+     AND ONLY IF THE BODY HAS THE CLIP. Every roster character was rebuilt
+     with these two, but a body that has not been — an old cached model,
+     something a mission stands up on its own — falls back to idle rather
+     than to nothing. `can()` is already the question for that. */
+  function talkClip(){
+    try{
+      if(!window.SCENE || !SCENE.playerTalking) return null;
+      const want=SCENE.talkClip;
+      return can(want) ? want : (can('talk') ? 'talk' : null);
+    }catch(e){ return null; }
+  }
   function clipFor(dt, moving, running, onGround){
     return acting = emoteFrame(dt, moving)
                  || posture
                  || (onGround===false ? 'jump'
-                 : moving ? (running ? 'sprint' : 'walk') : 'idle');
+                 : moving ? (running ? 'sprint' : 'walk')
+                 : (talkClip() || 'idle'));
   }
   /* AN EMOTE IS A CLIP THAT IS NOT A STATE. Every other clip answers a
      question about the body — is it moving, is it airborne — and is chosen
@@ -572,6 +621,24 @@ window.AVATAR = (function(){
     remember();
     animate(model, dt, clipFor(dt, moving, running, onGround));
   }
+  /* JUST THE CLIP, for a room that poses the body itself.
+
+     update() also places and turns the body, which is right for a flat
+     room and wrong on a ball: planet.js builds the pose out of the surface
+     normal and update() would flatten it back onto y. So the planet calls
+     orient(), and orient() is reached through place(), and place() is
+     reached through walk() — which does not run while the world is frozen.
+
+     A CUTSCENE FREEZES THE WORLD. That is what a cutscene IS, and it meant
+     the player's body held whatever clip it had when the scene started and
+     played nothing for the whole conversation. This is the half of update()
+     that a frozen room still wants: choose the clip, advance it, touch
+     nothing else. */
+  function tickClip(dt, moving, running, onGround){
+    if(!model) return;
+    animate(model, dt, clipFor(dt, moving, running, onGround));
+  }
+
   function update(dt, moving, running, onGround){
     if(!body) return;
     body.position.set(G.pos.x, G.pos.y - EYE, G.pos.z);
@@ -643,7 +710,7 @@ window.AVATAR = (function(){
   }
 
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle,
-           myName, myFace,
+           tickClip, myName, myFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            emote, canEmote, get emoting(){ return emoting>0; },

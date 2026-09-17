@@ -2694,8 +2694,14 @@ window.PLANET = (function(){
   const ME = () => (window.AVATAR && AVATAR.myName) ? AVATAR.myName() : t('you');
   /* ONLY THE PEOPLE WHO ARE NOT YOU. The player's portrait is whoever
      they are wearing and SCENE looks it up itself from `who:'you'` — a
-     face pinned here would be a second answer, and it would be Robin's. */
-  const FACES={ Ion:'characters/previews/ion.png' };
+     face pinned here would be a second answer, and it would be Robin's.
+
+     The Mechanic has one now because he has a body: the same thumbnail
+     tool that makes a roster face, run over his own model, so the picture
+     beside his lines is the man standing in front of you rather than a
+     blank panel. */
+  const FACES={ Ion:'characters/previews/ion.png',
+                'The Mechanic':'characters/previews/mechanic.png' };
 
   /* The four lines, and then the panel. Returns false if there is nothing
      to play them over, so the caller can fall through to the checklist
@@ -3181,7 +3187,18 @@ window.PLANET = (function(){
      `y` is the floor they are standing on — the librarian is on the
      ground and did not need one; the Mechanic is nineteen units up. */
   let folk=[];                    // the people standing in the tower
-  function person(g, b, x, y, z, who, opens, charOffset, tint){
+  /* `body` is either a named body — 'mechanic', 'ion' — or a number,
+     which picks somebody off the roster who is not the player. A story
+     character wants the first: the Mechanic is a man in a tweed suit with
+     his own model and his own talking clips, and casting him from whoever
+     the student did not choose made him a different person every session. */
+  /* `speaks` is the name this person's lines are written under, which is
+     NOT the name on their plate: the plate says THE MECHANIC because it
+     is a label on a nameplate, and the beats say 'The Mechanic' because
+     it is a person talking. Matching one against the other by folding
+     case would work until somebody writes a character whose plate and
+     dialogue differ by more than that. */
+  function person(g, b, x, y, z, who, opens, body, tint, speaks){
     const grp=new THREE.Group();
     grp.position.set(x, y+0.1, z);     // the tenth of a metre a model's feet hang low
     g.add(grp);
@@ -3194,10 +3211,11 @@ window.PLANET = (function(){
     G.hits.push(hit);
     const tag = window.OWN ? OWN.plate(who, tint||0xffe9a8) : null;
     if(tag){ tag.position.set(x, y+2.8, z); tag.scale.set(3.4,0.85,1); g.add(tag); }
-    const me_={ g:grp, b, x, y, z, model:null, yaw:0 };
+    const me_={ g:grp, b, x, y, z, model:null, yaw:0, speaks:speaks||null };
     folk.push(me_);
     if(window.AVATAR){
-      AVATAR.load(AVATAR.other(charOffset||1)).then(root=>{
+      const id = typeof body==='string' ? body : AVATAR.other(body||1);
+      AVATAR.load(id).then(root=>{
         if(!on || !grp.parent) return;
         grp.add(root); me_.model=root;
       }).catch(()=>{});
@@ -3226,7 +3244,18 @@ window.PLANET = (function(){
       while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2;
       f.yaw += d*Math.min(1, 4*dt);
       f.g.rotation.y=f.yaw;
-      if(f.model) AVATAR.animate(f.model, dt, 'idle');
+      /* AND THEY MOVE WHILE THEY TALK. Every character in this game
+         delivered every line standing perfectly still, because the only
+         thing choosing a clip was whether the body was walking and
+         nobody walks in a cutscene. SCENE knows whose line is on screen
+         and alternates the two clips by beat, so six lines running are
+         not one loop six times. */
+      let clip='idle';
+      if(f.speaks && window.SCENE && SCENE.speaker===f.speaks){
+        const want=SCENE.talkClip;
+        if(AVATAR.can && f.model) clip = want;      // rigOf falls back on its own
+      }
+      if(f.model) AVATAR.animate(f.model, dt, clip);
     }
   }
 
@@ -3305,7 +3334,8 @@ window.PLANET = (function(){
        off at the neck and the room read as a nameplate floating over a
        table. At the end of it he is in the clear from the door and still
        obviously working at the thing he is standing next to. */
-    person(g, b, 3.4, y, 2.2, t('THE MECHANIC'), 'towermech', 2, 0x8ff0ff);
+    person(g, b, 3.4, y, 2.2, t('THE MECHANIC'), 'towermech', 'mechanic', 0x8ff0ff,
+           'The Mechanic');
   }
 
   /* ------------------------------------------------------------ THE TOP
@@ -3336,7 +3366,8 @@ window.PLANET = (function(){
     const glow=new THREE.PointLight(0xbfe9ff, 110, 28, 1.5);
     glow.position.set(0, y+4.2, 0); g.add(glow);
 
-    person(g, b, 1.4, y, hd-4.6, t('MR EINSTEIN'), 'einstein', 3, 0xffd8a8);
+    person(g, b, 1.4, y, hd-4.6, t('MR EINSTEIN'), 'einstein', 3, 0xffd8a8,
+           'Mr Einstein');
   }
 
 
@@ -3382,18 +3413,33 @@ window.PLANET = (function(){
       .toArray();
     const ROOM ={ eye:at(4.5, 3.4, -2), at:at(-1.5, 1.6, 2.2) };
     const BED  ={ eye:at(1.6, 2.4, 5.0), at:at(-1.5, 1.3, 2.2) };
+    /* AND ONE ON THE MECHANIC, because he has a body now and it moves
+       while he talks. These two shots were framed on the cradle when he
+       was a roster character standing on the far side of it, and they put
+       him at the edge of frame or out of it — which was no loss while he
+       stood still through every line and is most of the point now that he
+       does not. He speaks four times in this scene; he is in shot for all
+       of them.
+
+       FROM THE FAR SIDE OF THE CRADLE, not from the door. Everybody
+       arrives at this room out of the lift, which is behind the camera on
+       any shot taken from that side — and a player standing where the
+       player naturally stands then fills the frame and the Mechanic talks
+       from behind their shoulder. Looking back across the bench puts the
+       one person whose position cannot be predicted behind the lens. */
+    const HIM  ={ eye:at(1.4, 2.6, 5.6), at:at(3.4, 1.5, 2.2) };
     SCENE.play([
       { shot:ROOM, ease:1.2, who:'you',
         say:t('This is Ion. He was on the floor for a week.') },
-      { shot:BED,  ease:1.0, who:'The Mechanic',
+      { shot:HIM,  ease:1.0, who:'The Mechanic',
         say:t('Put him down. I will look properly.') },
       { shot:BED,  who:'Ion', say:t('She fixed my legs herself, you know.') },
-      { shot:BED,  who:'The Mechanic',
+      { shot:HIM,  who:'The Mechanic',
         say:t('Then she did the hard part. I will do the rest.') },
       /* AND HE WANTS PAYING. Not in coins — Robin has coins and spending
          them would be a menu. He is short-handed and she can write a
          rule, which is the only currency this game actually deals in. */
-      { shot:ROOM, ease:1.0, who:'The Mechanic',
+      { shot:HIM,  ease:1.0, who:'The Mechanic',
         say:t('Not for nothing, though. Work my belt while I do it.') },
       { shot:ROOM, who:'you', say:t('What does it do?') },
       { shot:ROOM, who:'The Mechanic',
@@ -3500,11 +3546,37 @@ window.PLANET = (function(){
     body.rotation.set(-Math.PI/2, 0, -Math.PI/2);
     mechB.g.add(body);
     mechB.ion=body;
-    if(window.AVATAR)
-      AVATAR.load('ion').then(root=>{
+    /* HIS OWN LOADER, BECAUSE HE IS A PROP. This asked AVATAR for him and
+       AVATAR has not got him: bodyDef() falls back to the first character
+       for an id it does not know, so what lay on this cradle was Kyle,
+       face up, being called Ion by everybody in the room. Nothing threw
+       and nothing logged — a body that fails to resolve is meant to be the
+       wrong person rather than a hole in the world, and here that rule
+       hid a missing model behind a real one.
+
+       HE IS NOT ADDED TO THE ROSTER TO FIX IT. He is a robot that comes
+       up to the chest of a person, and AVATAR normalises everything it
+       loads to a person's height — which would stand him up as tall as
+       anybody else in the game. house.js has loaded him this way all
+       along, with this scale; this is the same few lines and the same
+       number, and it is the reason both of them have it rather than
+       AVATAR. */
+    const ION_TALL=1.25;
+    new THREE.GLTFLoader().load(
+      'characters/models/ion.glb?v='+(window.ASSETV||'1'),
+      g=>{
         if(!mechB || mechB.ion!==body) return;
+        const root=g.scene;
+        root.traverse(o=>{ if(!o.isMesh) return;
+          o.frustumCulled=false;
+          if(o.geometry.attributes.color){ o.material.vertexColors=true;
+                                           o.material.needsUpdate=true; } });
+        root.updateMatrixWorld(true);
+        const bx=new THREE.Box3().setFromObject(root);
+        const h=bx.max.y-bx.min.y;
+        if(h>1e-6) root.scale.setScalar(ION_TALL/h);
         body.add(root);
-      }).catch(()=>{});
+      }, undefined, ()=>{});
   }
 
   /* MR EINSTEIN, at the top, and he is deliberately not an ending. The
@@ -5163,6 +5235,13 @@ window.PLANET = (function(){
     smokeTick(dt);
     liftTick(dt);
     folkTick(dt);
+    /* AND THE PLAYER'S OWN BODY, while a scene is holding the world still.
+       Everything that animates the player runs off walk(), and walk() does
+       not run when G.running is false — so through four minutes of
+       Mission 8's dialogue the one character who never moved was the one
+       the student is playing. */
+    if(!G.running && window.SCENE && SCENE.active && window.AVATAR && AVATAR.tickClip)
+      AVATAR.tickClip(dt, false, false, true);
     arriveTick();
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */
