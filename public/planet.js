@@ -3989,8 +3989,8 @@ window.PLANET = (function(){
       finishIon();
       return;
     }
-    say(t('<b>AND, OR, NOT.</b> Twenty questions while he works.'));
-    BOOLQUIZ.open({ onDone: (score, total)=>{
+    say(t('<b>THE BELT.</b> Twenty questions while he works.'));
+    BOOLQUIZ.open({ bank:'belt', onDone: (score, total)=>{
       if(!on) return;
       /* LEVEL FOUR, AND THE LAST. mended() finishes the mission itself. */
       if(window.ION) ION.pass(WORKED);
@@ -5848,7 +5848,7 @@ window.PLANET = (function(){
      itself, which is the only place any two of those disagree. */
   function openFix(){
     if(!on || !window.BOOLQUIZ) return;
-    BOOLQUIZ.open({ bank:'compare', onDone: (score, total)=>{
+    BOOLQUIZ.open({ bank:'gauges', onDone: (score, total)=>{
         if(!on) return;
         /* LEVEL TWO OF MISSION 8. */
         if(window.ION) ION.pass(CLEARED);

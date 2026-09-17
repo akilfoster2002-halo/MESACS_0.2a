@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 const abs  = f => path.join(__dirname, '..', f);
 
 function plan(){
@@ -203,29 +204,28 @@ test('SCENE does not shadow the global translation function', ()=>{
 test('the story runs on scenes, and the console is a separate lesson', ()=>{
   const house = read('public/house.js');
   assert.match(house, /SCENE\.play\(story\(\)/, 'the house tells its story in beats');
-  assert.match(house, /IONFIX\.open\(/, 'and hands over to the console at the end of it');
-  /* The console must not be able to leave the world frozen: it sets
-     G.running false on open, so every way out of it has to set it back. */
-  const fix = read('public/ionfix.js');
-  assert.match(fix, /function close\(\)\{[\s\S]*?G\.running=true;/,
-    'closing the console leaves the world frozen');
-  /* And routine.js is the thing that decides whether it was fixed — not
-     the UI, which is why it can be tested at all. */
-  assert.match(fix, /R\(\)\.run\(state\)/, 'the console asks routine.js what happened');
-  assert.ok(!/stride===10|times===4|test==='is'\s*&&/.test(fix),
-    'ionfix.js marks against an answer key instead of running the program');
-  /* AND IT IS WALKED. Three faults handed over at once is not debugging,
-     it is guessing — the step on screen is read off the program and the
-     block it is about is ringed. */
-  assert.match(fix, /R\(\)\.step\(state\)/, 'the console never asks which fault to point at');
-  assert.match(fix, /classList\.add\('ring'\)/, 'nothing on screen is ever ringed');
-  /* THE CONSOLE'S OWN BLOCKS, not a second drawing of them. .blk and its
-     parts are global in index.html and belong to code.js; a panel that
-     restyled them would drift away from the shape every other mission
-     uses, which is the whole reason a student recognises it. */
-  assert.match(fix, /class="blk rep/, 'the program is not drawn as console blocks');
-  assert.match(fix, /blk-head|blk-body|blk-foot/, 'the C-blocks do not wrap');
-  assert.ok(!/^\s*\.blk\{/m.test(fix), 'ionfix.js restyles .blk instead of using the real one');
+
+  /* IT WAS ionfix.js, A CONSOLE OF BLOCKS. Six questions, each one two
+     facts joined by `and` or `or`, marked against a four-row table. The
+     course is about the six COMPARISONS now — less than, at most,
+     exactly, not the same as — and joining two conditions together is a
+     second subject that was teaching students to guess which half of a
+     rule had gone wrong. Ion asks twenty of his own, on the same panel
+     the ship and the belt use. */
+  assert.match(house, /BOOLQUIZ\.open\(\{ bank:'kitchen'/,
+    'the house no longer hands over to Ion\u2019s twenty');
+  assert.match(house, /onDone: \(\)=>\{ if\(window\.ION\) ION\.pass\(FIXED\)/,
+    'finishing his questions does not record level one');
+  const fs2=require('fs');
+  for(const f of ['public/ionfix.js','public/routine.js'])
+    assert.ok(!fs2.existsSync(path.join(__dirname,'..',f)), f+' is still here');
+  assert.ok(!/IONFIX|ROUTINE/.test(house), 'house.js still reaches for the old console');
+
+  /* AND THE PANEL MUST NOT LEAVE THE WORLD FROZEN: it sets G.running
+     false on open, so every way out of it has to set it back. */
+  const bq = read('public/boolquiz.js');
+  assert.match(bq, /function close\(\)\{[\s\S]{0,400}?G\.running=true;/,
+    'closing the panel leaves the world frozen');
 });
 
 /* --------------------------------------------------------- the reveal */
@@ -267,14 +267,23 @@ test('the hack is something that happens to Ion, not a note about him', ()=>{
 
 test('the console hands the story over and keeps none of it', ()=>{
   /* It used to hold the screen for five and a half seconds after a
-     working RUN while a student read five commented-out lines. The
-     console is a lesson; the reveal is the room's. */
-  const fix = read('public/ionfix.js');
-  assert.ok(!/r\.note/.test(fix), 'the console still draws a note');
-  assert.ok(!/5600/.test(fix), 'the console still holds the screen to be read');
-  assert.match(fix, /onFixed/, 'the console never tells the house it worked');
-  assert.ok(!/note/.test(read('public/routine.js').replace(/\/\*[\s\S]*?\*\//g,'')),
-    'routine.js still carries a note through the interpreter');
+     working RUN while a student read five commented-out lines. The panel
+     is a lesson; the reveal is the room's.
+
+     ionfix.js AND routine.js ARE GONE — Ion's twenty are in boolquiz.js
+     now, on the same panel the ship and the belt use — so what this
+     guards is the handover rather than either of those files. */
+  const bq = bare(read('public/boolquiz.js'));
+  assert.ok(!/5600/.test(bq), 'the panel still holds the screen to be read');
+  assert.match(bq, /if\(cb\) cb\(score, QUESTIONS\.length\)/,
+    'the panel never tells the room it finished, or never says how it went');
+  /* AND IT LETS GO OF THE WORLD on every way out, which is the one thing
+     a panel that freezes the game must not get wrong. */
+  assert.match(bq, /function close\(\)\{[\s\S]{0,400}?G\.running=true;/,
+    'closing the panel leaves the world frozen');
+  const house = bare(read('public/house.js'));
+  assert.match(house, /onDone: \(\)=>\{ if\(window\.ION\) ION\.pass\(FIXED\)/,
+    'the room never hears that his questions were finished');
 });
 
 test('the story leads her out of the door; it does not put her outside', ()=>{

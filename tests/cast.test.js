@@ -384,7 +384,7 @@ test('no NPC anywhere calls the player by a hard-coded name', ()=>{
      changed necessarily contain the word, and matching them would make
      this test pass or fail on prose. */
   const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
-  for(const f of ['house.js','planet.js','scene.js','routine.js','game.js']){
+  for(const f of ['house.js','planet.js','scene.js','boolquiz.js','game.js']){
     const code = bare(read('public/'+f));
     assert.ok(!/who:\s*'Robin'/.test(code),
       `${f} still labels a line of dialogue Robin`);

@@ -673,7 +673,7 @@ window.HOUSE = (function(){
   /* The console is a separate module: it is a lesson, and it has no idea
      there is a house around it. */
   function openConsole(){
-    if(!window.IONFIX){ brief(say_('His console will not open.')); return; }
+    if(!window.BOOLQUIZ){ brief(say_('His console will not open.')); return; }
     /* A SHOT OF THE PANEL FIRST. The console is about to take most of the
        screen, and opening it straight from a shot of the room gives a
        student no idea what the row of lights they are about to program
@@ -684,13 +684,22 @@ window.HOUSE = (function(){
         who:'you', say:say('Let me see what he is asking.') }
     ], { faces:FACES, end:()=>{
       if(!on) return;
-      IONFIX.open({
+      /* HIS MORNING RULES, TWENTY OF THEM.
+
+         This was a console with six questions on it, each one two facts
+         joined by `and` or `or`, and a four-row table to check them
+         against. The course is about the six COMPARISONS now — less
+         than, at most, exactly, not the same as — and joining two
+         conditions together is a second subject that was teaching
+         students to guess which half of a rule had gone wrong. Same
+         panel as the ship and the belt; his own twenty. */
+      BOOLQUIZ.open({ bank:'kitchen',
         /* LEVEL ONE OF MISSION 8. ion.js writes the flag and tells the
            course how far in this is, so the mission's card can say which
            level it is about to hand you. */
-        onFixed: ()=>{ if(window.ION) ION.pass(FIXED);
-                       else try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
-                       mended(); }
+        onDone: ()=>{ if(window.ION) ION.pass(FIXED);
+                      else try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
+                      mended(); }
       });
     }});
   }
@@ -863,7 +872,7 @@ window.HOUSE = (function(){
     on=false; L=null;
     if(keyHook){ removeEventListener('keydown', keyHook); keyHook=null; }
     if(window.SCENE) SCENE.stop();
-    if(window.IONFIX) IONFIX.close();
+    if(window.BOOLQUIZ) BOOLQUIZ.close();
     prompt_(null);
     G.running=true;              // a scene left it false; the next room wants it
     clearTimeout(brief._t);

@@ -421,38 +421,49 @@ test('all three practice points can be reached more than once', ()=>{
   assert.match(again, /theBelt\(\)/, 'a return visit never reaches the belt');
 });
 
-test('Ion asks six, and both twenties are twenty', ()=>{
-  /* FIVE MINUTES EACH, at three points. Two questions, three belt jobs
-     and nine checklist blanks was an example rather than a lesson. */
-  const R=require('../public/routine.js');
+test('sixty questions across three segments, all about comparisons', ()=>{
+  /* TWENTY EACH, at three points. Two questions, three belt jobs and nine
+     checklist blanks was an example rather than a lesson. */
   const Q=require('../public/boolquiz.js');
-  assert.ok(R.RULES.length>=6, 'Ion is back to '+R.RULES.length+' questions');
-  assert.strictEqual(Q.BANKS.bool.length, 20,
-    'the Mechanic asks '+Q.BANKS.bool.length+' questions');
-  assert.strictEqual(Q.BANKS.compare.length, 20,
-    'the ship asks '+Q.BANKS.compare.length+' questions');
+  for(const [bank, who] of [['kitchen','Ion'],['gauges','the ship'],['belt','the Mechanic']])
+    assert.strictEqual(Q.BANKS[bank].length, 20,
+      who+' asks '+Q.BANKS[bank].length+' questions');
+  const all=['kitchen','gauges','belt'].reduce((n,b)=>n+Q.BANKS[b].length, 0);
+  assert.strictEqual(all, 60, 'there are '+all+' questions in the course, not sixty');
 
-  /* TWO BANKS, ONE PANEL, AND THEY ARE DIFFERENT SUBJECTS. The Mechanic's
-     are about joining facts with and/or/not; the ship's are about where
-     one fact STOPS. If the second is just more of the first, the ship has
-     no lesson of its own and nothing in Mission 8 teaches "at least". */
-  const words=/at least|at most|under|over|exactly|anything but|more than|or less|warmer than/i;
-  const onLimits=Q.BANKS.compare.filter(q=>words.test(q.q+' '+q.opts.join(' ')));
-  assert.ok(onLimits.length>=16,
-    'only '+onLimits.length+' of the ship\u2019s twenty are about a limit');
+  /* AND NOT ONE OF THEM JOINS TWO CONDITIONS. `and`, `or` and `not` were
+     a second subject, and a course teaching both at once teaches a
+     student to guess which half of a rule has gone wrong. */
+  for(const bank of ['kitchen','gauges','belt'])
+    for(const q of Q.BANKS[bank]){
+      const text=(q.q+' '+q.ask+' '+q.opts.join(' ')).replace(/<[^>]+>/g,'');
+      assert.ok(!/\b(and|or)\b/i.test(text),
+        bank+': a join word is back in "'+q.ask+'": '+text.replace(/\n/g,' '));
+    }
 
-  /* AND THE BOUNDARY IS THE LESSON. "At least 20" and "more than 20" are
-     the same rule on every reading except 20 itself, so a bank that never
-     sits exactly on a limit never asks the question. */
-  const onTheNumber=Q.BANKS.compare.filter(q=>{
-    const m=q.q.match(/(\d+)/g);
-    return m && m.length>=2 && m.some((n,i)=>m.indexOf(n)!==i);
-  });
-  assert.ok(onTheNumber.length>=5,
-    'only '+onTheNumber.length+' questions sit exactly on their own limit');
+  /* EVERY ONE IS ABOUT A COMPARISON, by symbol or by name. */
+  const cmp=/<=|>=|!=|==|&lt;|&gt;|[<>]|at least|at most|more than|less than|under|over|exactly|not the same|warmer than|reaches/i;
+  for(const bank of ['kitchen','gauges','belt']){
+    const off=Q.BANKS[bank].filter(q=>!cmp.test(q.q+' '+q.ask+' '+q.opts.join(' ')));
+    assert.strictEqual(off.length, 0,
+      bank+': '+off.length+' questions are not about a comparison: '+off.map(q=>q.ask).join(' | '));
+  }
 
-  /* Every question in both banks is answerable and gives a reason. */
-  for(const bank of ['bool','compare'])
+  /* THE BOUNDARY IS THE LESSON IN ALL THREE. "More than 20" and "at
+     least 20" agree on every reading in the world except 20, so a bank
+     that never sits exactly on a limit never asks the only question that
+     separates them. */
+  let onTheLine=0;
+  for(const bank of ['kitchen','gauges','belt'])
+    for(const q of Q.BANKS[bank]){
+      const nums=(q.q+' '+q.opts.join(' ')).match(/-?\d+/g);
+      if(nums && nums.length>=2 && nums.some((n,i)=>nums.indexOf(n)!==i)) onTheLine++;
+    }
+  assert.ok(onTheLine>=18,
+    'only '+onTheLine+' of the sixty sit exactly on their own limit');
+
+  /* Every question in every bank is answerable and gives a reason. */
+  for(const bank of ['kitchen','gauges','belt'])
     for(const q of Q.BANKS[bank]){
       assert.ok(q.opts.length>=2, bank+': a question with nothing to choose between');
       assert.ok(q.a>=0 && q.a<q.opts.length, bank+': the answer is not one of the options');
@@ -465,8 +476,12 @@ test('Ion asks six, and both twenties are twenty', ()=>{
     assert.ok(!fs2.existsSync(abs(f)), f+' is still here');
   const planet=bare(read('public/planet.js'));
   assert.ok(!/SHIPFIX/.test(planet), 'the ship still opens the old checklist');
-  assert.match(planet, /BOOLQUIZ\.open\(\{ bank:'compare'/,
+  assert.match(planet, /BOOLQUIZ\.open\(\{ bank:'gauges'/,
     'the ship does not open its own twenty');
+  assert.match(planet, /BOOLQUIZ\.open\(\{ bank:'belt'/,
+    'the Mechanic does not open his own twenty');
+  assert.match(bare(read('public/house.js')), /BOOLQUIZ\.open\(\{ bank:'kitchen'/,
+    'Ion does not open his own twenty');
   assert.match(read('public/index.html'), /<script src="boolquiz\.js\?v=\d+"><\/script>/,
     'boolquiz.js is not on the page');
 });
@@ -481,18 +496,25 @@ test('the Mechanic asks in English, and does not let go until you know', ()=>{
      tidying the panel fixes that, because the panel was the wrong
      question. */
   const Q=require('../public/boolquiz.js');
-  assert.strictEqual(Q.QUESTIONS.length, 20, 'twenty questions was the ask');
-  for(const q of Q.QUESTIONS){
-    assert.ok(q.opts.length>=2, 'a question with nothing to choose between');
-    assert.ok(q.a>=0 && q.a<q.opts.length, 'the right answer is not one of the options');
-    assert.ok(q.why && q.why.length>20, '"'+q.ask+'" gives no reason');
-    /* PLAIN ENGLISH. No comparison operators, no brackets-as-syntax, no
-       ampersands: a student meets those at the ship, and this is the
-       lesson that has to come first. */
-    const text=(q.q+' '+q.ask+' '+q.opts.join(' ')).replace(/<[^>]+>/g,'');
-    assert.ok(!/[<>]=?|&&|\|\||!=|==/.test(text),
-      'symbols leaked into a plain-English question: "'+q.ask+'"');
+  for(const bank of ['kitchen','gauges','belt']){
+    assert.strictEqual(Q.BANKS[bank].length, 20, bank+': twenty questions was the ask');
+    for(const q of Q.BANKS[bank]){
+      assert.ok(q.opts.length>=2, 'a question with nothing to choose between');
+      assert.ok(q.a>=0 && q.a<q.opts.length, 'the right answer is not one of the options');
+      assert.ok(q.why && q.why.length>20, '"'+q.ask+'" gives no reason');
+    }
   }
+  /* AND THE SYMBOLS ARE THE POINT. There was an assertion here that no
+     question may contain one — right when this was a plain-English
+     lesson about joining facts, and exactly backwards now: the course is
+     `<`, `<=`, `>`, `>=`, `==` and `!=`, and a bank that never shows one
+     is teaching the words without the thing they are words for. */
+  let withSymbols=0;
+  for(const bank of ['kitchen','gauges','belt'])
+    withSymbols += Q.BANKS[bank].filter(q=>
+      /<=|>=|!=|==|[<>]/.test(q.q+' '+q.opts.join(' '))).length;
+  assert.ok(withSymbols>=24,
+    'only '+withSymbols+' of the sixty ever show a comparison symbol');
   /* A WRONG ANSWER IS A TRY AGAIN, not a mark in a book.
 
      It used to reveal the right answer beside the wrong one and move on,
@@ -538,14 +560,14 @@ test('the right answer is not always the first one', ()=>{
      them readable. Shown in that order it is not a quiz: click the top
      option forty times and you are through, having read nothing. */
   const Q=require('../public/boolquiz.js');
-  for(const b of ['bool','compare'])
+  for(const b of ['kitchen','gauges','belt'])
     assert.ok(Q.BANKS[b].every(q=>q.a===0),
       'the '+b+' bank is no longer authored answer-first, so the shuffle below '
       +'is testing something other than what it was written for');
 
   /* SO THE ROUND SHUFFLES THEM. Over many starts the right answer has to
      land in every position a question has. */
-  for(const bank of ['bool','compare']){
+  for(const bank of ['kitchen','gauges','belt']){
     const seen=new Set();
     for(let r=0;r<300;r++){
       const s=Q.start();      // start() shuffles; open() picks the bank

@@ -34,256 +34,346 @@
   /* `a` is the index of the right answer. `why` is shown after ANY answer,
      right or wrong, because the reason is the lesson and getting it right
      by luck is the case that most needs it. */
-  const AND_OR_NOT = [
-    /* ------------------------------------------- what the words mean */
-    { q:'You may go in if you have a ticket AND you are on the list.\n'
-       +'You have a ticket. You are not on the list.',
-      ask:'May you go in?',
-      opts:['No','Yes','Only if you ask'], a:0,
-      why:'<b>and</b> needs both sides to be true. One of them is false, so the whole thing is false.' },
+  /* =============================================== SIXTY QUESTIONS, ONE
+     SUBJECT: THE SIX COMPARISONS.
 
-    { q:'You may go in if you have a ticket OR you are on the list.\n'
-       +'You have a ticket. You are not on the list.',
-      ask:'May you go in?',
-      opts:['Yes','No','Only with both'], a:0,
-      why:'<b>or</b> only needs one side. The ticket is enough on its own.' },
+       <   less than            >   more than
+       <=  at most              >=  at least
+       ==  exactly              !=  not the same as
 
-    { q:'Which word is true only when BOTH parts are true?',
-      ask:'Pick one.',
-      opts:['and','or','not'], a:0,
-      why:'<b>and</b> is the strict one. Both, or nothing.' },
+     THERE USED TO BE FORTY ABOUT `and`, `or` and `not` AS WELL, and they
+     were cut on purpose. Joining two conditions together is a second
+     subject, and a course that teaches both at once teaches a student to
+     guess which half of a rule is the one going wrong. Every question in
+     all three banks now asks about ONE comparison, and no rule anywhere
+     has two halves to it.
 
-    { q:'Which word is true when AT LEAST ONE part is true?',
-      ask:'Pick one.',
-      opts:['or','and','not'], a:0,
-      why:'<b>or</b> is the generous one. One is enough, and both is fine too.' },
+     THE HARD PART IS THE NUMBER ITSELF, and it is the same hard part in
+     every one of the sixty. "More than 20" and "at least 20" agree on
+     every reading in the world except 20, so a student who has never been
+     asked about 20 has not met the difference between them. Nearly every
+     question here sits exactly on a limit, or one step either side of it.
 
-    { q:'It is NOT raining.',
-      ask:'So "it is raining" is...',
-      opts:['false','true'], a:0,
-      why:'<b>not</b> flips it. If it is not raining, then "it is raining" is false.' },
+     THREE BANKS OF TWENTY, and the order across them is the lesson:
 
-    /* ------------------------------------------------ working them out */
-    { q:'true AND false',
-      ask:'What is it?',
-      opts:['false','true'], a:0,
-      why:'One side is false, and <b>and</b> wants both.' },
+       KITCHEN  meet them. What does this symbol mean, what does this
+                phrase mean, and does this reading pass?
+       GAUGES   read them. Here are the readings that pass and the ones
+                that do not — which rule is it?
+       BELT     turn them round. What is the opposite of this rule, and
+                which two of these three mean the same thing? */
 
-    { q:'true OR false',
-      ask:'What is it?',
-      opts:['true','false'], a:0,
-      why:'One side is true, and <b>or</b> only needs one.' },
-
-    { q:'false OR false',
-      ask:'What is it?',
-      opts:['false','true'], a:0,
-      why:'<b>or</b> needs at least one true side. Neither of these is.' },
-
-    { q:'NOT false',
-      ask:'What is it?',
-      opts:['true','false'], a:0,
-      why:'<b>not</b> flips it, so the opposite of false is true.' },
-
-    { q:'true AND true AND false',
-      ask:'What is it?',
-      opts:['false','true'], a:0,
-      why:'One false anywhere in a chain of <b>and</b>s makes the whole chain false.' },
-
-    /* ------------------------------------------- reading somebody’s rule */
-    { q:'The rule: take a part if it is cool AND not cracked.\n'
-       +'This part is cool. It is cracked.',
-      ask:'Take it?',
-      opts:['Leave it','Take it'], a:0,
-      why:'It passes "cool" and fails "not cracked". <b>and</b> needs both.' },
-
-    { q:'The rule: take a part if it is light OR cool.\n'
-       +'This part is heavy. It is cool.',
-      ask:'Take it?',
-      opts:['Take it','Leave it'], a:0,
-      why:'It fails "light" but passes "cool", and <b>or</b> only needs one.' },
-
-    { q:'The rule: leave the cracked ones, and leave the hot ones.\n'
-       +'This part is cool and whole.',
-      ask:'What happens to it?',
-      opts:['It is taken','It is left'], a:0,
-      why:'It is neither cracked nor hot, so neither reason to leave it applies.' },
-
-    { q:'The rule: anything hot must be whole.\n'
-       +'This part is cold, and it is cracked.',
-      ask:'Does it break the rule?',
+  /* -------------------------------------------- ONE — ION'S KITCHEN */
+  const KITCHEN = [
+    { q:'Ion’s rule: cook when the pan is MORE THAN 200.\nThe pan reads 180.',
+      ask:'Does he cook?',
       opts:['No','Yes'], a:0,
-      why:'The rule only says something about HOT things. A cold part is nobody’s business.' },
+      why:'180 is below 200, so it is not <b>more than</b> 200.' },
 
-    { q:'The rule: anything hot must be whole.\n'
-       +'This part is hot, and it is cracked.',
-      ask:'Does it break the rule?',
+    { q:'Ion’s rule: cook when the pan is MORE THAN 200.\nThe pan reads 240.',
+      ask:'Does he cook?',
       opts:['Yes','No'], a:0,
-      why:'It is hot, so the rule applies to it — and it is not whole.' },
+      why:'240 is above 200, so the rule is satisfied and the pan is hot enough.' },
 
-    /* -------------------------------------- turning a rule inside out */
-    { q:'"It is NOT (hot AND cracked)."',
-      ask:'Which one means the same thing?',
-      opts:['not hot OR not cracked',
-            'not hot AND not cracked',
-            'hot OR cracked'], a:0,
-      why:'Flip both sides AND change the join. "Not both" means at least one of them is fine.' },
+    { q:'Ion’s rule: cook when the pan is MORE THAN 200.\nThe pan reads 200.',
+      ask:'Does he cook?',
+      opts:['No','Yes'], a:0,
+      why:'<b>More than 200</b> does not include 200 itself. 201 would do it.' },
 
-    { q:'"It is NOT (hot OR cracked)."',
-      ask:'Which one means the same thing?',
-      opts:['not hot AND not cracked',
-            'not hot OR not cracked',
-            'hot AND cracked'], a:0,
-      why:'Both sides flip and the join changes again — this time <b>or</b> becomes <b>and</b>.' },
+    { q:'Ion’s rule: cook when the pan is AT LEAST 200.\nThe pan reads 200.',
+      ask:'Does he cook?',
+      opts:['Yes','No'], a:0,
+      why:'<b>At least 200</b> does include 200. This is the whole difference from the last one.' },
 
-    { q:'Both lights are on.',
-      ask:'What is the opposite of that?',
-      opts:['At least one light is off',
-            'Both lights are off',
-            'One light is on'], a:0,
-      why:'The opposite of "both" is not "neither". One being off is enough to spoil it.' },
+    { q:'Which symbol means LESS THAN?',
+      ask:'Pick one.',
+      opts:['<','>','<='], a:0,
+      why:'<b>&lt;</b> points at the smaller side.' },
 
-    { q:'At least one door is open.',
-      ask:'What is the opposite of that?',
-      opts:['Every door is shut',
-            'At least one door is shut',
-            'One door is open'], a:0,
-      why:'The opposite of "at least one" is "none at all".' },
+    { q:'Which symbol means AT LEAST?',
+      ask:'Pick one.',
+      opts:['>=','>','=='], a:0,
+      why:'<b>&gt;=</b> is "more than, or the same as". The line under it is the "or the same".' },
 
-    { q:'"If it is hot, it must be whole."',
-      ask:'Which one means the same thing?',
-      opts:['It is not hot, OR it is whole',
-            'It is hot AND it is whole',
-            'It is not hot AND it is whole'], a:0,
-      why:'A rule about hot things says nothing about cold ones. '
-        +'So: cold is always fine, and hot is fine only when whole.' }
+    { q:'Which symbol means AT MOST?',
+      ask:'Pick one.',
+      opts:['<=','<','!='], a:0,
+      why:'<b>&lt;=</b> is "less than, or the same as".' },
+
+    { q:'Which symbol means EXACTLY?',
+      ask:'Pick one.',
+      opts:['==','=','!='], a:0,
+      why:'<b>==</b> asks a question. One <b>=</b> sets a value; two <b>==</b> ask whether they match.' },
+
+    { q:'Which symbol means NOT THE SAME AS?',
+      ask:'Pick one.',
+      opts:['!=','==','<>'], a:0,
+      why:'The <b>!</b> means "not", so <b>!=</b> is "not equal".' },
+
+    { q:'Which symbol means MORE THAN?',
+      ask:'Pick one.',
+      opts:['>','>=','<'], a:0,
+      why:'<b>&gt;</b> points at the smaller side, so the big number is on the left.' },
+
+    { q:'The bowl has 3 spoons of batter.\nIon checks: batter != 0',
+      ask:'Is that true?',
+      opts:['True','False'], a:0,
+      why:'3 is not the same as 0, so <b>!=</b> is true.' },
+
+    { q:'The bowl is empty.\nIon checks: batter != 0',
+      ask:'Is that true?',
+      opts:['False','True'], a:0,
+      why:'The batter IS 0, so "not the same as 0" is false.' },
+
+    { q:'The timer reads 5.\nIon checks: timer <= 5',
+      ask:'Is that true?',
+      opts:['True','False'], a:0,
+      why:'<b>&lt;=</b> includes the number itself.' },
+
+    { q:'The timer reads 5.\nIon checks: timer < 5',
+      ask:'Is that true?',
+      opts:['False','True'], a:0,
+      why:'<b>&lt;</b> does not include the number itself. 4 would be true.' },
+
+    { q:'Ion waits until the timer reaches 0 — not 1, not −1.',
+      ask:'Which symbol does he need?',
+      opts:['timer == 0','timer <= 0','timer != 0'], a:0,
+      why:'Exactly one reading passes, so it is <b>==</b>.' },
+
+    { q:'Ion turns the pan off when it reaches 250.\n250 itself is hot enough.',
+      ask:'Which symbol?',
+      opts:['pan >= 250','pan > 250','pan == 250'], a:0,
+      why:'"Reaches" includes the number, so <b>&gt;=</b>.' },
+
+    { q:'The pan reads 99.\nIon checks: pan < 100',
+      ask:'Is that true?',
+      opts:['True','False'], a:0,
+      why:'99 is below 100, so this is true. It does not have to be far below.' },
+
+    { q:'The pan reads 100.\nIon checks: pan < 100',
+      ask:'Is that true?',
+      opts:['False','True'], a:0,
+      why:'100 is not below 100. It is exactly 100.' },
+
+    { q:'Which one is true when two numbers are the same?',
+      ask:'Pick one.',
+      opts:['==','!=','<'], a:0,
+      why:'<b>==</b> is the only one that asks for a match.' },
+
+    { q:'Which one is true when two numbers are different?',
+      ask:'Pick one.',
+      opts:['!=','==','>='], a:0,
+      why:'<b>!=</b> is true whenever they do not match — bigger or smaller, it does not care.' }
   ];
 
-  /* ================================================ THE OTHER TWENTY
-     THE E-45'S SAFETY RULES, which is a different subject in the same
-     shape. `and`, `or` and `not` join two facts together; these twenty
-     are about where ONE fact stops — at least, at most, under, over,
-     exactly, anything but.
-
-     THE BOUNDARY IS THE WHOLE LESSON. "At least 20" and "more than 20"
-     are the same rule on every reading except 20 itself, and a student
-     who has never been asked about 20 has not met the difference. Nearly
-     every question here sits exactly on a limit or one step either side
-     of it, because that is the only place the words come apart.
-
-     It is her own gauges throughout — fuel, core heat, load, the pad, the
-     key, the heading — so the rules being read are the rules that were on
-     the panel, and the last five join two of them with the `and` and `or`
-     from the other bank. */
-  const COMPARE = [
-    /* ------------------------------------------ sitting on the limit */
+  /* ------------------------------------------ TWO — THE SHIP'S GAUGES */
+  const GAUGES = [
     { q:'Her rule: fuel must be AT LEAST 20.\nThe tank reads 20.',
       ask:'May she fly?',
       opts:['Yes','No'], a:0,
-      why:'<b>At least 20</b> includes 20. "At least" means that number or more.' },
+      why:'<b>At least 20</b> includes 20 itself \u2014 it always means that number or more.' },
 
     { q:'Her rule: fuel must be AT LEAST 20.\nThe tank reads 19.',
       ask:'May she fly?',
       opts:['No','Yes'], a:0,
-      why:'19 is below 20, and the rule wants 20 or more.' },
+      why:'19 is below the line, and the rule wants 20 or anything above it.' },
 
     { q:'Her rule: core heat must be UNDER 900.\nIt reads 900.',
       ask:'May she fly?',
       opts:['No','Yes'], a:0,
       why:'<b>Under 900</b> does not include 900. 899 would have been fine.' },
 
-    { q:'Her rule: the load must be 400 OR LESS.\nThe hold reads 400.',
+    { q:'Her rule: the load must be AT MOST 400.\nThe hold reads 400.',
       ask:'May she fly?',
       opts:['Yes','No'], a:0,
-      why:'<b>400 or less</b> includes 400 \u2014 unlike "under 400", which does not.' },
+      why:'<b>At most 400</b> includes 400, unlike "under 400".' },
 
     { q:'Her rule: the pad must be WARMER THAN 0.\nIt reads 0.',
       ask:'May she fly?',
       opts:['No','Yes'], a:0,
       why:'<b>Warmer than 0</b> means above it, and 0 is not above 0.' },
 
-    /* ---------------------------------------- what the words include */
-    { q:'"At least 20"',
-      ask:'Which readings pass?',
-      opts:['20, and anything above it','anything above 20','anything below 20'], a:0,
-      why:'<b>At least</b> always includes the number itself.' },
-
-    { q:'"More than 20"',
-      ask:'Which readings pass?',
-      opts:['anything above 20','20, and anything above it','20 exactly'], a:0,
-      why:'<b>More than</b> never includes the number itself, so 20 fails.' },
-
-    { q:'"At most 400" lets 400 through.',
-      ask:'True or false?',
-      opts:['True','False'], a:0,
-      why:'<b>At most</b> is the same shape as "at least": the number itself counts.' },
-
-    { q:'"Under 900" lets 900 through.',
-      ask:'True or false?',
-      opts:['False','True'], a:0,
-      why:'<b>Under</b> is the same shape as "more than": the number itself does not.' },
-
-    { q:'Her rule: the key must be EXACTLY 1.\nIt reads 2.',
-      ask:'May she fly?',
-      opts:['No','Yes'], a:0,
-      why:'<b>Exactly</b> allows one reading and no other. Not 0, not 2.' },
-
-    /* ------------------------------ working the rule out from a gauge */
-    { q:'A rule passes at 20 and fails at 19.',
+    { q:'A rule passes at 20. It fails at 19.',
       ask:'Which rule is it?',
-      opts:['at least 20','more than 20','at most 20'], a:0,
-      why:'It lets 20 through, so the number itself counts: <b>at least</b>.' },
+      opts:['fuel >= 20','fuel > 20','fuel <= 20'], a:0,
+      why:'It lets 20 through, so the number itself counts: <b>&gt;=</b>.' },
 
-    { q:'A rule fails at 20 and passes at 21.',
+    { q:'A rule fails at 20. It passes at 21.',
       ask:'Which rule is it?',
-      opts:['more than 20','at least 20','at most 20'], a:0,
-      why:'It refuses 20, so the number itself does not count: <b>more than</b>.' },
+      opts:['fuel > 20','fuel >= 20','fuel == 20'], a:0,
+      why:'It refuses 20, so the number itself does not count: <b>&gt;</b>.' },
 
-    { q:'A rule passes at 400 and fails at 401.',
+    { q:'A rule passes at 400. It fails at 401.',
       ask:'Which rule is it?',
-      opts:['at most 400','under 400','at least 400'], a:0,
-      why:'It lets 400 through and nothing above it: <b>at most</b>.' },
+      opts:['load <= 400','load < 400','load >= 400'], a:0,
+      why:'It lets 400 through and nothing above it: <b>&lt;=</b>.' },
 
-    { q:'A rule fails at 400 and passes at 399.',
+    { q:'A rule fails at 400. It passes at 399.',
       ask:'Which rule is it?',
-      opts:['under 400','at most 400','more than 400'], a:0,
-      why:'It refuses 400 itself, which "at most 400" would have allowed.' },
+      opts:['load < 400','load <= 400','load > 400'], a:0,
+      why:'It refuses 400 itself, which <b>&lt;=</b> would have allowed.' },
 
-    { q:'Her rule: the heading must be ANYTHING BUT 180.\nIt reads 180.',
-      ask:'May she fly?',
-      opts:['No','Yes'], a:0,
-      why:'<b>Anything but</b> refuses one reading and allows every other one.' },
+    { q:'A rule passes at every reading except 180.',
+      ask:'Which rule is it?',
+      opts:['heading != 180','heading == 180','heading > 180'], a:0,
+      why:'One reading refused, every other allowed: <b>!=</b>.' },
 
-    /* --------------------------------------------- two rules at once */
-    { q:'Her rule: cabin air must be OVER 8 AND UNDER 40.\nIt reads 8.',
-      ask:'May she fly?',
-      opts:['No','Yes'], a:0,
-      why:'<b>Over 8</b> does not include 8, and <b>and</b> needs both sides.' },
+    { q:'"The key must be exactly 1."',
+      ask:'Which symbol?',
+      opts:['key == 1','key >= 1','key != 1'], a:0,
+      why:'One reading allowed, every other refused.' },
 
-    { q:'Her rule: cabin air must be OVER 8 AND UNDER 40.\nIt reads 39.',
+    { q:'"Cabin air must be over 8."',
+      ask:'Which symbol?',
+      opts:['psi > 8','psi >= 8','psi < 8'], a:0,
+      why:'<b>Over</b> never includes the number, so 8 itself fails.' },
+
+    { q:'"Thrust must be AT MOST 80."',
+      ask:'Which symbol?',
+      opts:['thrust <= 80','thrust < 80','thrust >= 80'], a:0,
+      why:'<b>At most</b> includes 80 itself, which is what the line under the <b>&lt;</b> is for.' },
+
+    { q:'"Power must not be 0."',
+      ask:'Which symbol?',
+      opts:['power != 0','power == 0','power > 0'], a:0,
+      why:'It refuses one reading. Note that <b>&gt; 0</b> would also refuse −5, which this rule allows.' },
+
+    { q:'"The pad must be at least −5."',
+      ask:'Which symbol?',
+      opts:['pad >= -5','pad > -5','pad <= -5'], a:0,
+      why:'<b>At least</b> is <b>&gt;=</b> whether the number is positive or not.' },
+
+    { q:'Her rule: heat <= 899\nThe core reads 899.',
       ask:'May she fly?',
       opts:['Yes','No'], a:0,
-      why:'39 is above 8 and below 40, so both sides are true.' },
+      why:'<b>&lt;=</b> includes 899. This is the same rule as "under 900" on whole numbers.' },
 
-    { q:'Her rule: power must be AT LEAST 50 AND NOT leaking.\n'
-       +'Power reads 80. It is leaking.',
+    { q:'Her rule: heat < 900\nThe core reads 899.',
+      ask:'May she fly?',
+      opts:['Yes','No'], a:0,
+      why:'899 is below 900. On whole numbers this rule and the last one agree everywhere.' },
+
+    { q:'Her rule: fuel > 20\nThe tank reads 20.',
       ask:'May she fly?',
       opts:['No','Yes'], a:0,
-      why:'The power is fine and the leak is not, and <b>and</b> needs both.' },
+      why:'Exactly on the line, and <b>&gt;</b> wants above it.' },
 
-    { q:'Her rule: she may launch if fuel is AT LEAST 20 OR the tank is full.\n'
-       +'Fuel reads 12. The tank is not full.',
-      ask:'May she launch?',
-      opts:['No','Yes'], a:0,
-      why:'<b>or</b> needs one side to be true, and neither of these is.' },
+    { q:'Her rule: fuel >= 20\nThe tank reads 20.',
+      ask:'May she fly?',
+      opts:['Yes','No'], a:0,
+      why:'The same reading, the other symbol, the other answer. This is the pair worth remembering.' },
 
-    { q:'Her rule: anything OVER 900 must be shut down.\nThe core reads 900.',
-      ask:'Shut it down?',
-      opts:['No','Yes'], a:0,
-      why:'900 is not <b>over</b> 900, so the rule does not reach it. One step further and it would.' }
+    { q:'Which symbol lets the MOST readings through, on a gauge that runs 0 to 100?',
+      ask:'Pick one.',
+      opts:['fuel != 50','fuel >= 50','fuel == 50'], a:0,
+      why:'<b>!=</b> refuses exactly one reading out of a hundred. The others refuse about half.' }
   ];
 
-  const BANKS = { bool:AND_OR_NOT, compare:COMPARE };
-  let QUESTIONS = AND_OR_NOT;
+  /* ----------------------------------------------- THREE — THE BELT */
+  const BELT = [
+    { q:'A rule says: heat < 900',
+      ask:'What is the opposite of that rule?',
+      opts:['heat >= 900','heat > 900','heat <= 900'], a:0,
+      why:'If it is not below 900 then it is 900 or above. The opposite of <b>&lt;</b> is <b>&gt;=</b>.' },
+
+    { q:'A rule says: load > 400',
+      ask:'What is the opposite?',
+      opts:['load <= 400','load < 400','load >= 400'], a:0,
+      why:'The opposite of <b>&gt;</b> is <b>&lt;=</b>. The number itself moves to the other side.' },
+
+    { q:'A rule says: size == 6',
+      ask:'What is the opposite?',
+      opts:['size != 6','size > 6','size < 6'], a:0,
+      why:'These two are a pair: one allows a single reading, the other refuses it.' },
+
+    { q:'A rule says: weight != 12',
+      ask:'What is the opposite?',
+      opts:['weight == 12','weight > 12','weight <= 12'], a:0,
+      why:'The opposite of "not that one" is "that one".' },
+
+    { q:'A rule says: heat <= 300',
+      ask:'What is the opposite?',
+      opts:['heat > 300','heat >= 300','heat < 300'], a:0,
+      why:'300 passes the first rule, so it must FAIL the opposite — which rules out <b>&gt;=</b>.' },
+
+    { q:'The arm takes a part when: load < 200\nA part reads 200.',
+      ask:'Taken?',
+      opts:['Left','Taken'], a:0,
+      why:'200 is not below 200 \u2014 it is exactly 200, which <b>&lt;</b> refuses.' },
+
+    { q:'The arm takes a part when: load <= 200\nA part reads 200.',
+      ask:'Taken?',
+      opts:['Taken','Left'], a:0,
+      why:'The same reading, one symbol different, the other answer.' },
+
+    { q:'Two rules, on whole numbers:\n  heat < 900\n  heat <= 899',
+      ask:'Do they take the same parts?',
+      opts:['Yes','No'], a:0,
+      why:'On whole numbers, "below 900" and "899 or less" allow exactly the same readings.' },
+
+    { q:'Two rules: heat < 900, heat <= 900.',
+      ask:'Do they take the same parts?',
+      opts:['No','Yes'], a:0,
+      why:'They disagree on exactly one reading: 900 itself.' },
+
+    { q:'Two rules: size > 5, size >= 6, on whole numbers.',
+      ask:'Do they take the same parts?',
+      opts:['Yes','No'], a:0,
+      why:'The first whole number above 5 is 6, so both rules start there.' },
+
+    { q:'The belt should take every part EXCEPT the ones reading 7.',
+      ask:'Which rule?',
+      opts:['size != 7','size == 7','size > 7'], a:0,
+      why:'One reading refused, all others allowed.' },
+
+    { q:'The belt should take ONLY the parts reading 7.',
+      ask:'Which rule?',
+      opts:['size == 7','size != 7','size >= 7'], a:0,
+      why:'One reading allowed, all others refused. The pair to the last one.' },
+
+    { q:'A rule takes parts reading 0, 1, 2, 3.\nIt leaves 4.',
+      ask:'Which rule?',
+      opts:['size <= 3','size < 3','size <= 4'], a:0,
+      why:'3 is taken, so the number itself counts: <b>&lt;=</b> 3.' },
+
+    { q:'A rule takes parts reading 4, 5, 6.\nIt leaves 3.',
+      ask:'Which rule?',
+      opts:['size >= 4','size > 4','size >= 3'], a:0,
+      why:'4 is taken, so the line is at 4 and the number itself counts.' },
+
+    { q:'heat >= 900 is FALSE for a part.',
+      ask:'What do you know about its heat?',
+      opts:['It is below 900','It is 900','It is above 900'], a:0,
+      why:'If it is not "900 or more", the only thing left is below 900.' },
+
+    { q:'load != 50 is FALSE for a part.',
+      ask:'What do you know about its load?',
+      opts:['It is exactly 50','It is above 50','It is below 50'], a:0,
+      why:'"Not 50" being false leaves only one reading it can be.' },
+
+    { q:'A gauge reads −3. The rule is: temp > -5',
+      ask:'Does it pass?',
+      opts:['Yes','No'], a:0,
+      why:'−3 is warmer than −5. Further from zero is not the same as bigger.' },
+
+    { q:'A gauge reads −7. The rule is: temp > -5',
+      ask:'Does it pass?',
+      opts:['No','Yes'], a:0,
+      why:'−7 is colder than −5, so it is below the line.' },
+
+    { q:'Which rule refuses the FEWEST parts, on a gauge that runs 0 to 100?',
+      ask:'Pick one.',
+      opts:['size != 40','size <= 40','size == 40'], a:0,
+      why:'<b>!=</b> refuses exactly one reading. <b>==</b> refuses ninety-nine of them.' },
+
+    { q:'A rule passes at 10. It passes at 11. It fails at 9.',
+      ask:'Which rule is it?',
+      opts:['size >= 10','size > 10','size == 10'], a:0,
+      why:'10 passes and 9 does not, so the line is at 10 and 10 itself counts.' }
+  ];
+
+  const BANKS = { kitchen:KITCHEN, gauges:GAUGES, belt:BELT };
+  let QUESTIONS = KITCHEN;
 
   /* --------------------------------------------------------- the state
      `queue` is which questions are still owed, in order. A wrong answer
@@ -474,17 +564,24 @@
      AFTER ESCAPING, ALWAYS. This runs over text that has already been
      made safe, so the tags it adds are the only tags in it. The other way
      round would let a question's own words become markup. */
+  /* THE SIX SYMBOLS AND THE WORDS FOR THEM, coloured wherever they
+     appear. They are the entire subject, and in a wall of plain English
+     the phrase that decides the answer is three more words the same
+     colour as the rest of the sentence.
+
+     LONGEST FIRST, in one alternation and one pass. "at least" contains
+     "at"; "not the same as" contains "not"; and a shorter alternative
+     matching first would colour half a phrase and leave the rest as
+     prose. The symbols go first of all, because `<=` contains `<`. */
   const OPS = [
-    /* LONGEST FIRST, in one alternation and one pass. "or less" contains
-       "or", and a shorter alternative that matches first would colour the
-       "or" and leave "less" as prose — turning a limit into a join, which
-       is precisely the confusion this is meant to prevent. */
-    'AT LEAST','AT MOST','ANYTHING BUT','MORE THAN','WARMER THAN','OR LESS',
-    'at least','at most','anything but','more than','warmer than','or less',
-    'UNDER','OVER','EXACTLY','under','over','exactly',
-    'AND','OR','NOT','and','or','not'
+    '&lt;=','&gt;=','!=','==','&lt;','&gt;','<=','>=','<','>',
+    'AT LEAST','AT MOST','NOT THE SAME AS','MORE THAN','LESS THAN',
+    'WARMER THAN','EXACTLY','UNDER','OVER',
+    'at least','at most','not the same as','more than','less than',
+    'warmer than','exactly','under','over'
   ];
-  const OPRE = new RegExp('\\b(' + OPS.join('|') + ')\\b', 'g');
+  const esc_ = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const OPRE = new RegExp('(' + OPS.map(esc_).join('|') + ')', 'g');
   const opWord = html => html.replace(OPRE, '<em class="bqop">$1</em>');
 
   function draw(){
@@ -559,10 +656,11 @@
     opts=opts||{};
     /* WHICH TWENTY. The Mechanic asks about joining facts; the ship asks
        about where one fact stops. Same panel, same try-again, same dots. */
-    QUESTIONS = BANKS[opts.bank] || AND_OR_NOT;
-    HEAD = opts.title || (opts.bank==='compare'
-      ? say('E-45') + ' · ' + say('HER SAFETY RULES')
-      : say('THE MECHANIC') + ' · ' + say('AND, OR, NOT'));
+    QUESTIONS = BANKS[opts.bank] || KITCHEN;
+    const HEADS={ kitchen: say('ION') + ' · ' + say('HIS MORNING RULES'),
+                  gauges:  say('E-45') + ' · ' + say('HER SAFETY RULES'),
+                  belt:    say('THE MECHANIC') + ' · ' + say('THE BELT') };
+    HEAD = opts.title || HEADS[opts.bank] || HEADS.kitchen;
     onDone=opts.onDone||null;
     state=start();
     if(root.G) root.G.running=false;

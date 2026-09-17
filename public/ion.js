@@ -42,13 +42,13 @@ window.ION = (function(){
      flag its own stage writes when it is finished. */
   const LEVELS = [
     { key:'ion_fixed',        name:'Ion’s console',
-      blurb:'His morning routine, and the loop it never leaves' },
+      blurb:'Twenty questions about less than, at least and exactly' },
     { key:'ion_ship_cleared', name:'The pre-flight',
-      blurb:'Nine safety rules with the operators missing' },
+      blurb:'Twenty of her safety rules, and where each one stops' },
     { key:'ion_flown',        name:'The tower',
       blurb:'Fly the E-45 across RYU with Ion aboard' },
     { key:'ion_belt',         name:'The belt',
-      blurb:'The Mechanic’s price: three rules, written in and, or and not' }
+      blurb:'The Mechanic’s price: twenty questions on the belt' }
   ];
 
   const got = k => { try{ return !!(window.PROGRESS && PROGRESS.get(k,0)); }
