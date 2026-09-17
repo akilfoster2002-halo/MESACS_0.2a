@@ -132,6 +132,11 @@ test('RYU has a walkthrough, and it reads the save rather than counting', ()=>{
   /* Each step has a line, and the ones about a place ring that place. */
   const says=(tour.match(/say:'/g)||[]).length;
   assert.ok(says>=8, 'the walkthrough is only '+says+' steps for four objects');
+  /* AND IT STOPS AT THE DOOR OF THE LAST LESSON. A step that describes
+     the panel which is open on top of it is two sets of instructions on
+     screen at once, one of them about how to reach the other. */
+  assert.ok(!/Answer his twenty questions/.test(tour),
+    'the walkthrough narrates a panel that is covering it');
   assert.ok((tour.match(/at:\(\)=>withSize/g)||[]).length>=4,
     'the walkthrough points at nothing: no ring, no beacon');
   assert.ok((tour.match(/done:\(\)=>/g)||[]).length===says,
@@ -220,4 +225,23 @@ test('the restart sits on the join, not on the door', ()=>{
   const all=[...planet.matchAll(/'(ion_[a-z_]+)'/g)].map(m=>m[1]);
   for(const f of all)
     assert.match(f, /^ion_/, f+' would survive PROGRESS.restart(\'ion\')');
+});
+
+test('the walkthrough card steps aside for a lesson panel', ()=>{
+  /* IT SITS IN THE BOTTOM MIDDLE AND POINTS AT THE THING NOW COVERING IT.
+     "The lit panel on her flank is the pre-flight" is good advice right
+     up until the pre-flight is open, at which point it is a second set of
+     instructions competing with the first. */
+  const bq=bare(read('public/boolquiz.js'));
+  assert.match(bq, /function hideCoach\(off\)/, 'nothing puts the walkthrough card away');
+  assert.match(bq, /hideCoach\(true\)/, 'the card is never hidden');
+  assert.match(bq, /hideCoach\(false\)/, 'the card is never given back');
+  /* ALL THREE PIECES. COACH hangs the card, the ring and the beacon off
+     the body separately, and they are one sentence. */
+  for(const sel of ['#coachTip','#coachRing','#coachBeacon'])
+    assert.ok(bq.includes(sel), 'hideCoach leaves '+sel+' on screen');
+  /* HIDDEN, NOT STOPPED. Closing the panel half way through must put the
+     card back rather than drop somebody who was following it. */
+  assert.ok(!/COACH\.stop\(\)/.test(bq),
+    'the panel stops the walkthrough outright, so closing it strands the student');
 });

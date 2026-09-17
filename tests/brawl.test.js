@@ -418,17 +418,54 @@ test('all three practice points can be reached more than once', ()=>{
   assert.match(again, /theBelt\(\)/, 'a return visit never reaches the belt');
 });
 
-test('Ion asks six, the ship checks nine, the Mechanic asks twenty', ()=>{
-  /* FIVE MINUTES EACH, at three points. Two questions and three jobs was
-     an example rather than a lesson. */
+test('Ion asks six, and both twenties are twenty', ()=>{
+  /* FIVE MINUTES EACH, at three points. Two questions, three belt jobs
+     and nine checklist blanks was an example rather than a lesson. */
   const R=require('../public/routine.js');
   const Q=require('../public/boolquiz.js');
   assert.ok(R.RULES.length>=6, 'Ion is back to '+R.RULES.length+' questions');
-  assert.ok(Q.QUESTIONS.length>=20,
-    'the Mechanic asks only '+Q.QUESTIONS.length+' questions');
-  /* And the nine pre-flight checks are the third. */
-  const P=require('../public/preflight.js');
-  assert.ok(P.CHECKS.length>=9, 'the pre-flight has shrunk to '+P.CHECKS.length);
+  assert.strictEqual(Q.BANKS.bool.length, 20,
+    'the Mechanic asks '+Q.BANKS.bool.length+' questions');
+  assert.strictEqual(Q.BANKS.compare.length, 20,
+    'the ship asks '+Q.BANKS.compare.length+' questions');
+
+  /* TWO BANKS, ONE PANEL, AND THEY ARE DIFFERENT SUBJECTS. The Mechanic's
+     are about joining facts with and/or/not; the ship's are about where
+     one fact STOPS. If the second is just more of the first, the ship has
+     no lesson of its own and nothing in Mission 8 teaches "at least". */
+  const words=/at least|at most|under|over|exactly|anything but|more than|or less|warmer than/i;
+  const onLimits=Q.BANKS.compare.filter(q=>words.test(q.q+' '+q.opts.join(' ')));
+  assert.ok(onLimits.length>=16,
+    'only '+onLimits.length+' of the ship\u2019s twenty are about a limit');
+
+  /* AND THE BOUNDARY IS THE LESSON. "At least 20" and "more than 20" are
+     the same rule on every reading except 20 itself, so a bank that never
+     sits exactly on a limit never asks the question. */
+  const onTheNumber=Q.BANKS.compare.filter(q=>{
+    const m=q.q.match(/(\d+)/g);
+    return m && m.length>=2 && m.some((n,i)=>m.indexOf(n)!==i);
+  });
+  assert.ok(onTheNumber.length>=5,
+    'only '+onTheNumber.length+' questions sit exactly on their own limit');
+
+  /* Every question in both banks is answerable and gives a reason. */
+  for(const bank of ['bool','compare'])
+    for(const q of Q.BANKS[bank]){
+      assert.ok(q.opts.length>=2, bank+': a question with nothing to choose between');
+      assert.ok(q.a>=0 && q.a<q.opts.length, bank+': the answer is not one of the options');
+      assert.ok(q.why && q.why.length>20, bank+': "'+q.ask+'" gives no reason');
+    }
+
+  /* AND THE BUILDER IS GONE, not merely unlinked. */
+  const fs2=require('fs');
+  for(const f of ['public/shipfix.js','public/preflight.js'])
+    assert.ok(!fs2.existsSync(abs(f)), f+' is still here');
+  const planet=bare(read('public/planet.js'));
+  assert.ok(!/SHIPFIX/.test(planet), 'the ship still opens the old checklist');
+  assert.match(planet, /BOOLQUIZ\.open\(\{ bank:'compare'/,
+    'the ship does not open its own twenty');
+  assert.match(read('public/index.html'), /<script src="boolquiz\.js\?v=\d+"><\/script>/,
+    'boolquiz.js is not on the page');
 });
 
 test('the Mechanic asks in English, and does not let go until you know', ()=>{

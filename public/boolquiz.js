@@ -34,7 +34,7 @@
   /* `a` is the index of the right answer. `why` is shown after ANY answer,
      right or wrong, because the reason is the lesson and getting it right
      by luck is the case that most needs it. */
-  const QUESTIONS = [
+  const AND_OR_NOT = [
     /* ------------------------------------------- what the words mean */
     { q:'You may go in if you have a ticket AND you are on the list.\n'
        +'You have a ticket. You are not on the list.',
@@ -158,6 +158,133 @@
         +'So: cold is always fine, and hot is fine only when whole.' }
   ];
 
+  /* ================================================ THE OTHER TWENTY
+     THE E-45'S SAFETY RULES, which is a different subject in the same
+     shape. `and`, `or` and `not` join two facts together; these twenty
+     are about where ONE fact stops — at least, at most, under, over,
+     exactly, anything but.
+
+     THE BOUNDARY IS THE WHOLE LESSON. "At least 20" and "more than 20"
+     are the same rule on every reading except 20 itself, and a student
+     who has never been asked about 20 has not met the difference. Nearly
+     every question here sits exactly on a limit or one step either side
+     of it, because that is the only place the words come apart.
+
+     It is her own gauges throughout — fuel, core heat, load, the pad, the
+     key, the heading — so the rules being read are the rules that were on
+     the panel, and the last five join two of them with the `and` and `or`
+     from the other bank. */
+  const COMPARE = [
+    /* ------------------------------------------ sitting on the limit */
+    { q:'Her rule: fuel must be AT LEAST 20.\nThe tank reads 20.',
+      ask:'May she fly?',
+      opts:['Yes','No'], a:0,
+      why:'<b>At least 20</b> includes 20. "At least" means that number or more.' },
+
+    { q:'Her rule: fuel must be AT LEAST 20.\nThe tank reads 19.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'19 is below 20, and the rule wants 20 or more.' },
+
+    { q:'Her rule: core heat must be UNDER 900.\nIt reads 900.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'<b>Under 900</b> does not include 900. 899 would have been fine.' },
+
+    { q:'Her rule: the load must be 400 OR LESS.\nThe hold reads 400.',
+      ask:'May she fly?',
+      opts:['Yes','No'], a:0,
+      why:'<b>400 or less</b> includes 400 \u2014 unlike "under 400", which does not.' },
+
+    { q:'Her rule: the pad must be WARMER THAN 0.\nIt reads 0.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'<b>Warmer than 0</b> means above it, and 0 is not above 0.' },
+
+    /* ---------------------------------------- what the words include */
+    { q:'"At least 20"',
+      ask:'Which readings pass?',
+      opts:['20, and anything above it','anything above 20','anything below 20'], a:0,
+      why:'<b>At least</b> always includes the number itself.' },
+
+    { q:'"More than 20"',
+      ask:'Which readings pass?',
+      opts:['anything above 20','20, and anything above it','20 exactly'], a:0,
+      why:'<b>More than</b> never includes the number itself, so 20 fails.' },
+
+    { q:'"At most 400" lets 400 through.',
+      ask:'True or false?',
+      opts:['True','False'], a:0,
+      why:'<b>At most</b> is the same shape as "at least": the number itself counts.' },
+
+    { q:'"Under 900" lets 900 through.',
+      ask:'True or false?',
+      opts:['False','True'], a:0,
+      why:'<b>Under</b> is the same shape as "more than": the number itself does not.' },
+
+    { q:'Her rule: the key must be EXACTLY 1.\nIt reads 2.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'<b>Exactly</b> allows one reading and no other. Not 0, not 2.' },
+
+    /* ------------------------------ working the rule out from a gauge */
+    { q:'A rule passes at 20 and fails at 19.',
+      ask:'Which rule is it?',
+      opts:['at least 20','more than 20','at most 20'], a:0,
+      why:'It lets 20 through, so the number itself counts: <b>at least</b>.' },
+
+    { q:'A rule fails at 20 and passes at 21.',
+      ask:'Which rule is it?',
+      opts:['more than 20','at least 20','at most 20'], a:0,
+      why:'It refuses 20, so the number itself does not count: <b>more than</b>.' },
+
+    { q:'A rule passes at 400 and fails at 401.',
+      ask:'Which rule is it?',
+      opts:['at most 400','under 400','at least 400'], a:0,
+      why:'It lets 400 through and nothing above it: <b>at most</b>.' },
+
+    { q:'A rule fails at 400 and passes at 399.',
+      ask:'Which rule is it?',
+      opts:['under 400','at most 400','more than 400'], a:0,
+      why:'It refuses 400 itself, which "at most 400" would have allowed.' },
+
+    { q:'Her rule: the heading must be ANYTHING BUT 180.\nIt reads 180.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'<b>Anything but</b> refuses one reading and allows every other one.' },
+
+    /* --------------------------------------------- two rules at once */
+    { q:'Her rule: cabin air must be OVER 8 AND UNDER 40.\nIt reads 8.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'<b>Over 8</b> does not include 8, and <b>and</b> needs both sides.' },
+
+    { q:'Her rule: cabin air must be OVER 8 AND UNDER 40.\nIt reads 39.',
+      ask:'May she fly?',
+      opts:['Yes','No'], a:0,
+      why:'39 is above 8 and below 40, so both sides are true.' },
+
+    { q:'Her rule: power must be AT LEAST 50 AND NOT leaking.\n'
+       +'Power reads 80. It is leaking.',
+      ask:'May she fly?',
+      opts:['No','Yes'], a:0,
+      why:'The power is fine and the leak is not, and <b>and</b> needs both.' },
+
+    { q:'Her rule: she may launch if fuel is AT LEAST 20 OR the tank is full.\n'
+       +'Fuel reads 12. The tank is not full.',
+      ask:'May she launch?',
+      opts:['No','Yes'], a:0,
+      why:'<b>or</b> needs one side to be true, and neither of these is.' },
+
+    { q:'Her rule: anything OVER 900 must be shut down.\nThe core reads 900.',
+      ask:'Shut it down?',
+      opts:['No','Yes'], a:0,
+      why:'900 is not <b>over</b> 900, so the rule does not reach it. One step further and it would.' }
+  ];
+
+  const BANKS = { bool:AND_OR_NOT, compare:COMPARE };
+  let QUESTIONS = AND_OR_NOT;
+
   /* --------------------------------------------------------- the state
      `queue` is which questions are still owed, in order. A wrong answer
      puts the question back on the end rather than stopping anybody, so
@@ -213,7 +340,8 @@
     return Object.assign({}, s, { picked:null, wrong:[], at:s.at+1 });
   }
 
-  const API = { QUESTIONS, start, current, done, answer, next,
+  const API = { BANKS, start, current, done, answer, next,
+                get QUESTIONS(){ return QUESTIONS; },
                 get length(){ return QUESTIONS.length; } };
 
   /* ==================================================== THE PANEL
@@ -274,7 +402,7 @@
       #bqgo.gone{visibility:hidden}
       </style>
       <div id="bq">
-        <div id="bqhead"><span>${say('THE MECHANIC')} · ${say('AND, OR, NOT')}</span>
+        <div id="bqhead"><span>${HEAD}</span>
           <span id="bqdots"></span></div>
         <div id="bqbody"></div>
         <div id="bqfoot"><span id="bqscore"></span>
@@ -304,8 +432,18 @@
      AFTER ESCAPING, ALWAYS. This runs over text that has already been
      made safe, so the tags it adds are the only tags in it. The other way
      round would let a question's own words become markup. */
-  const opWord = html => html.replace(
-    /\b(AND|OR|NOT|and|or|not)\b/g, '<em class="bqop">$1</em>');
+  const OPS = [
+    /* LONGEST FIRST, in one alternation and one pass. "or less" contains
+       "or", and a shorter alternative that matches first would colour the
+       "or" and leave "less" as prose — turning a limit into a join, which
+       is precisely the confusion this is meant to prevent. */
+    'AT LEAST','AT MOST','ANYTHING BUT','MORE THAN','WARMER THAN','OR LESS',
+    'at least','at most','anything but','more than','warmer than','or less',
+    'UNDER','OVER','EXACTLY','under','over','exactly',
+    'AND','OR','NOT','and','or','not'
+  ];
+  const OPRE = new RegExp('\\b(' + OPS.join('|') + ')\\b', 'g');
+  const opWord = html => html.replace(OPRE, '<em class="bqop">$1</em>');
 
   function draw(){
     const u=dom(), q=current(state);
@@ -359,14 +497,47 @@
   function close(){
     if(ui && ui.el && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el);
     ui=null;
+    hideCoach(false);
     if(root.G) root.G.running=true;
   }
+  /* The card, its ring and its beacon are three separate elements COACH
+     hangs off the body; all three belong to the same sentence. */
+  function hideCoach(off){
+    ['#coachTip','#coachRing','#coachBeacon'].forEach(sel=>{
+      const e=document.querySelector(sel);
+      if(e) e.style.display = off ? 'none' : '';
+    });
+  }
 
+  let HEAD='';
   function open(opts){
     opts=opts||{};
+    /* WHICH TWENTY. The Mechanic asks about joining facts; the ship asks
+       about where one fact stops. Same panel, same try-again, same dots. */
+    QUESTIONS = BANKS[opts.bank] || AND_OR_NOT;
+    HEAD = opts.title || (opts.bank==='compare'
+      ? say('E-45') + ' · ' + say('HER SAFETY RULES')
+      : say('THE MECHANIC') + ' · ' + say('AND, OR, NOT'));
     onDone=opts.onDone||null;
     state=start();
     if(root.G) root.G.running=false;
+    /* THE WALKTHROUGH CARD GOES AWAY WHILE THIS IS UP.
+
+       It sits in the bottom middle of the screen and it is pointing at
+       the thing that is now open in front of it — "the lit panel on her
+       flank is the pre-flight", with the pre-flight covering half of it.
+       Two sets of instructions on screen at once, one of them about how
+       to reach the other, is one set too many; and the walkthrough has
+       nothing to say about a question that is being asked right now.
+
+       HIDDEN, NOT STOPPED. Its step is still live underneath, so closing
+       the panel half way through puts the card back exactly where it was
+       rather than dropping somebody who was following it. */
+    hideCoach(true);
+    /* A PANEL LEFT OVER FROM THE OTHER BANK would keep the other bank's
+       heading and the other bank's row of dots. */
+    if(ui && ui.el && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el);
+    ui=null;
     dom(); draw();
   }
 

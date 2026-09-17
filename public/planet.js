@@ -2822,9 +2822,17 @@ window.PLANET = (function(){
       { shot:S.WIDE,  ease:1.1, who:'Ion',
         say:t('She will not start. She cannot tell if she is safe to start.') },
       { shot:S.CLOSE, ease:1.0, who:'Ion',
+        /* STILL TRUE, AND NOW THE WHOLE SUBJECT. Her twenty questions are
+           about exactly this: at least, at most, under, over, exactly,
+           anything but — where one reading stops being allowed. */
         say:t('Her safety rules have lost the part that does the comparing.') },
       { shot:S.CLOSE, who:'you',
-        say:t('Then I put them back. Nine rules, one word each.') }
+        /* IT SAID "NINE RULES, ONE WORD EACH", which was a description of
+           the checklist panel this used to open: nine blanks with one
+           comparison symbol to drop into each. That panel is gone and the
+           line went stale with it — a brief that describes a screen
+           nobody is about to see is worse than no brief. */
+        say:t('Then I learn them. Twenty, and she tells me when I am wrong.') }
     ], { faces:FACES, end:()=>{
       if(!on) return;
       try{ if(window.PROGRESS) PROGRESS.set(SEEN,1); }catch(e){}
@@ -5522,7 +5530,7 @@ window.PLANET = (function(){
          nine ticks on it is the game asking a question it already has the
          answer to. */
       if(shipOpen() && board()) return;
-      if(!window.SHIPFIX) return;
+      if(!window.BOOLQUIZ) return;
       /* THE REASON FIRST, THE BLANKS SECOND. The brief plays over the ship
          she is standing at and hands straight on to the panel; if it
          cannot play, or has played already, the panel opens on its own
@@ -5535,7 +5543,7 @@ window.PLANET = (function(){
     /* The hatch, which is the checklist and nothing else — see shipBuild.
        The brief still plays the first time, wherever it is opened from. */
     if(id==='preflight'){
-      if(!window.SHIPFIX) return;
+      if(!window.BOOLQUIZ) return;
       if(!briefed() && shipBrief(openFix)) return;
       openFix();
       return;
@@ -5567,11 +5575,25 @@ window.PLANET = (function(){
     startMissionRoom(id);
   }
 
-  /* The checklist itself, lifted out of use() so the brief has something to
-     hand on to when it finishes. */
+  /* HER SAFETY RULES, TWENTY OF THEM, lifted out of use() so the brief has
+     something to hand on to when it finishes.
+
+     THIS WAS A CHECKLIST — nine rules, each with a blank in it, a bank of
+     comparison symbols and a table of readings to test your guess
+     against. It went the same way the belt did and for the same reason:
+     it asked a student to assemble the answer before it had asked them
+     whether they knew what "at least" meant. The twenty questions below
+     are that, in English.
+
+     A DIFFERENT SUBJECT IN THE SAME SHAPE. The Mechanic's twenty are
+     about joining facts together with `and`, `or` and `not`. Hers are
+     about where ONE fact stops, which is the other half of every rule on
+     this ship and the half no other lesson in the mission touches: at
+     least, at most, under, over, exactly, anything but — and the number
+     itself, which is the only place any two of those disagree. */
   function openFix(){
-    if(!on || !window.SHIPFIX) return;
-    SHIPFIX.open({ onCleared: ()=>{
+    if(!on || !window.BOOLQUIZ) return;
+    BOOLQUIZ.open({ bank:'compare', onDone: (score, total)=>{
         if(!on) return;
         /* LEVEL TWO OF MISSION 8. */
         if(window.ION) ION.pass(CLEARED);
@@ -5584,6 +5606,7 @@ window.PLANET = (function(){
            is back out through it. */
         say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Senio; '
             + '<b>LEAVE</b> takes you back to Mission Control.'));
+        if(score!==undefined && total) say(t('{a} of {b} first time.', { a:score, b:total }));
       }});
   }
   function say(msg){
@@ -6015,10 +6038,13 @@ window.PLANET = (function(){
         done:()=>insideOf(B('tower')||{}) || ionFlag('ion_handed') },
       { say:'Stand on the lift and press <b>E</b>.',
         done:()=>ionFlag('ion_handed') || (lift && lift.at>0) },
+      /* AND IT STOPS AT THE DOOR OF THE LAST ONE. There used to be a
+         tenth step — "answer his twenty questions and he mends Ion" —
+         which is a card describing the panel that is open on top of it.
+         The walkthrough's job is getting somebody to the lesson; once
+         they are in it, it has nothing left to say. */
       { say:'Give Ion to the Mechanic.',
-        done:()=>ionFlag('ion_handed') },
-      { say:'Answer his twenty questions and he mends Ion.',
-        done:()=>ionFlag('ion_belt') }
+        done:()=>ionFlag('ion_handed') }
     ], {});
   }
 
