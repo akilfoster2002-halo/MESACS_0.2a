@@ -73,6 +73,17 @@ window.MENU = (function(){
      blurb:'A submersible in a current that never stops. Sense the rock, choose the turn, and loop so it keeps watching.'},
     {id:'trail', g:'course',  em:'🔎', a:'#ffc8dd', name:'Mission 7 — The Engineer\u2019s Trail',
      blurb:'A robot that will not stop, a gate that opens for nobody. Read the machines\u2019 conditions and work out who did it.'},
+    /* MISSION 8 WAS NOT ON THIS LIST AT ALL. It exists, it is finished,
+       it has a station on RYU and a COMPLETE stamp — and the only way to
+       reach it was to walk across a planet and find the door. Every other
+       mission in the course has a card here, and a mission a student
+       cannot see is a mission most of them will not play.
+
+       ONE CARD, and the four things inside it are its LEVELS rather than
+       four missions: mending Ion's console, the E-45's pre-flight, the
+       flight to the tower and the Mechanic's belt. ion.js is the list. */
+    {id:'ion',   g:'course',  em:'🤖', a:'#8ff0ff', name:'Mission 8 \u2014 Ion',
+     blurb:'A robot on the kitchen floor, a ship that will not start, and somebody who was inside him at four in the morning.'},
     {id:'mech',  g:'arena',   em:'🤖', a:'#ffd8a8', name:'The Mech League',
      blurb:'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',

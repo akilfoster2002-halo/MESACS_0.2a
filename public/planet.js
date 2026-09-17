@@ -542,7 +542,14 @@ window.PLANET = (function(){
     mannequins=[]; flies=null; beasts=[]; sparkTex=null; basins=[];
     if(window.ISLANDS) ISLANDS.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
-    G.room='planet'; G.hudOwner='planet'; G.missionId=null; G.running=true;
+    /* RYU IS MISSION 8 AND THE OTHER BALLS ARE NOT. Three of this
+       module's four worlds are places you live on; RYU is a mission with
+       one door, and the pause menu reads G.missionId to decide whether to
+       offer a way back to level one. Naming it here rather than
+       everywhere means the offer follows the player from the house out
+       onto the hillside, which is one mission either side of a door. */
+    G.room='planet'; G.hudOwner='planet'; G.running=true;
+    G.missionId = (W && W.id==='ryu') ? 'ion' : null;
     /* WHO EVERYBODY IS HERE. Before the body is attached below and before
        anybody else is painted into the crowd, so the first frame of this
        world already has the right person standing in it rather than the
@@ -2814,7 +2821,14 @@ window.PLANET = (function(){
        park outside the building: Ion asked for somebody who could look
        inside him properly, and the mission paid off before anybody had.
        The workshop on the tower's middle floor is where that happens and
-       where the mission now ends — see handOver(). */
+       where the mission now ends — see handOver().
+
+       IT IS STILL A LEVEL, THOUGH, and it was the one stage of this
+       mission that wrote nothing down. Flying her across RYU is a third
+       of an hour's work and the course had no record that it had
+       happened, so a student who stopped here came back to a card that
+       said PLAY. */
+    if(window.ION) ION.pass('ion_flown');
     say(t('<b>THE TOWER.</b> Walk in — the <b>MECHANIC</b> is up the lift.'));
   }
 
@@ -3422,7 +3436,9 @@ window.PLANET = (function(){
     say(t('<b>THE BELT.</b> Write the rule the arm picks by.'));
     SORTFIX.open({ onDone: ()=>{
       if(!on) return;
-      try{ if(window.PROGRESS) PROGRESS.set(WORKED,1); }catch(e){}
+      /* LEVEL FOUR, AND THE LAST. mended() finishes the mission itself. */
+      if(window.ION) ION.pass(WORKED);
+      else try{ if(window.PROGRESS) PROGRESS.set(WORKED,1); }catch(e){}
       mended();
     }});
   }
@@ -4968,7 +4984,9 @@ window.PLANET = (function(){
     if(!on || !window.SHIPFIX) return;
     SHIPFIX.open({ onCleared: ()=>{
         if(!on) return;
-        try{ if(window.PROGRESS) PROGRESS.set(CLEARED,1); }catch(e){}
+        /* LEVEL TWO OF MISSION 8. */
+        if(window.ION) ION.pass(CLEARED);
+        else try{ if(window.PROGRESS) PROGRESS.set(CLEARED,1); }catch(e){}
         canopyOpen();
         shipVerb();
         /* WHERE THE MECHANIC IS, said in the only terms that are true now.

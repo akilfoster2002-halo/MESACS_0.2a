@@ -442,7 +442,12 @@ window.HOUSE = (function(){
     if(G.hemi){ G.hemi.intensity=0.70; G.hemi.color.setHex(0xffe2bd);
                 G.hemi.groundColor.setHex(0x3a3348); }
 
-    G.room='house'; G.hudOwner='house'; G.missionId=null; G.running=true;
+    /* THIS HOUSE ONLY EXISTS INSIDE MISSION 8, whichever door you came in
+       by, so it says which mission it is. It used to say `null`, and the
+       pause menu reads G.missionId to decide whether to offer a way back
+       to level one — so the one mission with four levels in it was the
+       one mission you could not restart from inside. */
+    G.room='house'; G.hudOwner='house'; G.missionId='ion'; G.running=true;
     G.firstPerson=false;
     on=true;
 
@@ -666,7 +671,11 @@ window.HOUSE = (function(){
     ], { faces:FACES, end:()=>{
       if(!on) return;
       IONFIX.open({
-        onFixed: ()=>{ try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
+        /* LEVEL ONE OF MISSION 8. ion.js writes the flag and tells the
+           course how far in this is, so the mission's card can say which
+           level it is about to hand you. */
+        onFixed: ()=>{ if(window.ION) ION.pass(FIXED);
+                       else try{ if(window.PROGRESS) PROGRESS.set(FIXED,1); }catch(e){}
                        mended(); }
       });
     }});

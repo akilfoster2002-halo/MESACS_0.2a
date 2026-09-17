@@ -572,7 +572,11 @@ const PROGRESS=(function(){
      missions out of the way before the one they came for. What gates it is
      the lesson, not the save file. */
   const ORDER=['nav','m1','m2','m3','sub'];
-  const LEVELED=new Set(['race','nav','flight','m1','m2','m3','sub','school','inv','trail']);
+  /* MISSION 8 IS IN HERE NOW. It always had four stages across two worlds
+     and it always reported none of them, so its card said PLAY after forty
+     minutes of work and the pause menu offered no way back to the start.
+     ion.js names the four; this is the switch that lets them be counted. */
+  const LEVELED=new Set(['race','nav','flight','m1','m2','m3','sub','school','inv','trail','ion']);
   const SAVE_MS=1200;
   let done={};
   try{ done=JSON.parse(localStorage.getItem('dq_progress')||'{}'); }catch(e){ done={}; }
