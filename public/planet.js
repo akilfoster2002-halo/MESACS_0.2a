@@ -3828,8 +3828,8 @@ window.PLANET = (function(){
      The mission does not end at the handover any more. He takes Ion and
      asks for a morning's work in return, and the work is a lesson: three
      expressions, each one question the belt's arm asks of every part that
-     comes past. sorter.js is the job and sortfix.js is the screen;
-     neither of them knows there is a tower around it.
+     comes past. boolquiz.js is the whole of it now, and it does not know
+     there is a tower around it.
 
      WHY PAYMENT AND NOT A FAVOUR. A lesson that arrives because somebody
      wants you to learn something is homework. A lesson that arrives
@@ -3839,20 +3839,37 @@ window.PLANET = (function(){
   const WORKED='ion_belt';
   const worked = () => { try{ return !!(window.PROGRESS && PROGRESS.get(WORKED,0)); }
                          catch(e){ return false; } };
+  /* TWENTY QUESTIONS, NOT A BELT.
+
+     This used to be an expression builder: pick a comparison, pick a
+     number, pick a joining word, then read a six-row table to find out
+     whether the thing you had assembled agreed with a man in a workshop.
+     Every part of it was defensible and the whole of it was a cockpit —
+     and it assumed the one thing it was supposed to be teaching. Before
+     anybody can choose between `and` and `or` they have to know what the
+     two words DO, and no amount of tidying the panel fixes that; the
+     panel was the wrong question. boolquiz.js asks the right one, in
+     English, twenty times. */
   function theBelt(){
-    if(!window.SORTFIX){
-      /* The panel is the payment, so if it cannot open there is nothing
+    if(!window.BOOLQUIZ){
+      /* The lesson is the payment, so if it cannot open there is nothing
          to withhold the repair for. Better a mission that finishes than
          one that cannot. */
       finishIon();
       return;
     }
-    say(t('<b>THE BELT.</b> Write the rule the arm picks by.'));
-    SORTFIX.open({ onDone: ()=>{
+    say(t('<b>AND, OR, NOT.</b> Twenty questions while he works.'));
+    BOOLQUIZ.open({ onDone: (score, total)=>{
       if(!on) return;
       /* LEVEL FOUR, AND THE LAST. mended() finishes the mission itself. */
       if(window.ION) ION.pass(WORKED);
       else try{ if(window.PROGRESS) PROGRESS.set(WORKED,1); }catch(e){}
+      /* THE SCORE IS FIRST ATTEMPTS ONLY, and it is not a gate: the quiz
+         has already made them get every one of them right before it would
+         let them out. This is the difference between "you know this" and
+         "you knew this straight away", and it is worth saying once. */
+      if(score!==undefined && total)
+        say(t('{a} of {b} first time.', { a:score, b:total }));
       mended();
     }});
   }

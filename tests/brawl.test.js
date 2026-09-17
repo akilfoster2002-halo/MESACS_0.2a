@@ -418,40 +418,57 @@ test('all three practice points can be reached more than once', ()=>{
   assert.match(again, /theBelt\(\)/, 'a return visit never reaches the belt');
 });
 
-test('Ion asks six questions and the belt sets five jobs', ()=>{
+test('Ion asks six, the ship checks nine, the Mechanic asks twenty', ()=>{
   /* FIVE MINUTES EACH, at three points. Two questions and three jobs was
      an example rather than a lesson. */
   const R=require('../public/routine.js');
-  const S=require('../public/sorter.js');
+  const Q=require('../public/boolquiz.js');
   assert.ok(R.RULES.length>=6, 'Ion is back to '+R.RULES.length+' questions');
-  assert.ok(S.JOBS.length>=5, 'the belt is back to '+S.JOBS.length+' jobs');
+  assert.ok(Q.QUESTIONS.length>=20,
+    'the Mechanic asks only '+Q.QUESTIONS.length+' questions');
   /* And the nine pre-flight checks are the third. */
   const P=require('../public/preflight.js');
   assert.ok(P.CHECKS.length>=9, 'the pre-flight has shrunk to '+P.CHECKS.length);
 });
 
-test('the belt panel shows every word the job wants', ()=>{
-  /* THIS IS WHY IT WAS UNREADABLE. The bank showed the choices for the
-     ARMED blank and nothing else, so the first job was three dashed boxes
-     and a row of numbers — 200, 400, 900 — with no way to know that one
-     of those blanks wanted a comparison and another wanted `and` or `or`.
-     The two words that are the entire lesson of this level were never on
-     screen at the same time. */
-  const fix=bare(read('public/sortfix.js'));
-  assert.match(fix, /const KIND = \{/, 'the blanks have no names for their kinds');
-  assert.match(fix, /class="sxgroup/, 'the word bank is not grouped');
-  assert.match(fix, /class="sxglabel"/, 'the groups are not labelled');
-  assert.ok(!/if\(!armed\) return '';[\s\S]{0,200}holes\(j\)\.find/.test(fix),
-    'the bank is still only the armed blank’s choices');
-  /* THE BLANK AND ITS WORDS CARRY THE SAME LABEL, which is the whole
-     trick: "joined by" on the blank, JOINED BY over `and` and `or`. */
-  const slot=fix.slice(fix.indexOf('function slot(h, kind)'), fix.indexOf('function bankHTML'));
-  assert.match(slot, /KIND\[kind\]/, 'an empty blank does not say what it wants');
-  /* AND A WORD CLICKED WHILE THE WRONG BLANK IS RINGED IS STILL PLACED.
-     Refusing a click on a word the panel is showing you is the panel's
-     fault, not the student's. */
-  assert.match(fix, /function place\(chip, kind\)/, 'place() does not know the word’s kind');
-  assert.match(fix, /hs\.find\(x=>x\.kind===kind && fill\[x\.slot\]===undefined\)/,
-    'a word of the wrong kind has nowhere to go');
-  assert.match(fix, /data-kind=/, 'the chips do not carry their kind');
+test('the Mechanic asks in English, and does not let go until you know', ()=>{
+  /* WHAT THIS REPLACED. The belt asked a student to assemble a boolean
+     expression out of blanks — pick a comparison, pick a number, pick a
+     joining word, then read a six-row table to find out whether the thing
+     you had built agreed with a man in a workshop. It assumed the one
+     thing it was there to teach: before anybody can choose between `and`
+     and `or` they have to know what the two words DO. No amount of
+     tidying the panel fixes that, because the panel was the wrong
+     question. */
+  const Q=require('../public/boolquiz.js');
+  assert.strictEqual(Q.QUESTIONS.length, 20, 'twenty questions was the ask');
+  for(const q of Q.QUESTIONS){
+    assert.ok(q.opts.length>=2, 'a question with nothing to choose between');
+    assert.ok(q.a>=0 && q.a<q.opts.length, 'the right answer is not one of the options');
+    assert.ok(q.why && q.why.length>20, '"'+q.ask+'" gives no reason');
+    /* PLAIN ENGLISH. No comparison operators, no brackets-as-syntax, no
+       ampersands: a student meets those at the ship, and this is the
+       lesson that has to come first. */
+    const text=(q.q+' '+q.ask+' '+q.opts.join(' ')).replace(/<[^>]+>/g,'');
+    assert.ok(!/[<>]=?|&&|\|\||!=|==/.test(text),
+      'symbols leaked into a plain-English question: "'+q.ask+'"');
+  }
+  /* AND A WRONG ANSWER COMES BACK. The round ends when all twenty are
+     known, not when all twenty have been seen. */
+  let s=Q.start(), guard=0, asked=0;
+  while(!Q.done(s) && guard++ < 500){
+    const cur=Q.current(s);
+    /* answer the first four wrong, then everything right */
+    const pick = asked++ < 4 ? (cur.a===0?1:0) : cur.a;
+    s=Q.answer(s, pick);
+    s=Q.next(s);
+  }
+  assert.ok(guard<500, 'the quiz never ends');
+  assert.ok(asked>20, 'the four wrong answers were never asked again: '+asked);
+  assert.strictEqual(s.firstTry, 16, 'the score counts more than first attempts');
+  /* and answering twice on one question changes nothing */
+  let t=Q.start();
+  t=Q.answer(t, Q.current(t).a);
+  const after=Q.answer(t, 99);
+  assert.strictEqual(after.picked, t.picked, 'a second click re-answers the question');
 });
