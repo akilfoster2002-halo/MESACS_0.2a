@@ -1,0 +1,218 @@
+{
+  "note": [
+    "NOISY BOY. The purple samurai: a deep violet shell, yellow trim and",
+    "kanji panels, a pointed helmet with lit eyes, and two big yellow LED",
+    "displays on the gauntlets. Painted off the reference photograph.",
+    "",
+    "Measured off his own rig, in the boxing stance the file is stored in:",
+    "",
+    "  foot   0.000-0.190    leg      0.121-0.524   hips  0.372-0.578",
+    "  torso  0.552-0.888    shoulder 0.807-0.903   arm   0.661-0.895",
+    "  forearm 0.505-0.707   hand     0.409-0.537   head  0.853-1.000",
+    "",
+    "THE KANJI ARE NOT REPRODUCED. There are a dozen glyphs on the chest",
+    "and the shoulders of the reference and none of them survive being",
+    "drawn with vertex colours on an eighteen-thousand-vertex mesh \u2014 the",
+    "smallest stroke is thinner than the triangles are wide. What carries",
+    "the character at any distance he is ever seen from is the pairing:",
+    "deep purple with yellow panels in bands across the chest, which the",
+    "decals do give. Trying for the glyphs themselves buys nothing and",
+    "costs the clean read of the bands.",
+    "",
+    "THE GAUNTLET PANELS ARE PICKED BY `ax` AND NOT BY DEPTH. They face",
+    "outward, and he is stored with his guard up \u2014 both forearms angled",
+    "across his chest \u2014 so the panel's own normal points sideways and the",
+    "front-facing test that works on his chest finds nothing at all on his",
+    "arms. |x| is what separates the outside of a gauntlet from the inside",
+    "in this pose, and it is stable under the stance because both arms are",
+    "in the same one.",
+    "",
+    "THE EYES ARE THE FACE OVERLAY, which works here because this rig does",
+    "have a Head bone with the helmet weighted to it \u2014 Ambush's does not."
+  ],
+  "B": {
+    "LIMBS": {
+      "head": "shell",
+      "neck": "joint",
+      "torso": [
+        [
+          0.6,
+          "joint"
+        ],
+        [
+          0.7,
+          "shell"
+        ],
+        "shell"
+      ],
+      "hips": [
+        [
+          0.45,
+          "joint"
+        ],
+        "shell"
+      ],
+      "shoulder": "shell",
+      "arm": [
+        [
+          0.7,
+          "joint"
+        ],
+        "shell"
+      ],
+      "forearm": [
+        [
+          0.54,
+          "joint"
+        ],
+        "shell"
+      ],
+      "hand": [
+        [
+          0.47,
+          "joint"
+        ],
+        "shell"
+      ],
+      "leg": [
+        [
+          0.26,
+          "joint"
+        ],
+        "shell"
+      ],
+      "foot": [
+        [
+          0.03,
+          "joint"
+        ],
+        "shell"
+      ]
+    },
+    "decals": [
+      {
+        "limb": "forearm",
+        "y": [
+          0.545,
+          0.665
+        ],
+        "ax": [
+          0.78,
+          1.0
+        ],
+        "c": "lamp"
+      },
+      {
+        "limb": "torso",
+        "y": [
+          0.846,
+          0.862
+        ],
+        "ax": [
+          0.0,
+          0.34
+        ],
+        "z": 0.03,
+        "c": "trim"
+      },
+      {
+        "limb": "torso",
+        "y": [
+          0.806,
+          0.82
+        ],
+        "ax": [
+          0.0,
+          0.36
+        ],
+        "z": 0.032,
+        "c": "trim"
+      },
+      {
+        "limb": "torso",
+        "y": [
+          0.766,
+          0.779
+        ],
+        "ax": [
+          0.0,
+          0.36
+        ],
+        "z": 0.032,
+        "c": "trim"
+      },
+      {
+        "limb": "torso",
+        "y": [
+          0.726,
+          0.738
+        ],
+        "ax": [
+          0.0,
+          0.34
+        ],
+        "z": 0.03,
+        "c": "trim"
+      },
+      {
+        "limb": "shoulder",
+        "y": [
+          0.845,
+          0.866
+        ],
+        "ax": [
+          0.32,
+          0.55
+        ],
+        "c": "trim"
+      }
+    ],
+    "faceZ": 0.0,
+    "faceY": 0.902,
+    "faceR": [
+      0.2,
+      0.04
+    ],
+    "facePow": 4,
+    "eyes": [
+      0.902,
+      0.115,
+      0.055,
+      0.022
+    ]
+  },
+  "C": {
+    "shell": "#45208a",
+    "joint": "#241f2e",
+    "trim": "#e8bc16",
+    "lamp": "#ffd426",
+    "screen": "#1d1826",
+    "eye": "#ffdc44"
+  },
+  "SHADE": {
+    "shell": {
+      "dark": 0.44,
+      "lift": 0.26
+    },
+    "joint": {
+      "dark": 0.3,
+      "lift": 0.22
+    },
+    "trim": {
+      "dark": 0.3,
+      "lift": 0.16
+    },
+    "lamp": {
+      "dark": 0.12,
+      "lift": 0.08
+    },
+    "screen": {
+      "dark": 0.16,
+      "lift": 0.1
+    },
+    "eye": {
+      "dark": 0.06,
+      "lift": 0.04
+    }
+  }
+}

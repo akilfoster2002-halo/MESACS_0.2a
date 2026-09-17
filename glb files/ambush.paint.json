@@ -1,0 +1,178 @@
+{
+  "note": [
+    "AMBUSH. The battered blue heavyweight: weathered sky-blue plate over",
+    "bare metal, a bright steel helmet, chrome forearm pistons, an amber",
+    "pair of marks across the chest, and fists that have lost their paint",
+    "entirely. Painted off the reference photograph.",
+    "",
+    "HE IS NOT IN A T-POSE. The rig is stored in a boxing stance \u2014 arms",
+    "down and forward, weight on the front foot \u2014 so `ax` is not the",
+    "distance along an arm here the way it is on a dressed character. It",
+    "does not need to be: LIMBS asks the skeleton which part a vertex is,",
+    "and that answer is the same in any pose. Only the heights within one",
+    "limb are read off the stance, and they were measured, not guessed:",
+    "",
+    "  foot   0.000-0.123    leg      0.095-0.568   hips  0.465-0.661",
+    "  torso  0.608-0.977    shoulder 0.736-0.969   arm   0.616-0.909",
+    "  forearm 0.514-0.702   hand     0.377-0.586   neck  0.811-1.000",
+    "",
+    "THERE IS NO HEAD BONE WITH ANYTHING ON IT. Every vertex of his helmet",
+    "is weighted to Neck, so limbOf calls the whole head `neck` and the",
+    "face overlay \u2014 which only ever runs on `head` \u2014 can never fire. That",
+    "is fine for this one: his face is a steel visor with no screen and no",
+    "eyes, and a step at 0.86 divides the throat from the helmet exactly",
+    "as well.",
+    "",
+    "THE CHEVRON IS A DECAL AND NOT A BAND, because a band is a height and",
+    "a height goes round the back too. Two marks either side of the",
+    "centreline, which is what the reference has, fall out of one decal",
+    "with a gap in its `ax` range.",
+    "",
+    "THE RUST IS THE POINT. Flat blue with the cavity term on it is a toy;",
+    "what makes the photograph read as this robot is the bare metal coming",
+    "through in patches, heaviest on the edges. See WEATHER."
+  ],
+  "B": {
+    "LIMBS": {
+      "neck": [
+        [
+          0.86,
+          "joint"
+        ],
+        "steel"
+      ],
+      "torso": [
+        [
+          0.66,
+          "joint"
+        ],
+        "shell"
+      ],
+      "hips": [
+        [
+          0.52,
+          "joint"
+        ],
+        "shell"
+      ],
+      "shoulder": "shell",
+      "arm": [
+        [
+          0.66,
+          "joint"
+        ],
+        "shell"
+      ],
+      "forearm": [
+        [
+          0.56,
+          "shell"
+        ],
+        [
+          0.65,
+          "steel"
+        ],
+        "shell"
+      ],
+      "hand": "fist",
+      "leg": [
+        [
+          0.3,
+          "shell"
+        ],
+        [
+          0.345,
+          "joint"
+        ],
+        "shell"
+      ],
+      "foot": [
+        [
+          0.02,
+          "joint"
+        ],
+        "shell"
+      ]
+    },
+    "decals": [
+      {
+        "limb": "torso",
+        "y": [
+          0.795,
+          0.85
+        ],
+        "ax": [
+          0.07,
+          0.35
+        ],
+        "z": 0.01,
+        "c": "mark"
+      },
+      {
+        "limb": "torso",
+        "y": [
+          0.7,
+          0.73
+        ],
+        "ax": [
+          0.0,
+          0.4
+        ],
+        "z": 0.015,
+        "c": "joint"
+      }
+    ]
+  },
+  "C": {
+    "shell": "#3f93ad",
+    "steel": "#7c848b",
+    "joint": "#32393f",
+    "fist": "#6f5749",
+    "mark": "#e0912c"
+  },
+  "SHADE": {
+    "shell": {
+      "dark": 0.4,
+      "lift": 0.2
+    },
+    "steel": {
+      "dark": 0.34,
+      "lift": 0.28
+    },
+    "joint": {
+      "dark": 0.3,
+      "lift": 0.26
+    },
+    "fist": {
+      "dark": 0.42,
+      "lift": 0.22
+    },
+    "mark": {
+      "dark": 0.26,
+      "lift": 0.14
+    }
+  },
+  "WEATHER": {
+    "shell": {
+      "c": "#7a5238",
+      "amt": 0.62,
+      "at": 0.48,
+      "scale": 190,
+      "edge": 0.42
+    },
+    "fist": {
+      "c": "#53392c",
+      "amt": 0.7,
+      "at": 0.38,
+      "scale": 260,
+      "edge": 0.6
+    },
+    "joint": {
+      "c": "#4a3529",
+      "amt": 0.4,
+      "at": 0.58,
+      "scale": 200,
+      "edge": 0.4
+    }
+  }
+}

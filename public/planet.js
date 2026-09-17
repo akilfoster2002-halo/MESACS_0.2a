@@ -526,6 +526,13 @@ window.PLANET = (function(){
     if(window.CODER) CODER.hide();
     if(window.MECH) MECH.stop();
     if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    /* AND THE RIDGE, BEFORE THE ROOM IT STANDS ON IS THROWN AWAY. The
+       whole roomGroup is replaced a few lines below, which takes both
+       machines with it — but BRAWL would still be holding the groups and
+       would skip rebuilding them, so the next world gets a module that
+       thinks it has two robots in a scene that no longer exists. */
+    if(window.BRAWL) BRAWL.clear();
+    specsOff();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
     if(window.HOUSE) HOUSE.stop();
@@ -594,6 +601,15 @@ window.PLANET = (function(){
        on, and the fauna the hub has is the hub's — a herd grazing outside a
        nightclub is a different game. */
     wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 18);
+    /* AND THE TWO ON THE RIDGE, on RYU only, and only for somebody who has
+       the glasses. Five and a half megabytes of robot is not a thing to
+       fetch for a player who has not met the Mechanic yet and cannot see
+       them — but it is also not a thing to fetch at the moment of the
+       reveal, so it is not left until the G press either. Whoever already
+       owns them gets them with the world; whoever earns them mid-session
+       gets them at the handover, which is a good half minute of dialogue
+       and a lift ride before they can be outdoors to look. */
+    if(haveSpecs()) brawlBuild();
     /* AND THEN THE SKY. The islands hang over Senio inside the flight
        ceiling, and everything they need to stand themselves up on a sphere
        is handed over rather than reached for — this file owns the world, and
@@ -2985,6 +3001,239 @@ window.PLANET = (function(){
      and no floor; against a wall it leaves one room per storey, which is
      what each of these floors actually needs to be.
      =================================================================== */
+  /* ===================================================================
+     THE GLASSES, AND WHAT IS ON THE RIDGE WHEN YOU PUT THEM ON.
+
+     The Mechanic spends the whole mission with his hands inside a robot,
+     and the one tool he actually needs for that is a pair of glasses that
+     show him what a machine is putting out rather than what it looks
+     like — an engine's frequency signature, which is how he can tell a
+     good hum from a bearing about to go. He lends them to you because
+     you asked what he was squinting at.
+
+     THEY ARE NOT A CUTSCENE. Handed over, they stay yours: G puts them on
+     and takes them off for the rest of the mission, anywhere on RYU. A
+     tool that works exactly once, in the room it was given to you in, is
+     a prop with a key binding.
+
+     AND THE PLANET HAS SOMETHING ON IT AT THAT FREQUENCY. Two machines
+     the size of the tower, on the ridge, going at each other — see
+     brawl.js. Nobody mentions them and nothing points you at them; the
+     first time is meant to be you turning round with the glasses on.
+
+     WHY A FLAG AND NOT A VARIABLE. `ion_specs` is under Mission 8's own
+     prefix, which is load-bearing: PROGRESS.restart('ion') forgets every
+     key beginning with `ion_`, so starting the mission over takes the
+     glasses back along with the smoke and the checklist. The same rule
+     `ship_cleared` had to be renamed to obey.
+     =================================================================== */
+  const SPECS='ion_specs';
+  const haveSpecs = () => { try{ return !!(window.PROGRESS && PROGRESS.get(SPECS,0)); }
+                            catch(e){ return false; } };
+  let specsOn=false, specsEl=null;
+
+  /* WHERE IT IS. Out past the tower, and that distance is the whole
+     design rather than a number picked to look nice.
+
+     THE BOWL IS A HUNDRED AND THIRTY UNITS OF RADIUS, which is 31 degrees
+     of this planet. Put it on the next hill and the stands swallow the
+     tower — the Mechanic's building is 118 units from the obvious spot,
+     which is INSIDE the cheap seats. So it goes where there is room: 199
+     units from the tower and 384 from the house, leaving 70 units of
+     clear desert between the outer lip and anything anybody built.
+
+     AND IT MUST NOT REACH THE POLE. A bowl centred at latitude 56 has its
+     far rim at latitude 98, which is not a latitude — the lathe wraps it
+     back over the top of the world and the stands fold through
+     themselves. At 20 the far rim finishes at 51, well short of both the
+     pole and the ice cap that starts at 69.
+
+     AND THAT IS ALSO WHY YOU HAVE TO FLY. The ground falls away as
+     R*(1-cos(d/R)), so from the tower sixty of the machines' ninety-five
+     units are under the curve and what you actually see, the first time
+     you put the glasses on outside, is two heads and a shoulder moving
+     on the skyline at eleven degrees. That is a question, not a view.
+     The answer is a hundred and seventy units away and you own a ship.
+
+     A BODY THIS TALL IS VISIBLE MUCH FURTHER THAN THE GROUND IS. The
+     horizon from eye height here is 29 units; the distance at which
+     something of height h clears it is sqrt(2*R*h) beyond that, and for
+     95 units that is another 213. There is nowhere on RYU you cannot see
+     them from, which is the point of making them this big rather than
+     merely large. */
+  const BRAWL_AT={ lon:91, lat:20 }, BRAWL_TALL=95, BRAWL_GAP=40;
+  function brawlBuild(){
+    if(!window.BRAWL || !W || W.id!=='ryu') return;
+    const C0=dirOf(BRAWL_AT.lon, BRAWL_AT.lat), F0=frameAt(C0, 0);
+    const r=BRAWL.build({ parent:G.roomGroup, tall:BRAWL_TALL,
+                          gap:BRAWL_GAP, PR, ground:brawlGround(C0, F0) });
+    if(!r || !r.root) return;
+    /* THE WHOLE PLACE IS ONE GROUP STOOD ON THE BALL ONCE, and everything
+       inside it — nine tiers, the crowd, both machines — is in that
+       group's frame. The alternative is placing two thousand objects on a
+       sphere individually, which is the same maths done two thousand
+       times and wrong in two thousand places. brawl.js does its own
+       curvature inside the frame, because at a hundred and forty units
+       across, flat is not an approximation, it is a different shape. */
+    const C=dirOf(BRAWL_AT.lon, BRAWL_AT.lat);
+    const F=frameAt(C, 0);
+    r.root.quaternion.setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(F.right, F.up, F.fwd));
+    /* AT PR EXACTLY, not at PR+floorAt. brawl.js measures every height
+       from the ball's own radius and adds the ground under each vertex
+       itself, so lifting the root by the height at the middle as well
+       would count the same hill twice. */
+    r.root.position.copy(C).multiplyScalar(PR);
+  }
+  /* The height of RYU's own ground, anywhere in the arena's frame, asked
+     for the way brawl.js thinks: arc distance out and angle round. It
+     cannot ask for itself — floorAt and the noise under it live here and
+     there is no reason for a second file to hold a copy of this world's
+     terrain. */
+  function brawlGround(C, F){
+    return (d, ph)=>{
+      const th=d/PR, s=Math.sin(th), c=Math.cos(th);
+      const dir=C.clone().multiplyScalar(c)
+        .add(F.right.clone().multiplyScalar(s*Math.cos(ph)))
+        .add(F.fwd  .clone().multiplyScalar(s*Math.sin(ph)));
+      return floorAt(dir.normalize());
+    };
+  }
+
+  /* THE OVERLAY. Looking through a pair of these is not the same picture
+     with a robot added to it — it is a different instrument, and it has to
+     announce itself the moment it goes on or the reveal reads as a bug.
+     A cyan cast, a vignette, scan lines, and the readout he actually uses
+     them for along the bottom. */
+  function specsUI(){
+    if(specsEl) return specsEl;
+    const d=document.createElement('div');
+    d.id='specs';
+    /* PLAIN ALPHA, AND NOT A BLEND MODE. The first version screened a cyan
+       layer over the scene and multiplied a vignette on top of that, which
+       is exactly how you would do it in a compositor and does not work
+       here: mix-blend-mode blends an element with its backdrop WITHIN ITS
+       OWN STACKING CONTEXT, and this overlay is position-fixed with a
+       z-index, which makes it a stacking context. So the two layers
+       blended against each other and against nothing else, and what went
+       on screen was an opaque turquoise sheet with the game behind it.
+
+       Three transparent layers composited the ordinary way do the whole
+       job: scan lines on top, a vignette that closes the picture down to
+       a lens, and a flat cyan wash under both. */
+    d.style.cssText=
+      'position:fixed;inset:0;pointer-events:none;z-index:40;display:none;'
+     +'background:'
+     +'repeating-linear-gradient(0deg,rgba(0,0,0,0.20) 0 1px,'
+     +'rgba(0,0,0,0) 1px 3px),'
+     +'radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 34%,'
+     +'rgba(0,26,34,0.50) 76%,rgba(0,10,16,0.88) 100%),'
+     +'linear-gradient(rgba(0,214,198,0.17),rgba(0,214,198,0.17))';
+    const bar=document.createElement('div');
+    bar.style.cssText=
+      'position:absolute;left:0;right:0;bottom:0;padding:6px 12px;'
+     +'font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;'
+     +'letter-spacing:.14em;color:#7ffbe6;text-shadow:0 0 6px rgba(0,255,220,.55);'
+     +'background:linear-gradient(0deg,rgba(0,20,26,.72),rgba(0,20,26,0))';
+    bar.id='specsRead';
+    d.appendChild(bar);
+    document.body.appendChild(d);
+    specsEl=d;
+    return d;
+  }
+  /* The readout is the engine's signature, which is the thing he lent them
+     to you for. It moves, because a frozen number on a diagnostic display
+     is a photograph of one. */
+  /* AND IT POINTS AT THE ARENA, which is the only part of this that is
+     not decoration. The bowl is 199 units from the tower: over the
+     horizon from the ground, big enough to be worth flying to, and on a
+     sphere there is no other way to be told where anything is. A bearing
+     and a range is what an instrument would give you, and it turns
+     "there is something out there" into a heading — which is the whole
+     difference between a rumour and a place.
+
+     RELATIVE TO THE NOSE, not to any fixed direction. There is no compass
+     on a ball whose poles are nowhere in particular; what the player has
+     is a heading, and what they need is how far to turn it. */
+  let specsAt=0;
+  function bearingToArena(){
+    if(!W || W.id!=='ryu') return null;
+    const C=dirOf(BRAWL_AT.lon, BRAWL_AT.lat);
+    const arc=me.dir.angleTo(C)*PR;
+    const want=facing(me.dir, C);
+    const F=frameAt(me.dir, 0);
+    const left=new THREE.Vector3().crossVectors(F.up, me.fwd).normalize();
+    return { arc, turn:Math.atan2(want.dot(left), want.dot(me.fwd)) };
+  }
+  function specsTick(dt){
+    if(!specsOn || !specsEl) return;
+    specsAt+=dt;
+    if(specsAt<0.12) return;
+    specsAt=0;
+    const r=document.querySelector('#specsRead'); if(!r) return;
+    const hz=118 + Math.sin(performance.now()/900)*6;
+    const n=12, bars=[];
+    for(let i=0;i<n;i++){
+      const a=Math.abs(Math.sin(performance.now()/420 + i*0.8))*0.8
+             +Math.abs(Math.sin(performance.now()/170 + i*2.3))*0.2;
+      bars.push('\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588'[Math.min(7,(a*8)|0)]);
+    }
+    let tail='';
+    const b=bearingToArena();
+    if(b){
+      const deg=Math.round(b.turn*180/Math.PI);
+      /* Inside it, a bearing to the middle of the floor you are standing
+         on is noise. Say where you are instead. */
+      tail = b.arc < (window.BRAWL ? BRAWL.radius : 130)
+        ? '   \u25c9 ARENA'
+        : '   \u25c9 '+Math.round(b.arc)+'u '
+          + (Math.abs(deg)<8 ? 'AHEAD'
+             : (deg>0 ? '\u21b0 '+Math.abs(deg)+'\u00b0'
+                      : '\u21b1 '+Math.abs(deg)+'\u00b0'));
+    }
+    r.textContent='E-45 DRIVE  '+hz.toFixed(1)+' Hz  '+bars.join('')+tail+'   [G] OFF';
+  }
+  /* ARRIVING. Said once per session, when the glasses are on and the
+     player is inside the outer lip — because flying two hundred units to
+     a thing you found yourself deserves the game to admit you found it,
+     and because a student who fell into the bowl without reading the
+     bearing should still be told what they are standing in. */
+  let greeted=false;
+  function arenaGreet(){
+    if(greeted || !specsOn || !W || W.id!=='ryu' || !window.BRAWL || !BRAWL.ready) return;
+    const C=dirOf(BRAWL_AT.lon, BRAWL_AT.lat);
+    if(me.dir.angleTo(C)*PR > BRAWL.radius) return;
+    greeted=true;
+    say(t('<b>{n} SEATS.</b> Nobody here has ever been seen.',
+          {n:BRAWL.seats.toLocaleString()}));
+  }
+
+  function specsShow(v){
+    if(v && !haveSpecs()) return false;
+    /* A NET UNDER BOTH OF THE ABOVE. build() is idempotent, so the cost of
+       asking again here is nothing, and it means a save that somehow has
+       the flag without having passed through either path still sees a
+       fight rather than an empty ridge. */
+    if(v) brawlBuild();
+    specsOn=!!v;
+    specsUI().style.display = specsOn ? 'block' : 'none';
+    if(window.BRAWL){ if(specsOn) BRAWL.show(); else BRAWL.hide(); }
+    return true;
+  }
+  /* G, and only where there is anything to see through them. */
+  function specsKey(){
+    if(!on || !haveSpecs()) return false;
+    specsShow(!specsOn);
+    say(specsOn ? t('<b>FREQUENCY.</b> Something is on the ridge.')
+                : t('Glasses off.'));
+    return true;
+  }
+  function specsOff(){
+    specsOn=false;
+    if(specsEl) specsEl.style.display='none';
+    if(window.BRAWL) BRAWL.hide();
+  }
+
   /* WHERE THE FLOORS ARE, AND IT IS THE WINDOWS THAT DECIDE.
 
      THE FIRST VERSION TYPED IN 19 AND 40, which looked reasonable against
@@ -3502,12 +3751,43 @@ window.PLANET = (function(){
       .toArray();
     const BED ={ eye:at_(1.6, 2.4, 5.0), at:at_(-1.5, 1.3, 2.2) };
     const ROOM={ eye:at_(4.5, 3.4, -2),  at:at_(-1.5, 1.6, 2.2) };
+    const HIM ={ eye:at_(1.4, 2.6, 5.6), at:at_(3.4, 1.5, 2.2) };
+    /* AND HE LENDS YOU THE GLASSES. Not as a reward for the belt — a
+       reward is a thing you are given for having been good — but because
+       you asked what he keeps squinting through, which is the question
+       anybody watching a man work on an engine actually has.
+
+       WHAT THEY ARE FOR IS TRUE AND IS NOT THE POINT. He really does read
+       drive frequencies with them and the readout really does show the
+       E-45's. He has simply never turned round while wearing them at this
+       hour, and neither has anybody else, so nobody in this tower knows
+       what is on the ridge. The player finds that out alone. */
     SCENE.play([
       { shot:BED, ease:1.1, who:'The Mechanic', say:t('Belt is running. Good rules.') },
       { shot:BED, who:'Ion', say:t('{n}? I can feel my hands.',{n:ME()}) },
-      { shot:ROOM, ease:1.0, who:'you', say:t('Told you he was worth the trip.') }
+      { shot:ROOM, ease:1.0, who:'you', say:t('Told you he was worth the trip.') },
+      { shot:ROOM, who:'you', say:t('What are those glasses for?') },
+      { shot:HIM, ease:1.0, who:'The Mechanic',
+        say:t('Frequency. I read a drive by its hum, not its paint.') },
+      { shot:HIM, who:'The Mechanic',
+        say:t('Borrow them. Your engine has a note I want checking.') },
+      { shot:ROOM, who:'you', say:t('And everything else at that frequency?') },
+      /* HE IS WRONG, AND HE DOES NOT KNOW HE IS WRONG, which is the only
+      way this line can be written. If he says "there is an arena" the
+      player is running an errand; if he says nothing the player never
+      puts the glasses on outdoors. So he says what a man who has only
+      ever used a tool for its job would say, he is confidently
+      mistaken, and the ridge is not empty. */
+      { shot:HIM, who:'The Mechanic', say:t('Nothing out here. Press G and see.') }
     ], { faces:FACES,
-         end:()=>{ if(on){ G.running=true; finishIon(); } }});
+         end:()=>{ if(on){
+           try{ if(window.PROGRESS) PROGRESS.set(SPECS,1); }catch(e){}
+           brawlBuild();          // while he is still talking, not on the G
+           /* finishIon() has the last word, because "Mission 8 complete"
+              is the more important of the two things to say and say()
+              only holds one. He has already told you which key. */
+           G.running=true; finishIon();
+         } }});
   }
   function finishIon(){
     try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
@@ -5235,6 +5515,9 @@ window.PLANET = (function(){
     smokeTick(dt);
     liftTick(dt);
     folkTick(dt);
+    if(window.BRAWL) BRAWL.tick(dt);
+    specsTick(dt);
+    arenaGreet();
     /* AND THE PLAYER'S OWN BODY, while a scene is holding the world still.
        Everything that animates the player runs off walk(), and walk() does
        not run when G.running is false — so through four minutes of
@@ -5610,6 +5893,11 @@ window.PLANET = (function(){
     flying=false; travelClose(); dome=null; streak=null;
     me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     if(window.AVATAR) AVATAR.posture(null);
+    /* AND THE GLASSES COME OFF WHEN YOU GO INDOORS. The overlay is fixed
+       to the viewport rather than to the world, so it would otherwise go
+       on tinting the screen inside the tower — where there is no ridge to
+       look at anyway. You still have them: walk back out, press G. */
+    specsOff();
     if(window.MUSIC && MUSIC.wind) MUSIC.wind(0);
     if(window.MUSIC) MUSIC.stop();      // whatever you walked into, it is not out here
     if(window.CLUB) CLUB.stop();        // and the club does not follow you off the planet
@@ -5636,6 +5924,7 @@ window.PLANET = (function(){
   function stop(){ leave(); }
 
   return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
+           specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
            get flying(){ return flying; }, land,
            get riding(){ return !!ride; },

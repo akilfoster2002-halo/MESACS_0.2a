@@ -801,6 +801,13 @@ function wireInput(){
                         || (window.SCHOOL && SCHOOL.active) || (window.INVADERS && INVADERS.active));
       if(e.code==='KeyP' && (G.running || boardNow)){ e.preventDefault(); togglePause(); return; }
       if(e.code==='KeyV' && G.running){ e.preventDefault(); G.firstPerson=!G.firstPerson; return; }
+      /* THE MECHANIC'S GLASSES. Only on a planet, only once he has lent
+         them to you, and PLANET answers for both of those — it is the one
+         that knows whether it is running and what is in the save bag. It
+         returns false when there is nothing to put on, so G stays free
+         everywhere else in the game. */
+      if(e.code==='KeyG' && G.running && window.PLANET && PLANET.specsKey
+         && PLANET.specsKey()){ e.preventDefault(); return; }
     }
     /* Wherever the chat panel is up — the planet as much as Free Play — ENTER
        is how you get into it and how you send. Asking which room this is meant

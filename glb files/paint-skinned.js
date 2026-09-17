@@ -132,6 +132,24 @@ function paint(IN, OUT, SPEC){
 
                Off by default, so nobody in clothes goes near it. */
             LIMBS:null,
+            /* ============================================== A MARKING
+               A BAND IS A HEIGHT, AND A HEIGHT GOES ALL THE WAY ROUND.
+               That is right for a hem and wrong for a badge: Ambush's
+               chevron came out as a stripe down his spine as well, and
+               the same would happen to every one of the kanji panels on
+               Noisy Boy. A decal is a band that also has to be at the
+               FRONT, and may be pinned to one limb so a chest stripe
+               does not cross an arm that swings through the same height.
+
+                 { "limb":"torso", "y":[0.80,0.85],
+                   "ax":[0.06,0.34], "z":0.02, "c":"mark" }
+
+               Every field but `y` and `c` is optional. `ax` is a range
+               rather than a ceiling because a mark either side of the
+               centreline is two marks — which is what a pair of them on
+               a chest actually is. FIRST MATCH WINS, so write the small
+               ones first. */
+            decals:null,
             /* THE SCREEN IS NOT AN OVAL. faceR draws an ellipse, which is
                the right shape for a face and the wrong one for a display
                bolted to a box. The exponent rounds the corners instead:
@@ -156,6 +174,46 @@ function paint(IN, OUT, SPEC){
                 hair:{dark:0.50,lift:0.16}, shoe:{dark:0.36,lift:0.24},
                 watch:{dark:0.30,lift:0.30}, skin:{dark:0.24,lift:0.06},
                 ...(SPEC.SHADE||{}) };
+  /* ----------------------------------------------------- weathering
+     AMBUSH IS NOT PAINTED BLUE. He is painted blue and then fought in,
+     and half of what makes the reference read as that robot rather than
+     as a blue one is the rust coming through in patches. A flat shell
+     with only the cavity term on it is a toy that has never been
+     outside — and the cavity term cannot help, because it follows the
+     geometry, so every copy of a shape gets the identical shading and
+     nothing looks worn so much as moulded.
+
+     Value noise on the vertex's own position, two octaves, blended in
+     only above a threshold so the wear sits in patches rather than as
+     an even haze. Per vertex, which at twenty-four thousand of them is
+     finer than the blotches it has to make. Integer-hashed and
+     therefore deterministic: painting him twice paints the same robot,
+     so a rebuild that changed nothing produces a glb that differs in
+     nothing.
+
+       "WEATHER": { "shell": { "c":"#6d4a37", "amt":0.7,
+                               "at":0.45, "scale":150, "edge":0.5 } }
+
+     `at` is where wear starts (higher is cleaner), `amt` how far it
+     goes at its worst, `scale` how big the patches are, and `edge`
+     how much the convex edges take on top — which is where a real
+     machine loses its paint first, because they are what hits things. */
+  const WEATHER={ ...(SPEC.WEATHER||{}) };
+  const hash3=(i,j,k)=>{
+    let h=Math.imul(i,374761393)+Math.imul(j,668265263)+Math.imul(k,1442695041);
+    h=Math.imul(h^(h>>>13), 1274126177);
+    return ((h^(h>>>16))>>>0)/4294967296;
+  };
+  function vnoise(x,y,z){
+    const i=Math.floor(x), j=Math.floor(y), k=Math.floor(z);
+    const fx=x-i, fy=y-j, fz=z-k;
+    const u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy), w=fz*fz*(3-2*fz);
+    const L=(a,b,t)=>a+(b-a)*t;
+    return L(L(L(hash3(i,j,k),     hash3(i+1,j,k),     u),
+               L(hash3(i,j+1,k),   hash3(i+1,j+1,k),   u), v),
+             L(L(hash3(i,j,k+1),   hash3(i+1,j,k+1),   u),
+               L(hash3(i,j+1,k+1), hash3(i+1,j+1,k+1), u), v), w);
+  }
   const rgb=h=>[parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255];
 
   const {json:g,bin}=read(IN);
@@ -229,6 +287,19 @@ function paint(IN, OUT, SPEC){
     for(const b of B.bands) if(yN>=b[0] && yN<=b[1]) return b[2];
     return null;
   }
+  /* A marking on the front of a panel, and not round the back. See
+     `decals` in the spec defaults for why this is not just a band. */
+  function decalAt(L, yN, ax, zN){
+    if(!B.decals) return null;
+    for(const d of B.decals){
+      if(d.limb && d.limb!==L) continue;
+      if(yN < d.y[0] || yN > d.y[1]) continue;
+      if(d.ax && (ax < d.ax[0] || ax > d.ax[1])) continue;
+      if(d.z!==undefined && zN < d.z) continue;
+      return d.c;
+    }
+    return null;
+  }
   /* A colour name, or a list of [upTo, name] steps ending in a default. */
   function step(spec, yN){
     if(typeof spec === 'string') return spec;
@@ -242,7 +313,9 @@ function paint(IN, OUT, SPEC){
   /* ------------------------------------------------------ the machine
      The garment rules never run for one of these. A band still does, so
      a robot can carry a stripe, and the face is still a shape on the
-     front of the head — it is just a screen rather than a face. */
+     front of the head — it is just a screen rather than a face. A decal
+     is checked before either, because it is the smallest thing on him
+     and everything else is the surface it is painted onto. */
   function machine(L, yN, ax, zN){
     if(L==='head' && zN > B.faceZ){
       const fx=ax/B.faceR[0], fy=(yN-B.faceY)/B.faceR[1];
@@ -255,6 +328,7 @@ function paint(IN, OUT, SPEC){
         return 'screen';
       }
     }
+    const dec=decalAt(L, yN, ax, zN); if(dec) return dec;
     const band=bandAt(yN); if(band) return band;
     return step(B.LIMBS[L], yN) || step(B.LIMBS.torso, yN) || 'shell';
   }
@@ -395,6 +469,7 @@ function paint(IN, OUT, SPEC){
     const L=Object.entries(votes).sort((a,b)=>b[1]-a[1])[0][0];
     const part=classify(cx,cy,cz,L); tally[part]=(tally[part]||0)+1;
     const base=rgb(C[part]), sh=SHADE[part]||{dark:0.4,lift:0.15};
+    const wr=WEATHER[part], wc=wr?rgb(wr.c):null;
     for(const v of t){
       const k=v+'|'+part;
       let at=key.get(k);
@@ -402,7 +477,24 @@ function paint(IN, OUT, SPEC){
         at=src.length; key.set(k,at); src.push(v);
         const q=cav[v];
         const m = q>0 ? 1-sh.dark*q : 1+sh.lift*(-q);
-        col.push(base.map(ch=>Math.max(0.035,Math.min(1,ch*m))));
+        let c = base.map(ch=>ch*m);
+        if(wr){
+          /* SAMPLED IN FIGURE FRACTIONS, not in model units, for the
+             same reason every band is: the model is stored at a
+             hundredth of life size and a patch size written in metres
+             would have gone from blotches to a flat wash the day that
+             changed, without failing. */
+          const s=(wr.scale||150)/(ymax-ymin);
+          const x=P[v*3]*s, y=P[v*3+1]*s, z=P[v*3+2]*s;
+          const n=vnoise(x,y,z)*0.65 + vnoise(x*2.7,y*2.7,z*2.7)*0.35;
+          const at0=wr.at===undefined?0.45:wr.at;
+          let tt=Math.max(0,(n-at0)/Math.max(0.001,1-at0));
+          /* and heavier on the convex edges, which is what hits things */
+          if(wr.edge) tt=Math.min(1, tt + wr.edge*Math.max(0,-q));
+          tt*= (wr.amt===undefined?0.7:wr.amt);
+          if(tt>0) c=c.map((ch,i)=>ch+(wc[i]*m-ch)*tt);
+        }
+        col.push(c.map(ch=>Math.max(0.035,Math.min(1,ch))));
       }
       NI.push(at);
     }
