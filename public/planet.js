@@ -242,7 +242,14 @@ window.PLANET = (function(){
   const RYU_WORLD={
     id:'ryu', kind:'ryu', seed:11, name:'RYU', sub:'the mission with one door',
     radius:240, sky:BIOMES[1].sky, soil:BIOMES[1].soil, biome:'ochre',
-    relief:7.5, ceiling:80, flora:'wood',
+    /* AND YOU MAY FLY HERE. See wayOpen(): a mission world is walked, and
+       this one has an arena in it that is worth seeing from above.
+
+       THE CEILING HAD TO GO UP WITH IT. Eighty units was headroom for a
+       fifty-eight metre tower; the arena's rim is a hundred and twelve
+       and the machines in it are ninety-five, so a player who took off to
+       look at the fight hit the roof below the top row of the stands. */
+    relief:7.5, ceiling:260, flyOk:true, flora:'wood',
     /* AND NO CAST. This world used to set `cast:'w'`, which turned every
        player on it into Robin — the story was written for her and the
        ball simply put her on. It is the wrong trade: a student picks a
@@ -5485,7 +5492,17 @@ window.PLANET = (function(){
      vehicle the mission is not about. The E-45 is the way to travel here
      and she is earned. `foot` always stays: a world you cannot walk on is
      not a world. */
-  const wayOpen = id => id==='foot' || !(W && W.mission);
+  /* WALKING IS ALWAYS OPEN, AND A MISSION WORLD IS OTHERWISE WALKED.
+
+     The rule is right: a story with a car in it is a story a student
+     drives past. But RYU grew a second half — a bowl of stone a hundred
+     and thirty units across with a fight in it — and `fly` is the only
+     way to see the inside of that from above, or to get back to the
+     tower without re-crossing the desert. So a world may say so. The car
+     stays shut: there is nowhere on RYU that walking does not reach. */
+  const wayOpen = id => id==='foot'
+                     || (id==='fly' && !!(W && W.flyOk))
+                     || !(W && W.mission);
   const wayNow = () => flying ? 'fly' : ride ? 'car' : 'foot';
 
   function travelOpen(){

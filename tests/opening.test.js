@@ -369,3 +369,38 @@ test('the arena is a place you walk into', ()=>{
   assert.match(end, /tbcStay/, 'there is no way to stay and look around');
   assert.match(end, /MENU\.open\(\)/, 'the way back to Senio goes nowhere');
 });
+
+test('you may fly on RYU, and the roof is above the arena', ()=>{
+  /* A MISSION WORLD IS WALKED, and that rule is right: a story with a car
+     in it is a story a student drives past. But RYU grew a second half —
+     a bowl a hundred and thirty units across with a fight in it — and
+     flying is the only way to see the inside of that from above, or to
+     get back to the tower without re-crossing the desert. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /const wayOpen = id => id==='foot'/, 'wayOpen has been rewritten');
+  assert.match(planet, /id==='fly' && !!\(W && W\.flyOk\)/,
+    'a world cannot open flight for itself, so RYU is walked or every mission flies');
+  /* FROM the RYU entry, not from the first `buildings:[` in the file —
+     every world has one, so an unanchored indexOf slices backwards and
+     hands back nothing. */
+  const ryuAt=planet.indexOf("id:'ryu'");
+  const ryu=planet.slice(ryuAt, planet.indexOf("buildings:[", ryuAt));
+  assert.match(ryu, /flyOk:true/, 'RYU does not open flight');
+  /* AND THE CAR STAYS SHUT. There is nowhere on RYU that walking does not
+     reach, and a car is a story you drive past. */
+  assert.ok(!/carOk|W\.car\b/.test(planet), 'something now opens the car on a mission world');
+
+  /* THE CEILING HAD TO GO UP WITH IT. Eighty units was headroom for a
+     fifty-eight metre tower; the arena's rim is a hundred and twelve and
+     the machines in it are ninety-five, so a player who took off to look
+     at the fight hit the roof below the top row of the stands. */
+  const ceil=+ryu.match(/ceiling:(\d+)/)[1];
+  const brawl=bare(read('public/brawl.js'));
+  const num=n=>+brawl.match(new RegExp('const '+n+'\\s*=\\s*([0-9.]+)'))[1];
+  const rim=num('WALL') + num('TIERS')*num('RISER');
+  const tall=+planet.match(/BRAWL_TALL=(\d+)/)[1];
+  assert.ok(ceil > rim + 40,
+    'the flight ceiling is '+ceil+' and the stands are '+rim+': you cannot get above them');
+  assert.ok(ceil > tall + 40,
+    'the flight ceiling is '+ceil+' and the machines are '+tall+' tall');
+});
