@@ -345,7 +345,14 @@ window.OPENING = (function(){
     if(cb) cb();
   }
 
-  return { play, tick, finish,
+  /* WOUND BACK, for a mission that has just been restarted. `played` is a
+     once-a-SESSION guard, which is the right rule for a session and the
+     wrong one for a mission somebody has deliberately started again —
+     planet.js calls this when it rewinds RYU, so the cold open comes back
+     with the smoke and the robot on the floor. */
+  function forget(){ if(!on) played=false; }
+
+  return { play, tick, finish, forget,
            get active(){ return on; },
            get seen(){ return played; },
            /* so the menu can offer it again, and the tests can ask */

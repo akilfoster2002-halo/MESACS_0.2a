@@ -142,7 +142,7 @@ test('the ridge is cleared before the world it stands on is', ()=>{
      BRAWL would still hold the groups and skip rebuilding, so the next
      world gets a module that thinks it has two robots in a dead scene. */
   const planet=bare(read('public/planet.js'));
-  const enter=planet.slice(planet.indexOf('function enter(sv, worldId, at)'),
+  const enter=planet.slice(planet.indexOf('function enter(sv, worldId, at'),
                            planet.indexOf('sky();'));
   assert.match(enter, /BRAWL\.clear\(\)/, 'the brawl is not cleared on a world change');
   const clearAt=enter.indexOf('BRAWL.clear()');

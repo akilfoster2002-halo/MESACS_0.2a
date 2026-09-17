@@ -516,7 +516,10 @@ window.PLANET = (function(){
      a student who reached that room from Mission Control has never stood
      on RYU and has no saved spot to be put back at. {lon,lat} in, and it
      outranks the bag for exactly one arrival. */
-  function enter(sv, worldId, at){
+  /* `again` is the film handing back — see below. It is the difference
+     between joining the mission and the mission's own opening returning
+     control, and without it the two are the same call. */
+  function enter(sv, worldId, at, again){
     /* ================================== THE FILM, BEFORE ANYTHING EXISTS
        It is a cold open on Ion on the kitchen floor, and it has to run
        HERE — before a single line of this function has built anything —
@@ -535,9 +538,37 @@ window.PLANET = (function(){
        ONLY ON THE WAY IN AND ONLY WHILE THE MISSION IS UNFINISHED. It is
        a cold open, not a recap: somebody flying back to the tower with Ion
        in the hold does not need to be told he is on the floor. */
+    /* ================================ JOINING MISSION 8 STARTS MISSION 8
+       There is no half-finished RYU any more. Arriving at it wipes every
+       flag it files under its own name — the robot is on the floor, the
+       ship is smoking, the film has not played and the walkthrough is on
+       step one — because a mission that remembers is a mission most
+       students never see the beginning of. Somebody who cleared the
+       pre-flight a week ago came back to a ship with nothing wrong with
+       it, no smoke, no brief and no boolean anywhere, and no way to guess
+       that the game thought they had already done it.
+
+       WHAT SURVIVES IS THE COMPLETE STAMP. restart() keeps that and the
+       quiz score on purpose: they are things that happened, and taking a
+       finished mission back would lock every mission that needed it. This
+       resets the PLAYTHROUGH, not the record.
+
+       AND ONLY WHEN JOINING, WHICH IS WHY `at` IS THE TEST. enter() is
+       also how you come back OUT of the house — house.js calls it with a
+       spawn point, every time the door is used — and a restart on that
+       path would delete `ion_fixed` the moment a student walked outside
+       having just mended Ion, over and over, for ever. The menu names a
+       world and no spot; a door names the spot you are standing on. */
+    if(worldId==='ryu' && !at && !again) ionRestart();
+
+    /* AND `again` IS LOAD-BEARING, not tidiness. The film hands back by
+       calling enter() again with the same arguments — and a menu arrival
+       has no spawn point, so without a way to tell the two apart the
+       hand-back looked exactly like a fresh join: restart, which forgets
+       the film, which plays it again, which hands back, for ever. */
     if(worldId==='ryu' && window.OPENING && !OPENING.seen && !OPENING.active
        && !ionFlag('ion_belt')){
-      return OPENING.play(()=>enter(sv, worldId, at));
+      return OPENING.play(()=>enter(sv, worldId, at, true));
     }
     server = sv || null;
     // whichever ball we are standing on decides its own size, sky and soil
@@ -5964,6 +5995,17 @@ window.PLANET = (function(){
      the mission is complete. */
   const ionFlag = k => { try{ return !!(window.PROGRESS && PROGRESS.get(k,0)); }
                          catch(e){ return false; } };
+  /* Back to level one and back to never having been shown. See the top of
+     enter() for when, and why "when" is the whole of the care here. */
+  function ionRestart(){
+    try{ if(window.PROGRESS && PROGRESS.restart) PROGRESS.restart('ion'); }catch(e){}
+    /* AND THE FILM IS PART OF THE MISSION. OPENING keeps its own
+       once-a-session flag, which is right for a session and wrong for a
+       mission that has just been rewound: a student who left RYU and came
+       back would get the smoke, the robot on the floor and no cold open
+       to explain either. */
+    try{ if(window.OPENING && OPENING.forget) OPENING.forget(); }catch(e){}
+  }
   function ionTour(){
     if(!window.COACH || !W || W.id!=='ryu') return;
     if(ionFlag('ion_belt')) return;            // mission finished: nothing to point at

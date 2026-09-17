@@ -76,11 +76,11 @@ test('the film opens Mission 8, and hands on to the walkthrough', ()=>{
      followed by RYU not existing — built, replaced by a kitchen, and
      never built again. It also put the player's own body in the middle of
      the set, because AVATAR hangs that off the camera and not the room. */
-  const top=planet.slice(planet.indexOf('function enter(sv, worldId, at)'),
+  const top=planet.slice(planet.indexOf('function enter(sv, worldId, at'),
                          planet.indexOf('server = sv || null;'));
   assert.match(top, /OPENING\.play\(/, 'nothing plays the film on the way into RYU');
   assert.match(top, /!OPENING\.seen/, 'the film plays on every arrival');
-  assert.match(top, /enter\(sv, worldId, at\)/,
+  assert.match(top, /enter\(sv, worldId, at, true\)/,
     'the film never hands back, so the world it replaced is never rebuilt');
   assert.match(top, /worldId==='ryu'/, 'the film plays on every world');
   /* AND NOT AS A RECAP. Somebody flying back with Ion in the hold does
@@ -178,4 +178,58 @@ test('no panel calls a translator it has not got', ()=>{
         f+' calls '+c+'() and never defines it \u2014 it will throw the first '
         +'time that line is reached. It defines: '+[...defined].join(', '));
   }
+});
+
+test('joining Mission 8 starts Mission 8, and a door does not', ()=>{
+  /* THERE IS NO HALF-FINISHED RYU ANY MORE. Somebody who cleared the
+     pre-flight a week ago came back to a ship with nothing wrong with it,
+     no smoke, no brief and no boolean anywhere, and no way to guess that
+     the game thought they had already done it. */
+  const planet=bare(read('public/planet.js'));
+  const top=planet.slice(planet.indexOf('function enter(sv, worldId, at, again)'),
+                         planet.indexOf('server = sv || null;'));
+  assert.ok(top.length>60, 'enter() no longer takes the arguments this depends on');
+  assert.match(top, /if\(worldId==='ryu' && !at && !again\) ionRestart\(\);/,
+    'joining RYU does not start it over');
+
+  /* AND `at` IS THE TEST BECAUSE A DOOR IS NOT A JOIN. house.js calls
+     enter() with a spawn point every single time the door is used, so a
+     restart on that path would delete `ion_fixed` the moment a student
+     walked outside having just mended Ion — over and over, for ever. */
+  const house=bare(read('public/house.js'));
+  assert.match(house, /PLANET\.enter\(null, 'ryu', OUTSIDE\)/,
+    'the house no longer names a spawn point, so a restart cannot be told from a join');
+  const menu=bare(read('public/menu.js'));
+  assert.match(menu, /PLANET\.enter\([^)]*\|\| PLANET\.lastWorld\(\)\)/,
+    'the menu now passes a spawn point too, which makes joining look like a door');
+
+  /* AND `again` IS LOAD-BEARING. The film hands back by calling enter()
+     again with the same arguments, and a menu arrival has no spawn point
+     — so without a way to tell the two apart the hand-back looked exactly
+     like a fresh join: restart, which forgets the film, which plays it
+     again, which hands back, for ever. */
+  assert.match(top, /OPENING\.play\(\(\)=>enter\(sv, worldId, at, true\)\)/,
+    'the film hands back without marking itself: this is an infinite loop');
+
+  /* WHAT SURVIVES IS THE COMPLETE STAMP, or restarting a mission would
+     lock every mission that needed it. */
+  const game=bare(read('public/game.js'));
+  const r=game.slice(game.indexOf('restart(id){'), game.indexOf('unlocked(id){'));
+  assert.match(r, /delete done\[AT\(id\)\]/, 'restart does not reset the level');
+  assert.match(r, /k\.indexOf\(id\+'_'\)===0/, "restart does not clear the mission's own flags");
+  assert.ok(!/delete done\[id\]/.test(r),
+    'restart deletes the COMPLETE stamp, which would lock the missions after it');
+
+  /* AND THE FILM IS PART OF THE PLAYTHROUGH. OPENING keeps a
+     once-a-session flag, which is right for a session and wrong for a
+     mission that has just been rewound. */
+  assert.match(planet, /function ionRestart\(\)/, 'there is no restart to call');
+  const rr=planet.slice(planet.indexOf('function ionRestart()'),
+                        planet.indexOf('function ionTour()'));
+  assert.match(rr, /PROGRESS\.restart\('ion'\)/, 'ionRestart does not restart anything');
+  assert.match(rr, /OPENING\.forget\(\)/,
+    'the mission rewinds and the cold open does not come back with it');
+  const op=bare(read('public/opening.js'));
+  assert.match(op, /function forget\(\)\{ if\(!on\) played=false; \}/,
+    'forget() can wind the film back mid-play, which would restart it under itself');
 });

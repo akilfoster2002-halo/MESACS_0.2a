@@ -345,7 +345,12 @@ test('Senio always lands you at the same spot', ()=>{
      arrival; what must never come back is the hub reading a saved one. */
   assert.match(src, /const back = at \? null : \(W\.kind==='hub' \? null : savedSpot\(W\.id\)\);/,
     'the hub restores a saved spot again — every student wakes up somewhere different');
-  assert.match(src, /function enter\(sv, worldId, at\)/,
+  /* THE LANDING SPOT IS THE THIRD ARGUMENT and the house depends on it —
+     both for where it puts you and, since Mission 8 started restarting
+     itself on arrival, for telling a door apart from a join. A fourth
+     argument was added after it; this only cares that the third is still
+     there and still called `at`. */
+  assert.match(src, /function enter\(sv, worldId, at\b/,
     'enter() no longer takes a landing spot, so the house has no door');
   /* and it must not WRITE one either: an unread spot is churn on a bag that
      is pushed to the network */
