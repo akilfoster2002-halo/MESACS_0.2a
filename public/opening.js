@@ -1,31 +1,31 @@
 /* =====================================================================
-   THE OPENING — fifteen seconds in front of the whole game.
+   THE OPENING — fifteen seconds in front of Mission 8, and it is about
+   Ion.
 
-   WHAT IT IS FOR. A student presses START and lands on a hillside outside
-   a building, with a HUD, a map, a coin counter and nothing anywhere
-   saying what any of it is for. intro.js already does this job for one
-   mission — ten seconds of a ship running an asteroid field, which is a
-   picture of THAT mission rather than of "a coding game" — and the game
-   as a whole had nothing. This is the same idea one level up: what the
-   world is, why anybody needs you on it, and what you will actually be
-   doing, answered while something is happening.
+   IT WAS ABOUT THE GAME FIRST, AND THAT WAS THE WRONG FILM. A planet
+   turning in space with five lines about nine worlds tells a student what
+   they have bought; it does not make them care about anything. The thing
+   they are about to do is walk into a house and find a robot on the
+   kitchen floor, and a film has one job here: make the robot matter
+   before they meet him.
 
-   IT ANSWERS FIVE THINGS IN ORDER, one per cut, because that is the order
-   somebody wants them: where am I, what is wrong, what do I do about it,
-   how big is this, and what is it called. Nothing here is a mechanic
-   explanation — no keys, no buttons. The walkthrough on the ground does
-   keys. A film that opens with WASD is a manual with music.
+   SO IT IS A COLD OPEN ON ION. He is on the floor for the whole of it —
+   the camera goes round him, comes down to his face, finds the ship
+   smoking through the doorway and pulls out to the desert he has to be
+   carried across. Nobody is introduced, nothing is explained, and no key
+   is mentioned: the walkthrough on the ground does keys, and a film that
+   opens with WASD is a manual with music.
 
-   THE SET IS SENIO, AND IT IS THE REAL ONE. Same radius, same ochre-and-
-   green soil, buildings at the longitudes they actually stand at, so the
-   ball in the last shot is the ball they are standing on eight seconds
-   later. title.js already renders it live behind the menu for exactly
-   this reason; this is the same world with a camera that moves.
+   THE LAST LINE IS THE MISSION. "Get him to somebody who can look
+   properly" is the whole of Mission 8, and it is said over the only shot
+   with a horizon in it, because the answer is two hundred units away.
 
-   SKIPPABLE ON ANY KEY, ONCE A SESSION. A cinematic a class has to sit
-   through twice is a cinematic a class learns to hammer through, and a
-   teacher restarting a lesson should not have to watch it again. Anybody
-   who wants it back gets it from the menu.
+   HE IS THE REAL ION, off the same glb that lies on the Mechanic's cradle
+   four levels later, laid out with the same three-axis Euler layIon uses.
+   A stand-in would have been easier and the whole point is that the thing
+   on the floor is the thing you pick up.
+
+   SKIPPABLE ON ANY KEY, ONCE A SESSION. A class does not watch it twice.
    ===================================================================== */
 window.OPENING = (function(){
   const $ = s => document.querySelector(s);
@@ -37,16 +37,20 @@ window.OPENING = (function(){
   /* One line per cut, and the cut lands ON the line. Nine words or fewer
      each: this is read once, at speed, by somebody who has just clicked a
      button and is waiting to play. */
+  /* One line per cut, and the cut lands ON the line. Nine words or fewer:
+     this is read once, at speed, by somebody waiting to play. */
   const SHOTS = [
-    { at:0.0,  cap:'This is Senio. A whole world, and it curves.' },
-    { at:2.9,  cap:'Every machine on it runs on code somebody wrote.' },
-    { at:5.8,  cap:'Walk in any door and something has stopped working.' },
-    { at:8.7,  cap:'Not by hand. You write the rule it follows.' },
-    { at:11.6, cap:'Nine worlds. One ship. Start wherever you like.' }
+    { at:0.0,  cap:'You came downstairs and he was on the floor.' },
+    { at:2.9,  cap:'Ion has run this house since before you got here.' },
+    { at:5.8,  cap:'Somebody opened him up in the night and left.' },
+    { at:8.7,  cap:'Nobody here can look inside him properly.' },
+    { at:11.6, cap:'Somebody across the desert can. Get him there.' }
   ];
 
+
+
   let on=false, clock=0, done=null, group=null;
-  let ball=null, spin=null, stars=null, ships=[], shot=-1, keyed=null, hidden=[];
+  let shot=-1, keyed=null, hidden=[];
   let played=false;
 
   /* ---------------------------------------------------------------- play */
@@ -82,140 +86,142 @@ window.OPENING = (function(){
     addEventListener('mousedown', keyed);
   }
 
-  /* ----------------------------------------------------------- the world */
-  /* Senio's own height field, cut down to what a fifteen-second film can
-     show: four octaves of value noise on the unit sphere, the same shape
-     planet.js builds the real ball from. It is not the same function — the
-     real one lives inside planet.js and is not for export — but it is the
-     same KIND of ground, which is what the shot needs. */
-  function hash3(i,j,k){
-    let h=Math.imul(i,374761393)+Math.imul(j,668265263)+Math.imul(k,1442695041);
-    h=Math.imul(h^(h>>>13), 1274126177);
-    return ((h^(h>>>16))>>>0)/4294967296;
-  }
-  function noise(x,y,z){
-    const i=Math.floor(x), j=Math.floor(y), k=Math.floor(z);
-    const fx=x-i, fy=y-j, fz=z-k;
-    const u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy), w=fz*fz*(3-2*fz);
-    const L=(a,b,t)=>a+(b-a)*t;
-    return L(L(L(hash3(i,j,k),     hash3(i+1,j,k),     u),
-               L(hash3(i,j+1,k),   hash3(i+1,j+1,k),   u), v),
-             L(L(hash3(i,j,k+1),   hash3(i+1,j,k+1),   u),
-               L(hash3(i,j+1,k+1), hash3(i+1,j+1,k+1), u), v), w);
-  }
-  const land = d => noise(d.x*2.2+9, d.y*2.2+4, d.z*2.2+7)*0.62
-                  + noise(d.x*5.1, d.y*5.1, d.z*5.1)*0.26
-                  + noise(d.x*11, d.y*11, d.z*11)*0.12;
+  /* ----------------------------------------------------------- the set
+     A floor, a robot on it, a doorway, and a smoking ship beyond it. Not
+     the house from planet.js — that is a room built to be walked around
+     in and this is four camera positions — but the same materials and the
+     same dark, so walking in afterwards is walking into the film. */
+  let ion=null, doorway=null, ship=null, puffs=[], floorMesh=null;
 
   function build(){
     if(G.roomGroup) G.scene.remove(G.roomGroup);
     G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
     group=G.roomGroup;
     G.solids=[]; G.hits=[]; G.ground=null; G.ceiling=null;
-    G.scene.background=new THREE.Color(0x05060f);
-    G.scene.fog=null;                       // a planet in space is not foggy
-    G.camera.near=0.3; G.camera.far=4000; G.camera.updateProjectionMatrix();
+    G.scene.background=new THREE.Color(0x0d0b1a);
+    G.scene.fog=new THREE.Fog(0x0d0b1a, 60, 340);
+    G.camera.near=0.1; G.camera.far=900; G.camera.updateProjectionMatrix();
     G.camera.up.set(0,1,0);
 
-    group.add(new THREE.AmbientLight(0x93a6d8, 0.45));
-    const key=new THREE.DirectionalLight(0xfff3e2, 1.6);
-    key.position.set(-160, 120, 180); group.add(key);
-    const rim=new THREE.DirectionalLight(0x7fe8ff, 0.85);
-    rim.position.set(180, -40, -140); group.add(rim);
+    /* NIGHT, AND ONE LAMP. It is four in the morning in this film and the
+       whole of the first three cuts is one pool of light with a robot in
+       it — which is the cheapest way to make a small set look like a set
+       and the only honest way to light a house nobody has woken up in. */
+    group.add(new THREE.AmbientLight(0x38406a, 0.55));
+    const lamp=new THREE.PointLight(0xffd9a0, 22, 26, 1.8);
+    lamp.position.set(-1.2, 3.6, 0.6); group.add(lamp);
+    const cold=new THREE.DirectionalLight(0x86b6ff, 0.5);
+    cold.position.set(6, 4, -8); group.add(cold);
 
-    /* stars */
-    const n=1400, sp=new Float32Array(n*3);
-    for(let i=0;i<n;i++){
-      const u=Math.random()*2-1, th=Math.random()*Math.PI*2, r=1500+Math.random()*900;
-      const s=Math.sqrt(1-u*u);
-      sp[i*3]=Math.cos(th)*s*r; sp[i*3+1]=u*r; sp[i*3+2]=Math.sin(th)*s*r;
+    /* THE DESERT FIRST, AND THE KITCHEN ON TOP OF IT. One dark plane did
+       for both, which is fine for three cuts indoors and leaves the last
+       one — the only shot with a horizon in it, under the only line that
+       is an instruction — as a black void with a ship in it. RYU is ochre
+       and it is four in the morning; both of those should be visible the
+       moment the camera gets outside. */
+    const desert=new THREE.Mesh(new THREE.PlaneGeometry(900, 900),
+      new THREE.MeshLambertMaterial({ color:0x6b5a3e }));
+    desert.rotation.x=-Math.PI/2; desert.position.y=-0.04; group.add(desert);
+    /* and a low moon over it, so the horizon is a horizon rather than an
+       edge where the ground stops */
+    const moon=new THREE.DirectionalLight(0x9fb4ff, 0.9);
+    moon.position.set(-40, 18, -120); group.add(moon);
+
+    floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(22, 18),
+      new THREE.MeshLambertMaterial({ color:0x3b3446 }));
+    floorMesh.rotation.x=-Math.PI/2; floorMesh.position.z=2; group.add(floorMesh);
+    const rug=new THREE.Mesh(new THREE.PlaneGeometry(7, 5),
+      new THREE.MeshLambertMaterial({ color:0x4a3a52 }));
+    rug.rotation.x=-Math.PI/2; rug.position.set(-0.4, 0.01, 0.2); group.add(rug);
+
+    /* THE DOORWAY, and everything past it is outside. Two jambs and a
+       lintel: the fourth cut looks through it at the ship, so it only has
+       to be a hole in a wall from one direction. */
+    doorway=new THREE.Group();
+    const wallMat=new THREE.MeshLambertMaterial({ color:0x2a2536 });
+    const jamb=(x)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(2.6,5.2,0.5), wallMat);
+                      m.position.set(x, 2.6, 0); doorway.add(m); };
+    jamb(-3.1); jamb(3.1);
+    const lintel=new THREE.Mesh(new THREE.BoxGeometry(8.8,1.4,0.5), wallMat);
+    lintel.position.set(0, 4.5, 0); doorway.add(lintel);
+    /* AND THE WALL THE DOORWAY IS A HOLE IN. Two jambs and a lintel on
+       their own are a door frame standing in the open, with the desert
+       running straight past both sides of it — which is what the fourth
+       cut showed: a floating rectangle and a horizon behind it. A doorway
+       only reads as a doorway when there is something it is a way
+       through. */
+    [-1, 1].forEach(sx=>{
+      const w=new THREE.Mesh(new THREE.BoxGeometry(26, 7.5, 0.5), wallMat);
+      w.position.set(sx*17.4, 3.75, 0); doorway.add(w);
+    });
+    const over=new THREE.Mesh(new THREE.BoxGeometry(8.8, 2.4, 0.5), wallMat);
+    over.position.set(0, 6.3, 0); doorway.add(over);
+    doorway.position.set(0, 0, -7.5);
+    group.add(doorway);
+
+    /* THE SHIP, THROUGH IT. Her own hull, so the thing smoking in the
+       doorway is the thing parked on the hillside ten seconds later. */
+    ship=new THREE.Group();
+    ship.position.set(1.5, 0.2, -30); ship.rotation.y=-0.55;
+    group.add(ship);
+    new THREE.GLTFLoader().load('ships/e45-hull.glb?v='+(window.ASSETV||'1'), gl=>{
+      if(!on) return;
+      const o=gl.scene;
+      o.traverse(m=>{ if(m.isMesh){ m.frustumCulled=false;
+        if(m.geometry.attributes.color){ m.material.vertexColors=true; m.material.needsUpdate=true; } } });
+      o.updateMatrixWorld(true);
+      const bx=new THREE.Box3().setFromObject(o);
+      const len=(bx.max.z-bx.min.z)||1;
+      o.scale.setScalar(11/len);
+      o.updateMatrixWorld(true);
+      const b2=new THREE.Box3().setFromObject(o);
+      o.position.set(-(b2.min.x+b2.max.x)/2, -b2.min.y, -(b2.min.z+b2.max.z)/2);
+      ship.add(o);
+    }, undefined, ()=>{});
+
+    /* AND SHE IS SMOKING, which is the fourth line's whole job. Pale, not
+       dark: over a night sky, opacity IS brightness, and the first smoke
+       this game ever drew was black and invisible. */
+    puffs=[];
+    for(let i=0;i<10;i++){
+      const m=new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 8),
+        new THREE.MeshLambertMaterial({ color:0xd8d2e0, transparent:true,
+                                        opacity:0.5, depthWrite:false }));
+      m.userData={ t:i*0.45 };
+      ship.add(m); puffs.push(m);
     }
-    const sg=new THREE.BufferGeometry();
-    sg.setAttribute('position', new THREE.BufferAttribute(sp,3));
-    stars=new THREE.Points(sg, new THREE.PointsMaterial({ color:0xdfe8ff, size:3.2 }));
-    group.add(stars);
 
-    /* THE BALL. `spin` turns; everything standing on it is a child of it,
-       so the buildings go round with the ground rather than hovering over
-       a rotating texture. */
-    spin=new THREE.Group(); group.add(spin);
+    /* ION HIMSELF, ON HIS BACK. The same three-axis Euler layIon uses to
+       put him on the Mechanic's cradle: about Z first, then about X, both
+       a quarter turn back. A model stands up its own +Y and faces its own
+       +Z, and laying one down is all three axes at once. */
+    ion=new THREE.Group();
+    ion.position.set(-0.4, 0.55, 0.2);
+    ion.rotation.set(-Math.PI/2, 0, -Math.PI/2);
+    group.add(ion);
+    new THREE.GLTFLoader().load('characters/models/ion.glb?v='+(window.ASSETV||'1'), gl=>{
+      if(!on) return;
+      const r=gl.scene;
+      r.traverse(o=>{ if(!o.isMesh) return;
+        o.frustumCulled=false;
+        if(o.geometry.attributes.color){ o.material.vertexColors=true; o.material.needsUpdate=true; } });
+      r.updateMatrixWorld(true);
+      const bx=new THREE.Box3().setFromObject(r);
+      const h=bx.max.y-bx.min.y;
+      if(h>1e-6) r.scale.setScalar(1.25/h);
+      ion.add(r);
+    }, undefined, ()=>{});
 
-    const geo=new THREE.SphereGeometry(R, 96, 64);
-    const pos=geo.attributes.position, col=new Float32Array(pos.count*3);
-    const d=new THREE.Vector3();
-    const SOIL=[[0.20,0.30,0.46],[0.62,0.55,0.38],[0.35,0.52,0.30],
-                [0.22,0.42,0.26],[0.55,0.50,0.44],[0.82,0.86,0.88]];
-    for(let i=0;i<pos.count;i++){
-      d.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
-      const h=land(d);
-      const rr=R + (h-0.42)*14;
-      pos.setXYZ(i, d.x*rr, d.y*rr, d.z*rr);
-      /* sea, sand, grass, forest, rock — and snow at the poles, which is
-         the one thing that tells you at a glance that it is a globe */
-      let c = h<0.40 ? SOIL[0] : h<0.46 ? SOIL[1] : h<0.56 ? SOIL[2]
-            : h<0.66 ? SOIL[3] : SOIL[4];
-      if(Math.abs(d.y)>0.86) c=SOIL[5];
-      const sh=0.86+0.28*h;
-      col[i*3]=c[0]*sh; col[i*3+1]=c[1]*sh; col[i*3+2]=c[2]*sh;
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(col,3));
-    geo.computeVertexNormals();
-    ball=new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors:true }));
-    spin.add(ball);
-
-    /* AN ATMOSPHERE, which is one back-faced shell and does most of the
-       work of making a sphere read as a planet rather than as a ball. */
-    const air=new THREE.Mesh(new THREE.SphereGeometry(R*1.055, 48, 32),
-      new THREE.MeshBasicMaterial({ color:0x7fd8ff, transparent:true, opacity:0.17,
-        side:THREE.BackSide, depthWrite:false }));
-    spin.add(air);
-
-    /* THE TOWNS. Little blocks with a lit face, stood on the ground and
-       pointing away from the core — which is what "upright" means here and
-       is the whole reason the third cut works: at the limb they are
-       silhouettes standing off the edge of the world, and you can see the
-       curve under them. */
-    const lit=new THREE.MeshBasicMaterial({ color:0xffdc8a });
-    const wall=new THREE.MeshLambertMaterial({ color:0x2e3448 });
-    const up=new THREE.Vector3(), fwd=new THREE.Vector3(), rt=new THREE.Vector3();
-    const M=new THREE.Matrix4();
-    for(let i=0;i<96;i++){
-      /* golden-angle spiral: even cover, no clumps, no seam */
-      const y=1-(i+0.5)/96*2, r=Math.sqrt(Math.max(0,1-y*y)), th=i*2.39996;
-      up.set(Math.cos(th)*r, y, Math.sin(th)*r).normalize();
-      const h=land(up);
-      if(h<0.44) continue;                       // nobody builds in the sea
-      /* TALL AND NARROW, and much more of both than looks right on paper.
-         A block four units wide and three high on a ball with a radius of
-         a hundred and ten is a speck; at the limb, where these have to do
-         their work, it is a dark smudge lying on the edge. Towers read. */
-      const tall=6.5+((i*37)%5)*2.6;
-      const w=1.6+((i*13)%3)*0.6;
-      const b=new THREE.Group();
-      const box=new THREE.Mesh(new THREE.BoxGeometry(w, tall, w), wall);
-      box.position.y=tall/2; b.add(box);
-      const win=new THREE.Mesh(new THREE.BoxGeometry(w*0.62, tall*0.16, w*1.02), lit);
-      win.position.y=tall*0.62; b.add(win);
-      fwd.set(0,1,0).cross(up); if(fwd.lengthSq()<1e-6) fwd.set(1,0,0);
-      fwd.normalize(); rt.crossVectors(up, fwd).normalize();
-      M.makeBasis(rt, up, fwd);
-      b.quaternion.setFromRotationMatrix(M);
-      b.position.copy(up).multiplyScalar(R + (h-0.42)*14 - 0.3);
-      spin.add(b);
-    }
-
-    /* AND THINGS LEAVING IT. Three, on rising arcs, because the fifth line
-       is about nine worlds and one ship and a still planet says neither. */
-    ships=[];
-    for(let i=0;i<3;i++){
-      const s=new THREE.Mesh(new THREE.ConeGeometry(1.5, 6, 6),
-        new THREE.MeshBasicMaterial({ color:0xbfe9ff }));
-      const trail=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.05,9,6),
-        new THREE.MeshBasicMaterial({ color:0x7fe0ff, transparent:true, opacity:0.5 }));
-      trail.position.y=-6; s.add(trail);
-      s.userData={ phase:i*2.1, lon:i*2.4 };
-      group.add(s); ships.push(s);
-    }
+    /* THE PANEL SOMEBODY LEFT OPEN, which is the third line. One lit
+       rectangle on his chest and a cover lying beside him on the floor. */
+    const open_=new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.34),
+      new THREE.MeshBasicMaterial({ color:0x6fe8c8 }));
+    open_.position.set(-0.3, 0.72, 0.18); group.add(open_);
+    const cover=new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.4),
+      new THREE.MeshLambertMaterial({ color:0x6a6478 }));
+    cover.position.set(0.75, 0.03, 0.55); cover.rotation.y=0.6; group.add(cover);
+    const glow=new THREE.PointLight(0x6fe8c8, 3.0, 4, 1.8);
+    glow.position.set(-0.3, 1.0, 0.18); group.add(glow);
   }
 
   /* --------------------------------------------------------------- screen
@@ -230,7 +236,7 @@ window.OPENING = (function(){
       <div class="in-bar top"></div>
       <div class="in-bar bottom"></div>
       <div class="in-cap" id="inCap"></div>
-      <div class="in-title" id="inTitle">KORO</div>
+      <div class="in-title" id="inTitle">ION</div>
       <button class="in-skip" id="inSkip">${t_('SKIP ▶')}</button>
       <div class="in-fade" id="inFade"></div>`;
     $('#inSkip').onclick=finish;
@@ -256,60 +262,49 @@ window.OPENING = (function(){
 
   /* -------------------------------------------------------- the cameras
      Five setups, each with its own move, so no cut is a still. `k` runs 0
-     to 1 across the cut it belongs to and every position below is a lerp
-     on it. Distances are in units of the ball's own radius, so re-sizing
-     the planet does not re-frame the film. */
+     to 1 across the cut it belongs to and every position is a lerp on it.
+
+     THE FIRST THREE ARE ALL ON HIM and they are the whole of why this is a
+     cold open: you are looking at a robot on a floor for nine seconds
+     before anything explains itself. Four finds the doorway and five is
+     the only shot with a horizon in it, because the answer to the mission
+     is two hundred units away. */
   const lerp=(a,b,k)=>a+(b-a)*k;
   const ease=k=>k*k*(3-2*k);
   function camera(){
-    const i=cut(), s=SHOTS[i], next=SHOTS[i+1];
-    const len=(next?next.at:END)-s.at;
-    const k=ease(Math.max(0, Math.min(1, (clock-s.at)/len)));
-    const c=G.camera, look=new THREE.Vector3(0,0,0);
+    const i=cut(), sh=SHOTS[i], next=SHOTS[i+1];
+    const len=(next?next.at:END)-sh.at;
+    const k=ease(Math.max(0, Math.min(1, (clock-sh.at)/len)));
+    const c=G.camera, look=new THREE.Vector3(-0.4, 0.55, 0.2);
 
     if(i===0){
-      /* WIDE, AND COMING IN. It has to be small enough first that getting
-         bigger means something. */
-      const d=lerp(R*7.4, R*4.6, k);
-      c.position.set(Math.sin(0.5)*d*0.25, R*0.5, d);
+      /* HIGH AND STRAIGHT DOWN, coming lower. The shot somebody standing
+         over him would have, which is the shot the line describes. */
+      c.position.set(lerp(-0.2,-0.5,k), lerp(6.4,4.2,k), lerp(1.2,1.9,k));
     }
     else if(i===1){
-      /* ROUND THE SHOULDER, so the ball turns under the camera as well as
-         on its own axis and reads as a solid rather than as a disc. */
-      const a=lerp(0.35, 1.05, k), d=lerp(R*3.4, R*2.6, k);
-      c.position.set(Math.sin(a)*d, R*0.72, Math.cos(a)*d);
+      /* ROUND HIM, low, so the room arrives behind him. */
+      const a=lerp(-0.5, 0.9, k), d=lerp(3.4, 2.7, k);
+      c.position.set(-0.4+Math.sin(a)*d, lerp(1.5,1.0,k), 0.2+Math.cos(a)*d);
     }
     else if(i===2){
-      /* ON THE LIMB. The camera sits just off the edge of the world with
-         the towns between it and the dark, which is the one shot that says
-         "there are places on this and people in them". */
-      const a=lerp(1.05, 1.55, k);
-      const d=lerp(R*1.95, R*1.62, k);
-      c.position.set(Math.sin(a)*d, lerp(R*0.46, R*0.22, k), Math.cos(a)*d);
-      look.set(Math.sin(a+0.55)*R*0.80, R*0.05, Math.cos(a+0.55)*R*0.80);
+      /* IN ON THE OPEN PANEL. The closest the film gets to anything. */
+      const d=lerp(2.2, 1.15, k);
+      c.position.set(-0.3+Math.sin(2.3)*d, lerp(1.35,0.95,k), 0.18+Math.cos(2.3)*d);
+      look.set(-0.3, 0.72, 0.18);
     }
     else if(i===3){
-      /* LOW AND CLOSE, skimming the terminator: half the frame is lit
-         ground going past and half is space. */
-      /* THE FIRST VERSION SAT AT 1.2 RADII and the ball filled the frame
-         edge to edge: a flat green wash with two blocks on it, which is
-         not a planet, it is a wall. Far enough out that the curve is
-         still in shot is the whole difference. */
-      const a=lerp(1.55, 2.15, k);
-      const d=lerp(R*1.62, R*1.80, k);
-      c.position.set(Math.sin(a)*d, lerp(R*0.22, R*0.48, k), Math.cos(a)*d);
-      look.set(Math.sin(a+0.7)*R*0.75, 0, Math.cos(a+0.7)*R*0.75);
+      /* PAST HIM AND THROUGH THE DOOR. He is in the bottom of frame and
+         the ship is the thing that has arrived in it. */
+      c.position.set(lerp(-0.6,-0.3,k), lerp(1.1,1.5,k), lerp(3.0,1.4,k));
+      look.set(lerp(-0.4,0.9,k), lerp(0.6,1.9,k), lerp(0.2,-14,k));
     }
     else {
-      /* AND OUT, WITH THE WHOLE BALL IN FRAME UNDER THE NAME — which the
-         first version did not manage, because it set x, y and z from three
-         separate lerps and the actual distance from the middle came out at
-         one and a half radii rather than the two it was asking for. The
-         planet filled the frame while the line under it said "nine
-         worlds". A distance is a distance: pick a direction, scale it. */
-      const a=2.15, el=lerp(0.24, 0.46, k);
-      const d=lerp(R*2.6, R*4.3, k), cl=Math.cos(el);
-      c.position.set(Math.sin(a)*cl*d, Math.sin(el)*d, Math.cos(a)*cl*d);
+      /* OUTSIDE, WIDE, THE DESERT. The only horizon in the film, under
+         the only line that is an instruction. */
+      const d=lerp(16, 26, k);
+      c.position.set(lerp(2,7,k), lerp(3.2,6.0,k), -30+d);
+      look.set(1.5, 2.2, -30);
     }
     c.lookAt(look);
   }
@@ -318,18 +313,14 @@ window.OPENING = (function(){
   function tick(dt){
     if(!on) return;
     clock+=dt;
-    if(spin) spin.rotation.y += dt*0.045;
-    if(stars) stars.rotation.y -= dt*0.004;
-    /* the three leaving, on rising arcs away from the ball */
-    ships.forEach((s,i)=>{
-      const u=(clock*0.16 + s.userData.phase*0.17) % 1;
-      const rad=R*(1.02 + u*2.4), lon=s.userData.lon + u*0.9;
-      const lat=0.25 + u*0.5;
-      const cl=Math.cos(lat);
-      s.position.set(Math.sin(lon)*cl*rad, Math.sin(lat)*rad, Math.cos(lon)*cl*rad);
-      s.lookAt(s.position.clone().multiplyScalar(1.4));
-      s.rotateX(Math.PI/2);
-      s.visible = u>0.04;
+    /* the smoke off her tail: up, out and away, then round again */
+    puffs.forEach(m=>{
+      m.userData.t += dt*0.55;
+      if(m.userData.t>1) m.userData.t-=1;
+      const u=m.userData.t;
+      m.position.set(0.3+u*2.4, 1.4+u*8.0, 4.2+u*1.6);
+      m.scale.setScalar(0.9+u*4.4);
+      m.material.opacity = 0.62*(1-u);
     });
     camera();
     caption();
@@ -347,7 +338,7 @@ window.OPENING = (function(){
     hidden.forEach(sel=>{ const e=$(sel); if(e) e.classList.remove('hidden'); });
     hidden=[];
     if(group && G.roomGroup===group){ G.scene.remove(group); G.roomGroup=null; }
-    group=null; ball=null; spin=null; stars=null; ships=[];
+    group=null; ion=null; doorway=null; ship=null; puffs=[]; floorMesh=null;
     G.camera.up.set(0,1,0);
     const cb=done; done=null;
     setTimeout(()=>{ const e=$('#intro'); if(e && !on) e.remove(); }, 400);

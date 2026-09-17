@@ -13,7 +13,7 @@ const path = require('path');
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 
-test('the film is five cuts and says nothing about keys', ()=>{
+test('the film is five cuts about Ion, and says nothing about keys', ()=>{
   const src=read('public/opening.js');
   const block=src.slice(src.indexOf('const SHOTS = ['), src.indexOf('];', src.indexOf('const SHOTS = [')));
   const caps=[...block.matchAll(/cap:'([^']+)'/g)].map(m=>m[1]);
@@ -36,6 +36,15 @@ test('the film is five cuts and says nothing about keys', ()=>{
   const end=+src.match(/const END = ([0-9.]+)/)[1];
   assert.ok(end - ats[ats.length-1] >= 2.0,
     'the last line gets '+(end-ats[ats.length-1]).toFixed(1)+'s, which is not long enough to read it');
+  /* IT IS ABOUT HIM, and the last line is the mission. */
+  assert.ok(/\bIon\b/.test(caps.join(' ')), 'the film never names Ion');
+  assert.match(caps[caps.length-1], /him/i,
+    'the closing line is not an instruction about Ion: "'+caps[caps.length-1]+'"');
+  /* AND HE IS THE REAL ONE, off the same glb that lies on the cradle four
+     levels later. A stand-in would have been easier and the whole point is
+     that the thing on the floor is the thing you pick up. */
+  assert.match(src, /characters\/models\/ion\.glb/, 'the film uses a stand-in for Ion');
+  assert.match(src, /ships\/e45-hull\.glb/, 'the ship in the doorway is not the E-45');
 });
 
 test('the film puts back everything it hides', ()=>{
@@ -55,16 +64,31 @@ test('the film puts back everything it hides', ()=>{
   assert.match(fin, /G\.scene\.remove\(group\)/, 'the set is left in the scene');
 });
 
-test('the film plays once, in front of the front door', ()=>{
+test('the film opens Mission 8, and hands on to the walkthrough', ()=>{
+  /* IT WAS IN FRONT OF THE HUB AND ABOUT THE GAME, which tells a student
+     what they have bought and does not make them care about anything. The
+     thing they are about to do is walk into a house and find a robot on
+     the kitchen floor. */
+  const planet=bare(read('public/planet.js'));
+  /* AT THE TOP OF enter(), BEFORE ANYTHING IS BUILT. The film takes
+     G.roomGroup for its own set and throws it away again on the way out,
+     so played from the bottom of enter() it left fifteen seconds of Ion
+     followed by RYU not existing — built, replaced by a kitchen, and
+     never built again. It also put the player's own body in the middle of
+     the set, because AVATAR hangs that off the camera and not the room. */
+  const top=planet.slice(planet.indexOf('function enter(sv, worldId, at)'),
+                         planet.indexOf('server = sv || null;'));
+  assert.match(top, /OPENING\.play\(/, 'nothing plays the film on the way into RYU');
+  assert.match(top, /!OPENING\.seen/, 'the film plays on every arrival');
+  assert.match(top, /enter\(sv, worldId, at\)/,
+    'the film never hands back, so the world it replaced is never rebuilt');
+  assert.match(top, /worldId==='ryu'/, 'the film plays on every world');
+  /* AND NOT AS A RECAP. Somebody flying back with Ion in the hold does
+     not need to be told he is on the floor. */
+  assert.match(top, /!ionFlag\('ion_belt'\)/,
+    'a finished mission still gets the cold open');
   const menu=bare(read('public/menu.js'));
-  /* IN homeworld() AND NOT ON THE START BUTTON, because START is not the
-     only way in: a saved world, a mission card and the character screen
-     all arrive through this one function. */
-  const hw=menu.slice(menu.indexOf('async function homeworld(where)'),
-                      menu.indexOf('hideAll();', menu.indexOf('async function homeworld(where)')));
-  assert.match(hw, /OPENING\.play\(/, 'nothing plays the film');
-  assert.match(hw, /!OPENING\.seen/, 'the film plays on every arrival');
-  assert.match(hw, /homeworld\(where\)/, 'the film does not hand back to the world');
+  assert.ok(!/OPENING\.play\(/.test(menu), 'the film is still on the hub\u2019s way in');
   const src=bare(read('public/opening.js'));
   assert.match(src, /if\(played && !opts\.force\)/, 'the film cannot be replayed on purpose');
   const game=bare(read('public/game.js'));
@@ -80,6 +104,9 @@ test('RYU has a walkthrough, and it reads the save rather than counting', ()=>{
      and a tower on it. */
   const planet=bare(read('public/planet.js'));
   assert.match(planet, /function ionTour\(\)/, 'RYU has no walkthrough');
+  /* IT STARTS ON EVERY ARRIVAL, film or no film — the film hands back
+     into enter(), so this one line covers both a cold open and a student
+     who skipped it or has seen it already. */
   assert.match(planet, /if\(W\.id==='ryu'\) setTimeout\(\(\)=>\{ if\(on\) ionTour\(\); \}/,
     'the walkthrough never starts');
   const tour=planet.slice(planet.indexOf('function ionTour()'),
@@ -119,4 +146,36 @@ test('the walkthrough names things that exist on RYU', ()=>{
   for(const m of tour.matchAll(/(?:doorOf|spotOf|B)\('([a-z0-9]+)'\)/g))
     assert.ok(have.has(m[1]),
       'the walkthrough points at "'+m[1]+'", which is not on RYU: '+[...have].join(', '));
+});
+
+test('no panel calls a translator it has not got', ()=>{
+  /* THE BUG THIS IS FOR. boolquiz.js names its translator `say`;
+     opening.js names it `t_`. Copying one line of markup from the second
+     into the first put a `t_(...)` into the quiz's draw(), which threw
+     halfway through building the panel — so a wrong answer did nothing at
+     all: no strike-through, no nudge, no redraw. Nothing in the game
+     logged it, because the throw was inside a click handler, and the
+     symptom was a button that looked fine and was dead.
+
+     Each of these files picks its own short name for t() and then uses it
+     forty times. Using the other file's name is a one-character mistake
+     that cannot be caught by reading. */
+  const FILES=['public/boolquiz.js','public/opening.js','public/sortfix.js',
+               'public/ionfix.js','public/shipfix.js'].filter(f=>{
+    try{ read(f); return true; }catch(e){ return false; }
+  });
+  for(const f of FILES){
+    const src=bare(read(f));
+    /* which short names does this file DEFINE? */
+    const defined=new Set(['t']);          // strings.js puts t() on window
+    for(const m of src.matchAll(/(?:const|let|var|function)\s+(t_|say|say_)\b/g))
+      defined.add(m[1]);
+    /* and which does it CALL? */
+    const called=new Set();
+    for(const m of src.matchAll(/\b(t_|say|say_)\s*\(/g)) called.add(m[1]);
+    for(const c of called)
+      assert.ok(defined.has(c),
+        f+' calls '+c+'() and never defines it \u2014 it will throw the first '
+        +'time that line is reached. It defines: '+[...defined].join(', '));
+  }
 });

@@ -165,31 +165,52 @@
      been seen. `firstTry` is the score worth reporting. */
   function start(){
     return { queue: QUESTIONS.map((q,i)=>i),
-             at:0, picked:null, firstTry:0, seen:{}, again:[] };
+             at:0, picked:null, wrong:[], firstTry:0, seen:{} };
   }
   const current = s => QUESTIONS[s.queue[s.at]];
   const done    = s => s.at >= s.queue.length;
 
-  /* Answering. Returns the new state; picking twice on one question does
-     nothing, because the second click is somebody reading the reason. */
+  /* ANSWERING, AND A WRONG ONE IS A TRY AGAIN.
+
+     It used to reveal the right answer beside the wrong one and move on,
+     with the question re-queued for the end. That is a fair way to mark a
+     test and a poor way to teach: the moment somebody is most willing to
+     think about `and` versus `or` is the second after getting it wrong,
+     and being shown the answer is precisely what removes the reason to.
+
+     So a wrong answer is struck out and the question stays. `wrong` is
+     the set of options already ruled out — struck through and dead, so
+     nobody can click the same one twice and nobody is made to re-read
+     what they have already eliminated — and the question is not over
+     until it is right.
+
+     THE SCORE IS STILL FIRST ATTEMPTS. `seen[idx]` is written once, on
+     the first answer to a question, so a student who gets there on the
+     third go has learned it and knows they took three. */
   function answer(s, i){
     if(done(s) || s.picked!==null) return s;
     const idx=s.queue[s.at], q=QUESTIONS[idx];
     const right = i===q.a;
-    const out=Object.assign({}, s, { picked:i });
+    const out=Object.assign({}, s);
     out.seen=Object.assign({}, s.seen);
-    if(right && out.seen[idx]===undefined) out.firstTry=s.firstTry+1;
-    if(out.seen[idx]===undefined) out.seen[idx]=right;
-    out.again = right ? s.again : s.again.concat([idx]);
+    if(out.seen[idx]===undefined){
+      out.seen[idx]=right;
+      if(right) out.firstTry=s.firstTry+1;
+    }
+    if(right){
+      out.picked=i;
+      out.wrong=[];
+    } else {
+      out.picked=null;                       // still their turn
+      out.wrong=(s.wrong||[]).concat([i]);
+    }
     return out;
   }
 
-  /* On to the next, and round again on whatever was missed. */
+  /* On to the next. Nothing is re-queued any more, because nothing is
+     left behind: a question is not finished until it is answered. */
   function next(s){
-    const out=Object.assign({}, s, { picked:null, at:s.at+1 });
-    if(out.at < out.queue.length) return out;
-    if(!out.again.length) return out;               // finished, all right
-    return Object.assign({}, out, { queue:out.again, again:[], at:0 });
+    return Object.assign({}, s, { picked:null, wrong:[], at:s.at+1 });
   }
 
   const API = { QUESTIONS, start, current, done, answer, next,
@@ -236,6 +257,10 @@
       .bqo.right{border-color:#79d6a8;background:#1b3328;color:#d8ffe9}
       .bqo.wrong{border-color:#e0736f;background:#33191d;color:#ffd9d6}
       .bqo:disabled{cursor:default}
+      .bqop{font-style:normal;font-weight:700;color:#7ff0d2;letter-spacing:.02em}
+      .bqo.wrong .bqop{color:inherit}
+      .bqo.wrong{text-decoration:line-through;opacity:.5}
+      .bqwhy.try{background:#33232c;border-color:#6d4353;color:#ffd6dd}
       .bqwhy{margin:16px 0 4px;padding:13px 16px;border-radius:12px;
              background:#1a2438;border:1px solid #2f3f5f;
              font-size:15px;line-height:1.5;color:#cfe4ff}
@@ -267,38 +292,61 @@
     return ui;
   }
 
+  /* THE THREE WORDS, IN THEIR OWN COLOUR, everywhere they appear.
+
+     `and`, `or` and `not` are the whole subject, and in a wall of plain
+     English they are three more words the same colour as the rest of the
+     sentence. Marked up they stop being prose and start being operators,
+     which is the thing the student is meant to be looking at. Case is
+     kept — the questions say AND inside a quoted rule and `and` in an
+     answer, and both of those are deliberate.
+
+     AFTER ESCAPING, ALWAYS. This runs over text that has already been
+     made safe, so the tags it adds are the only tags in it. The other way
+     round would let a question's own words become markup. */
+  const opWord = html => html.replace(
+    /\b(AND|OR|NOT|and|or|not)\b/g, '<em class="bqop">$1</em>');
+
   function draw(){
     const u=dom(), q=current(state);
     if(!q) return finish();
-    const picked=state.picked;
+    const picked=state.picked, struck=state.wrong||[];
     u.body.innerHTML =
-      `<p class="bqq">${esc(q.q)}</p>`
-    + `<p class="bqask">${esc(q.ask)}</p>`
+      `<p class="bqq">${opWord(esc(q.q))}</p>`
+    + `<p class="bqask">${opWord(esc(q.ask))}</p>`
     + `<div class="bqopts">` + q.opts.map((o,i)=>{
         let cls='bqo';
+        const dead = struck.indexOf(i)>=0;
         if(picked!==null && i===q.a) cls+=' right';
-        else if(picked===i) cls+=' wrong';
-        return `<button class="${cls}" data-i="${i}"${picked!==null?' disabled':''}>`
-             + `${esc(o)}</button>`;
+        else if(dead) cls+=' wrong';
+        const off = picked!==null || dead;
+        return `<button class="${cls}" data-i="${i}"${off?' disabled':''}>`
+             + `${opWord(esc(o))}</button>`;
       }).join('') + `</div>`
-    + (picked!==null ? `<div class="bqwhy">${q.why}</div>` : '');
+    /* THE REASON ON THE WAY OUT, AND A NUDGE ON THE WAY BACK. Showing the
+       explanation on a wrong answer would be showing the answer, which is
+       the whole of why it does not move on. */
+    + (picked!==null ? `<div class="bqwhy">${opWord(q.why)}</div>`
+       : struck.length ? `<div class="bqwhy try">${say('Not that one. Read it again and try another.')}</div>`
+       : '');
 
-    u.body.querySelectorAll('[data-i]').forEach(b=>{
+    u.body.querySelectorAll('[data-i]:not([disabled])').forEach(b=>{
       b.onclick=()=>{ state=answer(state, +b.dataset.i); draw(); };
     });
 
     /* One dot per question in the round, so twenty is visibly twenty. */
+    /* A DOT PER QUESTION: lit when it was got first time, amber when it
+       took more than one go, empty until it has been answered at all. */
     u.dots.innerHTML = state.queue.map((idx,i)=>{
-      const s = state.seen[idx];
-      const cls = i<state.at || (i===state.at && state.picked!==null)
-                ? (s ? 'on' : 'bad') : '';
-      return `<i class="${cls}"></i>`;
+      const got=state.seen[idx];
+      const past = i<state.at || (i===state.at && state.picked!==null);
+      return `<i class="${past ? (got ? 'on' : 'bad') : ''}"></i>`;
     }).join('');
 
     const n=Object.keys(state.seen).length;
     u.score.textContent = say('{a} of {b}', { a:n, b:QUESTIONS.length });
     u.go.classList.toggle('gone', state.picked===null);
-    const last = state.at===state.queue.length-1 && !state.again.length;
+    const last = state.at===state.queue.length-1;
     u.go.textContent = last ? say('DONE') : say('NEXT') + ' →';
   }
 

@@ -517,6 +517,28 @@ window.PLANET = (function(){
      on RYU and has no saved spot to be put back at. {lon,lat} in, and it
      outranks the bag for exactly one arrival. */
   function enter(sv, worldId, at){
+    /* ================================== THE FILM, BEFORE ANYTHING EXISTS
+       It is a cold open on Ion on the kitchen floor, and it has to run
+       HERE — before a single line of this function has built anything —
+       because the film takes G.roomGroup for its own set and throws it
+       away again on the way out. Played from the bottom of enter(), where
+       the walkthrough starts, that meant fifteen seconds of Ion followed
+       by RYU not existing: the world had been built, replaced by a
+       kitchen, and never built again. It also meant the player's own body
+       was standing in the middle of the set, because AVATAR hangs that
+       off the camera rather than off the room.
+
+       So it plays first and calls enter() back. OPENING.seen makes the
+       second call fall straight through, and the mission gets built
+       exactly once either way.
+
+       ONLY ON THE WAY IN AND ONLY WHILE THE MISSION IS UNFINISHED. It is
+       a cold open, not a recap: somebody flying back to the tower with Ion
+       in the hold does not need to be told he is on the floor. */
+    if(worldId==='ryu' && window.OPENING && !OPENING.seen && !OPENING.active
+       && !ionFlag('ion_belt')){
+      return OPENING.play(()=>enter(sv, worldId, at));
+    }
     server = sv || null;
     // whichever ball we are standing on decides its own size, sky and soil
     setWorld(worldById(worldId || (W?W.id:'hub')));
@@ -689,6 +711,8 @@ window.PLANET = (function(){
        worth one showing; this one is about where the next thing is, on a
        ball with four objects and a story between them, and a student who
        comes back to a half-finished mission wants it again. */
+    /* The walkthrough. The film, if there is one, has already played and
+       gone — see the top of enter(). */
     if(W.id==='ryu') setTimeout(()=>{ if(on) ionTour(); }, 900);
     /* AND SAY WHAT JUST HAPPENED TO YOU. A player who picked Carlos and
        walks out of the shuttle in somebody else's body, with nothing
@@ -2475,21 +2499,44 @@ window.PLANET = (function(){
          checklist whether she is cleared or not — as many times as
          anybody wants. The hull still flies her. One object each, one
          meaning each. */
+      /* MEASURED ONTO HER FLANK, NOT TYPED ONTO IT. The first one was put
+         at x=0 — the middle of the ship — which is not her flank, it is
+         her spine, and a panel there is INSIDE the hull. It was never
+         visible and never clickable, which is exactly the complaint it
+         was written to answer: the checks had no door.
+
+         `o` has just been centred over its patch and sat on the ground, so
+         a box taken now is where she actually is, and the panel goes a
+         little way outside her widest point at half her height. */
+      const hb=new THREE.Box3().setFromObject(o);
       const hatch=new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 1.1, 0.35),
-        new THREE.MeshLambertMaterial({ color:0x2b3a4a,
-                                        emissive:0x14303c, emissiveIntensity:0.9 }));
-      /* On her flank at shoulder height, towards the tail. `spin` has her
-         nose at -SHIP_LEN/2 and her tail at +SHIP_LEN/2 with her belly on
-         zero, which is the frame the smoke uses for the same reason. */
-      hatch.position.set(0.0, 1.5, SHIP_LEN*0.16);
-      hatch.rotation.y=Math.PI/2;
+        new THREE.BoxGeometry(0.4, 1.5, 2.2),
+        new THREE.MeshLambertMaterial({ color:0x24455c,
+                                        emissive:0x2fa8c4, emissiveIntensity:1.0 }));
+      hatch.position.set(hb.max.x + 0.22, Math.min(hb.max.y*0.55, 2.2), 0);
       const hatchHold=new THREE.Group();
+      hatchHold.position.copy(hatch.position);
       hatchHold.userData={ kind:'panel', label:t('PRE-FLIGHT'), enter:'preflight' };
       spin.add(hatchHold); spin.add(hatch);
       hatch.userData.owner=hatchHold;
       hatch.userData.verb='E \u2014 pre-flight';
       G.hits.push(hatch);
+      /* AND ONE ON EACH SIDE, because she is parked across the doorway and
+         which flank you walk up to is decided by which way you left the
+         house. One door on the far side is one door nobody finds. */
+      const hatch2=hatch.clone();
+      hatch2.position.set(hb.min.x - 0.22, hatch.position.y, 0);
+      const hold2=new THREE.Group();
+      hold2.position.copy(hatch2.position);
+      hold2.userData={ kind:'panel', label:t('PRE-FLIGHT'), enter:'preflight' };
+      spin.add(hold2); spin.add(hatch2);
+      hatch2.userData.owner=hold2;
+      hatch2.userData.verb='E \u2014 pre-flight';
+      G.hits.push(hatch2);
+      /* A LAMP ON IT, so it reads as the one lit thing on a dark hull at
+         the distance somebody first sees her from. */
+      const hlamp=new THREE.PointLight(0x5fd8ff, 3.2, 9, 1.6);
+      hlamp.position.set(0, hatch.position.y+0.6, 0); spin.add(hlamp);
       /* SHE IS SMOKING, and that is the whole brief. A student walks out
          of the house and has to work out, with nobody telling them, which
          of the things on this hillside is the mission — and a parked ship

@@ -453,22 +453,37 @@ test('the Mechanic asks in English, and does not let go until you know', ()=>{
     assert.ok(!/[<>]=?|&&|\|\||!=|==/.test(text),
       'symbols leaked into a plain-English question: "'+q.ask+'"');
   }
-  /* AND A WRONG ANSWER COMES BACK. The round ends when all twenty are
-     known, not when all twenty have been seen. */
-  let s=Q.start(), guard=0, asked=0;
-  while(!Q.done(s) && guard++ < 500){
-    const cur=Q.current(s);
-    /* answer the first four wrong, then everything right */
-    const pick = asked++ < 4 ? (cur.a===0?1:0) : cur.a;
-    s=Q.answer(s, pick);
-    s=Q.next(s);
-  }
-  assert.ok(guard<500, 'the quiz never ends');
-  assert.ok(asked>20, 'the four wrong answers were never asked again: '+asked);
-  assert.strictEqual(s.firstTry, 16, 'the score counts more than first attempts');
-  /* and answering twice on one question changes nothing */
-  let t=Q.start();
-  t=Q.answer(t, Q.current(t).a);
-  const after=Q.answer(t, 99);
-  assert.strictEqual(after.picked, t.picked, 'a second click re-answers the question');
+  /* A WRONG ANSWER IS A TRY AGAIN, not a mark in a book.
+
+     It used to reveal the right answer beside the wrong one and move on,
+     with the question re-queued for the end. That is a fair way to mark a
+     test and a poor way to teach: the moment somebody is most willing to
+     think about `and` versus `or` is the second after getting it wrong,
+     and being shown the answer is exactly what removes the reason to. */
+  let s=Q.start();
+  const first=Q.current(s);
+  const bad=(first.a===0?1:0);
+  s=Q.answer(s, bad);
+  assert.strictEqual(Q.current(s), first, 'a wrong answer moved the quiz on');
+  assert.strictEqual(s.picked, null, 'a wrong answer revealed the right one');
+  assert.deepStrictEqual(s.wrong, [bad], 'the wrong option is not struck out');
+  /* the same wrong option cannot be clicked twice */
+  s=Q.answer(s, bad);
+  assert.deepStrictEqual(s.wrong, [bad, bad].slice(0,1).concat(s.wrong.slice(1)),
+    'a struck-out option is still live');
+  /* and getting it right releases it */
+  s=Q.answer(s, first.a);
+  assert.strictEqual(s.picked, first.a, 'the right answer is not revealed');
+
+  /* THE SCORE IS STILL FIRST ATTEMPTS. Somebody who gets there on the
+     third go has learned it and knows they took three. */
+  assert.strictEqual(s.firstTry, 0, 'a question got wrong first still scored');
+  let t=Q.start(), guard=0;
+  while(!Q.done(t) && guard++ < 400){ t=Q.answer(t, Q.current(t).a); t=Q.next(t); }
+  assert.ok(guard<400, 'the quiz never ends');
+  assert.strictEqual(t.firstTry, Q.QUESTIONS.length,
+    'a clean run does not score '+Q.QUESTIONS.length);
+  /* AND EVERY QUESTION IS ANSWERED EXACTLY ONCE when nothing goes wrong:
+     there is no re-queue any more, because nothing is left behind. */
+  assert.strictEqual(guard, Q.QUESTIONS.length, 'a clean run took '+guard+' turns');
 });
