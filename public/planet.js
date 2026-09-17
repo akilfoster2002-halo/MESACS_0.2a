@@ -2807,7 +2807,11 @@ window.PLANET = (function(){
      beside his lines is the man standing in front of you rather than a
      blank panel. */
   const FACES={ Ion:'characters/previews/ion.png',
-                'The Mechanic':'characters/previews/mechanic.png' };
+                'The Mechanic':'characters/previews/mechanic.png',
+                /* Off the roster, the way person() casts every other
+                   walk-on in this game. She is the first face anybody in
+                   the arena has ever shown to somebody from outside it. */
+                'The Usher':'characters/previews/character-t.png' };
 
   /* The four lines, and then the panel. Returns false if there is nothing
      to play them over, so the caller can fall through to the checklist
@@ -3236,8 +3240,18 @@ window.PLANET = (function(){
   function brawlBuild(){
     if(!window.BRAWL || !W || W.id!=='ryu') return;
     const C0=dirOf(BRAWL_AT.lon, BRAWL_AT.lat), F0=frameAt(C0, 0);
+    /* WHICH WAY THE GATE FACES, which is the way everybody comes from.
+       The tower's direction, projected into the arena's own frame and
+       turned into the angle brawl.js lays its rings out in. */
+    const tb=BUILDINGS.find(x=>x.id==='tower');
+    let gateAt=Math.PI;
+    if(tb && tb.dir){
+      const t=facing(C0, tb.dir);
+      gateAt=Math.atan2(t.dot(F0.fwd), t.dot(F0.right));
+    }
     const r=BRAWL.build({ parent:G.roomGroup, tall:BRAWL_TALL,
-                          gap:BRAWL_GAP, PR, ground:brawlGround(C0, F0) });
+                          gap:BRAWL_GAP, PR, ground:brawlGround(C0, F0),
+                          gate:gateAt });
     if(!r || !r.root) return;
     /* THE WHOLE PLACE IS ONE GROUP STOOD ON THE BALL ONCE, and everything
        inside it — nine tiers, the crowd, both machines — is in that
@@ -3255,6 +3269,19 @@ window.PLANET = (function(){
        itself, so lifting the root by the height at the middle as well
        would count the same hill twice. */
     r.root.position.copy(C).multiplyScalar(PR);
+    /* AND THE GATE IS A DOOR, which means it is in G.hits like every
+       other door on this planet. It is invisible with the glasses off,
+       and E on a thing you cannot see is E on nothing — hidden with the
+       rest of the arena, because the whole root goes. */
+    const door=BRAWL.gate;
+    if(door){
+      const hold=new THREE.Object3D();
+      hold.userData={ kind:'machine', label:t('THE ARENA'), enter:'brawlgate' };
+      r.root.add(hold);
+      door.userData.owner=hold;
+      door.userData.verb='E \u2014 go in';
+      G.hits.push(door);
+    }
   }
   /* The height of RYU's own ground, anywhere in the arena's frame, asked
      for the way brawl.js thinks: arc distance out and angle round. It
@@ -4055,13 +4082,149 @@ window.PLANET = (function(){
       .normalize();
     me.alt=floorAt(me.dir); me.vy=0; me.onGround=true;
     me.fwd=facing(me.dir, b.dir);
-    /* AND THE SHIP BESIDE THEM. She was left wherever the landing put
-       her, which is near the tower but not necessarily in sight of its
-       door — and the next thing this mission asks for is a flight. */
-    parkHere();
-    /* then turn them round to look at her rather than at the wall */
-    if(shipB && shipB.dir) me.fwd=facing(me.dir, shipB.dir);
+    /* AND FACING THE ARENA, WHICH IS A WALK AND NOT A FLIGHT.
+
+       This used to park the E-45 beside them and turn them to look at
+       her, which staged the wrong thing: the bowl is sixty-nine units
+       from this door at its nearest wall, and sixty-nine units is a walk.
+       Flying to it means taking off, crossing it, and landing inside a
+       structure with no landing ground — and arriving somewhere on foot,
+       through a gate, is how you arrive at a place with people in it. */
+    me.fwd=facing(me.dir, dirOf(BRAWL_AT.lon, BRAWL_AT.lat));
     G.scene.updateMatrixWorld(true);
+  }
+
+  /* ===================================================================
+     GOING IN, WHICH IS WHERE MISSION 8 ACTUALLY ENDS.
+
+     The arena was a thing to look at: a bowl on the horizon full of
+     people nobody could talk to, with two machines in it. You could fly
+     over it and you could stand on the sand, and neither of those is
+     arriving somewhere. So there is a gate, and behind the gate is a lift
+     to the top tier and somebody at the top of it who is expecting you.
+
+     WHY THE LIFT IS A CAMERA MOVE AND NOT A LIFT. There is a real one in
+     the tower, with a deck and a shaft and a rule about how fast it may
+     climb without stepping out from under its passenger, and it is worth
+     every line it costs because the tower is a building you explore. This
+     is the last thirty seconds of the mission: what it has to do is rise,
+     arrive, and hand over to a view. A shot does that.
+
+     AND THE PERSON AT THE TOP IS THE POINT. Everybody in this bowl has
+     been here the whole time, invisible, because nobody outside had the
+     glasses. The first thing the first person to walk in is owed is
+     somebody saying hello.
+     =================================================================== */
+  const ARENA_SEEN='ion_arena';
+  function arenaIn(){
+    if(!window.BRAWL || !BRAWL.ready || !BRAWL.root) return;
+    if(!window.SCENE){ arenaEnd(); return; }
+    BRAWL.root.updateMatrixWorld(true);
+    /* Three places in the arena's own frame: the gate you are standing
+       at, the top of the stands above it, and the middle of the sand. */
+    const at=(x,y,z)=>new THREE.Vector3(x,y,z)
+      .applyMatrix4(BRAWL.root.matrixWorld).toArray();
+    const g=BRAWL.gateLocal || [0,0,BRAWL.radius];
+    const k=BRAWL.radius ? (BRAWL.radius+16)/Math.hypot(g[0],g[2]||1) : 1;
+    const gx=g[0]*0.92, gz=(g[2]||0)*0.92;
+    const rim=BRAWL.rim||112;
+    const GATE ={ eye:at(gx*1.10, 6,  gz*1.10), at:at(gx*0.86, 10, gz*0.86) };
+    const RISE ={ eye:at(gx*0.99, rim*0.62, gz*0.99), at:at(gx*0.70, rim*0.75, gz*0.70) };
+    const TOP  ={ eye:at(gx*0.93, rim+7,  gz*0.93), at:at(0, 34, 0) };
+    const FIGHT={ eye:at(gx*0.80, rim+10, gz*0.80), at:at(0, 52, 0) };
+    G.running=false;
+    SCENE.play([
+      { shot:GATE,  ease:1.2, who:'you',   say:t('There is a door. There should not be a door.') },
+      { shot:RISE,  ease:2.0, hold:1.2 },
+      { shot:TOP,   ease:1.4, who:'The Usher',
+        say:t('Welcome, {n}. Mind the step.',{n:ME()}) },
+      { shot:TOP,   who:'The Usher',
+        say:t('You are wearing the glasses. Not many walk up here.') },
+      { shot:TOP,   who:'you',   say:t('How long has this been going on?') },
+      { shot:FIGHT, ease:1.8, who:'The Usher',
+        say:t('Longer than the tower. Sit anywhere.') },
+      { shot:FIGHT, hold:3.2 }
+    ], { faces:FACES,
+         end:()=>{ if(!on) return;
+                   G.running=true;
+                   try{ if(window.PROGRESS) PROGRESS.set(ARENA_SEEN,1); }catch(e){}
+                   /* left in the back row, which is where the shot ends */
+                   arenaSeat();
+                   arenaEnd(); }});
+  }
+  /* WHERE THE FILM PUTS YOU DOWN, and it is on the sand rather than in
+     the seat the last shot was taken from.
+
+     Standing in the back row would be the honest continuation of the
+     camera, and for about a second it was: the stands are not solid —
+     deliberately, because a wall you cannot see is a wall you walk into
+     and swear at — so a player left a hundred and twelve units up in the
+     air fell straight through twelve tiers of crowd and landed in the
+     desert outside the bowl. Welcomed in, and then dropped out of the
+     back of the building.
+
+     The sand is the planet's own ground and it is inside, which is the
+     part that matters: two machines the size of the tower directly in
+     front of you and a thousand people round the rim. */
+  function arenaSeat(){
+    if(!window.BRAWL || !BRAWL.root) return;
+    BRAWL.root.updateMatrixWorld(true);
+    const mid=new THREE.Vector3(0,0,0).applyMatrix4(BRAWL.root.matrixWorld);
+    const back=new THREE.Vector3(0,0,48).applyMatrix4(BRAWL.root.matrixWorld);
+    me.dir=back.clone().normalize();
+    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true;
+    me.fwd=facing(me.dir, mid.clone().normalize());
+    me.look=0.30;
+  }
+
+  /* --------------------------------------------------- TO BE CONTINUED
+     THE END OF WHAT THERE IS, SAID OUT LOUD. A game that runs out without
+     saying so reads as a game that broke: a student standing in a stand
+     full of people with nothing left to do assumes they have missed
+     something and goes looking for it.
+
+     AND THEN TWO DOORS, because "the end" is not the same as "stop". One
+     goes back to Senio, where the other missions are. The other closes
+     the card and leaves them exactly where they are, on the top tier,
+     with a planet they have every reason to want to look at now. */
+  function arenaEnd(){
+    let el=document.querySelector('#tbc');
+    if(!el){
+      el=document.createElement('div');
+      el.id='tbc';
+      el.style.cssText=
+        'position:fixed;inset:0;z-index:80;display:flex;align-items:center;'
+       +'justify-content:center;flex-direction:column;gap:22px;'
+       +'background:radial-gradient(ellipse at 50% 45%,rgba(4,8,16,.72),rgba(2,4,10,.94));'
+       +'font-family:var(--font);opacity:0;transition:opacity .9s ease';
+      document.body.appendChild(el);
+    }
+    el.innerHTML=
+      `<div style="font-size:clamp(13px,1.6vw,17px);letter-spacing:.42em;
+                   color:#7f9bc4;text-transform:uppercase">${t('Mission 8')}</div>`
+    + `<div style="font-size:clamp(28px,6vw,68px);font-weight:bold;color:#ffe9a8;
+                   letter-spacing:.06em;text-shadow:0 14px 60px rgba(0,0,0,.8);
+                   text-align:center;padding:0 6vw">${t('TO BE CONTINUED')}</div>`
+    + `<div style="font-size:clamp(14px,1.9vw,19px);color:#cfe0ff;text-align:center;
+                   max-width:34em;padding:0 8vw;line-height:1.6">`
+    + `${t('Ion is mended. Nobody knows who E. is yet, and there is a '
+         + 'bowl of stone on this planet that has been full the whole time.')}</div>`
+    + `<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:8px">`
+    + `<button id="tbcHome" style="padding:13px 26px;border-radius:12px;border:0;
+         cursor:pointer;background:#ffd98a;color:#241a05;font:inherit;font-weight:700">`
+    + `${t('BACK TO SENIO')}</button>`
+    + `<button id="tbcStay" style="padding:13px 26px;border-radius:12px;cursor:pointer;
+         background:rgba(15,22,36,.85);border:2px solid #4a5f8a;color:#dfe8ff;
+         font:inherit">${t('KEEP EXPLORING RYU')}</button></div>`;
+    requestAnimationFrame(()=>{ el.style.opacity='1'; });
+    const shut=()=>{ el.style.opacity='0';
+                     setTimeout(()=>{ if(el.parentNode) el.remove(); }, 900); };
+    const home=document.querySelector('#tbcHome');
+    const stay=document.querySelector('#tbcStay');
+    if(home) home.onclick=()=>{ shut(); wentTo('mission'); leave();
+                                if(window.MENU) MENU.open(); };
+    if(stay) stay.onclick=()=>{ shut(); G.running=true;
+                                say(t('The glasses are yours. <b>G</b> takes them off.')); };
   }
 
   function finishIon(){
@@ -5533,6 +5696,19 @@ window.PLANET = (function(){
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
                || id==='takeship'
+               /* THE TWO DOORS MISSION 8 ADDED, and leaving them off this
+                  list is why neither of them worked. `use()` refuses any
+                  id it has not been told about — which is right, because
+                  an unknown id used to fall through to startMissionRoom()
+                  and build a room out of a typo — but it refuses SILENTLY,
+                  so a door with a nameplate, a verb and a hit box does
+                  nothing at all when you press E at it and there is
+                  nowhere to look for why.
+
+                  `preflight` is the lit panel on the E-45's flank; the
+                  whole of it was reachable and dead. `brawlgate` is the
+                  way into the arena. */
+               || id==='preflight' || id==='brawlgate'
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
@@ -5621,6 +5797,12 @@ window.PLANET = (function(){
       openFix();
       return;
     }
+    /* `brawlgate` AND NOT `arena`, WHICH IS ALREADY A WORLD. There is a
+       mecha arena among this game's balls, so a door called 'arena' is a
+       door whose id is also the name of somewhere the travel system can
+       fly you. Nothing had gone wrong yet and it is exactly the kind of
+       thing that goes wrong once. */
+    if(id==='brawlgate'){ arenaIn(); return; }
     if(id==='lift'){ liftGo(); return; }
     if(id==='towersign'){ say(t('The lift is at the back. <b>E</b> on it to go up.')); return; }
     if(id==='towermech'){ handOver(); return; }
@@ -6117,7 +6299,18 @@ window.PLANET = (function(){
          The walkthrough's job is getting somebody to the lesson; once
          they are in it, it has nothing left to say. */
       { say:'Give Ion to the Mechanic.',
-        done:()=>ionFlag('ion_handed') }
+        done:()=>ionFlag('ion_handed') },
+      /* AND THE LAST THING THE MISSION ASKS FOR. The glasses put you
+         outside the tower facing a bowl of stone you have every reason
+         not to understand; the walkthrough says the one thing that turns
+         it from scenery into somewhere to go, which is that it has a
+         door. */
+      { say:'Something is out there. Walk to it.',
+        at:()=>{ const C=dirOf(BRAWL_AT.lon, BRAWL_AT.lat);
+                 return withSize(C.clone().multiplyScalar(PR+floorAt(C)+40), 12); },
+        done:()=>ionFlag('ion_arena')
+              || !ionFlag('ion_belt')          // not owed until the belt is done
+      }
     ], {});
   }
 

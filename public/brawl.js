@@ -110,6 +110,7 @@ window.BRAWL = (function(){
   const SETTLE = 3.4;
 
   let built=false, shown=false, root=null, PR=240;
+  let gate=null, gateHit=null, gateDir=null;
   let at=0, left=0, crowd=null, crowdSeed=[];
   const side={ a:null, n:null };
 
@@ -323,11 +324,24 @@ window.BRAWL = (function(){
       const h=bx.max.y-bx.min.y;
       const k=h>1e-6 ? tall/h : 1;
       r.scale.setScalar(k);
-      /* SOLES ON THE SAND, BY THE SKIN. The origin of a Mixamo export is
-         not its feet, and the gap is invisible at a metre and eleven
-         units off the floor at ninety-five. */
-      r.position.y = -bx.min.y*k;
-      s.foot = r.position.y;
+      /* SCALED AND NOT LIFTED, WHICH COST ME A BUG.
+
+         There was a line here nudging the model up by -box.min.y, on the
+         reasoning that a Mixamo export's origin is not its feet. The box
+         says so: the rest vertices of these meshes are centred on the
+         origin, half of them below it. The SKELETON is not — it stands on
+         the origin, and the two are reconciled by the inverse bind
+         matrices, so where the mesh is DRAWN is where the bones put it
+         and not where its rest coordinates sit.
+
+         So the lift was half the robot's height of pure error, and at
+         ninety-five units that is forty-eight: both machines fought in
+         mid-air with their shadows on the sand underneath them. The bind
+         box measured them as grounded the whole time, because the box is
+         in the space the lift had just corrected.
+
+         AVATAR has scaled every character in this game for months without
+         touching position, for exactly this reason. Scale only. */
       s.group.add(r);
       s.root=r;
       s.mixer=new THREE.AnimationMixer(r);
@@ -369,6 +383,59 @@ window.BRAWL = (function(){
     const lamp=new THREE.PointLight(0x9fe6ff, 2.6, 150, 1.3);
     lamp.position.set(0, 70, 0); root.add(lamp);
     if(o.parent) o.parent.add(root);
+
+    /* ------------------------------------------------------------ THE GATE
+       THE WAY IN, AND IT IS THE ONLY ONE. A bowl a hundred and thirty
+       units across with no door is scenery you fly over; a door makes it
+       somewhere you arrive at, which is the difference between seeing the
+       place and being let into it.
+
+       IT FACES THE TOWER, because that is where everybody comes from.
+       planet.js works out the bearing — it is the only file that knows
+       where the tower is — and hands it in as an angle in this frame. */
+    const gph = (o.gate===undefined) ? Math.PI : o.gate;
+    gate=new THREE.Group();
+    {
+      const D=FLOOR + TIERS*TREAD + 2.0;          // just inside the outer lip
+      const post=new THREE.MeshBasicMaterial({ color:0x3b4a63 });
+      const lamp=new THREE.MeshBasicMaterial({ color:0xffd98a });
+      const wide=0.085;                            // radians of arc, each side
+      [-wide, wide].forEach(dp=>{
+        const v=onBall(D, 0, gph+dp);
+        const col=new THREE.Mesh(new THREE.BoxGeometry(5, 26, 5), post);
+        col.position.set(v[0], v[1], v[2]);
+        /* upright means away from the core, the same as everything else
+           standing on this ball */
+        const up=new THREE.Vector3(v[0], v[1]+PR, v[2]).normalize();
+        const fwd=new THREE.Vector3(-Math.cos(gph),0,-Math.sin(gph));
+        fwd.sub(up.clone().multiplyScalar(fwd.dot(up))).normalize();
+        const rt=new THREE.Vector3().crossVectors(up, fwd).normalize();
+        col.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rt, up, fwd));
+        col.position.copy(new THREE.Vector3(v[0], v[1], v[2])
+          .add(up.clone().multiplyScalar(13)));
+        gate.add(col);
+        const l=new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.4, 3.4), lamp);
+        l.position.copy(col.position).add(up.clone().multiplyScalar(15));
+        gate.add(l);
+      });
+      /* AND THE THING YOU PRESS, which is the space between them rather
+         than either post: a gate is a gap, and a student walking at a gap
+         should not have to find the left-hand pillar. */
+      const v=onBall(D, 0, gph);
+      const up=new THREE.Vector3(v[0], v[1]+PR, v[2]).normalize();
+      const door=new THREE.Mesh(new THREE.BoxGeometry(16, 26, 3),
+        new THREE.MeshBasicMaterial({ color:0x123040, transparent:true, opacity:0.42 }));
+      door.position.copy(new THREE.Vector3(v[0], v[1], v[2])
+        .add(up.clone().multiplyScalar(13)));
+      const fwd=new THREE.Vector3(-Math.cos(gph),0,-Math.sin(gph));
+      fwd.sub(up.clone().multiplyScalar(fwd.dot(up))).normalize();
+      const rt=new THREE.Vector3().crossVectors(up, fwd).normalize();
+      door.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rt, up, fwd));
+      gate.add(door);
+      gateHit=door;
+      gateDir=onBall(D + 16, 0, gph);            // where somebody stands to use it
+    }
+    root.add(gate);
 
     const started=()=>{ if(!shown) return;
                         const r=ROUND[at];
@@ -432,7 +499,7 @@ window.BRAWL = (function(){
   function hide(){ shown=false; if(root) root.visible=false; }
   function clear(){
     if(root && root.parent) root.parent.remove(root);
-    root=null; crowd=null; crowdSeed=[];
+    root=null; crowd=null; crowdSeed=[]; gate=null; gateHit=null; gateDir=null;
     side.a=null; side.n=null;
     built=false; shown=false; at=0; left=0;
   }
@@ -442,6 +509,10 @@ window.BRAWL = (function(){
            get visible(){ return shown; },
            get groups(){ return side; },
            get root(){ return root; },
+           /* The way in: the slab you press, and the spot outside it that
+              a walkthrough can ring and a player can stand on. */
+           get gate(){ return gateHit; },
+           get gateLocal(){ return gateDir; },
            get seats(){ return crowd ? crowd.count : 0; },
            /* how big the place is, for whoever has to stand it somewhere
               that is not already occupied by a building */

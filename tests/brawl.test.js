@@ -106,8 +106,11 @@ test('the glasses are the mission’s, so starting over takes them back', ()=>{
 
 test('the Mechanic is the one who hands them over', ()=>{
   const planet=bare(read('public/planet.js'));
-  const mended=planet.slice(planet.indexOf('function mended()'),
-                            planet.indexOf('function finishIon()'));
+  /* THE SCENE ITSELF, not everything between mended() and finishIon().
+     The arena sequence now lives in that gap and has a camera setup in it
+     called FIGHT, which is not somebody saying it out loud. */
+  const mStart=planet.indexOf('function mended()');
+  const mended=planet.slice(mStart, planet.indexOf('}});', mStart)+4);
   assert.ok(mended.length>200, 'mended() could not be found');
   assert.match(mended, /PROGRESS\.set\(SPECS,\s*1\)/,
     'the scene that lends you the glasses never records that it did');

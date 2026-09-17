@@ -289,8 +289,15 @@ test('the glasses put you outside, next to the ship', ()=>{
                          planet.indexOf('function finishIon()'));
   assert.match(out, /BUILDINGS\.find\(x=>x\.id==='tower'\)/, 'it does not look the tower up');
   assert.match(out, /me\.alt=floorAt\(me\.dir\)/, 'you are put outside in mid-air');
-  assert.match(out, /parkHere\(\)/,
-    'you are put outside and the ship is left wherever the landing happened to leave her');
+  /* AND FACING THE ARENA, WHICH IS A WALK. This used to park the E-45
+     beside you and turn you to look at her, which staged the wrong thing:
+     the bowl's nearest wall is sixty-nine units from this door, and
+     arriving somewhere on foot through a gate is how you arrive at a
+     place with people in it. */
+  assert.match(out, /facing\(me\.dir, dirOf\(BRAWL_AT\.lon, BRAWL_AT\.lat\)\)/,
+    'you are put outside facing something other than the arena');
+  assert.ok(!/parkHere\(\)/.test(out),
+    'the ending still parks a ship beside you, which stages a flight');
   /* AND IT RUNS WHERE THE GLASSES ARE GRANTED, after the flag is set. */
   /* THE END CALLBACK, not the whole of mended(): its early-return guards
      call finishIon() too, and reading the order off those would be
@@ -306,4 +313,59 @@ test('the glasses put you outside, next to the ship', ()=>{
   assert.ok(outAt>setAt, 'you are moved outside before the glasses are actually yours');
   assert.ok(tail.indexOf('finishIon()')>outAt,
     'the mission is completed before you are outside');
+});
+
+test('the arena is a place you walk into', ()=>{
+  /* IT WAS A THING TO LOOK AT: a bowl on the horizon full of people
+     nobody could talk to. You could fly over it and stand on the sand,
+     and neither of those is arriving somewhere. */
+  const planet=bare(read('public/planet.js'));
+  const brawl=bare(read('public/brawl.js'));
+  assert.match(brawl, /gateHit=door/, 'the arena has no gate');
+  assert.match(brawl, /get gate\(\)/, 'the gate is not handed out to be wired up');
+  assert.match(planet, /enter:'brawlgate'/, 'the gate is not a door');
+  assert.match(planet, /if\(id==='brawlgate'\)\{ arenaIn\(\); return; \}/,
+    'pressing E at the gate does nothing');
+
+  /* AND `use()` HAS AN ALLOW-LIST, which is why neither of Mission 8's
+     two new doors worked: it refuses any id it has not been told about —
+     right, because an unknown id used to fall through and build a room
+     out of a typo — but it refuses SILENTLY. A door with a nameplate, a
+     verb and a hit box did nothing at all and there was nowhere to look
+     for why. */
+  const known=planet.slice(planet.indexOf('const known ='),
+                           planet.indexOf('if(!known) return;'));
+  for(const door of ['preflight','brawlgate'])
+    assert.ok(known.includes("id==='"+door+"'"),
+      "'"+door+"' is not on use()'s allow-list, so pressing E at it silently does nothing");
+
+  /* NOT CALLED 'arena', WHICH IS ALREADY A WORLD in this game. */
+  assert.ok(!/enter:'arena'/.test(planet),
+    "the gate's id collides with the mecha arena world");
+
+  /* THE SEQUENCE: a rise, a welcome, the fight, and an ending. */
+  const inn=planet.slice(planet.indexOf('function arenaIn()'),
+                         planet.indexOf('function arenaSeat()'));
+  assert.match(inn, /who:'The Usher'/, 'nobody welcomes you in');
+  assert.match(inn, /glasses/i, 'the Usher never mentions the one reason you can see this');
+  assert.match(inn, /arenaEnd\(\)/, 'the sequence never ends the mission');
+  assert.ok(/'The Usher':'characters\/previews\//.test(planet),
+    'the Usher speaks with no face beside her');
+
+  /* AND YOU ARE PUT DOWN INSIDE. The stands are not solid — deliberately,
+     because a wall you cannot see is a wall you walk into — so leaving
+     somebody in the back row drops them through twelve tiers of crowd
+     into the desert outside. */
+  const seat=planet.slice(planet.indexOf('function arenaSeat()'),
+                          planet.indexOf('function arenaEnd()'));
+  assert.match(seat, /me\.onGround=true/, 'you are left in mid-air over unsolid stands');
+  assert.match(seat, /floorAt\(me\.dir\)/, 'you are put down at a height nothing stands on');
+
+  /* THE CARD, AND TWO DOORS OUT OF IT. "The end" is not "stop". */
+  const end=planet.slice(planet.indexOf('function arenaEnd()'),
+                         planet.indexOf('function finishIon()'));
+  assert.match(end, /TO BE CONTINUED/, 'the game runs out without saying so');
+  assert.match(end, /tbcHome/, 'there is no way back to Senio');
+  assert.match(end, /tbcStay/, 'there is no way to stay and look around');
+  assert.match(end, /MENU\.open\(\)/, 'the way back to Senio goes nowhere');
 });
