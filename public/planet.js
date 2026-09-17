@@ -2844,7 +2844,16 @@ window.PLANET = (function(){
 
   function board(){
     const b=shipB;
-    if(!b || !b.g || !b.frame || !window.SCENE) return false;
+    if(!b || !b.g || !b.frame) return false;
+    /* ONCE ION IS ON THE CRADLE, GETTING IN IS GETTING IN.
+
+       The scene below is the one that takes him to the Mechanic — "thank
+       you", "and then we find out who E. is" — and he says it from the
+       passenger seat. Played again after he has been handed over it is a
+       robot talking to you from two floors up, thanking you for a lift he
+       is not on. So the second flight has no film: you climb in and you
+       fly, which is what a ship you own is for. */
+    if(handed() || !window.SCENE){ embark(); return true; }
     /* The same three places the brief was shot from — she has not moved
        and neither has the house, so a second copy of these offsets would
        be a second set of numbers to keep in step with her. */
@@ -2911,10 +2920,39 @@ window.PLANET = (function(){
   }
 
   /* Put her away again — leaving the world, or arriving. */
+  /* GETTING OUT, AND THE SHIP IS WHERE YOU LEFT HER.
+
+     embark() hides the parked E-45 and empties her solids, because the
+     one you are flying is a second copy and taking off through your own
+     collision box is not flying. Nothing ever put her back. So after the
+     flight to the tower she did not exist: invisible, walk-through, her
+     `dir` still pointing at the patch of dirt outside the house two
+     hundred units away, and no way to fly anywhere ever again. A ship you
+     can use once is a cutscene with a throttle.
+
+     She is re-parked wherever you got out. Her direction, her tangent
+     frame and her solids are all rebuilt from that spot, so she is a
+     thing standing on the ground at the tower in exactly the way she was
+     a thing standing on the ground at the house. */
   function disembark(){
     aboard=false;
     if(shipRide && shipRide.parent) shipRide.parent.remove(shipRide);
     shipRide=null;
+    parkHere();
+  }
+  /* A few metres to one side of wherever the player is standing, so
+     stepping out does not leave you inside her. */
+  function parkHere(){
+    const b=shipB;
+    if(!b || !b.g) return;
+    const F=frameAt(me.dir, 0);
+    const off=F.right.clone().multiplyScalar(7/PR);
+    b.dir=me.dir.clone().add(off).normalize();
+    b.frame=stand(b.g, b.dir, 0, terrainH(b.dir));
+    b.g.visible=true;
+    b.solids.length=0;
+    b.solids.push({ x1:-2.2, x2:2.2, z1:-5.5, z2:5.5, y1:0, y2:3.4 });
+    G.scene.updateMatrixWorld(true);
   }
 
   /* ARRIVING, which is the only thing the flight is for.
@@ -3988,9 +4026,44 @@ window.PLANET = (function(){
            /* finishIon() has the last word, because "Mission 8 complete"
               is the more important of the two things to say and say()
               only holds one. He has already told you which key. */
-           G.running=true; finishIon();
+           G.running=true;
+           outsideTower();
+           finishIon();
          } }});
   }
+  /* AND OUT OF THE TOWER WITH THEM.
+
+     The glasses are handed over on the middle floor of a building whose
+     only way down is a lift, and what they are FOR is a hundred and
+     seventy units away across the desert. Leaving a student in a workshop
+     holding the one thing in the game that needs open sky — with a lift
+     ride, a lobby and a door between them and it — is the mission ending
+     by asking them to retrace their steps.
+
+     So the scene puts them outside, in front of the tower, with the E-45
+     parked where they landed her. Press G and there is something on the
+     horizon; get in and fly at it. */
+  function outsideTower(){
+    const b=BUILDINGS.find(x=>x.id==='tower');
+    if(!b || !b.dir){ return; }
+    /* Out in front of the door and far enough back to see the building
+       they have just walked out of, which is the same offset the tour
+       uses to point at a door. */
+    const f=frameAt(b.dir, 0);
+    me.dir=b.dir.clone()
+      .add(f.fwd.clone().multiplyScalar(16/PR))
+      .normalize();
+    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true;
+    me.fwd=facing(me.dir, b.dir);
+    /* AND THE SHIP BESIDE THEM. She was left wherever the landing put
+       her, which is near the tower but not necessarily in sight of its
+       door — and the next thing this mission asks for is a flight. */
+    parkHere();
+    /* then turn them round to look at her rather than at the wall */
+    if(shipB && shipB.dir) me.fwd=facing(me.dir, shipB.dir);
+    G.scene.updateMatrixWorld(true);
+  }
+
   function finishIon(){
     try{ if(window.PROGRESS) PROGRESS.complete('ion'); }catch(e){}
     say(t('<b>Mission 8 complete.</b> The lift goes to <b>THE TOP</b>.'));

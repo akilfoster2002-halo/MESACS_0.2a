@@ -245,3 +245,65 @@ test('the walkthrough card steps aside for a lesson panel', ()=>{
   assert.ok(!/COACH\.stop\(\)/.test(bq),
     'the panel stops the walkthrough outright, so closing it strands the student');
 });
+
+test('the ship is where you left her, and she flies again', ()=>{
+  /* embark() HIDES THE PARKED E-45 and empties her solids, because the one
+     you are flying is a second copy and taking off through your own
+     collision box is not flying. Nothing ever put her back — so after the
+     flight to the tower she did not exist: invisible, walk-through, and
+     her `dir` still pointing at the patch outside the house two hundred
+     units away. A ship you can use once is a cutscene with a throttle. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /if\(shipB\)\{ if\(shipB\.g\) shipB\.g\.visible=false; shipB\.solids\.length=0; \}/,
+    'embark no longer hides the parked ship, so this is a different bug now');
+  assert.match(planet, /function parkHere\(\)/, 'nothing ever parks her again');
+  const dis=planet.slice(planet.indexOf('function disembark()'),
+                         planet.indexOf('function parkHere()'));
+  assert.match(dis, /parkHere\(\)/, 'getting out does not park her');
+  const park=planet.slice(planet.indexOf('function parkHere()'),
+                          planet.indexOf('const ARRIVE = 30'));
+  assert.match(park, /b\.g\.visible=true/, 'she is parked but still invisible');
+  assert.match(park, /b\.frame=stand\(b\.g, b\.dir/, 'she is parked without a tangent frame');
+  assert.match(park, /b\.solids\.push/, 'she is parked with no collision, so you walk through her');
+  assert.match(park, /b\.dir=me\.dir\.clone\(\)\.add\(off\)\.normalize\(\)/,
+    'she is parked somewhere other than where you got out');
+
+  /* AND THE SECOND FLIGHT HAS NO FILM. board()'s scene is the one that
+     takes Ion to the Mechanic — he says "thank you" from the passenger
+     seat. Played after he has been handed over it is a robot thanking you
+     from two floors up for a lift he is not on. */
+  const bd=planet.slice(planet.indexOf('function board()'),
+                        planet.indexOf('function embark()'));
+  assert.match(bd, /if\(handed\(\) \|\| !window\.SCENE\)\{ embark\(\); return true; \}/,
+    'boarding after the handover replays Ion thanking you for a lift he is not on');
+});
+
+test('the glasses put you outside, next to the ship', ()=>{
+  /* THEY ARE HANDED OVER ON THE MIDDLE FLOOR of a building whose only way
+     down is a lift, and what they are FOR is a hundred and seventy units
+     away across the desert. Ending the mission by asking somebody to
+     retrace their steps is ending it with a chore. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /function outsideTower\(\)/, 'nothing takes you out of the tower');
+  const out=planet.slice(planet.indexOf('function outsideTower()'),
+                         planet.indexOf('function finishIon()'));
+  assert.match(out, /BUILDINGS\.find\(x=>x\.id==='tower'\)/, 'it does not look the tower up');
+  assert.match(out, /me\.alt=floorAt\(me\.dir\)/, 'you are put outside in mid-air');
+  assert.match(out, /parkHere\(\)/,
+    'you are put outside and the ship is left wherever the landing happened to leave her');
+  /* AND IT RUNS WHERE THE GLASSES ARE GRANTED, after the flag is set. */
+  /* THE END CALLBACK, not the whole of mended(): its early-return guards
+     call finishIon() too, and reading the order off those would be
+     reading the order of the failure path. */
+  const mend=planet.slice(planet.indexOf('function mended()'),
+                          planet.indexOf('function outsideTower()'));
+  const endAt=mend.indexOf('end:()=>{');
+  assert.ok(endAt>=0, 'the handover scene has no end callback');
+  const tail=mend.slice(endAt);
+  const setAt=tail.indexOf('PROGRESS.set(SPECS,1)');
+  const outAt=tail.indexOf('outsideTower()');
+  assert.ok(setAt>=0, 'the glasses are never granted');
+  assert.ok(outAt>setAt, 'you are moved outside before the glasses are actually yours');
+  assert.ok(tail.indexOf('finishIon()')>outAt,
+    'the mission is completed before you are outside');
+});
