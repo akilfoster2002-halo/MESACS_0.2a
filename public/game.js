@@ -517,7 +517,31 @@ function startMissionRoom(id){
   if(id==='trail'){ if(window.TRAIL) TRAIL.start(); return; }
   /* Ion's is a house: two rooms out of the same kit, with a story told
      over them and a broken robot on the floor of the second. */
-  if(id==='ion'){ if(window.HOUSE) HOUSE.enter(); return; }
+  /* MISSION 8 IS THE ONE THAT DOES NOT START ON ITS PLANET. Every other
+     mission here either builds its own room or lands you on a ball; this
+     one opens INSIDE the house, with Ion on the kitchen floor, and RYU is
+     somewhere you only reach by walking out of the front door.
+
+     WHICH IS WHY THE RESTART LIVES HERE. It was in PLANET.enter(), keyed
+     off "arrived with no spawn point" — and the only call that ever
+     reaches RYU is house.js opening the door, which always passes one. So
+     it never fired once on the route anybody actually takes: a student who
+     cleared the pre-flight last week walked out to a ship with nothing
+     wrong with it, no smoke and no questions, exactly as before. This is
+     where joining the mission happens, so this is where it starts over.
+
+     restart() keeps the COMPLETE stamp and the quiz score on purpose:
+     those are things that happened, and taking a finished mission back
+     would lock every mission that needed it. */
+  if(id==='ion'){
+    try{ if(window.PROGRESS) PROGRESS.restart('ion'); }catch(e){}
+    if(window.OPENING && OPENING.forget) OPENING.forget();
+    const go=()=>{ if(window.HOUSE) HOUSE.enter(); };
+    /* and the cold open in front of it, on the robot you are about to
+       find on the floor of the room this opens into */
+    if(window.OPENING && !OPENING.seen && !OPENING.active) return OPENING.play(go);
+    go(); return;
+  }
   /* The trench builds its own seabed, the way the flight builds its own
      field: a board you look down on rather than a room you stand in. */
   if(id==='sub'){ if(window.SUB) SUB.start(resumeAt('sub')); return; }

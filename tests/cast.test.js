@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 
 function roster(){
   const m = read('public/avatar.js').match(/const IDS\s*=\s*'([a-z]+)'\.split/);
@@ -276,8 +277,14 @@ test('RYU has one door, and it is the Ion station on the floor of Mission Contro
   const menu = read('public/menu.js');
   assert.match(menu, /ion:'Mission 8/, 'the mission has a name wherever missions are named');
   assert.match(planet, /\{ id:'ion',/, 'there is no station on the wall');
-  assert.match(read('public/game.js'), /if\(id==='ion'\)\{ if\(window\.HOUSE\) HOUSE\.enter\(\)/,
-    'the station does not open the house');
+  /* THE STATION OPENS THE HOUSE, which is the whole shape of this
+     mission: you start inside, with Ion on the kitchen floor, and RYU is
+     somewhere you only reach by walking out of the front door. The branch
+     grew a restart and a cold open in front of that; what matters here is
+     still that the house is where it ends up. */
+  const ion=bare(read('public/game.js'));
+  const branch=ion.slice(ion.indexOf("if(id==='ion'){"), ion.indexOf("if(id==='ion'){")+700);
+  assert.match(branch, /HOUSE\.enter\(\)/, 'the station does not open the house');
   /* AND NOT ON THE WAY IN. Landing every student on RYU put a story in
      front of everybody who opened Koro whether they had come for it or
      not. The front door of the game is Senio. */
