@@ -290,12 +290,44 @@
      puts the question back on the end rather than stopping anybody, so
      the round ends when all twenty are known and not when all twenty have
      been seen. `firstTry` is the score worth reporting. */
+  /* AND THE OPTIONS ARE SHUFFLED, WHICH IS NOT A FLOURISH.
+
+     Every question in both banks is written with its right answer first,
+     because that is the only sane way to write forty of them and keep
+     them readable. Shown in that order it is not a quiz: click the top
+     one forty times and you are through, having read nothing. Somebody
+     spotted that in about a minute, which is roughly how long it would
+     take a class.
+
+     So each question gets its own permutation when the round starts, and
+     everything downstream — which option was clicked, which are struck
+     out, which one lights up green — is in DISPLAY order. `a` stays where
+     the author put it and is mapped through the shuffle at the one place
+     it is compared. Re-shuffled on every start(), so a second attempt is
+     not the first one with the positions memorised. */
+  function shuffle(n){
+    const o=[]; for(let i=0;i<n;i++) o.push(i);
+    for(let i=n-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));
+                            const t=o[i]; o[i]=o[j]; o[j]=t; }
+    return o;
+  }
   function start(){
     return { queue: QUESTIONS.map((q,i)=>i),
+             shuf:  QUESTIONS.map(q=>shuffle(q.opts.length)),
              at:0, picked:null, wrong:[], firstTry:0, seen:{} };
   }
   const current = s => QUESTIONS[s.queue[s.at]];
   const done    = s => s.at >= s.queue.length;
+  /* The question as it is on screen: its options in this round's order,
+     and where the right one has landed in that order. */
+  function shown(s){
+    const idx=s.queue[s.at], q=QUESTIONS[idx];
+    if(!q) return null;
+    const perm=(s.shuf && s.shuf[idx]) || q.opts.map((o,i)=>i);
+    return { q, idx, perm,
+             opts: perm.map(i=>q.opts[i]),
+             a:    perm.indexOf(q.a) };
+  }
 
   /* ANSWERING, AND A WRONG ONE IS A TRY AGAIN.
 
@@ -314,10 +346,20 @@
      THE SCORE IS STILL FIRST ATTEMPTS. `seen[idx]` is written once, on
      the first answer to a question, so a student who gets there on the
      third go has learned it and knows they took three. */
+  /* `i` IS A DISPLAY INDEX. It is what the student clicked, which after
+     the shuffle is not what the author wrote. */
   function answer(s, i){
     if(done(s) || s.picked!==null) return s;
-    const idx=s.queue[s.at], q=QUESTIONS[idx];
-    const right = i===q.a;
+    /* AND A STRUCK-OUT OPTION IS DEAD. The panel disables the button, so
+       this cannot be reached by clicking — but a rule enforced only by a
+       disabled attribute is a rule that holds until somebody adds a
+       keyboard shortcut. Ruling the same option out twice would also put
+       it in the list twice. */
+    if((s.wrong||[]).indexOf(i)>=0) return s;
+    const v=shown(s);
+    if(!v) return s;
+    const idx=v.idx;
+    const right = i===v.a;
     const out=Object.assign({}, s);
     out.seen=Object.assign({}, s.seen);
     if(out.seen[idx]===undefined){
@@ -340,7 +382,7 @@
     return Object.assign({}, s, { picked:null, wrong:[], at:s.at+1 });
   }
 
-  const API = { BANKS, start, current, done, answer, next,
+  const API = { BANKS, start, current, shown, done, answer, next,
                 get QUESTIONS(){ return QUESTIONS; },
                 get length(){ return QUESTIONS.length; } };
 
@@ -446,16 +488,19 @@
   const opWord = html => html.replace(OPRE, '<em class="bqop">$1</em>');
 
   function draw(){
-    const u=dom(), q=current(state);
-    if(!q) return finish();
-    const picked=state.picked, struck=state.wrong||[];
+    const u=dom(), v=shown(state);
+    if(!v) return finish();
+    /* EVERYTHING HERE IS IN DISPLAY ORDER — the options, which one is
+       struck out, and which one lights up green. `v.a` is where the
+       author's right answer landed in this round's shuffle. */
+    const q=v.q, picked=state.picked, struck=state.wrong||[];
     u.body.innerHTML =
       `<p class="bqq">${opWord(esc(q.q))}</p>`
     + `<p class="bqask">${opWord(esc(q.ask))}</p>`
-    + `<div class="bqopts">` + q.opts.map((o,i)=>{
+    + `<div class="bqopts">` + v.opts.map((o,i)=>{
         let cls='bqo';
         const dead = struck.indexOf(i)>=0;
-        if(picked!==null && i===q.a) cls+=' right';
+        if(picked!==null && i===v.a) cls+=' right';
         else if(dead) cls+=' wrong';
         const off = picked!==null || dead;
         return `<button class="${cls}" data-i="${i}"${off?' disabled':''}>`

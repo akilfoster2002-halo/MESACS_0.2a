@@ -497,30 +497,89 @@ test('the Mechanic asks in English, and does not let go until you know', ()=>{
      test and a poor way to teach: the moment somebody is most willing to
      think about `and` versus `or` is the second after getting it wrong,
      and being shown the answer is exactly what removes the reason to. */
+  /* EVERY INDEX HERE IS A DISPLAY INDEX, because the options are shuffled
+     per round and what the student clicks is a position on screen rather
+     than the position the author wrote. shown() is the question as it is
+     actually presented. */
   let s=Q.start();
   const first=Q.current(s);
-  const bad=(first.a===0?1:0);
+  const right=Q.shown(s).a;
+  const bad=(right===0?1:0);
   s=Q.answer(s, bad);
   assert.strictEqual(Q.current(s), first, 'a wrong answer moved the quiz on');
   assert.strictEqual(s.picked, null, 'a wrong answer revealed the right one');
   assert.deepStrictEqual(s.wrong, [bad], 'the wrong option is not struck out');
   /* the same wrong option cannot be clicked twice */
   s=Q.answer(s, bad);
-  assert.deepStrictEqual(s.wrong, [bad, bad].slice(0,1).concat(s.wrong.slice(1)),
-    'a struck-out option is still live');
+  assert.deepStrictEqual(s.wrong, [bad], 'a struck-out option is still live');
   /* and getting it right releases it */
-  s=Q.answer(s, first.a);
-  assert.strictEqual(s.picked, first.a, 'the right answer is not revealed');
+  s=Q.answer(s, right);
+  assert.strictEqual(s.picked, right, 'the right answer is not revealed');
 
   /* THE SCORE IS STILL FIRST ATTEMPTS. Somebody who gets there on the
      third go has learned it and knows they took three. */
   assert.strictEqual(s.firstTry, 0, 'a question got wrong first still scored');
   let t=Q.start(), guard=0;
-  while(!Q.done(t) && guard++ < 400){ t=Q.answer(t, Q.current(t).a); t=Q.next(t); }
+  while(!Q.done(t) && guard++ < 400){ t=Q.answer(t, Q.shown(t).a); t=Q.next(t); }
   assert.ok(guard<400, 'the quiz never ends');
   assert.strictEqual(t.firstTry, Q.QUESTIONS.length,
     'a clean run does not score '+Q.QUESTIONS.length);
   /* AND EVERY QUESTION IS ANSWERED EXACTLY ONCE when nothing goes wrong:
      there is no re-queue any more, because nothing is left behind. */
   assert.strictEqual(guard, Q.QUESTIONS.length, 'a clean run took '+guard+' turns');
+});
+
+test('the right answer is not always the first one', ()=>{
+  /* EVERY QUESTION IN BOTH BANKS IS AUTHORED WITH ITS ANSWER FIRST,
+     because that is the only sane way to write forty of them and keep
+     them readable. Shown in that order it is not a quiz: click the top
+     option forty times and you are through, having read nothing. */
+  const Q=require('../public/boolquiz.js');
+  for(const b of ['bool','compare'])
+    assert.ok(Q.BANKS[b].every(q=>q.a===0),
+      'the '+b+' bank is no longer authored answer-first, so the shuffle below '
+      +'is testing something other than what it was written for');
+
+  /* SO THE ROUND SHUFFLES THEM. Over many starts the right answer has to
+     land in every position a question has. */
+  for(const bank of ['bool','compare']){
+    const seen=new Set();
+    for(let r=0;r<300;r++){
+      const s=Q.start();      // start() shuffles; open() picks the bank
+      const v=Q.shown(s);
+      seen.add(v.a);
+    }
+    assert.ok(seen.size>=2,
+      'the answer always lands in position '+[...seen][0]+': the options are not shuffled');
+  }
+
+  /* AND CLICKING THE TOP ONE EVERY TIME MUST NOT PASS. Twenty questions,
+     most with two or three options — getting through by reflex should be
+     wildly improbable, and over ten rounds it must never once happen. */
+  let cleanSweeps=0;
+  for(let round=0; round<10; round++){
+    let s=Q.start(), wrong=0, guard=0;
+    while(!Q.done(s) && guard++ < 400){
+      s=Q.answer(s, 0);
+      if(s.picked===null){ wrong++; s=Q.answer(s, Q.shown(s).a); }
+      s=Q.next(s);
+    }
+    if(wrong===0) cleanSweeps++;
+  }
+  assert.strictEqual(cleanSweeps, 0,
+    'clicking the first option every time passed the quiz outright');
+
+  /* A student who actually knows it still scores full. */
+  let s=Q.start(), guard=0;
+  while(!Q.done(s) && guard++ < 400){ s=Q.answer(s, Q.shown(s).a); s=Q.next(s); }
+  assert.strictEqual(s.firstTry, Q.length, 'a clean run no longer scores full');
+
+  /* AND THE PANEL DRAWS THE SHUFFLE, not the authored order — otherwise
+     the options move and the green tick does not. */
+  const src=bare(read('public/boolquiz.js'));
+  const draw=src.slice(src.indexOf('function draw(){'), src.indexOf('u.dots.innerHTML'));
+  assert.match(draw, /const q=v\.q/, 'draw() still reads the raw question');
+  assert.match(draw, /v\.opts\.map/, 'draw() lists the authored options, not the shuffled ones');
+  assert.match(draw, /i===v\.a/, 'draw() marks the authored answer, which is now the wrong button');
+  assert.ok(!/q\.opts\.map/.test(draw), 'draw() still maps over the authored options');
 });
