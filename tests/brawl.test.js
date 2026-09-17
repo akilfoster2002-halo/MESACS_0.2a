@@ -608,3 +608,53 @@ test('the right answer is not always the first one', ()=>{
   assert.match(draw, /i===v\.a/, 'draw() marks the authored answer, which is now the wrong button');
   assert.ok(!/q\.opts\.map/.test(draw), 'draw() still maps over the authored options');
 });
+
+test('the arena is lit, scored, and full of people who move', ()=>{
+  const brawl=bare(read('public/brawl.js'));
+
+  /* THE BEAMS ARE GEOMETRY AND THE LIGHTS ARE LIGHTS. A spotlight on its
+     own is invisible until it lands on something, and everything in this
+     bowl except the two machines carries its own brightness — so the cone
+     you can SEE is a mesh, and a real light rides inside it to put a
+     moving highlight on the one surface that answers to one. */
+  assert.match(brawl, /function lights\(\)/, 'the arena has no spotlights');
+  assert.match(brawl, /ConeGeometry\(\d+, len, \d+, 1, true\)/,
+    'the beam is a capped cone, which reads as a disc of fog over the sand');
+  assert.match(brawl, /AdditiveBlending/,
+    'the beam is blended normally: over a bright crowd it is invisible');
+  assert.match(brawl, /new THREE\.SpotLight\(/, 'nothing actually lights the fighters');
+  /* AND IT IS AIMED IN WORLD SPACE. Every other coordinate in the file is
+     in the arena's own frame, and lookAt is not — handing it a local one
+     pointed four spotlights at a spot two hundred and forty units
+     underground, so what stood over the stands was four spikes aimed at
+     the sky. */
+  assert.match(brawl, /b\.lookAt\(root\.localToWorld\(aimLocal\.clone\(\)\)\)/,
+    'the beams are aimed with arena-local coordinates at a world-space lookAt');
+
+  /* THE SCOREBOARD. The round is a loop of sixteen rows in which both
+     machines get floored once, so without somewhere to put the count it
+     reads as two robots taking turns. */
+  assert.match(brawl, /function scoreboard\(\)/, 'there is no scoreboard');
+  assert.match(brawl, /CanvasTexture/, 'the board is built out of meshes per glyph');
+  assert.match(brawl, /score\[r\.boom==='a' \? 'n' : 'a'\]\+\+/,
+    'the point goes to the machine that was hit rather than the one that landed it');
+  assert.match(brawl, /score=\{ a:0, n:0, round:score\.round\+1 \}/,
+    'the score only ever climbs, so it stops being a score by the third minute');
+
+  /* THE CROWD. It used to be the whole instanced mesh sliding nine
+     centimetres, which from the stands is a thousand people welded to one
+     plank. They stand up one at a time now, and all at once on a hit. */
+  assert.match(brawl, /arr\[o\+12\]=c\.x \+ c\.ux\*h/,
+    'the crowd is not moved by writing its instance matrices');
+  assert.ok(!/crowd\.position\.y *=/.test(brawl),
+    'the whole crowd still slides as one object');
+  assert.match(brawl, /w>0\.55 \? \(w-0\.55\)\/0\.45\*lift : 0/,
+    'the wave is a plain sine, so two thirds of the bowl is permanently half-standing');
+  assert.match(brawl, /cheer=1;/, 'nothing makes the crowd cheer');
+  assert.match(brawl, /cheer=Math\.max\(0, cheer - dt\*/, 'the cheer never dies down');
+  /* AND A FAN IS 5.6 UNITS TALL, so the lift has to be somewhere near
+     that: six and a half was everybody leaping three times their own
+     height, which is a trampoline rather than a crowd. */
+  const lift=+brawl.match(/const lift=([0-9.]+)/)[1];
+  assert.ok(lift>0 && lift<5, 'a standing fan rises '+lift+' units, which is not standing up');
+});

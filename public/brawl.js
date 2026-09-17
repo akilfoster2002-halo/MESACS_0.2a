@@ -111,6 +111,8 @@ window.BRAWL = (function(){
 
   let built=false, shown=false, root=null, PR=240;
   let gate=null, gateHit=null, gateDir=null;
+  let beams=[], board=null, boardTex=null, gateAngle=Math.PI;
+  let score={a:0,n:0,round:1};
   let at=0, left=0, crowd=null, crowdSeed=[];
   const side={ a:null, n:null };
 
@@ -283,13 +285,122 @@ window.BRAWL = (function(){
       /* dimmer down at the front, for the same reason the stone is */
       col.multiplyScalar(0.62+0.38*(p.k+1)/TIERS);
       im.setColorAt(i, col);
-      crowdSeed.push({ ph:p.ph, k:p.k, base:v[1], phase:(p.i*0.7+p.k*1.9)%6.28 });
+      /* WHAT EACH SEAT NEEDS TO MOVE. The wave and the cheer both push a
+         spectator along their own UP — which on a ball is a different
+         direction for every seat in the bowl — so the direction is worked
+         out once, here, and never again.
+
+         `ph` is how far round they are sitting, and it is what makes the
+         wave a wave: the crest is a function of angle, so it travels. */
+      crowdSeed.push({ x:v[0], y:v[1], z:v[2],
+                       ux:up.x, uy:up.y, uz:up.z,
+                       ph:p.ph, k:p.k });
     });
     im.instanceMatrix.needsUpdate=true;
     if(im.instanceColor) im.instanceColor.needsUpdate=true;
     im.frustumCulled=false;
     im.userData.per=per;
     return im;
+  }
+
+  /* A point on the ball as a Vector3, for anything that wants to look at
+     one rather than build geometry out of it. */
+  function onBallV(d, h, ph){ const v=onBall(d,h,ph); return new THREE.Vector3(v[0],v[1],v[2]); }
+
+  /* ------------------------------------------------------- THE LIGHTS
+     FOUR BEAMS OVER THE SAND, sweeping, and they are the only thing in
+     this bowl that changes what anything looks like.
+
+     THE BEAM IS GEOMETRY AND THE LIGHT IS A LIGHT. A spotlight on its own
+     is invisible until it lands on something, and everything in here
+     except the two machines carries its own brightness — the stands and
+     the crowd are unlit on purpose, because RYU's sun is one direction
+     for a structure two hundred and sixty units across. So the cone you
+     can see is a transparent mesh, and a real light rides inside it to
+     put a moving highlight on the fighters, which is the one surface in
+     the arena that answers to one. */
+  function lights(){
+    beams=[];
+    const D=FLOOR + TIERS*TREAD*0.55;        // out over the front rows
+    const HIGH=WALL + TIERS*RISER + 26;      // above the back row
+    for(let i=0;i<4;i++){
+      const a0=i*Math.PI/2 + 0.4;
+      const from=onBallV(D, HIGH, a0);
+      /* A CONE WITH NO BOTTOM AND NO INSIDE. openEnded keeps the flat cap
+         off the far end, which otherwise reads as a disc of fog hanging
+         over the sand; BackSide would make the beam only visible from
+         inside it. Double, so it is a shaft from wherever you are. */
+      const len=HIGH+40;
+      const geo=new THREE.ConeGeometry(24, len, 20, 1, true);
+      geo.translate(0, -len/2, 0);           // hang from the tip
+      const beam=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+        /* ADDITIVE, AND NOT MERELY TRANSPARENT. A shaft of light does not
+           hide what is behind it, it adds to it — and blended the normal
+           way at an opacity low enough not to fog the arena, a beam over
+           a bright crowd was invisible. Additive at 0.22 reads as light
+           against the dark sky and disappears against the stands, which
+           is what a real one does. */
+        color:0xbfe9ff, transparent:true, opacity:0.22,
+        blending:THREE.AdditiveBlending,
+        side:THREE.DoubleSide, depthWrite:false }));
+      beam.position.copy(from);
+      beam.userData={ a0, sp:0.35+i*0.11, off:i*1.7, reach:FLOOR*0.5 };
+      /* AND A REAL ONE INSIDE IT. Its range stops inside the sand, so it
+         is not quietly lighting the far stands as well. */
+      const lamp=new THREE.SpotLight(0xdff2ff, 260, HIGH+70, 0.34, 0.5, 1.4);
+      lamp.position.copy(from);
+      lamp.target.position.copy(onBallV(FLOOR*0.5, 2, a0));
+      root.add(lamp); root.add(lamp.target);
+      beam.userData.lamp=lamp;
+      root.add(beam); beams.push(beam);
+    }
+  }
+
+  /* ---------------------------------------------------- THE SCOREBOARD
+     WHO IS WINNING, WHICH NOBODY COULD TELL. The fight is a loop of
+     sixteen rows and both machines get floored once, so without somewhere
+     to put the count it reads as two robots taking turns — which is what
+     it is, and a scoreboard is what makes taking turns into a score.
+
+     DRAWN ON A CANVAS rather than built out of boxes. The names are six
+     and nine letters and the numbers change; a mesh per glyph is a
+     hundred meshes to say "AMBUSH 2". */
+  function boardPaint(){
+    if(!boardTex) return;
+    const c=boardTex.image, g=c.getContext('2d');
+    g.fillStyle='#0b1018'; g.fillRect(0,0,c.width,c.height);
+    g.fillStyle='#1b2740'; g.fillRect(0,0,c.width,10);
+    g.fillRect(0,c.height-10,c.width,10);
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillStyle='#7f9bc4'; g.font='bold 34px ui-monospace,Menlo,monospace';
+    g.fillText('ROUND '+score.round, c.width/2, 42);
+    g.font='bold 62px ui-monospace,Menlo,monospace';
+    g.fillStyle='#8fd6ff'; g.textAlign='left';  g.fillText('AMBUSH', 40, 130);
+    g.fillStyle='#c9a6ff'; g.textAlign='right'; g.fillText('NOISY BOY', c.width-40, 130);
+    g.font='bold 92px ui-monospace,Menlo,monospace';
+    g.fillStyle='#ffd98a'; g.textAlign='center';
+    g.fillText(score.a+'  –  '+score.n, c.width/2, 132);
+    boardTex.needsUpdate=true;
+  }
+  function scoreboard(){
+    const c=document.createElement('canvas'); c.width=1024; c.height=180;
+    boardTex=new THREE.CanvasTexture(c);
+    const D=FLOOR + TIERS*TREAD + 1.0;
+    const H=WALL + TIERS*RISER + 16;
+    /* OPPOSITE THE GATE, so the first thing in front of somebody who has
+       just walked in and turned round is the score. */
+    const a=(typeof gateAngle==='number' ? gateAngle : Math.PI) + Math.PI;
+    const at=onBallV(D, H, a);
+    board=new THREE.Mesh(new THREE.PlaneGeometry(86, 15),
+      new THREE.MeshBasicMaterial({ map:boardTex, side:THREE.DoubleSide }));
+    const up=new THREE.Vector3(at.x, at.y+PR, at.z).normalize();
+    const fwd=new THREE.Vector3(-Math.cos(a),0,-Math.sin(a));
+    fwd.sub(up.clone().multiplyScalar(fwd.dot(up))).normalize();
+    const rt=new THREE.Vector3().crossVectors(up, fwd).normalize();
+    board.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rt, up, fwd));
+    board.position.copy(at);
+    root.add(board);
+    boardPaint();
   }
 
   /* ------------------------------------------------------------- a body */
@@ -394,6 +505,7 @@ window.BRAWL = (function(){
        planet.js works out the bearing — it is the only file that knows
        where the tower is — and hands it in as an angle in this frame. */
     const gph = (o.gate===undefined) ? Math.PI : o.gate;
+    gateAngle = gph;
     gate=new THREE.Group();
     {
       const D=FLOOR + TIERS*TREAD + 2.0;          // just inside the outer lip
@@ -436,6 +548,8 @@ window.BRAWL = (function(){
       gateDir=onBall(D + 16, 0, gph);            // where somebody stands to use it
     }
     root.add(gate);
+    lights();
+    scoreboard();
 
     const started=()=>{ if(!shown) return;
                         const r=ROUND[at];
@@ -451,14 +565,25 @@ window.BRAWL = (function(){
   }
 
   function step(){
+    const wrapped = at===ROUND.length-1;
     at=(at+1)%ROUND.length;
     const r=ROUND[at];
     left=r.t;
     play(side.a, r.a); play(side.n, r.n);
-    if(r.boom && side[r.boom]) side[r.boom].hurt=1;
+    if(r.boom && side[r.boom]){
+      side[r.boom].hurt=1;
+      /* THE POINT GOES TO THE ONE WHO LANDED IT, which is the other one:
+         `boom` names who was hit. */
+      score[r.boom==='a' ? 'n' : 'a']++;
+      cheer=1;                      // and the bowl comes to its feet
+      if(board) boardPaint();
+    }
+    /* A NEW ROUND WHEN THE LOOP COMES ROUND, because a score that only
+       ever climbs stops being a score by the third minute. */
+    if(wrapped){ score={ a:0, n:0, round:score.round+1 }; if(board) boardPaint(); }
   }
 
-  let sway=0;
+  let sway=0, cheer=0;
   function tick(dt){
     if(!built || !shown) return;
     for(const k of ['a','n']){
@@ -474,12 +599,66 @@ window.BRAWL = (function(){
         s.root.position.z = -KNOCK * s.tall * s.hurt;
       }
     }
-    /* AND THE CROWD IS NOT A PHOTOGRAPH. Nothing as expensive as a person
-       each: the whole instanced mesh breathes a few centimetres on a slow
-       wave whose phase runs round the bowl, which at this distance is a
-       stand full of people shifting in their seats. */
+    /* ------------------------------------------------- AND THE CROWD MOVES
+       IT USED TO BE THE WHOLE MESH SLIDING NINE CENTIMETRES, which from
+       the stands is a thousand people welded to one plank. They stand up
+       one at a time now: a wave whose crest is a function of how far
+       round the bowl a seat is, so it travels — and a cheer on every
+       landed hit, which is everybody at once.
+
+       WRITTEN STRAIGHT INTO THE INSTANCE MATRIX. A thousand spectators
+       recomposed from position, quaternion and scale every frame is a
+       thousand matrix multiplies for a number that only ever moves along
+       one axis. Their rotation was settled when the bowl was built and
+       has not changed since, so the only thing that needs touching is the
+       translation — elements 12, 13 and 14 of each sixteen. */
     sway+=dt;
-    if(crowd) crowd.position.y = Math.sin(sway*1.7)*0.09;
+    cheer=Math.max(0, cheer - dt*1.6);
+    if(crowd && crowdSeed.length){
+      const arr=crowd.instanceMatrix.array;
+      /* A FAN IS 5.6 UNITS TALL. Three was a stand-up; six and a half was
+         everybody in the bowl leaping three times their own height, which
+         is not a crowd, it is a trampoline. */
+      const lift=3.0;
+      for(let i=0;i<crowdSeed.length;i++){
+        const c=crowdSeed[i];
+        /* THE WAVE. Only the crest is up: a sine would have two thirds of
+           the bowl permanently half-standing, which is a crowd doing
+           gymnastics rather than a Mexican wave. */
+        const w=Math.sin(sway*1.15 - c.ph*3.0);
+        let h = w>0.55 ? (w-0.55)/0.45*lift : 0;
+        /* AND THE CHEER, which is everybody, on a hit. The tier number
+           staggers it so the bowl does not move as one slab. */
+        if(cheer>0) h += cheer*lift*0.9*Math.abs(Math.sin(sway*9 + c.k*0.9));
+        const o=i*16;
+        arr[o+12]=c.x + c.ux*h;
+        arr[o+13]=c.y + c.uy*h;
+        arr[o+14]=c.z + c.uz*h;
+      }
+      crowd.instanceMatrix.needsUpdate=true;
+    }
+    /* THE SPOTLIGHTS SWEEP, and the beams are what you actually see: the
+       lights themselves fall on two machines and nothing else, because
+       every other thing in this bowl carries its own brightness. */
+    if(beams.length && root){
+      for(let i=0;i<beams.length;i++){
+        const b=beams[i];
+        const a=b.userData.a0 + Math.sin(sway*b.userData.sp + b.userData.off)*0.42;
+        const aimLocal=onBallV(b.userData.reach, 2, a);
+        /* lookAt() IS IN WORLD SPACE. Every other coordinate in this file
+           is in the arena's own frame, and handing one of those to it
+           pointed four spotlights at a spot two hundred and forty units
+           underground — so what stood over the stands was four narrow
+           spikes aimed at the sky. */
+        b.lookAt(root.localToWorld(aimLocal.clone()));
+        /* and the cone hangs along its own -Y, so a quarter turn puts
+           that where lookAt has just put +Z */
+        b.rotateX(-Math.PI/2);
+        const lamp=b.userData.lamp;
+        if(lamp){ lamp.target.position.copy(aimLocal); lamp.target.updateMatrixWorld(); }
+      }
+    }
+    if(board) boardPaint();
     left-=dt;
     if(left<=0) step();
   }
@@ -500,6 +679,7 @@ window.BRAWL = (function(){
   function clear(){
     if(root && root.parent) root.parent.remove(root);
     root=null; crowd=null; crowdSeed=[]; gate=null; gateHit=null; gateDir=null;
+    beams=[]; board=null; boardTex=null; score={a:0,n:0,round:1}; cheer=0;
     side.a=null; side.n=null;
     built=false; shown=false; at=0; left=0;
   }
@@ -519,5 +699,7 @@ window.BRAWL = (function(){
            get radius(){ return FLOOR + TIERS*TREAD + 3.5; },
            get rim(){ return WALL + TIERS*RISER; },
            get round(){ return ROUND; },
+           get score(){ return score; },
+           get beams(){ return beams.length; },
            get seconds(){ return ROUND.reduce((s,r)=>s+r.t, 0); } };
 })();
