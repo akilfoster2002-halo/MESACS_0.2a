@@ -57,8 +57,31 @@ test('the house is two rooms with a door between them', ()=>{
   assert.notStrictEqual(spawnRoom[0], ionRoom[0],
     'Robin spawns in the room Ion is lying in: there is nothing to walk to');
 
-  const doors = P.join('').split('').filter(c=>c==='D').length;
-  assert.strictEqual(doors, 1, 'two rooms joined by exactly one door');
+  /* TWO KINDS OF DOOR, AND ONLY ONE OF THEM JOINS ANYTHING. The doorway
+     between the rooms has walkable floor on both sides. The front door
+     has floor on one side and the outside world on the other — it is how
+     you LEAVE, not how you get from one room to the next, and counting
+     them together said "two rooms joined by two doors" about a house with
+     one internal door in it. */
+  const joins = [], exits = [];
+  for(let z=0; z<P.length; z++) for(let x=0; x<P[z].length; x++){
+    if(at(x,z)!=='D') continue;
+    const sides=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dz])=>room(at(x+dx,z+dz)));
+    (sides.length>1 ? joins : exits).push([x,z]);
+  }
+  assert.strictEqual(joins.length, 1, 'two rooms joined by exactly one door');
+
+  /* AND THERE IS A FRONT DOOR. The way out used to be a window wall you
+     walked at and pressed E, with the prompt saying "go outside" while
+     you faced masonry. */
+  assert.strictEqual(exits.length, 1, 'the house has no front door, or has more than one');
+  /* It is in the spawn room, and on the far side of it from Ion: you wake
+     up with his room ahead of you and your own front door behind you. */
+  const [, exitZ] = exits[0];
+  const [, joinZ] = joins[0];
+  const spawnZ = P.findIndex(row=>row.includes('S'));
+  assert.ok((exitZ < spawnZ) === (spawnZ < joinZ),
+    'the front door is not on the opposite side of the spawn from the inner door');
 });
 
 test('Ion is installed, and carries the clip that lays him down', ()=>{
@@ -307,7 +330,13 @@ test('the hacker says three things and none of them is jargon', ()=>{
      text a player reads is not the text a regex over the FILE sees. */
   const unesc = t => t.replace(/\\u([0-9a-fA-F]{4})/g,
                               (_,h)=>String.fromCharCode(parseInt(h,16)));
-  const lines = [...mended.matchAll(/say_\('([^']*)'\)/g)].map(m=>unesc(m[1]));
+  /* A LINE MAY CARRY A PARAMETER NOW. E addresses the player by name, so
+     that one is `say_('... {n}.', {n:...})` and a pattern demanding the
+     closing bracket straight after the string walked past it — which is
+     how this test reported the tower warning as missing when it was
+     there. Match the string and stop; what follows it is not this test's
+     business. */
+  const lines = [...mended.matchAll(/say_\('([^']*)'/g)].map(m=>unesc(m[1]));
   const said = lines.join(' ');
 
   for(const dead of ['04:12', 'PATCHED', 'LOG', 'CRATE', 'CELLS'])

@@ -383,7 +383,13 @@ test('no NPC anywhere calls the player by a hard-coded name', ()=>{
       `${f} still labels a line of dialogue Robin`);
     /* Robin's name inside a spoken string. The player's name arrives as
        {n}; a bare "Robin" in a say() is one somebody forgot. */
-    const spoken = code.match(/say_?\(\s*'[^']*Robin[^']*'|t\(\s*'[^']*Robin[^']*'/g);
+    /* CASE-INSENSITIVELY, because E SHOUTS. The line "STAY AWAY FROM THE
+       TOWER, ROBIN." was the last one in the game and this test walked
+       straight past it for two rounds: it matched `Robin` and E writes in
+       capitals. It is also the one line in the story where somebody
+       addresses the player directly and by name, which makes it the worst
+       one to have missed. */
+    const spoken = code.match(/say_?\(\s*'[^']*[Rr][Oo][Bb][Ii][Nn][^']*'|t\(\s*'[^']*[Rr][Oo][Bb][Ii][Nn][^']*'/g);
     assert.strictEqual(spoken, null,
       `${f} has a line of dialogue with Robin's name written into it: ${spoken}`);
   }

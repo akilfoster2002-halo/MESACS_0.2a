@@ -132,7 +132,18 @@ test('the whole light rig is handed back on the way out', ()=>{
     assert.ok(new RegExp('DAY\\s*=\\{[^}]*\\b'+k+':').test(src),
       `DAY does not say what its ${k} is, so leave() cannot restore it`);
   assert.match(src, /function dayAgain\(\)/, 'nothing hands the fill and the film back');
-  assert.match(src, /function leave\(\)[\s\S]{0,1800}dayAgain\(\)/,
+  /* SLICED, NOT COUNTED. This was a regex with an 1800-character budget
+     in it, and it failed the day two short statements were added to
+     leave() for an unrelated reason — which says nothing whatever about
+     the lighting. A test that fails by counting reports the wrong thing
+     and sends whoever reads it to the wrong file. */
+  const from = src.indexOf('function leave()');
+  assert.ok(from > 0, 'there is no leave()');
+  /* To the next thing declared after it. dayAgain() is DEFINED earlier in
+     the file, so what this is looking for is the CALL inside leave(). */
+  const next = src.indexOf('\n  function ', from + 10);
+  const leaveFn = src.slice(from, next > 0 ? next : src.length);
+  assert.match(leaveFn, /dayAgain\(\)/,
     'leave() does not call it — the next flat room keeps VOLTA\'s lighting');
   /* Restored to what was FOUND, not to a constant: the run between the
      planets sets its own exposure too, and two places writing one number

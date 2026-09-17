@@ -973,3 +973,84 @@ test('a floor high up agrees with the walls around it', ()=>{
     `the back of the lift car reaches ${backOfCar.toFixed(2)} at the top floor, `
     + `past the wall's inner face at ${inner} — a rider would arrive inside it and be stuck`);
 });
+
+test('the E-45 turns because she is banked, not because a key is down', ()=>{
+  /* IT USED TO BE A TILLER. Press A and the heading rotated at exactly
+     AIR.turn from that frame; release it and it stopped dead, on the
+     frame. The roll was then worked out FROM the turn you were already
+     making and eased in over a quarter of a second — so she leaned into a
+     corner she had finished taking. Nothing about that is flying: it is a
+     sprite being spun with a lean painted on late.
+
+     The bank is the cause now and the turn is the effect, which is the
+     right way round and the only one without a snap in it: there is a
+     physical quantity in between that cannot change instantly. */
+  const planet = read('public/planet.js');
+  const bare = planet.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+
+  /* THE OLD MODEL IS GONE. A constant-rate turn straight off the key is
+     the thing being fixed. */
+  assert.ok(!/if\(turn\)\s*me\.fwd\.applyAxisAngle\(up,\s*AIR\.turn\*turn\*dt\)/.test(bare),
+    'the heading is still driven straight off the key at a constant rate');
+
+  /* THE ROLL IS A STATE WITH INERTIA, and the turn is read out of it. */
+  assert.match(bare, /me\.roll \+= \(stick\*AIR\.bank\*fast - me\.roll\)/,
+    'the roll is not eased toward what the stick is asking for');
+  assert.match(bare, /Math\.sin\(me\.roll\)\/Math\.sin\(AIR\.bank\)/,
+    'the turn rate is not derived from the roll');
+  assert.match(bare, /me\.fwd\.applyAxisAngle\(up, turnRate\*dt\)/,
+    'the derived rate never actually turns her');
+
+  /* AND IT NEEDS AIR OVER THE WINGS, or she pivots on the spot. */
+  assert.match(bare, /const fast=Math\.min\(1, Math\.abs\(me\.air\)\/12\)/,
+    'the turn has full authority at a standstill');
+
+  /* THE MOUSE LEANS HER WITHOUT FLYING HER. Steering with the mouse has
+     already turned the heading; what it adds is a lean, kept in its own
+     number so the two never fight and the turn is never counted twice. */
+  assert.match(bare, /me\.lean \+= \(swing\*AIR\.bank\*fast - me\.lean\)/,
+    'the mouse no longer leans her, or leans her through the roll');
+  assert.match(bare, /me\.bank = me\.roll \+ me\.lean/,
+    'what gets drawn is not the roll plus the lean');
+
+  /* Both new numbers are cleared wherever the old one was, or a landing
+     leaves her tipped over on the ground. */
+  const resets=(bare.match(/me\.bank=0; me\.roll=0; me\.lean=0;/g)||[]).length;
+  const banks =(bare.match(/me\.bank=0/g)||[]).length;
+  assert.strictEqual(resets, banks,
+    'somewhere resets the bank without resetting the roll and the lean');
+
+  /* THE SHAPE OF THE RESPONSE, worked from the constants rather than
+     asserted about them: pressing the stick must build the turn over
+     several frames and releasing it must wash it out, with neither end
+     reaching full rate in one frame. */
+  /* READ OUT OF THE AIR BLOCK, not out of the file. `turn:` and `bank:`
+     both appear earlier in planet.js on unrelated objects, so a bare
+     search found `turn:0` and `bank:0` and this test passed a flight
+     model with no turn in it. Anchor to the thing being measured. */
+  const airBlock = planet.slice(planet.indexOf('const AIR={'),
+                                planet.indexOf('const ceilingOf'));
+  assert.ok(airBlock, 'the AIR block has been renamed');
+  const num = k => {
+    const m = airBlock.match(new RegExp('\\b'+k+':(-?[\\d.]+)'));
+    assert.ok(m, `AIR has no ${k}`);
+    return +m[1];
+  };
+  const A = { turn:num('turn'), bank:num('bank'), roll:num('roll') };
+  assert.ok(A.turn>0 && A.bank>0 && A.roll>0, 'a flight constant read as zero');
+  const dt=1/60;
+  const rateAfter = (held, frames) => {
+    let roll=0;
+    for(let i=0;i<frames;i++){
+      const stick = i<held ? 1 : 0;
+      roll += (stick*A.bank - roll)*Math.min(1, dt*A.roll);
+    }
+    return (Math.sin(roll)/Math.sin(A.bank))*A.turn;
+  };
+  assert.ok(rateAfter(1,1) < A.turn*0.1,
+    'one frame of stick already turns her at most of full rate: the snap is back');
+  assert.ok(rateAfter(60,60) > A.turn*0.7,
+    'a second of stick never builds a proper turn');
+  assert.ok(rateAfter(30,60) < rateAfter(30,31),
+    'the turn does not wash out after the stick is released');
+});

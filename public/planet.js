@@ -642,7 +642,7 @@ window.PLANET = (function(){
     /* Every landing is on foot: the dome belonged to the world we left and
        is gone with its room group, and a ceiling is a property of the ball
        you are standing on. */
-    flying=false; swimming=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0;
+    flying=false; swimming=false; dome=null; streak=null; me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     /* AND NOT STILL ABOARD. shipRide belonged to the room group that has
        just been thrown away, so `aboard` without it is a flight with
        nothing in it and a body that never comes back. */
@@ -4211,6 +4211,7 @@ window.PLANET = (function(){
   const AIR={ top:34, accel:22, drag:6, back:-6,     // metres per second
               turn:1.7, climb:16, rise:26,           // radians and metres per second
               bank:0.62,                             // how far it rolls into a full turn
+              roll:3.2,                              // and how quickly it gets there
               floor:1.4 };                           // how close to the ground you may hover
   const ceilingOf = () => (W && W.ceiling) || 100;
 
@@ -4218,8 +4219,37 @@ window.PLANET = (function(){
     /* The mouse turns you, exactly as it does on foot. */
     const dy=G.yaw-lastYaw; lastYaw=G.yaw;
     if(dy) me.fwd.applyAxisAngle(up, dy);
-    const turn=(G.keys.KeyA||G.keys.ArrowLeft?1:0)-(G.keys.KeyD||G.keys.ArrowRight?1:0);
-    if(turn) me.fwd.applyAxisAngle(up, AIR.turn*turn*dt);
+
+    /* ================================================ THE TURN
+       A AND D ARE A CONTROL COLUMN, NOT A TILLER.
+
+       THEY USED TO BE A TILLER. Press A and the heading rotated at
+       exactly AIR.turn from that frame on; release it and it stopped
+       dead, on the frame. The roll was worked out AFTERWARDS from the
+       turn you were already making and eased in over a quarter of a
+       second, so the ship leaned into a corner it had finished taking.
+       Nothing about that is flying: it is a sprite being spun, with a
+       lean painted on late.
+
+       SO THE BANK IS THE CAUSE NOW AND THE TURN IS THE EFFECT, which is
+       the right way round and also the only one that feels like anything.
+       The stick asks for a roll, the roll takes time to come in and time
+       to come out, and the rate she turns at is what that roll is worth.
+       Let go and she rolls level, and the turn washes out with it — no
+       snap at either end, because there is a physical quantity in between
+       that cannot change instantly.
+
+       AND IT NEEDS AIR OVER THE WINGS. `fast` is nothing at a standstill,
+       so she cannot pivot on the spot the way she used to — a thing that
+       looked wrong precisely because it is. */
+    const stick=(G.keys.KeyA||G.keys.ArrowLeft?1:0)-(G.keys.KeyD||G.keys.ArrowRight?1:0);
+    const fast=Math.min(1, Math.abs(me.air)/12);
+    me.roll += (stick*AIR.bank*fast - me.roll)*Math.min(1, dt*AIR.roll);
+    /* Full bank is a full-rate turn; half a bank is rather less than half
+       a turn, which is what the sine is for and what makes easing into
+       one feel like leaning rather than like a dial being turned. */
+    const turnRate=(Math.sin(me.roll)/Math.sin(AIR.bank))*AIR.turn;
+    if(turnRate) me.fwd.applyAxisAngle(up, turnRate*dt);
     // keep the heading tangent, or a long flight drifts out of square
     me.fwd.sub(up.clone().multiplyScalar(me.fwd.dot(up)));
     if(me.fwd.lengthSq()<1e-6) me.fwd.copy(frameAt(up,0).fwd);
@@ -4272,12 +4302,17 @@ window.PLANET = (function(){
       // the only thing "land" could possibly mean
       if(lift<0) return land();
     }
-    /* The roll is worked out from the turn you are actually making, which
-       includes the mouse — so leaning on the mouse banks you too. */
-    const rateNow = dt>0 ? (turn*AIR.turn + dy/dt) : 0;
-    const wantBank = Math.max(-1,Math.min(1, rateNow/AIR.turn)) * AIR.bank
-                   * Math.min(1, Math.abs(me.air)/12);
-    me.bank += (wantBank-me.bank)*Math.min(1, dt*4);
+    /* AND THE MOUSE LEANS HER WITHOUT FLYING HER. Steering with the mouse
+       is aiming rather than banking — it has already turned the heading
+       above — so what it adds here is a lean and nothing else, kept apart
+       from the roll so the two never fight over one number and the turn
+       is never counted twice. It decays fast, because it is a reaction to
+       a movement rather than a position a control is being held in. */
+    const swing = dt>0 ? Math.max(-1, Math.min(1, (dy/dt)/AIR.turn)) : 0;
+    me.lean += (swing*AIR.bank*fast - me.lean)*Math.min(1, dt*8);
+    /* What the model is actually drawn rolled to: the aerodynamic state
+       plus the cosmetic one. */
+    me.bank = me.roll + me.lean;
 
     dome && domeTick();
     /* HOW HARD THE AIR IS GOING PAST, which is the one number the sound
@@ -4295,7 +4330,7 @@ window.PLANET = (function(){
   /* Feet on the ground and the keys back to what they were. */
   function land(){
     flying=false;
-    me.air=0; me.climb=0; me.bank=0;
+    me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
     if(window.AVATAR) AVATAR.posture(null);
     if(dome) dome.visible=false;
@@ -4313,7 +4348,7 @@ window.PLANET = (function(){
     if(ride) toggleRide();               // you cannot fly a car
     swimming=false;                      // and you can take off out of water
     flying=true;
-    me.air=0; me.climb=AIR.rise*0.5; me.bank=0; me.onGround=false; me.vy=0;
+    me.air=0; me.climb=AIR.rise*0.5; me.bank=0; me.roll=0; me.lean=0; me.onGround=false; me.vy=0;
     me.alt=Math.max(me.alt, floorAt(me.dir, me.alt)+AIR.floor);
     if(window.AVATAR) AVATAR.posture('fly');
     buildDome(); buildStreaks();
@@ -5494,7 +5529,7 @@ window.PLANET = (function(){
        is AVATAR's and would otherwise follow you indoors, where it would
        quietly outrank every walk in the building. */
     flying=false; travelClose(); dome=null; streak=null;
-    me.air=0; me.climb=0; me.bank=0;
+    me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     if(window.AVATAR) AVATAR.posture(null);
     if(window.MUSIC && MUSIC.wind) MUSIC.wind(0);
     if(window.MUSIC) MUSIC.stop();      // whatever you walked into, it is not out here

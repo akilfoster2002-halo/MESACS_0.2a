@@ -61,7 +61,16 @@ window.HOUSE = (function(){
      completely different place to stand in. */
   const COURSES = 2;
   const PLAN = [
-    '####W####',
+    /* AND THE FRONT DOOR IS A DOOR. This row was a window wall, and the
+       way out of the house was to walk at it and press E — the prompt
+       said "go outside" while you stood facing masonry with a window in
+       it. Everything about leaving worked; there was simply nothing there
+       to leave through, which is the one thing a front door has to be.
+
+       IT IS OPPOSITE THE SPAWN, so you wake up with Ion's room ahead of
+       you and your own front door behind you, which is the shape of the
+       story: forward to find him, back out through it with him. */
+    '####D####',
     '#.......#',
     '#.......#',
     '#...S...#',
@@ -760,8 +769,14 @@ window.HOUSE = (function(){
         say:say_('I CHANGED HIS CODE WHILE HE WAS ASLEEP.') },
       { shot:OVER, ease:1.0, hold:2.6, who:'???',
         say:say_('HE WILL NOT REMEMBER ME. I MADE SURE OF THAT.') },
+      /* AND E KNOWS WHO YOU ARE. This line was the last "Robin" left in
+         the game and it hid from the search that found the others because
+         it is shouted — E writes in capitals, so a grep for the name in
+         dialogue walked straight past it. It is the one line in the story
+         where somebody addresses the player directly and by name, which
+         makes it the worst possible one to get wrong. */
       { shot:FLOOR, ease:0.9, hold:2.6, who:'???',
-        say:say_('STAY AWAY FROM THE TOWER, ROBIN.') },
+        say:say_('STAY AWAY FROM THE TOWER, {n}.', {n:ME().toUpperCase()}) },
       { shot:FLOOR, hold:2.2, who:'???', say:say_('\u2014 E.') },
 
       /* --- and it lets go -------------------------------------------- */
