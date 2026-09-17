@@ -144,7 +144,72 @@
         { heat:1200, cracked:1 },      // both wrong
         { heat:900,  cracked:0 }       // the boundary
       ],
-      want: p => !(p.cracked || p.heat>=900) }
+      want: p => !(p.cracked || p.heat>=900) },
+
+    /* -------------------------------------------------------- four
+       A NOT ON ONE SIDE ONLY, which is the shape three did not ask for.
+       Job three put one `not` over a whole group; this one wants it over
+       a single term with the other side left alone — "cracked, and light
+       enough to be worth mending". A student who has just done the group
+       `not` reaches for it again here and takes every heavy whole part
+       off the belt with it.
+
+       AND IT IS THE FIRST JOB WHERE A CRACKED PART IS WANTED. Three jobs
+       running have said "leave the cracked ones", which is long enough
+       for `cracked` to stop being a variable and start being a synonym
+       for no. It is a reading off a dial, and this is the job that says
+       so. */
+    { id:'mend', name:'THE MENDING ARM',
+      says: 'Take the cracked ones, but only if they are light.',
+      hint: 'One "not" is not needed here. Read the dial as it is.',
+      vars: ['load','cracked'],
+      form: { k:'#j1', a:{ k:'var', v:'cracked' },
+                       b:{ k:'cmp', v:'load', op:'#o1', n:'#n1' } },
+      pick: { '#j1':JOINS, '#o1':OPS_OK, '#n1':[100,200,400] },
+      belt: [
+        { load:80,  cracked:1 },
+        { load:200, cracked:1 },       // the boundary of "light"
+        { load:201, cracked:1 },       // cracked but too heavy
+        { load:80,  cracked:0 },       // light but whole: `or` takes it
+        { load:640, cracked:0 },
+        { load:640, cracked:1 }
+      ],
+      want: p => p.cracked && p.load<=200 },
+
+    /* -------------------------------------------------------- five
+       THE ONE WORTH THE MORNING, and the only job on the belt whose
+       answer most adults have never written down. "Anything hot has to
+       be whole" is a rule about hot parts that says nothing whatever
+       about cold ones — and the expression for it is
+       `not hot OR not cracked`, which does not look like the sentence at
+       all. Written as an `and` it throws away every cold part on the
+       belt, which is four of the six rows, and the table says so
+       immediately.
+
+       IT IS ALSO DE MORGAN ARRIVING FROM THE OTHER SIDE. Job three was
+       `not (a or b)`; this is the same law used forwards, and doing it
+       in both directions is the difference between a trick and a rule. */
+    { id:'safe', name:'THE SAFETY ARM',
+      says: 'Anything hot must be whole. Cold parts are fine either way.',
+      hint: 'It says nothing about cold parts. What does that allow?',
+      vars: ['heat','cracked'],
+      form: { k:'#j1', a:{ k:'cmp', v:'heat', op:'#o1', n:'#n1' },
+                       b:{ k:'not', a:{ k:'var', v:'cracked' } } },
+      pick: { '#j1':JOINS, '#o1':OPS_OK, '#n1':[200,400,900] },
+      belt: [
+        { heat:150,  cracked:0 },
+        { heat:150,  cracked:1 },      // cold and cracked: still allowed
+        { heat:899,  cracked:1 },      // the boundary, on the cold side
+        { heat:900,  cracked:1 },      // hot and cracked: the only refusal
+        /* AND A SECOND HOT CRACKED ONE, WELL PAST THE LINE. Without it
+           `!=` passes: no part on the belt was hotter than 900 AND
+           cracked, so "not exactly 900" and "under 900" agreed on every
+           row and the job had two right answers. A boundary needs a part
+           on both sides of it and a part well past it. */
+        { heat:1200, cracked:1 },
+        { heat:900,  cracked:0 }
+      ],
+      want: p => !(p.heat>=900) || !p.cracked }
   ];
   const jobOf = id => JOBS.find(j=>j.id===id) || null;
 

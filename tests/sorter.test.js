@@ -263,9 +263,26 @@ test('the belt is what the Mechanic is paid with, and it gates the repair', ()=>
   assert.match(belt, /mended\(\)/, 'finishing the belt does not mend Ion');
   assert.match(bare, /function finishIon\(\)\{[\s\S]{0,200}PROGRESS\.complete\('ion'\)/,
     'nothing completes Mission 8');
-  /* AND SHUTTING THE PANEL MUST NOT STRAND ANYBODY. */
-  assert.match(bare, /if\(!worked\(\)\)\{ theBelt\(\); return; \}/,
-    'closing the belt panel locks the player out of the rest of the mission');
+  /* AND SHUTTING THE PANEL MUST NOT STRAND ANYBODY. A student who closes
+     the belt half way through has undone nothing and must be able to walk
+     back to the Mechanic and carry on — with the jobs they already passed
+     still passed.
+
+     THE RETURN VISIT IS A SCENE NOW, so what this checks is the guarantee
+     rather than the line that used to provide it: every path through
+     handOver() for somebody who has already handed Ion over ends up at
+     the belt. It used to drop them straight into the panel with no word
+     from the man standing next to them, which on a second visit is the
+     only thing they see. */
+  const back = bare.slice(bare.indexOf('if(handed()){'),
+                          bare.indexOf('if(!window.SCENE){ return; }'));
+  assert.ok(back.length>80, 'the already-handed-over branch has gone');
+  assert.match(back, /if\(!window\.SCENE\)\{ theBelt\(\); return; \}/,
+    'with no scene engine there is no way back to the belt at all');
+  assert.match(back, /end:\(\)=>\{ if\(on\)\{ G\.running=true; theBelt\(\); \} \}/,
+    'the return scene does not hand on to the belt, so the panel never opens');
+  assert.match(back, /who:'The Mechanic'/,
+    'he says nothing on a return visit: a stranger, a bench and a grid of blanks');
   assert.match(planet, /const WORKED='ion_belt'/, 'the belt flag survives a restart');
   const html = read('public/index.html');
   for(const f of ['sorter.js','sortfix.js'])

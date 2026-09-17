@@ -141,7 +141,8 @@ window.IONFIX = (function(){
       <div class="ifhead">
         <img src="characters/previews/ion.png" alt="">
         <div><b>ION · morning routine</b><br>
-             <span>${say('Two questions. Four mornings. Both have to be right on all of them.')}</span></div>
+             <span>${say('{n} questions. Four mornings. Every one has to be right on all of them.',
+                          {n:(R().RULES||[]).length})}</span></div>
       </div>
       <div class="ifbody">
         <div class="ifcol wide"><h3>${say('The program')}</h3>
@@ -200,7 +201,7 @@ window.IONFIX = (function(){
      rather than one block with bars across it, because that shape is the
      claim: these are asked together.
 
-     `which` is 'cook' or 'tell', and it is the only difference between
+     `which` is a rule's id, and it is the only difference between
      them: the same three controls, the same two facts, asked twice about
      the same four mornings. Drawing them from one function is the point
      rather than a saving — a student who can see that the second question
@@ -237,8 +238,13 @@ window.IONFIX = (function(){
 
   function draw(){
     const u=dom(), s=state;
-    u.script.innerHTML = askBlock(s, 'cook', 'make pancakes')
-                       + askBlock(s, 'tell', 'say \u201cwe cannot cook yet\u201d');
+    /* ONE BLOCK PER QUESTION, OFF THE LIST. These were typed out — two
+       calls, two hand-written "what he does" strings — which was fine at
+       two and is six chances to pair the wrong verb with the wrong
+       question at six. The verb belongs to the rule in routine.js,
+       because the rule is the thing that knows what it means. */
+    u.script.innerHTML = (R().RULES||[])
+      .map(r=>askBlock(s, r.id, r.did)).join('');
 
     const on_=(id,fn)=>{ const e=$('#'+id,u.el); if(e) e.onclick=fn; };
     const set=(k,v)=>{ state[k]=v; state=R().tidy(state); draw(); };
@@ -299,11 +305,14 @@ window.IONFIX = (function(){
      So the cook step gets a cook table — does he, should he — and the
      `else if` step gets the whole thing, by which time the whole thing is
      what the student is responsible for. */
-  /* WHAT HE DID, and WHAT HE SHOULD HAVE DONE. Two lists rather than one,
-     because the second column is read after the word "should" and the
-     first is not — one map gave "waits" and "should says so". */
-  const DID   = { cook:'cooks',  tell:'says so', nothing:'stands there', both:'tries both' };
-  const OUGHT = { cook:'cook',   tell:'say so' };
+  /* What he OUGHT to do when a question says yes, for the last column of
+     that question's table. Read off routine.js's own rule list rather
+     than kept here: six questions is six of these, and a second copy of
+     them is a second place for them to be wrong. */
+  const ought = which => {
+    const r=(R().RULES||[]).find(x=>x.id===which);
+    return r ? r.did : 'answer yes';
+  };
   /* ONE QUESTION AT A TIME WHILE ONE QUESTION IS WHAT THEY OWE.
 
      While the first is being fixed the only thing that matters is what IT
@@ -316,16 +325,20 @@ window.IONFIX = (function(){
      BOTH COLUMNS COME OUT OF mornings(), which judges each question
      separately for exactly this reason. */
   function table(which){
+    /* ALWAYS THE ONE QUESTION'S OWN COLUMN. There used to be a second
+       branch here for "no particular question", which drew what he DOES
+       across all of them and judged it against whether he ought to cook —
+       a reading that only made sense while there were exactly two rules
+       and one of them was cooking. With six it is meaningless, and the
+       per-question table was always the better one anyway: while a
+       question is being fixed, the only thing that matters is what IT
+       answers on a morning, and the others being wrong is somebody
+       else's row. */
     const rows = R().mornings(state).map(r=>{
-      if(which==='cook' || which==='tell'){
-        const q=r[which];
-        return { hot:r.hot, batter:r.batter, ok:q.ok,
-                 did:   q.got  ? say('yes') : say('no'),
-                 ought: q.want ? say('yes') : say('no') };
-      }
-      return { hot:r.hot, batter:r.batter, ok:r.ok,
-               did:   say(DID[r.got] || r.got),
-               ought: say(OUGHT[r.cook.want ? 'cook' : 'tell']) };
+      const q=r[which] || { ok:true, got:false, want:false };
+      return { hot:r.hot, batter:r.batter, ok:q.ok,
+               did:   q.got  ? say('yes') : say('no'),
+               ought: q.want ? say('yes') : say('no') };
     });
     return `<table class="morns"><tr>
         <th>${say('pan')}</th><th>${say('batter')}</th>
@@ -356,7 +369,9 @@ window.IONFIX = (function(){
       ' \u00b7 <em>'+say(st.topic)+'</em></span>'+
       st.say +
       (st.help ? '<div class="vocab">'+st.help+'</div>' : '') +
-      (st.id==='cook' || st.id==='tell' ? table(st.id) : '');
+      /* EVERY STEP IS A QUESTION NOW, so every step gets its question's
+         table. This used to name the only two there were. */
+      (st.id ? table(st.id) : '');
     const e=$('#'+holes()[st.hole], u.el);
     if(e) e.classList.add('ring');
   }

@@ -71,19 +71,102 @@
      He can cook when the pan is hot AND there is batter. Something is
      missing on exactly the other mornings — which is the whole of the
      second question, and the reason it is worth asking at all. */
-  const ANSWERS = {
-    cook: m => m.hot && m.batter,
-    tell: m => !(m.hot && m.batter)
-  };
+  /* ================================================== THE SIX QUESTIONS
+     TWO WAS NOT A LESSON, IT WAS AN EXAMPLE. Ion's kitchen routine asked
+     `and` once and De Morgan once, and a student who happened to guess
+     both was through the only boolean practice in this room in ninety
+     seconds. Six is five minutes, and five minutes is the point: this is
+     the first of three places in Mission 8 where anybody writes a boolean
+     expression, and the other two are a hatch on a spaceship and a
+     conveyor belt.
+
+     THEY ARE THE SHAPES TWO FACTS CAN MAKE. Each side of a question is a
+     fact or its opposite and the join is `and` or `or`, so with a hot pan
+     and a bowl of batter there are eight questions to ask and these six
+     are the ones worth asking:
+
+       1  hot AND batter            he can cook
+       2  NOT hot OR NOT batter     something is missing      (1 inside out)
+       3  hot OR batter             there is something to do
+       4  hot AND NOT batter        the pan is on for nothing
+       5  NOT hot AND NOT batter    the kitchen is asleep      (3 inside out)
+       6  NOT hot OR batter         it is safe to walk away
+
+     THE ORDER IS THE LESSON. 1 is `and`. 2 is 1 turned inside out, which
+     is the only way to get it and is the whole of De Morgan. 3 is `or`,
+     which is easy once 1 is done. 4 puts a `not` on one side only. 5 is 3
+     turned inside out, so the trick from 2 is wanted again with the other
+     join. And 6 is the one worth the room: "off, or cooking" is how a
+     person says "if it is on, there had better be batter in it", and an
+     implication written as an `or` is a thing most adults have never
+     noticed.
+
+     EACH ONE CARRIES ITS OWN ANSWER as a function of the morning, so the
+     checker, the table and the walkthrough cannot drift apart: there is
+     one definition of what question 4 means and everything reads it. */
+  const RULES = [
+    { id:'cook', name:'CAN I COOK?',
+      want: m => m.hot && m.batter,
+      did:'cooks',
+      start:{ hot:'is not', batter:'is', join:'or' },
+      help:'<b>and</b> wants both. <b>or</b> wants either.',
+      say:'He cooks only when both are true.' },
+
+    { id:'miss', name:'IS SOMETHING MISSING?',
+      want: m => !m.hot || !m.batter,
+      did:'says something is missing',
+      /* THE COPY. Reading the line above and doing it again is the most
+         useful wrong answer there is, so it is the one he is found with. */
+      start:{ hot:'is', batter:'is', join:'and' },
+      help:'Flipping one side is not enough.',
+      say:'True on every morning he cannot cook.' },
+
+    { id:'start', name:'IS THERE ANYTHING TO DO?',
+      want: m => m.hot || m.batter,
+      did:'gets started',
+      /* NOT HOT AND BATTER: what you get by reading "anything to do" as
+         "something is off, and something is ready". */
+      start:{ hot:'is not', batter:'is', join:'and' },
+      help:'One is enough for <b>or</b>.',
+      say:'Either one is enough to be worth starting.' },
+
+    { id:'dry', name:'IS THE PAN ON FOR NOTHING?',
+      want: m => m.hot && !m.batter,
+      did:'turns the pan off',
+      /* The `not` dropped and the join guessed: the shape most people
+         write first for a question with "nothing" in it. */
+      start:{ hot:'is', batter:'is', join:'or' },
+      help:'A <b>not</b> can sit on one side alone.',
+      say:'Hot, and nothing to put in it.' },
+
+    { id:'dead', name:'IS THE KITCHEN ASLEEP?',
+      want: m => !m.hot && !m.batter,
+      did:'goes back to sleep',
+      /* QUESTION ONE, COPIED. By this point it is the rule on the screen
+         that is known to be right, so it is the one that gets reused. */
+      start:{ hot:'is', batter:'is', join:'and' },
+      help:'Both wrong at once wants <b>and</b>.',
+      say:'Nothing hot and nothing to cook.' },
+
+    { id:'safe', name:'IS IT SAFE TO LEAVE?',
+      want: m => !m.hot || m.batter,
+      did:'leaves the room',
+      /* QUESTION FOUR, COPIED — the one directly above it, and genuinely
+         tempting: "hot and empty" is the unsafe morning, so it looks like
+         the same fact asked the other way round. It is not. */
+      start:{ hot:'is', batter:'is not', join:'and' },
+      help:'Off, <b>or</b> busy. Either one is safe.',
+      say:'Safe when the pan is off, or in use.' }
+  ];
+  /* The control ids, derived rather than typed: the console rings a
+     control by name and `cookJoin` is a control. Six rules is eighteen of
+     them, and eighteen typed strings is eighteen chances to typo one. */
+  RULES.forEach(r=>{ r.hot=r.id+'Hot'; r.batter=r.id+'Batter'; r.join=r.id+'Join'; });
+
+  const ANSWERS = {};
+  RULES.forEach(r=>{ ANSWERS[r.id]=r.want; });
   const should = (which, m) => !!ANSWERS[which](m);
 
-  /* THE TWO QUESTIONS. Flat keys rather than nested ones, because the
-     console rings a CONTROL by id and `cookJoin` is a control. Named in
-     pairs so the two read as two. */
-  const RULES = [
-    { id:'cook', name:'CAN I COOK?',       hot:'cookHot', batter:'cookBatter', join:'cookJoin' },
-    { id:'tell', name:'IS SOMETHING OUT?', hot:'tellHot', batter:'tellBatter', join:'tellJoin' }
-  ];
   const ruleOf = which => RULES.find(x=>x.id===which) || RULES[0];
 
   /* What the console finds when it opens him up.
@@ -94,17 +177,21 @@
      which is the most useful wrong answer there is, because it is what
      anybody gets by reading the line above and doing it again. The table
      shows him saying nothing on three mornings out of four. */
-  const broken = () => ({
-    cookHot:'is not', cookBatter:'is', cookJoin:'or',
-    tellHot:'is',     tellBatter:'is', tellJoin:'and'
-  });
+  const broken = () => {
+    const o={};
+    RULES.forEach(r=>{ o[r.hot]=r.start.hot; o[r.batter]=r.start.batter;
+                       o[r.join]=r.start.join; });
+    return o;
+  };
 
   const yn  = v => v==='is'  ? 'is'  : 'is not';
   const aor = v => v==='and' ? 'and' : 'or';
   function tidy(s){
     s=s||{};
-    return { cookHot: yn(s.cookHot), cookBatter: yn(s.cookBatter), cookJoin:aor(s.cookJoin),
-             tellHot: yn(s.tellHot), tellBatter: yn(s.tellBatter), tellJoin:aor(s.tellJoin) };
+    const o={};
+    RULES.forEach(r=>{ o[r.hot]=yn(s[r.hot]); o[r.batter]=yn(s[r.batter]);
+                       o[r.join]=aor(s[r.join]); });
+    return o;
   }
 
   /* ------------------------------------------------------------ the rules
@@ -139,36 +226,39 @@
          + (s[r.batter]==='is'?'':'not ')+'batter';
   };
 
-  /* WHAT HE DOES, which is now a fact about both answers at once rather
-     than about which rule was asked first.
+  /* WHAT HE DOES, which is a fact about all six answers at once.
 
-     There is no order here and no `else`. He cooks when the first says
-     yes, he explains himself when the second does, and the two other
-     outcomes are the ways a pair of questions can be wrong together:
-     saying nothing at all on a morning, or trying to do both. Both read
-     as plainly in the table as `cooks` does. */
+     There is no order here and no `else`: every question is asked of
+     every morning and each one answers for itself. With two questions the
+     interesting outcomes were "neither" and "both"; with six they are
+     simply the list of the ones that said yes, which is what a robot
+     following six rules actually does. */
   function does(s, m){
-    const cook=fires(s,m,'cook'), tell=fires(s,m,'tell');
-    return cook && tell ? 'both' : cook ? 'cook' : tell ? 'tell' : 'nothing';
+    const on=RULES.filter(r=>fires(s,m,r.id));
+    if(!on.length) return 'stands there';
+    return on.map(r=>r.did).join(', and ');
   }
-  const DID = { cook:'cooks', tell:'says so', nothing:'stands there', both:'tries both' };
 
   /* Every morning, with what each question answered and what it should
-     have. Judged per QUESTION rather than per outcome, so a student can be
-     sent at one of them without the other being blamed. */
+     have. Judged per QUESTION rather than per outcome, so a student can
+     be sent at one of them without the others being blamed. Each rule's
+     verdict is filed under its own id, which is how the console asks for
+     one question's table. */
   function mornings(s){
     s=tidy(s);
     return MORNINGS.map(m=>{
-      const cookGot=fires(s,m,'cook'), tellGot=fires(s,m,'tell');
-      const cookWant=should('cook',m), tellWant=should('tell',m);
-      const got=does(s,m);
-      return { hot:m.hot, batter:m.batter,
-               cook:{ got:cookGot, want:cookWant, ok:cookGot===cookWant },
-               tell:{ got:tellGot, want:tellWant, ok:tellGot===tellWant },
-               got, did: DID[got] || got,
-               ok: cookGot===cookWant && tellGot===tellWant };
+      const row={ hot:m.hot, batter:m.batter };
+      let all=true;
+      RULES.forEach(r=>{
+        const got=fires(s,m,r.id), want=should(r.id,m);
+        row[r.id]={ got, want, ok:got===want };
+        if(got!==want) all=false;
+      });
+      row.got=does(s,m); row.did=row.got; row.ok=all;
+      return row;
     });
   }
+
   /* Is one question wrong, on its own terms? Asked without reference to
      the other, so the walkthrough can send somebody at one at a time. */
   const wrong = (s, which) =>
@@ -182,17 +272,19 @@
     const step=(text, kind)=>trace.push({ text, kind:kind||'do' });
     const rows=mornings(s);
 
-    /* BOTH QUESTIONS ARE PRINTED BEFORE EITHER IS JUDGED, because the
-       shape on screen — two questions, asked of the same morning, neither
-       above the other — is as much the thing being taught as either one
-       of them is. */
-    step(`can I cook?       < pan ${s.cookHot} hot > ${s.cookJoin} < there ${s.cookBatter} batter >`, 'if');
-    step(`is something out? < pan ${s.tellHot} hot > ${s.tellJoin} < there ${s.tellBatter} batter >`, 'if');
+    /* ALL SIX ARE PRINTED BEFORE ANY OF THEM IS JUDGED, because the shape
+       on screen — six questions asked of the same morning, none above any
+       other — is as much the thing being taught as any one of them. */
+    RULES.forEach(r=>{
+      step(`${r.name.toLowerCase().replace('?','')}? `
+           + `< pan ${s[r.hot]} hot > ${s[r.join]} < there ${s[r.batter]} batter >`, 'if');
+    });
 
     rows.forEach(r=>{
       const m=(r.hot?'hot pan':'cold pan')+', '+(r.batter?'batter':'no batter');
+      const bad=RULES.filter(x=>!r[x.id].ok);
       step(`  ${m} → he ${r.did}`
-           + (r.ok ? '' : `  (he should ${r.cook.want ? 'cook' : 'say so'})`),
+           + (bad.length ? `  (${bad.map(x=>x.name.replace('?','')).join(', ')} wrong)` : ''),
            r.ok ? 'good' : 'bad');
     });
 
@@ -209,17 +301,11 @@
     if(!bad.length) return null;
     const r=bad[0];
     const m=(r.hot?'a hot pan':'a cold pan')+' and '+(r.batter?'batter':'no batter');
-    /* `stands there` is its own diagnosis. It is the only outcome this
-       program should never reach, so a morning that reaches it did not
-       fail one question — both of them said no to it. */
-    if(r.got==='nothing')
-      return `On a morning with ${m} he says nothing at all. `
-           + 'Every morning is one or the other: either he can cook, or something is missing.';
-    if(r.got==='both')
-      return `On a morning with ${m} both questions say yes at once. `
-           + 'They cannot both be true of the same morning.';
-    return `On a morning with ${m} he ${r.did}, and he should `
-         + `${r.cook.want ? 'cook' : 'say so'}.`;
+    const q=RULES.find(x=>!r[x.id].ok);
+    if(!q) return null;
+    return `On a morning with ${m}, "${q.name}" says `
+         + `${r[q.id].got ? 'yes' : 'no'} and should say `
+         + `${r[q.id].want ? 'yes' : 'no'}.`;
   }
 
   /* ========================================================== THE STEPS
@@ -240,47 +326,51 @@
      describes one is prose competing with something better at the job.
      preflight.js took the failing reading out of its own step sentence for
      exactly this reason and it is the same panel a level later. */
-  const STEPS = [
-    /* RULE ONE, WHICH IS THE ONLY THING A TWO-TERM `and` CAN BE. He cooks
-       when BOTH are true, and a student who picks `or` gets a robot that
-       cooks with no batter in the bowl — which the table says in a row
-       rather than in a sentence. */
-    { id:'cook', topic:'BOOLEANS', name:'CAN I COOK?',
-      hole: s => {
-        if(s.cookHot!=='is') return 'cookHot';
-        if(s.cookBatter!=='is') return 'cookBatter';
-        return 'cookJoin';
-      },
-      bad: s => wrong(s, 'cook'),
-      /* THE VOCABULARY, AND ONLY ON THE STEP THAT INTRODUCES IT. These two
-         words are met here for the first time in the whole course, so they
-         are worth six words once — and not again on the next step, where
-         the student has already used them. */
-      help: '<b>and</b> wants both. <b>or</b> wants either.',
-      say: 'He cooks only when both are true.' },
+  /* ONE STEP PER QUESTION, GENERATED. Six steps typed out is six copies
+     of the same four fields, and the walkthrough's job is the same for
+     every one of them: find the first control that is not what the
+     question needs, ring it, and say the rule in one short sentence.
 
-    /* RULE TWO, WHICH IS THE ONE WORTH THE MISSION. It has to be true on
-       exactly the mornings the first one is false, and the only rule that
-       is, is the first one turned inside out: both sides flipped and `and`
-       become `or`. Nobody is told that. The table shows him standing
-       there saying nothing on a morning he should be explaining himself,
-       and that is a fact about `and` and `or` rather than about pancakes. */
-    { id:'tell', topic:'BOOLEANS', name:'IS SOMETHING OUT?',
+     WHICH CONTROL IS RINGED IS NOT THE ORDER THEY ARE WRITTEN IN. The
+     join is asked for FIRST whenever the join is wrong, because the join
+     is the thing this level is about — a student with `and` where `or`
+     belongs will flip both sides trying to fix it and end up further
+     away. Sides after, left to right.
+
+     AND WHAT EACH QUESTION NEEDS IS DERIVED FROM ITS OWN ANSWER, not
+     typed beside it: solve() reads the four mornings and works out the
+     only shape that fits them. There is one definition of question 4 and
+     everything, including the walkthrough that marks it, reads that. */
+  function solve(r){
+    /* the eight shapes, and the one whose column matches this question */
+    for(const hot of ['is','is not'])
+      for(const bat of ['is','is not'])
+        for(const join of ['and','or']){
+          const fits=MORNINGS.every(m=>{
+            const a = hot==='is' ? m.hot : !m.hot;
+            const b = bat==='is' ? m.batter : !m.batter;
+            return (join==='and' ? (a&&b) : (a||b)) === !!r.want(m);
+          });
+          if(fits) return { hot, batter:bat, join };
+        }
+    return null;
+  }
+  const STEPS = RULES.map(r=>{
+    const need=solve(r);
+    return {
+      id:r.id, topic:'BOOLEANS', name:r.name,
       hole: s => {
-        const rows=mornings(s);
-        /* A rule that misses the mornings where exactly one thing is wrong
-           is an `and` where an `or` belongs: two flipped sides joined by
-           `and` are only true when BOTH things are wrong at once. */
-        const half = rows.some(r=>!r.tell.ok && (r.hot !== r.batter));
-        if(half && s.tellJoin!=='or') return 'tellJoin';
-        if(s.tellHot!=='is not') return 'tellHot';
-        if(s.tellBatter!=='is not') return 'tellBatter';
-        return 'tellJoin';
+        if(!need) return r.join;
+        if(s[r.join]!==need.join)     return r.join;
+        if(s[r.hot]!==need.hot)       return r.hot;
+        if(s[r.batter]!==need.batter) return r.batter;
+        return r.join;
       },
-      bad: s => wrong(s, 'tell'),
-      help: 'Flipping one side is not enough.',
-      say: 'True on every morning he cannot cook.' }
-  ];
+      bad: s => wrong(s, r.id),
+      help: r.help,
+      say: r.say
+    };
+  });
 
   /* The step the console is on, or null when both questions are right. */
   function step(state){
@@ -296,7 +386,7 @@
   }
 
   const API = { MORNINGS, RULES, ANSWERS,
-                broken, tidy, run, step, STEPS,
+                broken, tidy, run, step, STEPS, solve,
                 mornings, fires, does, ruleText, should, wrong, cookWrong };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.ROUTINE=API;

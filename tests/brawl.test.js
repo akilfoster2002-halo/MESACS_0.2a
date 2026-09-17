@@ -352,3 +352,106 @@ function arc(a,b){
   const d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
   return Math.acos(Math.max(-1,Math.min(1,d)))*240;
 }
+
+/* =====================================================================
+   THE THREE PLACES ANYBODY PRACTISES, and getting to them twice.
+   ===================================================================== */
+
+test('the lift does not leave without its passenger', ()=>{
+  /* E WORKS AT ARM'S LENGTH — that is what makes it E and not a pressure
+     plate — so the button could be pressed from beside the shaft and the
+     deck went up alone. What you saw was the floor name change, a lift
+     vanishing into the ceiling, and yourself still in the lobby: the game
+     announcing you had arrived somewhere you were not. */
+  const planet=bare(read('public/planet.js'));
+  const go=planet.slice(planet.indexOf('function liftGo()'),
+                        planet.indexOf('lift.from=TOWER_STOPS'));
+  assert.ok(go.length>60, 'liftGo() could not be found');
+  assert.match(go, /SHAFT\.x1/, 'nothing checks the rider is inside the shaft');
+  assert.match(go, /SHAFT\.z1/, 'the shaft is only checked on one axis');
+  /* AND ON THE DECK, not merely in the column: the shaft is three floors
+     tall, and standing in it downstairs while the deck is at the top is
+     not being on the lift either. */
+  assert.match(go, /Math\.abs\(l\.y - TOWER_STOPS\[lift\.at\]\.y\)/,
+    'the height is not checked, so the shaft counts as the lift on every floor');
+  assert.match(go, /DECK_GRIP/,
+    'the ride-check and the carry-check use different distances');
+  assert.match(go, /Step onto the lift first/, 'refusing says nothing');
+});
+
+test('the ship is noticed before it is pressed', ()=>{
+  /* A student walks out onto a hillside with a smoking spaceship on it
+     and, until they press E, nothing in the game has said anything is
+     wrong. Smoke is a thing you have to be looking at. */
+  const planet=bare(read('public/planet.js'));
+  assert.match(planet, /function noticeTick\(\)/, 'nobody ever notices the ship');
+  assert.match(planet, /noticeTick\(\);/, 'noticeTick is never called');
+  const n=planet.slice(planet.indexOf('const NOTICE=['), planet.indexOf('function noticeTick'));
+  assert.match(n, /at:\d+/, 'the lines are not tied to a distance');
+  assert.ok((n.match(/say:/g)||[]).length>=2, 'one line is not an approach');
+  /* AND NOT AFTER SHE IS MENDED, which would be the game telling you to
+     fix something you already fixed. */
+  const tick=planet.slice(planet.indexOf('function noticeTick'),
+                          planet.indexOf('function arriveTick'));
+  assert.match(tick, /if\(shipOpen\(\)\) return;/,
+    'a mended ship is still described as broken');
+  assert.match(tick, /noticed\+\+/, 'the same line repeats every frame');
+});
+
+test('all three practice points can be reached more than once', ()=>{
+  /* THEY ARE THE WHOLE LESSON, and each of them used to be a door that
+     locked behind you: the checklist vanished the moment it was passed,
+     the belt closed for good, and a returning save walked onto a
+     hillside where nothing was wrong and nobody had anything to say. */
+  const planet=bare(read('public/planet.js'));
+  /* the ship — its own hatch, which is the checks and nothing else */
+  assert.match(planet, /enter:'preflight'/, 'the ship has no way back to the checks');
+  assert.match(planet, /if\(id==='preflight'\)/, 'the hatch is not wired to anything');
+  const hatch=planet.slice(planet.indexOf("if(id==='preflight')"),
+                           planet.indexOf("if(id==='lift')"));
+  assert.match(hatch, /openFix\(\)/, 'the hatch does not open the checklist');
+  assert.ok(!/shipOpen\(\)/.test(hatch),
+    'the hatch refuses once she is cleared, which is the bug it exists to fix');
+  /* the Mechanic — dialogue, then the belt, on every visit */
+  const again=planet.slice(planet.indexOf('if(handed()){'),
+                           planet.indexOf('if(!window.SCENE){ return; }'));
+  assert.match(again, /theBelt\(\)/, 'a return visit never reaches the belt');
+});
+
+test('Ion asks six questions and the belt sets five jobs', ()=>{
+  /* FIVE MINUTES EACH, at three points. Two questions and three jobs was
+     an example rather than a lesson. */
+  const R=require('../public/routine.js');
+  const S=require('../public/sorter.js');
+  assert.ok(R.RULES.length>=6, 'Ion is back to '+R.RULES.length+' questions');
+  assert.ok(S.JOBS.length>=5, 'the belt is back to '+S.JOBS.length+' jobs');
+  /* And the nine pre-flight checks are the third. */
+  const P=require('../public/preflight.js');
+  assert.ok(P.CHECKS.length>=9, 'the pre-flight has shrunk to '+P.CHECKS.length);
+});
+
+test('the belt panel shows every word the job wants', ()=>{
+  /* THIS IS WHY IT WAS UNREADABLE. The bank showed the choices for the
+     ARMED blank and nothing else, so the first job was three dashed boxes
+     and a row of numbers — 200, 400, 900 — with no way to know that one
+     of those blanks wanted a comparison and another wanted `and` or `or`.
+     The two words that are the entire lesson of this level were never on
+     screen at the same time. */
+  const fix=bare(read('public/sortfix.js'));
+  assert.match(fix, /const KIND = \{/, 'the blanks have no names for their kinds');
+  assert.match(fix, /class="sxgroup/, 'the word bank is not grouped');
+  assert.match(fix, /class="sxglabel"/, 'the groups are not labelled');
+  assert.ok(!/if\(!armed\) return '';[\s\S]{0,200}holes\(j\)\.find/.test(fix),
+    'the bank is still only the armed blank’s choices');
+  /* THE BLANK AND ITS WORDS CARRY THE SAME LABEL, which is the whole
+     trick: "joined by" on the blank, JOINED BY over `and` and `or`. */
+  const slot=fix.slice(fix.indexOf('function slot(h, kind)'), fix.indexOf('function bankHTML'));
+  assert.match(slot, /KIND\[kind\]/, 'an empty blank does not say what it wants');
+  /* AND A WORD CLICKED WHILE THE WRONG BLANK IS RINGED IS STILL PLACED.
+     Refusing a click on a word the panel is showing you is the panel's
+     fault, not the student's. */
+  assert.match(fix, /function place\(chip, kind\)/, 'place() does not know the word’s kind');
+  assert.match(fix, /hs\.find\(x=>x\.kind===kind && fill\[x\.slot\]===undefined\)/,
+    'a word of the wrong kind has nowhere to go');
+  assert.match(fix, /data-kind=/, 'the chips do not carry their kind');
+});

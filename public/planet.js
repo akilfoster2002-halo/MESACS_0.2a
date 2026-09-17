@@ -2452,6 +2452,38 @@ window.PLANET = (function(){
       g.add(spin);
       o.traverse(m=>{ if(m.isMesh){ m.userData.owner=hold; G.hits.push(m); } });
       b.hinge=hinge;
+      /* THE ENGINE HATCH, WHICH IS THE WAY BACK TO THE CHECKS.
+
+         The hull is one object and it can only mean one thing at a time:
+         before she is cleared, E on her is the pre-flight; after, E is
+         get in — and that is right, because a student who has just been
+         told she will fly wants to fly her. It also means the nine rules
+         about `and`, `or`, `<` and `<=` vanish from the world the moment
+         they are first got right, and the only way back to the one piece
+         of boolean practice on this hillside was to restart the mission.
+         A returning save was worse: she stood there not smoking, with
+         nothing to press and nothing wrong.
+
+         So the checks get their own door. A panel on her flank, lit, next
+         to the exhaust that was doing all that smoking, and it opens the
+         checklist whether she is cleared or not — as many times as
+         anybody wants. The hull still flies her. One object each, one
+         meaning each. */
+      const hatch=new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 1.1, 0.35),
+        new THREE.MeshLambertMaterial({ color:0x2b3a4a,
+                                        emissive:0x14303c, emissiveIntensity:0.9 }));
+      /* On her flank at shoulder height, towards the tail. `spin` has her
+         nose at -SHIP_LEN/2 and her tail at +SHIP_LEN/2 with her belly on
+         zero, which is the frame the smoke uses for the same reason. */
+      hatch.position.set(0.0, 1.5, SHIP_LEN*0.16);
+      hatch.rotation.y=Math.PI/2;
+      const hatchHold=new THREE.Group();
+      hatchHold.userData={ kind:'panel', label:t('PRE-FLIGHT'), enter:'preflight' };
+      spin.add(hatchHold); spin.add(hatch);
+      hatch.userData.owner=hatchHold;
+      hatch.userData.verb='E \u2014 pre-flight';
+      G.hits.push(hatch);
       /* SHE IS SMOKING, and that is the whole brief. A student walks out
          of the house and has to work out, with nobody telling them, which
          of the things on this hillside is the mission — and a parked ship
@@ -2829,6 +2861,41 @@ window.PLANET = (function(){
      window, which is what arriving feels like. */
   const ARRIVE = 30;
   let arrived=false;
+  /* ===================================================================
+     NOTICING THE SHIP, WHICH IS NOT THE SAME AS BEING TOLD ABOUT IT.
+
+     A student walks out of the house onto a hillside with a spaceship on
+     it and, until they press E on it, nothing in the game has said that
+     anything is wrong. The smoke is doing the work alone, and smoke is a
+     thing you have to look at — walk out facing the other way and the
+     first news of the mission is a panel.
+
+     So she says it, to herself, the moment she is close enough to see it:
+     one line at forty units and one at eighteen. This is the ONLY place
+     in Mission 8 where the player's own head is on screen without a
+     cutscene around it, which is exactly why it is the beginning.
+
+     ONCE PER APPROACH AND NOT PER FRAME. `noticed` counts how many of the
+     two lines have been said; walking away and coming back does not
+     reset it, and the flag is not saved, because a thought is not a
+     mission flag — a second session is allowed to have it again. */
+  let noticed=0;
+  const NOTICE=[
+    { at:40, say:()=>t('That is a lot of smoke for a parked ship.') },
+    { at:18, say:()=>t('She is not flying anywhere like this. Let us fix her.') }
+  ];
+  function noticeTick(){
+    if(!on || aboard || noticed>=NOTICE.length) return;
+    if(!W || W.id!=='ryu') return;
+    if(shipOpen()) return;              // already mended: nothing to notice
+    const b=BUILDINGS.find(x=>x.id==='ship');
+    if(!b || !b.dir) return;
+    const d=me.dir.angleTo(b.dir)*PR;
+    if(d > NOTICE[noticed].at) return;
+    say(NOTICE[noticed].say());
+    noticed++;
+  }
+
   function arriveTick(){
     if(!aboard || arrived) return;
     const tower=BUILDINGS.find(b=>b.id==='tower');
@@ -3383,6 +3450,30 @@ window.PLANET = (function(){
   function liftGo(){
     if(!lift) return;
     if(lift.t<1){ say(t('It is already moving.')); return; }
+    /* AND YOU HAVE TO BE ON IT.
+
+       E works at arm's length — that is what makes it E and not a
+       pressure plate — so the button could be pressed from beside the
+       shaft, and the deck went up without its passenger. What you saw
+       then was the floor name change, a lift disappearing into the
+       ceiling, and yourself still in the lobby: the game announcing you
+       had arrived somewhere you were not. Worse on the way down, where
+       it left and the shaft was then a hole.
+
+       INSIDE THE SHAFT AND ON THE DECK. Both, because the shaft is a
+       column three floors tall and standing in it on the ground floor
+       while the deck is at the top is not being on the lift either.
+       DECK_GRIP is the same half-metre floorAt() uses to decide it is
+       carrying you, so this asks exactly the question the ride will go
+       on asking every frame afterwards. */
+    const tb=BUILDINGS.find(x=>x.id==='tower');
+    if(tb && tb.frame){
+      const l=local(tb, worldPos(0));
+      const onDeck = l.x>SHAFT.x1 && l.x<SHAFT.x2
+                  && l.z>SHAFT.z1 && l.z<SHAFT.z2
+                  && Math.abs(l.y - TOWER_STOPS[lift.at].y) < DECK_GRIP + 1.4;
+      if(!onDeck){ say(t('Step onto the lift first.')); return; }
+    }
     lift.from=TOWER_STOPS[lift.at].y;
     lift.at=(lift.at+1) % TOWER_STOPS.length;
     lift.to=TOWER_STOPS[lift.at].y;
@@ -3648,8 +3739,36 @@ window.PLANET = (function(){
        at the Mechanic puts them back on the belt, with the jobs they had
        already passed still passed. */
     if(handed()){
-      if(!worked()){ theBelt(); return; }
-      say(t('He is in good hands. The lift goes up from the back.'));
+      /* HE STILL SAYS SOMETHING FIRST. This dropped you straight into the
+         belt panel with no word from the man standing next to you — which
+         is what a student sees on any second visit, and on a save that
+         has been through this once it is the ONLY thing they see: a robot
+         on a bench, a stranger, and a grid of blanks. Two lines cost
+         four seconds and are the difference between a lesson arriving
+         because somebody asked for it and a lesson arriving.
+
+         AND THE BELT IS ALWAYS THERE. Passing it once used to close it
+         for good; it is one of the three places in Mission 8 where
+         anybody practises `and`, `or` and `not`, and the other two are a
+         hatch and a robot on a kitchen floor. Somebody who wants another
+         go is allowed one. */
+      const b=mechB.b, F=b.frame, y=mechB.y, P0=b.g.position.clone();
+      const at2=(x,yy,z)=>P0.clone()
+        .add(F.right.clone().multiplyScalar(x))
+        .add(F.up.clone().multiplyScalar(y+yy))
+        .add(F.fwd.clone().multiplyScalar(z))
+        .toArray();
+      const HIM2={ eye:at2(1.4, 2.6, 5.6), at:at2(3.4, 1.5, 2.2) };
+      const done=worked();
+      if(!window.SCENE){ theBelt(); return; }
+      SCENE.play([
+        { shot:HIM2, ease:1.0, who:'The Mechanic',
+          say: done ? t('Back for another run at the belt, {n}?',{n:ME()})
+                    : t('There you are. The belt is still waiting, {n}.',{n:ME()}) },
+        { shot:HIM2, who:'The Mechanic',
+          say: done ? t('Good. A rule you can write twice is a rule you know.')
+                    : t('One question per arm. Say what it takes.') }
+      ], { faces:FACES, end:()=>{ if(on){ G.running=true; theBelt(); } }});
       return;
     }
     if(!window.SCENE){ return; }
@@ -5329,15 +5448,23 @@ window.PLANET = (function(){
          answer to. */
       if(shipOpen() && board()) return;
       if(!window.SHIPFIX) return;
-      /* THE REASON FIRST, THE BLANKS SECOND — and only ever once. The
-         brief plays over the ship she is standing at and hands straight
-         on to the panel; if it cannot play, or has played already, the
-         panel opens on its own and nothing is waited for. */
+      /* THE REASON FIRST, THE BLANKS SECOND. The brief plays over the ship
+         she is standing at and hands straight on to the panel; if it
+         cannot play, or has played already, the panel opens on its own
+         and nothing is waited for. */
       if(!briefed() && shipBrief(openFix)) return;
       openFix();
       return;
     }
     /* ------------------------------------------------------- the tower */
+    /* The hatch, which is the checklist and nothing else — see shipBuild.
+       The brief still plays the first time, wherever it is opened from. */
+    if(id==='preflight'){
+      if(!window.SHIPFIX) return;
+      if(!briefed() && shipBrief(openFix)) return;
+      openFix();
+      return;
+    }
     if(id==='lift'){ liftGo(); return; }
     if(id==='towersign'){ say(t('The lift is at the back. <b>E</b> on it to go up.')); return; }
     if(id==='towermech'){ handOver(); return; }
@@ -5526,6 +5653,7 @@ window.PLANET = (function(){
     if(!G.running && window.SCENE && SCENE.active && window.AVATAR && AVATAR.tickClip)
       AVATAR.tickClip(dt, false, false, true);
     arriveTick();
+    noticeTick();
     /* Twelve times a second is plenty for a map and a coin counter, and it
        keeps a canvas redraw off the sixty-frame path. */
     const now=performance.now();

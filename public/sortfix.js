@@ -84,6 +84,21 @@ window.SORTFIX = (function(){
 
       /* ---- the words ---- */
       .sxbank{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0;justify-content:center}
+      /* THE BANK IS THREE NAMED GROUPS. Laid out as a row of columns so
+         the three kinds of word are three things and not one long line of
+         chips a student has to sort by eye. */
+      .sxbanks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;
+               align-items:flex-start;margin:10px 0 2px}
+      .sxgroup{display:flex;flex-direction:column;gap:5px;align-items:center;
+               padding:6px 10px;border-radius:12px;border:1px solid transparent;
+               transition:opacity .18s,border-color .18s}
+      .sxgroup.dim{opacity:.38}
+      .sxgroup:not(.dim){border-color:#4a3f72;background:#1b1730}
+      .sxglabel{font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+      .sxhint{font-style:normal;font-size:10px;letter-spacing:.1em;
+              text-transform:uppercase;color:#6f6796}
+      .sxslot.armed .sxhint{color:#cbbe8a}
+                color:#9c93c4}
       .sxc{border:2px solid #4a3f72;background:#241f38;border-radius:9px;
            padding:8px 14px;cursor:pointer;color:#eae6f5;
            font:700 16px/1 ui-monospace,monospace}
@@ -167,23 +182,68 @@ window.SORTFIX = (function(){
   const piece = (v, kind, cls) =>
     (typeof v==='string' && v[0]==='#') ? slot(v, kind)
                                         : `<span class="${cls}">${esc(v)}</span>`;
+  /* What each kind of blank is called, in words a nine-year-old has. It
+     names the blank AND the group of words that fits it, so the two are
+     the same two words in both places. */
+  const KIND = { op:'is it',     n:'how much',
+                 join:'joined by', gauge:'which dial' };
+
+  /* AN EMPTY BLANK SAYS WHAT IT WANTS. Three dashed boxes in a row are
+     three identical dashed boxes: nothing on screen said that the first
+     took a comparison, the second a number and the third `and` or `or`,
+     so the only way to find out was to click one and watch the word list
+     change. The placeholder is the same phrase that heads that word's
+     group in the bank below, so the blank and the words that fit it are
+     labelled with the same two words. */
   function slot(h, kind){
     const got=(state.fill||{})[h];
     const has = got!==undefined && got!==null && got!=='';
+    const hint = KIND[kind] || '';
     return `<button class="sxslot ${kind==='join'?'join':''}${has?' full':''}${armed===h?' armed':''}"
-              data-slot="${esc(h)}">${has?esc(got):'&nbsp;'}</button>`;
+              data-slot="${esc(h)}">${has ? esc(got)
+                : (hint ? `<i class="sxhint">${say(hint)}</i>` : '&nbsp;')}</button>`;
   }
 
   /* THE WORDS for whichever blank is armed, and only the ones that could
      go in it. A gauge offered for a number blank is not a wrong answer,
      it is a category error, and offering it would be offering nonsense. */
+  /* EVERY WORD THE JOB WANTS, GROUPED AND NAMED.
+
+     This used to show the choices for the ARMED blank and nothing else,
+     which is why the panel was unreadable. A student opened the first job
+     and saw `heat ? [ ] [ ] not (cracked)` with three numbers under it —
+     200, 400, 900 — and no way to know that one of those blanks wanted a
+     comparison and the other wanted `and` or `or`. The list changed shape
+     under them as the ring moved, so the two words that are the entire
+     lesson of this level were never on screen at the same time.
+
+     THREE NAMED GROUPS, ALWAYS ALL THERE. Which one is live depends on
+     the ringed blank; the others stay visible and dimmed, because seeing
+     that there IS a choice of joining word is most of knowing you have to
+     make one. The names say what kind of thing each group is — a nine
+     year old has no word for "operator" and does not need one. */
   function bankHTML(j){
-    if(!armed) return '';
-    const h=S().holes(j).find(x=>x.slot===armed);
-    if(!h) return '';
-    return `<div class="sxbank">` + h.choices.map(c=>
-      `<button class="sxc ${h.kind==='join'?'join':''}" data-chip="${esc(c)}">${esc(c)}</button>`
-    ).join('') + `</div>`;
+    const hs=S().holes(j);
+    if(!hs.length) return '';
+    const arm=hs.find(x=>x.slot===armed);
+    /* One group per KIND, in the order the blanks appear, with the
+       choices merged — two number blanks in one job are one list of
+       numbers, not the same list printed twice. */
+    const groups=[];
+    hs.forEach(h=>{
+      let g=groups.find(x=>x.kind===h.kind);
+      if(!g){ g={ kind:h.kind, choices:[] }; groups.push(g); }
+      h.choices.forEach(c=>{ if(!g.choices.includes(c)) g.choices.push(c); });
+    });
+    return `<div class="sxbanks">` + groups.map(g=>{
+      const live = !arm || arm.kind===g.kind;
+      return `<div class="sxgroup${live?'':' dim'}">`
+        + `<div class="sxglabel">${say(KIND[g.kind]||g.kind)}</div>`
+        + `<div class="sxbank">` + g.choices.map(c=>
+            `<button class="sxc ${g.kind==='join'?'join':''}"`
+          + ` data-chip="${esc(c)}" data-kind="${esc(g.kind)}">${esc(c)}</button>`
+          ).join('') + `</div></div>`;
+    }).join('') + `</div>`;
   }
 
   /* THE EXPRESSION WORKED OUT ON ONE PART. sorter.js decides whether
@@ -263,7 +323,7 @@ window.SORTFIX = (function(){
       };
     });
     u.body.querySelectorAll('[data-chip]').forEach(b=>{
-      b.onclick=()=>place(b.dataset.chip);
+      b.onclick=()=>place(b.dataset.chip, b.dataset.kind);
     });
 
     const ok=S().done(j, state), last = at===S().JOBS.length-1;
@@ -272,11 +332,26 @@ window.SORTFIX = (function(){
     dots();
   }
 
-  function place(chip){
+  /* `kind` comes off the chip, because the bank shows all three groups
+     now and a word may be clicked while a blank of some other kind is
+     ringed. A word knows what kind of blank it belongs in, so it goes to
+     one: the ringed blank if that fits, otherwise the first blank of its
+     own kind that is still empty, otherwise the first of its kind at all.
+
+     THE ALTERNATIVE WAS TO REFUSE IT, and refusing a click on a word the
+     panel is showing you is the panel's fault, not the student's. */
+  function place(chip, kind){
     const j=job();
-    if(!armed){ note=say('Click one of the blanks first.'); draw(); return; }
-    const h=S().holes(j).find(x=>x.slot===armed);
-    if(!h) return;
+    const hs=S().holes(j);
+    let h = armed ? hs.find(x=>x.slot===armed) : null;
+    if(kind && (!h || h.kind!==kind)){
+      const fill=state.fill||{};
+      h = hs.find(x=>x.kind===kind && fill[x.slot]===undefined)
+       || hs.find(x=>x.kind===kind)
+       || h;
+      if(h) armed=h.slot;
+    }
+    if(!h){ note=say('Click one of the blanks first.'); draw(); return; }
     /* Numbers arrive as text off a data attribute and have to go back in
        as numbers, or `heat < "900"` compares a gauge to a string and the
        whole expression quietly stops meaning anything. */
