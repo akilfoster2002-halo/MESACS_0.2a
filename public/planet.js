@@ -684,6 +684,12 @@ window.PLANET = (function(){
        Control and at the stations inside it, neither of which exists on
        another ball. Landing anywhere else is not a first arrival. */
     if(!toured() && W.kind==='hub'){ markToured(); setTimeout(()=>{ if(on) tour(); }, 700); }
+    /* AND RYU GETS ITS OWN, every arrival rather than once ever. See
+       ionTour: the hub's walkthrough is about which keys move you and is
+       worth one showing; this one is about where the next thing is, on a
+       ball with four objects and a story between them, and a student who
+       comes back to a half-finished mission wants it again. */
+    if(W.id==='ryu') setTimeout(()=>{ if(on) ionTour(); }, 900);
     /* AND SAY WHAT JUST HAPPENED TO YOU. A player who picked Carlos and
        walks out of the shuttle in somebody else's body, with nothing
        anywhere saying why, has not arrived on a planet — they have found a
@@ -5887,6 +5893,83 @@ window.PLANET = (function(){
         done:()=>!on }
     ], {});
   }
+  /* ================================================== THE ION WALKTHROUGH
+     RYU HAD NONE, AND IT IS THE ONE BALL THAT NEEDED ONE.
+
+     Every other world here is a place: you land, you look round, you walk
+     into whatever you like. RYU is a mission with one door and an ORDER —
+     mend the robot on the kitchen floor, mend the ship he needs you to
+     fly, fly him two hundred units, hand him over — and none of that is
+     guessable from a hillside with a house, a spaceship and a tower on
+     it. The hub's walkthrough rings Mission Control's door; this one has
+     four objects on two hundred units of desert and a story between them.
+
+     IT READS THE SAVE RATHER THAN COUNTING ITS OWN STEPS. Every `done`
+     here is the same flag the mission itself is gated on, so a student who
+     wanders off, lands somewhere else, or comes back tomorrow is picked up
+     at the step they are actually on — and one who has already flown the
+     ship is never sent back to the house to look at Ion.
+
+     AND IT RUNS ONCE PER ARRIVAL, not once ever. The hub's tour is about
+     which keys walk you forward and is worth exactly one showing; this one
+     is about where the next thing is, which is worth having every time you
+     come back to a mission you left half done. It ends itself the moment
+     the mission is complete. */
+  const ionFlag = k => { try{ return !!(window.PROGRESS && PROGRESS.get(k,0)); }
+                         catch(e){ return false; } };
+  function ionTour(){
+    if(!window.COACH || !W || W.id!=='ryu') return;
+    if(ionFlag('ion_belt')) return;            // mission finished: nothing to point at
+    const bq=document.querySelector('#briefing'); if(bq) bq.classList.add('hidden');
+
+    const B   = id => BUILDINGS.find(b=>b.id===id);
+    /* A BUILDING'S DOOR, AND A PROP'S MIDDLE. The house and the tower are
+       walked INTO, so the ring goes on the doorway; the E-45 is a model on
+       a patch of ground with no door at all, so it goes on the ship. */
+    const doorOf = id => { const b=B(id); return b ? doorPoint(b) : V(0,0,0); };
+    const spotOf = id => { const b=B(id);
+      return (b && b.dir) ? b.dir.clone().multiplyScalar(PR + floorAt(b.dir) + 3) : V(0,0,0); };
+
+    COACH.start([
+      /* ONE — ION, who is the reason for all of it. */
+      { say:'Ion is on the kitchen floor. Go in.',
+        at:()=>withSize(doorOf('ryuhouse'), 4),
+        done:()=>ionFlag('ion_fixed') || insideOf(B('ryuhouse')||{}) },
+      { say:'Fix his morning questions. <b>and</b>, <b>or</b>, <b>not</b>.',
+        done:()=>ionFlag('ion_fixed') },
+
+      /* TWO — THE SHIP, and she is smoking, which is the whole brief. */
+      { say:'Your ship is smoking. Walk out to her.',
+        at:()=>withSize(spotOf('ship'), 5),
+        done:()=>ionFlag('ion_ship_cleared') || metresTo(spotOf('ship')) < 22 },
+      { say:'The lit panel on her flank is the pre-flight. <b>E</b>.',
+        at:()=>withSize(spotOf('ship'), 4),
+        done:()=>ionFlag('ion_ship_cleared') },
+
+      /* THREE — THE FLIGHT. `ion_flown` is set by arriveTick when she puts
+         down near the tower, so this one step covers getting in, taking
+         off and crossing two hundred units of desert. */
+      { say:'<b>E</b> on the ship to get in. <b>SPACE</b> to take off.',
+        at:()=>withSize(spotOf('ship'), 4),
+        done:()=>ionFlag('ion_flown') || flying },
+      { say:'Fly to the tower. It is the tall one.',
+        at:()=>withSize(spotOf('tower'), 8),
+        done:()=>ionFlag('ion_flown') },
+
+      /* FOUR — THE TOWER, which is three floors and a lift, and the lift
+         is the one thing in this building nobody finds on their own. */
+      { say:'Walk in. The lift is at the back.',
+        at:()=>withSize(doorOf('tower'), 4),
+        done:()=>insideOf(B('tower')||{}) || ionFlag('ion_handed') },
+      { say:'Stand on the lift and press <b>E</b>.',
+        done:()=>ionFlag('ion_handed') || (lift && lift.at>0) },
+      { say:'Give Ion to the Mechanic.',
+        done:()=>ionFlag('ion_handed') },
+      { say:'Answer his twenty questions and he mends Ion.',
+        done:()=>ionFlag('ion_belt') }
+    ], {});
+  }
+
   function tourTick(dt){ if(window.COACH) COACH.tick(dt); }
   function retour(){ if(window.COACH) COACH.stop(); tour(); }
 

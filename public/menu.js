@@ -448,6 +448,18 @@ window.MENU = (function(){
      button. */
   async function homeworld(where){
     if(!NET.signedIn && signInUp) return auth();
+    /* THE FILM, ONCE A SESSION, IN FRONT OF THE FRONT DOOR.
+
+       This is the only line in the game that runs before anybody has seen
+       anything, which is exactly why the film goes here rather than on the
+       START button: START is not the only way in — a saved world, a
+       mission card and the character screen all arrive through this
+       function, and a student who has never played should get the
+       fifteen seconds whichever of those they came through. OPENING
+       refuses on the second call of a session by itself. */
+    if(window.OPENING && !OPENING.seen && !OPENING.active){
+      return OPENING.play(()=>homeworld(where));
+    }
     hideAll();
     $('#hud').classList.remove('hidden');
     G.running=true; G.stats.t0=performance.now();

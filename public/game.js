@@ -901,6 +901,7 @@ function loop(now){
      player's own walking has to stay smooth between server snapshots. */
   if(window.MECHA && MECHA.active) MECHA.tick(dt);
   if(window.INTRO && INTRO.active) INTRO.tick(dt);
+  if(window.OPENING && OPENING.active) OPENING.tick(dt);
   /* Free play keeps thinking while the world is frozen: scripts step on, and
      what our objects look like has to keep going out — otherwise a paused or
      typing player leaves the room holding a stale picture of them. */
