@@ -1,8 +1,8 @@
-/* Desktop Quest 0.2a — all wording lives here. English is the key, Spanish is the value. */
+/* KORO — all wording lives here. English is the key, Spanish is the value. */
 window.ES = {
   /* start screen */
   'Mission: Linux':'Misión: Linux',
-  'Desktop Quest 0.2a — walk inside the Linux desktop':'Aventura del Escritorio 0.2a — camina dentro del escritorio de Linux',
+  'Think. Code. Create.':'Piensa. Programa. Crea.',
   'This world is built like your real screen. The <b>icons</b> are up in the top-left, the <b>App Launcher</b> gate is at the bottom, and the <b>system menu</b> tower is in the top-right — exactly where they are on the computer in front of you.':'Este mundo está hecho como tu pantalla real. Los <b>iconos</b> están arriba a la izquierda, la puerta del <b>Lanzador de Apps</b> está abajo y la torre del <b>menú del sistema</b> está arriba a la derecha — igual que en la computadora que tienes enfrente.',
   'Start the mission ▶':'Empezar la misión ▶',
   'Click the screen to look around with the mouse. Press Esc to let the mouse go.':'Haz clic en la pantalla para mirar con el ratón. Presiona Esc para soltar el ratón.',

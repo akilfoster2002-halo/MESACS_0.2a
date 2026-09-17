@@ -1,5 +1,5 @@
 /* =====================================================================
-   Desktop Quest 0.2a — "Mission: Linux"
+   KORO 0.2a — think, code, create
    A first-person campaign where the map IS the Linux desktop:
    icons top-left, App Launcher gate at the bottom, system menu tower
    top-right. Every mission ends by flipping to the flat desktop and
