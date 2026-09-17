@@ -176,6 +176,40 @@ test('every step rings one of the two questions own controls', ()=>{
   assert.match(fix, /on_\('if'\+r\.id\+'hot'/, 'the console no longer wires its controls from RULES');
 });
 
+test('the words are counted, and the table is left to do its job', ()=>{
+  /* THIS PANEL GREW TO SEVENTY-ONE WORDS over a table of four rows, and
+     they were seventy-one words saying three things: the rule, the rule
+     again in the vocabulary line, and a sentence narrating a row of the
+     table that was already red and already said "should no".
+
+     preflight.js is written to five-to-nine words a sentence and took the
+     failing reading out of its own step text for exactly this reason. It
+     is the same panel a level later. */
+  const words = t => String(t||'').replace(/<[^>]+>/g,' ').trim().split(/\s+/).filter(Boolean).length;
+  for(const st of R.STEPS){
+    assert.ok(words(st.say) <= 9,
+      `the ${st.id} step says ${words(st.say)} words: "${st.say}"`);
+    assert.ok(words(st.help) <= 9,
+      `the ${st.id} step's help is ${words(st.help)} words: "${st.help}"`);
+  }
+  /* AND IT NEVER NARRATES THE TABLE. Which morning is wrong and how many
+     there are is what the table is FOR; prose describing one is prose
+     competing with something better at the job. */
+  for(const s of everyPair()){
+    const st=R.step(s);
+    if(!st) continue;
+    const said=(st.say||'')+' '+(st.help||'');
+    assert.ok(!/morning with|of the four|it says <b>(yes|no)/i.test(said),
+      `the ${st.id} step describes a row of the table: "${said.trim()}"`);
+  }
+  /* The step text is static now, which is the point: there is nothing
+     about the student's current mistake left in it to compute. */
+  for(const st of R.STEPS){
+    assert.strictEqual(typeof st.say, 'string', `the ${st.id} step computes its sentence again`);
+    assert.strictEqual(typeof st.help, 'string', `the ${st.id} step computes its help again`);
+  }
+});
+
 test('no step ever hands over the answer', ()=>{
   /* A console that says "choose and" has replaced the lesson with a hint.
      Each step says what the question has to be true of and which morning

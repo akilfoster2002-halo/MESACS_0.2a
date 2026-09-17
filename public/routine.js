@@ -226,7 +226,20 @@
      ONE QUESTION AT A TIME. Six decisions is not many, and handed over at
      once they are still six — so the console walks them, and the walk is
      in the order the questions are written rather than in the order they
-     happen to be wrong. */
+     happen to be wrong.
+
+     AND THE WORDS ARE COUNTED, to the same budget preflight.js is written
+     to: five to nine words a sentence. These steps were seventy-one words
+     over a table of four rows, and they were seventy-one words saying
+     three things — the rule, then the rule again in the vocabulary line,
+     then a sentence narrating a row of the table that was already red and
+     already said "should no".
+
+     SAY THE RULE; LET THE TABLE SAY THE REST. Which morning is wrong and
+     how many of them there are is what a table is FOR, and prose that
+     describes one is prose competing with something better at the job.
+     preflight.js took the failing reading out of its own step sentence for
+     exactly this reason and it is the same panel a level later. */
   const STEPS = [
     /* RULE ONE, WHICH IS THE ONLY THING A TWO-TERM `and` CAN BE. He cooks
        when BOTH are true, and a student who picks `or` gets a robot that
@@ -239,18 +252,12 @@
         return 'cookJoin';
       },
       bad: s => wrong(s, 'cook'),
-      help: 'He can only cook when the pan is hot <b>and</b> there is batter. '
-          + '<b>and</b> is true when both sides are; <b>or</b> is true when '
-          + 'either one is.',
-      say: s => {
-        const bad=mornings(s).filter(r=>!r.cook.ok);
-        const r=bad[0];
-        const w=(r.hot?'a hot pan':'a cold pan')+' and '+(r.batter?'batter':'no batter');
-        return 'Start with the first question — the one that makes pancakes. He '
-             + 'should only say yes when the pan is hot <b>and</b> there is batter. '
-             + 'On a morning with ' + w + ' it says <b>' + (r.cook.got?'yes':'no')
-             + '</b>, and ' + bad.length + ' of the four mornings come out wrong.';
-      } },
+      /* THE VOCABULARY, AND ONLY ON THE STEP THAT INTRODUCES IT. These two
+         words are met here for the first time in the whole course, so they
+         are worth six words once — and not again on the next step, where
+         the student has already used them. */
+      help: '<b>and</b> wants both. <b>or</b> wants either.',
+      say: 'He cooks only when both are true.' },
 
     /* RULE TWO, WHICH IS THE ONE WORTH THE MISSION. It has to be true on
        exactly the mornings the first one is false, and the only rule that
@@ -271,18 +278,8 @@
         return 'tellJoin';
       },
       bad: s => wrong(s, 'tell'),
-      help: 'This one has to be true on <b>every</b> morning the first one '
-          + 'turned down — and false on the morning it took. Flipping one '
-          + 'side is not enough.',
-      say: s => {
-        const bad=mornings(s).filter(r=>!r.tell.ok);
-        const r=bad[0];
-        const m=(r.hot?'a hot pan':'a cold pan')+' and '+(r.batter?'batter':'no batter');
-        return 'Breakfast is right. Now the second question — the one that says why '
-             + 'he cannot cook. On a morning with ' + m + ' he <b>' + r.did
-             + '</b>, and he is never meant to just stand there: every morning the '
-             + 'first question turns down, this one has to catch.';
-      } }
+      help: 'Flipping one side is not enough.',
+      say: 'True on every morning he cannot cook.' }
   ];
 
   /* The step the console is on, or null when both questions are right. */
