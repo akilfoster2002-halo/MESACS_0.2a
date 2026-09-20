@@ -21,6 +21,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const ROBOTS = require('../public/robots.js');
+const TEMPLATES = require('../public/templates.js');
 
 const P = f => path.join(__dirname,'..',f);
 const read = f => fs.readFileSync(P(f),'utf8');
@@ -123,16 +124,35 @@ test('every reporter slot that wants a number has a reporter to fill it', ()=>{
   assert.ok(reporters.length>0, 'nothing on the palette reports a value to use');
 });
 
-test('nothing on the palette needs a second object, because there is one robot', ()=>{
-  /* touching?, distance to, point towards and %a of %o all take another
-     object. In a room with one robot they can only ever answer about
-     nothing, which is worse than not being offered. */
+test('the blocks that need a second object are on, and the second object exists', ()=>{
+  /* THIS TEST USED TO SAY THE OPPOSITE. `touching?`, `distance to` and
+     `%a of %o` all take another object, and with one robot in the room
+     they could only ever answer about nothing — a sensing block that is
+     always false is worse than one that is missing. Attacks changed the
+     premise: there is a training dummy now, so they earn their place.
+     The pairing is what matters, and it goes both ways — if an
+     object-taking block is on the palette, the ring must build something
+     for it to point at. */
   const on=new Set(palette().ops);
-  BLOCKS.LIST.forEach(b=>{
-    if(!on.has(b.op)) return;
-    const needsObj=Object.keys(b.args||{}).some(k=>b.args[k].type==='obj');
-    assert.ok(!needsObj, b.op+' needs a second object and there is only the robot');
-  });
+  const needObj=BLOCKS.LIST.filter(b=>on.has(b.op) &&
+    Object.keys(b.args||{}).some(k=>b.args[k].type==='obj'));
+  if(!needObj.length) return;
+  const src=read('public/ring.js');
+  assert.match(src, /function ensureDummy\(/,
+    needObj.map(b=>b.op).join(', ')+' need a second object and the ring builds none');
+  assert.match(src, /ensureDummy\(\);/, 'the dummy is defined and never built');
+  assert.match(src, /TEMPLATES\.DUMMY|T\.DUMMY/,
+    'the dummy has no agreed name, so no dropdown can point at it');
+});
+
+test('the dummy is a plain shape, not a rigged model', ()=>{
+  /* Rigged costumes do not instance (see costumes.js). The robot works
+     around that with its own loader; a training post does not need to,
+     and must not quietly acquire the same bug. */
+  const src=read('public/ring.js');
+  const fn=src.slice(src.indexOf('function ensureDummy('), src.indexOf('function install('));
+  assert.match(fn, /shape:'(cube|ball|cylinder|cone)'/,
+    'the dummy wears a model costume, which cannot instance correctly');
 });
 
 test('the costume block stays off, because rigged costumes do not instance', ()=>{
@@ -141,103 +161,215 @@ test('the costume block stays off, because rigged costumes do not instance', ()=
     'become-a is on the palette, and it would silently draw the robot at the wrong size in the wrong place');
 });
 
-test('the palette still fits on a screen', ()=>{
-  /* Not a style rule. The whole argument for cutting Free Play down was
-     that a palette of a hundred is a reference manual rather than a
-     lesson; if this creeps past a few dozen that argument is gone. */
+test('the palette is a subset and not all of Scratch', ()=>{
+  /* Not a style rule. The argument for cutting Free Play down was that a
+     palette of a hundred is a reference manual rather than a lesson.
+
+     IT GREW WHEN ATTACKS ARRIVED, and it had to: an attack you BUILD
+     rather than press needs variables to hold state, a custom block to
+     be a function, and broadcast to tell the thing you hit. Those are
+     not decoration, they are the lesson. The ceiling moved with them;
+     what it still refuses is the whole language arriving by accident. */
   const p=palette();
-  assert.ok(p.ops.length<=36, 'the palette has grown to '+p.ops.length+' blocks');
-  assert.ok(p.ops.length>=12, 'the palette has been cut to '+p.ops.length+' blocks');
+  assert.ok(p.ops.length<=48, 'the palette has grown to '+p.ops.length+' blocks');
+  assert.ok(p.ops.length < BLOCKS.LIST.length,
+    'the palette is now every block there is, so it restricts nothing');
   assert.equal(new Set(p.ops).size, p.ops.length, 'a block is listed twice');
 });
 
-test('the move block moves on all three axes', ()=>{
-  /* Up and down has to be as reachable as left and right, and in Scratch
-     that is one block with a dropdown rather than three blocks. */
-  const b=BLOCKS.LIST.find(x=>x.op==='motion.changeBy');
-  assert.ok(b, 'there is no change-by block');
-  assert.deepEqual(b.args.a.opts, ['x','y','z']);
+test('an attack can be BUILT, which means state, a function and a message', ()=>{
+  /* The whole point of the mode. If any of these three comes off the
+     palette, an attack stops being something a student assembles out of
+     programming and goes back to being a button. */
+  const on=new Set(palette().ops);
+  [['data.set','a variable to hold state'],
+   ['data.get','a way to read that state back'],
+   ['my.call','a custom block, so an attack can be a function'],
+   ['event.send','a way to tell the thing you hit'],
+   ['event.recv','a way to be told'],
+   ['ctrl.repeat','a counted loop'],
+   ['ctrl.wait','time passing while you are committed'],
+   ['sense.dist','a reading to test your reach against']
+  ].forEach(([op,why])=>assert.ok(on.has(op), 'no '+op+' \u2014 '+why));
 });
 
-test('the sensing block is a boolean, so it fits inside the conditional', ()=>{
-  const key=BLOCKS.LIST.find(b=>b.op==='sense.key');
-  const iff=BLOCKS.LIST.find(b=>b.op==='ctrl.if');
-  assert.equal(key.kind, 'bool', 'key-pressed? is not a boolean and will not drop into an if');
-  assert.equal(iff.args.c.type, 'bool', 'if has no boolean slot to drop it into');
-});
+/* ------------------------------------------------------- the templates
+   These are worked examples a student takes apart, so the thing to
+   guard is that they are made of blocks the student actually HAS —
+   a template reaching for a block that is not on the palette is a
+   worked example that cannot be edited, which is worse than none. */
+function opsIn(t){
+  const out=[];
+  (function walk(x){
+    if(!x || typeof x!=='object') return;
+    if(Array.isArray(x)) return x.forEach(walk);
+    if(x.op) out.push(x.op);
+    Object.keys(x).forEach(k=>walk(x[k]));
+  })([t.procs, t.scripts]);
+  return out;
+}
 
-test('the boolean operators are there, for holding two keys at once', ()=>{
-  const pal=palette();
-  ['op.and','op.or','op.not'].forEach(op=>
-    assert.ok(pal.ops.indexOf(op)>=0, op+' is missing'));
-  ['op.and','op.or'].forEach(op=>{
-    const b=BLOCKS.LIST.find(x=>x.op===op);
-    assert.equal(b.kind,'bool');
-    Object.keys(b.args).forEach(k=>assert.equal(b.args[k].type,'bool'));
+test('every template is built only out of blocks that are on the palette', ()=>{
+  const on=new Set(palette().ops);
+  TEMPLATES.LIST.forEach(t=>{
+    opsIn(t).forEach(op=>assert.ok(on.has(op),
+      t.id+' uses '+op+', which the student has not got \u2014 they could not have written it, and cannot edit it'));
   });
 });
 
-/* --------------------------------------------------- nothing is free */
-test('the ring hard-codes no movement of its own', ()=>{
-  /* If this fails, somebody has added a convenience control and quietly
-     removed the reason to write a script at all. The robot moves because
-     a block moved it, or it does not move. */
-  const body=read('public/ring.js').replace(/\/\*[\s\S]*?\*\//g,'');
-  assert.ok(!/G\.keys/.test(body),
-    'ring.js reads the keyboard itself — the blocks are supposed to do that');
-  assert.ok(!/ArrowLeft|ArrowRight|KeyA\b|KeyD\b/.test(body),
-    'ring.js names a movement key, so something is bound outside the blocks');
+test('every block a template uses is a real block, with the args it really takes', ()=>{
+  const by=new Map(BLOCKS.LIST.map(b=>[b.op,b]));
+  TEMPLATES.LIST.forEach(t=>{
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if(x.op){
+        const bd=by.get(x.op);
+        assert.ok(bd, t.id+' uses '+x.op+', which is not a block');
+        Object.keys(x.args||{}).forEach(k=>assert.ok(bd.args && (k in bd.args),
+          t.id+': '+x.op+' has no argument called "'+k+'"'));
+      }
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })([t.procs, t.scripts]);
+  });
 });
 
-test('the ring steps the VM itself, because the game loop only does it in Free Play', ()=>{
+test('a template that sets a variable declares it, so the dropdown can find it', ()=>{
+  TEMPLATES.LIST.forEach(t=>{
+    const declared=new Set(t.vars||[]);
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if((x.op==='data.set'||x.op==='data.change'||x.op==='data.get') && x.args && x.args.v)
+        assert.ok(declared.has(x.args.v),
+          t.id+' uses the variable "'+x.args.v+'" and does not declare it in `vars`');
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })([t.procs, t.scripts]);
+  });
+});
+
+test('a template that calls a custom block defines it', ()=>{
+  TEMPLATES.LIST.forEach(t=>{
+    const defined=new Set((t.procs||[]).map(p=>p.name));
+    opsIn(t); // walk for my.call specifically
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if(x.op==='my.call' && x.args && x.args.p)
+        assert.ok(defined.has(x.args.p),
+          t.id+' calls "'+x.args.p+'" and never defines it');
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })([t.procs, t.scripts]);
+  });
+});
+
+test('every broadcast a template sends is one something listens for', ()=>{
+  /* A message nobody receives is the quietest bug there is. */
+  const sent=new Set(), heard=new Set();
+  const scan=(t, into)=>{
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if(x.op==='event.send' && x.args) sent.add(x.args.m);
+      if(x.op==='event.recv' && x.args) heard.add(x.args.m);
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })(into);
+  };
+  TEMPLATES.LIST.forEach(t=>scan(t,[t.procs,t.scripts]));
+  scan(null, TEMPLATES.dummyScripts());
+  sent.forEach(m=>assert.ok(heard.has(m),
+    'something broadcasts "'+m+'" and nothing anywhere receives it'));
+  heard.forEach(m=>assert.ok(sent.has(m),
+    'something waits for "'+m+'" and nothing ever sends it'));
+});
+
+test('nothing the dummy does to itself moves it permanently', ()=>{
+  /* IT WALKED AWAY. The flinch was `change x by 1.5` and nothing to undo
+     it, so every landed punch shoved the dummy further off and it never
+     came back — twenty punches into a lesson it was past the end of the
+     floor and unreachable. Any axis a script nudges has to net to zero
+     across the script, or the target leaves. */
+  const net={};
+  (function walk(x){
+    if(!x || typeof x!=='object') return;
+    if(Array.isArray(x)) return x.forEach(walk);
+    if(x.op==='motion.changeBy' && x.args)
+      net[x.args.a]=(net[x.args.a]||0)+Number(x.args.n||0);
+    Object.keys(x).forEach(k=>walk(x[k]));
+  })(TEMPLATES.dummyScripts());
+  Object.keys(net).forEach(axis=>assert.ok(Math.abs(net[axis])<1e-9,
+    'the dummy\'s own scripts move it '+net[axis]+' along '+axis+
+    ' every time — it will walk off the floor'));
+});
+
+test('the dummy starts within reach of the punch as shipped', ()=>{
+  /* "I ticked PUNCH, pressed space and nothing happened" is a terrible
+     first five seconds. The lunge is repeat × step and the reach is the
+     number in the `if`; between them they have to cover the gap from the
+     robot's own start mark. */
+  const t=TEMPLATES.byId('punch');
+  const body=t.procs[0].body;
+  const rep=body.find(b=>b.op==='ctrl.repeat');
+  const lunge=Number(rep.args.n)*Math.abs(Number(rep.body[0].args.n));
+  const reach=Number(body.find(b=>b.op==='ctrl.if').args.c.args.b);
   const src=read('public/ring.js');
-  assert.match(src, /VM\.step\(dt\)/, 'nothing steps the VM, so no script will ever run');
-  assert.match(src, /VM\.useSlot\(/, 'the ring does not say which project to open');
-  assert.match(src, /VM\.enter\(/,   'the ring never mounts the VM into its room');
-  assert.match(read('public/game.js'), /RING\.active\) RING\.tick\(dt\)/,
-    'the game loop never ticks the ring');
+  const at=Number((src.match(/d\.x=(\d+(?:\.\d+)?); d\.y=/)||[])[1]);
+  assert.ok(isFinite(at), 'the dummy has no start mark to check against');
+  assert.ok(lunge+reach >= at,
+    'the dummy stands at '+at+' and the shipped punch only covers '+
+    (lunge+reach)+' (lunge '+lunge+' + reach '+reach+') \u2014 the first press will miss');
 });
 
-test('closing the blocks does not drop the planet\'s panels over the ring', ()=>{
-  /* CODER.hide() puts #objectives, #keys and #topbar back unconditionally,
-     which is right in Free Play and wrong here — pressing C to close the
-     blocks dropped Senio's mission list across the middle of the room.
-     The ring re-asserts its own list every tick rather than patching the
-     shared editor. */
-  const src=read('public/ring.js');
-  assert.match(read('public/coder.js'), /\$\('#objectives'\)\.classList\.remove\('hidden'\)/,
-    'coder.js no longer restores #objectives — this guard may be stale');
-  assert.match(src, /const HIDE=\[/, 'the ring does not keep a list of what it hides');
-  assert.match(src, /HIDE\.forEach[\s\S]{0,200}add\('hidden'\)/,
-    'the ring hides its list once and never puts it back');
-  const tick=src.slice(src.indexOf('function tick('), src.indexOf('function camera('));
-  assert.match(tick, /HIDE\.forEach/,
-    'the ring never re-hides the panels, so closing the editor reveals them');
-  /* #keys is the hint bar along the bottom and the ring writes its own
-     line into it with keyHint(). Hiding that takes away the one sentence
-     this room most wants on screen. */
-  const list=src.match(/const HIDE=\[[\s\S]*?\];/)[0];
-  assert.ok(!/#keys/.test(list), 'the ring hides the hint bar it writes into');
-  assert.match(src, /keyHint\(/, 'the ring never writes a hint at all');
+test('every template says what it teaches and what to change in it', ()=>{
+  /* The `tune` list IS the exercise. A template without one is a thing
+     to copy rather than a thing to take apart. */
+  TEMPLATES.LIST.forEach(t=>{
+    ['name','em','blurb','teaches'].forEach(k=>
+      assert.ok(t[k] && String(t[k]).length, t.id+' has no '+k));
+    assert.ok((t.tune||[]).length>0, t.id+' names nothing worth changing');
+    (t.tune||[]).forEach(x=>{
+      assert.ok(x.what && x.does, t.id+' has a tune row with a gap in it');
+      assert.ok(/[0-9]/.test(x.what) || /\u2039|\u203a/.test(x.what),
+        t.id+': "'+x.what+'" is not a number or a condition you could change');
+    });
+  });
 });
 
-test('the ring gives the whole palette back when you leave', ()=>{
-  /* restrict() is global to the editor, so a ring that does not undo it
-     leaves Free Play with five categories and a handful of blocks. */
-  assert.match(read('public/ring.js'), /CODER\.restrict\(null\)/,
-    'leaving the ring never hands the full palette back');
+test('the templates that only SET state come with the one that reads it', ()=>{
+  /* `guard` and `dodging` do nothing on their own. If nothing on the
+     list ever reads them back, blocking looks broken and the student is
+     right to think so. */
+  const writes=new Set(), reads=new Set();
+  TEMPLATES.LIST.forEach(t=>{
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if(x.op==='data.set' && x.args) writes.add(x.args.v);
+      if(x.op==='data.get' && x.args) reads.add(x.args.v);
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })([t.procs, t.scripts]);
+  });
+  ['guard','dodging'].forEach(v=>{
+    assert.ok(writes.has(v), 'nothing sets '+v);
+    assert.ok(reads.has(v),  v+' is set by a template and read by none of them');
+  });
 });
 
-test('C opens the editor in the ring, not only in Free Play', ()=>{
-  assert.match(read('public/game.js'), /RING\.active && window\.CODER/,
-    'the ring has an editor and no key that opens it');
-});
-
-test('the ring keeps its scripts in its own slot, not the Free Play sandbox', ()=>{
-  const src=read('public/ring.js');
-  const m=src.match(/const SLOT='([^']+)'/);
-  assert.ok(m, 'the ring names no project slot');
-  assert.notEqual(m[1], 'dq_sandbox', 'the ring would overwrite Free Play');
+test('the dummy swings at you, or blocking has nothing to block', ()=>{
+  const ds=TEMPLATES.dummyScripts();
+  assert.ok(ds.length>0, 'the dummy comes with no scripts at all');
+  const ops=[];
+  (function walk(x){
+    if(!x || typeof x!=='object') return;
+    if(Array.isArray(x)) return x.forEach(walk);
+    if(x.op) ops.push(x.op);
+    Object.keys(x).forEach(k=>walk(x[k]));
+  })(ds);
+  assert.ok(ops.indexOf('event.send')>=0, 'the dummy never swings');
+  assert.ok(ops.indexOf('event.recv')>=0, 'the dummy never notices being hit');
+  const on=new Set(palette().ops);
+  ops.forEach(op=>assert.ok(on.has(op),
+    'the dummy uses '+op+', which is not on the palette \u2014 a student could not edit its scripts'));
 });
 
 /* --------------------------------------------------------- the bodies */

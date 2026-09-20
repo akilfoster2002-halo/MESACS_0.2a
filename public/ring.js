@@ -98,10 +98,10 @@ window.RING = (function(){
      Adding a block is a row here. Adding a block WITH NO PARTNER is how
      this list rots, and there is a test that says so. */
   const PALETTE = {
-    cats:['events','control','motion','looks','sensing','ops'],
+    cats:['events','control','motion','looks','sensing','ops','data','my'],
     ops:[
-      /* how a script starts */
-      'event.flag','event.key',
+      /* how a script starts, and how objects tell each other things */
+      'event.flag','event.key','event.send','event.recv',
       /* the shapes it is built out of */
       'ctrl.wait','ctrl.repeat','ctrl.forever',
       'ctrl.if','ctrl.ifelse','ctrl.repeatUntil','ctrl.waitUntil','ctrl.stop',
@@ -110,13 +110,17 @@ window.RING = (function(){
       'motion.goto','motion.glide','motion.pos','motion.dir',
       /* how it tells you what it thinks */
       'looks.say','looks.sayFor',
-      /* what it can feel */
-      'sense.key','sense.timer','sense.resetTimer',
-      /* and what it can work out */
-      'op.lt','op.eq','op.gt','op.and','op.or','op.not','op.random'
+      /* what it can feel — two of these need the dummy, which is why
+         they were off the palette until there was one */
+      'sense.key','sense.touch','sense.dist','sense.timer','sense.resetTimer',
+      /* what it can work out */
+      'op.add','op.sub','op.lt','op.eq','op.gt','op.and','op.or','op.not','op.random',
+      /* what it can REMEMBER, which is the whole of `guard` and `dodging` */
+      'data.set','data.change','data.get',
+      /* and what it can be taught to do — an attack is one of these */
+      'my.call'
     ]
   };
-
   /* The first of these that exists in the model is played while the
      robot is travelling. None of them exist today — see the README. */
   const WALK_CLIPS = ['walk','Walk','walking','strafe','Strafe','run','Run'];
@@ -138,7 +142,7 @@ window.RING = (function(){
   let wasAt={x:0,y:0,z:0};
 
   /* ------------------------------------------------------------ start */
-  function start(robotId){
+  function start(robotId, addTemplates){
     stop();
     on=true;
     spec=RB().get(robotId);
@@ -164,6 +168,8 @@ window.RING = (function(){
     VM.useSlot(SLOT);
     VM.enter(G.roomGroup);
     const bot=ensureRobot();
+    ensureDummy();
+    (addTemplates||[]).forEach(id=>install(id, bot));
     bodyFor=null; mixer=null; clips=[]; cur=null; curName=null;
     loadBody();
 
@@ -199,6 +205,98 @@ window.RING = (function(){
     bot.x=0; bot.y=spec.height/2; bot.z=0; bot.dir=0;
     VM.sync(bot);
     return bot;
+  }
+
+  /* ------------------------------------------------------- the dummy
+     A post to hit, and the SECOND OBJECT — which is most of its job.
+     Every sensing block worth having needs something that is not you:
+     `touching [Dummy]?` and `distance to [Dummy]` were off the palette
+     entirely until there was one, because a sensing block that can only
+     ever answer about nothing is a trap.
+
+     It is a plain cylinder on purpose. Costumes cannot instance a rigged
+     model (see costumes.js), and a training post does not need to be
+     one — so this one is an ordinary VM actor, drawn by the VM, with no
+     special handling anywhere.
+
+     IT COMES WITH SCRIPTS AND THEY ARE MEANT TO BE READ. It flinches
+     when it is told it was hit, and it swings on a timer so that `guard`
+     and `dodging` have something to be true ABOUT. A student who wants
+     it to swing faster changes the 3. */
+  function ensureDummy(){
+    const T=window.TEMPLATES; if(!T) return null;
+    let d=VM.actorByName(T.DUMMY);
+    if(!d){
+      d=VM.addActor({ name:T.DUMMY, shape:'cylinder', colour:'#ffb4a2',
+                      size:2.6, x:8, y:1.3, z:0, dir:0 });
+      d.scripts=T.dummyScripts().map((sc,i)=>({ id:'d'+i, hat:sc.hat, body:sc.body }));
+    }
+    /* Back on its mark, like the robot. Its own flinch script rocks it
+       and puts it back, so this is only for the case where a student has
+       edited that and left it somewhere — and for the walk-in, which
+       should always look the same.
+
+       EIGHT AND NOT NINE. The shipped punch lunges 2.4 and reaches 6, so
+       from the robot's own start mark a dummy at nine is four inches out
+       of reach — and "I ticked PUNCH, pressed space and nothing
+       happened" is a terrible first five seconds. At eight the example
+       works standing still, and moving is then something to explore
+       rather than something to debug. */
+    d.x=8; d.y=1.3; d.z=0;
+    VM.sync(d);
+    return d;
+  }
+
+  /* ---------------------------------------------------- the templates
+     Installed as ORDINARY BLOCKS and then forgotten about. Nothing in
+     here marks them, nothing treats them specially afterwards, and a
+     student can rename, rewire or delete any of it — which is the only
+     way a worked example is worth having.
+
+     Installing twice is the thing to guard against, because the pit is a
+     screen you come back through. A template whose function already
+     exists is already in, and one that only adds a script is checked by
+     its hat instead. */
+  function install(id, bot){
+    const T=window.TEMPLATES, t=T && T.byId(id);
+    if(!t || !bot) return false;
+    if(has(t, bot)) return false;
+
+    (t.vars||[]).forEach(v=>{
+      if(!(v in VM.project.vars)) VM.project.vars[v]=0;
+    });
+    (t.procs||[]).forEach(p=>{
+      if(!VM.project.procs.find(x=>x.name===p.name))
+        VM.project.procs.push({ name:p.name, params:p.params||[], body:copy(p.body) });
+    });
+    (t.scripts||[]).forEach(sc=>{
+      bot.scripts=bot.scripts||[];
+      bot.scripts.push({ id:Date.now()+Math.random(), hat:copy(sc.hat), body:copy(sc.body) });
+    });
+    /* A broadcast has to be a message the project knows about, or the
+       dropdown on the block it came from has nothing selected in it. */
+    msgsIn(t).forEach(m=>{ if(VM.project.msgs.indexOf(m)<0) VM.project.msgs.push(m); });
+    VM.save();
+    return true;
+  }
+  const has = (t, bot) => (t.procs||[]).length
+    ? (t.procs||[]).some(p=>VM.project.procs.find(x=>x.name===p.name))
+    : (bot.scripts||[]).some(sc=>(t.scripts||[]).some(x=>
+        sc.hat && x.hat && sc.hat.op===x.hat.op &&
+        (sc.hat.args||{}).m===(x.hat.args||{}).m));
+  /* Templates are shared data and the project is about to be edited, so
+     what goes in is a copy. Without this, two robots installing the same
+     template would be editing the same blocks. */
+  const copy = o => JSON.parse(JSON.stringify(o));
+  function msgsIn(t){
+    const out=new Set();
+    (function walk(x){
+      if(!x || typeof x!=='object') return;
+      if(Array.isArray(x)) return x.forEach(walk);
+      if((x.op==='event.send'||x.op==='event.recv') && x.args && x.args.m) out.add(x.args.m);
+      Object.keys(x).forEach(k=>walk(x[k]));
+    })([t.procs, t.scripts]);
+    return [...out];
   }
 
   /* ------------------------------------------------------- the body

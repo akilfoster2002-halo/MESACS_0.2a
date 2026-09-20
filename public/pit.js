@@ -21,6 +21,7 @@ window.PIT = (function(){
   const T  = s => (window.t ? t(s) : s);
 
   let open=false, onGo=null;
+  let wanted=new Set();      // templates ticked for this trip in
 
   /* The pick rides in the same bag as coins and finished missions, so it
      follows the account to any machine in the lab. localStorage is the
@@ -60,26 +61,65 @@ window.PIT = (function(){
     const el=$('#pit'); if(!el) return;
     el.innerHTML=`<div class="pit-wrap">
       <h1>${T('THE PIT')}</h1>
-      <div class="pit-sub">${T('Pick a body. You write its code in the ring — press C once you are in there.')}</div>
+      <div class="pit-sub">${T('Pick a body, and pick anything you want a worked example of. You write the code in the ring \u2014 press C once you are in there.')}</div>
       <div class="pit-pick" id="pitPick"></div>
       <div class="pit-code">
-        <div class="pit-codehead"><b>${T('WHAT YOU ARE ABOUT TO WRITE')}</b>
-          <span class="pit-key">${T('the same blocks as Free Play, cut down to the ones you need')}</span></div>
-        <p class="pit-key">${T('Nothing moves this robot but your own blocks. There are no built-in controls — if you want a key to do something, you have to say so.')}</p>
-        <pre class="pit-eg">${T('when ▶ the game starts')}
-${T('forever')}
-  ${T('if ‹key [right arrow] pressed?› then')}
-    ${T('change x by 0.3')}</pre>
-        <p class="pit-key">${T('The conditional has to be INSIDE the loop. On its own it is checked once, on the frame you pressed Run, and then never again — so the robot twitches and stops. The forever loop is what turns it into a control.')}</p>
+        <div class="pit-codehead"><b>${T('WORKED EXAMPLES')}</b>
+          <span class="pit-key">${T('written in the same blocks you have \u2014 take them apart')}</span></div>
+        <p class="pit-key">${T('There is no PUNCH block and there is not going to be one. An attack is something you BUILD: a function, a variable, a loop, a test on a sensor and a message to whatever you hit. Tick one and it is written into your project as ordinary blocks \u2014 then change the numbers.')}</p>
+        <div class="pit-temps" id="pitTemps"></div>
+        <p class="pit-key" style="margin-top:10px">
+          <b style="color:var(--star)">${T('Every one of these is called from inside a forever loop.')}</b>
+          ${T('A conditional on its own is checked once, on the frame you pressed Run, and then never again \u2014 so the robot twitches once and stops. The loop is what turns it into a control, and it is the commonest thing to get wrong.')}</p>
       </div>
       <div class="pit-foot">
         <button class="btn ghost small" id="pitBack">◀</button>
-        <button class="btn good" id="pitGo">${T('TAKE IT OUT ▶')}</button>
-        <span class="pit-key">${T('Changing robot later keeps every script — it only changes the costume.')}</span>
+        <button class="btn good" id="pitGo">${T('TAKE IT OUT \u25b6')}</button>
+        <span class="pit-key" id="pitNote"></span>
       </div></div>`;
-    chooser();
+    chooser(); temps();
     $('#pitBack').onclick=()=>{ hide(); if(window.MENU) MENU.homeworld(); };
-    $('#pitGo').onclick =()=>{ hide(); if(onGo) onGo(robot()); };
+    $('#pitGo').onclick =()=>{ const add=[...wanted]; wanted.clear();
+                               hide(); if(onGo) onGo(robot(), add); };
+  }
+
+  /* The worked examples, each with the numbers in it worth changing.
+     THE `tune` LIST IS THE POINT OF THE CARD. "Change 0.6 to 2 and watch
+     your reach" is a better exercise than any amount of explaining, and
+     it is the difference between a student who has a punch and a student
+     who knows why it is that long. */
+  function temps(){
+    const host=$('#pitTemps'); if(!host || !window.TEMPLATES) return;
+    host.innerHTML='';
+    TEMPLATES.LIST.forEach(t=>{
+      const on=wanted.has(t.id);
+      const card=document.createElement('button');
+      card.className='pit-temp'+(on?' on':'');
+      card.innerHTML=`
+        <div class="pit-temphead"><span>${t.em}</span><b>${T(t.name)}</b>
+          <span class="pit-tick">${on?'\u2714':'+'}</span></div>
+        <p>${T(t.blurb)}</p>
+        <div class="pit-teach">${T(t.teaches)}</div>
+        <div class="pit-tune">${(t.tune||[]).map(x=>
+          `<div><code>${x.what}</code><span>${T(x.does)}</span></div>`).join('')}</div>`;
+      card.onclick=()=>{ if(wanted.has(t.id)) wanted.delete(t.id); else wanted.add(t.id);
+                         temps(); note(); };
+      host.appendChild(card);
+    });
+    note();
+  }
+  /* TAKE A HIT is the one that READS what the others write. Without it
+     `guard` and `dodging` are numbers nobody looks at, which is not
+     state, it is litter — so the pit says so rather than letting a
+     student wonder why blocking does nothing. */
+  function note(){
+    const el=$('#pitNote'); if(!el) return;
+    const sets=[...wanted].some(id=>['block','dodge'].indexOf(id)>=0);
+    el.innerHTML = (sets && !wanted.has('answer'))
+      ? `<b style="color:var(--star)">${T('BLOCK and DODGE only set a variable.')}</b> `+
+        T('Add TAKE A HIT as well, or nothing ever reads it and they will look broken.')
+      : wanted.size ? T('These are written in as ordinary blocks. Change anything.')
+                    : T('You can take nothing and write it all yourself.');
   }
 
   function chooser(){
