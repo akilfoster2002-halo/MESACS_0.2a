@@ -30,6 +30,7 @@ window.CODER = (function(){
   let only=null;          // { cats:[…], ops:[…], locked:bool }
   let magnify=false;      // the 🔍 tool: click a block to be told what it does
   let editingProc=null;
+  let repaired=false;     // a render had to mend a slot: see slotHTML
 
   function current(){ if(!actor) actor=VM.project.actors.find(a=>!a.isClone)||null; return actor; }
   function setActor(a){ actor=a; cursor=null; slotTarget=null; selected=null; render(); }
@@ -406,11 +407,38 @@ window.CODER = (function(){
   }
   function slotHTML(bk,k,sp){
     if(!sp) return '';
-    const v=bk.args[k];
+    let v=bk.args[k];
+    /* A block sitting in a MENU slot is a program that cannot run, and
+       older saves have them: the key field used to be a plain text box, so
+       `key [space] pressed?` could be dropped on it and the hat read back
+       "when key space pressed? key pressed". Put the default back rather
+       than drawing a block inside a dropdown. */
+    if(v && typeof v==='object' && v.op && !BLOCKS.holdsBlock(sp)){
+      v = bk.args[k] = sp.def!==undefined ? sp.def : '';
+      repaired=true;
+    }
     if(v && typeof v==='object' && v.op){
       const bd=BLOCKS.of(v.op);
       return `<span class="cnest" style="--a:${BLOCKS.catOf(bd.cat).a}">${renderInline(v)}
         <button class="bx" data-clear="${k}">✕</button></span>`;
+    }
+    /* THE KEYBOARD IS A MENU. Typing here was the bug twice over: a
+       misspelt key never fires and says nothing about why, and a field you
+       can click into is a field a reporter can be dropped into. */
+    if(sp.type==='key'){
+      /* A select is as wide as its WIDEST option, so `key [w] pressed?`
+         would sit in a box cut for "right arrow" and the block would read
+         with a hole in it. Sized to the word actually showing, the way the
+         typing box it replaces was: the font is monospace, so the label is
+         its length in ch, and 34px is the padding, border and the dropdown
+         arrow, measured. Erring long — slack is invisible, a clipped key
+         name is the bug this block already had once. */
+      const now=BLOCKS.KEYS.find(o=>o.v===String(v)) || { name:String(v==null?'':v) };
+      return `<select class="cin ckey" data-set="${k}"
+                style="width:calc(${Math.max(2,now.name.length)}ch + 34px)">${
+        BLOCKS.KEYS.map(o=>
+          `<option value="${esc(o.v)}" ${o.v===String(v)?'selected':''}>${esc(o.name)}</option>`
+        ).join('')}</select>`;
     }
     if(sp.type==='bool')
       return `<i class="cslot bool ${isSlot(bk,k)?'on':''}" data-slot="${k}">◇</i>`;
@@ -443,8 +471,14 @@ window.CODER = (function(){
           `<option ${x.name===v?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
     if(sp.type==='colour')
       return `<input class="cin ccol" type="color" data-set="${k}" value="${esc(v||'#8fd3ff')}">`;
+    /* Only `num` and `str` get a box, and only they carry data-slot — which
+       is what makes a slot a drop target. Anything else that reaches here
+       is a name the student does not get to retype: a custom block's, say,
+       where a typo is a call to a block that does not exist. */
+    const show=String(v==null?'':v);
+    if(!BLOCKS.holdsBlock(sp)) return `<i class="cslot">${esc(show)}</i>`;
     return `<input class="cin ${isSlot(bk,k)?'on':''}" data-set="${k}" data-slot="${k}"
-                   value="${esc(String(v==null?'':v))}" size="${Math.max(2,String(v==null?'':v).length)}">`;
+                   value="${esc(show)}" size="${Math.max(2,show.length)}">`;
   }
   const isSlot=(bk,k)=>slotTarget && slotTarget.owner===bk && slotTarget.key===k;
   const allVarNames=()=>[...Object.keys(VM.project.vars), ...Object.keys((current()||{}).vars||{})];
@@ -773,7 +807,11 @@ window.CODER = (function(){
   function render(){
     if(!open) return;
     document.querySelector('#coder').classList.toggle('magnify', magnify);
+    repaired=false;
     bar(); palette(); scripts();
+    /* slotHTML put a default back into a menu slot that was holding a
+       block. Write it down, or the same save keeps arriving broken. */
+    if(repaired){ repaired=false; VM.save(); }
   }
 
   let beat=0;

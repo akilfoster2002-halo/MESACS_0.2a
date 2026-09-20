@@ -204,6 +204,18 @@ window.VM = (function(){
     if(a.home) a.home.shape=a.shape;
     build(a); save();
   }
+  /* THIS IS WHERE THIS OBJECT LIVES NOW — the same promise dress() makes
+     about a costume, made about the whole of it.
+
+     A room that stands an object up itself has to say so. addActor takes
+     the home snapshot as the object is made, so anything set on the line
+     AFTER it — a robot's real height, the mark on the floor it starts on —
+     is not in the snapshot, and ↺ puts back the one-unit cube the object
+     was for the instant before the room dressed it. */
+  function setHome(a){
+    if(!a) return;
+    a.home=snapshot(a); save();
+  }
   const actorByName = nm => P.actors.find(a=>a.name===nm) || null;
 
   /* say-bubbles are canvas sprites so the text can be anything */
@@ -278,7 +290,7 @@ window.VM = (function(){
                           return (i>=1 && i<=L.length) ? L[i-1] : ''; }
       case 'list.len': return (P.lists[A.l]||[]).length;
 
-      case 'motion.pos': return +(ctx.actor?ctx.actor[g('a')]:0).toFixed(3);
+      case 'motion.pos': return +(ctx.actor?ctx.actor[ax(g('a'))]:0).toFixed(3);
       case 'motion.dir': return ctx.actor?ctx.actor.dir:0;
       case 'sense.dist': { const o=target(g('o'),ctx); if(!o||!ctx.actor) return 0;
         return +Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z).toFixed(2); }
@@ -287,8 +299,8 @@ window.VM = (function(){
         const o=target(g('o'),ctx); if(!o||!ctx.actor) return false;
         const r=(ctx.actor.size+(o.size||1))*0.6;
         return Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z) < r; }
-      case 'sense.key': return !!G.keys[keyCode(g('k'))];
-      case 'sense.posOf': { const o=target(g('o'),ctx); return o?+(o[g('a')]).toFixed(3):0; }
+      case 'sense.key': return keyDown(keyCode(g('k')));
+      case 'sense.posOf': { const o=target(g('o'),ctx); return o?+(o[ax(g('a'))]).toFixed(3):0; }
       case 'sense.timer': return +((performance.now()-t0)/1000).toFixed(2);
       case 'sense.count': { const w=g('o');
         if(w==='clones') return P.actors.filter(a=>a.isClone).length;
@@ -296,13 +308,43 @@ window.VM = (function(){
       default: return 0;
     }
   }
+  /* ------------------------------------------------------- the axes
+     THE STUDENT'S AXES ARE NOT THE ENGINE'S, and this one line is the
+     whole of the difference.
+
+     On screen x runs across, and the other two are "up" and "into the
+     picture". The language names the two you can point at first — x
+     across, y into the screen — and leaves z for height, so that the
+     pair a student reaches for in a side-on room is x and y. Three.js is
+     Y-up and always will be, so the actor's own fields stay engine-
+     native and the swap happens HERE, where a block hands over the name
+     it was given. Nothing downstream — sync, the camera, the costumes,
+     the floor — knows anything about it.
+
+     Every block that takes an axis BY NAME goes through ax(). Blocks
+     that work in the ground plane — move, point towards, distance to —
+     do not, because they never name an axis: they are arithmetic on the
+     floor, and the floor is the floor whatever its two directions are
+     called. */
+  const FIELD = { x:'x', y:'z', z:'y' };      // the fallback, if blocks.js is late
+  const ax = k => (window.BLOCKS && BLOCKS.axisField) ? BLOCKS.axisField(k)
+                : (FIELD[String(k==null?'':k).trim().toLowerCase()] || 'x');
+
+  /* WHICH KEY A KEY SLOT MEANS. The table lives in blocks.js with the rest
+     of the language, so the menu the editor offers and the codes the VM
+     asks the browser about cannot drift apart. An unknown name gets an
+     empty code, and an empty code is a key nobody is pressing. */
   function keyCode(k){
+    if(window.BLOCKS && BLOCKS.keyCode) return BLOCKS.keyCode(k);
     k=String(k||'').toLowerCase();
     if(k==='space') return 'Space';
     if(k==='up') return 'ArrowUp'; if(k==='down') return 'ArrowDown';
     if(k==='left') return 'ArrowLeft'; if(k==='right') return 'ArrowRight';
-    return 'Key'+k.toUpperCase().slice(0,1);
+    return /^[0-9]$/.test(k) ? 'Digit'+k : 'Key'+k.toUpperCase().slice(0,1);
   }
+  /* 'any' is a key the keyboard does not have, so it is answered here */
+  const anyKey = () => Object.keys(G.keys).some(c=>G.keys[c]);
+  const keyDown = code => code==='any' ? anyKey() : (!!code && !!G.keys[code]);
   /* The room's four walls. An object touches the edge once its own skin
      reaches one — and it STAYS touching if it has already gone past, so a
      fast mover cannot step over the test in one go and escape the room. */
@@ -391,9 +433,10 @@ window.VM = (function(){
       }
       case 'motion.turn': { if(a){ a.dir=(a.dir+num(g('n')))%360; sync(a);} break; }
       case 'motion.tilt': { if(a){ a.tilt=(a.tilt+num(g('n')))%360; sync(a);} break; }
-      case 'motion.goto': { if(a){ a.x=num(g('x')); a.y=num(g('y')); a.z=num(g('z')); sync(a);} break; }
-      case 'motion.changeBy': { if(a){ a[g('a')] = num(a[g('a')])+num(g('n')); sync(a);} break; }
-      case 'motion.setTo': { if(a){ a[g('a')] = num(g('n')); sync(a);} break; }
+      case 'motion.goto': { if(a){ a[ax('x')]=num(g('x')); a[ax('y')]=num(g('y'));
+                                   a[ax('z')]=num(g('z')); sync(a);} break; }
+      case 'motion.changeBy': { if(a){ const f=ax(g('a')); a[f]=num(a[f])+num(g('n')); sync(a);} break; }
+      case 'motion.setTo': { if(a){ a[ax(g('a'))] = num(g('n')); sync(a);} break; }
       case 'motion.point': {
         const o=target(g('o'),ctx);
         if(a&&o){ a.dir = Math.atan2(o.x-a.x, o.z-a.z)*180/Math.PI; sync(a); }
@@ -402,12 +445,14 @@ window.VM = (function(){
       case 'motion.glide': {
         if(!a) break;
         const secs=Math.max(0.01,num(g('t')));
-        const sx=a.x, sy=a.y, sz=a.z;
+        /* named in the student's axes, held in the engine's */
+        const fx=ax('x'), fy=ax('y'), fz=ax('z');
+        const sx=a[fx], sy=a[fy], sz=a[fz];
         const tx=num(g('x')), ty=num(g('y')), tz=num(g('z'));
         const start=performance.now();
         while(true){
           const k=Math.min(1,(performance.now()-start)/(secs*1000));
-          a.x=sx+(tx-sx)*k; a.y=sy+(ty-sy)*k; a.z=sz+(tz-sz)*k; sync(a);
+          a[fx]=sx+(tx-sx)*k; a[fy]=sy+(ty-sy)*k; a[fz]=sz+(tz-sz)*k; sync(a);
           if(k>=1) break;
           yield 'tick';
         }
@@ -511,7 +556,7 @@ window.VM = (function(){
       P.actors.forEach(a=>(a.scripts||[]).forEach(sc=>{
         if(!sc.hat || sc.hat.op!=='event.key') return;
         const code=keyCode((sc.hat.args||{}).k);
-        const down=!!G.keys[code];
+        const down=keyDown(code);
         if(down && !keyWas[code+sc.id]) startScript(a,sc);
         keyWas[code+sc.id]=down;
       }));
@@ -612,9 +657,11 @@ window.VM = (function(){
   function leave(){ group=null; threads=[]; running=false; visiting=false; }
   /* THE FLAT STAGE, which is a camera and not an engine.
 
-     Looking straight down the y axis at the floor puts x across the screen
-     and z up it, which is exactly the plane move/turn/point already work
-     in. Framed on everything the project contains rather than on a fixed
+     Looking straight down at the floor puts the student's x across the
+     screen and their y up it — the two named axes, both in full view,
+     which is exactly the plane move/turn/point already work in. (Height
+     is z, and from up here it points at the viewer, so a flat game is one
+     where z never changes: Scratch, arrived at rather than imitated.) Framed on everything the project contains rather than on a fixed
      box, so a small game fills the screen and a big one fits — measured
      once when the stage opens, not per frame, or a clone flying off the
      edge slowly zooms the whole game out. */
@@ -656,7 +703,7 @@ window.VM = (function(){
     get project(){ return P; },
     get running(){ return running; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe, reset, resetActor, dress, runBlock, ghostMesh, useSlot,
+    enter, leave, step, save, load, wipe, reset, resetActor, dress, setHome, runBlock, ghostMesh, useSlot,
     adopt, install, stageCam, reframe, plain,
     get visiting(){ return visiting; },
     get flat(){ return isFlat(); },

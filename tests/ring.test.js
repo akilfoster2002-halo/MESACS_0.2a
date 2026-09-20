@@ -611,3 +611,62 @@ test('the pit says the one thing that stops a student being stuck for a lesson',
   assert.match(src, /checked once/i,
     'the pit never explains why a bare conditional does not work');
 });
+
+/* --------------------------------------------------- the mark on the floor
+   ↺ PUTS AN OBJECT BACK TO HOW IT WAS MADE, and the VM takes that snapshot
+   inside addActor — so anything the room sets on the NEXT line is not in it.
+   The ring stands its robot up at its own height and on its own mark after
+   calling addActor, which made ↺ hand back a one-unit cube half-sunk in the
+   floor: pick Noisy Boy, press reset, and he is small again. */
+function stubTHREE(){
+  class Obj {
+    constructor(){ this.children=[]; this.parent=null; this.userData={};
+      this.visible=true;
+      const v=()=>({x:0,y:0,z:0,set(a,b,c){this.x=a;this.y=b;this.z=c;}});
+      this.position=v(); this.rotation=v(); this.scale=v(); }
+    add(c){ c.parent=this; this.children.push(c); return this; }
+    remove(c){ this.children=this.children.filter(x=>x!==c); c.parent=null; return this; }
+    traverse(f){ f(this); this.children.forEach(c=>c.traverse(f)); }
+  }
+  function Any(){}                     // geometries and materials, as nothing
+  return { Group:Obj, Mesh:Obj, Object3D:Obj,
+    BoxGeometry:Any, SphereGeometry:Any, ConeGeometry:Any, CylinderGeometry:Any,
+    MeshLambertMaterial:Any, MeshBasicMaterial:Any, Color:Any,
+    Vector3:function(){ this.x=this.y=this.z=0; this.set=()=>this; } };
+}
+function loadVM(){
+  const ctx=vm.createContext({ console });
+  ctx.window=ctx; ctx.self=ctx;
+  ctx.THREE=stubTHREE();
+  ctx.performance={ now:()=>0 };
+  ctx.localStorage={ getItem:()=>null, setItem(){}, removeItem(){} };
+  ['public/blocks.js','public/vm.js'].forEach(f=>
+    vm.runInContext(read(f), ctx, { filename:f }));
+  return ctx.VM;
+}
+
+test('an object made one size and then stood up at another goes home to the second', ()=>{
+  const VM=loadVM();
+  const bot=VM.addActor({ name:'Robot', dir:0 });
+  const H=4.6;                                   // Noisy Boy, head to floor
+  bot.size=H; bot.x=0; bot.y=H/2; bot.z=0;       // the ring's own two lines
+  VM.dress(bot,'robots/noisyboy');
+  VM.setHome(bot);
+
+  bot.size=1; bot.y=40;                          // a lesson's worth of blocks
+  VM.resetActor(bot);
+  assert.strictEqual(bot.size, H, 'reset made the robot a one-unit cube again');
+  assert.strictEqual(bot.y, H/2, 'reset left the robot off its mark');
+  assert.strictEqual(bot.shape, 'robots/noisyboy', 'reset undressed the robot');
+});
+
+test('every place the ring stands a body up tells the VM that is home', ()=>{
+  const src=read('public/ring.js');
+  ['ensureRobot','ensureFoe'].forEach(fn=>{
+    const m=src.match(new RegExp('function '+fn+'\\(\\)\\{[\\s\\S]*?\\n  \\}'));
+    assert.ok(m, 'ring.js has no '+fn+' to check');
+    assert.match(m[0], /\.size\s*=/, fn+' no longer sizes the body');
+    assert.match(m[0], /VM\.setHome\(/,
+      fn+' sizes a body and never makes that its home, so ↺ shrinks it');
+  });
+});

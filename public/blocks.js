@@ -15,9 +15,20 @@
      report  gives a number/text — x position, 3 + 4
      bool    gives a yes or no   — touching player?
 
+   THE THREE AXES, which are named for what a student can point at:
+     x   across the screen, left and right
+     y   into the screen and back out
+     z   up
+   x and y are the two you can see the whole of from where the camera
+   stands, so they are the two with the short names, and the pair a first
+   program reaches for. The engine underneath is Y-up like every 3D
+   engine; vm.js maps between them in one line and nothing else in the
+   game knows the difference.
+
    A slot's type says what may drop into it: `num` and `str` take a typed
-   value or any reporter, `bool` takes only a boolean block, `var` and
-   `msg` are dropdowns over things the project has made.
+   value or any reporter, `bool` takes only a boolean block, and `key`,
+   `var` and `msg` are dropdowns — over the keyboard, and over the things
+   the project has made. A dropdown never holds a block; see holdsBlock.
    ===================================================================== */
 window.BLOCKS = (function(){
 
@@ -36,6 +47,88 @@ window.BLOCKS = (function(){
   const s=(d)=>({type:'str',def:d});
   const b=()=>({type:'bool'});
   const B=(op,cat,kind,label,args)=>({op,cat,kind,label,args:args||{}});
+
+  /* ---------------------------------------------------------------- keys
+     THE KEYBOARD IS A CLOSED LIST, and a key slot is a menu over it rather
+     than a box to type in. A typed field looks like it works: "Shift",
+     "spacebar", "arrow up" all sit in the block reading perfectly well,
+     none of them ever fires, and there is nothing on screen to say why.
+     Every name below has exactly one code the VM can ask the browser
+     about, and nothing that is not on the list can get into the slot.
+
+     The stored value is the short lowercase name — 'up', not 'ArrowUp' —
+     because it is also the word the student reads inside the block. The
+     codes are KeyboardEvent.code, the layout-independent one: 'KeyW' is
+     the key with W printed on it whatever the keyboard is set to.
+
+     'any' is Scratch's, and earns its place on a first program: one hat,
+     any key, something happens. */
+  const NAMED = {
+    any:'any', space:'Space', enter:'Enter',
+    up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight'
+  };
+  /* what a saved project, or a student reading the label back in, might
+     have put there instead */
+  const ALIAS = {
+    'up arrow':'up', 'down arrow':'down', 'left arrow':'left',
+    'right arrow':'right', 'spacebar':'space', ' ':'space', 'return':'enter'
+  };
+  const SPLIT = s => String(s).split('');
+  /* the dropdown, in Scratch's order: the big keys, then the alphabet,
+     then the numbers. `v` is stored, `name` is read. */
+  const KEYS = [
+    { v:'any',   name:'any'         },
+    { v:'space', name:'space'       },
+    { v:'up',    name:'up arrow'    },
+    { v:'down',  name:'down arrow'  },
+    { v:'left',  name:'left arrow'  },
+    { v:'right', name:'right arrow' },
+    { v:'enter', name:'enter'       },
+    ...SPLIT('abcdefghijklmnopqrstuvwxyz').map(v=>({v,name:v})),
+    ...SPLIT('0123456789').map(v=>({v,name:v}))
+  ];
+  /* A key name to the browser's code for it, or '' for a name that is not
+     a key at all — and an empty code is a key nobody is ever pressing,
+     which is how a junk value fails: quietly false, never a crash. */
+  function keyCode(k){
+    k=String(k==null?'':k).trim().toLowerCase();
+    if(ALIAS[k]) k=ALIAS[k];
+    if(NAMED[k]) return NAMED[k];
+    if(/^[a-z]$/.test(k)) return 'Key'+k.toUpperCase();
+    if(/^[0-9]$/.test(k)) return 'Digit'+k;
+    return '';
+  }
+  const isKey = k => !!keyCode(k);
+
+  /* WHICH SLOTS HOLD A BLOCK. `num` and `str` take a typed value or any
+     reporter, `bool` takes a boolean block and nothing else. Every other
+     type is a MENU over things that exist — a key, a variable, a message,
+     a costume — and a menu cannot hold a block: dropping `key [space]
+     pressed?` into the key field of `when %k key pressed` is how you get a
+     hat that reads "when key space pressed? key pressed" and does nothing.
+     The editor asks this before it offers a slot as a drop target. */
+  const holdsBlock = sp => !!sp && (sp.type==='num'||sp.type==='str'||sp.type==='bool');
+
+  /* ---------------------------------------------------------------- axes
+     THE THREE DIRECTIONS, and the one place they are written down.
+
+     `v` is what the student types and reads. `field` is where the engine
+     keeps it: Three.js is Y-up and always will be, so the language's z
+     lives in the engine's y and the language's y in the engine's z. The
+     swap happens once, here, and vm.js and the room both read it — a
+     gizmo drawing an arrow one way while a block moves the other is the
+     kind of wrong that takes a lesson to notice.
+
+     `say` and `hue` are for anything that draws them. The hues are the
+     game's own palette, far enough apart to tell at a glance. */
+  const AXES = [
+    { v:'x', field:'x', say:'across',     hue:0x8fd3ff },
+    { v:'y', field:'z', say:'in and out', hue:0xffb4a2 },
+    { v:'z', field:'y', say:'up',         hue:0xa8e6cf }
+  ];
+  const axisOf = k => AXES.find(a=>a.v===String(k==null?'':k).trim().toLowerCase()) || AXES[0];
+  const axisField = k => axisOf(k).field;
+  const AXIS_NAMES = AXES.map(a=>a.v);
 
   const LIST=[
     /* ------------------------------------------------------------ events */
@@ -62,12 +155,12 @@ window.BLOCKS = (function(){
     B('motion.move','motion','stack','move %n steps',{n:n(10)}),
     B('motion.turn','motion','stack','turn %n degrees',{n:n(15)}),
     B('motion.tilt','motion','stack','tilt %n degrees',{n:n(15)}),
-    B('motion.goto','motion','stack','go to x %x y %y z %z',{x:n(0),y:n(1),z:n(0)}),
-    B('motion.glide','motion','stack','glide %t secs to x %x y %y z %z',{t:n(1),x:n(0),y:n(1),z:n(0)}),
-    B('motion.changeBy','motion','stack','change %a by %n',{a:{type:'pick',opts:['x','y','z'],def:'y'},n:n(1)}),
-    B('motion.setTo','motion','stack','set %a to %n',{a:{type:'pick',opts:['x','y','z'],def:'y'},n:n(0)}),
+    B('motion.goto','motion','stack','go to x %x y %y z %z',{x:n(0),y:n(0),z:n(1)}),
+    B('motion.glide','motion','stack','glide %t secs to x %x y %y z %z',{t:n(1),x:n(0),y:n(0),z:n(1)}),
+    B('motion.changeBy','motion','stack','change %a by %n',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},n:n(1)}),
+    B('motion.setTo','motion','stack','set %a to %n',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},n:n(0)}),
     B('motion.point','motion','stack','point towards %o',{o:{type:'obj',def:'player'}}),
-    B('motion.pos','motion','report','%a position',{a:{type:'pick',opts:['x','y','z'],def:'x'}}),
+    B('motion.pos','motion','report','%a position',{a:{type:'pick',opts:AXIS_NAMES,def:'x'}}),
     B('motion.dir','motion','report','direction'),
 
     /* ------------------------------------------------------------- looks */
@@ -84,7 +177,7 @@ window.BLOCKS = (function(){
     B('sense.dist','sensing','report','distance to %o',{o:{type:'obj',def:'player'}}),
     B('sense.touch','sensing','bool','touching %o ?',{o:{type:'obj',def:'player',edge:true}}),
     B('sense.key','sensing','bool','key %k pressed?',{k:{type:'key',def:'space'}}),
-    B('sense.posOf','sensing','report','%a of %o',{a:{type:'pick',opts:['x','y','z'],def:'x'},o:{type:'obj',def:'player'}}),
+    B('sense.posOf','sensing','report','%a of %o',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},o:{type:'obj',def:'player'}}),
     B('sense.timer','sensing','report','timer'),
     B('sense.resetTimer','sensing','stack','reset timer'),
     B('sense.count','sensing','report','number of %o',{o:{type:'obj',def:'clones'}}),
@@ -147,9 +240,9 @@ window.BLOCKS = (function(){
     'motion.move':"Slides forward in whatever direction the object is facing. Turn first to change where that is.",
     'motion.turn':"Spins the object left or right on the spot. Negative numbers turn the other way.",
     'motion.tilt':"Tips the object forward or back, rather than turning it.",
-    'motion.goto':"Jumps straight to an exact spot. x is left-right, y is up-down, z is near-far.",
+    'motion.goto':"Jumps straight to an exact spot. x is across, y is into the screen and back out, z is up.",
     'motion.glide':"Slides smoothly to a spot over the time you give it, instead of jumping there.",
-    'motion.changeBy':"Nudges one coordinate by an amount. 'change y by 1' lifts the object a little.",
+    'motion.changeBy':"Nudges one coordinate by an amount. 'change x by 1' slides it along, 'change z by 1' lifts it.",
     'motion.setTo':"Sets one coordinate exactly, leaving the other two alone.",
     'motion.point':"Turns to face something. Handy just before 'move', to chase it.",
     'motion.pos':"Reports where the object is on one axis. Drop it into a slot to do maths with it.",
@@ -212,5 +305,7 @@ window.BLOCKS = (function(){
   }
   const isExpr = k => k==='report' || k==='bool';
 
-  return { CATS, LIST, of, inCat, catOf, parts, isExpr, help };
+  return { CATS, LIST, of, inCat, catOf, parts, isExpr, help,
+           KEYS, keyCode, isKey, holdsBlock,
+           AXES, axisOf, axisField };
 })();

@@ -137,7 +137,7 @@ window.RING = (function(){
   const HIDE=['#mapwrap','#health','#skill','#trigger','#objectives',
               '#crosshair','#focus','#briefing'];
 
-  let on=false, wasFP=null, camX=0, camY=0, spec=null;
+  let on=false, wasFP=null, camX=0, camY=0, spec=null, axisRoot=null;
   let fighting=false, over=null, banner='';
 
   /* ------------------------------------------------------------ start */
@@ -158,6 +158,7 @@ window.RING = (function(){
     $('#hud').classList.remove('hidden');
     $('#ring').classList.remove('hidden');
     $('#ringKeys').classList.remove('hidden');
+    legend();
 
     build();
 
@@ -197,7 +198,7 @@ window.RING = (function(){
     }
     /* BACK ON ITS MARK, EVERY TIME YOU WALK IN. The scripts are the
        student's work and are never touched; where the robot is standing
-       is not — it is wherever last lesson's `change y by 40` left it, and
+       is not — it is wherever last lesson's `change z by 40` left it, and
        a robot that starts forty units above the camera looks like a robot
        that failed to load.
 
@@ -211,6 +212,12 @@ window.RING = (function(){
        to a cube. Only when it CHANGES, because dress() rebuilds the
        mesh and that would throw the mixer away every time you walk in. */
     if(bot.shape!=='robots/'+spec.id) VM.dress(bot, 'robots/'+spec.id);
+    /* AND THIS IS THE MARK, not just where it happens to be standing.
+       addActor took its home snapshot three lines up, when the robot was
+       still a one-unit cube at y 1 — so without this, ↺ hands back a
+       cube-sized Noisy Boy half-sunk into the floor, and the student has
+       to leave the room and come back to get their robot's size again. */
+    VM.setHome(bot);
     VM.sync(bot);
     return bot;
   }
@@ -239,6 +246,7 @@ window.RING = (function(){
     const fs=RB().get('ambush');
     f.size=fs.height; f.x=10; f.y=fs.height/2; f.z=0; f.dir=0;
     if(f.shape!=='robots/ambush') VM.dress(f, 'robots/ambush');
+    VM.setHome(f);                 // its corner of the ring, same as the robot's
     VM.sync(f);
     return f;
   }
@@ -461,7 +469,7 @@ window.RING = (function(){
     fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
-    ['#ringFeed','#ringKeys'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
+    ['#ringFeed','#ringKeys','#ringAxes'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     ['#objectives','#crosshair','#briefing']
       .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
@@ -497,7 +505,7 @@ window.RING = (function(){
         new THREE.MeshBasicMaterial({color: lit?0x8ff0ff:0x3b3059}));
       m.position.set(i, 0.02, 0); m.userData.flat=true; world.add(m);
     }
-    /* And posts up the back wall, so `change y by` has something to be
+    /* And posts up the back wall, so `change z by` has something to be
        measured against too. Up is a direction you can only see moving in
        if there is something standing still beside you. */
     for(let h=2;h<=12;h+=2){
@@ -505,6 +513,8 @@ window.RING = (function(){
         new THREE.MeshBasicMaterial({color:0x342b50}));
       m.position.set(0, h, -11); world.add(m);
     }
+
+    axisRoot = axes(world, -7, 6.5);
 
     world.add(new THREE.AmbientLight(0xb9a8ff, 0.45));
     const key=new THREE.DirectionalLight(0xffffff, 1.0);
@@ -520,6 +530,78 @@ window.RING = (function(){
     fill.position.set(-16, 10, -14); world.add(fill);
 
     G.scene.updateMatrixWorld(true);
+  }
+
+  /* ------------------------------------------------ the three axes
+     A NUMBER IN A BLOCK IS A DIRECTION, and until you can see which
+     direction, `change y by 1` and `change z by 1` are the same block
+     with a different letter. The stripes and the wall posts already
+     measure two of them; this says which is which, and names the third,
+     which has nothing to measure it because it points at the camera.
+
+     Stood in the near corner rather than at the origin: the origin is
+     where the robot is, and an arrow through a robot's shins is an arrow
+     nobody can read. Drawn from BLOCKS.AXES so the arrow and the block
+     can never disagree about which way y goes. */
+  function axisLabel(text, hue){
+    const c=document.createElement('canvas'); c.width=128; c.height=128;
+    const g=c.getContext('2d');
+    g.fillStyle='#'+hue.toString(16).padStart(6,'0');
+    g.font='bold 92px '+(window.uiFont?uiFont():'monospace');
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(text, 64, 68);
+    const tex=new THREE.CanvasTexture(c);
+    if(THREE.SRGBColorSpace) tex.colorSpace=THREE.SRGBColorSpace;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+    sp.scale.set(1.3,1.3,1);
+    return sp;
+  }
+  /* The same three, in words, for the one that points at the camera and
+     so cannot be drawn. Reads off BLOCKS.AXES like the arrows do. */
+  function legend(){
+    const el=$('#ringAxes'); if(!el) return;
+    const hex=h=>'#'+h.toString(16).padStart(6,'0');
+    el.innerHTML=(window.BLOCKS?BLOCKS.AXES:[]).map(a=>
+      `<div class="ring-ax"><i style="background:${hex(a.hue)}"></i>`+
+      `<b>${a.v}</b>${T(a.say)}</div>`).join('');
+    el.classList.remove('hidden');
+  }
+  function axes(world, x, z){
+    /* Short. The y arrow points very nearly at the camera, so every unit
+       of it costs almost no screen width and a lot of screen height. */
+    const L=2.5, R=0.06;
+    const root=new THREE.Group();
+    root.position.set(x, 0.06, z);
+    /* a small pale cube where the three meet, so the corner reads as a
+       corner and not as three unrelated sticks */
+    root.add(new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3),
+      new THREE.MeshBasicMaterial({color:0xece6ff})));
+
+    (window.BLOCKS ? BLOCKS.AXES : []).forEach(a=>{
+      /* AXES holds the ENGINE field each student axis lives in, which is
+         exactly the direction its arrow points. */
+      const d=new THREE.Vector3(a.field==='x'?1:0, a.field==='y'?1:0, a.field==='z'?1:0);
+      const mat=new THREE.MeshBasicMaterial({color:a.hue});
+      const rod=new THREE.Mesh(new THREE.CylinderGeometry(R,R,L,10), mat);
+      /* CylinderGeometry stands up the engine's y, so only the two that
+         are not up have to be laid over. */
+      if(a.field==='x') rod.rotation.z=-Math.PI/2;
+      if(a.field==='z') rod.rotation.x= Math.PI/2;
+      rod.position.copy(d).multiplyScalar(L/2);
+      root.add(rod);
+
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(R*3.2, 0.5, 12), mat);
+      if(a.field==='x') tip.rotation.z=-Math.PI/2;
+      if(a.field==='z') tip.rotation.x= Math.PI/2;
+      tip.position.copy(d).multiplyScalar(L);
+      root.add(tip);
+
+      const lab=axisLabel(a.v, a.hue);
+      lab.position.copy(d).multiplyScalar(L+0.85);
+      root.add(lab);
+    });
+    world.add(root);
+    return root;
   }
 
   /* ------------------------------------------------------------- tick
@@ -603,6 +685,13 @@ window.RING = (function(){
     G.camera.position.set(camX, camY+3.2, 15+Math.min(10, gap*0.6));
     G.camera.up.set(0,1,0);
     G.camera.lookAt(camX, camY, 0);
+    /* THE ARROWS RIDE ALONG. Left where they were built they slide out of
+       frame the first time the fight moves down the floor, and a direction
+       guide you have to go looking for is not a guide. Held a fixed step
+       to the left of wherever the camera is looking, so they keep the same
+       corner of the screen while staying real geometry in the real room —
+       which is the whole reason they are arrows and not a picture. */
+    if(axisRoot) axisRoot.position.x = camX - 7;
   }
 
   /* ---------------------------------------------------------- the HUD

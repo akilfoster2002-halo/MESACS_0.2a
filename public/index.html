@@ -1861,6 +1861,16 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   color:var(--muted);line-height:1.6}
 #ringKeys b{color:var(--star)}
 
+/* WHICH LETTER IS WHICH DIRECTION. The arrows on the floor say it in the
+   room; this says it in words, because an arrow pointing at the camera is
+   a dot and a dot explains nothing. Bottom right, out of the feed's way. */
+#ringAxes{position:absolute;right:14px;bottom:86px;background:rgba(16,12,30,.8);
+  border:1px solid var(--line);border-radius:11px;padding:7px 10px;display:grid;gap:4px}
+.ring-ax{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);
+  letter-spacing:.5px}
+.ring-ax i{width:14px;height:3px;border-radius:2px;flex:none}
+.ring-ax b{color:var(--text);font-family:var(--font-code);width:8px;flex:none}
+
 /* ---------- THE ENGINEER'S TRAIL ---------------------------------------
    A machine inspector that is NOT an IDE. Everything in here is trying to
    say one thing: a condition is a question, it has two answers, and one of
@@ -2504,6 +2514,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   </div>
   <div id="ringFeed" class="hidden"></div>
   <div id="ringKeys" class="hidden"></div>
+  <div id="ringAxes" class="hidden"></div>
 </div>
 
 
