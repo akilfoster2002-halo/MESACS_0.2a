@@ -287,7 +287,6 @@ window.TRAIL = (function(){
     load();
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
-    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     if(window.INVADERS) INVADERS.stop(); if(window.SUB) SUB.stop();
     if(window.SCHOOL) SCHOOL.stop(); if(window.CLUB) CLUB.stop();
     if(window.MISSIONS) MISSIONS.stop();

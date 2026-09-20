@@ -39,12 +39,12 @@
      am hit" without writing the test for it. */
   const EVENTS=[
     { id:'always',          label:'ALWAYS',            help:'Checked every moment of the fight.' },
-    { id:'enemy_detected',  label:'WHEN ENEMY NEAR',   help:'Your sensor can see the other mecha.' },
+    { id:'enemy_detected',  label:'WHEN ENEMY NEAR',   help:'Your sensor can see the other robot.' },
     { id:'incoming_attack', label:'WHEN ATTACKED',     help:'Their arm is winding up at you. This is your one chance to block.' },
     { id:'hit',             label:'WHEN HIT',          help:'Something just landed on you.' },
     { id:'health_low',      label:'WHEN HEALTH LOW',   help:'Your core is under a third.' },
     { id:'energy_low',      label:'WHEN ENERGY LOW',   help:'You are nearly out of energy.' },
-    { id:'start',           label:'WHEN ROUND STARTS', help:'Once, on the bell.' }
+    { id:'start',           label:'WHEN THE FIGHT STARTS', help:'Once, at the very beginning.' }
   ];
   const EVENT_IDS=EVENTS.map(e=>e.id);
 
@@ -57,7 +57,6 @@
     { id:'enemy_health',   label:'ENEMY CORE',     max:100, help:'How much core they have left, out of 100.' },
     { id:'my_health',      label:'MY CORE',        max:100, help:'How much core YOU have left.' },
     { id:'my_energy',      label:'MY ENERGY',      max:100, help:'Energy left. Every action spends some.' },
-    { id:'my_heat',        label:'MY HEAT',        max:100, help:'Heat. At 100 the arms lock up.' },
     { id:'enemy_facing',   label:'ENEMY FACING ME',max:1,   help:'1 when they are looking at you, 0 when their back is turned.' }
   ];
   const SENSOR_IDS=SENSORS.map(s=>s.id);
@@ -68,11 +67,11 @@
      part. An arm cannot dodge and legs cannot punch, and rather than
      explain that in a help bubble the palette simply never offers it. */
   const ACTIONS={
-    punch :{ part:'arm',  label:'PUNCH',       energy:3,  heat:2,  help:'Quick. Short reach. Cheap enough to throw often.' },
-    heavy :{ part:'arm',  label:'HEAVY PUNCH', energy:7,  heat:7,  help:'Slow, and it roots you while it winds up — but it hurts.' },
-    block :{ part:'arm',  label:'BLOCK',       energy:2,  heat:1,  help:'Hold the arm up. Soaks what lands on that side.' },
-    dodge :{ part:'legs', label:'DODGE',       energy:3,  heat:1,  help:'Throw yourself sideways, out of the way of what is coming.' },
-    brace :{ part:'legs', label:'BRACE',       energy:2,  heat:0,  help:'Plant your feet. You are pushed around less.' }
+    punch :{ part:'arm',  label:'PUNCH',       energy:3,  help:'Quick. Short reach. Cheap enough to throw often.' },
+    heavy :{ part:'arm',  label:'HEAVY PUNCH', energy:7,  help:'Slow, and it roots you while it winds up — but it hurts.' },
+    block :{ part:'arm',  label:'BLOCK',       energy:2,  help:'Hold the arm up. Soaks what lands on that side.' },
+    dodge :{ part:'legs', label:'DODGE',       energy:3,  help:'Throw yourself sideways, out of the way of what is coming.' },
+    brace :{ part:'legs', label:'BRACE',       energy:2,  help:'Plant your feet. You are pushed around less.' }
   };
   const partActions = part => Object.keys(ACTIONS).filter(k=>ACTIONS[k].part===part);
 
@@ -125,7 +124,7 @@
             msg:'Every block has to sit under a WHEN, or nothing ever asks it.' });
         } else if(b.type==='if'){
           if(!SENSOR_IDS.includes(b.sensor))
-            errs.push({ code:'bad-sensor', blockId:b.id, msg:'"'+b.sensor+'" is not a sensor this mecha has.' });
+            errs.push({ code:'bad-sensor', blockId:b.id, msg:'"'+b.sensor+'" is not a sensor this robot has.' });
           if(!OPS.includes(b.op))
             errs.push({ code:'bad-op', blockId:b.id, msg:'"'+b.op+'" is not a comparison.' });
           if(!(typeof b.n==='number' && isFinite(b.n)))

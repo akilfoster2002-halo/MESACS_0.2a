@@ -493,7 +493,7 @@ function startMissionRoom(id){
   if(window.AVATAR) AVATAR.posture(null);
   COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
   if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
-  if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+  if(window.RING) RING.stop(); if(window.PIT) PIT.hide();
   if(window.INVADERS) INVADERS.stop();
   if(window.TRAIL) TRAIL.stop();
   if(window.HOUSE) HOUSE.stop();
@@ -512,6 +512,16 @@ function startMissionRoom(id){
     return;
   }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
+  /* THE RING. It has no world to walk across and no building to find:
+     the card is the door, and the pit is the first thing you see. The
+     pit hands the fight the robot you picked and the orders you gave
+     its parts, and the fight hands you back to the pit afterwards,
+     which is the whole loop of the mode. */
+  if(id==='ring'){
+    if(!window.PIT || !window.RING) return;
+    PIT.show({ onFight:(kind, robot, programs)=>RING.start(kind, robot, programs) });
+    return;
+  }
   /* The investigation builds its own district out of the same kit the
      infiltration site is built from, and walks it with the same legs. */
   if(id==='trail'){ if(window.TRAIL) TRAIL.start(); return; }
@@ -929,7 +939,7 @@ function loop(now){
   /* The live arena runs on the frame rather than inside the frozen-world
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */
-  if(window.MECHA && MECHA.active) MECHA.tick(dt);
+  if(window.RING && RING.active) RING.tick(dt);
   if(window.INTRO && INTRO.active) INTRO.tick(dt);
   if(window.OPENING && OPENING.active) OPENING.tick(dt);
   /* Free play keeps thinking while the world is frozen: scripts step on, and
@@ -1121,8 +1131,12 @@ function step(dt){
      body to walk, no floor to fall through, and a camera that belongs to
      the mode rather than to a pair of legs. */
   if(window.MECH && MECH.active) return;
-  // the mecha arena owns its own movement, and sends it to the server
-  if(window.MECHA && MECHA.active) return;
+  /* And so does the ring. There is no body to walk in there and no
+     mouse to look with: the robot is driven relative to whoever it is
+     fighting, and the camera belongs to the fight rather than to a pair
+     of legs. Without this line the engine walks an invisible player
+     around underneath the fight and re-aims the camera every frame. */
+  if(window.RING && RING.active) return;
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
   const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);

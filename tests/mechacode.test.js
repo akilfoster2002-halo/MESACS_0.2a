@@ -128,13 +128,18 @@ test('the trace reads as English, because a student has to read it mid-fight', (
   assert.equal(said[2], 'PUNCH');
 });
 
-test('every action has an energy and a heat price on it', ()=>{
+/* ONE RESOURCE, AND IT IS ENERGY. Heat was a second bar that did the
+   same job as the first — stop somebody throwing the big move forever —
+   and two bars to watch is two things to explain before a student can
+   write a single block. Energy alone already prices the heavy. */
+test('every action has an energy price on it, and nothing has a heat one', ()=>{
   Object.keys(CODE.ACTIONS).forEach(k=>{
     const a=CODE.ACTIONS[k];
-    assert.ok(typeof a.energy==='number', k+' has no energy cost');
-    assert.ok(typeof a.heat==='number', k+' has no heat cost');
+    assert.ok(typeof a.energy==='number' && a.energy>0, k+' has no energy cost');
+    assert.equal(a.heat, undefined, k+' still has a heat price');
     assert.ok(a.label && a.help, k+' has nothing said about it');
   });
+  assert.ok(!CODE.SENSOR_IDS.includes('my_heat'), 'the heat sensor is still on the palette');
 });
 
 test('arms are offered arm moves and legs are offered leg moves', ()=>{

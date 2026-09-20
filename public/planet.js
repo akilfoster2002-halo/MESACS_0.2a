@@ -346,7 +346,13 @@ window.PLANET = (function(){
        a field or a district — and a mission rather than the front door,
        which is what it briefly was. A story every student is dropped into
        on the way in is not a story they chose. */
-    { id:'ion',    em:'\u{1F916}', name:'Mission 8 \u2014 Ion', a:'#8ff0ff' }
+    { id:'ion',    em:'\u{1F916}', name:'Mission 8 \u2014 Ion', a:'#8ff0ff' },
+    /* THE RING, which is not a numbered mission and is not pretending to
+       be one. It is the arena, and it stands in here for the same reason
+       everything else does: Mission Control is where a student looks for
+       something to do, and a mode that can only be reached from a menu is
+       a mode half a class never finds. */
+    { id:'ring',   em:'\u{1F94A}', name:'The Ring \u2014 NOISY BOY vs AMBUSH', a:'#8fd3ff' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{
@@ -559,7 +565,6 @@ window.PLANET = (function(){
     if(window.MISSIONS) MISSIONS.stop();
     if(window.CODER) CODER.hide();
     if(window.MECH) MECH.stop();
-    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
     /* AND THE RIDGE, BEFORE THE ROOM IT STANDS ON IS THROWN AWAY. The
        whole roomGroup is replaced a few lines below, which takes both
        machines with it — but BRAWL would still be holding the groups and
@@ -1898,7 +1903,19 @@ window.PLANET = (function(){
            array is indexed by station and falls back to the LAST one when
            it runs short, so a station with nowhere of its own is not an
            error — it is two consoles standing inside each other. */
-        { x: 15, z: 14, r:-Math.PI/5 }
+        { x: 15, z: 14, r:-Math.PI/5 },
+        /* And the Ring, down the right, in the seventeen metres of floor
+           between Mission 4 and Mission 5.
+
+           THIS SPOT IS NARROWER THAN IT LOOKS and it took two goes. A
+           station is a console AND a plinth four metres behind it, so a
+           spot has to clear its neighbours' plinths as well as their
+           consoles — and the first attempt, four metres further back,
+           put this console inside Mission 4's plinth. Mission 4's
+           console reaches z=-8.2 and Mission 5's plinth starts at z=0.9,
+           which leaves this one a window about three metres wide to
+           stand in. It is standing in the middle of it. */
+        { x: 22, z: 0, r:-Math.PI/4 }
       ];
       /* A statue stands BEHIND its console, and a plinth is four metres square,
          so "behind" has to be somewhere there is four metres of room. Get that
@@ -2320,7 +2337,6 @@ window.PLANET = (function(){
        with its own mark on the floor. */
     panel(g, b, -12, -hd+4.2, '\u{1F916}', t('FIGHT THE LEAGUE'), 'league', '#2a1d3d', 0.75, 0);
     panel(g, b,   0, -hd+4.2, '\u{2694}',  t('FIGHT A PLAYER'),   'pvp',    '#3d1d28', 0.75, 0);
-    panel(g, b,  12, -hd+4.2, '\u{1F94A}', t('MECHA ARENA'),      'mecha',  '#1d3040', 0.75, 0);
   }
 
   /* ------------------------------------------------------------- the pad
@@ -4893,6 +4909,52 @@ window.PLANET = (function(){
       grip.position.set(-0.34,1.08,0.35); grip.rotation.z=0.72; top.add(grip);
       top.userData.spin=0.30;
     }
+    if(id==='ring'){
+      /* The two of them squaring up, in their own plate colours — read off
+         robots.js so the statue cannot drift away from the robots it is
+         of. Tall and narrow against short and wide is the whole pick, and
+         it is a shape you can read from the gate.
+
+         MIND WHERE THE FLOOR IS. `top` hangs at y=6.4 and the plinth's cap
+         stops at 5.5, so top-space zero is nearly a metre of fresh air —
+         which is why every other statue in here is modelled around a
+         NEGATIVE y. Built standing on zero, these two hovered over their
+         own plinth like a pair of dropped bricks. FEET is where their feet
+         go, and everything is measured up from it. */
+      const R=window.ROBOTS;
+      const FEET=-0.52;
+      [['noisyboy',-0.52,1],['ambush',0.52,-1]].forEach(([rid,px,face])=>{
+        const spec=R ? R.get(rid) : null;
+        const plate=spec ? parseInt(spec.skin.plate.slice(1),16) : 0x2f3f6b;
+        const trim =spec ? parseInt(spec.skin.trim.slice(1),16)  : 0x8fd3ff;
+        const tall = rid==='noisyboy';
+        const leg=tall?0.40:0.30, body=tall?0.82:0.66,
+              wide=tall?0.40:0.56, arm=tall?0.60:0.40;
+        const bot=new THREE.Group();
+        const put=(w,h,d,x,y,z,c)=>{
+          const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), lam(c));
+          m.position.set(x,y,z); bot.add(m); return m;
+        };
+        /* Every piece OVERLAPS the one under it. At this scale a joint
+           drawn edge to edge is a visible seam, and a seam on a statue is
+           a robot that has come apart. */
+        put(wide*0.92, 0.10, wide*0.80, 0, 0.05, 0, trim);          // the feet
+        [-1,1].forEach(sx=>put(0.19, leg+0.10, 0.24, sx*wide*0.24, leg/2+0.04, 0, plate));
+        put(wide, body, wide*0.72, 0, leg+body/2-0.04, 0, plate);   // the body
+        put(wide*0.66, 0.24, wide*0.60, 0, leg+body+0.06, 0, trim); // the head
+        [-1,1].forEach(sx=>{
+          /* Hands up and forward, because these two are about to fight and
+             a robot with its arms by its sides is a robot standing about.
+             Tucked INTO the shoulder so the arm never floats off it. */
+          const a=put(0.17, arm, 0.17, sx*(wide*0.5-0.02), leg+body*0.66, 0.10, trim);
+          a.rotation.x=-0.42;
+        });
+        bot.position.set(px, FEET, 0);
+        bot.rotation.y=face*Math.PI/2;          // facing each other
+        top.add(bot);
+      });
+      top.userData.spin=0.22;                   // it turns, the way a trophy does
+    }
     if(id==='sub'){
       /* The submersible on its plinth — a capsule with a tower and a
          glass nose, which is the shape the mission is about. */
@@ -5751,7 +5813,7 @@ window.PLANET = (function(){
                || id==='librarian' || id==='purse' || id==='mechanic'
                || id==='lift' || id==='towermech' || id==='einstein' || id==='towersign'
                || id==='launch' || id==='house' || id==='counter'
-               || id==='league' || id==='pvp' || id==='mecha'
+               || id==='league' || id==='pvp'
                || id==='club' || id==='decks'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
@@ -5774,15 +5836,11 @@ window.PLANET = (function(){
     if(!known) return;
     /* The Gym is a room you walk into and choose in, like the Mall: these
        two consoles standing either side of the floor are the choice. */
-    /* The live arena. Its workshop is the door: you cannot walk into a
-       fight you have not given your mecha orders for, and the workshop is
-       where the ways into a fight live. */
-    if(id==='mecha'){
-      if(!window.WORKSHOP || !window.MECHA) return;
-      wentTo('gym'); leave();
-      document.querySelector('#hud').classList.add('hidden');
-      return WORKSHOP.show({ onFight:(kind, programs)=>MECHA.start(kind, programs) });
-    }
+    /* THE LIVE ARENA IS NOT A DOOR ANY MORE. It was a panel on this
+       wall, which meant reaching the only part of it that teaches
+       anything — the blocks — cost a flight to VOLTA and a walk across
+       a room. It is a card on Mission Control now, and the pit is the
+       first thing you see. See game.js's `arena`. */
     if(id==='league' || id==='pvp'){
       if(!window.MECH) return;
       if(id==='pvp' && !(window.NET && NET.live)){
@@ -5861,7 +5919,11 @@ window.PLANET = (function(){
        mecha arena among this game's balls, so a door called 'arena' is a
        door whose id is also the name of somewhere the travel system can
        fly you. Nothing had gone wrong yet and it is exactly the kind of
-       thing that goes wrong once. */
+       thing that goes wrong once.
+
+       AND IT NEARLY DID. The live arena's own station was written as
+       'arena' first, which would have put a console in Mission Control
+       whose id was VOLTA. It is `ring`. */
     if(id==='brawlgate'){ arenaIn(); return; }
     if(id==='lift'){ liftGo(); return; }
     if(id==='towersign'){ say(t('The lift is at the back. <b>E</b> on it to go up.')); return; }

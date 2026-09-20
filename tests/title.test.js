@@ -123,7 +123,7 @@ test('the modes that never hand you a gun still put it away', ()=>{
   /* These all used to call update(0,false) purely for the visibility side
      effect that no longer lives there. */
   for(const f of ['public/intro.js','public/mech.js','public/invaders.js',
-                  'public/flight.js','public/mecha.js']){
+                  'public/flight.js','public/ring.js']){
     const s=read(f);
     assert.ok(!/GUN\.update\(0,\s*false\)/.test(s),
       `${f} still calls GUN.update(0,false), which no longer hides anything`);

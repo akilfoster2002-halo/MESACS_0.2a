@@ -365,7 +365,7 @@ test('every way INTO Koro opens on Senio, and no way back does', ()=>{
     'the hub restores a saved spot: entering Koro would land you somewhere different each time');
 
   /* And the rooms still come back to where they came from. */
-  for(const f of ['public/mech.js','public/workshop.js','public/arcade.js','public/chars.js'])
+  for(const f of ['public/mech.js','public/pit.js','public/arcade.js','public/chars.js'])
     assert.match(read(f), /MENU\.homeworld\(\)/,
       f+' asks homeworld() for a particular world: leaving a room would move the player');
   assert.match(read('public/game.js'), /MENU\.homeworld\(\)/,

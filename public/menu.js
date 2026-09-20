@@ -86,6 +86,12 @@ window.MENU = (function(){
      blurb:'A robot on the kitchen floor, a ship that will not start, and somebody who was inside him at four in the morning.'},
     {id:'mech',  g:'arena',   em:'🤖', a:'#ffd8a8', name:'The Mech League',
      blurb:'Program a battle mech and send it in without you. Four opponents, and no hands on the controls.'},
+    /* THE RING has a card and no door. Every other way into it — a
+       planet to fly to, a building to find, a console to stand at — was
+       a thing between a student and the only part of it that teaches
+       anything, which is the blocks. */
+    {id:'ring',  g:'arena',   em:'🥊', a:'#8fd3ff', name:'The Ring — NOISY BOY vs AMBUSH',
+     blurb:'Pick a robot, program its arms and legs with blocks, then drive it. Four keys: you choose where to stand, your code chooses when to swing.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
      blurb:'A 3D world you write. Objects, variables, functions, clones — code anything.'}
   ];
@@ -299,7 +305,7 @@ window.MENU = (function(){
     G.running=false;
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
-    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.RING) RING.stop(); if(window.PIT) PIT.hide();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
     if(window.HOUSE) HOUSE.stop();
@@ -516,7 +522,7 @@ window.MENU = (function(){
     G.running=false;
     CODE.close(); CODE.hideTape(); COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
     if(window.FLIGHT) FLIGHT.stop(); if(window.MECH) MECH.stop();
-    if(window.MECHA) MECHA.stop(); if(window.WORKSHOP) WORKSHOP.hide();
+    if(window.RING) RING.stop(); if(window.PIT) PIT.hide();
     if(window.INVADERS) INVADERS.stop();
     if(window.TRAIL) TRAIL.stop();
     if(window.HOUSE) HOUSE.stop();
