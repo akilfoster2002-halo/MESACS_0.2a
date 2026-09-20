@@ -518,7 +518,7 @@ function startMissionRoom(id){
      back and change your mind. */
   if(id==='ring'){
     if(!window.PIT || !window.RING) return;
-    PIT.show({ onGo:(robot, program)=>RING.start(robot, program) });
+    PIT.show({ onGo:robot=>RING.start(robot) });
     return;
   }
   /* The investigation builds its own district out of the same kit the
@@ -826,6 +826,13 @@ function wireInput(){
            about. */
         if(window.PLANET.aboard && PLANET.leaveShip()) return;
         PLANET.travel(); return;
+      }
+      /* THE RING IS NOT THE FREE PLAY ROOM but it runs the same editor on
+         the same VM, so C has to answer in it too. There is one object in
+         there and it is always the one being edited, so this toggles
+         rather than asking what you are standing in front of. */
+      if(e.code==='KeyC' && window.RING && RING.active && window.CODER){
+        e.preventDefault(); CODER.toggle(); return;
       }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;

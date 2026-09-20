@@ -12,12 +12,16 @@
    file, not in a thousand lines of THREE.BoxGeometry that drift away
    from it the moment anybody re-exports.
 
-   WHAT IS NOT IN HERE ANY MORE. Reach, power, plate, swing speed, bulk
-   and per-part hit points all came out with the fight. They were real
-   numbers for a combat model that is being rebuilt from the feet up, and
-   a row full of stats nothing reads is a row that is wrong and cannot be
-   caught being wrong. `speed` is here because movement is the one thing
-   the robot currently does.
+   WHAT IS NOT IN HERE ANY MORE. Reach, power, plate, bulk, per-part hit
+   points — and then `speed` too. The first lot went with the fight. The
+   speed went when movement became the student's job: how fast this
+   robot crosses the floor is now whatever number they typed into
+   `change x by`, and a row full of stats nothing reads is a row that is
+   wrong and cannot be caught being wrong.
+
+   `height` survives because something has to size the model, and the
+   two being different heights is the only thing that still makes the
+   pick a pick.
 
    No DOM. Node loads this too, because the tests run there.
    ===================================================================== */
@@ -29,24 +33,23 @@
     {
       id:'noisyboy', name:'NOISY BOY', em:'⚡',
       tag:'TALL AND LIGHT ON HIS FEET',
-      blurb:'The taller of the two, and the quicker. Long in the leg, so '+
-            'he covers the floor faster than he looks like he should.',
+      blurb:'The taller of the two by most of a metre. Long in the leg, and '+
+            'he takes up room — the same `change x by` carries him further '+
+            'past the stripes than it looks like it should.',
       model:BASE+'noisyboy.glb',
-      /* Metres, head to floor. The .glb exports come out normalised to a
-         height of one, so this IS the scale factor — see the ring, which
-         measures the loaded body and divides. */
+      /* World units, head to floor. COSTUMES scales every .glb to stand
+         one unit tall, so this IS the actor's `size` and nothing has to
+         measure anything. */
       height:4.6,
-      speed:1.12,                 // multiplies BOUT.RULES.walk
       skin:{ trim:'#8fd3ff', plate:'#2f3f6b' }
     },
     {
       id:'ambush', name:'AMBUSH', em:'\u{1F6E1}',
       tag:'SHORT AND HEAVY',
-      blurb:'Shorter, wider and slower across the floor. He is built to '+
-            'be where he already is rather than to get somewhere else.',
+      blurb:'Shorter and wider, and he sits closer to the floor. Easier to '+
+            'see what a small number does to, because there is less of him.',
       model:BASE+'ambush.glb',
       height:3.9,
-      speed:0.88,
       skin:{ trim:'#ffb4a2', plate:'#5a3428' }
     }
   ];

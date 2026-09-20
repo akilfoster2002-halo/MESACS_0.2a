@@ -79,6 +79,19 @@ window.COSTUMES = (function(){
   }
 
   /* ---------------------------------------------------------- loading
+     RIGGED COSTUMES DO NOT INSTANCE CORRECTLY HERE, and the Ring found
+     it out the hard way. Object3D.clone() copies a SkinnedMesh and its
+     bones but does not re-point the copy at the copied bones: every
+     clone keeps the PROTOTYPE's skeleton, so what is drawn is driven by
+     bones that are not inside the clone and ignores the clone's own
+     transform. A Box3 still measures the right numbers, which is what
+     makes it so confusing — the object is the right size and in the
+     right place, and what appears on screen is neither. The fix is a
+     skeleton-aware clone (three's SkeletonUtils does this by walking the
+     copy and remapping skeleton.bones); until then the Ring loads its
+     robots itself. The models under `people` are rigged too, so `become
+     a [Ash]` is on the same footing.
+
      One fetch per costume, shared by every object wearing it, cloned per
      object. The .glb is parsed with its own folder as the base so the
      kit's shared texture resolves; and each model is scaled to stand one

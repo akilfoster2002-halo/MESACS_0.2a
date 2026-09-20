@@ -62,8 +62,8 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   where the invaders went*, *you fired 3 times before you got there*.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
-- **The Ring** — pick NOISY BOY or AMBUSH and program what its keys do with blocks. Nothing is
-  bound for you: if you did not write the rule, the key does nothing.
+- **The Ring** — pick NOISY BOY or AMBUSH and drive it with the game's own Scratch: a
+  conditional inside a forever loop, and nothing bound for you.
 - **Mission 7 — The Engineer's Trail (conditionals)** — the first mission that asks a student
   to **read** a program instead of writing one, and the only one that is a **detective story**.
   A delivery robot that will not stop, a gate that opens for nobody, a train that stops at a
@@ -153,60 +153,61 @@ Everything a match runs on is in `MECHSIM.RULES`: block limit, energy costs, tur
 damage. Chassis are rows in `MECHSIM.CHASSIS`, arenas are text grids in `MECHSIM.ARENAS`.
 
 ## The Ring — NOISY BOY vs AMBUSH
-A card on Mission Control and a console in the hall. It is deliberately one sentence long
-at the moment:
+A card on Mission Control and a console in the hall. Pick a body, walk in, press `C`, and
+write its code — **in the game's own Scratch**. Not a small language written for this screen:
+the same `blocks.js`, the same `vm.js` and the same drag-and-drop editor Free Play and every
+mission use, with the palette cut down to five categories.
 
 ```
-WHEN [D] IS PRESSED
-  STEP RIGHT
+when ▶ the game starts
+forever
+  if ‹key [right arrow] pressed?› then
+    change x by 0.3
 ```
 
-**The program IS the controls.** Nothing is bound to a key for you. Press D on a robot with
-no rules and nothing happens, and the screen says so — the only way to move is to have said
-so in a block. The first time a student presses their own key and four metres of robot walks,
-they have written a program that did something to a body with legs, and that is the whole
-lesson this stage is for.
+**The conditional has to be inside the loop, and that is the lesson.** A bare
+`if ‹key pressed?›` under the hat is checked once, on the frame you pressed Run, and then
+never again — the robot takes one step and stops. Wrapping it in `forever` is what turns it
+into a control. Measured, not asserted: without the loop, three seconds of holding the key
+moves it 0.3 and the thread ends; with it, 18 and the thread is still running.
 
-```
-PICK A ROBOT → SAY WHAT A KEY DOES → PRESS IT → CHANGE YOUR MIND
-```
+**Nothing is bound for you.** There is no built-in movement to fall back on — if you want a
+key to do something you have to say so in a block. All three axes are live, so `change y by`
+flies and `change z by` walks into the scene.
 
-**The bodies are the real bodies.** `noisyboy.glb` and `ambush.glb` are rigged exports —
-thirty-three bones, fourteen clips — loaded straight out of `public/characters/models`, the
-same files the arena on RYU uses. Nothing is approximated out of boxes.
+| on the palette | |
+|---|---|
+| Events | `when ▶ the game starts`, `when [key] pressed` |
+| Control | `forever`, `if`, `if/else`, `repeat`, `wait`, `stop` |
+| Sensing | `key [_] pressed?` |
+| Motion | `change [x/y/z] by`, `set [x/y/z] to`, `go to`, `turn`, `[x] position` |
+| Operators | `and`, `or`, `not`, `<`, `>` |
 
-| | NOISY BOY | AMBUSH |
-|---|---|---|
-| | tall and light on his feet | short and heavy |
-| across the floor | 5.8 m/s | 4.6 m/s |
+Adding a block to the mode is a row in `RING.PALETTE`. Taking the list out entirely is how it
+becomes Free Play. The scripts live in their own project slot (`dq_ring`), so nothing a
+student writes in here lands in their sandbox.
 
-**No walk cycle yet.** Neither file has one — the clips are idle, jab, hook, cross,
-roundhouse, flykick, sweep, block, dodge, hit, floored, getup, roar and uppercut, and none of
-those is a loop you can travel on. So the robot slides while playing `idle`, which is honest
-about what it is rather than faking it with a dodge hop. **When a walk clip arrives it needs
-no code:** put it in the `.glb` under any of the names in `WALK_CLIPS` at the top of
-`ring.js` and it is found and played while moving. If it is called something else, add the
-name to that list — one line, which is why it is a list and not an `if`.
+**The bodies are the real bodies** — `noisyboy.glb` and `ambush.glb`, the rigged exports the
+arena on RYU uses. The ring loads them itself rather than through the costume system, for a
+reason worth knowing about:
 
-**The first rule whose key is held wins.** That is the only rule about order, and it is why
-every row can be moved up and down. An empty rule that matches still wins and still does
-nothing — falling through to the next rule on the same key would quietly make the language
-"the first *non-empty* rule wins", which is a subtler rule than the screen teaches. The feed
-says `D has nothing to do` instead, which is how you find out it is there.
+> **Rigged costumes do not instance.** `COSTUMES.load()` ends with `Object3D.clone(true)`,
+> which copies a `SkinnedMesh` and its bones but does not re-point the copy at the copied
+> bones — every clone keeps the *prototype's* skeleton. What gets drawn is driven by bones
+> that are not inside the clone, so it ignores the clone's own transform. A `Box3` measures
+> everything as correct the whole time, which is what makes it so confusing. The models under
+> `people` are rigged too, so `become a [Ash]` is on the same footing. The fix is a
+> skeleton-aware clone in `costumes.js`; until then the ring owns its own loader.
 
-**The feed is the point.** Down the left, as it happens, is your own program's reasoning in
-the words the blocks are written in — the key that fired and what it reached — printed only
-when the decision *changes*, because at twenty ticks a second a held key is the same sentence
-two hundred times a minute.
-
-`MECHACODE` holds the keys and the actions; `BOUT.RULES` holds every number the floor is run
-by; `robots.js` is a row per robot. Adding an action is a row in the first and a case in the
-ring.
+**No walk cycle yet.** The clips are idle, jab, hook, cross, roundhouse, flykick, sweep,
+block, dodge, hit, floored, getup, roar and uppercut — none of them a loop you can travel on,
+so the robot slides while playing `idle`. **When a walk clip arrives it needs no code:** put it
+in the `.glb` under any of the names in `WALK_CLIPS` at the top of `ring.js` and it is found
+and played while moving.
 
 ### What is not here yet
-Pulled back on purpose, to be built on top of this: the arms and their programs, sensors and
-`IF`, the opponent, damage, and the two-player match. The combat model and its server lobby
-are in the history at `0b8e547` if any of it is worth lifting back out.
+Pulled back on purpose, to be built on top of this: the arms, the opponent, damage, and the
+two-player match. The combat model and its server lobby are in the history at `0b8e547`.
 
 ## Files
 ```
@@ -220,11 +221,9 @@ title.js     the landing screen: Senio in orbit, its weather, and the stars behi
 invaders.js  the swarm: twenty loop stages, the fortress, and the shield you count
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
-mechacode.js the key language: WHEN <key> IS PRESSED → <action>, and the trace
-robots.js    NOISY BOY and AMBUSH as data — which model, how tall, how fast
-bout.js      one robot on a floor, stepped 20×/s — no DOM, no clock, Node too
-pit.js       pick a robot and say what its keys do
-ring.js      the robot as you see it: the .glb, the camera, the feed
+robots.js    NOISY BOY and AMBUSH as data — which model, and how tall
+pit.js       pick a body, and read what you are about to write
+ring.js      the room, the camera, the cut-down palette, and the .glb loader
 logic.js     the decision engine every Koro machine thinks with — conditions
              as trees, ladders of branches, truth tables. No DOM, Node too
 trail.js     The Engineer's Trail: the district, the machines, the witnesses,
@@ -245,8 +244,8 @@ lib/         three.js, bundled as a classic script so file:// still works
 
 `levels.js` and `strings.js` are the files to edit for new content; the engine shouldn't need touching.
 New chassis and arenas go in `mechsim.js`; new league opponents go in `mech.js`. A new robot for
-the ring is a row in `robots.js` and a `.glb` beside the others; a new key or action for it is a
-row in `mechacode.js`.
+the ring is a row in `robots.js` and a `.glb` beside the others; a new block for it is a row in
+`RING.PALETTE`.
 A new stage for The Swarm is a row in `invaders.js`'s `STAGES`: the palette it hands out, the
 fortress it puts up, and what counts as done — and `tests/invaders.test.js` will tell you if the
 numbers you picked have quietly made its loop optional, play the stage through with the worked
@@ -260,10 +259,11 @@ in the inspector knows what a gate is, so a rule about loops or variables draws 
 npm test
 ```
 No test framework to install — Node's own runner, over `program.js`, `mechsim.js`,
-`mechacode.js` and `bout.js`. The ring's tests are driven with a plain `Set` of key codes and
-no browser: they assert that an unprogrammed key does nothing, that the first rule whose key is
-held is the one that runs, that the robot cannot walk off either end, and that every action on
-the palette is one the floor can actually carry out.
+`program.js` and `mechsim.js`. The ring's own tests do not re-test Scratch — they assert the
+things the RING decides: that every op it names is a real block, that the palette really does
+contain a loop, a conditional, a sensing block and something that moves, that nothing in the
+room reads the keyboard behind the blocks' back, and that the two scale traps above stay
+fixed.
 
 ## Saved progress
 A lesson is forty minutes and a ten-level minigame is not, so the save has to remember

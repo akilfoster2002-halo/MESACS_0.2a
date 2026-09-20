@@ -1,59 +1,41 @@
 /* =====================================================================
-   PIT — where you pick a robot and say what the keys do.
+   PIT — where you pick which body to write code for.
 
-   The front door of the mode, and the whole of it fits on one screen:
-   two robots to choose between, and a short list of rules that read
+   One screen, one decision, and then out. It used to hold a little
+   block editor of its own; it does not any more, because the ring runs
+   the game's real Scratch and a second smaller editor standing in front
+   of it was one editor too many.
 
-       WHEN [D] IS PRESSED
-         STEP RIGHT
-
-   THE PROGRAM IS THE CONTROLS. Nothing in this game is bound to a key
-   for you in here — if you do not write a rule, pressing the key does
-   nothing, and the ring says so. That is the point of the screen: a
-   student who wants to move right has to say so in a block, and the
-   first time they press D and the robot goes, they have written a
-   program that did something to a body with legs.
-
-   CLICK TO BUILD, not drag and drop. Every rule is a key dropdown and an
-   action dropdown, and adding one is a button. Dragging is lovely when
-   it works and miserable on a trackpad in a lab.
-
-   ORDER MATTERS AND THE SCREEN SAYS SO. The first rule whose key is held
-   is the one that runs, so every row can be moved up and down, and two
-   rules on one key get a warning rather than a refusal — it is legal,
-   it is just probably not what they meant.
-
-   There is no save button, because there is nothing one could mean: the
-   rules in front of you ARE the rules the robot will run.
+   WHAT IS LEFT IS WORTH A SCREEN. The two robots are genuinely
+   different to write code for — one is tall and covers ground, one is
+   short and does not — and picking a body before you write anything is
+   the same order Scratch does it in: choose a sprite, then give it
+   scripts. The choice is remembered on the account, and changing it
+   later changes the COSTUME without touching a single script, because
+   the robot in there is one actor and its code belongs to it, not to
+   whichever model it happens to be wearing.
    ===================================================================== */
 window.PIT = (function(){
   const $ = s => document.querySelector(s);
-  const MC = ()=>window.MECHACODE;
   const RB = ()=>window.ROBOTS;
   const T  = s => (window.t ? t(s) : s);
-  const TP = (s,p) => (window.t ? t(s,p) : s);
 
-  let open=false, err=null, onGo=null;
-  let uid=1;
-  const nid = ()=>'p'+(uid++);
-  const LIMIT=12;
+  let open=false, onGo=null;
 
-  /* ---------------------------------------------------------- storage
-     The rules and the robot ride in the same bag as coins and finished
-     missions, so they follow the account to any machine in the lab.
-     localStorage is the fallback for a signed-out browser, which is the
-     only case with nowhere better to put them. */
-  function stash(k, v){
-    if(window.PROGRESS) PROGRESS.set(k, v);
+  /* The pick rides in the same bag as coins and finished missions, so it
+     follows the account to any machine in the lab. localStorage is the
+     fallback for a signed-out browser. */
+  function stash(k,v){
+    if(window.PROGRESS) PROGRESS.set(k,v);
     try{ localStorage.setItem('dq_'+k, JSON.stringify(v)); }catch(e){}
   }
-  function fetch(k, dflt){
+  function fetch(k,d){
     let v=null;
-    if(window.PROGRESS) v=PROGRESS.get(k, null);
-    if(v===null || v===undefined){
+    if(window.PROGRESS) v=PROGRESS.get(k,null);
+    if(v===null||v===undefined){
       try{ v=JSON.parse(localStorage.getItem('dq_'+k)||'null'); }catch(e){ v=null; }
     }
-    return (v===null || v===undefined) ? dflt : v;
+    return (v===null||v===undefined)?d:v;
   }
   function robot(){
     const id=fetch('pit_robot', null);
@@ -61,24 +43,10 @@ window.PIT = (function(){
   }
   function pickRobot(id){ if(RB().byId(id)){ stash('pit_robot', id); render(); } }
 
-  /* THE ONE COPY BEING EDITED. The rows below hold references into this
-     list — a dropdown changes `r.key` on the rule itself — so the editor
-     has to be looking at the same objects it renders from. */
-  let draft=null;
-  function program(){
-    if(!draft){
-      const v=fetch('pit_program', null);
-      draft = Array.isArray(v) ? v : [];
-    }
-    return draft;
-  }
-  function commit(){ stash('pit_program', program()); editor(); }
-
-  /* ---------------------------------------------------------- screen */
   function show(opts){
     opts=opts||{};
     onGo=opts.onGo||null;
-    open=true; draft=null; err=null;
+    open=true;
     if(typeof G!=='undefined') G.running=false;
     if(document.pointerLockElement) document.exitPointerLock();
     if(window.MENU) MENU.hideAll();
@@ -86,26 +54,34 @@ window.PIT = (function(){
     $('#pit').classList.remove('hidden');
     render();
   }
-  function hide(){ open=false; err=null; $('#pit').classList.add('hidden'); }
+  function hide(){ open=false; $('#pit').classList.add('hidden'); }
 
   function render(){
     const el=$('#pit'); if(!el) return;
     el.innerHTML=`<div class="pit-wrap">
       <h1>${T('THE PIT')}</h1>
-      <div class="pit-sub">${T('Pick a robot, then say what its keys do. If you do not write a rule for a key, that key does nothing.')}</div>
+      <div class="pit-sub">${T('Pick a body. You write its code in the ring — press C once you are in there.')}</div>
       <div class="pit-pick" id="pitPick"></div>
-      <div class="pit-code" id="pitCode"></div>
+      <div class="pit-code">
+        <div class="pit-codehead"><b>${T('WHAT YOU ARE ABOUT TO WRITE')}</b>
+          <span class="pit-key">${T('the same blocks as Free Play, cut down to the ones you need')}</span></div>
+        <p class="pit-key">${T('Nothing moves this robot but your own blocks. There are no built-in controls — if you want a key to do something, you have to say so.')}</p>
+        <pre class="pit-eg">${T('when ▶ the game starts')}
+${T('forever')}
+  ${T('if ‹key [right arrow] pressed?› then')}
+    ${T('change x by 0.3')}</pre>
+        <p class="pit-key">${T('The conditional has to be INSIDE the loop. On its own it is checked once, on the frame you pressed Run, and then never again — so the robot twitches and stops. The forever loop is what turns it into a control.')}</p>
+      </div>
       <div class="pit-foot">
         <button class="btn ghost small" id="pitBack">◀</button>
         <button class="btn good" id="pitGo">${T('TAKE IT OUT ▶')}</button>
-        <span class="pit-key">${T('Only the feet are wired up so far — left and right.')}</span>
+        <span class="pit-key">${T('Changing robot later keeps every script — it only changes the costume.')}</span>
       </div></div>`;
-    chooser(); editor();
+    chooser();
     $('#pitBack').onclick=()=>{ hide(); if(window.MENU) MENU.homeworld(); };
-    $('#pitGo').onclick =()=>{ hide(); if(onGo) onGo(robot(), program()); };
+    $('#pitGo').onclick =()=>{ hide(); if(onGo) onGo(robot()); };
   }
 
-  /* ------------------------------------------------------ the robots */
   function chooser(){
     const host=$('#pitPick'); if(!host) return;
     const mine=robot();
@@ -122,108 +98,13 @@ window.PIT = (function(){
         <p>${T(r.blurb)}</p>
         <div class="pit-bars">
           <div class="pit-bar"><span>${T('HEIGHT')}</span>
-            <i><b style="width:${Math.round(r.height/5*100)}%"></b></i></div>
-          <div class="pit-bar"><span>${T('SPEED')}</span>
-            <i><b style="width:${Math.round(r.speed/1.3*100)}%"></b></i></div>
+            <i><b style="width:${Math.round(r.height/5*100)}%"></b></i>
+            <span style="width:42px;text-align:right">${r.height} m</span></div>
         </div>`;
       card.onclick=()=>pickRobot(r.id);
       host.appendChild(card);
     });
   }
 
-  /* ------------------------------------------------------- the rules */
-  function editor(){
-    const host=$('#pitCode'); if(!host) return;
-    const prog=program();
-    const check=MC().validate(prog, { limit:LIMIT });
-    host.innerHTML=`
-      <div class="pit-codehead">
-        <b>${T('THE CONTROLS')}</b>
-        <span class="pit-key">${T('the first rule whose key is held is the one that runs')}</span>
-        <span class="pit-budget">${TP('{n} / {m} blocks',{n:check.blocks, m:LIMIT})}</span>
-      </div>
-      <div class="pit-prog" id="pitProg"></div>
-      <div class="pit-err" id="pitErr"></div>`;
-    rows(prog);
-    const e=$('#pitErr');
-    if(e){
-      const msgs=(err?[{msg:err}]:[]).concat(check.errors||[]);
-      e.innerHTML=msgs.map(m=>
-        `<div class="${m.warn?'warn':''}">${T(m.msg)}</div>`).join('');
-    }
-  }
-
-  function rows(prog){
-    const host=$('#pitProg'); if(!host) return;
-    host.innerHTML='';
-    if(!prog.length){
-      const p=document.createElement('div');
-      p.className='pit-empty';
-      p.innerHTML=T('No rules yet. Every key on this robot does nothing until you say otherwise — add one below.');
-      host.appendChild(p);
-    }
-    prog.forEach((r,i)=>host.appendChild(rule(r, prog, i)));
-
-    const add=document.createElement('button');
-    add.className='pit-add';
-    add.textContent=T('+ when a key is pressed…');
-    add.onclick=()=>{
-      if(MC().countBlocks(prog)+2 > LIMIT){
-        err=TP('That is the limit — {m} blocks.',{m:LIMIT}); return editor();
-      }
-      err=null;
-      /* Opens on a key nothing is using yet, so pressing + twice does not
-         silently make a rule that can never run. */
-      const taken=new Set(prog.map(x=>x.key));
-      const free=MC().KEY_IDS.find(k=>!taken.has(k)) || MC().KEY_IDS[0];
-      prog.push({ id:nid(), type:'when', key:free,
-                  body:[{ id:nid(), type:MC().ACTION_IDS[0] }] });
-      commit();
-    };
-    host.appendChild(add);
-  }
-
-  function rule(r, list, i){
-    const wrap=document.createElement('div');
-    wrap.className='pit-row';
-    const body=document.createElement('div');
-    body.className='pit-body';
-    body.style.background='#cdb4f6';
-    body.innerHTML=`<span>${T('WHEN')}</span>`;
-    body.appendChild(pick(MC().KEYS.map(k=>({v:k.id,l:T(k.label)})), r.key,
-      v=>{ r.key=v; commit(); }));
-    const isp=document.createElement('span');
-    isp.textContent=T('IS PRESSED'); body.appendChild(isp);
-
-    const act=(r.body&&r.body[0]) || null;
-    const doo=document.createElement('span');
-    doo.textContent='→'; doo.style.opacity='.6'; body.appendChild(doo);
-    body.appendChild(pick(MC().ACTION_IDS.map(a=>({v:a,l:T(MC().ACTIONS[a].label)})),
-      act?act.type:MC().ACTION_IDS[0],
-      v=>{ if(act) act.type=v; else r.body=[{id:nid(),type:v}]; commit(); }));
-
-    wrap.appendChild(body);
-    wrap.appendChild(btn('▲','pit-up', ()=>{ if(i>0){ list.splice(i-1,0,list.splice(i,1)[0]); commit(); } }));
-    wrap.appendChild(btn('▼','pit-dn', ()=>{ if(i<list.length-1){ list.splice(i+1,0,list.splice(i,1)[0]); commit(); } }));
-    wrap.appendChild(btn('✕','pit-x',  ()=>{ list.splice(i,1); err=null; commit(); }));
-    return wrap;
-  }
-
-  function btn(txt, cls, fn){
-    const b=document.createElement('button');
-    b.className=cls; b.textContent=txt; b.onclick=fn; return b;
-  }
-  function pick(opts, value, fn){
-    const s=document.createElement('select');
-    opts.forEach(o=>{
-      const e=document.createElement('option');
-      e.value=o.v; e.textContent=o.l; if(o.v===value) e.selected=true;
-      s.appendChild(e);
-    });
-    s.onchange=()=>fn(s.value);
-    return s;
-  }
-
-  return { show, hide, program, robot, pickRobot, LIMIT,
-           get open(){ return open; } };
+  return { show, hide, robot, pickRobot, get open(){ return open; } };
 })();

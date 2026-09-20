@@ -1,67 +1,87 @@
 /* =====================================================================
-   RING — the robot, on the floor, doing what you told it to.
+   RING — the robot, the floor, and the real block editor.
 
-   One robot. No opponent, no health, no clock. You wrote rules in the
-   pit that say which key does what, and this is where you press them and
-   watch it happen. Everything else that used to be in here came out with
-   the fight, and goes back in on top of this once the feet are right.
+   THE LANGUAGE IN HERE IS THE GAME'S OWN SCRATCH. Not a small one
+   written for this screen — the same blocks.js, the same vm.js and the
+   same drag-and-drop editor that Free Play and every mission use. The
+   robot is a VM actor wearing a .glb, and the thing that moves it is
 
-   THE BODY IS THE REAL BODY. noisyboy.glb and ambush.glb are rigged
-   exports with thirty-three bones and fourteen clips, and they are what
-   is on screen — not an approximation of them built out of boxes. They
-   are loaded the same way the arena on RYU loads them, for the same
-   reasons, and two of those reasons cost somebody a day each:
+       when ▶ the game starts
+       forever
+         if <key [right arrow] pressed?> then
+           change x by 0.3
 
-     NEVER CULLED. A skinned mesh is culled against the bounding box it
-     was exported in, and that box is not any pose it is ever in — so a
-     body mid-animation leaves it and blinks out at the moment it is
-     doing the most interesting thing it does.
+   which is the shape a student will meet in every other kind of Scratch
+   for the rest of their life. There was a bespoke `WHEN key → STEP LEFT`
+   language here for about an hour. It was smaller and it taught a
+   grammar that exists nowhere else, which makes it worse than useless:
+   something to unlearn.
 
-     SCALED AND NOT LIFTED. A Mixamo export's mesh is centred on the
-     origin with half of it below, but the SKELETON stands on the origin,
-     and the two are reconciled by the inverse bind matrices. Where the
-     body is DRAWN is where the bones put it. Nudge it up by -box.min.y
-     and it floats half its own height above the floor with its shadow
-     underneath it.
+   THE CONDITIONAL HAS TO BE INSIDE THE LOOP and that is the lesson. A
+   bare `if <key pressed?>` under the hat is checked once, on the frame
+   Run was pressed, and then never again — so the robot twitches and
+   stops. Wrapping it in `forever` is what makes a control a control, and
+   it is a thing a student discovers by getting it wrong first. Nothing
+   in here shortcuts that: there is no built-in movement to fall back on.
 
-   ------------------------------------------------------------------
-   THE WALK CYCLE IS NOT IN THE FILE YET
+   WHAT THIS FILE OWNS: the room, the camera, which blocks are on the
+   palette, and mounting the VM. WHAT IT DOES NOT: the language, the
+   editor, the threads, or what any block means. All of that is upstream
+   and shared, which is the point.
 
-   Neither .glb has one: the clips are idle, jab, hook, cross,
-   roundhouse, flykick, sweep, block, dodge, hit, floored, getup, roar
-   and uppercut, and none of those is a loop you can travel on. So the
-   robot currently slides while playing `idle`, which is honest about
-   what it is rather than pretending with a dodge hop.
-
-   WHEN A WALK CLIP ARRIVES, it needs no code: put it in the .glb under
-   any of the names in WALK_CLIPS below and it will be found and played
-   while moving. That is the entire integration. If it is named something
-   else, add that name to the list — one line, and it is a list rather
-   than an `if` for exactly this reason.
+   THE BODIES ARE THE REAL BODIES — noisyboy.glb and ambush.glb, the
+   rigged exports the arena on RYU uses, reached through the `robots`
+   costume shelf. Wearing one is `become a [Noisy Boy]`, so changing
+   robot is itself a block.
    ===================================================================== */
 window.RING = (function(){
   const $ = s => document.querySelector(s);
-  const BT = ()=>window.BOUT, MC = ()=>window.MECHACODE, RB = ()=>window.ROBOTS;
+  const RB = ()=>window.ROBOTS;
   const T  = s => (window.t ? t(s) : s);
 
-  /* The first of these that exists in the model is what gets played
-     while the robot is travelling. None of them exist today. */
+  /* Its own project slot, so what a student builds in here survives and
+     does not land in the Free Play sandbox. */
+  const SLOT='dq_ring';
+  const ACTOR='Robot';
+
+  /* ------------------------------------------------------- the palette
+     Cut down, and cut down to exactly the argument the mode is making:
+     an event to start on, a loop to keep checking in, a conditional to
+     check with, a sensing block to check, and something to move.
+
+     `ops` is the boolean operators and nothing else. `and`, `or` and
+     `not` are here because the moment somebody wants to hold two keys at
+     once they need them, and finding out that <a> and <b> is a block you
+     drop INTO another block is most of what operators are.
+
+     Adding a block to this list is how the mode grows. Taking the whole
+     list out is how it becomes Free Play. */
+  const PALETTE = {
+    cats:['events','control','sensing','motion','ops'],
+    ops:[
+      'event.flag','event.key',
+      'ctrl.forever','ctrl.if','ctrl.ifelse','ctrl.repeat','ctrl.wait','ctrl.stop',
+      'sense.key',
+      'motion.changeBy','motion.setTo','motion.goto','motion.turn','motion.pos',
+      'op.and','op.or','op.not','op.lt','op.gt'
+    ]
+  };
+
+  /* The first of these that exists in the model is played while the
+     robot is travelling. None of them exist today — see the README. */
   const WALK_CLIPS = ['walk','Walk','walking','strafe','Strafe','run','Run'];
   const IDLE_CLIP  = 'idle';
 
-  let on=false, phase='off';
-  let spec=null, program=[], stage=null;
-  let world=null, body=null, mixer=null, clips=[], cur=null, curName=null;
-  let feed=[], lastSaid=null, wasFP=null, camX=0;
+  let on=false, wasFP=null, camX=0, camY=0, spec=null;
+  let body=null, bodyFor=null, mixer=null, clips=[], cur=null, curName=null;
+  let wasAt={x:0,y:0,z:0};
 
   /* ------------------------------------------------------------ start */
-  function start(robotId, prog){
+  function start(robotId){
     stop();
-    on=true; phase='live';
-    feed=[]; lastSaid=null; camX=0;
+    on=true;
     spec=RB().get(robotId);
-    program=prog||[];
-    stage=new (BT().Stage)({ robot:spec.id, program });
+    camX=0; camY=spec.height/2;
 
     G.running=true; G.hudOwner='ring'; G.missionId='ring'; G.room=null;
     if(window.updateLeaveBtn) updateLeaveBtn();
@@ -74,117 +94,85 @@ window.RING = (function(){
       .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     $('#hud').classList.remove('hidden');
     $('#ring').classList.remove('hidden');
-    $('#ringFeed').classList.remove('hidden');
     $('#ringKeys').classList.remove('hidden');
 
-    /* THE BINDINGS GO IN THE ENGINE'S HINT BAR AND NOWHERE ELSE. Putting
-       them here as well printed the same sentence twice, once over the
-       other, which is a mistake I have now made in this file twice.
-       What is left in the middle of the screen is the one thing the hint
-       bar has no room for and a student with no rules badly needs. */
-    if(window.keyHint) keyHint(keyLine());
-    const esc=$('#escHint'); if(esc) esc.classList.add('hidden');
-    const bare=!(program||[]).some(r=>r && r.type==='when' && (r.body||[]).length);
-    const mid=$('#ringKeys');
-    mid.innerHTML = bare
-      ? `<b>${T('This robot has no rules yet.')}</b><br>${T('Nothing you press will do anything until you go back and write one.')}`
-      : '';
-    mid.classList.toggle('hidden', !bare);
-
     build();
-    load();
-    hud();
-  }
 
-  /* The hint bar says what YOUR PROGRAM does, not what the game does,
-     because in here those are not the same thing and the whole point is
-     that you decided. A robot with no rules says so. */
-  function keyLine(){
-    const rules=(program||[]).filter(r=>r && r.type==='when' && (r.body||[]).length);
-    if(!rules.length) return T('no keys are programmed');
-    return rules.map(r=>{
-      const a=MC().ACTIONS[(r.body[0]||{}).type];
-      return `<b>${MC().keyLabel(r.key)}</b> ${a?T(a.label):''}`;
-    }).join(' &nbsp;·&nbsp; ');
-  }
+    /* SAY WHICH PROJECT BEFORE MOUNTING IT. enter() is what opens the
+       slot, so useSlot has to come first or the ring opens whatever this
+       browser last had in the sandbox. */
+    VM.useSlot(SLOT);
+    VM.enter(G.roomGroup);
+    const bot=ensureRobot();
+    bodyFor=null; mixer=null; clips=[]; cur=null; curName=null;
+    loadBody();
 
-  function stop(){
-    if(!on){ phase='off'; return; }
-    on=false; phase='off';
-    stage=null; body=null; mixer=null; clips=[]; cur=null; curName=null; world=null;
-    $('#ring').classList.add('hidden');
-    ['#ringFeed','#ringKeys']
-      .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
-    ['#objectives','#crosshair','#briefing']
-      .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
-    if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
-    if(window.keyHint) keyHint(null);
-    if(window.AVATAR) AVATAR.attach();
-  }
-
-  /* ================================================== building the room */
-  function build(){
-    if(G.roomGroup) G.scene.remove(G.roomGroup);
-    G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
-    G.solids=[]; G.hits=[]; G.ceiling=null; G.ground=()=>0;
-    world=G.roomGroup;
-    G.scene.background=new THREE.Color(0x120e22);
-    G.scene.fog=new THREE.Fog(0x120e22, 50, 170);
-    G.camera.near=0.3; G.camera.far=400; G.camera.updateProjectionMatrix();
-    G.camera.up.set(0,1,0);
-
-    const F=BT().RULES.floor;
-    const floor=new THREE.Mesh(new THREE.BoxGeometry(F*2+8, 1, 22),
-      new THREE.MeshLambertMaterial({color:0x2b2444}));
-    floor.position.y=-0.5; floor.userData.flat=true;
-    floor.receiveShadow=true;
-    world.add(floor);
-
-    /* A stripe every two metres. The robot moves at a speed in metres a
-       second, and a floor with nothing on it gives a student no way at
-       all to see that — with stripes, "it went four along" is a thing
-       you can count rather than a thing you have to be told. */
-    for(let i=-F; i<=F; i+=2){
-      const lit=i===0;
-      const m=new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 20),
-        new THREE.MeshBasicMaterial({color: lit?0x8ff0ff:0x3b3059}));
-      m.position.set(i, 0.02, 0); m.userData.flat=true; world.add(m);
+    if(window.CODER){
+      CODER.restrict(PALETTE);
+      CODER.setActor(bot);
     }
-    /* And the edges, so the end of the floor is somewhere rather than a
-       place the robot silently stops. */
-    [-1,1].forEach(s=>{
-      const w=new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 20),
-        new THREE.MeshLambertMaterial({color:0x4a3f7a}));
-      w.position.set(s*(F+1.5), 0.8, 0); world.add(w);
-    });
-
-    world.add(new THREE.AmbientLight(0xb9a8ff, 0.42));
-    const key=new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(10, 26, 16);
-    key.castShadow=true;
-    key.shadow.mapSize.set(1024,1024);
-    const sc=key.shadow.camera;
-    sc.left=-F-6; sc.right=F+6; sc.top=18; sc.bottom=-18; sc.near=1; sc.far=70;
-    sc.updateProjectionMatrix();
-    key.shadow.bias=-0.0006; key.shadow.normalBias=0.4;
-    world.add(key); world.add(key.target);
-    const fill=new THREE.DirectionalLight(0x8fa8ff, 0.4);
-    fill.position.set(-14, 9, -12); world.add(fill);
-
-    G.scene.updateMatrixWorld(true);
+    hint();
+    say();
   }
 
-  /* ------------------------------------------------------- the body */
-  function load(){
-    const holder=new THREE.Group();
-    world.add(holder);
-    body=holder;
-    new THREE.GLTFLoader().load(spec.model + '?v=' + (window.ASSETV||'1'), gl=>{
-      if(!on) return;                       // they left while it was loading
+  /* One robot, wearing what the pit picked. Kept across visits rather
+     than rebuilt, because the scripts on it are the student's work and
+     a fresh actor every time would throw them away. */
+  function ensureRobot(){
+    let bot = VM.actorByName(ACTOR);
+    if(!bot){
+      /* Anything already in this slot that is not the robot is the
+         starter object every empty project gets. It is not wanted here —
+         one body on the floor, and it is the one you picked. */
+      VM.project.actors.slice().forEach(a=>VM.delActor(a));
+      bot = VM.addActor({ name:ACTOR, dir:0 });
+    }
+    /* BACK ON ITS MARK, EVERY TIME YOU WALK IN. The scripts are the
+       student's work and are never touched; where the robot is standing
+       is not — it is wherever last lesson's `change y by 40` left it, and
+       a robot that starts forty units above the camera looks like a robot
+       that failed to load.
+
+       y IS HALF ITS HEIGHT because the body below is centred on the
+       actor, the way every costume in this game is. */
+    bot.size=spec.height;
+    bot.x=0; bot.y=spec.height/2; bot.z=0; bot.dir=0;
+    VM.sync(bot);
+    return bot;
+  }
+
+  /* ------------------------------------------------------- the body
+     THE RING DRAWS ITS OWN ROBOT, and it is worth saying why rather than
+     leaving it looking like distrust of the costume system.
+
+     COSTUMES cannot instance a rigged model. Object3D.clone() copies a
+     SkinnedMesh and its bones but leaves the copy pointing at the
+     PROTOTYPE's skeleton, so the body is drawn wherever those bones are
+     and takes no notice of the clone's transform. A four-metre robot
+     came out four hundred and sixty and stood somewhere else; a Box3
+     measured it as correct the whole time, which is what made it take an
+     hour. Fixing that properly is a skeleton-aware clone in costumes.js
+     and a change every mode in the game inherits — not something to do
+     on the way past.
+
+     So the actor carries the POSITION and the scripts, and this carries
+     the BODY, and tick() copies one onto the other. Which also means the
+     mixer is ours, which is what the animation clips will need. */
+  function loadBody(){
+    if(bodyFor===spec.id) return;
+    bodyFor=spec.id;
+    if(body && body.parent) body.parent.remove(body);
+    body=new THREE.Group();
+    G.roomGroup.add(body);
+    const want=spec.id;
+    new THREE.GLTFLoader().load(spec.model+'?v='+(window.ASSETV||'1'), gl=>{
+      if(!on || bodyFor!==want) return;          // left, or picked the other one
       const r=gl.scene;
       r.traverse(o=>{
         if(!o.isMesh) return;
-        o.frustumCulled=false;              // see the header
+        /* NEVER CULLED: a skinned mesh is culled against the bind box,
+           which is not any pose it is ever in. */
+        o.frustumCulled=false;
         o.castShadow=true;
         if(o.geometry.attributes.color){
           o.material.vertexColors=true; o.material.needsUpdate=true;
@@ -193,16 +181,20 @@ window.RING = (function(){
       r.updateMatrixWorld(true);
       const bx=new THREE.Box3().setFromObject(r);
       const h=bx.max.y-bx.min.y;
-      r.scale.setScalar(h>1e-6 ? spec.height/h : 1);   // scale only — never lift
-      holder.add(r);
+      /* MULTIPLY, NEVER SET. These exports carry a scale of their own —
+         a hundredth, because they are authored in centimetres — and the
+         box above is measured AFTER that, in world units. setScalar
+         throws the hundredth away and leaves the robot a hundred times
+         too big: four and a half metres became four hundred and sixty,
+         and all you can see from the floor is a shadow.
+
+         Scaled, never lifted — the skeleton stands on the origin even
+         though the mesh straddles it. */
+      if(h>1e-6) r.scale.multiplyScalar(spec.height/h);
+      body.add(r);
       mixer=new THREE.AnimationMixer(r);
       clips=gl.animations||[];
       play(IDLE_CLIP, 0);
-      hud();
-    }, undefined, ()=>{
-      /* A model that will not load is not a silent robot. Say it on the
-         feed, where everything else about this screen is said. */
-      line('stall', T('The robot model could not be loaded.'));
     });
   }
 
@@ -216,88 +208,176 @@ window.RING = (function(){
     cur=next; curName=name;
   }
   /* The one place the missing walk cycle is handled. The moment a clip
-     with one of these names exists in the .glb, this starts returning it
-     and the robot walks instead of sliding. Nothing else changes. */
+     with one of these names exists in the .glb it is found and played
+     while the robot is moving. That is the whole integration. */
   const walkClip = () => WALK_CLIPS.find(n=>clips.some(c=>c.name===n)) || null;
 
-  /* ------------------------------------------------------------- tick */
-  function tick(dt){
-    if(!on || !world || !stage) return;
-    /* G.keys is already keyed by KeyboardEvent.code, which is exactly
-       what a rule stores, so the program reads the keyboard directly
-       with nothing translating in between. */
-    const r=stage.step(dt, G.keys||{});
-    say(r.trace);
-
-    const s=stage.snapshot();
-    if(body){
-      body.position.x=s.x;
-      body.rotation.y=s.yaw;
+  function stop(){
+    if(!on) return;
+    on=false;
+    if(window.CODER){
+      if(CODER.open) CODER.hide();
+      CODER.restrict(null);       // hand the whole palette back to Free Play
     }
-    const w=walkClip();
-    play(s.moving && w ? w : IDLE_CLIP);
-    if(mixer) mixer.update(dt);
-
-    camera(dt, s);
-    hud(s);
+    if(window.VM){ VM.stopAll(); VM.save(); VM.leave(); }
+    body=null; bodyFor=null; mixer=null; clips=[]; cur=null; curName=null;
+    $('#ring').classList.add('hidden');
+    ['#ringFeed','#ringKeys'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
+    ['#objectives','#crosshair','#briefing']
+      .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
+    if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
+    if(window.keyHint) keyHint(null);
+    if(window.AVATAR) AVATAR.attach();
   }
 
-  /* Side on, and it drifts after the robot rather than locking to it: a
-     camera welded to a moving thing makes the thing look still, and the
-     whole point of this screen is seeing that it moved. The stripes stay
-     put, so the movement reads against them. */
-  function camera(dt, s){
-    camX += (s.x - camX) * Math.min(1, dt*2.2);
-    G.camera.position.set(camX*0.55, 4.6, 12.5);
+  /* ================================================== building the room */
+  function build(){
+    if(G.roomGroup) G.scene.remove(G.roomGroup);
+    G.roomGroup=new THREE.Group(); G.scene.add(G.roomGroup);
+    G.solids=[]; G.hits=[]; G.ceiling=null; G.ground=()=>0;
+    G.scene.background=new THREE.Color(0x120e22);
+    G.scene.fog=new THREE.Fog(0x120e22, 60, 200);
+    G.camera.near=0.3; G.camera.far=400; G.camera.updateProjectionMatrix();
     G.camera.up.set(0,1,0);
-    G.camera.lookAt(camX*0.85, 2.3, 0);
+    const world=G.roomGroup;
+
+    const F=16;
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(F*2+10, 1, 26),
+      new THREE.MeshLambertMaterial({color:0x2b2444}));
+    floor.position.y=-0.5; floor.userData.flat=true;
+    floor.receiveShadow=true;
+    world.add(floor);
+
+    /* A stripe every two units, and a lit one at zero. `change x by 10`
+       is a sentence with a number in it, and a floor with nothing on it
+       gives a student no way to see whether the number was ten. With
+       stripes they can count. */
+    for(let i=-F;i<=F;i+=2){
+      const lit=i===0;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 24),
+        new THREE.MeshBasicMaterial({color: lit?0x8ff0ff:0x3b3059}));
+      m.position.set(i, 0.02, 0); m.userData.flat=true; world.add(m);
+    }
+    /* And posts up the back wall, so `change y by` has something to be
+       measured against too. Up is a direction you can only see moving in
+       if there is something standing still beside you. */
+    for(let h=2;h<=12;h+=2){
+      const m=new THREE.Mesh(new THREE.BoxGeometry(F*2+6, 0.08, 0.08),
+        new THREE.MeshBasicMaterial({color:0x342b50}));
+      m.position.set(0, h, -11); world.add(m);
+    }
+
+    world.add(new THREE.AmbientLight(0xb9a8ff, 0.45));
+    const key=new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(12, 28, 18);
+    key.castShadow=true;
+    key.shadow.mapSize.set(1024,1024);
+    const sc=key.shadow.camera;
+    sc.left=-F-8; sc.right=F+8; sc.top=22; sc.bottom=-22; sc.near=1; sc.far=80;
+    sc.updateProjectionMatrix();
+    key.shadow.bias=-0.0006; key.shadow.normalBias=0.4;
+    world.add(key); world.add(key.target);
+    const fill=new THREE.DirectionalLight(0x8fa8ff, 0.4);
+    fill.position.set(-16, 10, -14); world.add(fill);
+
+    G.scene.updateMatrixWorld(true);
   }
 
-  /* --------------------------------------------------------- the feed
-     Only when the reasoning CHANGES. At twenty ticks a second a held key
-     is the same sentence two hundred times a minute, and a feed that
-     repeats itself is one nobody reads. */
-  function say(trace){
-    const said=(trace||[]).map(MC().say).filter(Boolean).join(' → ');
-    if(said===lastSaid) return;
-    lastSaid=said;
-    if(!said) return;
-    const kind=(trace.find(s=>s.kind==='stall') ? 'stall'
-              : trace.find(s=>s.kind==='action') ? 'act' : 'ev');
-    line(kind, said);
+  /* ------------------------------------------------------------- tick
+     The VM is stepped HERE rather than by the game loop, which only does
+     it in the Free Play room. Same call, same threads, same everything —
+     the only difference is who owns the floor it is standing on. */
+  function tick(dt){
+    if(!on) return;
+    if(window.VM) VM.step(dt);
+    if(window.CODER) CODER.tick(dt);
+    drive(dt);
+    camera(dt);
+    /* The editor has its own bar across the top and so does this, and
+       they were sitting on each other. The editor's wins while it is
+       open — it has the Run button on it. */
+    const mine=$('#ring');
+    if(mine) mine.classList.toggle('hidden', !!(window.CODER && CODER.open));
+    if(!(window.CODER && CODER.open)) say();
   }
-  function line(cls, text){
-    if(!text) return;
-    feed.push({cls, text});
-    if(feed.length>12) feed.shift();
-    const host=$('#ringFeed'); if(!host) return;
-    host.innerHTML=feed.map(f=>`<div class="ring-line ${f.cls}">${f.text}</div>`).join('');
+
+  /* The actor has the position; this has the body. One line of copying,
+     and a walk clip the moment the robot is actually travelling. */
+  function drive(dt){
+    const bot=VM.actorByName(ACTOR);
+    if(!bot || !body) return;
+    /* The actor's own mesh is a cube standing exactly where the robot is.
+       It is what the VM moves and what the crosshair finds, so it stays —
+       it just does not need to be looked at. */
+    if(bot.mesh) bot.mesh.visible=false;
+    body.position.set(+bot.x||0, +bot.y||0, +bot.z||0);
+    body.rotation.y=(+bot.dir||0)*Math.PI/180;
+    body.scale.setScalar(1);
+
+    const moved=Math.hypot(body.position.x-wasAt.x,
+                           body.position.y-wasAt.y,
+                           body.position.z-wasAt.z);
+    wasAt={x:body.position.x, y:body.position.y, z:body.position.z};
+    const w=walkClip();
+    play(moved>0.001 && w ? w : IDLE_CLIP);
+    if(mixer) mixer.update(dt);
+  }
+
+  /* Side on, drifting after the robot rather than locked to it — a
+     camera welded to a moving thing makes the thing look still, and the
+     whole point of this room is seeing that it moved. It follows in y as
+     well, or a robot told to change y by 50 leaves the picture. */
+  function camera(dt){
+    const bot=window.VM && VM.actorByName(ACTOR);
+    const x=bot?+bot.x||0:0, y=bot?+bot.y||0:0;
+    const k=Math.min(1, dt*2.2);
+    camX += (x-camX)*k;
+    camY += (y-camY)*k;                 // the actor's y IS its middle
+    G.camera.position.set(camX*0.5, camY+3.0, 15);
+    G.camera.up.set(0,1,0);
+    G.camera.lookAt(camX*0.8, camY, 0);
   }
 
   /* ---------------------------------------------------------- the HUD
-     Which robot, where it is standing, and how many rules it is running.
-     Position is on screen because the floor is marked in metres and a
-     number you can check against the stripes is a number that teaches. */
-  function hud(s){
+     Where it is, in the numbers the blocks use. `x position` is a block
+     on the palette, so the same three numbers are on screen — a student
+     can read one against the other and see that they agree. */
+  function say(){
     const el=$('#ringA'); if(!el || !spec) return;
-    const rules=(program||[]).filter(r=>r && r.type==='when').length;
-    const at=s ? s.x.toFixed(1) : '0.0';
+    const bot=window.VM && VM.actorByName(ACTOR);
+    const n=v=>(Math.round((+v||0)*10)/10).toFixed(1);
+    const scripts=bot?(bot.scripts||[]).length:0;
     el.innerHTML=`<div class="ring-name"><b>${spec.name}</b>
-        <small>${rules} ${T(rules===1?'rule':'rules')}</small></div>
-      <div class="ring-p"><span>${T('POSITION')}</span>
-        <i><b style="width:${Math.round((s?s.x:0)/BT().RULES.floor*50+50)}%"></b></i>
-        <span style="width:44px;text-align:right">${at} m</span></div>`;
+        <small>${scripts} ${T(scripts===1?'script':'scripts')}${
+          window.VM && VM.running ? ' · '+T('running') : ''}</small></div>
+      <div class="ring-p"><span>x</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.x||0)/16*50+50))}%"></b></i>
+        <span style="width:46px;text-align:right">${n(bot&&bot.x)}</span></div>
+      <div class="ring-p"><span>y</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.y||0)/12*100))}%"></b></i>
+        <span style="width:46px;text-align:right">${n(bot&&bot.y)}</span></div>
+      <div class="ring-p"><span>z</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.z||0)/12*50+50))}%"></b></i>
+        <span style="width:46px;text-align:right">${n(bot&&bot.z)}</span></div>`;
+  }
+
+  /* The one sentence that is worth more than any other on this screen,
+     and the reason it is here rather than in a help bubble: a student
+     whose robot twitched once and stopped has written the commonest
+     Scratch bug there is, and the fix is a shape, not a value. */
+  function hint(){
+    const line=`<b>C</b> ${T('open the blocks')} &nbsp;·&nbsp; `+
+               `<b>${T('a conditional on its own is checked once')}</b> — `+
+               `${T('put it inside a forever loop to make it a control')}`;
+    if(window.keyHint) keyHint(line);
+    const esc=$('#escHint'); if(esc) esc.classList.add('hidden');
+    const mid=$('#ringKeys');
+    if(mid){ mid.innerHTML=''; mid.classList.add('hidden'); }
   }
 
   function leave(msg){
     stop();
     if(window.PIT) PIT.show({ onGo:start });
-    /* window.say, explicitly: there is a say() in this file too, and it
-       takes a trace rather than a sentence. */
     if(msg && window.say) window.say(msg);
   }
 
-  return { start, stop, tick, leave,
-           get active(){ return on; },
-           get phase(){ return phase; } };
+  return { start, stop, tick, leave, PALETTE, SLOT, ACTOR,
+           get active(){ return on; } };
 })();
