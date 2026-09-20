@@ -419,7 +419,7 @@ window.CODER = (function(){
     }
     if(v && typeof v==='object' && v.op){
       const bd=BLOCKS.of(v.op);
-      return `<span class="cnest" style="--a:${BLOCKS.catOf(bd.cat).a}">${renderInline(v)}
+      return `<span class="cnest" data-nest="${k}" style="--a:${BLOCKS.catOf(bd.cat).a}">${renderInline(v)}
         <button class="bx" data-clear="${k}">✕</button></span>`;
     }
     /* THE KEYBOARD IS A MENU. Typing here was the bug twice over: a
@@ -482,6 +482,40 @@ window.CODER = (function(){
   }
   const isSlot=(bk,k)=>slotTarget && slotTarget.owner===bk && slotTarget.key===k;
   const allVarNames=()=>[...Object.keys(VM.project.vars), ...Object.keys((current()||{}).vars||{})];
+
+  /* WHICH BLOCK A FIELD BELONGS TO.
+
+     A reporter dropped into a slot is drawn INSIDE its host's element, so
+     closest('[data-blk]') finds the host and not the reporter. Every menu,
+     every number box and every empty diamond inside a nested block was
+     therefore reading and writing the block AROUND it: picking a key in
+     `if <key [w] pressed?>` wrote a stray k onto the `if`, the reporter
+     kept the key it had, and the menu snapped back — which looks exactly
+     like a dropdown that does not work.
+
+     Only blocks in the script tree have a path, so there is nothing to
+     resolve a nested reporter by. The nest spans carry the slot they fill
+     instead, and the way down is to read them off and descend.
+
+     dropLast is for the ✕ buttons: one sits inside the very span it
+     empties, so its own slot is already named by data-clear and must not
+     be walked into. */
+  function holderOf(el, dropLast){
+    const wrap=el.closest('[data-blk]');
+    let bk = wrap ? (at(wrap.dataset.blk)||{}).block : hatOf(el);
+    if(!bk) return null;
+    const stop = wrap || el.closest('.cscript');
+    const keys=[];
+    for(let n=el.parentElement; n && n!==stop; n=n.parentElement)
+      if(n.dataset && n.dataset.nest!=null) keys.unshift(n.dataset.nest);
+    if(dropLast) keys.pop();
+    for(const k of keys){
+      const next = bk.args ? bk.args[k] : null;
+      if(!next || typeof next!=='object' || !next.op) return null;
+      bk=next;
+    }
+    return bk;
+  }
 
   /* resolve "0.b.2" to the list holding the block and its index */
   function at(path){
@@ -552,8 +586,7 @@ window.CODER = (function(){
       cursor=null; selected=null; VM.save(); render();
     });
     el.querySelectorAll('[data-set]').forEach(inp=>{
-      const wrap=inp.closest('[data-blk]');
-      const holder = wrap ? (at(wrap.dataset.blk)||{}).block : hatOf(inp);
+      const holder = holderOf(inp);
       inp.onchange=()=>{
         if(!holder) return;
         let v=inp.value;
@@ -570,16 +603,15 @@ window.CODER = (function(){
     });
     el.querySelectorAll('[data-slot].bool').forEach(sl=>sl.onclick=e=>{
       e.stopPropagation();
-      const wrap=sl.closest('[data-blk]'); if(!wrap) return;
-      const holder=(at(wrap.dataset.blk)||{}).block; if(!holder) return;
+      const holder=holderOf(sl); if(!holder) return;
       slotTarget={ owner:holder, key:sl.dataset.slot }; render();
     });
     el.querySelectorAll('[data-clear]').forEach(x=>x.onclick=e=>{
       e.stopPropagation();
-      const wrap=x.closest('[data-blk]'); if(!wrap) return;
-      const r=at(wrap.dataset.blk); if(!r) return;
-      const sp=BLOCKS.of(r.block.op).args[x.dataset.clear];
-      r.block.args[x.dataset.clear]= sp && sp.def!==undefined ? sp.def : null;
+      const holder=holderOf(x, true); if(!holder) return;
+      const bd=BLOCKS.of(holder.op); if(!bd) return;
+      const sp=bd.args[x.dataset.clear];
+      holder.args[x.dataset.clear]= sp && sp.def!==undefined ? sp.def : null;
       VM.save(); render();
     });
   }
@@ -689,8 +721,7 @@ window.CODER = (function(){
   function slotZones(){
     const out=[];
     $('#cScript').querySelectorAll('[data-slot]').forEach(el=>{
-      const wrap=el.closest('[data-blk]');
-      const owner = wrap ? (at(wrap.dataset.blk)||{}).block : hatOf(el);
+      const owner=holderOf(el);
       if(owner) out.push({ el, owner, key:el.dataset.slot });
     });
     return out;
