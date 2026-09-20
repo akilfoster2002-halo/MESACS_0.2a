@@ -122,6 +122,17 @@ window.RING = (function(){
   const WALK_CLIPS = ['walk','Walk','walking','strafe','Strafe','run','Run'];
   const IDLE_CLIP  = 'idle';
 
+  /* Everything that belongs to walking around a planet and not to
+     standing in this room. It is a named list because it has to be put
+     back on more than once — see tick(): closing the editor un-hides
+     some of these on its own. */
+  /* NOT #keys. That one is the hint bar along the bottom, and it is the
+     ring's own — keyHint() writes the line about the forever loop into
+     it. Hiding it takes the one sentence this room most wants on screen.
+     CODER.hide() restoring it is right here as well as in Free Play. */
+  const HIDE=['#mapwrap','#health','#skill','#trigger','#objectives',
+              '#crosshair','#focus','#briefing'];
+
   let on=false, wasFP=null, camX=0, camY=0, spec=null;
   let body=null, bodyFor=null, mixer=null, clips=[], cur=null, curName=null;
   let wasAt={x:0,y:0,z:0};
@@ -140,8 +151,7 @@ window.RING = (function(){
     if(wasFP===null) wasFP=!!G.firstPerson;
     G.firstPerson=false;
     if(window.GUN) GUN.carried(false);
-    ['#mapwrap','#health','#skill','#trigger','#objectives','#crosshair','#focus','#briefing']
-      .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
+    HIDE.forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     $('#hud').classList.remove('hidden');
     $('#ring').classList.remove('hidden');
     $('#ringKeys').classList.remove('hidden');
@@ -346,9 +356,19 @@ window.RING = (function(){
     /* The editor has its own bar across the top and so does this, and
        they were sitting on each other. The editor's wins while it is
        open — it has the Run button on it. */
+    const coding=!!(window.CODER && CODER.open);
     const mine=$('#ring');
-    if(mine) mine.classList.toggle('hidden', !!(window.CODER && CODER.open));
-    if(!(window.CODER && CODER.open)) say();
+    if(mine) mine.classList.toggle('hidden', coding);
+    if(!coding){
+      say();
+      /* AND THE PLANET'S PANELS STAY DOWN. CODER.hide() puts #objectives,
+         #keys and #topbar back unconditionally, which is right in Free
+         Play and wrong here: closing the blocks with C dropped Senio's
+         mission list over the middle of the ring. Re-asserted rather than
+         patched into the editor, because the editor is shared and this
+         room is the odd one out. */
+      HIDE.forEach(sel=>{ const e=$(sel); if(e) e.classList.add('hidden'); });
+    }
   }
 
   /* The actor has the position; this has the body. One line of copying,

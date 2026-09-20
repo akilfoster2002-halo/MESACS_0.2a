@@ -198,6 +198,29 @@ test('the ring steps the VM itself, because the game loop only does it in Free P
     'the game loop never ticks the ring');
 });
 
+test('closing the blocks does not drop the planet\'s panels over the ring', ()=>{
+  /* CODER.hide() puts #objectives, #keys and #topbar back unconditionally,
+     which is right in Free Play and wrong here — pressing C to close the
+     blocks dropped Senio's mission list across the middle of the room.
+     The ring re-asserts its own list every tick rather than patching the
+     shared editor. */
+  const src=read('public/ring.js');
+  assert.match(read('public/coder.js'), /\$\('#objectives'\)\.classList\.remove\('hidden'\)/,
+    'coder.js no longer restores #objectives — this guard may be stale');
+  assert.match(src, /const HIDE=\[/, 'the ring does not keep a list of what it hides');
+  assert.match(src, /HIDE\.forEach[\s\S]{0,200}add\('hidden'\)/,
+    'the ring hides its list once and never puts it back');
+  const tick=src.slice(src.indexOf('function tick('), src.indexOf('function camera('));
+  assert.match(tick, /HIDE\.forEach/,
+    'the ring never re-hides the panels, so closing the editor reveals them');
+  /* #keys is the hint bar along the bottom and the ring writes its own
+     line into it with keyHint(). Hiding that takes away the one sentence
+     this room most wants on screen. */
+  const list=src.match(/const HIDE=\[[\s\S]*?\];/)[0];
+  assert.ok(!/#keys/.test(list), 'the ring hides the hint bar it writes into');
+  assert.match(src, /keyHint\(/, 'the ring never writes a hint at all');
+});
+
 test('the ring gives the whole palette back when you leave', ()=>{
   /* restrict() is global to the editor, so a ring that does not undo it
      leaves Free Play with five categories and a handful of blocks. */
