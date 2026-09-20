@@ -512,14 +512,13 @@ function startMissionRoom(id){
     return;
   }
   if(id==='mech'){ MECH.start(); return; }       // and the league its own arena
-  /* THE RING. It has no world to walk across and no building to find:
-     the card is the door, and the pit is the first thing you see. The
-     pit hands the fight the robot you picked and the orders you gave
-     its parts, and the fight hands you back to the pit afterwards,
-     which is the whole loop of the mode. */
+  /* THE RING. The pit hands it the robot you picked and the rules you
+     wrote for the keys, and it hands you back to the pit, which is the
+     whole loop of the mode: say what a key does, go and press it, come
+     back and change your mind. */
   if(id==='ring'){
     if(!window.PIT || !window.RING) return;
-    PIT.show({ onFight:(kind, robot, programs)=>RING.start(kind, robot, programs) });
+    PIT.show({ onGo:(robot, program)=>RING.start(robot, program) });
     return;
   }
   /* The investigation builds its own district out of the same kit the

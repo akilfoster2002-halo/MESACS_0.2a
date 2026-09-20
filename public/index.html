@@ -1772,8 +1772,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .pit-blk small{display:block;font-weight:normal;font-size:11px;opacity:.8}
 .pit-prog{background:#100c1e;border-radius:12px;padding:10px;min-height:300px}
 .pit-row{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:13px}
-.pit-row .pit-body{flex:1;display:flex;align-items:center;gap:6px;border-radius:9px;padding:6px 9px;
-  color:#231c33;font-weight:bold}
+.pit-row .pit-body{flex:1;display:flex;align-items:center;gap:6px;border-radius:9px;padding:7px 10px;
+  color:#231c33;font-weight:bold;flex-wrap:wrap;font-size:13px;letter-spacing:1px}
 .pit-row select,.pit-row input{font-family:var(--font);font-size:12px;border-radius:7px;
   border:2px solid rgba(0,0,0,.25);padding:2px 4px;background:#fff8;color:#231c33}
 .pit-row .pit-x,.pit-row .pit-up,.pit-row .pit-dn{background:none;border:none;color:var(--muted);
@@ -1783,7 +1783,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   font-family:var(--font);font-size:12px;padding:4px 10px;margin:3px 0;cursor:pointer}
 .pit-add:hover,.pit-add.on{border-color:var(--star);color:var(--star)}
 .pit-empty{color:var(--muted);font-size:13px;padding:8px 4px}
-.pit-err{color:var(--bad);font-size:12px;margin-top:6px}
+.pit-err{color:var(--bad);font-size:12px;margin-top:6px;line-height:1.6}
+.pit-err .warn{color:var(--star)}
 .pit-foot{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
 
 /* =====================================================================
@@ -1797,22 +1798,14 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   justify-content:center;gap:16px;padding:0 14px}
 .ring-side{flex:1;max-width:340px;background:rgba(16,12,30,.82);border:3px solid var(--line);
   border-radius:14px;padding:8px 10px}
-.ring-side.r{text-align:right}
 .ring-name{font-size:13px;letter-spacing:2px;color:var(--star);display:flex;gap:8px;align-items:baseline}
-.ring-side.r .ring-name{justify-content:flex-end}
 .ring-name small{font-size:10px;letter-spacing:1px;color:var(--muted)}
 .ring-parts{display:grid;gap:3px;margin-top:5px}
 .ring-p{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;color:var(--muted)}
-.ring-side.r .ring-p{flex-direction:row-reverse}
 .ring-p span{width:52px;flex:none}
+.ring-p i b{transition:width .08s linear}
 .ring-p i{flex:1;height:8px;border-radius:4px;background:#0f1626;overflow:hidden}
 .ring-p i b{display:block;height:100%;background:#a8e6cf;transition:width .12s linear}
-.ring-p.core i b{background:linear-gradient(90deg,#ffd8a8,#ff9a5c)}
-.ring-p.low i b{background:var(--bad)}
-.ring-p.gone i b{background:#4a4370}
-#ringClock{background:rgba(16,12,30,.82);border:3px solid var(--line);border-radius:14px;
-  padding:8px 16px;font-size:26px;letter-spacing:3px;color:var(--star);min-width:92px;text-align:center}
-#ringClock small{display:block;font-size:10px;letter-spacing:2px;color:var(--muted)}
 
 /* your own code, thinking out loud */
 #ringFeed{position:absolute;left:14px;top:150px;bottom:90px;width:290px;overflow:hidden;
@@ -1829,12 +1822,6 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #ringKeys{position:absolute;left:0;right:0;bottom:56px;text-align:center;font-size:12px;
   color:var(--muted);line-height:1.6}
 #ringKeys b{color:var(--star)}
-#ringBig{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:44px;letter-spacing:8px;
-  color:var(--star);text-shadow:0 4px 0 rgba(0,0,0,.5)}
-#ringBig small{display:block;font-size:14px;letter-spacing:3px;color:var(--muted);margin-top:6px}
-#ringWait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:420px;
-  background:rgba(16,12,30,.92);border:3px solid var(--line);border-radius:16px;padding:18px 22px;
-  text-align:center;font-size:14px;color:var(--muted);line-height:1.6}
 
 /* ---------- THE ENGINEER'S TRAIL ---------------------------------------
    A machine inspector that is NOT an IDE. Everything in here is trying to
@@ -2476,13 +2463,9 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <div id="ring" class="hidden">
   <div id="ringTop">
     <div class="ring-side" id="ringA"></div>
-    <div id="ringClock"></div>
-    <div class="ring-side r" id="ringB"></div>
   </div>
   <div id="ringFeed" class="hidden"></div>
   <div id="ringKeys" class="hidden"></div>
-  <div id="ringBig" class="hidden"></div>
-  <div id="ringWait" class="hidden"></div>
 </div>
 
 

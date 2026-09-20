@@ -1,213 +1,178 @@
 /* =====================================================================
-   MECHACODE — what a mecha's parts are told to do, and why they did it.
+   MECHACODE — what a key does, written as blocks.
 
-   THIS IS NOT THE ARENA LANGUAGE. In the Gym a program is a tape: the
-   whole fight is a list of moves played out. Here the student is holding
-   the controls — walking, turning, backing off — and the code is not
-   driving the robot, it is REACTING for it. So a program is not a
-   sequence, it is a set of standing orders:
+   THE WHOLE LANGUAGE IS ONE SENTENCE:
 
-       WHEN enemy detected
-         IF enemy distance < 5
-           PUNCH
-         ELSE
-           BLOCK
+       WHEN [D] IS PRESSED
+         STEP RIGHT
 
-   Sixty times a second, every part with a program is asked one question:
-   "given what you can see right now, what do you do?" It answers with at
-   most one action, because an arm can only be doing one thing at a time.
-   That constraint is the whole lesson — an order that never gets reached
-   is an order that never runs, and the trace says exactly where the
-   reading went the other way.
+   That is it. No sensors, no IF, no enemy, no arms. A program is a list
+   of rules, a rule is a key and an action, and twenty times a second the
+   robot is asked one question — of the keys being held down right now,
+   which is the first rule that matches? — and does that one thing.
 
-   ONE PROGRAM PER PART. The left arm's PUNCH is the left arm punching;
-   there is no block that says which limb, because the limb is which
-   editor you are typing in. Destroy an arm and its orders stop being
-   carried out, and the student's answer to that is different code, not
-   a different button.
+   WHY IT IS THIS SMALL. A student who writes that rule and then presses
+   D has done the whole loop of programming in about ten seconds: they
+   said what should happen, they made it happen, and they watched it
+   happen to a thing with legs. Everything else — arms, sensors, the
+   other robot, deciding for itself — gets built ON TOP of that sentence,
+   and none of it teaches anything until that sentence is understood.
+   This file used to hold all of it at once, and it was a wall.
 
-   Pure, like program.js and for the same reason: the server decides
-   these matches and has no screen. Same tree in, same action out, on
-   both machines.
+   THE FIRST RULE WINS, which is the one rule about order in here and the
+   reason every row can be moved up and down. Hold two keys that both say
+   something and the robot does the top one — which is a thing a student
+   can find out by holding two keys, and that is the best kind of thing
+   to find out.
+
+   THE TRACE IS WHY THIS IS NOT JUST A KEYMAP. Every decision comes back
+   with the steps that led to it, and the ring prints them as they
+   happen, in the same words the blocks are written in.
+
+   No DOM. Node loads this too, because the tests run there.
    ===================================================================== */
 (function(root){
 
-  /* ---------------------------------------------------------- events
-     What can wake a rule up. `always` is the FOREVER of this language:
-     it is asked on every single tick, which is what a standing order is.
-     The rest fire on something changing, so a student can write "when I
-     am hit" without writing the test for it. */
-  const EVENTS=[
-    { id:'always',          label:'ALWAYS',            help:'Checked every moment of the fight.' },
-    { id:'enemy_detected',  label:'WHEN ENEMY NEAR',   help:'Your sensor can see the other robot.' },
-    { id:'incoming_attack', label:'WHEN ATTACKED',     help:'Their arm is winding up at you. This is your one chance to block.' },
-    { id:'hit',             label:'WHEN HIT',          help:'Something just landed on you.' },
-    { id:'health_low',      label:'WHEN HEALTH LOW',   help:'Your core is under a third.' },
-    { id:'energy_low',      label:'WHEN ENERGY LOW',   help:'You are nearly out of energy.' },
-    { id:'start',           label:'WHEN THE FIGHT STARTS', help:'Once, at the very beginning.' }
-  ];
-  const EVENT_IDS=EVENTS.map(e=>e.id);
+  /* ------------------------------------------------------------- keys
+     A short list on purpose: every key here is one a lab keyboard
+     definitely has and one a student can find without looking, and a
+     palette of seven is a lesson where a palette of a hundred is a
+     reference manual.
 
-  /* --------------------------------------------------------- sensors
-     Numbers a rule can ask for. Every one of them is a number rather
-     than a yes/no on purpose: "enemy distance < 5" teaches a comparison,
-     "enemy is close" teaches a word somebody else chose. */
-  const SENSORS=[
-    { id:'enemy_distance', label:'ENEMY DISTANCE', max:40,  help:'How far away they are, in metres.' },
-    { id:'enemy_health',   label:'ENEMY CORE',     max:100, help:'How much core they have left, out of 100.' },
-    { id:'my_health',      label:'MY CORE',        max:100, help:'How much core YOU have left.' },
-    { id:'my_energy',      label:'MY ENERGY',      max:100, help:'Energy left. Every action spends some.' },
-    { id:'enemy_facing',   label:'ENEMY FACING ME',max:1,   help:'1 when they are looking at you, 0 when their back is turned.' }
+     `id` is the browser's own KeyboardEvent.code, so what a program
+     stores is exactly what gets tested at runtime and nothing has to be
+     translated in between. */
+  const KEYS = [
+    { id:'ArrowLeft',  label:'← LEFT ARROW'  },
+    { id:'ArrowRight', label:'→ RIGHT ARROW' },
+    { id:'KeyA',       label:'A' },
+    { id:'KeyD',       label:'D' },
+    { id:'KeyW',       label:'W' },
+    { id:'KeyS',       label:'S' },
+    { id:'Space',      label:'SPACEBAR' }
   ];
-  const SENSOR_IDS=SENSORS.map(s=>s.id);
-  const OPS=['<','>','='];
+  const KEY_IDS = KEYS.map(k=>k.id);
+  const keyById = id => KEYS.find(k=>k.id===id) || null;
+  const keyLabel = id => (keyById(id)||{label:id}).label;
 
-  /* --------------------------------------------------------- actions
-     Grouped by the part that can do them, because a program belongs to a
-     part. An arm cannot dodge and legs cannot punch, and rather than
-     explain that in a help bubble the palette simply never offers it. */
-  const ACTIONS={
-    punch :{ part:'arm',  label:'PUNCH',       energy:3,  help:'Quick. Short reach. Cheap enough to throw often.' },
-    heavy :{ part:'arm',  label:'HEAVY PUNCH', energy:7,  help:'Slow, and it roots you while it winds up — but it hurts.' },
-    block :{ part:'arm',  label:'BLOCK',       energy:2,  help:'Hold the arm up. Soaks what lands on that side.' },
-    dodge :{ part:'legs', label:'DODGE',       energy:3,  help:'Throw yourself sideways, out of the way of what is coming.' },
-    brace :{ part:'legs', label:'BRACE',       energy:2,  help:'Plant your feet. You are pushed around less.' }
+  /* ---------------------------------------------------------- actions
+     Two, because the feet are the only part of the robot wired up yet.
+     A third is a row here and a case in the ring, which is the point of
+     them living in a table rather than in an if.
+
+     `axis` is what the ring does with it: -1 is left along the floor and
+     +1 is right. An action with no axis is one the ring would have to be
+     taught about separately, and there is no such thing yet. */
+  const ACTIONS = {
+    left : { label:'STEP LEFT',  axis:-1, help:'Move along the floor to your left.' },
+    right: { label:'STEP RIGHT', axis: 1, help:'Move along the floor to your right.' }
   };
-  const partActions = part => Object.keys(ACTIONS).filter(k=>ACTIONS[k].part===part);
+  const ACTION_IDS = Object.keys(ACTIONS);
 
-  /* Which parts carry a program at all. Legs are in; the core and the
-     sensor are damageable but they do not take orders — what they do is
-     stop working, which is the interesting thing about them. */
-  const PARTS=[
-    { id:'left_arm',  label:'LEFT ARM',  kind:'arm',  hp:100 },
-    { id:'right_arm', label:'RIGHT ARM', kind:'arm',  hp:100 },
-    { id:'legs',      label:'LEGS',      kind:'legs', hp:100 },
-    { id:'sensor',    label:'SENSOR',    kind:'none', hp:100 },
-    { id:'core',      label:'CORE',      kind:'none', hp:200 }
-  ];
-  const partById = id => PARTS.find(p=>p.id===id) || null;
-
-  /* ------------------------------------------------------- the shape
-     A program is a list of WHEN rules. Inside a rule: IF blocks, which
-     hold a body and an else, and actions, which end the decision. */
+  /* ----------------------------------------------------------- shape */
   function countBlocks(list){
     let n=0;
-    for(const b of (list||[])){ n++; n+=countBlocks(b.body); n+=countBlocks(b.else); }
+    for(const b of (list||[])){ n++; n+=countBlocks(b.body); }
     return n;
   }
 
-  /* Checked before a program is allowed into a match, by whoever is
-     refereeing it. Every message is a sentence a student can act on. */
+  /* Checked before a program is allowed to drive anything. Every message
+     is a sentence a student can act on, and every one names the block it
+     is about so the editor can point at it. */
   function validate(program, rules){
     rules=rules||{};
+    if(!Array.isArray(program))
+      return { ok:false, errors:[{ msg:'That is not a program.' }], blocks:0 };
     const errs=[];
-    const allow = new Set(rules.allow || Object.keys(ACTIONS));
-    const limit = rules.limit || 24;
-    const n = countBlocks(program);
-    if(!Array.isArray(program)) return { ok:false, errors:[{ msg:'That is not a program.' }], blocks:0 };
+    const allow=new Set(rules.allow || ACTION_IDS);
+    const limit=rules.limit || 12;
+    const n=countBlocks(program);
     if(n>limit) errs.push({ code:'over-budget',
-      msg:'That is '+n+' blocks and this part holds '+limit+'.' });
+      msg:'That is '+n+' blocks and this robot holds '+limit+'.' });
 
-    (function scan(list, inRule){
-      for(const b of (list||[])){
-        if(b.type==='when'){
-          if(!inRule){
-            if(!EVENT_IDS.includes(b.ev))
-              errs.push({ code:'bad-event', blockId:b.id, msg:'"'+b.ev+'" is not something that happens.' });
-          } else {
-            errs.push({ code:'nested-when', blockId:b.id,
-              msg:'A WHEN cannot go inside another WHEN.' });
-          }
-          scan(b.body, true);
-        } else if(!inRule){
-          errs.push({ code:'loose-block', blockId:b.id,
-            msg:'Every block has to sit under a WHEN, or nothing ever asks it.' });
-        } else if(b.type==='if'){
-          if(!SENSOR_IDS.includes(b.sensor))
-            errs.push({ code:'bad-sensor', blockId:b.id, msg:'"'+b.sensor+'" is not a sensor this robot has.' });
-          if(!OPS.includes(b.op))
-            errs.push({ code:'bad-op', blockId:b.id, msg:'"'+b.op+'" is not a comparison.' });
-          if(!(typeof b.n==='number' && isFinite(b.n)))
-            errs.push({ code:'bad-number', blockId:b.id, msg:'That comparison has no number in it.' });
-          scan(b.body, true); scan(b.else, true);
-        } else if(ACTIONS[b.type]){
-          if(!allow.has(b.type))
-            errs.push({ code:'not-allowed', blockId:b.id,
-              msg:'"'+ACTIONS[b.type].label+'" is not something this part can do.' });
-        } else {
-          errs.push({ code:'unknown', blockId:b.id, msg:'"'+b.type+'" is not a block.' });
-        }
+    const used=new Set();
+    for(const b of program){
+      if(!b || b.type!=='when'){
+        errs.push({ code:'loose-block', blockId:b&&b.id,
+          msg:'Every block has to sit under a WHEN, or nothing ever asks it.' });
+        continue;
       }
-    })(program, false);
+      if(!KEY_IDS.includes(b.key))
+        errs.push({ code:'bad-key', blockId:b.id,
+          msg:'"'+b.key+'" is not a key this robot watches.' });
+      /* TWO RULES ON ONE KEY IS NOT AN ERROR — the first one wins, which
+         is a rule they already know — but it is nearly always a mistake,
+         and one worth saying out loud rather than leaving them to wonder
+         why the second one never runs. */
+      if(used.has(b.key))
+        errs.push({ code:'duplicate-key', blockId:b.id, warn:true,
+          msg:keyLabel(b.key)+' already has a rule above this one, and the first one wins.' });
+      used.add(b.key);
 
-    return { ok:!errs.length, errors:errs, blocks:n };
+      const body=b.body||[];
+      if(!body.length)
+        errs.push({ code:'empty-rule', blockId:b.id, warn:true,
+          msg:keyLabel(b.key)+' is set up to do nothing yet.' });
+      for(const a of body){
+        if(!a || !ACTIONS[a.type])
+          errs.push({ code:'unknown', blockId:a&&a.id,
+            msg:'"'+(a&&a.type)+'" is not a block.' });
+        else if(!allow.has(a.type))
+          errs.push({ code:'not-allowed', blockId:a.id,
+            msg:'"'+ACTIONS[a.type].label+'" is not something this robot can do yet.' });
+      }
+    }
+    /* A warning is not a refusal. `ok` ignores them, so a program with a
+       shadowed key still runs: it is legal, it is just probably not what
+       they meant. */
+    return { ok:!errs.some(e=>!e.warn), errors:errs, blocks:n };
   }
 
-  /* ------------------------------------------------------- the reading
-     Given what the part can see this instant, what does it do? At most
-     one action, and a trace of every step that led to it — because "my
-     robot did nothing" is the question this whole file exists to answer.
+  /* --------------------------------------------------------- the read
+     `held` is the keys down this instant — a Set, or any object that
+     answers to the key code. Rules are read top to bottom and the FIRST
+     one whose key is held wins.
 
-     Rules are read top to bottom and the FIRST action wins, which is
-     what makes the order of a program matter. */
-  function decide(program, s){
+     A rule that fired with nothing under it says so rather than falling
+     quietly through to the next one, because a rule that matched and did
+     nothing is the exact thing a student cannot see. */
+  function decide(program, held){
+    const has = k => !!(held && (held.has ? held.has(k) : held[k]));
     const trace=[];
     for(const rule of (program||[])){
       if(!rule || rule.type!=='when') continue;
-      if(!fired(rule.ev, s)) continue;
-      trace.push({ kind:'event', ev:rule.ev, blockId:rule.id });
-      const act=run(rule.body, s, trace);
-      if(act) return { action:act, trace };
+      if(!KEY_IDS.includes(rule.key)) continue;
+      if(!has(rule.key)) continue;
+      trace.push({ kind:'key', key:rule.key, blockId:rule.id });
+      for(const a of (rule.body||[])){
+        if(!a || !ACTIONS[a.type]) continue;
+        trace.push({ kind:'action', act:a.type, blockId:a.id });
+        return { action:{ act:a.type, blockId:a.id }, trace };
+      }
+      /* IT MATCHED, SO IT WINS — even though it does nothing. Falling
+         through to the next rule on the same key would make the language
+         "the first NON-EMPTY rule wins", which is a subtler rule than
+         the one the screen teaches and one nobody could guess. An empty
+         rule takes its turn and wastes it, and the feed says exactly
+         that, which is how a student finds out it is there. */
+      trace.push({ kind:'stall', why:keyLabel(rule.key)+' has nothing to do.' });
+      return { action:null, trace };
     }
     return { action:null, trace };
   }
-  function run(list, s, trace){
-    for(const b of (list||[])){
-      if(!b) continue;
-      if(b.type==='if'){
-        const v=read(b.sensor, s);
-        const yes=compare(v, b.op, b.n);
-        trace.push({ kind:'test', blockId:b.id, sensor:b.sensor, value:v, op:b.op, n:b.n, yes });
-        const act=run(yes ? b.body : b.else, s, trace);
-        if(act) return act;
-      } else if(ACTIONS[b.type]){
-        trace.push({ kind:'action', blockId:b.id, act:b.type });
-        return { act:b.type, blockId:b.id };
-      }
-    }
-    return null;
-  }
-  const fired = (ev, s) => ev==='always' ? true : !!(s.events && s.events[ev]);
-  function read(id, s){
-    const v=(s.read||{})[id];
-    return typeof v==='number' ? v : 0;
-  }
-  function compare(v, op, n){
-    if(op==='<') return v<n;
-    if(op==='>') return v>n;
-    /* Equality on a measured distance would almost never come out true,
-       so "=" means "as near as makes no difference" — within half a
-       unit. A child writing "if distance = 3" means "when I get there". */
-    return Math.abs(v-n)<0.5;
-  }
 
   /* ------------------------------------------------------ readability
-     The trace, said out loud. The arena prints this under the fight as
-     it happens, which is what turns a match into a debugger. */
+     The trace, said out loud, in the words the blocks are written in. */
   function say(step){
-    if(step.kind==='event') return (EVENTS.find(e=>e.id===step.ev)||{label:step.ev}).label;
-    if(step.kind==='test'){
-      const s=SENSORS.find(x=>x.id===step.sensor)||{label:step.sensor};
-      return s.label+' = '+round(step.value)+'  ·  IF '+s.label+' '+step.op+' '+step.n;
-    }
+    if(step.kind==='key')    return 'WHEN '+keyLabel(step.key)+' IS PRESSED';
     if(step.kind==='action') return (ACTIONS[step.act]||{label:step.act}).label;
-    if(step.kind==='stall') return step.why;
+    if(step.kind==='stall')  return step.why;
     return '';
   }
-  const round = v => Math.round(v*10)/10;
 
-  const API={ EVENTS, EVENT_IDS, SENSORS, SENSOR_IDS, OPS, ACTIONS, PARTS,
-              partActions, partById, countBlocks, validate, decide, say };
+  const API={ KEYS, KEY_IDS, keyById, keyLabel,
+              ACTIONS, ACTION_IDS,
+              countBlocks, validate, decide, say };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.MECHACODE=API;
 })(typeof self!=='undefined' ? self : this);

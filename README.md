@@ -62,8 +62,8 @@ regrows his shield between programs so clicking RUN repeatedly cannot win — on
   where the invaders went*, *you fired 3 times before you got there*.
 - **The Mech League** — program a battle mech and send it in without you. Four opponents,
   four chassis, five arenas, and a battle log you can step backwards through afterwards.
-- **The Ring** — pick NOISY BOY or AMBUSH, program its arms and legs with blocks, then drive
-  it with four keys while the code does the fighting.
+- **The Ring** — pick NOISY BOY or AMBUSH and program what its keys do with blocks. Nothing is
+  bound for you: if you did not write the rule, the key does nothing.
 - **Mission 7 — The Engineer's Trail (conditionals)** — the first mission that asks a student
   to **read** a program instead of writing one, and the only one that is a **detective story**.
   A delivery robot that will not stop, a gate that opens for nobody, a train that stops at a
@@ -153,105 +153,60 @@ Everything a match runs on is in `MECHSIM.RULES`: block limit, energy costs, tur
 damage. Chassis are rows in `MECHSIM.CHASSIS`, arenas are text grids in `MECHSIM.ARENAS`.
 
 ## The Ring — NOISY BOY vs AMBUSH
-The other kind of PvP, and it is a different sport. It is a card on Mission Control and
-nothing else: no planet to fly to, no building to find, no console to stand at. You land in
-**the pit**, and the pit is where everything happens.
+A card on Mission Control and a console in the hall. It is deliberately one sentence long
+at the moment:
 
 ```
-PICK A ROBOT → CODE AN ARM → FIGHT → READ THE FEED → CHANGE A BLOCK → FIGHT AGAIN
+WHEN [D] IS PRESSED
+  STEP RIGHT
 ```
 
-**Two robots, and they are opposites on purpose.** A pick screen where both choices are fine
-is not a choice, and a student who cannot say what they picked cannot say why they lost.
+**The program IS the controls.** Nothing is bound to a key for you. Press D on a robot with
+no rules and nothing happens, and the screen says so — the only way to move is to have said
+so in a block. The first time a student presses their own key and four metres of robot walks,
+they have written a program that did something to a body with legs, and that is the whole
+lesson this stage is for.
+
+```
+PICK A ROBOT → SAY WHAT A KEY DOES → PRESS IT → CHANGE YOUR MIND
+```
+
+**The bodies are the real bodies.** `noisyboy.glb` and `ambush.glb` are rigged exports —
+thirty-three bones, fourteen clips — loaded straight out of `public/characters/models`, the
+same files the arena on RYU uses. Nothing is approximated out of boxes.
 
 | | NOISY BOY | AMBUSH |
 |---|---|---|
-| | long arms, quick hands, thin plate | short arms, heavy hands, thick plate |
-| how it wins | hits you from where you thought you were safe | walks through what you throw and lands one |
-| how it loses | what lands on him, hurts him | he has to get in, and getting in takes time |
+| | tall and light on his feet | short and heavy |
+| across the floor | 5.8 m/s | 4.6 m/s |
 
-Both are a row in `robots.js` — how it fights, and the proportions and plate colours it is
-drawn from. A third robot is a third row.
+**No walk cycle yet.** Neither file has one — the clips are idle, jab, hook, cross,
+roundhouse, flykick, sweep, block, dodge, hit, floored, getup, roar and uppercut, and none of
+those is a loop you can travel on. So the robot slides while playing `idle`, which is honest
+about what it is rather than faking it with a dodge hop. **When a walk clip arrives it needs
+no code:** put it in the `.glb` under any of the names in `WALK_CLIPS` at the top of
+`ring.js` and it is found and played while moving. If it is called something else, add the
+name to that list — one line, which is why it is a list and not an `if`.
 
-**You drive; your code fights.**
+**The first rule whose key is held wins.** That is the only rule about order, and it is why
+every row can be moved up and down. An empty rule that matches still wins and still does
+nothing — falling through to the next rule on the same key would quietly make the language
+"the first *non-empty* rule wins", which is a subtler rule than the screen teaches. The feed
+says `D has nothing to do` instead, which is how you find out it is there.
 
-```
-the player drives            the code fights
-─────────────────           ────────────────
-close the distance           punch, heavy, block, dodge, brace
-open it, circle them         WHEN to do any of them
-```
+**The feed is the point.** Down the left, as it happens, is your own program's reasoning in
+the words the blocks are written in — the key that fired and what it reached — printed only
+when the decision *changes*, because at twenty ticks a second a held key is the same sentence
+two hundred times a minute.
 
-**Four keys, and no aiming at all.** `W`/`S` close and open the distance, `A`/`D` circle,
-`Shift` runs. There is no mouse and no pointer lock: a robot turns to face whoever it is
-fighting by itself. That is not a shortcut, it is the point — every key taken away from the
-driver is a decision that has to be written down in a block instead, and the blocks are the
-lesson. But it turns at a *rate*, and bad legs make it slower, so circling faster than they
-can swing their weight round puts you at their shoulder where their guard is not and their
-sensor cannot see. Getting behind them is the driver's job; hitting them while you are there
-is a thing their code has to have been written to do.
+`MECHACODE` holds the keys and the actions; `BOUT.RULES` holds every number the floor is run
+by; `robots.js` is a row per robot. Adding an action is a row in the first and a case in the
+ring.
 
-**Every extremity is its own machine.** Left arm, right arm and legs each hold their own
-program and each run their own state at the same time, so one arm can block while the other
-throws a heavy. Parts break separately: a destroyed arm stops carrying out its orders, wrecked
-legs slow the walk *and* the turn, and a dead sensor sends every reading about the enemy to
-zero — so a program full of `IF ENEMY DISTANCE` goes quiet, and the feed says so.
-
-The language is standing orders rather than a tape:
-
-```
-WHEN ENEMY NEAR
-  IF ENEMY DISTANCE < 5
-    PUNCH
-  ELSE
-    BLOCK
-```
-
-Twenty times a second every part with a program is asked one question — given what you can
-see right now, what do you do? — and answers with at most one action. Combat is a triangle
-you can write orders about: **block** beats **punch**, **heavy** goes through a guard, and a
-heavy roots you long enough to be punished for it. Damage lands per part by rule rather than
-by dice: the core if their guard is down, that arm if it is up, and the core plus their sensor
-from behind.
-
-**One resource and one round.** Energy prices every action and comes back slowly, which is the
-whole answer to "why not always HEAVY?" — two arms throwing heavies spend faster than the regen
-and run the tank dry in eleven seconds. There is no heat bar and no bell: a fight is ninety
-seconds, and the way to get another go at it is to walk back to the pit, change a block and
-come back.
-
-The server runs the match and both browsers draw what they are sent. Nothing is decided in a
-browser and nothing is streamed: what goes over the wire is two numbers one way and a snapshot
-the other. Training against the sparring partner runs the *same* simulation locally, so nobody
-trains against rules that turn out not to be the real ones.
-
-A hit is three things, not one. **Hitstop** freezes both robots for a moment — no movement, no
-state machine, no timers, no orders — which is what makes a punch feel like it weighed
-something. **Hitstun** is the victim's alone: for a moment their parts take no new orders and
-their driver has no steering. **Knockback** throws them, base plus growth, where the growth is
-paid against how much core they have already lost, so the last hit sends them further than the
-first.
-
-Those three ideas come from reading [SlopArena](https://github.com/Binoui/SlopArena) (MIT,
-© MPXXV), which is a Unity game in C# and shares no code with this one.
-
-**The damage model is drawn, not just charted.** Each robot is a rig built from its own row —
-shoulders, elbows, hips, knees — and every joint is driven by state the simulation already has.
-The legs run a walk cycle off how fast it is really crossing the floor, so a robot being thrown
-backwards runs its legs backwards. A destroyed arm turns dead grey and hangs. Wrecked legs
-shorten the stride and leave the knees bent. A core under half smokes. Whichever arm is blocking
-is the one holding the shield plate, so which side is covered is something you can see and
-therefore something you can walk around.
-
-`BOUT.RULES` holds every number a fight is played by; `MECHACODE` holds the events, sensors and
-actions the palette is built from, and `robots.js` holds the two robots. Adding a sensor is a
-row in one of them.
-
-The feed down the left of the ring is the point of the mode: it prints your own code's
-reasoning as it happens — the event, the reading, which way the test went, and what the part did
-about it — so "why didn't my robot punch?" is a question the screen has already answered.
-
-*The names come from the film; the bodies do not.*
+### What is not here yet
+Pulled back on purpose, to be built on top of this: the arms and their programs, sensors and
+`IF`, the opponent, damage, and the two-player match. The combat model and its server lobby
+are in the history at `0b8e547` if any of it is worth lifting back out.
 
 ## Files
 ```
@@ -265,11 +220,11 @@ title.js     the landing screen: Senio in orbit, its weather, and the stars behi
 invaders.js  the swarm: twenty loop stages, the fortress, and the shield you count
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
-mechacode.js the standing-orders language: events, sensors, decide(), the trace
-robots.js    NOISY BOY and AMBUSH as data — how they fight and how they are drawn
-bout.js      the fight, stepped 20×/s — no DOM, no clock, Node too
-pit.js       pick a robot, click a part, give that part its orders
-ring.js      the fight as you see it: camera, four keys, HUD, the why-it-did-that feed
+mechacode.js the key language: WHEN <key> IS PRESSED → <action>, and the trace
+robots.js    NOISY BOY and AMBUSH as data — which model, how tall, how fast
+bout.js      one robot on a floor, stepped 20×/s — no DOM, no clock, Node too
+pit.js       pick a robot and say what its keys do
+ring.js      the robot as you see it: the .glb, the camera, the feed
 logic.js     the decision engine every Koro machine thinks with — conditions
              as trees, ladders of branches, truth tables. No DOM, Node too
 trail.js     The Engineer's Trail: the district, the machines, the witnesses,
@@ -290,8 +245,8 @@ lib/         three.js, bundled as a classic script so file:// still works
 
 `levels.js` and `strings.js` are the files to edit for new content; the engine shouldn't need touching.
 New chassis and arenas go in `mechsim.js`; new league opponents go in `mech.js`. A new robot for
-the ring is a row in `robots.js`; new sensors, events and actions for it go in `mechacode.js`,
-and what they cost goes with them.
+the ring is a row in `robots.js` and a `.glb` beside the others; a new key or action for it is a
+row in `mechacode.js`.
 A new stage for The Swarm is a row in `invaders.js`'s `STAGES`: the palette it hands out, the
 fortress it puts up, and what counts as done — and `tests/invaders.test.js` will tell you if the
 numbers you picked have quietly made its loop optional, play the stage through with the worked
@@ -305,9 +260,10 @@ in the inspector knows what a gate is, so a rule about loops or variables draws 
 npm test
 ```
 No test framework to install — Node's own runner, over `program.js`, `mechsim.js`,
-`mechacode.js` and `bout.js`. The ring's tests are also its balance harness: they assert
-the combat triangle holds, that two robots cannot walk through each other, and that the same two
-programs driven the same way produce the same fight twice.
+`mechacode.js` and `bout.js`. The ring's tests are driven with a plain `Set` of key codes and
+no browser: they assert that an unprogrammed key does nothing, that the first rule whose key is
+held is the one that runs, that the robot cannot walk off either end, and that every action on
+the palette is one the floor can actually carry out.
 
 ## Saved progress
 A lesson is forty minutes and a ten-level minigame is not, so the save has to remember
