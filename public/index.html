@@ -1805,6 +1805,15 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   color:#ffd8a8;font-family:var(--font)}
 .pit-tune span{color:var(--muted);line-height:1.45}
 
+/* the referee's numbers — the half of the game the student cannot move */
+.pit-rules{margin-top:12px;border:3px solid #4a3f7a;border-radius:14px;padding:10px 12px;
+  background:#16112a;display:grid;gap:4px}
+.pit-ruleshead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.pit-ruleshead b{font-size:12px;letter-spacing:2.5px;color:#ffb4a2}
+.pit-rules div{display:flex;gap:8px;align-items:baseline;font-size:12px}
+.pit-rules code{flex:none;min-width:104px;color:#ffb4a2;font-family:var(--font)}
+.pit-rules span{color:var(--muted);line-height:1.5}
+
 .pit-eg{background:#100c1e;border-left:4px solid #ffb4a2;border-radius:0 10px 10px 0;
   margin:10px 0;padding:10px 12px;font-family:var(--font);font-size:12.5px;line-height:1.7;
   color:var(--text);white-space:pre;overflow-x:auto}
@@ -1816,6 +1825,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    reasoning, printed as it happens.
    ===================================================================== */
 #ring{position:fixed;inset:0;z-index:56;pointer-events:none;font-family:var(--font)}
+.ring-side.foe{border-color:#5a3428}
+.ring-side.foe .ring-name b{color:#ffb4a2}
+.ring-p.sta i b{background:linear-gradient(90deg,#ffe9a8,#ffd8a8)}
+.ring-p.low i b{background:var(--bad)}
+.ring-banner{flex:none;align-self:center;background:rgba(16,12,30,.92);
+  border:3px solid var(--star);border-radius:14px;padding:8px 18px;
+  font-size:18px;letter-spacing:3px;color:var(--star);text-transform:uppercase}
 #ringTop{position:absolute;top:10px;left:0;right:0;display:flex;align-items:flex-start;
   justify-content:center;gap:16px;padding:0 14px}
 .ring-side{flex:1;max-width:340px;background:rgba(16,12,30,.82);border:3px solid var(--line);
@@ -2532,6 +2548,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="intro.js?v=501"></script>
 <script src="opening.js?v=501"></script>
 <script src="robots.js?v=501"></script>
+<script src="rules.js?v=501"></script>
 <script src="templates.js?v=501"></script>
 <script src="pit.js?v=501"></script>
 <script src="ring.js?v=501"></script>

@@ -22,6 +22,7 @@ const vm = require('node:vm');
 
 const ROBOTS = require('../public/robots.js');
 const TEMPLATES = require('../public/templates.js');
+const RULES = require('../public/rules.js');
 
 const P = f => path.join(__dirname,'..',f);
 const read = f => fs.readFileSync(P(f),'utf8');
@@ -124,35 +125,18 @@ test('every reporter slot that wants a number has a reporter to fill it', ()=>{
   assert.ok(reporters.length>0, 'nothing on the palette reports a value to use');
 });
 
-test('the blocks that need a second object are on, and the second object exists', ()=>{
-  /* THIS TEST USED TO SAY THE OPPOSITE. `touching?`, `distance to` and
-     `%a of %o` all take another object, and with one robot in the room
-     they could only ever answer about nothing — a sensing block that is
-     always false is worse than one that is missing. Attacks changed the
-     premise: there is a training dummy now, so they earn their place.
-     The pairing is what matters, and it goes both ways — if an
-     object-taking block is on the palette, the ring must build something
-     for it to point at. */
+test('the blocks that need a second object are on, and the opponent exists', ()=>{
+  /* `touching?`, `distance to` and `%a of %o` all take another object.
+     The pairing goes both ways: if one is on the palette, the ring has
+     to build something for it to point at. */
   const on=new Set(palette().ops);
   const needObj=BLOCKS.LIST.filter(b=>on.has(b.op) &&
     Object.keys(b.args||{}).some(k=>b.args[k].type==='obj'));
   if(!needObj.length) return;
   const src=read('public/ring.js');
-  assert.match(src, /function ensureDummy\(/,
+  assert.match(src, /function ensureFoe\(/,
     needObj.map(b=>b.op).join(', ')+' need a second object and the ring builds none');
-  assert.match(src, /ensureDummy\(\);/, 'the dummy is defined and never built');
-  assert.match(src, /TEMPLATES\.DUMMY|T\.DUMMY/,
-    'the dummy has no agreed name, so no dropdown can point at it');
-});
-
-test('the dummy is a plain shape, not a rigged model', ()=>{
-  /* Rigged costumes do not instance (see costumes.js). The robot works
-     around that with its own loader; a training post does not need to,
-     and must not quietly acquire the same bug. */
-  const src=read('public/ring.js');
-  const fn=src.slice(src.indexOf('function ensureDummy('), src.indexOf('function install('));
-  assert.match(fn, /shape:'(cube|ball|cylinder|cone)'/,
-    'the dummy wears a model costume, which cannot instance correctly');
+  assert.match(src, /ensureFoe\(\)/, 'the opponent is defined and never built');
 });
 
 test('the costume block stays off, because rigged costumes do not instance', ()=>{
@@ -194,30 +178,31 @@ test('an attack can be BUILT, which means state, a function and a message', ()=>
 });
 
 /* ------------------------------------------------------- the templates
-   These are worked examples a student takes apart, so the thing to
-   guard is that they are made of blocks the student actually HAS —
-   a template reaching for a block that is not on the palette is a
-   worked example that cannot be edited, which is worse than none. */
-function opsIn(t){
+   Worked examples a student takes apart, so the thing to guard is that
+   they are made of blocks the student actually HAS — a template reaching
+   for a block that is not on the palette is a worked example that cannot
+   be edited, which is worse than none. */
+function opsIn(x){
   const out=[];
-  (function walk(x){
-    if(!x || typeof x!=='object') return;
-    if(Array.isArray(x)) return x.forEach(walk);
-    if(x.op) out.push(x.op);
-    Object.keys(x).forEach(k=>walk(x[k]));
-  })([t.procs, t.scripts]);
+  (function walk(v){
+    if(!v || typeof v!=='object') return;
+    if(Array.isArray(v)) return v.forEach(walk);
+    if(v.op) out.push(v.op);
+    Object.keys(v).forEach(k=>walk(v[k]));
+  })(x);
   return out;
 }
+const allOf = t => [t.procs, t.scripts];
 
 test('every template is built only out of blocks that are on the palette', ()=>{
   const on=new Set(palette().ops);
   TEMPLATES.LIST.forEach(t=>{
-    opsIn(t).forEach(op=>assert.ok(on.has(op),
+    opsIn(allOf(t)).forEach(op=>assert.ok(on.has(op),
       t.id+' uses '+op+', which the student has not got \u2014 they could not have written it, and cannot edit it'));
   });
 });
 
-test('every block a template uses is a real block, with the args it really takes', ()=>{
+test('every block a template uses is real, with the args it really takes', ()=>{
   const by=new Map(BLOCKS.LIST.map(b=>[b.op,b]));
   TEMPLATES.LIST.forEach(t=>{
     (function walk(x){
@@ -230,94 +215,95 @@ test('every block a template uses is a real block, with the args it really takes
           t.id+': '+x.op+' has no argument called "'+k+'"'));
       }
       Object.keys(x).forEach(k=>walk(x[k]));
-    })([t.procs, t.scripts]);
+    })(allOf(t));
   });
 });
 
-test('a template that sets a variable declares it, so the dropdown can find it', ()=>{
+test('a template uses only variables it declares, the referee owns, or signals with', ()=>{
+  /* Three kinds of name, and the difference IS the lesson: `swinging`
+     is the student's and they declare it; `health` and `stamina` belong
+     to the referee and are read-only; `light` and `heavy` are how you
+     ask the referee for a swing. Anything outside those three is a typo
+     that would silently read zero forever. */
+  const owned=new Set(RULES.OWNED), signals=new Set(RULES.SIGNALS);
   TEMPLATES.LIST.forEach(t=>{
-    const declared=new Set(t.vars||[]);
+    const mine=new Set(t.vars||[]);
     (function walk(x){
       if(!x || typeof x!=='object') return;
       if(Array.isArray(x)) return x.forEach(walk);
-      if((x.op==='data.set'||x.op==='data.change'||x.op==='data.get') && x.args && x.args.v)
-        assert.ok(declared.has(x.args.v),
-          t.id+' uses the variable "'+x.args.v+'" and does not declare it in `vars`');
+      if(/^data\.(set|change|get)$/.test(x.op||'') && x.args && x.args.v){
+        const v=x.args.v;
+        assert.ok(mine.has(v) || owned.has(v) || signals.has(v),
+          t.id+' uses the variable "'+v+'" and does not declare it');
+        if(owned.has(v)) assert.equal(x.op, 'data.get',
+          t.id+' WRITES to "'+v+'", which the referee owns and stamps back');
+      }
       Object.keys(x).forEach(k=>walk(x[k]));
-    })([t.procs, t.scripts]);
+    })(allOf(t));
   });
 });
 
-test('a template that calls a custom block defines it', ()=>{
+test('every custom block a template calls is defined by some template', ()=>{
+  /* A PLAN calls jab and slam, which live in other templates — so the
+     check is across the whole set, and the pit has to say which ones go
+     together. */
+  const defined=new Set();
+  TEMPLATES.LIST.forEach(t=>(t.procs||[]).forEach(p=>defined.add(p.name)));
   TEMPLATES.LIST.forEach(t=>{
-    const defined=new Set((t.procs||[]).map(p=>p.name));
-    opsIn(t); // walk for my.call specifically
     (function walk(x){
       if(!x || typeof x!=='object') return;
       if(Array.isArray(x)) return x.forEach(walk);
       if(x.op==='my.call' && x.args && x.args.p)
         assert.ok(defined.has(x.args.p),
-          t.id+' calls "'+x.args.p+'" and never defines it');
+          t.id+' calls "'+x.args.p+'" and nothing defines it');
       Object.keys(x).forEach(k=>walk(x[k]));
-    })([t.procs, t.scripts]);
+    })(allOf(t));
   });
 });
 
-test('every broadcast a template sends is one something listens for', ()=>{
-  /* A message nobody receives is the quietest bug there is. */
-  const sent=new Set(), heard=new Set();
-  const scan=(t, into)=>{
-    (function walk(x){
-      if(!x || typeof x!=='object') return;
-      if(Array.isArray(x)) return x.forEach(walk);
-      if(x.op==='event.send' && x.args) sent.add(x.args.m);
-      if(x.op==='event.recv' && x.args) heard.add(x.args.m);
-      Object.keys(x).forEach(k=>walk(x[k]));
-    })(into);
-  };
-  TEMPLATES.LIST.forEach(t=>scan(t,[t.procs,t.scripts]));
-  scan(null, TEMPLATES.dummyScripts());
-  sent.forEach(m=>assert.ok(heard.has(m),
-    'something broadcasts "'+m+'" and nothing anywhere receives it'));
-  heard.forEach(m=>assert.ok(sent.has(m),
-    'something waits for "'+m+'" and nothing ever sends it'));
+/* ====================================================== the opponent */
+test('the opponent is written in blocks the student can read AND edit', ()=>{
+  /* The whole reason it is an actor with scripts rather than a function
+     hidden in the ring. If it reaches for a block that is not on the
+     palette, a student can open it, read it, and then not be able to
+     change it \u2014 which is the most annoying possible outcome. */
+  const on=new Set(palette().ops);
+  opsIn([TEMPLATES.aiProcs(), TEMPLATES.aiScripts()]).forEach(op=>
+    assert.ok(on.has(op), 'the opponent uses '+op+', which the student has not got'));
 });
 
-test('nothing the dummy does to itself moves it permanently', ()=>{
-  /* IT WALKED AWAY. The flinch was `change x by 1.5` and nothing to undo
-     it, so every landed punch shoved the dummy further off and it never
-     came back — twenty punches into a lesson it was past the end of the
-     floor and unreachable. Any axis a script nudges has to net to zero
-     across the script, or the target leaves. */
-  const net={};
+test('the opponent checks it can afford a swing before it throws one', ()=>{
+  /* Otherwise it is not a worked example of anything \u2014 a student
+     reading it should see the habit worth stealing. */
+  const src=JSON.stringify([TEMPLATES.aiProcs(), TEMPLATES.aiScripts()]);
+  assert.match(src, /"v":"stamina"/, 'the opponent never reads its own stamina');
+  TEMPLATES.aiProcs().forEach(p=>{
+    assert.equal(p.body[0].op, 'ctrl.if',
+      'the opponent\'s "'+p.name+'" swings without checking anything first');
+  });
+});
+
+test('the opponent asks the referee for its swings like everybody else', ()=>{
+  /* It must not be able to deal damage in a way the student cannot. */
+  const sets=[];
   (function walk(x){
     if(!x || typeof x!=='object') return;
     if(Array.isArray(x)) return x.forEach(walk);
-    if(x.op==='motion.changeBy' && x.args)
-      net[x.args.a]=(net[x.args.a]||0)+Number(x.args.n||0);
+    if(x.op==='data.set' && x.args) sets.push(x.args.v);
     Object.keys(x).forEach(k=>walk(x[k]));
-  })(TEMPLATES.dummyScripts());
-  Object.keys(net).forEach(axis=>assert.ok(Math.abs(net[axis])<1e-9,
-    'the dummy\'s own scripts move it '+net[axis]+' along '+axis+
-    ' every time — it will walk off the floor'));
+  })([TEMPLATES.aiProcs(), TEMPLATES.aiScripts()]);
+  assert.ok(sets.some(v=>RULES.SIGNALS.indexOf(v)>=0),
+    'the opponent never raises a swing signal, so it cannot be hitting anybody fairly');
+  sets.forEach(v=>assert.ok(RULES.OWNED.indexOf(v)<0,
+    'the opponent writes to "'+v+'", which the referee owns'));
 });
 
-test('the dummy starts within reach of the punch as shipped', ()=>{
-  /* "I ticked PUNCH, pressed space and nothing happened" is a terrible
-     first five seconds. The lunge is repeat × step and the reach is the
-     number in the `if`; between them they have to cover the gap from the
-     robot's own start mark. */
-  const t=TEMPLATES.byId('punch');
-  const body=t.procs[0].body;
-  const rep=body.find(b=>b.op==='ctrl.repeat');
-  const lunge=Number(rep.args.n)*Math.abs(Number(rep.body[0].args.n));
-  const reach=Number(body.find(b=>b.op==='ctrl.if').args.c.args.b);
-  const src=read('public/ring.js');
-  const at=Number((src.match(/d\.x=(\d+(?:\.\d+)?); d\.y=/)||[])[1]);
-  assert.ok(isFinite(at), 'the dummy has no start mark to check against');
-  assert.ok(lunge+reach >= at,
-    'the dummy stands at '+at+' and the shipped punch only covers '+
-    (lunge+reach)+' (lunge '+lunge+' + reach '+reach+') \u2014 the first press will miss');
+test('the opponent is beatable — it has no guard and never dodges', ()=>{
+  /* Deliberate. A student beats it by punishing the slam\u2019s long
+     recovery, and that only works if it does not simply turtle. */
+  const src=JSON.stringify([TEMPLATES.aiProcs(), TEMPLATES.aiScripts()]);
+  assert.ok(!/"v":"guard"/.test(src), 'the opponent guards, which makes it a wall');
+  assert.ok(!/"v":"dodging"/.test(src), 'the opponent dodges, which makes it unpunishable');
 });
 
 test('every template says what it teaches and what to change in it', ()=>{
@@ -335,41 +321,154 @@ test('every template says what it teaches and what to change in it', ()=>{
   });
 });
 
-test('the templates that only SET state come with the one that reads it', ()=>{
-  /* `guard` and `dodging` do nothing on their own. If nothing on the
-     list ever reads them back, blocking looks broken and the student is
-     right to think so. */
-  const writes=new Set(), reads=new Set();
+test('the state a template sets is state the referee actually reads', ()=>{
+  /* `guard` does nothing on its own. It is a fact about you that the
+     REFEREE checks when a punch arrives — so if the ring stops reading
+     it, blocking silently becomes decoration and the student is right
+     to think it is broken. */
+  const written=new Set();
   TEMPLATES.LIST.forEach(t=>{
     (function walk(x){
       if(!x || typeof x!=='object') return;
       if(Array.isArray(x)) return x.forEach(walk);
-      if(x.op==='data.set' && x.args) writes.add(x.args.v);
-      if(x.op==='data.get' && x.args) reads.add(x.args.v);
+      if(x.op==='data.set' && x.args && (t.vars||[]).indexOf(x.args.v)>=0)
+        written.add(x.args.v);
       Object.keys(x).forEach(k=>walk(x[k]));
-    })([t.procs, t.scripts]);
+    })(allOf(t));
   });
-  ['guard','dodging'].forEach(v=>{
-    assert.ok(writes.has(v), 'nothing sets '+v);
-    assert.ok(reads.has(v),  v+' is set by a template and read by none of them');
-  });
+  assert.ok(written.has('guard'), 'nothing sets guard');
+  const ring=read('public/ring.js');
+  assert.match(ring, /vars\.guard/,
+    'a template sets `guard` and the referee never reads it \u2014 blocking does nothing');
 });
 
-test('the dummy swings at you, or blocking has nothing to block', ()=>{
-  const ds=TEMPLATES.dummyScripts();
-  assert.ok(ds.length>0, 'the dummy comes with no scripts at all');
-  const ops=[];
-  (function walk(x){
-    if(!x || typeof x!=='object') return;
-    if(Array.isArray(x)) return x.forEach(walk);
-    if(x.op) ops.push(x.op);
-    Object.keys(x).forEach(k=>walk(x[k]));
-  })(ds);
-  assert.ok(ops.indexOf('event.send')>=0, 'the dummy never swings');
-  assert.ok(ops.indexOf('event.recv')>=0, 'the dummy never notices being hit');
-  const on=new Set(palette().ops);
-  ops.forEach(op=>assert.ok(on.has(op),
-    'the dummy uses '+op+', which is not on the palette \u2014 a student could not edit its scripts'));
+/* ======================================================== the referee
+   The half of the fight the student cannot change. These are the rules
+   the pit prints, so if they drift the screen starts lying. */
+test('the heavy costs more, hurts more and reaches less than the light', ()=>{
+  const m=RULES.RULES.moves;
+  assert.ok(m.heavy.cost   > m.light.cost,   'the heavy is not dearer');
+  assert.ok(m.heavy.damage > m.light.damage, 'the heavy does not hurt more');
+  assert.ok(m.heavy.reach <= m.light.reach,  'the heavy reaches as far, so it is strictly better');
+  /* AND IT IS BAD VALUE PER POINT, which is what makes choosing it a
+     decision rather than an obvious yes. */
+  assert.ok(m.heavy.damage/m.heavy.cost < m.light.damage/m.light.cost,
+    'the heavy is better value per stamina, so nobody would ever jab');
+});
+
+test('a swing you cannot afford does not happen, and costs nothing', ()=>{
+  const r=RULES.resolve('light', 0, 1, false);
+  assert.equal(r.ok, false);
+  assert.equal(r.why, 'no-stamina');
+  assert.equal(r.cost, 0, 'it charged for a swing that never happened');
+  assert.equal(r.damage, 0);
+});
+
+test('a swing that misses still costs — that is what makes reach matter', ()=>{
+  const m=RULES.RULES.moves.light;
+  const r=RULES.resolve('light', 100, m.reach+2, false);
+  assert.equal(r.ok, false);
+  assert.equal(r.why, 'too-far');
+  assert.equal(r.cost, m.cost, 'a miss was free, so there is no reason to aim');
+  assert.equal(r.damage, 0);
+});
+
+test('a guard softens a punch and does not stop it', ()=>{
+  const clean=RULES.resolve('light', 100, 1, false);
+  const held =RULES.resolve('light', 100, 1, true);
+  assert.equal(clean.ok, true);
+  assert.equal(held.ok, true, 'a guard stopped the punch outright');
+  assert.ok(held.damage < clean.damage, 'guarding did nothing');
+  assert.ok(held.damage > 0, 'a guard is a wall, so turtling wins every fight');
+  assert.equal(held.cost, clean.cost, 'the attacker paid less for being blocked');
+});
+
+test('stamina comes back, and never past the cap', ()=>{
+  const cap=RULES.RULES.stamina;
+  assert.ok(RULES.regenerated(0,1) > 0, 'stamina never comes back, so one flurry ends you');
+  assert.equal(RULES.regenerated(cap, 5), cap, 'stamina went past its own cap');
+  assert.ok(RULES.regenerated(0,1) <= cap);
+  /* Slow enough that heavies are not free. */
+  const perSlam=RULES.RULES.moves.heavy.cost/RULES.RULES.regen;
+  assert.ok(perSlam > 1, 'a heavy regenerates in under a second, so it costs nothing real');
+});
+
+test('resolve is pure, so the balance can be tested without a game', ()=>{
+  const a=RULES.resolve('heavy', 60, 3, false);
+  const b=RULES.resolve('heavy', 60, 3, false);
+  assert.deepEqual(a, b);
+  assert.equal(RULES.resolve('nonsense', 100, 1, false).ok, false);
+});
+
+test('the referee owns health and stamina, and stamps them back', ()=>{
+  /* A script can `set [health] to 999`. It has to not work, or there is
+     no game \u2014 and finding that out is the fastest lesson in here
+     about what read-only means. */
+  const ring=read('public/ring.js');
+  assert.match(ring, /a\.vars\.health\s*=/,  'the ring never writes health back');
+  assert.match(ring, /a\.vars\.stamina\s*=/, 'the ring never writes stamina back');
+  assert.match(ring, /RULES\.SIGNALS|R\.SIGNALS/, 'the ring never looks for a swing signal');
+  RULES.OWNED.forEach(v=>assert.ok(ring.indexOf('vars.'+v)>=0,
+    'the ring does not own '+v+', so a script could just set it'));
+});
+
+test('the referee resolves everything before it publishes anything', ()=>{
+  /* Stamped inside the resolution loop, a fighter's numbers were written
+     before the other one had swung — so the punch that took somebody to
+     zero left `(health)` reading six for another tick, and a script
+     checking its own health got an answer that was true a twentieth of a
+     second ago. Two passes: work it out, then publish it. */
+  const src=read('public/ring.js');
+  const fn=src.slice(src.indexOf('function referee('), src.indexOf('const book='));
+  const resolveAt=fn.indexOf('R.resolve(');
+  const stampAt=fn.indexOf('a.vars.health=');
+  assert.ok(resolveAt>=0 && stampAt>=0, 'the referee no longer resolves or no longer stamps');
+  assert.ok(stampAt > resolveAt,
+    'the referee publishes health before it has finished resolving the tick');
+  const between=fn.slice(resolveAt, stampAt);
+  assert.match(between, /\}\);/, 'the stamp is inside the resolution loop rather than after it');
+});
+
+test('a knockout stops the scripts where they stand', ()=>{
+  /* While the reset banner counted down with the scripts still running,
+     the winner kept walking with no referee holding them on the floor
+     and strolled to x=32 during their own victory lap. */
+  const src=read('public/ring.js');
+  const fn=src.slice(src.indexOf('function referee('));
+  const knock=fn.indexOf('announce(win)');
+  assert.ok(knock>=0, 'nothing announces a winner');
+  assert.match(fn.slice(knock, knock+400), /VM\.stopAll\(\)/,
+    'a knockout does not stop the scripts, so the loser keeps playing');
+});
+
+test('the floor and the gap are the referee\'s, not a script\'s', ()=>{
+  const R=RULES.RULES;
+  /* Both worked strategies walk toward the other one with a CONSTANT,
+     which is correct until they pass through each other and then walks
+     them apart forever. */
+  const far=RULES.separate(-999, 999);
+  assert.ok(Math.abs(far.a)<=R.floor && Math.abs(far.b)<=R.floor, 'the floor does not hold');
+  const close=RULES.separate(0, 0.1);
+  assert.ok(Math.abs(close.a-close.b) >= R.apart-1e-9,
+    'two fighters can stand inside each other');
+  const swapped=RULES.separate(5, 4.9);
+  assert.ok(swapped.a > swapped.b, 'separating them swapped which side they are on');
+  assert.match(read('public/ring.js'), /R\.separate\(/, 'the ring never separates them');
+});
+
+test('the pit prints the rules, and prints the ones that are real', ()=>{
+  /* The sheet is generated from the same numbers the referee uses, so
+     it cannot say one thing while the game does another. */
+  const sheet=RULES.sheet();
+  assert.ok(sheet.length>=5, 'the rule sheet is too short to be the rules');
+  sheet.forEach(r=>{ assert.ok(r.what && r.says, 'a rule row has a gap in it'); });
+  const all=sheet.map(r=>r.says).join(' ');
+  assert.ok(all.indexOf(String(RULES.RULES.health))>=0, 'the sheet never states the health');
+  assert.ok(all.indexOf(String(RULES.RULES.regen))>=0, 'the sheet never states the regen');
+  assert.ok(all.indexOf(String(RULES.RULES.moves.heavy.cost))>=0,
+    'the sheet never states what a heavy costs');
+  assert.match(read('public/pit.js'), /RULES\.sheet\(\)/,
+    'the pit does not print the rule sheet, so the fixed numbers are a secret');
 });
 
 /* --------------------------------------------------------- the bodies */

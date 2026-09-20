@@ -235,52 +235,84 @@ There is no `PUNCH` block and there is not going to be one. A palette block call
 teaches a student where the punch button is. An attack in here is something you **build**:
 
 ```
-define punch
-  set [swinging] to 1                      ← state
-  repeat (4)                               ← a loop
-    change x by (0.6)                      ← the lunge
-  if ‹distance to [Dummy] < 6› then        ← a condition, on a reading
-    broadcast [hit]                        ← telling something else
-  wait (0.2) seconds                       ← the recovery you are stuck in
-  repeat (4)
-    change x by (-0.6)
-  set [swinging] to 0
+define jab
+  if ‹(stamina) > 25› then          ← read engine state before you spend it
+    set [swinging] to 1             ← your own state
+    repeat (3)                      ← a loop
+      change x by (0.5)             ← the lunge
+    set [light] to 1                ← ask the referee for a light punch
+    wait (0.3) seconds              ← the recovery you are stuck in
+    repeat (3)
+      change x by (-0.5)
+    set [swinging] to 0
 ```
 
-Every idea in there is transferable — a function with a name, a variable holding state, a
-counted loop, a test on a sensor, a message to another object, and the fact that time passes
-while you are committed. None of it is about fighting; it just adds up to a punch.
+Every idea in there is transferable — a function, a variable, a counted loop, a test on a
+reading, and the fact that time passes while you are committed.
 
-**The training dummy is the second object**, and that is most of its job: `touching?`,
-`distance to` and `broadcast` all need something that is not you, and were off the palette
-entirely until there was one. It is a plain cylinder — a post does not need to be a rigged
-model, so it dodges the costume bug. It comes with two short, readable, editable scripts: it
-flinches when told it was hit, and it swings on a timer so `guard` and `dodging` have
-something to be true *about*.
+### The referee, which is the half you cannot change
+A game where your own program says how hard you hit is not a game, it is a wish. So there are
+two halves, and `rules.js` is the other one:
+
+| | |
+|---|---|
+| health | everybody starts on 100; at 0 the round is over |
+| stamina | starts at 100, comes back **14 a second**, never above 100 |
+| a light punch | costs 20, does 8, reaches 6.5 |
+| a heavy punch | costs 50, does 19, reaches only 5.5 |
+| a guard | turns a punch into 25% of a punch — it is not a wall |
+| no stamina | a swing you cannot afford does not happen at all, and the time you spent asking is gone |
+| the floor | 16 either way, and you cannot walk through each other |
+
+**Health and stamina are read-only.** A script can `set [health] to 999` and it holds for one
+twentieth of a second before the referee stamps it back — which is the fastest lesson in here
+about what read-only means. Your code decides *when* to swing, *which* swing and whether you
+can afford it; the referee decides what it costs and what it is worth.
+
+An attack is asked for, not performed: a student raises `set [light] to 1`, and on the next
+tick the referee lowers the flag, charges the stamina, measures the gap, checks the other
+one's guard, and takes the damage off. **The order is the balance** — a swing that misses
+still costs, which is what makes reach matter.
+
+The heavy is deliberately **bad value per point of stamina** (0.38 against the jab's 0.40), and
+a test keeps it that way. At 45-for-20 it was 0.44, which quietly meant nobody should ever jab.
+What the extra buys is fewer swings to finish somebody.
+
+### The opponent, whose code you can read
+Ambush is an actor like any other. Click its chip in the editor and its entire strategy is
+there, in the same blocks you have:
+
+```
+when ▶ the game starts
+forever
+  if ‹distance to [Robot] > 6› then      walk in
+  else
+    if ‹(stamina) > 50› then             slam — it can afford the big one
+    else
+      if ‹(stamina) > 25› then           jab
+      else                               back off and let stamina come back
+```
+
+An opponent you can read is a worked example that fights back. It is deliberately beatable: it
+has no guard, never dodges, and commits to a slam whenever it can afford one — so waiting for
+that long recovery and punishing it wins. Finding that out is the lesson, and tests keep it
+honest.
 
 ### The worked examples
-Four of them, ticked in the pit and written into the project as ordinary blocks. Nothing marks
-them afterwards and nothing treats them specially — rename, rewire or delete any of it.
+Five, ticked in the pit and written into the project as ordinary blocks. Nothing marks them
+afterwards — rename, rewire or delete any of it.
 
 | | teaches | change it and |
 |---|---|---|
-| **PUNCH** | function · variable · counted loop · sensor test · message | `repeat (4)` is how far you lunge; the `< 6` is your reach; `wait (0.2)` is how long you are stuck |
-| **BLOCK** | a variable as *state* — true for a while, not all at once | `wait (0.5)` is how long the guard holds |
-| **DODGE** | a loop that adds up; two numbers multiplying into one result | distance travelled is `repeat` × step |
-| **TAKE A HIT** | reading state back · `or` · if/else | `change x by (-3)` is the knockback; drop one side of the `or` to see which was saving you |
+| **JAB** | function · reading state before you spend it · counted loop · a signal | `if ‹stamina > 25›` is how much you insist on keeping; `repeat (3)` is the lunge |
+| **SLAM** | the same shape with different numbers, and why you compare them | `wait (0.6)` is what a heavy really costs you |
+| **BLOCK** | a variable as *state* — true for a while, not all at once | `wait (0.6)` is how long the guard holds |
+| **DODGE** | a loop that adds up; two numbers multiplying | distance is `repeat` × step, and backing off is how stamina returns |
+| **A PLAN** | nested conditionals · a strategy you can argue with | the three thresholds are its whole personality |
 
-`guard` and `dodging` do nothing on their own — they are facts about you that **TAKE A HIT**
-reads back. A variable nothing ever checks is not state, it is litter, so the pit says so
-rather than letting a student conclude blocking is broken.
-
-Measured, not asserted: with no guard a swing knocks you to `x = -3`; with `guard = 1` you stay
-at `0`. Shortening the punch's reach from 6 to 2 makes it stop landing; raising the lunge from
-`repeat (4)` to `repeat (12)` makes it land from across the floor.
-
-### What is not here yet
-Pulled back on purpose, to be built on top of this: an opponent that fights back rather than a
-post that swings on a timer, damage and health, and the two-player match. The old combat model
-and its server lobby are in the history at `0b8e547`.
+### What is not here yet### What is not here yet
+Pulled back on purpose: the two-player match, and a second round. The old combat model and its
+server lobby are in the history at `0b8e547`.
 
 ## Files
 ```
@@ -295,8 +327,10 @@ invaders.js  the swarm: twenty loop stages, the fortress, and the shield you cou
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
 robots.js    NOISY BOY and AMBUSH as data — which model, and how tall
-templates.js the worked punch, block and dodge — blocks, and the numbers
-             in them worth changing. No DOM, Node too
+rules.js     the referee — health, stamina, costs, damage, reach and the
+             floor. Pure functions, no DOM, Node too
+templates.js the worked jab, slam, block, dodge and plan, plus Ambush's
+             brain — blocks, and the numbers worth changing. Node too
 pit.js       pick a body, and read what you are about to write
 ring.js      the room, the camera, the cut-down palette, and the .glb loader
 logic.js     the decision engine every Koro machine thinks with — conditions

@@ -68,6 +68,7 @@ window.PIT = (function(){
           <span class="pit-key">${T('written in the same blocks you have \u2014 take them apart')}</span></div>
         <p class="pit-key">${T('There is no PUNCH block and there is not going to be one. An attack is something you BUILD: a function, a variable, a loop, a test on a sensor and a message to whatever you hit. Tick one and it is written into your project as ordinary blocks \u2014 then change the numbers.')}</p>
         <div class="pit-temps" id="pitTemps"></div>
+        <div class="pit-rules" id="pitRules"></div>
         <p class="pit-key" style="margin-top:10px">
           <b style="color:var(--star)">${T('Every one of these is called from inside a forever loop.')}</b>
           ${T('A conditional on its own is checked once, on the frame you pressed Run, and then never again \u2014 so the robot twitches once and stops. The loop is what turns it into a control, and it is the commonest thing to get wrong.')}</p>
@@ -77,7 +78,7 @@ window.PIT = (function(){
         <button class="btn good" id="pitGo">${T('TAKE IT OUT \u25b6')}</button>
         <span class="pit-key" id="pitNote"></span>
       </div></div>`;
-    chooser(); temps();
+    chooser(); temps(); rules();
     $('#pitBack').onclick=()=>{ hide(); if(window.MENU) MENU.homeworld(); };
     $('#pitGo').onclick =()=>{ const add=[...wanted]; wanted.clear();
                                hide(); if(onGo) onGo(robot(), add); };
@@ -108,6 +109,23 @@ window.PIT = (function(){
     });
     note();
   }
+  /* ------------------------------------------------------- the rules
+     THE OTHER HALF OF THE GAME, and it is on screen because a student
+     who has to guess at it cannot plan. Everything here is the
+     referee's: their code decides when to swing and whether they can
+     afford it, and nothing they write can move these numbers.
+
+     Generated from rules.js rather than typed out, so the screen cannot
+     say one thing while the referee does another. */
+  function rules(){
+    const host=$('#pitRules'); if(!host || !window.RULES) return;
+    host.innerHTML=`
+      <div class="pit-ruleshead"><b>${T('WHAT YOU CANNOT CHANGE')}</b>
+        <span class="pit-key">${T('the referee\u2019s, not yours \u2014 you can read these, not set them')}</span></div>
+      ${RULES.sheet().map(r=>
+        `<div><code>${T(r.what)}</code><span>${T(r.says)}</span></div>`).join('')}`;
+  }
+
   /* TAKE A HIT is the one that READS what the others write. Without it
      `guard` and `dodging` are numbers nobody looks at, which is not
      state, it is litter — so the pit says so rather than letting a

@@ -112,7 +112,7 @@ window.RING = (function(){
       'looks.say','looks.sayFor',
       /* what it can feel — two of these need the dummy, which is why
          they were off the palette until there was one */
-      'sense.key','sense.touch','sense.dist','sense.timer','sense.resetTimer',
+      'sense.key','sense.touch','sense.dist','sense.posOf','sense.timer','sense.resetTimer',
       /* what it can work out */
       'op.add','op.sub','op.lt','op.eq','op.gt','op.and','op.or','op.not','op.random',
       /* what it can REMEMBER, which is the whole of `guard` and `dodging` */
@@ -138,8 +138,8 @@ window.RING = (function(){
               '#crosshair','#focus','#briefing'];
 
   let on=false, wasFP=null, camX=0, camY=0, spec=null;
-  let body=null, bodyFor=null, mixer=null, clips=[], cur=null, curName=null;
-  let wasAt={x:0,y:0,z:0};
+  let bodies={};              // actor name -> its model, mixer and clips
+  let fighting=false, over=null, banner='';
 
   /* ------------------------------------------------------------ start */
   function start(robotId, addTemplates){
@@ -168,17 +168,22 @@ window.RING = (function(){
     VM.useSlot(SLOT);
     VM.enter(G.roomGroup);
     const bot=ensureRobot();
-    ensureDummy();
+    const foe=ensureFoe();
     (addTemplates||[]).forEach(id=>install(id, bot));
-    bodyFor=null; mixer=null; clips=[]; cur=null; curName=null;
-    loadBody();
+    bodies={};
+    loadBody(TEMPLATES.ME,  spec);
+    loadBody(TEMPLATES.FOE, RB().get('ambush'));
+    /* On their marks with full bars, before a single script runs — so
+       the HUD is never showing last round's numbers while the pit's
+       words are still on screen. */
+    bell(bot); bell(foe);
 
     if(window.CODER){
       CODER.restrict(PALETTE);
       CODER.setActor(bot);
     }
     hint();
-    say();
+    hud();
   }
 
   /* One robot, wearing what the pit picked. Kept across visits rather
@@ -207,75 +212,61 @@ window.RING = (function(){
     return bot;
   }
 
-  /* ------------------------------------------------------- the dummy
-     A post to hit, and the SECOND OBJECT — which is most of its job.
-     Every sensing block worth having needs something that is not you:
-     `touching [Dummy]?` and `distance to [Dummy]` were off the palette
-     entirely until there was one, because a sensing block that can only
-     ever answer about nothing is a trap.
+  /* ---------------------------------------------------- the opponent
+     AMBUSH IS AN ACTOR LIKE ANY OTHER, and that is the point: a student
+     can select it in the editor and read every block of its strategy.
+     An opponent you can read is a worked example that fights back.
 
-     It is a plain cylinder on purpose. Costumes cannot instance a rigged
-     model (see costumes.js), and a training post does not need to be
-     one — so this one is an ordinary VM actor, drawn by the VM, with no
-     special handling anywhere.
-
-     IT COMES WITH SCRIPTS AND THEY ARE MEANT TO BE READ. It flinches
-     when it is told it was hit, and it swings on a timer so that `guard`
-     and `dodging` have something to be true ABOUT. A student who wants
-     it to swing faster changes the 3. */
-  function ensureDummy(){
+     Its scripts are written once, when it is first made, and then they
+     are the student's to change like anything else — nerf it, study it,
+     or hand it a guard it does not have. */
+  function ensureFoe(){
     const T=window.TEMPLATES; if(!T) return null;
-    let d=VM.actorByName(T.DUMMY);
-    if(!d){
-      d=VM.addActor({ name:T.DUMMY, shape:'cylinder', colour:'#ffb4a2',
-                      size:2.6, x:8, y:1.3, z:0, dir:0 });
-      d.scripts=T.dummyScripts().map((sc,i)=>({ id:'d'+i, hat:sc.hat, body:sc.body }));
+    let f=VM.actorByName(T.FOE);
+    if(!f){
+      f=VM.addActor({ name:T.FOE, dir:0 });
+      T.aiProcs().forEach(p=>{
+        if(!VM.project.procs.find(x=>x.name===p.name))
+          VM.project.procs.push(JSON.parse(JSON.stringify(p)));
+      });
+      f.scripts=T.aiScripts().map((sc,i)=>
+        ({ id:'ai'+i, hat:JSON.parse(JSON.stringify(sc.hat)),
+                      body:JSON.parse(JSON.stringify(sc.body)) }));
     }
-    /* Back on its mark, like the robot. Its own flinch script rocks it
-       and puts it back, so this is only for the case where a student has
-       edited that and left it somewhere — and for the walk-in, which
-       should always look the same.
-
-       EIGHT AND NOT NINE. The shipped punch lunges 2.4 and reaches 6, so
-       from the robot's own start mark a dummy at nine is four inches out
-       of reach — and "I ticked PUNCH, pressed space and nothing
-       happened" is a terrible first five seconds. At eight the example
-       works standing still, and moving is then something to explore
-       rather than something to debug. */
-    d.x=8; d.y=1.3; d.z=0;
-    VM.sync(d);
-    return d;
+    const fs=RB().get('ambush');
+    f.size=fs.height; f.x=10; f.y=fs.height/2; f.z=0; f.dir=0;
+    VM.sync(f);
+    return f;
   }
 
   /* ---------------------------------------------------- the templates
-     Installed as ORDINARY BLOCKS and then forgotten about. Nothing in
-     here marks them, nothing treats them specially afterwards, and a
-     student can rename, rewire or delete any of it — which is the only
-     way a worked example is worth having.
+     Installed as ORDINARY BLOCKS and then forgotten about. Nothing here
+     marks them, nothing treats them specially afterwards, and a student
+     can rename, rewire or delete any of it — which is the only way a
+     worked example is worth having.
 
      Installing twice is the thing to guard against, because the pit is a
      screen you come back through. A template whose function already
-     exists is already in, and one that only adds a script is checked by
-     its hat instead. */
+     exists is already in; one that only adds a script is checked by its
+     hat instead. */
   function install(id, bot){
     const T=window.TEMPLATES, t=T && T.byId(id);
     if(!t || !bot) return false;
     if(has(t, bot)) return false;
 
-    (t.vars||[]).forEach(v=>{
-      if(!(v in VM.project.vars)) VM.project.vars[v]=0;
-    });
+    /* A student's own variables belong to the FIGHTER, not the project —
+       `guard` is a fact about you, and the opponent has its own. That is
+       what makes `if ‹guard = 1›` mean the right thing inside either
+       one's scripts. */
+    (t.vars||[]).forEach(v=>{ if(!(v in bot.vars)) bot.vars[v]=0; });
     (t.procs||[]).forEach(p=>{
       if(!VM.project.procs.find(x=>x.name===p.name))
-        VM.project.procs.push({ name:p.name, params:p.params||[], body:copy(p.body) });
+        VM.project.procs.push(copy(p));
     });
     (t.scripts||[]).forEach(sc=>{
       bot.scripts=bot.scripts||[];
       bot.scripts.push({ id:Date.now()+Math.random(), hat:copy(sc.hat), body:copy(sc.body) });
     });
-    /* A broadcast has to be a message the project knows about, or the
-       dropdown on the block it came from has nothing selected in it. */
-    msgsIn(t).forEach(m=>{ if(VM.project.msgs.indexOf(m)<0) VM.project.msgs.push(m); });
     VM.save();
     return true;
   }
@@ -283,20 +274,113 @@ window.RING = (function(){
     ? (t.procs||[]).some(p=>VM.project.procs.find(x=>x.name===p.name))
     : (bot.scripts||[]).some(sc=>(t.scripts||[]).some(x=>
         sc.hat && x.hat && sc.hat.op===x.hat.op &&
-        (sc.hat.args||{}).m===(x.hat.args||{}).m));
+        JSON.stringify(sc.body)===JSON.stringify(x.body)));
   /* Templates are shared data and the project is about to be edited, so
-     what goes in is a copy. Without this, two robots installing the same
-     template would be editing the same blocks. */
+     what goes in is a copy. Without this, installing the same template
+     twice would be editing the same blocks. */
   const copy = o => JSON.parse(JSON.stringify(o));
-  function msgsIn(t){
-    const out=new Set();
-    (function walk(x){
-      if(!x || typeof x!=='object') return;
-      if(Array.isArray(x)) return x.forEach(walk);
-      if((x.op==='event.send'||x.op==='event.recv') && x.args && x.args.m) out.add(x.args.m);
-      Object.keys(x).forEach(k=>walk(x[k]));
-    })([t.procs, t.scripts]);
-    return [...out];
+
+  /* ======================================================= THE REFEREE
+     The half of the fight that is not up to anybody's code.
+
+     It owns `health` and `stamina` on both fighters: it sets them at the
+     bell, tops stamina up every tick, and STAMPS THEM BACK every tick
+     afterwards. A script can `set [health] to 999` and it will hold for
+     one twentieth of a second, which is the fastest lesson in here about
+     what read-only means.
+
+     And it resolves swings. A fighter asks for one by raising a flag —
+     `set [light] to 1` — and the referee lowers it again, charges the
+     stamina, measures the gap, checks the other one's guard and takes
+     the damage off. Nothing a student writes deals damage directly,
+     because a game where your own program says how hard you hit is not
+     a game. */
+  function referee(dt){
+    const T=window.TEMPLATES, R=window.RULES;
+    if(!T || !R) return;
+    const me=VM.actorByName(T.ME), foe=VM.actorByName(T.FOE);
+    if(!me || !foe) return;
+
+    /* The bell. VM.running goes true the moment Run is pressed, so this
+       is where a round starts — no separate button, and no way to be
+       fighting with last round's health. */
+    /* THE BANNER COUNTS DOWN FIRST, and before the running check,
+       because by then nothing IS running — the knockout stops the
+       scripts where they stand. It has to: while this was counting down
+       with the scripts still going, they carried on walking with no
+       referee to hold them on the floor, and the winner strolled to x=32
+       during their own victory lap. */
+    if(over!==null){
+      over-=dt;
+      if(over<=0){ over=null; banner=''; }
+      return;
+    }
+    if(VM.running && !fighting){ fighting=true; bell(me); bell(foe); }
+    if(!VM.running){ fighting=false; return; }
+
+    /* RESOLVE EVERYTHING FIRST, STAMP AFTERWARDS, and the two have to be
+       separate passes. Stamped inside the loop, a fighter's numbers were
+       written before the second fighter had swung — so the punch that
+       took somebody to zero left `(health)` reading 6 for another tick,
+       and a script checking its own health got an answer that was true
+       a twentieth of a second ago. One pass to work out what happened,
+       one to publish it. */
+    [[me,foe],[foe,me]].forEach(([a,b])=>{
+      const st=state(a);
+      st.stamina=R.regenerated(st.stamina, dt);
+      R.SIGNALS.forEach(sig=>{
+        if(!a.vars[sig]) return;
+        a.vars[sig]=0;                                   // the flag is lowered first
+        const gap=Math.abs((+a.x||0)-(+b.x||0));
+        const r=R.resolve(sig, st.stamina, gap, !!b.vars.guard);
+        st.stamina=Math.max(0, st.stamina-r.cost);
+        if(r.ok){
+          state(b).health=R.clampHealth(state(b).health - r.damage);
+          hitFx(b, r.why);
+        }
+      });
+    });
+    [me,foe].forEach(a=>{
+      a.vars.health=Math.round(state(a).health);
+      a.vars.stamina=Math.round(state(a).stamina);
+    });
+
+    /* They cannot pass through each other and they cannot leave the
+       floor. See rules.js — a constant "walk toward him" is right until
+       they swap sides, and then it is a constant "run away". */
+    const sep=R.separate(+me.x||0, +foe.x||0);
+    me.x=sep.a; foe.x=sep.b;
+    VM.sync(me); VM.sync(foe);
+
+    if(state(me).health<=R.RULES.knockout || state(foe).health<=R.RULES.knockout){
+      const meDown=state(me).health<=R.RULES.knockout;
+      const win = meDown && state(foe).health<=R.RULES.knockout ? 'a draw'
+                : meDown ? (RB().get('ambush').name+' wins') : 'you win';
+      VM.actorByName(meDown?T.FOE:T.ME);
+      announce(win);
+      over=R.RULES.reset;
+      /* Stop everything where it is. A round that is over is over — the
+         losing script does not get to keep walking. */
+      VM.stopAll();
+      fighting=false;
+    }
+  }
+  /* The referee's own copy, which is the one that counts. The actor's
+     vars are a window onto it and nothing more. */
+  const book={};
+  const state = a => (book[a.name] = book[a.name] || { health:0, stamina:0 });
+  function bell(a){
+    const R=window.RULES;
+    const st=state(a);
+    st.health=R.RULES.health; st.stamina=R.RULES.stamina;
+    a.vars.health=st.health; a.vars.stamina=st.stamina;
+    R.SIGNALS.forEach(k=>{ a.vars[k]=0; });
+    ['guard','dodging','swinging'].forEach(k=>{ if(k in a.vars) a.vars[k]=0; });
+  }
+  /* A hit has to be visible or the numbers are the only evidence. */
+  function hitFx(who, why){
+    const b=bodies[who.name];
+    if(b) b.flash=why==='guarded'?0.12:0.26;
   }
 
   /* ------------------------------------------------------- the body
@@ -316,15 +400,19 @@ window.RING = (function(){
      So the actor carries the POSITION and the scripts, and this carries
      the BODY, and tick() copies one onto the other. Which also means the
      mixer is ours, which is what the animation clips will need. */
-  function loadBody(){
-    if(bodyFor===spec.id) return;
-    bodyFor=spec.id;
-    if(body && body.parent) body.parent.remove(body);
-    body=new THREE.Group();
-    G.roomGroup.add(body);
-    const want=spec.id;
-    new THREE.GLTFLoader().load(spec.model+'?v='+(window.ASSETV||'1'), gl=>{
-      if(!on || bodyFor!==want) return;          // left, or picked the other one
+  /* ONE OF THESE PER FIGHTER, keyed by the actor's name. Both of them
+     wear rigged models, and rigged models cannot go through the costume
+     system (see costumes.js), so the ring loads them itself and drives
+     them off their actor's position every frame. */
+  function loadBody(name, sp){
+    const old=bodies[name];
+    if(old && old.for===sp.id) return;
+    if(old && old.g && old.g.parent) old.g.parent.remove(old.g);
+    const rec=bodies[name]={ for:sp.id, g:new THREE.Group(), mixer:null,
+                             clips:[], cur:null, curName:null, was:null, flash:0 };
+    G.roomGroup.add(rec.g);
+    new THREE.GLTFLoader().load(sp.model+'?v='+(window.ASSETV||'1'), gl=>{
+      if(!on || bodies[name]!==rec) return;      // left, or swapped bodies
       const r=gl.scene;
       r.traverse(o=>{
         if(!o.isMesh) return;
@@ -332,6 +420,9 @@ window.RING = (function(){
            which is not any pose it is ever in. */
         o.frustumCulled=false;
         o.castShadow=true;
+        /* Its own material, or flashing one fighter flashes both — they
+           are two loads of the same file for the same robot. */
+        o.material=o.material.clone();
         if(o.geometry.attributes.color){
           o.material.vertexColors=true; o.material.needsUpdate=true;
         }
@@ -342,33 +433,33 @@ window.RING = (function(){
       /* MULTIPLY, NEVER SET. These exports carry a scale of their own —
          a hundredth, because they are authored in centimetres — and the
          box above is measured AFTER that, in world units. setScalar
-         throws the hundredth away and leaves the robot a hundred times
-         too big: four and a half metres became four hundred and sixty,
-         and all you can see from the floor is a shadow.
+         throws the hundredth away and leaves a four-metre robot four
+         hundred and sixty, which from the floor looks exactly like a
+         model that failed to load.
 
          Scaled, never lifted — the skeleton stands on the origin even
          though the mesh straddles it. */
-      if(h>1e-6) r.scale.multiplyScalar(spec.height/h);
-      body.add(r);
-      mixer=new THREE.AnimationMixer(r);
-      clips=gl.animations||[];
-      play(IDLE_CLIP, 0);
+      if(h>1e-6) r.scale.multiplyScalar(sp.height/h);
+      rec.g.add(r);
+      rec.mixer=new THREE.AnimationMixer(r);
+      rec.clips=gl.animations||[];
+      play(rec, IDLE_CLIP, 0);
     });
   }
 
-  function play(name, fade){
-    if(!mixer || curName===name) return;
-    const clip=clips.find(c=>c.name===name);
+  function play(rec, name, fade){
+    if(!rec || !rec.mixer || rec.curName===name) return;
+    const clip=rec.clips.find(c=>c.name===name);
     if(!clip) return;
-    const next=mixer.clipAction(clip);
+    const next=rec.mixer.clipAction(clip);
     next.reset().setEffectiveWeight(1).fadeIn(fade===undefined?0.18:fade).play();
-    if(cur) cur.fadeOut(fade===undefined?0.18:fade);
-    cur=next; curName=name;
+    if(rec.cur) rec.cur.fadeOut(fade===undefined?0.18:fade);
+    rec.cur=next; rec.curName=name;
   }
   /* The one place the missing walk cycle is handled. The moment a clip
      with one of these names exists in the .glb it is found and played
-     while the robot is moving. That is the whole integration. */
-  const walkClip = () => WALK_CLIPS.find(n=>clips.some(c=>c.name===n)) || null;
+     while a fighter is moving. That is the whole integration. */
+  const walkClip = rec => WALK_CLIPS.find(n=>rec.clips.some(c=>c.name===n)) || null;
 
   function stop(){
     if(!on) return;
@@ -378,7 +469,8 @@ window.RING = (function(){
       CODER.restrict(null);       // hand the whole palette back to Free Play
     }
     if(window.VM){ VM.stopAll(); VM.save(); VM.leave(); }
-    body=null; bodyFor=null; mixer=null; clips=[]; cur=null; curName=null;
+    bodies={}; fighting=false; over=null; banner='';
+    Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
     ['#ringFeed','#ringKeys'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     ['#objectives','#crosshair','#briefing']
@@ -448,6 +540,7 @@ window.RING = (function(){
   function tick(dt){
     if(!on) return;
     if(window.VM) VM.step(dt);
+    referee(dt);
     if(window.CODER) CODER.tick(dt);
     drive(dt);
     camera(dt);
@@ -458,7 +551,7 @@ window.RING = (function(){
     const mine=$('#ring');
     if(mine) mine.classList.toggle('hidden', coding);
     if(!coding){
-      say();
+      hud();
       /* AND THE PLANET'S PANELS STAY DOWN. CODER.hide() puts #objectives,
          #keys and #topbar back unconditionally, which is right in Free
          Play and wrong here: closing the blocks with C dropped Senio's
@@ -469,73 +562,99 @@ window.RING = (function(){
     }
   }
 
-  /* The actor has the position; this has the body. One line of copying,
-     and a walk clip the moment the robot is actually travelling. */
+  /* The actors have the positions; the bodies are drawn from them. One
+     line of copying per fighter, plus a walk clip whenever one of them
+     is actually travelling and a flash whenever one is hit. */
   function drive(dt){
-    const bot=VM.actorByName(ACTOR);
-    if(!bot || !body) return;
-    /* The actor's own mesh is a cube standing exactly where the robot is.
-       It is what the VM moves and what the crosshair finds, so it stays —
-       it just does not need to be looked at.
+    const T=window.TEMPLATES; if(!T) return;
+    [T.ME, T.FOE].forEach(name=>{
+      const a=VM.actorByName(name), rec=bodies[name];
+      if(!a || !rec) return;
+      /* The actor's own mesh is a cube standing exactly where the fighter
+         is. It is what the VM moves and what the crosshair finds, so it
+         stays — it just does not need to be looked at.
 
-       ITS MATERIAL AND NOT THE OBJECT. `say` hangs its speech bubble off
-       a.mesh, so switching the whole subtree off takes the bubble with
-       it and the robot talks invisibly. Turning off the MATERIAL stops
-       the cube being drawn and leaves its children alone. */
-    if(bot.mesh && bot.mesh.material) bot.mesh.material.visible=false;
-    /* And the bubble sits at a fixed height meant for a one-unit object,
-       which on a four-metre robot is somewhere inside its chest. Half a
-       robot gets to the top of its head; the rest clears the gloves,
-       which these two hold up in a guard and which are the real top of
-       the silhouette. */
-    if(bot.bubble) bot.bubble.position.y = spec.height/2 + 0.9;
-    body.position.set(+bot.x||0, +bot.y||0, +bot.z||0);
-    body.rotation.y=(+bot.dir||0)*Math.PI/180;
-    body.scale.setScalar(1);
+         ITS MATERIAL AND NOT THE OBJECT. `say` hangs its speech bubble
+         off a.mesh, so switching the whole subtree off takes the bubble
+         with it and a fighter talks invisibly. */
+      if(a.mesh && a.mesh.material) a.mesh.material.visible=false;
+      if(a.bubble) a.bubble.position.y=(+a.size||4)/2 + 0.9;
 
-    const moved=Math.hypot(body.position.x-wasAt.x,
-                           body.position.y-wasAt.y,
-                           body.position.z-wasAt.z);
-    wasAt={x:body.position.x, y:body.position.y, z:body.position.z};
-    const w=walkClip();
-    play(moved>0.001 && w ? w : IDLE_CLIP);
-    if(mixer) mixer.update(dt);
+      rec.g.position.set(+a.x||0, +a.y||0, +a.z||0);
+      /* They face each other, whichever way round they are standing. */
+      const other=VM.actorByName(name===T.ME?T.FOE:T.ME);
+      rec.g.rotation.y = other && (+other.x||0) < (+a.x||0) ? -Math.PI/2 : Math.PI/2;
+
+      const p=rec.g.position;
+      const moved=rec.was ? Math.hypot(p.x-rec.was.x, p.y-rec.was.y, p.z-rec.was.z) : 0;
+      rec.was={ x:p.x, y:p.y, z:p.z };
+      const w=walkClip(rec);
+      play(rec, moved>0.001 && w ? w : IDLE_CLIP);
+      if(rec.mixer) rec.mixer.update(dt);
+
+      /* The flash. A number going down in a corner is not evidence a
+         punch landed; a body going white for a fifth of a second is. */
+      if(rec.flash>0){
+        rec.flash=Math.max(0, rec.flash-dt);
+        const k=rec.flash;
+        rec.g.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive)
+          o.material.emissive.setScalar(k*1.6); });
+      }
+    });
   }
 
-  /* Side on, drifting after the robot rather than locked to it — a
-     camera welded to a moving thing makes the thing look still, and the
-     whole point of this room is seeing that it moved. It follows in y as
-     well, or a robot told to change y by 50 leaves the picture. */
+  /* Side on, framed on BOTH of them — a camera that followed only the
+     player would push the opponent off the edge exactly when the gap is
+     the thing you are trying to judge. */
   function camera(dt){
-    const bot=window.VM && VM.actorByName(ACTOR);
-    const x=bot?+bot.x||0:0, y=bot?+bot.y||0:0;
+    const T=window.TEMPLATES; if(!T) return;
+    const a=VM.actorByName(T.ME), b=VM.actorByName(T.FOE);
+    const ax=a?+a.x||0:0, bx=b?+b.x||0:0;
+    const mid=(ax+bx)/2, gap=Math.abs(ax-bx);
+    const ay=a?+a.y||0:2.3;
     const k=Math.min(1, dt*2.2);
-    camX += (x-camX)*k;
-    camY += (y-camY)*k;                 // the actor's y IS its middle
-    G.camera.position.set(camX*0.5, camY+3.0, 15);
+    camX += (mid-camX)*k;
+    camY += (Math.max(ay,2.3)-camY)*k;
+    G.camera.position.set(camX, camY+3.2, 15+Math.min(10, gap*0.6));
     G.camera.up.set(0,1,0);
-    G.camera.lookAt(camX*0.8, camY, 0);
+    G.camera.lookAt(camX, camY, 0);
   }
 
   /* ---------------------------------------------------------- the HUD
-     Where it is, in the numbers the blocks use. `x position` is a block
-     on the palette, so the same three numbers are on screen — a student
-     can read one against the other and see that they agree. */
-  function say(){
-    const el=$('#ringA'); if(!el || !spec) return;
-    const bot=window.VM && VM.actorByName(ACTOR);
-    const n=v=>(Math.round((+v||0)*10)/10).toFixed(1);
-    const scripts=bot?(bot.scripts||[]).length:0;
-    el.innerHTML=`<div class="ring-name"><b>${spec.name}</b>
-        <small>${scripts} ${T(scripts===1?'script':'scripts')}${
-          window.VM && VM.running ? ' · '+T('running') : ''}</small></div>
-      <div class="ring-p"><span>x</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.x||0)/16*50+50))}%"></b></i>
-        <span style="width:46px;text-align:right">${n(bot&&bot.x)}</span></div>
-      <div class="ring-p"><span>y</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.y||0)/12*100))}%"></b></i>
-        <span style="width:46px;text-align:right">${n(bot&&bot.y)}</span></div>
-      <div class="ring-p"><span>z</span><i><b style="width:${Math.max(0,Math.min(100,(+bot?.z||0)/12*50+50))}%"></b></i>
-        <span style="width:46px;text-align:right">${n(bot&&bot.z)}</span></div>`;
+     Both fighters, both numbers. Health and stamina are the referee's,
+     so they are shown the way the referee has them rather than the way
+     any script left them — and they are the same numbers `(health)` and
+     `(stamina)` report inside the blocks, which is the point. */
+  function hud(){
+    const el=$('#ringA'), T=window.TEMPLATES, R=window.RULES;
+    if(!el || !T || !R) return;
+    const row=(who, label, mine)=>{
+      const a=VM.actorByName(who);
+      if(!a) return '';
+      const st=book[who]||{ health:0, stamina:0 };
+      const hp=Math.max(0, Math.round(st.health)), sp=Math.max(0, Math.round(st.stamina));
+      const hpc=Math.round(hp/R.RULES.health*100), spc=Math.round(sp/R.RULES.stamina*100);
+      return `<div class="ring-side${mine?'':' foe'}">
+        <div class="ring-name"><b>${label}</b>
+          <small>${fighting?'':'\u2014 '}${(a.scripts||[]).length} ${T2(a.scripts)}</small></div>
+        <div class="ring-p ${hp<=30?'low':''}"><span>${T3('HEALTH')}</span>
+          <i><b style="width:${hpc}%"></b></i>
+          <span style="width:34px;text-align:right">${hp}</span></div>
+        <div class="ring-p sta"><span>${T3('STAMINA')}</span>
+          <i><b style="width:${spc}%"></b></i>
+          <span style="width:34px;text-align:right">${sp}</span></div>
+      </div>`;
+    };
+    el.innerHTML = row(T.ME, spec?spec.name:'YOU', true)
+                 + row(T.FOE, RB().get('ambush').name, false)
+                 + (banner?`<div class="ring-banner">${banner}</div>`:'');
   }
+  const T2 = sc => T((sc||[]).length===1?'script':'scripts');
+  const T3 = s => T(s);
+  /* Said over the top when a round ends. Not `say` — there is a say() in
+     the VM's world and one in this file already, and two of those was
+     enough. */
+  function announce(text){ banner=text||''; }
 
   /* The one sentence that is worth more than any other on this screen,
      and the reason it is here rather than in a help bubble: a student
