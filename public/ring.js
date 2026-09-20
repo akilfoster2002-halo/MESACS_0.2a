@@ -45,25 +45,75 @@ window.RING = (function(){
   const ACTOR='Robot';
 
   /* ------------------------------------------------------- the palette
-     Cut down, and cut down to exactly the argument the mode is making:
-     an event to start on, a loop to keep checking in, a conditional to
-     check with, a sensing block to check, and something to move.
+     Not "all of Scratch" and not a token handful. The rule for what is on
+     here is that the room contains ONE ROBOT, A FLOOR AND A KEYBOARD, and
+     every block has to have a job in that room — AND its partners have to
+     be here with it. A palette with half a family on it is worse than one
+     without the family at all, because the student goes looking for the
+     rest and concludes they have missed something.
 
-     `ops` is the boolean operators and nothing else. `and`, `or` and
-     `not` are here because the moment somebody wants to hold two keys at
-     once they need them, and finding out that <a> and <b> is a block you
-     drop INTO another block is most of what operators are.
+     THE PAIRINGS, which are the whole reason this list is not longer or
+     shorter than it is:
 
-     Adding a block to this list is how the mode grows. Taking the whole
-     list out is how it becomes Free Play. */
+       change x by  ↔  set x to  ↔  x position
+         Somewhere to nudge it, somewhere to put it, and a way to read
+         where it ended up. Two out of three is a dead end.
+
+       turn  ↔  direction
+         `turn` with no readout is a block whose effect you can only
+         guess at. And `turn` + `move` is the other way of getting about
+         — the turtle one — next to the co-ordinate one.
+
+       <  =  >
+         Find two of these and you will hunt for the third.
+
+       and  or  not
+         Likewise, and the moment anybody wants two keys at once they
+         need the first one.
+
+       forever  ·  repeat  ·  repeat until
+         The three shapes a loop comes in, and the last one shares its
+         boolean slot with `if`, so a condition a student wrote for one
+         drops straight into the other.
+
+       say  ↔  x position
+         `say (x position)` is how a student finds out what the number
+         actually is. It is the debugger, and it is one block.
+
+     WHAT IS DELIBERATELY ABSENT:
+
+       touching? · distance to · point towards — every one of them needs
+         a SECOND object, and there is one robot in here. A sensing block
+         that can only ever answer about nothing is a trap.
+
+       become a [costume] — rigged costumes do not instance in this game
+         (see costumes.js), so this block would hand a student a robot
+         that silently renders in the wrong place at the wrong size.
+
+       variables, lists, custom blocks, broadcast, clones — real and
+         wanted, and all of them answers to questions this room has not
+         asked yet. They come with something to count and somebody to
+         talk to.
+
+     Adding a block is a row here. Adding a block WITH NO PARTNER is how
+     this list rots, and there is a test that says so. */
   const PALETTE = {
-    cats:['events','control','sensing','motion','ops'],
+    cats:['events','control','motion','looks','sensing','ops'],
     ops:[
+      /* how a script starts */
       'event.flag','event.key',
-      'ctrl.forever','ctrl.if','ctrl.ifelse','ctrl.repeat','ctrl.wait','ctrl.stop',
-      'sense.key',
-      'motion.changeBy','motion.setTo','motion.goto','motion.turn','motion.pos',
-      'op.and','op.or','op.not','op.lt','op.gt'
+      /* the shapes it is built out of */
+      'ctrl.wait','ctrl.repeat','ctrl.forever',
+      'ctrl.if','ctrl.ifelse','ctrl.repeatUntil','ctrl.waitUntil','ctrl.stop',
+      /* what a robot can do, and how to read what it did */
+      'motion.move','motion.turn','motion.changeBy','motion.setTo',
+      'motion.goto','motion.glide','motion.pos','motion.dir',
+      /* how it tells you what it thinks */
+      'looks.say','looks.sayFor',
+      /* what it can feel */
+      'sense.key','sense.timer','sense.resetTimer',
+      /* and what it can work out */
+      'op.lt','op.eq','op.gt','op.and','op.or','op.not','op.random'
     ]
   };
 
@@ -308,8 +358,19 @@ window.RING = (function(){
     if(!bot || !body) return;
     /* The actor's own mesh is a cube standing exactly where the robot is.
        It is what the VM moves and what the crosshair finds, so it stays —
-       it just does not need to be looked at. */
-    if(bot.mesh) bot.mesh.visible=false;
+       it just does not need to be looked at.
+
+       ITS MATERIAL AND NOT THE OBJECT. `say` hangs its speech bubble off
+       a.mesh, so switching the whole subtree off takes the bubble with
+       it and the robot talks invisibly. Turning off the MATERIAL stops
+       the cube being drawn and leaves its children alone. */
+    if(bot.mesh && bot.mesh.material) bot.mesh.material.visible=false;
+    /* And the bubble sits at a fixed height meant for a one-unit object,
+       which on a four-metre robot is somewhere inside its chest. Half a
+       robot gets to the top of its head; the rest clears the gloves,
+       which these two hold up in a guard and which are the real top of
+       the silhouette. */
+    if(bot.bubble) bot.bubble.position.y = spec.height/2 + 0.9;
     body.position.set(+bot.x||0, +bot.y||0, +bot.z||0);
     body.rotation.y=(+bot.dir||0)*Math.PI/180;
     body.scale.setScalar(1);

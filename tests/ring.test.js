@@ -73,6 +73,84 @@ test('the palette has a loop, a conditional, a sensing block and a way to move',
     .forEach(op=>assert.ok(pal.ops.indexOf(op)>=0, 'the palette has no '+op));
 });
 
+/* ------------------------------------------------- the palette pairs up
+   A block with half its family on the palette is worse than no family at
+   all: the student goes looking for the rest and concludes they have
+   missed something. Each of these is a pair that has to travel together,
+   and the reason is in ring.js next to the list. */
+test('nothing that changes a thing is on the palette without a way to read it', ()=>{
+  const p=new Set(palette().ops);
+  const pairs=[
+    ['motion.turn','motion.dir',      'turn, with no way to read the direction'],
+    ['motion.changeBy','motion.pos',  'change x by, with no x position to check it against'],
+    ['motion.setTo','motion.pos',     'set x to, with no x position'],
+    ['motion.move','motion.turn',     'move steps, with nothing to turn it first'],
+    ['sense.timer','sense.resetTimer','a timer that can never be put back to zero'],
+    ['looks.sayFor','looks.say',      'say-for-n-seconds without plain say']
+  ];
+  pairs.forEach(([a,b,why])=>{
+    if(p.has(a)) assert.ok(p.has(b), why+' \u2014 '+a+' needs '+b);
+  });
+});
+
+test('the comparisons and the booleans each come as a whole family', ()=>{
+  const p=new Set(palette().ops);
+  const family=(ops,what)=>{
+    const on=ops.filter(o=>p.has(o));
+    assert.ok(on.length===0 || on.length===ops.length,
+      'the '+what+' are half on the palette ('+on.join(', ')+') \u2014 a student who finds two will hunt for the rest');
+  };
+  family(['op.lt','op.eq','op.gt'], 'comparisons');
+  family(['op.and','op.or','op.not'], 'boolean operators');
+});
+
+test('every boolean slot on the palette has something to drop into it', ()=>{
+  /* `if`, `repeat until` and `wait until` are all shaped to take a
+     boolean. If the palette offers one and no boolean reporter, the slot
+     can never be filled. */
+  const p=palette(), on=new Set(p.ops);
+  const wantsBool = BLOCKS.LIST.filter(b=>on.has(b.op) &&
+    Object.keys(b.args||{}).some(k=>b.args[k].type==='bool'));
+  if(!wantsBool.length) return;
+  const bools = BLOCKS.LIST.filter(b=>on.has(b.op) && b.kind==='bool');
+  assert.ok(bools.length>0,
+    wantsBool.map(b=>b.op).join(', ')+' take a boolean and nothing on the palette reports one');
+});
+
+test('every reporter slot that wants a number has a reporter to fill it', ()=>{
+  const on=new Set(palette().ops);
+  const reporters=BLOCKS.LIST.filter(b=>on.has(b.op) && b.kind==='report');
+  assert.ok(reporters.length>0, 'nothing on the palette reports a value to use');
+});
+
+test('nothing on the palette needs a second object, because there is one robot', ()=>{
+  /* touching?, distance to, point towards and %a of %o all take another
+     object. In a room with one robot they can only ever answer about
+     nothing, which is worse than not being offered. */
+  const on=new Set(palette().ops);
+  BLOCKS.LIST.forEach(b=>{
+    if(!on.has(b.op)) return;
+    const needsObj=Object.keys(b.args||{}).some(k=>b.args[k].type==='obj');
+    assert.ok(!needsObj, b.op+' needs a second object and there is only the robot');
+  });
+});
+
+test('the costume block stays off, because rigged costumes do not instance', ()=>{
+  const on=new Set(palette().ops);
+  assert.ok(!on.has('looks.shape'),
+    'become-a is on the palette, and it would silently draw the robot at the wrong size in the wrong place');
+});
+
+test('the palette still fits on a screen', ()=>{
+  /* Not a style rule. The whole argument for cutting Free Play down was
+     that a palette of a hundred is a reference manual rather than a
+     lesson; if this creeps past a few dozen that argument is gone. */
+  const p=palette();
+  assert.ok(p.ops.length<=36, 'the palette has grown to '+p.ops.length+' blocks');
+  assert.ok(p.ops.length>=12, 'the palette has been cut to '+p.ops.length+' blocks');
+  assert.equal(new Set(p.ops).size, p.ops.length, 'a block is listed twice');
+});
+
 test('the move block moves on all three axes', ()=>{
   /* Up and down has to be as reachable as left and right, and in Scratch
      that is one block with a dropdown rather than three blocks. */

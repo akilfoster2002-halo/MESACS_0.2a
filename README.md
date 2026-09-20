@@ -178,10 +178,35 @@ flies and `change z by` walks into the scene.
 | on the palette | |
 |---|---|
 | Events | `when ▶ the game starts`, `when [key] pressed` |
-| Control | `forever`, `if`, `if/else`, `repeat`, `wait`, `stop` |
-| Sensing | `key [_] pressed?` |
-| Motion | `change [x/y/z] by`, `set [x/y/z] to`, `go to`, `turn`, `[x] position` |
-| Operators | `and`, `or`, `not`, `<`, `>` |
+| Control | `wait`, `repeat`, `forever`, `if`, `if/else`, `repeat until`, `wait until`, `stop` |
+| Motion | `move n steps`, `turn n degrees`, `go to x y z`, `glide t secs to x y z`, `change [x/y/z] by`, `set [x/y/z] to`, `(x position)`, `(direction)` |
+| Looks | `say`, `say for n secs` |
+| Sensing | `‹key [_] pressed?›`, `(timer)`, `reset timer` |
+| Operators | `<`, `=`, `>`, `and`, `or`, `not`, `pick random` |
+
+**Thirty blocks, and the list is the way it is because of what pairs with what.** The rule is
+that the room contains one robot, a floor and a keyboard, and every block has to have a job in
+that room *and* have its partners present. Half a family on a palette is worse than none of
+it: the student goes looking for the rest and concludes they missed something.
+
+```
+change x by  ↔  set x to  ↔  (x position)      somewhere to nudge it, somewhere to
+                                                put it, and a way to read where it went
+turn         ↔  (direction)                     a turn you cannot read is a guess
+move + turn                                     the turtle way round, next to the
+                                                co-ordinate way
+<  =  >      ·  and  or  not                    find two and you hunt for the third
+forever · repeat · repeat until                 the three shapes a loop comes in — and
+                                                the last shares its boolean slot with `if`
+say          ↔  (x position)                    `say (x position)` is the debugger
+```
+
+Deliberately absent: `touching?`, `distance to` and `point towards` all need a **second
+object**, and there is one robot — a sensing block that can only ever answer about nothing is
+a trap. `become a [costume]` is off because rigged costumes do not instance (see below).
+Variables, lists, custom blocks, broadcast and clones are all real and wanted, and all of them
+answer questions this room has not asked yet; they arrive with something to count and somebody
+to talk to.
 
 Adding a block to the mode is a row in `RING.PALETTE`. Taking the list out entirely is how it
 becomes Free Play. The scripts live in their own project slot (`dq_ring`), so nothing a
