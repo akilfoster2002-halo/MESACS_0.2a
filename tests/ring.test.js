@@ -479,34 +479,80 @@ test('each robot names a model file that is really there', ()=>{
   });
 });
 
-test('the ring loads its own bodies, and says why', ()=>{
-  /* COSTUMES cannot instance a rigged model — Object3D.clone() leaves the
-     copy bound to the PROTOTYPE's skeleton, so the body is drawn where
-     those bones are and ignores the clone's transform. Until that is
-     fixed the ring loads its robots itself, and the reason has to stay
-     written down or somebody will "tidy" it back onto the costume
-     system and spend an afternoon on it. */
+test('the ring wears its robots as costumes rather than loading them itself', ()=>{
+  /* It used to hold a GLTFLoader of its own because COSTUMES could not
+     instance a rigged model. That is fixed, so this is the check that
+     the workaround actually went away rather than being left next to
+     the fix. */
   const src=read('public/ring.js');
-  assert.match(src, /GLTFLoader/, 'the ring does not load a model at all');
-  assert.match(src, /skeleton/i, 'the ring does not say why it loads its own body');
-  const cos=read('public/costumes.js');
-  assert.match(cos, /skeleton/i,
-    'costumes.js does not warn that rigged costumes do not instance');
-  assert.ok(!/id:'robots'/.test(cos),
-    'the robots shelf is back, and it cannot work until the clone is fixed');
+  /* Comments stripped: the history of WHY it used to load its own is
+     worth keeping written down next to the thing that replaced it. */
+  const body=src.replace(/\/\*[\s\S]*?\*\//g,'');
+  assert.ok(!/GLTFLoader/.test(body),
+    'the ring still loads models itself, so the costume fix is not being used');
+  assert.match(src, /VM\.dress\([a-z]+, *'robots\//,
+    'the ring does not dress its fighters through the costume system');
 });
 
-test('the model is scaled by multiplying, never by setting', ()=>{
+test('costumes clone a rigged model with its OWN skeleton', ()=>{
+  /* THE BUG THIS REPLACED. Object3D.clone() copies a SkinnedMesh and
+     copies the bones but never re-points the copy at the copied bones,
+     so every clone kept the prototype's Skeleton and was drawn by bones
+     living outside itself — ignoring its own position and scale. A Box3
+     measured everything as correct the whole time, which is what made it
+     so hard to see. */
+  const src=read('public/costumes.js');
+  assert.ok(!/\.then\(o=>o\.clone\(true\)\)/.test(src),
+    'costumes still use a plain clone, which shares the skeleton');
+  assert.match(src, /function cloneRig\(/, 'there is no skeleton-aware clone');
+  assert.match(src, /new THREE\.Skeleton\(/, 'nothing builds a new Skeleton for the copy');
+  assert.match(src, /boneInverses/,
+    'the new Skeleton does not carry the bind-pose inverses over');
+  assert.match(src, /\.bind\(/, 'the cloned mesh is never rebound');
+});
+
+test('a costume is scaled by multiplying, never by setting', ()=>{
   /* These exports carry a scale of their own — a hundredth, being
-     authored in centimetres — and the height is measured AFTER it.
-     setScalar throws that hundredth away and leaves a four-metre robot
-     four hundred and sixty metres tall, which from the floor looks
-     exactly like a robot that failed to load. */
-  const src=read('public/ring.js');
-  assert.match(src, /r\.scale\.multiplyScalar\(/,
-    'the ring does not multiply the model scale');
-  assert.ok(!/r\.scale\.setScalar\(/.test(src),
-    'the ring sets the model scale, which discards the export\'s own');
+     authored in centimetres — and the box is measured AFTER it.
+     setScalar threw that away and left a four-metre robot four hundred
+     and sixty, which from the floor looks exactly like a model that
+     failed to load. */
+  const src=read('public/costumes.js');
+  const fn=src.slice(src.indexOf('function proto('), src.indexOf('const load ='));
+  assert.match(fn, /root\.scale\.multiplyScalar\(/,
+    'costumes do not multiply the model scale');
+  assert.ok(!/root\.scale\.setScalar\(/.test(fn),
+    'costumes set the model scale, which discards the export\'s own');
+  /* And centred by looking again afterwards, not by scaling the old
+     centre — which is only the same answer for a root with no transform
+     of its own. */
+  assert.match(fn, /root\.position\.sub\(/,
+    'costumes centre by arithmetic on the old box rather than by measuring again');
+});
+
+test('costumes carry their animation clips, or a rigged one cannot move', ()=>{
+  /* Dropping gltf.animations is what forced the ring to load the file a
+     second time in the first place. Clips are shared and immutable; a
+     mixer is per-object and stays the ring's. */
+  assert.match(read('public/costumes.js'), /reels\.set\(/,
+    'costumes still drop the animation clips');
+  assert.match(read('public/costumes.js'), /clips *[,:=]/,
+    'costumes do not expose the clips they kept');
+  assert.match(read('public/ring.js'), /COSTUMES\.clips\(/,
+    'the ring never asks for the clips, so nothing is animated');
+  assert.match(read('public/ring.js'), /new THREE\.AnimationMixer\(/,
+    'the ring has no mixer');
+});
+
+test('the robots are on a shelf, so anything can wear one', ()=>{
+  const COSTUMES = globals(['public/costumes.js']).COSTUMES;
+  const shelf=COSTUMES.SHELVES.find(x=>x.id==='robots');
+  assert.ok(shelf, 'there is no robots shelf');
+  ROBOTS.LIST.forEach(r=>{
+    assert.ok(shelf.items.find(i=>i.file===r.id), r.id+' is not on the robots shelf');
+    assert.ok(fs.existsSync(P(path.join('public', shelf.dir, r.id+'.glb'))),
+      r.id+"'s costume points at a file that is not there");
+  });
 });
 
 test('the robot stands on the floor rather than half inside it', ()=>{

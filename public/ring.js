@@ -138,7 +138,6 @@ window.RING = (function(){
               '#crosshair','#focus','#briefing'];
 
   let on=false, wasFP=null, camX=0, camY=0, spec=null;
-  let bodies={};              // actor name -> its model, mixer and clips
   let fighting=false, over=null, banner='';
 
   /* ------------------------------------------------------------ start */
@@ -170,9 +169,7 @@ window.RING = (function(){
     const bot=ensureRobot();
     const foe=ensureFoe();
     (addTemplates||[]).forEach(id=>install(id, bot));
-    bodies={};
-    loadBody(TEMPLATES.ME,  spec);
-    loadBody(TEMPLATES.FOE, RB().get('ambush'));
+    Object.keys(rigs).forEach(k=>delete rigs[k]);
     /* On their marks with full bars, before a single script runs — so
        the HUD is never showing last round's numbers while the pit's
        words are still on screen. */
@@ -208,6 +205,12 @@ window.RING = (function(){
        actor, the way every costume in this game is. */
     bot.size=spec.height;
     bot.x=0; bot.y=spec.height/2; bot.z=0; bot.dir=0;
+    /* dress() TAKES THE COSTUME AS ITS SECOND ARGUMENT and assigns
+       String(costume), so calling it with one leaves the actor wearing
+       the literal string "undefined" — not a costume, so it falls back
+       to a cube. Only when it CHANGES, because dress() rebuilds the
+       mesh and that would throw the mixer away every time you walk in. */
+    if(bot.shape!=='robots/'+spec.id) VM.dress(bot, 'robots/'+spec.id);
     VM.sync(bot);
     return bot;
   }
@@ -235,6 +238,7 @@ window.RING = (function(){
     }
     const fs=RB().get('ambush');
     f.size=fs.height; f.x=10; f.y=fs.height/2; f.z=0; f.dir=0;
+    if(f.shape!=='robots/ambush') VM.dress(f, 'robots/ambush');
     VM.sync(f);
     return f;
   }
@@ -379,8 +383,8 @@ window.RING = (function(){
   }
   /* A hit has to be visible or the numbers are the only evidence. */
   function hitFx(who, why){
-    const b=bodies[who.name];
-    if(b) b.flash=why==='guarded'?0.12:0.26;
+    const rec=rigOf(who);
+    if(rec) rec.flash=why==='guarded'?0.12:0.26;
   }
 
   /* ------------------------------------------------------- the body
@@ -400,56 +404,40 @@ window.RING = (function(){
      So the actor carries the POSITION and the scripts, and this carries
      the BODY, and tick() copies one onto the other. Which also means the
      mixer is ours, which is what the animation clips will need. */
-  /* ONE OF THESE PER FIGHTER, keyed by the actor's name. Both of them
-     wear rigged models, and rigged models cannot go through the costume
-     system (see costumes.js), so the ring loads them itself and drives
-     them off their actor's position every frame. */
-  function loadBody(name, sp){
-    const old=bodies[name];
-    if(old && old.for===sp.id) return;
-    if(old && old.g && old.g.parent) old.g.parent.remove(old.g);
-    const rec=bodies[name]={ for:sp.id, g:new THREE.Group(), mixer:null,
-                             clips:[], cur:null, curName:null, was:null, flash:0 };
-    G.roomGroup.add(rec.g);
-    new THREE.GLTFLoader().load(sp.model+'?v='+(window.ASSETV||'1'), gl=>{
-      if(!on || bodies[name]!==rec) return;      // left, or swapped bodies
-      const r=gl.scene;
-      r.traverse(o=>{
-        if(!o.isMesh) return;
-        /* NEVER CULLED: a skinned mesh is culled against the bind box,
-           which is not any pose it is ever in. */
-        o.frustumCulled=false;
-        o.castShadow=true;
-        /* Its own material, or flashing one fighter flashes both — they
-           are two loads of the same file for the same robot. */
-        o.material=o.material.clone();
-        if(o.geometry.attributes.color){
-          o.material.vertexColors=true; o.material.needsUpdate=true;
-        }
-      });
-      r.updateMatrixWorld(true);
-      const bx=new THREE.Box3().setFromObject(r);
-      const h=bx.max.y-bx.min.y;
-      /* MULTIPLY, NEVER SET. These exports carry a scale of their own —
-         a hundredth, because they are authored in centimetres — and the
-         box above is measured AFTER that, in world units. setScalar
-         throws the hundredth away and leaves a four-metre robot four
-         hundred and sixty, which from the floor looks exactly like a
-         model that failed to load.
+  /* --------------------------------------------------- the animation
+     THE BODIES ARE COSTUMES NOW. This file used to hold a GLTFLoader of
+     its own, because COSTUMES could not instance a rigged model — every
+     clone kept the prototype's skeleton and was drawn wherever those
+     bones were, ignoring its own position and scale. That is fixed in
+     costumes.js, so the robots are worn like any other costume and the
+     VM moves them like any other object.
 
-         Scaled, never lifted — the skeleton stands on the origin even
-         though the mesh straddles it. */
-      if(h>1e-6) r.scale.multiplyScalar(sp.height/h);
-      rec.g.add(r);
-      rec.mixer=new THREE.AnimationMixer(r);
-      rec.clips=gl.animations||[];
-      play(rec, IDLE_CLIP, 0);
-    });
+     WHAT IS STILL OURS IS THE MIXER. An AnimationClip is shared and
+     immutable — COSTUMES hands the same ones to everybody — but an
+     AnimationMixer is per-object, because two fighters are not in the
+     same pose. So this keeps one per actor and builds it the first time
+     that actor's costume has actually arrived, which is some frames
+     after `dress()` is called. */
+  const rigs={};
+  function rigOf(a){
+    if(!a || !a.mesh) return null;
+    let rec=rigs[a.name];
+    if(rec && rec.root && rec.root.parent) return rec;
+    let root=null;
+    a.mesh.traverse(o=>{ if(o.isSkinnedMesh && !root) root=o; });
+    if(!root) return null;
+    /* The mixer is made on the costume's own root, not the skinned mesh,
+       so clips that animate bones above it still bind. */
+    let top=root; while(top.parent && top.parent!==a.mesh) top=top.parent;
+    rec=rigs[a.name]={ root:top, mixer:new THREE.AnimationMixer(top),
+                       clips:COSTUMES.clips(a.shape), cur:null, curName:null, flash:0 };
+    play(rec, IDLE_CLIP, 0);
+    return rec;
   }
 
   function play(rec, name, fade){
     if(!rec || !rec.mixer || rec.curName===name) return;
-    const clip=rec.clips.find(c=>c.name===name);
+    const clip=(rec.clips||[]).find(c=>c.name===name);
     if(!clip) return;
     const next=rec.mixer.clipAction(clip);
     next.reset().setEffectiveWeight(1).fadeIn(fade===undefined?0.18:fade).play();
@@ -459,7 +447,7 @@ window.RING = (function(){
   /* The one place the missing walk cycle is handled. The moment a clip
      with one of these names exists in the .glb it is found and played
      while a fighter is moving. That is the whole integration. */
-  const walkClip = rec => WALK_CLIPS.find(n=>rec.clips.some(c=>c.name===n)) || null;
+  const walkClip = rec => WALK_CLIPS.find(n=>(rec.clips||[]).some(c=>c.name===n)) || null;
 
   function stop(){
     if(!on) return;
@@ -469,7 +457,8 @@ window.RING = (function(){
       CODER.restrict(null);       // hand the whole palette back to Free Play
     }
     if(window.VM){ VM.stopAll(); VM.save(); VM.leave(); }
-    bodies={}; fighting=false; over=null; banner='';
+    Object.keys(rigs).forEach(k=>delete rigs[k]);
+    fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
     ['#ringFeed','#ringKeys'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
@@ -562,44 +551,40 @@ window.RING = (function(){
     }
   }
 
-  /* The actors have the positions; the bodies are drawn from them. One
-     line of copying per fighter, plus a walk clip whenever one of them
-     is actually travelling and a flash whenever one is hit. */
+  /* The VM moves the bodies, because they are costumes on its actors.
+     What is left here is which way they face, which clip they are
+     playing, and the flash when one of them is hit. */
   function drive(dt){
     const T=window.TEMPLATES; if(!T) return;
     [T.ME, T.FOE].forEach(name=>{
-      const a=VM.actorByName(name), rec=bodies[name];
-      if(!a || !rec) return;
-      /* The actor's own mesh is a cube standing exactly where the fighter
-         is. It is what the VM moves and what the crosshair finds, so it
-         stays — it just does not need to be looked at.
-
-         ITS MATERIAL AND NOT THE OBJECT. `say` hangs its speech bubble
-         off a.mesh, so switching the whole subtree off takes the bubble
-         with it and a fighter talks invisibly. */
-      if(a.mesh && a.mesh.material) a.mesh.material.visible=false;
-      if(a.bubble) a.bubble.position.y=(+a.size||4)/2 + 0.9;
-
-      rec.g.position.set(+a.x||0, +a.y||0, +a.z||0);
-      /* They face each other, whichever way round they are standing. */
+      const a=VM.actorByName(name);
+      if(!a || !a.mesh) return;
+      /* THEY FACE EACH OTHER, whichever way round they are standing.
+         `dir` is the actor's own and a script may set it, so this only
+         turns the mesh — a student pointing their robot somewhere with
+         `turn` still sees it turn. */
       const other=VM.actorByName(name===T.ME?T.FOE:T.ME);
-      rec.g.rotation.y = other && (+other.x||0) < (+a.x||0) ? -Math.PI/2 : Math.PI/2;
+      if(other) a.mesh.rotation.y =
+        (+other.x||0) < (+a.x||0) ? -Math.PI/2 : Math.PI/2;
 
-      const p=rec.g.position;
+      const rec=rigOf(a);
+      if(!rec) return;
+      const p=a.mesh.position;
       const moved=rec.was ? Math.hypot(p.x-rec.was.x, p.y-rec.was.y, p.z-rec.was.z) : 0;
       rec.was={ x:p.x, y:p.y, z:p.z };
       const w=walkClip(rec);
       play(rec, moved>0.001 && w ? w : IDLE_CLIP);
-      if(rec.mixer) rec.mixer.update(dt);
+      rec.mixer.update(dt);
 
       /* The flash. A number going down in a corner is not evidence a
          punch landed; a body going white for a fifth of a second is. */
       if(rec.flash>0){
         rec.flash=Math.max(0, rec.flash-dt);
         const k=rec.flash;
-        rec.g.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive)
+        rec.root.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive)
           o.material.emissive.setScalar(k*1.6); });
       }
+      if(a.bubble) a.bubble.position.y=(+a.size||4)/2 + 0.9;
     });
   }
 

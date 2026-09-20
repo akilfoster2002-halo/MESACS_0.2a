@@ -213,16 +213,30 @@ becomes Free Play. The scripts live in their own project slot (`dq_ring`), so no
 student writes in here lands in their sandbox.
 
 **The bodies are the real bodies** — `noisyboy.glb` and `ambush.glb`, the rigged exports the
-arena on RYU uses. The ring loads them itself rather than through the costume system, for a
-reason worth knowing about:
+arena on RYU uses, worn as ordinary costumes off the **Robots** shelf. Anything in the game can
+wear one now, including a Free Play object.
 
-> **Rigged costumes do not instance.** `COSTUMES.load()` ends with `Object3D.clone(true)`,
-> which copies a `SkinnedMesh` and its bones but does not re-point the copy at the copied
-> bones — every clone keeps the *prototype's* skeleton. What gets drawn is driven by bones
-> that are not inside the clone, so it ignores the clone's own transform. A `Box3` measures
-> everything as correct the whole time, which is what makes it so confusing. The models under
-> `people` are rigged too, so `become a [Ash]` is on the same footing. The fix is a
-> skeleton-aware clone in `costumes.js`; until then the ring owns its own loader.
+> **Rigged costumes used to be broken, and this is what it was.** `COSTUMES.load()` ended in
+> `Object3D.clone(true)`, which copies a `SkinnedMesh` and copies its bones but never
+> re-points the copy at the *copied* bones — every clone kept the **prototype's** `Skeleton`.
+> What got drawn was driven by bones living outside the clone, so it ignored its own position
+> and scale entirely. A `Box3` measured everything as correct throughout, which is what made
+> it so hard to see: only the pixels were wrong. `cloneRig()` in `costumes.js` now walks the
+> original and the copy in step, pairs every bone, and rebinds each cloned mesh to a `Skeleton`
+> of its own bones — keeping the original `boneInverses`, which are bind-pose data belonging to
+> the geometry rather than to any one instance. Only the two robots were ever affected; the
+> people on the `People` shelf are six plain meshes apiece with no bones at all.
+
+Two more traps in the same file, both fixed: a costume is scaled by **multiplying**, never
+`setScalar` — these exports carry a hundredth of their own, being authored in centimetres, and
+setting the scale threw it away and left a four-metre robot four hundred and sixty. And it is
+centred by measuring again *after* scaling rather than by arithmetic on the old box, which is
+only the same answer for a root with no transform of its own.
+
+Costumes also carry their **animation clips** now. Dropping `gltf.animations` is what forced
+the ring to load the same file a second time in the first place. Clips are shared and immutable
+— one copy serves everything wearing that costume — while an `AnimationMixer` is per-object and
+stays the ring's, because two fighters are not in the same pose.
 
 **No walk cycle yet.** The clips are idle, jab, hook, cross, roundhouse, flykick, sweep,
 block, dodge, hit, floored, getup, roar and uppercut — none of them a loop you can travel on,
@@ -332,7 +346,7 @@ rules.js     the referee — health, stamina, costs, damage, reach and the
 templates.js the worked jab, slam, block, dodge and plan, plus Ambush's
              brain — blocks, and the numbers worth changing. Node too
 pit.js       pick a body, and read what you are about to write
-ring.js      the room, the camera, the cut-down palette, and the .glb loader
+ring.js      the room, the camera, the cut-down palette, and the referee
 logic.js     the decision engine every Koro machine thinks with — conditions
              as trees, ladders of branches, truth tables. No DOM, Node too
 trail.js     The Engineer's Trail: the district, the machines, the witnesses,
