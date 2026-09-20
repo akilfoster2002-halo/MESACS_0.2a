@@ -1861,6 +1861,36 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   color:var(--muted);line-height:1.6}
 #ringKeys b{color:var(--star)}
 
+/* THE STAGE CARD — what this room wants, and how far you have got.
+   Down the left, where the (never-populated) feed used to sit. The
+   checklist is the load-bearing part: a row that ticks itself the
+   instant the world satisfies it says which HALF is missing, which a
+   goal sentence cannot. */
+#ringStage{position:absolute;left:14px;top:112px;width:296px;pointer-events:auto;
+  display:grid;gap:8px}
+.ring-stage-road{display:flex;gap:5px}
+.ring-step{flex:1;height:26px;border-radius:8px;border:1px solid var(--line);
+  background:rgba(16,12,30,.8);color:var(--muted);font-family:var(--font-code);
+  font-size:12px;cursor:pointer;transition:background .12s,color .12s}
+.ring-step.done{background:#2f4f3f;color:var(--good);border-color:var(--good)}
+.ring-step.now {background:var(--star);color:#241d38;border-color:var(--star);font-weight:bold}
+.ring-step.shut{opacity:.35;cursor:not-allowed}
+.ring-stage-card{background:rgba(16,12,30,.86);border:1px solid var(--line);
+  border-left:4px solid var(--a);border-radius:12px;padding:10px 12px;display:grid;gap:7px}
+.ring-stage-head{display:flex;align-items:center;gap:8px}
+.ring-stage-em{font-size:19px}
+.ring-stage-head b{display:block;font-size:13px;letter-spacing:1.2px;color:var(--text)}
+.ring-stage-head small{display:block;font-size:10px;letter-spacing:.6px;color:var(--a)}
+.ring-stage-goal{margin:0;font-size:12px;line-height:1.45;color:var(--text)}
+.ring-stage-tests{display:grid;gap:3px}
+.ring-stage-tests div{display:flex;gap:6px;align-items:flex-start;font-size:11px;
+  line-height:1.35;color:var(--muted)}
+.ring-stage-tests div.ok{color:var(--good)}
+.ring-stage-tests i{font-style:normal;width:11px;flex:none}
+.ring-stage-why{margin:0;font-size:10.5px;line-height:1.5;color:var(--muted);
+  border-top:1px solid var(--line);padding-top:7px}
+#ringNext{justify-self:start}
+
 /* WHICH LETTER IS WHICH DIRECTION. The arrows on the floor say it in the
    room; this says it in words, because an arrow pointing at the camera is
    a dot and a dot explains nothing. Bottom right, out of the feed's way. */
@@ -2515,6 +2545,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="ringFeed" class="hidden"></div>
   <div id="ringKeys" class="hidden"></div>
   <div id="ringAxes" class="hidden"></div>
+  <div id="ringStage" class="hidden"></div>
 </div>
 
 
@@ -2561,6 +2592,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <script src="robots.js?v=501"></script>
 <script src="rules.js?v=501"></script>
 <script src="templates.js?v=501"></script>
+<script src="stages.js?v=501"></script>
 <script src="pit.js?v=501"></script>
 <script src="ring.js?v=501"></script>
 <script src="combat.js?v=501"></script>

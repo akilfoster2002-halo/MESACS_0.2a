@@ -138,7 +138,51 @@ window.RING = (function(){
               '#crosshair','#focus','#briefing'];
 
   let on=false, wasFP=null, camX=0, camY=0, spec=null, axisRoot=null;
-  let fighting=false, over=null, banner='';
+  let fighting=false, over=null, banner='', rang=-1;
+
+  /* ------------------------------------------------------- the stages
+     WHICH ROOM OF THE FIVE YOU ARE IN. The ring used to open on a fight;
+     it opens on whichever stage you have reached, and the stage decides
+     the palette, whether Ambush is in the room at all, and what has to
+     happen before the next one unlocks. See stages.js.
+
+     `run` is everything a stage's tests are allowed to ask about the
+     world, and it is cleared every time Run is pressed — a stage is
+     judged on one run of the program, not on everything that has ever
+     happened in the room. */
+  const ST = ()=>window.STAGES;
+  let stage=0, cleared=false;
+  let run=fresh();
+  function fresh(){
+    return { frames:{ left:0, right:0, in:0, out:0 },
+             gapMin:Infinity, said:false, won:false,
+             swings:{ asked:0, landed:0, broke:0, far:0 } };
+  }
+  const SKEY='ring_stage';
+  function loadStage(){
+    let v=null;
+    if(window.PROGRESS) v=PROGRESS.get(SKEY, null);
+    if(v===null||v===undefined){
+      try{ v=JSON.parse(localStorage.getItem('dq_'+SKEY)||'null'); }catch(e){ v=null; }
+    }
+    stage=Math.max(0, Math.min(ST()?ST().LAST:0, (v|0)||0));
+  }
+  function saveStage(){
+    if(window.PROGRESS) PROGRESS.set(SKEY, stage);
+    try{ localStorage.setItem('dq_'+SKEY, JSON.stringify(stage)); }catch(e){}
+  }
+  const spot = () => ST() ? ST().byIndex(stage) : null;
+  /* What the stage's tests are handed. The counters are the ring's; the
+     script questions are asked of the robot the student is writing. */
+  function ctx(){
+    const me=VM.actorByName(ACTOR);
+    return Object.assign({}, run, {
+      me, foe:VM.actorByName((window.TEMPLATES||{}).FOE),
+      uses:  op => ST().uses(me, op),
+      reads: v  => ST().reads(me, v),
+      writes:v  => ST().writes(me, v)
+    });
+  }
 
   /* ------------------------------------------------------------ start */
   function start(robotId, addTemplates){
@@ -167,6 +211,7 @@ window.RING = (function(){
        browser last had in the sandbox. */
     VM.useSlot(SLOT);
     VM.enter(G.roomGroup);
+    loadStage();
     const bot=ensureRobot();
     const foe=ensureFoe();
     (addTemplates||[]).forEach(id=>install(id, bot));
@@ -174,14 +219,22 @@ window.RING = (function(){
     /* On their marks with full bars, before a single script runs — so
        the HUD is never showing last round's numbers while the pit's
        words are still on screen. */
-    bell(bot); bell(foe);
+    bell(bot); if(foe) bell(foe);
 
     if(window.CODER){
-      CODER.restrict(PALETTE);
+      CODER.restrict(palette());
       CODER.setActor(bot);
     }
+    run=fresh(); cleared=false; seenRun=-1; rang=-1; lastPos=null;
     hint();
+    card();
     hud();
+  }
+  /* The blocks this stage hands over. Falls back to the whole ring
+     palette if stages.js is missing, because a room with no blocks in it
+     is a worse failure than a room with too many. */
+  function palette(){
+    return ST() ? Object.assign({}, ST().palette(stage)) : PALETTE;
   }
 
   /* One robot, wearing what the pit picked. Kept across visits rather
@@ -232,17 +285,36 @@ window.RING = (function(){
      or hand it a guard it does not have. */
   function ensureFoe(){
     const T=window.TEMPLATES; if(!T) return null;
+    const mode=(spot()||{}).foe || 'live';
     let f=VM.actorByName(T.FOE);
-    if(!f){
-      f=VM.addActor({ name:T.FOE, dir:0 });
+
+    /* STAGE ONE IS AN EMPTY ROOM. Learning that a conditional has to be
+       inside a loop is hard enough without something walking at you
+       while you do it, and a body standing there doing nothing invites a
+       student to spend the stage trying to hit it. */
+    if(mode==='none'){ if(f) VM.delActor(f); return null; }
+
+    if(!f) f=VM.addActor({ name:T.FOE, dir:0 });
+
+    /* A DUMMY IS THE SAME ACTOR WITH NO SCRIPTS ON IT. Not a different
+       object and not a special case in the referee — it takes punches,
+       flashes when it is hit and reports its numbers exactly as it will
+       in the fight. It simply never asks for anything, because nothing
+       is telling it to. Its strategy arrives in one piece at stage 5,
+       which is also when it becomes worth reading. */
+    if(mode==='live'){
       T.aiProcs().forEach(p=>{
         if(!VM.project.procs.find(x=>x.name===p.name))
           VM.project.procs.push(JSON.parse(JSON.stringify(p)));
       });
-      f.scripts=T.aiScripts().map((sc,i)=>
-        ({ id:'ai'+i, hat:JSON.parse(JSON.stringify(sc.hat)),
-                      body:JSON.parse(JSON.stringify(sc.body)) }));
+      if(!(f.scripts||[]).length)
+        f.scripts=T.aiScripts().map((sc,i)=>
+          ({ id:'ai'+i, hat:JSON.parse(JSON.stringify(sc.hat)),
+                        body:JSON.parse(JSON.stringify(sc.body)) }));
+    } else {
+      f.scripts=[];
     }
+
     const fs=RB().get('ambush');
     f.size=fs.height; f.x=10; f.y=fs.height/2; f.z=0; f.dir=0;
     if(f.shape!=='robots/ambush') VM.dress(f, 'robots/ambush');
@@ -311,7 +383,15 @@ window.RING = (function(){
     const T=window.TEMPLATES, R=window.RULES;
     if(!T || !R) return;
     const me=VM.actorByName(T.ME), foe=VM.actorByName(T.FOE);
-    if(!me || !foe) return;
+    if(!me) return;
+
+    /* WATCHING, WHICH IS HOW A STAGE IS MARKED. Every frame the robot is
+       under its own program, count which way it went — frames and not
+       distance, because the difference between a control and a twitch is
+       how many frames in a row it happens for, and `change x by 40` in a
+       conditional that is checked once must not read as success. */
+    watch(dt, me, foe);
+    if(!foe) return;
 
     /* The bell. VM.running goes true the moment Run is pressed, so this
        is where a round starts — no separate button, and no way to be
@@ -327,7 +407,11 @@ window.RING = (function(){
       if(over<=0){ over=null; banner=''; }
       return;
     }
-    if(VM.running && !fighting){ fighting=true; bell(me); bell(foe); }
+    /* The bell, on the same signal and for the same reason — a restart
+       used to leave both fighters on the health the last one ended on. */
+    if(VM.running && (!fighting || rang!==VM.runId)){
+      fighting=true; rang=VM.runId; bell(me); bell(foe);
+    }
     if(!VM.running){ fighting=false; return; }
 
     /* RESOLVE EVERYTHING FIRST, STAMP AFTERWARDS, and the two have to be
@@ -346,6 +430,15 @@ window.RING = (function(){
         const gap=Math.abs((+a.x||0)-(+b.x||0));
         const r=R.resolve(sig, st.stamina, gap, !!b.vars.guard);
         st.stamina=Math.max(0, st.stamina-r.cost);
+        /* The referee's verdict is the only honest record of a punch —
+           a stage asking "did one land" must not re-derive it and get a
+           different answer from the thing that actually dealt it. */
+        if(a===me){
+          run.swings.asked++;
+          if(r.ok) run.swings.landed++;
+          else if(r.why==='no-stamina') run.swings.broke++;
+          else if(r.why==='too-far')    run.swings.far++;
+        }
         if(r.ok){
           state(b).health=R.clampHealth(state(b).health - r.damage);
           hitFx(b, r.why);
@@ -364,11 +457,21 @@ window.RING = (function(){
     me.x=sep.a; foe.x=sep.b;
     VM.sync(me); VM.sync(foe);
 
+    /* A TRAINING DUMMY DOES NOT GO DOWN. It flashes, its numbers move
+       for the frame, and then it is upright again — so a student
+       practising the same punch twenty times is never interrupted by a
+       victory they did not want and a five-second reset. */
+    if((spot()||{}).foe==='dummy'){
+      state(foe).health=R.RULES.health;
+      foe.vars.health=R.RULES.health;
+    }
+
     if(state(me).health<=R.RULES.knockout || state(foe).health<=R.RULES.knockout){
       const meDown=state(me).health<=R.RULES.knockout;
       const win = meDown && state(foe).health<=R.RULES.knockout ? 'a draw'
                 : meDown ? (RB().get('ambush').name+' wins') : 'you win';
       VM.actorByName(meDown?T.FOE:T.ME);
+      if(!meDown) run.won=true;
       announce(win);
       over=R.RULES.reset;
       /* Stop everything where it is. A round that is over is over — the
@@ -377,6 +480,110 @@ window.RING = (function(){
       fighting=false;
     }
   }
+  /* ---------------------------------------------------- the watcher
+     WHAT THE STAGE TESTS GET TO ASK ABOUT. Counted here, once a frame,
+     rather than worked out afterwards from the finished world — because
+     "got within a punch of him at some point" and "is within a punch of
+     him now" are different questions, and only the first one is fair to
+     a program that closed in, hit, and backed off again.
+
+     Only while the program is RUNNING. A robot the student drags around
+     with the camera, or one left where last run finished, has not done
+     anything: a stage is passed by a program, or it is not passed. */
+  let lastPos=null, seenRun=-1;
+  function watch(dt, me, foe){
+    /* PRESSING RUN IS THE START OF AN ATTEMPT, and `running` cannot tell
+       you when one begins: pressing Run again while a program is already
+       going throws the threads away and starts over, and the flag is
+       true either side of that. So the VM counts its runs and this
+       watches the count. Without it a stage carried the last attempt's
+       frames and punches forward and ticked itself on the strength of a
+       program the student had already rewritten. */
+    if(VM.running){
+      if(seenRun!==VM.runId){ seenRun=VM.runId; run=fresh(); lastPos=null; }
+      const p={ x:+me.x||0, y:+me.y||0, z:+me.z||0 };
+      if(lastPos){
+        /* A hair of movement is float noise, not a step. */
+        const dx=p.x-lastPos.x, dz=p.z-lastPos.z, eps=0.0005;
+        if(dx>  eps) run.frames.right++;
+        if(dx< -eps) run.frames.left++;
+        if(dz>  eps) run.frames.out++;        // toward the camera: the language's +y
+        if(dz< -eps) run.frames.in++;
+      }
+      lastPos=p;
+      if(me.saying) run.said=true;
+      if(foe) run.gapMin=Math.min(run.gapMin, Math.abs((+me.x||0)-(+foe.x||0)));
+    } else {
+      lastPos=null;
+    }
+
+    /* THE VERDICT IS ASKED WHETHER OR NOT ANYTHING IS RUNNING, and that
+       is not a detail: winning a fight is the one finish that STOPS the
+       program — the knockout calls stopAll — so a check that only ran
+       while something was running could never see the stage it mattered
+       most for. What the run counted stands until the next run starts. */
+    if(!cleared && ST() && ST().done(stage, ctx())) clear();
+  }
+  /* A stage is finished. The next one is NOT entered here — a student
+     who has just made something work should get to watch it work, and be
+     the one who says when they are done with it. */
+  function clear(){
+    cleared=true;
+    const s=spot();
+    announce(T('STAGE')+' '+s.n+' — '+T(s.name)+' · '+T('CLEARED'));
+    saveReached();
+    card();
+  }
+  /* The furthest stage unlocked, which is what survives the session.
+     Finishing stage 3 unlocks 4; replaying 3 afterwards never puts it
+     back. */
+  function saveReached(){
+    const reached=Math.min(ST().LAST, stage+1);
+    let far=0;
+    if(window.PROGRESS) far=PROGRESS.get('ring_far', 0)|0;
+    if(reached>far){
+      if(window.PROGRESS) PROGRESS.set('ring_far', reached);
+      try{ localStorage.setItem('dq_ring_far', JSON.stringify(reached)); }catch(e){}
+    }
+  }
+  /* Move on. The student's scripts are untouched — the whole point is
+     that the movement they wrote in stage 1 is still driving the robot
+     in stage 5 — so this only changes the palette, the opponent and what
+     is being watched for. */
+  function advance(){
+    if(!cleared || !ST()) return;
+    if(stage>=ST().LAST){ leave(T('That is the whole road. Take it again whenever you like.')); return; }
+    stage++; saveStage(); saveReached();
+    cleared=false; run=fresh(); lastPos=null; seenRun=-1; rang=-1; banner='';
+    if(window.VM) VM.stopAll();
+    const bot=ensureRobot(); const foe=ensureFoe();
+    bell(bot); if(foe) bell(foe);
+    Object.keys(rigs).forEach(k=>delete rigs[k]);
+    if(window.CODER){ CODER.restrict(palette()); CODER.setActor(bot); }
+    card(); hud();
+  }
+  /* Go back and do an earlier one again. Only as far as you have got. */
+  function goTo(i){
+    if(!ST()) return;
+    const far=furthest();
+    stage=Math.max(0, Math.min(far, i|0)); saveStage();
+    cleared=false; run=fresh(); lastPos=null; seenRun=-1; rang=-1; banner='';
+    if(window.VM) VM.stopAll();
+    const bot=ensureRobot(); const foe=ensureFoe();
+    bell(bot); if(foe) bell(foe);
+    Object.keys(rigs).forEach(k=>delete rigs[k]);
+    if(window.CODER){ CODER.restrict(palette()); CODER.setActor(bot); }
+    card(); hud();
+  }
+  function furthest(){
+    let far=0;
+    if(window.PROGRESS) far=PROGRESS.get('ring_far', null);
+    if(far===null||far===undefined){
+      try{ far=JSON.parse(localStorage.getItem('dq_ring_far')||'0'); }catch(e){ far=0; }
+    }
+    return Math.max(stage, Math.min(ST().LAST, (far|0)||0));
+  }
+
   /* The referee's own copy, which is the one that counts. The actor's
      vars are a window onto it and nothing more. */
   const book={};
@@ -469,7 +676,8 @@ window.RING = (function(){
     fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
-    ['#ringFeed','#ringKeys','#ringAxes'].forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
+    ['#ringFeed','#ringKeys','#ringAxes','#ringStage']
+      .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     ['#objectives','#crosshair','#briefing']
       .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
     if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
@@ -622,7 +830,7 @@ window.RING = (function(){
     const mine=$('#ring');
     if(mine) mine.classList.toggle('hidden', coding);
     if(!coding){
-      hud();
+      hud(); card();
       /* AND THE PLANET'S PANELS STAY DOWN. CODER.hide() puts #objectives,
          #keys and #topbar back unconditionally, which is right in Free
          Play and wrong here: closing the blocks with C dropped Senio's
@@ -676,7 +884,13 @@ window.RING = (function(){
   function camera(dt){
     const T=window.TEMPLATES; if(!T) return;
     const a=VM.actorByName(T.ME), b=VM.actorByName(T.FOE);
-    const ax=a?+a.x||0:0, bx=b?+b.x||0:0;
+    const ax=a?+a.x||0:0;
+    /* AN EMPTY RING IS FRAMED ON THE ROBOT. Framing on the midpoint of
+       two fighters is right for a fight and wrong for stage one, where
+       the second fighter does not exist and counts as standing at zero —
+       so the robot drifted to the edge of the shot as it walked away
+       from a body that was not there. */
+    const bx=b?+b.x||0:ax;
     const mid=(ax+bx)/2, gap=Math.abs(ax-bx);
     const ay=a?+a.y||0:2.3;
     const k=Math.min(1, dt*2.2);
@@ -702,6 +916,12 @@ window.RING = (function(){
   function hud(){
     const el=$('#ringA'), T=window.TEMPLATES, R=window.RULES;
     if(!el || !T || !R) return;
+    /* NOTHING IS FIGHTING IN STAGE ONE, so a health bar is a number that
+       cannot move and a stamina bar is a cost nothing is charging. Both
+       arrive with the dummy, which is the stage they start to mean
+       something. */
+    const top=$('#ringTop');
+    if(top) top.classList.toggle('hidden', (spot()||{}).foe==='none');
     const row=(who, label, mine)=>{
       const a=VM.actorByName(who);
       if(!a) return '';
@@ -730,6 +950,56 @@ window.RING = (function(){
      enough. */
   function announce(text){ banner=text||''; }
 
+  /* ------------------------------------------------------- the card
+     WHAT THIS STAGE WANTS, AND HOW FAR YOU ARE. The checklist is the
+     important half: a goal is a sentence a student can misread, and a
+     row that ticks itself the instant the world satisfies it cannot be.
+     They also say, by not ticking, exactly which half is missing — which
+     is the difference between "it does not work" and "the robot moves
+     right but never left".
+
+     Redrawn on every change rather than every frame; the watcher calls
+     it when a stage clears, and hud() is the only thing on a timer. */
+  function card(){
+    const el=$('#ringStage'); if(!el || !ST()) return;
+    const s=spot(), far=furthest();
+    const rows=ST().progress(stage, ctx());
+    const road=ST().LIST.map((x,i)=>{
+      /* WHERE YOU ARE WINS OVER WHERE YOU HAVE BEEN. Ordered the other
+         way round, going back to redo stage 2 left 2 looking finished
+         and nothing on the road showing which one you were standing
+         in. */
+      const cell = i===stage ? 'now' : i<far ? 'done' : i<=far ? 'open' : 'shut';
+      return `<button class="ring-step ${cell}" data-go="${i}"
+                ${i>far?'disabled':''} title="${escHtml(T(x.name))}">${x.n}</button>`;
+    }).join('');
+    el.innerHTML=`
+      <div class="ring-stage-road">${road}</div>
+      <div class="ring-stage-card" style="--a:${s.a}">
+        <div class="ring-stage-head"><span class="ring-stage-em">${s.em}</span>
+          <div><b>${escHtml(T(s.name))}</b><small>${escHtml(T(s.teach))}</small></div></div>
+        <p class="ring-stage-goal">${escHtml(T(s.goal))}</p>
+        <div class="ring-stage-tests">${rows.map(r=>{
+          /* Once it is cleared it stays cleared. The list answers "what
+             is left to do", and after a student has done it the answer
+             is nothing — not "nothing since you last pressed Run". */
+          const ok=r.ok||cleared;
+          return `<div class="${ok?'ok':''}"><i>${ok?'✔':'○'}</i><span>${escHtml(T(r.say))}</span></div>`;
+          }).join('')}</div>
+        <p class="ring-stage-why">${escHtml(T(s.why))}</p>
+        ${cleared ? `<button class="btn good small" id="ringNext">${
+            stage>=ST().LAST ? T('DONE ▶') : T('NEXT STAGE ▶')}</button>` : ''}
+      </div>`;
+    el.classList.remove('hidden');
+    const nx=$('#ringNext'); if(nx) nx.onclick=advance;
+    el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>goTo(+b.dataset.go));
+  }
+  /* Not `esc` — hint() already has a local of that name holding a DOM
+     node, and one of them shadowing the other is a trap waiting to be
+     stood on. */
+  const escHtml = s => String(s==null?'':s).replace(/[&<>"]/g,
+    c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
   /* The one sentence that is worth more than any other on this screen,
      and the reason it is here rather than in a help bubble: a student
      whose robot twitched once and stopped has written the commonest
@@ -750,6 +1020,8 @@ window.RING = (function(){
     if(msg && window.say) window.say(msg);
   }
 
-  return { start, stop, tick, leave, PALETTE, SLOT, ACTOR,
-           get active(){ return on; } };
+  return { start, stop, tick, leave, advance, goTo, PALETTE, SLOT, ACTOR,
+           get active(){ return on; },
+           get stage(){ return stage; },
+           get cleared(){ return cleared; } };
 })();

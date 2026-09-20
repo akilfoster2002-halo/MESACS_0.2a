@@ -541,12 +541,20 @@ window.VM = (function(){
     });
     return made;
   }
+  /* WHICH RUN THIS IS. Pressing Run while something is already running
+     is a RESTART — the threads are thrown away and begun again — but
+     `running` was true before and is true after, so anything watching
+     that flag for the start of an attempt never sees one. A counter that
+     only goes up is the honest signal, and the ring's stages are judged
+     one run at a time. */
+  let runId=0;
   function greenFlag(){
+    runId++;
     threads=[]; t0=performance.now(); running=true;
     P.actors.filter(a=>a.isClone).slice().forEach(delActor);   // clones do not survive a restart
     startHats('event.flag');
   }
-  function stopAll(){ running=false; threads=[]; P.actors.forEach(a=>bubble(a,'')); }
+  function stopAll(){ runId++; running=false; threads=[]; P.actors.forEach(a=>bubble(a,'')); }
 
   let keyWas={};
   function step(dt){
@@ -702,6 +710,7 @@ window.VM = (function(){
   return {
     get project(){ return P; },
     get running(){ return running; },
+    get runId(){ return runId; },
     get threadCount(){ return threads.length; },
     enter, leave, step, save, load, wipe, reset, resetActor, dress, setHome, runBlock, ghostMesh, useSlot,
     adopt, install, stageCam, reframe, plain,
