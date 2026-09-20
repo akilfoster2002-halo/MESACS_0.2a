@@ -356,6 +356,24 @@ body.con-open #briefing{display:none}
 .chint.dim{color:var(--muted)} .chint.bad{color:var(--bad)}
 #cPal{position:absolute;left:10px;top:62px;bottom:10px;width:252px;overflow:auto;pointer-events:auto;
   background:rgba(20,15,36,.96);border:2px solid var(--line);border-radius:14px;padding:10px}
+/* THE WALKTHROUGH TALKS INSIDE THE EDITOR. A card floating over the middle
+   of the screen is a card sitting on top of the block it is telling you to
+   click; this sits across the top of the panel a student is already looking
+   at, and the ring around the target does the pointing. */
+#cCoach{position:absolute;left:10px;right:10px;top:56px;z-index:4;
+  background:linear-gradient(180deg,#3b3059,#2e2547);border:1px solid var(--star);
+  border-radius:12px;padding:9px 13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  box-shadow:0 10px 26px rgba(0,0,0,.45)}
+#cCoach.ok{border-color:var(--good)}
+#cCoach .ctstep{font-size:10.5px;letter-spacing:1.6px;color:var(--star);font-weight:bold}
+#cCoach.ok .ctstep{color:var(--good)}
+#cCoach .cttext{flex:1;min-width:200px;font-size:14px;line-height:1.4;color:var(--text)}
+#cCoach .cttext b{color:var(--star)}
+#cCoach .ctskip{background:none;border:0;color:var(--muted);font-size:11px;
+  text-decoration:underline;cursor:pointer;font-family:inherit}
+/* and the panels move down to make room for it */
+#coder.walking #cPal,#coder.walking #cScript{top:112px}
+
 #cScript{position:absolute;right:10px;top:62px;bottom:10px;width:min(560px,46vw);overflow:auto;
   pointer-events:auto;background:rgba(20,15,36,.96);border:2px solid var(--line);
   border-radius:14px;padding:10px}
@@ -1866,30 +1884,50 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    checklist is the load-bearing part: a row that ticks itself the
    instant the world satisfies it says which HALF is missing, which a
    goal sentence cannot. */
-#ringStage{position:absolute;left:14px;top:112px;width:296px;pointer-events:auto;
+#ringStage{position:absolute;left:14px;top:112px;width:236px;pointer-events:auto;
   display:grid;gap:8px}
-.ring-stage-road{display:flex;gap:5px}
-.ring-step{flex:1;height:26px;border-radius:8px;border:1px solid var(--line);
-  background:rgba(16,12,30,.8);color:var(--muted);font-family:var(--font-code);
-  font-size:12px;cursor:pointer;transition:background .12s,color .12s}
-.ring-step.done{background:#2f4f3f;color:var(--good);border-color:var(--good)}
-.ring-step.now {background:var(--star);color:#241d38;border-color:var(--star);font-weight:bold}
-.ring-step.shut{opacity:.35;cursor:not-allowed}
+
+/* THE WAY IN, as a button and not a sentence about a key. A student who
+   has to be told "press C" has been given a thing to remember; a button
+   that glows when the walkthrough points at it has been given a thing to
+   press. The key still works. */
+#ringOpen{position:absolute;left:14px;top:60px;pointer-events:auto;
+  background:var(--star);color:#241d38;border:0;border-radius:11px;
+  padding:9px 15px;font-family:var(--font-disp);font-size:14px;letter-spacing:1.4px;
+  font-weight:bold;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+#ringOpen small{opacity:.6;font-size:11px;margin-left:6px}
+/* HOW FAR THROUGH, as dots rather than a number — it says "nearly there"
+   at a glance and costs no reading. */
+.ring-stage-dots{display:flex;gap:4px;flex-wrap:wrap}
+.ring-stage-dots i{width:9px;height:9px;border-radius:50%;background:var(--line);
+  transition:background .15s,transform .15s}
+.ring-stage-dots i.on{background:var(--good)}
+.ring-stage-dots i.now{background:var(--star);transform:scale(1.35)}
 .ring-stage-card{background:rgba(16,12,30,.86);border:1px solid var(--line);
   border-left:4px solid var(--a);border-radius:12px;padding:10px 12px;display:grid;gap:7px}
 .ring-stage-head{display:flex;align-items:center;gap:8px}
 .ring-stage-em{font-size:19px}
 .ring-stage-head b{display:block;font-size:13px;letter-spacing:1.2px;color:var(--text)}
 .ring-stage-head small{display:block;font-size:10px;letter-spacing:.6px;color:var(--a)}
-.ring-stage-goal{margin:0;font-size:12px;line-height:1.45;color:var(--text)}
-.ring-stage-tests{display:grid;gap:3px}
-.ring-stage-tests div{display:flex;gap:6px;align-items:flex-start;font-size:11px;
-  line-height:1.35;color:var(--muted)}
-.ring-stage-tests div.ok{color:var(--good)}
-.ring-stage-tests i{font-style:normal;width:11px;flex:none}
-.ring-stage-why{margin:0;font-size:10.5px;line-height:1.5;color:var(--muted);
-  border-top:1px solid var(--line);padding-top:7px}
 #ringNext{justify-self:start}
+
+/* THE FIVE MISSIONS, as a row you pick from. */
+/* an empty rule sheet is not a thin empty box */
+.pit-rules:empty{display:none}
+.pit-missions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;
+  margin-top:14px}
+.pit-mis{position:relative;text-align:left;background:rgba(16,12,30,.7);
+  border:1px solid var(--line);border-left:4px solid var(--a);border-radius:12px;
+  padding:10px 12px;cursor:pointer;color:var(--muted);font-family:inherit;
+  display:grid;gap:2px;transition:background .12s,border-color .12s}
+.pit-mis:hover{background:rgba(40,32,66,.9)}
+.pit-mis.on{background:rgba(52,42,84,.95);border-color:var(--star)}
+.pit-mis-n{position:absolute;right:10px;top:8px;font-family:var(--font-code);
+  font-size:11px;color:var(--line)}
+.pit-mis.on .pit-mis-n{color:var(--star)}
+.pit-mis-em{font-size:17px}
+.pit-mis b{font-size:12.5px;letter-spacing:1.1px;color:var(--text)}
+.pit-mis small{font-size:10.5px;line-height:1.35;color:var(--muted)}
 
 /* WHICH LETTER IS WHICH DIRECTION. The arrows on the floor say it in the
    room; this says it in words, because an arrow pointing at the camera is
@@ -2504,6 +2542,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 <div id="coder" class="hidden">
   <div id="cBar"></div>
   <div id="cObj"></div>
+  <div id="cCoach" class="hidden"></div>
   <div id="cPal"></div>
   <div id="cScript"></div>
 </div>
@@ -2546,6 +2585,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="ringKeys" class="hidden"></div>
   <div id="ringAxes" class="hidden"></div>
   <div id="ringStage" class="hidden"></div>
+  <button id="ringOpen" class="hidden">▦ BLOCKS <small>C</small></button>
 </div>
 
 

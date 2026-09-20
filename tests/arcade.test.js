@@ -57,7 +57,10 @@ test('a visitor never writes on the author', ()=>{
   /* Playing somebody's game runs THEIR project in YOUR browser, and their
      program can spawn clones, move objects and set variables. None of it
      may be saved: not over their copy, and not over your own sandbox. */
-  assert.match(vm, /function save\(\)\{\s*if\(quiet \|\| visiting\) return;/,
+  /* Matched on the guard CONTAINING visiting rather than being exactly it:
+     scratch projects are a third thing that must never be written, and a
+     test that pins the whole condition makes adding one a failure. */
+  assert.match(vm, /function save\(\)\{\s*if\([^)]*\bvisiting\b[^)]*\) return;/,
     'saving is not turned off while visiting somebody else’s game');
   assert.match(vm, /if\(!visiting\) load\(\);/,
     'enter() still loads over an adopted project, which would open the sandbox instead');

@@ -518,7 +518,7 @@ function startMissionRoom(id){
      back and change your mind. */
   if(id==='ring'){
     if(!window.PIT || !window.RING) return;
-    PIT.show({ onGo:(robot, templates)=>RING.start(robot, templates) });
+    PIT.show({ onGo:(robot, templates, mission)=>RING.start(robot, templates, mission) });
     return;
   }
   /* The investigation builds its own district out of the same kit the

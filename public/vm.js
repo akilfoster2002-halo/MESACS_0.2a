@@ -625,12 +625,17 @@ window.VM = (function(){
       vars:P.vars, lists:P.lists, procs:P.procs, msgs:P.msgs, uid, stage:P.stage
     };
   }
+  let scratch=false;
   function save(){
-    if(quiet || visiting) return;    // a visitor never writes on the author
+    if(quiet || visiting || scratch) return;   // a visitor never writes on the
+                                               // author, and scratch keeps nothing
     try{ localStorage.setItem(KEY, JSON.stringify(plain())); }catch(e){}
   }
   function load(){
     let raw=null;
+    /* A scratch project opens empty every single time. Reading the slot
+       would be the one thing it exists not to do. */
+    if(scratch){ quiet++; reset(); quiet--; return; }
     try{ raw=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
     quiet++; reset(); quiet--;
     if(raw && Array.isArray(raw.actors)){
@@ -649,7 +654,19 @@ window.VM = (function(){
   /* ------------------------------------------------------------- mount */
   /* Which project the NEXT enter() will open. Set before the room is built,
      because the room is what calls enter(). */
-  function useSlot(slot){ KEY = slot || SANDBOX; visiting=false; }
+  function useSlot(slot){ KEY = slot || SANDBOX; visiting=false; scratch=false; }
+  /* ------------------------------------------------------------ scratch
+     A PROJECT THAT IS NOT KEPT. Nothing is read when it opens and nothing
+     is written while it runs, so every entry is the same empty room — no
+     half-finished script from last lesson, no blocks somebody else left
+     on the floor, and no way for a walkthrough to be talking about a
+     program that is already written.
+
+     This is not `quiet`, which suspends saving for a moment and then puts
+     it back, and not `visiting`, which protects somebody ELSE's project
+     from being overwritten by yours. It says this project was never meant
+     to outlive the room. */
+  function useScratch(){ visiting=false; scratch=true; }
   function enter(parent){
     if(group && group.parent) group.parent.remove(group);
     /* A visitor's project is already in P — adopt() put it there — and
@@ -712,7 +729,9 @@ window.VM = (function(){
     get running(){ return running; },
     get runId(){ return runId; },
     get threadCount(){ return threads.length; },
-    enter, leave, step, save, load, wipe, reset, resetActor, dress, setHome, runBlock, ghostMesh, useSlot,
+    enter, leave, step, save, load, wipe, reset, resetActor, dress, setHome, runBlock, ghostMesh,
+    useSlot, useScratch,
+    get scratch(){ return scratch; },
     adopt, install, stageCam, reframe, plain,
     get visiting(){ return visiting; },
     get flat(){ return isFlat(); },

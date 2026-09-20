@@ -269,6 +269,9 @@ window.COACH = (function(){
      nothing else is. */
   const bold=s=>s.replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>');
   return { start, stop, tick, get running(){ return !!steps && !done; },
+           /* how far through, for anything drawing a progress mark */
+           get index(){ return at; },
+           get total(){ return steps ? steps.length : 0; },
            /* so the ownership marks can stand aside for the louder pointer */
            get pointingAt(){ return beacon ? beacon.a : null; } };
 })();

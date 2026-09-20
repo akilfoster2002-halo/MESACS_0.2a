@@ -34,9 +34,29 @@ window.CODER = (function(){
 
   function current(){ if(!actor) actor=VM.project.actors.find(a=>!a.isClone)||null; return actor; }
   function setActor(a){ actor=a; cursor=null; slotTarget=null; selected=null; render(); }
+  /* NARROW THE SHELVES AND TOUCH NOTHING ELSE.
+
+     restrict() below also lets go of the object being edited, the cursor
+     and the armed slot, which is right when the ROOM changes — the actor
+     it was pointing at is about to stop existing. A walkthrough calls
+     this on every single step, and there it was a disaster: the student
+     clicked the gap inside the loop, the step advanced, the rails were
+     re-applied, and the cursor they had just placed was gone — so the
+     next block they clicked landed underneath the loop instead of inside
+     it, which is the exact mistake the stage exists to prevent. */
+  function narrow(spec){
+    only = spec||null;
+    if(!cats().some(c=>c.id===cat)) cat = cats()[0].id;
+    render();
+  }
   function restrict(spec){
     only = spec||null;
-    cat = cats()[0].id;
+    /* KEEP THE SHELF THE STUDENT IS ON. Resetting to the first category
+       every time was fine when restrict() was called once on the way into
+       a room; a walkthrough calls it on every step, and a student who had
+       just been told to click Sensing watched it snap back to Control the
+       instant they did. */
+    if(!cats().some(c=>c.id===cat)) cat = cats()[0].id;
     /* the project changes with the mission, so let go of the object that was
        being edited — it is about to stop existing, and a chip naming a deleted
        object edits nothing */
@@ -279,7 +299,7 @@ window.CODER = (function(){
     const a=current(), el=$('#cScript');
     const chips=`<div class="cchips">${
       VM.project.actors.filter(x=>!x.isClone).map(x=>`
-        <button class="cchip${x===a&&!editingProc?' on':''}" data-a="${x.id}">
+        <button class="cchip${x===a&&!editingProc?' on':''}" data-a="${x.id}" data-name="${esc(x.name)}">
           <span class="cdot" style="background:${x.colour}"></span>${esc(x.name)}</button>`).join('')}
       ${only&&only.locked?'':'<button class="cchip add" id="cAddObj">+</button>'}
       ${a?`${only&&only.locked?'':`<button class="bx" id="cCos" title="${t('Change costume')}">🎭</button>`}
@@ -854,6 +874,48 @@ window.CODER = (function(){
 
   addEventListener('keydown', keys, true);
 
+  /* ------------------------------------------------- the walkthrough
+     Everything COACH needs from the editor and nothing more: somewhere to
+     put its card, a way to open the shelf a step is pointing at, and the
+     stripe down the panel that says a walkthrough is running. */
+  const coachHost = () => open ? $('#cCoach') : null;
+  const actorName = () => (current()||{}).name || '';
+  const slotArmed = () => !!slotTarget;
+  /* WHICH BLOCK'S MOUTH THE CURSOR IS IN, by op, or '' for the top level.
+
+     It cannot be asked of the DOM — a cursor is a list and an index — so
+     the answer is which block's BODY that list is.
+
+     IT HAS TO NAME THE BLOCK, not just say yes. A walkthrough asks twice:
+     once for the gap inside the loop and once, later, for the gap inside
+     the `if` that went in it. Two steps answering the same yes is two
+     steps COACH cannot tell apart, and since it stands just past the LAST
+     step that is true, clicking the first gap jumped the student seven
+     steps forward into a script they had not written yet. */
+  function armedInside(){
+    if(!cursor || !cursor.list) return '';
+    let op='';
+    const look=list=>{ (list||[]).forEach(b=>{
+      if(b.body){ if(b.body===cursor.list) op=b.op; look(b.body); }
+      if(b.body2){ if(b.body2===cursor.list) op=b.op; look(b.body2); }
+    }); };
+    const a=current();
+    ((a||{}).scripts||[]).forEach(sc=>look(sc.body));
+    (VM.project.procs||[]).forEach(pr=>look(pr.body));
+    return op;
+  }
+  const armedInMouth = () => !!armedInside();
+  function openCat(id){
+    if(!cats().some(c=>c.id===id)) return false;
+    if(cat!==id){ cat=id; render(); }
+    return true;
+  }
+  const shelf = () => cat;
+  function walking(on){
+    const el=$('#coder'); if(el) el.classList.toggle('walking', !!on);
+    if(!on){ const h=$('#cCoach'); if(h){ h.classList.add('hidden'); h.innerHTML=''; } }
+  }
   return { show, hide, toggle, render, tick, setActor, restrict, openOn,
+           coachHost, openCat, shelf, walking, actorName, slotArmed, armedInMouth, armedInside, narrow,
            get open(){ return open; } };
 })();

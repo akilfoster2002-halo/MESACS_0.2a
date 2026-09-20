@@ -158,36 +158,48 @@ window.RING = (function(){
              gapMin:Infinity, said:false, won:false,
              swings:{ asked:0, landed:0, broke:0, far:0 } };
   }
-  const SKEY='ring_stage';
-  function loadStage(){
-    let v=null;
-    if(window.PROGRESS) v=PROGRESS.get(SKEY, null);
-    if(v===null||v===undefined){
-      try{ v=JSON.parse(localStorage.getItem('dq_'+SKEY)||'null'); }catch(e){ v=null; }
-    }
-    stage=Math.max(0, Math.min(ST()?ST().LAST:0, (v|0)||0));
-  }
-  function saveStage(){
-    if(window.PROGRESS) PROGRESS.set(SKEY, stage);
-    try{ localStorage.setItem('dq_'+SKEY, JSON.stringify(stage)); }catch(e){}
-  }
   const spot = () => ST() ? ST().byIndex(stage) : null;
-  /* What the stage's tests are handed. The counters are the ring's; the
-     script questions are asked of the robot the student is writing. */
+  /* Everything a step is allowed to ask about the world.
+
+     EVERY FIELD IS A GETTER, and that is the whole design of it. COACH is
+     handed this object ONCE, when the walkthrough starts, and then asks
+     it the same questions sixty times a second for the next ten minutes.
+     Built with Object.assign it was a photograph: the frame counts were
+     the counts at the moment the student walked in — zero — and stayed
+     zero however far the robot ran, so the last step of every stage could
+     never come true. Worse, it was silent: the steps that read the SCRIPT
+     kept working, because those went and looked the actor up again.
+
+     It also means `run` can be replaced wholesale when a new run starts
+     without anything going stale. */
   function ctx(){
-    const me=VM.actorByName(ACTOR);
-    return Object.assign({}, run, {
-      me, foe:VM.actorByName((window.TEMPLATES||{}).FOE),
-      uses:  op => ST().uses(me, op),
-      reads: v  => ST().reads(me, v),
-      writes:v  => ST().writes(me, v)
-    });
+    const me = () => VM.actorByName(ACTOR);
+    return {
+      get me(){ return me(); },
+      get actor(){ return me(); },
+      get foe(){ return VM.actorByName((window.TEMPLATES||{}).FOE); },
+      get frames(){ return run.frames; },
+      get swings(){ return run.swings; },
+      get gapMin(){ return run.gapMin; },
+      get said(){ return run.said; },
+      get won(){ return run.won; },
+      uses:  op => ST().uses(me(), op),
+      reads: v  => ST().reads(me(), v),
+      writes:v  => ST().writes(me(), v),
+      host: ()=> (window.CODER && CODER.open) ? CODER.coachHost() : null,
+      finish: T('That is the whole of it. Take it again, or take the next one.'),
+      onStep: onStep
+    };
   }
 
   /* ------------------------------------------------------------ start */
-  function start(robotId, addTemplates){
+  /* WHICH MISSION, EVERY TIME. Nothing is stored, so the stage cannot be
+     resumed — it is chosen on the way in, in the pit, and this room has
+     never heard of the one before it. */
+  function start(robotId, addTemplates, stageIx){
     stop();
     on=true;
+    stage=Math.max(0, Math.min(ST()?ST().LAST:0, stageIx|0));
     spec=RB().get(robotId);
     camX=0; camY=spec.height/2;
 
@@ -202,6 +214,8 @@ window.RING = (function(){
     $('#hud').classList.remove('hidden');
     $('#ring').classList.remove('hidden');
     $('#ringKeys').classList.remove('hidden');
+    const ob=$('#ringOpen');
+    if(ob){ ob.classList.remove('hidden'); ob.onclick=()=>{ if(window.CODER) CODER.toggle(); }; }
     legend();
 
     build();
@@ -209,9 +223,14 @@ window.RING = (function(){
     /* SAY WHICH PROJECT BEFORE MOUNTING IT. enter() is what opens the
        slot, so useSlot has to come first or the ring opens whatever this
        browser last had in the sandbox. */
-    VM.useSlot(SLOT);
+    /* NOTHING IS KEPT. A mission opens the same empty room every time —
+       no half-written script from last lesson, nothing somebody else left
+       on the floor, and no way for step one to be talking about a program
+       that is already finished. It also means a student can wreck it
+       completely and the cure is to walk out and walk back in. */
+    VM.useScratch();
+    forget();
     VM.enter(G.roomGroup);
-    loadStage();
     const bot=ensureRobot();
     const foe=ensureFoe();
     (addTemplates||[]).forEach(id=>install(id, bot));
@@ -229,7 +248,21 @@ window.RING = (function(){
     hint();
     card();
     hud();
+    walk();
   }
+  /* AND THE OLD ONES GO. Earlier builds of this room kept a project and a
+     stage number in the browser, and a student who used one still has
+     them — a whole saved script sitting under a promise that nothing is
+     saved. Swept once on the way in rather than left to rot, because
+     "nothing is kept" is not true while the last thing that was kept is
+     still there. */
+  const STALE=['dq_ring','dq_ring_stage','dq_ring_far'];
+  function forget(){
+    STALE.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    if(window.PROGRESS){ try{ PROGRESS.set('ring_stage',undefined);
+                              PROGRESS.set('ring_far',undefined); }catch(e){} }
+  }
+
   /* The blocks this stage hands over. Falls back to the whole ring
      palette if stages.js is missing, because a room with no blocks in it
      is a worse failure than a room with too many. */
@@ -517,72 +550,28 @@ window.RING = (function(){
       lastPos=null;
     }
 
-    /* THE VERDICT IS ASKED WHETHER OR NOT ANYTHING IS RUNNING, and that
-       is not a detail: winning a fight is the one finish that STOPS the
-       program — the knockout calls stopAll — so a check that only ran
-       while something was running could never see the stage it mattered
-       most for. What the run counted stands until the next run starts. */
-    if(!cleared && ST() && ST().done(stage, ctx())) clear();
+    /* WHO DECIDES A STAGE IS FINISHED. Not this — COACH does, because a
+       stage IS its list of steps and the last step is the finish. The
+       ring hears about it through onStep(null), which is also what takes
+       the rails off. All the watcher does is keep the numbers those
+       steps read. */
   }
   /* A stage is finished. The next one is NOT entered here — a student
      who has just made something work should get to watch it work, and be
      the one who says when they are done with it. */
+  /* A stage is finished when its last step is. COACH says so; the ring
+     just stops asking and offers the way out. */
   function clear(){
+    if(cleared) return;
     cleared=true;
     const s=spot();
-    announce(T('STAGE')+' '+s.n+' — '+T(s.name)+' · '+T('CLEARED'));
-    saveReached();
+    announce(T('STAGE')+' '+s.n+' \u2014 '+T(s.name)+' \u00b7 '+T('CLEARED'));
     card();
   }
-  /* The furthest stage unlocked, which is what survives the session.
-     Finishing stage 3 unlocks 4; replaying 3 afterwards never puts it
-     back. */
-  function saveReached(){
-    const reached=Math.min(ST().LAST, stage+1);
-    let far=0;
-    if(window.PROGRESS) far=PROGRESS.get('ring_far', 0)|0;
-    if(reached>far){
-      if(window.PROGRESS) PROGRESS.set('ring_far', reached);
-      try{ localStorage.setItem('dq_ring_far', JSON.stringify(reached)); }catch(e){}
-    }
-  }
-  /* Move on. The student's scripts are untouched — the whole point is
-     that the movement they wrote in stage 1 is still driving the robot
-     in stage 5 — so this only changes the palette, the opponent and what
-     is being watched for. */
-  function advance(){
-    if(!cleared || !ST()) return;
-    if(stage>=ST().LAST){ leave(T('That is the whole road. Take it again whenever you like.')); return; }
-    stage++; saveStage(); saveReached();
-    cleared=false; run=fresh(); lastPos=null; seenRun=-1; rang=-1; banner='';
-    if(window.VM) VM.stopAll();
-    const bot=ensureRobot(); const foe=ensureFoe();
-    bell(bot); if(foe) bell(foe);
-    Object.keys(rigs).forEach(k=>delete rigs[k]);
-    if(window.CODER){ CODER.restrict(palette()); CODER.setActor(bot); }
-    card(); hud();
-  }
-  /* Go back and do an earlier one again. Only as far as you have got. */
-  function goTo(i){
-    if(!ST()) return;
-    const far=furthest();
-    stage=Math.max(0, Math.min(far, i|0)); saveStage();
-    cleared=false; run=fresh(); lastPos=null; seenRun=-1; rang=-1; banner='';
-    if(window.VM) VM.stopAll();
-    const bot=ensureRobot(); const foe=ensureFoe();
-    bell(bot); if(foe) bell(foe);
-    Object.keys(rigs).forEach(k=>delete rigs[k]);
-    if(window.CODER){ CODER.restrict(palette()); CODER.setActor(bot); }
-    card(); hud();
-  }
-  function furthest(){
-    let far=0;
-    if(window.PROGRESS) far=PROGRESS.get('ring_far', null);
-    if(far===null||far===undefined){
-      try{ far=JSON.parse(localStorage.getItem('dq_ring_far')||'0'); }catch(e){ far=0; }
-    }
-    return Math.max(stage, Math.min(ST().LAST, (far|0)||0));
-  }
+  /* Leaving is the only way on, because nothing here is kept: the way to
+     stage two is to walk out and pick stage two, in a room that has never
+     seen your stage-one script. */
+  function done(){ leave(); }
 
   /* The referee's own copy, which is the one that counts. The actor's
      vars are a window onto it and nothing more. */
@@ -667,7 +656,9 @@ window.RING = (function(){
   function stop(){
     if(!on) return;
     on=false;
+    if(window.COACH) COACH.stop();
     if(window.CODER){
+      CODER.walking(false);
       if(CODER.open) CODER.hide();
       CODER.restrict(null);       // hand the whole palette back to Free Play
     }
@@ -676,7 +667,7 @@ window.RING = (function(){
     fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
-    ['#ringFeed','#ringKeys','#ringAxes','#ringStage']
+    ['#ringFeed','#ringKeys','#ringAxes','#ringStage','#ringOpen']
       .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     ['#objectives','#crosshair','#briefing']
       .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
@@ -820,6 +811,7 @@ window.RING = (function(){
     if(!on) return;
     if(window.VM) VM.step(dt);
     referee(dt);
+    if(window.COACH) COACH.tick(dt);
     if(window.CODER) CODER.tick(dt);
     drive(dt);
     camera(dt);
@@ -960,54 +952,82 @@ window.RING = (function(){
 
      Redrawn on every change rather than every frame; the watcher calls
      it when a stage clears, and hud() is the only thing on a timer. */
-  function card(){
-    const el=$('#ringStage'); if(!el || !ST()) return;
-    const s=spot(), far=furthest();
-    const rows=ST().progress(stage, ctx());
-    const road=ST().LIST.map((x,i)=>{
-      /* WHERE YOU ARE WINS OVER WHERE YOU HAVE BEEN. Ordered the other
-         way round, going back to redo stage 2 left 2 looking finished
-         and nothing on the road showing which one you were standing
-         in. */
-      const cell = i===stage ? 'now' : i<far ? 'done' : i<=far ? 'open' : 'shut';
-      return `<button class="ring-step ${cell}" data-go="${i}"
-                ${i>far?'disabled':''} title="${escHtml(T(x.name))}">${x.n}</button>`;
-    }).join('');
-    el.innerHTML=`
-      <div class="ring-stage-road">${road}</div>
-      <div class="ring-stage-card" style="--a:${s.a}">
-        <div class="ring-stage-head"><span class="ring-stage-em">${s.em}</span>
-          <div><b>${escHtml(T(s.name))}</b><small>${escHtml(T(s.teach))}</small></div></div>
-        <p class="ring-stage-goal">${escHtml(T(s.goal))}</p>
-        <div class="ring-stage-tests">${rows.map(r=>{
-          /* Once it is cleared it stays cleared. The list answers "what
-             is left to do", and after a student has done it the answer
-             is nothing — not "nothing since you last pressed Run". */
-          const ok=r.ok||cleared;
-          return `<div class="${ok?'ok':''}"><i>${ok?'✔':'○'}</i><span>${escHtml(T(r.say))}</span></div>`;
-          }).join('')}</div>
-        <p class="ring-stage-why">${escHtml(T(s.why))}</p>
-        ${cleared ? `<button class="btn good small" id="ringNext">${
-            stage>=ST().LAST ? T('DONE ▶') : T('NEXT STAGE ▶')}</button>` : ''}
-      </div>`;
-    el.classList.remove('hidden');
-    const nx=$('#ringNext'); if(nx) nx.onclick=advance;
-    el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>goTo(+b.dataset.go));
-  }
   /* Not `esc` — hint() already has a local of that name holding a DOM
      node, and one of them shadowing the other is a trap waiting to be
      stood on. */
   const escHtml = s => String(s==null?'':s).replace(/[&<>"]/g,
     c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function card(){
+    const el=$('#ringStage'); if(!el || !ST()) return;
+    const s=spot();
+    /* WHAT IS LEFT OF THE CARD. The goal and the reasoning have moved into
+       the walkthrough, a sentence at a time, beside the thing they are
+       about — so what stays here is a name, a shelf-mark of how far
+       through you are, and the door out. Anything longer competes with
+       the step for the one thing a student is reading. */
+    el.innerHTML=`
+      <div class="ring-stage-card" style="--a:${s.a}">
+        <div class="ring-stage-head"><span class="ring-stage-em">${s.em}</span>
+          <div><b>${escHtml(T(s.name))}</b><small>${escHtml(T(s.teach))}</small></div></div>
+        <div class="ring-stage-dots">${s.steps.map((x,k)=>
+          `<i class="${k<at()?'on':k===at()?'now':''}"></i>`).join('')}</div>
+        ${cleared ? `<button class="btn good small" id="ringNext">${T('DONE \u25b6')}</button>` : ''}
+      </div>`;
+    el.classList.remove('hidden');
+    const nx=$('#ringNext'); if(nx) nx.onclick=done;
+  }
+  const at = () => (window.COACH && COACH.index!=null) ? COACH.index : 0;
+
+  /* ------------------------------------------------- the walkthrough
+     ONE SENTENCE, ONE THING GLOWING, and the step ends when the world
+     says it happened. The ring owns none of that — COACH does — so all
+     that is here is starting it, giving it somewhere to talk, and doing
+     what a step asks of the palette while it is live. */
+  let seenCats=[];
+  function walk(){
+    if(!window.COACH || !ST()) return;
+    seenCats=[];
+    COACH.stop();
+    COACH.start(ST().steps(stage), ctx());
+  }
+  /* A step says which blocks it needs; this is what that means. Narrow on
+     purpose: when a step says "click this", it should very often be the
+     only thing on the shelf to click. */
+  function onStep(s){
+    if(!window.CODER) return;
+    CODER.walking(!!s);
+    if(!s){
+      seenCats=[];
+      /* The rails come off with the last step. What is left is the whole
+         of what the stage was about, so a student can carry on building
+         in the room they just learnt in. */
+      CODER.narrow(palette());
+      clear();
+      return;
+    }
+    /* THE SHELVES ACCUMULATE, THE BLOCKS DO NOT. A step narrows the
+       palette to the one block it is asking for — that is what makes
+       "click this" unambiguous. But the CATEGORIES a stage has already
+       sent a student to have to stay on screen, or "open Sensing" is an
+       instruction to click a tab that is not there, and the blocks they
+       used two steps ago vanish while they are still looking at them. */
+    if(s.pal){
+      (s.pal.cats||[]).forEach(c=>{ if(seenCats.indexOf(c)<0) seenCats.push(c); });
+      CODER.narrow({ cats:seenCats.slice(), ops:s.pal.ops||[] });
+    }
+    if(s.tab) CODER.openCat(s.tab);
+  }
 
   /* The one sentence that is worth more than any other on this screen,
      and the reason it is here rather than in a help bubble: a student
      whose robot twitched once and stopped has written the commonest
      Scratch bug there is, and the fix is a shape, not a value. */
+  /* The bottom bar used to carry the lesson about the forever loop. The
+     walkthrough says that now, at the step it is about, so what is left
+     here is the key — and the walkthrough is pointing at the button that
+     does the same thing. */
   function hint(){
-    const line=`<b>C</b> ${T('open the blocks')} &nbsp;·&nbsp; `+
-               `<b>${T('a conditional on its own is checked once')}</b> — `+
-               `${T('put it inside a forever loop to make it a control')}`;
+    const line=`<b>C</b> ${T('open the blocks')}`;
     if(window.keyHint) keyHint(line);
     const esc=$('#escHint'); if(esc) esc.classList.add('hidden');
     const mid=$('#ringKeys');
@@ -1020,8 +1040,11 @@ window.RING = (function(){
     if(msg && window.say) window.say(msg);
   }
 
-  return { start, stop, tick, leave, advance, goTo, PALETTE, SLOT, ACTOR,
+  return { start, stop, tick, leave, PALETTE, SLOT, ACTOR,
            get active(){ return on; },
+           /* what the walkthrough's steps are reading, for diagnosing a
+              step that will not tick */
+           get watched(){ return run; },
            get stage(){ return stage; },
            get cleared(){ return cleared; } };
 })();

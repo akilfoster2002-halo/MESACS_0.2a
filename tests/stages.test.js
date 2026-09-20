@@ -1,189 +1,329 @@
 /* =====================================================================
-   THE ROAD INTO THE RING, under test.
+   THE WALKTHROUGH INTO THE RING, under test.
 
-   The ring used to open on a fight. It opens on a stage now, and a
-   stage is only worth having if it can FAIL — a checklist that ticks
-   itself for a program that does not work is worse than no checklist,
-   because it tells a student the thing they got wrong is the thing they
-   got right.
+   A stage is a list of steps now: one sentence, one thing to point at,
+   and a question asked of the world. Which means most of what can go
+   wrong with it is not a wrong answer, it is a DEAD END — a step whose
+   target does not exist, or whose block is not on the shelf it just
+   narrowed the palette to, or which asks for something a student cannot
+   reach from where the step before left them.
 
-   So most of what is in here is the failing cases. Stage one is the one
-   that matters most: the twitch — a conditional under the hat instead of
-   inside the loop — moves the robot a long way on ONE frame, and every
-   obvious way of marking that stage passes it. Counting frames is what
-   does not, and there is a test for exactly that below.
+   A dead end is unrecoverable in a way a wrong answer is not: the
+   student is told to click a thing that is not there, and the only way
+   out is to walk away. So that is what is checked hardest here.
+
+   NOTHING IS KEPT, either — so there are tests that no part of this
+   writes anything down, because a walkthrough that resumes half way is
+   a walkthrough that starts by lying about where you are.
    ===================================================================== */
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const STAGES = require('../public/stages.js');
-const RULES  = require('../public/rules.js');
 const read = f => fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 
-/* a context with nothing in it: no frames, no punches, nothing said */
-function ctx(over){
-  return Object.assign({
-    frames:{ left:0, right:0, in:0, out:0 },
-    gapMin:Infinity, said:false, won:false,
-    swings:{ asked:0, landed:0, broke:0, far:0 },
-    uses:()=>false, reads:()=>false, writes:()=>false
-  }, over||{});
+/* blocks.js is a browser global; read as source and run in a scratch context */
+function blocksTable(){
+  const ctx=vm.createContext({ console }); ctx.window=ctx; ctx.self=ctx;
+  vm.runInContext(read('public/blocks.js'), ctx, { filename:'blocks.js' });
+  return ctx.BLOCKS;
 }
-const S = id => STAGES.LIST.findIndex(s=>s.id===id);
+const BLOCKS = blocksTable();
+const every = fn => STAGES.LIST.forEach(s=>s.steps.forEach((st,i)=>fn(st,i,s)));
 
 /* ==================================================================== */
-test('a fresh student passes nothing', ()=>{
-  STAGES.LIST.forEach((s,i)=>assert.strictEqual(STAGES.done(i, ctx()), false,
-    'stage '+s.n+' ('+s.name+') is already finished before anything has happened'));
-});
+test('no two steps in a stage are waiting for the same thing', ()=>{
+  /* COACH STANDS JUST PAST THE LAST STEP THAT IS TRUE, which is what lets
+     a student who works ahead skip the steps they have already done. It
+     also means two steps that answer the same question are two steps it
+     cannot tell apart: stage one once had "click the gap inside the loop"
+     and "click the gap inside the if" both asking `is the cursor in some
+     mouth`, so clicking the first gap threw the student seven steps
+     forward into a script they had not written yet.
 
-test('the twitch does not pass stage one, however far it moves the robot', ()=>{
-  /* An `if` under the hat with the key already down moves once, on the
-     frame Run was pressed. A stage marked on DISTANCE would pass this
-     for `change x by 40`; one marked on frames cannot. */
-  const twitch=ctx({ frames:{ left:1, right:1, in:0, out:0 } });
-  assert.strictEqual(STAGES.done(S('move'), twitch), false,
-    'one frame each way passed stage one — the twitch is being marked as a control');
-  const loop=ctx({ frames:{ left:20, right:20, in:0, out:0 } });
-  assert.strictEqual(STAGES.done(S('move'), loop), true,
-    'a robot that ran both ways for twenty frames did not pass stage one');
-});
-
-test('stage one wants BOTH directions, not one of them twice', ()=>{
-  assert.strictEqual(STAGES.done(S('move'), ctx({ frames:{left:0,right:99,in:0,out:0} })), false);
-  assert.strictEqual(STAGES.done(S('move'), ctx({ frames:{left:99,right:0,in:0,out:0} })), false);
-});
-
-test('stage two wants the sensor READ, not merely a robot that got close', ()=>{
-  const close=ctx({ gapMin:1, said:true });                 // walked over, said something
-  assert.strictEqual(STAGES.done(S('near'), close), false,
-    'a robot that wandered into range passed a stage about reading a sensor');
-  const proper=ctx({ gapMin:1, said:true, uses:op=>op==='sense.dist' });
-  assert.strictEqual(STAGES.done(S('near'), proper), true);
-});
-
-test('stage two wants it within a punch, and a punch is what the referee says it is', ()=>{
-  const r=RULES.RULES.moves.light.reach;
-  const near=g=>ctx({ gapMin:g, said:true, uses:op=>op==='sense.dist' });
-  assert.strictEqual(STAGES.done(S('near'), near(r-0.1)), true);
-  assert.strictEqual(STAGES.done(S('near'), near(r+0.1)), false,
-    'stage two accepted a gap the referee would call too far');
-});
-
-test('stage three wants a punch that LANDED, not one that was asked for', ()=>{
-  const asked=ctx({ writes:v=>v==='light', swings:{ asked:9, landed:0, broke:5, far:4 } });
-  assert.strictEqual(STAGES.done(S('hit'), asked), false,
-    'nine swings that all missed passed the stage about landing one');
-  const landed=ctx({ writes:v=>v==='light', swings:{ asked:1, landed:1, broke:0, far:0 } });
-  assert.strictEqual(STAGES.done(S('hit'), landed), true);
-});
-
-test('stage four fails the button-masher, which is the whole point of it', ()=>{
-  /* Plenty of punches landed — and a tank emptied on the way, which is
-     exactly the habit the stage exists to break. */
-  const masher=ctx({ reads:()=>true, swings:{ asked:30, landed:5, broke:12, far:0 } });
-  assert.strictEqual(STAGES.done(S('spend'), masher), false,
-    'a student who threw twelve punches they could not afford passed AFFORD IT');
-  const careful=ctx({ reads:v=>v==='stamina', swings:{ asked:3, landed:3, broke:0, far:0 } });
-  assert.strictEqual(STAGES.done(S('spend'), careful), true);
-});
-
-test('stage four wants the script to have LOOKED at stamina', ()=>{
-  const lucky=ctx({ reads:()=>false, swings:{ asked:3, landed:3, broke:0, far:0 } });
-  assert.strictEqual(STAGES.done(S('spend'), lucky), false,
-    'a script that never reads (stamina) passed the stage about reading it');
-});
-
-test('stage five is won, and nothing short of it counts', ()=>{
-  assert.strictEqual(STAGES.done(S('fight'), ctx({ swings:{asked:99,landed:99,broke:0,far:0} })), false);
-  assert.strictEqual(STAGES.done(S('fight'), ctx({ won:true })), true);
-});
-
-/* ------------------------------------------------------- the palettes */
-test('the palette only ever grows, and every op on it is a real block', ()=>{
-  const ctxBlocks=require('node:vm').createContext({ console });
-  ctxBlocks.window=ctxBlocks; ctxBlocks.self=ctxBlocks;
-  require('node:vm').runInContext(read('public/blocks.js'), ctxBlocks);
-  const known=new Set(ctxBlocks.BLOCKS.LIST.map(b=>b.op));
-  const cats =new Set(ctxBlocks.BLOCKS.CATS.map(c=>c.id));
-  let prev=[];
-  STAGES.LIST.forEach((s,i)=>{
-    const p=STAGES.palette(i);
-    p.ops.forEach(o=>assert.ok(known.has(o), s.name+' offers '+o+', which is not a block'));
-    p.cats.forEach(c=>assert.ok(cats.has(c), s.name+' offers category '+c+', which does not exist'));
-    prev.forEach(o=>assert.ok(p.ops.indexOf(o)>=0,
-      s.name+' took away '+o+', which an earlier stage handed out — a student\'s script would break'));
-    prev=p.ops;
+     `want` is each step's answer to "waiting for what", declared so it
+     can be compared. It is not used at runtime — done() is the real
+     check — it exists so this test can exist. */
+  STAGES.LIST.forEach(s=>{
+    const seen={};
+    s.steps.forEach((st,i)=>{
+      assert.ok(st.want, s.name+' step '+(i+1)+' does not say what it is waiting for');
+      (seen[st.want]=seen[st.want]||[]).push(i+1);
+    });
+    Object.keys(seen).forEach(k=>assert.strictEqual(seen[k].length, 1,
+      s.name+' steps '+seen[k].join(' and ')+' are both waiting for "'+k+
+      '", so the first one satisfies the second and the walkthrough skips ahead'));
   });
 });
 
-test('no block on a stage palette is missing the block that makes it usable', ()=>{
-  /* The ring's own rule, applied per stage: a sensing block with nothing
-     to put it in, or a conditional with nothing to test, is a block a
-     student cannot use yet. */
-  const need=[
-    ['sense.key',     'ctrl.if',   'a key test with nothing to put it in'],
-    ['ctrl.if',       'ctrl.forever','a conditional with no loop to live in'],
-    ['data.get',      'data.set',  'a way to read a variable and no way to set one'],
-    ['op.gt',         'ctrl.if',   'a comparison with nothing to decide'],
-    ['sense.dist',    'looks.say', 'a number to read and nowhere to show it']
-  ];
-  STAGES.LIST.forEach((s,i)=>{
-    const ops=STAGES.palette(i).ops;
-    need.forEach(([a,b,why])=>{
-      if(ops.indexOf(a)>=0) assert.ok(ops.indexOf(b)>=0, s.name+' has '+why);
+test('every step says one thing and knows when it has happened', ()=>{
+  every((st,i,s)=>{
+    const at=s.name+' step '+(i+1);
+    assert.ok(st.say, at+' says nothing');
+    assert.strictEqual(typeof st.done, 'function', at+' has no way to know it is done');
+    assert.ok(st.sel || st.find, at+' points at nothing');
+    /* One instruction. Two sentences is a step that should have been two
+       steps, which is the whole complaint the walkthrough answers. */
+    assert.ok(st.say.split(/\. |\? /).length<=3, at+' is a paragraph: "'+st.say+'"');
+  });
+});
+
+/* THE PALETTE A STEP IS ACTUALLY LOOKING AT. A step with no `pal` of its
+   own does not get a full palette — it INHERITS the last narrowing, which
+   is the thing that made the first dead end so easy to write: "open
+   Control" sat directly after a step that had cut the shelves down to
+   Events, so there was no Control tab on the screen to click. Every check
+   below asks what is on the palette at that moment, not what that one
+   step happened to declare. */
+function effective(stage){
+  let cur=null;
+  return stage.steps.map(st=>{ if(st.pal) cur=st.pal; return cur; });
+}
+
+test('a step never points at a block that is not on the palette in front of it', ()=>{
+  /* THE DEAD END: a student staring at a shelf that does not contain the
+     thing they have just been told to press, with no way on. */
+  STAGES.LIST.forEach(s=>{
+    const pals=effective(s);
+    s.steps.forEach((st,i)=>{
+      const m=/\[data-op="([^"]+)"\]/.exec(st.sel||'');
+      const pal=pals[i];
+      if(!m || !pal) return;
+      assert.ok((pal.ops||[]).indexOf(m[1])>=0,
+        s.name+' step '+(i+1)+' points at '+m[1]+', which is not on the palette by then');
     });
   });
 });
 
-test('the last stage is the ring\'s whole palette — no block is lost on the way', ()=>{
-  const m=read('public/ring.js').match(/const PALETTE = (\{[\s\S]*?\n  \});/);
-  assert.ok(m, 'ring.js has no PALETTE to compare against');
-  const P=new Function('return '+m[1])();
-  const last=STAGES.palette(STAGES.LAST);
-  P.ops .forEach(o=>assert.ok(last.ops .indexOf(o)>=0, o+' is on the ring palette and on no stage'));
-  P.cats.forEach(c=>assert.ok(last.cats.indexOf(c)>=0, c+' is a ring category and on no stage'));
-  last.ops.forEach(o=>assert.ok(P.ops.indexOf(o)>=0, o+' is on a stage and not on the ring palette'));
+test('a step never points at a shelf tab that is not on screen', ()=>{
+  STAGES.LIST.forEach(s=>{
+    const pals=effective(s);
+    s.steps.forEach((st,i)=>{
+      const m=/\[data-c="([^"]+)"\]/.exec(st.sel||'');
+      const pal=pals[i];
+      if(!m || !pal) return;
+      assert.ok((pal.cats||[]).indexOf(m[1])>=0,
+        s.name+' step '+(i+1)+' says to click the '+m[1]+
+        ' tab, and there is no such tab on the palette by then');
+    });
+  });
 });
 
-/* ------------------------------------------------------ reading a script */
+test('a shelf a step opens is never empty when it gets there', ()=>{
+  STAGES.LIST.forEach(s=>{
+    const pals=effective(s);
+    s.steps.forEach((st,i)=>{
+      const pal=pals[i];
+      if(!st.tab || !pal) return;
+      assert.ok((pal.cats||[]).indexOf(st.tab)>=0,
+        s.name+' step '+(i+1)+' opens the '+st.tab+' shelf and hides that whole category');
+      const inTab=(pal.ops||[]).filter(op=>{
+        const bd=BLOCKS.of(op); return bd && bd.cat===st.tab; });
+      assert.ok(inTab.length>0,
+        s.name+' step '+(i+1)+' opens the '+st.tab+' shelf and leaves nothing on it');
+    });
+  });
+});
+
+test('every block a step offers or points at is a real block', ()=>{
+  const known=new Set(BLOCKS.LIST.map(b=>b.op));
+  const cats =new Set(BLOCKS.CATS.map(c=>c.id));
+  every((st,i,s)=>{
+    const at=s.name+' step '+(i+1);
+    (st.pal ? st.pal.ops||[] : []).forEach(op=>
+      assert.ok(known.has(op), at+' offers '+op+', which is not a block'));
+    (st.pal ? st.pal.cats||[] : []).forEach(c=>
+      assert.ok(cats.has(c), at+' offers category '+c+', which does not exist'));
+    const m=/\[data-op="([^"]+)"\]/.exec(st.sel||'');
+    if(m) assert.ok(known.has(m[1]), at+' points at '+m[1]+', which is not a block');
+    const t=/\[data-c="([^"]+)"\]/.exec(st.sel||'');
+    if(t) assert.ok(cats.has(t[1]), at+' points at the '+t[1]+' shelf, which does not exist');
+  });
+});
+
+test('a step that needs a block on screen was preceded by the step that puts it there', ()=>{
+  /* Pointing into #cScript means "the thing you just built". If nothing
+     earlier in the stage could have built it, the ring is drawing a ring
+     around empty space. */
+  STAGES.LIST.forEach(s=>{
+    s.steps.forEach((st,i)=>{
+      const sel=st.sel||'';
+      if(sel.indexOf('#cScript')<0) return;
+      assert.ok(i>0, s.name+' points into the script on its very first step');
+    });
+  });
+});
+
+test('every stage opens by opening the blocks, because nothing else can be clicked first', ()=>{
+  STAGES.LIST.forEach(s=>{
+    const first=s.steps[0];
+    assert.match(first.say, /blocks/i, s.name+' starts somewhere other than the editor');
+    assert.strictEqual(first.sel, '#ringOpen', s.name+' does not point at the way in');
+  });
+});
+
+test('no step is already finished the moment a student walks in', ()=>{
+  /* COACH STANDS JUST PAST THE LAST STEP THAT IS TRUE. A step that is
+     true before it is read therefore carries every step before it away
+     with it: the fight stage once said "back on your own robot" — which
+     you already are, because that is where the room opens — and the whole
+     walkthrough collapsed to its last line the instant anybody arrived.
+
+     So this stands in the doorway. The editor is open on the student's
+     own robot at the first shelf, the room is empty, nothing has been
+     clicked and nothing has run: NOTHING may be true except the step that
+     asked for the editor to be open. */
+  const doorway = {
+    open:true, actorName:()=>'Robot', shelf:()=>'events',
+    slotArmed:()=>false, armedInside:()=>'', armedInMouth:()=>false
+  };
+  const had=global.window;
+  global.window={ CODER:doorway };
+  try{
+    const world={ me:{ scripts:[] }, foe:null,
+      frames:{left:0,right:0,in:0,out:0}, gapMin:Infinity, said:false, won:false,
+      swings:{asked:0,landed:0,broke:0,far:0} };
+    STAGES.LIST.forEach(s=>s.steps.forEach((st,i)=>{
+      if(st.want==='editor-open') return;          // the one that IS the doorway
+      assert.strictEqual(!!st.done(world), false,
+        s.name+' step '+(i+1)+' ("'+st.want+'") is already true before anything has '+
+        'been done, so the walkthrough skips straight past everything before it');
+    }));
+  } finally {
+    if(had===undefined) delete global.window; else global.window=had;
+  }
+});
+
+test('a step is checked against the world, and a half-built world is not a crash', ()=>{
+  /* done() runs every frame, including the frames before the room has
+     finished being built. */
+  const empty={ me:null, foe:null, frames:{}, swings:{}, gapMin:Infinity };
+  every((st,i,s)=>assert.doesNotThrow(()=>st.done(empty),
+    s.name+' step '+(i+1)+' throws on an empty world'));
+  const nothing={ me:{scripts:[]}, foe:null,
+    frames:{left:0,right:0,in:0,out:0}, gapMin:Infinity, said:false, won:false,
+    swings:{asked:0,landed:0,broke:0,far:0} };
+  STAGES.LIST.forEach(s=>assert.strictEqual(s.steps[1] ? !!s.steps[1].done(nothing) : false, false,
+    s.name+' is already past its second step before anything has been done'));
+});
+
+/* ------------------------------------------------- reading the script */
+test('the twitch is what stage one is about, and it says so where it matters', ()=>{
+  const s=STAGES.byId('move');
+  const where=s.steps.findIndex(x=>/checked ONCE/i.test(x.say));
+  assert.ok(where>=0, 'stage one never explains why a bare conditional does not work');
+  const ifStep=s.steps.findIndex(x=>/data-op="ctrl\.if"/.test(x.sel||''));
+  assert.strictEqual(where, ifStep,
+    'the twitch is explained somewhere other than the step that places the if');
+});
+
+test('a control is a key test inside a loop that actually moves something', ()=>{
+  const wrap=(body)=>({ scripts:[{ hat:{op:'event.flag',args:{}}, body }] });
+  const ifKey=(k,inner)=>({ op:'ctrl.if', args:{c:{op:'sense.key',args:{k}}}, body:inner });
+  const move=[{ op:'motion.changeBy', args:{a:'x',n:1} }];
+
+  const loop=wrap([{ op:'ctrl.forever', args:{}, body:[ifKey('d',move)] }]);
+  assert.strictEqual(STAGES.controls(loop), 1);
+
+  /* the twitch: the same three blocks, no loop */
+  const twitch=wrap([ifKey('d',move)]);
+  assert.strictEqual(STAGES.controls(twitch), 0,
+    'a conditional outside the loop counted as a control');
+
+  /* a key test that moves nothing is not a control either */
+  const idle=wrap([{ op:'ctrl.forever', args:{}, body:[ifKey('d',[{op:'looks.say',args:{s:'hi'}}])] }]);
+  assert.strictEqual(STAGES.controls(idle), 0);
+
+  const both=wrap([{ op:'ctrl.forever', args:{}, body:[ifKey('d',move), ifKey('a',move)] }]);
+  assert.strictEqual(STAGES.controls(both), 2);
+  assert.deepStrictEqual(STAGES.keysUsed(both), ['d','a']);
+});
+
 test('reading a variable and writing one are different questions', ()=>{
-  const a={ scripts:[{ hat:{op:'event.flag',args:{}}, body:[
-    { op:'data.set', args:{ v:'light', n:1 } } ] }] };
-  assert.strictEqual(STAGES.writes(a,'light'), true);
-  assert.strictEqual(STAGES.reads (a,'light'), false,
+  const set={ scripts:[{ hat:{op:'event.flag',args:{}},
+    body:[{ op:'data.set', args:{ v:'light', n:1 } }] }] };
+  assert.strictEqual(STAGES.writes(set,'light'), true);
+  assert.strictEqual(STAGES.reads(set,'light'), false,
     'setting a variable counted as reading it, so stage four could be passed without looking');
-  const b={ scripts:[{ hat:{op:'event.flag',args:{}}, body:[
+  const got={ scripts:[{ hat:{op:'event.flag',args:{}}, body:[
     { op:'ctrl.if', args:{ c:{ op:'op.gt', args:{
         a:{ op:'data.get', args:{ v:'stamina' } }, b:20 } } }, body:[] } ] }] };
-  assert.strictEqual(STAGES.reads(b,'stamina'), true, 'a variable read inside two nested reporters was missed');
+  assert.strictEqual(STAGES.reads(got,'stamina'), true,
+    'a variable read two reporters deep was missed');
 });
 
-test('a block is found however deep it is buried', ()=>{
-  const a={ scripts:[{ hat:{op:'event.flag',args:{}}, body:[
-    { op:'ctrl.forever', args:{}, body:[
-      { op:'ctrl.ifelse', args:{ c:{op:'op.not',args:{ c:{op:'sense.key',args:{k:'w'}} }} },
-        body:[], body2:[ { op:'looks.say', args:{ s:{op:'sense.dist',args:{o:'Ambush'}} } } ] } ] } ] }] };
-  assert.strictEqual(STAGES.uses(a,'sense.key'),  true, 'a block inside a nested boolean was missed');
-  assert.strictEqual(STAGES.uses(a,'sense.dist'), true, 'a block in an else-body argument was missed');
-  assert.strictEqual(STAGES.uses(a,'motion.move'),false);
+/* ------------------------------------------------------ nothing is kept */
+test('nothing about a stage is written down', ()=>{
+  /* Every entry is an empty room at step one. A saved stage, a saved
+     "furthest reached" or a saved script all break the same promise. */
+  const ring=read('public/ring.js');
+  ['saveStage','saveReached','furthest'].forEach(k=>
+    assert.ok(ring.indexOf(k)<0, 'the ring still keeps '+k));
+  /* The only localStorage the ring may touch is the removeItem that
+     sweeps what an older build left behind. */
+  const uses=(ring.match(/localStorage\.\w+/g)||[]);
+  uses.forEach(u=>assert.strictEqual(u, 'localStorage.removeItem',
+    'the ring does '+u+' — it is meant to keep nothing'));
+  assert.match(ring, /localStorage\.removeItem/,
+    'the ring never clears the keys older builds of it wrote');
+  assert.match(ring, /VM\.useScratch\(\)/,
+    'the ring opens a saved slot, so a mission is not a fresh room');
+  assert.ok(!/VM\.useSlot\(/.test(ring), 'the ring still opens a saved project slot');
 });
 
-test('a stage whose test throws is a stage not yet passed, not a crash', ()=>{
-  const broken={ frames:null };            // the world half-built, as it is on frame one
-  STAGES.LIST.forEach((s,i)=>assert.doesNotThrow(()=>STAGES.done(i, broken), s.name+' threw'));
-  assert.strictEqual(STAGES.done(0, broken), false);
+test('a scratch project reads nothing and writes nothing', ()=>{
+  const v=read('public/vm.js');
+  assert.match(v, /function save\(\)\{\s*if\([^)]*\bscratch\b[^)]*\) return;/,
+    'a scratch project can still be saved');
+  assert.match(v, /if\(scratch\)\{[^}]*reset\(\)/,
+    'load() still reads the slot for a scratch project');
+  assert.match(v, /function useScratch\(\)/, 'there is no way to ask for a scratch project');
+});
+
+test('what a step reads about the world is live, not a photograph of the start', ()=>{
+  /* COACH IS HANDED THE CONTEXT ONCE and then asks it the same questions
+     sixty times a second for the next ten minutes. Built with
+     Object.assign it was a snapshot: the frame counts were the counts at
+     the moment the student walked in — zero — and stayed zero however far
+     the robot ran, so the LAST step of every stage could never come true.
+
+     It was silent, too, which is why it is worth a test: the steps that
+     read the student's script kept working, because those go and look the
+     actor up again every time. Only the counted ones froze. */
+  const ring=read('public/ring.js');
+  const i=ring.indexOf('function ctx(){');
+  assert.ok(i>0, 'the ring has no walkthrough context to check');
+  const body=ring.slice(i, ring.indexOf('\n  }', i));
+  assert.ok(!/Object\.assign\(\{\}, run/.test(body),
+    'the walkthrough context is copied from run, so every counter it reads freezes');
+  ['frames','swings','gapMin','said','won'].forEach(k=>
+    assert.ok(new RegExp('get '+k+'\\(\\)').test(body),
+      'ctx.'+k+' is not a getter, so it is read once and never again'));
+  /* and the actor is looked up each time, not captured */
+  assert.ok(/get me\(\)\{ return me\(\); \}/.test(body.replace(/\s+/g,' ')) ||
+            /get me\(\)/.test(body),
+    'the walkthrough holds one actor object rather than looking it up');
+});
+
+test('the mission is chosen on the way in, because it cannot be remembered', ()=>{
+  assert.match(read('public/ring.js'), /function start\(robotId, addTemplates, stageIx\)/,
+    'the ring does not take the mission as an argument');
+  assert.match(read('public/pit.js'), /onGo\(robot\(\), \[\], mission\)/,
+    'the pit does not hand the ring a mission');
+  assert.ok(!/ring_far|ring_stage/.test(read('public/pit.js')),
+    'the pit is reading saved ring progress to decide what to offer');
 });
 
 /* ----------------------------------------------------------- the rows */
 test('every stage is a complete row, and the order is the teaching order', ()=>{
   STAGES.LIST.forEach((s,i)=>{
-    ['id','name','teach','goal','why','foe'].forEach(k=>
+    ['id','name','teach','goal','foe'].forEach(k=>
       assert.ok(s[k], 'stage '+(i+1)+' has no '+k));
     assert.strictEqual(s.n, i+1, s.name+' is numbered '+s.n+' and sits at '+(i+1));
-    assert.ok((s.tests||[]).length, s.name+' has nothing that could fail');
+    assert.ok((s.steps||[]).length>=4, s.name+' is not a walkthrough, it is a hint');
     assert.ok(['none','dummy','live'].indexOf(s.foe)>=0, s.name+' has an unknown kind of opponent');
   });
   assert.strictEqual(STAGES.LIST[0].foe, 'none',  'stage one is not an empty room');
@@ -193,22 +333,16 @@ test('every stage is a complete row, and the order is the teaching order', ()=>{
 test('an out-of-range stage is the nearest real one, not undefined', ()=>{
   assert.strictEqual(STAGES.byIndex(-5).id, STAGES.LIST[0].id);
   assert.strictEqual(STAGES.byIndex(99).id, STAGES.LIST[STAGES.LAST].id);
+  assert.ok(STAGES.steps(99).length>0);
 });
 
-/* --------------------------------------------------------- the wiring */
-test('the ring reads the stage for its palette and its opponent, not a constant', ()=>{
-  const src=read('public/ring.js');
-  assert.match(src, /CODER\.restrict\(palette\(\)\)/,
-    'the ring still hands out one fixed palette whatever stage you are on');
-  assert.match(src, /mode==='none'/,  'the ring cannot empty the room for stage one');
-  assert.match(src, /mode==='live'/,  'the ring never gives Ambush its strategy');
-  assert.match(src, /foe==='dummy'/,  'nothing stops the training dummy being knocked out');
-});
-
-test('a stage is judged on one run, and the VM says when a run begins', ()=>{
-  /* `running` is true either side of pressing Run again, so it cannot
-     mark the start of an attempt. */
-  assert.match(read('public/vm.js'), /runId\+\+/, 'the VM does not count its runs');
-  assert.match(read('public/ring.js'), /seenRun!==VM\.runId/,
-    'the ring works out when a run started from something other than the run counter');
+test('the palette a stage falls back to is everything its steps ever offered', ()=>{
+  STAGES.LIST.forEach((s,i)=>{
+    const p=STAGES.palette(i);
+    if(!p) return;                         // the fight hands over the whole room
+    s.steps.forEach(st=>{
+      (st.pal ? st.pal.ops||[] : []).forEach(op=>assert.ok(p.ops.indexOf(op)>=0,
+        s.name+' drops '+op+' when the walkthrough ends, so a finished student loses it'));
+    });
+  });
 });
