@@ -61,14 +61,13 @@
      `set [light] to 1` is how you ask it for one. */
   const JAB = {
     id:'jab', name:'JAB', em:'\u{1F44A}',
-    blurb:'The cheap punch. Check you can afford it, lunge, ask the referee '+
-          'for a light one, then be stuck for a moment pulling your arm back.',
-    teaches:'a function \u00b7 reading engine state before you spend it \u00b7 a counted loop \u00b7 a signal',
+    blurb:'The cheap punch, and the recovery you are stuck in after it.',
+    teaches:'a function \u00b7 engine state \u00b7 a counted loop \u00b7 a signal',
     vars:['swinging'],
     tune:[
-      { what:'if ‹stamina > (25)›', does:'how much you insist on having left before you swing' },
-      { what:'repeat (3)',          does:'how far the lunge carries you in' },
-      { what:'wait (0.3) seconds',  does:'recovery \u2014 how long you cannot do anything else' }
+      { what:'if ‹stamina > (25)›', does:'what you insist on having left' },
+      { what:'repeat (3)',          does:'how far the lunge carries' },
+      { what:'wait (0.3) seconds',  does:'how long you are stuck afterwards' }
     ],
     procs:[{
       name:'jab', params:[],
@@ -96,13 +95,12 @@
      damage, and a shorter reach — so throwing it every time loses. */
   const SLAM = {
     id:'slam', name:'SLAM', em:'\u{1F4A5}',
-    blurb:'The heavy punch. Costs more than twice a jab and reaches less far, '+
-          'so it is only worth it when you are close and can afford it.',
-    teaches:'the same shape as the jab, with different numbers \u2014 and why you compare them',
+    blurb:'Twice the cost of a jab and less reach. Worth it up close.',
+    teaches:'the jab\u2019s shape with other numbers \u2014 and why you compare them',
     vars:['swinging'],
     tune:[
-      { what:'if ‹stamina > (50)›', does:'whether you keep enough in the tank to follow up' },
-      { what:'wait (0.6) seconds',  does:'the long recovery \u2014 what a heavy really costs you' }
+      { what:'if ‹stamina > (50)›', does:'enough left to follow up' },
+      { what:'wait (0.6) seconds',  does:'what a heavy really costs' }
     ],
     procs:[{
       name:'slam', params:[],
@@ -130,13 +128,12 @@
      somebody swings at you, which is most of what state is. */
   const BLOCK = {
     id:'block', name:'BLOCK', em:'\u{1F6E1}',
-    blurb:'Put a guard up and hold it. Nothing happens straight away \u2014 `guard` '+
-          'is a fact about you that the referee checks when a punch arrives.',
-    teaches:'a variable as STATE \u00b7 something true for a while rather than all at once',
+    blurb:'`guard` is a fact about you the referee checks when a punch lands.',
+    teaches:'a variable as STATE \u00b7 true for a while, not all at once',
     vars:['guard'],
     tune:[
-      { what:'wait (0.6) seconds', does:'how long the guard stays up before it drops' },
-      { what:'set [guard] to 1',   does:'try 0 and watch the guard stop working entirely' }
+      { what:'wait (0.6) seconds', does:'how long the guard holds' },
+      { what:'set [guard] to 1',   does:'try 0 and watch it stop working' }
     ],
     procs:[{
       name:'block', params:[],
@@ -161,14 +158,12 @@
      off is how stamina comes back, so retreating is a tactic. */
   const DODGE = {
     id:'dodge', name:'DODGE', em:'\u{1F4A8}',
-    blurb:'Throw yourself backwards, out of everybody\u2019s reach. Stamina only '+
-          'comes back while you are not spending it, so this is how you afford '+
-          'the next slam.',
-    teaches:'a loop that adds up \u00b7 two numbers multiplying into one result',
+    blurb:'Backwards, out of reach. Stamina only returns while you are not spending it.',
+    teaches:'a loop that adds up \u00b7 two numbers into one result',
     vars:['dodging'],
     tune:[
-      { what:'repeat (8)',         does:'how many steps back the dodge takes' },
-      { what:'change x by (-0.5)', does:'how big each step is \u2014 and which way you go' }
+      { what:'repeat (8)',         does:'steps back' },
+      { what:'change x by (-0.5)', does:'step size \u2014 and which way' }
     ],
     procs:[{
       name:'dodge', params:[],
@@ -193,14 +188,13 @@
      interesting work becomes changing its mind about when. */
   const PLAN = {
     id:'plan', name:'A PLAN', em:'\u{1F9E0}',
-    blurb:'Fight without touching the keys. Close the distance, slam when you '+
-          'can afford it, jab when you cannot, and back off when you are empty.',
-    teaches:'nested conditionals \u00b7 reading engine state \u00b7 a strategy you can argue with',
+    blurb:'Fight without touching the keys. A strategy you can argue with.',
+    teaches:'nested conditionals \u00b7 engine state \u00b7 a whole plan',
     vars:[],
     tune:[
-      { what:'‹distance to > (6)›',  does:'how close you insist on being before you swing' },
-      { what:'‹stamina > (55)›',     does:'how rich you have to be to reach for the slam' },
-      { what:'change x by (0.4)',    does:'how fast you back off when you are empty' }
+      { what:'‹distance to > (6)›',  does:'how close before you swing' },
+      { what:'‹stamina > (55)›',     does:'how rich before you slam' },
+      { what:'change x by (0.4)',    does:'how fast you back off' }
     ],
     procs:[],
     scripts:[{

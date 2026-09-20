@@ -38,6 +38,15 @@ window.PIT = (function(){
     }
     return (v===null||v===undefined)?d:v;
   }
+  /* The worked examples are punches, so they turn up on the stage that
+     first throws one. Named rather than written as 2 in the middle of a
+     render, because it is a fact about the course. */
+  const TEMPLATE_STAGE = 2;                 // index: stage 3, THROW ONE
+  function reached(){
+    let v=fetch('ring_far', null);
+    if(v===null||v===undefined) v=fetch('ring_stage', 0);
+    return (v|0)||0;
+  }
   function robot(){
     const id=fetch('pit_robot', null);
     return RB().byId(id) ? id : RB().LIST[0].id;
@@ -59,26 +68,35 @@ window.PIT = (function(){
 
   function render(){
     const el=$('#pit'); if(!el) return;
+    /* WHAT THIS SCREEN SAYS DEPENDS ON WHERE YOU ARE. The worked examples
+       are punches, and a student on the first two stages has no punch to
+       write yet — five cards of it is a wall of text about something that
+       cannot happen for another twenty minutes. They arrive with the
+       stage that can use them, and so does the referee's number sheet.
+
+       AND THE TWO BIG PARAGRAPHS ARE GONE. "There is no PUNCH block" is
+       the whole of stage three's card and "a conditional on its own is
+       checked once" is the whole of stage one's, both said at the moment
+       they are about to be needed rather than on a menu beforehand. Said
+       twice is said once too many. */
+    const showTemps = reached() >= TEMPLATE_STAGE;
     el.innerHTML=`<div class="pit-wrap">
       <h1>${T('THE PIT')}</h1>
-      <div class="pit-sub">${T('Pick a body, and pick anything you want a worked example of. You write the code in the ring \u2014 press C once you are in there.')}</div>
+      <div class="pit-sub">${T('Pick a body. You write the code in the ring \u2014 press C once you are in there.')}</div>
       <div class="pit-pick" id="pitPick"></div>
-      <div class="pit-code">
+      ${showTemps ? `<div class="pit-code">
         <div class="pit-codehead"><b>${T('WORKED EXAMPLES')}</b>
-          <span class="pit-key">${T('written in the same blocks you have \u2014 take them apart')}</span></div>
-        <p class="pit-key">${T('There is no PUNCH block and there is not going to be one. An attack is something you BUILD: a function, a variable, a loop, a test on a sensor and a message to whatever you hit. Tick one and it is written into your project as ordinary blocks \u2014 then change the numbers.')}</p>
+          <span class="pit-key">${T('your blocks, not the engine\u2019s \u2014 tick one and take it apart')}</span></div>
         <div class="pit-temps" id="pitTemps"></div>
         <div class="pit-rules" id="pitRules"></div>
-        <p class="pit-key" style="margin-top:10px">
-          <b style="color:var(--star)">${T('Every one of these is called from inside a forever loop.')}</b>
-          ${T('A conditional on its own is checked once, on the frame you pressed Run, and then never again \u2014 so the robot twitches once and stops. The loop is what turns it into a control, and it is the commonest thing to get wrong.')}</p>
-      </div>
+      </div>` : ''}
       <div class="pit-foot">
         <button class="btn ghost small" id="pitBack">◀</button>
         <button class="btn good" id="pitGo">${T('TAKE IT OUT \u25b6')}</button>
         <span class="pit-key" id="pitNote"></span>
       </div></div>`;
-    chooser(); temps(); rules();
+    chooser();
+    if(showTemps){ temps(); rules(); } else { note(); }
     $('#pitBack').onclick=()=>{ hide(); if(window.MENU) MENU.homeworld(); };
     $('#pitGo').onclick =()=>{ const add=[...wanted]; wanted.clear();
                                hide(); if(onGo) onGo(robot(), add); };
@@ -121,7 +139,7 @@ window.PIT = (function(){
     const host=$('#pitRules'); if(!host || !window.RULES) return;
     host.innerHTML=`
       <div class="pit-ruleshead"><b>${T('WHAT YOU CANNOT CHANGE')}</b>
-        <span class="pit-key">${T('the referee\u2019s, not yours \u2014 you can read these, not set them')}</span></div>
+        <span class="pit-key">${T('read these, not set them')}</span></div>
       ${RULES.sheet().map(r=>
         `<div><code>${T(r.what)}</code><span>${T(r.says)}</span></div>`).join('')}`;
   }
@@ -132,12 +150,12 @@ window.PIT = (function(){
      student wonder why blocking does nothing. */
   function note(){
     const el=$('#pitNote'); if(!el) return;
+    if(reached() < TEMPLATE_STAGE){ el.textContent=''; return; }
     const sets=[...wanted].some(id=>['block','dodge'].indexOf(id)>=0);
     el.innerHTML = (sets && !wanted.has('answer'))
       ? `<b style="color:var(--star)">${T('BLOCK and DODGE only set a variable.')}</b> `+
-        T('Add TAKE A HIT as well, or nothing ever reads it and they will look broken.')
-      : wanted.size ? T('These are written in as ordinary blocks. Change anything.')
-                    : T('You can take nothing and write it all yourself.');
+        T('Add TAKE A HIT, or nothing reads it.')
+      : wanted.size ? T('Written in as ordinary blocks. Change anything.') : '';
   }
 
   function chooser(){

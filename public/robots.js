@@ -33,9 +33,7 @@
     {
       id:'noisyboy', name:'NOISY BOY', em:'⚡',
       tag:'TALL AND LIGHT ON HIS FEET',
-      blurb:'The taller of the two by most of a metre. Long in the leg, and '+
-            'he takes up room — the same `change x by` carries him further '+
-            'past the stripes than it looks like it should.',
+      blurb:'The same `change x by` carries him further.',
       model:BASE+'noisyboy.glb',
       /* World units, head to floor. COSTUMES scales every .glb to stand
          one unit tall, so this IS the actor's `size` and nothing has to
@@ -46,8 +44,7 @@
     {
       id:'ambush', name:'AMBUSH', em:'\u{1F6E1}',
       tag:'SHORT AND HEAVY',
-      blurb:'Shorter and wider, and he sits closer to the floor. Easier to '+
-            'see what a small number does to, because there is less of him.',
+      blurb:'Small numbers show up on him, because there is less of him.',
       model:BASE+'ambush.glb',
       height:3.9,
       skin:{ trim:'#ffb4a2', plate:'#5a3428' }

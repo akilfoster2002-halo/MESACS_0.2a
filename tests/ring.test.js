@@ -602,14 +602,66 @@ test('the home-made language is gone, and nothing still reaches for it', ()=>{
       f+' still refers to the language that was removed'));
 });
 
-test('the pit says the one thing that stops a student being stuck for a lesson', ()=>{
+test('the one thing that stops a student being stuck for a lesson is still said', ()=>{
   /* A conditional on its own twitches once and stops. It is the single
      commonest Scratch bug there is and the mode is built around it, so
-     the words are worth pinning down. */
-  const src=read('public/pit.js');
-  assert.match(src, /forever/i, 'the pit never mentions the loop');
-  assert.match(src, /checked once/i,
-    'the pit never explains why a bare conditional does not work');
+     the words are worth pinning down — wherever they live.
+
+     THEY USED TO LIVE ON THE PIT SCREEN, said to a student who had not
+     written anything yet and could not have made the mistake. They are
+     stage one's card now, which is the screen you are looking at while
+     you are making it. The test follows the sentence; what it protects
+     is that the game says it somewhere a student reads BEFORE getting it
+     wrong, not which file it sits in. */
+  const stages=read('public/stages.js');
+  assert.match(stages, /forever/i, 'no stage mentions the loop');
+  assert.match(stages, /checked ONCE/i,
+    'no stage explains why a bare conditional does not work');
+  const first=require('../public/stages.js').LIST[0];
+  assert.match(first.why, /forever/i,
+    'the first stage is not the one that explains the loop');
+
+  /* And it is said ONCE. The pit repeating it at a student who has not
+     met the problem yet is the wordiness that got it moved. Checked
+     against what the screen SAYS — the strings inside T() — and not the
+     whole file, or a comment explaining why the paragraph went would
+     read as the paragraph still being there. */
+  const shown=[...read('public/pit.js').matchAll(/T\('((?:[^'\\]|\\.)*)'\)/g)]
+    .map(m=>m[1]).join(' ');
+  assert.ok(!/checked once/i.test(shown),
+    'the pit is explaining the loop again as well as the stage card');
+  assert.ok(!/no PUNCH block/i.test(shown),
+    'the pit is explaining the punch flag again as well as stage three');
+});
+
+test('the pit stays short, and the punch examples wait until you can use one', ()=>{
+  /* IT WAS A WALL OF TEXT. Five worked examples of a punch, two long
+     paragraphs and a blurb on every card, all of it in front of a
+     student whose next twenty minutes are `change x by`. The fix was not
+     shorter sentences, it was showing the punches on the stage that
+     throws one — so the first visit is a title, a line, and two bodies.
+
+     Counted rather than eyeballed, because wordiness comes back one
+     helpful sentence at a time. */
+  const words = s => String(s||'').trim().split(/\s+/).filter(Boolean).length;
+  const ROB=require('../public/robots.js'), TMP=require('../public/templates.js');
+  const shown=[...read('public/pit.js').matchAll(/T\('((?:[^'\\]|\\.)*)'\)/g)]
+    .map(m=>m[1].replace(/\\u[0-9a-f]{4}/g,' '));
+  const chrome=shown.reduce((s,x)=>s+words(x),0);
+  const bodies=ROB.LIST.reduce((s,r)=>s+words(r.tag)+words(r.blurb),0);
+  assert.ok(chrome+bodies <= 120,
+    'the first thing a student sees on the pit is '+(chrome+bodies)+' words');
+  shown.forEach(x=>assert.ok(words(x)<=30,
+    'the pit has grown a paragraph again: "'+x.slice(0,50)+'…"'));
+
+  /* The examples are still worth their room when they arrive. */
+  TMP.LIST.forEach(t=>{
+    assert.ok(words(t.blurb)<=16, t.id+'\u2019s blurb is a paragraph again');
+    assert.ok((t.tune||[]).every(x=>words(x.does)<=8),
+      t.id+' explains a number it wants changed at length');
+  });
+  assert.match(read('public/pit.js'), /TEMPLATE_STAGE/,
+    'the pit shows the punch examples whatever stage you are on');
 });
 
 /* --------------------------------------------------- the mark on the floor
