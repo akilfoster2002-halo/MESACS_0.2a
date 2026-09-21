@@ -40,13 +40,17 @@ const vm = require('node:vm');
 let Anthropic = null;
 try { Anthropic = require('@anthropic-ai/sdk'); } catch(e){ /* not installed */ }
 
-const MODEL = 'claude-opus-5';
-/* A LAB FULL OF PEOPLE WAITING. This is a chat box answering "what does
-   this block do" and "why is my robot not moving" — short questions with
-   short answers, against a system prompt that already spells out how to
-   answer them. Low effort is the right place on the curve: a class of
-   thirty asking at once cares about the reply arriving before they have
-   given up on it. Raise it if the hints start reading as generic. */
+/* SONNET, ASKED FOR. This is a chat box answering "what does this block
+   do" and "why will my robot not move", against a system prompt that
+   already spells out how to answer them — the judgement lives mostly in
+   the prompt rather than in the model. It is also around two and a half
+   times cheaper per token than the Opus tier, which for a lab full of
+   children asking all lesson is the difference that decides whether the
+   thing stays switched on. */
+const MODEL = 'claude-sonnet-5';
+/* A LAB FULL OF PEOPLE WAITING. Short questions, short answers, and a
+   class of thirty who care about the reply arriving before they have
+   given up on it. Raise this if the hints start reading generic. */
 const EFFORT = 'low';
 const MAX_TOKENS = 1400;          // a hint, not an essay
 const MAX_ASK = 600;              // one question from one child
@@ -186,7 +190,15 @@ function board(ctx){
    The system prompt is the big, identical half of every request in the
    whole school — the pedagogy and the entire block reference — so it is
    cached. What the student can see goes AFTER the breakpoint, because it
-   changes on every single question. */
+   changes on every single question.
+
+   That prefix is about three and a half thousand tokens, which clears
+   Sonnet's thousand-token minimum comfortably. The minimum is PER MODEL
+   and is not monotonic across generations, so swapping to a model with a
+   higher floor would stop the caching SILENTLY — no error, just
+   cache_creation_input_tokens sitting at zero and a bill that has
+   quietly gone up. If this ever looks expensive, check that number
+   first. */
 async function ask({ question, history, context }, out){
   if(!on()) throw new Error('no tutor configured');
   const msgs = [];

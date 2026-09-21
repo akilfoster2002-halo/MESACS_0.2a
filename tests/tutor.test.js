@@ -65,15 +65,34 @@ test('it streams the answer through rather than waiting for the whole thing', as
     'Look at where your if is sitting.');
 });
 
-test('it asks Claude Opus 5, and says how hard to think', async ()=>{
+test('it asks Claude Sonnet 5, and says how hard to think', async ()=>{
   REPLY={ events:[say('hi')] };
   await ask('what does forever do?', {});
-  assert.strictEqual(SENT.model, 'claude-opus-5');
+  assert.strictEqual(SENT.model, 'claude-sonnet-5');
   assert.deepStrictEqual(SENT.thinking, { type:'adaptive' });
   assert.ok(SENT.output_config && SENT.output_config.effort,
     'no effort is set, so every question in the school runs at the default');
   assert.ok(SENT.max_tokens > 0 && SENT.max_tokens <= 4000,
     'a hint should not be able to run to an essay');
+});
+
+test('the cached prefix is long enough for this model to actually cache it', ()=>{
+  /* THE MINIMUM IS PER MODEL AND NOT MONOTONIC across generations — 512
+     tokens on Opus 5, 1024 on Sonnet 5, 4096 on Opus 4.6 and Haiku 4.5.
+     Under it, caching fails SILENTLY: no error, just
+     cache_creation_input_tokens sitting at zero and a bill that has
+     quietly gone up. Checked here so a model swap cannot do that
+     unnoticed. */
+  const MINIMUM={ 'claude-sonnet-5':1024, 'claude-opus-5':512,
+                  'claude-opus-4-8':1024, 'claude-haiku-4-5':4096 };
+  const floor=MINIMUM[tutor.MODEL];
+  assert.ok(floor!==undefined,
+    tutor.MODEL+' is not in this table — look up its minimum cacheable prefix before shipping it');
+  const chars=(tutor.HOW+'\n\n'+tutor.language()).length;
+  const tokens=chars/3.5;                    // deliberately pessimistic
+  assert.ok(tokens > floor*1.3,
+    'the cached prefix is about '+Math.round(tokens)+' tokens and '+tutor.MODEL+
+    ' will not cache anything under '+floor+' — every question would pay for the whole prompt');
 });
 
 test('the big half of the prompt is cached, and the changing half is not in front of it', async ()=>{

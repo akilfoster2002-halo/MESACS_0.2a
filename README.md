@@ -362,8 +362,15 @@ same code and never sees it.
 
 It is signed-in only and one question at a time per person. Those are not
 security in the serious sense; they are the two lines that keep a lab's
-bill looking like a lab's bill. Model and effort are at the top of
-`server/tutor.js`.
+bill looking like a lab's bill.
+
+It runs on **Claude Sonnet 5** at low effort — short questions, short
+answers, and a class of thirty who care about the reply arriving. The
+judgement is mostly in the prompt rather than in the model. Both are at
+the top of `server/tutor.js`, next to a note about the one thing to watch
+if you change the model: the minimum cacheable prefix is per model and
+not monotonic across generations, so a swap can stop the caching
+*silently*.
 
 ## Files
 ```
