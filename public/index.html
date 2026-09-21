@@ -1897,6 +1897,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .tut-line.you{background:var(--panel2);color:var(--text);justify-self:end;max-width:85%}
 .tut-line.tutor{background:rgba(16,12,30,.6);border-left:3px solid var(--good);
   color:var(--text);max-width:95%}
+/* a block named in an answer, drawn as the block. Inline, so it sits in
+   the sentence rather than breaking it, and it does not stretch the way
+   a palette block does. */
+.tut-blk{display:inline-flex;width:auto;vertical-align:middle;margin:1px 2px;
+  padding:2px 6px;font-size:11px;line-height:1.4;border-radius:7px}
+.tut-blk.k-report,.tut-blk.k-bool{border-radius:11px}
+.tut-blk .cslot{font-size:10px;padding:0 4px}
 .tut-ask{display:flex;gap:6px;padding:9px 10px;border-top:1px solid var(--line);flex:none}
 #tutIn{flex:1;background:rgba(16,12,30,.8);border:1px solid var(--line);border-radius:10px;
   padding:7px 10px;color:var(--text);font-family:var(--font-code);font-size:12px}
@@ -2653,64 +2660,64 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='512';</script>
-<script src="lib/three.classic.js?v=512"></script>
-<script src="strings.js?v=512"></script>
-<script src="music.js?v=512"></script>
-<script src="net.js?v=512"></script>
-<script src="avatar.js?v=512"></script>
-<script src="zombies.js?v=512"></script>
-<script src="building.js?v=512"></script>
-<script src="levels.js?v=512"></script>
-<script src="program.js?v=512"></script>
-<script src="code.js?v=512"></script>
-<script src="mechsim.js?v=512"></script>
-<script src="mech.js?v=512"></script>
-<script src="intro.js?v=512"></script>
-<script src="opening.js?v=512"></script>
-<script src="robots.js?v=512"></script>
-<script src="rules.js?v=512"></script>
-<script src="templates.js?v=512"></script>
-<script src="stages.js?v=512"></script>
-<script src="ask.js?v=512"></script>
-<script src="pit.js?v=512"></script>
-<script src="ring.js?v=512"></script>
-<script src="combat.js?v=512"></script>
-<script src="logic.js?v=512"></script>
-<script src="trail.js?v=512"></script>
-<script src="boolquiz.js?v=512"></script>
-<script src="scene.js?v=512"></script>
-<script src="ion.js?v=512"></script>
-<script src="brawl.js?v=512"></script>
-<script src="house.js?v=512"></script>
-<script src="puzzle.js?v=512"></script>
-<script src="nav.js?v=512"></script>
-<script src="tutorial.js?v=512"></script>
-<script src="race.js?v=512"></script>
-<script src="flight.js?v=512"></script>
-<script src="sub.js?v=512"></script>
-<script src="invaders.js?v=512"></script>
-<script src="school.js?v=512"></script>
-<script src="cruise.js?v=512"></script>
-<script src="club.js?v=512"></script>
-<script src="who.js?v=512"></script>
-<script src="arcade.js?v=512"></script>
-<script src="islands.js?v=512"></script>
-<script src="planet.js?v=512"></script>
-<script src="wallet.js?v=512"></script>
-<script src="shop.js?v=512"></script>
-<script src="library.js?v=512"></script>
-<script src="costumes.js?v=512"></script>
-<script src="missions.js?v=512"></script>
-<script src="coach.js?v=512"></script>
-<script src="owner.js?v=512"></script>
-<script src="blocks.js?v=512"></script>
-<script src="vm.js?v=512"></script>
-<script src="coder.js?v=512"></script>
-<script src="quiz.js?v=512"></script>
-<script src="chars.js?v=512"></script>
-<script src="title.js?v=512"></script>
-<script src="menu.js?v=512"></script>
-<script src="game.js?v=512"></script>
+<script>window.ASSETV='513';</script>
+<script src="lib/three.classic.js?v=513"></script>
+<script src="strings.js?v=513"></script>
+<script src="music.js?v=513"></script>
+<script src="net.js?v=513"></script>
+<script src="avatar.js?v=513"></script>
+<script src="zombies.js?v=513"></script>
+<script src="building.js?v=513"></script>
+<script src="levels.js?v=513"></script>
+<script src="program.js?v=513"></script>
+<script src="code.js?v=513"></script>
+<script src="mechsim.js?v=513"></script>
+<script src="mech.js?v=513"></script>
+<script src="intro.js?v=513"></script>
+<script src="opening.js?v=513"></script>
+<script src="robots.js?v=513"></script>
+<script src="rules.js?v=513"></script>
+<script src="templates.js?v=513"></script>
+<script src="stages.js?v=513"></script>
+<script src="ask.js?v=513"></script>
+<script src="pit.js?v=513"></script>
+<script src="ring.js?v=513"></script>
+<script src="combat.js?v=513"></script>
+<script src="logic.js?v=513"></script>
+<script src="trail.js?v=513"></script>
+<script src="boolquiz.js?v=513"></script>
+<script src="scene.js?v=513"></script>
+<script src="ion.js?v=513"></script>
+<script src="brawl.js?v=513"></script>
+<script src="house.js?v=513"></script>
+<script src="puzzle.js?v=513"></script>
+<script src="nav.js?v=513"></script>
+<script src="tutorial.js?v=513"></script>
+<script src="race.js?v=513"></script>
+<script src="flight.js?v=513"></script>
+<script src="sub.js?v=513"></script>
+<script src="invaders.js?v=513"></script>
+<script src="school.js?v=513"></script>
+<script src="cruise.js?v=513"></script>
+<script src="club.js?v=513"></script>
+<script src="who.js?v=513"></script>
+<script src="arcade.js?v=513"></script>
+<script src="islands.js?v=513"></script>
+<script src="planet.js?v=513"></script>
+<script src="wallet.js?v=513"></script>
+<script src="shop.js?v=513"></script>
+<script src="library.js?v=513"></script>
+<script src="costumes.js?v=513"></script>
+<script src="missions.js?v=513"></script>
+<script src="coach.js?v=513"></script>
+<script src="owner.js?v=513"></script>
+<script src="blocks.js?v=513"></script>
+<script src="vm.js?v=513"></script>
+<script src="coder.js?v=513"></script>
+<script src="quiz.js?v=513"></script>
+<script src="chars.js?v=513"></script>
+<script src="title.js?v=513"></script>
+<script src="menu.js?v=513"></script>
+<script src="game.js?v=513"></script>
 </body>
 </html>

@@ -112,12 +112,57 @@ window.ASK = (function(){
     $('#tutForm').onsubmit=e=>{ e.preventDefault(); send($('#tutIn').value); };
     log.scrollTop=log.scrollHeight;
   }
-  /* textContent, never innerHTML: what a child typed is not markup, and
+  /* --------------------------------------------- blocks, as blocks
+     The tutor writes a block as {{ctrl.if}} and this draws the real
+     thing: the same label, the same slots, the same category colour and
+     the same shape the palette uses, off the same BLOCKS table. A child
+     matching a picture to the palette beats a child matching a word.
+
+     STILL BUILT AS NODES, NEVER AS innerHTML. Everything outside a
+     marker is a text node, and the marker itself only ever produces a
+     block that BLOCKS.of() recognises — so neither what a child typed
+     nor what came back over the network can become markup. A marker
+     naming something that is not a block is left as it arrived, because
+     the honest thing to show is what was actually said. */
+  const MARK=/\{\{\s*([a-z]+\.[A-Za-z]+)\s*\}\}/g;
+  function chip(op){
+    const bd=window.BLOCKS && BLOCKS.of(op);
+    if(!bd) return null;
+    const el=document.createElement('span');
+    el.className='tut-blk cblk k-'+bd.kind;
+    el.style.setProperty('--a', BLOCKS.catOf(bd.cat).a);
+    el.title=BLOCKS.help(op)||bd.label;
+    BLOCKS.parts(bd.label).forEach(seg=>{
+      if(seg[0]!=='%'){ el.appendChild(document.createTextNode(seg)); return; }
+      const sp=bd.args[seg[1]], slot=document.createElement('i');
+      slot.className='cslot';
+      slot.textContent = sp && sp.def!==undefined ? String(sp.def)
+                       : (sp && sp.type==='bool' ? '◇' : '…');
+      el.appendChild(slot);
+    });
+    return el;
+  }
+  /* the answer, with every marker swapped for the block it names */
+  function drawn(text, into){
+    let at=0;
+    String(text).replace(MARK,(whole, op, i)=>{
+      const block=chip(op);
+      if(!block) return whole;                 // not a block: leave the words alone
+      if(i>at) into.appendChild(document.createTextNode(text.slice(at,i)));
+      into.appendChild(block);
+      at=i+whole.length;
+      return whole;
+    });
+    if(at<text.length) into.appendChild(document.createTextNode(text.slice(at)));
+    return into;
+  }
+
+  /* Nodes, never innerHTML: what a child typed is not markup, and
      neither is what came back. */
   function bubble(role, text){
     const d=document.createElement('div');
     d.className='tut-line '+(role==='you'?'you':'tutor');
-    d.textContent=text;
+    if(role==='you') d.textContent=text; else drawn(text, d);
     return d;
   }
 
@@ -144,7 +189,14 @@ window.ASK = (function(){
       const log=$('#tutLog'); if(!log) return;
       const rows=log.querySelectorAll('.tut-line');
       const row=rows[rows.length-1];
-      if(row){ row.textContent=mine.text; log.scrollTop=log.scrollHeight; }
+      if(!row) return;
+      /* Redrawn from scratch each time rather than appended to: a marker
+         arrives in pieces — "{{ctrl" then ".if}}" — so anything that
+         rendered as it went would show half a brace and then replace it.
+         Whole-text each repaint is a few nodes and nobody can see it. */
+      row.textContent='';
+      drawn(mine.text, row);
+      log.scrollTop=log.scrollHeight;
     };
     try{
       const r=await fetch('/api/tutor',{

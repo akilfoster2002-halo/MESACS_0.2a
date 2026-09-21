@@ -247,3 +247,116 @@ test('the script is sent in the words the child sees, not in op names', ()=>{
   assert.match(ask, /'  '\.repeat\(depth\)/,
     'the nesting is flattened, which is the half of a Scratch program that matters most');
 });
+
+/* ================================================ blocks, as blocks
+   The tutor writes a block as {{ctrl.if}} and the panel draws the real
+   thing — same label, same slots, same colour as the palette. A child
+   matching a picture to the palette beats a child matching a word.
+
+   `drawn` needs a DOM and this suite has none, so it is lifted out of
+   ask.js and run against the four DOM calls it actually makes. That is
+   the real function, not a copy of it. */
+function renderer(){
+  const src=read('public/ask.js');
+  const cut=name=>{
+    const i=src.indexOf('  const MARK=');
+    const j=src.indexOf('  /* Nodes, never innerHTML');
+    assert.ok(i>0 && j>i, 'ask.js no longer has a block renderer where this can find it');
+    return src.slice(i,j);
+  };
+  /* the smallest DOM these functions touch */
+  const node = tag => ({ tag, className:'', title:'', kids:[], style:{ setProperty(){} },
+    appendChild(c){ this.kids.push(c); return c; },
+    get textContent(){ return this.kids.map(k=>k.text!==undefined?k.text:k.textContent).join(''); },
+    set textContent(v){ this.kids=[{ text:String(v) }]; } });
+  const ctx={
+    document:{ createElement:node, createTextNode:t=>({ text:String(t) }) },
+    window:{}, assert
+  };
+  const blocksCtx=require('node:vm').createContext({ console });
+  blocksCtx.window=blocksCtx; blocksCtx.self=blocksCtx;
+  require('node:vm').runInContext(read('public/blocks.js'), blocksCtx, { filename:'blocks.js' });
+  ctx.window.BLOCKS=ctx.BLOCKS=blocksCtx.BLOCKS;
+  const fn=new Function('document','window','BLOCKS', cut()+'\nreturn { chip, drawn, MARK };');
+  return { ...fn(ctx.document, ctx.window, ctx.BLOCKS), node };
+}
+
+test('the tutor is told to name blocks in the shape the panel can draw', ()=>{
+  const how=flat(tutor.HOW);
+  assert.match(how, /\{\{op\}\}/, 'nothing tells it how to name a block');
+  assert.match(how, /\{\{ctrl\.if\}\}|\{\{ctrl\.forever\}\}/, 'it is given no example of the shape');
+  /* and it must not use them to write the program in pictures instead */
+  assert.match(how, /ONE BLOCK PER MARKER, AND NEVER A STACK/i,
+    'nothing stops it writing the whole script as a run of block pictures');
+});
+
+test('a named block is drawn as that block, off the same table the palette uses', ()=>{
+  const { chip } = renderer();
+  const el=chip('ctrl.if');
+  assert.ok(el, 'ctrl.if did not draw');
+  assert.strictEqual(el.textContent.replace(/\s+/g,' ').trim(), 'if ◇ then',
+    'the block does not read the way it reads on the palette');
+  assert.match(el.className, /\bcblk\b/, 'it is not wearing the palette block class');
+  assert.match(el.className, /k-c\b/,    'it is not the right shape for a C block');
+  assert.ok(el.title.length>0, 'no help text, so hovering it says nothing');
+  assert.strictEqual(chip('motion.changeBy').textContent.replace(/\s+/g,' ').trim(),
+    'change [x] by [0.2]'.replace(/[\[\]]/g,''), 'a block with slots lost its defaults');
+});
+
+test('a marker naming something that is not a block is left as it arrived', ()=>{
+  /* Showing what was actually said beats silently swallowing it. */
+  const { drawn, node } = renderer();
+  const out=node('div');
+  drawn('try {{ctrl.nonsense}} and {{not.ablock}}', out);
+  assert.match(out.textContent, /\{\{ctrl\.nonsense\}\}/);
+  assert.match(out.textContent, /\{\{not\.ablock\}\}/);
+});
+
+test('the prose round a block survives, and nothing is dropped', ()=>{
+  const { drawn, node } = renderer();
+  const out=node('div');
+  drawn('Look at your {{ctrl.if}} — is it inside the {{ctrl.forever}}?', out);
+  const text=out.textContent.replace(/\s+/g,' ');
+  assert.match(text, /^Look at your /,  'the words before the first block were lost');
+  assert.match(text, /is it inside the/, 'the words between two blocks were lost');
+  assert.match(text, /\?$/,              'the words after the last block were lost');
+  assert.ok(text.indexOf('{{')<0, 'a marker leaked through as braces');
+  const blocks=out.kids.filter(k=>k.className && /cblk/.test(k.className));
+  assert.strictEqual(blocks.length, 2, 'expected two blocks, got '+blocks.length);
+});
+
+test('a marker split across two stream chunks never shows as half a brace', ()=>{
+  /* The stream arrives in pieces and a marker is routinely cut in two.
+     The panel redraws from the WHOLE text each repaint rather than
+     appending, which is what makes this safe — appending would paint
+     "{{ctrl" and then have to take it back. */
+  const { drawn, node } = renderer();
+  const whole='Your {{ctrl.if}} is loose.';
+  for(let cut=1; cut<whole.length; cut++){
+    const out=node('div');
+    drawn(whole.slice(0,cut), out);            // every prefix must be safe to show
+    const t=out.textContent;
+    assert.ok(!/\{\{[a-z.]*\}\}/.test(t),
+      'a complete marker survived unrendered at cut '+cut+': '+t);
+  }
+  assert.match(read('public/ask.js'), /row\.textContent='';\s*\n\s*drawn\(mine\.text, row\)/,
+    'the stream is appended to rather than redrawn, so half a marker would be painted');
+});
+
+test('the answer is still built as nodes, never as markup', ()=>{
+  /* Checked against the CODE, with the comments stripped — the comment
+     above it says "never innerHTML", and a test that reads prose would
+     fail on the sentence promising the thing it is checking for. */
+  const ask=read('public/ask.js');
+  const i=ask.indexOf('function drawn('), j=ask.indexOf('function bubble(');
+  const body=ask.slice(i, j>i?j:undefined)
+    .replace(/\/\*[\s\S]*?\*\//g,' ')
+    .replace(/(^|[^:])\/\/.*$/gm,'$1');
+  assert.ok(!/innerHTML/.test(body),
+    'the block renderer uses innerHTML, so what came back over the network can be markup');
+  assert.match(body, /createTextNode/, 'the prose is not being added as text');
+  /* and the whole panel, while we are here */
+  const all=read('public/ask.js').replace(/\/\*[\s\S]*?\*\//g,' ');
+  assert.ok(!/\.innerHTML\s*=\s*[^`'"]*(mine|text|data)\b/.test(all),
+    'something is putting the tutor\'s reply into innerHTML');
+});

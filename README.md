@@ -349,6 +349,13 @@ are yours. When somebody is really stuck it gets *narrower*, not vaguer.
 The block reference it works from is **generated out of `blocks.js`**, help
 text and all, so it cannot recommend a block that is not on the palette.
 
+**It answers in blocks.** When it names one it writes `{{ctrl.if}}`, and
+the panel draws the real thing — same label, same slots, same colour and
+shape as the one on the palette, off the same table — so a child matches
+a picture instead of matching a word. Hovering one says what it does. It
+is told to use one per marker and never a run of them, because a stack of
+block pictures is writing the program with pictures instead of words.
+
 **Nothing is stored.** The conversation lives in the browser tab and dies
 with it, like the room's chat and for the same reason. The server sees a
 question, streams an answer and forgets both.
