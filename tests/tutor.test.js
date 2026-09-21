@@ -543,3 +543,62 @@ test('Enter sends the question, however the keyboard reports it', ()=>{
   assert.match(body, /e\.shiftKey/, 'shift+enter sends instead of doing nothing');
   assert.match(body, /preventDefault/, 'the keypress is left to also submit the form');
 });
+
+/* ============================================ the stream that was empty
+   The panel said "(no answer came back)": a 200, the right SSE headers,
+   and not one frame in the body. The model was fine — called directly it
+   answered — and the framing was fine. The route was throwing every
+   frame away.
+
+   IT WAS WATCHING THE WRONG STREAM. `req` is the request BODY, and for a
+   POST it closes as soon as that body has been read — about two
+   milliseconds in, long before the student has gone anywhere. So the
+   "has the client left?" flag was already true when the first token
+   arrived, and the guard on it suppressed the lot. `res` is the one that
+   closes when the client actually leaves. */
+test('the route asks the response whether the client left, not the request', ()=>{
+  const src=read('server/index.js');
+  /* Comments stripped first: the one above the fix names the bug it
+     fixed, and a test reading prose would fail on the sentence
+     explaining why the prose is right. */
+  const route=src.slice(src.indexOf("app.post('/api/tutor'"), src.indexOf('const PORT'))
+    .replace(/\/\*[\s\S]*?\*\//g,' ')
+    .replace(/(^|[^:])\/\/.*$/gm,'$1');
+  assert.match(route, /res\.on\('close'/,
+    'nothing notices when the student closes the tab, so a stream runs on into nothing');
+  assert.ok(!/req\.on\('close'/.test(route),
+    'the route watches req for close — that fires as soon as the POST body is read, '+
+    'so every frame is suppressed and the browser gets an empty stream');
+});
+
+test('a POST request really does close before anything is written', async ()=>{
+  /* The reason the rule above exists, demonstrated rather than asserted
+     — so that if this ever stops being true, the test says so instead of
+     quietly guarding against nothing. */
+  const express=require('express');
+  const app=express();
+  app.use(express.json());
+  const seen={};
+  app.post('/probe',(req,res)=>{
+    req.on('close',()=>{ seen.req=true; });
+    res.on('close',()=>{ seen.res=true; });
+    res.writeHead(200,{ 'Content-Type':'text/event-stream' });
+    setTimeout(()=>{
+      seen.atWriteTime={ req:!!seen.req, res:!!seen.res };
+      res.write('data: "hello"\n\n');
+      res.end();
+    }, 120);
+  });
+  const server=await new Promise(r=>{ const s=app.listen(0,()=>r(s)); });
+  try{
+    const port=server.address().port;
+    const body=await fetch('http://localhost:'+port+'/probe',
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:'{"a":1}' })
+      .then(r=>r.text());
+    assert.strictEqual(seen.atWriteTime.req, true,
+      'req no longer closes early — the guard in the route can be simplified');
+    assert.strictEqual(seen.atWriteTime.res, false,
+      'res closed before the client went anywhere, which would break the real guard too');
+    assert.match(body, /hello/, 'the client never received the write');
+  } finally { server.close(); }
+});

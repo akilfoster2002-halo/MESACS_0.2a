@@ -751,8 +751,16 @@ app.post('/api/tutor', async (req,res)=>{
     'X-Accel-Buffering':'no'
   });
   const send = (kind,data)=>res.write(`event: ${kind}\ndata: ${JSON.stringify(data)}\n\n`);
+  /* WATCH THE RESPONSE, NOT THE REQUEST. `req` is a stream of the body,
+     and for a POST it CLOSES as soon as that body has been read — about
+     two milliseconds in, long before the student has gone anywhere. This
+     was req.on('close'), so the flag was already true when the first
+     token arrived: every frame was suppressed, the browser was handed an
+     open stream with nothing in it, and the panel said "(no answer came
+     back)". The response is the thing that closes when the client
+     actually leaves. */
   let closed=false;
-  req.on('close',()=>{ closed=true; });
+  res.on('close',()=>{ closed=true; });
   try{
     await tutor.ask({
       question,
