@@ -16,6 +16,7 @@ const { WebSocketServer } = require('ws');
 const db = require('./db');
 const auth = require('./auth');
 const mech = require('./mechmatch');
+const tutor = require('./tutor');
 
 const app = express();
 /* Sixteen kilobytes is the right ceiling for everything this server took
@@ -68,7 +69,11 @@ const ok  = (res,data)=>res.json({ ok:true, ...data });
 /* Everything under /api needs Postgres except these two, which read no
    tables — so the game can still say honestly what is up and what rooms
    exist even when the database is not. */
-const NO_DB_NEEDED = ['/health','/servers','/who'];
+/* The tutor reads no tables either — it is a question, a key and an
+   answer. It still wants to know WHO is asking, so it sits below the
+   sign-in check but above the database one, and a school running the
+   game without Postgres still gets it. */
+const NO_DB_NEEDED = ['/health','/servers','/who','/tutor','/tutor/on'];
 app.use('/api',(req,res,next)=>{
   if(!db.ready && !NO_DB_NEEDED.includes(req.path))
     return res.status(503).json({ ok:false, error:'Sign-in is not connected yet (no database).' });
@@ -702,6 +707,64 @@ setInterval(()=>{
   const rooms=new Set(); for(const [,p] of live) if(p.server) rooms.add(p.server);
   for(const r of rooms) broadcastRoom(r,{ t:'players', players:roster(r) });
 }, 80);
+
+/* ========================================================= the tutor
+   Somebody to ask who will not do it for you. See server/tutor.js for
+   what it is told and, more importantly, what it is told not to say.
+
+   SIGNED IN, AND ONE QUESTION AT A TIME. An open endpoint that costs
+   money per call is an open endpoint somebody will find; the session
+   cookie the rest of the game already uses is the gate, and a plain
+   per-user cooldown stops one bored child holding the key down. Neither
+   is security in the serious sense — they are the two lines that keep a
+   lab's bill looking like a lab's bill.
+
+   NOTHING IS STORED. The conversation is in the browser tab. The server
+   sees a question, streams an answer and forgets both. */
+app.get('/api/tutor/on',(req,res)=>ok(res,{ tutor:tutor.on() }));
+
+const LAST_ASK = new Map();            // user id -> when they last asked
+const COOLDOWN = 1500;
+app.post('/api/tutor', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  if(!tutor.on()) return bad(res,503,'The tutor is not switched on here.');
+  const now = Date.now(), last = LAST_ASK.get(s.id) || 0;
+  if(now-last < COOLDOWN) return bad(res,429,'One at a time — try again in a moment.');
+  LAST_ASK.set(s.id, now);
+
+  const question = String(req.body.question||'').slice(0, tutor.MAX_ASK).trim();
+  if(!question) return bad(res,400,'ask something');
+
+  /* SERVER-SENT EVENTS, because a reply that arrives a word at a time is
+     one a child will wait for. Headers go out before the first token so
+     the browser opens the stream rather than buffering the lot. */
+  res.writeHead(200,{
+    'Content-Type':'text/event-stream; charset=utf-8',
+    'Cache-Control':'no-cache, no-transform',
+    'Connection':'keep-alive',
+    'X-Accel-Buffering':'no'
+  });
+  const send = (kind,data)=>res.write(`event: ${kind}\ndata: ${JSON.stringify(data)}\n\n`);
+  let closed=false;
+  req.on('close',()=>{ closed=true; });
+  try{
+    await tutor.ask({
+      question,
+      history: Array.isArray(req.body.history) ? req.body.history : [],
+      context: req.body.context || {}
+    }, chunk => { if(!closed) send('say', chunk); });
+    if(!closed) send('done', {});
+  }catch(e){
+    /* The student is mid-question with a spinner on screen. Say
+       something they can act on rather than leaving it turning. */
+    const rate = e && (e.status===429 || e.status===529);
+    if(!closed) send('fail', rate ? 'The tutor is busy — try again in a moment.'
+                                  : 'The tutor could not answer just now.');
+    if(!rate) console.error('[tutor]', e && e.message ? e.message : e);
+  }
+  res.end();
+});
 
 const PORT = process.env.PORT || 3000;
 db.init()

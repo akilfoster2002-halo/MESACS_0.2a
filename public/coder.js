@@ -46,17 +46,31 @@ window.CODER = (function(){
      it, which is the exact mistake the stage exists to prevent. */
   function narrow(spec){
     only = spec||null;
-    if(!cats().some(c=>c.id===cat)) cat = cats()[0].id;
+    cat = usable(cat);
     render();
+  }
+  /* A SHELF WITH NOTHING ON IT IS NOT A SHELF THE STUDENT SHOULD BE
+     LOOKING AT. Keeping the open category is right while it still has
+     blocks — a walkthrough that yanks the tab out from under a click is
+     worse — but a step can narrow the ops to a different category and
+     leave the student staring at an empty panel wondering what broke.
+     Stay if there is anything there; move to the first shelf that has
+     something if there is not. */
+  function usable(want){
+    const all=cats();
+    if(!all.length) return want;
+    if(all.some(c=>c.id===want) && shown(want).length) return want;
+    const full=all.find(c=>shown(c.id).length);
+    return (full||all[0]).id;
   }
   function restrict(spec){
     only = spec||null;
-    /* KEEP THE SHELF THE STUDENT IS ON. Resetting to the first category
-       every time was fine when restrict() was called once on the way into
-       a room; a walkthrough calls it on every step, and a student who had
-       just been told to click Sensing watched it snap back to Control the
-       instant they did. */
-    if(!cats().some(c=>c.id===cat)) cat = cats()[0].id;
+    /* KEEP THE SHELF THE STUDENT IS ON, if it still has anything on it.
+       Resetting to the first category every time was fine when restrict()
+       was called once on the way into a room; a walkthrough calls it on
+       every step, and a student who had just been told to click Sensing
+       watched it snap back to Control the instant they did. */
+    cat = usable(cat);
     /* the project changes with the mission, so let go of the object that was
        being edited — it is about to stop existing, and a chip naming a deleted
        object edits nothing */
@@ -97,6 +111,8 @@ window.CODER = (function(){
       <button class="btn small ghost" id="cStop">■ ${t('Stop')}</button>
       <button class="btn small ${magnify?'good':'ghost'}" id="cMag"
               title="${t('Explain a block')}">🔍</button>
+      <button class="btn small ghost hidden" id="tutorBtn"
+              title="${t('Ask about the blocks')}">💬 ${t('Ask')}</button>
       <span class="chint" id="cHint"></span>
       <span class="bspace"></span>
       <span class="chint dim">${t('{n} running',{n:VM.threadCount})}</span>
@@ -106,6 +122,10 @@ window.CODER = (function(){
     $('#cStop').onclick=()=>{ VM.stopAll(); render(); };
     $('#cMag').onclick=()=>{ magnify=!magnify; explainClose(); render(); };
     $('#cShut').onclick=hide;
+    /* the tutor decides whether its own button exists — no key on the
+       server means no button, and a school that does not want it never
+       sees one */
+    if(window.ASK) ASK.boot();
     const wipe_=$('#cWipe'); if(wipe_) wipe_.onclick=()=>{ if(confirm(t('Throw away this project and start again?'))){
       VM.wipe(); actor=null; selected=null; cursor=null; render(); } };
     hint();

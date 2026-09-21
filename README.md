@@ -328,6 +328,43 @@ afterwards — rename, rewire or delete any of it.
 Pulled back on purpose: the two-player match, and a second round. The old combat model and its
 server lobby are in the history at `0b8e547`.
 
+## Ask — the tutor
+
+There is a **💬 Ask** button in the block editor. It is a chat box with a
+tutor behind it: it can see which mission you are on, which step of the
+walkthrough you are stuck on, which blocks are on your palette, and **your
+script as it is on screen**, written out in the same words the blocks are
+written in — so it can say "your `if` is under the loop rather than inside
+it", which is the only kind of help worth having.
+
+**It will not write the program.** That is the whole design, not a
+limitation: the ten seconds before the penny drops is what this game is
+for, and an assistant that hands over the finished script buys a working
+robot at the price of the lesson. It is told to be specific about
+everything *except* the last step — name the block, say what the block is
+for, point at the exact place in your own script, tell you what to press
+Run and look at — and then stop. The placing, the typing and the number
+are yours. When somebody is really stuck it gets *narrower*, not vaguer.
+
+The block reference it works from is **generated out of `blocks.js`**, help
+text and all, so it cannot recommend a block that is not on the palette.
+
+**Nothing is stored.** The conversation lives in the browser tab and dies
+with it, like the room's chat and for the same reason. The server sees a
+question, streams an answer and forgets both.
+
+### Switching it on
+
+Set `ANTHROPIC_API_KEY` in the environment and restart. With no key set,
+`/api/tutor/on` reports `false` and **the button never appears** — a school
+that does not want a tutor, or cannot pay for one, deploys exactly the
+same code and never sees it.
+
+It is signed-in only and one question at a time per person. Those are not
+security in the serious sense; they are the two lines that keep a lab's
+bill looking like a lab's bill. Model and effort are at the top of
+`server/tutor.js`.
+
 ## Files
 ```
 index.html   page shell, HUD and styles
