@@ -1982,6 +1982,31 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #ringFlat.on{background:var(--accent);color:#241d38;border-color:var(--accent);font-weight:bold}
 /* the stage card moves down to make room for it */
 #ringStage{top:150px}
+/* ------------------------------------------------------ 2D or 3D
+   THE FIRST SCREEN IN A LEVEL, AND IT HOLDS TWO THINGS. Everything the
+   room normally puts on top of itself — the bars, the blocks button, the
+   stage card, the axis legend, the walkthrough — stands down while this
+   is up, because a choice between two things does not need a heads-up
+   display around it and a nine-year-old reading five panels is a
+   nine-year-old not making the choice.
+
+   The room is still behind it, dimmed rather than hidden: the thing being
+   chosen is how to LOOK at that room, and you can see it while you
+   choose. */
+#ringPick{position:absolute;inset:0;z-index:4;pointer-events:auto;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,7,20,.72);backdrop-filter:blur(3px)}
+.rp-row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
+.rp{width:210px;padding:30px 18px 24px;display:grid;gap:7px;justify-items:center;
+  background:rgba(22,17,40,.92);border:1px solid var(--line);border-radius:18px;
+  color:var(--text);cursor:pointer;font-family:var(--font);
+  transition:transform .12s,border-color .12s,background .12s}
+.rp:hover,.rp:focus-visible{transform:translateY(-4px);border-color:var(--accent);
+  background:rgba(38,30,68,.96);outline:none}
+.rp-em{font-size:40px;line-height:1;color:var(--accent)}
+.rp b{font-family:var(--font-disp);font-size:30px;letter-spacing:3px;color:var(--star)}
+.rp small{font-size:12px;color:var(--muted);letter-spacing:.4px}
+@media (max-width:620px){ .rp{width:150px;padding:22px 12px 18px} .rp-row{gap:16px} }
 /* HOW FAR THROUGH, as dots rather than a number — it says "nearly there"
    at a glance and costs no reading. */
 .ring-stage-dots{display:flex;gap:4px;flex-wrap:wrap}
@@ -2674,6 +2699,9 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="ringStage" class="hidden"></div>
   <button id="ringOpen" class="hidden">▦ BLOCKS <small>C</small></button>
   <button id="ringFlat" class="hidden">▢ 2D VIEW</button>
+  <!-- the first thing in a level, and the only thing on the screen
+       while it is up. Filled by ring.js -->
+  <div id="ringPick" class="hidden"></div>
 </div>
 
 
@@ -2702,64 +2730,64 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='527';</script>
-<script src="lib/three.classic.js?v=527"></script>
-<script src="strings.js?v=527"></script>
-<script src="music.js?v=527"></script>
-<script src="net.js?v=527"></script>
-<script src="avatar.js?v=527"></script>
-<script src="zombies.js?v=527"></script>
-<script src="building.js?v=527"></script>
-<script src="levels.js?v=527"></script>
-<script src="program.js?v=527"></script>
-<script src="code.js?v=527"></script>
-<script src="mechsim.js?v=527"></script>
-<script src="mech.js?v=527"></script>
-<script src="intro.js?v=527"></script>
-<script src="opening.js?v=527"></script>
-<script src="robots.js?v=527"></script>
-<script src="rules.js?v=527"></script>
-<script src="templates.js?v=527"></script>
-<script src="stages.js?v=527"></script>
-<script src="ask.js?v=527"></script>
-<script src="pit.js?v=527"></script>
-<script src="ring.js?v=527"></script>
-<script src="combat.js?v=527"></script>
-<script src="logic.js?v=527"></script>
-<script src="trail.js?v=527"></script>
-<script src="boolquiz.js?v=527"></script>
-<script src="scene.js?v=527"></script>
-<script src="ion.js?v=527"></script>
-<script src="brawl.js?v=527"></script>
-<script src="house.js?v=527"></script>
-<script src="puzzle.js?v=527"></script>
-<script src="nav.js?v=527"></script>
-<script src="tutorial.js?v=527"></script>
-<script src="race.js?v=527"></script>
-<script src="flight.js?v=527"></script>
-<script src="sub.js?v=527"></script>
-<script src="invaders.js?v=527"></script>
-<script src="school.js?v=527"></script>
-<script src="cruise.js?v=527"></script>
-<script src="club.js?v=527"></script>
-<script src="who.js?v=527"></script>
-<script src="arcade.js?v=527"></script>
-<script src="islands.js?v=527"></script>
-<script src="planet.js?v=527"></script>
-<script src="wallet.js?v=527"></script>
-<script src="shop.js?v=527"></script>
-<script src="library.js?v=527"></script>
-<script src="costumes.js?v=527"></script>
-<script src="missions.js?v=527"></script>
-<script src="coach.js?v=527"></script>
-<script src="owner.js?v=527"></script>
-<script src="blocks.js?v=527"></script>
-<script src="vm.js?v=527"></script>
-<script src="coder.js?v=527"></script>
-<script src="quiz.js?v=527"></script>
-<script src="chars.js?v=527"></script>
-<script src="title.js?v=527"></script>
-<script src="menu.js?v=527"></script>
-<script src="game.js?v=527"></script>
+<script>window.ASSETV='530';</script>
+<script src="lib/three.classic.js?v=530"></script>
+<script src="strings.js?v=530"></script>
+<script src="music.js?v=530"></script>
+<script src="net.js?v=530"></script>
+<script src="avatar.js?v=530"></script>
+<script src="zombies.js?v=530"></script>
+<script src="building.js?v=530"></script>
+<script src="levels.js?v=530"></script>
+<script src="program.js?v=530"></script>
+<script src="code.js?v=530"></script>
+<script src="mechsim.js?v=530"></script>
+<script src="mech.js?v=530"></script>
+<script src="intro.js?v=530"></script>
+<script src="opening.js?v=530"></script>
+<script src="robots.js?v=530"></script>
+<script src="rules.js?v=530"></script>
+<script src="templates.js?v=530"></script>
+<script src="stages.js?v=530"></script>
+<script src="ask.js?v=530"></script>
+<script src="pit.js?v=530"></script>
+<script src="ring.js?v=530"></script>
+<script src="combat.js?v=530"></script>
+<script src="logic.js?v=530"></script>
+<script src="trail.js?v=530"></script>
+<script src="boolquiz.js?v=530"></script>
+<script src="scene.js?v=530"></script>
+<script src="ion.js?v=530"></script>
+<script src="brawl.js?v=530"></script>
+<script src="house.js?v=530"></script>
+<script src="puzzle.js?v=530"></script>
+<script src="nav.js?v=530"></script>
+<script src="tutorial.js?v=530"></script>
+<script src="race.js?v=530"></script>
+<script src="flight.js?v=530"></script>
+<script src="sub.js?v=530"></script>
+<script src="invaders.js?v=530"></script>
+<script src="school.js?v=530"></script>
+<script src="cruise.js?v=530"></script>
+<script src="club.js?v=530"></script>
+<script src="who.js?v=530"></script>
+<script src="arcade.js?v=530"></script>
+<script src="islands.js?v=530"></script>
+<script src="planet.js?v=530"></script>
+<script src="wallet.js?v=530"></script>
+<script src="shop.js?v=530"></script>
+<script src="library.js?v=530"></script>
+<script src="costumes.js?v=530"></script>
+<script src="missions.js?v=530"></script>
+<script src="coach.js?v=530"></script>
+<script src="owner.js?v=530"></script>
+<script src="blocks.js?v=530"></script>
+<script src="vm.js?v=530"></script>
+<script src="coder.js?v=530"></script>
+<script src="quiz.js?v=530"></script>
+<script src="chars.js?v=530"></script>
+<script src="title.js?v=530"></script>
+<script src="menu.js?v=530"></script>
+<script src="game.js?v=530"></script>
 </body>
 </html>

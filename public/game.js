@@ -832,7 +832,11 @@ function wireInput(){
          there and it is always the one being edited, so this toggles
          rather than asking what you are standing in front of. */
       if(e.code==='KeyC' && window.RING && RING.active && window.CODER){
-        e.preventDefault(); CODER.toggle(); return;
+        /* except while the level is still asking 2D or 3D — that screen
+           is meant to have nothing on it, including the editor */
+        e.preventDefault();
+        if(!RING.picking) CODER.toggle();
+        return;
       }
       if((e.code==='KeyC'||e.code==='KeyE') && G.running && G.room==='free'){
         const on = G.focused && G.focused.userData && G.focused.userData.actor;

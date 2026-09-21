@@ -220,11 +220,8 @@ window.RING = (function(){
     $('#ring').classList.remove('hidden');
     $('#ringKeys').classList.remove('hidden');
     const ob=$('#ringOpen');
-    if(ob){ ob.classList.remove('hidden'); ob.onclick=()=>{ if(window.CODER) CODER.toggle(); }; }
-    const fb=$('#ringFlat');
-    if(fb){ fb.classList.remove('hidden'); fb.onclick=()=>flatten(!flat); }
+    if(ob){ ob.onclick=()=>{ if(window.CODER) CODER.toggle(); }; }
     flatten(false);
-    legend();
 
     build();
 
@@ -257,6 +254,61 @@ window.RING = (function(){
     /* A fresh room is a fresh walkthrough, so the shelf starts narrow
        again — nothing in here is kept, including having been here. */
     ranOnce=false;
+    /* AND NOW ASK HOW THEY WANT TO LOOK AT IT. Everything above built the
+       room; nothing above started it. The walkthrough, the bars, the
+       blocks button and the stage card all wait on the answer — see
+       askView(). */
+    askView();
+  }
+
+  /* --------------------------------------------------- 2D or 3D, first
+     THE ONE DECISION BEFORE THE LEVEL, ON A SCREEN WITH NOTHING ELSE ON
+     IT. The room can be read two ways: from above, where x runs across
+     the screen and y runs up it and the blocks are named for exactly what
+     you are looking at; or from inside, where it is a place with depth in
+     it. Neither is a lesser version — the same blocks do the same things
+     in both, and the only difference is which of the three axes is the
+     one pointing at your face.
+
+     ASKED RATHER THAN TOGGLED, because the toggle was a small button in
+     the corner of a screen already carrying five panels, and a student
+     who never pressed it never knew the other view existed. Asked first,
+     with the room dimmed behind and nothing else on the screen, it is a
+     decision instead of a setting.
+
+     AND IT STAYS PUT. Once chosen the view is the mission's, and the
+     corner toggle does not come back: "restrict to the top view" is the
+     point of choosing 2D, and a camera that can be flipped mid-lesson is
+     one more thing to fiddle with instead of writing blocks. Walking out
+     and back in is how you change your mind, which is also how you change
+     everything else in here. */
+  let picking=false;
+  function askView(){
+    picking=true;
+    /* the slide is bare: everything the room draws over itself goes */
+    ['#hud','#ringTop','#ringKeys','#ringAxes','#ringStage','#ringOpen','#ringFlat','#ringFeed']
+      .forEach(sel=>{ const e=$(sel); if(e) e.classList.add('hidden'); });
+    if(window.keyHint) keyHint('');
+    const el=$('#ringPick');
+    if(!el){ tookView('3d'); return; }          // no markup: do not trap them
+    el.innerHTML=`<div class="rp-row">
+      <button class="rp" data-v="2d"><span class="rp-em">▦</span>
+        <b>2D</b><small>${T('from above')}</small></button>
+      <button class="rp" data-v="3d"><span class="rp-em">◳</span>
+        <b>3D</b><small>${T('in the room')}</small></button></div>`;
+    el.classList.remove('hidden');
+    el.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>tookView(b.dataset.v));
+  }
+  function tookView(v){
+    picking=false;
+    const el=$('#ringPick');
+    if(el){ el.classList.add('hidden'); el.innerHTML=''; }
+    flatten(v==='2d');
+    $('#hud').classList.remove('hidden');
+    $('#ringTop').classList.remove('hidden');
+    $('#ringKeys').classList.remove('hidden');
+    const ob=$('#ringOpen'); if(ob) ob.classList.remove('hidden');
+    legend();
     hint();
     card();
     hud();
@@ -739,6 +791,8 @@ window.RING = (function(){
     fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
+    picking=false;
+    const pk=$('#ringPick'); if(pk){ pk.classList.add('hidden'); pk.innerHTML=''; }
     flatten(false);
     ['#ringFeed','#ringKeys','#ringAxes','#ringStage','#ringOpen','#ringFlat']
       .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
@@ -1053,6 +1107,7 @@ window.RING = (function(){
      any script left them — and they are the same numbers `(health)` and
      `(stamina)` report inside the blocks, which is the point. */
   function hud(){
+    if(picking) return;              // likewise
     const el=$('#ringA'), T=window.TEMPLATES, R=window.RULES;
     if(!el || !T || !R) return;
     /* NOTHING IS FIGHTING IN STAGE ONE, so a health bar is a number that
@@ -1105,6 +1160,7 @@ window.RING = (function(){
   const escHtml = s => String(s==null?'':s).replace(/[&<>"]/g,
     c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function card(){
+    if(picking) return;              // the slide is bare, and tick() runs anyway
     const el=$('#ringStage'); if(!el || !ST()) return;
     const s=spot();
     /* WHAT IS LEFT OF THE CARD. The goal and the reasoning have moved into
@@ -1222,6 +1278,8 @@ window.RING = (function(){
 
   return { start, stop, tick, leave, flatten, PALETTE, SLOT, ACTOR,
            get flat(){ return flat; },
+           /* so nothing opens on top of the one screen that is meant to be bare */
+           get picking(){ return picking; },
            get active(){ return on; },
            /* what the walkthrough's steps are reading, for diagnosing a
               step that will not tick */
