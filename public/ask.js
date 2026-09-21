@@ -29,6 +29,12 @@ window.ASK = (function(){
 
   let open=false, live=false, asking=false;
   let turns=[];                 // {role:'you'|'tutor', text}
+  /* WHERE THE WINDOW IS, and whether it is rolled up. Kept in memory for
+     the life of the tab and nowhere else: a child who drags it out of the
+     way should find it there when they close and reopen it, and a child
+     on the next machine should not inherit where somebody else put it. */
+  let placed=null;              // {left, top} once it has been dragged
+  let rolled=false;             // minimised to its title bar
 
   /* ------------------------------------------------ the script, in words
      The same walk the editor and the VM do, which is why it cannot drift
@@ -114,10 +120,12 @@ window.ASK = (function(){
   function render(){
     const el=$('#tutor'); if(!el) return;
     el.innerHTML=`
-      <div class="tut-head">
+      <div class="tut-head" id="tutGrab">
         <b>${T('ASK')}</b>
         <span class="tut-key">${T('it will not do it for you')}</span>
-        <button class="bx" id="tutShut">✕</button>
+        <button class="bx" id="tutMin" title="${rolled?T('open it back up'):T('roll it up')}"
+          >${rolled?'▣':'▁'}</button>
+        <button class="bx" id="tutShut" title="${T('close')}">✕</button>
       </div>
       <div class="tut-log" id="tutLog">${turns.length ? '' :
         `<p class="tut-hello">${T('Stuck? Ask about a block, or about what your robot is doing. '+
@@ -127,9 +135,12 @@ window.ASK = (function(){
                placeholder="${T('why does my robot only move once?')}">
         <button class="btn small good" id="tutGo" ${asking?'disabled':''}>▸</button>
       </form>`;
+    el.classList.toggle('rolled', rolled);
     const log=$('#tutLog');
     turns.forEach(t=>log.appendChild(bubble(t.role, t.text)));
     $('#tutShut').onclick=hide;
+    $('#tutMin').onclick=()=>{ rolled=!rolled; render(); };
+    grab($('#tutGrab'));
     $('#tutForm').onsubmit=e=>{ e.preventDefault(); send($('#tutIn').value); };
     /* ENTER SENDS IT, said out loud rather than left to the form's own
        implicit submission. That only fires under conditions this box has
@@ -203,11 +214,69 @@ window.ASK = (function(){
     return d;
   }
 
+  /* ------------------------------------------------- moving it about
+     A panel pinned to one corner is a panel that sits on top of whatever
+     you are being told to look at. This one is dragged by its title bar.
+
+     IT SWITCHES FROM CORNER-ANCHORED TO POSITIONED ON THE FIRST DRAG.
+     Until then it is right/bottom, so it stays in its corner as the
+     window resizes; once somebody has put it somewhere, that somewhere
+     is a left/top and it stays where it was put.
+
+     AND IT CANNOT BE LOST. Everything is clamped so a piece of the title
+     bar is always on screen — a window dragged off the edge with no way
+     to reach it again is a window a nine-year-old never gets back. */
+  const EDGE=28;                // how much must stay reachable
+  function clamp(left, top, el){
+    const w=el.offsetWidth||320, h=el.offsetHeight||100;
+    return {
+      left: Math.max(EDGE-w, Math.min(left, innerWidth-EDGE)),
+      top:  Math.max(0,      Math.min(top,  innerHeight-EDGE))
+    };
+  }
+  function put(el, at){
+    placed=at;
+    el.style.left=at.left+'px';
+    el.style.top =at.top+'px';
+    el.style.right='auto';
+    el.style.bottom='auto';
+  }
+  function grab(handle){
+    if(!handle) return;
+    handle.onpointerdown=e=>{
+      /* the buttons in the title bar are buttons, not handles */
+      if(e.target.closest('button')) return;
+      const el=$('#tutor'); if(!el) return;
+      const box=el.getBoundingClientRect();
+      const dx=e.clientX-box.left, dy=e.clientY-box.top;
+      handle.setPointerCapture(e.pointerId);
+      el.classList.add('moving');
+      const move=ev=>put(el, clamp(ev.clientX-dx, ev.clientY-dy, el));
+      const drop=()=>{
+        handle.onpointermove=null; handle.onpointerup=null; handle.onpointercancel=null;
+        el.classList.remove('moving');
+        try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+      };
+      handle.onpointermove=move;
+      handle.onpointerup=drop;
+      handle.onpointercancel=drop;
+      e.preventDefault();
+    };
+  }
+  /* A window can be left somewhere that a smaller screen no longer has.
+     Checked whenever the page changes size rather than only on a drag. */
+  addEventListener('resize',()=>{
+    const el=$('#tutor');
+    if(el && placed && !el.classList.contains('hidden')) put(el, clamp(placed.left, placed.top, el));
+  });
+
   function show(){
     if(!live) return;
     open=true;
-    $('#tutor').classList.remove('hidden');
+    const el=$('#tutor');
+    el.classList.remove('hidden');
     render();
+    if(placed) put(el, clamp(placed.left, placed.top, el));
     const i=$('#tutIn'); if(i) i.focus();
   }
   function hide(){ open=false; $('#tutor').classList.add('hidden'); }

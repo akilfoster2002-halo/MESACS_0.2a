@@ -1906,12 +1906,30 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
    ASK — the tutor, in the editor, because that is where being stuck is.
    Bottom-right over the script pane: near the blocks it is talking about,
    and not on top of the walkthrough card along the top. */
+/* A WINDOW, not a panel bolted to a corner. It is dragged by its title
+   bar, rolled up to that bar, and resized from its own corner — because
+   pinned to the bottom right it sat on top of whichever block the
+   walkthrough was pointing at, and the only way out was to close it.
+
+   `resize:both` is the browser's own grip and wants an overflow that is
+   not visible, which this already has. The minimums stop it being
+   dragged down to a sliver nobody can find again. */
 #tutor{position:absolute;right:10px;bottom:10px;width:min(370px,42vw);max-height:62%;
+  min-width:250px;min-height:120px;resize:both;
   z-index:6;display:flex;flex-direction:column;pointer-events:auto;
   background:linear-gradient(180deg,#332a52,#2a2243);border:1px solid var(--line);
   border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.55);overflow:hidden}
+/* while it is being dragged: no text selection, and no transition lag */
+#tutor.moving{user-select:none;cursor:grabbing}
+#tutor.moving *{cursor:grabbing}
+/* ROLLED UP is the title bar and nothing else. min-height and the resize
+   grip both have to stand down, or it springs back open. */
+#tutor.rolled{height:auto!important;min-height:0;resize:none}
+#tutor.rolled .tut-log,#tutor.rolled .tut-ask{display:none}
 .tut-head{display:flex;align-items:center;gap:8px;padding:9px 12px;
-  border-bottom:1px solid var(--line);flex:none}
+  border-bottom:1px solid var(--line);flex:none;cursor:grab;touch-action:none}
+#tutor.rolled .tut-head{border-bottom:none}
+.tut-head:active{cursor:grabbing}
 .tut-head b{font-family:var(--font-disp);font-size:13px;letter-spacing:1.6px;color:var(--star)}
 .tut-key{flex:1;font-size:10.5px;color:var(--muted);letter-spacing:.3px}
 .tut-log{flex:1;overflow-y:auto;padding:10px 12px;display:grid;gap:8px;min-height:90px}
@@ -2684,64 +2702,64 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='523';</script>
-<script src="lib/three.classic.js?v=523"></script>
-<script src="strings.js?v=523"></script>
-<script src="music.js?v=523"></script>
-<script src="net.js?v=523"></script>
-<script src="avatar.js?v=523"></script>
-<script src="zombies.js?v=523"></script>
-<script src="building.js?v=523"></script>
-<script src="levels.js?v=523"></script>
-<script src="program.js?v=523"></script>
-<script src="code.js?v=523"></script>
-<script src="mechsim.js?v=523"></script>
-<script src="mech.js?v=523"></script>
-<script src="intro.js?v=523"></script>
-<script src="opening.js?v=523"></script>
-<script src="robots.js?v=523"></script>
-<script src="rules.js?v=523"></script>
-<script src="templates.js?v=523"></script>
-<script src="stages.js?v=523"></script>
-<script src="ask.js?v=523"></script>
-<script src="pit.js?v=523"></script>
-<script src="ring.js?v=523"></script>
-<script src="combat.js?v=523"></script>
-<script src="logic.js?v=523"></script>
-<script src="trail.js?v=523"></script>
-<script src="boolquiz.js?v=523"></script>
-<script src="scene.js?v=523"></script>
-<script src="ion.js?v=523"></script>
-<script src="brawl.js?v=523"></script>
-<script src="house.js?v=523"></script>
-<script src="puzzle.js?v=523"></script>
-<script src="nav.js?v=523"></script>
-<script src="tutorial.js?v=523"></script>
-<script src="race.js?v=523"></script>
-<script src="flight.js?v=523"></script>
-<script src="sub.js?v=523"></script>
-<script src="invaders.js?v=523"></script>
-<script src="school.js?v=523"></script>
-<script src="cruise.js?v=523"></script>
-<script src="club.js?v=523"></script>
-<script src="who.js?v=523"></script>
-<script src="arcade.js?v=523"></script>
-<script src="islands.js?v=523"></script>
-<script src="planet.js?v=523"></script>
-<script src="wallet.js?v=523"></script>
-<script src="shop.js?v=523"></script>
-<script src="library.js?v=523"></script>
-<script src="costumes.js?v=523"></script>
-<script src="missions.js?v=523"></script>
-<script src="coach.js?v=523"></script>
-<script src="owner.js?v=523"></script>
-<script src="blocks.js?v=523"></script>
-<script src="vm.js?v=523"></script>
-<script src="coder.js?v=523"></script>
-<script src="quiz.js?v=523"></script>
-<script src="chars.js?v=523"></script>
-<script src="title.js?v=523"></script>
-<script src="menu.js?v=523"></script>
-<script src="game.js?v=523"></script>
+<script>window.ASSETV='525';</script>
+<script src="lib/three.classic.js?v=525"></script>
+<script src="strings.js?v=525"></script>
+<script src="music.js?v=525"></script>
+<script src="net.js?v=525"></script>
+<script src="avatar.js?v=525"></script>
+<script src="zombies.js?v=525"></script>
+<script src="building.js?v=525"></script>
+<script src="levels.js?v=525"></script>
+<script src="program.js?v=525"></script>
+<script src="code.js?v=525"></script>
+<script src="mechsim.js?v=525"></script>
+<script src="mech.js?v=525"></script>
+<script src="intro.js?v=525"></script>
+<script src="opening.js?v=525"></script>
+<script src="robots.js?v=525"></script>
+<script src="rules.js?v=525"></script>
+<script src="templates.js?v=525"></script>
+<script src="stages.js?v=525"></script>
+<script src="ask.js?v=525"></script>
+<script src="pit.js?v=525"></script>
+<script src="ring.js?v=525"></script>
+<script src="combat.js?v=525"></script>
+<script src="logic.js?v=525"></script>
+<script src="trail.js?v=525"></script>
+<script src="boolquiz.js?v=525"></script>
+<script src="scene.js?v=525"></script>
+<script src="ion.js?v=525"></script>
+<script src="brawl.js?v=525"></script>
+<script src="house.js?v=525"></script>
+<script src="puzzle.js?v=525"></script>
+<script src="nav.js?v=525"></script>
+<script src="tutorial.js?v=525"></script>
+<script src="race.js?v=525"></script>
+<script src="flight.js?v=525"></script>
+<script src="sub.js?v=525"></script>
+<script src="invaders.js?v=525"></script>
+<script src="school.js?v=525"></script>
+<script src="cruise.js?v=525"></script>
+<script src="club.js?v=525"></script>
+<script src="who.js?v=525"></script>
+<script src="arcade.js?v=525"></script>
+<script src="islands.js?v=525"></script>
+<script src="planet.js?v=525"></script>
+<script src="wallet.js?v=525"></script>
+<script src="shop.js?v=525"></script>
+<script src="library.js?v=525"></script>
+<script src="costumes.js?v=525"></script>
+<script src="missions.js?v=525"></script>
+<script src="coach.js?v=525"></script>
+<script src="owner.js?v=525"></script>
+<script src="blocks.js?v=525"></script>
+<script src="vm.js?v=525"></script>
+<script src="coder.js?v=525"></script>
+<script src="quiz.js?v=525"></script>
+<script src="chars.js?v=525"></script>
+<script src="title.js?v=525"></script>
+<script src="menu.js?v=525"></script>
+<script src="game.js?v=525"></script>
 </body>
 </html>

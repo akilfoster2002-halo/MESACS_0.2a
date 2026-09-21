@@ -251,6 +251,9 @@ window.RING = (function(){
       CODER.setActor(bot);
     }
     run=fresh(); cleared=false; seenRun=-1; rang=-1; lastPos=null;
+    /* A fresh room is a fresh walkthrough, so the shelf starts narrow
+       again — nothing in here is kept, including having been here. */
+    ranOnce=false;
     hint();
     card();
     hud();
@@ -562,7 +565,14 @@ window.RING = (function(){
        frames and punches forward and ticked itself on the strength of a
        program the student had already rewritten. */
     if(VM.running){
-      if(seenRun!==VM.runId){ seenRun=VM.runId; run=fresh(); lastPos=null; }
+      if(seenRun!==VM.runId){
+        seenRun=VM.runId; run=fresh(); lastPos=null;
+        /* AND THE SHELF OPENS. Hung off the same count the attempts are,
+           because "they have pressed Run" is exactly what that count
+           means — and because this is the one place in the room that
+           already knows, whichever button or key started it. */
+        openShelf();
+      }
       const p={ x:+me.x||0, y:+me.y||0, z:+me.z||0 };
       if(lastPos){
         /* A hair of movement is float noise, not a step. */
@@ -1124,9 +1134,38 @@ window.RING = (function(){
     COACH.stop();
     COACH.start(ST().steps(stage), ctx());
   }
+  /* ------------------------------------------- the shelf opens at Run
+     THE FIRST RUN ENDS THE NARROWING, AND NOTHING NARROWS IT AGAIN.
+
+     Showing one block at a time is how somebody is shown WHERE a block
+     is. It is not how they are kept there, and the difference matters
+     the moment the walkthrough stops being the most interesting thing on
+     the screen. A student who has pressed Run has watched their own
+     program move a robot; the very next thought is a thing they want to
+     try, and that thing is never the block the next step happens to be
+     about. Leaving the shelf narrow there does not keep them on the
+     lesson, it just tells them the game will not let them.
+
+     So Run is the door. Every block in the language is on the shelf
+     afterwards — the same shelf Free Play gets, custom blocks and all —
+     and the walkthrough carries on pointing, talking and ticking its
+     steps beside it. The pointing still works: the step's own block is
+     lit up and ringed, which is what made "click this" unambiguous in
+     the first place. What it no longer does is take everything else
+     away. */
+  let ranOnce=false;
+  function openShelf(){
+    if(ranOnce) return;
+    ranOnce=true;
+    /* null, not a longer list: that is what the editor already means by
+       "no restriction", and it is what hands back the New button and the
+       make-a-block row along with the blocks. */
+    if(window.CODER) CODER.narrow(null);
+  }
   /* A step says which blocks it needs; this is what that means. Narrow on
      purpose: when a step says "click this", it should very often be the
-     only thing on the shelf to click. */
+     only thing on the shelf to click — until the first Run, after which
+     nothing here touches the palette again. */
   function onStep(s){
     if(!window.CODER) return;
     CODER.walking(!!s);
@@ -1134,8 +1173,9 @@ window.RING = (function(){
       seenCats=[];
       /* The rails come off with the last step. What is left is the whole
          of what the stage was about, so a student can carry on building
-         in the room they just learnt in. */
-      CODER.narrow(palette());
+         in the room they just learnt in — or, if they have run anything,
+         the whole language, which they already had. */
+      if(!ranOnce) CODER.narrow(palette());
       clear();
       return;
     }
@@ -1145,10 +1185,13 @@ window.RING = (function(){
        sent a student to have to stay on screen, or "open Sensing" is an
        instruction to click a tab that is not there, and the blocks they
        used two steps ago vanish while they are still looking at them. */
-    if(s.pal){
+    if(s.pal && !ranOnce){
       (s.pal.cats||[]).forEach(c=>{ if(seenCats.indexOf(c)<0) seenCats.push(c); });
       CODER.narrow({ cats:seenCats.slice(), ops:s.pal.ops||[] });
     }
+    /* The tab still opens either way: a step that is about a Sensing
+       block should still put Sensing in front of them, whether or not
+       the other seven tabs are there too. */
     if(s.tab) CODER.openCat(s.tab);
   }
 
