@@ -169,6 +169,10 @@ Module._load = function(request, parent, isMain){
   return load.apply(this, arguments);
 };
 
+/* The same .env the real server reads, so a key put in it works under
+   `npm run dev` too — and before the fallbacks below, because a real
+   DATABASE_URL in .env should beat the in-memory stand-in. */
+require('../server/env').load();
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'memory://koro';
 process.env.PORT = process.env.PORT || '8799';
 console.log('dev-server: accounts and rooms are IN MEMORY and vanish on exit');

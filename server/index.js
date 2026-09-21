@@ -9,6 +9,11 @@
    classes a teacher has to create first. Signing up needs nothing but a
    username and a password — no codes, from anybody.
    ===================================================================== */
+/* FIRST, BEFORE ANYTHING ELSE IS REQUIRED. db.js reads DATABASE_URL at
+   load time and tutor.js reads the API key at load time, so a .env read
+   any later than this line is a .env that did nothing. */
+require('./env').load();
+
 const path = require('path');
 const http = require('http');
 const express = require('express');

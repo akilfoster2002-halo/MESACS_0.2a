@@ -33,3 +33,12 @@ kenney_*/
 # because git should be carrying it.
 /koro.mp4
 /koro-final.mp4
+
+# Secrets, and the one rule about them: they never reach a repository.
+# .env is where the API key and the database URL live on a laptop; on
+# Render the same names are set in the dashboard and there is no file at
+# all. .env.example IS committed — it is the list of names with no values
+# against them, so somebody cloning this knows what to fill in.
+.env
+.env.*
+!.env.example

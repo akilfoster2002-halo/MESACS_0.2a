@@ -355,7 +355,19 @@ question, streams an answer and forgets both.
 
 ### Switching it on
 
-Set `ANTHROPIC_API_KEY` in the environment and restart. With no key set,
+    cp .env.example .env
+
+then put your key against `ANTHROPIC_API_KEY=` and restart. `.env` is
+git-ignored and never leaves the machine; `.env.example` is the committed
+list of names with no values against them, so somebody cloning this knows
+what to fill in. Everything in it is optional — the game runs with none of
+it set, just with less of itself switched on.
+
+On Render the same names go in the dashboard instead and there is no file
+at all. **A real environment variable always wins over the file**, so a
+`.env` left on a server cannot quietly override what the dashboard says.
+
+With no key set,
 `/api/tutor/on` reports `false` and **the button never appears** — a school
 that does not want a tutor, or cannot pay for one, deploys exactly the
 same code and never sees it.
