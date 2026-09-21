@@ -244,7 +244,7 @@ test('the script is sent in the words the child sees, not in op names', ()=>{
   const ask=read('public/ask.js');
   assert.match(ask, /BLOCKS\.parts\(bd\.label\)/,
     'the script is written out from op names rather than from the block labels');
-  assert.match(ask, /'  '\.repeat\(depth\)/,
+  assert.match(ask, /BAR\.repeat\(depth\)/,
     'the nesting is flattened, which is the half of a Scratch program that matters most');
 });
 
@@ -359,4 +359,77 @@ test('the answer is still built as nodes, never as markup', ()=>{
   const all=read('public/ask.js').replace(/\/\*[\s\S]*?\*\//g,' ');
   assert.ok(!/\.innerHTML\s*=\s*[^`'"]*(mine|text|data)\b/.test(all),
     'something is putting the tutor\'s reply into innerHTML');
+});
+
+/* ============================================ the shape of the script
+   THE COMMONEST BUG IN THE GAME IS A SHAPE, not a value: a conditional
+   sitting BESIDE the loop instead of inside it. Rendered with spaces,
+   the working script and the broken one differed by two spaces on two
+   lines — and the tutor read it wrong, telling a child whose `if` was
+   outside the loop that it "gets checked again and again". That is the
+   opposite of true, on the one question stage one exists to teach.
+
+   Bars instead, and an empty mouth that says it is empty. Lifted out of
+   ask.js and run against the same small DOM the other renderer test
+   uses, so what is exercised is the real walk. */
+function scripter(){
+  const src=read('public/ask.js');
+  const i=src.indexOf('  const BAR=');
+  const j=src.indexOf('  /* What the tutor is told about where they are');
+  assert.ok(i>0 && j>i, 'ask.js no longer has a script renderer where this can find it');
+  const blocksCtx=require('node:vm').createContext({ console });
+  blocksCtx.window=blocksCtx; blocksCtx.self=blocksCtx;
+  require('node:vm').runInContext(read('public/blocks.js'), blocksCtx, { filename:'blocks.js' });
+  const fn=new Function('window','BLOCKS', src.slice(i,j)+'\nreturn { script, words, write };');
+  return fn({ BLOCKS:blocksCtx.BLOCKS }, blocksCtx.BLOCKS);
+}
+const B=(op,args,body)=>{ const b={ op, args:args||{} }; if(body) b.body=body; return b; };
+const KEYIF=body=>B('ctrl.if',{ c:B('sense.key',{k:'d'}) }, body);
+const STEP=[B('motion.changeBy',{a:'x',n:0.2})];
+
+test('a block inside a loop and a block beside one do not look alike', ()=>{
+  const { script }=scripter();
+  const working=script({ scripts:[{ hat:B('event.flag'),
+    body:[ B('ctrl.forever',{},[ KEYIF(STEP) ]) ] }] });
+  const broken=script({ scripts:[{ hat:B('event.flag'),
+    body:[ B('ctrl.forever',{},[]), KEYIF(STEP) ] }] });
+
+  assert.notStrictEqual(working, broken, 'the two shapes render identically');
+  /* and not by a whisker: the difference has to be a character somebody
+     reading it will actually notice */
+  const depthOf=(text,needle)=>{
+    const line=text.split('\n').find(l=>l.indexOf(needle)>=0);
+    return (line.match(/│/g)||[]).length;
+  };
+  assert.ok(depthOf(working,'if <') > depthOf(working,'forever'),
+    'inside the loop, the if is not drawn deeper than the loop');
+  assert.strictEqual(depthOf(broken,'if <'), depthOf(broken,'forever'),
+    'beside the loop, the if is not drawn at the same depth as the loop');
+});
+
+test('an empty loop says it is empty, because that is the bug', ()=>{
+  const { script }=scripter();
+  const out=script({ scripts:[{ hat:B('event.flag'), body:[ B('ctrl.forever',{},[]) ] }] });
+  assert.match(out, /nothing inside it/,
+    'a forever with nothing in it renders as a blank, which does not look like anything');
+});
+
+test('the tutor is told what the bars mean', ()=>{
+  /* The format is only worth anything if it is explained. */
+  const board=tutor.board({ script:'when flag\n│ forever' });
+  assert.match(board, /│ is one level/i, 'the bars are never explained');
+  assert.match(board, /FEWER bars/i, 'nothing says what fewer bars means');
+});
+
+test('the whole script still comes through — hats, else, and every block', ()=>{
+  const { script }=scripter();
+  const out=script({ scripts:[
+    { hat:B('event.flag'), body:[ B('ctrl.ifelse',{ c:B('sense.key',{k:'w'}) },
+        [B('looks.say',{s:'hi'})]) ] },
+    { hat:B('event.key',{k:'space'}), body:[ B('motion.turn',{n:15}) ] } ]});
+  assert.match(out, /the game starts/, 'the first hat is missing');
+  assert.match(out, /when \[space\] key pressed/, 'the second script is missing');
+  assert.match(out, /else/, 'an if/else lost its else');
+  assert.match(out, /nothing inside it/, 'the empty else branch is not marked');
+  assert.match(out, /say \[hi\]/, 'a block inside the if is missing');
 });

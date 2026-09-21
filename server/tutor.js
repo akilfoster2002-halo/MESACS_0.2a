@@ -188,8 +188,17 @@ function board(ctx){
   if(ctx.goal)   bits.push(`WHAT THE MISSION WANTS: ${cap(ctx.goal,200)}`);
   if(ctx.palette && ctx.palette.length)
     bits.push(`BLOCKS THEY HAVE RIGHT NOW: ${cap(ctx.palette.join(', '), 600)}`);
+  /* THE NESTING IS THE WHOLE POINT OF READING IT. Each │ is one level
+     in, so a block sitting BESIDE a loop and a block sitting INSIDE one
+     differ by a bar you can see rather than by two spaces you cannot.
+     Spelled out because getting this wrong makes the tutor confidently
+     wrong about the student's own code, which is the worst thing it can
+     be. */
   bits.push(ctx.script && String(ctx.script).trim()
-    ? `THEIR SCRIPT, AS IT IS ON SCREEN:\n${cap(ctx.script, 2600)}`
+    ? `THEIR SCRIPT, AS IT IS ON SCREEN. Each \u2502 is one level of nesting:\n`+
+      `${cap(ctx.script, 2600)}\n`+
+      `Count the bars. A block with FEWER bars than the loop above it is `+
+      `NOT inside that loop — it runs after it, once.`
     : `THEIR SCRIPT: empty — they have not placed a block yet.`);
   if(ctx.world) bits.push(`THE ROOM: ${cap(ctx.world, 300)}`);
   return bits.join('\n\n');

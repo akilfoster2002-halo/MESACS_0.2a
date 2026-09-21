@@ -31,15 +31,36 @@ window.ASK = (function(){
   let turns=[];                 // {role:'you'|'tutor', text}
 
   /* ------------------------------------------------ the script, in words
-     Indented, so the shape is visible. This is the same walk the editor
-     and the VM do, which is why it cannot drift from what is on screen. */
+     The same walk the editor and the VM do, which is why it cannot drift
+     from what is on screen.
+
+     DRAWN WITH GUIDE BARS, NOT SPACES, and that is not decoration. The
+     difference between a working script and the commonest bug in the
+     game — a conditional sitting BESIDE the loop instead of inside it —
+     used to be two spaces on two lines, and a reader skimming it will
+     get that wrong. It did: asked about a robot whose `if` was outside
+     the loop, the tutor said the `if` "gets checked again and again",
+     which is the opposite of true and exactly the wrong thing to tell a
+     child who is stuck on it.
+
+     AN EMPTY MOUTH SAYS SO, for the same reason. A `forever` with
+     nothing in it is the shape of that bug, and a blank line does not
+     look like anything. */
+  const BAR='\u2502 ';
   function write(list, depth, out){
     (list||[]).forEach(bk=>{
       const bd=window.BLOCKS && BLOCKS.of(bk.op);
       if(!bd) return;
-      out.push('  '.repeat(depth) + words(bk));
-      if(bk.body)  write(bk.body,  depth+1, out);
-      if(bk.body2){ out.push('  '.repeat(depth)+'else'); write(bk.body2, depth+1, out); }
+      const lead=BAR.repeat(depth);
+      out.push(lead + words(bk));
+      const wraps = bd.kind==='c' || bd.kind==='c2';
+      if(wraps && !(bk.body||[]).length) out.push(BAR.repeat(depth+1)+'(nothing inside it)');
+      else if(bk.body) write(bk.body, depth+1, out);
+      if(bd.kind==='c2'){
+        out.push(lead+'else');
+        if(!(bk.body2||[]).length) out.push(BAR.repeat(depth+1)+'(nothing inside it)');
+        else write(bk.body2, depth+1, out);
+      }
     });
   }
   /* one block, with whatever is sitting in its slots */
