@@ -602,3 +602,52 @@ test('a POST request really does close before anything is written', async ()=>{
     assert.match(body, /hello/, 'the client never received the write');
   } finally { server.close(); }
 });
+
+/* ================================== the dev sign-in, and its blast radius
+   `npm run dev` signs every request in as a local developer row, because
+   every feature worth testing is behind sign-in and there is no account
+   to sign in with on a laptop. That is a development affordance and a
+   security hole anywhere else, so what matters is that it cannot reach
+   anywhere else. */
+test('the dev sign-in lives only in the dev harness', ()=>{
+  const dev=read('tools/dev-server.js');
+  assert.match(dev, /auth\.fromReq\s*=/, 'the dev harness no longer signs requests in');
+  /* Nothing that ships may require it, and nothing under server/ may
+     mention it. The deployed server starts at server/index.js. */
+  ['server/index.js','server/auth.js','server/db.js','server/tutor.js','server/mechmatch.js']
+    .forEach(f=>{
+      const s=read(f);
+      assert.ok(s.indexOf('dev-server')<0, f+' refers to the dev harness');
+      assert.ok(!/DEV_SIGNED_IN/.test(s), f+' reads the dev sign-in switch');
+    });
+  assert.strictEqual(require('../package.json').scripts.start, 'node server/index.js',
+    'npm start no longer goes straight to the real server');
+});
+
+test('it is not an account: no password, and nothing registered', ()=>{
+  /* A row in an array that vanishes with the process. If this ever grows
+     a password or a call to the register route, it has stopped being a
+     fixture and become a credential. */
+  /* Comments stripped, for the third time in this file: the paragraph
+     above the fixture says "nothing is registered", and a test reading
+     prose fails on the sentence promising the thing it checks. */
+  const dev=read('tools/dev-server.js')
+    .replace(/\/\*[\s\S]*?\*\//g,' ')
+    .replace(/(^|[^:])\/\/.*$/gm,'$1');
+  const at=dev.indexOf('const DEV =');
+  assert.ok(at>0, 'the dev row is gone');
+  const block=dev.slice(at, at+600);
+  assert.match(block, /pass_hash:\s*''/, 'the dev row has been given a password hash');
+  assert.match(block, /salt:\s*''/,      'the dev row has been given a salt');
+  assert.ok(!/makeHash\(|\/api\/register/.test(dev),
+    'the dev harness is hashing a password or calling the register route — '+
+    'that would make it a credential rather than a fixture');
+});
+
+test('the signed-out half can still be tested', ()=>{
+  /* Being permanently signed in would make the 401s, the "not signed in"
+     message and what a visitor sees impossible to look at locally. */
+  const dev=read('tools/dev-server.js');
+  assert.match(dev, /DEV_SIGNED_IN/, 'there is no way to get the signed-out behaviour back');
+  assert.match(dev, /if\(SIGNED_IN\)/, 'the sign-in cannot actually be switched off');
+});

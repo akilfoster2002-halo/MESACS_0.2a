@@ -365,6 +365,17 @@ block pictures is writing the program with pictures instead of words.
 with it, like the room's chat and for the same reason. The server sees a
 question, streams an answer and forgets both.
 
+### Trying it locally
+
+`npm run dev` signs every request in as a local developer, because every
+feature worth testing is behind sign-in and there is no account to sign in
+with on a laptop — the tutor, saved progress, the arcade and the rooms
+were all unreachable without deploying. It is a row in an array and a
+swapped function inside `tools/dev-server.js`: no password, nothing
+registered, gone when you stop the server, and nothing that ships ever
+loads it. `DEV_SIGNED_IN=0 npm run dev` gives the signed-out behaviour
+back when that is the half you want to look at.
+
 ### Switching it on
 
     cp .env.example .env

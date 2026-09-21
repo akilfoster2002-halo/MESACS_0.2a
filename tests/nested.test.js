@@ -162,3 +162,44 @@ test('the nest spans carry the slot they fill, or there is nothing to walk', ()=
   assert.match(coder, /class="cnest" data-nest="\$\{k\}"/,
     'the nested-block span no longer says which slot it fills');
 });
+
+/* ================================= which button is the one to press now
+   A green Run that stays green while the program is already running says
+   nothing, and "0 running" in small grey text at the far end of the bar
+   is not where anybody is looking. The two swap instead: whichever is the
+   thing to do now is lit, the other is greyed and switched off. */
+test('Run and Stop swap places with the state of the program', ()=>{
+  const src=read('public/coder.js');
+  const bar=src.slice(src.indexOf('function bar(){'), src.indexOf("$('#cFlag').onclick"));
+  assert.match(bar, /const live\s*=\s*!!\(window\.VM && VM\.running\)/,
+    'the bar does not look at whether anything is running');
+
+  const btn=id=>{
+    const at=bar.indexOf('id="'+id+'"');
+    assert.ok(at>0, 'no '+id+' in the bar');
+    /* back to the start of its tag, forward to the end */
+    return bar.slice(bar.lastIndexOf('<button', at), bar.indexOf('</button>', at));
+  };
+  const run=btn('cFlag'), stop=btn('cStop');
+  /* each one greys itself in the state where it is not the answer */
+  assert.match(run,  /live\?'ghost railed':'good'/,
+    'Run does not grey out while the program is already running');
+  assert.match(stop, /live\?'good':'ghost railed'/,
+    'Stop is not lit while the program is running');
+  /* and is actually switched off, not merely faded — a button that looks
+     unavailable and quietly restarts the program is worse than one that
+     makes you press Stop first */
+  assert.match(run,  /live\?'disabled':''/,  'Run is greyed but still live while running');
+  assert.match(stop, /live\?'':'disabled'/,  'Stop is clickable with nothing to stop');
+  /* and it says so in words too */
+  assert.match(bar, /t\('stopped'\)/, 'the bar never says the program is stopped');
+});
+
+test('the bar follows the VM, not only the clicks', ()=>{
+  /* A program can stop on its own — a knockout, or the last script
+     running out — and the buttons have to notice. */
+  const src=read('public/coder.js');
+  const tick=src.slice(src.indexOf('function tick(dt){'), src.indexOf("addEventListener('keydown'"));
+  assert.match(tick, /bar\(\)/,
+    'the bar is only redrawn on a click, so a program that ends by itself leaves Run greyed out for ever');
+});

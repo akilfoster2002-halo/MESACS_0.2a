@@ -353,6 +353,13 @@ body.con-open #briefing{display:none}
   display:flex;align-items:center;gap:8px;background:rgba(20,15,36,.95);
   border:2px solid var(--line);border-radius:14px;padding:7px 10px;max-width:min(940px,95vw)}
 .chint{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+/* "running" is a state, not a footnote — it says so in the accent colour
+   and with a dot that breathes, so the bar reads as live from across a
+   classroom rather than by reading a number. */
+.chint.live{color:var(--good);font-weight:bold}
+.chint.live::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--good);margin-right:6px;vertical-align:middle;animation:cpulse 1.1s ease-in-out infinite}
+@keyframes cpulse{0%,100%{opacity:1}50%{opacity:.25}}
 .chint.dim{color:var(--muted)} .chint.bad{color:var(--bad)}
 /* THE PANELS SIT UNDER THE BAR, AND THE BAR IS NOT A FIXED HEIGHT.
    These were four hard-coded offsets that all assumed one — and adding a
@@ -2677,64 +2684,64 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='521';</script>
-<script src="lib/three.classic.js?v=521"></script>
-<script src="strings.js?v=521"></script>
-<script src="music.js?v=521"></script>
-<script src="net.js?v=521"></script>
-<script src="avatar.js?v=521"></script>
-<script src="zombies.js?v=521"></script>
-<script src="building.js?v=521"></script>
-<script src="levels.js?v=521"></script>
-<script src="program.js?v=521"></script>
-<script src="code.js?v=521"></script>
-<script src="mechsim.js?v=521"></script>
-<script src="mech.js?v=521"></script>
-<script src="intro.js?v=521"></script>
-<script src="opening.js?v=521"></script>
-<script src="robots.js?v=521"></script>
-<script src="rules.js?v=521"></script>
-<script src="templates.js?v=521"></script>
-<script src="stages.js?v=521"></script>
-<script src="ask.js?v=521"></script>
-<script src="pit.js?v=521"></script>
-<script src="ring.js?v=521"></script>
-<script src="combat.js?v=521"></script>
-<script src="logic.js?v=521"></script>
-<script src="trail.js?v=521"></script>
-<script src="boolquiz.js?v=521"></script>
-<script src="scene.js?v=521"></script>
-<script src="ion.js?v=521"></script>
-<script src="brawl.js?v=521"></script>
-<script src="house.js?v=521"></script>
-<script src="puzzle.js?v=521"></script>
-<script src="nav.js?v=521"></script>
-<script src="tutorial.js?v=521"></script>
-<script src="race.js?v=521"></script>
-<script src="flight.js?v=521"></script>
-<script src="sub.js?v=521"></script>
-<script src="invaders.js?v=521"></script>
-<script src="school.js?v=521"></script>
-<script src="cruise.js?v=521"></script>
-<script src="club.js?v=521"></script>
-<script src="who.js?v=521"></script>
-<script src="arcade.js?v=521"></script>
-<script src="islands.js?v=521"></script>
-<script src="planet.js?v=521"></script>
-<script src="wallet.js?v=521"></script>
-<script src="shop.js?v=521"></script>
-<script src="library.js?v=521"></script>
-<script src="costumes.js?v=521"></script>
-<script src="missions.js?v=521"></script>
-<script src="coach.js?v=521"></script>
-<script src="owner.js?v=521"></script>
-<script src="blocks.js?v=521"></script>
-<script src="vm.js?v=521"></script>
-<script src="coder.js?v=521"></script>
-<script src="quiz.js?v=521"></script>
-<script src="chars.js?v=521"></script>
-<script src="title.js?v=521"></script>
-<script src="menu.js?v=521"></script>
-<script src="game.js?v=521"></script>
+<script>window.ASSETV='523';</script>
+<script src="lib/three.classic.js?v=523"></script>
+<script src="strings.js?v=523"></script>
+<script src="music.js?v=523"></script>
+<script src="net.js?v=523"></script>
+<script src="avatar.js?v=523"></script>
+<script src="zombies.js?v=523"></script>
+<script src="building.js?v=523"></script>
+<script src="levels.js?v=523"></script>
+<script src="program.js?v=523"></script>
+<script src="code.js?v=523"></script>
+<script src="mechsim.js?v=523"></script>
+<script src="mech.js?v=523"></script>
+<script src="intro.js?v=523"></script>
+<script src="opening.js?v=523"></script>
+<script src="robots.js?v=523"></script>
+<script src="rules.js?v=523"></script>
+<script src="templates.js?v=523"></script>
+<script src="stages.js?v=523"></script>
+<script src="ask.js?v=523"></script>
+<script src="pit.js?v=523"></script>
+<script src="ring.js?v=523"></script>
+<script src="combat.js?v=523"></script>
+<script src="logic.js?v=523"></script>
+<script src="trail.js?v=523"></script>
+<script src="boolquiz.js?v=523"></script>
+<script src="scene.js?v=523"></script>
+<script src="ion.js?v=523"></script>
+<script src="brawl.js?v=523"></script>
+<script src="house.js?v=523"></script>
+<script src="puzzle.js?v=523"></script>
+<script src="nav.js?v=523"></script>
+<script src="tutorial.js?v=523"></script>
+<script src="race.js?v=523"></script>
+<script src="flight.js?v=523"></script>
+<script src="sub.js?v=523"></script>
+<script src="invaders.js?v=523"></script>
+<script src="school.js?v=523"></script>
+<script src="cruise.js?v=523"></script>
+<script src="club.js?v=523"></script>
+<script src="who.js?v=523"></script>
+<script src="arcade.js?v=523"></script>
+<script src="islands.js?v=523"></script>
+<script src="planet.js?v=523"></script>
+<script src="wallet.js?v=523"></script>
+<script src="shop.js?v=523"></script>
+<script src="library.js?v=523"></script>
+<script src="costumes.js?v=523"></script>
+<script src="missions.js?v=523"></script>
+<script src="coach.js?v=523"></script>
+<script src="owner.js?v=523"></script>
+<script src="blocks.js?v=523"></script>
+<script src="vm.js?v=523"></script>
+<script src="coder.js?v=523"></script>
+<script src="quiz.js?v=523"></script>
+<script src="chars.js?v=523"></script>
+<script src="title.js?v=523"></script>
+<script src="menu.js?v=523"></script>
+<script src="game.js?v=523"></script>
 </body>
 </html>

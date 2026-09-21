@@ -106,20 +106,39 @@ window.CODER = (function(){
 
   /* ------------------------------------------------------------- top bar */
   function bar(){
+    /* WHICH BUTTON IS THE ONE TO PRESS. A green Run that stays green
+       while the program is already running says nothing, and "0 running"
+       in small grey text at the other end of the bar is not where anybody
+       is looking. So the two swap: whichever one is the thing to do now
+       is the lit one, and the other is greyed and switched off.
+
+       Run is genuinely disabled while it runs rather than greyed and
+       still live, because a button that looks unavailable and quietly
+       restarts your program is worse than one that makes you press Stop
+       first. Stop then Run is two clicks and no surprise. */
+    const live = !!(window.VM && VM.running);
     $('#cBar').innerHTML=`
-      <button class="btn small good" id="cFlag">▶ ${t('Run')}</button>
-      <button class="btn small ghost" id="cStop">■ ${t('Stop')}</button>
+      <button class="btn small ${live?'ghost railed':'good'}" id="cFlag" ${live?'disabled':''}
+              title="${live?t('Already running — press Stop first'):t('Run the program')}"
+              >▶ ${t('Run')}</button>
+      <button class="btn small ${live?'good':'ghost railed'}" id="cStop" ${live?'':'disabled'}
+              title="${live?t('Stop the program'):t('Nothing is running')}"
+              >■ ${t('Stop')}</button>
       <button class="btn small ${magnify?'good':'ghost'}" id="cMag"
               title="${t('Explain a block')}">🔍</button>
       <button class="btn small ghost hidden" id="tutorBtn"
               title="${t('Ask about the blocks')}">💬 ${t('Ask')}</button>
       <span class="chint" id="cHint"></span>
       <span class="bspace"></span>
-      <span class="chint dim">${t('{n} running',{n:VM.threadCount})}</span>
+      <span class="chint ${live?'live':'dim'}">${live
+        ? t('{n} running',{n:VM.threadCount}) : t('stopped')}</span>
       ${only&&only.locked?'':`<button class="btn small ghost" id="cWipe">${t('New')}</button>`}
       <button class="btn small ghost" id="cShut">${t('Close')} (C)</button>`;
     $('#cFlag').onclick=()=>{ VM.greenFlag(); render(); };
     $('#cStop').onclick=()=>{ VM.stopAll(); render(); };
+    /* The program can also stop on its own — a knockout, or the last
+       script running out — so the bar has to follow the VM rather than
+       only the clicks. bar() is already redrawn twice a second by tick(). */
     $('#cMag').onclick=()=>{ magnify=!magnify; explainClose(); render(); };
     $('#cShut').onclick=hide;
     /* the tutor decides whether its own button exists — no key on the
