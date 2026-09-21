@@ -131,6 +131,22 @@ window.ASK = (function(){
     turns.forEach(t=>log.appendChild(bubble(t.role, t.text)));
     $('#tutShut').onclick=hide;
     $('#tutForm').onsubmit=e=>{ e.preventDefault(); send($('#tutIn').value); };
+    /* ENTER SENDS IT, said out loud rather than left to the form's own
+       implicit submission. That only fires under conditions this box has
+       no business depending on — and pressing Enter after typing a
+       question is not an advanced move, it is what everybody does. The
+       game's global key handler already stands aside for anything with a
+       caret in it, so this is the only thing that has to say so. */
+    $('#tutIn').onkeydown=e=>{
+      /* Asked three ways because keyboards, layouts and the numpad do not
+         agree on which of these is filled in. */
+      const enter = e.key==='Enter' || e.code==='Enter' ||
+                    e.code==='NumpadEnter' || e.keyCode===13;
+      if(!enter || e.shiftKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      send(e.target.value);
+    };
     log.scrollTop=log.scrollHeight;
   }
   /* --------------------------------------------- blocks, as blocks

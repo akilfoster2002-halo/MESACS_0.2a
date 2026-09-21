@@ -67,23 +67,41 @@ function world(){
 
 /* ==================================================================== */
 test('x is across, y is into the screen, z is up', ()=>{
+  /* THE ROOM'S CAMERA STANDS OUT ALONG THE ENGINE'S +z, so "into the
+     screen" is the engine's MINUS z. Without the sign, `change y by 1`
+     came towards the viewer — the opposite of what the block says. */
   const { a, run } = world();
   run('motion.changeBy',{ a:'x', n:2 });
   assert.deepStrictEqual([a.x,a.y,a.z], [2,0,0], 'x should be the engine\'s x');
   run('motion.changeBy',{ a:'y', n:3 });
-  assert.deepStrictEqual([a.x,a.y,a.z], [2,0,3], 'y should be the engine\'s z — into the screen');
+  assert.deepStrictEqual([a.x,a.y,a.z], [2,0,-3],
+    'a positive y should go INTO the screen, which is the engine\'s -z');
   run('motion.changeBy',{ a:'z', n:4 });
-  assert.deepStrictEqual([a.x,a.y,a.z], [2,4,3], 'z should be the engine\'s y — up');
+  assert.deepStrictEqual([a.x,a.y,a.z], [2,4,-3], 'z should be the engine\'s y — up');
+});
+
+test('a coordinate reads back the way it was written', ()=>{
+  /* The sign has to be on reads as well as writes. Applied to only one
+     of them, `y position` reports the negative of where the robot is and
+     a student comparing it with the number they just moved by is told
+     they went the wrong way. */
+  const { run, val } = world();
+  run('motion.changeBy',{ a:'y', n:5 });
+  assert.strictEqual(val('motion.pos',{a:'y'}), 5, 'moved +5 and y position says otherwise');
+  run('motion.changeBy',{ a:'y', n:-8 });
+  assert.strictEqual(val('motion.pos',{a:'y'}), -3);
+  run('motion.setTo',{ a:'y', n:10 });
+  assert.strictEqual(val('motion.pos',{a:'y'}), 10, 'set y to 10 and y position does not say 10');
 });
 
 test('go to and set put a coordinate where change by would have moved it', ()=>{
   const { a, run } = world();
   run('motion.goto',{ x:1, y:2, z:3 });
-  assert.deepStrictEqual([a.x,a.y,a.z], [1,3,2], 'go to disagrees with change by');
+  assert.deepStrictEqual([a.x,a.y,a.z], [1,3,-2], 'go to disagrees with change by');
   run('motion.setTo',{ a:'z', n:9 });
   assert.strictEqual(a.y, 9, 'set z to did not set the height');
   run('motion.setTo',{ a:'y', n:8 });
-  assert.strictEqual(a.z, 8, 'set y to did not set the depth');
+  assert.strictEqual(a.z, -8, 'set y to did not send it into the screen');
 });
 
 test('a position reporter reads back exactly what moved the object', ()=>{
@@ -98,7 +116,7 @@ test('glide arrives exactly where go to would have', ()=>{
   const { a, VM, run } = world();
   VM.runBlock({ op:'motion.glide', args:{ t:0.01, x:2, y:3, z:4 } }, a);
   for(let i=0;i<40;i++) VM.step(0.05);
-  assert.deepStrictEqual([a.x,a.y,a.z].map(n=>+n.toFixed(3)), [2,4,3],
+  assert.deepStrictEqual([a.x,a.y,a.z].map(n=>+n.toFixed(3)), [2,4,-3],
     'glide and go to do not land in the same place');
 });
 
@@ -113,9 +131,14 @@ test('the blocks that work on the floor never name an axis, so none is swapped',
   };
   ['motion.move','motion.point'].forEach(op=>
     assert.ok(!/g\('a'\)/.test(body(op)), op+' names an axis and must use ax()'));
-  ['motion.changeBy','motion.setTo','motion.pos','sense.posOf'].forEach(op=>
-    assert.match(body(op), /ax\(g\('a'\)\)/,
-      op+' takes an axis by name and does not map it to the engine\'s'));
+  /* and the ones that DO name an axis go through the signed pair, not
+     the bare field — a read that skips the sign reports the negative */
+  ['motion.changeBy','motion.setTo'].forEach(op=>
+    assert.match(body(op), /place\(a,/,
+      op+' writes a coordinate without going through the signed map'));
+  ['motion.pos','sense.posOf'].forEach(op=>
+    assert.match(body(op), /coord\(/,
+      op+' reads a coordinate without going through the signed map'));
 });
 
 test('the arrows on the floor are drawn from the same table the blocks compile from', ()=>{

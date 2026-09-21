@@ -869,21 +869,28 @@ window.RING = (function(){
       new THREE.MeshBasicMaterial({color:0xece6ff})));
 
     (window.BLOCKS ? BLOCKS.AXES : []).forEach(a=>{
-      /* AXES holds the ENGINE field each student axis lives in, which is
-         exactly the direction its arrow points. */
-      const d=new THREE.Vector3(a.field==='x'?1:0, a.field==='y'?1:0, a.field==='z'?1:0);
+      /* WHICH WAY THE ARROW POINTS IS WHICH WAY THE BLOCK MOVES. AXES
+         holds the engine field each student axis lives in AND the sign
+         along it, and both have to be used: y is the engine's z run
+         backwards, so an arrow drawn from the field alone would point at
+         the camera while `change y by 1` went away from it. An arrow
+         disagreeing with the block it names is worse than no arrow. */
+      const s=(a.sign===undefined?1:a.sign);
+      const d=new THREE.Vector3(a.field==='x'?s:0, a.field==='y'?s:0, a.field==='z'?s:0);
       const mat=new THREE.MeshBasicMaterial({color:a.hue});
       const rod=new THREE.Mesh(new THREE.CylinderGeometry(R,R,L,10), mat);
-      /* CylinderGeometry stands up the engine's y, so only the two that
-         are not up have to be laid over. */
+      /* CylinderGeometry and ConeGeometry both stand up the engine's y,
+         so the two that are not up get laid over — and the sign decides
+         which end the point is at. */
       if(a.field==='x') rod.rotation.z=-Math.PI/2;
       if(a.field==='z') rod.rotation.x= Math.PI/2;
       rod.position.copy(d).multiplyScalar(L/2);
       root.add(rod);
 
       const tip=new THREE.Mesh(new THREE.ConeGeometry(R*3.2, 0.5, 12), mat);
-      if(a.field==='x') tip.rotation.z=-Math.PI/2;
-      if(a.field==='z') tip.rotation.x= Math.PI/2;
+      if(a.field==='x') tip.rotation.z=-s*Math.PI/2;
+      if(a.field==='y' && s<0) tip.rotation.x= Math.PI;
+      if(a.field==='z') tip.rotation.x= s*Math.PI/2;
       tip.position.copy(d).multiplyScalar(L);
       root.add(tip);
 

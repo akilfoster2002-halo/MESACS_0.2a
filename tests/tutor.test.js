@@ -500,3 +500,46 @@ test('the page asks whether there is a tutor once, not on every redraw', ()=>{
   assert.match(ask, /function wire\(\)/, 'nothing re-attaches the button handler');
   assert.match(body, /wire\(\);/, 'a rebuild leaves the button without a click handler');
 });
+
+/* ======================================== being able to click the thing
+   THE BUG MY OWN TESTS COULD NOT SEE. #coder covers the whole screen and
+   is pointer-events:none, so the game behind it stays usable; every
+   panel inside it re-enables them for itself. The Ask panel and the
+   walkthrough card both forgot — so the text box, the send button, the
+   ✕ and "skip the walkthrough" were all click-through, and a click
+   landed on the script pane behind them.
+
+   Nothing looked wrong. And every test I had used .click() or
+   dispatchEvent, which bypass hit-testing entirely, so all of them
+   passed against a panel no mouse could touch. */
+test('every panel in the editor can actually be clicked', ()=>{
+  const css=read('public/index.html');
+  const rule=name=>{
+    const at=css.indexOf('\n'+name+'{');
+    assert.ok(at>=0, 'no rule for '+name);
+    return css.slice(at, css.indexOf('}', at)+1);
+  };
+  assert.match(rule('#coder'), /pointer-events:\s*none/,
+    'the editor no longer lets clicks through to the game — this test is about the case where it does');
+  /* every panel that holds something a child has to press */
+  ['#cBar','#cPal','#cScript','#cCoach','#tutor'].forEach(sel=>
+    assert.match(rule(sel), /pointer-events:\s*auto/,
+      sel+' sits inside a pointer-events:none editor and never switches them back on, '+
+      'so it is click-through and the click lands on whatever is behind it'));
+});
+
+test('Enter sends the question, however the keyboard reports it', ()=>{
+  /* Pressing Enter after typing is not an advanced move. Left to the
+     form's own implicit submission it depended on conditions this box
+     has no business relying on, so it is said out loud — and asked three
+     ways, because keyboards, layouts and the numpad do not agree on
+     which field is filled in. */
+  const ask=read('public/ask.js');
+  const at=ask.indexOf("$('#tutIn').onkeydown");
+  assert.ok(at>0, 'nothing handles Enter in the question box');
+  const body=ask.slice(at, ask.indexOf('};', at));
+  ["e.key==='Enter'","e.code==='Enter'","e.code==='NumpadEnter'","e.keyCode===13"].forEach(shape=>
+    assert.ok(body.indexOf(shape)>=0, 'Enter is not recognised as '+shape));
+  assert.match(body, /e\.shiftKey/, 'shift+enter sends instead of doing nothing');
+  assert.match(body, /preventDefault/, 'the keypress is left to also submit the form');
+});

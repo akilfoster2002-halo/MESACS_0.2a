@@ -290,7 +290,7 @@ window.VM = (function(){
                           return (i>=1 && i<=L.length) ? L[i-1] : ''; }
       case 'list.len': return (P.lists[A.l]||[]).length;
 
-      case 'motion.pos': return +(ctx.actor?ctx.actor[ax(g('a'))]:0).toFixed(3);
+      case 'motion.pos': return +(ctx.actor?coord(ctx.actor, g('a')):0).toFixed(3);
       case 'motion.dir': return ctx.actor?ctx.actor.dir:0;
       case 'sense.dist': { const o=target(g('o'),ctx); if(!o||!ctx.actor) return 0;
         return +Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z).toFixed(2); }
@@ -300,7 +300,7 @@ window.VM = (function(){
         const r=(ctx.actor.size+(o.size||1))*0.6;
         return Math.hypot(o.x-ctx.actor.x,o.y-ctx.actor.y,o.z-ctx.actor.z) < r; }
       case 'sense.key': return keyDown(keyCode(g('k')));
-      case 'sense.posOf': { const o=target(g('o'),ctx); return o?+(o[ax(g('a'))]).toFixed(3):0; }
+      case 'sense.posOf': { const o=target(g('o'),ctx); return o?+coord(o, g('a')).toFixed(3):0; }
       case 'sense.timer': return +((performance.now()-t0)/1000).toFixed(2);
       case 'sense.count': { const w=g('o');
         if(w==='clones') return P.actors.filter(a=>a.isClone).length;
@@ -327,8 +327,17 @@ window.VM = (function(){
      floor, and the floor is the floor whatever its two directions are
      called. */
   const FIELD = { x:'x', y:'z', z:'y' };      // the fallback, if blocks.js is late
+  const SIGN  = { x:1, y:-1, z:1 };
   const ax = k => (window.BLOCKS && BLOCKS.axisField) ? BLOCKS.axisField(k)
                 : (FIELD[String(k==null?'':k).trim().toLowerCase()] || 'x');
+  const sgn = k => (window.BLOCKS && BLOCKS.axisSign) ? BLOCKS.axisSign(k)
+                : (SIGN[String(k==null?'':k).trim().toLowerCase()] || 1);
+  /* ONE COORDINATE, BOTH WAYS. The sign has to be applied to reading as
+     well as writing or `y position` reports the negative of where the
+     robot is — and a student comparing it against the number they just
+     moved by would be told they had gone the wrong way. */
+  const coord = (a, k) => sgn(k) * (+a[ax(k)] || 0);
+  const place = (a, k, v) => { a[ax(k)] = sgn(k) * v; };
 
   /* WHICH KEY A KEY SLOT MEANS. The table lives in blocks.js with the rest
      of the language, so the menu the editor offers and the codes the VM
@@ -433,10 +442,11 @@ window.VM = (function(){
       }
       case 'motion.turn': { if(a){ a.dir=(a.dir+num(g('n')))%360; sync(a);} break; }
       case 'motion.tilt': { if(a){ a.tilt=(a.tilt+num(g('n')))%360; sync(a);} break; }
-      case 'motion.goto': { if(a){ a[ax('x')]=num(g('x')); a[ax('y')]=num(g('y'));
-                                   a[ax('z')]=num(g('z')); sync(a);} break; }
-      case 'motion.changeBy': { if(a){ const f=ax(g('a')); a[f]=num(a[f])+num(g('n')); sync(a);} break; }
-      case 'motion.setTo': { if(a){ a[ax(g('a'))] = num(g('n')); sync(a);} break; }
+      case 'motion.goto': { if(a){ place(a,'x',num(g('x'))); place(a,'y',num(g('y')));
+                                   place(a,'z',num(g('z'))); sync(a);} break; }
+      case 'motion.changeBy': { if(a){ const k=g('a');
+                                       place(a, k, coord(a,k)+num(g('n'))); sync(a);} break; }
+      case 'motion.setTo': { if(a){ place(a, g('a'), num(g('n'))); sync(a);} break; }
       case 'motion.point': {
         const o=target(g('o'),ctx);
         if(a&&o){ a.dir = Math.atan2(o.x-a.x, o.z-a.z)*180/Math.PI; sync(a); }
@@ -445,14 +455,16 @@ window.VM = (function(){
       case 'motion.glide': {
         if(!a) break;
         const secs=Math.max(0.01,num(g('t')));
-        /* named in the student's axes, held in the engine's */
-        const fx=ax('x'), fy=ax('y'), fz=ax('z');
-        const sx=a[fx], sy=a[fy], sz=a[fz];
+        /* Worked entirely in the STUDENT's coordinates and written back
+           through place(), so the glide and `go to` cannot disagree
+           about which way y runs. */
+        const sx=coord(a,'x'), sy=coord(a,'y'), sz=coord(a,'z');
         const tx=num(g('x')), ty=num(g('y')), tz=num(g('z'));
         const start=performance.now();
         while(true){
           const k=Math.min(1,(performance.now()-start)/(secs*1000));
-          a[fx]=sx+(tx-sx)*k; a[fy]=sy+(ty-sy)*k; a[fz]=sz+(tz-sz)*k; sync(a);
+          place(a,'x',sx+(tx-sx)*k); place(a,'y',sy+(ty-sy)*k);
+          place(a,'z',sz+(tz-sz)*k); sync(a);
           if(k>=1) break;
           yield 'tick';
         }

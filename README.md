@@ -349,6 +349,11 @@ are yours. When somebody is really stuck it gets *narrower*, not vaguer.
 The block reference it works from is **generated out of `blocks.js`**, help
 text and all, so it cannot recommend a block that is not on the palette.
 
+The three axes read the way they look: **x across the screen, y into it,
+z up**. A positive `change y by` goes away from you, and in the 2D view —
+looking straight down — that is up the screen, the way `y` behaves in
+Scratch.
+
 **It answers in blocks.** When it names one it writes `{{ctrl.if}}`, and
 the panel draws the real thing — same label, same slots, same colour and
 shape as the one on the palette, off the same table — so a child matches

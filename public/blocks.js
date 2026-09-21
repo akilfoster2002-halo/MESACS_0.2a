@@ -113,9 +113,23 @@ window.BLOCKS = (function(){
      THE THREE DIRECTIONS, and the one place they are written down.
 
      `v` is what the student types and reads. `field` is where the engine
-     keeps it: Three.js is Y-up and always will be, so the language's z
-     lives in the engine's y and the language's y in the engine's z. The
-     swap happens once, here, and vm.js and the room both read it — a
+     keeps it and `sign` is which way round: Three.js is Y-up and always
+     will be, so the language's z lives in the engine's y and the
+     language's y in the engine's z.
+
+     AND y RUNS THE OTHER WAY DOWN THAT AXIS. The room's camera stands
+     out along the engine's +z, so without the sign `change y by 1` came
+     OUT of the screen towards you — the opposite of what "into the
+     screen" means to anybody looking at it. The sign is the whole fix
+     and it has to be applied to reads as well as writes, or `y position`
+     reports the negative of where the robot is.
+
+     It pays off in the top view too. Looking down, the screen's up is
+     the engine's -z, which is exactly where +y now points — so in the 2D
+     view +y goes UP the screen, the way it does in Scratch. That was the
+     one thing about the flat stage that did not read right before.
+
+     The swap happens once, here, and vm.js and the room both read it — a
      gizmo drawing an arrow one way while a block moves the other is the
      kind of wrong that takes a lesson to notice.
 
@@ -129,12 +143,13 @@ window.BLOCKS = (function(){
      camera was overhead would be describing a room nobody is looking
      at. */
   const AXES = [
-    { v:'x', field:'x', say:'across',     flat:'across',         hue:0x8fd3ff },
-    { v:'y', field:'z', say:'in and out', flat:'down the screen',hue:0xffb4a2 },
-    { v:'z', field:'y', say:'up',         flat:'straight at you',hue:0xa8e6cf }
+    { v:'x', field:'x', sign: 1, say:'across',          flat:'across',        hue:0x8fd3ff },
+    { v:'y', field:'z', sign:-1, say:'into the screen',  flat:'up the screen', hue:0xffb4a2 },
+    { v:'z', field:'y', sign: 1, say:'up',               flat:'straight at you',hue:0xa8e6cf }
   ];
   const axisOf = k => AXES.find(a=>a.v===String(k==null?'':k).trim().toLowerCase()) || AXES[0];
   const axisField = k => axisOf(k).field;
+  const axisSign  = k => axisOf(k).sign;
   const AXIS_NAMES = AXES.map(a=>a.v);
 
   const LIST=[
@@ -319,5 +334,5 @@ window.BLOCKS = (function(){
 
   return { CATS, LIST, of, inCat, catOf, parts, isExpr, help,
            KEYS, keyCode, isKey, holdsBlock,
-           AXES, axisOf, axisField };
+           AXES, axisOf, axisField, axisSign };
 })();
