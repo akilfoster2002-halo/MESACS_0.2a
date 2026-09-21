@@ -303,6 +303,99 @@ test('a named block is drawn as that block, off the same table the palette uses'
     'change [x] by [0.2]'.replace(/[\[\]]/g,''), 'a block with slots lost its defaults');
 });
 
+/* TWO KINDS OF PICTURE.
+
+   The chips are the one thing this panel promises: the answer looks like
+   the blocks. Which made it worse than useless when the picture disagreed
+   with the sentence around it — "your `change x by 0.2`" drawn over a
+   script that said `change y by -0.2`, in front of a child who was stuck
+   on exactly that block.
+
+   Both readings are needed and neither is a default: the shelf version is
+   what you go and look for, their version is what you have already built.
+   So the marker carries which, and these hold that both still work — and
+   that the script-reading one stays quiet when it cannot be sure. */
+function withScript(scripts){
+  /* the same lifted renderer, given a project to read */
+  const src=read('public/ask.js');
+  const i=src.indexOf('  const MARK='), j=src.indexOf('  /* Nodes, never innerHTML');
+  const node = tag => ({ tag, className:'', title:'', kids:[], style:{ setProperty(){} },
+    appendChild(c){ this.kids.push(c); return c; },
+    get textContent(){ return this.kids.map(k=>k.text!==undefined?k.text:k.textContent).join(''); },
+    set textContent(v){ this.kids=[{ text:String(v) }]; } });
+  const bc=require('node:vm').createContext({ console });
+  bc.window=bc; bc.self=bc;
+  require('node:vm').runInContext(read('public/blocks.js'), bc, { filename:'blocks.js' });
+  const win={ BLOCKS:bc.BLOCKS,
+    CODER:{ actorName:()=>'Robot' },
+    VM:{ actorByName:()=>({ scripts }) } };
+  const doc={ createElement:node, createTextNode:t=>({ text:String(t) }) };
+  /* CODER and VM are read as bare globals in the browser, so the lifted
+     copy needs them by name or found() throws into its own catch and
+     silently reports an empty script — which is the exact bug this is
+     meant to catch, passing. */
+  const fn=new Function('document','window','BLOCKS','CODER','VM',
+    src.slice(i,j)+'\nreturn { chip, drawn, MARK };');
+  return { ...fn(doc, win, bc.BLOCKS, win.CODER, win.VM), node };
+}
+/* the script from the bug report, exactly */
+const JUMPER = [{ hat:{ op:'event.flag', args:{} }, body:[
+  { op:'ctrl.forever', args:{}, body:[
+    { op:'ctrl.if', args:{ c:{ op:'sense.key', args:{ k:'space' } } }, body:[
+      { op:'motion.changeBy', args:{ a:'y', n:-0.2 } } ] } ] } ] }];
+const flatText = el => el.textContent.replace(/\s+/g,' ').trim();
+
+test('{{your:op}} draws the block they actually wrote', ()=>{
+  const { chip } = withScript(JUMPER);
+  assert.strictEqual(flatText(chip('motion.changeBy', true)), 'change y by -0.2',
+    'the picture must not contradict the sentence calling it theirs');
+  /* and the nesting comes with it: a filled-in condition drawn hollow is
+     a picture of a block they have already finished */
+  assert.strictEqual(flatText(chip('ctrl.if', true)), 'if key space pressed? then',
+    'their condition was thrown away and drawn as an empty slot');
+});
+
+test('{{op}} on its own still draws the shelf version', ()=>{
+  const { chip } = withScript(JUMPER);
+  assert.strictEqual(flatText(chip('motion.changeBy')), 'change x by 0.2',
+    'told to go and find a block, they must be shown the one on the palette');
+});
+
+test('a block they have not placed draws the shelf version either way', ()=>{
+  const { chip } = withScript(JUMPER);
+  assert.strictEqual(flatText(chip('ctrl.repeat', true)), flatText(chip('ctrl.repeat')),
+    '{{your:...}} about a block they do not have has nothing of theirs to draw');
+});
+
+test('two of the same block means neither is drawn as theirs', ()=>{
+  /* A picture of the wrong one of two is worse than a picture of neither. */
+  const twice = [{ hat:{ op:'event.flag', args:{} }, body:[
+    { op:'motion.changeBy', args:{ a:'x', n:5 } },
+    { op:'motion.changeBy', args:{ a:'z', n:9 } } ] }];
+  const { chip } = withScript(twice);
+  assert.strictEqual(flatText(chip('motion.changeBy', true)), 'change x by 0.2',
+    'it guessed which of two blocks the tutor meant');
+});
+
+test('the tutor is told which marker means which picture', ()=>{
+  const how=flat(tutor.HOW);
+  assert.match(how, /\{\{your:/, 'nothing tells it the script-reading form exists');
+  assert.match(how, /THEIR BLOCK, OR THE BLOCK/i,
+    'nothing tells it the two draw different pictures');
+});
+
+test('the marker pattern accepts both forms and nothing else', ()=>{
+  const { MARK } = withScript([]);
+  const grab = t => { MARK.lastIndex=0; return MARK.exec(t); };
+  assert.ok(grab('{{ctrl.if}}'), 'the plain form stopped matching');
+  const own = grab('{{your:ctrl.if}}');
+  assert.ok(own, 'the your: form does not match');
+  assert.strictEqual(own[2], 'ctrl.if', 'the op is not where drawn() looks for it');
+  assert.strictEqual(grab('{{ctrl.if}}')[1], undefined,
+    'the plain form must not come back flagged as theirs');
+  assert.strictEqual(grab('{{yours:ctrl.if}}'), null, 'a near-miss prefix must not pass');
+});
+
 test('a marker naming something that is not a block is left as it arrived', ()=>{
   /* Showing what was actually said beats silently swallowing it. */
   const { drawn, node } = renderer();

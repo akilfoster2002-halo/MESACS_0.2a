@@ -172,29 +172,91 @@ window.ASK = (function(){
      nor what came back over the network can become markup. A marker
      naming something that is not a block is left as it arrived, because
      the honest thing to show is what was actually said. */
-  const MARK=/\{\{\s*([a-z]+\.[A-Za-z]+)\s*\}\}/g;
-  function chip(op){
-    const bd=window.BLOCKS && BLOCKS.of(op);
-    if(!bd) return null;
+  const MARK=/\{\{\s*(your:)?([a-z]+\.[A-Za-z]+)\s*\}\}/g;
+  /* TWO KINDS OF PICTURE, AND THE TUTOR SAYS WHICH.
+
+     A chip was always drawn from the block's DEFAULTS, and that is right
+     about half the time. "Go and find {{motion.changeBy}}" means the
+     thing on the shelf, and the shelf says `change x by 0.2`; drawing
+     their own values there would send a child hunting for a block that
+     is not on the palette.
+
+     But "your {{motion.changeBy}}" means the one in their script, and
+     there the defaults are a lie. Asked about a script containing
+     `change y by -0.2`, the tutor said "your change x by 0.2" — the
+     words came from the tutor and the picture came from the palette, and
+     they contradicted each other in front of a child who was already
+     stuck. Filling every chip from the script instead just moved the
+     contradiction: told to add a SECOND one on another axis, the answer
+     drew their existing y and -0.2, which reads as an instruction to
+     reuse the wrong axis.
+
+     Neither picture is wrong. Which one is wanted is something only the
+     sentence knows, so the sentence says: {{op}} is the block as it sits
+     on the shelf, {{your:op}} is the one they built. And {{your:op}}
+     only reaches into the script when there is NO DOUBT which block is
+     meant — exactly one with that op in their whole project. Two of them
+     and it draws the shelf version, because a picture of the wrong one
+     of two is worse than a picture of neither. */
+  function found(op){
+    const hits=[];
+    const dig=list=>(list||[]).forEach(bk=>{
+      if(!bk || typeof bk!=='object') return;
+      if(bk.op===op) hits.push(bk);
+      Object.keys(bk.args||{}).forEach(k=>{
+        const v=bk.args[k];
+        if(v && typeof v==='object' && v.op) dig([v]);   // reporters in slots
+      });
+      dig(bk.body); dig(bk.body2);
+    });
+    try{
+      const a = window.CODER && CODER.actorName && window.VM
+        ? VM.actorByName(CODER.actorName()) : null;
+      ((a||{}).scripts||[]).forEach(sc=>{ if(sc.hat) dig([sc.hat]); dig(sc.body); });
+    }catch(e){}
+    return hits;
+  }
+  /* One block, drawn. `bk` is the student's own if we have it, and the
+     nesting comes with it — `key [space] pressed?` sitting in an `if` is
+     half of what makes their script recognisable, and a hollow ◇ there
+     would be a picture of a block they have already filled in. */
+  function draw(bd, bk, depth){
     const el=document.createElement('span');
     el.className='tut-blk cblk k-'+bd.kind;
     el.style.setProperty('--a', BLOCKS.catOf(bd.cat).a);
-    el.title=BLOCKS.help(op)||bd.label;
+    el.title=BLOCKS.help(bd.op)||bd.label;
     BLOCKS.parts(bd.label).forEach(seg=>{
       if(seg[0]!=='%'){ el.appendChild(document.createTextNode(seg)); return; }
-      const sp=bd.args[seg[1]], slot=document.createElement('i');
+      const sp=bd.args[seg[1]], v=bk && bk.args ? bk.args[seg[1]] : undefined;
+      if(v && typeof v==='object' && v.op && depth<3){
+        const inner=BLOCKS.of(v.op);
+        if(inner){ el.appendChild(draw(inner, v, depth+1)); return; }
+      }
+      const slot=document.createElement('i');
       slot.className='cslot';
-      slot.textContent = sp && sp.def!==undefined ? String(sp.def)
-                       : (sp && sp.type==='bool' ? '◇' : '…');
+      slot.textContent =
+        (v!==undefined && v!==null && typeof v!=='object') ? String(v)
+        : (sp && sp.def!==undefined ? String(sp.def)
+        : (sp && sp.type==='bool' ? '\u25c7' : '\u2026'));
       el.appendChild(slot);
     });
     return el;
   }
+  function chip(op, theirs){
+    const bd=window.BLOCKS && BLOCKS.of(op);
+    if(!bd) return null;
+    /* Only {{your:op}} reaches into their script, and only when there is
+       exactly one block it could mean. Anything else draws the shelf
+       version — which is not a fallback so much as the other right
+       answer. */
+    const hits = theirs ? found(op) : [];
+    return draw(bd, hits.length===1 ? hits[0] : null, 0);
+  }
   /* the answer, with every marker swapped for the block it names */
   function drawn(text, into){
     let at=0;
-    String(text).replace(MARK,(whole, op, i)=>{
-      const block=chip(op);
+    String(text).replace(MARK,(whole, own, op, i)=>{
+      const block=chip(op, !!own);
       if(!block) return whole;                 // not a block: leave the words alone
       if(i>at) into.appendChild(document.createTextNode(text.slice(at,i)));
       into.appendChild(block);
