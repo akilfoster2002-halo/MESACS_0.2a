@@ -138,6 +138,7 @@ window.RING = (function(){
               '#crosshair','#focus','#briefing'];
 
   let on=false, wasFP=null, camX=0, camY=0, spec=null, axisRoot=null;
+  let flat=false, roomCam=null;
   let fighting=false, over=null, banner='', rang=-1;
 
   /* ------------------------------------------------------- the stages
@@ -216,6 +217,9 @@ window.RING = (function(){
     $('#ringKeys').classList.remove('hidden');
     const ob=$('#ringOpen');
     if(ob){ ob.classList.remove('hidden'); ob.onclick=()=>{ if(window.CODER) CODER.toggle(); }; }
+    const fb=$('#ringFlat');
+    if(fb){ fb.classList.remove('hidden'); fb.onclick=()=>flatten(!flat); }
+    flatten(false);
     legend();
 
     build();
@@ -708,7 +712,8 @@ window.RING = (function(){
     fighting=false; over=null; banner='';
     Object.keys(book).forEach(k=>delete book[k]);
     $('#ring').classList.add('hidden');
-    ['#ringFeed','#ringKeys','#ringAxes','#ringStage','#ringOpen']
+    flatten(false);
+    ['#ringFeed','#ringKeys','#ringAxes','#ringStage','#ringOpen','#ringFlat']
       .forEach(s=>{ const e=$(s); if(e) e.classList.add('hidden'); });
     ['#objectives','#crosshair','#briefing']
       .forEach(s=>{ const e=$(s); if(e) e.classList.remove('hidden'); });
@@ -735,16 +740,23 @@ window.RING = (function(){
     floor.receiveShadow=true;
     world.add(floor);
 
-    /* A stripe every two units, and a lit one at zero. `change x by 10`
-       is a sentence with a number in it, and a floor with nothing on it
-       gives a student no way to see whether the number was ten. With
-       stripes they can count. */
-    for(let i=-F;i<=F;i+=2){
-      const lit=i===0;
-      const m=new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 24),
-        new THREE.MeshBasicMaterial({color: lit?0x8ff0ff:0x3b3059}));
-      m.position.set(i, 0.02, 0); m.userData.flat=true; world.add(m);
-    }
+    /* ------------------------------------------------------- the grid
+       ONE SQUARE IS ONE UNIT, which is what makes the number in the block
+       mean something you can see. `change x by 1` crosses one square;
+       `change x by 0.2` takes five frames to do it. A floor with nothing
+       on it gives a student no way to tell those apart — it used to have
+       stripes one way only, so the depth the language now calls y was a
+       direction you could move in and not measure.
+
+       EVERY FIFTH LINE IS BRIGHTER and the middle two are brightest, so
+       a distance is counted in fives rather than by touching the screen.
+       One LineSegments for the lot rather than a mesh per line: this used
+       to be seventeen boxes and a grid this fine would have been two
+       hundred.
+
+       Drawn a hair above the floor. Level with it they fight over the
+       same pixels and the whole grid crawls as the camera moves. */
+    grid(world, F, 13);
     /* And posts up the back wall, so `change z by` has something to be
        measured against too. Up is a direction you can only see moving in
        if there is something standing still beside you. */
@@ -770,6 +782,31 @@ window.RING = (function(){
     fill.position.set(-16, 10, -14); world.add(fill);
 
     G.scene.updateMatrixWorld(true);
+  }
+
+  /* ------------------------------------------------------- the grid */
+  /* Light enough to count against a floor this dark. The old stripes
+     were 0x3b3059 on 0x2b2444 and nearly invisible from above, which is
+     the view the grid is most FOR. */
+  const GRID={ minor:0x4a3f73, major:0x6f5da8, axis:0x8ff0ff };
+  function grid(world, halfX, halfZ){
+    const pts=[], col=[], c=new THREE.Color();
+    const push=(x1,z1,x2,z2,hex)=>{
+      c.setHex(hex);
+      pts.push(x1,0.015,z1, x2,0.015,z2);
+      col.push(c.r,c.g,c.b, c.r,c.g,c.b);
+    };
+    const shade = i => i===0 ? GRID.axis : (i%5===0 ? GRID.major : GRID.minor);
+    for(let x=-halfX;x<=halfX;x++) push(x,-halfZ,x,halfZ, shade(x));
+    for(let z=-halfZ;z<=halfZ;z++) push(-halfX,z,halfX,z, shade(z));
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
+    g.setAttribute('color',    new THREE.Float32BufferAttribute(col,3));
+    const m=new THREE.LineSegments(g,
+      new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:0.85 }));
+    m.userData.flat=true;
+    world.add(m);
+    return m;
   }
 
   /* ------------------------------------------------ the three axes
@@ -803,7 +840,7 @@ window.RING = (function(){
     const hex=h=>'#'+h.toString(16).padStart(6,'0');
     el.innerHTML=(window.BLOCKS?BLOCKS.AXES:[]).map(a=>
       `<div class="ring-ax"><i style="background:${hex(a.hue)}"></i>`+
-      `<b>${a.v}</b>${T(a.say)}</div>`).join('');
+      `<b>${a.v}</b>${T(flat && a.flat ? a.flat : a.say)}</div>`).join('');
     el.classList.remove('hidden');
   }
   function axes(world, x, z){
@@ -920,8 +957,37 @@ window.RING = (function(){
   /* Side on, framed on BOTH of them — a camera that followed only the
      player would push the opponent off the edge exactly when the gap is
      the thing you are trying to judge. */
+  /* ------------------------------------------------------ the 2D view
+     LOOKING STRAIGHT DOWN IS THE LANGUAGE'S OWN PICTURE. From up here x
+     runs across the screen and y runs up it — the two axes the blocks are
+     named for, both in full view and both flat to the camera — and z, the
+     height, points at you and is the one thing you cannot see, which is
+     exactly what a 2D game is.
+
+     It is the VM's stage camera, not a moved version of the room's. It
+     has to be ORTHOGRAPHIC: a flat game is played by reading positions
+     off the screen, and under perspective two robots the same distance
+     apart are different distances apart depending where they stand. */
+  function flatten(on2){
+    flat=!!on2;
+    const btn=$('#ringFlat');
+    if(btn){ btn.classList.toggle('on', flat); btn.innerHTML=flat?'▦ 3D VIEW':'▢ 2D VIEW'; }
+    if(flat){
+      roomCam = roomCam || G.camera;
+      if(window.VM) VM.reframe();
+    } else if(roomCam){
+      G.camera=roomCam; roomCam=null;
+    }
+    legend();
+  }
   function camera(dt){
     const T=window.TEMPLATES; if(!T) return;
+    if(flat){
+      /* Re-asked every frame so it follows a resize, and because the
+         frame is worked out from where the bodies actually are. */
+      G.camera=VM.stageCam(innerWidth/Math.max(1,innerHeight));
+      return;
+    }
     const a=VM.actorByName(T.ME), b=VM.actorByName(T.FOE);
     const ax=a?+a.x||0:0;
     /* AN EMPTY RING IS FRAMED ON THE ROBOT. Framing on the midpoint of
@@ -1087,7 +1153,8 @@ window.RING = (function(){
     if(msg && window.say) window.say(msg);
   }
 
-  return { start, stop, tick, leave, PALETTE, SLOT, ACTOR,
+  return { start, stop, tick, leave, flatten, PALETTE, SLOT, ACTOR,
+           get flat(){ return flat; },
            get active(){ return on; },
            /* what the walkthrough's steps are reading, for diagnosing a
               step that will not tick */

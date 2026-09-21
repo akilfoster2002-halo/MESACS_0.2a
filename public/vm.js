@@ -706,9 +706,20 @@ window.VM = (function(){
     const h=framed, w=h*(aspect||1.6);
     flatCam.left=-w; flatCam.right=w; flatCam.top=h; flatCam.bottom=-h;
     flatCam.position.set(0, 120, 0);
-    /* +z has to point UP the screen. Looking straight down, the camera's
-       own up vector is the only thing that says which way round the floor
-       is, and the default lands north at the bottom. */
+    /* WHICH WAY ROUND THE FLOOR IS, and you do not get to have both.
+
+       Looking straight down at the ground plane, +x to the right and +z
+       up the screen is a LEFT-handed frame — x cross z is minus y, and y
+       is the direction the camera is looking from. So one of the two has
+       to land the other way, and it is x that wins: a student reads left
+       to right before they read anything else, and `change x by 1` going
+       leftwards would be wrong in a way `y runs downward` is not.
+
+       So +z comes DOWN the screen — which is also the honest picture of
+       what the top view IS. In the room the camera stands out along +z,
+       so the direction that was coming towards you is the direction that
+       now goes down the screen, towards where you were standing. The
+       ring's legend says so rather than leaving it to be discovered. */
     flatCam.up.set(0,0,-1);
     flatCam.lookAt(0,0,0);
     flatCam.updateProjectionMatrix();

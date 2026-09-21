@@ -840,3 +840,59 @@ test('a punch is drawn once and gives the body back', ()=>{
   assert.match(src, /r\.why!=='no-stamina'\) strikeOn/,
     'the body plays a punch the referee refused to let happen');
 });
+
+/* -------------------------------------------------------- the 2D view */
+test('the top view is the VM\'s stage camera, not the room\'s moved upwards', ()=>{
+  /* A flat game is played by reading positions off the screen — is this
+     robot level with that one yet — and under perspective two bodies the
+     same distance apart are different distances apart depending where
+     they stand. The VM already owns an orthographic one; the ring must
+     borrow it rather than growing a second answer. */
+  const src=read('public/ring.js');
+  assert.match(src, /VM\.stageCam\(/, 'the ring builds its own top-down camera');
+  assert.match(src, /roomCam\s*=\s*roomCam\s*\|\|\s*G\.camera/,
+    'the ring does not keep the room camera, so 3D cannot be got back');
+  assert.match(src, /function flatten\(/, 'there is no way to switch the view');
+  assert.match(read('public/index.html'), /id="ringFlat"/, 'there is no button to switch it with');
+});
+
+test('every axis says what it is doing in BOTH views', ()=>{
+  /* Looking down, the axis that was coming out of the screen goes down
+     it and the one that was up points at you. A legend still saying "in
+     and out" over an overhead camera describes a room nobody is looking
+     at. */
+  const ctx=require('node:vm').createContext({ console });
+  ctx.window=ctx; ctx.self=ctx;
+  require('node:vm').runInContext(read('public/blocks.js'), ctx, { filename:'blocks.js' });
+  ctx.BLOCKS.AXES.forEach(a=>{
+    assert.ok(a.say,  a.v+' has nothing to say about itself');
+    assert.ok(a.flat, a.v+' has nothing to say from overhead');
+  });
+  const up=ctx.BLOCKS.AXES.find(a=>a.say==='up');
+  assert.notStrictEqual(up.flat, up.say,
+    'the height reads the same from overhead as from the side, which cannot be right');
+  assert.match(read('public/ring.js'), /flat && a\.flat \? a\.flat : a\.say/,
+    'the legend does not change with the view');
+});
+
+test('the floor is a grid, and one square is one unit', ()=>{
+  /* The number in the block is a distance, and a floor with nothing on
+     it gives a student no way to see whether the number was one. */
+  const src=read('public/ring.js');
+  assert.match(src, /function grid\(world, halfX, halfZ\)/, 'the ring has no grid to draw');
+  assert.match(src, /for\(let x=-halfX;x<=halfX;x\+\+\)/, 'the grid does not step one unit at a time');
+  assert.match(src, /for\(let z=-halfZ;z<=halfZ;z\+\+\)/,
+    'the grid only runs one way, so depth cannot be measured');
+  assert.ok(!/BoxGeometry\(0\.12, 0\.12, 24\)/.test(src),
+    'the old one-way stripes are still being drawn as well');
+});
+
+test('a step is a fraction of a square, because a forever loop takes sixty of them a second', ()=>{
+  const ctx=require('node:vm').createContext({ console });
+  ctx.window=ctx; ctx.self=ctx;
+  require('node:vm').runInContext(read('public/blocks.js'), ctx, { filename:'blocks.js' });
+  const step=ctx.BLOCKS.of('motion.changeBy').args.n.def;
+  assert.ok(step>0 && step<1,
+    'change by defaults to '+step+' — inside a forever loop that crosses the ring in '+
+    (32/(step*60)).toFixed(1)+' seconds');
+});

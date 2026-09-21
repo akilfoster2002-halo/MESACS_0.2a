@@ -239,7 +239,7 @@
           done:c=>controls(c.me)>=2,
           pal:only(['control','sensing','motion'], MOVE), tab:'control' },
         { want:'moved-both-ways',
-          say:'Set the second one to a negative number, like <b>-1</b>, so it goes the other way.',
+          say:'Set the second one to a negative number, like <b>-0.2</b>, so it goes the other way.',
           find:()=>document.querySelector('#cScript input.cin'),
           done:c=>c.frames.left>=6 && c.frames.right>=6,
           pal:only(['control','sensing','motion'], MOVE) }

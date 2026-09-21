@@ -120,11 +120,18 @@ window.BLOCKS = (function(){
      kind of wrong that takes a lesson to notice.
 
      `say` and `hue` are for anything that draws them. The hues are the
-     game's own palette, far enough apart to tell at a glance. */
+     game's own palette, far enough apart to tell at a glance.
+
+     `flat` is the same axis seen from DIRECTLY ABOVE, which is a
+     different sentence and not a different axis: looking down, the one
+     that was coming out of the screen goes down it and the one that was
+     up points at you. A legend that kept saying "in and out" while the
+     camera was overhead would be describing a room nobody is looking
+     at. */
   const AXES = [
-    { v:'x', field:'x', say:'across',     hue:0x8fd3ff },
-    { v:'y', field:'z', say:'in and out', hue:0xffb4a2 },
-    { v:'z', field:'y', say:'up',         hue:0xa8e6cf }
+    { v:'x', field:'x', say:'across',     flat:'across',         hue:0x8fd3ff },
+    { v:'y', field:'z', say:'in and out', flat:'down the screen',hue:0xffb4a2 },
+    { v:'z', field:'y', say:'up',         flat:'straight at you',hue:0xa8e6cf }
   ];
   const axisOf = k => AXES.find(a=>a.v===String(k==null?'':k).trim().toLowerCase()) || AXES[0];
   const axisField = k => axisOf(k).field;
@@ -157,7 +164,12 @@ window.BLOCKS = (function(){
     B('motion.tilt','motion','stack','tilt %n degrees',{n:n(15)}),
     B('motion.goto','motion','stack','go to x %x y %y z %z',{x:n(0),y:n(0),z:n(1)}),
     B('motion.glide','motion','stack','glide %t secs to x %x y %y z %z',{t:n(1),x:n(0),y:n(0),z:n(1)}),
-    B('motion.changeBy','motion','stack','change %a by %n',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},n:n(1)}),
+    /* A FIFTH OF A SQUARE, NOT A WHOLE ONE. Inside a `forever` this
+       happens sixty times a second, and at 1 the robot crossed the whole
+       ring in half a second — too fast to see which key did it, let alone
+       to count squares. At 0.2 it walks, and a student who wants it
+       quicker types a bigger number, which is the lesson. */
+    B('motion.changeBy','motion','stack','change %a by %n',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},n:n(0.2)}),
     B('motion.setTo','motion','stack','set %a to %n',{a:{type:'pick',opts:AXIS_NAMES,def:'x'},n:n(0)}),
     B('motion.point','motion','stack','point towards %o',{o:{type:'obj',def:'player'}}),
     B('motion.pos','motion','report','%a position',{a:{type:'pick',opts:AXIS_NAMES,def:'x'}}),
