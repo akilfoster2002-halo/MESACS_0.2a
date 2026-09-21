@@ -175,8 +175,27 @@ window.BLOCKS = (function(){
 
     /* ------------------------------------------------------------ motion */
     B('motion.move','motion','stack','move %n steps',{n:n(10)}),
-    B('motion.turn','motion','stack','turn %n degrees',{n:n(15)}),
-    B('motion.tilt','motion','stack','tilt %n degrees',{n:n(15)}),
+    /* TWO WAYS TO POINT A ROBOT, AND CHILDREN NEED BOTH.
+
+       `point in direction` is the one they already understand: a facing,
+       in degrees, the way a compass or Scratch does it. 90 is to the
+       right. It is one number and it says where the front of the robot
+       ends up, which is what somebody writing "walk that way" is
+       actually thinking about.
+
+       `turn ... by` is the honest three-dimensional one: pick an AXIS and
+       spin around it. It replaced a `turn` that could only ever yaw and a
+       `tilt` that could only ever pitch — two blocks that between them
+       covered two of the three ways a thing can rotate, and left the
+       third with no block at all. One block with the axis in it covers
+       all three and says out loud that rotation HAS an axis, which is the
+       idea `tilt` was hiding.
+
+       The default is z, the up axis, because turning left and right is
+       the everyday one and it is what plain `turn` always did. */
+    B('motion.turn','motion','stack','turn %a by %n degrees',
+      {a:{type:'pick',opts:AXIS_NAMES,def:'z'},n:n(15)}),
+    B('motion.face','motion','stack','point in direction %n',{n:n(90)}),
     B('motion.goto','motion','stack','go to x %x y %y z %z',{x:n(0),y:n(0),z:n(1)}),
     B('motion.glide','motion','stack','glide %t secs to x %x y %y z %z',{t:n(1),x:n(0),y:n(0),z:n(1)}),
     /* A FIFTH OF A SQUARE, NOT A WHOLE ONE. Inside a `forever` this
@@ -265,8 +284,8 @@ window.BLOCKS = (function(){
     'ctrl.delclone':"Removes this copy. Has no effect on the original object.",
 
     'motion.move':"Slides forward in whatever direction the object is facing. Turn first to change where that is.",
-    'motion.turn':"Spins the object left or right on the spot. Negative numbers turn the other way.",
-    'motion.tilt':"Tips the object forward or back, rather than turning it.",
+    'motion.turn':"Spins the object around one axis. z turns it left and right, x tips it forward and back, y rolls it over sideways. Negative numbers go the other way.",
+    'motion.face':"Points the front of the object in a direction, in degrees. 90 is to the right, 0 is away from you, -90 is to the left. Use 'turn' if you want to spin it by an amount instead.",
     'motion.goto':"Jumps straight to an exact spot. x is across, y is into the screen and back out, z is up.",
     'motion.glide':"Slides smoothly to a spot over the time you give it, instead of jumping there.",
     'motion.changeBy':"Nudges one coordinate by an amount. 'change x by 1' slides it along, 'change z by 1' lifts it.",

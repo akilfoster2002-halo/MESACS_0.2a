@@ -62,6 +62,7 @@ window.VM = (function(){
       const c=JSON.parse(JSON.stringify(a));
       c.mesh=null; c.bubble=null; c.isClone=false;
       if(!c.home) c.home=snapshot(c);
+      freshenActor(c);
       P.actors.push(c);
     });
   }
@@ -138,7 +139,15 @@ window.VM = (function(){
   function sync(a){
     if(!a.mesh) return;
     a.mesh.position.set(a.x,a.y,a.z);
-    a.mesh.rotation.set(a.tilt*Math.PI/180, a.dir*Math.PI/180, 0);
+    /* THREE ANGLES, ABOUT THE LANGUAGE'S OWN AXES, not the renderer's.
+       `dir` spins about up (the language's z, three's y) and `tilt` tips
+       about across (x either way), and both of those already lined up.
+       `roll` is about the language's y — into the screen — which is
+       three's z pointing the OTHER WAY, so the sign flips here and
+       nowhere else. Without that, `turn y by 15` and `change y by 1`
+       would disagree about which way y points, in the same room, in front
+       of somebody being taught the axes. */
+    a.mesh.rotation.set(a.tilt*Math.PI/180, a.dir*Math.PI/180, -(a.roll||0)*Math.PI/180);
     a.mesh.visible=!!a.visible;
   }
   /* A read-only copy of somebody else's object, for this room to look at. It
@@ -164,12 +173,12 @@ window.VM = (function(){
   /* HOME is everything a running program can change about an object. It is
      snapshotted the moment the object is made, so "put it back" is a plain
      copy rather than a re-run of whatever moved it. */
-  const HOME=['x','y','z','dir','tilt','size','shape','colour','visible'];
+  const HOME=['x','y','z','dir','tilt','roll','size','shape','colour','visible'];
   const snapshot = a => { const o={}; HOME.forEach(k=>o[k]=a[k]); return o; };
   function addActor(o){
     const a=Object.assign({
       id:uid++, name:'object'+uid, shape:'cube', colour:'#8fd3ff',
-      x:0,y:1,z:0, dir:0, tilt:0, size:1, visible:true,
+      x:0,y:1,z:0, dir:0, tilt:0, roll:0, size:1, visible:true,
       scripts:[], vars:{}, isClone:false, mesh:null, bubble:null, saying:''
     }, o||{});
     if(!a.home) a.home=snapshot(a);
@@ -418,7 +427,7 @@ window.VM = (function(){
       case 'ctrl.clone': {
         if(a && P.actors.length<MAXTHREADS){
           const c=addActor({ name:a.name, shape:a.shape, colour:a.colour,
-            x:a.x,y:a.y,z:a.z, dir:a.dir, tilt:a.tilt, size:a.size,
+            x:a.x,y:a.y,z:a.z, dir:a.dir, tilt:a.tilt, roll:a.roll, size:a.size,
             visible:a.visible, scripts:a.scripts, vars:Object.assign({},a.vars), isClone:true });
           startHats('event.clone', null, c);
         }
@@ -440,8 +449,27 @@ window.VM = (function(){
                a.x += Math.sin(r)*d*0.1; a.z += Math.cos(r)*d*0.1; sync(a); }
         break;
       }
-      case 'motion.turn': { if(a){ a.dir=(a.dir+num(g('n')))%360; sync(a);} break; }
+      /* WHICH ANGLE AN AXIS TURNS. The axis letters are the language's,
+         so this is the one place that has to know that spinning about
+         `up` is the thing `dir` has always meant. A turn with no axis on
+         it is a turn saved before this block grew one, and it meant the
+         everyday left-and-right: z. */
+      case 'motion.turn': {
+        if(a){
+          const k=({ x:'tilt', y:'roll', z:'dir' })[g('a')] || 'dir';
+          a[k]=((a[k]||0)+num(g('n')))%360; sync(a);
+        }
+        break;
+      }
+      /* The old `tilt %n` block, kept running and off the palette: a
+         project saved before it became `turn x by` is somebody's work,
+         and it should not stop working because the block it was built
+         from got better. Nothing offers it any more. */
       case 'motion.tilt': { if(a){ a.tilt=(a.tilt+num(g('n')))%360; sync(a);} break; }
+      /* A FACING, NOT A SPIN. Set rather than added, and the same number
+         `direction` reports and `point towards` writes — three blocks
+         that would be useless to each other if they disagreed. */
+      case 'motion.face': { if(a){ a.dir=num(g('n'))%360; sync(a);} break; }
       case 'motion.goto': { if(a){ place(a,'x',num(g('x'))); place(a,'y',num(g('y')));
                                    place(a,'z',num(g('z'))); sync(a);} break; }
       case 'motion.changeBy': { if(a){ const k=g('a');
@@ -632,7 +660,7 @@ window.VM = (function(){
     return {
       actors:P.actors.filter(a=>!a.isClone).map(a=>({
         id:a.id, name:a.name, shape:a.shape, colour:a.colour,
-        x:a.x, y:a.y, z:a.z, dir:a.dir, tilt:a.tilt, size:a.size, visible:a.visible,
+        x:a.x, y:a.y, z:a.z, dir:a.dir, tilt:a.tilt, roll:a.roll, size:a.size, visible:a.visible,
         scripts:a.scripts, vars:a.vars, isClone:false, home:a.home })),
       vars:P.vars, lists:P.lists, procs:P.procs, msgs:P.msgs, uid, stage:P.stage
     };
@@ -643,6 +671,35 @@ window.VM = (function(){
                                                // author, and scratch keeps nothing
     try{ localStorage.setItem(KEY, JSON.stringify(plain())); }catch(e){}
   }
+  /* ------------------------------------------------- blocks that moved on
+     A PROJECT IS SOMEBODY'S WORK AND IT DOES NOT ROT. `tilt %n` became
+     `turn x by %n` — the same rotation, said properly — and a script
+     saved with the old block would otherwise open with a hole in it where
+     the editor could not find a block by that name. So it is rewritten on
+     the way in. The VM still executes the old op as well, because a
+     project can also arrive from the arcade without passing through here.
+
+     Anything added to this list is a one-way rename: it runs over every
+     script in every project that opens, so it has to be cheap and it has
+     to be safe to run twice. */
+  const MOVED = { 'motion.tilt': bk => ({ op:'motion.turn', args:{ a:'x', n:bk.args?bk.args.n:15 } }) };
+  function freshen(list){
+    (list||[]).forEach(bk=>{
+      if(!bk || typeof bk!=='object') return;
+      const moved=MOVED[bk.op];
+      if(moved){ const to=moved(bk); bk.op=to.op; bk.args=Object.assign({}, bk.args, to.args); }
+      Object.keys(bk.args||{}).forEach(k=>{
+        const v=bk.args[k];
+        if(v && typeof v==='object' && v.op) freshen([v]);
+      });
+      freshen(bk.body); freshen(bk.body2);
+    });
+  }
+  const freshenActor = a => (a.scripts||[]).forEach(sc=>{
+    if(sc.hat) freshen([sc.hat]);
+    freshen(sc.body);
+  });
+
   function load(){
     let raw=null;
     /* A scratch project opens empty every single time. Reading the slot
@@ -659,6 +716,7 @@ window.VM = (function(){
       P.stage = raw.stage==='flat' ? 'flat' : 'world';
       raw.actors.forEach(a=>{ a.mesh=null; a.bubble=null;
         if(!a.home) a.home=snapshot(a);   // saved before objects remembered a home
+        freshenActor(a);
         P.actors.push(a); });
     }
   }

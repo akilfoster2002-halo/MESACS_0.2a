@@ -59,10 +59,13 @@ window.RING = (function(){
          Somewhere to nudge it, somewhere to put it, and a way to read
          where it ended up. Two out of three is a dead end.
 
-       turn  ↔  direction
+       turn  ↔  point in direction  ↔  direction
          `turn` with no readout is a block whose effect you can only
          guess at. And `turn` + `move` is the other way of getting about
-         — the turtle one — next to the co-ordinate one.
+         — the turtle one — next to the co-ordinate one. `point in
+         direction` is the third of that family and the one a child
+         reaches for first: `turn` changes the facing BY an amount, this
+         one says what the facing IS, and `direction` reads it back.
 
        <  =  >
          Find two of these and you will hunt for the third.
@@ -106,7 +109,7 @@ window.RING = (function(){
       'ctrl.wait','ctrl.repeat','ctrl.forever',
       'ctrl.if','ctrl.ifelse','ctrl.repeatUntil','ctrl.waitUntil','ctrl.stop',
       /* what a robot can do, and how to read what it did */
-      'motion.move','motion.turn','motion.changeBy','motion.setTo',
+      'motion.move','motion.turn','motion.face','motion.changeBy','motion.setTo',
       'motion.goto','motion.glide','motion.pos','motion.dir',
       /* how it tells you what it thinks */
       'looks.say','looks.sayFor',

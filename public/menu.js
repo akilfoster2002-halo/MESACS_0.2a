@@ -668,13 +668,13 @@ window.FREE = (function(){
         if(gh){ group.remove(gh.g); if(gh.plate) group.remove(gh.plate); }
         const g=VM.ghostMesh({ shape:o.s, colour:o.c, size:o.sz });
         g.position.set(o.x,o.y,o.z);
-        g.rotation.set(o.tl*Math.PI/180, o.d*Math.PI/180, 0);
+        g.rotation.set(o.tl*Math.PI/180, o.d*Math.PI/180, -(o.rl||0)*Math.PI/180);
         group.add(g);
         gh={ g, look, sz:o.sz||1, plate:null, named:null }; mine.set(o.i,gh);
       }
       gh.sz=o.sz||1;
       gh.owner=m.from;
-      gh.tx=o.x; gh.ty=o.y; gh.tz=o.z; gh.tdir=o.d; gh.ttilt=o.tl;
+      gh.tx=o.x; gh.ty=o.y; gh.tz=o.z; gh.tdir=o.d; gh.ttilt=o.tl; gh.troll=o.rl||0;
       gh.g.visible = o.v!==0;
     });
   }
@@ -689,7 +689,7 @@ window.FREE = (function(){
      else holds of you until you say otherwise: freeze the sharing and the
      room hands your old mission's objects to the next person who joins. */
   const stamp = a => [a.shape,a.colour,a.x.toFixed(2),a.y.toFixed(2),a.z.toFixed(2),
-                      Math.round(a.dir),Math.round(a.tilt),(a.size||1).toFixed(2),
+                      Math.round(a.dir),Math.round(a.tilt),Math.round(a.roll||0),(a.size||1).toFixed(2),
                       a.visible?1:0].join('|');
   let sent=new Map(), sentAt=0, fullAt=0;
   function shareObjects(){
@@ -707,7 +707,7 @@ window.FREE = (function(){
       sent.set(a.id,k);
       set.push({ i:a.id, s:a.shape, c:a.colour,
                  x:+a.x.toFixed(2), y:+a.y.toFixed(2), z:+a.z.toFixed(2),
-                 d:Math.round(a.dir), tl:Math.round(a.tilt),
+                 d:Math.round(a.dir), tl:Math.round(a.tilt), rl:Math.round(a.roll||0),
                  sz:+(a.size||1).toFixed(2), v:a.visible?1:0 });
     });
     const del=[];
@@ -761,6 +761,8 @@ window.FREE = (function(){
       let d=want-gh.g.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d));
       gh.g.rotation.y += d*k;
       gh.g.rotation.x = gh.ttilt*Math.PI/180;
+      /* same sign flip as VM.sync: the language's y is three's -z */
+      gh.g.rotation.z = -(gh.troll||0)*Math.PI/180;
       if(gh.plate){
         const sz=Math.max(0.6, gh.sz||1);
         gh.plate.position.set(p.x, p.y + sz*0.6 + 0.95, p.z);
