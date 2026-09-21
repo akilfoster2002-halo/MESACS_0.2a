@@ -433,3 +433,70 @@ test('the whole script still comes through — hats, else, and every block', ()=
   assert.match(out, /nothing inside it/, 'the empty else branch is not marked');
   assert.match(out, /say \[hi\]/, 'a block inside the if is missing');
 });
+
+/* ===================================================== the editor's fit
+   Two bugs the Ask button caused, both from the same shape of mistake:
+   a number guessed once and then depended on. */
+
+test('nothing in the editor guesses how tall the bar is', ()=>{
+  /* The bar is centred and as wide as its contents, so its HEIGHT
+     depends on what is in it and on how narrow the window is. Four rules
+     underneath it each hard-coded a guess at that, and adding one button
+     made the bar taller than every guess — the walkthrough card slid up
+     underneath it and had its first line clipped. */
+  const css=read('public/index.html');
+  /* Sliced rather than matched: a CSS rule spans lines, and building the
+     regex for one through two layers of escaping is how the last version
+     of this test came to be hunting for a backslash. */
+  const rule=name=>{
+    const at=css.indexOf('\n'+name+'{');
+    assert.ok(at>=0, 'no rule for '+name);
+    const end=css.indexOf('}', at);
+    assert.ok(end>at, name+' has no closing brace');
+    return css.slice(at, end+1);
+  };
+
+  ['#cPal','#cScript','#cCoach'].forEach(sel=>{
+    const r=rule(sel);
+    const top=/top:\s*([^;}]+)/.exec(r);
+    assert.ok(top, sel+' has no top');
+    assert.match(top[1], /var\(--cbar/,
+      sel+' positions itself with a hard-coded '+top[1].trim()+
+      ' instead of measuring where the bar ends');
+  });
+  const walking=rule('#coder.walking #cPal,#coder.walking #cScript');
+  assert.match(walking, /var\(--ccoach/,
+    'the panels move down by a fixed amount, so a longer step sentence overlaps them');
+});
+
+test('the editor measures the bar and the card, every frame', ()=>{
+  const coder=read('public/coder.js');
+  assert.match(coder, /function fit\(\)/, 'nothing measures the bar');
+  assert.match(coder, /setProperty\('--cbar'/,  'the bar height is never published');
+  assert.match(coder, /setProperty\('--ccoach'/,'the card height is never published');
+  /* the card is written by COACH, not by coder.js, so a measurement that
+     only happened on coder's own render would lag a step behind */
+  const tick=coder.slice(coder.indexOf('function tick(dt){'), coder.indexOf('addEventListener(\'keydown\''));
+  assert.match(tick, /fit\(\)/, 'the fit is not re-measured as the walkthrough moves');
+  const render=coder.slice(coder.indexOf('function render(){'));
+  assert.match(render.slice(0,400), /fit\(\)/, 'the fit is not measured after a redraw');
+});
+
+test('the page asks whether there is a tutor once, not on every redraw', ()=>{
+  /* boot() is called from the editor's bar, which is rebuilt on every
+     render AND twice a second by its own tick. Fetching each time was
+     four requests a second per child, for as long as the editor was
+     open, to ask a question whose answer cannot change while the page is
+     loaded. */
+  const ask=read('public/ask.js');
+  assert.match(ask, /if\(asked===null\)/,
+    'boot() has no memory, so every redraw asks the server again');
+  const boot=ask.slice(ask.indexOf('function boot()'));
+  const body=boot.slice(0, boot.indexOf('\n  }')+4);
+  const fetches=(body.match(/fetch\(/g)||[]).length;
+  assert.strictEqual(fetches, 1, 'boot() fetches '+fetches+' times per call');
+  /* and the handler still goes back on, because the button element is
+     new after every rebuild */
+  assert.match(ask, /function wire\(\)/, 'nothing re-attaches the button handler');
+  assert.match(body, /wire\(\);/, 'a rebuild leaves the button without a click handler');
+});

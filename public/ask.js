@@ -265,16 +265,38 @@ window.ASK = (function(){
     }
   }
 
-  /* Is there one? Asked once, and the button only exists if there is. */
-  async function boot(){
-    try{
-      const r=await fetch('/api/tutor/on');
-      const j=await r.json();
-      live=!!(j && j.tutor);
-    }catch(e){ live=false; }
+  /* Is there one? ASKED ONCE, AND ONLY ONCE.
+
+     The editor's bar is rebuilt on every render and twice a second by
+     its own tick, and this used to fetch every single time it was
+     called: four requests a second, for as long as the editor was open,
+     to ask a question whose answer is decided by an environment variable
+     and cannot change while the page is loaded. Thirty children in a
+     room made that a hundred and twenty requests a second, for nothing.
+
+     So the request happens once and the answer is kept. What every
+     rebuild still needs is the HANDLER put back, because the button
+     element itself is new each time — that part is free and synchronous,
+     and it runs immediately rather than waiting on the network, so the
+     button never flickers away while an answer we already have is being
+     re-fetched. */
+  let asked=null;
+  function wire(){
     const b=$('#tutorBtn');
-    if(b){ b.classList.toggle('hidden', !live); b.onclick=toggle; }
-    return live;
+    if(!b) return;
+    b.classList.toggle('hidden', !live);
+    b.onclick=toggle;
+  }
+  function boot(){
+    if(asked===null){
+      asked = fetch('/api/tutor/on')
+        .then(r=>r.json())
+        .then(j=>!!(j && j.tutor))
+        .catch(()=>false)
+        .then(v=>{ live=v; wire(); return v; });
+    }
+    wire();                       // with whatever is already known
+    return asked;
   }
   /* A mission is a fresh room, so it is a fresh conversation too. */
   function clear(){ turns=[]; if(open) render(); }

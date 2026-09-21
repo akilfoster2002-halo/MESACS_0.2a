@@ -875,11 +875,35 @@ window.CODER = (function(){
   }
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+  /* ------------------------------------------------------- the fit
+     WHERE THE BAR ACTUALLY ENDS, measured rather than assumed. The bar
+     is centred and as wide as its contents, so its HEIGHT depends on
+     what is in it and on how narrow the window is — and the panels below
+     it used to be positioned with four hard-coded offsets that all
+     guessed at one number. Adding a button to the bar made it taller
+     than every guess, and the walkthrough card slid up under it with its
+     first line clipped.
+
+     Two numbers, written as custom properties for the stylesheet to do
+     arithmetic with: where the bar ends, and how tall the walkthrough
+     card is — which grows with the length of the step's sentence, so it
+     cannot be a constant either. */
+  function fit(){
+    const el=$('#coder'); if(!el) return;
+    const bar=$('#cBar');
+    if(bar && bar.offsetHeight)
+      el.style.setProperty('--cbar', Math.round(bar.getBoundingClientRect().bottom)+'px');
+    const co=$('#cCoach');
+    const showing = co && !co.classList.contains('hidden') && co.offsetHeight;
+    el.style.setProperty('--ccoach', showing ? Math.round(co.offsetHeight)+'px' : '0px');
+  }
+
   function render(){
     if(!open) return;
     document.querySelector('#coder').classList.toggle('magnify', magnify);
     repaired=false;
     bar(); palette(); scripts();
+    fit();
     /* slotHTML put a default back into a menu slot that was holding a
        block. Write it down, or the same save keeps arriving broken. */
     if(repaired){ repaired=false; VM.save(); }
@@ -888,6 +912,11 @@ window.CODER = (function(){
   let beat=0;
   function tick(dt){
     if(!open) return;
+    /* The walkthrough card is written by COACH, not by this file, and it
+       changes height whenever the step changes. Measured every frame
+       because it is two getBoundingClientRects and the alternative is a
+       card that overlaps the panel below it until the next redraw. */
+    fit();
     beat+=dt;
     if(beat>0.5){ beat=0; bar(); if(cat==='data') palette(); }
   }
