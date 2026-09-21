@@ -716,3 +716,127 @@ test('every place the ring stands a body up tells the VM that is home', ()=>{
       fn+' sizes a body and never makes that its home, so ↺ shrinks it');
   });
 });
+
+/* ------------------------------------------------------- the animation
+   THE ROBOT USED TO SLIDE. Its .glb carried fourteen clips and not one of
+   them was a loop you could travel on, so a program that moved the body
+   moved a statue. The clips come out of Mixamo .fbx files the browser
+   cannot read, so they are baked in offline by tools/add-clip.mjs — which
+   means what is under test here is an ASSET, and an asset that is wrong
+   is wrong silently: the robot just goes back to sliding.
+
+   Read straight out of the .glb rather than through three, because the
+   question is whether the bytes on disk are right. */
+function glb(file){
+  const b=fs.readFileSync(P(file));
+  assert.strictEqual(b.readUInt32LE(0), 0x46546C67, file+' is not a .glb');
+  const jsonLen=b.readUInt32LE(12);
+  const json=JSON.parse(b.slice(20, 20+jsonLen).toString('utf8'));
+  const binAt=20+jsonLen+8;
+  /* READ THE FLOATS, NOT THE min/max. glTF only requires those on mesh
+     positions — the clips that were already in the file carry none, so a
+     test written against them passes on the baked clip and throws on the
+     original, which is the wrong way round. */
+  const floats=i=>{
+    const acc=json.accessors[i], bv=json.bufferViews[acc.bufferView];
+    const comps={SCALAR:1,VEC2:2,VEC3:3,VEC4:4}[acc.type];
+    const at=binAt+(bv.byteOffset||0)+(acc.byteOffset||0);
+    const out=new Float32Array(acc.count*comps);
+    for(let k=0;k<out.length;k++) out[k]=b.readFloatLE(at+k*4);
+    return { v:out, comps, count:acc.count };
+  };
+  const span=i=>{
+    const { v, comps }=floats(i);
+    const lo=new Array(comps).fill(Infinity), hi=new Array(comps).fill(-Infinity);
+    for(let k=0;k<v.length;k++){ const c=k%comps;
+      if(v[k]<lo[c]) lo[c]=v[k];
+      if(v[k]>hi[c]) hi[c]=v[k]; }
+    return { lo, hi };
+  };
+  /* where a clip puts a node, as a per-axis range */
+  const track=(clipName, nodeName, path)=>{
+    const clip=(json.animations||[]).find(a=>a.name===clipName);
+    if(!clip) return null;
+    const node=json.nodes.findIndex(n=>n.name===nodeName);
+    const ch=clip.channels.find(x=>x.target.node===node && x.target.path===path);
+    return ch ? span(clip.samplers[ch.sampler].output) : null;
+  };
+  return { json, track };
+}
+const ROBOT_GLB=['public/characters/models/noisyboy.glb',
+                 'public/characters/models/ambush.glb'];
+/* the names ring.js reaches for, read out of ring.js so they cannot drift */
+function ringClips(){
+  const src=read('public/ring.js');
+  const walk=/const WALK_CLIPS\s*=\s*\[([^\]]+)\]/.exec(src);
+  const idle=/const IDLE_CLIP\s*=\s*'([^']+)'/.exec(src);
+  const swing=/const SWING=\{([^}]+)\}/.exec(src);
+  assert.ok(walk && idle && swing, 'ring.js no longer names its clips where this test can read them');
+  const names = s => [...s.matchAll(/'([^']+)'/g)].map(m=>m[1]);
+  return { walk:names(walk[1]), idle:idle[1], swing:names(swing[1]),
+           reaction:['block','hit','floored'] };
+}
+
+test('every robot can walk, which is the one clip it used to be missing', ()=>{
+  const want=ringClips().walk;
+  ROBOT_GLB.forEach(f=>{
+    const names=(glb(f).json.animations||[]).map(a=>a.name);
+    assert.ok(want.some(w=>names.indexOf(w)>=0),
+      f.split('/').pop()+' carries none of '+want.join('/')+', so it slides instead of walking');
+  });
+});
+
+test('every clip the ring asks for is in both bodies', ()=>{
+  const c=ringClips();
+  const wanted=[c.idle].concat(c.swing, c.reaction);
+  ROBOT_GLB.forEach(f=>{
+    const names=(glb(f).json.animations||[]).map(a=>a.name);
+    wanted.forEach(n=>assert.ok(names.indexOf(n)>=0,
+      f.split('/').pop()+' has no "'+n+'" clip, and the ring plays one'));
+  });
+});
+
+test('the walk stays on the spot, because the program does the walking', ()=>{
+  /* Mixamo's walk travels nearly a metre a cycle. In here `change x by`
+     moves the robot, so a clip that also walks itself forward slides the
+     body off its own feet — the baker flattens it and this says so. */
+  ROBOT_GLB.forEach(f=>{
+    const t=glb(f).track('walk','mixamorig:Hips','translation');
+    assert.ok(t, f.split('/').pop()+': the walk does not move the hips at all');
+    [0,2].forEach(ax=>assert.ok(t.hi[ax]-t.lo[ax] < 1e-6,
+      f.split('/').pop()+': the walk travels '+(t.hi[ax]-t.lo[ax]).toFixed(4)+' on its own'));
+    /* and it still bobs, or it is a glide with the legs moving */
+    assert.ok(t.hi[1]-t.lo[1] > 0, 'the walk has no vertical movement at all');
+  });
+});
+
+test('the walk was baked in the units the file already uses', ()=>{
+  /* These exports are authored in centimetres and the .glb carries that
+     as a RootNode scaled by 100. A clip baked from metres without
+     dividing back down puts the hips a hundred times too high, and the
+     robot leaves the room. Compared against the clip that was already
+     right. */
+  ROBOT_GLB.forEach(f=>{
+    const g=glb(f);
+    const height=name=>{
+      const t=g.track(name,'mixamorig:Hips','translation');
+      assert.ok(t, f+' has no hips translation in "'+name+'"');
+      return t.hi[1];
+    };
+    const idle=height('idle'), walk=height('walk');
+    assert.ok(Math.abs(walk-idle) < idle*0.5,
+      f.split('/').pop()+': the walk stands the hips at '+walk.toFixed(4)+
+      ' where idle has them at '+idle.toFixed(4)+' — the units do not match');
+  });
+});
+
+test('a punch is drawn once and gives the body back', ()=>{
+  const src=read('public/ring.js');
+  assert.match(src, /setLoop\(THREE\.LoopOnce/,
+    'the one-shot clips loop, so a jab never ends');
+  assert.match(src, /if\(rec\.hold>0\) rec\.hold-=dt;/,
+    'nothing holds the body after a one-shot, so idle replaces the jab on the next frame');
+  /* a swing that could not be afforded did not happen, so it is not drawn */
+  assert.match(src, /r\.why!=='no-stamina'\) strikeOn/,
+    'the body plays a punch the referee refused to let happen');
+});

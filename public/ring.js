@@ -472,9 +472,17 @@ window.RING = (function(){
           else if(r.why==='no-stamina') run.swings.broke++;
           else if(r.why==='too-far')    run.swings.far++;
         }
+        /* THE SWING IS DRAWN WHETHER OR NOT IT LANDS — except the one
+           that never happened. A punch thrown out of range is a punch you
+           watched miss, and that is the feedback; a punch you could not
+           afford did not occur at all, and animating it would be the body
+           telling a student something the referee did not do. */
+        if(r.why!=='no-stamina') strikeOn(a, SWING[sig]||SWING.light, HOLD[sig]||HOLD.light);
         if(r.ok){
           state(b).health=R.clampHealth(state(b).health - r.damage);
           hitFx(b, r.why);
+          strikeOn(b, r.why==='guarded' ? 'block' : 'hit',
+                      r.why==='guarded' ? HOLD.guard : HOLD.hurt);
         }
       });
     });
@@ -504,6 +512,9 @@ window.RING = (function(){
       const win = meDown && state(foe).health<=R.RULES.knockout ? 'a draw'
                 : meDown ? (RB().get('ambush').name+' wins') : 'you win';
       VM.actorByName(meDown?T.FOE:T.ME);
+      /* The knockout gets its whole clip. Nothing is waiting on the body
+         afterwards — the scripts are stopped and the round is over. */
+      strikeOn(meDown?me:foe, 'floored', HOLD.down);
       if(!meDown) run.won=true;
       announce(win);
       over=R.RULES.reset;
@@ -652,6 +663,36 @@ window.RING = (function(){
      with one of these names exists in the .glb it is found and played
      while a fighter is moving. That is the whole integration. */
   const walkClip = rec => WALK_CLIPS.find(n=>(rec.clips||[]).some(c=>c.name===n)) || null;
+
+  /* ------------------------------------------------- the one-shots
+     A PUNCH IS NOT A LOOP. idle and walk run until something else takes
+     over; a jab happens once and the body goes back to what it was
+     doing, so these play with LoopOnce and hold the body for a moment
+     afterwards rather than being cross-faded away on the very next frame
+     by whichever of idle or walk drive() thinks is right.
+
+     THEY ARE CAPPED, and that is not tidiness. `hit` is five and a half
+     seconds of staggering and `cross` is two — long enough that a fighter
+     throwing punches at a sensible rate would spend the whole round in
+     an animation that started three punches ago, looking like it had
+     stopped responding. The cap lets the clip start, read as what it is,
+     and give the body back. */
+  const HOLD={ light:0.55, heavy:0.85, hurt:0.5, guard:0.6, down:2.4 };
+  const SWING={ light:'jab', heavy:'cross' };
+  function strike(rec, name, hold){
+    if(!rec || !rec.mixer) return;
+    const clip=(rec.clips||[]).find(c=>c.name===name);
+    if(!clip) return;
+    const act=rec.mixer.clipAction(clip);
+    act.reset().setLoop(THREE.LoopOnce, 1);
+    act.clampWhenFinished=true;
+    act.setEffectiveWeight(1).fadeIn(0.06).play();
+    if(rec.cur && rec.cur!==act) rec.cur.fadeOut(0.06);
+    rec.cur=act; rec.curName=name;
+    rec.hold=Math.min(clip.duration, hold||clip.duration);
+  }
+  /* by actor, because the referee resolves before the bodies are drawn */
+  function strikeOn(a, name, hold){ const rec=rigOf(a); if(rec) strike(rec, name, hold); }
 
   function stop(){
     if(!on) return;
@@ -854,8 +895,14 @@ window.RING = (function(){
       const p=a.mesh.position;
       const moved=rec.was ? Math.hypot(p.x-rec.was.x, p.y-rec.was.y, p.z-rec.was.z) : 0;
       rec.was={ x:p.x, y:p.y, z:p.z };
-      const w=walkClip(rec);
-      play(rec, moved>0.001 && w ? w : IDLE_CLIP);
+      /* A one-shot owns the body until its hold runs out. Without this
+         the jab was replaced by idle on the frame after it started, which
+         reads as a punch that never happened. */
+      if(rec.hold>0) rec.hold-=dt;
+      else {
+        const w=walkClip(rec);
+        play(rec, moved>0.001 && w ? w : IDLE_CLIP);
+      }
       rec.mixer.update(dt);
 
       /* The flash. A number going down in a corner is not evidence a
@@ -1045,6 +1092,9 @@ window.RING = (function(){
            /* what the walkthrough's steps are reading, for diagnosing a
               step that will not tick */
            get watched(){ return run; },
+           /* which clip each body is playing, for telling "the walk is
+              missing" apart from "the walk is not being reached for" */
+           get playing(){ const o={}; Object.keys(rigs).forEach(k=>o[k]=rigs[k].curName); return o; },
            get stage(){ return stage; },
            get cleared(){ return cleared; } };
 })();
