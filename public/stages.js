@@ -115,6 +115,45 @@
   const EV   = ['event.flag'];
   const MOVE = ['ctrl.forever','ctrl.if','sense.key','motion.changeBy'];
 
+  /* ----------------------------------------------- what you start with
+     A MISSION HANDS YOU WHAT THE ONES BEFORE IT TAUGHT, already built.
+
+     It used to hand you an empty room every time, and that had two
+     costs. The small one was repetition: stages one, two and three each
+     opened with the same four steps — click the flag, open Control,
+     click forever, click the gap — so a student who had understood it
+     once was marched through it twice more. A walkthrough that keeps
+     hold of you after you have got something has stopped teaching.
+
+     The large one was that stage four did not work at all. It says "mash
+     your punch key until the swings stop" and never builds a punch, so
+     in an empty room there was nothing to mash and the stage could not
+     be finished by anybody.
+
+     THIS IS NOT SAVING. Nothing carries over from what a student did
+     last time; the mission puts the same blocks in the same room on
+     every single entry, the way it already puts a robot and a dummy
+     there. Walk out half way through stage three and walk back in, and
+     you get the movement script — not your half-finished punch. */
+  const B=(op,args,body)=>{ const b={ op, args:args||{} }; if(body) b.body=body; return b; };
+  const onKey=(k,body)=>B('ctrl.if',{ c:B('sense.key',{k}) }, body);
+  const script=body=>[{ id:'given', hat:B('event.flag'), body }];
+  const STEP=0.2;
+
+  /* what stage one ends with */
+  const WALKS=()=>script([ B('ctrl.forever',{},[
+    onKey('d',[ B('motion.changeBy',{a:'x',n:STEP}) ]) ]) ]);
+  /* and what stage three ends with */
+  const PUNCHES=()=>script([ B('ctrl.forever',{},[
+    onKey('d',[ B('motion.changeBy',{a:'x',n:STEP}) ]),
+    onKey('space',[ B('data.set',{v:'light',n:1}) ]) ]) ]);
+  /* and stage four */
+  const CHECKS=()=>script([ B('ctrl.forever',{},[
+    onKey('d',[ B('motion.changeBy',{a:'x',n:STEP}) ]),
+    B('ctrl.if',{ c:B('op.and',{ c:B('sense.key',{k:'space'}),
+                                 d:B('op.gt',{ a:B('data.get',{v:'stamina'}), b:25 }) }) },
+      [ B('data.set',{v:'light',n:1}) ]) ]) ]);
+
   /* --------------------------------------------------------- the steps */
   const openTheBlocks = {
     want:'editor-open',
@@ -162,10 +201,16 @@
      it: a robot that walks whether or not the key is down, which is a
      more confusing wrong answer than the twitch. */
   const mouth = () => document.querySelector('#cScript .cmouth .cdrop');
+  /* THE ONE YOU HAVE NOT FILLED YET. Not "the last mouth on screen" —
+     a block clicked into a loop lands at the TOP of it, so once a stage
+     hands you a script that already has a control in it, the last mouth
+     is the one belonging to the block you were given and the new empty
+     `if` is above it. An empty body is what "the gap you just made"
+     actually means. */
   const inner = () => {
-    const all=[...document.querySelectorAll('#cScript .cmouth')];
-    const last=all[all.length-1];
-    return last ? last.querySelector('.cdrop') : null;
+    const empty=[...document.querySelectorAll('#cScript .cmouth')]
+      .find(m=>!m.querySelector('.cblk'));
+    return empty ? empty.querySelector('.cdrop') : null;
   };
   /* NAMED, because two gaps are two different steps. See armedInside(). */
   const intoMouth = (say, find, op) => ({
@@ -230,19 +275,18 @@
           only(['motion'], ['motion.changeBy'])),
         Object.assign(pressRun(), {
           want:'moved-one-way',
-          say:'That is a control. Press <b>Run</b> and hold your key \u2014 the robot should keep going.',
+          /* AND THAT IS THE END OF IT. It used to go on: build the same
+             three blocks again for a second key, then make the number
+             negative. Both were the SAME IDEA a second time, and a
+             walkthrough that keeps hold of you after you have understood
+             something has stopped teaching and started supervising. The
+             palette is left open on the blocks that made it work, so the
+             second key is there to be built by anybody who wants it —
+             which is a different thing from being marched through it. */
+          say:'That is a control. Press <b>Run</b> and hold your key \u2014 it keeps going. '+
+              'Another key is the same three blocks with a minus.',
           done:c=>c.frames.right>=6 || c.frames.left>=6,
-          pal:only(['motion'], ['motion.changeBy']) }),
-        { want:'two-controls',
-          say:'It only goes one way. Build the same three blocks again for the other key.',
-          sel:'#cPal [data-op="ctrl.if"]',
-          done:c=>controls(c.me)>=2,
-          pal:only(['control','sensing','motion'], MOVE), tab:'control' },
-        { want:'moved-both-ways',
-          say:'Set the second one to a negative number, like <b>-0.2</b>, so it goes the other way.',
-          find:()=>document.querySelector('#cScript input.cin'),
-          done:c=>c.frames.left>=6 && c.frames.right>=6,
-          pal:only(['control','sensing','motion'], MOVE) }
+          pal:only(['control','sensing','motion'], MOVE) })
       ] },
 
     /* =============================================================== 2 */
@@ -251,41 +295,30 @@
       teach:'A sensor is a number you can read',
       goal:'Walk up to Ambush and say how far away he is.',
       foe:'dummy',
+      start:WALKS,
       steps:[
         openTheBlocks,
-        pick('event.flag', 'Click this to start the program.',
-          c=>hats(c.me,'event.flag')>0, only(['events'], EV)),
-        shelf('control','Control', only(['control'], ['ctrl.forever'])),
-        pick('ctrl.forever', 'Click <b>forever</b>.',
-          c=>uses(c.me,'ctrl.forever'),
-          only(['control'], ['ctrl.forever'])),
-        { want:'mouth:ctrl.forever',
-          say:'Click the gap inside the loop.',
-          find:mouth,
-          done:()=>{ const C=UI().CODER; return !!(C && C.armedInside()==='ctrl.forever'); },
-          pal:only(['control'], ['ctrl.forever']), tab:'control' },
+        Object.assign(intoMouth('Your robot can already walk. Click the gap inside its loop.',
+          mouth, 'ctrl.forever'), { pal:only(['control','sensing','motion'], MOVE) }),
         shelf('looks','Looks', only(['looks'], ['looks.say'])),
         pick('looks.say', 'Click <b>say</b>. Whatever you put in it, the robot holds over its head.',
-          c=>uses(c.me,'looks.say'),
-          only(['looks'], ['looks.say'])),
+          c=>uses(c.me,'looks.say'), only(['looks'], ['looks.say'])),
         { want:'slot-armed',
-          say:'Click the white box on the <b>say</b> block to arm it.',
+          say:'Click the white box on the <b>say</b> block.',
           find:()=>document.querySelector('#cScript input.cin'),
-          done:()=>!!(UI().CODER && UI().CODER.slotArmed()),
-          pal:only(['sensing'], ['sense.dist']), tab:'sensing' },
+          done:()=>{ const C=UI().CODER; return !!(C && C.slotArmed()); },
+          pal:only(['sensing'], ['sense.dist']) },
         pick('sense.dist',
           'Click <b>distance to</b>. It is a NUMBER, so it drops into anything that takes one.',
-          c=>uses(c.me,'sense.dist'),
-          only(['sensing'], ['sense.dist'])),
+          c=>uses(c.me,'sense.dist'), only(['sensing'], ['sense.dist'])),
         { want:'said-something',
-          say:'Press <b>Run</b>. The robot is now telling you what it can feel.',
+          say:'Press <b>Run</b>. The robot is telling you what it can feel.',
           sel:'#cFlag', done:c=>c.said,
-          pal:only(['sensing'], ['sense.dist']) },
+          pal:only(['sensing','looks'], ['sense.dist','looks.say']) },
         { want:'got-close',
-          say:'Now walk it over. Add a key control that does <b>change x by</b> until you are next to him.',
-          sel:'#cPal [data-c="motion"]',
-          done:c=>c.gapMin<=reach(),
-          pal:only(['control','sensing','motion'], MOVE), tab:'control' }
+          say:'Now hold your walk key until you are right next to him.',
+          sel:'#cFlag', done:c=>c.gapMin<=reach(),
+          pal:only(['control','sensing','motion','looks'], MOVE.concat(['looks.say','sense.dist'])) }
       ] },
 
     /* =============================================================== 3 */
@@ -294,39 +327,32 @@
       teach:'There is no punch block',
       goal:'Land a punch on Ambush.',
       foe:'dummy',
+      start:WALKS,
       steps:[
         openTheBlocks,
-        pick('event.flag', 'Start with this, as always.',
-          c=>hats(c.me,'event.flag')>0, only(['events'], EV), 'events'),
-        shelf('control','Control', only(['control'], ['ctrl.forever'])),
-        pick('ctrl.forever', 'A <b>forever</b> loop, so you can punch more than once.',
-          c=>uses(c.me,'ctrl.forever'),
-          only(['control'], ['ctrl.forever'])),
-        { want:'mouth:ctrl.forever',
-          say:'The gap inside the loop.',
-          find:mouth,
-          done:()=>{ const C=UI().CODER; return !!(C && C.armedInside()==='ctrl.forever'); },
-          pal:only(['control'], ['ctrl.forever','ctrl.if']), tab:'control' },
-        pick('ctrl.if', 'An <b>if</b>, so the punch only happens when you ask for one.',
-          c=>within(c.me,'ctrl.forever','ctrl.if'),
-          only(['control'], ['ctrl.forever','ctrl.if'])),
+        Object.assign(intoMouth('You can walk. Now a punch \u2014 click the gap inside the loop.',
+          mouth, 'ctrl.forever'), { pal:only(['control','sensing','motion'], MOVE) }),
+        /* A SECOND if, and the test has to say second: the walking script
+           already has one, so "is there an if in the loop" was true before
+           the student had done anything. */
+        pick('ctrl.if', 'Click <b>if</b>, so the punch only happens when you ask for one.',
+          c=>count(c.me,'ctrl.if')>=2, only(['control'], ['ctrl.if'])),
         { want:'key-test-in',
-          say:'Click the diamond, then put a <b>key pressed?</b> in it.',
+          say:'Click the new diamond, then put a <b>key pressed?</b> in it \u2014 a different key.',
           find:()=>document.querySelector('#cScript .cslot.bool'),
-          done:c=>uses(c.me,'sense.key'),
-          pal:only(['sensing'], ['sense.key']), tab:'sensing' },
+          done:c=>count(c.me,'sense.key')>=2,
+          pal:only(['sensing'], ['sense.key']) },
         shelf('data','Variables', only(['data'], ['data.set'])),
-        Object.assign(intoMouth('Click the gap inside the <b>if</b>.', inner, 'ctrl.if'),
+        Object.assign(intoMouth('Click the gap inside your new <b>if</b>.', inner, 'ctrl.if'),
           { pal:only(['data'], ['data.set']) }),
         /* THE WHOLE POINT OF THE STAGE, said on the block that makes it
            true rather than as a notice three steps earlier. */
         pick('data.set',
           'There is no PUNCH block. Click <b>set</b>, choose <b>light</b>, set it to <b>1</b> \u2014 '+
           'that is you ASKING, and the referee deciding.',
-          c=>writes(c.me,'light'),
-          only(['data'], ['data.set'])),
+          c=>writes(c.me,'light'), only(['data'], ['data.set'])),
         { want:'punch-landed',
-          say:'Press <b>Run</b>, get close to Ambush, and press your punch key.',
+          say:'Press <b>Run</b>, walk up to Ambush and press your punch key.',
           sel:'#cFlag', done:c=>c.swings.landed>=1,
           pal:only(['control','sensing','motion','data'], MOVE.concat(['data.set'])) }
       ] },
@@ -337,39 +363,37 @@
       teach:'Check before you spend',
       goal:'Land three punches without asking for one you cannot afford.',
       foe:'dummy',
+      start:PUNCHES,
       steps:[
         openTheBlocks,
-        { want:'asked-once',
-          say:'Punching costs stamina. Ask for one you cannot afford and nothing happens at all.',
-          sel:'#cFlag',
-          done:c=>c.swings.asked>0,
-          pal:only(['events','control','sensing','motion','data'],
-                   EV.concat(MOVE, ['data.set'])) },
         { want:'tank-emptied',
-          say:'Press Run and mash your punch key until the swings stop working.',
+          say:'You can punch already. Press <b>Run</b> and mash the punch key until the swings stop working.',
           sel:'#cFlag', done:c=>c.swings.broke>0,
-          pal:only(['events','control','sensing','motion','data'],
-                   EV.concat(MOVE, ['data.set'])) },
+          pal:only(['control','sensing','motion','data'], MOVE.concat(['data.set'])) },
         { want:'shelf:ops',
-          say:'That is an empty tank. Now stop it happening: open <b>Operators</b>.',
+          say:'That is an empty tank, and the time you spent asking is gone. Open <b>Operators</b>.',
           sel:'#cPal [data-c="ops"]',
-          done:()=>!!(UI().CODER && UI().CODER.shelf()==='ops'),
-          pal:only(['ops'], ['op.gt']), tab:'ops' },
-        pick('op.gt',
-          'Click <b>&gt;</b>. Put it in the diamond of a new <b>if</b> around your punch.',
-          c=>uses(c.me,'op.gt'),
-          only(['ops'], ['op.gt'])),
+          done:()=>{ const C=UI().CODER; return !!(C && C.shelf()==='ops'); },
+          pal:only(['ops'], ['op.gt','op.and']) },
+        pick('op.gt', 'Click <b>&gt;</b>, and put it in the diamond of the <b>if</b> that punches.',
+          c=>uses(c.me,'op.gt'), only(['ops'], ['op.gt','op.and'])),
         shelf('data','Variables', only(['data'], ['data.get','data.set'])),
         pick('data.get',
-          'Drop <b>(stamina)</b> into the left side, and type what you want left over into the right.',
-          c=>reads(c.me,'stamina'),
-          only(['data'], ['data.get','data.set'])),
+          'Drop <b>(stamina)</b> into the left of it, and type what you want left over into the right.',
+          c=>reads(c.me,'stamina'), only(['data'], ['data.get','data.set'])),
         { want:'three-clean',
-          say:'Press <b>Run</b>. Land three, and do not throw one you cannot pay for.',
+          say:'Press <b>Run</b>. Land three, and do not ask for one you cannot pay for.',
           sel:'#cFlag',
-          done:c=>c.swings.landed>=3 && c.swings.broke===0,
-          pal:only(['events','control','sensing','motion','data','ops'],
-                   EV.concat(MOVE, ['data.set','data.get','op.gt','ctrl.ifelse'])) }
+          /* AND THE SCRIPT HAS TO BE THE REASON. Landing three cleanly is
+             true for a moment at the start of ANY run — the first few
+             punches come out of a full tank whether or not anything is
+             checking it — so on its own this passed while the student was
+             still mashing the button, before they had built the thing the
+             stage is about. Reading (stamina) is what makes the three
+             clean landings mean something. */
+          done:c=>reads(c.me,'stamina') && c.swings.landed>=3 && c.swings.broke===0,
+          pal:only(['control','sensing','motion','data','ops'],
+                   MOVE.concat(['data.set','data.get','op.gt','op.and','ctrl.ifelse'])) }
       ] },
 
     /* =============================================================== 5 */
@@ -378,24 +402,22 @@
       teach:'All of it, against something that fights back',
       goal:'Knock Ambush out.',
       foe:'live',
+      start:CHECKS,
       steps:[
         openTheBlocks,
         { want:'reading-foe',
-          say:'Ambush fights now. Click his name and read his strategy \u2014 you may steal it.',
+          say:'You have a fighter. Ambush has one too \u2014 click his name and read it.',
           find:()=>document.querySelector('#cScript .cchip[data-name="Ambush"]'),
           done:()=>{ const C=UI().CODER; return !!(C && C.actorName()==='Ambush'); },
           pal:null },
-        /* AND IT WANTS A SCRIPT, not just the chip. "Back on your own
-           robot" is true the moment the room opens — you start there — so
-           on its own this step was finished before it was read, and since
-           COACH stands just past the LAST true step the whole stage
-           collapsed to "press Run" as soon as a student walked in. */
-        { want:'wrote-something',
-          say:'Now click <b>Robot</b> and write something that beats it.',
+        /* HAVING BEEN is the thing this waits for. "Back on your own
+           robot" is true the moment the room opens, so on its own it was
+           finished before it was read. */
+        { want:'back-to-mine',
+          say:'Now back to <b>Robot</b>, and change it until it beats him.',
           find:()=>document.querySelector('#cScript .cchip[data-name="Robot"]'),
           done:c=>{ const C=UI().CODER;
-            return !!(C && C.actorName() && C.actorName()!=='Ambush'
-                      && ((c.me||{}).scripts||[]).length>0); },
+            return !!(c.readFoe && C && C.actorName() && C.actorName()!=='Ambush'); },
           pal:null },
         { want:'won',
           say:'Press <b>Run</b> and knock him out.',

@@ -156,7 +156,7 @@ window.RING = (function(){
   let run=fresh();
   function fresh(){
     return { frames:{ left:0, right:0, in:0, out:0 },
-             gapMin:Infinity, said:false, won:false,
+             gapMin:Infinity, said:false, won:false, readFoe:false,
              swings:{ asked:0, landed:0, broke:0, far:0 } };
   }
   const spot = () => ST() ? ST().byIndex(stage) : null;
@@ -184,6 +184,7 @@ window.RING = (function(){
       get gapMin(){ return run.gapMin; },
       get said(){ return run.said; },
       get won(){ return run.won; },
+      get readFoe(){ return run.readFoe; },
       uses:  op => ST().uses(me(), op),
       reads: v  => ST().reads(me(), v),
       writes:v  => ST().writes(me(), v),
@@ -236,6 +237,7 @@ window.RING = (function(){
     forget();
     VM.enter(G.roomGroup);
     const bot=ensureRobot();
+    given(bot);
     const foe=ensureFoe();
     (addTemplates||[]).forEach(id=>install(id, bot));
     Object.keys(rigs).forEach(k=>delete rigs[k]);
@@ -277,6 +279,14 @@ window.RING = (function(){
   /* One robot, wearing what the pit picked. Kept across visits rather
      than rebuilt, because the scripts on it are the student's work and
      a fresh actor every time would throw them away. */
+  /* WHAT THE MISSION HANDS YOU. Not a save and not a resume: the same
+     blocks in the same room on every entry, put there the way the robot
+     and the dummy are. A stage that starts from what the one before it
+     taught is a stage that never marches a student back through it. */
+  function given(bot){
+    const s=spot();
+    bot.scripts = (s && s.start) ? JSON.parse(JSON.stringify(s.start())) : [];
+  }
   function ensureRobot(){
     let bot = VM.actorByName(ACTOR);
     if(!bot){
@@ -540,6 +550,10 @@ window.RING = (function(){
      anything: a stage is passed by a program, or it is not passed. */
   let lastPos=null, seenRun=-1;
   function watch(dt, me, foe){
+    /* HAVING READ THE OPPONENT is a thing that happened, not a thing that
+       is true — you are back on your own robot afterwards, which is where
+       you started. Recorded here so a step can wait for it. */
+    if(window.CODER && CODER.actorName && CODER.actorName()==='Ambush') run.readFoe=true;
     /* PRESSING RUN IS THE START OF AN ATTEMPT, and `running` cannot tell
        you when one begins: pressing Run again while a program is already
        going throws the threads away and starts over, and the flag is

@@ -183,18 +183,122 @@ test('no step is already finished the moment a student walks in', ()=>{
   const had=global.window;
   global.window={ CODER:doorway };
   try{
-    const world={ me:{ scripts:[] }, foe:null,
-      frames:{left:0,right:0,in:0,out:0}, gapMin:Infinity, said:false, won:false,
-      swings:{asked:0,landed:0,broke:0,far:0} };
-    STAGES.LIST.forEach(s=>s.steps.forEach((st,i)=>{
-      if(st.want==='editor-open') return;          // the one that IS the doorway
-      assert.strictEqual(!!st.done(world), false,
-        s.name+' step '+(i+1)+' ("'+st.want+'") is already true before anything has '+
-        'been done, so the walkthrough skips straight past everything before it');
-    }));
+    STAGES.LIST.forEach(s=>{
+      /* WITH THE BLOCKS THE MISSION HANDS OVER, which is the whole point:
+         a stage that starts you with a walking robot must not count the
+         `if` it gave you as the `if` it is asking for. */
+      const world={ me:{ scripts: s.start ? s.start() : [] }, foe:null,
+        frames:{left:0,right:0,in:0,out:0}, gapMin:Infinity, said:false,
+        won:false, readFoe:false, swings:{asked:0,landed:0,broke:0,far:0} };
+      s.steps.forEach((st,i)=>{
+        if(st.want==='editor-open') return;        // the one that IS the doorway
+        assert.strictEqual(!!st.done(world), false,
+          s.name+' step '+(i+1)+' ("'+st.want+'") is already true before anything has '+
+          'been done, so the walkthrough skips straight past everything before it');
+      });
+    });
   } finally {
     if(had===undefined) delete global.window; else global.window=had;
   }
+});
+
+test('no stage walks you back through a stretch of an earlier one', ()=>{
+  /* A walkthrough that keeps hold of you after you have understood
+     something has stopped teaching and started supervising. Stages one,
+     two and three used to open with the same four steps — flag, Control,
+     forever, the gap — so the same idea was walked three times by the
+     same person. What a stage hands over now is what the ones before it
+     built, and it starts at the thing it is actually for.
+
+     A RUN, not a single step. `if` turning up again to guard a punch is
+     the same BLOCK doing a different job, which is worth showing; three
+     steps in a row that a student has already been walked through is the
+     thing that wastes their time. */
+  const RUN=3;
+  const wants = s => s.steps.map(x=>x.want).filter(w=>w!=='editor-open');
+  const before=[];
+  STAGES.LIST.forEach(s=>{
+    const w=wants(s);
+    for(let i=0;i+RUN<=w.length;i++){
+      const run=w.slice(i,i+RUN).join(' > ');
+      before.forEach(p=>assert.ok(p.seq.indexOf(run)<0,
+        s.name+' walks through "'+run+'" again — '+p.name+' already did'));
+    }
+    before.push({ name:s.name, seq:w.join(' > ') });
+  });
+});
+
+test('a stage that asks you to use something hands it to you', ()=>{
+  /* AFFORD IT said "mash your punch key until the swings stop" in a room
+     with no punch in it and no step that built one: a stage nobody could
+     finish. Whatever a stage asks you to USE and does not teach, it must
+     start you with. */
+  const has=(scripts,op)=>{
+    let found=false;
+    STAGES.walk(scripts, b=>{ if(b.op===op) found=true; });
+    (scripts||[]).forEach(sc=>STAGES.walk(sc.hat, b=>{ if(b.op===op) found=true; }));
+    return found;
+  };
+  const needs={ spend:['data.set','sense.key','ctrl.forever'],   // it mashes a punch key
+                fight:['data.set','sense.key','ctrl.forever'] }; // it fights
+  Object.keys(needs).forEach(id=>{
+    const s=STAGES.byId(id);
+    assert.ok(s.start, s.name+' starts you with nothing and expects a program');
+    const start=s.start();
+    needs[id].forEach(op=>assert.ok(has(start,op),
+      s.name+' expects a script using '+op+' and neither builds one nor hands one over'));
+  });
+  /* and the first stage hands over nothing, because it teaches the lot */
+  assert.ok(!STAGES.byId('move').start, 'stage one starts with the answer already written');
+});
+
+test('what a mission hands over is the same every time, and is not a save', ()=>{
+  const s=STAGES.byId('spend');
+  const a=JSON.stringify(s.start()), b=JSON.stringify(s.start());
+  assert.strictEqual(a, b, 'a mission hands over something different each time it is asked');
+  /* a fresh object every call, or one student's edits would be the next
+     student's starting point */
+  assert.notStrictEqual(s.start(), s.start(),
+    'the starting script is shared, so editing it in one run changes the next');
+  assert.match(read('public/ring.js'), /JSON\.parse\(JSON\.stringify\(s\.start\(\)\)\)/,
+    'the ring hands the stage\'s own object to the student to edit');
+});
+
+test('the last step of a stage cannot pass on a lucky first few seconds', ()=>{
+  /* COACH stands past the LAST true step, so a finish that is true for a
+     moment early in a run ends the stage there and then. AFFORD IT went
+     exactly this way: "land three without a wasted swing" is true of the
+     first three punches of ANY run, because they come out of a full tank
+     whether or not the student built the check. A stage's finish has to
+     depend on the thing it taught. */
+  const world = over => Object.assign({
+    me:{ scripts:[] }, foe:null, frames:{left:0,right:0,in:0,out:0},
+    gapMin:Infinity, said:false, won:false, readFoe:false,
+    swings:{asked:0,landed:0,broke:0,far:0},
+    uses:()=>false, reads:()=>false, writes:()=>false }, over||{});
+
+  /* Only where the state is REACHABLE. A stage that hands you a script
+     which can already throw a punch can be mashed from the first second;
+     one that hands you a walker cannot land anything at all until the
+     student has built the punch, so the same assertion there would be
+     about a run that cannot happen. */
+  const RULES=require('../public/rules.js');
+  const canPunch = s => {
+    if(!s.start) return false;
+    let yes=false;
+    s.start().forEach(sc=>STAGES.walk(sc.body, b=>{
+      if(b.op==='data.set' && RULES.SIGNALS.indexOf(String(b.args&&b.args.v))>=0) yes=true; }));
+    return yes;
+  };
+  const mashed=STAGES.LIST.filter(canPunch);
+  assert.ok(mashed.length, 'no stage hands over a punch, so this test is checking nothing');
+  mashed.forEach(s=>{
+    const last=s.steps[s.steps.length-1];
+    const w=world({ swings:{asked:3,landed:3,broke:0,far:0}, me:{ scripts:s.start() } });
+    assert.strictEqual(!!last.done(w), false,
+      s.name+' hands over a punch and then finishes on the first three it lands, '+
+      'before the student has built the thing the stage is about');
+  });
 });
 
 test('a step is checked against the world, and a half-built world is not a crash', ()=>{
