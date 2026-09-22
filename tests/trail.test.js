@@ -305,7 +305,9 @@ test('every stage can be finished, and the last one ends the mission', ()=>{
 });
 
 test('the trail is a station, a card, dispatched, and on the page', ()=>{
-  assert.match(read('public/planet.js'), /id:'trail'/, 'no station row in PLANET.STATIONS');
+  /* Off the Mission Control wall on purpose — see the STATIONS comment in
+     planet.js — but still a mission: dispatched, on the page, and named
+     wherever missions are named. */
   assert.match(read('public/menu.js'),   /id:'trail'/, 'no card on the mission grid');
   assert.match(read('public/game.js'),   /id==='trail'/, 'startMissionRoom does not dispatch it');
   const page=read('public/index.html');

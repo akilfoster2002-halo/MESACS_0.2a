@@ -328,31 +328,26 @@ window.PLANET = (function(){
     BUILDINGS.forEach(b=>{ b.g=null; b.dir=null; b.frame=null; b.solids=[]; b.decks=[]; });
     lift=null; mechB=null; folk=[];   // the tower went with the world that held it
   }
+  /* WHAT MISSION CONTROL OFFERS, WHICH IS NOT EVERYTHING THAT EXISTS.
+
+     This list used to be twelve long — Level 0, Flight School, Escape and
+     Missions 1 to 8 — and most of those rooms are built on the OLDER
+     block language, the one where `change y by 1` still means up. Putting
+     them on the same board as the ring hands a class two languages that
+     disagree about which letter points where, and the student who finds
+     that out finds it out in the middle of a mission.
+
+     So it offers the two rooms that share one language: the ring, where
+     you learn the blocks against something that fights back, and Pong,
+     where you build a whole game out of them. The other rooms are still
+     in the code and still reachable from the menu; they are just not what
+     a student is pointed at from here. Adding one back is a line. */
   const STATIONS=[
-    { id:'tut',    em:'\u{1F3AE}', name:'Level 0 — Basics',           a:'#ffe9a8' },
-    { id:'school', em:'\u{1F9ED}', name:'Flight School — Motion',      a:'#a8e6cf' },
-    { id:'nav',    em:'\u{1F9DF}', name:'Escape — Corridors',         a:'#8fd3ff' },
-    { id:'flight', em:'\u{1F680}', name:'Mission 1 — Space Explorer', a:'#8ff0ff' },
-    { id:'m1',     em:'\u{1F9DF}', name:'Mission 2 — Loops',          a:'#a8e6cf' },
-    { id:'m2',     em:'\u{1F52E}', name:'Mission 3 — Choices',        a:'#cdb4f6' },
-    { id:'m3',     em:'\u{1F9EE}', name:'Mission 4 — Functions',      a:'#ffb4a2' },
-    { id:'sub',    em:'\u{1F30A}', name:'Mission 5 — The Trench',      a:'#8ff0ff' },
-    { id:'inv',    em:'\u{1F47E}', name:'Mission 6 — The Swarm',       a:'#a8e6cf' },
-    /* The first mission in the course that asks a student to READ a
-       program rather than write one. It is a detective story and the
-       conditionals are the magnifying glass. */
-    { id:'trail',  em:'\u{1F50E}', name:'Mission 7 — The Engineer\u2019s Trail', a:'#ffc8dd' },
-    /* ION. The one mission that is somebody's kitchen rather than a board,
-       a field or a district — and a mission rather than the front door,
-       which is what it briefly was. A story every student is dropped into
-       on the way in is not a story they chose. */
-    { id:'ion',    em:'\u{1F916}', name:'Mission 8 \u2014 Ion', a:'#8ff0ff' },
-    /* THE RING, which is not a numbered mission and is not pretending to
-       be one. It is the arena, and it stands in here for the same reason
-       everything else does: Mission Control is where a student looks for
-       something to do, and a mode that can only be reached from a menu is
-       a mode half a class never finds. */
-    { id:'ring',   em:'\u{1F94A}', name:'The Ring \u2014 NOISY BOY vs AMBUSH', a:'#8fd3ff' }
+    { id:'ring',   em:'\u{1F94A}', name:'The Ring \u2014 NOISY BOY vs AMBUSH', a:'#8fd3ff' },
+    /* PONG. The first mission that is a GAME rather than a lesson with a
+       robot in it: three objects, every one of them openable, and nothing
+       underneath doing the interesting part. */
+    { id:'pong',   em:'\u{1F3D3}', name:'PONG \u2014 build the whole game', a:'#ffe9a8' }
   ];
 
   const dirOf=(lonDeg,latDeg)=>{

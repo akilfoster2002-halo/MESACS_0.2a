@@ -521,6 +521,14 @@ function startMissionRoom(id){
     PIT.show({ onGo:(robot, templates, mission)=>RING.start(robot, templates, mission) });
     return;
   }
+  /* PONG. No pit in front of it: there is no body to pick and no stage to
+     choose, and the one decision the ring asks on the way in — 2D or 3D —
+     has no second answer here. It is a flat game. */
+  if(id==='pong'){
+    if(!window.PONG) return;
+    PONG.start();
+    return;
+  }
   /* The investigation builds its own district out of the same kit the
      infiltration site is built from, and walks it with the same legs. */
   if(id==='trail'){ if(window.TRAIL) TRAIL.start(); return; }
@@ -831,6 +839,9 @@ function wireInput(){
          the same VM, so C has to answer in it too. There is one object in
          there and it is always the one being edited, so this toggles
          rather than asking what you are standing in front of. */
+      if(e.code==='KeyC' && window.PONG && PONG.active && window.CODER){
+        e.preventDefault(); CODER.toggle(); return;
+      }
       if(e.code==='KeyC' && window.RING && RING.active && window.CODER){
         /* except while the level is still asking 2D or 3D — that screen
            is meant to have nothing on it, including the editor */
@@ -950,6 +961,7 @@ function loop(now){
      block: the fight carries on while a results card is up, and the
      player's own walking has to stay smooth between server snapshots. */
   if(window.RING && RING.active) RING.tick(dt);
+  if(window.PONG && PONG.active) PONG.tick(dt);
   if(window.INTRO && INTRO.active) INTRO.tick(dt);
   if(window.OPENING && OPENING.active) OPENING.tick(dt);
   /* Free play keeps thinking while the world is frozen: scripts step on, and
@@ -1147,6 +1159,9 @@ function step(dt){
      of legs. Without this line the engine walks an invisible player
      around underneath the fight and re-aims the camera every frame. */
   if(window.RING && RING.active) return;
+  /* And so does Pong, for the same reason and more so: the camera is
+     straight down over a court and there is no body on it at all. */
+  if(window.PONG && PONG.active) return;
   // In the corridor the program drives — the keys do nothing, but the camera
   // still has to follow the body the program is moving.
   const driven = NAV.active || RACE.active || (window.FLIGHT && FLIGHT.active);

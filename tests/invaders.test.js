@@ -827,29 +827,34 @@ test('every walkthrough step says how it knows it has happened', ()=>{
 test('the swarm is a station in the hall, dispatched, and on the page', ()=>{
   const planet=read('public/planet.js');
   const game=read('public/game.js');
-  assert.match(planet, /id:'inv'/, 'no station row in PLANET.STATIONS');
+  /* The station row is gone from Mission Control on purpose — see the
+     comment on STATIONS — but the mission is not: it is dispatched and it
+     is on the page, which is what "still exists" means. */
   assert.match(game, /id==='inv'/, 'startMissionRoom does not dispatch it');
   assert.match(read('public/index.html'), /src="invaders\.js/, 'not loaded by the page');
 });
 
-test('adding the swarm took nobody else off the wall', ()=>{
-  /* A new station is an ADDITION. The eight that were in Mission Control
-     before it are all still listed, in the same order, with the same ids —
-     which is what stops a future edit quietly reusing a plinth instead of
-     building one.
+test('Mission Control offers only the rooms that share one language', ()=>{
+  /* THIS TEST USED TO SAY THE OPPOSITE, and the change is the point.
 
-     Checked as a PREFIX rather than as the whole list, because the whole
-     list is the one thing this assertion must not freeze: a test that
-     fails when a tenth mission is added is a test that argues against
-     adding one, which is the opposite of what it is here for. Anything
-     after the swarm is somebody else's mission and this test has no
-     opinion about it — only that these nine are still where they were. */
+     It used to hold that a new station was always an ADDITION and that the
+     nine before it stayed where they were. That was right while every room
+     was built from the same shelf. It stopped being right when the ring
+     and Pong were built on the current block language and the older rooms
+     — Flight School, the Swarm, the Trench — were left on the one where
+     `change y by 1` still means up. A board that offers both hands a class
+     two languages that disagree about which letter points where, and the
+     student who finds that out finds it out mid-mission.
+
+     So Mission Control lists the two that agree. The others are still in
+     the code, still dispatched, still on the page; they are just not what
+     the hall points at. Putting one back is a row in this list and a row
+     in this array. */
   const planet=read('public/planet.js');
   const table=planet.slice(planet.indexOf('const STATIONS=['));
   const ids=[...table.slice(0, table.indexOf('];')).matchAll(/id:'([a-z0-9]+)'/g)].map(m=>m[1]);
-  const were=['tut','school','nav','flight','m1','m2','m3','sub','inv'];
-  assert.deepStrictEqual(ids.slice(0, were.length), were,
-    'the station list no longer opens with the nine that were already on the wall');
+  assert.deepStrictEqual(ids, ['ring','pong'],
+    'Mission Control is offering something other than the ring and Pong');
   assert.strictEqual(new Set(ids).size, ids.length, 'a station id is listed twice');
 });
 

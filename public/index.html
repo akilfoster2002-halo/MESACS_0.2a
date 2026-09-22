@@ -2007,6 +2007,31 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .rp b{font-family:var(--font-disp);font-size:30px;letter-spacing:3px;color:var(--star)}
 .rp small{font-size:12px;color:var(--muted);letter-spacing:.4px}
 @media (max-width:620px){ .rp{width:150px;padding:22px 12px 18px} .rp-row{gap:16px} }
+/* --------------------------------------------------------------- PONG
+   A SCOREBOARD AND A WAY IN, and that is the whole overlay. The court is
+   the scene, the paddles are objects, and everything else a student needs
+   is in the editor — so the only things drawn on top are the score and
+   the button that opens the blocks. */
+#pong{position:fixed;inset:0;z-index:56;pointer-events:none;font-family:var(--font)}
+#pongScore{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:18px;padding:9px 20px;
+  background:rgba(16,12,30,.82);border:1px solid var(--line);border-radius:13px;
+  font-family:var(--font-disp);font-size:13px;letter-spacing:2px;color:var(--muted)}
+#pongScore b{font-size:22px;letter-spacing:1px}
+#pongScore .pg-you{color:#8fd3ff}
+#pongScore .pg-them{color:#ffb4a2}
+#pongScore .pg-mid{font-size:10.5px;letter-spacing:1.4px;opacity:.75}
+#pongScore.pg-over{border-color:var(--star)}
+#pongScore.pg-over .pg-mid{color:var(--star);opacity:1}
+#pongOpen{position:absolute;left:14px;top:14px;pointer-events:auto;
+  background:rgba(16,12,30,.85);color:var(--star);border:1px solid var(--line);
+  border-radius:11px;padding:9px 15px;font-family:var(--font-disp);font-size:13px;
+  letter-spacing:1.6px;cursor:pointer}
+#pongOpen:hover{background:rgba(52,42,84,.95)}
+#pongOpen small{color:var(--muted);margin-left:7px;letter-spacing:1px}
+#pongAxes{position:absolute;right:14px;bottom:70px;display:grid;gap:5px;
+  padding:9px 12px;background:rgba(16,12,30,.78);border:1px solid var(--line);
+  border-radius:11px;font-size:11px;color:var(--muted)}
 /* HOW FAR THROUGH, as dots rather than a number — it says "nearly there"
    at a glance and costs no reading. */
 .ring-stage-dots{display:flex;gap:4px;flex-wrap:wrap}
@@ -2704,6 +2729,13 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
   <div id="ringPick" class="hidden"></div>
 </div>
 
+<!-- PONG: the court is the 3D scene behind it. Built by pong.js -->
+<div id="pong" class="hidden">
+  <div id="pongScore" class="hidden"></div>
+  <div id="pongAxes" class="hidden"></div>
+  <button id="pongOpen" class="hidden">▦ BLOCKS <small>C</small></button>
+</div>
+
 
 <div id="mkSetup" class="screen hidden">
   <div class="korobg" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -2730,64 +2762,66 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='530';</script>
-<script src="lib/three.classic.js?v=530"></script>
-<script src="strings.js?v=530"></script>
-<script src="music.js?v=530"></script>
-<script src="net.js?v=530"></script>
-<script src="avatar.js?v=530"></script>
-<script src="zombies.js?v=530"></script>
-<script src="building.js?v=530"></script>
-<script src="levels.js?v=530"></script>
-<script src="program.js?v=530"></script>
-<script src="code.js?v=530"></script>
-<script src="mechsim.js?v=530"></script>
-<script src="mech.js?v=530"></script>
-<script src="intro.js?v=530"></script>
-<script src="opening.js?v=530"></script>
-<script src="robots.js?v=530"></script>
-<script src="rules.js?v=530"></script>
-<script src="templates.js?v=530"></script>
-<script src="stages.js?v=530"></script>
-<script src="ask.js?v=530"></script>
-<script src="pit.js?v=530"></script>
-<script src="ring.js?v=530"></script>
-<script src="combat.js?v=530"></script>
-<script src="logic.js?v=530"></script>
-<script src="trail.js?v=530"></script>
-<script src="boolquiz.js?v=530"></script>
-<script src="scene.js?v=530"></script>
-<script src="ion.js?v=530"></script>
-<script src="brawl.js?v=530"></script>
-<script src="house.js?v=530"></script>
-<script src="puzzle.js?v=530"></script>
-<script src="nav.js?v=530"></script>
-<script src="tutorial.js?v=530"></script>
-<script src="race.js?v=530"></script>
-<script src="flight.js?v=530"></script>
-<script src="sub.js?v=530"></script>
-<script src="invaders.js?v=530"></script>
-<script src="school.js?v=530"></script>
-<script src="cruise.js?v=530"></script>
-<script src="club.js?v=530"></script>
-<script src="who.js?v=530"></script>
-<script src="arcade.js?v=530"></script>
-<script src="islands.js?v=530"></script>
-<script src="planet.js?v=530"></script>
-<script src="wallet.js?v=530"></script>
-<script src="shop.js?v=530"></script>
-<script src="library.js?v=530"></script>
-<script src="costumes.js?v=530"></script>
-<script src="missions.js?v=530"></script>
-<script src="coach.js?v=530"></script>
-<script src="owner.js?v=530"></script>
-<script src="blocks.js?v=530"></script>
-<script src="vm.js?v=530"></script>
-<script src="coder.js?v=530"></script>
-<script src="quiz.js?v=530"></script>
-<script src="chars.js?v=530"></script>
-<script src="title.js?v=530"></script>
-<script src="menu.js?v=530"></script>
-<script src="game.js?v=530"></script>
+<script>window.ASSETV='547';</script>
+<script src="lib/three.classic.js?v=547"></script>
+<script src="strings.js?v=547"></script>
+<script src="music.js?v=547"></script>
+<script src="net.js?v=547"></script>
+<script src="avatar.js?v=547"></script>
+<script src="zombies.js?v=547"></script>
+<script src="building.js?v=547"></script>
+<script src="levels.js?v=547"></script>
+<script src="program.js?v=547"></script>
+<script src="code.js?v=547"></script>
+<script src="mechsim.js?v=547"></script>
+<script src="mech.js?v=547"></script>
+<script src="intro.js?v=547"></script>
+<script src="opening.js?v=547"></script>
+<script src="robots.js?v=547"></script>
+<script src="rules.js?v=547"></script>
+<script src="templates.js?v=547"></script>
+<script src="stages.js?v=547"></script>
+<script src="ask.js?v=547"></script>
+<script src="pit.js?v=547"></script>
+<script src="ring.js?v=547"></script>
+<script src="pongsteps.js?v=547"></script>
+<script src="pong.js?v=547"></script>
+<script src="combat.js?v=547"></script>
+<script src="logic.js?v=547"></script>
+<script src="trail.js?v=547"></script>
+<script src="boolquiz.js?v=547"></script>
+<script src="scene.js?v=547"></script>
+<script src="ion.js?v=547"></script>
+<script src="brawl.js?v=547"></script>
+<script src="house.js?v=547"></script>
+<script src="puzzle.js?v=547"></script>
+<script src="nav.js?v=547"></script>
+<script src="tutorial.js?v=547"></script>
+<script src="race.js?v=547"></script>
+<script src="flight.js?v=547"></script>
+<script src="sub.js?v=547"></script>
+<script src="invaders.js?v=547"></script>
+<script src="school.js?v=547"></script>
+<script src="cruise.js?v=547"></script>
+<script src="club.js?v=547"></script>
+<script src="who.js?v=547"></script>
+<script src="arcade.js?v=547"></script>
+<script src="islands.js?v=547"></script>
+<script src="planet.js?v=547"></script>
+<script src="wallet.js?v=547"></script>
+<script src="shop.js?v=547"></script>
+<script src="library.js?v=547"></script>
+<script src="costumes.js?v=547"></script>
+<script src="missions.js?v=547"></script>
+<script src="coach.js?v=547"></script>
+<script src="owner.js?v=547"></script>
+<script src="blocks.js?v=547"></script>
+<script src="vm.js?v=547"></script>
+<script src="coder.js?v=547"></script>
+<script src="quiz.js?v=547"></script>
+<script src="chars.js?v=547"></script>
+<script src="title.js?v=547"></script>
+<script src="menu.js?v=547"></script>
+<script src="game.js?v=547"></script>
 </body>
 </html>

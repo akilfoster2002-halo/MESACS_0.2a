@@ -276,7 +276,17 @@ test('RYU has one door, and it is the Ion station on the floor of Mission Contro
      the floor, so this is not optional decoration. */
   const menu = read('public/menu.js');
   assert.match(menu, /ion:'Mission 8/, 'the mission has a name wherever missions are named');
-  assert.match(planet, /\{ id:'ion',/, 'there is no station on the wall');
+  /* NOT ON THE WALL ANY MORE, and that is deliberate. Mission Control was
+     trimmed to the two rooms built on the current block language (the ring
+     and Pong) because the older rooms disagree with them about which
+     letter points where. Ion is still a mission, still dispatched, still
+     on the page — it is just not what a student is pointed at from the
+     hall. What has to stay true is that the door still opens. */
+  assert.ok(!/\{ id:'ion',/.test(planet.slice(planet.indexOf('const STATIONS=['),
+                                              planet.indexOf('const dirOf='))),
+    'Ion is back on the wall — if that is wanted, this test is the thing to change');
+  assert.match(bare(read('public/game.js')), /id==='ion'/,
+    'and now it cannot be reached at all: nothing dispatches it');
   /* THE STATION OPENS THE HOUSE, which is the whole shape of this
      mission: you start inside, with Ion on the kitchen floor, and RYU is
      somewhere you only reach by walking out of the front door. The branch

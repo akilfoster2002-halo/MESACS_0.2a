@@ -92,6 +92,11 @@ window.MENU = (function(){
        anything, which is the blocks. */
     {id:'ring',  g:'arena',   em:'🥊', a:'#8fd3ff', name:'The Ring — NOISY BOY vs AMBUSH',
      blurb:'Pick a robot, program its arms and legs with blocks, then drive it. Four keys: you choose where to stand, your code chooses when to swing.'},
+    /* PONG, beside the ring for the same reason: it is the other room
+       built on this language, and it is the one that ends with a game
+       rather than a lesson. */
+    {id:'pong',  g:'arena',   em:'🏓', a:'#ffe9a8', name:'PONG — build the whole game',
+     blurb:'Three objects, a ball and two paddles, and every one of them is blocks you can open. Build the bounce, build the opponent, then play it.'},
     {id:'free',  g:'sandbox', em:'🧩', a:'#cdb4f6', name:'Free Play — Code Sandbox',
      blurb:'A 3D world you write. Objects, variables, functions, clones — code anything.'}
   ];
