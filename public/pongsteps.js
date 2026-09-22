@@ -54,7 +54,18 @@
        they can see the mirror work has been given a chore, not a step. */
     'op.sub':          { a:0 },
     'op.gt':           { b:6 },
-    'op.lt':           { b:-6 }
+    'op.lt':           { b:-6 },
+    /* the serve: across the court, leaning up or down by a different
+       amount every time, which is what stops every point being the same
+       point */
+    'op.random':       { a:40, b:140 },
+    /* the bat: 90 is straight across the court, and every unit away from
+       the middle of the bat leans it 20 degrees */
+    'op.add':          { a:90 },
+    'op.mul':          { b:20 },
+    'motion.setTo':    { a:'x', n:-7.6 },
+    'motion.goto':     { x:0, y:0, z:1 },
+    'data.change':     { v:'you', n:1 }
   };
   const EV     = ['event.flag'];
   const LOOP   = ['ctrl.forever','ctrl.if'];
@@ -113,6 +124,27 @@
       walk(b.body, f); walk(b.body2, f);
     });
   }
+  /* Where something is, in the language's own x — the steps talk about
+     the court in the same letters the blocks do. */
+  const where = (a,k) => { const B=UI().BLOCKS;
+    return (a && B) ? B.axisSign(k)*(+a[B.axisField(k)]||0) : 0; };
+  const lx = a => where(a,'x');
+  const ly = a => where(a,'y');
+  /* HAS IT BEEN RUN SINCE THIS STEP BECAME LIVE?
+
+     `VM.running` on its own is not that question. A student presses Run
+     early and the program keeps going, so by the time a later step says
+     "press Run" the flag has been true for minutes — and the step is
+     ticked off by whatever block they happened to place last, without
+     anybody pressing anything.
+
+     The honest marker is the ball being ON the court. It leaves and
+     keeps going the moment it has a `move` and nothing else, so between
+     that step and the next press of Run it is always somewhere past a
+     goal line. Coming back to the middle is something only the `go to`
+     at the top of its own script does, and that only runs on Run. */
+  const ranAgain = c => !!(UI().VM && UI().VM.running) && Math.abs(lx(c.ball)) < 11;
+
   /* is this object the one open in the editor? */
   const editing = name => { const C=UI().CODER;
     return !!(C && C.actorName && C.actorName()===name); };
@@ -192,62 +224,111 @@
   const run = (say, want, done) => ({ want, say, sel:'#cFlag', done, stopFirst:true });
 
   /* ===================================================== the steps */
+  /* THE TWO KINDS OF BOUNCE, and they are different on purpose.
+
+     A WALL is a mirror: put the ball back on the line, then turn it to
+     `180 − direction`. Two blocks, and the same two twice.
+
+     A BAT IS NOT A MIRROR. That was the first thing this mission tried
+     and it does not make a game: a mirror hands the ball back at the
+     angle it arrived at, so a serve that goes across flat comes back flat
+     for ever and neither paddle is ever beaten. A real bat sends the ball
+     where you hit it — `90 + (how far off the middle) × 20` — which is
+     one expression, ends rallies, and is the difference between a game
+     and two paddles nodding at each other. It is also idempotent, so it
+     needs no putting back: the same offset works out the same heading. */
+  const has=(bk,op)=>{ let f=false; walk([bk],x=>{ if(x.op===op) f=true; }); return f; };
+  function ifsIn(a, f){
+    let n=0;
+    ((a||{}).scripts||[]).forEach(sc=>walk(sc.body, b=>{
+      if(b.op!=='ctrl.forever') return;
+      walk(b.body, x=>{ if(x.op==='ctrl.if' && f(x)) n++; });
+    }));
+    return n;
+  }
+  /* an `if touching ...` that works an angle out */
+  const batBounces  = a => ifsIn(a, x=>x.args && x.args.c && x.args.c.op==='sense.touch' &&
+                                     (x.body||[]).some(y=>y.op==='motion.face' && has(y,'op.mul')));
+  /* an `if (y position) ...` that puts the ball back and mirrors it */
+  const wallBounces = a => ifsIn(a, x=>(x.body||[]).some(y=>y.op==='motion.setTo') &&
+                                       (x.body||[]).some(y=>y.op==='motion.face' && has(y,'op.sub')));
+  /* and how many `if`s change a score */
+  function scores(a){
+    let n=0;
+    ((a||{}).scripts||[]).forEach(sc=>walk(sc.body, b=>walk(b.body, x=>{
+      if(x.op!=='ctrl.if') return;
+      walk(x.body, y=>{ if(y.op==='data.change'||y.op==='data.set') n++; });
+    })));
+    return n;
+  }
+
   function steps(){
     const BALL='Ball', YOU='You', RIVAL='Rival';
     return label([
-      /* ---------------------------------------------- 1. look inside */
+      /* ------------------------------------------- 1. look inside one */
       { want:'editor-open',
-        say:'Click <b>BLOCKS</b>. Everything on this court is made of them.',
+        say:'Click <b>BLOCKS</b>. Every rule of this game is in here somewhere.',
         sel:'#pongOpen',
         done:()=>{ const C=UI().CODER; return !!(C && C.open); },
         pal:only(['events'], EV) },
       Object.assign(chip(YOU,
-        'Click <b>You</b>. That is your paddle — and it already has a script, '+
-        'which you can read.'),
+        'Click <b>You</b>. That is your paddle, and it is already written — '+
+        'two keys, and two more blocks that stop it walking off the screen.'),
         { pal:only(['events'], EV) }),
-      run('Press <b>Run</b>, then hold <b>W</b> and <b>S</b>. Three blocks, and you have a paddle.',
+      run('Press <b>Run</b>, then hold <b>W</b> and <b>S</b>. Nothing is hidden: '+
+          'that is the whole paddle.',
           'paddle-moves',
-          c=>{ const y=c.you; return !!(UI().VM && UI().VM.running) &&
-                 !!y && Math.abs(UI().BLOCKS.axisSign('y')*(+y[UI().BLOCKS.axisField('y')]||0))>0.6; }),
+          /* the paddle has actually travelled: nothing was running before
+             this step, so `running` is honest here, and the distance is
+             what proves a key was held rather than just pressed */
+          c=>!!(UI().VM && UI().VM.running) && Math.abs(ly(c.you))>0.6),
 
-      /* ---------------------------------------------- 2. the ball */
+      /* ---------------------------------------------- 2. serve the ball */
       Object.assign(chip(BALL,
-        'Now click <b>Ball</b>. It is empty — that is why nothing has come at you yet.'),
+        'Now click <b>Ball</b>. Empty — which is why nothing has come at you.'),
         { pal:only(['events'], EV) }),
       pick('event.flag',
         'Click this, so the ball starts when somebody presses Run.',
         c=>hats(c.ball,'event.flag')>0,
         only(['events'], EV)),
-      shelf('control','Control', only(['control'], ['ctrl.forever'])),
+      pick('motion.goto',
+        'Click <b>go to</b>. Every point starts from the middle.',
+        c=>uses(c.ball,'motion.goto'),
+        only(['motion'], ['motion.goto','motion.face']), 'motion'),
+      pick('motion.face',
+        'Click <b>point in direction</b>. A ball has to be going somewhere '+
+        'before it can go anywhere.',
+        c=>uses(c.ball,'motion.face'),
+        only(['motion'], ['motion.goto','motion.face'])),
+      { want:'random-serve',
+        say:'Click the number on it, then take <b>pick random</b> from Operators — '+
+            'a serve that is the same every time makes a point that is the same every time.',
+        find:()=>{ const b=[...D().querySelectorAll('#cScript .cblk')]
+                     .filter(x=>/point in direction/i.test(x.textContent)).pop();
+                   return b ? b.querySelector('input[data-slot]') : null; },
+        done:c=>uses(c.ball,'op.random'),
+        pal:only(['ops'], ['op.random']), tab:'ops' },
       pick('ctrl.forever',
-        'Click <b>forever</b>. A ball that moves once is a ball that has already stopped.',
+        'Now <b>forever</b>, under those two. A ball that moves once has already stopped.',
         c=>uses(c.ball,'ctrl.forever'),
-        only(['control'], ['ctrl.forever'])),
+        only(['control'], LOOP), 'control'),
       Object.assign(intoMouth('Click the gap INSIDE the loop.', mouth, 'ctrl.forever',
-        only(['control'], ['ctrl.forever'])), { tab:'control' }),
-      shelf('motion','Motion', only(['motion'], MOVE)),
+        only(['control'], LOOP)), { tab:'control' }),
       pick('motion.move',
-        'Click <b>move</b>. It slides the ball whichever way it is already pointing — '+
-        'the referee serves it, so it is always pointing somewhere.',
+        'Click <b>move</b>. It slides the ball whichever way it is pointing.',
         c=>within(c.ball,'ctrl.forever','motion.move'),
-        only(['motion'], MOVE)),
-      run('Press <b>Run</b>. The ball flies off, you lose the point, and it is served again. '+
-          'Now make it bounce.',
+        only(['motion'], MOVE), 'motion'),
+      run('Press <b>Run</b>. It serves, it travels, and it leaves — because you '+
+          'have not told it what a wall is yet.',
           'ball-flies',
-          c=>c.score.you+c.score.rival>0),
+          c=>uses(c.ball,'motion.move') && Math.abs(lx(c.ball))>11),
 
-      /* --------------------------------- 3. the first bounce, clicked */
-      /* NO SECOND "open Control" STEP. Its predicate would be the same
-         sentence as the first one's — "the Control shelf is open" — and
-         two steps that wait on the same thing are one step the student
-         never sees. The pick opens the tab itself. */
+      /* -------------------------------- 3. the first bounce, click by click */
       pick('ctrl.if',
-        'Click <b>if</b>. A bounce is a question the ball asks on every single frame.',
+        'Click <b>if</b>. A bounce is a question the ball asks on every frame.',
         c=>within(c.ball,'ctrl.forever','ctrl.if'),
         only(['control'], LOOP), 'control'),
       shelf('sensing','Sensing', only(['sensing'], TOUCH)),
-      /* "a slot is armed" is true of the rival's diamond too, so this has
-         to say which object AND how far along it is. */
       armBool('ball', 'Click the empty diamond on the <b>if</b>.',
         c=>within(c.ball,'ctrl.forever','ctrl.if') && !uses(c.ball,'sense.touch'),
         only(['sensing'], TOUCH), 'sensing'),
@@ -261,75 +342,78 @@
         done:c=>blocks(c.ball).some(b=>b.op==='sense.touch' &&
                  String((b.args||{}).o)==='You'),
         pal:only(['sensing'], TOUCH), tab:'sensing' },
-      Object.assign(intoMouth('Click the gap inside the <b>if</b>. The bounce goes in there, '+
-        'or the ball turns whether it touched you or not.', inner, 'ctrl.if',
-        only(['motion'], FACE)), { tab:'motion' }),
+      Object.assign(intoMouth('Click the gap inside the <b>if</b>.', inner, 'ctrl.if',
+        only(['motion'], ['motion.face','motion.pos','motion.dir'])), { tab:'motion' }),
       pick('motion.face',
-        'Click <b>point in direction</b>. Bouncing is just pointing somewhere new.',
-        c=>within(c.ball,'ctrl.if','motion.face') || uses(c.ball,'motion.face'),
-        only(['motion'], FACE)),
-      shelf('ops','Operators', only(['ops'], MATHS)),
-      { want:'sub-armed',
-        say:'Click the number on <b>point in direction</b> — the new heading is a sum, not a number.',
-        /* the number ON `point in direction`, not the first number in the
-           script — `move 5` has one too, and a ring drawn round the wrong
-           box is worse than no ring. A bool slot is an <i>; a number slot
-           is an <input> that arms the same way. */
+        'Click <b>point in direction</b>. Bouncing is just pointing somewhere new — '+
+        'and where is the interesting part.',
+        c=>within(c.ball,'ctrl.if','motion.face'),
+        only(['motion'], ['motion.face','motion.pos','motion.dir'])),
+      /* THE ONE PIECE OF ARITHMETIC THAT IS REALLY ABOUT THE GAME. */
+      { want:'bat-angle',
+        say:'A bat is not a mirror. Click the number and build '+
+            '<b>90 + (something × 20)</b> — <b>+</b> and <b>×</b> are in Operators. '+
+            '90 sends it straight across; the rest is the lean.',
         find:()=>{ const b=[...D().querySelectorAll('#cScript .cblk')]
                      .filter(x=>/point in direction/i.test(x.textContent)).pop();
                    return b ? b.querySelector('input[data-slot]') : null; },
-        done:c=>!!(UI().CODER && UI().CODER.slotArmed()) &&
-                uses(c.ball,'motion.face') && !uses(c.ball,'op.sub'),
-        pal:only(['ops'], MATHS), tab:'ops' },
-      pick('op.sub',
-        'Click the <b>−</b> block. Bouncing off something upright means '+
-        '<b>0 − direction</b>: the same angle, mirrored.',
-        c=>uses(c.ball,'op.sub'),
-        only(['ops'], MATHS)),
-      pick('motion.dir',
-        'Click the right-hand box of the <b>−</b>, then click <b>direction</b>. '+
-        'Now the new heading is worked out from the old one — that is a mirror.',
-        c=>uses(c.ball,'motion.dir'),
-        only(['motion'], FACE), 'motion'),
-      /* A BOUNCE IS NOT "point in direction" ON ITS OWN. The moment the
-         block lands inside the `if` there is technically a touch that
-         points the ball somewhere — and if this step settled for that, it
-         would fire four steps early and skip the whole reason the
-         subtraction is here. What makes it a bounce is that the new
-         heading is worked out FROM the old one. */
-      /* AND IT HAS TO BE RUN. Every other condition here is true the
-         instant the last block lands, so without this the step that says
-         "press Run and hit it" is ticked off before they have. The room
-         stops the previous run as this step goes live (see run()), so
-         `VM.running` can only be true again because they pressed it. */
-      run('Press <b>Run</b> and hit the ball with <b>W</b> and <b>S</b>. That is a bounce you wrote.',
+        done:c=>uses(c.ball,'op.add') && uses(c.ball,'op.mul'),
+        pal:only(['ops'], MATHS.concat(['op.add','op.mul'])), tab:'ops' },
+      { want:'bat-offset',
+        say:'Now the lean itself, in the left box of the <b>×</b>: '+
+            '<b>(y position) − (y of You)</b>. That is how far up the bat it hit — '+
+            'catch it on the end and it leaves steeply.',
+        done:c=>batBounces(c.ball)>=1 && uses(c.ball,'sense.posOf'),
+        pal:only(['ops'], MATHS.concat(['op.add','op.mul'])) },
+      run('Press <b>Run</b> and hit it with <b>W</b> and <b>S</b>, high and low. '+
+          'Where you hit it is where it goes.',
           'first-bounce',
-          c=>onTouch(c.ball)>=1 && uses(c.ball,'op.sub') && uses(c.ball,'motion.dir')
-             && !!(UI().VM && UI().VM.running)),
+          c=>batBounces(c.ball)>=1 && ranAgain(c)),
 
-      /* ------------------------------- 4. the other three, by themselves */
+      /* ------------------------------- 4. the other three, on their own */
       { want:'rival-bounce',
-        say:'Now the same three blocks again, for <b>Rival</b> — an <b>if touching Rival</b> '+
-            'that points it back the other way. Everything you need is on the shelves.',
-        done:c=>onTouch(c.ball)>=2 },
+        say:'Now the same for <b>Rival</b>: <b>if touching Rival</b>, pointing to '+
+            '<b>270 − ((y position) − (y of Rival)) × 20</b>. '+
+            '270 is straight back the other way.',
+        done:c=>batBounces(c.ball)>=2 },
       { want:'wall-bounce',
-        say:'And the two walls. <b>if (y position) &gt; 6</b> and <b>if (y position) &lt; -6</b>, '+
-            'each pointing to <b>180 − direction</b> — that is the mirror for a flat wall '+
-            'rather than an upright one.',
-        done:c=>bounces(c.ball)>=4 },
+        say:'The walls are simpler, because a wall IS a mirror. '+
+            '<b>if (y position) &gt; 6</b>, then <b>set y to 6</b> and '+
+            '<b>point in direction (180 − direction)</b>. Then the same for the bottom.',
+        done:c=>wallBounces(c.ball)>=2 },
+      run('Press <b>Run</b>. It should stay in now, however long you keep it going.',
+          'rally',
+          c=>wallBounces(c.ball)>=2 && batBounces(c.ball)>=2 && ranAgain(c)),
 
-      /* ---------------------------------------------- 5. the opponent */
+      /* ------------------------------------------------ 5. the score */
+      { want:'score-you',
+        say:'The scoreboard is showing two variables, and nothing sets them yet. '+
+            '<b>if (x position) &gt; 12</b>, then <b>change you by 1</b> — past the '+
+            'rival is your point.',
+        done:c=>scores(c.ball)>=1,
+        pal:only(['data'], ['data.change','data.get']), tab:'data' },
+      { want:'serve-again',
+        say:'Under it, send the ball back to the middle and serve it again: '+
+            '<b>go to x 0 y 0</b> and another <b>point in direction (pick random)</b>.',
+        done:c=>count(c.ball,'motion.goto')>=2 && count(c.ball,'op.random')>=2 },
+      { want:'score-rival',
+        say:'Now the other end, the same way: <b>if (x position) &lt; -12</b>, '+
+            '<b>change rival by 1</b>, back to the middle, serve again.',
+        done:c=>scores(c.ball)>=2 && count(c.ball,'motion.goto')>=3 },
+      run('Press <b>Run</b> and let one past you. The number on the scoreboard is '+
+          'the variable your own blocks just changed.',
+          'scored',
+          c=>c.score.you+c.score.rival>=1),
+
+      /* --------------------------------------------- 6. the opponent */
       Object.assign(chip(RIVAL,
         'Last one. Click <b>Rival</b> — the paddle that plays against you.',
-        c=>bounces(c.ball)>=4),
+        c=>scores(c.ball)>=2),
         { pal:only(['events'], EV) }),
       pick('event.flag',
         'Click this, so it starts with everything else.',
         c=>hats(c.rival,'event.flag')>0,
         only(['events'], EV), 'events'),
-      /* ONE STEP FOR BOTH, because this is the third time. A walkthrough
-         that keeps hold of you after you have understood something has
-         stopped teaching. */
       pick('ctrl.forever',
         'Click <b>forever</b>, then <b>if</b> inside it — you have done this twice now.',
         c=>within(c.rival,'ctrl.forever','ctrl.if'),
@@ -338,32 +422,27 @@
         c=>within(c.rival,'ctrl.forever','ctrl.if') && !uses(c.rival,'op.gt'),
         only(['ops'], MATHS), 'ops'),
       pick('op.gt',
-        'Click <b>&gt;</b>. The rival has one question to ask: is the ball above me?',
+        'Click <b>&gt;</b>. The rival has one question: is the ball above me?',
         c=>uses(c.rival,'op.gt'),
         only(['ops'], MATHS)),
       pick('sense.posOf',
-        'Click <b>of</b>, drop it in the left box and set it to <b>y of Ball</b>. '+
+        'Click <b>of</b>, drop it in the left box, set it to <b>y of Ball</b>. '+
         'This is the first time a script has asked about somebody else.',
         c=>blocks(c.rival).some(b=>b.op==='sense.posOf'),
         only(['sensing'], ['sense.posOf']), 'sensing'),
       pick('motion.pos',
-        'Click <b>y position</b> for the right-hand box — the rival’s own.',
+        'And <b>y position</b> in the right-hand box — the rival\u2019s own.',
         c=>uses(c.rival,'motion.pos'),
-        only(['motion'], ['motion.pos','motion.changeBy']), 'motion'),
+        only(['motion'], ['motion.pos','motion.changeBy','motion.setTo']), 'motion'),
       pick('motion.changeBy',
-        'Now <b>change y by</b> inside the <b>if</b>, so it moves up towards the ball.',
+        'Now <b>change y by</b> inside the <b>if</b>, so it climbs towards the ball.',
         c=>within(c.rival,'ctrl.if','motion.changeBy'),
-        only(['motion'], ['motion.pos','motion.changeBy'])),
-      { want:'rival-down',
-        say:'And the other half: a second <b>if</b> with <b>&lt;</b> instead, moving it '+
-            'down. Then it can follow the ball both ways.',
-        done:c=>count(c.rival,'ctrl.if')>=2 && count(c.rival,'motion.changeBy')>=2 },
-      /* WON A POINT, WITH THE RIVAL BUILT. Not "some points have been
-         scored": the ball flies off the court a dozen times while it is
-         being written, and a last step satisfied by conceding is a last
-         step that fires in the middle of the mission and ends the
-         walkthrough before the rival exists. */
-      run('Press <b>Run</b> and play it. First to '+7+'.',
+        only(['motion'], ['motion.pos','motion.changeBy','motion.setTo'])),
+      { want:'rival-rest',
+        say:'Finish it: a second <b>if</b> with <b>&lt;</b> to go down, and the same two '+
+            'edge blocks your own paddle has, so it stays on the court.',
+        done:c=>count(c.rival,'ctrl.if')>=4 && count(c.rival,'motion.setTo')>=2 },
+      run('Press <b>Run</b> and play it. Every rule of that game is a block you can open.',
           'played',
           c=>count(c.rival,'motion.changeBy')>=2 && c.score.you>=1)
     ]);
@@ -388,7 +467,7 @@
     });
   }
 
-  const API={ steps, bounces, onTouch, SET };
+  const API={ steps, bounces, onTouch, batBounces, wallBounces, SET };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   else root.PONGSTEPS=API;
 })(typeof self!=='undefined' ? self : this);

@@ -171,10 +171,15 @@ test('a step that asks for Run first ends the run before it', ()=>{
 test('a Run step cannot be ticked off without running', ()=>{
   /* Every other condition on these is true the instant the last block
      lands, so each one has to look at the world as well as the script. */
+  /* It has to read the WORLD, not just the script — where the ball got
+     to, or what the score says. `VM.running` alone is not enough and was
+     the bug: a program started five steps ago is still running, so the
+     flag is true before anybody presses anything. */
   steps.filter(s=>s.sel==='#cFlag').forEach(s=>{
     const body=String(s.done);
-    assert.ok(/VM\.running|score/.test(body),
-      'the Run step "'+s.want+'" is satisfied by writing blocks alone');
+    assert.ok(/ranAgain|lx\(|ly\(|score/.test(body),
+      'the Run step "'+s.want+'" is satisfied by writing blocks alone, or by a '+
+      'program that was already running before the step appeared');
   });
 });
 
@@ -188,28 +193,75 @@ test('the last step waits for a game, not for conceding one', ()=>{
 });
 
 /* ------------------------------------------------------------- the room */
-test('the court, the score and the serve belong to the room', ()=>{
-  /* The same division the ring draws: a program asks, a referee decides.
-     A script cannot set the score and does not have to write the walls. */
-  assert.match(PONGJS, /function referee\(/, 'nothing is refereeing');
-  assert.match(PONGJS, /function point\(side\)/, 'nothing scores');
-  assert.match(PONGJS, /function launch\(\)/,   'nothing serves');
-  const pal=/const PALETTE=\{[\s\S]*?\n  \};/.exec(PONGJS)[0];
-  assert.ok(!/data\.set|data\.change/.test(pal),
-    'the palette offers variables, so a script could keep its own score');
+test('the room does not play the game', ()=>{
+  /* THIS TEST USED TO SAY THE OPPOSITE, and that was the bug it was
+     protecting.
+
+     The room had a referee. It kept the paddles on the court, spotted a
+     ball that had gone past one, counted the score, re-served, and
+     quietly let go of a bat a ball had just bounced off. All of it
+     correct and all of it invisible — and a student who opens the Ball,
+     reads every block on it and still cannot find the part that scores a
+     point has been shown the decorations on a game, not the inside of
+     one. That is the whole of what this mission is for.
+
+     So the room owns a floor, a camera and a scoreboard, and nothing
+     that decides anything. */
+  ['function referee(','function point(side)','function launch()',
+   'function clearOf(','function clearWall('].forEach(fn=>
+    assert.ok(!PONGJS.includes(fn),
+      'the room is playing the game again: '+fn.replace('function ','')+' is back'));
+  assert.ok(!/\byou\+\+|\brival\+\+/.test(PONGJS), 'the room is counting the score');
 });
 
-test('a bounced ball is let go of, by the paddles and by the walls', ()=>{
-  /* `point in direction (0 − direction)` is correct and, on its own,
-     sticks: the ball is still touching on the next frame, so it mirrors
-     again, and again. Both surfaces need the same let-go or the game
-     shivers to a halt against one of them. */
-  assert.match(PONGJS, /function clearOf\(ball, pad, out\)/, 'the paddles never let go');
-  assert.match(PONGJS, /function clearWall\(ball\)/,         'the walls never let go');
-  /* and only once it is already heading away, so a ball nobody has
-     written a bounce for still sails through and concedes */
-  assert.match(PONGJS, /if\(!goingOut\) return;/, 'the paddle helps a ball that has not turned');
-  assert.match(PONGJS, /if\(!goingIn\) return;/,  'the wall helps a ball that has not turned');
+test('the score lives in the student\u2019s own variables', ()=>{
+  /* The scoreboard is a window, not a scorer: it reads two project
+     variables and puts them on screen. Until the blocks that change them
+     exist it shows nought each, which is the truth. */
+  assert.match(PONGJS, /const SCORE=\{ you:'you', rival:'rival' \}/, 'the two names are gone');
+  assert.match(PONGJS, /VM\.project\.vars\[SCORE\[k\]\]/,
+    'the scoreboard has stopped reading the variables');
+  const pal=/const PALETTE=\{[\s\S]*?\n  \};/.exec(PONGJS)[0];
+  ['data.set','data.change','data.get'].forEach(op=>assert.ok(pal.includes(op),
+    op+' is not on the palette, so nobody can touch the score'));
+});
+
+test('every rule of the game is a block somebody can open', ()=>{
+  /* Each of these is a rule Pong needs. Each one has to be reachable
+     from a shelf, or it is being done somewhere the student cannot see. */
+  const pal=/const PALETTE=\{[\s\S]*?\n  \};/.exec(PONGJS)[0];
+  const needs={
+    'serving it':          'motion.goto',
+    'aiming the serve':    'op.random',
+    'moving it':           'motion.move',
+    'noticing a bat':      'sense.touch',
+    'noticing a wall':     'motion.pos',
+    'putting it back':     'motion.setTo',
+    'turning it':          'motion.face',
+    'mirroring the angle': 'op.sub',
+    'reading the angle':   'motion.dir',
+    'watching the ball':   'sense.posOf',
+    'counting a point':    'data.change'
+  };
+  const src=bare(read('public/pongsteps.js'));
+  Object.entries(needs).forEach(([what,op])=>{
+    assert.ok(pal.includes(`'${op}'`), `${what} needs ${op}, and it is not on the palette`);
+    assert.ok(src.includes(op), `no step ever mentions ${op} — ${what} would never get written`);
+  });
+});
+
+test('the paddle handed over is a complete script, edges included', ()=>{
+  /* It is the one object a student is given as an example of what a
+     script looks like. It used to stop at the wall for reasons that were
+     nowhere in it. */
+  /* read from the onKey helper through given(), since the key blocks are
+     built by the helper and the edge blocks by given() itself */
+  const g=PONGJS.slice(PONGJS.indexOf('const onKey='),
+                       PONGJS.indexOf('function legend()'));
+  assert.match(g, /motion\.goto/,  'it never puts itself on its own line');
+  assert.match(g, /sense\.key/,    'it does not read the keys');
+  assert.match(g, /motion\.setTo/, 'nothing in it stops it walking off the top');
+  assert.match(g, /op\.gt/,        'and nothing in it notices the edge');
 });
 
 test('the taught bounce line, the painted wall and the snap are one number', ()=>{

@@ -47,14 +47,15 @@ window.PONG = (function(){
      of them being exact. */
   const COURT={ x:11, y:6 };
   const PADDLE={ x:9.5, size:2.2, speed:0.3 };
-  const WIN=7;
-  /* WHAT `touching` MEANS, borrowed from the VM rather than guessed at:
-     it is a sphere of (a.size + b.size) * 0.6 around each centre. The
-     room needs the same number to know when to let go of a ball it has
-     just been hit by. */
+  /* HOW FAR A PADDLE REACHES, which is not the room's business any more
+     but is still the number the drawing has to respect: `touching` in
+     this language is a sphere of (a.size + b.size) * 0.6 around each
+     centre, so a bat drawn much longer than that is a bat balls go
+     through. See shapeThem(). */
   const REACH = (a,b) => ((a&&a.size||1) + (b&&b.size||1)) * 0.6;
+  const BAT_REACH = REACH({size:0.8}, {size:PADDLE.size});
 
-  let on=false, you=0, rival=0, hold=0, lastSide=1, clicker=null;
+  let on=false, clicker=null;
 
   /* ------------------------------------------- the language's own axes
      THE ONE PLACE THIS ROOM KNOWS THE ENGINE IS Y-UP. Everything else
@@ -87,7 +88,7 @@ window.PONG = (function(){
      shortest honest Pong is a better first game than a correct one
      nobody finishes. */
   const PALETTE={
-    cats:['events','control','motion','looks','sensing','ops'],
+    cats:['events','control','motion','looks','sensing','ops','data'],
     ops:[
       'event.flag','event.key',
       'ctrl.wait','ctrl.repeat','ctrl.forever','ctrl.if','ctrl.ifelse','ctrl.stop',
@@ -95,9 +96,25 @@ window.PONG = (function(){
       'motion.goto','motion.pos','motion.dir',
       'looks.say',
       'sense.key','sense.touch','sense.posOf',
-      'op.add','op.sub','op.lt','op.eq','op.gt','op.and','op.or','op.not'
+      /* × is here because the angle a ball leaves a bat at is worked out
+         from where on the bat it hit, and that is a multiplication. It is
+         the one piece of arithmetic in the game that is really about the
+         game. */
+      'op.add','op.sub','op.mul','op.lt','op.eq','op.gt','op.and','op.or','op.not',
+      /* AND THE SERVE IS RANDOM, which is one block and the difference
+         between a game and a demonstration: a ball that leaves the centre
+         spot at the same angle every time makes every point the same
+         point, and the rival either always reaches it or never does. */
+      'op.random',
+      /* AND THE SCORE IS A VARIABLE, because the score has to live
+         somewhere a program can change and the scoreboard can read. */
+      'data.set','data.change','data.get'
     ]
   };
+  /* The two the scoreboard watches. Made on the way in rather than by the
+     student: naming a variable is a different lesson, and a dropdown with
+     nothing in it is a step nobody can complete. */
+  const SCORE={ you:'you', rival:'rival' };
 
   /* ==================================================== the court */
   const GRID={ axis:0x6b5da8, major:0x40356a, minor:0x2b2446 };
@@ -183,167 +200,58 @@ window.PONG = (function(){
      script. So the paddle is drawn 0.8 x 2.8 around a sphere of reach
      2.05 — a little generous at the tips rather than short, because a
      game for children should be wrong in the forgiving direction. */
+  const BAT_LONG = 1.27;                 // the stretch along the paddle
   function shapeThem(){
     const s=(a,x,y,z)=>{ if(a&&a.mesh) a.mesh.scale.set(x,y,z); };
-    s(actor(YOU),   0.36, 0.5, 1.27);
-    s(actor(RIVAL), 0.36, 0.5, 1.27);
+    s(actor(YOU),   0.36, 0.5, BAT_LONG);
+    s(actor(RIVAL), 0.36, 0.5, BAT_LONG);
   }
 
-  /* ==================================================== the referee
-     WHAT A SCRIPT MAY NOT DO. The score is not a variable a program can
-     set, the serve is not something a program has to remember, and the
-     walls of the court are not something a paddle should have to check
-     for itself. All three are the room's, for the same reason health is
-     the ring's: a game where your own program says whether you scored is
-     not a game. */
-  function referee(dt){
-    const ball=actor(BALL), me=actor(YOU), them=actor(RIVAL);
+  /* ============================================ what the room does NOT do
+     NOTHING. That is the point of this mission.
+
+     There was a referee here. It kept the paddles on the court, noticed a
+     ball that had gone past one, counted the score, put the next ball on
+     the centre spot, and quietly let go of a paddle a ball had just
+     bounced off. All of it was correct and all of it was invisible — and
+     a student who opens the Ball, reads every block on it, and still
+     cannot find the part that scores a point has not been shown the
+     inside of a game. They have been shown the decorations on one.
+
+     So it is all blocks now. The ball serves itself, notices the walls,
+     puts itself back on the line, works out its own angle off a bat and
+     counts its own points into two variables. The paddles keep
+     themselves on the court. Every rule of Pong is on a shelf somewhere,
+     and every one of them can be read, changed or broken.
+
+     What is left in here is the stage: a floor, a camera, and a
+     scoreboard that shows what the student's own variables say. None of
+     those are the game. */
+  function stage(){
+    const ball=actor(BALL);
     shapeThem();
-
-    /* the paddles stay on their own line, and on the court */
-    [[me,-PADDLE.x],[them,PADDLE.x]].forEach(([p,x])=>{
-      if(!p) return;
-      wr(p,'x',x);
-      const lim=COURT.y-0.6;
-      const y=rd(p,'y');
-      if(y> lim) wr(p,'y', lim);
-      if(y<-lim) wr(p,'y',-lim);
-      p.y=0.6;
-      VM.sync(p);
-    });
-    if(!ball) return;
-    ball.y=0.6;
-
-    /* HELD, BRIEFLY, AFTER A POINT. A ball that reappears already moving
-       is a ball nobody saw arrive, and the player who just conceded is
-       the one least ready for it. */
-    if(hold>0){
-      hold-=dt;
-      wr(ball,'x',0); wr(ball,'y',0);
-      VM.sync(ball);
-      if(hold<=0) launch();
-      return;
-    }
-    /* `out` is the way OFF that paddle and into the court: away from the
-       left one is +x, away from the right one is -x. */
-    clearOf(ball, me, 1);
-    clearOf(ball, them, -1);
-    clearWall(ball);
-
-    const bx=rd(ball,'x');
-    if(bx >  COURT.x+0.6) point(1);
-    if(bx < -COURT.x-0.6) point(-1);
-    /* AND IT CANNOT LEAVE SIDEWAYS. The walls are the student's to bounce
-       off, but a ball that has got past them is a ball nobody can reach
-       and a game that has quietly ended — so the court keeps it in even
-       when the script has not learnt to yet. */
-    const lim=COURT.y+0.5, by=rd(ball,'y');
-    if(by> lim) wr(ball,'y', lim);
-    if(by<-lim) wr(ball,'y',-lim);
-    VM.sync(ball);
-  }
-  /* LETTING GO OF A PADDLE IT HAS ALREADY BOUNCED OFF.
-
-     A bounce written the natural way — `point in direction (0 −
-     direction)` — is correct and, on its own, sticks. The ball is inside
-     the paddle's reach for several frames at any sane speed, so it
-     mirrors its heading on every one of them: out, back, out, back, and
-     it sits there shivering against the bat. Every child who has written
-     Pong has met this, and the usual cures are worse than the disease —
-     a `wait` that freezes the ball, or a `move 20` that teleports it.
-
-     Two objects not being allowed to occupy the same space is the room's
-     job, not the program's, the same as the walls and the score. So once
-     the ball is heading AWAY from a paddle it is still touching, the
-     court sets it down just clear. It only ever helps a ball that has
-     already turned: one still heading into the paddle is left alone, so a
-     student who has not written the bounce yet watches it sail straight
-     through and concede, which is the honest answer to not having written
-     it. */
-  function clearOf(ball, pad, out){
-    if(!ball || !pad) return;
-    const r=REACH(ball,pad);
-    const dx=rd(ball,'x')-rd(pad,'x'), dy=rd(ball,'y')-rd(pad,'y');
-    if(Math.hypot(dx,dy) >= r) return;
-    /* which way is it going? dir is a compass bearing, so the step across
-       the court is its sine. */
-    const goingOut = Math.sin(ball.dir*Math.PI/180) * out > 0;
-    if(!goingOut) return;
-    wr(ball,'x', rd(pad,'x') + out*Math.sqrt(Math.max(0.01, r*r - dy*dy)));
-
-    /* WHERE ON THE BAT IT HIT, which is the difference between Pong and
-       watching Pong.
-
-       A pure mirror — which is what the student wrote, and is right —
-       returns the ball at the angle it arrived at, every time. Against an
-       opponent that simply follows the ball, that is a rally which never
-       ends: the rival is never asked to travel further than the ball
-       does, so it is never beaten, and a game you cannot win is a demo.
-
-       So the court does what a real bat does and the blocks cannot: the
-       further from the middle you strike it, the steeper it leaves. Now
-       the way to win is to reach the ball EARLY and catch it on the end
-       of your paddle, which is a thing to get good at. It is the room's
-       to own for the same reason the walls are — it is what the surface
-       is shaped like, not what the program decided. */
-    /* WHICH WAY "UP" IS, IN BEARINGS. dir is a compass angle: 90 sends
-       the ball across the court to the right, and 180 sends it up the
-       screen. So a ball leaving to the RIGHT is steered upwards by
-       raising its bearing, and one leaving to the LEFT by lowering it —
-       which is exactly `out`, the direction it is leaving in. */
-    const lean = Math.max(-1, Math.min(1, dy/r)) * 26;
-    ball.dir = ball.dir + out*lean;
-  }
-  /* AND THE SAME FOR THE WALLS, which stick for exactly the same reason.
-
-     `if (y position) > 6 then point in direction (180 − direction)` is
-     right, and on its own it shivers: the ball crosses the line, turns,
-     and is still past the line on the next frame — so it turns back, and
-     again, and sits vibrating along the top of the court. The paddles got
-     a let-go; the walls need one too, and it is the same rule. Once the
-     ball is heading back towards the middle, the court puts it on the
-     line rather than past it, and the student's own condition goes quiet
-     by itself. */
-  function clearWall(ball){
-    const y=rd(ball,'y');
-    if(Math.abs(y) <= COURT.y) return;
-    /* the step up the screen is minus the cosine of a compass bearing */
-    const vy = -Math.cos(ball.dir*Math.PI/180);
-    const goingIn = y>0 ? vy<0 : vy>0;
-    if(!goingIn) return;
-    wr(ball,'y', y>0 ? COURT.y : -COURT.y);
-  }
-  function point(side){
-    if(side>0) you++; else rival++;
-    lastSide=side;
-    hold = over() ? Infinity : 0.9;
-    board();
-  }
-  const over = () => you>=WIN || rival>=WIN;
-  /* SERVED TOWARDS WHOEVER JUST CONCEDED, at an angle rather than flat,
-     because a ball travelling exactly along x never meets a wall and the
-     bounce a student just wrote would never run. */
-  function launch(){
-    const ball=actor(BALL); if(!ball) return;
-    wr(ball,'x',0); wr(ball,'y',0);
-    /* dir is a compass bearing: 90 is across the screen to the right. The
-       serve leans up or down by a quarter turn's worth, alternately. */
-    const towards = lastSide>0 ? 90 : -90;
-    ball.dir = towards + (Math.random()<0.5 ? -32 : 32);
-    VM.sync(ball);
+    /* The three of them stay on the floor. Height is the one axis Pong
+       has no use for, and a ball that has been sent up the z axis by a
+       stray block is a ball nobody can see — which is a confusing way to
+       find out you typed the wrong letter. */
+    [actor(YOU), actor(RIVAL), ball].forEach(a=>{ if(a && a.y!==0.6){ a.y=0.6; VM.sync(a); } });
   }
 
   /* ==================================================== the screen */
+  /* THE SCOREBOARD IS A WINDOW ONTO TWO VARIABLES, and it is not allowed
+     to be anything else. It does not count anything and cannot: it reads
+     `you` and `rival` out of the project and puts them on the screen in
+     big letters. Until the student writes the blocks that change them it
+     shows nought each, which is the truth. */
+  const scoreOf = k => { const v=(window.VM && VM.project.vars) ? VM.project.vars[SCORE[k]] : 0;
+                         const n=parseFloat(v); return isFinite(n)?n:0; };
   function board(){
     const el=$('#pongScore'); if(!el) return;
-    const done = over();
-    el.classList.toggle('pg-over', done);
+    const a=scoreOf('you'), b=scoreOf('rival');
     el.innerHTML=
-      `<span class="pg-you">${T('YOU')} <b>${you}</b></span>`+
-      `<span class="pg-mid">${done
-        ? (you>rival?T('YOU WIN'):T('RIVAL WINS'))+' \u00b7 '+T('press Run to play again')
-        : T('first to')+' '+WIN}</span>`+
-      `<span class="pg-them"><b>${rival}</b> ${T('RIVAL')}</span>`;
+      `<span class="pg-you">${T('YOU')} <b>${a}</b></span>`+
+      `<span class="pg-mid">${T('your two variables')}</span>`+
+      `<span class="pg-them"><b>${b}</b> ${T('RIVAL')}</span>`;
     el.classList.remove('hidden');
   }
   function camera(){
@@ -382,7 +290,7 @@ window.PONG = (function(){
               '#crosshair','#focus','#briefing','#escHint'];
   function start(){
     stop();
-    on=true; you=0; rival=0; hold=1.2; lastSide=1;
+    on=true;
 
     G.running=true; G.hudOwner='pong'; G.missionId='pong'; G.room=null;
     if(window.updateLeaveBtn) updateLeaveBtn();
@@ -438,16 +346,31 @@ window.PONG = (function(){
      ideas that are new here — a thing that moves along a heading and
      bounces, and a thing that watches another object. */
   const B=(op,args,body)=>{ const b={ op, args:args||{} }; if(body) b.body=body; return b; };
+  /* `go to x .. y .. z ..` takes the LANGUAGE's three, and z is height —
+     everything in Pong sits on the floor, so it is always the same. */
   const onKey=(k,body)=>B('ctrl.if',{ c:B('sense.key',{k}) }, body);
+  /* THE PADDLE STOPS ITSELF AT THE WALL, in its own blocks. The court
+     used to do it, silently, which meant the one object a student is
+     handed as an example of "this is what a script looks like" was an
+     example with a hole in it: nothing in it explained why the paddle did
+     not walk off the top of the screen. Now it does. */
+  const EDGE = COURT.y - 1.0;
   function given(){
     const me=actor(YOU);
     if(me) me.scripts=[{ id:'given', hat:B('event.flag'), body:[
+      B('motion.goto',{ x:-PADDLE.x, y:0, z:1 }),
       B('ctrl.forever',{},[
         onKey('w',[ B('motion.changeBy',{a:'y',n: PADDLE.speed}) ]),
-        onKey('s',[ B('motion.changeBy',{a:'y',n:-PADDLE.speed}) ])
+        onKey('s',[ B('motion.changeBy',{a:'y',n:-PADDLE.speed}) ]),
+        B('ctrl.if',{ c:B('op.gt',{ a:B('motion.pos',{a:'y'}), b:EDGE }) },
+          [ B('motion.setTo',{ a:'y', n:EDGE }) ]),
+        B('ctrl.if',{ c:B('op.lt',{ a:B('motion.pos',{a:'y'}), b:-EDGE }) },
+          [ B('motion.setTo',{ a:'y', n:-EDGE }) ])
       ]) ]}];
     const them=actor(RIVAL); if(them) them.scripts=[];
     const ball=actor(BALL);  if(ball)  ball.scripts=[];
+    /* the two the scoreboard reads, back to nought */
+    if(window.VM){ VM.project.vars[SCORE.you]=0; VM.project.vars[SCORE.rival]=0; }
   }
   function legend(){
     const el=$('#pongAxes'); if(!el) return;
@@ -461,7 +384,7 @@ window.PONG = (function(){
   function tick(dt){
     if(!on) return;
     if(window.VM) VM.step(dt);
-    referee(dt);
+    stage();
     camera();
     if(window.COACH) COACH.tick(dt);
     if(window.CODER) CODER.tick(dt);
@@ -501,7 +424,9 @@ window.PONG = (function(){
       get you(){ return actor(YOU); },
       get rival(){ return actor(RIVAL); },
       get actor(){ return null; },        // no beacon: this room is flat
-      get score(){ return { you, rival }; },
+      /* read out of the student's own variables, so a step that asks
+         about the score is asking about the blocks they wrote */
+      get score(){ return { you:scoreOf('you'), rival:scoreOf('rival') }; },
       host: ()=> (window.CODER && CODER.open) ? CODER.coachHost() : null,
       finish: T('That is a whole game, and every part of it is yours to change.'),
       onStep: onStep
@@ -555,12 +480,16 @@ window.PONG = (function(){
       /* PRESSING RUN AFTER A FINISHED GAME STARTS A NEW ONE. Run is
          already the button that means "go", and a second button that
          only appears once in a while is a button nobody finds. */
-      if(over()){ you=0; rival=0; hold=1.0; board(); }
+      /* A NEW GAME IS THE STUDENT'S TO START, in the blocks that set the
+         score back to nought. Run no longer secretly resets anything. */
     }
   }
 
   return { start, stop, tick:(dt)=>{ tick(dt); watchRun(); }, leave,
-           PALETTE, BALL, YOU, RIVAL, COURT, WIN,
+           PALETTE, BALL, YOU, RIVAL, COURT, SCORE,
            get active(){ return on; },
-           get score(){ return { you, rival }; } };
+           /* read out of the student's own variables, the same as the
+              scoreboard — the walkthrough asks about the score and must
+              not be told it by anything the room made up */
+           get score(){ return { you:scoreOf('you'), rival:scoreOf('rival') }; } };
 })();
