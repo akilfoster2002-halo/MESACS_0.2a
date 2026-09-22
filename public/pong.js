@@ -46,7 +46,21 @@ window.PONG = (function(){
      happens where the wall is. Both of those matter more than either one
      of them being exact. */
   const COURT={ x:11, y:6 };
-  const PADDLE={ x:9.5, size:2.2, speed:0.3 };
+  /* THE FOUR NUMBERS THE GAME IS BALANCED ON, and they are only defaults:
+     each one ends up in a block, and the whole point of the room is that
+     a student can change any of them and watch what it does.
+
+       SPEED        how far the ball travels each frame
+       PADDLE.speed how fast your bat climbs — faster than the ball needs
+                    to be, or you cannot reach a steep one
+       RIVAL_SPEED  how fast the opponent climbs. SLOWER than the ball's
+                    steepest rise, which is the only reason it can be
+                    beaten at all; raise it and the game gets harder. */
+  const PADDLE={ x:9.5, size:2.2, speed:0.4 };
+  const SPEED=5;
+  const RIVAL_SPEED=0.2;
+  /* how many degrees a bat leans the ball per unit away from its middle */
+  const LEAN_DEFAULT=20;
   /* HOW FAR A PADDLE REACHES, which is not the room's business any more
      but is still the number the drawing has to respect: `touching` in
      this language is a sphere of (a.size + b.size) * 0.6 around each
@@ -111,6 +125,30 @@ window.PONG = (function(){
       'data.set','data.change','data.get'
     ]
   };
+  /* WHAT A BLOCK ARRIVES SET TO, when somebody takes a new one off the
+     shelf. The palette's own defaults are written for a language, not for
+     this game: `move` arrives at 10, which is a whole square a frame and
+     crosses the court in nineteen of them, and `change y by` arrives on
+     the x axis, which walks a bat sideways into a wall. Neither is a
+     detail — a block that lands behaving nothing like the ones already
+     in the script is a change whose effect cannot be read. */
+  const SET={
+    'motion.move':     { n:SPEED },
+    'motion.changeBy': { a:'y', n:PADDLE.speed },
+    'motion.setTo':    { a:'y', n:0 },
+    'motion.pos':      { a:'y' },
+    'motion.goto':     { x:0, y:0, z:1 },
+    'sense.posOf':     { a:'y', o:BALL },
+    'sense.touch':     { o:BALL },
+    'op.random':       { a:40, b:140 },
+    'op.mul':          { b:LEAN_DEFAULT },
+    'op.add':          { a:90 },
+    'op.sub':          { a:180 },
+    'op.gt':           { b:COURT.y },
+    'op.lt':           { b:-COURT.y },
+    'data.change':     { n:1 }
+  };
+
   /* The two the scoreboard watches. Made on the way in rather than by the
      student: naming a variable is a different lesson, and a dropdown with
      nothing in it is a step nobody can complete. */
@@ -314,62 +352,129 @@ window.PONG = (function(){
     board();
     legend();
     if(window.CODER){
-      CODER.restrict(PALETTE);
-      /* OPEN ON THE RIVAL, which looks arbitrary and is not. COACH stands
-         past the LAST step that has already happened, and a step that says
-         "click the Ball" is satisfied the instant the Ball is the thing
-         being edited — so whichever object this room selects on the way
-         in, it skips that object's step. The rival is the one nothing asks
-         for until the very end, and its own step waits on the ball being
-         finished, so nothing is skipped. */
-      CODER.setActor(actor(RIVAL));
+      /* WITH THE GAME'S OWN NUMBERS ON IT. A student adding a second
+         `move` should get one that travels like the one already there,
+         not the palette's 10 — a block that arrives wrong by a factor of
+         two is a change whose effect nobody can read. */
+      CODER.restrict(Object.assign({ defaults:SET }, PALETTE));
+      /* OPEN ON THE BALL, which is where the game is. Two of the three
+         objects are a dozen blocks about a bat; this one is the whole of
+         Pong, and it is the one worth landing on. */
+      CODER.setActor(actor(BALL));
     }
     clicker=pickAt;
     const view=$('#view'); if(view) view.addEventListener('pointerdown', clicker);
     if(window.keyHint) keyHint(`<b>C</b> ${T('open the blocks')} · <b>W</b>/<b>S</b> ${T('your paddle')}`);
-    walk();
   }
-  /* WHAT THE MISSION HANDS YOU, and why it is only one of the three.
+  /* ================================================ the game, written out
+     THE WHOLE THING ARRIVES FINISHED, and that is the mission.
 
-     The paddle you drive is a conditional inside a loop watching a key —
-     which is the whole of the ring's first mission, and a student who
-     arrives here has already built it once. Marching them through it a
-     second time would teach nothing and cost ten steps.
+     There is no walkthrough here and nothing to build. Pong is already
+     playing when you walk in: press Run and it serves, bounces, keeps
+     score and stops when somebody has won. Then you click one of the
+     three objects and read the blocks that just did all of that.
 
-     So it arrives written, and the walkthrough opens by asking them to
-     CLICK IT AND READ IT. That is not filler: the thing this mission is
-     really about is that every object on the screen is made of blocks you
-     can open, and the fastest way to say so is to hand somebody a working
-     object and let them look inside it.
+     Every rule is in here and none of them are anywhere else. The ball
+     serves itself and counts its own points; the bats stop themselves at
+     the edge of the court. Nothing in the room decides anything, so
+     there is no part of this game that can be looked for and not found.
 
-     The ball and the rival are theirs to write, because those are the two
-     ideas that are new here — a thing that moves along a heading and
-     bounces, and a thing that watches another object. */
+     Which makes the interesting question not "how do I build it" but
+     "what happens if I change this" — and every number in it is a number
+     somebody can change. Make the bat steeper, make the rival quicker,
+     serve it faster, play first to three. */
   const B=(op,args,body)=>{ const b={ op, args:args||{} }; if(body) b.body=body; return b; };
-  /* `go to x .. y .. z ..` takes the LANGUAGE's three, and z is height —
-     everything in Pong sits on the floor, so it is always the same. */
-  const onKey=(k,body)=>B('ctrl.if',{ c:B('sense.key',{k}) }, body);
-  /* THE PADDLE STOPS ITSELF AT THE WALL, in its own blocks. The court
-     used to do it, silently, which meant the one object a student is
-     handed as an example of "this is what a script looks like" was an
-     example with a hole in it: nothing in it explained why the paddle did
-     not walk off the top of the screen. Now it does. */
-  const EDGE = COURT.y - 1.0;
-  function given(){
-    const me=actor(YOU);
-    if(me) me.scripts=[{ id:'given', hat:B('event.flag'), body:[
+  const IF=(cond,body)=>B('ctrl.if',{ c:cond }, body);
+  const pos=k=>B('motion.pos',{ a:k });
+  const yOf=name=>B('sense.posOf',{ a:'y', o:name });
+  const centre=()=>B('motion.goto',{ x:0, y:0, z:1 });
+  const serve=(lo,hi)=>B('motion.face',{ n:B('op.random',{ a:lo, b:hi }) });
+  /* A BAT IS NOT A MIRROR, and this one expression is why the game has
+     rallies that end. A mirror hands the ball back at the angle it
+     arrived at, so a serve that crosses flat comes back flat for ever and
+     neither bat is ever beaten. This sends it where you HIT it: 90 is
+     straight across, and every unit away from the middle of the bat
+     leans it another 20 degrees. Catch it on the end and it leaves
+     steeply enough to beat somebody who is only following it.
+
+     It is also the same answer on every frame the ball is touching, so
+     unlike a mirror it never argues with itself. The walls, which really
+     are mirrors, need a `set` first for exactly that reason. */
+  const LEAN=LEAN_DEFAULT;
+  const bat=(name, straight, sign)=>{
+    const off=B('op.mul',{ a:B('op.sub',{ a:pos('y'), b:yOf(name) }), b:LEAN });
+    return B('motion.face',{ n: sign>0 ? B('op.add',{ a:straight, b:off })
+                                       : B('op.sub',{ a:straight, b:off }) });
+  };
+  const mirror=()=>B('motion.face',{ n:B('op.sub',{ a:180, b:B('motion.dir',{}) }) });
+  /* the two blocks that keep a bat on the court, which used to be the
+     room's job and were therefore nowhere a student could read them */
+  const EDGE=COURT.y-1;
+  const onCourt=()=>[
+    IF(B('op.gt',{ a:pos('y'), b: EDGE }), [ B('motion.setTo',{ a:'y', n: EDGE }) ]),
+    IF(B('op.lt',{ a:pos('y'), b:-EDGE }), [ B('motion.setTo',{ a:'y', n:-EDGE }) ])
+  ];
+  const onKey=(k,body)=>IF(B('sense.key',{ k }), body);
+  const WIN=7;
+
+  function scripts(){
+    const out={};
+    /* ------------------------------------------------ the bat you drive */
+    out[YOU]=[{ hat:B('event.flag'), body:[
       B('motion.goto',{ x:-PADDLE.x, y:0, z:1 }),
       B('ctrl.forever',{},[
-        onKey('w',[ B('motion.changeBy',{a:'y',n: PADDLE.speed}) ]),
-        onKey('s',[ B('motion.changeBy',{a:'y',n:-PADDLE.speed}) ]),
-        B('ctrl.if',{ c:B('op.gt',{ a:B('motion.pos',{a:'y'}), b:EDGE }) },
-          [ B('motion.setTo',{ a:'y', n:EDGE }) ]),
-        B('ctrl.if',{ c:B('op.lt',{ a:B('motion.pos',{a:'y'}), b:-EDGE }) },
-          [ B('motion.setTo',{ a:'y', n:-EDGE }) ])
+        onKey('w',[ B('motion.changeBy',{ a:'y', n: PADDLE.speed }) ]),
+        onKey('s',[ B('motion.changeBy',{ a:'y', n:-PADDLE.speed }) ]),
+        ...onCourt()
       ]) ]}];
-    const them=actor(RIVAL); if(them) them.scripts=[];
-    const ball=actor(BALL);  if(ball)  ball.scripts=[];
-    /* the two the scoreboard reads, back to nought */
+    /* ------------------------------------------------- the one that plays
+       Four blocks and it is an opponent: it asks where the ball is,
+       compares that with where it is, and moves. It is beatable because
+       it is SLOWER than the ball can be made to travel — which is the
+       number to change if it is too easy. */
+    out[RIVAL]=[{ hat:B('event.flag'), body:[
+      B('motion.goto',{ x:PADDLE.x, y:0, z:1 }),
+      B('ctrl.forever',{},[
+        IF(B('op.gt',{ a:yOf(BALL), b:pos('y') }), [ B('motion.changeBy',{ a:'y', n: RIVAL_SPEED }) ]),
+        IF(B('op.lt',{ a:yOf(BALL), b:pos('y') }), [ B('motion.changeBy',{ a:'y', n:-RIVAL_SPEED }) ]),
+        ...onCourt()
+      ]) ]}];
+    /* ----------------------------------------------------------- the ball
+       Everything Pong is: serve, travel, bounce off two bats and two
+       walls, notice it has gone past somebody, score it, serve again, and
+       stop when one of them has won. */
+    out[BALL]=[{ hat:B('event.flag'), body:[
+      B('data.set',{ v:SCORE.you,   n:0 }),
+      B('data.set',{ v:SCORE.rival, n:0 }),
+      centre(), serve(40,140),
+      B('ctrl.forever',{},[
+        B('motion.move',{ n:SPEED }),
+        IF(B('sense.touch',{ o:YOU }),   [ bat(YOU,    90,  1) ]),
+        IF(B('sense.touch',{ o:RIVAL }), [ bat(RIVAL, 270, -1) ]),
+        IF(B('op.gt',{ a:pos('y'), b: COURT.y }),
+           [ B('motion.setTo',{ a:'y', n: COURT.y }), mirror() ]),
+        IF(B('op.lt',{ a:pos('y'), b:-COURT.y }),
+           [ B('motion.setTo',{ a:'y', n:-COURT.y }), mirror() ]),
+        IF(B('op.gt',{ a:pos('x'), b: COURT.x+1 }),
+           [ B('data.change',{ v:SCORE.you,   n:1 }), centre(), serve(220,320) ]),
+        IF(B('op.lt',{ a:pos('x'), b:-COURT.x-1 }),
+           [ B('data.change',{ v:SCORE.rival, n:1 }), centre(), serve(40,140) ]),
+        IF(B('op.gt',{ a:B('data.get',{ v:SCORE.you }),   b:WIN-1 }),
+           [ B('looks.say',{ s:'YOU WIN' }), B('ctrl.stop',{ w:'all' }) ]),
+        IF(B('op.gt',{ a:B('data.get',{ v:SCORE.rival }), b:WIN-1 }),
+           [ B('looks.say',{ s:'RIVAL WINS' }), B('ctrl.stop',{ w:'all' }) ])
+      ]) ]}];
+    return out;
+  }
+  /* Put there the way the bats and the ball themselves are: on every
+     entry, the same, and thrown away when you leave. A student who breaks
+     it completely gets it back by walking out and walking back in. */
+  function given(){
+    const all=scripts();
+    Object.keys(all).forEach(n=>{
+      const a=actor(n);
+      if(a) a.scripts=JSON.parse(JSON.stringify(all[n]));
+    });
     if(window.VM){ VM.project.vars[SCORE.you]=0; VM.project.vars[SCORE.rival]=0; }
   }
   function legend(){
@@ -386,7 +491,6 @@ window.PONG = (function(){
     if(window.VM) VM.step(dt);
     stage();
     camera();
-    if(window.COACH) COACH.tick(dt);
     if(window.CODER) CODER.tick(dt);
     const coding=!!(window.CODER && CODER.open);
     const mine=$('#pong');
@@ -397,9 +501,7 @@ window.PONG = (function(){
   function stop(){
     if(!on) return;
     on=false;
-    if(window.COACH) COACH.stop();
     if(window.CODER){
-      CODER.walking(false);
       if(CODER.open) CODER.hide();
       CODER.restrict(null);
     }
@@ -417,75 +519,16 @@ window.PONG = (function(){
     if(window.MENU) MENU.homeworld();
   }
 
-  /* ==================================================== the walkthrough */
-  function ctx(){
-    return {
-      get ball(){ return actor(BALL); },
-      get you(){ return actor(YOU); },
-      get rival(){ return actor(RIVAL); },
-      get actor(){ return null; },        // no beacon: this room is flat
-      /* read out of the student's own variables, so a step that asks
-         about the score is asking about the blocks they wrote */
-      get score(){ return { you:scoreOf('you'), rival:scoreOf('rival') }; },
-      host: ()=> (window.CODER && CODER.open) ? CODER.coachHost() : null,
-      finish: T('That is a whole game, and every part of it is yours to change.'),
-      onStep: onStep
-    };
-  }
-  let seenCats=[], ranOnce=false;
-  function walk(){
-    if(!window.COACH || !window.PONGSTEPS) return;
-    seenCats=[]; ranOnce=false;
-    COACH.stop();
-    COACH.start(PONGSTEPS.steps(), ctx());
-  }
-  /* Run opens the whole shelf, exactly as it does in the ring: showing
-     one block at a time is how somebody is shown where a block is, not
-     how they are kept there. */
-  function openShelf(){
-    if(ranOnce) return;
-    ranOnce=true;
-    /* THE WHOLE SHELF, BUT KEEP THE NUMBERS. `narrow(null)` means no
-       restriction — and it also throws away the starting values the
-       steps hand their blocks, which in this room is half the lesson:
-       `move` arriving set to 10 is a ball that crosses the court in
-       nineteen frames, and `change y by` arriving on x is a paddle that
-       walks into the wall. A spec with no cats and no ops restricts
-       nothing and carries them. */
-    if(window.CODER)
-      CODER.narrow({ defaults:(window.PONGSTEPS||{}).SET });
-  }
-  function onStep(s){
-    if(!window.CODER) return;
-    CODER.walking(!!s);
-    if(!s){
-      seenCats=[];
-      if(!ranOnce) CODER.narrow(PALETTE);
-      return;
-    }
-    /* see the comment on run() in pongsteps.js */
-    if(s.stopFirst && window.VM && VM.running) VM.stopAll();
-    if(s.pal && !ranOnce){
-      (s.pal.cats||[]).forEach(c=>{ if(seenCats.indexOf(c)<0) seenCats.push(c); });
-      CODER.narrow({ cats:seenCats.slice(), ops:s.pal.ops||[] });
-    }
-    if(s.tab) CODER.openCat(s.tab);
-  }
-  let seenRun=-1;
-  function watchRun(){
-    if(!window.VM) return;
-    if(VM.running && seenRun!==VM.runId){
-      seenRun=VM.runId;
-      openShelf();
-      /* PRESSING RUN AFTER A FINISHED GAME STARTS A NEW ONE. Run is
-         already the button that means "go", and a second button that
-         only appears once in a while is a button nobody finds. */
-      /* A NEW GAME IS THE STUDENT'S TO START, in the blocks that set the
-         score back to nought. Run no longer secretly resets anything. */
-    }
-  }
+  /* ============================================= no walkthrough, on purpose
+     There was one, thirty-nine steps long, and it built the ball and the
+     opponent a click at a time. It is gone, because the thing this room
+     is for is not learning to assemble Pong — it is seeing what a working
+     game is made of. A walkthrough puts a card over that and tells you
+     which block to press next.
 
-  return { start, stop, tick:(dt)=>{ tick(dt); watchRun(); }, leave,
+     So the game is finished when you arrive, and the only two things to
+     do are the two that matter: play it, and open it. */
+  return { start, stop, tick, leave, scripts,
            PALETTE, BALL, YOU, RIVAL, COURT, SCORE,
            get active(){ return on; },
            /* read out of the student's own variables, the same as the
