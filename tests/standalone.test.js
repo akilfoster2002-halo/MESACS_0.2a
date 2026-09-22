@@ -130,6 +130,21 @@ test('both pages are versioned together', ()=>{
     'bump.js no longer knows about both pages');
 });
 
+test('the site serves Pong at its root', ()=>{
+  /* NOT A `rewrite`. Vercel matches static files BEFORE rewrites, and
+     public/index.html is a static file at `/` — so a rewrite for `/` never
+     fired and the root kept serving the whole of KORO. `routes` are
+     evaluated ahead of the filesystem, which is the only way to put a
+     different page in front of one that already exists at that path. */
+  const v=JSON.parse(read('vercel.json'));
+  assert.ok(Array.isArray(v.routes), 'vercel.json has no routes');
+  assert.deepStrictEqual(v.routes[0], { src:'/', dest:'/pong.html' },
+    'the root no longer serves the standalone Pong page');
+  assert.ok(!v.rewrites,
+    'a rewrite for / cannot win against public/index.html, and routes may not '+
+    'be combined with rewrites');
+});
+
 test('it needs no server, no database and no sign-in', ()=>{
   assert.ok(!/api\//.test(PAGE), 'the standalone page calls an API');
   /* the tutor is sign-in gated, so an Ask button here would only ever 401 */
