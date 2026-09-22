@@ -801,10 +801,17 @@ app.post('/api/tutor', async (req,res)=>{
 
    Everything above this line is identical in both. */
 const PORT = process.env.PORT || 3000;
-if(require.main === module){
-  db.init()
+/* TAKING THE PORT IS A THING YOU ASK FOR, not a side effect of requiring
+   this file. `npm start` asks by being the main module. The local harness
+   under tools/ asks by calling start(), because it REQUIRES this file
+   rather than running it — a listen that only happened for the main module
+   left it loading the whole server and then exiting, silently, with code
+   0. A serverless host asks for neither and just takes the app. */
+function start(){
+  return db.init()
     .catch(e=>console.error('DB init failed — running without accounts:', e.message))
     .finally(()=>server.listen(PORT,()=>
       console.log('Mission: Linux on '+PORT+' (database '+(db.ready?'connected':'OFFLINE')+')')));
 }
-module.exports = { app, server, wss };
+if(require.main === module) start();
+module.exports = { app, server, wss, start };

@@ -21,7 +21,7 @@ test('the shelf is picked up from, not only clicked', ()=>{
   assert.match(wire, /paletteEl\.querySelectorAll\('\[data-add\]'\)\.forEach\(node=>\{\s*node\.onpointerdown=/,
     'shelf buttons have no pointerdown — they can only be clicked');
   assert.match(wire, /shelf:\{ type:node\.dataset\.add, n:/, 'a shelf drag does not carry what to make');
-  assert.match(read('public/index.html'), /#conPalette \.palblk\{cursor:grab;touch-action:none\}/,
+  assert.match(read('public/index.html') + read('public/app.css'), /#conPalette \.palblk\{cursor:grab;touch-action:none\}/,
     'a touch on a shelf button scrolls instead of dragging');
 });
 

@@ -88,19 +88,27 @@ window.CODER = (function(){
     if(document.pointerLockElement) document.exitPointerLock();
     $('#coder').classList.remove('hidden');
     // the sandbox HUD is noise while coding, and the key list is for the game
-    $('#objectives').classList.add('hidden');
-    $('#keys').classList.add('hidden');
-    $('#chat').classList.add('hidden');
-    $('#topbar').classList.add('hidden');
+    HUD.forEach(s=>put(s, true));
     current(); render();
   }
+  /* THE HUD THIS EDITOR TIDIES AWAY BELONGS TO THE GAME AROUND IT, and
+     there is not always a game around it. The standalone Pong page is the
+     editor, a canvas and nothing else — no objectives panel, no key list,
+     no chat, no top bar — and reaching for one of those blew up halfway
+     through show(), so the editor opened and then rendered nothing: open,
+     empty, and silent about why.
+
+     Everything else in this file already asks `window.X &&` before
+     touching another module. This is the same courtesy for the DOM. */
+  const HUD = ['#objectives', '#keys', '#chat', '#topbar'];
+  const put = (sel, away) => { const e=$(sel); if(e) e.classList.toggle('hidden', away); };
   function hide(){
     open=false; selected=null; slotTarget=null;
     $('#coder').classList.add('hidden'); explainClose(); closePicker();
-    $('#objectives').classList.remove('hidden');
-    $('#keys').classList.remove('hidden');
-    $('#topbar').classList.remove('hidden');
-    if(window.CHAT && CHAT.open) $('#chat').classList.remove('hidden');
+    put('#objectives', false);
+    put('#keys', false);
+    put('#topbar', false);
+    if(window.CHAT && CHAT.open) put('#chat', false);
   }
   function toggle(){ open?hide():show(); }
 

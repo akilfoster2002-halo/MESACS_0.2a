@@ -70,7 +70,7 @@ test('the walkthrough points at selectors the console renders', ()=>{
 });
 
 test('the highlight does not move what it highlights', ()=>{
-  const css = read('public/index.html');
+  const css = read('public/index.html') + read('public/app.css');
   const rule = css.match(/\.coach-target\{([^}]*)\}/);
   assert.ok(rule, 'index.html still styles .coach-target');
   assert.ok(!/position\s*:/.test(rule[1]),

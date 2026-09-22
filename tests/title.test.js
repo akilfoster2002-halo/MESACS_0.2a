@@ -167,7 +167,7 @@ test('the fonts are served from the folder, never from a CDN', ()=>{
 });
 
 test('the three roles are bound to the three faces', ()=>{
-  const html=read('public/index.html');
+  const html=read('public/index.html') + read('public/app.css');
   for(const [family, varname] of Object.entries(FACES)){
     assert.ok(new RegExp(`@font-face\\{font-family:'${family}'`).test(html),
       `no @font-face declares ${family}`);

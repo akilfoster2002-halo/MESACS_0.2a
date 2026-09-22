@@ -716,7 +716,7 @@ test('the bubble is for verdicts: no stage brief, hidden at the start, hidden un
   const src=read('public/invaders.js');
   assert.ok(!/say\(t\(K\.brief\)\)/.test(src), 'a stage still says its brief into the bubble');
   assert.match(src, /bub\.innerHTML=''; bub\.classList\.add\('hidden'\)/, 'a stage does not open with the bubble put away');
-  const css=read('public/index.html');
+  const css=read('public/index.html') + read('public/app.css');
   assert.match(css, /body\.con-open #briefing\{display:none\}/, 'the bubble still shows under the open console');
   assert.match(css, /#briefing:empty\{display:none\}/, 'an empty bubble still draws');
   const code=read('public/code.js');
@@ -728,7 +728,7 @@ test('the briefing bubble sits clear of the code console button', ()=>{
   /* Both are bottom-centre. The bubble is two lines of 19px text in 12px
      of padding and a 3px border — about 80px — and the button is about
      50px tall, so the bubble\'s bottom must clear the button\'s top. */
-  const css=read('public/index.html');
+  const css=read('public/index.html') + read('public/app.css');
   const px=(sel)=>{ const m=css.match(new RegExp(sel.replace('.','\\.')+'\\{[^}]*?bottom:(\\d+)px')); assert.ok(m, 'no bottom for '+sel); return +m[1]; };
   const brief=px('#briefing'), btn=px('.codebtn'), health=px('#health');
   assert.ok(brief >= btn+56, `the briefing (bottom ${brief}px) sits on the code button (bottom ${btn}px, ~50px tall)`);

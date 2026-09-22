@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- =====================================================================
+     PONG — the whole game, and every rule of it openable.
+
+     This is the Pong room out of KORO, on a page of its own. No planet, no
+     title screen, no account, no database, no server: it is a canvas, a
+     block editor and three objects, and it is playing the moment it loads.
+
+     WHY IT IS ITS OWN PAGE. Inside KORO, Pong is at the end of a walk —
+     start, land on the planet, find Mission Control, pick the station. For
+     a lesson that is only ever about Pong, all of that is in the way. Here
+     the URL is the game.
+
+     IT SHARES ITS PARTS WITH THE GAME. Same stylesheet, same blocks, same
+     VM, same editor, same pong.js. The only thing written for this page is
+     pongboot.js, which stands in for game.js: a renderer, a camera, the
+     keyboard and a frame loop. There is no second copy of the game to keep
+     in step with the first.
+     ===================================================================== -->
+<title>PONG — built out of blocks</title>
+<meta name="description" content="A whole game of Pong, and every rule of it is a block you can open and change.">
+<link rel="stylesheet" href="app.css?v=556">
+<style>
+/* =====================================================================
+   THE TYPEFACES — three monospaces, bundled, doing three different jobs.
+
+   This game is about writing code, so it is lettered in code type. But one
+   monospace everywhere is a wall: every glyph the same width AND the same
+   shape, with nothing to tell a heading from a hint from a program. So
+   there are three, and they are genuinely different faces rather than one
+   face at three weights:
+
+     SPACE MONO      the logo and the headings. Geometric, a bit retro, odd
+                     enough in the R and the G to be a title.
+     UBUNTU MONO     everything you read as words — buttons, briefings,
+                     labels, the HUD. Humanist and round, which is what
+                     makes it the legible one at nine years old.
+     JETBRAINS MONO  programs, and only programs. Tall x-height, a slashed
+                     zero and an l you cannot mistake for a 1 — drawn for
+                     exactly the job the console does.
+
+   THEY ARE VENDORED, NOT LINKED. The whole premise of this repo is a folder
+   you can open with no install and no network, and a <link> to a font CDN
+   would quietly break that on the first lab machine with the internet off.
+   These are five files, 84KB the lot, served from public/fonts. Ubuntu Mono
+   is under the Ubuntu Font Licence; Space Mono and JetBrains Mono are under
+   the SIL Open Font Licence. All three permit redistribution.
+
+   font-display:swap, so a slow disk shows the fallback stack and then
+   swaps — never a screen of nothing.
+   ===================================================================== */
+@font-face{font-family:'Space Mono';src:url('fonts/spacemono-700.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-400.woff2') format('woff2');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-700.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Ubuntu Mono';src:url('fonts/ubuntumono-400i.woff2') format('woff2');
+  font-weight:400;font-style:italic;font-display:swap}
+/* one variable file covers the whole weight range */
+@font-face{font-family:'JetBrains Mono';src:url('fonts/jetbrainsmono-var.woff2') format('woff2');
+  font-weight:400 700;font-style:normal;font-display:swap}
+</style>
+<style>
+/* The standalone page has no HUD to sit inside, so the canvas is the page
+   and the editor floats over it. In the game these are positioned by the
+   room around them. */
+html,body{margin:0;height:100%;overflow:hidden;background:#0d0a18}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block}
+#coder{position:fixed;inset:0;z-index:60;pointer-events:none}
+.pong-sorry{position:fixed;inset:0;display:grid;place-content:center;gap:10px;
+  text-align:center;font-family:var(--font,system-ui);color:var(--text,#e9e4ff);
+  background:#0d0a18;padding:24px;z-index:99}
+.pong-sorry b{font-family:var(--font-disp,inherit);font-size:20px;letter-spacing:2px}
+.pong-sorry small{color:var(--muted,#9a91b8);font-size:13px;max-width:34ch}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<!-- PONG: the court is the 3D scene behind it. Built by pong.js -->
+<div id="pong" class="hidden">
+  <div id="pongScore" class="hidden"></div>
+  <div id="pongAxes" class="hidden"></div>
+  <button id="pongOpen" class="hidden">▦ BLOCKS <small>C</small></button>
+</div>
+
+<div id="coder" class="hidden">
+  <div id="cBar"></div>
+  <div id="cObj"></div>
+  <div id="cCoach" class="hidden"></div>
+  <div id="tutor" class="hidden"></div>
+  <div id="cPal"></div>
+  <div id="cScript"></div>
+</div>
+
+<script src="lib/three.classic.js?v=556"></script>
+<script src="strings.js?v=556"></script>
+<script src="blocks.js?v=556"></script>
+<script src="vm.js?v=556"></script>
+<script src="coder.js?v=556"></script>
+<script src="pong.js?v=556"></script>
+<script src="pongboot.js?v=556"></script>
+</body>
+</html>

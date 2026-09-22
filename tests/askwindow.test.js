@@ -37,7 +37,12 @@ const bare = s => s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 const ASK  = bare(read('public/ask.js'));
 const HTML = read('public/index.html');
 /* the stylesheet, with its comments gone for the same reason */
-const CSS  = HTML.replace(/\/\*[\s\S]*?\*\//g,'');
+/* THE STYLESHEET LIVES IN app.css NOW, not inside the page. It was 146KB
+   of <style> in a 168KB document, and there are two documents since the
+   standalone Pong page — one linked file cannot drift, a copied one
+   would. index.html keeps a small critical block, so the styling of the
+   game is both files together. */
+const CSS  = (read('public/index.html') + read('public/app.css')).replace(/\/\*[\s\S]*?\*\//g,'');
 
 test('the title bar is the handle', ()=>{
   assert.match(ASK, /function grab\(handle\)/, 'something makes a handle draggable');

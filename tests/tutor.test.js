@@ -537,7 +537,7 @@ test('nothing in the editor guesses how tall the bar is', ()=>{
      underneath it each hard-coded a guess at that, and adding one button
      made the bar taller than every guess — the walkthrough card slid up
      underneath it and had its first line clipped. */
-  const css=read('public/index.html');
+  const css=read('public/index.html') + read('public/app.css');
   /* Sliced rather than matched: a CSS rule spans lines, and building the
      regex for one through two layers of escaping is how the last version
      of this test came to be hunting for a backslash. */
@@ -606,7 +606,7 @@ test('the page asks whether there is a tutor once, not on every redraw', ()=>{
    dispatchEvent, which bypass hit-testing entirely, so all of them
    passed against a panel no mouse could touch. */
 test('every panel in the editor can actually be clicked', ()=>{
-  const css=read('public/index.html');
+  const css=read('public/index.html') + read('public/app.css');
   const rule=name=>{
     const at=css.indexOf('\n'+name+'{');
     assert.ok(at>=0, 'no rule for '+name);

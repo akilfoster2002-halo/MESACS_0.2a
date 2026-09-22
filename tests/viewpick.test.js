@@ -30,7 +30,12 @@ const read = f => fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 const bare = s => s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 const RING = bare(read('public/ring.js'));
 const HTML = read('public/index.html');
-const CSS  = HTML.replace(/\/\*[\s\S]*?\*\//g,'');
+/* THE STYLESHEET LIVES IN app.css NOW, not inside the page. It was 146KB
+   of <style> in a 168KB document, and there are two documents since the
+   standalone Pong page — one linked file cannot drift, a copied one
+   would. index.html keeps a small critical block, so the styling of the
+   game is both files together. */
+const CSS  = (read('public/index.html') + read('public/app.css')).replace(/\/\*[\s\S]*?\*\//g,'');
 
 const fn = name => {
   const m = new RegExp('function '+name+'\\([^)]*\\)\\{[\\s\\S]*?\\n  \\}').exec(RING);

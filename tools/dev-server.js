@@ -219,4 +219,8 @@ console.log('dev-server: accounts and rooms are IN MEMORY and vanish on exit');
 console.log(SIGNED_IN
   ? 'dev-server: signed in as "'+DEV.display+'" — dev only, never ships (DEV_SIGNED_IN=0 to turn off)'
   : 'dev-server: signed OUT — sign-in behaves as it does in production');
-require(path.join(__dirname, '..', 'server', 'index.js'));
+/* START IT. server/index.js only listens when it is the main module or
+   when it is asked, and here it is neither: this file is the main module
+   and that one is a require. Without the call it loads, wires everything
+   up, and exits with code 0. */
+require(path.join(__dirname, '..', 'server', 'index.js')).start();
