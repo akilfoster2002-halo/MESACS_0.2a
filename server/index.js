@@ -707,8 +707,15 @@ wss.on('connection', async (ws, req)=>{
    browser now, so there is nothing on this machine to step. It comes
    back with the fight. */
 
-/* 12 times a second, tell everyone in a room where everyone else is */
-setInterval(()=>{
+/* 12 times a second, tell everyone in a room where everyone else is.
+
+   ONLY WHEN THIS PROCESS IS A SERVER. Required as a module — which is
+   what a serverless host does, once per cold start, to get the Express
+   app out of it — there is nobody in any room and never will be, because
+   no socket can reach a function that only exists for the length of one
+   request. A timer firing twelve times a second over an empty map for the
+   life of every container is pure waste. */
+if(require.main === module) setInterval(()=>{
   const rooms=new Set(); for(const [,p] of live) if(p.server) rooms.add(p.server);
   for(const r of rooms) broadcastRoom(r,{ t:'players', players:roster(r) });
 }, 80);
@@ -779,8 +786,25 @@ app.post('/api/tutor', async (req,res)=>{
   res.end();
 });
 
+/* ===================================================== how it is started
+   TWO WAYS IN, and only one of them owns a port.
+
+   `npm start` runs this file, and it does what it has always done: set the
+   schema up, then listen, with the WebSocket server riding on the same
+   HTTP server so the rooms, the chat and the Mech League work.
+
+   A SERVERLESS HOST REQUIRES IT INSTEAD, to get the Express app and call
+   it once per request. There is no port to take and no process to keep,
+   so it must not listen — and the sockets cannot work there whatever we
+   do, because a function that exists for the length of one request has
+   nowhere to hold a connection open. See api/index.js.
+
+   Everything above this line is identical in both. */
 const PORT = process.env.PORT || 3000;
-db.init()
-  .catch(e=>console.error('DB init failed — running without accounts:', e.message))
-  .finally(()=>server.listen(PORT,()=>
-    console.log('Mission: Linux on '+PORT+' (database '+(db.ready?'connected':'OFFLINE')+')')));
+if(require.main === module){
+  db.init()
+    .catch(e=>console.error('DB init failed — running without accounts:', e.message))
+    .finally(()=>server.listen(PORT,()=>
+      console.log('Mission: Linux on '+PORT+' (database '+(db.ready?'connected':'OFFLINE')+')')));
+}
+module.exports = { app, server, wss };
