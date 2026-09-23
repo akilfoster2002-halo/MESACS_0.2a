@@ -54,8 +54,11 @@ window.PLANET = (function(){
      Placed in degrees, because "72 degrees round and 6 down" is something
      you can reason about and a raw vector is not. */
   const HUB_BUILDINGS=[
+    /* A TEMPLE NOW, built in Blender (see temple.js): `temple` hands the
+       whole building to it, and the castle below is only what stands here
+       if that file has not arrived. */
     { id:'missions', name:'MISSION CONTROL', em:'\u{1F680}', lon:0,   lat:7,  w:64, d:46, h:18, door:10,
-      wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each' },
+      wall:0x3a4f8c, roof:0x8fd3ff, blurb:'Every mission, one station each', temple:true },
     { id:'workshop', name:'THE WORKSHOP',    em:'\u{1F527}', lon:-19, lat:-6, w:24, d:20, h:11,
       wall:0x4a3f7a, roof:0xcdb4f6, blurb:'Build anything, with your class' },
     { id:'mall',     name:'THE MALL',        em:'\u{1F642}', lon:19,  lat:-6, w:72, d:48, h:15, door:10,
@@ -583,6 +586,7 @@ window.PLANET = (function(){
     mannequins=[]; flies=null; beasts=[]; sparkTex=null; basins=[];
     if(window.ISLANDS) ISLANDS.clear();
     if(window.MEADOW) MEADOW.clear();
+    if(window.TEMPLE) TEMPLE.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     /* RYU IS MISSION 8 AND THE OTHER BALLS ARE NOT. Three of this
        module's four worlds are places you live on; RYU is a mission with
@@ -1199,9 +1203,15 @@ window.PLANET = (function(){
       if(plateOff(b,l.x,l.z)>=apronOf(b)) continue;
       // altitude is measured along the radius, and the floor is not square to it
       const radial = y => (y+PR)/Math.max(0.5, dir.dot(b.dir)) - PR;
-      if(alt!==undefined && onRoofPlan(b,l.x,l.z)){
-        const top=radial(roofTopOf(b));
-        if(alt >= top-0.4) return top;
+      /* A ROOF THAT IS NOT A LID. A box's roof is one height over its whole
+         plan; the temple's is three tiers of curved tiles with a hole in the
+         middle, so it answers per point, and null means sky. */
+      if(alt!==undefined){
+        const rt = b.roofAt ? b.roofAt(l.x,l.z) : (onRoofPlan(b,l.x,l.z) ? roofTopOf(b) : null);
+        if(rt!==null){
+          const top=radial(rt);
+          if(alt >= top-0.4) return top;
+        }
       }
       /* ------------------------------------------------- FLOORS INSIDE
          A BUILDING USED TO BE ONE STOREY AND A LID. Everything on this
@@ -1882,6 +1892,16 @@ window.PLANET = (function(){
       b.solids.push({x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2, y1:base, y2:base+hh});
     };
     const flr=plate(b); flr.userData.lid=true; g.add(flr);
+
+    /* THE TEMPLE BRINGS ITS OWN WALLS. Everything from here down builds a
+       box — walls, lid, sign, dressing — and Mission Control is not a box
+       any more: its walls, its stations and its roofs come from the model
+       and the layout written beside it. The plate stays: it is the floor
+       the physics stands you on. */
+    if(b.temple && window.TEMPLE && window.TEMPLE_LAYOUT){
+      TEMPLE.build(b, g, { panel, statue, STATIONS, t, signTexture });
+      return;
+    }
 
     put(0,-hd, b.w, 1);
     put(-hw,0, 1, b.d);
@@ -5486,6 +5506,7 @@ window.PLANET = (function(){
     const sd=(G.keys.KeyD?1:0)-(G.keys.KeyA?1:0);
     const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !swimming;
     const spd=swimming ? 3.4 : (running?11:6.5)*(ride?RIDE_SPEED:1);
+    if(window.AVATAR && AVATAR.gait) AVATAR.gait(sd, f);   // so a side-step looks like one
 
     let moved=false;
     if(f||sd){
@@ -6250,6 +6271,7 @@ window.PLANET = (function(){
     flyTick(dt); beastTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
     if(window.MEADOW) MEADOW.tick(dt, me);    // the grass round your feet
+    if(window.TEMPLE) TEMPLE.tick(dt);        // petals, doves, the water
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){

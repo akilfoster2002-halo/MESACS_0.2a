@@ -382,3 +382,21 @@ test('the meadow is wired into the planet it grows on', ()=>{
   assert.match(read('public/index.html'), /src="meadow\.js/, 'meadow.js is not loaded');
   assert.ok(require('fs').existsSync('public/ground/grass_clump.png'), 'the clump picture is missing');
 });
+
+test('mission control is the temple, and the temple is wired in', ()=>{
+  /* Mission Control is a Blender model now. Its walls and roofs come from
+     layout.js — written by the same build as the model — so a hall you can
+     walk through the walls of is a missing script tag, not a missing file. */
+  const src=read('public/planet.js');
+  assert.match(src, /id:'missions'[^\n]*\n[^\n]*temple:true/, 'mission control is not flagged as the temple');
+  assert.match(src, /TEMPLE\.build\(b, g, \{ panel, statue, STATIONS, t, signTexture \}\)/, 'nothing builds the temple');
+  assert.match(src, /TEMPLE\.tick\(dt\)/, 'the pool and the petals never move');
+  assert.match(src, /TEMPLE\.clear\(\)/, 'the temple is never torn down');
+  assert.match(src, /b\.roofAt \? b\.roofAt\(l\.x,l\.z\)/, 'you cannot land on its roofs');
+  const html=read('public/index.html');
+  assert.ok(html.indexOf('src="temple/layout.js')>0 && html.indexOf('src="temple/layout.js') < html.indexOf('src="temple.js'),
+    'layout.js has to load before temple.js');
+  const fs=require('fs');
+  assert.ok(fs.existsSync('public/temple/layout.js'), 'the layout was never built');
+  assert.ok(fs.existsSync('public/temple/temple.glb'), 'the model was never built');
+});
