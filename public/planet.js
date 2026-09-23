@@ -582,6 +582,7 @@ window.PLANET = (function(){
     statues=[]; ada=null; bays=[]; purseFace=null; padShip=null; padB=null;
     mannequins=[]; flies=null; beasts=[]; sparkTex=null; basins=[];
     if(window.ISLANDS) ISLANDS.clear();
+    if(window.MEADOW) MEADOW.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     /* RYU IS MISSION 8 AND THE OTHER BALLS ARE NOT. Three of this
        module's four worlds are places you live on; RYU is a mission with
@@ -649,6 +650,8 @@ window.PLANET = (function(){
        is handed over rather than reached for — this file owns the world, and
        sky.js should not be keeping a second copy of its radius. */
     if(window.ISLANDS) ISLANDS.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH, basinRim });
+    /* and grass you can walk through, round your feet, on a world that has any */
+    if(window.MEADOW) MEADOW.build({ id:W.id, biome:W.biome, group:G.roomGroup, PR, frameAt, terrainH, lushAt });
     G.scene.updateMatrixWorld(true);
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
@@ -803,11 +806,14 @@ window.PLANET = (function(){
      paper, because a lit face here is a colour multiplied by rather more
      than one and a palette picked to read well flat comes out bleached the
      moment the sun is on it. */
-  function soilAt(dir, h){
+  function soilT(dir, h){
     const wet=fbm(dir, 2.7, 2);                    // patches, larger than the hills
     const grit=fbm(dir, 21, 2);                    // and a fine speckle over them
-    let t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;      // 0 = lush, 5 = stone
-    t = Math.max(0, Math.min(SOIL.length-1.001, t));
+    const t = 1.1 + wet*3.0 + h*1.5 + grit*0.9;    // 0 = lush, 5 = stone
+    return { t:Math.max(0, Math.min(SOIL.length-1.001, t)), grit };
+  }
+  function soilAt(dir, h){
+    const { t, grit }=soilT(dir, h);
     const i=Math.floor(t), f=t-i;
     const a=SOIL[i].c, b=SOIL[i+1].c;
     // a little extra speckle so no two neighbouring faces are exactly equal
@@ -1073,6 +1079,18 @@ window.PLANET = (function(){
   }
   const nearBasin = (dir, k) =>
     basins.some(b => Math.acos(Math.min(1, dir.dot(b.dir)))*PR < b.r*(k||1));
+  /* HOW MUCH STANDING GRASS A SPOT HAS, for meadow.js: the two lush soil
+     bands are full of it, it thins out through the dry one, and there is
+     none on bare earth or stone — nor on a building's plate or its apron,
+     nor in a pool. And the soil colour there, so a clump matches the field
+     it is standing in. */
+  const lushAt = dir => {
+    const k=padK(dir);
+    if(k<0.25 || nearBasin(dir, 1.15)) return null;
+    const h=terrainH(dir)/RELIEF, { t }=soilT(dir, h);
+    const amount=(t<2.2 ? 1 : Math.max(0, 3.2-t)) * Math.min(1, (k-0.25)/0.5);
+    return amount>0.02 ? { amount, c:soilAt(dir, h) } : null;
+  };
   const terrainH = dir => {
     const k=padK(dir);
     const h = k<=0 ? 0 : rawHeight(dir)*k;
@@ -1368,6 +1386,10 @@ window.PLANET = (function(){
      railway you have to walk through. Grass is the GRAIN in the ground
      texture — a repeating detail finer than anything worth modelling — and
      it always was. Standing objects on top of it only argued with it.
+
+     (What stands up out of it now is meadow.js, and it is not a shape: it
+     is a photograph of a clump on two crossed panels, only round your feet,
+     pushed over as you walk through it. That is grass; a cone never was.)
 
      What is left is deliberately thin. A field reads as a field because of
      what it is made of, not because of how much is standing up in it, and
@@ -6227,6 +6249,7 @@ window.PLANET = (function(){
     }
     flyTick(dt); beastTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
+    if(window.MEADOW) MEADOW.tick(dt, me);    // the grass round your feet
     adaTick(dt);
     const k=1-Math.pow(0.0008, Math.min(dt,0.1));
     for(const [,o] of others){

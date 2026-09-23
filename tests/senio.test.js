@@ -371,3 +371,14 @@ test('the worlds you explore still remember where you were', ()=>{
      always drops you on Senio */
   assert.match(src, /PROGRESS\.set\('world', W\.id\)/, 'the world you were on is not saved');
 });
+
+test('the meadow is wired into the planet it grows on', ()=>{
+  /* Grass you walk through is a disc round your feet, re-laid as you move —
+     so if nothing ticks it, it is a patch where you landed and nowhere else. */
+  const src=read('public/planet.js');
+  assert.match(src, /MEADOW\.build\(\{[^}]*lushAt/, 'nothing plants the meadow');
+  assert.match(src, /MEADOW\.tick\(dt, me\)/, 'the meadow never follows you');
+  assert.match(src, /MEADOW\.clear\(\)/, 'the meadow is never torn down');
+  assert.match(read('public/index.html'), /src="meadow\.js/, 'meadow.js is not loaded');
+  assert.ok(require('fs').existsSync('public/ground/grass_clump.png'), 'the clump picture is missing');
+});
