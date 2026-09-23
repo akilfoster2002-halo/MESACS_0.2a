@@ -388,14 +388,20 @@ window.ISLANDS = (function(){
   }
 
   /* ------------------------------------------------------ a modelled isle
-     Scaled so its widest reach is the island's radius, and lowered so the
-     middle of its meadow sits at k.alt — the same place the lathe's rim
+     Every triangle of the Blender scene, not a cut-down copy. Scaled so
+     its widest reach is the island's radius, and lowered so the middle of
+     its meadow sits at k.alt — the same place the lathe's rim
      would be. Until it arrives the island is simply not there: no rock to
      see, and no floor or wall to meet. */
   let loader=null;
   function loadModel(rec){
     const k=rec.k, myGroup=group;
-    loader = loader || new THREE.GLTFLoader();
+    if(!loader){
+      loader=new THREE.GLTFLoader();
+      /* the model is meshopt-packed: a quarter-million triangles is 20 MB
+         as it leaves Blender and under 10 once packed */
+      if(window.MeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder);
+    }
     loader.load(k.model+'?v='+(window.ASSETV||'1'), gl=>{
       if(group!==myGroup) return;             // the world was rebuilt meanwhile
       const root=gl.scene;
@@ -403,9 +409,14 @@ window.ISLANDS = (function(){
       root.traverse(o=>{
         if(o.userData && o.userData.field) field=JSON.parse(o.userData.field);
         if(!o.isMesh) return;
-        const thin=/leaves|grass/.test(o.name);
-        o.material=new THREE.MeshLambertMaterial({ vertexColors:true,
-          side: thin ? THREE.DoubleSide : THREE.FrontSide });
+        /* Rock and wood arrive with their Blender materials baked into a
+           colour map and a normal map; leaves and grass carry theirs in the
+           vertices. Lambert either way, so it is lit like the rest of Senio. */
+        const src=o.material, thin=/leaves|grass/.test(o.name);
+        o.material = src.map
+          ? new THREE.MeshLambertMaterial({ map:src.map, normalMap:src.normalMap||null })
+          : new THREE.MeshLambertMaterial({ vertexColors:true,
+              side: thin ? THREE.DoubleSide : THREE.FrontSide });
         o.userData.flat=true;
       });
       if(!field) return;
