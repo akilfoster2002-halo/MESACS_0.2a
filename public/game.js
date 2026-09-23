@@ -1195,6 +1195,7 @@ function step(dt){
     G.camera.rotation.order='YXZ';
     G.camera.rotation.y=G.yaw; G.camera.rotation.x=G.pitch;
   } else thirdPerson();
+  AVATAR.gait(str, fwd);                     // which way the keys push, for the eight-way walk
   AVATAR.update(dt, !!(dx||dz), !!(G.keys.ShiftLeft||G.keys.ShiftRight), G.onGround);
 
   if(G.room==='plaza'){

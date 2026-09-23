@@ -314,7 +314,80 @@ window.AVATAR = (function(){
     }
     const mixer=new THREE.AnimationMixer(root);
     let cur=null, curName=null;
+
+    /* EIGHT DIRECTIONS FROM FOUR CLIPS A GAIT. The keys move you forward,
+       back and sideways, and a body that only knows how to walk forward
+       used to do all four in its forward walk — striding ahead while it
+       slid off to the left. So a character that carries the side-steps and
+       the back-steps plays the four of them AT ONCE, each weighted by how
+       much of the move goes its way: straight left is all strafe-left,
+       forward-and-left is half of each, and the blend follows the keys.
+
+       IN STEP. The four clips are different lengths, and four walks each at
+       their own speed blended together is a body tripping over itself. So
+       none of them keeps its own time: one phase runs round the cycle at the
+       blend's average length, and every clip is posed at that same fraction
+       of its own — left foot down in all of them together.
+
+       A character without the extra clips walks exactly as it always did. */
+    const LOCO={ walk:['walk','walk_back','walk_left','walk_right'],
+                 sprint:['sprint','sprint_back','sprint_left','sprint_right'] };
+    const byName=n=>clips.find(c=>c.name===n);
+    const hasLoco=LOCO.walk.every(byName);
+    const loco={ on:false, act:{}, w:{}, phase:0, run:0 };
+    function locoActs(){
+      if(Object.keys(loco.act).length) return;
+      [...LOCO.walk, ...LOCO.sprint].forEach(n=>{
+        const c=byName(n); if(!c) return;
+        const a=mixer.clipAction(c); a.timeScale=0; a.setEffectiveWeight(0); a.play();
+        loco.act[n]=a; loco.w[n]=0;
+      });
+    }
+    /* weights toward their targets, and every clip posed at the one phase */
+    function locoStep(dt, target){
+      const k=1-Math.exp(-12*dt);
+      let sum=0, dur=0;
+      for(const n in loco.act){
+        loco.w[n]+=((target[n]||0)-loco.w[n])*k;
+        if(loco.w[n]<0.002) loco.w[n]=0;
+        sum+=loco.w[n]; dur+=loco.w[n]*loco.act[n].getClip().duration;
+      }
+      const D = sum>0 ? dur/sum : 1;
+      loco.phase=(loco.phase + dt/Math.max(0.2, D)) % 1;
+      for(const n in loco.act){
+        const a=loco.act[n];
+        a.time=loco.phase*a.getClip().duration;
+        a.setEffectiveWeight(loco.w[n]);
+      }
+      return sum;
+    }
     return {
+      /* x is right, z is forward, in the body's own frame; running picks the
+         gait. Returns false when this character has no side-steps to blend,
+         and the caller plays the plain walk as it always did. */
+      locomote(x, z, running, dt){
+        if(!hasLoco) return false;
+        locoActs();
+        if(!loco.on){
+          if(cur) cur.fadeOut(0.18);
+          cur=null; curName='__loco'; loco.on=true;
+        }
+        let len=Math.hypot(x,z);
+        if(len<1e-6){ x=0; z=1; len=1; }             // moved by something other than the keys
+        const fx=x/len, fz=z/len;
+        const d={ '':Math.max(0,fz), _back:Math.max(0,-fz), _right:Math.max(0,fx), _left:Math.max(0,-fx) };
+        const tot=d['']+d._back+d._right+d._left;
+        loco.run+=((running?1:0)-loco.run)*(1-Math.exp(-8*dt));
+        const target={};
+        for(const suf in d){
+          const w=d[suf]/tot;
+          const wn='walk'+suf, sn='sprint'+suf;
+          if(loco.act[sn]){ target[wn]=w*(1-loco.run); target[sn]=w*loco.run; }
+          else target[wn]=w;                          // no running side-step: walk it
+        }
+        locoStep(dt, target);
+        return true;
+      },
       play(name, fade){
         /* A POSTURE MAY NAME A CLIP THE MODEL HAS NOT GOT. These four
            characters carry six animations and none of them is a swim, so
@@ -326,6 +399,7 @@ window.AVATAR = (function(){
            without anything else changing. */
         name = ALIAS[name] && !clips.some(c=>c.name===name) ? ALIAS[name] : name;
         if(curName===name) return;
+        loco.on=false;                                  // the blend fades itself out in update()
         const clip=clips.find(c=>c.name===name);
         if(!clip) return;
         const next=mixer.clipAction(clip);
@@ -333,7 +407,12 @@ window.AVATAR = (function(){
         if(cur) cur.fadeOut(fade===undefined?0.18:fade);
         cur=next; curName=name;
       },
-      update(dt){ mixer.update(dt); },
+      /* what the eight-way walk is doing right now, clip by clip */
+      get blend(){ const o={}; for(const n in loco.w) if(loco.w[n]>0.01) o[n]=+loco.w[n].toFixed(2); return o; },
+      update(dt){
+        if(!loco.on && Object.keys(loco.act).length) locoStep(dt, {});
+        mixer.update(dt);
+      },
       /* An emote can only be offered by a character who actually has one,
          and it has to know how long to hold before handing control back. */
       has(name){ return clips.some(c=>c.name===name); },
@@ -358,6 +437,19 @@ window.AVATAR = (function(){
   }
 
   /* drive anything that came out of load() — the player, a guard, anyone */
+  /* WHICH WAY THE KEYS ARE PUSHING, in the body's own frame: x to the
+     right, z forward. Whoever moves the player — the planet, a flat room —
+     says so each frame, and the walk is chosen to match. */
+  let gx=0, gz=1;
+  function gait(x, z){ gx=x||0; gz=z||0; }
+  /* the player's own clip: the eight-way walk when there is one to blend */
+  function stride(dt, moving, running, onGround){
+    const name=clipFor(dt, moving, running, onGround);
+    const r=rigOf(model);
+    if((name==='walk' || name==='sprint') && r && r.locomote &&
+       r.locomote(gx, gz, name==='sprint', dt)){ r.update(dt||0); return; }
+    animate(model, dt, name);
+  }
   function animate(obj, dt, name){
     const r = obj && obj.userData && obj.userData.rig;
     if(!r) return;
@@ -619,7 +711,7 @@ window.AVATAR = (function(){
     body.position.copy(pos);
     body.visible=!G.firstPerson;
     remember();
-    animate(model, dt, clipFor(dt, moving, running, onGround));
+    stride(dt, moving, running, onGround);
   }
   /* JUST THE CLIP, for a room that poses the body itself.
 
@@ -659,7 +751,7 @@ window.AVATAR = (function(){
     body.rotation.set(0, G.yaw + Math.PI, 0);   // the model faces +z, the camera looks -z
     body.visible = !G.firstPerson;
     remember();
-    animate(model, dt, clipFor(dt, moving, running, onGround));
+    stride(dt, moving, running, onGround);
   }
 
   /* WHO THE ACCOUNT SAYS YOU ARE. pick() has always written the choice into
@@ -709,7 +801,7 @@ window.AVATAR = (function(){
     return (c && c.preview) || CHARS[0].preview;
   }
 
-  return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle,
+  return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle, gait,
            tickClip, myName, myFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
