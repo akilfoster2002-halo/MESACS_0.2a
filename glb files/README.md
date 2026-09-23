@@ -135,7 +135,17 @@ they agree at every keyframe to within 0.04°, and the version here carries none
 of the 180° sign flips the reference has between neighbouring keys.
 
 `animations/rigs/Swimming.fbx` is converted too (`rig/swim.glb`) and merged into
-nobody: there is nothing to swim in yet.
+every character — there is a plunge pool under the falls on Wano now:
+
+```bash
+for id in s t u v x; do
+  node merge-clips.js "../public/characters/models/character-$id.glb" /tmp/c.glb swim=rig/swim.glb inplace=swim
+  cp /tmp/c.glb "../public/characters/models/character-$id.glb"
+done
+```
+
+`avatar.js` still builds a front crawl out of `fly` for any model that arrives
+without one, but a real `swim` clip always wins.
 
 ## The E-45
 

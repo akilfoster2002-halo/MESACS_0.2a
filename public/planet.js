@@ -652,7 +652,7 @@ window.PLANET = (function(){
     /* Nothing walks about on VOLTA. It is a rock somebody put two buildings
        on, and the fauna the hub has is the hub's — a herd grazing outside a
        nightclub is a different game. */
-    wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 18);
+    wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 36);   // Wano's are pandas
     /* AND THE TWO ON THE RIDGE, on RYU only, and only for somebody who has
        the glasses. Five and a half megabytes of robot is not a thing to
        fetch for a player who has not met the Mechanic yet and cannot see
@@ -2198,7 +2198,12 @@ window.PLANET = (function(){
     const pandas = W.kind==='hub';
     for(let i=0;i<n;i++){
       const k=pandas ? PANDA : BEASTS[i%BEASTS.length];
-      const a=Math.random()*Math.PI*2, r=(60+Math.random()*300)/PR;
+      /* Half the pandas stay round the town, where you are — thirty-six
+         spread evenly over a whole planet is one every sixty metres, and the
+         ones you would meet are the ones on the far side. */
+      const near=pandas && i%2===0;
+      const a=Math.random()*Math.PI*2,
+            r=(near ? 30+Math.random()*110 : 60+Math.random()*300)/PR;
       const ax=fr.right.clone().multiplyScalar(Math.cos(a))
                .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
       const dir=town.clone().applyAxisAngle(ax, r).normalize();
@@ -5807,8 +5812,12 @@ window.PLANET = (function(){
       if(!swimming){ swimming=true; if(window.AVATAR) AVATAR.posture('swim'); }
       /* Eased rather than snapped: you sink a little on the way in and come
          back up, which is most of what entering water looks like. */
-      /* and ride the swell a little rather than sitting on a sheet of glass */
-      const bob=0.07*Math.sin(performance.now()*0.0021);
+      /* IN the water, not on it: a body lying flat in the swim clip is about
+         forty centimetres deep from its origin, so with the origin at the
+         surface the whole swimmer lay on top of the pool like a lilo. Sunk
+         that far, the back and the head are what is above the water. And it
+         rides the swell a little rather than sitting on a sheet of glass. */
+      const bob=-0.42 + 0.07*Math.sin(performance.now()*0.0021);
       me.alt += (surf+bob-me.alt)*Math.min(1, dt*3.2);
       me.vy=0; me.onGround=false;
     } else {
