@@ -1,0 +1,5 @@
+{ "Hips":"Hips", "Spine02":"Spine", "Spine01":"Spine1", "Spine":"Spine2", "neck":"Neck", "Head":"Head", "head_end":"HeadTop_End",
+  "LeftShoulder":"LeftShoulder", "LeftArm":"LeftArm", "LeftForeArm":"LeftForeArm", "LeftHand":"LeftHand",
+  "RightShoulder":"RightShoulder", "RightArm":"RightArm", "RightForeArm":"RightForeArm", "RightHand":"RightHand",
+  "LeftUpLeg":"LeftUpLeg", "LeftLeg":"LeftLeg", "LeftFoot":"LeftFoot", "LeftToeBase":"LeftToeBase",
+  "RightUpLeg":"RightUpLeg", "RightLeg":"RightLeg", "RightFoot":"RightFoot", "RightToeBase":"RightToeBase" }

@@ -29,6 +29,44 @@ here the keys decide where the body is, so a clip that also moved it would
 slide the character away from itself once per loop. `trim` cuts the long crouch
 off the front of the jump. Both are the settings Mia already ships with.
 
+## From Higgsfield instead of Mixamo
+
+A character generated with Higgsfield's image-to-3D (auto-rigged, textured)
+arrives with 24 bones that are *almost* Mixamo's and are not: different names,
+a spine chain that runs the other way (`Spine02` is the one on the hips), different
+rest rotations and an A-pose rest. `merge-clips.js` copies rotations by name and
+would twist every limb, so these go through `retarget.js`, which matches bones in
+world space against a real standing pose and renames them to `mixamorig:*` on the
+way out. The result is an ordinary character to everything downstream.
+
+```bash
+cd "glb files"
+node retarget.js raw.glb her-rt.glb higgsfield.map.json ref=rig/idle.glb \
+  idle=rig/idle.glb walk=rig/walk.glb sprint=rig/run.glb jump=rig/jump.glb \
+  dance=rig/dance.glb fly=rig/fly.glb talk=rig/talk.glb talk2=rig/talk2.glb \
+  inplace=walk,sprint,jump,dance,fly floor=idle,walk,sprint,jump,dance,talk,talk2 \
+  trim=jump:0.4166:1.2918
+# 2048 WebP texture and quantized mesh: ~11 MB -> ~3 MB
+npx @gltf-transform/cli resize her-rt.glb a.glb --width 2048 --height 2048
+npx @gltf-transform/cli webp a.glb b.glb --quality 88
+npx @gltf-transform/cli quantize b.glb her.glb
+```
+
+**`ref=`** is why it works. The clip files keep no real rest — every bone rests
+pointing straight up and the pose is in the animation — so the first frame of the
+idle stands in for one: the target's A-pose is turned to meet it (a short turn, so
+no twist is invented) and the hip height is measured off it.
+
+**`floor=`** poses each named clip on the target, finds the lowest foot over the
+whole clip and drops the hips onto the floor. The two talks came out of their
+files thirteen centimetres up without it. Leave `fly` out; it is meant to be airborne.
+
+**The material comes back wrong for this game.** Higgsfield ships the colour texture
+as an *emissive* map at full strength (she glows, unlit) and leaves metalness
+unset (which glTF reads as fully metallic — dark without an environment map).
+Strip the emissive and set metallic 0, roughness ~0.85. She is the one character
+that keeps a texture; the Mixamo ones are vertex-painted.
+
 ## The tools
 
 | | |
@@ -41,6 +79,7 @@ off the front of the jump. Both are the settings Mia already ships with.
 | `paint-rigged.js` | the older painter, height bands only. Kyle and Mia were painted with it |
 | `weld-rigged.js` | merge vertices without losing joints and weights |
 | `merge-clips.js` | Mixamo's one-clip-per-file into one glb, retargeted by bone name |
+| `retarget.js` | the same clips onto a skeleton that is NOT Mixamo — world-space, against a reference pose |
 | `preview.html` | a character sheet under the game's own lights |
 | `preview-anim.html` | every clip, sampled across its length |
 | `preview-png.html` | the 256×328 roster thumbnail, in the idle, on transparency |
