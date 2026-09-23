@@ -2302,7 +2302,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 /* ------------------------------------------------------------- the phone
    Where the chat box was: bottom left, over the key list. A phone-shaped
    thing, because it is one — rounded, a notch, a home bar, bubbles. */
-#phoneBtn{position:fixed;left:14px;bottom:108px;z-index:30;width:54px;height:54px;border-radius:16px;
+#phoneBtn{position:fixed;left:14px;bottom:18px;z-index:30;width:54px;height:54px;border-radius:16px;
   border:2px solid var(--line);background:rgba(29,23,48,.94);color:var(--text);font-size:26px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 #phoneBtn:hover{border-color:var(--accent)}
@@ -2370,3 +2370,17 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 #phoneToast small{color:var(--muted)}
 #phoneToast i{display:block;font-style:normal;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
 @keyframes phDrop{from{transform:translate(-50%,-20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+
+/* ---------------------------------------------------- a clear screen
+   The mission list, the keys and the top bar live on the pause card now
+   (game.js cleanHud / pauseTools). !important because a dozen rooms toggle
+   .hidden on these for their own reasons, and none of them should be able
+   to put them back over the game. The mission panel returns only where it
+   is a live scoreboard (body.hud-live). */
+#hud #keys, #hud #topbar{display:none !important}
+body:not(.hud-live) #hud #objectives{display:none !important}
+#briefing{transition:opacity .8s}
+#briefing.brief-faded{opacity:0;pointer-events:none}
+#pause .p-tools{display:flex;flex-wrap:wrap;gap:6px}
+#pause .p-tools kbd{font-size:10px;opacity:.7;margin-left:2px}

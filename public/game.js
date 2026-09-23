@@ -377,8 +377,37 @@ function updateCodeBtn(){
   btn.onclick=()=>{ CODE.show(); updateCodeBtn(); };
   const esc=$('#escHint');
   if(esc){ esc.classList.toggle('hidden',!(G.running||piloted));
-           esc.innerHTML=t('<kbd>Esc</kbd> frees the mouse · <kbd>P</kbd> pause &amp; hint'); }
+           esc.innerHTML=t('<kbd>P</kbd> pause — mission, controls &amp; settings'); }
 }
+/* A CLEAR SCREEN. The mission list, the list of keys and the row of
+   buttons used to sit on top of the game all the time; they live on the
+   pause card now (P), and the screen keeps only what you need while
+   playing — who you are, the map, the phone, the crosshair.
+
+   EXCEPT WHERE THE MISSION PANEL IS THE GAME. The Swarm keeps its shield
+   and count there, and the School and the Trail rewrite it as you play:
+   in those it stays, because it is not a list of instructions but a
+   scoreboard. Decided every frame, because those modes come and go. */
+let hudLive=null;
+function cleanHud(){
+  const live = !!((window.INVADERS && INVADERS.active) || (window.SCHOOL && SCHOOL.active)
+               || (window.TRAIL && TRAIL.active));
+  if(live===hudLive) return;
+  hudLive=live;
+  document.body.classList.toggle('hud-live', live);
+}
+/* THE HINT BUBBLE SAYS ITS PIECE AND GOES. Missions change it step by
+   step — that is how they teach — so each new line shows, stays long
+   enough to read, then fades. It is always on the pause card too. */
+(function briefingFades(){
+  const el=document.querySelector('#briefing'); if(!el) return;
+  let tm=null;
+  new MutationObserver(()=>{
+    el.classList.remove('brief-faded');
+    clearTimeout(tm); tm=setTimeout(()=>el.classList.add('brief-faded'), 9000);
+  }).observe(el, { childList:true, characterData:true, subtree:true });
+  tm=setTimeout(()=>el.classList.add('brief-faded'), 9000);
+})();
 /* Shown only when there is a body to do it with and that body knows how.
    Ash and the rest of the kit have idle, walk and sprint and nothing else,
    so for them the button simply is not there — better than a button that
@@ -940,6 +969,7 @@ let last=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000, 0.05); last=now;
+  cleanHud();
   updateCodeBtn();
   updateEmoteBtn();
   if(NAV.active) NAV.tick(dt);      // it keeps coming while you write
@@ -1077,6 +1107,8 @@ function togglePause(){
       ${full}
       <div class="p-lbl">${t('SOUND')}</div>
       <div class="p-hint"><button class="btn ghost small" id="pMusic"></button></div>
+      <div class="p-lbl">${t('MORE')}</div>
+      <div class="p-hint p-tools" id="pTools"></div>
       ${keysJump}
       <div id="pOver"></div>
       <div style="text-align:center;margin-top:14px">
@@ -1092,12 +1124,41 @@ function togglePause(){
   /* The music toggle lives in the top bar too, but the top bar is hidden in
      half the rooms and invisible to anybody who has paused to read. This is
      where you look when you want the game to stop doing something. */
+  pauseTools();
   const pm=$('#pMusic');
   if(pm && window.MUSIC){ pm.onclick=()=>MUSIC.toggle(); MUSIC.paint(); }
   else if(pm) pm.classList.add('hidden');
   const ph=$('#pHome');
   if(ph) ph.onclick=()=>{ p.classList.add('hidden'); MENU.homeworld(); };
   $('#pQuit').onclick=()=>{ p.classList.add('hidden'); MENU.open(); };
+}
+/* THE TOP BAR'S BUTTONS, ON THE PAUSE CARD. The bar is off the screen now;
+   each of its buttons that is available right now (the dance only for a
+   body that can, Publish only in Free Play, and so on) gets a twin here
+   that closes the card and presses the real one — so nothing about what
+   those buttons do had to move. */
+const PAUSE_TOOLS=[
+  ['btnWho',     '🙂', 'Change character', 'B'],
+  ['btnOnline',  '👥', 'Who is here', 'O'],
+  ['btnEmote',   '🕺', 'Dance'],
+  ['btnPublish', '🕹', 'Publish to the Arcade'],
+  ['btnLeave',   '⏏', 'Leave'],
+  ['btnLang',    '🌐', null],
+  ['btnHelp',    '❔', 'Help']
+];
+function pauseTools(){
+  const box=$('#pTools'); if(!box) return;
+  box.innerHTML='';
+  PAUSE_TOOLS.forEach(([id, em, label, key])=>{
+    const real=$('#'+id);
+    if(!real || real.classList.contains('hidden')) return;
+    const b=document.createElement('button');
+    b.className='btn ghost small';
+    const name = label ? t(label) : real.textContent.replace(/^\S+\s*/,'');
+    b.innerHTML=`${em} ${name}${key?` <kbd>${key}</kbd>`:''}`;
+    b.onclick=()=>{ $('#pause').classList.add('hidden'); real.click(); };
+    box.appendChild(b);
+  });
 }
 /* START THIS MISSION FROM THE BEGINNING. A save that always carries on is
    right nine times in ten; the tenth is a student who wants level one back —
