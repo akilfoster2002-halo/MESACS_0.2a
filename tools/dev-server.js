@@ -26,225 +26,17 @@
    the array above and a swapped function, not an account, and nothing
    that ships ever loads it.
    ===================================================================== */
-const Module = require('module');
 const path = require('path');
+const memdb = require('../server/memdb');
 
-/* --------------------------------------------------------- the rows */
-const users = [];
-const games = [];
-const votes = [];          // {game_id,user_id,stars,note,hidden,created_at}
-let nextId = 1;
-let nextGameId = 1;
-const texts = [];          // the phone: {id,from_id,to_id,text,read_at,hidden,created_at}
-let nextTextId = 1;
-
-const like = (sql, ...bits) => bits.every(b => sql.includes(b));
-const rows = r => ({ rows:r, rowCount:r.length });
-
-function query(text, params){
-  const sql = String(text).replace(/\s+/g, ' ').trim();
-  const p = params || [];
-
-  if(/^CREATE TABLE/i.test(sql) || /^ALTER TABLE/i.test(sql) || /^DO \$\$/i.test(sql)
-     || /^CREATE INDEX/i.test(sql))
-    return Promise.resolve(rows([]));
-
-  if(like(sql, 'INSERT INTO users')){
-    const [username, pass_hash, salt, display] = p;
-    const role = sql.includes("'teacher'") ? 'teacher' : 'student';
-    const u = { id:nextId++, username, pass_hash, salt, role, display,
-                progress:{}, muted_until:null, class_id:null };
-    users.push(u);
-    return Promise.resolve(rows([{ id:u.id, username:u.username, display:u.display,
-                                   role:u.role, progress:u.progress }]));
-  }
-  /* ------------------------------------------------------- the phone
-     Texts, in an array. Same shapes the Postgres queries hand back, so the
-     phone in the browser cannot tell which one it is talking to. */
-  const userById = id => users.find(u => u.id===id) || {};
-  if(like(sql, 'SELECT id,username,display FROM users WHERE username=$1')){
-    const u = users.find(x => x.username === p[0]);
-    return Promise.resolve(rows(u ? [{ id:u.id, username:u.username, display:u.display }] : []));
-  }
-  if(like(sql, 'FROM users WHERE username LIKE $1')){
-    const pre = String(p[0]).replace(/%$/,'');
-    return Promise.resolve(rows(users.filter(u => u.username.startsWith(pre) && u.id!==p[1])
-      .sort((a,b)=>a.username.localeCompare(b.username)).slice(0,8)
-      .map(u => ({ username:u.username, display:u.display }))));
-  }
-  if(like(sql, 'DELETE FROM phone_messages')){
-    const cut = Date.now() - 14*864e5;
-    for(let i=texts.length-1;i>=0;i--) if(new Date(texts[i].created_at).getTime()<cut) texts.splice(i,1);
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, 'INSERT INTO phone_messages')){
-    const m = { id:nextTextId++, from_id:p[0], to_id:p[1], text:p[2], read_at:null,
-                hidden:false, created_at:new Date().toISOString() };
-    texts.push(m);
-    return Promise.resolve(rows([{ id:m.id, created_at:m.created_at }]));
-  }
-  if(like(sql, 'UPDATE phone_messages SET read_at=now()')){
-    texts.forEach(m => { if(m.to_id===p[0] && m.from_id===p[1] && !m.read_at) m.read_at=new Date().toISOString(); });
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, 'UPDATE phone_messages SET hidden=$2')){
-    const m = texts.find(x => x.id===p[0]); if(m) m.hidden=p[1];
-    return Promise.resolve(rows([]));
-  }
-  const newestText = (a,b) => b.id - a.id;
-  if(like(sql, 'FROM phone_messages m', 'CASE WHEN m.from_id=$1')){
-    const me=p[0];
-    return Promise.resolve(rows(texts.filter(m => !m.hidden && (m.from_id===me || m.to_id===me))
-      .sort(newestText).slice(0,400).map(m => {
-        const o = userById(m.from_id===me ? m.to_id : m.from_id);
-        return { ...m, username:o.username, display:o.display };
-      })));
-  }
-  if(like(sql, 'FROM phone_messages', '(from_id=$1 AND to_id=$2)')){
-    return Promise.resolve(rows(texts.filter(m => !m.hidden &&
-        ((m.from_id===p[0] && m.to_id===p[1]) || (m.from_id===p[1] && m.to_id===p[0])))
-      .sort(newestText).slice(0,100)
-      .map(m => ({ id:m.id, from_id:m.from_id, text:m.text, created_at:m.created_at }))));
-  }
-  if(like(sql, 'FROM phone_messages m', 'read_at IS NULL')){
-    return Promise.resolve(rows(texts.filter(m => m.to_id===p[0] && !m.read_at && !m.hidden)
-      .sort(newestText).slice(0,20).map(m => {
-        const o = userById(m.from_id);
-        return { id:m.id, username:o.username, display:o.display, text:m.text };
-      })));
-  }
-  if(like(sql, 'FROM phone_messages m JOIN users f')){
-    return Promise.resolve(rows(texts.slice().sort(newestText).slice(0,200).map(m => {
-      const f=userById(m.from_id), o=userById(m.to_id);
-      return { id:m.id, text:m.text, hidden:m.hidden, created_at:m.created_at,
-               from_user:f.username, from_display:f.display, to_user:o.username, to_display:o.display };
-    })));
-  }
-
-  if(like(sql, 'SELECT', 'FROM users', 'WHERE username=$1')){
-    const u = users.find(x => x.username === p[0]);
-    if(!u) return Promise.resolve(rows([]));
-    return Promise.resolve(rows([sql.startsWith('SELECT *') ? u : { '?column?':1 }]));
-  }
-  if(like(sql, 'SELECT', 'FROM users', 'WHERE id=$1')){
-    const u = users.find(x => x.id === p[0]);
-    return Promise.resolve(rows(u ? [u] : []));
-  }
-  if(like(sql, 'UPDATE users SET progress=$1')){
-    const u = users.find(x => x.id === p[1]);
-    if(u) u.progress = typeof p[0]==='string' ? JSON.parse(p[0]) : p[0];
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, 'UPDATE users SET muted_until=$1')){
-    const u = users.find(x => x.id === p[1]);
-    if(u) u.muted_until = p[0];
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, "WHERE role='student'"))
-    return Promise.resolve(rows(users.filter(u => u.role==='student')
-      .sort((a,b)=>String(a.display).localeCompare(b.display))));
-
-  /* ------------------------------------------------------- the arcade
-     The shelf query is a join and two aggregates in Postgres and a map
-     here. What matters is that the SHAPE matches — the browser reads
-     stars, votes, author and plays off every row — because a shim that
-     answers with the right rows and the wrong columns is a bug hunt in
-     the browser for something that is wrong in this file. */
-  const shelf = g => {
-    const mine = votes.filter(v => v.game_id===g.id && !v.hidden);
-    const author = users.find(u => u.id===g.author_id);
-    return { id:g.id, title:g.title, blurb:g.blurb, stage:g.stage, plays:g.plays,
-             author_id:g.author_id, author: author ? author.display : '?',
-             updated_at:g.updated_at, votes:mine.length,
-             stars: mine.length
-               ? Math.round(mine.reduce((a,v)=>a+v.stars,0)/mine.length*10)/10 : 0 };
-  };
-  const newest = (a,b) => new Date(b.updated_at) - new Date(a.updated_at);
-
-  if(like(sql, 'FROM games g', 'WHERE g.hidden=false ORDER BY'))
-    return Promise.resolve(rows(games.filter(g=>!g.hidden).sort(newest).slice(0,60).map(shelf)));
-
-  if(like(sql, 'FROM games g', 'WHERE g.author_id=$1'))
-    return Promise.resolve(rows(games.filter(g=>g.author_id===p[0]).sort(newest).map(shelf)));
-
-  if(like(sql, 'g.project', 'FROM games g', 'WHERE g.id=$1')){
-    const g = games.find(x => x.id===p[0] && !x.hidden);
-    return Promise.resolve(rows(g ? [Object.assign(shelf(g), { project:g.project })] : []));
-  }
-  if(like(sql, 'FROM game_votes v', 'WHERE v.game_id=$1')){
-    const out = votes.filter(v => v.game_id===p[0] && !v.hidden && v.note)
-      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,20)
-      .map(v => ({ stars:v.stars, note:v.note,
-                   display:(users.find(u=>u.id===v.user_id)||{}).display || '?' }));
-    return Promise.resolve(rows(out));
-  }
-  if(like(sql, 'SELECT id FROM games WHERE author_id=$1')){
-    const g = games.find(x => x.author_id===p[0] &&
-      String(x.title).toLowerCase()===String(p[1]).toLowerCase());
-    return Promise.resolve(rows(g ? [{ id:g.id }] : []));
-  }
-  if(like(sql, 'UPDATE games SET blurb=$1')){
-    const g = games.find(x => x.id===p[3]);
-    if(g){ g.blurb=p[0]; g.stage=p[1];
-           g.project = typeof p[2]==='string' ? JSON.parse(p[2]) : p[2];
-           g.hidden=false; g.updated_at=new Date().toISOString(); }
-    return Promise.resolve(rows(g ? [{ id:g.id }] : []));
-  }
-  if(like(sql, 'INSERT INTO games')){
-    const now=new Date().toISOString();
-    const g = { id:nextGameId++, author_id:p[0], title:p[1], blurb:p[2], stage:p[3],
-                project: typeof p[4]==='string' ? JSON.parse(p[4]) : p[4],
-                plays:0, hidden:false, created_at:now, updated_at:now };
-    games.push(g);
-    return Promise.resolve(rows([{ id:g.id }]));
-  }
-  if(like(sql, 'UPDATE games SET plays=plays+1')){
-    const g = games.find(x => x.id===p[0] && !x.hidden);
-    if(g) g.plays++;
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, 'SELECT author_id FROM games WHERE id=$1')){
-    const g = games.find(x => x.id===p[0] && !x.hidden);
-    return Promise.resolve(rows(g ? [{ author_id:g.author_id }] : []));
-  }
-  if(like(sql, 'INSERT INTO game_votes')){
-    /* the real table has a primary key doing this; here it is a find */
-    let v = votes.find(x => x.game_id===p[0] && x.user_id===p[1]);
-    if(!v){ v={ game_id:p[0], user_id:p[1], hidden:false }; votes.push(v); }
-    v.stars=p[2]; v.note=p[3]; v.created_at=new Date().toISOString();
-    return Promise.resolve(rows([]));
-  }
-  if(like(sql, 'UPDATE games SET hidden=$2')){
-    const g = games.find(x => x.id===p[0] &&
-      (p.length<3 || x.author_id===p[2]));
-    if(g) g.hidden = p[1];
-    return Promise.resolve(rows(g ? [{ id:g.id }] : []));
-  }
-
-  /* Anything else is a statement this shim has never been shown. Fail
-     loudly: a dev database that silently answers "no rows" to a query it
-     does not understand is a debugging session about the wrong thing. */
-  return Promise.reject(
-    new Error('dev-server has no answer for: ' + sql.slice(0, 110)));
-}
-
-class Pool {
-  query(text, params){ return query(text, params); }
-  end(){ return Promise.resolve(); }
-  on(){ return this; }
-}
-
-const load = Module._load;
-Module._load = function(request, parent, isMain){
-  if(request === 'pg') return { Pool };
-  return load.apply(this, arguments);
-};
 
 /* The same .env the real server reads, so a key put in it works under
    `npm run dev` too — and before the fallbacks below, because a real
    DATABASE_URL in .env should beat the in-memory stand-in. */
 require('../server/env').load();
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'memory://koro';
+/* the rows live in server/memdb.js now, shared with the Mac app; here
+   they stay in memory only and go when you stop the server */
+memdb.install();
 process.env.PORT = process.env.PORT || '8799';
 /* ------------------------------------------- signed in, as nobody
    EVERY FEATURE WORTH TESTING IS BEHIND SIGN-IN — the rooms, the chat,
@@ -265,9 +57,8 @@ process.env.PORT = process.env.PORT || '8799';
    `npm run dev`; the deployed server starts at server/index.js and never
    loads it. */
 const DEV = { id: 1, username: 'dev', display: 'Local Dev', role: 'teacher' };
-users.push({ id: DEV.id, username: DEV.username, display: DEV.display, role: DEV.role,
-             salt: '', pass_hash: '', progress: {}, created_at: new Date().toISOString() });
-nextId = Math.max(nextId, DEV.id + 1);
+memdb.addUser({ id: DEV.id, username: DEV.username, display: DEV.display, role: DEV.role,
+                salt: '', pass_hash: '', progress: {}, created_at: new Date().toISOString() });
 
 /* AND IT CAN BE TURNED OFF, because being permanently signed in makes
    the signed-OUT half untestable — the 401s, the "not signed in"

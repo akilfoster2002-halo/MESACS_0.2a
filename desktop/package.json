@@ -1,0 +1,35 @@
+{
+  "name": "koro-desktop",
+  "productName": "KORO",
+  "version": "0.2.0",
+  "description": "KORO as a Mac app: the web game in its own window, with its server inside",
+  "main": "main.js",
+  "private": true,
+  "author": "MESA CS",
+  "scripts": {
+    "stage": "node scripts/stage.js",
+    "start": "npm run stage && electron .",
+    "dist": "npm run stage && electron-builder --mac --arm64 --x64"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "org.mesacs.koro",
+    "productName": "KORO",
+    "files": ["main.js", "game/**/*", "package.json"],
+    "directories": { "output": "dist" },
+    "mac": {
+      "category": "public.app-category.education",
+      "target": ["dmg", "zip"],
+      "identity": "-",
+      "icon": "build/icon.icns"
+    },
+    "dmg": { "title": "KORO" }
+  }
+}
