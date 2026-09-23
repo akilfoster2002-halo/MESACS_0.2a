@@ -51,7 +51,12 @@ window.ISLANDS = (function(){
        enough to the door to be the first thing you look up at. */
     { id:'falls',  lon:13,  lat:16,  r:34, alt:62, spin:0.35,
       lake:true, fall:true, trees:5 },
-    { id:'garden', lon:-16, lat:9,   r:26, alt:78, spin:-0.9, trees:9 },
+    /* THE GARDEN IS MODELLED, not lathed: a Blender island with its own
+       cliffs, terraces, ancient tree and hanging roots. Its ground comes
+       with it as a height grid baked from the rock, so floorAt() and
+       blocked() read the same surface you can see. */
+    { id:'garden', lon:-16, lat:9,   r:26, alt:78, spin:-0.9,
+      model:'islands/garden.glb' },
     { id:'spire',  lon:24,  lat:-12, r:19, alt:95, spin:2.1,  trees:2, tall:true },
     /* A stepping stone, deliberately small and low: it is the one you find
        first, and finding a small one is what tells you the big ones are
@@ -331,6 +336,12 @@ window.ISLANDS = (function(){
          so one shore was under water and the other was a cliff. Kept inside
          the flat part of the dome it is a lake you can walk round — and a
          metre deep, so walking INTO it is wading rather than drowning. */
+      if(k.model){
+        const rec={ k, dir, g, f, top:k.alt };
+        isles.push(rec);
+        loadModel(rec);
+        return;
+      }
       const LAKE = k.lake ? { x:-k.r*0.10, z:0, r:k.r*0.34,
                               bed: crownY(k, 0.10) - k.r*0.042 } : null;
       const rock=new THREE.Mesh(isleGeo(k, i*7+3, LAKE),
@@ -374,6 +385,70 @@ window.ISLANDS = (function(){
       if(k.fall) makeFall(rec, g);
     });
     return isles.length;
+  }
+
+  /* ------------------------------------------------------ a modelled isle
+     Scaled so its widest reach is the island's radius, and lowered so the
+     middle of its meadow sits at k.alt — the same place the lathe's rim
+     would be. Until it arrives the island is simply not there: no rock to
+     see, and no floor or wall to meet. */
+  let loader=null;
+  function loadModel(rec){
+    const k=rec.k, myGroup=group;
+    loader = loader || new THREE.GLTFLoader();
+    loader.load(k.model+'?v='+(window.ASSETV||'1'), gl=>{
+      if(group!==myGroup) return;             // the world was rebuilt meanwhile
+      const root=gl.scene;
+      let field=null;
+      root.traverse(o=>{
+        if(o.userData && o.userData.field) field=JSON.parse(o.userData.field);
+        if(!o.isMesh) return;
+        const thin=/leaves|grass/.test(o.name);
+        o.material=new THREE.MeshLambertMaterial({ vertexColors:true,
+          side: thin ? THREE.DoubleSide : THREE.FrontSide });
+        o.userData.flat=true;
+      });
+      if(!field) return;
+      const tops=field.top.filter(v=>v!==null).sort((a,b)=>a-b);
+      const deck=tops[Math.floor(tops.length/2)];
+      let reach=0;
+      field.top.forEach((v,n)=>{
+        if(v===null) return;
+        const x=field.x0+(n%field.nx)*field.cell, z=field.z0+Math.floor(n/field.nx)*field.cell;
+        reach=Math.max(reach, Math.hypot(x,z));
+      });
+      const s=k.r/Math.max(1, reach);
+      root.scale.setScalar(s);
+      root.position.y=-deck*s;
+      rec.g.add(root);
+      rec.field=field; rec.s=s; rec.deck=deck;
+      rec.top=k.alt+(tops[tops.length-1]-deck)*s;
+    });
+  }
+  /* The grid under a point on a modelled isle: the deck there and the
+     underside, or null off the rock. Smooth between cells on a slope, but
+     a cell whose corners disagree by more than a metre is a CLIFF and
+     answers with its nearest corner — interpolated, a cliff becomes a ramp
+     you can walk up a few centimetres a frame. */
+  function fieldAt(is, dir){
+    const F=is.field, k=is.k, R=W.PR+k.alt;
+    if(dir.dot(is.dir)<=0) return null;
+    const v=dir.clone().multiplyScalar(R).sub(is.dir.clone().multiplyScalar(R));
+    const gx=(v.dot(is.f.right)/is.s - F.x0)/F.cell, gz=(v.dot(is.f.fwd)/is.s - F.z0)/F.cell;
+    const i=Math.floor(gx), j=Math.floor(gz);
+    if(i<0 || j<0 || i>=F.nx-1 || j>=F.nz-1) return null;
+    const at=(a,b)=>F.top[b*F.nx+a];
+    const ni=gx-i>0.5 ? i+1 : i, nj=gz-j>0.5 ? j+1 : j;
+    const near=at(ni,nj);
+    if(near===null) return null;
+    const c=[at(i,j),at(i+1,j),at(i,j+1),at(i+1,j+1)];
+    let top=near;
+    if(c.every(x=>x!==null) && (Math.max(...c)-Math.min(...c))*is.s <= 1){
+      const u=gx-i, t=gz-j;
+      top=(c[0]*(1-u)+c[1]*u)*(1-t)+(c[2]*(1-u)+c[3]*u)*t;
+    }
+    const w=y=>k.alt+(y-is.deck)*is.s;
+    return { top:w(top), bot:w(F.bot[nj*F.nx+ni]) };
   }
 
   /* Fish in the lake, turtles round its edge. */
@@ -873,6 +948,12 @@ window.ISLANDS = (function(){
     if(!isles.length) return null;
     for(const is of isles){
       const k=is.k;
+      if(k.model){
+        if(!is.field || alt===undefined) continue;
+        const h=fieldAt(is, dir);
+        if(h && alt >= h.top-0.5) return h.top;
+        continue;
+      }
       /* How far off the island's centre line, measured along the surface —
          the same "degrees times radius" the buildings use. */
       const off = Math.acos(Math.min(1, Math.abs(dir.dot(is.dir)))) * (W.PR + k.alt);
@@ -900,6 +981,13 @@ window.ISLANDS = (function(){
   function blocked(dir, alt){
     if(!isles.length) return false;
     for(const is of isles){
+      if(is.k.model){
+        if(!is.field) continue;
+        const h=fieldAt(is, dir);
+        if(!h || alt < h.bot-1.8) continue;
+        if(alt < h.top-0.5) return true;       // inside the rock, or under a cliff
+        continue;
+      }
       const k=is.k, deep=k.tall ? k.r*1.9 : k.r*1.15;
       const below = k.alt - alt;                  // how far under the rim you are
       if(below < -0.6 || below > deep) continue;
