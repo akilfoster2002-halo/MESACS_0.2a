@@ -2,7 +2,9 @@
 
 KORO running natively instead of in a browser: the planet Wano, Mission
 Control's temple (walk in — the atrium, the mirror pool, blossom through the
-oculus), four sky islands you can fly to and stand on, the waterfall with its
+oculus), the Workshop, the Mall (everybody on a dais — E to be them), the
+Mechanic (the cars on their bays, and the Mechanic), the Library (Ada, and
+the book of every idea in the language), four sky islands you can fly to and stand on, the waterfall with its
 plunge pool, fish, turtles and a river that finds its own way downhill, four
 thousand fireflies, sakura and bamboo, 36 pandas you can ride, your car, and
 the giant mecha. Same models as the web version (the GLBs in `assets/` are
@@ -51,8 +53,10 @@ graphics card; shadows are only cast near the camera; the 3D is rendered at
 world takes to stand up (about 2.3 s in all; the big models load on threads).
 
 `godot --path koro-godot res://tools/shots.tscn -- <dir> [name]` saves
-screenshots from nine places — the start, the temple atrium, the falls, in
-flight, the garden island, swimming, the car, the river, the mecha.
+screenshots from sixteen places and cards — the start, the temple atrium,
+the falls, in flight, the garden island, swimming, the car, the river, inside
+the Mall, the Mechanic and the Library, the Workshop, the book, the picker,
+the pause card, the mecha. `tools/probe.gd` looks at one building on its own.
 
 ## Layout
 
@@ -63,7 +67,12 @@ flight, the garden island, swimming, the car, the river, the mecha.
   that finds the grass finds an island's deck or a roof
 - `scripts/walker.gd` — you: walking (sliding along walls), swimming, flying
   (the bank is the cause and the turn the effect), emotes, the camera
-- `scripts/car.gd`, `scripts/panda.gd`, `scripts/mecha.gd` — the things you get in or on
+- `scripts/building.gd` — the Workshop, Mall, Library and Mechanic: the plate
+  (flat room, apron bent down to meet the ball), the shell, what makes a box a
+  building, the room inside and each one's furniture; E at a console
+- `scripts/progress.gd`, `scripts/wallet.gd` — the progress bag the browser
+  keeps (coins, XP, what you own, which car, who you are), and what it adds up to
+- `scripts/car.gd`, `scripts/car_model.gd`, `scripts/panda.gd`, `scripts/mecha.gd` — the things you get in or on
 - `scripts/temple.gd` — Mission Control: the model, its walls and roofs from
   `assets/temple_layout.json` (written by `glb files/temple/build.py`), the pool, petals, doves
 - `scripts/islands.gd` — the four sky islands, the falls, the plunge pool, the river, fish, turtles
@@ -76,9 +85,8 @@ skeleton carries a scale its mesh node does not.
 
 ## Not ported yet
 
-The other buildings (the Workshop, the Mall, the Library, the Mechanic) and
-their interiors; accounts, multiplayer and the phone (they will talk to the
-same `server/` over HTTP); the other worlds. Missions and the block editor
+Accounts, multiplayer and the phone (they will talk to the same `server/`
+over HTTP); the other worlds (VOLTA, RYU, your home planet) and the ship. Missions and the block editor
 are staying in the browser.
 
 ## Sharing a build

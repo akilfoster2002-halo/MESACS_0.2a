@@ -20,6 +20,7 @@ var islands: Islands
 var temple: Temple
 var hud: Hud
 var pandas: Array = []
+var buildings: Array = []
 var env: Environment
 var ui_open := false
 
@@ -142,10 +143,34 @@ func _sky() -> void:
 	add_child(stars)
 
 func _buildings() -> void:
-	temple = Temple.new()
-	add_child(temple)
-	var d := Planet.dir_of(0, 7)
-	temple.global_transform = Transform3D(Planet.frame_at(d), d * Planet.R)
+	for spec in Planet.BUILDINGS:
+		var d := Planet.dir_of(spec.lon, spec.lat)
+		var xf := Transform3D(Planet.frame_at(d), d * Planet.R)
+		if spec.id == "missions":
+			temple = Temple.new()
+			add_child(temple)
+			temple.global_transform = xf
+			# the temple brings its own walls and floors; it needs the plate
+			# under it, which the model covers, so only the collider
+			var plate := Building.new().setup(spec.merged({"shell": false, "plate_visible": false}), self)
+			add_child(plate)
+			plate.global_transform = xf
+			continue
+		var bld := Building.new().setup(spec, self)
+		add_child(bld)
+		bld.global_transform = xf
+		buildings.append(bld)
+
+## The console, desk or person within reach, if there is one.
+func _usable() -> Dictionary:
+	var p := player.global_position
+	for bld in buildings:
+		if bld.global_position.distance_to(p) > 70.0:
+			continue
+		var u: Dictionary = bld.use_near(p)
+		if not u.is_empty():
+			return u
+	return {}
 
 ## Trees stand where nothing else does: off the plates, out of the pool and
 ## off the river.
@@ -309,6 +334,10 @@ func _use() -> void:
 		return
 	if player.flying:
 		return
+	var u := _usable()
+	if not u.is_empty():
+		(u.act as Callable).call(self)
+		return
 	if _near_mecha():
 		mecha.enter(player)
 		return
@@ -356,7 +385,7 @@ func _near_panda() -> Panda:
 	return best
 
 func _process(_delta: float) -> void:
-	ui_open = hud.picker_open() or hud.is_paused()
+	ui_open = hud.any_open()
 	var calls := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	var tris := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 	hud.fps.text = "%d FPS   %d draw calls   %.1fM triangles" % [Engine.get_frames_per_second(), calls, tris / 1e6]
@@ -377,7 +406,10 @@ func _process(_delta: float) -> void:
 		hud.help.text = "WASD swim · SPACE kick out · F fly out of the water · P pause"
 	else:
 		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E ride / climb in · R car · G dance · B who you are · P pause"
-		if _near_mecha():
+		var u := _usable()
+		if not u.is_empty():
+			prompt = "E — " + str(u.label)
+		elif _near_mecha():
 			prompt = "E — climb into the mecha"
 		elif _near_car():
 			prompt = "E — get in"

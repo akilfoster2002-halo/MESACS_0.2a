@@ -15,7 +15,11 @@ var picker: PanelContainer
 var pick_row: HBoxContainer
 var pick_i := 0
 var paused: PanelContainer
-var font_bold: Font
+var book: PanelContainer
+var book_find: LineEdit
+var book_text: RichTextLabel
+var ideas: Array = []
+var ada_next := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -49,6 +53,7 @@ func _ready() -> void:
 	help.offset_right = 1200
 	_picker()
 	_pause()
+	_book()
 
 func _label(size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -69,7 +74,11 @@ func say(text: String, secs := 3.5) -> void:
 ## The picker and the pause card hold the game still, so the keys come here
 ## first — this node keeps running while everything else is paused.
 func _unhandled_input(ev: InputEvent) -> void:
-	if paused.visible:
+	if book.visible:
+		if ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE):
+			library_close()
+			get_viewport().set_input_as_handled()
+	elif paused.visible:
 		if ev.is_action_pressed("pause") or ev.is_action_pressed("mouse"):
 			toggle_pause()
 			get_viewport().set_input_as_handled()
@@ -123,6 +132,8 @@ func _card() -> PanelContainer:
 	sb.content_margin_bottom = 20
 	p.add_theme_stylebox_override("panel", sb)
 	p.set_anchors_preset(Control.PRESET_CENTER)
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
 	p.visible = false
 	add_child(p)
 	return p
@@ -186,8 +197,7 @@ func toggle_picker() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	get_tree().paused = picker.visible or paused.visible
-	world.ui_open = get_tree().paused
+	_hold()
 
 func _mark() -> void:
 	for i in pick_row.get_child_count():
@@ -244,9 +254,95 @@ G dance · 1 2 3 emotes · B who you are · P pause"""
 
 func toggle_pause() -> void:
 	paused.visible = not paused.visible
-	get_tree().paused = paused.visible
-	world.ui_open = paused.visible
+	_hold()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused.visible else Input.MOUSE_MODE_CAPTURED
 
 func is_paused() -> bool:
 	return paused.visible
+
+## Any card up holds the world still and frees the mouse; none, and it is yours.
+func _hold() -> void:
+	var up := picker.visible or paused.visible or book.visible
+	get_tree().paused = up
+	world.ui_open = up
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if up else Input.MOUSE_MODE_CAPTURED
+
+func any_open() -> bool:
+	return picker.visible or paused.visible or book.visible
+
+# ---------------------------------------------------------------- the book
+
+## THE LIBRARY: every idea in the language, one line of what it is and an
+## example, and a box to look one up.
+func _book() -> void:
+	ideas = JSON.parse_string(FileAccess.get_file_as_string("res://assets/ideas.json"))
+	book = _card()
+	book.custom_minimum_size = Vector2(760, 560)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	book.add_child(col)
+	var title := Label.new()
+	title.text = "THE LIBRARY"
+	title.add_theme_font_size_override("font_size", 26)
+	col.add_child(title)
+	book_find = LineEdit.new()
+	book_find.placeholder_text = "look up a word — loop, condition, variable…"
+	book_find.text_changed.connect(func(_t): _book_fill())
+	col.add_child(book_find)
+	var sc := ScrollContainer.new()
+	sc.custom_minimum_size = Vector2(700, 400)
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(sc)
+	book_text = RichTextLabel.new()
+	book_text.bbcode_enabled = true
+	book_text.fit_content = true
+	book_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	book_text.add_theme_font_size_override("normal_font_size", 17)
+	book_text.add_theme_font_size_override("bold_font_size", 20)
+	sc.add_child(book_text)
+	var close := Button.new()
+	close.text = "Close  (Esc)"
+	close.pressed.connect(library_close)
+	col.add_child(close)
+
+func _book_fill() -> void:
+	var q := book_find.text.strip_edges().to_lower()
+	var out := ""
+	for i in ideas:
+		var hay := (str(i.term) + " " + str(i.what)).to_lower()
+		if q != "" and not q in hay:
+			continue
+		out += "[b][color=#ffe9a8]%s[/color][/b]\n%s\n[color=#8fd3ff][code]%s[/code][/color]\n\n" % [i.term, i.what, i.eg]
+	book_text.text = out if out != "" else "Nothing on the shelves for that yet."
+
+func library_open(term: String) -> void:
+	book.visible = true
+	book_find.text = term
+	_book_fill()
+	_hold()
+	book_find.grab_focus.call_deferred()
+
+func library_close() -> void:
+	book.visible = false
+	book_find.release_focus()
+	_hold()
+
+## ADA reads where you have got to and names the ONE idea your next mission
+## is built on; ask again and she moves on to the next shelf.
+const MISSION_IDEA := [["tut", "Command"], ["nav", "Sequence"], ["flight", "Coordinate"],
+	["m1", "Loop"], ["m2", "Condition"], ["m3", "Function"]]
+func library_ask() -> void:
+	var term := ""
+	for m in MISSION_IDEA:
+		if not Progress.get_value(m[0], false):
+			term = m[1]
+			break
+	if term == "" and ideas.size() > 0:
+		term = ideas[ada_next % ideas.size()].term
+		ada_next += 1
+	var line := ""
+	for i in ideas:
+		if i.term == term:
+			line = str(i.what).split(". ")[0] + "."
+	say("ADA — \"Read up on %s.\"  %s" % [term, line], 5.0)
+	library_open(term)

@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _wait(2.5)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var p: Walker = w.player
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	var shots := [
 		["01_start", func(): pass],
 		["02_temple_atrium", func():
@@ -72,7 +73,23 @@ func _ready() -> void:
 			var fr := Planet.frame_at(at)
 			_put(Planet.walk(at, (nx - at).cross(at).normalized(), 9.0) * Planet.R, nx * Planet.R)
 			p.pitch = -0.3],
+		["10_mall", func(): _inside("mall")],
+		["11_mechanic", func(): _inside("mechanic")],
+		["12_library", func(): _inside("library")],
+		["13_workshop_outside", func():
+			var bl := _bld("workshop")
+			_put(bl.to_global(Vector3(-14, 0, 30)), bl.to_global(Vector3(0, 4, 0)))
+			p.pitch = -0.05],
+		["14_book", func(): w.hud.library_ask()],
+		["15_picker", func():
+			w.hud.library_close()
+			w.hud.toggle_picker()],
+		["16_pause", func():
+			w.hud.toggle_picker()
+			w.hud.toggle_pause()],
 		["09_mecha", func():
+			if w.hud.is_paused():
+				w.hud.toggle_pause()
 			p.dir = w.mecha.dir
 			w._use()],
 	]
@@ -84,6 +101,22 @@ func _ready() -> void:
 		await _shot(s[0])
 	get_tree().quit()
 
+func _bld(id: String) -> Building:
+	for bl in w.buildings:
+		if bl.b.id == id:
+			return bl
+	return null
+
+func _inside(id: String) -> void:
+	var bl := _bld(id)
+	var p: Walker = w.player
+	if p.car:
+		p.car.leave()
+	_put(bl.to_global(Vector3(0, 0, bl.hd - 4.0)), bl.to_global(Vector3(0, 0, -bl.hd)))
+	p.alt = w.floor_at(p.dir, 1.0)
+	p.pitch = -0.08
+	p.zoom = 4.0
+
 func _put(at: Vector3, look: Vector3) -> void:
 	var p: Walker = w.player
 	p.dir = at.normalized()
@@ -94,7 +127,7 @@ func _put(at: Vector3, look: Vector3) -> void:
 	p.vy = 0.0
 
 func _wait(s: float) -> void:
-	await get_tree().create_timer(s).timeout
+	await get_tree().create_timer(s, true).timeout
 
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw

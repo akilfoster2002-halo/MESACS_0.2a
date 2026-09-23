@@ -17,8 +17,15 @@ const RELIEF := 9.5
 ## Where the buildings are, in the browser's own lon/lat, and how much level
 ## ground each wants round it.
 const BUILDINGS := [
-	{"id": "missions", "lon": 0.0, "lat": 7.0, "w": 64.0, "d": 46.0, "h": 18.0},
-	{"id": "mechanic", "lon": -34.0, "lat": 6.0, "w": 40.0, "d": 28.0, "h": 14.0},
+	{"id": "missions", "name": "MISSION CONTROL", "lon": 0.0, "lat": 7.0, "w": 64.0, "d": 46.0, "h": 18.0, "door": 10.0},
+	{"id": "workshop", "name": "THE WORKSHOP", "lon": -19.0, "lat": -6.0, "w": 24.0, "d": 20.0, "h": 11.0,
+		"wall": Color("4a3f7a"), "roof": Color("cdb4f6")},
+	{"id": "mall", "name": "THE MALL", "lon": 19.0, "lat": -6.0, "w": 72.0, "d": 48.0, "h": 15.0, "door": 10.0,
+		"wall": Color("6b4a5e"), "roof": Color("ffb4a2")},
+	{"id": "library", "name": "THE LIBRARY", "lon": 0.0, "lat": -21.0, "w": 26.0, "d": 20.0, "h": 11.0,
+		"wall": Color("4d6b4a"), "roof": Color("a8e6cf")},
+	{"id": "mechanic", "name": "THE MECHANIC", "lon": -34.0, "lat": 6.0, "w": 40.0, "d": 28.0, "h": 14.0, "door": 9.0,
+		"wall": Color("5c4636"), "roof": Color("ffd8a8")},
 ]
 
 static var noise: FastNoiseLite = null

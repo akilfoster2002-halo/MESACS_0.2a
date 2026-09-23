@@ -69,7 +69,8 @@ var ap: AnimationPlayer
 var cam: Camera3D
 
 func _ready() -> void:
-	character = Settings.get_value("character", "s")
+	# who you are rides in the progress bag, so it follows your account
+	character = str(Progress.get_value("char", Settings.get_value("character", "s")))
 	if not CHARACTERS.has(character):
 		character = "s"
 	_load_body()
@@ -159,7 +160,7 @@ func set_character(id: String) -> void:
 	if id == character or not CHARACTERS.has(id):
 		return
 	character = id
-	Settings.set_value("character", id)
+	Progress.set_value("char", id)
 	_load_body()
 
 func can(clip: String) -> bool:

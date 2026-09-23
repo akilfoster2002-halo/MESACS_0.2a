@@ -38,31 +38,16 @@ var front: Array[Node3D] = []
 var spin := 0.0
 
 func _ready() -> void:
-	model = Models.spawn("res://assets/car.glb")
+	model = CarModel.make(Wallet.paint(), LEN)
 	add_child(model)
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		for i in m.mesh.get_surface_count():
-			var src := m.get_active_material(i) as StandardMaterial3D
-			if src and src.resource_name == "body":
-				var mat := src.duplicate() as StandardMaterial3D
-				mat.albedo_color = Color("d42a35")
-				mat.metallic = 0.35
-				mat.roughness = 0.35
-				m.set_surface_override_material(i, mat)
-	# sized by its LENGTH, then stood on the floor: holder y=0 is the contact patch
-	var box := Models.bounds(model)
-	var s := LEN / maxf(0.001, box.size.z)
-	var c := box.get_center()
-	model.scale = Vector3.ONE * s
-	model.position = Vector3(-c.x, -box.position.y, -c.z) * s
-	for n in ["wheelFrontLeft", "wheelFrontRight", "wheelBackLeft", "wheelBackRight"]:
-		var w := model.find_child(n, true, false) as Node3D
-		if w:
-			w.set_meta("rest", w.basis)
-			wheels.append(w)
-			if n.begins_with("wheelFront"):
-				front.append(w)
+	for w in CarModel.wheels(model):
+		w.set_meta("rest", w.basis)
+		wheels.append(w)
+		if w.name.begins_with("wheelFront"):
+			front.append(w)
+
+func set_paint(c: Color) -> void:
+	CarModel.repaint(model, c)
 
 func park(at: Vector3, facing: Vector3) -> void:
 	dir = at.normalized()

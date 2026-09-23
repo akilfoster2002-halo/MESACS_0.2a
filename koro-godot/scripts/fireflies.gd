@@ -61,10 +61,8 @@ void fragment(){
 		else:
 			d = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized()
 		# not indoors and not over the pool: out in the grass
-		var tries := 0
-		while (Planet.pad_k(d) < 0.9 or Planet.near_basin(d, 1.05)) and tries < 8:
-			d = Planet.walk(d, Planet.frame_at(d, randf() * TAU).z, 30.0)
-			tries += 1
+		while Planet.pad_k(d) < 0.9 or Planet.near_basin(d, 1.05):
+			d = Planet.walk(d, Planet.frame_at(d, randf() * TAU).z, 20.0 + randf() * 40.0)
 		var h := Planet.height(d) + 0.4 + randf() * 1.8
 		mm.set_instance_transform(i, Transform3D(Planet.frame_at(d), d * (Planet.R + h)))
 		mm.set_instance_custom_data(i, Color(randf(), 0.35 + randf() * 0.9, 0.7 + randf() * 1.8, 0))
