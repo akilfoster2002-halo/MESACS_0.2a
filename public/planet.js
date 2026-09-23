@@ -5532,11 +5532,21 @@ window.PLANET = (function(){
     const want=me.dir.clone().applyAxisAngle(axis, (5*P.s*dt)/(PR+me.alt)).normalize();
     if(!blocked(want)) me.dir.copy(want);
   }
-  /* Feet on the ground and the keys back to what they were. */
+  /* OUT OF THE AIR, AND DOWN UNDER YOUR OWN WEIGHT. This used to put your
+     feet on the ground on the spot — press F sixty metres up and you were
+     standing in the grass the next frame, which is a teleport, not a
+     landing. So the height is kept and you FALL from it: walk() already
+     knows gravity, landing and splashing into water, and all this has to
+     do is let go. Whatever you were climbing or sinking at carries on into
+     the fall, so it does not stop dead in the air first. */
   function land(){
     flying=false;
+    const sink=Math.min(0, me.climb);
     me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
-    me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
+    const floor=floorAt(me.dir, me.alt);
+    me.onGround = me.alt <= floor+0.05;
+    me.vy = me.onGround ? 0 : sink;
+    if(me.onGround) me.alt=floor;
     if(window.AVATAR) AVATAR.posture(null);
     if(dome) dome.visible=false;
     if(streak) streak.line.visible=false;

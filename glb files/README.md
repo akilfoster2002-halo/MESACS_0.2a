@@ -147,6 +147,24 @@ done
 `avatar.js` still builds a front crawl out of `fly` for any model that arrives
 without one, but a real `swim` clip always wins.
 
+**Not for a Higgsfield character.** That loop is for the Mixamo rigs only. A
+Higgsfield body has `mixamorig:*` names after `retarget.js`, so `merge-clips.js`
+accepts it without complaint — and copies Mixamo's local rotations onto bones
+that rest differently, which folds her knees the wrong way. A new clip for her
+goes through `retarget.js` again, against the file she was built from, with a
+map that passes the already-renamed bones straight through:
+
+```bash
+node -e "const m=require('./higgsfield.map.json'),o={};for(const v of Object.values(m))o['mixamorig:'+v]=v;require('fs').writeFileSync('/tmp/id.map.json',JSON.stringify(o))"
+node retarget.js hfchar.glb /tmp/x-swim.glb /tmp/id.map.json ref=rig/idle.glb swim=rig/swim.glb inplace=swim
+node merge-clips.js ../public/characters/models/character-x.glb /tmp/x.glb swim=/tmp/x-swim.glb
+```
+
+**The Mixamo swim kicks deep.** Thighs drop under the body and the heels come up
+behind, in a V, on every character — that is the clip, not a conversion fault:
+`rig/swim.glb` matches `Swimming.fbx` drawn by three's own FBXLoader frame for
+frame.
+
 ## The E-45
 
 Robin's ship, parked beside the house on RYU. It arrives as a 2017 Blender export
