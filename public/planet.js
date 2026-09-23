@@ -854,6 +854,47 @@ window.PLANET = (function(){
     tex.repeat.set(150, 75);         // about one tile every thirteen metres
     return tex;
   }
+  /* THE GRAIN IS A PHOTOGRAPH NOW: a meadow lawn generated with Higgsfield,
+     made seamless, and taken down to grey so the vertex colours still say
+     which field you are in — green grass on a green soil band would be
+     green twice, and on VOLTA's violet it would be wrong. The drawn grain
+     above stays as what you see until it arrives.
+
+     GRASS_GAIN is what keeps the planet the same colour. A multiply map can
+     only darken, and one bright enough to average out like the drawn grain
+     has to clip its light blades to white — which leaves dark blotches on a
+     flat field, like lichen. So the photograph keeps its full contrast and
+     the material multiplies it back up: measured, the ground comes out
+     within one percent of what it was.
+
+     A tile is about four and a half metres. The drawn one was thirteen,
+     which was right for strokes a few pixels long and far too big for a
+     photograph of blades: they came out the size of reeds.
+
+     NO NORMAL MAP. One was made from the same image and measured: under
+     this sky the hemisphere light does nearly all the work and it moved
+     the ground by less than a percent, for another half a megabyte. */
+  const GRASS_GAIN=1.79;
+  let GRASS=null;
+  function grassMaps(mat){
+    if(!GRASS){
+      const tex=new THREE.TextureLoader().load('ground/grass_grain.jpg?v='+(window.ASSETV||'1'), ()=>{
+        tex.ready=true;
+        if(GRASS.mat) grassOn(GRASS.mat);           // the ball of whichever world is up
+      });
+      tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+      tex.repeat.set(450, 225);
+      tex.colorSpace=THREE.SRGBColorSpace;
+      tex.anisotropy=Math.min(8, G.renderer.capabilities.getMaxAnisotropy?
+                                 G.renderer.capabilities.getMaxAnisotropy():1);
+      GRASS={ tex, mat:null };
+    }
+    GRASS.mat=mat;
+    if(GRASS.tex.ready) grassOn(mat);
+  }
+  function grassOn(mat){
+    mat.map=GRASS.tex; mat.color.setScalar(GRASS_GAIN); mat.needsUpdate=true;
+  }
   function surface(){
     /* The ball RECEIVES shadows and casts none. A sphere three hundred metres
        across, dropped into a shadow camera two hundred metres wide, fills the
@@ -874,8 +915,9 @@ window.PLANET = (function(){
     geo.setAttribute('color', new THREE.BufferAttribute(col,3));
     // recomputed AFTER displacing, or every hill is lit as though it were flat
     geo.computeVertexNormals();
-    const ball=new THREE.Mesh(geo,
-      new THREE.MeshLambertMaterial({ vertexColors:true, map:grainTexture() }));
+    const soil=new THREE.MeshLambertMaterial({ vertexColors:true, map:grainTexture() });
+    grassMaps(soil);
+    const ball=new THREE.Mesh(geo, soil);
     ball.userData.flat=true;
     G.roomGroup.add(ball);
     // a pale cap at each pole, so you can tell you have been somewhere
