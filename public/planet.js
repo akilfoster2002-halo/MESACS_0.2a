@@ -2247,11 +2247,21 @@ window.PLANET = (function(){
       bs.g.quaternion.setFromRotationMatrix(
         new THREE.Matrix4().makeBasis(right, up2, fwd));
       bs.g.position.copy(bs.dir).multiplyScalar(PR + floorAt(bs.dir));
-      /* A panda has no legs to swing — it is one mesh — so it WADDLES: the
-         whole body rolls from side to side and dips at each step, which at
-         this distance is exactly what a panda on the move looks like. */
-      const body=bs.g.userData.body;
-      if(body){
+      /* No rig (an older cached model): the whole body WADDLES instead —
+         rolls side to side and dips at each step. */
+      const rig=bs.g.userData.pandaRig, body=bs.g.userData.body;
+      if(rig){
+        /* Rigged: the legs really walk. Walk while moving, idle (looking
+           about) while stopped, a third of a second to change between them
+           — and the stride is paced to the ground actually covered, so the
+           feet do not skate. */
+        if(rig.walking!==walking){
+          rig.walking=walking;
+          const to=walking ? rig.walk : rig.idle, from=walking ? rig.idle : rig.walk;
+          if(to && from){ to.reset().play(); from.crossFadeTo(to, 0.35, false); }
+        }
+        rig.mixer.update(dt);
+      } else if(body){
         const w = walking ? 1 : 0;
         body.rotation.z = Math.sin(bs.step*3.2)*0.075*w;
         body.position.y = Math.abs(Math.sin(bs.step*3.2))*0.05*w;
@@ -2266,7 +2276,8 @@ window.PLANET = (function(){
   /* ------------------------------------------------------------ WANO
      Pandas where the herd was, and bamboo all over. Both are models made
      for this world (Higgsfield: a painted picture, then Meshy turned it into
-     a textured mesh), both small — a panda is a few thousand triangles and
+     a textured mesh; the panda was then rigged on four legs and given a walk
+     and an idle in Blender — "glb files"/wano/rig_panda.py), both small — a panda is a few thousand triangles and
      a clump of bamboo fewer — because there are dozens of the one and
      hundreds of the other.
 
@@ -2299,6 +2310,7 @@ window.PLANET = (function(){
           g.scene.position.set(-c.x, -box.min.y, -c.z);
           const root=new THREE.Group(); root.add(g.scene);
           root.userData.size=box.getSize(V(0,0,0));
+          root.userData.clips=g.animations||[];
           res(root);
         }, undefined, err=>{ console.warn('WANO: '+name+' did not load', err); rej(err); }));
     }
@@ -2308,18 +2320,50 @@ window.PLANET = (function(){
      walks here, so it needs no turning. Kept as a number so a regenerated
      model that comes back sideways is one edit. */
   const PANDA_YAW=0;
+  /* A SKINNED MODEL, COPIED. clone() copies the bones but leaves every copy
+     bound to the ORIGINAL skeleton, so fifteen pandas would all walk the
+     first one's walk (see avatar.js, which re-parses for the same reason).
+     Re-binding each copy to its own cloned bones, by name, is all
+     SkeletonUtils.clone does — and it keeps one mesh and one texture shared
+     between all of them, where re-parsing would decode the texture fifteen
+     times. */
+  function cloneSkinned(src){
+    const out=src.clone(true), bones=new Map(), from=[];
+    out.traverse(o=>{ if(o.isBone) bones.set(o.name, o); });
+    src.traverse(o=>{ if(o.isSkinnedMesh) from.push(o); });
+    let i=0;
+    out.traverse(o=>{
+      if(!o.isSkinnedMesh) return;
+      const s=from[i++];
+      o.bind(new THREE.Skeleton(s.skeleton.bones.map(b=>bones.get(b.name)),
+                                s.skeleton.boneInverses), s.bindMatrix);
+    });
+    return out;
+  }
   function pandaModel(){
     const g=new THREE.Group(), body=new THREE.Group();
     g.add(body); g.userData.body=body;
     const mine=W;
     wanoModel('panda').then(src=>{
       if(W!==mine) return;
-      const m=src.clone(true), sz=src.userData.size;
+      const m=cloneSkinned(src), sz=src.userData.size;
       const k=(PANDA.len*(0.85+Math.random()*0.3))/Math.max(sz.x, sz.z);
       m.scale.setScalar(k);
       m.rotation.y=PANDA_YAW;
-      m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+      m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true;
+                                    o.frustumCulled=false; } });   // a posed leg leaves the rest-pose box
       body.add(m);
+      const clips=src.userData.clips, mixer=new THREE.AnimationMixer(m);
+      const clip=n=>{ const c=clips.find(c=>c.name===n); return c ? mixer.clipAction(c) : null; };
+      const walk=clip('Walk'), idle=clip('Idle');
+      if(walk){
+        /* One stride a second in the file covers about 0.94 of the model's
+           own metres; scaled by k, and slowed to the panda's pace. */
+        walk.timeScale=PANDA.speed/(0.94*k);
+        walk.time=Math.random();             // not fifteen pandas in step
+      }
+      if(idle){ idle.time=Math.random()*4; idle.play(); }
+      g.userData.pandaRig={ mixer, walk, idle, walking:false };
     }).catch(()=>{});
     return g;
   }
