@@ -2215,16 +2215,8 @@ window.PLANET = (function(){
       const g=pandas ? pandaModel() : beastModel(k);
       G.roomGroup.add(g);
       beasts.push({ k, g, dir, fwd:frameAt(dir, Math.random()*Math.PI*2).fwd,
-                    step:0, rest:Math.random()*4, turn:0, tame:0, eat:0 });
+                    step:0, rest:Math.random()*4, turn:0 });
       if(pandas) pandaHit(g, beasts.length-1);
-    }
-    /* THE ONE YOU TAMED IS STILL YOURS. It is in the save rather than in the
-       world — which panda it was is not kept, only that you have one — so
-       the first panda comes back wearing your saddle and walks over to find
-       you when you land. */
-    if(pandas && beasts[0] && window.PROGRESS && PROGRESS.get('panda_pal', 0)){
-      const bs=beasts[0];
-      bs.tame=3; bs.pal=true; tamed(bs);
     }
   }
   function beastTick(dt){
@@ -2240,35 +2232,13 @@ window.PLANET = (function(){
          all that is left here is its legs, at the pace you are asking of it. */
       if(bs===mount){ pandaLegs(bs, riding.moving, riding.speed, dt); continue; }
 
-      let walking, v=bs.k.speed;
-      const toMe = me.dir ? bs.dir.angleTo(me.dir)*PR : 1e9;
-      if(bs.eat>0){
-        /* EATING. It stops, turns to you and chews — the idle's slow look
-           down is the chewing — until the stalk is gone. */
-        bs.eat-=dt; walking=false;
-        turnTo(bs, me.dir, 3.5*dt);
-        if(bs.eat<=0 && bs.stalk){ bs.stalk.parent && bs.stalk.parent.remove(bs.stalk); bs.stalk=null; }
-      } else if(bs.tame>=3 && (toMe<90 || (bs.pal && !bs.found))){
-        /* YOURS, AND IT KNOWS IT. A tamed panda keeps you in sight: it
-           ambles after you when you wander off, hurries when you are far,
-           and sits down to wait a few steps away. Beyond ninety metres it
-           has lost you and goes back to being a panda until you come back. */
-        if(bs.pal && !bs.found){
-          bs.found=true;                      // it comes to meet you where you land
-          bs.dir.copy(me.dir).applyAxisAngle(me.fwd, 4.5/PR).normalize();
-          bs.fwd.copy(me.fwd);
-        }
-        walking = toMe > 4.5;
-        v = Math.min(6.5, 1.1 + toMe*0.3);
-        if(walking) turnTo(bs, me.dir, 3*dt);
-      } else {
-        bs.rest-=dt;
-        if(bs.rest<=0){                       // stop, look about, choose a new way
-          bs.rest=3+Math.random()*7;
-          bs.turn=(Math.random()-0.5)*2.4;
-        }
-        walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
+      const v=bs.k.speed;
+      bs.rest-=dt;
+      if(bs.rest<=0){                       // stop, look about, choose a new way
+        bs.rest=3+Math.random()*7;
+        bs.turn=(Math.random()-0.5)*2.4;
       }
+      const walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
       if(bs.turn){ const d=Math.min(Math.abs(bs.turn), 1.3*dt)*Math.sign(bs.turn);
                    bs.fwd.applyAxisAngle(up, d); bs.turn-=d; }
       if(walking){
@@ -2329,20 +2299,12 @@ window.PLANET = (function(){
       body.position.y = Math.abs(Math.sin(bs.step*3.2))*0.05*w;
     }
   }
-  /* Turn a beast's heading toward a point on the ball, at most `max`
-     radians this frame. */
-  function turnTo(bs, target, max){
-    if(!target) return;
-    const want=facing(bs.dir.clone().normalize(), target);
-    const up=bs.dir.clone().normalize();
-    const ang=Math.atan2(new THREE.Vector3().crossVectors(bs.fwd, want).dot(up), bs.fwd.dot(want));
-    bs.fwd.applyAxisAngle(up, Math.max(-max, Math.min(max, ang)));
-  }
-
-  /* ------------------------------------------------------ PANDA FRIENDS
-     Walk up to a panda, look at it, press E: you offer it bamboo. Three
-     stalks and it trusts you — a red saddle cloth, "your panda", and it
-     follows you about. E again and you climb on. R gets you off.
+  /* ------------------------------------------------------ PANDA RIDING
+     Any panda, any time. Walk up to one, look at it, press E and you are
+     on its back — a red saddle cloth appears under you — and R puts you
+     down again, after which it is a panda again: the saddle goes, and it
+     wanders off about its own business as if nothing had happened. Nobody
+     owns one.
 
      A PANDA IS A THING YOU POINT AT, like a door: an invisible box the
      size of it is in G.hits, owned by the panda's group, and the group
@@ -2357,63 +2319,39 @@ window.PLANET = (function(){
     g.userData.hit=box;
     g.userData.enter='panda:'+i;
     g.userData.kind='panda';
-    g.userData.label='Wild panda';
-    g.userData.verb='E — offer bamboo';
+    g.userData.label='Panda';
+    g.userData.verb='E — ride';
   }
-  const TAME=3;
   function pandaUse(i){
     const bs=beasts[i]; if(!bs || !me.dir) return;
     if(flying){ say(t('Land first — pandas do not fly.')); return; }
     if(bs.dir.angleTo(me.dir)*PR > 5.5){ say(t('Get a little closer to the panda.')); return; }
-    if(bs.tame>=TAME){ mountPanda(bs); return; }
-    if(bs.eat>0) return;                          // still chewing the last one
-    bs.tame++; bs.eat=2.4;
-    stalkIn(bs);
-    hearts(bs, bs.tame>=TAME ? 5 : 1);
-    if(bs.tame>=TAME){
-      tamed(bs);
-      if(window.PROGRESS) PROGRESS.set('panda_pal', 1);
-      if(window.beep) beep('win');
-      say(t('🐼 It trusts you now! Press <b>E</b> to climb on.'));
-    } else {
-      if(window.beep) beep('pop');
-      say(t('🎋 Munch, munch… {n} of {m} — it wants more bamboo.',{n:bs.tame, m:TAME}));
-    }
-  }
-  function tamed(bs){
-    const u=bs.g.userData;
-    u.label='Your panda'; u.verb='E — ride';
-    if(u.k) saddle(bs.g); else u.wantSaddle=true;     // the model may not be in yet
+    mountPanda(bs);
   }
   /* A RED SADDLE CLOTH, which is how you can tell yours from the others at a
      glance — vermilion, like the torii, with gold at the corners. It is laid
      over the back at the measured height and draped as half a tube, so it
      follows the curve of the panda rather than floating flat above it. */
-  function saddle(g){
-    const u=g.userData; if(u.saddled || !u.model || !measured) return; u.saddled=true;
+  function saddle(g, on){
+    const u=g.userData;
+    if(u.saddle){ u.saddle.forEach(m=>m.visible=on); return; }
+    if(!on || !u.model || !measured) return;
+    u.saddle=[];
+    const add=m=>{ u.model.add(m); u.saddle.push(m); };
     const cloth=new THREE.Mesh(measured.drape,
       new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide }));
-    u.model.add(cloth);                       // the model's own space: it is scaled with it
+    add(cloth);                               // the model's own space: it is scaled with it
     const gold=new THREE.MeshLambertMaterial({ color:0xe0b243 });
     measured.drape.userData.corners.forEach(c=>{
       const tas=new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.14, 6), gold);
       tas.rotation.x=Math.PI; tas.position.copy(c).add(new THREE.Vector3(0,-0.08,0));
-      u.model.add(tas);
+      add(tas);
     });
     const knot=new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), gold);
     // a gold knot at the front edge of the cloth, over the withers
     const front=measured.drape.userData.corners[2].z;
     knot.position.set(0, measured.back+0.03, measured.seatZ + (front-measured.seatZ)*0.9);
-    u.model.add(knot);
-  }
-  /* A stalk of bamboo in its mouth while it eats. */
-  function stalkIn(bs){
-    const u=bs.g.userData; if(!u.k) return;
-    const s=new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.9, 6),
-                           new THREE.MeshLambertMaterial({ color:0x6fae3a }));
-    s.rotation.z=Math.PI/2 - 0.3;
-    s.position.set(0, u.back*0.78, u.len*0.44);
-    u.body.add(s); bs.stalk=s;
+    add(knot);
   }
   /* HEARTS, rising off its head and fading. Sprites in world space, so
      they stay where they were given rather than following the panda. */
@@ -2458,12 +2396,15 @@ window.PLANET = (function(){
     if(mount===bs) return;
     if(mount) dismount();
     if(ride) toggleRide();
-    mount=bs; bs.eat=0;
+    mount=bs;
     /* where it was standing is where you are now, facing its way */
     me.dir.copy(bs.dir); me.fwd.copy(bs.fwd);
     me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
     const u=bs.g.userData;
     if(u.hit){ const i=G.hits.indexOf(u.hit); if(i>=0) G.hits.splice(i,1); }   // not a thing to point at under you
+    saddle(bs.g, true);
+    hearts(bs, 1);
+    if(window.beep) beep('pop');
     if(window.AVATAR) AVATAR.posture('ride');
     keysFor();
     say(t('🐼 <b>W</b> to go, <b>SHIFT</b> to gallop, <b>R</b> to get off.'));
@@ -2480,10 +2421,13 @@ window.PLANET = (function(){
     const off=me.dir.clone().applyAxisAngle(axis, 1.6/PR).normalize();
     if(!blocked(off)) me.dir.copy(off);
     me.alt=floorAt(me.dir, me.alt);
-    bs.rest=2;
+    /* and it is a panda again: saddle off, a moment's pause, then off it
+       goes wherever it was going to go */
+    saddle(bs.g, false);
+    bs.rest=2+Math.random()*2; bs.turn=(Math.random()-0.5)*2.4;
     if(window.AVATAR) AVATAR.posture(swimming ? 'swim' : null);
     keysFor();
-    say(t('Off you get. Your panda will follow you.'));
+    say(t('Off you get. The panda wanders off.'));
     return true;
   }
   /* Stand the panda under the rider, and the rider in the saddle. The
@@ -2677,7 +2621,6 @@ window.PLANET = (function(){
       const meas=pandaMeasure(src);
       Object.assign(g.userData, { k, model:m, back:meas.back*k, halfW:meas.halfW*k,
                                   len:sz.z*k, seatZ:meas.seatZ*k });
-      if(g.userData.wantSaddle) saddle(g);
       const clips=src.userData.clips, mixer=new THREE.AnimationMixer(m);
       const clip=n=>{ const c=clips.find(c=>c.name===n); return c ? mixer.clipAction(c) : null; };
       const walk=clip('Walk'), idle=clip('Idle');
