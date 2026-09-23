@@ -1,0 +1,8 @@
+# Godot's import cache: rebuilt from assets/ on first open
+.godot/
+*.import
+/build/
+# textures Godot pulls out of the GLBs on import — rebuilt on first open
+/assets/*.jpg
+/assets/*.webp
+/assets/*.png
