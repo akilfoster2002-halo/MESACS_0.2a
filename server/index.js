@@ -859,11 +859,20 @@ wss.on('connection', async (ws, req)=>{
    app out of it — there is nobody in any room and never will be, because
    no socket can reach a function that only exists for the length of one
    request. A timer firing twelve times a second over an empty map for the
-   life of every container is pure waste. */
-if(require.main === module) setInterval(()=>{
-  const rooms=new Set(); for(const [,p] of live) if(p.server) rooms.add(p.server);
-  for(const r of rooms) broadcastRoom(r,{ t:'players', players:roster(r) });
-}, 80);
+   life of every container is pure waste.
+
+   AND "A SERVER" MEANS start(), NOT BEING THE MAIN MODULE. This used to ask
+   require.main, which is only true for `npm start` — so `npm run dev` and
+   the Mac app, which both require this file and call start(), ran a room
+   in which nobody ever heard where anybody else was. */
+let rosterT = null;
+function rosters(){
+  if(rosterT) return;
+  rosterT = setInterval(()=>{
+    const rooms=new Set(); for(const [,p] of live) if(p.server) rooms.add(p.server);
+    for(const r of rooms) broadcastRoom(r,{ t:'players', players:roster(r) });
+  }, 80);
+}
 
 /* ========================================================= the tutor
    Somebody to ask who will not do it for you. See server/tutor.js for
@@ -953,6 +962,7 @@ const PORT = process.env.PORT || 3000;
    left it loading the whole server and then exiting, silently, with code
    0. A serverless host asks for neither and just takes the app. */
 function start(){
+  rosters();
   return db.init()
     .catch(e=>console.error('DB init failed — running without accounts:', e.message))
     .finally(()=>server.listen(PORT,()=>
