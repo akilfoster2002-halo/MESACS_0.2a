@@ -111,7 +111,7 @@ test('exactly one place decides whether the gun is on screen', ()=>{
 
 test('the gun is put away whenever a full-screen card is up', ()=>{
   const game=read('public/game.js');
-  assert.match(game, /GUN\.carried\(\s*G\.running && G\.firstPerson && !overlayUp\(\)\s*\)/,
+  assert.match(game, /GUN\.carried\(\s*G\.running && G\.firstPerson && !overlayUp\(\)/,
     'the render loop does not decide the gun from the running/first-person/overlay state');
   assert.match(game, /function overlayUp\(\)/, 'no overlayUp() to ask about screens');
   /* and it must be asked BEFORE the draw, not after it */

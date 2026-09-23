@@ -415,3 +415,19 @@ test('mission control is the temple, and the temple is wired in', ()=>{
   assert.ok(fs.existsSync('public/temple/layout.js'), 'the layout was never built');
   assert.ok(fs.existsSync('public/temple/temple.glb'), 'the model was never built');
 });
+
+test('the giant mecha stands by the Mechanic and does what it says on the bar', ()=>{
+  const src=read('public/planet.js');
+  assert.match(src, /mechaBuild\(\);/, 'nothing puts the mecha on Wano');
+  assert.match(src, /x\.id==='mechanic'/, 'the mecha is no longer parked by the Mechanic');
+  assert.match(src, /if\(piloting\) return pilotStep\(dt, up, dy\);/, 'the keys do not drive it');
+  assert.match(src, /if\(piloting\)\{ pilotCamera\(up\); return; \}/, 'the camera does not follow it');
+  // the skills: mega jump, dash, slam, and a cockpit for V
+  assert.match(src, /M\.vy=MECHA\.jump/, 'no mega jump');
+  assert.match(src, /MECHA\.dash/, 'no dash');
+  assert.match(src, /M\.slamming=true; M\.vy=-60/, 'no slam');
+  assert.match(src, /if\(G\.firstPerson\)\{\s*M\.g\.visible=false;/, 'the cockpit view still draws the mecha round the camera');
+  const game=read('public/game.js');
+  assert.match(game, /PLANET\.piloting && PLANET\.exitMech\(\)/, 'R does not get you out');
+  assert.match(game, /!\(window\.PLANET && PLANET\.piloting\)/, 'your blaster floats in the cockpit');
+});

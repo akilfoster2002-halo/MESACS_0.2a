@@ -838,6 +838,8 @@ function wireInput(){
         if(window.PLANET.aboard && PLANET.leaveShip()) return;
         // and on a panda, R is getting off it — the same key the car uses
         if(PLANET.mounted && PLANET.dismount()) return;
+        // and out of the mecha
+        if(PLANET.piloting && PLANET.exitMech()) return;
         PLANET.travel(); return;
       }
       /* THE RING IS NOT THE FREE PLAY ROOM but it runs the same editor on
@@ -995,7 +997,9 @@ function loop(now){
      last room left it, because this is the line that draws — and a full
      screen over the top is not cover: a screen fading out is transparent for
      a quarter of a second, which is exactly when the phantom was seen. */
-  if(window.GUN) GUN.carried(G.running && G.firstPerson && !overlayUp());
+  // not in a cockpit: the mecha's first-person view is a windscreen, not your hands
+  if(window.GUN) GUN.carried(G.running && G.firstPerson && !overlayUp()
+                             && !(window.PLANET && PLANET.piloting));
   G.renderer.render(G.scene,G.camera);
 }
 /* Is one of the full-screen cards up — sign-in, the character picker, the

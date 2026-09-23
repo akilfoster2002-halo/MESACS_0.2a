@@ -653,6 +653,7 @@ window.PLANET = (function(){
        on, and the fauna the hub has is the hub's — a herd grazing outside a
        nightclub is a different game. */
     wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 36);   // Wano's are pandas
+    mechaBuild();                  // and the giant beside the Mechanic
     /* AND THE TWO ON THE RIDGE, on RYU only, and only for somebody who has
        the glasses. Five and a half megabytes of robot is not a thing to
        fetch for a player who has not met the Mechanic yet and cannot see
@@ -718,6 +719,8 @@ window.PLANET = (function(){
        nothing in it and a body that never comes back. */
     aboard=false; shipRide=null; arrived=false;
     mount=null; floaties=[];               // the panda was part of the world we left
+    if(piloting){ piloting=false; if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; } }
+    if(mhud) mhud.classList.add('hidden');
     if(window.AVATAR) AVATAR.posture(null);
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
@@ -2232,13 +2235,15 @@ window.PLANET = (function(){
          all that is left here is its legs, at the pace you are asking of it. */
       if(bs===mount){ pandaLegs(bs, riding.moving, riding.speed, dt); continue; }
 
-      const v=bs.k.speed;
+      let v=bs.k.speed;
       bs.rest-=dt;
       if(bs.rest<=0){                       // stop, look about, choose a new way
         bs.rest=3+Math.random()*7;
         bs.turn=(Math.random()-0.5)*2.4;
       }
-      const walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
+      let walking = bs.rest > 1.6;          // the last stretch of each spell is a pause
+      /* and when the ground jumps under it, it RUNS — away from the mecha */
+      if(bs.flee>0){ bs.flee-=dt; walking=true; v=5; }
       if(bs.turn){ const d=Math.min(Math.abs(bs.turn), 1.3*dt)*Math.sign(bs.turn);
                    bs.fwd.applyAxisAngle(up, d); bs.turn-=d; }
       if(walking){
@@ -2476,6 +2481,357 @@ window.PLANET = (function(){
       qw.setFromAxisAngle(fwd, /Left/.test(b.name) ? -0.95 : 0.95);
       b.quaternion.premultiply(qp.clone().invert().multiply(qw).multiply(qp));
     }
+  }
+
+  /* ============================================================ THE GIANT
+     A mecha twenty metres tall, parked beside the Mechanic. Look at it and
+     press E and you are in it: the keys drive it, the ground shakes, and
+     it can do what a person cannot — cross the island at a dash, leap four
+     storeys, and come down on the grass hard enough to send a ring across
+     it and every panda nearby running. V swaps the chase camera for the
+     cockpit. R climbs out, and it stays where you left it.
+
+     THE MODEL is Higgsfield (a painted picture of an original design, then
+     Meshy made it a textured, rigged mesh), and its clips are the same
+     Mixamo ones everybody walks with, put onto its skeleton by retarget.js
+     — so it walks, runs and jumps like a person twenty metres tall, which
+     is exactly how a mecha is meant to move.
+
+     WHILE YOU ARE IN IT, `me` IS THE MECHA. Where you are, which way you
+     face and how high you are is the machine's; this only changes how the
+     keys move that, what the camera does, and what draws. */
+  const MECHA={ H:20, walk:9, dash:34, jump:30, grav:24, thrust:34, fuel:3.2 };
+  let mecha=null, piloting=false, wasFP=null, mhud=null;
+  function mechaBuild(){
+    mecha=null; piloting=false;
+    if(W.kind!=='hub') return;
+    const b=BUILDINGS.find(x=>x.id==='mechanic'); if(!b || !b.dir) return;
+    const f=b.frame || frameAt(b.dir, 0);
+    /* Beside the building, not in front of its door: along its own right,
+       half its width and a mecha's stride out. */
+    const dir=b.dir.clone().applyAxisAngle(f.fwd, -(b.w/2 + 18)/PR).normalize();
+    const g=new THREE.Group(); G.roomGroup.add(g);
+    const hit=new THREE.Mesh(new THREE.BoxGeometry(8, MECHA.H, 6),
+                             new THREE.MeshBasicMaterial({ visible:false }));
+    hit.position.y=MECHA.H/2; hit.userData.owner=g; g.add(hit); G.hits.push(hit);
+    Object.assign(g.userData, { enter:'mecha', kind:'machine', label:'GIANT MECHA', verb:'E — climb in' });
+    mecha={ g, hit, dir, fwd:frameAt(dir,0).fwd.clone(), alt:floorAt(dir), vy:0, onGround:true,
+            spd:0, fuel:MECHA.fuel, slamming:false, cool:0, shake:0, stride:0,
+            jumpReady:true, qReady:true, rings:[], flames:[], mixer:null, acts:{}, cur:null, S:1 };
+    const mine=W;
+    wanoModel('mecha').then(src=>{
+      if(W!==mine || !mecha || mecha.g!==g) return;
+      const m=cloneSkinned(src), sz=src.userData.size;
+      const S=MECHA.H/Math.max(0.001, sz.y);
+      m.scale.setScalar(S); mecha.S=S;
+      m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; } });
+      g.add(m); mecha.model=m;
+      mecha.mixer=new THREE.AnimationMixer(m);
+      (src.userData.clips||[]).forEach(c=>{ mecha.acts[c.name]=mecha.mixer.clipAction(c); });
+      mechaPlay('idle');
+      /* the two thrusters on its back, lit only when they are working */
+      [-1,1].forEach(sx=>{
+        const fl=new THREE.Mesh(new THREE.ConeGeometry(0.9, 5, 12, 1, true),
+          new THREE.MeshBasicMaterial({ color:0x8fe3ff, transparent:true, opacity:0.85,
+                                        blending:THREE.AdditiveBlending, depthWrite:false }));
+        fl.rotation.x=Math.PI;                 // pointing down
+        fl.position.set(sx*MECHA.H*0.11, MECHA.H*0.66, -MECHA.H*0.13);
+        fl.visible=false; fl.userData.sky=true;
+        g.add(fl); mecha.flames.push(fl);
+      });
+    }).catch(()=>{});
+  }
+  function mechaPlay(name, scale){
+    const M=mecha; if(!M || !M.mixer) return;
+    const a=M.acts[name] || M.acts.idle; if(!a) return;
+    if(scale!==undefined) a.timeScale=scale;
+    if(M.cur===a) return;
+    a.reset().play();
+    if(M.cur) M.cur.crossFadeTo(a, 0.3, false);
+    M.cur=a;
+  }
+  function pilotMech(){
+    if(!mecha) return;
+    if(flying){ say(t('Land first, then climb in.')); return; }
+    if(me.dir.angleTo(mecha.dir)*PR > 16){ say(t('Walk up to the mecha to climb in.')); return; }
+    if(ride) toggleRide();
+    if(mount) dismount();
+    piloting=true;
+    me.dir.copy(mecha.dir); me.fwd.copy(mecha.fwd);
+    me.alt=mecha.alt; me.vy=0; me.onGround=true;
+    const i=G.hits.indexOf(mecha.hit); if(i>=0) G.hits.splice(i,1);
+    if(window.AVATAR) AVATAR.detach();          // you are in it, not beside it
+    wasFP=G.firstPerson; G.firstPerson=false;
+    mhudShow(true);
+    if(window.beep) beep('win');
+    keysFor();
+    say(t('🤖 Online. <b>SHIFT</b> dash · <b>SPACE</b> mega jump · <b>Q</b> slam · <b>V</b> cockpit · <b>R</b> climb out'));
+  }
+  function exitMech(){
+    if(!piloting) return false;
+    if(!mecha.onGround){ say(t('Land first — it is a long way down.')); return true; }
+    piloting=false;
+    mecha.dir.copy(me.dir); mecha.fwd.copy(me.fwd); mecha.alt=me.alt; mecha.spd=0;
+    // out by its right foot
+    const up=me.dir.clone().normalize();
+    const right=new THREE.Vector3().crossVectors(me.fwd, up).normalize();
+    const axis=new THREE.Vector3().crossVectors(up, right).normalize();
+    const out=me.dir.clone().applyAxisAngle(axis, 7/PR).normalize();
+    if(!blocked(out)) me.dir.copy(out);
+    me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
+    if(G.hits.indexOf(mecha.hit)<0) G.hits.push(mecha.hit);
+    mecha.g.visible=true; mechaFlames(false);
+    if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
+    if(window.AVATAR) AVATAR.attach();
+    mhudShow(false); mechaPlay('idle', 1);
+    keysFor();
+    say(t('You climb down. It will wait here for you.'));
+    return true;
+  }
+
+  /* DRIVING IT. Heavy: the speed is chased rather than set, so it leans
+     into a start and takes a moment to stop. A and D turn it; nothing
+     twenty metres tall side-steps. */
+  function pilotStep(dt, up, dy){
+    const M=mecha;
+    if(dy) me.fwd.applyAxisAngle(up, dy);
+    const turn=(G.keys.KeyA||G.keys.ArrowLeft?1:0)-(G.keys.KeyD||G.keys.ArrowRight?1:0);
+    if(turn) me.fwd.applyAxisAngle(up, turn*1.4*dt);
+    me.fwd.sub(up.clone().multiplyScalar(me.fwd.dot(up)));
+    if(me.fwd.lengthSq()<1e-6) me.fwd.copy(frameAt(up,0).fwd);
+    me.fwd.normalize();
+
+    const f=(G.keys.KeyW||G.keys.ArrowUp?1:0)-(G.keys.KeyS||G.keys.ArrowDown?1:0);
+    const dash=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && f>0;
+    const want=f*(dash ? MECHA.dash : MECHA.walk);
+    const acc=dash ? 26 : 18;
+    M.spd += Math.max(-acc*dt, Math.min(acc*dt, want-M.spd));
+    if(Math.abs(M.spd)<0.05 && !f) M.spd=0;
+
+    let moved=false;
+    if(M.spd){
+      const move=me.fwd.clone().multiplyScalar(Math.sign(M.spd));
+      const axis=new THREE.Vector3().crossVectors(up, move).normalize();
+      const ang=Math.abs(M.spd)*dt/(PR+me.alt);
+      const to=me.dir.clone().applyAxisAngle(axis, ang).normalize();
+      if(blocked(to)) M.spd=0;
+      else { me.dir.copy(to); me.fwd.applyAxisAngle(axis, ang); moved=true;
+             G.stats.steps += Math.abs(M.spd)*dt; }
+    }
+
+    /* MEGA JUMP on Space from the ground; held in the air it is the
+       thrusters, for as long as the boost lasts. Q in the air is the SLAM:
+       straight down, as fast as it will go. */
+    const space=!!G.keys.Space, q=!!G.keys.KeyQ;
+    let hover=false;
+    if(M.onGround){
+      if(space && M.jumpReady){
+        M.vy=MECHA.jump; M.onGround=false; M.jumpReady=false;
+        if(window.beep) beep('pop');
+      }
+      if(q && M.qReady && M.cool<=0){ shockwave(18, 1.2); M.cool=1.4; }
+    } else {
+      if(space && !M.jumpReady && M.fuel>0 && !M.slamming && M.vy<10){
+        M.vy += MECHA.thrust*dt; M.fuel=Math.max(0, M.fuel-dt); hover=true;
+      }
+      if(q && M.qReady && !M.slamming){ M.slamming=true; M.vy=-60; }
+    }
+    if(!space) M.jumpReady=true;
+    M.qReady=!q;
+    M.cool=Math.max(0, M.cool-dt);
+
+    const floor=floorAt(me.dir, me.alt);
+    if(!M.onGround){
+      M.vy -= MECHA.grav*dt; me.alt += M.vy*dt;
+      if(me.alt<=floor){
+        const hard=M.vy;
+        me.alt=floor; M.vy=0; M.onGround=true;
+        if(M.slamming) shockwave(38, 2.4);
+        else if(hard<-16) shockwave(16, 0.9);
+        else M.shake=Math.max(M.shake, 0.4);
+        M.slamming=false;
+      }
+    } else {
+      if(floor < me.alt-1.2){ M.onGround=false; M.vy=0; }      // walked off something
+      else me.alt=floor;
+    }
+    if(M.onGround) M.fuel=Math.min(MECHA.fuel, M.fuel+dt*1.2);
+
+    /* THE GROUND KNOWS IT IS THERE: every footfall is a jolt. */
+    if(M.onGround && moved){
+      M.stride += Math.abs(M.spd)*dt;
+      const every = dash ? 26 : 13;
+      if(M.stride>every){ M.stride-=every; M.shake=Math.max(M.shake, dash ? 0.5 : 0.35); }
+    }
+
+    // what the body does
+    const S=M.S||1;
+    if(!M.onGround) mechaPlay(hover||M.slamming ? 'fly' : 'jump', 0.8);
+    else if(Math.abs(M.spd)>0.6) mechaPlay(dash ? 'sprint' : 'walk',
+                                   Math.abs(M.spd)/((dash ? 5.2 : 1.45)*S/1.0));
+    else mechaPlay('idle', 1);
+    mechaFlames(dash || hover || M.slamming);
+    M.hover=hover;
+
+    M.dir.copy(me.dir); M.fwd.copy(me.fwd); M.alt=me.alt;
+    riding.moving=moved; riding.speed=Math.abs(M.spd);
+    mhudTick();
+    place(dt, moved, dash);
+  }
+  function mechaFlames(on){
+    if(!mecha) return;
+    mecha.flames.forEach((fl,i)=>{
+      fl.visible=on;
+      if(on){ const k=0.8+0.35*Math.random(); fl.scale.set(k, 0.8+Math.random()*0.6, k); }
+    });
+  }
+
+  /* THE SHOCKWAVE: a ring of light running out across the ground from the
+     feet, a jolt through the camera, and every panda near enough bolting
+     the other way. */
+  function shockwave(R, jolt){
+    const M=mecha; if(!M) return;
+    const up=M.dir.clone().normalize(), f=frameAt(up,0);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 64),
+      new THREE.MeshBasicMaterial({ color:0xbff4ff, transparent:true, opacity:0.9, side:THREE.DoubleSide,
+                                    blending:THREE.AdditiveBlending, depthWrite:false }));
+    ring.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.right, f.fwd.clone().negate(), up));
+    ring.position.copy(up).multiplyScalar(PR + terrainH(up) + 0.4);
+    ring.userData.sky=true;
+    G.roomGroup.add(ring);
+    M.rings.push({ ring, t:0, R });
+    M.shake=Math.max(M.shake, jolt);
+    if(window.beep) beep('bad');
+    for(const bs of beasts){
+      if(bs===mount) continue;
+      const d=bs.dir.angleTo(up)*PR;
+      if(d < R*1.3){
+        bs.fwd.copy(facing(bs.dir.clone().normalize(), up)).negate();
+        bs.flee=2.5+Math.random()*2; bs.turn=0;
+      }
+    }
+  }
+  function mechaTick(dt){
+    const M=mecha; if(!M) return;
+    if(M.mixer) M.mixer.update(dt);
+    if(!piloting){
+      const up=M.dir.clone().normalize();
+      const r=new THREE.Vector3().crossVectors(up, M.fwd).normalize();
+      M.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, up, M.fwd));
+      M.g.position.copy(up).multiplyScalar(PR + M.alt);
+    }
+    M.rings=M.rings.filter(o=>{
+      o.t+=dt; const k=o.t/0.9;
+      o.ring.scale.setScalar(2 + k*o.R);
+      o.ring.material.opacity=0.9*(1-k)*(1-k);
+      if(k>=1){ o.ring.parent && o.ring.parent.remove(o.ring); return false; }
+      return true;
+    });
+    M.shake=Math.max(0, M.shake-dt*2.2);
+  }
+  /* Where the camera goes while you are in it. Behind and above in the
+     chase view; in the cockpit, in its chest, looking where it looks. The
+     whole machine is hidden from the inside — the cockpit is drawn over
+     the view instead — or its own head would fill the windscreen. */
+  function pilotCamera(up){
+    const M=mecha, H=MECHA.H;
+    M.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+      new THREE.Vector3().crossVectors(up, me.fwd).normalize(), up, me.fwd));
+    M.g.position.copy(worldPos(0));
+    const right=new THREE.Vector3().crossVectors(me.fwd, up).normalize();
+    const jig=()=> (Math.random()-0.5)*M.shake;
+    if(G.firstPerson){
+      M.g.visible=false;
+      G.camera.position.copy(worldPos(H*0.8)).addScaledVector(me.fwd, H*0.08)
+        .addScaledVector(up, jig()*0.6).addScaledVector(right, jig()*0.6);
+      G.camera.up.copy(up);
+      /* tipped down a little: from sixteen metres up, level is all sky */
+      const look=me.fwd.clone().applyAxisAngle(right, G.pitch - 0.22);
+      G.camera.lookAt(G.camera.position.clone().addScaledVector(look, 40));
+    } else {
+      M.g.visible=true;
+      const head=worldPos(H*0.62);
+      const off=me.fwd.clone().multiplyScalar(-H*1.7).addScaledVector(up, H*0.55);
+      off.applyAxisAngle(right, G.pitch*0.6);
+      G.camera.position.copy(head).add(off).addScaledVector(up, jig()*2).addScaledVector(right, jig()*2);
+      G.camera.up.copy(up);
+      G.camera.lookAt(head.clone().addScaledVector(me.fwd, H*0.4));
+    }
+    mhudCockpit(G.firstPerson);
+  }
+
+  /* THE HUD: the skill bar while you are in it, and the cockpit round the
+     view when you are looking out of it. Plain DOM over the canvas —
+     nothing here needs to be in the 3D scene. */
+  function mhudShow(on){
+    if(!mhud){
+      mhud=document.createElement('div'); mhud.id='mechaHud';
+      mhud.innerHTML=`
+        <svg class="mh-cockpit" viewBox="0 0 1600 900" preserveAspectRatio="none">
+          <defs><linearGradient id="mhMetal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1b2433"/><stop offset="1" stop-color="#0a0f18"/></linearGradient></defs>
+          <path d="M0 0 H1600 V90 L1380 60 L220 60 L0 90 Z" fill="url(#mhMetal)"/>
+          <path d="M0 90 L220 60 L150 900 H0 Z" fill="url(#mhMetal)"/>
+          <path d="M1600 90 L1380 60 L1450 900 H1600 Z" fill="url(#mhMetal)"/>
+          <path d="M0 900 L150 900 L330 690 Q800 610 1270 690 L1450 900 H1600 V900 Z" fill="url(#mhMetal)"/>
+          <path d="M330 690 Q800 610 1270 690" fill="none" stroke="#5fe1ff" stroke-width="3" opacity=".8"/>
+          <path d="M220 60 L150 900 M1380 60 L1450 900 M220 60 H1380" fill="none" stroke="#5fe1ff" stroke-width="2" opacity=".5"/>
+          <g stroke="#9ff0ff" stroke-width="3" fill="none" opacity=".85">
+            <path d="M760 450 H700 M840 450 H900 M800 410 V380 M800 490 V520"/>
+            <circle cx="800" cy="450" r="26"/>
+            <path d="M620 330 V300 H650 M980 330 V300 H950 M620 570 V600 H650 M980 570 V600 H950"/>
+          </g>
+          <rect x="390" y="720" width="220" height="110" rx="10" fill="#07131d" stroke="#5fe1ff" stroke-opacity=".6"/>
+          <rect x="990" y="720" width="220" height="110" rx="10" fill="#07131d" stroke="#5fe1ff" stroke-opacity=".6"/>
+        </svg>
+        <div class="mh-read mh-left"><b class="mh-spd">0</b><small>KM/H</small></div>
+        <div class="mh-read mh-right"><b class="mh-alt">0</b><small>ALT M</small></div>
+        <div class="mh-bar">
+          <div class="mh-skill" data-k="jump"><kbd>SPACE</kbd><span>MEGA JUMP</span></div>
+          <div class="mh-skill" data-k="dash"><kbd>SHIFT</kbd><span>DASH</span></div>
+          <div class="mh-skill" data-k="slam"><kbd>Q</kbd><span>SLAM</span></div>
+          <div class="mh-skill"><kbd>V</kbd><span>VIEW</span></div>
+          <div class="mh-skill"><kbd>R</kbd><span>EXIT</span></div>
+          <div class="mh-boost"><i></i><small>BOOST</small></div>
+        </div>`;
+      const st=document.createElement('style');
+      st.textContent=`
+        #mechaHud{position:fixed;inset:0;pointer-events:none;z-index:1;font-family:inherit;color:#dff8ff}
+        #mechaHud.hidden{display:none}
+        #mechaHud .mh-cockpit{position:absolute;inset:0;width:100%;height:100%;display:none}
+        #mechaHud.fp .mh-cockpit{display:block}
+        #mechaHud .mh-read{position:absolute;bottom:13%;display:none;text-align:center;width:14%}
+        #mechaHud.fp .mh-read{display:block}
+        #mechaHud .mh-left{left:24.5%} #mechaHud .mh-right{right:24.5%}
+        #mechaHud .mh-read b{display:block;font-size:34px;color:#8ff0ff;letter-spacing:1px}
+        #mechaHud .mh-read small{font-size:11px;opacity:.7;letter-spacing:2px}
+        #mechaHud .mh-bar{position:absolute;left:50%;transform:translateX(-50%);top:14px;display:flex;gap:8px;align-items:stretch}
+        #mechaHud.fp .mh-bar{top:18px}
+        #mechaHud .mh-skill,#mechaHud .mh-boost{background:rgba(8,18,30,.78);border:1px solid rgba(95,225,255,.45);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px}
+        #mechaHud .mh-skill kbd{font:inherit;font-size:11px;background:#1d3446;border-radius:4px;padding:1px 6px;color:#9ff0ff}
+        #mechaHud .mh-skill span{font-size:11px;letter-spacing:1px}
+        #mechaHud .mh-skill.on{border-color:#ffd166;box-shadow:0 0 10px rgba(255,209,102,.5)}
+        #mechaHud .mh-skill.cool{opacity:.45}
+        #mechaHud .mh-boost{min-width:110px;justify-content:center}
+        #mechaHud .mh-boost i{display:block;height:8px;width:90px;border-radius:4px;background:linear-gradient(90deg,#5fe1ff,#b6ff8f);transform-origin:left}
+        #mechaHud .mh-boost small{font-size:10px;letter-spacing:2px;opacity:.75}`;
+      document.head.appendChild(st);
+      document.body.appendChild(mhud);
+    }
+    mhud.classList.toggle('hidden', !on);
+  }
+  function mhudCockpit(fp){ if(mhud) mhud.classList.toggle('fp', !!fp); }
+  function mhudTick(){
+    if(!mhud || !mecha) return;
+    const M=mecha, q=s=>mhud.querySelector(s);
+    q('.mh-spd').textContent=Math.round(Math.abs(M.spd)*3.6);
+    q('.mh-alt').textContent=Math.max(0, Math.round(me.alt - terrainH(me.dir)));
+    q('.mh-boost i').style.transform=`scaleX(${(M.fuel/MECHA.fuel).toFixed(3)})`;
+    const dash=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && Math.abs(M.spd)>MECHA.walk+1;
+    q('[data-k=jump]').classList.toggle('on', !M.onGround && !M.slamming);
+    q('[data-k=dash]').classList.toggle('on', dash);
+    q('[data-k=slam]').classList.toggle('on', M.slamming);
+    q('[data-k=slam]').classList.toggle('cool', M.cool>0);
   }
 
   /* ------------------------------------------------------------- the mall
@@ -5825,6 +6181,7 @@ window.PLANET = (function(){
      the mission. */
   function flyKey(){
     if(!on || aboard) return false;
+    if(piloting){ say(t('The mecha jumps instead — <b>SPACE</b>, and hold it to boost.')); return true; }
     if(travelUp) travelClose();
     if(flying) land(); else takeOff();
     return true;
@@ -6011,6 +6368,7 @@ window.PLANET = (function(){
 
     /* The mouse steers you on foot, and only turns your head in a car. */
     const dy=G.yaw-lastYaw; lastYaw=G.yaw;
+    if(piloting) return pilotStep(dt, up, dy);
     if(ride){ me.look += dy; return drive(dt, up); }
     if(dy) me.fwd.applyAxisAngle(up, dy);
     if(G.keys.ArrowLeft)  me.fwd.applyAxisAngle(up,  2.0*dt);
@@ -6167,7 +6525,11 @@ window.PLANET = (function(){
        air — and the flying hints below say "R how you travel", which was
        the only thing on screen while somebody was sealed in a cockpit
        with no way out. */
-    if(aboard) keyHint(
+    if(piloting) keyHint(
+      `<b>W S</b> ${t('walk')} &nbsp; <b>A D</b> ${t('turn')} &nbsp; <b>SHIFT</b> ${t('dash')}
+       &nbsp; <b>SPACE</b> ${t('mega jump')}<br>
+       <b>Q</b> ${t('slam')} &nbsp; <b>V</b> ${t('cockpit')} &nbsp; <b>R</b> ${t('climb out')} &nbsp; <b>P</b> ${t('pause')}`);
+    else if(aboard) keyHint(
       `<b>W</b> ${t('fly')} &nbsp; <b>S</b> ${t('slow')} &nbsp; <b>A D</b> ${t('turn')}
        &nbsp; <b>${t('mouse')}</b> ${t('look')}<br>
        <b>SPACE</b> ${t('up')} &nbsp; <b>SHIFT</b> ${t('down')}
@@ -6349,6 +6711,7 @@ window.PLANET = (function(){
   function place(dt, moving, running){
     const up=me.dir.clone().normalize();
     G.pos.copy(worldPos(EYE));
+    if(piloting){ pilotCamera(up); return; }
     if(flying && window.AVATAR){
       /* PITCH AND ROLL GO IN THROUGH `up`, not through the heading.
          orient() flattens whatever forward it is handed against the up it
@@ -6442,6 +6805,7 @@ window.PLANET = (function(){
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
                || id.indexOf('panda:')===0
+               || id==='mecha'
                || id==='takeship'
                /* THE TWO DOORS MISSION 8 ADDED, and leaving them off this
                   list is why neither of them worked. `use()` refuses any
@@ -6459,6 +6823,8 @@ window.PLANET = (function(){
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
+    if(piloting && id!=='mecha'){ say(t('Climb out first — <b>R</b>.')); return; }
+    if(id==='mecha'){ pilotMech(); return; }
     if(id.indexOf('panda:')===0){ pandaUse(+id.slice(6)); return; }
     if(mount) dismount();                 // you do not ride into a building
     /* The Gym is a room you walk into and choose in, like the Mall: these
@@ -6815,7 +7181,7 @@ window.PLANET = (function(){
       }
       CLUB.tick(dt, near);
     }
-    flyTick(dt); beastTick(dt);
+    flyTick(dt); beastTick(dt); mechaTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
     if(window.MEADOW) MEADOW.tick(dt, me);    // the grass round your feet
     if(window.TEMPLE) TEMPLE.tick(dt);        // petals, doves, the water
@@ -7240,6 +7606,9 @@ window.PLANET = (function(){
   function leave(){
     rememberSpot(true);
     on=false;
+    if(piloting){ piloting=false; if(wasFP!==null){ G.firstPerson=wasFP; wasFP=null; }
+                  if(window.AVATAR) AVATAR.attach(); }
+    if(mhud) mhud.classList.add('hidden');
     /* You are not in the air any more, wherever you are going. The posture
        is AVATAR's and would otherwise follow you indoors, where it would
        quietly outrank every walk in the building. */
@@ -7282,6 +7651,7 @@ window.PLANET = (function(){
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
            get flying(){ return flying; }, land, flyKey,
            get mounted(){ return !!mount; }, dismount,
+           get piloting(){ return piloting; }, exitMech,
            get riding(){ return !!ride; },
            STATIONS, lonLat, frameAt, dirOf,
            get BUILDINGS(){ return BUILDINGS; },
