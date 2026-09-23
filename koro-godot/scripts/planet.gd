@@ -23,6 +23,50 @@ const BUILDINGS := [
 
 static var noise: FastNoiseLite = null
 
+## WHERE SOMETHING HAS DUG A HOLE — the plunge pool under the falls. The
+## ground inside a basin is first eased down to the LOWEST height anywhere on
+## its rim (a rim that follows the hillside is high on one side and low on
+## the other, and water poured in runs straight out of the low side), then
+## the bowl is dug out of that. Registered before the ground mesh is built,
+## so the mesh, your feet and the trees all agree where the bank is.
+static var basins: Array = []
+
+static func add_basin(dir: Vector3, r: float, depth: float) -> void:
+	var b := {"dir": dir.normalized(), "r": r, "depth": depth}
+	var f := frame_at(b.dir)
+	var lo := INF
+	for i in 32:
+		var a := i / 32.0 * TAU
+		var d := walk(b.dir, (f.x * cos(a) + f.z * sin(a)).normalized(), r)
+		lo = minf(lo, raw_height(d) * pad_k(d))
+	b.rim = lo
+	basins.append(b)
+
+## What the water in a basin may stand at: its rim.
+static func basin_rim(dir: Vector3) -> float:
+	for b in basins:
+		if dir.angle_to(b.dir) * R < b.r:
+			return b.rim
+	return NAN
+
+static func _basin_cut(dir: Vector3, h: float) -> float:
+	for b in basins:
+		var off: float = dir.angle_to(b.dir) * R
+		if off >= b.r:
+			continue
+		var u: float = off / b.r
+		var s := 1.0 - u * u
+		var blend := u * u * (3.0 - 2.0 * u)
+		var base: float = b.rim + (h - b.rim) * blend
+		h = minf(h, base - b.depth * s * s)
+	return h
+
+static func near_basin(dir: Vector3, k := 1.0) -> bool:
+	for b in basins:
+		if dir.angle_to(b.dir) * R < b.r * k:
+			return true
+	return false
+
 static func _noise() -> FastNoiseLite:
 	if noise == null:
 		noise = FastNoiseLite.new()
@@ -77,7 +121,8 @@ static func pad_k(dir: Vector3) -> float:
 
 static func height(dir: Vector3) -> float:
 	var k := pad_k(dir)
-	return 0.0 if k <= 0.0 else raw_height(dir) * k
+	var h := 0.0 if k <= 0.0 else raw_height(dir) * k
+	return _basin_cut(dir, h) if basins.size() > 0 else h
 
 ## Walk `metres` from `dir` along the great circle towards `heading`.
 static func walk(dir: Vector3, heading: Vector3, metres: float, radius := R) -> Vector3:

@@ -75,7 +75,7 @@ func _process(delta: float) -> void:
 			turn -= d
 		if walking:
 			var to := Planet.walk(dir, fwd, v * delta)
-			if world.blocked(to, 0.0):
+			if world.blocked(to, Planet.height(to), 0.8, 1.6) or not is_nan(world.water_at(to)):
 				turn = 1.6
 			else:
 				dir = to

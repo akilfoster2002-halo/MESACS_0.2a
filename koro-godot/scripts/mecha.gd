@@ -72,7 +72,7 @@ func _ready() -> void:
 func park(at: Vector3, facing: Vector3) -> void:
 	dir = at.normalized()
 	fwd = (facing - dir * facing.dot(dir)).normalized()
-	alt = Planet.height(dir)
+	alt = world.floor_at(dir, Planet.height(dir) + 3.0, 2.5)
 
 func _unhandled_input(ev: InputEvent) -> void:
 	if piloting and ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -93,7 +93,7 @@ func leave() -> bool:
 	var right := fwd.cross(up).normalized()
 	pilot.dir = Planet.walk(dir, right, 7.0)
 	pilot.fwd = (fwd - pilot.dir * fwd.dot(pilot.dir)).normalized()
-	pilot.alt = Planet.height(pilot.dir)
+	pilot.alt = world.floor_at(pilot.dir, alt + 2.0)
 	pilot.hidden_in_mecha = false
 	pilot = null
 	spd = 0.0
@@ -128,7 +128,7 @@ func _drive(delta: float) -> void:
 	var moved := false
 	if spd != 0.0:
 		var to := Planet.walk(dir, fwd * signf(spd), absf(spd) * delta, Planet.R + alt)
-		if world.blocked(to, alt):
+		if world.blocked(to, alt, 2.6, H, 2.5):
 			spd = 0.0
 		else:
 			dir = to
@@ -158,7 +158,7 @@ func _drive(delta: float) -> void:
 		jump_ready = true
 	cool = maxf(0.0, cool - delta)
 
-	var ground := Planet.height(dir)
+	var ground: float = world.floor_at(dir, alt, 2.5)
 	if not on_ground:
 		vy -= GRAV * delta
 		alt += vy * delta
