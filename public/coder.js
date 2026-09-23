@@ -100,7 +100,7 @@ window.CODER = (function(){
 
      Everything else in this file already asks `window.X &&` before
      touching another module. This is the same courtesy for the DOM. */
-  const HUD = ['#objectives', '#keys', '#chat', '#topbar'];
+  const HUD = ['#objectives', '#keys', '#phoneBtn', '#topbar'];
   const put = (sel, away) => { const e=$(sel); if(e) e.classList.toggle('hidden', away); };
   function hide(){
     open=false; selected=null; slotTarget=null;
@@ -108,7 +108,7 @@ window.CODER = (function(){
     put('#objectives', false);
     put('#keys', false);
     put('#topbar', false);
-    if(window.CHAT && CHAT.open) put('#chat', false);
+    put('#phoneBtn', false);
   }
   function toggle(){ open?hide():show(); }
 

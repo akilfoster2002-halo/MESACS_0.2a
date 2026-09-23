@@ -89,6 +89,25 @@ async function init(){
        the room empties, so there is nothing here to create. An older messages
        table is left where it is rather than dropped — same reason as classes. */
 
+    /* ------------------------------------------------------- the phone
+       TEXTS ARE WRITTEN DOWN, which room chat never is — because a text is
+       sent to somebody who may not be there, and has to wait for them. So
+       they get what stored, child-written words need: both ends named, a
+       teacher who can read and hide any of them, a length cap, and an
+       expiry (index.js deletes them after PHONE_KEEP_DAYS). Not the old
+       'messages' table, which is left where it is like classes. */
+    CREATE TABLE IF NOT EXISTS phone_messages (
+      id         SERIAL PRIMARY KEY,
+      from_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      to_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      text       TEXT NOT NULL,
+      read_at    TIMESTAMPTZ,
+      hidden     BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS phone_to   ON phone_messages (to_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS phone_from ON phone_messages (from_id, created_at DESC);
+
     /* a class used to be required at sign-up; nobody has one now */
     ALTER TABLE users ALTER COLUMN class_id DROP NOT NULL;
   `).then(()=>{ state.ready=true; });

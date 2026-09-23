@@ -796,44 +796,5 @@ window.FREE = (function(){
   return { enter, go, tick, share:shareObjects, get count(){ return others.size; } };
 })();
 
-/* =====================================================================
-   CHAT — typed, rate limited on the server, watched by the teacher panel
-   ===================================================================== */
-window.CHAT = (function(){
-  const $=s=>document.querySelector(s);
-  let open=false;
-  function show(){
-    $('#chat').classList.remove('hidden'); open=true;
-    $('#chatHint').textContent=t('Enter to type · Esc to close · your teacher can see this chat');
-    $('#chatForm').onsubmit=e=>{
-      e.preventDefault();
-      const v=$('#chatIn').value.trim();
-      if(v){ NET.say(v); $('#chatIn').value=''; }
-      $('#chatIn').blur(); lockPointer($('#view'));
-    };
-  }
-  function hide(){ $('#chat').classList.add('hidden'); open=false; $('#chatLog').innerHTML=''; }
-  function focus(){
-    if(!open) return;
-    if(document.pointerLockElement) document.exitPointerLock();
-    $('#chatIn').focus();
-  }
-  function line(from,text,id){
-    const d=document.createElement('div');
-    d.className='m'; if(id) d.dataset.id=id;
-    d.innerHTML='<b>'+esc(from)+':</b> '+esc(text);
-    push(d);
-  }
-  function sys(text){
-    const d=document.createElement('div'); d.className='sys'; d.textContent=text; push(d);
-  }
-  function push(d){
-    const log=$('#chatLog'); log.appendChild(d);
-    while(log.children.length>60) log.removeChild(log.firstChild);
-    log.scrollTop=log.scrollHeight;
-  }
-  function remove(id){ const el=$(`#chatLog .m[data-id="${id}"]`); if(el) el.remove(); }
-  function clear(quiet){ $('#chatLog').innerHTML=''; if(!quiet) sys(t('Your teacher cleared the chat.')); }
-  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  return { show, hide, focus, line, sys, clear, remove, get open(){ return open; } };
-})();
+/* CHAT — the room chat — lives on the phone now: see phone.js, which
+   provides the same window.CHAT the rest of the game calls. */

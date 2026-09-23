@@ -119,6 +119,7 @@ window.NET = (function(){
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
         if(m.t==='chat'&&onChat) onChat(m);
+        if(m.t==='dm'&&window.PHONE) PHONE.buzz(m);
         if(m.t==='objs'&&handlers.objs) handlers.objs(m);
         if(m.t==='room'&&onChat){
           if(handlers.clear) handlers.clear(true);   // room switch: start on a clean log

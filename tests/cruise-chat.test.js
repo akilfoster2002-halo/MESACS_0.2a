@@ -11,21 +11,15 @@ const fs = require('fs');
 const path = require('path');
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
-test('the chat is inside the HUD, which is why hiding it whole took the chat', ()=>{
+test('the chat is on the phone now, outside the HUD, so no ride can take it', ()=>{
+  /* It used to be #chat, inside #hud — which is why hiding the HUD whole
+     took the chat with it, and why cruise.js hides the HUD piece by piece.
+     The phone is built onto <body>, so whatever happens to #hud, the room
+     chat and the texts are still there. */
   const html = read('public/index.html');
-  const at = html.indexOf('<div id="hud"');
-  assert.ok(at >= 0, 'there is no #hud');
-  let depth = 0, i = at, end = at;
-  while(i < html.length){
-    if(html.startsWith('<div', i)) depth++;
-    else if(html.startsWith('</div>', i)) depth--;
-    if(depth === 0 && i > at){ end = i; break; }
-    i++;
-  }
-  /* If somebody ever moves #chat out of #hud this test is what tells them
-     cruise.js can go back to hiding the container. */
-  assert.ok(html.slice(at, end).includes('id="chat"'),
-    '#chat is no longer inside #hud — cruise.js can stop hiding children one by one');
+  assert.ok(!html.includes('id="chat"'), 'the old #chat box is back inside the page');
+  assert.match(read('public/phone.js'), /document\.body\.appendChild\(ph\)/,
+    'the phone is not on <body> any more — check it is not inside #hud');
 });
 
 test('the ride hides the HUD piece by piece, and puts back what it found', ()=>{

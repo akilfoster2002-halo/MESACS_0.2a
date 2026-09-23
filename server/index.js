@@ -421,6 +421,151 @@ app.post('/api/teacher/clear', async (req,res)=>{
   ok(res,{});
 });
 
+/* ------------------------------------------------------------ the phone
+   Texting by username. Everything here is a plain request, not the socket:
+   the live host is serverless and cannot hold a socket open, and a text is
+   the one conversation that has to work when the other person is not even
+   signed in — it waits in Postgres until they are. When there IS a socket
+   (a host that keeps a process), the recipient is also told at once.
+
+   THE RULES ARE THE ROOM CHAT'S RULES, because it is the same children:
+   a muted student cannot text either, sending is rate limited, a message
+   is 240 characters at most, a teacher can read every one and hide any
+   one, and nothing is kept for longer than PHONE_KEEP_DAYS. */
+const PHONE_MAX = 240;
+const PHONE_KEEP_DAYS = 14;
+let phoneSwept = 0;
+async function phoneSweep(){
+  if(Date.now()-phoneSwept < 3600e3) return;          // at most once an hour
+  phoneSwept = Date.now();
+  try{ await db.q(`DELETE FROM phone_messages WHERE created_at < now() - interval '${PHONE_KEEP_DAYS} days'`); }
+  catch(e){ console.error('phone sweep', e.message); }
+}
+async function signedIn(req,res){
+  const s = auth.fromReq(req);
+  if(!s){ bad(res,401,'not signed in'); return null; }
+  const r = await db.q('SELECT id,username,display,role,muted_until FROM users WHERE id=$1',[s.id]);
+  if(!r.rows.length){ bad(res,401,'not signed in'); return null; }
+  return r.rows[0];
+}
+
+/* The conversations: everybody you have texted or been texted by, newest
+   first, with the last thing said and how many of theirs you have not
+   read. */
+app.get('/api/phone/threads', async (req,res)=>{
+  try{
+    const u = await signedIn(req,res); if(!u) return;
+    phoneSweep();
+    const r = await db.q(
+      `SELECT m.id, m.from_id, m.to_id, m.text, m.read_at, m.created_at,
+              o.username, o.display
+         FROM phone_messages m
+         JOIN users o ON o.id = CASE WHEN m.from_id=$1 THEN m.to_id ELSE m.from_id END
+        WHERE (m.from_id=$1 OR m.to_id=$1) AND m.hidden=false
+        ORDER BY m.created_at DESC LIMIT 400`, [u.id]);
+    const by = new Map();
+    for(const m of r.rows){
+      let th = by.get(m.username);
+      if(!th){ th={ username:m.username, display:m.display, last:m.text,
+                    lastMine:m.from_id===u.id, at:m.created_at, unread:0 };
+               by.set(m.username, th); }
+      if(m.to_id===u.id && !m.read_at) th.unread++;
+    }
+    ok(res,{ threads:[...by.values()] });
+  }catch(e){ console.error(e); bad(res,500,'Could not open your messages'); }
+});
+
+/* One conversation, oldest first, and everything they sent you in it is
+   now read. */
+app.get('/api/phone/thread/:username', async (req,res)=>{
+  try{
+    const u = await signedIn(req,res); if(!u) return;
+    const who = clean(req.params.username).toLowerCase();
+    const o = (await db.q('SELECT id,username,display FROM users WHERE username=$1',[who])).rows[0];
+    if(!o) return bad(res,404,'Nobody has that username');
+    const r = await db.q(
+      `SELECT id, from_id, text, created_at FROM phone_messages
+        WHERE hidden=false AND ((from_id=$1 AND to_id=$2) OR (from_id=$2 AND to_id=$1))
+        ORDER BY created_at DESC LIMIT 100`, [u.id, o.id]);
+    await db.q(`UPDATE phone_messages SET read_at=now()
+                 WHERE to_id=$1 AND from_id=$2 AND read_at IS NULL`, [u.id, o.id]);
+    ok(res,{ with:{ username:o.username, display:o.display },
+             messages:r.rows.reverse().map(m=>({ id:m.id, mine:m.from_id===u.id,
+                                                  text:m.text, at:m.created_at })) });
+  }catch(e){ console.error(e); bad(res,500,'Could not open that conversation'); }
+});
+
+app.post('/api/phone/send', async (req,res)=>{
+  try{
+    const u = await signedIn(req,res); if(!u) return;
+    const to = clean(req.body.to).toLowerCase().replace(/^@/,'');
+    const text = String(req.body.text||'').replace(/\s+/g,' ').trim().slice(0, PHONE_MAX);
+    if(!text) return bad(res,400,'Type a message first');
+    if(u.muted_until && new Date(u.muted_until).getTime() > Date.now())
+      return bad(res,403,'You are muted right now');
+    if(rateLimited('phone:'+u.id, 10, 20000)) return bad(res,429,'Slow down a little');
+    const o = (await db.q('SELECT id,username,display FROM users WHERE username=$1',[to])).rows[0];
+    if(!o) return bad(res,404,'Nobody has that username');
+    if(o.id===u.id) return bad(res,400,'That is you!');
+    const r = await db.q(
+      `INSERT INTO phone_messages (from_id,to_id,text) VALUES ($1,$2,$3)
+       RETURNING id, created_at`, [u.id, o.id, text]);
+    const msg = { id:r.rows[0].id, text, at:r.rows[0].created_at };
+    // if they are here right now, their phone buzzes now rather than on its next look
+    send(o.id, { t:'dm', from:u.username, display:u.display, ...msg });
+    phoneSweep();
+    ok(res,{ message:{ ...msg, mine:true }, with:{ username:o.username, display:o.display } });
+  }catch(e){ console.error(e); bad(res,500,'Could not send that'); }
+});
+
+/* The badge: how many unread, and from whom the newest came. Asked every
+   few seconds by every signed-in phone, so it is one small query. */
+app.get('/api/phone/unread', async (req,res)=>{
+  try{
+    const u = await signedIn(req,res); if(!u) return;
+    const r = await db.q(
+      `SELECT m.id, o.username, o.display, m.text FROM phone_messages m
+         JOIN users o ON o.id=m.from_id
+        WHERE m.to_id=$1 AND m.read_at IS NULL AND m.hidden=false
+        ORDER BY m.id DESC LIMIT 20`, [u.id]);
+    ok(res,{ count:r.rows.length, latest:r.rows[0]||null });
+  }catch(e){ console.error(e); bad(res,500,'Could not check'); }
+});
+
+/* Finding somebody to text: usernames that start with what you typed. */
+app.get('/api/phone/find', async (req,res)=>{
+  try{
+    const u = await signedIn(req,res); if(!u) return;
+    const q = clean(req.query.q).toLowerCase().replace(/^@/,'');
+    if(q.length<2 || !/^[a-z0-9_.-]+$/.test(q)) return ok(res,{ people:[] });
+    const r = await db.q(
+      `SELECT username, display FROM users WHERE username LIKE $1 AND id<>$2
+        ORDER BY username LIMIT 8`, [q+'%', u.id]);
+    ok(res,{ people:r.rows });
+  }catch(e){ console.error(e); bad(res,500,'Could not look'); }
+});
+
+/* The teacher's view of it: every recent text, who to whom, hidden or not. */
+app.get('/api/teacher/texts', async (req,res)=>{
+  const t = await requireTeacher(req,res); if(!t) return;
+  try{
+    const r = await db.q(
+      `SELECT m.id, m.text, m.hidden, m.created_at,
+              f.username AS from_user, f.display AS from_display,
+              o.username AS to_user,   o.display AS to_display
+         FROM phone_messages m JOIN users f ON f.id=m.from_id JOIN users o ON o.id=m.to_id
+        ORDER BY m.id DESC LIMIT 200`);
+    ok(res,{ texts:r.rows });
+  }catch(e){ console.error(e); bad(res,500,'Could not load texts'); }
+});
+app.post('/api/teacher/texts/hide', async (req,res)=>{
+  const t = await requireTeacher(req,res); if(!t) return;
+  try{
+    await db.q('UPDATE phone_messages SET hidden=$2 WHERE id=$1',[Number(req.body.id)||0, req.body.hidden!==false]);
+    ok(res,{});
+  }catch(e){ console.error(e); bad(res,500,'Could not do that'); }
+});
+
 /* ------------------------------------------------- free play + chat */
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path:'/ws' });

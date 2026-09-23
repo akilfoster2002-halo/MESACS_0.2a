@@ -880,6 +880,8 @@ function wireInput(){
     /* Wherever the chat panel is up — the planet as much as Free Play — ENTER
        is how you get into it and how you send. Asking which room this is meant
        the planet's chat could only be reached by clicking the box. */
+    /* T IS THE PHONE, wherever there is a game running round you. */
+    if(e.code==='KeyT' && window.PHONE && G.running){ e.preventDefault(); PHONE.toggle(); return; }
     if(CHAT.open && (e.code==='Enter'||e.code==='NumpadEnter')){
       e.preventDefault();
       if(document.activeElement===$('#chatIn')) $('#chatForm').requestSubmit();
@@ -1038,7 +1040,8 @@ function frozen(){
       || !$('#teach').classList.contains('hidden')     // reading instructions pauses the world
       || !$('#pause').classList.contains('hidden')
       || !$('#downed').classList.contains('hidden')
-      || document.activeElement===$('#chatIn');
+      || document.activeElement===$('#chatIn')
+      || !!(window.PHONE && PHONE.open);     // thumbs on the phone, not on the keys
 }
 function togglePause(){
   const p=$('#pause');

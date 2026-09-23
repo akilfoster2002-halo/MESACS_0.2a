@@ -35,6 +35,8 @@ const games = [];
 const votes = [];          // {game_id,user_id,stars,note,hidden,created_at}
 let nextId = 1;
 let nextGameId = 1;
+const texts = [];          // the phone: {id,from_id,to_id,text,read_at,hidden,created_at}
+let nextTextId = 1;
 
 const like = (sql, ...bits) => bits.every(b => sql.includes(b));
 const rows = r => ({ rows:r, rowCount:r.length });
@@ -56,6 +58,69 @@ function query(text, params){
     return Promise.resolve(rows([{ id:u.id, username:u.username, display:u.display,
                                    role:u.role, progress:u.progress }]));
   }
+  /* ------------------------------------------------------- the phone
+     Texts, in an array. Same shapes the Postgres queries hand back, so the
+     phone in the browser cannot tell which one it is talking to. */
+  const userById = id => users.find(u => u.id===id) || {};
+  if(like(sql, 'SELECT id,username,display FROM users WHERE username=$1')){
+    const u = users.find(x => x.username === p[0]);
+    return Promise.resolve(rows(u ? [{ id:u.id, username:u.username, display:u.display }] : []));
+  }
+  if(like(sql, 'FROM users WHERE username LIKE $1')){
+    const pre = String(p[0]).replace(/%$/,'');
+    return Promise.resolve(rows(users.filter(u => u.username.startsWith(pre) && u.id!==p[1])
+      .sort((a,b)=>a.username.localeCompare(b.username)).slice(0,8)
+      .map(u => ({ username:u.username, display:u.display }))));
+  }
+  if(like(sql, 'DELETE FROM phone_messages')){
+    const cut = Date.now() - 14*864e5;
+    for(let i=texts.length-1;i>=0;i--) if(new Date(texts[i].created_at).getTime()<cut) texts.splice(i,1);
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'INSERT INTO phone_messages')){
+    const m = { id:nextTextId++, from_id:p[0], to_id:p[1], text:p[2], read_at:null,
+                hidden:false, created_at:new Date().toISOString() };
+    texts.push(m);
+    return Promise.resolve(rows([{ id:m.id, created_at:m.created_at }]));
+  }
+  if(like(sql, 'UPDATE phone_messages SET read_at=now()')){
+    texts.forEach(m => { if(m.to_id===p[0] && m.from_id===p[1] && !m.read_at) m.read_at=new Date().toISOString(); });
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'UPDATE phone_messages SET hidden=$2')){
+    const m = texts.find(x => x.id===p[0]); if(m) m.hidden=p[1];
+    return Promise.resolve(rows([]));
+  }
+  const newestText = (a,b) => b.id - a.id;
+  if(like(sql, 'FROM phone_messages m', 'CASE WHEN m.from_id=$1')){
+    const me=p[0];
+    return Promise.resolve(rows(texts.filter(m => !m.hidden && (m.from_id===me || m.to_id===me))
+      .sort(newestText).slice(0,400).map(m => {
+        const o = userById(m.from_id===me ? m.to_id : m.from_id);
+        return { ...m, username:o.username, display:o.display };
+      })));
+  }
+  if(like(sql, 'FROM phone_messages', '(from_id=$1 AND to_id=$2)')){
+    return Promise.resolve(rows(texts.filter(m => !m.hidden &&
+        ((m.from_id===p[0] && m.to_id===p[1]) || (m.from_id===p[1] && m.to_id===p[0])))
+      .sort(newestText).slice(0,100)
+      .map(m => ({ id:m.id, from_id:m.from_id, text:m.text, created_at:m.created_at }))));
+  }
+  if(like(sql, 'FROM phone_messages m', 'read_at IS NULL')){
+    return Promise.resolve(rows(texts.filter(m => m.to_id===p[0] && !m.read_at && !m.hidden)
+      .sort(newestText).slice(0,20).map(m => {
+        const o = userById(m.from_id);
+        return { id:m.id, username:o.username, display:o.display, text:m.text };
+      })));
+  }
+  if(like(sql, 'FROM phone_messages m JOIN users f')){
+    return Promise.resolve(rows(texts.slice().sort(newestText).slice(0,200).map(m => {
+      const f=userById(m.from_id), o=userById(m.to_id);
+      return { id:m.id, text:m.text, hidden:m.hidden, created_at:m.created_at,
+               from_user:f.username, from_display:f.display, to_user:o.username, to_display:o.display };
+    })));
+  }
+
   if(like(sql, 'SELECT', 'FROM users', 'WHERE username=$1')){
     const u = users.find(x => x.username === p[0]);
     if(!u) return Promise.resolve(rows([]));

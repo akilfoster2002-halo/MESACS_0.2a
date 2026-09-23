@@ -56,7 +56,22 @@ async function refresh(){
   }).join('') || '<tr><td colspan="4" class="note">No students have signed up yet.</td></tr>';
   $('#log').innerHTML = d.messages.map(m=>line(m)).join('');
   $('#log').scrollTop=$('#log').scrollHeight;
+  texts();
 }
+/* The phone's texts. Stored, unlike room chat, so this list is the whole
+   record — from whom, to whom, and whether it has been taken down. */
+async function texts(){
+  let d; try{ d=await api('/teacher/texts'); }catch(e){ return; }
+  $('#texts').innerHTML = (d.texts||[]).map(m=>`
+    <div class="msg ${m.hidden?'hidden-msg':''}">
+      <div><b>${esc(m.from_display)}</b> <span class="note">@${esc(m.from_user)}</span>
+        → <b>${esc(m.to_display)}</b> <span class="note">@${esc(m.to_user)}</span><br>${esc(m.text)}</div>
+      <div><small>${new Date(m.created_at).toLocaleString()}</small>
+        <button class="ghost" onclick="hideText(${m.id},${m.hidden?'false':'true'})">${m.hidden?'Unhide':'Hide'}</button></div>
+    </div>`).join('') || '<p class="note">No texts yet.</p>';
+}
+window.hideText=async(id,hidden)=>{ await api('/teacher/texts/hide',{id,hidden}); texts(); };
+setInterval(()=>{ if(me && me.role==='teacher') texts(); }, 10000);
 function line(m){
   // the room is worth showing: one log now carries every server at once
   const where = m.server ? `<span class="code">${esc(m.server)}</span> ` : '';
