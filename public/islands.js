@@ -49,8 +49,14 @@ window.ISLANDS = (function(){
        castle and you landed in the gate. Out here it is eighty-five metres
        clear, in open country you can walk right round, and still close
        enough to the door to be the first thing you look up at. */
+    /* AND IT IS MODELLED NOW TOO, and Japanese, like the world under it:
+       mossy terraces, a torii and a shrine, black pines and a cherry, and
+       rock strata tapering to a point with roots hanging off it (Higgsfield:
+       a painted picture, then Meshy made it a textured mesh). It has no
+       baked height grid, so one is made from its triangles when it loads —
+       see fieldFromMesh(). The water pours off its rim toward the pool. */
     { id:'falls',  lon:13,  lat:16,  r:34, alt:62, spin:0.35,
-      lake:true, fall:true, trees:5 },
+      fall:true, model:'islands/falls.glb', yaw:Math.PI },
     /* THE GARDEN IS MODELLED, not lathed: a Blender island with its own
        cliffs, terraces, ancient tree and hanging roots. Its ground comes
        with it as a height grid baked from the rock, so floorAt() and
@@ -195,58 +201,6 @@ window.ISLANDS = (function(){
     return m;
   }
 
-  /* THE FALL ITSELF. Three planes at slightly different depths and speeds,
-     scrolling a painted texture downwards. Not particles: a hundred and
-     forty metres of falling water would be thousands of them, and what you
-     actually read at this distance is a moving SHEET with streaks in it. */
-  function fallTexture(){
-    const c=document.createElement('canvas'); c.width=64; c.height=256;
-    const x=c.getContext('2d');
-    x.fillStyle='rgba(210,238,255,0.30)'; x.fillRect(0,0,64,256);
-    for(let i=0;i<70;i++){
-      const w=1+Math.random()*3, h=18+Math.random()*80;
-      x.fillStyle='rgba(255,255,255,'+(0.10+Math.random()*0.45).toFixed(2)+')';
-      x.fillRect(Math.random()*64, Math.random()*256, w, h);
-    }
-    const tex=new THREE.CanvasTexture(c);
-    tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
-    tex.colorSpace=THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  /* A POINT WITH NO TEXTURE IS A SQUARE, and a cloud of one-metre white
-     squares hanging off a waterfall is a printing error rather than mist.
-     One soft round falloff, made once and shared by every spray. */
-  let mistTex=null;
-  function mistTexture(){
-    if(mistTex) return mistTex;
-    const c=document.createElement('canvas'); c.width=c.height=64;
-    const x=c.getContext('2d');
-    const gr=x.createRadialGradient(32,32,0, 32,32,32);
-    gr.addColorStop(0,'rgba(255,255,255,0.95)');
-    gr.addColorStop(0.45,'rgba(226,244,255,0.45)');
-    gr.addColorStop(1,'rgba(200,232,255,0)');
-    x.fillStyle=gr; x.fillRect(0,0,64,64);
-    mistTex=new THREE.CanvasTexture(c);
-    mistTex.colorSpace=THREE.SRGBColorSpace;
-    return mistTex;
-  }
-  function spray(n, spread, up){
-    const p=new Float32Array(n*3), ph=new Float32Array(n);
-    for(let i=0;i<n;i++){
-      const a=Math.random()*Math.PI*2, r=Math.random()*spread;
-      p[i*3]=Math.cos(a)*r; p[i*3+1]=Math.random()*up; p[i*3+2]=Math.sin(a)*r;
-      ph[i]=Math.random();
-    }
-    const g=new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(p,3));
-    const pts=new THREE.Points(g, new THREE.PointsMaterial({
-      map:mistTexture(), color:0xdfefff, size:0.85, transparent:true,
-      opacity:0.32, depthWrite:false, blending:THREE.AdditiveBlending }));
-    pts.userData.ph=ph; pts.userData.up=up;
-    return pts;
-  }
-
   /* ---------------------------------------------------------- creatures */
   function fishModel(tint){
     const g=new THREE.Group();
@@ -339,6 +293,7 @@ window.ISLANDS = (function(){
       if(k.model){
         const rec={ k, dir, g, f, top:k.alt };
         isles.push(rec);
+        if(k.fall) makePool(rec);           // the pool is dug already; fill it now
         loadModel(rec);
         return;
       }
@@ -382,7 +337,6 @@ window.ISLANDS = (function(){
         stockLake(g, rec.lake, i);
       }
       isles.push(rec);
-      if(k.fall) makeFall(rec, g);
     });
     return isles.length;
   }
@@ -404,7 +358,7 @@ window.ISLANDS = (function(){
     }
     loader.load(k.model+'?v='+(window.ASSETV||'1'), gl=>{
       if(group!==myGroup) return;             // the world was rebuilt meanwhile
-      const root=gl.scene;
+      let root=gl.scene;
       let field=null;
       root.traverse(o=>{
         if(o.userData && o.userData.field) field=JSON.parse(o.userData.field);
@@ -419,6 +373,17 @@ window.ISLANDS = (function(){
               side: thin ? THREE.DoubleSide : THREE.FrontSide });
         o.userData.flat=true;
       });
+      /* A MODEL WITH NO GRID OF ITS OWN — the Higgsfield ones — is centred,
+         turned to face the way the table says, and has its grid made here
+         from its own triangles. */
+      if(!field){
+        const box=new THREE.Box3().setFromObject(root), c=box.getCenter(new THREE.Vector3());
+        const inner=new THREE.Group(); inner.rotation.y=k.yaw||0;
+        root.position.set(-c.x, -box.min.y, -c.z);
+        inner.add(root);
+        root=new THREE.Group(); root.add(inner);
+        field=fieldFromMesh(root, 72);
+      }
       if(!field) return;
       const tops=field.top.filter(v=>v!==null).sort((a,b)=>a-b);
       const deck=tops[Math.floor(tops.length/2)];
@@ -434,8 +399,88 @@ window.ISLANDS = (function(){
       rec.g.add(root);
       rec.field=field; rec.s=s; rec.deck=deck;
       rec.top=k.alt+(tops[tops.length-1]-deck)*s;
+      if(k.fall) pourFrom(rec);
     });
   }
+  /* THE GROUND OF A MODEL, FROM ITS TRIANGLES. Every triangle is laid flat
+     onto an n-by-n grid over its footprint, and each grid point keeps the
+     highest surface above it (the deck, a roof, a canopy) and the lowest
+     (the underside). That is the same {top, bot} grid the Blender island
+     bakes, made in a few milliseconds — rasterising forty thousand
+     triangles is cheap where casting ten thousand rays at them is not. */
+  function fieldFromMesh(root, n){
+    root.updateMatrixWorld(true);
+    const box=new THREE.Box3().setFromObject(root);
+    const span=Math.max(box.max.x-box.min.x, box.max.z-box.min.z);
+    const cell=span/(n-1), nx=Math.ceil((box.max.x-box.min.x)/cell)+2,
+          nz=Math.ceil((box.max.z-box.min.z)/cell)+2;
+    const x0=box.min.x-cell*0.5, z0=box.min.z-cell*0.5;
+    const top=new Array(nx*nz).fill(null), bot=new Array(nx*nz).fill(null);
+    const a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3();
+    root.traverse(o=>{
+      if(!o.isMesh) return;
+      const P=o.geometry.attributes.position, I=o.geometry.index, M=o.matrixWorld;
+      const tri=I ? I.count/3 : P.count/3;
+      for(let t=0;t<tri;t++){
+        const ia=I?I.getX(t*3):t*3, ib=I?I.getX(t*3+1):t*3+1, ic=I?I.getX(t*3+2):t*3+2;
+        a.fromBufferAttribute(P,ia).applyMatrix4(M);
+        b.fromBufferAttribute(P,ib).applyMatrix4(M);
+        c.fromBufferAttribute(P,ic).applyMatrix4(M);
+        const det=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z);
+        if(Math.abs(det)<1e-12) continue;            // edge-on: a wall has no top
+        const i0=Math.max(0,Math.ceil((Math.min(a.x,b.x,c.x)-x0)/cell)),
+              i1=Math.min(nx-1,Math.floor((Math.max(a.x,b.x,c.x)-x0)/cell)),
+              j0=Math.max(0,Math.ceil((Math.min(a.z,b.z,c.z)-z0)/cell)),
+              j1=Math.min(nz-1,Math.floor((Math.max(a.z,b.z,c.z)-z0)/cell));
+        for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+          const x=x0+i*cell, z=z0+j*cell;
+          const l1=((b.z-c.z)*(x-c.x)+(c.x-b.x)*(z-c.z))/det;
+          const l2=((c.z-a.z)*(x-c.x)+(a.x-c.x)*(z-c.z))/det;
+          const l3=1-l1-l2;
+          if(l1<-1e-6||l2<-1e-6||l3<-1e-6) continue;
+          const y=l1*a.y+l2*b.y+l3*c.y, q=j*nx+i;
+          if(top[q]===null || y>top[q]) top[q]=y;
+          if(bot[q]===null || y<bot[q]) bot[q]=y;
+        }
+      }
+    });
+    return { x0, z0, cell, nx, nz, top, bot };
+  }
+
+  /* WHERE THE WATER LEAVES. Walk out from the middle of the island toward
+     the pool until the rock runs out: that is the rim, and the lip is just
+     over it, a little under the grass. Walking back in from there, while the
+     ground stays ground (a tree or the shrine is a jump the stream will not
+     make), is the stream's bed. */
+  function pourFrom(rec){
+    const P=rec.pool; if(!P) return;
+    rec.g.updateWorldMatrix(true, true); P.g.updateWorldMatrix(true, false);
+    const F=rec.field, s=rec.s;
+    const topAt=(x,z)=>{
+      const i=Math.round((x/s - F.x0)/F.cell), j=Math.round((z/s - F.z0)/F.cell);
+      if(i<0||j<0||i>=F.nx||j>=F.nz) return null;
+      const v=F.top[j*F.nx+i];
+      return v===null ? null : (v-rec.deck)*s;
+    };
+    const aim=rec.g.worldToLocal(P.g.position.clone()); aim.y=0;
+    const hd=aim.lengthSq()>1e-6 ? aim.normalize() : new THREE.Vector3(0,0,1);
+    let rim=0;
+    for(let r=0;r<rec.k.r*1.6;r+=0.5){ if(topAt(hd.x*r, hd.z*r)!==null) rim=r; }
+    const lipY=(topAt(hd.x*(rim-1.5), hd.z*(rim-1.5)) ?? 0) - 0.25;
+    const lipI=new THREE.Vector3(hd.x*(rim+0.4), lipY, hd.z*(rim+0.4));
+
+    const bed=[];
+    let last=lipY;
+    for(let r=rim-0.5;r>Math.max(2, rim-16);r-=1){
+      const y=topAt(hd.x*r, hd.z*r);
+      if(y===null || Math.abs(y-last)>0.9) break;
+      bed.push(new THREE.Vector3(hd.x*r, y+0.14, hd.z*r)); last=y;
+    }
+    bed.reverse(); bed.push(new THREE.Vector3(hd.x*(rim+0.4), lipY+0.14, hd.z*(rim+0.4)));
+    const toPool=v=>P.g.worldToLocal(rec.g.localToWorld(v.clone()));
+    makeFall(rec, toPool(lipI), bed.length>3 ? bed.map(toPool) : null);
+  }
+
   /* The grid under a point on a modelled isle: the deck there and the
      underside, or null off the rock. Smooth between cells on a slope, but
      a cell whose corners disagree by more than a metre is a CLIFF and
@@ -495,204 +540,394 @@ window.ISLANDS = (function(){
   }
 
   /* ---------------------------------------------------------- the fall
-     From a lip in the island's rim, down the radius, into a pool — and out
-     of the pool along a river. Everything below the lip is built in the
-     PLANET's frame rather than the island's: an island turned on its own
-     spin would otherwise pour its water off at an angle and miss the ground
-     it is supposed to be landing on. */
-  function makeFall(rec, isleG){
-    const k=rec.k;
-    /* THE SPILLWAY, on the island itself. This began as one box standing
-       proud of the rim to read as a notch, and standing next to it what you
-       actually got was a ten-metre brown slab across the view — a wall, not
-       a lip. Two low banks with a gap between them, and water running down
-       the gap: the lake is visibly LEAVING, which is all it has to say. */
-    const rockM=new THREE.MeshLambertMaterial({color:ROCK[1]});
-    const cx=-k.r*0.10;
-    [-1,1].forEach(sx=>{
-      const bank=new THREE.Mesh(
-        new THREE.BoxGeometry(k.r*0.11, k.r*0.055, k.r*0.30), rockM);
-      bank.position.set(cx + sx*k.r*0.115, crownY(k,0.80)+k.r*0.02, k.r*0.80);
-      isleG.add(bank);
-    });
-    /* THE RUN OUT. The lake sits well inside the crown and the lip is at the
-       rim, so without something between them the water simply appears at the
-       edge. A stream down the slope is the sentence that joins them. */
-    const streamM=new THREE.MeshLambertMaterial({color:WATER, transparent:true,
-                    opacity:0.78, side:THREE.DoubleSide});
-    const stream=new THREE.Mesh(new THREE.PlaneGeometry(k.r*0.10, k.r*0.50), streamM);
-    stream.rotation.x=-Math.PI/2 + 0.10;
-    stream.position.set(cx, crownY(k,0.52)+k.r*0.012, k.r*0.52);
-    isleG.add(stream);
+     WATER THAT OBEYS GRAVITY. The first falls were four flat trapezoids
+     hung straight down from a curl of cylinder floating off the rim, with a
+     texture sliding down them at one speed. Nothing about that is falling:
+     the sheet started in mid-air, dropped like a curtain rather than
+     arcing, and the streaks moved at the same pace at the bottom as at the
+     top — the thing every waterfall in the world does not do.
 
-    const tex=fallTexture();
+     So it is worked out now, not drawn. The water leaves the lip moving
+     OUTWARD at whatever speed carries it to the middle of the pool, and
+     from there it is a projectile:
+
+         p(t) = lip + v·t − ½·g·t²·up
+
+     The sheet is a ribbon along that arc, parameterised by TIME since
+     leaving the lip rather than by distance. That one choice does the rest:
+     the streak pattern scrolls at one second per second in t, so every
+     streak rides with the water that carries it — slow and bunched at the
+     lip, stretched and fast at the bottom, exactly as falling water is.
+     The droplets, the splash and the mist are the same equation run on the
+     graphics card, one seed per particle and no work per frame at all.
+
+     Built in two halves. The POOL and the river do not depend on the rock
+     and go down with the world; the COLUMN needs to know where the lip is,
+     which is where the modelled island's rim turns out to be, so it waits
+     for the model. */
+  const GRAV=9.8;
+  const NOISE=`
+    float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+    float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+      return mix(mix(h21(i),h21(i+vec2(1.,0.)),f.x), mix(h21(i+vec2(0.,1.)),h21(i+vec2(1.,1.)),f.x), f.y); }
+    float fbm(vec2 p){ float a=.5, s=0.; for(int i=0;i<4;i++){ s+=a*vn(p); p*=2.03; a*=.5; } return s; }`;
+  /* Fog is joined in by hand: a ShaderMaterial is outside three's lighting
+     and fog unless it asks, and white water with no fog on it glows through
+     the haze from the other side of the planet. */
+  function waterMat(frag, extra, opts){
+    const o=opts||{};
+    return new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog,
+                  Object.assign({ uT:{value:0} }, extra||{})]),
+      vertexShader:`
+        varying vec2 vUv; varying vec3 vP;
+        #include <fog_pars_vertex>
+        void main(){
+          vUv=uv; vP=position;
+          vec4 mvPosition=modelViewMatrix*vec4(position,1.);
+          gl_Position=projectionMatrix*mvPosition;
+          #include <fog_vertex>
+        }`,
+      fragmentShader:`
+        uniform float uT; varying vec2 vUv; varying vec3 vP;
+        ${o.decl||''}
+        #include <fog_pars_fragment>
+        ${NOISE}
+        void main(){
+          ${frag}
+          #include <fog_fragment>
+        }`,
+      transparent:true, depthWrite:false, side:THREE.DoubleSide, fog:true
+    });
+  }
+
+  /* THE SHEET. u runs across it, v is SECONDS SINCE THE LIP. Coherent and
+     glassy where it leaves, torn into ropes and holes further down, with
+     ragged edges — which is the whole silhouette of a tall fall. */
+  function sheetMat(seed, alpha, tf){
+    return waterMat(`
+      float t=vUv.y, k=clamp(t/uTf,0.,1.), u=vUv.x;
+      float along=(t-uT)*2.4;                       // rides with the water
+      float rope=fbm(vec2(u*7.+uSeed, along));
+      float fine=vn(vec2(u*31.+uSeed*3., (t-uT)*9.));
+      float frayed=u*(1.-u)*4.;                     // 1 in the middle, 0 at the edges
+      float edge=smoothstep(0., .35+.35*k, frayed*(.55+.9*rope));
+      float holes=mix(1., smoothstep(.28, .62, rope+fine*.25), .25+.6*k);
+      float a=uA*edge*holes*mix(1., .75, k);
+      vec3 col=mix(vec3(.58,.78,.9), vec3(.97,.99,1.), clamp(rope*.9+fine*.45+k*.35,0.,1.));
+      gl_FragColor=vec4(col*uLight, a);`,
+      { uSeed:{value:seed}, uA:{value:alpha}, uTf:{value:tf}, uLight:{value:0.9} },
+      { decl:'uniform float uSeed, uA, uTf, uLight;' });
+  }
+  function arcRibbon(lip, vel, side, tf, w0, grow, lift, N){
+    const pos=[], uv=[], idx=[];
+    for(let i=0;i<=N;i++){
+      /* Denser near the lip, where the arc is bending hardest. */
+      const s=i/N, t=tf*s*s*0.35 + tf*s*0.65;
+      const c=lip.clone().addScaledVector(vel, t);
+      c.y += -0.5*GRAV*t*t + lift;
+      const w=(w0 + grow*t)*0.5;
+      pos.push(c.x-side.x*w, c.y, c.z-side.z*w,  c.x+side.x*w, c.y, c.z+side.z*w);
+      uv.push(0,t, 1,t);
+      if(i<N){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+    }
+    const gm=new THREE.BufferGeometry();
+    gm.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    gm.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+    gm.setIndex(idx);
+    return gm;
+  }
+
+  /* PARTICLES ON THE GRAPHICS CARD. Each point carries four random numbers
+     and nothing else; its position is the projectile equation evaluated at
+     its own age, which is the time modulo its own lifetime. So a thousand
+     drops cost exactly what one does on the CPU: nothing. Three kinds share
+     the program — drops off the lip, splash out of the pool, mist rising. */
+  function particles(n, mode, u){
+    const seed=new Float32Array(n*4);
+    for(let i=0;i<n*4;i++) seed[i]=Math.random();
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n*3),3));
+    g.setAttribute('aSeed', new THREE.BufferAttribute(seed,4));
+    const m=new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+        uT:{value:0}, uMode:{value:mode}, uLip:{value:u.lip||new THREE.Vector3()},
+        uVel:{value:u.vel||new THREE.Vector3()}, uSide:{value:u.side||new THREE.Vector3(1,0,0)},
+        uTf:{value:u.tf||1}, uHit:{value:u.hit||new THREE.Vector3()}, uSurf:{value:u.surf||0},
+        uW:{value:u.w||1}, uSize:{value:u.size||1}, uA:{value:u.alpha||1} }]),
+      vertexShader:`
+        attribute vec4 aSeed;
+        uniform float uT, uMode, uTf, uSurf, uW, uSize;
+        uniform vec3 uLip, uVel, uSide, uHit;
+        varying float vA;
+        #include <fog_pars_vertex>
+        const float G=${GRAV.toFixed(1)};
+        void main(){
+          vec3 p; float size=uSize; vA=1.;
+          if(uMode<0.5){                       // DROPS off the lip, down the arc
+            float life=uTf*(1.+.12*aSeed.w);
+            float age=fract(uT/life+aSeed.x)*life;
+            vec3 v=uVel*(.8+.4*aSeed.z) + uSide*(aSeed.w-.5)*1.6 + vec3(0.,(aSeed.z-.5)*1.2,0.);
+            p=uLip + uSide*(aSeed.y-.5)*uW + v*age + vec3(0.,-.5*G*age*age,0.);
+            vA=smoothstep(0.,.25,age)*step(uSurf,p.y);
+            size*= .6+.8*aSeed.y;
+          } else if(uMode<1.5){                // SPLASH thrown up where it lands
+            float life=.7+1.1*aSeed.w;
+            float age=fract(uT/life+aSeed.x)*life;
+            float a=aSeed.y*6.2832;
+            vec3 out3=vec3(cos(a),0.,sin(a));
+            float hs=1.2+4.5*aSeed.z*aSeed.z, vy=3.5+8.*aSeed.w;
+            p=uHit + out3*(aSeed.z*uW*.5) + out3*hs*age + vec3(0.,vy*age-.5*G*age*age,0.);
+            vA=(1.-age/life)*step(uSurf-.2,p.y);
+            size*= .5+1.1*aSeed.z;
+          } else {                             // MIST, drifting up and out
+            float life=4.+3.*aSeed.w;
+            float age=fract(uT/life+aSeed.x)*life;
+            float a=aSeed.y*6.2832;
+            vec3 out3=vec3(cos(a),0.,sin(a));
+            p=uHit + out3*(1.+aSeed.z*uW) + out3*age*(.8+aSeed.z) + vec3(0.,age*(1.+1.4*aSeed.w),0.);
+            vA=sin(3.1416*age/life);
+            size*= (.6+age/life*1.6)*(.7+.6*aSeed.z);
+          }
+          vec4 mvPosition=modelViewMatrix*vec4(p,1.);
+          gl_Position=projectionMatrix*mvPosition;
+          gl_PointSize=size*(420./max(1.,-mvPosition.z));
+          #include <fog_vertex>
+        }`,
+      fragmentShader:`
+        uniform float uA; varying float vA;
+        #include <fog_pars_fragment>
+        void main(){
+          float d=length(gl_PointCoord-.5);
+          float a=smoothstep(.5,0.,d)*vA*uA;
+          if(a<.01) discard;
+          gl_FragColor=vec4(vec3(.93,.97,1.),a);
+          #include <fog_fragment>
+        }`,
+      transparent:true, depthWrite:false, fog:true });
+    const pts=new THREE.Points(g, m);
+    pts.frustumCulled=false;                      // the positions are made on the card
+    pts.userData.sky=true;
+    return pts;
+  }
+
+  /* THE POOL. There is no other water on Wano, so this is the only place
+     a fish could be — which is the right way round: the waterfall is why
+     the pool is here, and the pool is why the fish are. */
+  function makePool(rec){
+    const k=rec.k;
     const f=W.frameAt(rec.dir, k.spin);
     const lip = rec.dir.clone().multiplyScalar(W.PR + k.alt)
                   .addScaledVector(f.fwd, k.r*0.80)
-                  .addScaledVector(f.right, cx);
+                  .addScaledVector(f.right, -k.r*0.10);
     const base = lip.clone().normalize();
-    /* THE GROUND UNDER THE WATER, NOT UNDER THE ISLAND. The lip is twenty-
-       seven metres out from the island's centre line, and Wano is not flat:
-       measuring the drop from the terrain below the island's middle put the
-       whole pool — its water, its rim stones, its ripples and its fish —
-       several metres out of the hillside it is supposed to be sunk into. */
+    /* THE GROUND UNDER THE WATER, NOT UNDER THE ISLAND. Wano is not flat,
+       and measuring from the terrain under the island's middle put the
+       whole pool several metres out of the hillside it is sunk into. */
     const groundY = W.terrainH(base);
-    const drop = k.alt - groundY;                 // how far the water falls
-
     const g=new THREE.Group(); group.add(g);
     g.position.copy(base.clone().multiplyScalar(W.PR + groundY));
     const bf=W.frameAt(base, k.spin);
     g.quaternion.setFromRotationMatrix(
       new THREE.Matrix4().makeBasis(bf.right, bf.up, bf.fwd));
 
-    /* ------------------------------------------------------ the column
-       A FALLING SHEET IS NOT A RECTANGLE. Water leaving a lip is narrow and
-       fast; sixty metres later it has spread and begun to come apart. Four
-       trapezoids — narrow at the top, half again as wide at the bottom — say
-       that for nothing, and it is the difference between a waterfall and a
-       curtain hung off a rock. */
-    const sheets=[];
-    function sheetGeo(wTop, wBot, h){
-      const gm=new THREE.BufferGeometry();
-      const x0=wTop/2, x1=wBot/2;
-      gm.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-        -x1,0,0,  x1,0,0,  x0,h,0,
-        -x1,0,0,  x0,h,0, -x0,h,0 ]),3));
-      // v is 0 at the BOTTOM and 1 at the top: see the sign note in tick()
-      gm.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([
-        0,0, 1,0, 1,1,  0,0, 1,1, 0,1 ]),2));
-      gm.computeVertexNormals();
-      return gm;
-    }
-    for(let i=0;i<4;i++){
-      const wTop=k.r*(0.30 - i*0.055), wBot=wTop*1.55;
-      const mat=new THREE.MeshBasicMaterial({ map:tex.clone(), transparent:true,
-        opacity:0.55-i*0.10, side:THREE.DoubleSide, depthWrite:false });
-      mat.map.wrapS=mat.map.wrapT=THREE.RepeatWrapping;
-      mat.map.repeat.set(1, Math.max(2, drop/16));
-      const pl=new THREE.Mesh(sheetGeo(wTop,wBot,drop), mat);
-      pl.position.set(0, 0, i*1.1-1.6);
-      g.add(pl);
-      /* THE OUTER SHEETS RUN SLOWER. One speed for everything reads as a
-         printed pattern sliding past; a spread of speeds reads as water,
-         because the eye picks up the shear between them. */
-      sheets.push({ mat, speed:0.85+i*0.30 });
-    }
-
-    /* THE LIP. Water does not start falling in mid-air — it bends over the
-       edge first, and the bend is what joins the stream on the island to the
-       column under it. */
-    const lipM=new THREE.Mesh(
-      new THREE.CylinderGeometry(k.r*0.15, k.r*0.15, k.r*0.30, 14, 1, true,
-                                 Math.PI*0.95, Math.PI*0.55),
-      new THREE.MeshLambertMaterial({ color:0xdff0ff, transparent:true,
-                                      opacity:0.72, side:THREE.DoubleSide }));
-    lipM.rotation.z=Math.PI/2;
-    lipM.position.set(0, drop-k.r*0.03, k.r*0.02);
-    g.add(lipM);
-
-    /* ----------------------------------------------------- the droplets
-       THE THING THAT SETTLES WHICH WAY IT IS GOING. A scrolling texture
-       reads as motion but its direction is a guess — the first build of this
-       had it running backwards and it was genuinely hard to say why. A point
-       you can follow all the way down is not ambiguous. */
-    const DN=150;
-    const dp=new Float32Array(DN*3), dph=new Float32Array(DN), dsp=new Float32Array(DN);
-    for(let i=0;i<DN;i++){ dph[i]=rnd(i*7); dsp[i]=0.55+rnd(i*11)*0.75; }
-    const dgeo=new THREE.BufferGeometry();
-    dgeo.setAttribute('position', new THREE.BufferAttribute(dp,3));
-    const drops=new THREE.Points(dgeo, new THREE.PointsMaterial({
-      map:mistTexture(), color:0xeaf6ff, size:0.62, transparent:true,
-      opacity:0.8, depthWrite:false, blending:THREE.AdditiveBlending }));
-    drops.userData={ ph:dph, sp:dsp, drop, spread:k.r*0.20 };
-    g.add(drops);
-
-    /* THE POOL. There is no other water on Wano, so this is the only place
-       a fish could be — which is the right way round: the waterfall is why
-       the pool is here, and the pool is why the fish are. */
     const pr=k.r*0.72;
-    /* The ground here has been dug out by POOL_DEPTH, so the water goes
-       most of the way back up it — a basin with a hand's breadth of bank
-       showing, rather than a puddle at the bottom of a crater. */
-    /* THE WATER STANDS AT THE RIM, LESS A LITTLE — and the rim is a number
-       planet.js works out by walking round the edge of the basin and taking
-       the LOWEST ground it finds. Referencing it to the middle of the pool
-       instead, as this did at first, puts the surface wherever the centre
-       happens to sit: on a rise, that is above the grass on every side and
-       the lake stands proud of the field with daylight under it. */
+    /* THE WATER STANDS AT THE RIM, LESS A LITTLE — and the rim is the
+       LOWEST ground planet.js found walking round the edge of the basin.
+       Referenced to the middle instead, on a rise the lake stood proud of
+       the field with daylight under it. */
     const rimY = (W.basinRim && W.basinRim(base));
     const surfY = (rimY===null || rimY===undefined)
                 ? POOL_DEPTH-0.55
                 : (rimY - 0.45) - groundY;
-    /* THE WATER IS A CAP, NOT A DISC — because the planet is a ball.
-
-       A flat sheet laid in the pool's own tangent frame stays at one height
-       while the ground curves away under it, so by the rim it rides almost a
-       metre clear of the bank: a lake with daylight under its edge. Every
-       vertex goes at a constant ALTITUDE instead, which is what "level"
-       means on a sphere — the surface dips to follow the world and meets the
-       ground the whole way round.
-
-       And it reaches PAST the waterline rather than up to it. A surface that
-       stops exactly where the bank rises leaves a seam wherever the two
-       disagree by a centimetre; tucked under, there is nothing to see. */
+    /* A CAP, NOT A DISC, because the planet is a ball: every vertex at one
+       ALTITUDE, which is what level means on a sphere, reaching a little
+       past the waterline so there is no seam at the bank. */
     const R0=W.PR+groundY;
-    const wgeo=new THREE.RingGeometry(0.001, pr*1.10, 56, 10);
+    const wgeo=new THREE.RingGeometry(0.001, pr*1.10, 72, 14);
     wgeo.rotateX(-Math.PI/2);
     const wp=wgeo.attributes.position;
     for(let i=0;i<wp.count;i++){
       const d=Math.hypot(wp.getX(i), wp.getZ(i));
       wp.setY(i, Math.sqrt(Math.max(0,(R0+surfY)*(R0+surfY) - d*d)) - R0);
     }
-    wgeo.computeVertexNormals();
-    const water=new THREE.Mesh(wgeo,
-      new THREE.MeshLambertMaterial({color:WATER, transparent:true, opacity:0.88}));
+    /* Deep in the middle, clearer over the shelf, rings running out from
+       where the column hits, and white water churned up round the impact.
+       The hit point moves in once the column knows where it lands. */
+    const poolMat=waterMat(`
+      vec2 q=vP.xz-uHit;
+      float r=length(q);
+      float ring=sin(r*1.35-uT*4.2)*exp(-r*.07);
+      float n=fbm(vP.xz*.22+vec2(uT*.05,-uT*.04));
+      float chop=fbm(vP.xz*1.1+vec2(uT*.4,uT*.3));
+      float foamN=fbm(q*.8+normalize(q+1e-4)*(-uT*1.6));
+      float foam=smoothstep(uFoam,uFoam*.25,r)*smoothstep(.32,.62,foamN+.18*ring);
+      foam=max(foam, smoothstep(uFoam*.4,0.,r)*(.75+.25*foamN));   // solid white under the column
+      float shelf=smoothstep(uR*.45,uR*1.02,length(vP.xz));
+      vec3 col=mix(vec3(.05,.22,.34), vec3(.16,.47,.56), shelf*.7+n*.35);
+      col+=vec3(.20,.28,.30)*max(0.,ring)*smoothstep(uR,0.,r)*.55;
+      col+=vec3(.06)*smoothstep(.55,.8,chop);
+      col=mix(col, vec3(.9,.96,1.), clamp(foam,0.,1.));
+      gl_FragColor=vec4(col, mix(.86,.97,foam));`,
+      { uR:{value:pr}, uHit:{value:new THREE.Vector2(0,0)}, uFoam:{value:k.r*0.22} },
+      { decl:'uniform float uR, uFoam; uniform vec2 uHit;' });
+    poolMat.depthWrite=true; poolMat.side=THREE.FrontSide;
+    const water=new THREE.Mesh(wgeo, poolMat);
+    water.userData.flat=true;
     g.add(water);
+
     /* The rim is open on the downstream side, or the river would be running
        out through a wall of boulders. */
-    for(let i=0;i<18;i++){
-      const a=i/18*Math.PI*2;
+    for(let i=0;i<22;i++){
+      const a=i/22*Math.PI*2;
       if(Math.cos(a)>0.72) continue;
-      const sz=0.55+rnd(i*7)*0.95;   // knee to chest, not house-sized
-      const bo=new THREE.Mesh(new THREE.IcosahedronGeometry(sz,0),
+      const sz=0.55+rnd(i*7)*1.1;
+      const bo=new THREE.Mesh(new THREE.DodecahedronGeometry(sz,1),
         new THREE.MeshLambertMaterial({color:ROCK[i%ROCK.length]}));
-      const br=pr*1.02;
+      const br=pr*(1.0+rnd(i*5)*0.05);
+      bo.scale.set(1, 0.55+rnd(i*3)*0.3, 1.1);
       bo.position.set(Math.cos(a)*br,
-        Math.sqrt(Math.max(0,(R0+surfY)*(R0+surfY) - br*br)) - R0 - sz*0.35,
+        Math.sqrt(Math.max(0,(R0+surfY)*(R0+surfY) - br*br)) - R0 - sz*0.25,
         Math.sin(a)*br);
       bo.rotation.set(rnd(i)*3, rnd(i+9)*3, rnd(i+4)*3);
       g.add(bo);
     }
 
-    /* WHERE IT LANDS. Rings opening out from the impact and dying as they
-       widen — the only part of a waterfall that says the water ARRIVED
-       somewhere rather than simply stopping. */
-    const rings=[];
-    for(let i=0;i<4;i++){
-      /* A UNIT RING, so the scale IS the radius in metres. The first one was
-         RingGeometry(1, 1.5) scaled by up to twenty-two, which put a
-         sixty-seven-metre band of grey across a pool forty-nine metres wide
-         — out over the grass, five metres up in the air, reading as a huge
-         dark halo hanging over the whole valley. */
-      const rg=new THREE.Mesh(new THREE.RingGeometry(0.92, 1.0, 44),
-        new THREE.MeshBasicMaterial({color:0xdff0ff, transparent:true,
-          opacity:0.45, side:THREE.DoubleSide, depthWrite:false }));
-      rg.rotation.x=-Math.PI/2; rg.position.y=surfY+0.10;
-      g.add(rg);
-      rings.push({ m:rg, t:i/4 });
+    stockLake(g, { x:0, z:0, r:pr, y:surfY }, 900);
+    rec.pool={ g, R0, surfY, groundY, base, pr, mat:poolMat };
+    fall={ poolMat, parts:[], sheets:[], stream:null };
+    pool={ dir:base, y:groundY, r:pr, surface:groundY+surfY };
+    river(base, groundY+surfY, pr);
+  }
+
+  /* THE COLUMN, once the rock is there to pour it off. `lip` is where the
+     island's rim actually is in the direction of the pool, in the pool's
+     own frame; everything from there down is the projectile. */
+  function makeFall(rec, lipLocal, streamPts){
+    const P=rec.pool; if(!P) return;
+    const g=P.g, surf=P.surfY;
+    const lip=lipLocal.clone();
+    const H=Math.max(4, lip.y - surf);
+    const tf=Math.sqrt(2*H/GRAV);
+    /* AIM FOR THE MIDDLE OF THE POOL. The horizontal speed is whatever
+       carries the water from the lip to the centre in the time it takes to
+       fall — so wherever the rim turns out to be, the water lands in the
+       water. NEVER SLOWER THAN 3.2 m/s, though: this rock bulges out under
+       its rim, and water that merely dribbled over the edge ran down behind
+       the bulge and came out below it as a second, disconnected waterfall.
+       A stream in spate clears its own cliff. That can carry it past the
+       middle by ten metres or so, which a pool twenty-four across absorbs. */
+    const out=lip.clone().sub(rec.pool.g.worldToLocal(rec.g.localToWorld(new THREE.Vector3())));
+    const flat=new THREE.Vector3(-lip.x, 0, -lip.z);
+    let dist=flat.length();
+    /* Away from the island, not merely toward the pool's middle: if the lip
+       is already past the centre, "toward the centre" is back into the rock. */
+    const away=new THREE.Vector3(out.x, 0, out.z).normalize();
+    let dirH = dist>0.01 ? flat.divideScalar(dist) : away.clone();
+    if(dirH.dot(away)<0.2){ dirH=away.clone(); dist=0; }
+    const speed=Math.min(9, Math.max(3.2, dist/tf));
+    const vel=dirH.clone().multiplyScalar(speed);
+    const side=new THREE.Vector3(-dirH.z, 0, dirH.x);
+    const W0=3.6, GROW=1.9;                  // metres wide at the lip, and per second of fall
+    const hit=lip.clone().addScaledVector(vel, tf); hit.y=surf;
+
+    /* Three sheets: a bright core and two looser, wider veils, each with its
+       own seed so their ropes do not line up — and the veils TURNED thirty
+       degrees either way about the vertical. All three square to the flow,
+       the falls seen from the side were a line drawn down the sky: a ribbon
+       edge-on has no width at all. Crossed, the column has body from
+       wherever you look at it. */
+    [[0, 0.95, 1.00, 0.00, 0], [1, 0.55, 1.35, 0.35, 0.52], [2, 0.42, 1.6, -0.35, -0.52]].forEach(([i, a, wk, off, turn])=>{
+      const m=sheetMat(i*7.3+1.1, a, tf);
+      const sd=side.clone().applyAxisAngle(new THREE.Vector3(0,1,0), turn);
+      const gm=arcRibbon(lip.clone().addScaledVector(dirH, off), vel, sd, tf,
+                         W0*wk, GROW*wk, 0, 64);
+      const sh=new THREE.Mesh(gm, m);
+      sh.frustumCulled=false; sh.userData.sky=true; sh.renderOrder=2;
+      g.add(sh);
+      fall.sheets.push(m);
+    });
+
+    const common={ lip, vel, side, tf, hit, surf, w:W0 };
+    const drops =particles(700, 0, Object.assign({ size:0.30, alpha:0.85 }, common));
+    const splash=particles(900, 1, Object.assign({ size:0.55, alpha:0.75, w:W0+GROW*tf }, common));
+    const mist  =particles(140, 2, Object.assign({ size:5.5,  alpha:0.20, w:W0+GROW*tf }, common));
+    [drops, splash, mist].forEach(p=>{ g.add(p); fall.parts.push(p.material); });
+
+    fall.poolMat.uniforms.uHit.value.set(hit.x, hit.z);
+
+    /* THE STREAM ON THE ISLAND, from a spring on the meadow to the lip —
+       the lake is visibly LEAVING, which is the sentence that joins the
+       rock to the column under it. */
+    if(streamPts && streamPts.length>1){
+      const pos=[], uv=[], idx=[];
+      let run=0;
+      for(let i=0;i<streamPts.length;i++){
+        const p=streamPts[i], nx=streamPts[Math.min(streamPts.length-1,i+1)],
+              pv=streamPts[Math.max(0,i-1)];
+        const tan=nx.clone().sub(pv); tan.y=0; tan.normalize();
+        const sd=new THREE.Vector3(-tan.z,0,tan.x);
+        const w=(1.2 + 2.4*(i/(streamPts.length-1)))*0.5;
+        if(i) run+=p.distanceTo(streamPts[i-1]);
+        pos.push(p.x-sd.x*w, p.y, p.z-sd.z*w, p.x+sd.x*w, p.y, p.z+sd.z*w);
+        uv.push(0,run/6, 1,run/6);
+        if(i<streamPts.length-1){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+      }
+      const gm=new THREE.BufferGeometry();
+      gm.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+      gm.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+      gm.setIndex(idx);
+      const sm=new THREE.Mesh(gm, flowMat(1.6));
+      sm.userData.flat=true; sm.renderOrder=1;
+      g.add(sm);
+      fall.stream=sm.material;
     }
 
-    const mist=spray(80, pr*0.42, 7);  g.add(mist); mist.position.y=surfY;
-    const top =spray(26, k.r*0.20, 5); top.position.y=drop-7; g.add(top);
+    /* WHAT THE PLAYER MEETS: the arc in world space, so planet.js can ask
+       whether somebody is standing — or flying — in the water. */
+    const toW=v=>g.localToWorld(v.clone());
+    g.updateMatrixWorld(true);
+    const upW=g.position.clone().normalize();
+    fall.hitW=toW(hit);
+    fall.col={ lipW:toW(lip), velW:toW(lip.clone().add(vel)).sub(toW(lip)),
+               sideW:toW(lip.clone().add(side)).sub(toW(lip)), upW, H, tf,
+               w0:W0, grow:GROW, hitW:fall.hitW, surfW:P.R0+surf };
+  }
 
-    // and the same wildlife, because it is the same water
-    stockLake(g, { x:0, z:0, r:pr, y:surfY }, 900);
+  /* FLOWING WATER on a ribbon whose v is metres downstream: bands of foam
+     and glints carried along at `speed`, white at the banks. The river and
+     the stream on the island are both this. */
+  function flowMat(speed){
+    return waterMat(`
+      float u=vUv.x, v=vUv.y;
+      float flow=fbm(vec2(u*3.2, v*2.4-uT*uS));
+      float glint=vn(vec2(u*14., v*9.-uT*uS*2.2));
+      float bank=1.-smoothstep(0.,.16,u)*smoothstep(1.,.84,u);
+      vec3 col=mix(vec3(.10,.36,.52), vec3(.22,.58,.70), flow);
+      col=mix(col, vec3(.88,.95,1.), clamp(smoothstep(.62,.9,flow)*.6+bank*.55*flow+smoothstep(.8,.97,glint)*.5,0.,1.));
+      gl_FragColor=vec4(col,.9);`,
+      { uS:{value:speed} }, { decl:'uniform float uS;' });
+  }
 
-    fall={ g, sheets, mist, top, drops, rings, drop, poolR:pr };
-    pool={ dir:base, y:groundY, r:pr, surface:groundY+surfY };
-
-    // and then it has somewhere to go
-    river(base, groundY+surfY, pr);
+  /* IS THIS POINT IN THE FALLING WATER? For a point in world space: how
+     hard the water is pushing on it (0 to 1) and which way is out of it.
+     The column at a given depth below the lip is where the projectile was
+     when it had fallen that far — t = sqrt(2d/g) — and its width is the
+     sheet's at that t. */
+  function fallPush(p){
+    const C=fall && fall.col; if(!C) return null;
+    const rel=p.clone().sub(C.lipW);
+    const d=-rel.dot(C.upW);                      // metres below the lip
+    if(d < -1 || d > C.H+1) return null;
+    const t=Math.sqrt(2*Math.max(0,d)/GRAV);
+    const centre=C.velW.clone().multiplyScalar(t).addScaledVector(C.upW, -d);
+    const off=rel.sub(centre); off.addScaledVector(C.upW, -off.dot(C.upW));
+    const half=(C.w0 + C.grow*t)*0.5*1.35;       // the veils reach wider than the core
+    const across=Math.abs(off.dot(C.sideW)), thru=Math.abs(off.dot(C.velW.clone().normalize()));
+    if(across > half+0.8 || thru > 2.2) return null;
+    const s=(1-Math.min(1, across/(half+0.8)))*(1-Math.min(1,thru/2.2));
+    const out = off.lengthSq()>1e-4 ? off.normalize() : C.sideW.clone();
+    return { s, out, down:C.upW.clone().negate() };
   }
 
   /* ------------------------------------------------------------ the river
@@ -789,10 +1024,7 @@ window.ISLANDS = (function(){
     geo.setIndex(idx);
     geo.computeVertexNormals();
 
-    const rtex=fallTexture();
-    rtex.wrapS=rtex.wrapT=THREE.RepeatWrapping;
-    const rmat=new THREE.MeshLambertMaterial({ color:0x3f96c8, map:rtex,
-      transparent:true, opacity:0.86, side:THREE.DoubleSide, depthWrite:false });
+    const rmat=flowMat(0.9);
     const ribbon=new THREE.Mesh(geo, rmat);
     ribbon.userData.flat=true;
     group.add(ribbon);
@@ -831,52 +1063,15 @@ window.ISLANDS = (function(){
   function tick(dt){
     if(!group) return;
     t+=dt;
+    /* All of the water is shaders now, and all a shader needs is the clock:
+       every streak, drop, splash and ripple is a function of time. */
     if(fall){
-      /* DOWNWARDS, AND THIS IS THE SIGN THAT WAS WRONG. A texture is sampled
-         at uv*repeat + offset, so a feature painted at v sits wherever
-         uv = (v - offset)/repeat. Decrease the offset and that quotient goes
-         UP the plane — which is exactly what the first build did, and why
-         sixty metres of water appeared to be climbing back onto the island.
-         Increasing it drags the streaks down. */
-      fall.sheets.forEach(sh=>{ sh.mat.map.offset.y += sh.speed*dt; });
-
-      /* The droplets, each falling at its own rate and starting again at the
-         lip. Spread grows as they go, because falling water comes apart. */
-      const D=fall.drops, u=D.userData, a2=D.geometry.attributes.position;
-      for(let i=0;i<u.ph.length;i++){
-        u.ph[i]+=dt*u.sp[i]*0.45;
-        if(u.ph[i]>1) u.ph[i]-=1;
-        const k=u.ph[i];
-        a2.array[i*3+1]=u.drop*(1-k);                 // top to bottom
-        const sp=u.spread*(0.45+k*0.85);
-        a2.array[i*3  ]=Math.cos(i*2.399)*sp*(0.4+0.6*((i%7)/7));
-        a2.array[i*3+2]=Math.sin(i*1.7)*1.6*(0.5+k);
-      }
-      a2.needsUpdate=true;
-
-      // rings opening out from where it lands, and fading as they widen
-      fall.rings.forEach(r=>{
-        r.t+=dt*0.55; if(r.t>1) r.t-=1;
-        /* The scale is the outer radius in metres, and it stops well inside
-           the bank — a ripple that runs out over dry land is not a ripple. */
-        const k=r.t, sc=2 + k*(fall.poolR*0.72);
-        r.m.scale.setScalar(sc);
-        r.m.material.opacity=0.5*(1-k)*(1-k);
-      });
-
-      [fall.mist, fall.top].forEach(p=>{
-        if(!p) return;
-        const at=p.geometry.attributes.position, ph=p.userData.ph, up=p.userData.up;
-        for(let i=0;i<ph.length;i++){
-          ph[i]=(ph[i]+dt*(0.25+0.4*((i%5)/5)))%1;
-          at.array[i*3+1]=ph[i]*up;
-        }
-        at.needsUpdate=true;
-        p.material.opacity=0.20+0.16*Math.abs(Math.sin(t*1.3));
-      });
+      fall.sheets.forEach(m=>{ m.uniforms.uT.value=t; });
+      fall.parts.forEach(m=>{ m.uniforms.uT.value=t; });
+      if(fall.poolMat) fall.poolMat.uniforms.uT.value=t;
+      if(fall.stream) fall.stream.uniforms.uT.value=t;
     }
-    // the river runs the way it was laid: v climbs downstream, so does the offset
-    if(riv) riv.mat.map.offset.y += dt*0.5;
+    if(riv) riv.mat.uniforms.uT.value=t;
 
     /* --------------------------------------------------------- the fish
        A WANDER, NOT AN ORBIT. Each one has somewhere it is going and turns
@@ -1014,7 +1209,7 @@ window.ISLANDS = (function(){
     group=null; isles=[]; fall=null; riv=null; pool=null; fish=[]; turtles=[]; t=0;
   }
 
-  return { build, tick, floorAt, blocked, clear, spots, waterAt, ISLES,
+  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES,
            get count(){ return isles.length; },
            get pool(){ return pool; },
            /* WHAT IS ALIVE UP THERE, and where one of each is right now —

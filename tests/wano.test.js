@@ -206,30 +206,45 @@ test('the islands belong to Wano and nowhere else', ()=>{
    way water is moving, whether a river is one river or nine puddles, or
    that a turtle is on rails. */
 
-test('the water falls downwards', ()=>{
-  /* THE SIGN THAT WAS WRONG. A texture is sampled at uv*repeat + offset, so
-     a streak painted at v is drawn wherever uv = (v - offset)/repeat.
-     DECREASE the offset and that quotient rises — which is what the first
-     build did, and sixty metres of water appeared to be climbing back up
-     onto the island. */
+test('the water falls downwards, on an arc, under gravity', ()=>{
+  /* THE SIGN THAT WAS WRONG ONCE ALREADY: sixty metres of water appeared to
+     be climbing back onto the island because a texture was scrolled the
+     wrong way. The sheet's v is SECONDS SINCE THE LIP now, and the pattern
+     is sampled at (t - time): a feature stays with the water that carries
+     it, so it can only ever move down the arc. */
   const src=read('public/islands.js');
-  assert.match(src, /sh\.mat\.map\.offset\.y \+= sh\.speed\*dt/,
-    'the falls scroll their texture the wrong way — the water will run upwards');
-  assert.ok(!/offset\.y -= .*speed/.test(src),
-    'something still scrolls a falling surface upwards');
-  /* and the droplets, which are the unambiguous half: they must be driven
-     from the top of the drop towards zero */
-  assert.match(src, /a2\.array\[i\*3\+1\]=u\.drop\*\(1-k\)/,
-    'the droplets do not fall from the lip to the pool');
+  assert.match(src, /float along=\(t-uT\)\*/,
+    'the streaks no longer ride with the water — they may run upwards');
+  assert.ok(!/\(uT-t\)/.test(src), 'something samples the fall against the flow');
+  /* A PROJECTILE, not a curtain: the sheet, the drops and the splash all
+     fall at g, and the sheet starts at the lip rather than in mid-air. */
+  assert.match(src, /c\.y \+= -0\.5\*GRAV\*t\*t/, 'the sheet no longer falls under gravity');
+  assert.match(src, /-\.5\*G\*age\*age/, 'the drops no longer fall under gravity');
+  assert.match(src, /vy\*age-\.5\*G\*age\*age/, 'the splash no longer arcs back into the pool');
+  assert.match(src, /const tf=Math\.sqrt\(2\*H\/GRAV\)/, 'the time to fall is not the real one');
 });
 
-test('the falls are a column with a lip, not a rectangle in mid-air', ()=>{
+test('the falls pour off the rim and land in the middle of the pool', ()=>{
   const src=read('public/islands.js');
-  assert.match(src, /function sheetGeo\(wTop, wBot, h\)/,
-    'the sheets are plain rectangles again — falling water spreads');
-  assert.match(src, /wBot=wTop\*1\.55/, 'the column no longer widens as it falls');
-  assert.match(src, /lipM/, 'there is no lip, so the water starts falling in mid-air');
-  assert.match(src, /rings\.forEach/, 'nothing marks where the water lands');
+  /* Aimed, not guessed: whatever speed carries the water from wherever
+     the rim turned out to be to the centre of the pool in the time it
+     takes to fall that far. */
+  assert.match(src, /Math\.max\(3\.2, dist\/tf\)/, 'the water is no longer aimed at the pool');
+  assert.match(src, /function pourFrom\(rec\)/, 'the lip is not found on the rock any more');
+  assert.match(src, /if\(k\.fall\) pourFrom\(rec\)/, 'the modelled island never pours');
+  // the landing is marked: foam where it hits, spreading rings
+  assert.match(src, /uHit\.value\.set\(hit\.x, hit\.z\)/, 'the pool does not know where the water hits');
+  // the water has weight
+  assert.match(src, /function fallPush\(p\)/, 'the falling water has no weight');
+  assert.match(read('public/planet.js'), /ISLANDS\.fallPush\(me\.dir\.clone\(\)\.multiplyScalar\(PR\+me\.alt\)\)/,
+    'flying into the falls does nothing to you');
+});
+
+test('a modelled island with no baked grid still has ground', ()=>{
+  /* The Higgsfield island arrives as a bare mesh. If its grid is not made
+     from its triangles, you fall straight through a rock you can see. */
+  const src=read('public/islands.js');
+  assert.match(src, /field=fieldFromMesh\(root, \d+\)/, 'a bare model gets no ground');
 });
 
 test('the water leaves the pool along a river', ()=>{
@@ -312,7 +327,7 @@ test('you float on deep water and wade through shallow', ()=>{
   assert.match(src, /\(surf-floor\) > 1\.6/,
     'swimming does not check how deep the water actually is');
   assert.match(src, /AVATAR\.posture\('swim'\)/, 'the body never goes horizontal');
-  assert.match(src, /me\.alt \+= \(surf-me\.alt\)\*/,
+  assert.match(src, /me\.alt \+= \(surf\+bob-me\.alt\)\*/,
     'you do not rise to the surface — you would stand on the bottom');
   // and it has to come off again, or you swim across the grass
   assert.match(src, /if\(swimming\)\{ swimming=false; if\(window\.AVATAR\) AVATAR\.posture\(null\); \}/,

@@ -5472,6 +5472,7 @@ window.PLANET = (function(){
       }
     }
 
+    shoveBy(dt, true);
     /* THE CEILING, AND THE GROUND. Both are walls rather than surprises:
        you stop rising and the dome lights up, or you stop falling and are
        standing on your feet again. */
@@ -5509,6 +5510,23 @@ window.PLANET = (function(){
     if(window.GUN) GUN.update(dt, moved);
   }
 
+  /* SIXTY METRES OF FALLING WATER HAS WEIGHT. Fly into the falls and it
+     pushes you down and out of it; stand in it, or swim up under it, and it
+     does the same — which is what makes it water rather than a picture of
+     some. islands.js knows where the column is at every height; this is
+     what being in it does to a body. */
+  function shoveBy(dt, air){
+    if(!window.ISLANDS || !ISLANDS.fallPush) return;
+    const P=ISLANDS.fallPush(me.dir.clone().multiplyScalar(PR+me.alt));
+    if(!P) return;
+    if(air){ me.alt -= 12*P.s*dt; me.climb=Math.min(me.climb, 0); }
+    else if(!me.onGround) me.vy -= 28*P.s*dt;
+    const up=me.dir, out=P.out.clone().addScaledVector(up, -P.out.dot(up));
+    if(out.lengthSq()<1e-6) return;
+    const axis=new THREE.Vector3().crossVectors(up, out.normalize()).normalize();
+    const want=me.dir.clone().applyAxisAngle(axis, (5*P.s*dt)/(PR+me.alt)).normalize();
+    if(!blocked(want)) me.dir.copy(want);
+  }
   /* Feet on the ground and the keys back to what they were. */
   function land(){
     flying=false;
@@ -5765,6 +5783,7 @@ window.PLANET = (function(){
     }
     /* Indoors the ground under you is the building's floor, not the ball —
        and up on the lid it is the lid, which is why the altitude goes in. */
+    shoveBy(dt, false);
     const floor=floorAt(me.dir, me.alt);
 
     /* ------------------------------------------------------- swimming
@@ -5788,7 +5807,9 @@ window.PLANET = (function(){
       if(!swimming){ swimming=true; if(window.AVATAR) AVATAR.posture('swim'); }
       /* Eased rather than snapped: you sink a little on the way in and come
          back up, which is most of what entering water looks like. */
-      me.alt += (surf-me.alt)*Math.min(1, dt*3.2);
+      /* and ride the swell a little rather than sitting on a sheet of glass */
+      const bob=0.07*Math.sin(performance.now()*0.0021);
+      me.alt += (surf+bob-me.alt)*Math.min(1, dt*3.2);
       me.vy=0; me.onGround=false;
     } else {
       if(swimming){ swimming=false; if(window.AVATAR) AVATAR.posture(null); }
