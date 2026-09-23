@@ -717,6 +717,7 @@ window.PLANET = (function(){
        just been thrown away, so `aboard` without it is a flight with
        nothing in it and a body that never comes back. */
     aboard=false; shipRide=null; arrived=false;
+    mount=null; floaties=[];               // the panda was part of the world we left
     if(window.AVATAR) AVATAR.posture(null);
     // level, not looking at your own feet: the sign is above the door
     lastYaw=G.yaw=0; G.pitch=0.03;
@@ -1324,7 +1325,9 @@ window.PLANET = (function(){
       /* A world whose trees are a MODEL gets the spot, not a ball on a
          stick — the model is stood at all of them at once when it arrives. */
       if(F.model && Math.random()<F.tall){ treeSpots.push(dir); continue; }
-      if(Math.random()<F.tall){
+      /* and not a ball-on-a-stick as well: a second roll here let the old
+         tree through on a world whose trees are a model */
+      if(!F.model && Math.random()<F.tall){
         const h=3+Math.random()*3;
         const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.42,h,6), trunk);
         t1.position.y=h/2; g.add(t1);
@@ -2212,10 +2215,20 @@ window.PLANET = (function(){
       const g=pandas ? pandaModel() : beastModel(k);
       G.roomGroup.add(g);
       beasts.push({ k, g, dir, fwd:frameAt(dir, Math.random()*Math.PI*2).fwd,
-                    step:0, rest:Math.random()*4, turn:0 });
+                    step:0, rest:Math.random()*4, turn:0, tame:0, eat:0 });
+      if(pandas) pandaHit(g, beasts.length-1);
+    }
+    /* THE ONE YOU TAMED IS STILL YOURS. It is in the save rather than in the
+       world — which panda it was is not kept, only that you have one — so
+       the first panda comes back wearing your saddle and walks over to find
+       you when you land. */
+    if(pandas && beasts[0] && window.PROGRESS && PROGRESS.get('panda_pal', 0)){
+      const bs=beasts[0];
+      bs.tame=3; bs.pal=true; tamed(bs);
     }
   }
   function beastTick(dt){
+    floatTick(dt);
     for(const bs of beasts){
       const up=bs.dir.clone().normalize();
       // keep the heading in the tangent plane; a long walk drifts out of it
@@ -2223,16 +2236,42 @@ window.PLANET = (function(){
       if(bs.fwd.lengthSq()<1e-8) bs.fwd.copy(frameAt(up,0).fwd);
       bs.fwd.normalize();
 
-      bs.rest-=dt;
-      if(bs.rest<=0){                       // stop, look about, choose a new way
-        bs.rest=3+Math.random()*7;
-        bs.turn=(Math.random()-0.5)*2.4;
+      /* UNDER A RIDER it goes where you go: place() stands it under you, and
+         all that is left here is its legs, at the pace you are asking of it. */
+      if(bs===mount){ pandaLegs(bs, riding.moving, riding.speed, dt); continue; }
+
+      let walking, v=bs.k.speed;
+      const toMe = me.dir ? bs.dir.angleTo(me.dir)*PR : 1e9;
+      if(bs.eat>0){
+        /* EATING. It stops, turns to you and chews — the idle's slow look
+           down is the chewing — until the stalk is gone. */
+        bs.eat-=dt; walking=false;
+        turnTo(bs, me.dir, 3.5*dt);
+        if(bs.eat<=0 && bs.stalk){ bs.stalk.parent && bs.stalk.parent.remove(bs.stalk); bs.stalk=null; }
+      } else if(bs.tame>=3 && (toMe<90 || (bs.pal && !bs.found))){
+        /* YOURS, AND IT KNOWS IT. A tamed panda keeps you in sight: it
+           ambles after you when you wander off, hurries when you are far,
+           and sits down to wait a few steps away. Beyond ninety metres it
+           has lost you and goes back to being a panda until you come back. */
+        if(bs.pal && !bs.found){
+          bs.found=true;                      // it comes to meet you where you land
+          bs.dir.copy(me.dir).applyAxisAngle(me.fwd, 4.5/PR).normalize();
+          bs.fwd.copy(me.fwd);
+        }
+        walking = toMe > 4.5;
+        v = Math.min(6.5, 1.1 + toMe*0.3);
+        if(walking) turnTo(bs, me.dir, 3*dt);
+      } else {
+        bs.rest-=dt;
+        if(bs.rest<=0){                       // stop, look about, choose a new way
+          bs.rest=3+Math.random()*7;
+          bs.turn=(Math.random()-0.5)*2.4;
+        }
+        walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
       }
-      const walking = bs.rest > 1.6;        // the last stretch of each spell is a pause
       if(bs.turn){ const d=Math.min(Math.abs(bs.turn), 1.3*dt)*Math.sign(bs.turn);
                    bs.fwd.applyAxisAngle(up, d); bs.turn-=d; }
       if(walking){
-        const v=bs.k.speed;
         const axis=new THREE.Vector3().crossVectors(up, bs.fwd).normalize();
         const ang=(v*dt)/PR;
         const want=bs.dir.clone().applyAxisAngle(axis, ang).normalize();
@@ -2252,31 +2291,250 @@ window.PLANET = (function(){
       bs.g.quaternion.setFromRotationMatrix(
         new THREE.Matrix4().makeBasis(right, up2, fwd));
       bs.g.position.copy(bs.dir).multiplyScalar(PR + floorAt(bs.dir));
-      /* No rig (an older cached model): the whole body WADDLES instead —
-         rolls side to side and dips at each step. */
-      const rig=bs.g.userData.pandaRig, body=bs.g.userData.body;
-      if(rig){
-        /* Rigged: the legs really walk. Walk while moving, idle (looking
-           about) while stopped, a third of a second to change between them
-           — and the stride is paced to the ground actually covered, so the
-           feet do not skate. */
-        if(rig.walking!==walking){
-          rig.walking=walking;
-          const to=walking ? rig.walk : rig.idle, from=walking ? rig.idle : rig.walk;
-          if(to && from){ to.reset().play(); from.crossFadeTo(to, 0.35, false); }
-        }
-        rig.mixer.update(dt);
-      } else if(body){
-        const w = walking ? 1 : 0;
-        body.rotation.z = Math.sin(bs.step*3.2)*0.075*w;
-        body.position.y = Math.abs(Math.sin(bs.step*3.2))*0.05*w;
-      }
+      pandaLegs(bs, walking, v, dt);
       // legs swing when it moves and hang still when it does not
       (bs.g.userData.legs||[]).forEach(l=>{
         l.rotation.x = walking ? Math.sin(bs.step*2.4 + l.userData.phase)*0.5 : 0;
       });
     }
   }
+  function pandaLegs(bs, walking, v, dt){
+    /* No rig (an older cached model): the whole body WADDLES instead —
+       rolls side to side and dips at each step. */
+    const rig=bs.g.userData.pandaRig, body=bs.g.userData.body;
+    if(rig){
+      /* Rigged: the legs really walk. Walk while moving, idle (looking
+         about) while stopped, a third of a second to change between them
+         — and the stride is paced to the ground actually covered, so the
+         feet do not skate, whether it is ambling on its own or galloping
+         under a rider. */
+      if(rig.walking!==walking){
+        rig.walking=walking;
+        const to=walking ? rig.walk : rig.idle, from=walking ? rig.idle : rig.walk;
+        if(to && from){ to.reset().play(); from.crossFadeTo(to, 0.35, false); }
+      }
+      /* Paced to the ground covered while it ambles — and CAPPED when it is
+         ridden: at a gallop that pace is twelve strides a second, which is
+         not a gallop, it is a blur. A little slide under the feet reads far
+         better than legs you cannot see. */
+      if(rig.walk){
+        const fit=Math.max(0.3, v)/(0.94*(bs.g.userData.k||1));
+        rig.walk.timeScale=Math.min(fit, 1.2 + v*0.15);
+      }
+      rig.mixer.update(dt);
+    } else if(body){
+      bs.step+=walking ? v*dt : 0;
+      const w = walking ? 1 : 0;
+      body.rotation.z = Math.sin(bs.step*3.2)*0.075*w;
+      body.position.y = Math.abs(Math.sin(bs.step*3.2))*0.05*w;
+    }
+  }
+  /* Turn a beast's heading toward a point on the ball, at most `max`
+     radians this frame. */
+  function turnTo(bs, target, max){
+    if(!target) return;
+    const want=facing(bs.dir.clone().normalize(), target);
+    const up=bs.dir.clone().normalize();
+    const ang=Math.atan2(new THREE.Vector3().crossVectors(bs.fwd, want).dot(up), bs.fwd.dot(want));
+    bs.fwd.applyAxisAngle(up, Math.max(-max, Math.min(max, ang)));
+  }
+
+  /* ------------------------------------------------------ PANDA FRIENDS
+     Walk up to a panda, look at it, press E: you offer it bamboo. Three
+     stalks and it trusts you — a red saddle cloth, "your panda", and it
+     follows you about. E again and you climb on. R gets you off.
+
+     A PANDA IS A THING YOU POINT AT, like a door: an invisible box the
+     size of it is in G.hits, owned by the panda's group, and the group
+     carries the label and the verb the crosshair shows. game.js already
+     turns E on a focused thing into use(enter). */
+  function pandaHit(g, i){
+    const box=new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.6, 2.5),
+                             new THREE.MeshBasicMaterial({ visible:false }));
+    box.position.y=0.8;
+    box.userData.owner=g;
+    g.add(box); G.hits.push(box);
+    g.userData.hit=box;
+    g.userData.enter='panda:'+i;
+    g.userData.kind='panda';
+    g.userData.label='Wild panda';
+    g.userData.verb='E — offer bamboo';
+  }
+  const TAME=3;
+  function pandaUse(i){
+    const bs=beasts[i]; if(!bs || !me.dir) return;
+    if(flying){ say(t('Land first — pandas do not fly.')); return; }
+    if(bs.dir.angleTo(me.dir)*PR > 5.5){ say(t('Get a little closer to the panda.')); return; }
+    if(bs.tame>=TAME){ mountPanda(bs); return; }
+    if(bs.eat>0) return;                          // still chewing the last one
+    bs.tame++; bs.eat=2.4;
+    stalkIn(bs);
+    hearts(bs, bs.tame>=TAME ? 5 : 1);
+    if(bs.tame>=TAME){
+      tamed(bs);
+      if(window.PROGRESS) PROGRESS.set('panda_pal', 1);
+      if(window.beep) beep('win');
+      say(t('🐼 It trusts you now! Press <b>E</b> to climb on.'));
+    } else {
+      if(window.beep) beep('pop');
+      say(t('🎋 Munch, munch… {n} of {m} — it wants more bamboo.',{n:bs.tame, m:TAME}));
+    }
+  }
+  function tamed(bs){
+    const u=bs.g.userData;
+    u.label='Your panda'; u.verb='E — ride';
+    if(u.k) saddle(bs.g); else u.wantSaddle=true;     // the model may not be in yet
+  }
+  /* A RED SADDLE CLOTH, which is how you can tell yours from the others at a
+     glance — vermilion, like the torii, with gold at the corners. It is laid
+     over the back at the measured height and draped as half a tube, so it
+     follows the curve of the panda rather than floating flat above it. */
+  function saddle(g){
+    const u=g.userData; if(u.saddled || !u.model || !measured) return; u.saddled=true;
+    const cloth=new THREE.Mesh(measured.drape,
+      new THREE.MeshLambertMaterial({ vertexColors:true, side:THREE.DoubleSide }));
+    u.model.add(cloth);                       // the model's own space: it is scaled with it
+    const gold=new THREE.MeshLambertMaterial({ color:0xe0b243 });
+    measured.drape.userData.corners.forEach(c=>{
+      const tas=new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.14, 6), gold);
+      tas.rotation.x=Math.PI; tas.position.copy(c).add(new THREE.Vector3(0,-0.08,0));
+      u.model.add(tas);
+    });
+    const knot=new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), gold);
+    // a gold knot at the front edge of the cloth, over the withers
+    const front=measured.drape.userData.corners[2].z;
+    knot.position.set(0, measured.back+0.03, measured.seatZ + (front-measured.seatZ)*0.9);
+    u.model.add(knot);
+  }
+  /* A stalk of bamboo in its mouth while it eats. */
+  function stalkIn(bs){
+    const u=bs.g.userData; if(!u.k) return;
+    const s=new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.9, 6),
+                           new THREE.MeshLambertMaterial({ color:0x6fae3a }));
+    s.rotation.z=Math.PI/2 - 0.3;
+    s.position.set(0, u.back*0.78, u.len*0.44);
+    u.body.add(s); bs.stalk=s;
+  }
+  /* HEARTS, rising off its head and fading. Sprites in world space, so
+     they stay where they were given rather than following the panda. */
+  let heartTex=null, floaties=[];
+  function hearts(bs, n){
+    if(!heartTex){
+      const c=document.createElement('canvas'); c.width=c.height=64;
+      const x=c.getContext('2d'); x.font='52px serif'; x.textAlign='center';
+      x.fillStyle='#ff5c8a'; x.fillText('♥', 32, 50);
+      heartTex=new THREE.CanvasTexture(c); heartTex.colorSpace=THREE.SRGBColorSpace;
+    }
+    const u=bs.g.userData, top=new THREE.Vector3(0, (u.back||1)+0.5, (u.len||2)*0.3);
+    bs.g.updateMatrixWorld(true);
+    for(let i=0;i<n;i++){
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({ map:heartTex, transparent:true, depthWrite:false }));
+      sp.scale.setScalar(0.45);
+      const at=bs.g.localToWorld(top.clone().add(new THREE.Vector3((Math.random()-0.5)*0.8, 0, (Math.random()-0.5)*0.5)));
+      sp.position.copy(at); sp.userData.sky=true;
+      G.roomGroup.add(sp);
+      floaties.push({ sp, t:-i*0.18, from:at, up:at.clone().normalize() });
+    }
+  }
+  function floatTick(dt){
+    if(!floaties.length) return;
+    floaties=floaties.filter(f=>{
+      f.t+=dt; if(f.t<0){ f.sp.visible=false; return true; }
+      f.sp.visible=true;
+      const k=f.t/1.4;
+      f.sp.position.copy(f.from).addScaledVector(f.up, k*1.4);
+      f.sp.material.opacity=1-k;
+      if(k>=1){ f.sp.parent && f.sp.parent.remove(f.sp); return false; }
+      return true;
+    });
+  }
+
+  /* ON ITS BACK. The rider is the player: the keys move you exactly as they
+     do on foot (a little quicker, a lot quicker with Shift), A and D turn
+     rather than side-step, and the panda is stood under you each frame. */
+  let mount=null;
+  const riding={ moving:false, speed:0 };
+  function mountPanda(bs){
+    if(mount===bs) return;
+    if(mount) dismount();
+    if(ride) toggleRide();
+    mount=bs; bs.eat=0;
+    /* where it was standing is where you are now, facing its way */
+    me.dir.copy(bs.dir); me.fwd.copy(bs.fwd);
+    me.alt=floorAt(me.dir, me.alt); me.vy=0; me.onGround=true;
+    const u=bs.g.userData;
+    if(u.hit){ const i=G.hits.indexOf(u.hit); if(i>=0) G.hits.splice(i,1); }   // not a thing to point at under you
+    if(window.AVATAR) AVATAR.posture('ride');
+    keysFor();
+    say(t('🐼 <b>W</b> to go, <b>SHIFT</b> to gallop, <b>R</b> to get off.'));
+  }
+  function dismount(){
+    if(!mount) return false;
+    const bs=mount; mount=null;
+    const u=bs.g.userData;
+    if(u.hit && G.hits.indexOf(u.hit)<0) G.hits.push(u.hit);
+    // step off to its left, if there is ground there to step onto
+    const up=me.dir.clone().normalize();
+    const left=new THREE.Vector3().crossVectors(up, me.fwd).normalize();
+    const axis=new THREE.Vector3().crossVectors(up, left).normalize();
+    const off=me.dir.clone().applyAxisAngle(axis, 1.6/PR).normalize();
+    if(!blocked(off)) me.dir.copy(off);
+    me.alt=floorAt(me.dir, me.alt);
+    bs.rest=2;
+    if(window.AVATAR) AVATAR.posture(swimming ? 'swim' : null);
+    keysFor();
+    say(t('Off you get. Your panda will follow you.'));
+    return true;
+  }
+  /* Stand the panda under the rider, and the rider in the saddle. The
+     thighs are then opened about the rider's own forward axis — the
+     sitting clip is for a chair, knees together, and a panda is wider than
+     a chair — which is a turn in WORLD space, so it comes out the same on
+     every skeleton whatever way its bones happen to be rolled. */
+  function seatRider(up, fwd, dt){
+    const bs=mount, u=bs.g.userData;
+    const r=new THREE.Vector3().crossVectors(up, fwd).normalize();
+    bs.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, up, fwd));
+    bs.g.position.copy(worldPos(0));
+    bs.dir.copy(me.dir); bs.fwd.copy(fwd);
+    if(!window.AVATAR) return;
+    AVATAR.posture('ride');
+    const canRide = AVATAR.can && AVATAR.can('ride');
+    const bob = riding.moving ? Math.abs(Math.sin(performance.now()*0.001*riding.speed*1.7))*0.04 : 0;
+    const seat = worldPos((u.back||1.05) - 0.27 + bob).addScaledVector(fwd, u.seatZ||-0.38);
+    AVATAR.orient(seat, up, fwd, dt, false, false, true);
+    const body=AVATAR.body; if(!body || !canRide) return;   // a stale model has no seat: no splits either
+    if(!u.riderLegs || u.riderLegs.body!==body){
+      const legs=[]; let hips=null;
+      body.traverse(o=>{ if(!o.isBone) return;
+        if(/UpLeg$/.test(o.name)) legs.push(o); else if(/Hips$/.test(o.name) && !hips) hips=o; });
+      u.riderLegs={ body, legs, hips };
+    }
+    /* HIPS ON THE CLOTH, whoever is riding. The seat above is a guess from
+       one character's sitting pose; a body retargeted from Higgsfield sits
+       with its hips higher in the clip, and rode forty centimetres above the
+       saddle. So the hips are found where the clip actually put them and
+       the whole body is moved to bring them down onto the cloth, and over
+       the middle of it, every frame. */
+    const hb=u.riderLegs.hips;
+    if(hb){
+      body.updateMatrixWorld(true);
+      const hp=hb.getWorldPosition(new THREE.Vector3());
+      // a hand's breadth back from the middle of the cloth: the thighs reach forward from there
+      const want=worldPos((u.back||1.05) + 0.1 + bob).addScaledVector(fwd, (u.seatZ||-0.38) - 0.12);
+      const d=want.sub(hp);
+      body.position.addScaledVector(up, d.dot(up)).addScaledVector(fwd, d.dot(fwd));
+      body.updateMatrixWorld(true);
+    }
+    const qp=new THREE.Quaternion(), qw=new THREE.Quaternion();
+    for(const b of u.riderLegs.legs){
+      b.parent.getWorldQuaternion(qp);
+      qw.setFromAxisAngle(fwd, /Left/.test(b.name) ? -0.95 : 0.95);
+      b.quaternion.premultiply(qp.clone().invert().multiply(qw).multiply(qp));
+    }
+  }
+
+  /* ------------------------------------------------------------- the mall
 
   /* ------------------------------------------------------------ WANO
      Pandas where the herd was, and bamboo all over. Both are models made
@@ -2345,6 +2603,61 @@ window.PLANET = (function(){
     });
     return out;
   }
+  let measured=null;
+  function pandaMeasure(src){
+    if(measured) return measured;
+    const sz=src.userData.size, seatZ=-0.17*sz.z;
+    let back=0, halfW=0;
+    src.updateMatrixWorld(true);
+    const v=new THREE.Vector3();
+    src.traverse(o=>{
+      if(!o.isMesh) return;
+      const P=o.geometry.attributes.position;
+      for(let i=0;i<P.count;i++){
+        v.fromBufferAttribute(P,i).applyMatrix4(o.matrixWorld);
+        if(Math.abs(v.z-seatZ) < 0.12*sz.z){
+          if(Math.abs(v.x) < 0.09*sz.z) back=Math.max(back, v.y);
+          halfW=Math.max(halfW, Math.abs(v.x));
+        }
+      }
+    });
+    return measured={ back, halfW, seatZ, drape:drapeGeo(src, back, seatZ, sz) };
+  }
+  /* THE SADDLE CLOTH IS DRAPED, NOT MODELLED. A half-tube sized to the
+     widest part of the panda stood off its back like a box: a panda is
+     narrow over the spine and wide at the belly. So rays are fired at the
+     body from all round the top of it, at a spread of points along the
+     back, and the cloth is laid through where they land — two centimetres
+     off the fur, gold at the edges. Done once, on the model as it comes,
+     and shared by every saddle. */
+  function drapeGeo(src, back, seatZ, sz){
+    const meshes=[]; src.traverse(o=>{ if(o.isMesh) meshes.push(o); });
+    const rc=new THREE.Raycaster(), axisY=back*0.62, NA=15, NZ=8, half=sz.z*0.15;
+    const pos=[], col=[], idx=[], red=new THREE.Color(0xc8302a), gold=new THREE.Color(0xe0b243);
+    const corners=[];
+    for(let j=0;j<NZ;j++){
+      const z=seatZ + (j/(NZ-1)-0.5)*2*half;
+      for(let i=0;i<NA;i++){
+        const th=(i/(NA-1)-0.5)*2*1.15;
+        const d=new THREE.Vector3(Math.sin(th), Math.cos(th), 0);
+        rc.set(new THREE.Vector3(0,axisY,z).addScaledVector(d, 3), d.clone().negate());
+        const h=rc.intersectObjects(meshes, false)[0];
+        const p=h ? h.point.clone().addScaledVector(d, 0.02)
+                  : new THREE.Vector3(0,axisY,z).addScaledVector(d, back-axisY);
+        pos.push(p.x,p.y,p.z);
+        const edge=(i===0||i===NA-1||j===0||j===NZ-1);
+        const c=edge ? gold : red; col.push(c.r,c.g,c.b);
+        if((i===0||i===NA-1)&&(j===0||j===NZ-1)) corners.push(p.clone());
+        if(i<NA-1 && j<NZ-1){ const a=j*NA+i; idx.push(a,a+NA,a+1, a+1,a+NA,a+NA+1); }
+      }
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col,3));
+    g.setIndex(idx); g.computeVertexNormals();
+    g.userData.corners=corners;
+    return g;
+  }
   function pandaModel(){
     const g=new THREE.Group(), body=new THREE.Group();
     g.add(body); g.userData.body=body;
@@ -2358,6 +2671,13 @@ window.PLANET = (function(){
       m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true;
                                     o.frustumCulled=false; } });   // a posed leg leaves the rest-pose box
       body.add(m);
+      /* What a saddle and a rider need to know about THIS panda: how high
+         its back is over the middle, how wide, how long — measured once off
+         the model and scaled by this one's size. */
+      const meas=pandaMeasure(src);
+      Object.assign(g.userData, { k, model:m, back:meas.back*k, halfW:meas.halfW*k,
+                                  len:sz.z*k, seatZ:meas.seatZ*k });
+      if(g.userData.wantSaddle) saddle(g);
       const clips=src.userData.clips, mixer=new THREE.AnimationMixer(m);
       const clip=n=>{ const c=clips.find(c=>c.name===n); return c ? mixer.clipAction(c) : null; };
       const walk=clip('Walk'), idle=clip('Idle');
@@ -5573,6 +5893,7 @@ window.PLANET = (function(){
     if(!aboard && !wayOpen('fly')){
       say(t('Not here. <b>THE E-45</b> is how you travel on this one.')); return; }
     if(ride) toggleRide();               // you cannot fly a car
+    if(mount) dismount();                // nor a panda
     swimming=false;                      // and you can take off out of water
     flying=true;
     me.air=0; me.climb=AIR.rise*0.5; me.bank=0; me.roll=0; me.lean=0; me.onGround=false; me.vy=0;
@@ -5758,9 +6079,12 @@ window.PLANET = (function(){
     const right=new THREE.Vector3().crossVectors(me.fwd, up).normalize();
 
     const f =(G.keys.KeyW||G.keys.ArrowUp?1:0)-(G.keys.KeyS||G.keys.ArrowDown?1:0);
-    const sd=(G.keys.KeyD?1:0)-(G.keys.KeyA?1:0);
+    let sd=(G.keys.KeyD?1:0)-(G.keys.KeyA?1:0);
+    /* On a panda A and D TURN it: nothing with four legs side-steps. */
+    if(mount && sd){ me.fwd.applyAxisAngle(up, -sd*2.1*dt); me.fwd.normalize(); sd=0; }
     const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !swimming;
-    const spd=swimming ? 3.4 : (running?11:6.5)*(ride?RIDE_SPEED:1);
+    const spd=mount ? (swimming ? 3.8 : running ? 12 : 7)
+            : swimming ? 3.4 : (running?11:6.5)*(ride?RIDE_SPEED:1);
     if(window.AVATAR && AVATAR.gait) AVATAR.gait(sd, f);   // so a side-step looks like one
 
     let moved=false;
@@ -5796,6 +6120,7 @@ window.PLANET = (function(){
            || turned(0.6) || turned(-0.6) || turned(1.1) || turned(-1.1);
       if(moved) G.stats.steps += spd*dt;
     }
+    riding.moving=moved; riding.speed=moved ? spd : 0;
     /* Indoors the ground under you is the building's floor, not the ball —
        and up on the lid it is the lid, which is why the altitude goes in. */
     shoveBy(dt, false);
@@ -5819,7 +6144,7 @@ window.PLANET = (function(){
     const surf = window.ISLANDS ? ISLANDS.waterAt(me.dir) : null;
     const swimHere = surf!==null && (surf-floor) > 1.6 && me.alt < surf+0.35;
     if(swimHere){
-      if(!swimming){ swimming=true; if(window.AVATAR) AVATAR.posture('swim'); }
+      if(!swimming){ swimming=true; if(window.AVATAR && !mount) AVATAR.posture('swim'); }
       /* Eased rather than snapped: you sink a little on the way in and come
          back up, which is most of what entering water looks like. */
       /* IN the water, not on it: a body lying flat in the swim clip is about
@@ -5904,6 +6229,10 @@ window.PLANET = (function(){
        &nbsp; <b>${t('mouse')}</b> ${t('look')}<br>
        <b>SPACE</b> ${t('up')} &nbsp; <b>SHIFT</b> ${t('down')}
        &nbsp; <b>R</b> ${t('get out')} &nbsp; <b>P</b> ${t('pause')}`);
+    else if(mount) keyHint(
+      `<b>W</b> ${t('go')} &nbsp; <b>SHIFT</b> ${t('gallop')} &nbsp; <b>A D</b> ${t('turn')}
+       &nbsp; <b>SPACE</b> ${t('hop')}<br>
+       <b>R</b> ${t('get off')} &nbsp; <b>F</b> ${t('fly')} &nbsp; <b>P</b> ${t('pause')}`);
     else if(ride) keyHint(
       `<b>W</b> ${t('go')} &nbsp; <b>S</b> ${t('brake / reverse')}
        &nbsp; <b>A D</b> ${t('steer')} &nbsp; <b>${t('mouse')}</b> ${t('look around')}<br>
@@ -6115,6 +6444,9 @@ window.PLANET = (function(){
          is where the ground is — the 0.25 that used to be here was propping
          up a model whose origin was not at its tyres. */
       ride.position.copy(worldPos(0));
+    } else if(mount){
+      const f=me.fwd.clone().sub(up.clone().multiplyScalar(me.fwd.dot(up))).normalize();
+      seatRider(up, f, dt);
     } else if(window.AVATAR){
       AVATAR.orient(worldPos(0), up, me.fwd, dt, moving, running, me.onGround);
     }
@@ -6134,9 +6466,9 @@ window.PLANET = (function(){
     /* A SHIP IS NOT A PERSON-SHAPED THING. FLY_BACK is set for a body a
        couple of metres long; eleven metres of E-45 at that distance fills
        the screen and you cannot see what you are flying towards. */
-    const back = aboard ? SHIP_BACK : flying ? FLY_BACK : ride ? CAR_BACK : CAM_BACK;
-    const lift = aboard ? SHIP_UP   : flying ? FLY_UP   : ride ? CAR_UP   : CAM_UP;
-    const head=worldPos(aboard ? 2.4 : flying ? 1.2 : ride ? 1.4 : EYE);
+    const back = aboard ? SHIP_BACK : flying ? FLY_BACK : ride ? CAR_BACK : mount ? CAM_BACK+2 : CAM_BACK;
+    const lift = aboard ? SHIP_UP   : flying ? FLY_UP   : ride ? CAR_UP   : mount ? CAM_UP+0.8 : CAM_UP;
+    const head=worldPos(aboard ? 2.4 : flying ? 1.2 : ride ? 1.4 : mount ? EYE+0.9 : EYE);
     /* LOOK WHERE YOU ARE GOING, not at your own hips. A flyer lies along
        the direction of travel, so a camera aimed at the point they are
        rotating about has them pointing straight away from it and stacked
@@ -6166,6 +6498,7 @@ window.PLANET = (function(){
                || id==='club' || id==='decks'
                || id.indexOf('wear:')===0
                || id.indexOf('buy:')===0
+               || id.indexOf('panda:')===0
                || id==='takeship'
                /* THE TWO DOORS MISSION 8 ADDED, and leaving them off this
                   list is why neither of them worked. `use()` refuses any
@@ -6183,6 +6516,8 @@ window.PLANET = (function(){
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
+    if(id.indexOf('panda:')===0){ pandaUse(+id.slice(6)); return; }
+    if(mount) dismount();                 // you do not ride into a building
     /* The Gym is a room you walk into and choose in, like the Mall: these
        two consoles standing either side of the floor are the choice. */
     /* THE LIVE ARENA IS NOT A DOOR ANY MORE. It was a panel on this
@@ -7003,6 +7338,7 @@ window.PLANET = (function(){
            specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
            get flying(){ return flying; }, land, flyKey,
+           get mounted(){ return !!mount; }, dismount,
            get riding(){ return !!ride; },
            STATIONS, lonLat, frameAt, dirOf,
            get BUILDINGS(){ return BUILDINGS; },

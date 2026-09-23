@@ -836,6 +836,8 @@ function wireInput(){
            a cockpit does not want to be asked how they would like to get
            about. */
         if(window.PLANET.aboard && PLANET.leaveShip()) return;
+        // and on a panda, R is getting off it — the same key the car uses
+        if(PLANET.mounted && PLANET.dismount()) return;
         PLANET.travel(); return;
       }
       /* THE RING IS NOT THE FREE PLAY ROOM but it runs the same editor on

@@ -160,6 +160,12 @@ node retarget.js hfchar.glb /tmp/x-swim.glb /tmp/id.map.json ref=rig/idle.glb sw
 node merge-clips.js ../public/characters/models/character-x.glb /tmp/x.glb swim=/tmp/x-swim.glb
 ```
 
+**`ride` is Mixamo's "Sitting Idle"** (`animations/rigs/Sitting Idle.fbx` → `rig/sit.glb`),
+merged the same way — `ride=rig/sit.glb inplace=ride` for the Mixamo rigs, through
+`retarget.js` for a Higgsfield one. It is a chair pose, knees together; `planet.js`
+opens the thighs over the panda's back at run time, about the rider's own forward
+axis, and lowers the hips onto the saddle wherever the clip left them.
+
 **The Mixamo swim kicks deep.** Thighs drop under the body and the heels come up
 behind, in a V, on every character — that is the clip, not a conversion fault:
 `rig/swim.glb` matches `Swimming.fbx` drawn by three's own FBXLoader frame for

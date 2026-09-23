@@ -805,6 +805,7 @@ window.AVATAR = (function(){
            tickClip, myName, myFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
+           get body(){ return body; },
            emote, canEmote, get emoting(){ return emoting>0; },
            get act(){ return acting; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };
