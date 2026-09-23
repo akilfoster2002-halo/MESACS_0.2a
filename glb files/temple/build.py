@@ -786,14 +786,8 @@ def ring_wall():
         if zb == 0 and prev and not in_open(am):
             face('concrete', [P(R_OUT,a0,0),P(R_IN,a0,0),P(R_IN,a0,PASS_H),P(R_OUT,a0,PASS_H)],
                  [(0,0),(0.3,0),(0.3,PASS_H/sc),(0,PASS_H/sc)], n=(math.sin(a0), -math.cos(a0), 0))
-        # collision: short boxes round the circle, walls only where it is wall
-        if not in_open(am):
-            c = P((R_IN+R_OUT)/2, am, 0)
-            hw = (R_OUT-R_IN)/2+0.1
-            solid(c.x-hw, c.x+hw, c.y-hw, c.y+hw, 0, RING_TOP)
-        else:
-            c = P((R_IN+R_OUT)/2, am, 0)
-            solid(c.x-0.5, c.x+0.5, c.y-0.5, c.y+0.5, PASS_H, RING_TOP)
+        # (collision for the ring is a true circle — see write_layout's circles —
+        # not boxes: ninety-six squares round a curve is a staircase you snag on)
     # pilasters on the inside face, the rhythm in picture 3
     for k in range(32):
         a = 2*math.pi*(k+0.5)/32
@@ -831,10 +825,7 @@ def atrium_floor():
         face('stone', [P(CURB_R,a0,0.12),P(CURB_R,a1,0.12),P(CURB_R,a1,CURB_Z),P(CURB_R,a0,CURB_Z)], n=rad)
         face('basin', [P(POOL_R,a0,-0.6),P(POOL_R,a1,-0.6),P(POOL_R,a1,CURB_Z),P(POOL_R,a0,CURB_Z)], n=-rad)
         face('basin', [P(0,a0,-0.6),P(POOL_R,a0,-0.6),P(POOL_R,a1,-0.6)], n=(0,0,1))
-    # nobody walks into the pool: a ring of short blocks round it
-    for k in range(40):
-        a = 2*math.pi*(k+0.5)/40; c = P(CURB_R-0.25, a, 0)
-        solid(c.x-0.55, c.x+0.55, c.y-0.55, c.y+0.55, 0, 1.4)
+    # nobody walks into the pool: a disk collider, written with the layout
 
 def rect_minus_disk(mname, x0, x1, y0, y1, r, z, up=True):
     """a flat rectangle with the circle round RC taken out of it, as a fan of
@@ -1319,6 +1310,11 @@ def write_layout(grid):
         solids=[G(*s) for s in SOLIDS],
         stations=[dict(id='ring', x=8.0, z=-16.1, r=0.0), dict(id='pong', x=-8.0, z=-16.1, r=0.0)],
         pool=dict(x=RC.x, z=-RC.y, r=POOL_R, y=WATER_Z),
+        # round walls are circles, not staircases of boxes: the ring with its
+        # four doorways (angles in blender's sense: x=cos, -z=sin), and the pool
+        circles=[dict(kind="wall", x=RC.x, z=-RC.y, r0=R_IN, r1=R_OUT, y1=0, y2=RING_TOP, head=PASS_H,
+                      gaps=[dict(a=a, half=2.3/R_IN) for a in (0.0, math.pi/2, math.pi, 3*math.pi/2)]),
+                 dict(kind="disk", x=RC.x, z=-RC.y, r1=CURB_R, y1=0, y2=1.4)],
         oculus=dict(x=RC.x, z=-RC.y, r=OCULUS, y=RING_TOP),
         plaque=dict(x=0.0, y=8.9, z=HD+T/2+0.36, w=7.4, h=1.45),
         roof=dict(x0=grid['x0'], z0=-(grid['y0']+(grid['ny']-1)*grid['cell']), cell=grid['cell'],

@@ -33,6 +33,35 @@ window.TEMPLE = (function(){
 
     for(const s of L.solids) b.solids.push({x1:s.x1, x2:s.x2, z1:s.z1, z2:s.z2, y1:s.y1, y2:s.y2});
 
+    /* ROUND WALLS ARE ROUND. The atrium's ring and the pool's edge are
+       circles; built out of boxes they were a staircase of corners that a
+       walker sliding along them caught on at every step, and between the
+       pool and the ring that left less than a metre to squeeze through. */
+    const circles=L.circles||[];
+    b.blockedAt=(x, z, feet, R)=>{
+      for(const c of circles){
+        if(feet+2.2 < c.y1 || feet > c.y2-0.6) continue;
+        const dx=x-c.x, dz=z-c.z, d=Math.hypot(dx,dz);
+        if(c.kind==='disk'){ if(d < c.r1+R) return true; continue; }
+        if(d < c.r0-R || d > c.r1+R) continue;
+        const a=Math.atan2(-dz, dx);                      // blender's angle: x=cos, -z=sin
+        let gap=null;
+        for(const g of c.gaps){
+          const off=Math.atan2(Math.sin(a-g.a), Math.cos(a-g.a));
+          if(Math.abs(off) < g.half) gap={g, off};
+        }
+        if(!gap) return true;                              // the wall itself
+        if(feet+2.2 >= c.head) return true;                // the lintel over a doorway
+        // in a doorway: only the two jambs can stop you
+        for(const e of [gap.g.a-gap.g.half, gap.g.a+gap.g.half]){
+          const ux=Math.cos(e), uz=-Math.sin(e);
+          const t=Math.max(c.r0, Math.min(c.r1, dx*ux+dz*uz));
+          if(Math.hypot(dx-ux*t, dz-uz*t) < R) return true;
+        }
+      }
+      return false;
+    };
+
     /* THE ROOF IS A HEIGHT PER METRE, measured off the model by casting
        straight down on to it. null is open sky — over the oculus, and off
        the edge of the eaves — so flying down through the hole in the

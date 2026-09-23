@@ -5530,9 +5530,15 @@ window.PLANET = (function(){
         return true;
       };
       const full=new THREE.Vector3().addScaledVector(me.fwd,f).addScaledVector(right,sd);
+      /* AND THEN AT AN ANGLE. The two components are enough to slide along a
+         wall that runs with the axes; a round one, or any wall met at a slant,
+         blocks both and stops you dead against it — which is being stuck.
+         Turning the move a little either way finds the direction along it. */
+      const turned=a=>tryMove(full.clone().applyAxisAngle(up, a));
       moved = tryMove(full)
            || (f  ? tryMove(me.fwd.clone().multiplyScalar(f))  : false)
-           || (sd ? tryMove(right.clone().multiplyScalar(sd)) : false);
+           || (sd ? tryMove(right.clone().multiplyScalar(sd)) : false)
+           || turned(0.6) || turned(-0.6) || turned(1.1) || turned(-1.1);
       if(moved) G.stats.steps += spd*dt;
     }
     /* Indoors the ground under you is the building's floor, not the ball —
@@ -5786,6 +5792,7 @@ window.PLANET = (function(){
     for(const b of BUILDINGS){
       if(!b.frame || dir.angleTo(b.dir)*PR > b.w+b.d) continue;
       const l=local(b,p), feet=l.y;
+      if(b.blockedAt && b.blockedAt(l.x, l.z, feet, PLAYER_R)) return true;
       for(const s of b.solids){
         if(feet+2.2 < s.y1 || feet > s.y2-0.6) continue;
         if(l.x+PLAYER_R>s.x1 && l.x-PLAYER_R<s.x2 &&
