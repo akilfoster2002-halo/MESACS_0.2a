@@ -114,7 +114,7 @@ window.TEMPLE = (function(){
         const m=o.material, baked=/^T_/.test(o.name) || /^B_/.test(m.name||'');
         o.material = baked
           /* Unlit: the light is IN the picture. toneMapped stays on, so it
-             goes through the same film as everything else on Senio. */
+             goes through the same film as everything else on Wano. */
           ? new THREE.MeshBasicMaterial({ map:m.map })
           : new THREE.MeshLambertMaterial({ map:m.map, color:0xffffff });
         o.castShadow=false; o.receiveShadow=!baked;

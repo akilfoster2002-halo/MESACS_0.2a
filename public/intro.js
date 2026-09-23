@@ -125,11 +125,11 @@ window.INTRO = (function(){
     stars=new THREE.Points(g, new THREE.PointsMaterial({ color:0xdfe8ff, size:2.0, fog:false }));
     stars.userData.sky=true; group.add(stars);
 
-    /* Senio, a long way off and coming up. It is the hub's own colours, so
+    /* Wano, a long way off and coming up. It is the hub's own colours, so
        the ball they are about to stand on is the ball in the last shot. */
     koro=new THREE.Group();
     /* Out of the fog. The fog is there to fade the asteroid field into the
-       dark a couple of hundred metres out, and Senio is half a kilometre
+       dark a couple of hundred metres out, and Wano is half a kilometre
        further than that — so the last shot's whole point was being painted
        the same colour as the sky it was in front of. */
     const ball=new THREE.Mesh(new THREE.SphereGeometry(120,48,32),
@@ -234,7 +234,7 @@ window.INTRO = (function(){
     if(stars) stars.position.z = (stars.position.z + v*0.12) % 300;
     koro.rotation.y += dt*0.05;
     // the planet comes up on the last cut, so it is arriving rather than parked
-    /* Senio belongs to the last cut and only to it. Taking it out of the fog
+    /* Wano belongs to the last cut and only to it. Taking it out of the fog
        so it could be seen at all also meant it could be seen from the first
        frame, sitting behind the ship for the whole film and giving away the
        one thing the closing shot has to reveal. It arrives on the cut, and

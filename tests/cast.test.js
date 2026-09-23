@@ -255,7 +255,7 @@ test('RYU has one door, and it is the Ion station on the floor of Mission Contro
 
   /* THE TRAP THIS CLOSES, and it is the one the shuttle used to be here to
      close in the other direction. RYU had a pad with a LAUNCH sign on it
-     pointed at Senio, so the story had two front doors and two ways out —
+     pointed at Wano, so the story had two front doors and two ways out —
      and a student could walk into it halfway through, or wander off it
      mid-scene, with no idea either had happened. One door now. */
   assert.ok(!/shuttle:\s*true/.test(world[0]), 'RYU still declares a shuttle');
@@ -297,14 +297,14 @@ test('RYU has one door, and it is the Ion station on the floor of Mission Contro
   assert.match(branch, /HOUSE\.enter\(\)/, 'the station does not open the house');
   /* AND NOT ON THE WAY IN. Landing every student on RYU put a story in
      front of everybody who opened Koro whether they had come for it or
-     not. The front door of the game is Senio. */
+     not. The front door of the game is Wano. */
   assert.match(menu, /PLANET\.enter\(NET\.signedIn \? world : null, where \|\| PLANET\.lastWorld\(\)\)/,
     'entering the game no longer asks where to land');
 });
 
 test('leaving the Robin Ryu mission comes out at Mission Control', ()=>{
   /* EVERY OTHER MISSION IN THIS GAME COMES OUT IN THE SAME PLACE — the
-     door of Mission Control on Senio — because the hub is the one world
+     door of Mission Control on Wano — because the hub is the one world
      PLANET refuses to restore a saved spot on. RYU used to be the
      exception by accident: LEAVE stepped you out of the house onto the
      planet, and pressing it again rebuilt the world you were standing on,
@@ -346,7 +346,7 @@ test('Robin has every clip the rig can drive', ()=>{
     assert.ok(clips.includes(want), `Robin has no '${want}' clip: ${clips.join(', ')}`);
 });
 
-test('every way INTO Koro opens on Senio, and no way back does', ()=>{
+test('every way INTO Koro opens on Wano, and no way back does', ()=>{
   /* A class told to meet outside Mission Control was thirty children each
      waking up wherever they last logged out — one on their own home
      planet, one half way through the story on RYU, one in the dark on
@@ -364,13 +364,13 @@ test('every way INTO Koro opens on Senio, and no way back does', ()=>{
     "afterSignIn": /homeworld\('hub'\);\s*\/\/ signing in/
   };
   for(const [name, re] of Object.entries(ways))
-    assert.match(menu, re, name+' is a way into Koro that does not land on Senio');
+    assert.match(menu, re, name+' is a way into Koro that does not land on Wano');
 
-  /* Senio is the hub, and the hub is the one world PLANET refuses to
+  /* Wano is the hub, and the hub is the one world PLANET refuses to
      restore a saved spot on — which is what makes "the same spawn" true
      rather than merely intended. */
   const planet = read('public/planet.js');
-  assert.match(planet, /id:'hub',[^\n]*name:'Senio'/, "the hub is no longer called Senio");
+  assert.match(planet, /id:'hub',[^\n]*name:'Wano'/, "the hub is no longer called Wano");
   assert.match(planet, /const back = at \? null : \(W\.kind==='hub' \? null : savedSpot\(W\.id\)\)/,
     'the hub restores a saved spot: entering Koro would land you somewhere different each time');
 

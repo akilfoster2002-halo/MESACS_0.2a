@@ -214,7 +214,7 @@ window.MENU = (function(){
       if(pickedWho) AVATAR.pick(pickedWho);   // a new account: the choice just made
       else AVATAR.restore();                  // an old one: the choice it remembers
     }
-    homeworld('hub');     // signing in lands you on Senio, not on a menu
+    homeworld('hub');     // signing in lands you on Wano, not on a menu
   }
 
   /* -------------------------------------------------------- the menu */
@@ -449,7 +449,7 @@ window.MENU = (function(){
      IN to Koro and a way BACK from a room.
 
      A WAY IN names 'hub': START, the guest button and signing in all put
-     you down on Senio, in front of Mission Control, every time — see the
+     you down on Wano, in front of Mission Control, every time — see the
      paragraph at PLANET.enter below.
 
      A WAY BACK names nothing and gets the ball you were standing on. The
@@ -467,7 +467,7 @@ window.MENU = (function(){
     if(!world && NET.signedIn){
       try{ const list=await NET.servers(); world=(list&&list[0])||null; }catch(e){ world=null; }
     }
-    /* ON SENIO, IN FRONT OF MISSION CONTROL, EVERY TIME YOU COME IN.
+    /* ON WANO, IN FRONT OF MISSION CONTROL, EVERY TIME YOU COME IN.
 
        The way in used to open on whichever ball you were last standing on,
        which is the right answer for a world you are exploring and the
@@ -475,10 +475,10 @@ window.MENU = (function(){
        Control was thirty children each waking up somewhere different: one
        on a hillside on their own home planet, one on RYU in the middle of
        a story they had left half-told, one in the dark on VOLTA. The first
-       instruction of every lesson became "first, get back to Senio".
+       instruction of every lesson became "first, get back to Wano".
 
        So the front door is one door, and the callers that ARE the front
-       door say so by naming it — see `where` above. Senio is the hub,
+       door say so by naming it — see `where` above. Wano is the hub,
        everybody's world and the same for everyone, and PLANET already
        refuses to restore a saved spot on a hub for exactly this reason: so
        naming it is the whole of it. Same ball, same patch of ground, same

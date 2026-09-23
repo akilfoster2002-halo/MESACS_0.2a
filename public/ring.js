@@ -991,7 +991,7 @@ window.RING = (function(){
       hud(); card();
       /* AND THE PLANET'S PANELS STAY DOWN. CODER.hide() puts #objectives,
          #keys and #topbar back unconditionally, which is right in Free
-         Play and wrong here: closing the blocks with C dropped Senio's
+         Play and wrong here: closing the blocks with C dropped Wano's
          mission list over the middle of the ring. Re-asserted rather than
          patched into the editor, because the editor is shared and this
          room is the odd one out. */

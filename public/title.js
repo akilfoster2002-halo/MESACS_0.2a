@@ -6,7 +6,7 @@
    meadow under a blue sky. Nothing in this game looks like that. The
    worlds are BALLS — three hundred metres across, dark sky, buildings
    that go over the horizon because the ground curves away under your feet
-   — and the single most surprising thing about walking into Senio for the
+   — and the single most surprising thing about walking into Wano for the
    first time is exactly the thing a flat photograph cannot say.
 
    So the first screen is the planet, and it is the REAL one: the same
@@ -34,7 +34,7 @@ window.TITLE = (function(){
      greens, a dry gold, brown earth and grey rock. */
   const SOIL=[[0.13,0.28,0.15],[0.20,0.38,0.18],[0.29,0.44,0.19],
               [0.40,0.40,0.20],[0.30,0.22,0.14],[0.31,0.30,0.32]];
-  const SKY=0x070a1a;                       // Senio's sky, and space is darker still
+  const SKY=0x070a1a;                       // Wano's sky, and space is darker still
   const RELIEF=0.058;                       // as a fraction of the radius, not metres
   const PR=1.9;                             // the ball, in screen units
 

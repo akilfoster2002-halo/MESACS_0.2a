@@ -400,7 +400,7 @@ window.TRAIL = (function(){
   /* A hit target the crosshair can actually find. The kit models arrive
      late and are a tree of meshes besides, so what you aim at is always a
      plain invisible box that has been standing there since frame one —
-     the same trick the librarian on Senio uses. */
+     the same trick the librarian on Wano uses. */
   function target(group, x, y, z, w, h, d, data, parent){
     const box=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
       new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true,

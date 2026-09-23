@@ -453,7 +453,7 @@ test('a flat room poses the whole body, not just its heading', ()=>{
      about y, so `body.rotation.y = …` looks complete — and is, until you
      arrive from a planet. There, orient() builds the body's quaternion from
      the surface normal, three.js decomposes it back into an Euler with real
-     x and z in it (seventy degrees of x at Senio's front door), and attach()
+     x and z in it (seventy degrees of x at Wano's front door), and attach()
      carries that pose into the next room so a character swapped in mid-air
      keeps it. The heading then updates about a y the body is no longer
      standing on, and the result idles on its back for ever.

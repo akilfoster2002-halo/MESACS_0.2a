@@ -26,17 +26,17 @@ one drone teaches a command, five identical drones make a loop the obvious move,
 regrows his shield between programs so clicking RUN repeatedly cannot win — only a loop can.
 
 ## What's built
-- **Title screen** — the planet **Senio**, live and turning, drawn by the same value
+- **Title screen** — the planet **Wano**, live and turning, drawn by the same value
   noise and soil ramp as the world you land on. Not a picture of the game: the game's world,
-  with its towns coming round the limb. (KORO is the name of the game; Senio is the planet.)
-- **Senio** — the hub world. Buildings that stand on something: a plinth cut into the apron,
+  with its towns coming round the limb. (KORO is the name of the game; Wano is the planet.)
+- **Wano** — the hub world. Buildings that stand on something: a plinth cut into the apron,
   corner pilasters, eaves, lit window rows and a stepped threshold, with a furnished room behind
   every door. **You can land on the roofs.**
-- **The sky islands** — four of them hanging over Senio inside the flight ceiling, and ordinary
+- **The sky islands** — four of them hanging over Wano inside the flight ceiling, and ordinary
   ground as far as the game is concerned: fly up, land, walk about. **The Falls** carries a lake
   that runs off its rim, falls the whole way down to a plunge pool, and **leaves the pool along a
   river** — which finds its own course by steepest descent over the terrain that is already there,
-  so the water runs downhill because the hill is downhill. It is the only water on Senio, which is
+  so the water runs downhill because the hill is downhill. It is the only water on Wano, which is
   why the fish and turtles live there. The turtles walk somewhere, stop, and do nothing for a
   while, which is most of what a turtle does.
 - **Hub** — the desktop plaza: walk up to icon-doors, one click selects, double-click opens,
@@ -415,7 +415,7 @@ program.js   the block language with no screen attached — compile, count, vali
 code.js      block console: palette, drag, text mode, walkthroughs
 combat.js    drones, boss, Mission 1 script
 islands.js   the sky islands: the rock, the lake, the waterfall and the wildlife
-title.js     the landing screen: Senio in orbit, its weather, and the stars behind it
+title.js     the landing screen: Wano in orbit, its weather, and the stars behind it
 invaders.js  the swarm: twenty loop stages, the fortress, and the shield you count
 mechsim.js   the mech referee — deterministic, DOM-free, runs under Node too
 mech.js      the league arena: 3D board, countdown, battle log, replay/debug
@@ -480,7 +480,7 @@ at_<game>       the furthest level reached, written as each level OPENS.
                 the first one.
 spot_<world>    where you were standing on VOLTA and on your home planet —
                 direction and heading only, because the ground under you is
-                generated and comes back the same. NOT Senio: the hub always
+                generated and comes back the same. NOT Wano: the hub always
                 lands you outside Mission Control's door, so the walk to the
                 first instruction is the same walk for everybody.
 world           which of the three to open on.
@@ -513,12 +513,12 @@ a ceiling that let you climb higher than VOLTA is wide would put you above a
 marble. The last stretch of the climb fades in a wireframe shell, so the limit
 is something you can see coming rather than something you bump into.
 
-The sky islands hang between 48m and 95m over Senio, inside its 120m ceiling — a deck you
+The sky islands hang between 48m and 95m over Wano, inside its 120m ceiling — a deck you
 cannot reach is worse than no deck at all, and `tests/senio.test.js` checks the arithmetic.
 
 | world | radius | ceiling |
 |---|---|---|
-| Senio | 320 | 120 |
+| Wano | 320 | 120 |
 | home planet | 200 | 95 |
 | VOLTA | 118 | 48 |
 

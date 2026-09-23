@@ -88,7 +88,7 @@ window.PLANET = (function(){
      from the ground is the things standing up out of it — so that is a
      property of the world too, not a constant in scatter().
 
-     Senio grows wood: trees and boulders, a school field with a wood at the
+     Wano grows wood: trees and boulders, a school field with a wood at the
      edge of it. VOLTA grows glass. Nothing is alive on it; what comes out
      of the ground is lit from inside, which is the only light there is on a
      world whose sky is nearly black. */
@@ -97,6 +97,17 @@ window.PLANET = (function(){
       trunk:0x6b4a34, leaf:0x4f9457, stone:0x7d7a86, tall:0.45,
       pebble:[0x7d7a86,0x8b8578,0x6e6b74,0x94908a],
       bud:[0xe8d9a0,0xe0a0b8,0xc9b7ea,0xf0e6b4], budGlow:false
+    },
+    /* WANO GROWS BLOSSOM. The same tree as the wood — one stalk, one crown —
+       with the crown gone pink and the trunk gone dark, because a cherry in
+       flower is what says Japan before anything else on the ground does. Half
+       as many of them as the wood has trees: the rest of the room is bamboo
+       (see bamboo() below), and a sakura reads best standing on its own. */
+    sakura:{
+      trunk:0x4a302c, leaf:0xf2a9c4, stone:0x8a8680, tall:0.6, density:0.55,
+      model:'sakura',
+      pebble:[0x8a8680,0x9a958c,0x77737a,0xa39e94],
+      bud:[0xffd6e4,0xf7b3cc,0xfff4f7,0xe98fb0], budGlow:false
     },
     /* Spires and shards. The spire is a tall thin octahedron — four facets a
        side, so it catches the light differently from every angle without
@@ -109,7 +120,7 @@ window.PLANET = (function(){
          what makes it shine harder is moving it TOWARDS WHITE, which is
          what a real light does as it gets brighter. */
       trunk:0x3a2a60, leaf:0xff92e4, stone:0x46356e, tall:0.55, glow:true,
-      /* Thicker than Senio's woods per square metre, because on a world with
+      /* Thicker than Wano's woods per square metre, because on a world with
          no grass, no weather and no animals these are the only thing between
          two buildings and the horizon. */
       density:2.4,
@@ -158,15 +169,16 @@ window.PLANET = (function(){
     };
   }
   const HUB={
-    id:'hub', kind:'hub', seed:0, name:'Senio', sub:'everybody lands here',
+    id:'hub', kind:'hub', seed:0, name:'Wano', sub:'everybody lands here',
     /* Radius sets how hard the world curves. The horizon from the chase camera
        is roughly sqrt(2*PR*camHeight), so 92 put it 28 metres out and buildings
        rose out of the ground in front of you. At 320 it is past fifty and the
        curve reads as a planet rather than a hill you are always on top of. */
     radius:320, sky:0x070a1a, soil:BIOMES[0].soil, biome:'green', relief:9.5,
+    flora:'sakura',
     /* HOW HIGH YOU MAY FLY, in metres over the ground. A number per world
        rather than one for the game: the whole reason VOLTA is a quarter of
-       the size of Senio is that you are meant to be able to see all of it,
+       the size of Wano is that you are meant to be able to see all of it,
        and a ceiling that let you climb higher than the place is wide would
        put you above a marble. Roughly a third of the radius keeps the
        ground reading as ground — buildings still have size, the horizon
@@ -178,15 +190,15 @@ window.PLANET = (function(){
   /* ------------------------------------------------------- the night world
      VOLTA. Two buildings, and you can see both of them from the pad.
 
-     IT IS SMALL ON PURPOSE, and much smaller than it was. Senio is a school
+     IT IS SMALL ON PURPOSE, and much smaller than it was. Wano is a school
      with a wood round it and it wants a horizon you cannot see the end of;
      this is a place you fly to for one evening, and the walk between the
      door you came in by and the thing you came for should be forty seconds,
      not four minutes. At a radius of 118 the lap is 741 metres against
-     Senio's two thousand, and the ground visibly falls away — which is the
+     Wano's two thousand, and the ground visibly falls away — which is the
      other half of "small": a world you can tell is a ball by standing on it.
 
-     AND IT IS NOT A RECOLOURED Senio. Its own sky, its own soil, and glass
+     AND IT IS NOT A RECOLOURED Wano. Its own sky, its own soil, and glass
      coming out of the ground instead of trees — see FLORA. Nothing grows
      here and nothing is alive out on the surface; the only things that move
      are inside THE LOOP. */
@@ -220,7 +232,7 @@ window.PLANET = (function(){
   /* ======================================================== RYU
      THE WORLD YOU ARRIVE ON.
 
-     Senio is where the course is. This is not that: it is the first ball
+     Wano is where the course is. This is not that: it is the first ball
      under your feet when you open the game, and the story happens here.
 
      IT USED TO SET A `cast`, which is to say that landing on it turned
@@ -238,7 +250,7 @@ window.PLANET = (function(){
      that put them down here is the pad that takes them back, and it does
      not ask. Without that this world is a room with the door painted on.
 
-     Ochre, so it cannot be mistaken for Senio at a glance: the two green
+     Ochre, so it cannot be mistaken for Wano at a glance: the two green
      worlds in this game are the hub and whichever home planet the seed
      rolled, and arriving somewhere that looks like the place you already
      know is not arriving anywhere. */
@@ -267,7 +279,7 @@ window.PLANET = (function(){
        THERE IS ONE DOOR. RYU is reached from the Ion station on the floor
        of Mission Control and from nowhere else: no course leads here, no
        pad stands here, and signing back in never resumes here. It used to
-       have a shuttle pad with a LAUNCH sign on it pointed at Senio, which
+       have a shuttle pad with a LAUNCH sign on it pointed at Wano, which
        made it a place you could be in two ways and leave in two ways — and
        a story with two front doors is a story a student can walk into
        halfway through.
@@ -376,10 +388,10 @@ window.PLANET = (function(){
      as in front, which makes "walk to the door" a hunt. */
   /* Far enough back to see the whole of whatever you are landing in front
      of — and NOT further, because on a small world "far enough back" walks
-     you over the horizon. Seventy-four metres is 13 degrees of Senio and 36
+     you over the horizon. Seventy-four metres is 13 degrees of Wano and 36
      of VOLTA, and at 36 degrees the building you were meant to be looking
      at has gone below the curve. So it is a fraction of the ball, capped at
-     the distance Senio has always used. */
+     the distance Wano has always used. */
   const landingOff = ()=> Math.min(74, PR*0.24);
   function landingSpot(){
     const b=BUILDINGS[0];
@@ -436,7 +448,7 @@ window.PLANET = (function(){
      spot you last stood on a different planet. */
   let lastYaw=0, backs={};
   /* AND ON DISK, because `backs` on its own only remembers a session. Sign
-     out halfway across Senio and the planet used to forget you entirely: back
+     out halfway across Wano and the planet used to forget you entirely: back
      in, and you were standing on the landing pad again with the walk to
      Mission Control still to do. A spot is six numbers and a world's name, so
      it rides in the progress bag with the coins and the finished missions and
@@ -462,7 +474,7 @@ window.PLANET = (function(){
        writes from somebody reading the sign outside Mission Control. */
     if(!force && spotWas && spotWas.id===W.id && spotWas.dir.angleTo(me.dir)*PR < 1.5) return;
     spotWas={ id:W.id, dir:me.dir.clone() };
-    /* Nothing writes the hub's spot, because nothing reads it — Senio lands
+    /* Nothing writes the hub's spot, because nothing reads it — Wano lands
        you at its door however you left it. Still worth saying WHICH ball you
        were on, though, so signing back in does not always drop you here. */
     if(W.kind!=='hub') PROGRESS.set(SPOT(W.id), { d:R4(me.dir), f:R4(me.fwd) });
@@ -602,7 +614,7 @@ window.PLANET = (function(){
        old one for a beat. A world with no cast clears it, which is how
        you turn back into yourself by leaving. */
     if(window.AVATAR) AVATAR.setCast(W.cast || null);
-    /* SENIO'S THEME, and only on Senio. It is the hub's music, not the
+    /* WANO'S THEME, and only on Wano. It is the hub's music, not the
        game's: the planet the missions are on gets it, and the arena, the
        home planet, the rooms indoors and the run between the planets do
        not. A theme that plays everywhere stops being a theme. */
@@ -634,6 +646,7 @@ window.PLANET = (function(){
     launchpad(W);                  // its plate, now that its patch is flat
     shipBuild();                   // and the ship on its own patch
     scatter();                     // after the buildings: it works around them
+    bamboo();                      // and on Wano, the groves, when they arrive
     cover();                       // and the small stuff after the big stuff
     fireflies();                   // and then the things that are alive
     /* Nothing walks about on VOLTA. It is a rock somebody put two buildings
@@ -649,7 +662,7 @@ window.PLANET = (function(){
        gets them at the handover, which is a good half minute of dialogue
        and a lift ride before they can be outdoors to look. */
     if(haveSpecs()) brawlBuild();
-    /* AND THEN THE SKY. The islands hang over Senio inside the flight
+    /* AND THEN THE SKY. The islands hang over Wano inside the flight
        ceiling, and everything they need to stand themselves up on a sphere
        is handed over rather than reached for — this file owns the world, and
        sky.js should not be keeping a second copy of its radius. */
@@ -660,7 +673,7 @@ window.PLANET = (function(){
     aoStats=bakeAO();              // and then trace the light into all of it
     crowd=new THREE.Group(); G.roomGroup.add(crowd);
 
-    /* SENIO ALWAYS LANDS YOU IN THE SAME PLACE, and that is deliberate rather
+    /* WANO ALWAYS LANDS YOU IN THE SAME PLACE, and that is deliberate rather
        than a missing feature. A hub is somewhere you arrive: the door you are
        being sent to is in front of you, the sign over it is readable, and the
        walk to it is the same walk every time — which is what makes it a place
@@ -1297,9 +1310,10 @@ window.PLANET = (function(){
     /* Four hundred over the whole ball rather than eight hundred and twenty.
        A tree every so often is scenery; a tree every few paces is scrub.
        PER UNIT OF SURFACE, though — four hundred spread over VOLTA is seven
-       times the density it is on Senio, and a wood you cannot walk through is
+       times the density it is on Wano, and a wood you cannot walk through is
        not scenery either. */
     const n=Math.round(400*(F.density||1)*Math.min(1, (PR*PR)/(320*320)));
+    const treeSpots=[];
     for(let i=0;i<n;i++){
       const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
       const dir=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
@@ -1307,6 +1321,9 @@ window.PLANET = (function(){
       if(nearBasin(dir, 1.15)) continue;      // and not standing in the pool
       if(onPath(dir)) continue;               // and not in the way of the door
       const g=new THREE.Group();
+      /* A world whose trees are a MODEL gets the spot, not a ball on a
+         stick — the model is stood at all of them at once when it arrives. */
+      if(F.model && Math.random()<F.tall){ treeSpots.push(dir); continue; }
       if(Math.random()<F.tall){
         const h=3+Math.random()*3;
         const t1=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.42,h,6), trunk);
@@ -1325,6 +1342,11 @@ window.PLANET = (function(){
       }
       stand(g, dir, Math.random()*6, terrainH(dir));
       G.roomGroup.add(g);
+    }
+    if(F.model && treeSpots.length){
+      const mine=W;
+      wanoModel(F.model).then(src=>{ if(W===mine) forest(src, treeSpots, 5, 8, 0.9); })
+                        .catch(()=>{});
     }
   }
 
@@ -1407,7 +1429,7 @@ window.PLANET = (function(){
      the last one to be seen as a separate thing. */
   function cover(){
     const F=floraOf();
-    /* Both counts are for a world the size of Senio. Scaled by area, because
+    /* Both counts are for a world the size of Wano. Scaled by area, because
        nine hundred pebbles on a ball a third the width is a gravel pit. */
     const per = k => Math.round(k*Math.min(1, (PR*PR)/(320*320)));
     // pebbles, sparse, so bare ground has something to catch the light
@@ -1639,7 +1661,7 @@ window.PLANET = (function(){
      That is what makes a building on the far side of the world no different
      from one at your feet. */
   /* ------------------------------------------------------- the workshop
-     The one hall on Senio with nothing in it. It is where you build things
+     The one hall on Wano with nothing in it. It is where you build things
      with your class, so it is furnished like somewhere things get built:
      benches down both sides with work half-done on them, racks of stock
      against the back wall, and a clear floor in the middle because that is
@@ -1912,7 +1934,7 @@ window.PLANET = (function(){
     put(0, hd, gap, 1, H-DOOR, DOOR);        // lintel, above head height
 
     /* A DARK UNDERSIDE. A roof is a pastel slab so that it reads from the
-       air and across a field, and on Senio that is the only way you ever see
+       air and across a field, and on Wano that is the only way you ever see
        one. VOLTA is small enough that standing thirty metres from a building
        puts your eye well below its eaves — the ground has curved that far in
        thirty metres — and the first thing you saw of the Gym was two hundred
@@ -2057,7 +2079,7 @@ window.PLANET = (function(){
      smaller circle puts about a hundred and fifty in view. */
   let flies=null, flyHome=null, flyPhase=null, flyT=0;
   // and the texture is thrown away with the room, like everything else here
-  /* Four thousand over a hundred and seventy metres of Senio. Both numbers
+  /* Four thousand over a hundred and seventy metres of Wano. Both numbers
      are about a DENSITY, so both follow the ball: on VOLTA a 170-metre
      cloud is wider than the planet, and four thousand of them inside it put
      a firefly every few centimetres — which is not a summer evening, it is
@@ -2173,15 +2195,16 @@ window.PLANET = (function(){
   function wildlife(n){
     beasts=[];
     const town=townDir(), fr=frameAt(town,0);
+    const pandas = W.kind==='hub';
     for(let i=0;i<n;i++){
-      const k=BEASTS[i%BEASTS.length];
+      const k=pandas ? PANDA : BEASTS[i%BEASTS.length];
       const a=Math.random()*Math.PI*2, r=(60+Math.random()*300)/PR;
       const ax=fr.right.clone().multiplyScalar(Math.cos(a))
                .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
       const dir=town.clone().applyAxisAngle(ax, r).normalize();
       if(BUILDINGS.some(b=>b.dir && dir.angleTo(b.dir)*PR <
            Math.hypot(b.w,b.d)/2 + 8)) continue;
-      const g=beastModel(k);
+      const g=pandas ? pandaModel() : beastModel(k);
       G.roomGroup.add(g);
       beasts.push({ k, g, dir, fwd:frameAt(dir, Math.random()*Math.PI*2).fwd,
                     step:0, rest:Math.random()*4, turn:0 });
@@ -2224,11 +2247,154 @@ window.PLANET = (function(){
       bs.g.quaternion.setFromRotationMatrix(
         new THREE.Matrix4().makeBasis(right, up2, fwd));
       bs.g.position.copy(bs.dir).multiplyScalar(PR + floorAt(bs.dir));
+      /* A panda has no legs to swing — it is one mesh — so it WADDLES: the
+         whole body rolls from side to side and dips at each step, which at
+         this distance is exactly what a panda on the move looks like. */
+      const body=bs.g.userData.body;
+      if(body){
+        const w = walking ? 1 : 0;
+        body.rotation.z = Math.sin(bs.step*3.2)*0.075*w;
+        body.position.y = Math.abs(Math.sin(bs.step*3.2))*0.05*w;
+      }
       // legs swing when it moves and hang still when it does not
       (bs.g.userData.legs||[]).forEach(l=>{
         l.rotation.x = walking ? Math.sin(bs.step*2.4 + l.userData.phase)*0.5 : 0;
       });
     }
+  }
+
+  /* ------------------------------------------------------------ WANO
+     Pandas where the herd was, and bamboo all over. Both are models made
+     for this world (Higgsfield: a painted picture, then Meshy turned it into
+     a textured mesh), both small — a panda is a few thousand triangles and
+     a clump of bamboo fewer — because there are dozens of the one and
+     hundreds of the other.
+
+     They arrive AFTER the world is standing. A world that waited on two
+     downloads before it would draw would be a black screen with a spinner;
+     one where the bamboo grows in a second after you land is a world. The
+     files are fetched once and kept, so flying back to Wano is instant. */
+  const PANDA={ key:'panda', speed:0.9, len:2.3 };
+  const wanoGLB={};
+  function wanoModel(name){
+    if(!wanoGLB[name]){
+      const L=new THREE.GLTFLoader();
+      if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      wanoGLB[name]=new Promise((res,rej)=>
+        L.load('wano/'+name+'.glb?v='+(window.ASSETV||'1'), g=>{
+          /* Lambert, like everything else out here: the painted texture
+             already has its light and shade in it, and a PBR material under
+             this sun came out plastic. */
+          g.scene.traverse(o=>{
+            if(!o.isMesh) return;
+            const m=o.material;
+            o.material=new THREE.MeshLambertMaterial({ map:m.map||null,
+              color:m.map ? 0xffffff : (m.color||new THREE.Color(0xffffff)),
+              side:THREE.DoubleSide, alphaTest:m.map ? 0.4 : 0 });
+            if(o.material.map) o.material.map.colorSpace=THREE.SRGBColorSpace;
+          });
+          /* Stood on its own feet: base at y=0, centred over the origin, in
+             metres. Whatever size and pivot the generator handed back. */
+          const box=new THREE.Box3().setFromObject(g.scene), c=box.getCenter(V(0,0,0));
+          g.scene.position.set(-c.x, -box.min.y, -c.z);
+          const root=new THREE.Group(); root.add(g.scene);
+          root.userData.size=box.getSize(V(0,0,0));
+          res(root);
+        }, undefined, err=>{ console.warn('WANO: '+name+' did not load', err); rej(err); }));
+    }
+    return wanoGLB[name];
+  }
+  /* Meshy handed it back nose-first along +Z, which is the way a beast
+     walks here, so it needs no turning. Kept as a number so a regenerated
+     model that comes back sideways is one edit. */
+  const PANDA_YAW=0;
+  function pandaModel(){
+    const g=new THREE.Group(), body=new THREE.Group();
+    g.add(body); g.userData.body=body;
+    const mine=W;
+    wanoModel('panda').then(src=>{
+      if(W!==mine) return;
+      const m=src.clone(true), sz=src.userData.size;
+      const k=(PANDA.len*(0.85+Math.random()*0.3))/Math.max(sz.x, sz.z);
+      m.scale.setScalar(k);
+      m.rotation.y=PANDA_YAW;
+      m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+      body.add(m);
+    }).catch(()=>{});
+    return g;
+  }
+
+  /* BAMBOO, in groves. Scattered one at a time it is a lawn with poles in
+     it; what makes bamboo read as bamboo is a STAND of it, dozens of culms
+     close enough to walk between and not much more. So: grove centres, most
+     of them round the town, and a tight cluster at each. One InstancedMesh
+     per part of the model, so the whole forest is a handful of draw calls. */
+  function bamboo(){
+    if(W.kind!=='hub') return;
+    const mine=W;
+    wanoModel('bamboo').then(src=>{
+      if(W!==mine) return;
+      const spots=[], town=townDir(), fr=frameAt(town,0);
+      const ok=dir=>!BUILDINGS.some(b=>(b.dir||dirOf(b.lon,b.lat)).angleTo(dir)*PR <
+                       Math.max(b.w,b.d)/2 + apronOf(b) + 4)
+                    && !nearBasin(dir, 1.2) && !onPath(dir);
+      const GROVES=36;
+      for(let gi=0; gi<GROVES; gi++){
+        let c;
+        if(gi<26){                              // round the town, not in it
+          const a=Math.random()*Math.PI*2, r=(35+Math.random()*230)/PR;
+          const ax=fr.right.clone().multiplyScalar(Math.cos(a))
+                   .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+          c=town.clone().applyAxisAngle(ax, r).normalize();
+        } else {
+          const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+          c=V(Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th));
+        }
+        const cf=frameAt(c,0), n=5+(Math.random()*7|0), R=2.5+Math.random()*3.5;
+        for(let j=0;j<n;j++){
+          const a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*R/PR;
+          const ax=cf.right.clone().multiplyScalar(Math.cos(a))
+                   .add(cf.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+          const d=c.clone().applyAxisAngle(ax, r).normalize();
+          if(ok(d)) spots.push(d);
+        }
+      }
+      // one stalk here and there between the groves, so they are not islands
+      for(let i=0;i<40;i++){
+        const a=Math.random()*Math.PI*2, r=(30+Math.random()*260)/PR;
+        const ax=fr.right.clone().multiplyScalar(Math.cos(a))
+                 .add(fr.fwd.clone().multiplyScalar(Math.sin(a))).normalize();
+        const d=town.clone().applyAxisAngle(ax, r).normalize();
+        if(ok(d)) spots.push(d);
+      }
+      forest(src, spots, 6, 11, 0.7);          // six to eleven metres of it
+    }).catch(()=>{});
+  }
+  /* A MODEL, STOOD AT EVERY SPOT, as one InstancedMesh per part of it.
+     Heights between lo and hi metres; xz is how much thinner than a
+     straight scale-up it is, so one clump does not read as one fat one. */
+  function forest(src, spots, lo, hi, xz){
+    const sz=src.userData.size, base=1/Math.max(0.001, sz.y);
+    const parts=[];
+    src.updateMatrixWorld(true);
+    src.traverse(o=>{ if(o.isMesh) parts.push(o); });
+    const M=new THREE.Matrix4(), q=new THREE.Quaternion(), local=new THREE.Matrix4();
+    const inst=parts.map(p=>{
+      const im=new THREE.InstancedMesh(p.geometry, p.material, spots.length);
+      im.castShadow=true; im.receiveShadow=true;
+      im.frustumCulled=false;                 // spread round a ball: one box is the planet
+      G.roomGroup.add(im);
+      return { im, local:p.matrixWorld.clone() };
+    });
+    spots.forEach((d,i)=>{
+      const f=frameAt(d, Math.random()*Math.PI*2);
+      const h=(lo+Math.random()*(hi-lo))*base;
+      M.makeBasis(f.right, f.up, f.fwd); q.setFromRotationMatrix(M);
+      M.compose(d.clone().multiplyScalar(PR + terrainH(d) - 0.15), q,
+                V(h*(xz+Math.random()*0.25), h, h*(xz+Math.random()*0.25)));
+      inst.forEach(({im, local:L})=>{ local.multiplyMatrices(M, L); im.setMatrixAt(i, local); });
+    });
+    inst.forEach(({im})=>{ im.instanceMatrix.needsUpdate=true; });
   }
 
   /* ------------------------------------------------------------- the mall
@@ -2441,7 +2607,7 @@ window.PLANET = (function(){
      power cells, wheels against treads, and a route you could not afford.
      The ship is the pre-flight checklist instead — see preflight.js — and
      it is the one Robin actually needs, because Ion has just asked to be
-     taken to the Mechanic and the Mechanic is on Senio.
+     taken to the Mechanic and the Mechanic is on Wano.
 
      LOADED, NOT BUILT. The rover was assembled out of whichever parts the
      bench last said it was made of, so its model WAS its spec; the E-45 is
@@ -2820,8 +2986,8 @@ window.PLANET = (function(){
   /* ===================================================================
      GETTING IN, WHICH IS THE END OF THE MISSION.
 
-     Ion asked to be taken to the Mechanic and the Mechanic is on Senio —
-     and nothing flies from RYU to Senio, because RYU is a mission with one
+     Ion asked to be taken to the Mechanic and the Mechanic is on Wano —
+     and nothing flies from RYU to Wano, because RYU is a mission with one
      door and the way to anywhere else is back out through it. So climbing
      in IS leaving: she takes him up, and the mission hands the player back
      where every mission hands them back, which is the floor of Mission
@@ -3217,7 +3383,7 @@ window.PLANET = (function(){
        route is a thing somebody has to survey — so the only one loaded is
        the run out to VOLTA, and the way home from it. The other worlds are
        still in WORLDS(); they are just not on the charts yet. */
-    /* The world says where its own pad goes when it cares to. Senio and
+    /* The world says where its own pad goes when it cares to. Wano and
        VOLTA are still each other's only surveyed course; RYU's is the way
        back, which is the only route off it. */
     const to = W.course || (W.id==='arena' ? 'hub' : 'arena');
@@ -3259,8 +3425,8 @@ window.PLANET = (function(){
       return;
     }
     /* A SHUTTLE IS NOT A FLIGHT. CRUISE knows where two planets are —
-       Senio and VOLTA — and every other id it is handed comes back as
-       Senio, so a run from a third world to Senio would start and end at
+       Wano and VOLTA — and every other id it is handed comes back as
+       Wano, so a run from a third world to Wano would start and end at
        the same point in space: a course of zero length, a heading off a
        vector with no direction in it, and a player left sitting in a ship
        pointed at nothing. The way off a world the game put you on is the
@@ -3292,9 +3458,9 @@ window.PLANET = (function(){
      game had no way to let anybody go.
 
      WHY THE MECHANIC LIVES HERE. Ion asks to be taken to the Mechanic.
-     There is a Mechanic on Senio and it sells cars — it is a showroom,
+     There is a Mechanic on Wano and it sells cars — it is a showroom,
      and the person in the story who can "look inside you properly" was
-     never in it. Sending a player back to Senio to finish Mission 8 also
+     never in it. Sending a player back to Wano to finish Mission 8 also
      means the mission's last beat happens on a different planet, two
      loading screens after the thing that set it up. So the Mechanic is on
      the tower's middle floor, and Mission 8 begins and ends on RYU.
@@ -4320,7 +4486,7 @@ window.PLANET = (function(){
      something and goes looking for it.
 
      AND THEN TWO DOORS, because "the end" is not the same as "stop". One
-     goes back to Senio, where the other missions are. The other closes
+     goes back to Wano, where the other missions are. The other closes
      the card and leaves them exactly where they are, on the top tier,
      with a planet they have every reason to want to look at now. */
   function arenaEnd(){
@@ -4348,7 +4514,7 @@ window.PLANET = (function(){
     + `<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:8px">`
     + `<button id="tbcHome" style="padding:13px 26px;border-radius:12px;border:0;
          cursor:pointer;background:#ffd98a;color:#241a05;font:inherit;font-weight:700">`
-    + `${t('BACK TO SENIO')}</button>`
+    + `${t('BACK TO WANO')}</button>`
     + `<button id="tbcStay" style="padding:13px 26px;border-radius:12px;cursor:pointer;
          background:rgba(15,22,36,.85);border:2px solid #4a5f8a;color:#dfe8ff;
          font:inherit">${t('KEEP EXPLORING RYU')}</button></div>`;
@@ -5309,7 +5475,19 @@ window.PLANET = (function(){
     if(streak) streak.line.visible=false;
     if(window.MUSIC && MUSIC.wind) MUSIC.wind(0);
     keysFor(); dash();
-    say(t('Down. <b>R</b> for the way you travel.'));
+    say(t('Down. <b>F</b> to take off again.'));
+  }
+  /* F IS FLY. Choosing how to get about is a menu, and a menu is two keys
+     and a decision for the one thing everybody does fifty times an hour —
+     so F goes straight up, and F again brings you down. R still opens the
+     panel, which is where the car lives. Not aboard the E-45: that has its
+     own way out, and F dropping you out of a mission's ship is a way round
+     the mission. */
+  function flyKey(){
+    if(!on || aboard) return false;
+    if(travelUp) travelClose();
+    if(flying) land(); else takeOff();
+    return true;
   }
   function takeOff(){
     /* THE SHIP IS NOT THE JETPACK. `aboard` is the mission's own flight and
@@ -5650,10 +5828,10 @@ window.PLANET = (function(){
       `<b>W</b> ${t('fly')} &nbsp; <b>S</b> ${t('slow')} &nbsp; <b>A D</b> ${t('turn')}
        &nbsp; <b>${t('mouse')}</b> ${t('look')}<br>
        <b>SPACE</b> ${t('up')} &nbsp; <b>SHIFT</b> ${t('down')}
-       &nbsp; <b>R</b> ${t('how you travel')} &nbsp; <b>P</b> ${t('pause')}`);
+       &nbsp; <b>F</b> ${t('land')} &nbsp; <b>R</b> ${t('how you travel')} &nbsp; <b>P</b> ${t('pause')}`);
     else keyHint(
       `<b>W A S D</b> ${t('walk')} &nbsp; <b>${t('mouse')}</b> ${t('look')}
-       &nbsp; <b>SPACE</b> ${t('jump')}<br>
+       &nbsp; <b>SPACE</b> ${t('jump')} &nbsp; <b>F</b> ${t('fly')}<br>
        <b>E</b> ${t('go in')} &nbsp; <b>R</b> ${t('how you travel')}
        &nbsp; <b>B</b> ${t('who you are')} &nbsp; <b>O</b> ${t('who is here')}
        &nbsp; <b>P</b> ${t('pause')}`);
@@ -6068,7 +6246,7 @@ window.PLANET = (function(){
            This used to say "take the shuttle from the pad", and there is no
            pad: RYU is a mission with one door, and the way to anywhere else
            is back out through it. */
-        say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Senio; '
+        say(t('Pre-flight clear \u2014 she will fly. The <b>MECHANIC</b> is on Wano; '
             + '<b>LEAVE</b> takes you back to Mission Control.'));
         if(score!==undefined && total) say(t('{a} of {b} first time.', { a:score, b:total }));
       }});
@@ -6106,7 +6284,7 @@ window.PLANET = (function(){
      WHAT IS NOT SWITCHED OFF is presence itself. wentTo('mission') has
      already told the server this player is in a mission, so the who's-here
      list is right, the chat they left behind is intact, and walking back
-     out to Senio puts them in the room again with nothing to reconnect. */
+     out to Wano puts them in the room again with nothing to reconnect. */
   const solo = () => !!(W && W.mission);
 
   function connect(){
@@ -6664,7 +6842,7 @@ window.PLANET = (function(){
     x.closePath(); x.fill();
     /* THE NAME OF THE BALL YOU ARE STANDING ON. It used to be the name of
        the multiplayer lobby, which offline is nothing, so it said HOME
-       PLANET — on Senio, and on VOLTA, and on the home planet, all three.
+       PLANET — on Wano, and on VOLTA, and on the home planet, all three.
        Every world has had a name of its own since there was more than one
        of them. */
     const nm=document.querySelector('#pmapName');
@@ -6740,7 +6918,7 @@ window.PLANET = (function(){
            leaveShip, get aboard(){ return aboard; },
            specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
-           get flying(){ return flying; }, land,
+           get flying(){ return flying; }, land, flyKey,
            get riding(){ return !!ride; },
            STATIONS, lonLat, frameAt, dirOf,
            get BUILDINGS(){ return BUILDINGS; },

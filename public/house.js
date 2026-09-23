@@ -649,7 +649,7 @@ window.HOUSE = (function(){
   /* OUT OF THE FRONT DOOR AND ONTO THE PLANET. There was no way out of
      here at all: LEAVE goes to whichever ball you were last standing on,
      and a student who reached this room from Mission Control has never
-     stood on RYU — so it put them on Senio, a world away from the ship
+     stood on RYU — so it put them on Wano, a world away from the ship
      they had just been told to go and build. Now leaving the house means
      leaving the house. */
   function outside(){

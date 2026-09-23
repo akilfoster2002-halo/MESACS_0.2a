@@ -157,6 +157,7 @@ window.ES = {
   '<b>\u2190 \u2192</b> pick &nbsp; <b>R</b> or <b>Esc</b> close':'<b>\u2190 \u2192</b> elige &nbsp; <b>R</b> o <b>Esc</b> cierra',
   '<b>W</b> to fly, <b>A D</b> to turn, <b>SPACE</b> up, <b>SHIFT</b> down.':'<b>W</b> para volar, <b>A D</b> para girar, <b>SPACE</b> sube, <b>SHIFT</b> baja.',
   'Down. <b>R</b> for the way you travel.':'En tierra. <b>R</b> para elegir cómo viajas.',
+  'Down. <b>F</b> to take off again.':'En tierra. <b>F</b> para despegar otra vez.','land':'aterriza',
   'flying \u2014 {a}m of {c}':'volando \u2014 {a}m de {c}',
   'Flying \u2014 but this character has no flying animation yet.':'Volando \u2014 pero este personaje aún no tiene animación de vuelo.',
   '<b>← →</b> pick &nbsp; <b>B</b> or <b>Esc</b> close':'<b>← →</b> elige &nbsp; <b>B</b> o <b>Esc</b> cierra',
@@ -1344,7 +1345,7 @@ window.ES = {
      The club's own words. The four track names stay as they are: KICK,
      CLAP, HAT and BASS are what they are called on a mixer in Spanish
      too, and a row labelled BOMBO is a row nobody can look up. */
-  'VOLTA':'VOLTA','KORO':'KORO','Senio':'Senio',
+  'VOLTA':'VOLTA','KORO':'KORO','Wano':'Wano',
   'the small loud one':'la pequeña y ruidosa',
   'everybody lands here':'aquí aterriza todo el mundo',
   'your home planet':'tu planeta',

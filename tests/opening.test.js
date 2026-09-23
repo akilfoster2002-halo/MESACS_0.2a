@@ -365,9 +365,9 @@ test('the arena is a place you walk into', ()=>{
   const end=planet.slice(planet.indexOf('function arenaEnd()'),
                          planet.indexOf('function finishIon()'));
   assert.match(end, /TO BE CONTINUED/, 'the game runs out without saying so');
-  assert.match(end, /tbcHome/, 'there is no way back to Senio');
+  assert.match(end, /tbcHome/, 'there is no way back to Wano');
   assert.match(end, /tbcStay/, 'there is no way to stay and look around');
-  assert.match(end, /MENU\.open\(\)/, 'the way back to Senio goes nowhere');
+  assert.match(end, /MENU\.open\(\)/, 'the way back to Wano goes nowhere');
 });
 
 test('you may fly on RYU, and the roof is above the arena', ()=>{

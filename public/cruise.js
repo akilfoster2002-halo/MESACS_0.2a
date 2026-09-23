@@ -39,9 +39,9 @@ window.CRUISE = (function(){
      wherever they happened to take off. Two people cannot see each other in
      two different frames — and this is also what lets one of you fly out
      while the other flies back, and pass. */
-  const SENIO_AT  = new THREE.Vector3(0, 0, 0);
+  const WANO_AT  = new THREE.Vector3(0, 0, 0);
   const VOLTA_AT = new THREE.Vector3(0, 0, -TRIP);
-  const spotOf = id => id==='arena' ? VOLTA_AT : SENIO_AT;
+  const spotOf = id => id==='arena' ? VOLTA_AT : WANO_AT;
 
   const ARRIVE = 780;                    // how close counts as orbit
   /* Something thirty-six kilometres away is past the far plane, and drawing
@@ -687,7 +687,7 @@ window.CRUISE = (function(){
        <div class="cmark" id="cmark"><i></i></div>`;
     document.body.appendChild(el);
     document.querySelector('#cdest').textContent=
-      t('COURSE: {n}',{n: dest==='arena' ? 'VOLTA' : 'Senio'});
+      t('COURSE: {n}',{n: dest==='arena' ? 'VOLTA' : 'Wano'});
   }
   function say(msg, big){
     const b=document.querySelector('#briefing'); if(!b) return;
@@ -911,7 +911,7 @@ window.CRUISE = (function(){
   /* ------------------------------------------------------------- arriving */
   function land(){
     done=true;
-    say(t('Entering orbit over {n}…',{n: dest==='arena'?'VOLTA':'Senio'}), true);
+    say(t('Entering orbit over {n}…',{n: dest==='arena'?'VOLTA':'Wano'}), true);
     if(document.pointerLockElement) document.exitPointerLock();
     setTimeout(()=>{
       if(!on) return;

@@ -1,4 +1,4 @@
-/* SENIO — the roofs, the buildings and the sky islands.
+/* WANO — the roofs, the buildings and the sky islands.
 
    Everything here is a NUMBER that cannot be checked by looking. A roof you
    fall through looks exactly like a roof. A waterfall landing inside Mission
@@ -193,7 +193,7 @@ test('the swarm of islands is wired into the planet it hangs over', ()=>{
   assert.match(read('public/index.html'), /src="islands\.js/, 'islands.js is not loaded');
 });
 
-test('the islands belong to Senio and nowhere else', ()=>{
+test('the islands belong to Wano and nowhere else', ()=>{
   /* VOLTA is a rock with two buildings on it and a home planet is somebody's
      own; a set of floating gardens over either is a different game. */
   assert.match(read('public/islands.js'), /W\.id!=='hub'/,
@@ -337,7 +337,7 @@ test('a character with no swim clip still swims', ()=>{
    right for a world you were exploring and wrong for the one everybody
    starts from. */
 
-test('Senio always lands you at the same spot', ()=>{
+test('Wano always lands you at the same spot', ()=>{
   const src=read('public/planet.js');
   /* THE HUB IS STILL THE EXEMPTION, however the line is spelled. A caller
      may now name a landing spot — walking out of the house on RYU comes
@@ -368,7 +368,7 @@ test('the worlds you explore still remember where you were', ()=>{
     'the exemption is not scoped to the hub');
   assert.ok(!/const back = null;/.test(src), 'every world has lost its saved spot');
   /* and which ball you were on is still worth keeping, or signing back in
-     always drops you on Senio */
+     always drops you on Wano */
   assert.match(src, /PROGRESS\.set\('world', W\.id\)/, 'the world you were on is not saved');
 });
 

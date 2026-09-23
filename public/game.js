@@ -826,6 +826,9 @@ function wireInput(){
          first, like the decks and the quick change, because its arrows
          walk a row and arrows turn you round a planet everywhere else. */
       if(window.PLANET && PLANET.travelUp && PLANET.travelKey(e)){ e.preventDefault(); return; }
+      if(e.code==='KeyF' && G.running && G.room==='planet' && window.PLANET && PLANET.flyKey){
+        if(PLANET.flyKey()){ e.preventDefault(); return; }
+      }
       if(e.code==='KeyR' && G.running && G.room==='planet'){
         e.preventDefault();
         /* ABOARD THE E-45, R IS THE WAY OUT — the same key the car uses,
@@ -1399,7 +1402,7 @@ function returnToDesktop(){
      on VOLTA with no idea where your game went. */
   if(window.ARCADE && ARCADE.building && ARCADE.leaveBench()) return;
   /* LEAVING THE ROBIN RYU MISSION MEANS LEAVING IT, and it comes out where
-     every other mission comes out: the door of Mission Control, on Senio.
+     every other mission comes out: the door of Mission Control, on Wano.
 
      LEAVE USED TO BE THE FRONT DOOR. The house is a room in a building on
      RYU, so this button stepped you out of it and onto the planet — which

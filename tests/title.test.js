@@ -10,7 +10,7 @@
                       backdrop is a black rectangle over the planet.
 
      the planet's name
-                      KORO is the GAME. Senio is the planet you land on. They
+                      KORO is the GAME. Wano is the planet you land on. They
                       were the same word for a long time, so every rename is
                       one somebody can undo by accident in either direction —
                       and the two live three lines apart in some files.
@@ -66,12 +66,12 @@ test('the island renderer went with the island', ()=>{
       `${f} still calls a CHARS.hero* function that no longer exists`);
 });
 
-/* --------------------------------------------- KORO is the game, Senio
+/* --------------------------------------------- KORO is the game, Wano
    is the planet */
 
-test('the planet is called Senio', ()=>{
+test('the planet is called Wano', ()=>{
   const planet=read('public/planet.js');
-  assert.match(planet, /name:'Senio'/, "the hub world's name is not Senio");
+  assert.match(planet, /name:'Wano'/, "the hub world's name is not Wano");
   assert.ok(!/name:'KORO'/.test(planet), 'a world is still named KORO');
 });
 
@@ -82,9 +82,9 @@ test('nothing tells a player they are flying to KORO', ()=>{
   const cruise=read('public/cruise.js');
   assert.ok(!/'KORO'/.test(cruise),
     'cruise.js still names KORO as a destination — that is the game, not the planet');
-  assert.match(cruise, /'Senio'/, 'cruise.js does not name Senio as a destination');
-  assert.match(read('public/strings.js'), /'Senio':'Senio'/,
-    'Senio has no entry in strings.js, so t() will fall through untranslated');
+  assert.match(cruise, /'Wano'/, 'cruise.js does not name Wano as a destination');
+  assert.match(read('public/strings.js'), /'Wano':'Wano'/,
+    'Wano has no entry in strings.js, so t() will fall through untranslated');
 });
 
 test('KORO is still the name of the game', ()=>{

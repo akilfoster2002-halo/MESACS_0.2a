@@ -31,7 +31,7 @@ window.OPENING = (function(){
   const $ = s => document.querySelector(s);
   const t_ = (s,p) => (typeof window.t==='function' ? window.t(s,p) : s);
 
-  const R = 110;                  // Senio, at film scale
+  const R = 110;                  // Wano, at film scale
   const END = 15.4;
 
   /* One line per cut, and the cut lands ON the line. Nine words or fewer

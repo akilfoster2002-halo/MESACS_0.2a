@@ -7,7 +7,7 @@
    back down to the same field, which is why flying was a shortcut rather
    than somewhere to go.
 
-   So: four islands hanging over Senio, inside the ceiling, each one big
+   So: four islands hanging over Wano, inside the ceiling, each one big
    enough to land on and stand about on. They are ordinary ground as far
    as the game is concerned — floorAt() returns their deck when you are
    over one and above it, blocked() stops you flying into their rock — so
@@ -21,8 +21,8 @@
 
    THE FALLS is the one that justifies the rest. It carries a lake, and
    the lake spills over a notch in its rim and falls the whole way down to
-   Senio, where it lands in a pool that is not otherwise on this planet —
-   there is no water anywhere on Senio, which is why the fish had nowhere
+   Wano, where it lands in a pool that is not otherwise on this planet —
+   there is no water anywhere on Wano, which is why the fish had nowhere
    to live until the waterfall gave them somewhere.
 
    IT IS CALLED ISLANDS, NOT SKY, and that is not taste: planet.js holds
@@ -312,7 +312,7 @@ window.ISLANDS = (function(){
   function build(world){
     W=world;
     clear();
-    if(!W || W.id!=='hub') return;            // the sky islands are Senio's
+    if(!W || W.id!=='hub') return;            // the sky islands are Wano's
     group=new THREE.Group(); W.group.add(group);
 
     ISLES.forEach((k,i)=>{
@@ -411,7 +411,7 @@ window.ISLANDS = (function(){
         if(!o.isMesh) return;
         /* Rock and wood arrive with their Blender materials baked into a
            colour map and a normal map; leaves and grass carry theirs in the
-           vertices. Lambert either way, so it is lit like the rest of Senio. */
+           vertices. Lambert either way, so it is lit like the rest of Wano. */
         const src=o.material, thin=/leaves|grass/.test(o.name);
         o.material = src.map
           ? new THREE.MeshLambertMaterial({ map:src.map, normalMap:src.normalMap||null })
@@ -532,7 +532,7 @@ window.ISLANDS = (function(){
                   .addScaledVector(f.right, cx);
     const base = lip.clone().normalize();
     /* THE GROUND UNDER THE WATER, NOT UNDER THE ISLAND. The lip is twenty-
-       seven metres out from the island's centre line, and Senio is not flat:
+       seven metres out from the island's centre line, and Wano is not flat:
        measuring the drop from the terrain below the island's middle put the
        whole pool — its water, its rim stones, its ripples and its fish —
        several metres out of the hillside it is supposed to be sunk into. */
@@ -607,7 +607,7 @@ window.ISLANDS = (function(){
     drops.userData={ ph:dph, sp:dsp, drop, spread:k.r*0.20 };
     g.add(drops);
 
-    /* THE POOL. There is no other water on Senio, so this is the only place
+    /* THE POOL. There is no other water on Wano, so this is the only place
        a fish could be — which is the right way round: the waterfall is why
        the pool is here, and the pool is why the fish are. */
     const pr=k.r*0.72;
