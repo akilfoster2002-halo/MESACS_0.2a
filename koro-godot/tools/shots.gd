@@ -97,6 +97,13 @@ func _ready() -> void:
 		["16_pause", func():
 			w.hud.toggle_picker()
 			w.hud.toggle_pause()],
+		["17_sky", func():
+			if w.hud.is_paused():
+				w.hud.toggle_pause()
+			_put(Planet.dir_of(0, -4) * Planet.R, w.sky.planet.position)
+			p.pitch = 0.42
+			w.sky.start_over(Planet.dir_of(8, 6), "the test")
+			w.sky.shower.t = w.sky.shower.dur * 0.45],
 		["09_mecha", func():
 			if w.hud.is_paused():
 				w.hud.toggle_pause()

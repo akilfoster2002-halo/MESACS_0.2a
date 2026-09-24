@@ -19,6 +19,7 @@ var car: Car
 var islands: Islands
 var temple: Temple
 var hud: Hud
+var sky: SkyShow
 var net: Net
 var others: Others
 var pandas: Array = []
@@ -64,6 +65,9 @@ func _ready() -> void:
 	seed(20260923 + int(W.seed))           # the same world every time you open it
 	_inputs()
 	_sky()
+	sky = SkyShow.new()
+	sky.world = self
+	add_child(sky)
 	# the pool is dug before the ground is built, so the mesh, your feet and
 	# the trees all agree where the bank is
 	if hub():
