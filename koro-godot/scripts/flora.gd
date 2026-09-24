@@ -142,6 +142,7 @@ static func _tree(leaf: Color) -> ArrayMesh:
 	var m := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
 	mat.roughness = 0.95
 	m.surface_set_material(0, mat)
 	return m

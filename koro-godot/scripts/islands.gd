@@ -232,6 +232,7 @@ func _lathe(rec: Dictionary, seed: int) -> void:
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
 	mat.roughness = 0.95
 	mesh.surface_set_material(0, mat)
 	var mi := MeshInstance3D.new()

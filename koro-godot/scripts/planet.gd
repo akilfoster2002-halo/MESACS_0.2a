@@ -211,6 +211,9 @@ static func build_mesh(level := 6) -> ArrayMesh:
 	# three axes (a sphere has no UVs worth the name) and tinted by height
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	# the soil colours are picked as screen colours; read as linear they
+	# come out a pale mint
+	mat.vertex_color_is_srgb = true
 	mat.albedo_texture = load("res://assets/textures/grass_grain.jpg")
 	mat.uv1_triplanar = true
 	mat.uv1_world_triplanar = true

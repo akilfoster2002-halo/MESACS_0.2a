@@ -127,7 +127,13 @@ func _sky() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = W.ambient
 	env.ambient_light_energy = 0.55
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# ACES keeps the saturation Filmic squeezed out of every colour, and a
+	# little extra on top: this is a bright, painted world, not a film still
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 1.1
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.18
+	env.adjustment_contrast = 1.05
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.fog_enabled = true

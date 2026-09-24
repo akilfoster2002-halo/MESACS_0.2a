@@ -80,6 +80,7 @@ func _room() -> void:
 	q.size = Vector3(SQ - 0.12, 0.06, SQ - 0.12)
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	q.material = m
 	var mm := MultiMesh.new()
