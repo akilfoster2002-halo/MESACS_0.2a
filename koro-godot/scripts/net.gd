@@ -22,6 +22,12 @@ signal players_in(list: Array)
 signal said(line: Dictionary)          # {from, text} or {sys}
 signal buzz(msg: Dictionary)           # a text arrived
 
+## Where KORO lives unless a class runs its own: the Render service, which
+## holds rooms (a socket needs a server that stays up). Free plan, so it
+## sleeps when nobody is on and takes up to a minute to wake — see WAKE.
+const DEFAULT_SERVER := "https://koro-server.onrender.com"
+const WAKE := 75.0
+
 const ROOMS := [["meadow", "Meadow"], ["canyon", "Canyon"], ["harbour", "Harbour"],
 	["summit", "Summit"], ["orchard", "Orchard"], ["lagoon", "Lagoon"]]
 
@@ -45,6 +51,8 @@ var muted_until := 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	base = str(Settings.get_value("server", "")).strip_edges().trim_suffix("/")
+	if base == "":
+		base = DEFAULT_SERVER
 	cookie = str(Settings.get_value("cookie", ""))
 	room = str(Settings.get_value("room", "meadow"))
 	if base != "" and cookie != "":
@@ -55,7 +63,9 @@ func signed_in() -> bool:
 
 func set_server(url: String) -> void:
 	url = url.strip_edges().trim_suffix("/")
-	if url != "" and not url.begins_with("http"):
+	if url == "":
+		url = DEFAULT_SERVER
+	if not url.begins_with("http"):
 		url = "https://" + url
 	if url != base:
 		_close()
@@ -77,7 +87,7 @@ func api(path: String, body: Variant = null) -> Dictionary:
 	if base == "":
 		return {"ok": false, "error": "Type the server's address first."}
 	var req := HTTPRequest.new()
-	req.timeout = 15.0
+	req.timeout = WAKE
 	add_child(req)
 	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
 	if cookie != "":
