@@ -45,7 +45,9 @@ func _ready() -> void:
 	body = StaticBody3D.new()
 	add_child(body)
 	_plate(b.get("plate_visible", true))
-	if b.get("shell", true):
+	if b.get("pad", false):
+		_pad()
+	elif b.get("shell", true):
 		_shell()
 		_dress()
 		_indoors()
@@ -58,6 +60,14 @@ func _ready() -> void:
 				_mechanic()
 			"library":
 				_library()
+			"gym":
+				_gym()
+			"club":
+				add_child(Club.new().setup(self))
+			"arcade":
+				_arcade()
+			"house":
+				_house()
 	_commit()
 
 # ------------------------------------------------------------- the kit
@@ -120,6 +130,11 @@ func _commit() -> void:
 ## A place to press E: `act` is called with the world, `label` is the prompt.
 func usable(at: Vector3, label: String, act: Callable, r := 3.2) -> void:
 	usables.append({"at": at, "r": r, "label": label, "act": act})
+
+## Is this point in the world inside the room (under the lid, within the walls)?
+func inside(p: Vector3) -> bool:
+	var lp := to_local(p)
+	return absf(lp.x) < hw and absf(lp.z) < hd and lp.y < H and lp.y > -2.0
 
 ## The nearest thing to use within reach of a point in the world, or {}.
 func use_near(p: Vector3) -> Dictionary:
@@ -494,6 +509,7 @@ func _mechanic() -> void:
 		ap.play("idle")
 	usable(Vector3(6.0, 0, 2.0), "talk to the Mechanic", func(w):
 		w.hud.say("THE MECHANIC — \"Walk down the bays. E at a price to take one. The big one outside? She's yours to drive — E next to her.\"", 5.5))
+	_ship_bay()
 	panel(0, -hd + 3.4, "", Color("2a2013"), 0.0, "your coins", func(w):
 		w.hud.say("You have %d coins, and you are level %d." % [Wallet.coins(), Wallet.level()], 3.0))
 	_repaint_bays()
@@ -526,6 +542,259 @@ func _repaint_bays() -> void:
 func refresh() -> void:
 	if b.id == "mechanic":
 		_repaint_bays()
+	if b.get("pad", false):
+		_pad_ship()
+
+# ------------------------------------------------------------ the ship
+
+static func has_ship() -> bool:
+	return bool(Progress.get_value("has_ship", 0))
+
+static func ship_model(length: float) -> Node3D:
+	var holder := Node3D.new()
+	var m := Models.spawn("res://assets/ship.glb")
+	holder.add_child(m)
+	var box := Models.bounds(m)
+	var s := length / maxf(0.001, maxf(box.size.z, box.size.x))
+	var c := box.get_center()
+	m.scale = Vector3.ONE * s
+	m.position = Vector3(-c.x, -box.position.y, -c.z) * s
+	# glTF noses point down -z like the browser's ship; ours face +z
+	m.rotation.y = PI
+	m.position = Vector3(c.x, -box.position.y, c.z) * s
+	return holder
+
+## THE SHIP LIVES AT THE MECHANIC, and you have to come and get it. It costs
+## nothing — it is not another thing to buy, it is a reason to walk
+## somewhere before the sky opens up.
+func _ship_bay() -> void:
+	var x := hw * 0.52
+	var z := -hd * 0.10
+	cyl(4.4, 0.5, Vector3(x, 0.25, z), mat("bay_deck", Color("3f4a63")))
+	cyl(4.05, 0.06, Vector3(x, 0.53, z), mat("bay_ring", Color("8ff0ff"), true))
+	cyl(3.85, 0.08, Vector3(x, 0.55, z), "bay_deck")
+	_solid(Vector3(9.0, 0.5, 9.0), Transform3D(Basis(), Vector3(x, 0.25, z)))
+	var ship := ship_model(6.0)
+	ship.position = Vector3(x, 1.6, z)
+	add_child(ship)
+	spinners.append(ship)
+	var l := OmniLight3D.new()
+	l.light_color = Color("8ff0ff")
+	l.light_energy = 1.5
+	l.omni_range = 16.0
+	l.position = Vector3(x, 5, z)
+	_fade(l)
+	add_child(l)
+	panel(x, z + 5.6, "", Color("12304a"), 0.0, "take the ship", func(w):
+		if not has_ship():
+			Progress.set_value("has_ship", 1)
+			w.hud.say("The ship is yours. It is waiting on THE PAD — out of the door and to the south.", 5.0)
+			for bl in w.buildings:
+				bl.refresh()
+		else:
+			w.hud.say("She is already yours — waiting on THE PAD.", 3.0))
+	_bay_label = Label3D.new()
+	_bay_label.font_size = 44
+	_bay_label.pixel_size = 0.0075
+	_bay_label.outline_size = 8
+	_bay_label.transform = Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(x, 1.75, z + 5.62))
+	add_child(_bay_label)
+	_bay_text()
+
+var _bay_label: Label3D
+func _bay_text() -> void:
+	if _bay_label:
+		_bay_label.text = "SHIP\nYOURS" if has_ship() else "TAKE THE SHIP\nFREE"
+
+# ------------------------------------------------------------- the pad
+
+var _pad_ship_node: Node3D
+var _pad_ghost: Label3D
+
+## A launch pad on every world, and your ship standing on it. Walk up, press
+## E, and fly yourself to the other planet.
+func _pad() -> void:
+	var deck := mat("pad_deck", Color("3f4a63"))
+	var glow := mat("pad_ring", Color("8ff0ff"), true)
+	cyl(7.2, 0.5, Vector3(0, 0.25, 0), deck, 32)
+	cyl(6.6, 0.06, Vector3(0, 0.53, 0), glow, 32)
+	cyl(6.3, 0.08, Vector3(0, 0.55, 0), deck, 32)
+	for i in 8:
+		var a := TAU * i / 8.0
+		box(Vector3(0.5, 0.2, 0.5), Vector3(cos(a) * 7.6, 0.1, sin(a) * 7.6), glow)
+	var sign := Label3D.new()
+	sign.text = "THE PAD"
+	sign.font_size = 96
+	sign.pixel_size = 0.02
+	sign.outline_size = 16
+	sign.modulate = Color("8ff0ff")
+	sign.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sign.position = Vector3(0, 9.5, -8.5)
+	add_child(sign)
+	var l := OmniLight3D.new()
+	l.light_color = Color("8ff0ff")
+	l.light_energy = 1.4
+	l.omni_range = 18.0
+	l.position = Vector3(0, 6, 0)
+	_fade(l)
+	add_child(l)
+	_pad_ship()
+	usable(Vector3(0, 0, 0), "board the ship", func(w):
+		if Worlds.current == "hub" and not has_ship():
+			w.hud.say("Your ship is at THE MECHANIC — take it from the hangar there. It's free.", 4.5)
+		else:
+			w.hud.travel_open(), 8.5)
+
+func _pad_ship() -> void:
+	var here := Worlds.current != "hub" or has_ship()
+	if here and _pad_ship_node == null:
+		_pad_ship_node = ship_model(9.0)
+		_pad_ship_node.position = Vector3(0, 1.2, 0)
+		add_child(_pad_ship_node)
+	if _pad_ghost == null:
+		_pad_ghost = Label3D.new()
+		_pad_ghost.font_size = 48
+		_pad_ghost.pixel_size = 0.012
+		_pad_ghost.outline_size = 10
+		_pad_ghost.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_pad_ghost.position = Vector3(0, 4.5, 0)
+		add_child(_pad_ghost)
+	_pad_ghost.text = "E — board the ship" if here else "fetch your ship from THE MECHANIC"
+	_bay_text()
+
+# ------------------------------------------------------------- the gym
+
+var _bots: Array = []
+var _bout_t := 1.5
+
+## The floor is the arena you would fight on, chalked out at the size it is —
+## ten squares by ten — and on it the two machines, sparring.
+func _gym() -> void:
+	var N := 10
+	var sq := 1.5
+	var half := N * sq / 2.0
+	box(Vector3(N * sq + 1.2, 0.16, N * sq + 1.2), Vector3(0, 0.02, 1.5), mat("gym_mat", Color("2e2547")))
+	var line := mat("gym_line", Color("8fd3ff"), true)
+	for i in N + 1:
+		var at := -half + i * sq
+		box(Vector3(N * sq, 0.04, 0.07), Vector3(0, 0.12, 1.5 + at), line)
+		box(Vector3(0.07, 0.04, N * sq), Vector3(at, 0.12, 1.5), line)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color("ffd8f0")
+	lamp.light_energy = 2.4
+	lamp.omni_range = 36.0
+	lamp.position = Vector3(0, H - 3.0, 1.5)
+	_fade(lamp)
+	add_child(lamp)
+	for spec in [["noisyboy", Vector3(-2.2, 0.1, 1.5), PI / 2.0], ["ambush", Vector3(2.2, 0.1, 1.5), -PI / 2.0]]:
+		var bot := Models.spawn("res://assets/characters/%s.glb" % spec[0])
+		add_child(bot)
+		Models.fit_height(bot, 2.7)
+		bot.position += spec[1]
+		bot.rotation.y = spec[2]
+		var ap := Models.anim_player(bot)
+		Models.loop_clips(ap, ["jab", "hook", "cross", "roundhouse", "flykick", "sweep", "block", "dodge",
+			"hit", "floored", "getup", "roar", "uppercut"])
+		if ap:
+			ap.play("idle")
+		_bots.append(ap)
+	_solid(Vector3(N * sq, 3.0, N * sq), Transform3D(Basis(), Vector3(0, 1.5, 1.5)))
+	panel(-12, -hd + 4.2, "FIGHT THE LEAGUE", Color("2a1d3d"), 0.0, "the league", func(w):
+		w.hud.say("A fight here is a program you write in blocks — that is in the browser for now. Watch these two in the meantime.", 5.0))
+	panel(0, -hd + 4.2, "FIGHT A PLAYER", Color("3d1d28"), 0.0, "fight a player", func(w):
+		w.hud.say("Player fights are written in blocks too — in the browser for now.", 4.0))
+
+## A bout, over and over: one throws, the other blocks, slips or takes it,
+## and now and then somebody goes down and gets up again.
+func _spar(delta: float) -> void:
+	if _bots.size() < 2 or _bots[0] == null or _bots[1] == null:
+		return
+	_bout_t -= delta
+	if _bout_t > 0.0:
+		return
+	var a := randi() % 2
+	var hit: AnimationPlayer = _bots[a]
+	var take: AnimationPlayer = _bots[1 - a]
+	var move: String = ["jab", "hook", "cross", "roundhouse", "flykick", "uppercut", "sweep"][randi() % 7]
+	var answer: String = ["block", "dodge", "hit", "hit", "block"][randi() % 5]
+	if answer == "hit" and randf() < 0.18:
+		answer = "floored"
+	_bout(hit, move)
+	_bout(take, answer)
+	_bout_t = 1.3 + randf() * 1.2
+	if answer == "floored":
+		_bout_t += 2.2
+		get_tree().create_timer(1.6).timeout.connect(func(): _bout(take, "getup"))
+		get_tree().create_timer(1.8).timeout.connect(func(): _bout(hit, "roar"))
+
+func _bout(ap: AnimationPlayer, clip: String) -> void:
+	if ap and ap.has_animation(clip):
+		ap.play(clip, 0.12)
+		ap.queue("idle")
+
+# ----------------------------------------------------------- the arcade
+
+## Where a game somebody made stops being theirs alone: a cabinet each, with
+## its title on the screen. Playing them needs the block language, which is
+## in the browser for now.
+func _arcade() -> void:
+	var body := mat("cab", Color("1b2238"))
+	var trim := mat("cab_trim", Color("8ff0ff"), true)
+	var screens := [Color("ff6ad5"), Color("8ff0ff"), Color("ffe9a8"), Color("a8e6cf")]
+	for i in screens.size():
+		mat("screen%d" % i, screens[i].darkened(0.35), true)
+	var k := 0
+	for row in 2:
+		for i in 6:
+			var x: float = -hw + 6.0 + i * (b.w - 12.0) / 5.0
+			var z: float = -hd + 5.0 + row * 9.0
+			box(Vector3(1.6, 2.4, 1.2), Vector3(x, 1.2, z), body, true)
+			box(Vector3(1.64, 0.1, 1.24), Vector3(x, 2.45, z), trim)
+			box(Vector3(1.2, 0.9, 0.05), Vector3(x, 1.75, z + 0.61), "screen%d" % (k % screens.size()))
+			box(Vector3(1.5, 0.12, 0.5), Vector3(x, 1.0, z + 0.75), trim)
+			var id := k
+			usable(Vector3(x, 0, z + 1.5), "play cabinet %d" % (k + 1), func(w):
+				w.hud.say("Games made in the Workshop are block programs — they play in the browser for now. Cabinet %d is waiting." % (id + 1), 4.5), 1.6)
+			k += 1
+	var sign := Label3D.new()
+	sign.text = "PLAY WHAT YOUR CLASS HAS MADE"
+	sign.font_size = 64
+	sign.pixel_size = 0.012
+	sign.outline_size = 12
+	sign.modulate = Color("8ff0ff")
+	sign.position = Vector3(0, H - 3.0, -hd + 0.8)
+	add_child(sign)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color("8ff0ff")
+	glow.light_energy = 1.5
+	glow.omni_range = 30.0
+	glow.position = Vector3(0, H * 0.5, -hd + 8.0)
+	_fade(glow)
+	add_child(glow)
+
+# ------------------------------------------------------------- the house
+
+## Yours: a room to be in on a planet nobody else has.
+func _house() -> void:
+	var sofa := mat("sofa", Color("cdb4f6").darkened(0.35))
+	var wood := mat("table", Color("6b4a34"))
+	var rug := mat("rug", Color("ffb4a2").darkened(0.2))
+	box(Vector3(8.0, 0.06, 6.0), Vector3(0, 0.03, 1.0), rug)
+	box(Vector3(5.0, 0.9, 1.6), Vector3(0, 0.45, -3.0), sofa, true)
+	box(Vector3(5.0, 1.2, 0.5), Vector3(0, 1.0, -3.8), sofa)
+	box(Vector3(2.4, 0.7, 1.4), Vector3(0, 0.35, 0.5), wood, true)
+	box(Vector3(3.2, 0.6, 5.2), Vector3(-hw + 3.0, 0.3, -hd + 4.0), mat("bed", Color("8fd3ff").darkened(0.3)), true)
+	box(Vector3(3.2, 0.3, 1.2), Vector3(-hw + 3.0, 0.75, -hd + 2.0), mat("pillow", Color("f4f4f0")))
+	var name := Label3D.new()
+	name.text = Planet.world.get("name", "HOME")
+	name.font_size = 80
+	name.pixel_size = 0.012
+	name.outline_size = 12
+	name.modulate = Color("ffe9a8")
+	name.position = Vector3(0, H - 3.5, -hd + 0.8)
+	add_child(name)
+	panel(hw - 4.0, -hd + 3.2, "YOURS\nBuild whatever you like", Color("22406b"), 0.0, "the build desk", func(w):
+		w.hud.say("Building on your planet happens in the Workshop's block editor — in the browser for now.", 4.5))
 
 # ------------------------------------------------------------ the library
 
@@ -583,3 +852,5 @@ func _library() -> void:
 func _process(delta: float) -> void:
 	for s in spinners:
 		(s as Node3D).rotation.y += 0.35 * delta
+	if b.id == "gym":
+		_spar(delta)

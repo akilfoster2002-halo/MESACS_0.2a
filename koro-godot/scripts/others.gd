@@ -23,8 +23,10 @@ var folk := {}               # id -> {node, model, ap, char, ride, car, dir, tdi
 func show_list(list: Array) -> void:
 	var seen := {}
 	for p in list:
-		if str(p.get("at", "")) != "hub":
-			continue                         # somewhere else — a room, a mission
+		# only the people out on this ball: somebody indoors elsewhere, on a
+		# mission, or on their own home planet is nowhere near you
+		if str(p.get("at", "")) != Worlds.current or Worlds.current == "home":
+			continue
 		var id := int(p.id)
 		seen[id] = true
 		var d := Planet.dir_of(float(p.get("x", 0)), float(p.get("z", 0)))

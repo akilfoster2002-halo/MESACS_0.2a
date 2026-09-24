@@ -30,6 +30,12 @@ var feed_lines: Array[String] = []
 var feed_t := 0.0
 var unread_t := 3.0
 var unread := 0
+var decks: PanelContainer
+var deck_btns: Array = []
+var deck_bpm: Label
+var club: Club
+var travel: PanelContainer
+var travel_list: VBoxContainer
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -65,6 +71,8 @@ func _ready() -> void:
 	_pause()
 	_book()
 	_net_cards()
+	_decks()
+	_travel()
 
 func _label(size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -86,11 +94,13 @@ func say(text: String, secs := 3.5) -> void:
 ## first — this node keeps running while everything else is paused.
 func _unhandled_input(ev: InputEvent) -> void:
 	var esc: bool = ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE)
-	if account.visible or phone.visible or who.visible:
+	if account.visible or phone.visible or who.visible or decks.visible or travel.visible:
 		if esc or (who.visible and ev.is_action_pressed("who")):
 			account.visible = false
 			phone.visible = false
 			who.visible = false
+			decks.visible = false
+			travel.visible = false
 			_hold()
 			get_viewport().set_input_as_handled()
 		return
@@ -107,6 +117,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
+	if decks.visible:
+		_deck_paint()
 	toast_t -= delta
 	toast.modulate.a = clampf(toast_t / 0.6, 0.0, 1.0)
 	feed_t -= delta
@@ -275,7 +287,7 @@ func _pause() -> void:
 	var keys := Label.new()
 	keys.text = """WASD walk · mouse look · SHIFT run · SPACE jump · scroll zoom
 F fly · E ride, climb in, get in · R car / get out · V first person
-G dance · 1 2 3 emotes · B who you are · T phone · O who is here · P pause"""
+G dance · 1 2 3 emotes · B who you are · T phone · O who is here · M music · P pause"""
 	keys.add_theme_font_size_override("font_size", 15)
 	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(keys)
@@ -308,7 +320,130 @@ func _hold() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if up else Input.MOUSE_MODE_CAPTURED
 
 func any_open() -> bool:
-	return picker.visible or paused.visible or book.visible or account.visible or phone.visible or who.visible
+	return picker.visible or paused.visible or book.visible or account.visible or phone.visible or who.visible \
+		or decks.visible or travel.visible
+
+# ---------------------------------------------------------------- the decks
+
+## Sixteen steps round for ever, four voices across them: click a square to
+## put a sound on that step, and watch the playhead go round.
+func _decks() -> void:
+	decks = _card()
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	decks.add_child(col)
+	var title := Label.new()
+	title.text = "THE DECKS — it is a loop: sixteen steps, round and round"
+	title.add_theme_font_size_override("font_size", 20)
+	col.add_child(title)
+	for r in Club.TRACKS.size():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		col.add_child(row)
+		var name := Label.new()
+		name.text = Club.TRACKS[r][0]
+		name.custom_minimum_size = Vector2(56, 0)
+		name.add_theme_color_override("font_color", Club.TRACKS[r][1])
+		row.add_child(name)
+		var btns := []
+		for i in Club.STEPS:
+			var b := Button.new()
+			b.toggle_mode = true
+			b.focus_mode = Control.FOCUS_NONE
+			b.custom_minimum_size = Vector2(34, 34)
+			var rr := r
+			var ii := i
+			b.pressed.connect(func(): club.toggle(rr, ii))
+			if i % 4 == 0:
+				b.add_theme_constant_override("outline_size", 2)
+			row.add_child(b)
+			btns.append(b)
+		deck_btns.append(btns)
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 8)
+	col.add_child(bar)
+	for spec in [["− slower", func(): club.set_bpm(club.bpm - 4.0)], ["faster +", func(): club.set_bpm(club.bpm + 4.0)],
+			["DROP", func(): club.drop()], ["clear", func(): club.clear(); _deck_paint()],
+			["the opening set", func(): club.reset(); _deck_paint()], ["close (Esc)", func(): decks.visible = false; _hold()]]:
+		var b := Button.new()
+		b.text = spec[0]
+		b.custom_minimum_size = Vector2(0, 36)
+		b.pressed.connect(spec[1])
+		bar.add_child(b)
+	deck_bpm = Label.new()
+	col.add_child(deck_bpm)
+
+func decks_open(c: Club) -> void:
+	club = c
+	decks.visible = true
+	_deck_paint()
+	_hold()
+
+var _deck_styles := {}
+## A square is its track's colour when there is a sound on it, dark when there
+## is not, and the column the loop is on right now is outlined — the one thing
+## a loop never shows you is where in the body it currently is.
+func _deck_style(c: Color, head: bool) -> StyleBoxFlat:
+	var key := c.to_html() + str(head)
+	if not _deck_styles.has(key):
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = c
+		sb.set_corner_radius_all(5)
+		if head:
+			sb.border_color = Color(1, 1, 1, 0.95)
+			sb.set_border_width_all(3)
+		_deck_styles[key] = sb
+	return _deck_styles[key]
+
+func _deck_paint() -> void:
+	if club == null:
+		return
+	for r in deck_btns.size():
+		for i in Club.STEPS:
+			var b: Button = deck_btns[r][i]
+			var lit := bool(club.pat[r][i])
+			var c: Color = Club.TRACKS[r][1] if lit else (Color(0.2, 0.2, 0.28) if i % 4 == 0 else Color(0.12, 0.12, 0.18))
+			var st := _deck_style(c, i == club.step)
+			for k in ["normal", "pressed", "hover", "hover_pressed", "focus"]:
+				b.add_theme_stylebox_override(k, st)
+	deck_bpm.text = "%d beats a minute — the crowd dances harder the more is going on" % club.bpm
+
+# ---------------------------------------------------------------- the ship
+
+func _travel() -> void:
+	travel = _card()
+	travel.custom_minimum_size = Vector2(460, 0)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	travel.add_child(col)
+	var title := Label.new()
+	title.text = "WHERE TO?"
+	title.add_theme_font_size_override("font_size", 26)
+	col.add_child(title)
+	travel_list = VBoxContainer.new()
+	travel_list.add_theme_constant_override("separation", 8)
+	col.add_child(travel_list)
+	var note := Label.new()
+	note.text = "You fly it yourself: W throttle · mouse or arrows steer · SHIFT boost · R turn back"
+	note.add_theme_font_size_override("font_size", 13)
+	note.modulate = Color(1, 1, 1, 0.7)
+	col.add_child(note)
+
+func travel_open() -> void:
+	for c in travel_list.get_children():
+		c.queue_free()
+	for id in Worlds.destinations():
+		var w := Worlds.get_world(id)
+		var b := Button.new()
+		b.text = "%s — %s" % [w.name, w.sub]
+		b.custom_minimum_size = Vector2(0, 46)
+		b.pressed.connect(func():
+			travel.visible = false
+			_hold()
+			world.launch(id))
+		travel_list.add_child(b)
+	travel.visible = true
+	_hold()
 
 # ---------------------------------------------------------- the network
 

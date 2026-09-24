@@ -12,6 +12,11 @@ extends MultiMeshInstance3D
 const COUNT := 4000
 const SPREAD := 170.0
 
+## Warm on a green world, cold on a violet one: the same four thousand points
+## and the same one draw call; the colour is the difference between a summer
+## evening and a night out.
+var tint := Color(1.0, 0.94, 0.63)
+
 func _ready() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = Shader.new()
@@ -43,20 +48,25 @@ void fragment(){
 	ALBEDO = tint * a * pulse * vNear;
 }
 """
+	mat.set_shader_parameter("tint", tint)
+	# both numbers are a DENSITY, so both follow the ball: on VOLTA a 170-metre
+	# cloud is wider than the planet
+	var spread := minf(SPREAD, Planet.R * 0.55)
+	var count := roundi(COUNT * minf(1.0, spread * spread / (SPREAD * SPREAD)))
 	var q := QuadMesh.new()
 	q.material = mat
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_custom_data = true
 	mm.mesh = q
-	mm.instance_count = COUNT
+	mm.instance_count = count
 	var town := Planet.dir_of(0, 0)
 	var fr := Planet.frame_at(town)
-	for i in COUNT:
+	for i in count:
 		var d: Vector3
 		if randf() < 0.75:
 			var a := randf() * TAU
-			var r := sqrt(randf()) * SPREAD
+			var r := sqrt(randf()) * spread
 			d = Planet.walk(town, (fr.x * cos(a) + fr.z * sin(a)).normalized(), r)
 		else:
 			d = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized()

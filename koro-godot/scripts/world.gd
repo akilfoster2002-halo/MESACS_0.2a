@@ -1,5 +1,5 @@
-## WANO — stood up in code the way the browser version does it, so the two
-## can be compared side by side.
+## A WORLD — Wano, VOLTA or your home planet (worlds.gd) — stood up in code
+## the way the browser version does it, so the two can be compared side by side.
 ##
 ## THE WORLD ANSWERS FOUR QUESTIONS, and everything that moves asks them:
 ##   floor_at(dir, alt)   the highest thing under your knees — the hills, an
@@ -25,6 +25,8 @@ var pandas: Array = []
 var buildings: Array = []
 var env: Environment
 var ui_open := false
+var W: Dictionary
+var pad: Building
 
 const KEYS := {
 	"forward": [KEY_W, KEY_UP], "back": [KEY_S, KEY_DOWN],
@@ -32,7 +34,7 @@ const KEYS := {
 	"run": [KEY_SHIFT], "jump": [KEY_SPACE], "use": [KEY_E],
 	"off": [KEY_R], "view": [KEY_V], "slam": [KEY_Q], "mouse": [KEY_ESCAPE],
 	"fly": [KEY_F], "dance": [KEY_G], "emote1": [KEY_1], "emote2": [KEY_2], "emote3": [KEY_3],
-	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O],
+	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O], "music": [KEY_M],
 }
 
 var _t0 := 0
@@ -48,45 +50,62 @@ func _lap(what: String) -> void:
 const HEAVY := ["res://assets/temple.glb", "res://assets/garden.glb", "res://assets/falls.glb",
 	"res://assets/car.glb", "res://assets/mecha.glb", "res://assets/panda.glb"]
 
+func hub() -> bool:
+	return W.id == "hub"
+
 func _ready() -> void:
 	_t0 = Time.get_ticks_msec()
-	for path in HEAVY:
-		ResourceLoader.load_threaded_request(path, "", true)
+	W = Worlds.here()
+	Planet.use(W)
+	if hub():
+		for path in HEAVY:
+			ResourceLoader.load_threaded_request(path, "", true)
 	randomize()
-	seed(20260923)                         # the same Wano every time you open it
+	seed(20260923 + int(W.seed))           # the same world every time you open it
 	_inputs()
 	_sky()
 	# the pool is dug before the ground is built, so the mesh, your feet and
 	# the trees all agree where the bank is
-	Islands.dig()
+	if hub():
+		Islands.dig()
 	var ground := MeshInstance3D.new()
-	ground.mesh = Planet.build_mesh(6)
+	ground.mesh = Planet.build_mesh(6 if Planet.R > 200.0 else 5)
 	add_child(ground)
 	_lap("ground")
 	_buildings()
-	_lap("temple")
-	islands = Islands.new()
-	islands.world = self
-	add_child(islands)
-	_lap("islands")
-	add_child(Fireflies.new())
+	_lap("buildings")
+	if hub():
+		islands = Islands.new()
+		islands.world = self
+		add_child(islands)
+		_lap("islands")
+	var flies := Fireflies.new()
+	flies.tint = W.flies
+	add_child(flies)
 	_lap("fireflies")
 	_scenery()
-	_lap("trees")
+	_lap("flora")
 	_creatures()
 	_lap("creatures")
 	others = Others.new()
 	others.world = self
 	add_child(others)
-	net = Net.new()
+	net = get_node("/root/Online")
 	net.world = self
-	add_child(net)
 	net.players_in.connect(others.show_list)
+	tree_exiting.connect(func():
+		net.players_in.disconnect(others.show_list)
+		net.world = null)
 	hud = Hud.new()
 	hud.world = self
 	add_child(hud)
+	Sound.here(self)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	hud.say("Welcome to Wano.  F to fly · R for your car · E to ride · B to change who you are", 6.0)
+	if Worlds.by_ship:
+		hud.say("Welcome to %s — %s." % [W.name, W.sub], 5.0)
+	else:
+		hud.say("Welcome to Wano.  F to fly · R for your car · E to ride · B to change who you are", 6.0)
+	Worlds.by_ship = false
 
 func _inputs() -> void:
 	for action in KEYS:
@@ -104,16 +123,16 @@ func _sky() -> void:
 	# ONE COLOUR, NOT A SKY: Godot's sky gradient runs along world Y, and on a
 	# ball "up" is wherever you are standing
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.025, 0.03, 0.085)
+	env.background_color = W.sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.55, 0.60, 0.80)
+	env.ambient_light_color = W.ambient
 	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.12, 0.13, 0.25)
-	env.fog_density = 0.0016
+	env.fog_density = 0.0016 * 320.0 / Planet.R
 	env.fog_sky_affect = 0.0
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -155,6 +174,12 @@ func _buildings() -> void:
 	for spec in Planet.BUILDINGS:
 		var d := Planet.dir_of(spec.lon, spec.lat)
 		var xf := Transform3D(Planet.frame_at(d), d * Planet.R)
+		if spec.get("pad", false):
+			pad = Building.new().setup(spec, self)
+			add_child(pad)
+			pad.global_transform = xf
+			buildings.append(pad)
+			continue
 		if spec.id == "missions":
 			temple = Temple.new()
 			add_child(temple)
@@ -186,12 +211,19 @@ func _usable() -> Dictionary:
 func _clear(d: Vector3) -> bool:
 	if Planet.pad_k(d) <= 0.6 or Planet.near_basin(d, 1.2):
 		return false
-	for p in islands.river_path:
-		if d.dot(p) > cos(9.0 / Planet.R):
-			return false
+	if islands:
+		for p in islands.river_path:
+			if d.dot(p) > cos(9.0 / Planet.R):
+				return false
 	return true
 
 func _scenery() -> void:
+	if W.flora == "crystal":
+		Flora.crystals(self, _clear)
+		return
+	if W.flora == "wood":
+		Flora.wood(self, _clear)
+		return
 	var town := Planet.dir_of(0, 0)
 	var sakura := (Scatter.anywhere(90, town, 300.0) + Scatter.anywhere(40, town, 900.0)).filter(_clear)
 	Scatter.grow(self, "res://assets/sakura.glb", sakura, 5.0, 8.0, 0.9, 360.0)
@@ -199,6 +231,35 @@ func _scenery() -> void:
 	Scatter.grow(self, "res://assets/bamboo.glb", bamboo, 6.0, 11.0, 0.7, 300.0)
 
 func _creatures() -> void:
+	if hub():
+		_wano_life()
+	# you: in front of Mission Control's door the first time, off the pad when
+	# you came by ship, and in front of the first building anywhere else
+	var start: Vector3
+	var facing: Vector3
+	var pd := Planet.dir_of(W.pad.lon, W.pad.lat)
+	var pf := Planet.frame_at(pd)
+	if Worlds.by_ship:
+		start = Planet.walk(pd, pf.z, 13.0)
+		facing = pf.z
+	else:
+		var first: Dictionary = W.buildings[0]
+		var td := Planet.dir_of(first.lon, first.lat)
+		var tf := Planet.frame_at(td)
+		start = Planet.walk(td, tf.z, first.d / 2.0 + 21.0)
+		facing = td - start
+	player = Walker.new()
+	player.world = self
+	add_child(player)
+	player.place(start, facing)
+	# and your car, parked beside you
+	car = Car.new()
+	car.world = self
+	add_child(car)
+	var sf := Planet.frame_at(start)
+	car.park(Planet.walk(start, sf.x, 6.0), facing)
+
+func _wano_life() -> void:
 	var town := Planet.dir_of(0, 0)
 	var f := Planet.frame_at(town)
 	for i in 36:
@@ -221,22 +282,6 @@ func _creatures() -> void:
 	var mb := Planet.dir_of(-34, 6)
 	var mf := Planet.frame_at(mb)
 	mecha.park(Planet.walk(mb, mf.x, 38.0), mf.z)
-
-	# you, out in front of Mission Control's door — the +z side of its frame —
-	# far enough back to read the sign over it
-	var td := Planet.dir_of(0, 7)
-	var tf := Planet.frame_at(td)
-	var start := Planet.walk(td, tf.z, 44.0)
-	player = Walker.new()
-	player.world = self
-	add_child(player)
-	player.place(start, td - start)
-
-	# and your car, parked beside you
-	car = Car.new()
-	car.world = self
-	add_child(car)
-	car.park(Planet.walk(start, tf.x, 6.0), td - start)
 
 # ------------------------------------------------------------ the questions
 
@@ -308,6 +353,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 		hud.phone_open()
 	elif ev.is_action_pressed("roster"):
 		hud.who_toggle()
+	elif ev.is_action_pressed("music"):
+		Sound.toggle_music()
+		hud.say("Music off." if Sound.muted() else "Music on.", 1.5)
 	elif ev.is_action_pressed("use"):
 		_use()
 	elif ev.is_action_pressed("off"):
@@ -315,7 +363,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	elif ev.is_action_pressed("fly"):
 		_fly()
 	elif ev.is_action_pressed("view"):
-		if mecha.piloting:
+		if piloting():
 			mecha.first_person = not mecha.first_person
 		else:
 			player.first_person = not player.first_person
@@ -336,7 +384,7 @@ func _emote(clips: Array) -> void:
 			return
 
 func _fly() -> void:
-	if mecha.piloting:
+	if piloting():
 		hud.say("The mecha jumps instead — SPACE, and hold it to boost.")
 		return
 	if player.car:
@@ -349,7 +397,7 @@ func _fly() -> void:
 		hud.say("Down.  F to take off again.", 2.0)
 
 func _use() -> void:
-	if mecha.piloting or player.mount or player.car:
+	if piloting() or player.mount or player.car:
 		return
 	if player.flying:
 		return
@@ -373,7 +421,7 @@ func _use() -> void:
 
 ## R: out of whatever you are in — or, on your own two feet, your car comes to you.
 func _off() -> void:
-	if mecha.piloting:
+	if piloting():
 		mecha.leave()
 	elif player.car:
 		player.car.leave()
@@ -386,8 +434,19 @@ func _off() -> void:
 		car.enter(player)
 		hud.say("W go · S brake / reverse · A D steer · mouse looks round · R get out", 4.0)
 
+func piloting() -> bool:
+	return mecha != null and mecha.piloting
+
 func _near_mecha() -> bool:
-	return player.dir.angle_to(mecha.dir) * Planet.R < 16.0
+	return mecha != null and player.dir.angle_to(mecha.dir) * Planet.R < 16.0
+
+## Off you go: the ship takes you to `dest` and you fly the whole way.
+func launch(dest: String) -> void:
+	Worlds.from = Worlds.current
+	Cruise.target = dest
+	get_tree().paused = false
+	Ctl.blocked = false
+	get_tree().change_scene_to_file("res://scenes/cruise.tscn")
 
 func _near_car() -> bool:
 	return player.dir.angle_to(car.dir) * Planet.R < 4.5 and absf(player.alt - car.alt) < 2.0
@@ -405,12 +464,19 @@ func _near_panda() -> Panda:
 
 func _process(_delta: float) -> void:
 	ui_open = hud.any_open()
+	var inside := false
+	for b in buildings:
+		if not b.b.get("pad", false) and b.inside(player.global_position):
+			inside = true
+	if temple and temple.to_local(player.global_position).length() < 34.0:
+		inside = true
+	Sound.indoors(inside)
 	var calls := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	var tris := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 	hud.fps.text = "%d FPS   %d draw calls   %.1fM triangles" % [Engine.get_frames_per_second(), calls, tris / 1e6]
 	var prompt := ""
 	var status := ""
-	if mecha.piloting:
+	if piloting():
 		hud.help.text = "W/S walk · A/D turn · SHIFT dash · SPACE mega jump (hold to boost) · Q slam · V cockpit · R climb out"
 		status = "%d km/h   ALT %d m   BOOST %d%%" % [absf(mecha.spd) * 3.6, maxf(0.0, mecha.alt - Planet.height(mecha.dir)), mecha.fuel / Mecha.FUEL * 100.0]
 	elif player.car:
@@ -436,4 +502,4 @@ func _process(_delta: float) -> void:
 			prompt = "E — ride the panda"
 	hud.prompt.text = prompt
 	hud.status.text = status
-	hud.cockpit.visible = mecha.piloting and mecha.first_person
+	hud.cockpit.visible = piloting() and mecha.first_person

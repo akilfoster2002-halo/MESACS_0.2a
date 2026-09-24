@@ -140,7 +140,7 @@ func _signed(user: Dictionary) -> void:
 	me = user
 	var p = user.get("progress", {})
 	Progress.adopt(p if p is Dictionary else {})
-	if world and world.player:
+	if world and is_instance_valid(world) and world.player:
 		world.player.set_character(str(Progress.get_value("char", world.player.character)))
 		world.car.set_paint(Wallet.paint())
 		for b in world.buildings:
@@ -240,9 +240,11 @@ func _process(delta: float) -> void:
 ## same thing on both screens), metres over the ground, who we are wearing,
 ## what the body is doing, and the car if we are in one.
 func _where() -> void:
+	if world == null or not is_instance_valid(world) or world.player == null:
+		return
 	var p: Walker = world.player
 	var d := p.dir
-	if world.mecha.piloting:
+	if world.piloting():
 		d = world.mecha.dir
 	var f := Planet.frame_at(d)
 	var lon := rad_to_deg(atan2(d.x, d.z))
@@ -254,7 +256,7 @@ func _where() -> void:
 		act = p.ap.current_animation
 	_send({"t": "pos", "x": snappedf(lon, 0.01), "z": snappedf(lat, 0.01), "yaw": snappedf(heading, 0.001),
 		"y": snappedf(over, 0.01), "char": p.character, "act": act,
-		"ride": Wallet.car_id() if p.car else null, "at": "hub"})
+		"ride": Wallet.car_id() if p.car else null, "at": Worlds.current})
 
 func _heard(m: Dictionary) -> void:
 	match str(m.get("t", "")):

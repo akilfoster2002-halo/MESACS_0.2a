@@ -9,6 +9,28 @@ var w: Node3D
 func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	var args := OS.get_cmdline_user_args()
+	if args.size() > 0 and args[0] != "hub":
+		Worlds.current = args[0]
+		Worlds.by_ship = true
+		w = load("res://scenes/main.tscn").instantiate()
+		add_child(w)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		await get_tree().create_timer(4.0).timeout
+		await _measure(Worlds.current + ": off the ship")
+		for bl in w.buildings:
+			if bl.b.get("pad", false):
+				continue
+			w.player.dir = bl.to_global(Vector3(0, 0, bl.hd - 4.0)).normalized()
+			w.player.alt = w.floor_at(w.player.dir, 1.0)
+			await get_tree().create_timer(2.0).timeout
+			await _measure(Worlds.current + ": in " + str(bl.b.id))
+		for c in w.find_children("*", "Club", true, false):
+			c.process_mode = Node.PROCESS_MODE_DISABLED
+		await get_tree().create_timer(1.0).timeout
+		await _measure(Worlds.current + ": the club switched off")
+		get_tree().quit()
+		return
 	w = load("res://scenes/main.tscn").instantiate()
 	add_child(w)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

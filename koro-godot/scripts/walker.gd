@@ -344,6 +344,7 @@ func take_off() -> void:
 		mount = null
 	swimming = false
 	flying = true
+	Sound.whoosh()
 	emote = ""
 	air = 0.0
 	climb = AIR.rise * 0.5
@@ -356,6 +357,7 @@ func take_off() -> void:
 
 func land() -> void:
 	flying = false
+	Sound.wind(0.0)
 	var sink := minf(0.0, climb)
 	air = 0.0
 	climb = 0.0
@@ -421,6 +423,7 @@ func _fly(delta: float, up: Vector3) -> void:
 	lean += (swing * AIR.bank * fast - lean) * minf(1.0, delta * 8.0)
 	bank = roll + lean
 	speed_now = absf(air)
+	Sound.wind(absf(air) / AIR.top)
 
 # --------------------------------------------------------------- the body
 

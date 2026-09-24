@@ -13,6 +13,16 @@ func _ready() -> void:
 		out = args[0]
 	if args.size() > 1:
 		only = args[1]
+	if args.size() > 2 and args[2] == "cruise":
+		await _cruise()
+		return
+	# a third argument stands you on another world, off the ship
+	if args.size() > 2:
+		Worlds.current = args[2]
+		Worlds.by_ship = true
+	if Worlds.current != "hub":
+		await _other_world()
+		return
 	var t0 := Time.get_ticks_msec()
 	w = load("res://scenes/main.tscn").instantiate()
 	add_child(w)
@@ -99,6 +109,64 @@ func _ready() -> void:
 		s[1].call()
 		await _wait(1.2)
 		await _shot(s[0])
+	get_tree().quit()
+
+## VOLTA or home: the pad you land on, and every room there is.
+func _other_world() -> void:
+	w = load("res://scenes/main.tscn").instantiate()
+	add_child(w)
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	await _wait(2.5)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var p: Walker = w.player
+	await _shot(Worlds.current + "_1_pad")
+	p.fwd = p.fwd.rotated(p.dir, PI)
+	p.pitch = -0.25
+	await _wait(1.0)
+	await _shot(Worlds.current + "_2_ship")
+	for bl in w.buildings:
+		if bl.b.get("pad", false):
+			continue
+		_inside(bl.b.id)
+		await _wait(1.5)
+		await _shot(Worlds.current + "_3_" + str(bl.b.id))
+	if Worlds.current == "arena":
+		var club: Building = _bld("club")
+		var c: Club = null
+		for ch in club.get_children():
+			if ch is Club:
+				c = ch
+		w.hud.decks_open(c)
+		await _wait(1.0)
+		await _shot("arena_4_decks")
+	get_tree().quit()
+
+## The flight: leaving Wano, at speed through the field, and arriving.
+func _cruise() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	Cruise.target = "arena"
+	var c: Cruise = load("res://scenes/cruise.tscn").instantiate()
+	add_child(c)
+	await _wait(2.0)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await _shot("cruise_1_leaving")
+	for t in c.things:
+		(t.n as Node3D).visible = false
+	await _wait(0.5)
+	await _shot("cruise_1b_no_sky_things")
+	for t in c.things:
+		(t.n as Node3D).visible = true
+	c.speed = 290.0
+	c.boost = 0.6
+	await _wait(3.0)
+	await _shot("cruise_2_flying")
+	c.where = c.dest_at + (c.where - c.dest_at).normalized() * 3000.0
+	await _wait(1.0)
+	await _shot("cruise_3_close")
+	# arriving swaps the scene out from under this tool, so it stops just short
+	c.where = c.dest_at + (c.where - c.dest_at).normalized() * 700.0
+	await _wait(0.3)
+	print("arriving: ", c.done)
 	get_tree().quit()
 
 func _bld(id: String) -> Building:

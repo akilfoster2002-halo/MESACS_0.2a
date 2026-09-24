@@ -11,22 +11,30 @@
 class_name Planet
 extends RefCounted
 
-const R := 320.0
-const RELIEF := 9.5
+## Per world, set by use() before anything is built: how big the ball is,
+## how much it heaves, the seed its hills grow from, what stands on it and
+## the colour of its soil. They were constants while there was one planet.
+static var R := 320.0
+static var RELIEF := 9.5
+static var SEED := 1
+static var BUILDINGS: Array = Worlds.HUB.buildings
+static var SOIL: Array = Worlds.HUB.soil
+static var world: Dictionary = Worlds.HUB
 
-## Where the buildings are, in the browser's own lon/lat, and how much level
-## ground each wants round it.
-const BUILDINGS := [
-	{"id": "missions", "name": "MISSION CONTROL", "lon": 0.0, "lat": 7.0, "w": 64.0, "d": 46.0, "h": 18.0, "door": 10.0},
-	{"id": "workshop", "name": "THE WORKSHOP", "lon": -19.0, "lat": -6.0, "w": 24.0, "d": 20.0, "h": 11.0,
-		"wall": Color("4a3f7a"), "roof": Color("cdb4f6")},
-	{"id": "mall", "name": "THE MALL", "lon": 19.0, "lat": -6.0, "w": 72.0, "d": 48.0, "h": 15.0, "door": 10.0,
-		"wall": Color("6b4a5e"), "roof": Color("ffb4a2")},
-	{"id": "library", "name": "THE LIBRARY", "lon": 0.0, "lat": -21.0, "w": 26.0, "d": 20.0, "h": 11.0,
-		"wall": Color("4d6b4a"), "roof": Color("a8e6cf")},
-	{"id": "mechanic", "name": "THE MECHANIC", "lon": -34.0, "lat": 6.0, "w": 40.0, "d": 28.0, "h": 14.0, "door": 9.0,
-		"wall": Color("5c4636"), "roof": Color("ffd8a8")},
-]
+## Stand on a world: its numbers, its buildings and its pad (a pad is a
+## building with no walls, so the hills flatten under it the same way).
+static func use(w: Dictionary) -> void:
+	world = w
+	R = w.radius
+	RELIEF = w.relief
+	SEED = w.seed
+	SOIL = w.soil
+	BUILDINGS = (w.buildings as Array).duplicate()
+	if w.has("pad"):
+		BUILDINGS.append({"id": "pad", "name": "THE PAD", "lon": w.pad.lon, "lat": w.pad.lat,
+			"w": 18.0, "d": 18.0, "h": 0.0, "pad": true, "plate_visible": false})
+	noise = null
+	basins.clear()
 
 static var noise: FastNoiseLite = null
 
@@ -78,7 +86,7 @@ static func _noise() -> FastNoiseLite:
 	if noise == null:
 		noise = FastNoiseLite.new()
 		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-		noise.seed = 1
+		noise.seed = SEED
 		noise.frequency = 1.0
 		noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 		noise.fractal_octaves = 4
@@ -172,9 +180,9 @@ static func build_mesh(level := 6) -> ArrayMesh:
 	var col := PackedColorArray()
 	pos.resize(verts.size())
 	col.resize(verts.size())
-	var lush := Color(0.20, 0.42, 0.14)
-	var dry := Color(0.36, 0.44, 0.17)
-	var high := Color(0.42, 0.40, 0.32)
+	var lush: Color = SOIL[0]
+	var dry: Color = SOIL[1]
+	var high: Color = SOIL[2]
 	for i in verts.size():
 		var d: Vector3 = verts[i]
 		var h := height(d)
