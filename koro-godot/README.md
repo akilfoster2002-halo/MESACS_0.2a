@@ -28,12 +28,33 @@ godot --path koro-godot                    # or straight into the game
 | V | first person (the cockpit, in the mecha) |
 | G, 1 2 3 | dance and emotes |
 | B | who you are — Kyle, Mia, Savannah, Carlos or Robin |
-| P | pause |
+| T | the phone — Nearby is the room's chat, Texts go to anybody by username |
+| O | who is here |
+| P | pause — and **Your account**, to sign in |
 | In the car | W throttle · S brake then reverse · A D steer (only when rolling) · mouse looks round |
 | In the mecha | Shift dash · Space mega jump (hold to boost) · Q slam |
 
 Walk into water deeper than you are tall and you swim. Fly into the falls
 and they push you down and out.
+
+## Your account, and your class
+
+P → **Your account**: the address of your class's KORO server (the same one
+the website runs on), then sign in or make an account. It is the same account
+as the website's — the progress bag (coins, XP, what you own, which car, who
+you are) is the one on your account, merged with anything done here first,
+and it is saved back as it changes. You stay signed in between launches.
+
+When the server holds rooms (the Mac app, `npm run dev`, `npm start` — not the
+serverless website, which cannot keep a socket open) you are in the room you
+picked with everybody else in it, whether they are in a browser or here: you
+see them where they are, as who they chose, in their car, dancing, flying;
+they see you; the room's chat is on the phone and along the bottom of the
+screen. Texts work either way.
+
+`KORO_PROFILE=name` keeps a separate self in `user://name/`, for running two
+copies side by side. `tools/netcheck.gd` signs in against a server, stands in
+the Meadow and screenshots what it sees.
 
 ## How fast
 
@@ -77,6 +98,11 @@ the pause card, the mecha. `tools/probe.gd` looks at one building on its own.
   `assets/temple_layout.json` (written by `glb files/temple/build.py`), the pool, petals, doves
 - `scripts/islands.gd` — the four sky islands, the falls, the plunge pool, the river, fish, turtles
 - `scripts/water.gd` — the water shaders and the shapes they are drawn on
+- `scripts/net.gd` — the account (HTTP, the `mq` cookie), the progress bag on
+  it, the room (the /ws socket: `join`, `pos`, `chat`, `players`), the phone's API
+- `scripts/others.gd` — everybody else in the room, drawn and eased
+- `scripts/account.gd`, `scripts/phone.gd` — the sign-in card and the phone
+- `scripts/ctl.gd` — the keys as the game reads them, shut while you type
 - `scripts/fireflies.gd`, `scripts/scatter.gd`, `scripts/hud.gd`, `scripts/settings.gd`, `scripts/models.gd`
 
 Rigged models are sized and centred by their **bones**, not their mesh box —
@@ -85,8 +111,8 @@ skeleton carries a scale its mesh node does not.
 
 ## Not ported yet
 
-Accounts, multiplayer and the phone (they will talk to the same `server/`
-over HTTP); the other worlds (VOLTA, RYU, your home planet) and the ship. Missions and the block editor
+The other worlds (VOLTA, RYU, your home planet) and the ship that flies you
+there. Missions and the block editor
 are staying in the browser.
 
 ## Sharing a build

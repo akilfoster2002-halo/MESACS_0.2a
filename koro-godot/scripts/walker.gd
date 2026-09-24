@@ -224,15 +224,15 @@ func _process(delta: float) -> void:
 # ------------------------------------------------------------------ walking
 
 func _walk(delta: float, up: Vector3) -> void:
-	var f := Input.get_axis("back", "forward")
-	var sd := Input.get_axis("left", "right")
+	var f := Ctl.axis("back", "forward")
+	var sd := Ctl.axis("left", "right")
 	gait_f = f
 	gait_s = sd
 	if mount and sd != 0.0:
 		# on a panda, A and D turn it: nothing with four legs side-steps
 		fwd = fwd.rotated(up, -sd * 2.1 * delta).normalized()
 		sd = 0.0
-	var running := Input.is_action_pressed("run") and not swimming
+	var running := Ctl.held("run") and not swimming
 	var spd: float
 	if mount:
 		spd = 3.8 if swimming else (12.0 if running else 7.0)
@@ -273,13 +273,13 @@ func _walk(delta: float, up: Vector3) -> void:
 		alt += (surf + bob - alt) * minf(1.0, delta * 3.2)
 		vy = 0.0
 		on_ground = false
-		if Input.is_action_just_pressed("jump"):
+		if Ctl.just("jump"):
 			vy = JUMP * 0.75                 # a kick out of the water
 			alt = surf + 0.1
 			swimming = false
 	else:
 		swimming = false
-		if on_ground and Input.is_action_just_pressed("jump"):
+		if on_ground and Ctl.just("jump"):
 			vy = JUMP * (1.12 if mount else 1.0)
 			on_ground = false
 		elif on_ground and floor < alt - 0.6:
@@ -372,19 +372,19 @@ func land() -> void:
 ## roll takes time to come in and out, and the rate you turn at is what that
 ## roll is worth. And it needs air over the wings: no pivoting on the spot.
 func _fly(delta: float, up: Vector3) -> void:
-	var stick := Input.get_axis("right", "left")
+	var stick := Ctl.axis("right", "left")
 	var fast := minf(1.0, absf(air) / 12.0)
 	roll += (stick * AIR.bank * fast - roll) * minf(1.0, delta * AIR.roll)
 	var turn_rate: float = sin(roll) / sin(AIR.bank) * AIR.turn
 	if turn_rate != 0.0:
 		fwd = fwd.rotated(up, turn_rate * delta)
 	fwd = (fwd - up * fwd.dot(up)).normalized()
-	var want: float = (AIR.top if Input.is_action_pressed("forward") else 0.0) + (AIR.back if Input.is_action_pressed("back") else 0.0)
+	var want: float = (AIR.top if Ctl.held("forward") else 0.0) + (AIR.back if Ctl.held("back") else 0.0)
 	var rate: float = AIR.accel if want > air else AIR.drag
 	air += clampf(want - air, -rate * delta, rate * delta)
 	if absf(air) < 0.02:
 		air = 0.0
-	var lift := (1.0 if Input.is_action_pressed("jump") else 0.0) - (1.0 if Input.is_action_pressed("run") else 0.0)
+	var lift := (1.0 if Ctl.held("jump") else 0.0) - (1.0 if Ctl.held("run") else 0.0)
 	climb += clampf(lift * AIR.rise - climb, -AIR.climb * delta, AIR.climb * delta)
 	moving = false
 	if absf(air) > 0.01:
@@ -439,7 +439,7 @@ func _seat() -> void:
 func _animate() -> void:
 	if ap == null:
 		return
-	var running := Input.is_action_pressed("run")
+	var running := Ctl.held("run")
 	var want := "idle"
 	var sc := 1.0
 	if emote != "":

@@ -20,6 +20,16 @@ var book_find: LineEdit
 var book_text: RichTextLabel
 var ideas: Array = []
 var ada_next := 0
+var account: Account
+var phone: Phone
+var who: PanelContainer
+var who_text: RichTextLabel
+var me_label: Label
+var feed: Label
+var feed_lines: Array[String] = []
+var feed_t := 0.0
+var unread_t := 3.0
+var unread := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -54,6 +64,7 @@ func _ready() -> void:
 	_picker()
 	_pause()
 	_book()
+	_net_cards()
 
 func _label(size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -74,6 +85,15 @@ func say(text: String, secs := 3.5) -> void:
 ## The picker and the pause card hold the game still, so the keys come here
 ## first — this node keeps running while everything else is paused.
 func _unhandled_input(ev: InputEvent) -> void:
+	var esc: bool = ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE)
+	if account.visible or phone.visible or who.visible:
+		if esc or (who.visible and ev.is_action_pressed("who")):
+			account.visible = false
+			phone.visible = false
+			who.visible = false
+			_hold()
+			get_viewport().set_input_as_handled()
+		return
 	if book.visible:
 		if ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE):
 			library_close()
@@ -89,6 +109,21 @@ func _unhandled_input(ev: InputEvent) -> void:
 func _process(delta: float) -> void:
 	toast_t -= delta
 	toast.modulate.a = clampf(toast_t / 0.6, 0.0, 1.0)
+	feed_t -= delta
+	feed.modulate.a = clampf(feed_t / 1.5, 0.0, 1.0)
+	var net: Net = world.net
+	var status := "Guest — P → Your account to sign in"
+	if net.signed_in():
+		var room_name: String = Net.ROOMS.filter(func(r): return r[0] == net.room)[0][1] if net.room != "" else "?"
+		status = "%s · %s" % [net.me.get("display", "?"), room_name]
+		status += (" · %d here" % (world.others.count() + 1)) if net.live else " · no live room"
+		unread_t -= delta
+		if unread_t <= 0.0:
+			unread_t = 12.0
+			_check_unread()
+	if unread > 0:
+		status += "   ·   %d new text%s — T" % [unread, "" if unread == 1 else "s"]
+	me_label.text = status
 
 ## A simple cockpit frame round the view, for the mecha's first person.
 func _cockpit() -> Control:
@@ -240,11 +275,12 @@ func _pause() -> void:
 	var keys := Label.new()
 	keys.text = """WASD walk · mouse look · SHIFT run · SPACE jump · scroll zoom
 F fly · E ride, climb in, get in · R car / get out · V first person
-G dance · 1 2 3 emotes · B who you are · P pause"""
+G dance · 1 2 3 emotes · B who you are · T phone · O who is here · P pause"""
 	keys.add_theme_font_size_override("font_size", 15)
 	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(keys)
 	for spec in [["Resume", func(): toggle_pause()], ["Who you are", func(): toggle_pause(); toggle_picker()],
+			["Your account", func(): toggle_pause(); account_open()],
 			["Quit", func(): get_tree().quit()]]:
 		var b := Button.new()
 		b.text = spec[0]
@@ -261,14 +297,121 @@ func is_paused() -> bool:
 	return paused.visible
 
 ## Any card up holds the world still and frees the mouse; none, and it is yours.
+## The phone, the account and the roster do NOT hold the world still: you
+## are in a room with other people, and it goes on without you.
 func _hold() -> void:
-	var up := picker.visible or paused.visible or book.visible
-	get_tree().paused = up
+	var still := picker.visible or paused.visible or book.visible
+	var up: bool = still or account.visible or phone.visible or who.visible
+	get_tree().paused = still
 	world.ui_open = up
+	Ctl.blocked = up
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if up else Input.MOUSE_MODE_CAPTURED
 
 func any_open() -> bool:
-	return picker.visible or paused.visible or book.visible
+	return picker.visible or paused.visible or book.visible or account.visible or phone.visible or who.visible
+
+# ---------------------------------------------------------- the network
+
+func _net_cards() -> void:
+	var net: Net = world.net
+	account = Account.new().build(net, self)
+	_style(account)
+	phone = Phone.new().build(net, self)
+	_style(phone)
+	who = _card()
+	who.custom_minimum_size = Vector2(420, 360)
+	var col := VBoxContainer.new()
+	who.add_child(col)
+	var title := Label.new()
+	title.text = "WHO IS HERE"
+	title.add_theme_font_size_override("font_size", 24)
+	col.add_child(title)
+	who_text = RichTextLabel.new()
+	who_text.bbcode_enabled = true
+	who_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	who_text.custom_minimum_size = Vector2(0, 280)
+	col.add_child(who_text)
+	me_label = _label(15, Color(0.85, 1.0, 0.92))
+	me_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	me_label.offset_left = -560
+	me_label.offset_right = -16
+	me_label.offset_top = 10
+	me_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	feed = _label(16, Color(1, 1, 1))
+	feed.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	feed.offset_left = 16
+	feed.offset_top = -210
+	feed.offset_right = 800
+	feed.offset_bottom = -60
+	feed.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	net.said.connect(_feed)
+	net.buzz.connect(func(m):
+		unread += 1
+		say("Text from %s: %s" % [m.get("display", "?"), m.get("text", "")], 4.0))
+
+func _style(p: PanelContainer) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.07, 0.14, 0.94)
+	sb.border_color = Color(0.56, 0.83, 1.0, 0.5)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(14)
+	for side in ["left", "right", "top", "bottom"]:
+		sb.set("content_margin_" + side, 22)
+	p.add_theme_stylebox_override("panel", sb)
+	p.set_anchors_preset(Control.PRESET_CENTER)
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	p.visible = false
+	add_child(p)
+
+## The room, in a line or two at the bottom of the screen, for a few seconds:
+## you should not have to open the phone to find out somebody said hello.
+func _feed(line: Dictionary) -> void:
+	if line.get("old", false):
+		return
+	var s: String = str(line.sys) if line.has("sys") else "%s: %s" % [line.from, line.text]
+	feed_lines.append(s)
+	while feed_lines.size() > 5:
+		feed_lines.pop_front()
+	feed.text = "\n".join(feed_lines)
+	feed_t = 10.0
+
+func _check_unread() -> void:
+	var j: Dictionary = await world.net.unread()
+	if j.get("ok", false):
+		unread = int(j.get("count", 0))
+
+func account_open() -> void:
+	account.visible = true
+	_hold()
+
+func account_close() -> void:
+	account.visible = false
+	_hold()
+
+func phone_open() -> void:
+	phone.visible = true
+	phone.opened()
+	unread = 0
+	_hold()
+
+func phone_close() -> void:
+	phone.visible = false
+	_hold()
+
+func who_toggle() -> void:
+	who.visible = not who.visible
+	if who.visible:
+		var net: Net = world.net
+		var out := "[b]%s[/b]  (you)\n" % (net.me.get("display", "you") if net.signed_in() else "you")
+		for p in net.roster:
+			out += "%s%s\n" % [p.get("display", "?"), "" if str(p.get("at", "")) == "hub" else "  — elsewhere"]
+		if not net.signed_in():
+			out += "\n[color=#ffe9a8]Sign in (P → Your account) to see your class.[/color]"
+		elif not net.live:
+			out += "\n[color=#ffe9a8]No live room on this server right now.[/color]"
+		who_text.text = out
+	_hold()
 
 # ---------------------------------------------------------------- the book
 

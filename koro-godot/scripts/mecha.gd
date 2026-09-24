@@ -115,11 +115,11 @@ func _process(delta: float) -> void:
 
 func _drive(delta: float) -> void:
 	var up := dir
-	var turn := Input.get_axis("right", "left")
+	var turn := Ctl.axis("right", "left")
 	if turn != 0.0:
 		fwd = fwd.rotated(up, turn * 1.4 * delta).normalized()
-	var f := Input.get_axis("back", "forward")
-	dashing = Input.is_action_pressed("run") and f > 0.0
+	var f := Ctl.axis("back", "forward")
+	dashing = Ctl.held("run") and f > 0.0
 	var want := f * (DASH if dashing else WALK)
 	var acc := 26.0 if dashing else 18.0
 	spd += clampf(want - spd, -acc * delta, acc * delta)
@@ -135,8 +135,8 @@ func _drive(delta: float) -> void:
 			fwd = (fwd - dir * fwd.dot(dir)).normalized()
 			moved = true
 
-	var space := Input.is_action_pressed("jump")
-	var q := Input.is_action_just_pressed("slam")
+	var space := Ctl.held("jump")
+	var q := Ctl.just("slam")
 	hover = false
 	if on_ground:
 		if space and jump_ready:

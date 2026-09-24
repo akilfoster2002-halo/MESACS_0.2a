@@ -7,7 +7,6 @@
 class_name Progress
 extends RefCounted
 
-const PATH := "user://progress.json"
 static var bag := {}
 static var loaded := false
 static var owed := false          # changed since the server last had it
@@ -17,8 +16,8 @@ static func _load() -> void:
 	if loaded:
 		return
 	loaded = true
-	if FileAccess.file_exists(PATH):
-		var d = JSON.parse_string(FileAccess.get_file_as_string(PATH))
+	if FileAccess.file_exists(Settings.dir() + "progress.json"):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(Settings.dir() + "progress.json"))
 		if d is Dictionary:
 			bag = d
 
@@ -64,7 +63,7 @@ static func _list(v: Variant) -> Array:
 	return p if p is Array else []
 
 static func _save() -> void:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	var f := FileAccess.open(Settings.dir() + "progress.json", FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(bag))
 

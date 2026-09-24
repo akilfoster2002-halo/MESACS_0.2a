@@ -3,13 +3,22 @@
 class_name Settings
 extends RefCounted
 
-const PATH := "user://koro.cfg"
 static var cfg: ConfigFile = null
+
+## KORO_PROFILE=name keeps a whole separate self in user://name/ — how two
+## copies run side by side on one machine, and how a test signs in without
+## touching the settings of whoever actually plays here.
+static func dir() -> String:
+	var p := OS.get_environment("KORO_PROFILE")
+	if p == "":
+		return "user://"
+	DirAccess.make_dir_recursive_absolute("user://" + p)
+	return "user://" + p + "/"
 
 static func _cfg() -> ConfigFile:
 	if cfg == null:
 		cfg = ConfigFile.new()
-		cfg.load(PATH)
+		cfg.load(dir() + "koro.cfg")
 	return cfg
 
 static func get_value(key: String, fallback: Variant = null) -> Variant:
@@ -17,4 +26,4 @@ static func get_value(key: String, fallback: Variant = null) -> Variant:
 
 static func set_value(key: String, v: Variant) -> void:
 	_cfg().set_value("koro", key, v)
-	_cfg().save(PATH)
+	_cfg().save(dir() + "koro.cfg")

@@ -68,8 +68,8 @@ func _process(delta: float) -> void:
 
 func _drive(delta: float) -> void:
 	var up := dir
-	var throttle := Input.get_axis("back", "forward")
-	var st := Input.get_axis("right", "left")
+	var throttle := Ctl.axis("back", "forward")
+	var st := Ctl.axis("right", "left")
 	if throttle > 0.0:
 		spd += ACCEL * delta
 	elif throttle < 0.0:

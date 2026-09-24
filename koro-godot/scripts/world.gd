@@ -19,6 +19,8 @@ var car: Car
 var islands: Islands
 var temple: Temple
 var hud: Hud
+var net: Net
+var others: Others
 var pandas: Array = []
 var buildings: Array = []
 var env: Environment
@@ -30,7 +32,7 @@ const KEYS := {
 	"run": [KEY_SHIFT], "jump": [KEY_SPACE], "use": [KEY_E],
 	"off": [KEY_R], "view": [KEY_V], "slam": [KEY_Q], "mouse": [KEY_ESCAPE],
 	"fly": [KEY_F], "dance": [KEY_G], "emote1": [KEY_1], "emote2": [KEY_2], "emote3": [KEY_3],
-	"who": [KEY_B], "pause": [KEY_P],
+	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O],
 }
 
 var _t0 := 0
@@ -73,6 +75,13 @@ func _ready() -> void:
 	_lap("trees")
 	_creatures()
 	_lap("creatures")
+	others = Others.new()
+	others.world = self
+	add_child(others)
+	net = Net.new()
+	net.world = self
+	add_child(net)
+	net.players_in.connect(others.show_list)
 	hud = Hud.new()
 	hud.world = self
 	add_child(hud)
@@ -260,6 +269,12 @@ func blocked(to: Vector3, alt: float, r := 0.35, h := 1.75, step := STEP) -> boo
 	q.transform = Transform3D(Planet.frame_at(to), to * (Planet.R + mid))
 	return not get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
 
+## The floor a body stands on when nothing is lifting it — the hills, or a
+## building's plate — without the islands or the roofs. Height over it is what
+## travels to everybody else, so it means the same on a hill as in the Mall.
+func base_floor(dir: Vector3) -> float:
+	return floor_at(dir, Planet.height(dir) + 2.2, 0.3)
+
 func water_at(dir: Vector3) -> float:
 	return islands.water_at(dir) if islands else NAN
 
@@ -289,6 +304,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 		hud.toggle_pause()
 	elif ev.is_action_pressed("who"):
 		hud.toggle_picker()
+	elif ev.is_action_pressed("phone"):
+		hud.phone_open()
+	elif ev.is_action_pressed("roster"):
+		hud.who_toggle()
 	elif ev.is_action_pressed("use"):
 		_use()
 	elif ev.is_action_pressed("off"):
