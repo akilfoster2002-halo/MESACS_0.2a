@@ -87,7 +87,14 @@ static func bone_bounds(root: Node3D) -> AABB:
 
 ## Scale a model so it stands `height` tall, feet on y=0, centred over x/z=0.
 ## Rigged models are measured by their bones (see above); the rest by mesh.
+## Measured STANDING, in the idle clip's first frame, not the rest pose: a
+## clip can carry the hips higher than the rest pose does, and a body fitted
+## at rest then floats a metre off the grass once idle plays.
 static func fit_height(model: Node3D, height: float) -> float:
+	var ap := anim_player(model)
+	if ap and ap.has_animation("idle"):
+		ap.play("idle", 0.0)
+		ap.seek(0.0, true)
 	var box := bone_bounds(model)
 	if box.size.y < 1e-4:
 		box = bounds(model)
