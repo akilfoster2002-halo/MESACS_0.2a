@@ -6,3 +6,4 @@
 /assets/*.jpg
 /assets/*.webp
 /assets/*.png
+/assets/characters/*_texture_*.webp

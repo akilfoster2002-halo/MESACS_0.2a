@@ -825,8 +825,8 @@ func _library() -> void:
 	for i in 3:
 		box(Vector3(1.1, 0.16, 0.8), Vector3(x - 1.9, 1.18 + i * 0.17, z), "spine%d" % i, false, (i - 1) * 0.12)
 	# never the character the player is wearing: two of you is a bug, not a cast
-	var mine := str(Progress.get_value("char", "s"))
-	var ada_id := "t" if mine != "t" else "u"
+	var mine := Walker.cast_of(str(Progress.get_value("char", "nia")))
+	var ada_id := "zuri" if mine != "zuri" else "theo"
 	var ada := Models.spawn("res://assets/characters/character-%s.glb" % ada_id)
 	add_child(ada)
 	Models.use_vertex_colors(ada)

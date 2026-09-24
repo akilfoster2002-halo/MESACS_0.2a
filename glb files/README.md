@@ -67,6 +67,36 @@ unset (which glTF reads as fully metallic — dark without an environment map).
 Strip the emissive and set metallic 0, roughness ~0.85. She is the one character
 that keeps a texture; the Mixamo ones are vertex-painted.
 
+## The cast: Nia, Sable, Kofi, Theo and Zuri
+
+The Godot game's whole roster, and the reason Kyle, Mia, Savannah, Carlos and
+Robin are retired there. Each started as reference art, was redrawn by
+Higgsfield (`gpt_image_2_5`) into ONE shared style — Nia first, then each of
+the others with Nia passed as a second reference and told to match her exactly —
+standing in a rig-friendly A-pose on flat grey (`cast/art/`). Then:
+
+```bash
+# Higgsfield image_to_3d: should_texture, enable_rigging, pose_mode a-pose,
+# rigging_height_meters per character, 30k triangles  ->  cast/<name>-raw.glb
+sh cast/build.sh nia
+cp cast/nia.glb ../koro-godot/assets/characters/character-nia.glb
+```
+
+`build.sh` is the Higgsfield route above with all eighteen clips the Godot game
+asks for (the directional gaits, `swim`, `ride`, and `salsa`/`flip` for the
+emotes), a 2048 WebP texture, and `cast/fix-material.js`, which does the
+material fix this section describes — no emissive, metallic 0, roughness 0.85 —
+in the file rather than at load. No `quantize`: the Godot copies stay plain.
+
+A realistic face in the reference comes back realistic however the style is
+described; Sable's and Kofi's first drafts did. Naming the style's FEATURES —
+big expressive eyes, a simplified nose and mouth, "not realistic" — and passing
+two cast members as references, not one, is what brought them into line.
+
+The roster cards (`character-<id>.png`, 256×328) are cut from the same art,
+head to thigh. `godot --path koro-godot res://tools/cast.tscn -- out.png [clip]`
+renders all five side by side in the game's own light.
+
 ## The tools
 
 | | |

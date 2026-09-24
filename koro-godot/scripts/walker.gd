@@ -24,7 +24,18 @@ const CEILING := 120.0
 ## letting go of W leaves you gliding and a turn at speed carries you wide.
 const AIR := {"top": 34.0, "accel": 22.0, "drag": 6.0, "back": -6.0, "turn": 1.7,
 	"climb": 16.0, "rise": 26.0, "bank": 0.62, "roll": 3.2, "floor": 1.4}
-const CHARACTERS := {"s": "Kyle", "t": "Mia", "u": "Savannah", "v": "Carlos", "w": "Robin"}
+## The cast: Higgsfield image-to-3D, retargeted onto the game's clips
+## (glb files/cast/build.sh). The painted Kyle, Mia, Savannah, Carlos and
+## Robin are retired.
+const CHARACTERS := {"nia": "Nia", "sable": "Sable", "kofi": "Kofi", "theo": "Theo", "zuri": "Zuri"}
+## Who an old id is now — a save, or a browser player, that still says
+## s..x gets a fixed new body rather than everybody becoming the first one.
+const RETIRED := {"s": "theo", "t": "zuri", "u": "sable", "v": "kofi", "w": "nia", "x": "nia"}
+
+static func cast_of(id: String) -> String:
+	if CHARACTERS.has(id):
+		return id
+	return RETIRED.get(id, CHARACTERS.keys()[0])
 
 var world: Node3D
 var dir := Vector3(0, 0, 1)
@@ -56,7 +67,7 @@ var turned := 0.0              # what the mouse turned you by this frame
 var zoom := 6.2
 var emote := ""
 var emote_t := 0.0
-var character := "s"
+var character := "nia"
 var gait_f := 0.0
 var gait_s := 0.0
 
@@ -70,9 +81,7 @@ var cam: Camera3D
 
 func _ready() -> void:
 	# who you are rides in the progress bag, so it follows your account
-	character = str(Progress.get_value("char", Settings.get_value("character", "s")))
-	if not CHARACTERS.has(character):
-		character = "s"
+	character = cast_of(str(Progress.get_value("char", Settings.get_value("character", "nia"))))
 	_load_body()
 	cam = Camera3D.new()
 	cam.far = 5000.0

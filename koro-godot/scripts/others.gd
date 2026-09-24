@@ -48,9 +48,7 @@ func show_list(list: Array) -> void:
 				"dir": d, "tdir": d, "head": float(p.get("yaw", 0)), "thead": float(p.get("yaw", 0)),
 				"up": float(p.get("y", 0)), "tup": float(p.get("y", 0)), "speed": 0.0, "act": ""}
 			folk[id] = o
-		var ch := str(p.get("char", "s"))
-		if not Walker.CHARACTERS.has(ch):
-			ch = "s"
+		var ch := Walker.cast_of(str(p.get("char", "nia")))
 		if o.char != ch:
 			o.char = ch
 			if o.model:

@@ -111,7 +111,7 @@ func _room() -> void:
 	add_child(sign)
 	bld.usable(Vector3(0, 0, -hd + 6.0), "play the decks", func(w): w.hud.decks_open(self), 3.0)
 	# the DJ, behind the decks
-	var dj := Models.spawn("res://assets/characters/character-w.glb")
+	var dj := Models.spawn("res://assets/characters/character-kofi.glb")
 	add_child(dj)
 	Models.use_vertex_colors(dj)
 	Models.fit_height(dj, Walker.HEIGHT * 0.94)
@@ -141,7 +141,7 @@ func _room() -> void:
 
 ## The whole roster, alternating, on the floor.
 func _crowd() -> void:
-	var ids := ["s", "t", "u", "v", "w"]
+	var ids: Array = Walker.CHARACTERS.keys()
 	for i in 10:
 		var who := Models.spawn("res://assets/characters/character-%s.glb" % ids[i % ids.size()])
 		add_child(who)
