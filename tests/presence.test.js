@@ -51,8 +51,11 @@ test('the filter checks the shape of a character id, not a list of them', ()=>{
   const re = serverAccepts();
   // adding a character must not need a server deploy...
   assert.ok(re.test('z'), 'a letter the roster has not reached yet is refused');
-  // ...but the id still names a file, so it stays one plain letter
-  ['', 'ab', '../x', 'A', '1', 'a/b'].forEach(bad =>
+  // ...and the Godot game's cast are names, not letters (nia, sable, kofi…)
+  ['nia', 'sable', 'kofi', 'theo', 'zuri'].forEach(ok =>
+    assert.ok(re.test(ok), JSON.stringify(ok) + ' — a cast name — is refused'));
+  // ...but the id still names a file, so it stays plain lowercase letters
+  ['', '../x', 'A', '1', 'a/b', 'nia2', 'x'.repeat(13)].forEach(bad =>
     assert.ok(!re.test(bad), JSON.stringify(bad) + ' is accepted as a character id'));
 });
 

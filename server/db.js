@@ -108,6 +108,41 @@ async function init(){
     CREATE INDEX IF NOT EXISTS phone_to   ON phone_messages (to_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS phone_from ON phone_messages (from_id, created_at DESC);
 
+    /* ------------------------------------------------ chat rooms
+       Rooms players own (server/chatrooms.js). What the room IS lives
+       here; who is in it right now is live state and never written down.
+       The environment and the objects are one JSON document each: they
+       are only ever read and written whole, by the owner's save. */
+    CREATE TABLE IF NOT EXISTS chat_rooms (
+      id         SERIAL PRIMARY KEY,
+      owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      access     TEXT NOT NULL DEFAULT 'private',
+      template   TEXT NOT NULL DEFAULT 'empty',
+      env        JSONB NOT NULL DEFAULT '{}'::jsonb,
+      objects    JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS chat_rooms_owner ON chat_rooms (owner_id);
+    CREATE TABLE IF NOT EXISTS chat_room_members (
+      room_id  INTEGER NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
+      user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      added_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (room_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS chat_room_visits (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      room_id INTEGER NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
+      at      TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (user_id, room_id)
+    );
+    /* nobody but this server reads them: closed to Supabase's public API,
+       open to the owner role the server connects as */
+    ALTER TABLE chat_rooms ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE chat_room_members ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE chat_room_visits ENABLE ROW LEVEL SECURITY;
+
     /* a class used to be required at sign-up; nobody has one now */
     ALTER TABLE users ALTER COLUMN class_id DROP NOT NULL;
   `).then(()=>{ state.ready=true; });

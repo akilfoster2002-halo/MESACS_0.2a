@@ -25,6 +25,10 @@ let nextId = 1;
 let nextGameId = 1;
 const texts = [];          // the phone: {id,from_id,to_id,text,read_at,hidden,created_at}
 let nextTextId = 1;
+const chatRooms = [];      // {id,owner_id,name,access,template,env,objects,created_at,updated_at}
+const chatMembers = [];    // {room_id,user_id,added_at}
+const chatVisits = [];     // {user_id,room_id,at}
+let nextRoomId = 1;
 
 const like = (sql, ...bits) => bits.every(b => sql.includes(b));
 const rows = r => ({ rows:r, rowCount:r.length });
@@ -209,6 +213,82 @@ function query(text, params){
     return Promise.resolve(rows(g ? [{ id:g.id }] : []));
   }
 
+  /* ---------------------------------------------------- chat rooms
+     The statements in server/chatrooms.js, one for one. */
+  const now = () => new Date().toISOString();
+  const byNewest = k => (a, b) => String(b[k]).localeCompare(String(a[k]));
+  const card = r => { const u = userById(r.owner_id);
+    return { id:r.id, name:r.name, access:r.access, owner_id:r.owner_id, owner_display:u.display }; };
+  const jsonOf = v => typeof v === 'string' ? JSON.parse(v) : v;
+  if(like(sql, 'INSERT INTO chat_rooms')){
+    const r = { id:nextRoomId++, owner_id:p[0], name:p[1], access:p[2], template:p[3],
+                env:jsonOf(p[4]), objects:jsonOf(p[5]), created_at:now(), updated_at:now() };
+    chatRooms.push(r);
+    return Promise.resolve(rows([{ id:r.id }]));
+  }
+  if(like(sql, 'FROM chat_rooms r JOIN users u ON u.id=r.owner_id WHERE r.id=$1')){
+    const r = chatRooms.find(x => x.id === p[0]);
+    if(!r) return Promise.resolve(rows([]));
+    const u = userById(r.owner_id);
+    return Promise.resolve(rows([{ ...r, owner_display:u.display, owner_username:u.username }]));
+  }
+  if(like(sql, 'SELECT count(*)::int AS n FROM chat_rooms WHERE owner_id=$1'))
+    return Promise.resolve(rows([{ n:chatRooms.filter(r => r.owner_id === p[0]).length }]));
+  if(like(sql, 'FROM chat_rooms r JOIN users u', 'WHERE r.owner_id=$1'))
+    return Promise.resolve(rows(chatRooms.filter(r => r.owner_id === p[0]).sort(byNewest('updated_at')).slice(0, 30).map(card)));
+  if(like(sql, 'FROM chat_room_members m JOIN chat_rooms r'))
+    return Promise.resolve(rows(chatMembers.filter(m => m.user_id === p[0]).sort(byNewest('added_at'))
+      .map(m => chatRooms.find(r => r.id === m.room_id)).filter(Boolean).slice(0, 30).map(card)));
+  if(like(sql, 'FROM chat_room_visits v JOIN chat_rooms r'))
+    return Promise.resolve(rows(chatVisits.filter(v => v.user_id === p[0]).sort(byNewest('at'))
+      .map(v => chatRooms.find(r => r.id === v.room_id)).filter(Boolean).slice(0, 12).map(card)));
+  if(like(sql, 'FROM chat_rooms r JOIN users u', 'lower(r.name) LIKE $1')){
+    const q = String(p[0]).replace(/%/g, '');
+    return Promise.resolve(rows(chatRooms.filter(r => (r.access !== 'private' || r.owner_id === p[1]) && r.name.toLowerCase().includes(q))
+      .sort(byNewest('updated_at')).slice(0, 20).map(card)));
+  }
+  if(like(sql, 'SELECT 1 AS yes FROM chat_room_members'))
+    return Promise.resolve(rows(chatMembers.some(m => m.room_id === p[0] && m.user_id === p[1]) ? [{ yes:1 }] : []));
+  if(like(sql, 'FROM chat_room_members m JOIN users u'))
+    return Promise.resolve(rows(chatMembers.filter(m => m.room_id === p[0]).map(m => userById(m.user_id))
+      .filter(u => u.id).map(u => ({ id:u.id, username:u.username, display:u.display }))
+      .sort((a, b) => String(a.display).localeCompare(String(b.display)))));
+  if(like(sql, 'INSERT INTO chat_room_members')){
+    if(!chatMembers.some(m => m.room_id === p[0] && m.user_id === p[1]))
+      chatMembers.push({ room_id:p[0], user_id:p[1], added_at:now() });
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'DELETE FROM chat_room_members')){
+    for(let i = chatMembers.length - 1; i >= 0; i--)
+      if(chatMembers[i].room_id === p[0] && chatMembers[i].user_id === p[1]) chatMembers.splice(i, 1);
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'INSERT INTO chat_room_visits')){
+    const v = chatVisits.find(x => x.user_id === p[0] && x.room_id === p[1]);
+    if(v) v.at = now(); else chatVisits.push({ user_id:p[0], room_id:p[1], at:now() });
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'UPDATE chat_rooms SET env=$2,objects=$3')){
+    const r = chatRooms.find(x => x.id === p[0]);
+    if(r){ r.env = jsonOf(p[1]); r.objects = jsonOf(p[2]); r.updated_at = now(); }
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'UPDATE chat_rooms SET name=$2')){
+    const r = chatRooms.find(x => x.id === p[0]); if(r){ r.name = p[1]; r.updated_at = now(); }
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'UPDATE chat_rooms SET access=$2')){
+    const r = chatRooms.find(x => x.id === p[0]); if(r){ r.access = p[1]; r.updated_at = now(); }
+    return Promise.resolve(rows([]));
+  }
+  if(like(sql, 'DELETE FROM chat_rooms WHERE id=$1')){
+    const i = chatRooms.findIndex(x => x.id === p[0]);
+    if(i >= 0) chatRooms.splice(i, 1);
+    for(const list of [chatMembers, chatVisits])
+      for(let j = list.length - 1; j >= 0; j--) if(list[j].room_id === p[0]) list.splice(j, 1);
+    return Promise.resolve(rows([]));
+  }
+
   /* Anything else is a statement this shim has never been shown. Fail
      loudly: a dev database that silently answers "no rows" to a query it
      does not understand is a debugging session about the wrong thing. */
@@ -226,7 +306,8 @@ class Pool {
 /* ------------------------------------------------------- saving to disk */
 let saveFile = null, saveT = null;
 function snapshot(){
-  return { users, games, votes, texts, nextId, nextGameId, nextTextId };
+  return { users, games, votes, texts, nextId, nextGameId, nextTextId,
+           chatRooms, chatMembers, chatVisits, nextRoomId };
 }
 function save(){
   if(!saveFile) return;
@@ -243,6 +324,8 @@ function restore(file){
     votes.push(...(d.votes||[])); texts.push(...(d.texts||[]));
     nextId = d.nextId || nextId; nextGameId = d.nextGameId || nextGameId;
     nextTextId = d.nextTextId || nextTextId;
+    chatRooms.push(...(d.chatRooms||[])); chatMembers.push(...(d.chatMembers||[]));
+    chatVisits.push(...(d.chatVisits||[])); nextRoomId = d.nextRoomId || nextRoomId;
   }catch(e){ if(e.code!=='ENOENT') console.error('memdb: could not read', e.message); }
 }
 const WRITES = /^\s*(INSERT|UPDATE|DELETE)/i;

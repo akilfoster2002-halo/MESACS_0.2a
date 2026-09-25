@@ -23,6 +23,7 @@ const auth = require('./auth');
 const mech = require('./mechmatch');
 const tutor = require('./tutor');
 const npc = require('./npc');
+const rooms = require('./chatrooms');
 
 const app = express();
 /* Sixteen kilobytes is the right ceiling for everything this server took
@@ -567,6 +568,161 @@ app.post('/api/teacher/texts/hide', async (req,res)=>{
   }catch(e){ console.error(e); bad(res,500,'Could not do that'); }
 });
 
+/* ========================================================= chat rooms
+   Places players own (server/chatrooms.js). Every request is signed in,
+   and everything an owner may do is checked against the database from the
+   session — the client saying "it's my room" counts for nothing. */
+const roomStore = rooms.makeStore(db);
+const crCount = id => { let n = 0; for (const [, p] of live) if (p.server === 'cr:' + id) n++; return n; };
+const withCounts = list => list.map(r => ({ ...r, players: crCount(r.id) }));
+/* Everybody inside room `id` for whom keep(userId) is false is sent back
+   out: removed from the list, the room made private, or the room gone. */
+function crKick(id, keep, reason) {
+  const key = 'cr:' + id;
+  for (const [ws, p] of live) if (p.server === key && !keep(p.id)) {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ t:'crkick', id, reason }));
+    broadcastRoom(key, { t:'left', id:p.id, display:p.display }, ws);
+    p.server = null; p.objs.clear();
+  }
+  forgetIfEmpty(key);
+}
+async function roomUser(req, res) {
+  const s = auth.fromReq(req);
+  if (!s) { bad(res, 401, 'Sign in to use chat rooms — P → Your account.'); return null; }
+  if (!rooms.on()) { bad(res, 503, 'Chat rooms are not set up on this server.'); return null; }
+  return s;
+}
+/* The room, if `s` owns it; otherwise the answer has already gone. */
+async function ownRoom(req, res, s) {
+  const r = await roomStore.room(Number(req.params.id) || 0);
+  if (!r) { bad(res, 404, 'No such room.'); return null; }
+  if (r.owner_id !== s.id) { bad(res, 403, 'Only the owner can do that.'); return null; }
+  return r;
+}
+const roomFail = (res, e) => { console.error('[rooms]', e && e.message ? e.message : e); bad(res, 500, 'Could not do that just now.'); };
+
+app.get('/api/rooms', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  try {
+    const [mine, invited, recent] = await Promise.all([roomStore.mine(s.id), roomStore.invited(s.id), roomStore.recent(s.id)]);
+    ok(res, { mine:withCounts(mine), invited:withCounts(invited), recent:withCounts(recent), max:rooms.MAX_OWNED });
+  } catch (e) { roomFail(res, e); }
+});
+app.get('/api/rooms/search', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  const q = String(req.query.q || '').trim().slice(0, 32);
+  if (!q) return ok(res, { rooms:[] });
+  try { ok(res, { rooms:withCounts(await roomStore.search(q, s.id)) }); } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  const name = rooms.cleanName(req.body.name);
+  if (!name) return bad(res, 400, 'Give the room a name.');
+  const access = rooms.ACCESS.includes(req.body.access) ? req.body.access : 'private';
+  if (rateLimited('room:' + s.id, 10, 60000)) return bad(res, 429, 'Slow down a little.');
+  try {
+    if (await roomStore.countOwned(s.id) >= rooms.MAX_OWNED)
+      return bad(res, 400, 'You have ' + rooms.MAX_OWNED + ' rooms already — delete one to make another.');
+    const made = await roomStore.create(s.id, name, access, rooms.fromTemplate(String(req.body.template || 'empty')));
+    ok(res, { room:rooms.view(await roomStore.room(made.id), s.id) });
+  } catch (e) { roomFail(res, e); }
+});
+app.get('/api/rooms/:id', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  try {
+    const r = await roomStore.room(Number(req.params.id) || 0);
+    if (!r || !(await roomStore.canEnter(r, s.id))) return bad(res, 404, 'No such room — or it is not open to you.');
+    const out = rooms.view(r, s.id);
+    out.players = crCount(r.id);
+    if (out.mine) out.members = await roomStore.members(r.id);
+    ok(res, { room:out });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/enter', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  try {
+    const r = await roomStore.room(Number(req.params.id) || 0);
+    if (!r) return bad(res, 404, 'That room is gone.');
+    if (!(await roomStore.canEnter(r, s.id)))
+      return bad(res, 403, r.access === 'invited' ? 'That room is invite only — ask ' + r.owner_display + ' to add you.' : 'That room is private.');
+    await roomStore.visit(s.id, r.id);
+    const out = rooms.view(r, s.id);
+    if (out.mine) out.members = await roomStore.members(r.id);
+    ok(res, { room:out, server:'cr:' + r.id });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/save', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  if (JSON.stringify(req.body || {}).length > 60000) return bad(res, 413, 'That room is too big to save.');
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    const cur = typeof r.env === 'string' ? JSON.parse(r.env) : r.env;
+    const env = rooms.cleanEnv(req.body.env, cur);
+    const objects = rooms.cleanObjects(req.body.objects);
+    await roomStore.save(r.id, env, objects);
+    broadcastRoom('cr:' + r.id, { t:'crupdate', id:r.id });
+    ok(res, { room:rooms.view(await roomStore.room(r.id), s.id) });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/rename', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  const name = rooms.cleanName(req.body.name);
+  if (!name) return bad(res, 400, 'Give the room a name.');
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    await roomStore.rename(r.id, name);
+    broadcastRoom('cr:' + r.id, { t:'crupdate', id:r.id });
+    ok(res, { name });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/access', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  const access = req.body.access;
+  if (!rooms.ACCESS.includes(access)) return bad(res, 400, 'Private, invited or public.');
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    await roomStore.setAccess(r.id, access);
+    if (access !== 'public') {
+      const allowed = new Set((await roomStore.members(r.id)).map(m => m.id));
+      crKick(r.id, uid => uid === r.owner_id || allowed.has(uid), 'The owner closed the room.');
+    }
+    broadcastRoom('cr:' + r.id, { t:'crupdate', id:r.id });
+    ok(res, { access });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/invite', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  const username = String(req.body.username || '').trim().toLowerCase();
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    const u = (await db.q('SELECT id,username,display FROM users WHERE username=$1', [username])).rows[0];
+    if (!u) return bad(res, 404, 'Nobody is called @' + username + '.');
+    if (u.id === s.id) return bad(res, 400, 'It is your room already.');
+    await roomStore.addMember(r.id, u.id);
+    send(u.id, { t:'crinvite', id:r.id, name:r.name, from:r.owner_display });
+    ok(res, { members:await roomStore.members(r.id) });
+  } catch (e) { roomFail(res, e); }
+});
+app.post('/api/rooms/:id/remove', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    const uid = Number(req.body.userId) || 0;
+    await roomStore.removeMember(r.id, uid);
+    if (r.access !== 'public') crKick(r.id, id => id !== uid, 'The owner took you off the list.');
+    ok(res, { members:await roomStore.members(r.id) });
+  } catch (e) { roomFail(res, e); }
+});
+app.delete('/api/rooms/:id', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  try {
+    const r = await ownRoom(req, res, s); if (!r) return;
+    crKick(r.id, () => false, 'The owner deleted the room.');
+    await roomStore.remove(r.id);
+    ok(res, {});
+  } catch (e) { roomFail(res, e); }
+});
+
 /* ------------------------------------------------- free play + chat */
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path:'/ws' });
@@ -592,8 +748,12 @@ function occupied(server){
 }
 /* Call with the room somebody has just left — including on disconnect. */
 function forgetIfEmpty(server){
-  if(server && !occupied(server)) chats.delete(server);
+  if(server && !occupied(server)){ chats.delete(server); crLive.delete(server); }
 }
+/* A chat room's live half: which switch is up, which track is playing, when
+   a robot was set running. Relayed and remembered while anybody is inside,
+   so a latecomer walks into the room as it is; never written down. */
+const crLive = new Map();  // 'cr:<id>' -> Map(objectId -> state)
 
 /* `server` is null until the client picks a room, so an unjoined socket is
    simply in no room and hears nothing — no accidental cross-posting. */
@@ -666,7 +826,15 @@ wss.on('connection', async (ws, req)=>{
 
     if(m.t==='join'){
       const want=String(m.server||'');
-      if(!isServer(want)){ ws.send(JSON.stringify({ t:'sys', text:'No such server.' })); return; }
+      const cr=/^cr:(\d{1,10})$/.exec(want);
+      if(cr){
+        const id=Number(cr[1]);
+        if(!rooms.on() || !db.ready){ ws.send(JSON.stringify({ t:'crkick', id, reason:'Chat rooms are off here.' })); return; }
+        const r=await roomStore.room(id).catch(()=>null);
+        if(!r){ ws.send(JSON.stringify({ t:'crkick', id, reason:'That room is gone.' })); return; }
+        if(!(await roomStore.canEnter(r, p.id).catch(()=>false))){
+          ws.send(JSON.stringify({ t:'crkick', id, reason:'That room is not open to you.' })); return; }
+      } else if(!isServer(want)){ ws.send(JSON.stringify({ t:'sys', text:'No such server.' })); return; }
       /* The objects we were holding belonged to the room — and the mission —
          being left. Drop them before anything else, and tell the room, or a
          newcomer is handed a set of objects that stopped existing: the ball
@@ -685,6 +853,10 @@ wss.on('connection', async (ws, req)=>{
       const history = (chats.get(want)||[]).filter(c=>!c.hidden)
         .map(c=>({ id:c.id, display:c.display, text:c.text }));
       ws.send(JSON.stringify({ t:'room', server:want, history }));
+      if(want.startsWith('cr:')){
+        const states=[...(crLive.get(want)||new Map()).entries()].map(([o,s])=>({ o, s }));
+        ws.send(JSON.stringify({ t:'cro_all', states, now:Date.now() }));
+      }
       /* the room is already full of other people's objects — hand the newcomer
          the lot at once, rather than waiting for each owner's next change */
       for(const [,q] of live)
@@ -718,7 +890,7 @@ wss.on('connection', async (ws, req)=>{
          browser decides which model a letter names and catches one it
          does not know, exactly as it does for `ride` underneath, so the
          only thing worth checking here is that it is a single letter. */
-      if(typeof m.char==='string' && /^[a-z]$/.test(m.char)) p.char=m.char;
+      if(typeof m.char==='string' && /^[a-z]{1,12}$/.test(m.char)) p.char=m.char;
       // the car they are driving, if any — the browser decides which model that
       // names, so an unknown id simply draws nothing
       /* WHAT THEIR BODY IS DOING: the name of the clip it is playing. Only
@@ -816,6 +988,21 @@ wss.on('connection', async (ws, req)=>{
       }
       if(set.length||del.length||m.full)
         broadcastRoom(p.server,{ t:'objs', from:p.id, full:!!m.full, set, del }, ws);
+      return;
+    }
+    if(m.t==='cro'){
+      if(!p.server || !p.server.startsWith('cr:')) return;
+      if(rateLimited('cro:'+p.id, 40, 10000)) return;
+      const o=String(m.o||'');
+      if(!/^[a-z0-9]{1,12}$/.test(o)) return;
+      let st=(m.s && typeof m.s==='object' && !Array.isArray(m.s)) ? m.s : {};
+      if(JSON.stringify(st).length>400) return;
+      /* a robot set running is stamped with THIS clock, so every screen
+         replays the same program from the same moment */
+      if(st.run) st={ ...st, run:Date.now() };
+      const map=crLive.get(p.server)||new Map();
+      map.set(o,st); crLive.set(p.server,map);
+      broadcastRoom(p.server,{ t:'cro', o, s:st, by:p.display, now:Date.now() });
       return;
     }
     if(m.t==='chat'){
