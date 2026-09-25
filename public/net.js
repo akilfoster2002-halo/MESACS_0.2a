@@ -11,6 +11,7 @@ window.NET = (function(){
      nothing said so, which reads as "we joined the same server and cannot see
      each other". */
   let want=null, handlers=null, retry=0, retryT=null, gone=false;
+  let opening=false;              // a socket is being asked for (open_ awaits its ticket)
 
   async function api(path, body){
     const r = await fetch('/api'+path, {
@@ -102,21 +103,39 @@ window.NET = (function(){
     objs(payload){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'objs',...payload})); }
   };
 
-  function open_(){
+  /* WHERE THE SOCKET GOES. On the game's own server it is this host, and
+     the cookie goes with it. The website on Vercel has no server of its own
+     — its /api is the game's server, reached through a rewrite — so there
+     the socket goes to that server directly, and since our cookie does not
+     travel to another address it says who we are with a one-minute ticket
+     instead (server/auth.js), then joins once it is let in. */
+  async function open_(){
+    if(opening) return;
+    opening=true;
     const hs=handlers||{};
     onPlayers=hs.players; onChat=hs.chat; onSys=hs.sys;
     const proto = location.protocol==='https:'?'wss':'ws';
+    let url=`${proto}://${location.host}/ws`, ticket=null;
+    try{
+      const j = await api('/ticket');
+      const live = j.live ? new URL(j.live) : null;
+      if(live && live.host!==location.host){ url=`${live.protocol==='https:'?'wss':'ws'}://${live.host}/ws`; ticket=j.ticket; }
+    }catch(e){}
+    opening=false;
+    if(gone || !want) return;
     let sock;
-    try{ sock=new WebSocket(`${proto}://${location.host}/ws`); }
+    try{ sock=new WebSocket(url); }
     catch(e){ return later(); }
     ws=sock;
     ws.onopen=()=>{
       if(retry && onSys) onSys(t('Back on the server.'));
       retry=0;
-      if(want) ws.send(JSON.stringify({t:'join', server:want}));
+      if(ticket) ws.send(JSON.stringify({t:'hello', ticket}));
+      else if(want) ws.send(JSON.stringify({t:'join', server:want}));
     };
     ws.onmessage=e=>{
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
+        if(m.t==='welcome'&&ticket&&want) ws.send(JSON.stringify({t:'join', server:want}));
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
         if(m.t==='chat'&&onChat) onChat(m);
         if(m.t==='dm'&&window.PHONE) PHONE.buzz(m);

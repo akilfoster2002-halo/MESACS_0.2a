@@ -46,6 +46,14 @@ function clearCookie(res){
 function fromReq(req){
   const raw = req.headers.cookie || '';
   const m = raw.split(';').map(s=>s.trim()).find(s=>s.startsWith('mq='));
-  return m ? read(m.slice(3)) : null;
+  const p = m ? read(m.slice(3)) : null;
+  return p && !p.ws ? p : null;          // a socket ticket is not a session
 }
-module.exports = { makeHash, verify, setCookie, clearCookie, fromReq, sign, read };
+/* A SOCKET TICKET: who you are, for one minute, good for opening the live
+   socket and nothing else. The website on another address (Vercel) reaches
+   /api through a rewrite, so its cookie lives there; a socket opened
+   straight to this server cannot carry it, and says who it is with one of
+   these instead. */
+function ticket(s){ return sign({ id:s.id, role:s.role, ws:1, exp:Date.now()+60*1000 }); }
+function readTicket(token){ const p = read(token); return p && p.ws ? p : null; }
+module.exports = { makeHash, verify, setCookie, clearCookie, fromReq, sign, read, ticket, readTicket };

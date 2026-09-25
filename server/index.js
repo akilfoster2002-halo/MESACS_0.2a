@@ -87,6 +87,15 @@ app.use('/api',(req,res,next)=>{
   next();
 });
 app.get('/api/health',(req,res)=>res.json({ ok:true, db:db.ready }));
+/* The live socket, for a page that is not on this server's own address:
+   a one-minute ticket (auth.ticket), and where the socket lives. Render
+   names its own public address; anywhere else `live` is null and the
+   page opens its socket on its own host, with its cookie, as it always has. */
+app.get('/api/ticket',(req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return res.status(401).json({ ok:false, error:'Sign in first.' });
+  res.json({ ok:true, ticket:auth.ticket(s), live:process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || null });
+});
 /* what rooms exist and how busy each is. Above the database gate on purpose:
    it reads no tables, so the browser still lists rooms if Postgres is down. */
 app.get('/api/servers',(req,res)=>{
@@ -807,8 +816,21 @@ function headcount(){
   return n;
 }
 
+/* No cookie (a page on another address — see /api/ticket): the socket's
+   first message must be {t:'hello', ticket}. Ten seconds to say it. */
+function ticketFrom(ws){
+  return new Promise(resolve=>{
+    const done = v => { clearTimeout(timer); ws.off('message', first); resolve(v); };
+    const first = raw => {
+      let m; try{ m=JSON.parse(raw); }catch(e){ return done(null); }
+      done(m && m.t==='hello' ? auth.readTicket(String(m.ticket||'')) : null);
+    };
+    const timer = setTimeout(()=>done(null), 10000);
+    ws.on('message', first);
+  });
+}
 wss.on('connection', async (ws, req)=>{
-  const s = auth.fromReq(req);
+  const s = auth.fromReq(req) || await ticketFrom(ws);
   if(!s){ ws.close(4001,'sign in first'); return; }
   const r = await db.q('SELECT id,display,role,muted_until FROM users WHERE id=$1',[s.id]);
   const u = r.rows[0];
