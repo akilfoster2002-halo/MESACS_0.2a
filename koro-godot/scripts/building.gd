@@ -551,7 +551,7 @@ func _garage_model() -> void:
 			(groups[key][0] as SurfaceTool).append_from(mi.mesh, si, xf)
 	for key in groups:
 		var mesh: ArrayMesh = (groups[key][0] as SurfaceTool).commit()
-		var gm: Material = groups[key][1]
+		var gm: Material = _garage_surface(groups[key][1])
 		if gm is BaseMaterial3D and (gm as BaseMaterial3D).emission_enabled:
 			# Blender's emission was set for Blender's exposure; under the
 			# game's glow it blows out to white, so it is brought down here
@@ -568,6 +568,76 @@ func _garage_model() -> void:
 	src.free()
 	_garage_solid()
 	_garage_lights()
+	_garage_air()
+
+## THE SURFACES. The model is boxes in flat colour; what makes a room read as
+## brick and steel and wet concrete is texture. These are Higgsfield's
+## (assets/garage/), laid on by material name and projected from the world's
+## own axes — the boxes have no UVs — at the size the real thing would be.
+const SURFACES := {
+	"Concrete_Polished": ["concrete", 6.0, 0.16, 0.12, Color(0.6, 0.6, 0.64)],
+	"Brick_Red": ["brick", 2.4, 0.85, 0.0, Color(1, 1, 1)],
+	"Steel_Panel_Blue": ["cladding", 3.0, 0.45, 0.4, Color(1, 1, 1)],
+	"Steel_Dark": ["steel", 2.0, 0.5, 0.55, Color(1, 1, 1)],
+	"Roof_Metal": ["roofing", 4.0, 0.55, 0.5, Color(0.9, 0.9, 0.95)],
+	"Shelf_Steel": ["steel", 1.5, 0.5, 0.55, Color(1.2, 1.2, 1.25)],
+	"Office_Wall": ["cladding", 2.0, 0.6, 0.2, Color(1.5, 1.35, 1.1)],
+}
+
+func _garage_surface(m: Material) -> Material:
+	if not (m is BaseMaterial3D) or not SURFACES.has(m.resource_name):
+		return m
+	var spec: Array = SURFACES[m.resource_name]
+	var path := "res://assets/garage/%s.jpg" % spec[0]
+	if not ResourceLoader.exists(path):
+		return m
+	var out := (m as BaseMaterial3D).duplicate() as BaseMaterial3D
+	out.albedo_texture = load(path)
+	out.albedo_color = spec[4]
+	out.uv1_triplanar = true
+	out.uv1_world_triplanar = true
+	out.uv1_scale = Vector3.ONE / float(spec[1])
+	out.roughness = spec[2]
+	out.metallic = spec[3]
+	out.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return out
+
+## THE AIR. Light shafts through the skylights (a fog volume that only this
+## room has, lit by the angled skylight spots), a reflection probe for the
+## wet floor, and a warm ambient of its own inside, so the night outside
+## stops tinting everything blue.
+func _garage_air() -> void:
+	var fv := FogVolume.new()
+	fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+	fv.size = Vector3(b.w - 1.0, 10.0, b.d - 1.0)
+	fv.position = Vector3(0, 5.0, 0)
+	var fm := FogMaterial.new()
+	fm.density = 0.018
+	fm.albedo = Color(1.0, 0.92, 0.82)
+	fm.height_falloff = 0.0
+	fm.edge_fade = 0.1
+	fv.material = fm
+	add_child(fv)
+	var rp := ReflectionProbe.new()
+	rp.size = Vector3(b.w - 0.6, 10.0, b.d - 0.6)
+	rp.position = Vector3(0, 5.0, 0)
+	rp.box_projection = true
+	rp.interior = true
+	rp.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+	rp.ambient_color = Color(0.42, 0.36, 0.3)
+	rp.ambient_color_energy = 0.9
+	rp.update_mode = ReflectionProbe.UPDATE_ONCE
+	add_child(rp)
+	# the mezzanine deck and the stair treads in diamond plate
+	var dp := StandardMaterial3D.new()
+	if ResourceLoader.exists("res://assets/garage/diamond.jpg"):
+		dp.albedo_texture = load("res://assets/garage/diamond.jpg")
+	dp.uv1_triplanar = true
+	dp.uv1_world_triplanar = true
+	dp.uv1_scale = Vector3.ONE / 1.2
+	dp.metallic = 0.7
+	dp.roughness = 0.35
+	_quad(Vector2(13.3, 5.4), Transform3D(Basis(Vector3.RIGHT, -PI / 2.0), Vector3(-12.75, 4.235, -10.75)), dp)
 
 ## What you bump into, stand on and climb: the model is only a picture.
 func _garage_solid() -> void:
@@ -611,7 +681,9 @@ func _garage_lights() -> void:
 			sl.spot_range = 13.0
 			sl.spot_angle = 48.0
 			sl.spot_attenuation = 0.8
-			sl.transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2.0), Vector3(x, 9.6, z))
+			# not straight down: in at an angle, the way sun comes through a roof
+			sl.transform = Transform3D(Basis(Vector3.UP, 0.35) * Basis(Vector3.RIGHT, -PI / 2.0 + 0.42), Vector3(x, 9.6, z))
+			sl.light_volumetric_fog_energy = 2.5
 			_fade(sl)
 			add_child(sl)
 	# under each cage lamp, over the bays, the mechas and the ship

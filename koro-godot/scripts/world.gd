@@ -145,6 +145,11 @@ func _sky() -> void:
 	env.fog_light_color = Color(0.12, 0.13, 0.25)
 	env.fog_density = 0.0016 * 320.0 / Planet.R
 	env.fog_sky_affect = 0.0
+	# volumetric fog, but none in the open air: only FogVolumes add any (the
+	# light shafts in the Mechanic's garage)
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.0
+	env.volumetric_fog_length = 48.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
