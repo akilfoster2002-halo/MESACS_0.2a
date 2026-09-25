@@ -510,6 +510,7 @@ func _mechanic() -> void:
 	usable(Vector3(6.0, 0, 2.0), "talk to the Mechanic", func(w):
 		w.hud.say("THE MECHANIC — \"Walk down the bays. E at a price to take one. The big one outside? She's yours to drive — E next to her.\"", 5.5))
 	_ship_bay()
+	_mech_bays()
 	panel(0, -hd + 3.4, "", Color("2a2013"), 0.0, "your coins", func(w):
 		w.hud.say("You have %d coins, and you are level %d." % [Wallet.coins(), Wallet.level()], 3.0))
 	_repaint_bays()
@@ -530,6 +531,17 @@ func _repaint_bays() -> void:
 		lbl.transform = Transform3D(Basis(Vector3.UP, PI / 2.0) * Basis(Vector3.RIGHT, -0.35), Vector3(-7.4 + 0.02, 1.75, z))
 		lbl.set_meta("bay", true)
 		add_child(lbl)
+	for i in Wallet.MECHS.size():
+		var m: Dictionary = Wallet.MECHS[i]
+		var line := "IN USE — X" if Wallet.mech_id() == m.id else ("OWNED" if Wallet.owns_mech(m.id) else "%s coins" % _commas(int(m.price)))
+		var lbl := Label3D.new()
+		lbl.text = m.name.to_upper() + "\n" + line
+		lbl.font_size = 44
+		lbl.pixel_size = 0.0075
+		lbl.outline_size = 8
+		lbl.transform = Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(_mech_x(i), 1.75, -hd + 7.62))
+		lbl.set_meta("bay", true)
+		add_child(lbl)
 	var purse := Label3D.new()
 	purse.text = "YOUR COINS\n%d  ·  LV %d" % [Wallet.coins(), Wallet.level()]
 	purse.font_size = 44
@@ -538,6 +550,42 @@ func _repaint_bays() -> void:
 	purse.transform = Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(0, 1.75, -hd + 3.42))
 	purse.set_meta("bay", true)
 	add_child(purse)
+
+# ---------------------------------------------------------- the mechas
+
+func _mech_x(i: int) -> float:
+	return hw * 0.3 + i * 7.5
+
+## Along the back wall, right of the coins: each mecha a scale model on a
+## plinth, 7 m of the real 20, with its price in front. E buys it (Wallet).
+func _mech_bays() -> void:
+	for i in Wallet.MECHS.size():
+		var m: Dictionary = Wallet.MECHS[i]
+		if not ResourceLoader.exists(m.model):
+			continue
+		var x := _mech_x(i)
+		var z := -hd + 3.2
+		cyl(2.6, 0.6, Vector3(x, 0.3, z), mat("bay_deck", Color("3f4a63")))
+		cyl(2.35, 0.06, Vector3(x, 0.63, z), mat("mech_ring", Color("ffd766"), true))
+		_solid(Vector3(5.2, 0.6, 5.2), Transform3D(Basis(), Vector3(x, 0.3, z)))
+		var model := Models.spawn(m.model)
+		add_child(model)
+		Models.fit_height(model, 7.0)
+		model.position += Vector3(x, 0.62, z)
+		var ap := Models.anim_player(model)
+		if ap and ap.has_animation("idle"):
+			Models.loop_clips(ap, ["jump"])
+			ap.play("idle")
+		var id: String = m.id
+		panel(x, z + 4.4, "", Color("4a3a12"), 0.0, "buy " + m.name, func(w): Wallet.choose_mech(w, id))
+
+static func _commas(n: int) -> String:
+	var t := str(n)
+	var out := ""
+	while t.length() > 3:
+		out = "," + t.substr(t.length() - 3) + out
+		t = t.substr(0, t.length() - 3)
+	return t + out
 
 func refresh() -> void:
 	if b.id == "mechanic":
