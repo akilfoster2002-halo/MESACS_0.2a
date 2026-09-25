@@ -14,7 +14,8 @@ extends Node3D
 const STEP := 0.55             # the tallest step you walk up without a jump
 
 var player: Walker
-var mecha: Mecha
+var mecha: Mecha                 # yours, only while you are it
+var statues: Array = []          # parked outside the Mechanic, to look at
 var car: Car
 var islands: Islands
 var temple: Temple
@@ -35,7 +36,7 @@ const KEYS := {
 	"run": [KEY_SHIFT], "jump": [KEY_SPACE], "use": [KEY_E],
 	"off": [KEY_R], "view": [KEY_V], "slam": [KEY_Q], "mouse": [KEY_ESCAPE],
 	"fly": [KEY_F], "dance": [KEY_G], "emote1": [KEY_1], "emote2": [KEY_2], "emote3": [KEY_3],
-	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O], "music": [KEY_M],
+	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O], "music": [KEY_M], "mech": [KEY_X],
 }
 
 var _t0 := 0
@@ -285,13 +286,23 @@ func _wano_life() -> void:
 		add_child(p)
 		pandas.append(p)
 
-	# the mecha, beside the Mechanic
-	mecha = Mecha.new()
-	mecha.world = self
-	add_child(mecha)
+	# the mechas the Mechanic sells, standing outside her door — to look at;
+	# the one you buy is yours to become anywhere (X)
 	var mb := Planet.dir_of(-34, 6)
 	var mf := Planet.frame_at(mb)
-	mecha.park(Planet.walk(mb, mf.x, 38.0), mf.z)
+	var spot := Planet.walk(mb, mf.x, 36.0)
+	for i in Wallet.MECHS.size():
+		var m: Dictionary = Wallet.MECHS[i]
+		if not ResourceLoader.exists(m.model):
+			continue
+		var st := Mecha.new()
+		st.world = self
+		st.statue = true
+		st.mech_id = m.id
+		st.model_path = m.model
+		add_child(st)
+		st.park(Planet.walk(spot, mf.z, (i - 0.5) * 22.0), mf.z)
+		statues.append(st)
 
 # ------------------------------------------------------------ the questions
 
@@ -372,6 +383,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_off()
 	elif ev.is_action_pressed("fly"):
 		_fly()
+	elif ev.is_action_pressed("mech"):
+		_mech()
 	elif ev.is_action_pressed("view"):
 		if piloting():
 			mecha.first_person = not mecha.first_person
@@ -415,8 +428,9 @@ func _use() -> void:
 	if not u.is_empty():
 		(u.act as Callable).call(self)
 		return
-	if _near_mecha():
-		mecha.enter(player)
+	var st := _near_statue()
+	if st:
+		_statue_line(st)
 		return
 	if _near_car():
 		car.enter(player)
@@ -432,7 +446,7 @@ func _use() -> void:
 ## R: out of whatever you are in — or, on your own two feet, your car comes to you.
 func _off() -> void:
 	if piloting():
-		mecha.leave()
+		_unmech()
 	elif player.car:
 		player.car.leave()
 	elif player.mount:
@@ -447,8 +461,68 @@ func _off() -> void:
 func piloting() -> bool:
 	return mecha != null and mecha.piloting
 
-func _near_mecha() -> bool:
-	return mecha != null and player.dir.angle_to(mecha.dir) * Planet.R < 16.0
+func _near_statue() -> Mecha:
+	for x in statues:
+		var st: Mecha = x
+		if player.dir.angle_to(st.dir) * Planet.R < 14.0:
+			return st
+	return null
+
+func _statue_line(st: Mecha) -> void:
+	var m := Wallet.mech(st.mech_id)
+	if Wallet.owns_mech(st.mech_id):
+		hud.say("%s is yours. Press X anywhere outside to become it." % m.name, 4.0)
+	else:
+		hud.say("%s — %d coins inside THE MECHANIC. You have %d." % [m.name, m.price, Wallet.coins()], 4.0)
+
+## X: become your mecha, or yourself again.
+func _mech() -> void:
+	if piloting():
+		_unmech()
+		return
+	var id := Wallet.mech_id()
+	if id == "":
+		hud.say("You have no mecha yet — THE MECHANIC sells them, 3,000 coins.", 4.0)
+		return
+	if player.car or player.mount:
+		hud.say("Out of the car first — R.", 2.5)
+		return
+	if player.flying or player.swimming or not player.on_ground:
+		hud.say("Feet on the ground first.", 2.5)
+		return
+	if indoors():
+		hud.say("Step outside — a mecha is twenty metres tall.", 3.0)
+		return
+	become_mech(id)
+
+## Stand up as the mecha `id` where you are standing, you inside it.
+func become_mech(id: String) -> void:
+	var m := Wallet.mech(id)
+	if m.is_empty() or not ResourceLoader.exists(m.model):
+		return
+	mecha = Mecha.new()
+	mecha.world = self
+	mecha.mech_id = id
+	mecha.model_path = m.model
+	add_child(mecha)
+	mecha.park(player.dir, player.fwd)
+	mecha.enter(player)
+	mecha.shockwave(12.0, 0.8)
+	hud.say("%s!  X or R to be yourself again." % m.name, 3.0)
+
+func _unmech() -> void:
+	if not mecha.leave():
+		hud.say("Land first.", 1.5)
+		return
+	mecha.queue_free()
+	mecha = null
+
+## Under a roof: any building's, or the temple's.
+func indoors() -> bool:
+	for b in buildings:
+		if not b.b.get("pad", false) and b.inside(player.global_position):
+			return true
+	return temple != null and temple.to_local(player.global_position).length() < 34.0
 
 ## Off you go: the ship takes you to `dest` and you fly the whole way.
 func launch(dest: String) -> void:
@@ -474,12 +548,7 @@ func _near_panda() -> Panda:
 
 func _process(_delta: float) -> void:
 	ui_open = hud.any_open()
-	var inside := false
-	for b in buildings:
-		if not b.b.get("pad", false) and b.inside(player.global_position):
-			inside = true
-	if temple and temple.to_local(player.global_position).length() < 34.0:
-		inside = true
+	var inside := indoors()
 	Sound.indoors(inside)
 	var calls := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	var tris := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
@@ -487,7 +556,7 @@ func _process(_delta: float) -> void:
 	var prompt := ""
 	var status := ""
 	if piloting():
-		hud.help.text = "W/S walk · A/D turn · SHIFT dash · SPACE mega jump (hold to boost) · Q slam · V cockpit · R climb out"
+		hud.help.text = "W/S walk · A/D turn · SHIFT dash · SPACE mega jump (hold to boost) · Q slam · V cockpit · X or R be yourself"
 		status = "%d km/h   ALT %d m   BOOST %d%%" % [absf(mecha.spd) * 3.6, maxf(0.0, mecha.alt - Planet.height(mecha.dir)), mecha.fuel / Mecha.FUEL * 100.0]
 	elif player.car:
 		hud.help.text = "W go · S brake / reverse · A D steer · mouse look round · R get out · P pause"
@@ -500,12 +569,13 @@ func _process(_delta: float) -> void:
 	elif player.swimming:
 		hud.help.text = "WASD swim · SPACE kick out · F fly out of the water · P pause"
 	else:
-		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E ride / climb in · R car · G dance · B who you are · P pause"
+		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E ride / climb in · R car · G dance · B who you are · P pause" \
+			+ (" · X mecha" if Wallet.mech_id() != "" else "")
 		var u := _usable()
 		if not u.is_empty():
 			prompt = "E — " + str(u.label)
-		elif _near_mecha():
-			prompt = "E — climb into the mecha"
+		elif _near_statue():
+			prompt = "E — about this mecha"
 		elif _near_car():
 			prompt = "E — get in"
 		elif _near_panda():

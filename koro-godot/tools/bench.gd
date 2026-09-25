@@ -48,9 +48,7 @@ func _ready() -> void:
 	await get_tree().create_timer(2.0).timeout
 	await _measure("flying at the falls")
 	w.player.land()
-	w.player.dir = w.mecha.dir
-	w.player.alt = w.mecha.alt
-	w._use()
+	w.become_mech("vanguard")
 	await get_tree().create_timer(2.0).timeout
 	await _measure("in the mecha")
 	get_tree().quit()

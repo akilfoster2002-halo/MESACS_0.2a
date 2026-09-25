@@ -25,6 +25,8 @@ var phone: Phone
 var who: PanelContainer
 var who_text: RichTextLabel
 var me_label: Label
+var purse: Label
+var purse_was := -1
 var feed: Label
 var feed_lines: Array[String] = []
 var feed_t := 0.0
@@ -136,6 +138,14 @@ func _process(delta: float) -> void:
 	if unread > 0:
 		status += "   ·   %d new text%s — T" % [unread, "" if unread == 1 else "s"]
 	me_label.text = status
+	var c := Wallet.coins()
+	if c != purse_was:
+		# a change of balance flashes, so a purchase or a reward is seen
+		if purse_was >= 0:
+			purse.modulate = Color(1.6, 1.6, 1.6)
+		purse_was = c
+		purse.text = "%s COINS  ·  LV %d" % [_thousands(c), Wallet.level()]
+	purse.modulate = purse.modulate.lerp(Color.WHITE, minf(1.0, delta * 2.5))
 
 ## A simple cockpit frame round the view, for the mecha's first person.
 func _cockpit() -> Control:
@@ -472,6 +482,15 @@ func _net_cards() -> void:
 	me_label.offset_right = -16
 	me_label.offset_top = 10
 	me_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# THE WALLET, always in sight: what you have is what the shop asks about
+	purse = _label(20, Color("ffd766"))
+	purse.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	purse.offset_left = -560
+	purse.offset_right = -16
+	purse.offset_top = 34
+	purse.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	purse.add_theme_constant_override("outline_size", 6)
+	purse.add_theme_color_override("font_outline_color", Color(0.1, 0.07, 0.0, 0.9))
 	feed = _label(16, Color(1, 1, 1))
 	feed.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	feed.offset_left = 16
@@ -624,3 +643,11 @@ func library_ask() -> void:
 			line = str(i.what).split(". ")[0] + "."
 	say("ADA — \"Read up on %s.\"  %s" % [term, line], 5.0)
 	library_open(term)
+
+func _thousands(n: int) -> String:
+	var t := str(absi(n))
+	var out := ""
+	while t.length() > 3:
+		out = "," + t.substr(t.length() - 3) + out
+		t = t.substr(0, t.length() - 3)
+	return ("-" if n < 0 else "") + t + out

@@ -13,6 +13,14 @@ const CARS := [
 	{"id": "car_green", "name": "Clover", "price": 340, "paint": Color("2f9d55")},
 ]
 
+## The mechas: a real purchase, the one thing in the shop that costs a
+## lesson's worth of coins. Owning one means X turns you into it anywhere
+## outdoors (world.gd) — the ones parked outside the Mechanic are statues.
+const MECHS := [
+	{"id": "vanguard", "name": "Vanguard", "price": 3000, "model": "res://assets/mecha.glb"},
+	{"id": "seraph", "name": "Seraph", "price": 3000, "model": "res://assets/mecha-seraph.glb"},
+]
+
 static func coins() -> int:
 	return int(Progress.get_value("w_coins", 0))
 
@@ -74,5 +82,45 @@ static func choose_car(world: Node3D, id: String) -> void:
 		world.hud.say("%s it is." % c.name, 2.5)
 	Progress.set_value("w_car", id)
 	world.car.set_paint(c.paint)
+	for bld in world.buildings:
+		bld.refresh()
+
+static func mech(id: String) -> Dictionary:
+	for m in MECHS:
+		if m.id == id:
+			return m
+	return {}
+
+static func owns_mech(id: String) -> bool:
+	return not mech(id).is_empty() and id in owned()
+
+## The mecha X turns you into: the one you chose, else any you own, else none.
+static func mech_id() -> String:
+	var id = Progress.get_value("w_mech", null)
+	if id != null and owns_mech(str(id)):
+		return str(id)
+	for m in MECHS:
+		if owns_mech(m.id):
+			return m.id
+	return ""
+
+## At a mecha bay: buy it if you can afford it, else say how short you are;
+## either way the one you own and chose is the one X becomes.
+static func choose_mech(world: Node3D, id: String) -> void:
+	var m := mech(id)
+	if m.is_empty():
+		return
+	if not owns_mech(id):
+		if coins() < int(m.price):
+			world.hud.say("%s costs %d coins. You have %d — %d to go." % [m.name, m.price, coins(), int(m.price) - coins()], 4.0)
+			return
+		Progress.set_value("w_coins", coins() - int(m.price))
+		var o := owned()
+		o.append(id)
+		Progress.set_value("w_owned", JSON.stringify(o))
+		world.hud.say("%s is yours! Press X anywhere outside to become it." % m.name, 5.0)
+	else:
+		world.hud.say("%s it is — X to become it." % m.name, 3.0)
+	Progress.set_value("w_mech", id)
 	for bld in world.buildings:
 		bld.refresh()

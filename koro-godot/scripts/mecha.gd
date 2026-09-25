@@ -1,6 +1,8 @@
-## THE GIANT — twenty metres of mecha, parked by the Mechanic.
+## THE GIANT — twenty metres of mecha.
 ##
-## E next to it and you are in it. W/S walk it (heavy: it leans into a start
+## Two kinds, bought at the Mechanic (Wallet.MECHS). The ones parked outside
+## are statues; the one you own exists only while you are it — X turns you
+## into it anywhere outdoors (world.gd) and X or R turns you back. W/S walk it (heavy: it leans into a start
 ## and takes a moment to stop), A/D turn, SHIFT dashes across the island,
 ## SPACE is a mega jump and, held in the air, the thrusters. Q slams it down
 ## — or stomps on the ground — and a ring runs out across the grass that
@@ -39,35 +41,110 @@ var pitch := -0.1
 var model: Node3D
 var ap: AnimationPlayer
 var s := 1.0
-var flames: Array[MeshInstance3D] = []
+var model_path := "res://assets/mecha.glb"
+var mech_id := "vanguard"
+var statue := false              # parked outside the Mechanic: to look at, not to drive
+var air_t := 0.0
+var jets: Array[Node3D] = []     # two on the back, one under each foot
+var jet_light: OmniLight3D
+var burn := 0.0                  # how hard the jets are firing, eased
 var rings: Array = []
 
+const PLUME := """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, shadows_disabled;
+uniform vec3 hot : source_color = vec3(1.0, 0.96, 0.86);
+uniform vec3 cool : source_color = vec3(0.30, 0.78, 1.0);
+uniform float power = 1.0;
+uniform float seed = 0.0;
+uniform float len = 1.0;
+varying float t;
+// measured down the tube from the nozzle (0) to the tip (1), from the
+// vertex itself: a CylinderMesh's UVs are packed round its caps
+void vertex(){ t = clamp(0.5 - VERTEX.y / len, 0.0, 1.0); }
+void fragment(){
+	// the rim of the tube fades, so it reads as a column of light, not a cone
+	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 1.4);
+	float flick = 0.8 + 0.2 * sin(TIME * 53.0 + seed * 7.0 + t * 18.0) * sin(TIME * 31.0 + seed);
+	float fade = pow(1.0 - t, 1.8);
+	ALBEDO = mix(hot, cool, smoothstep(0.0, 0.25, t)) * 1.7;
+	ALPHA = clamp(face * fade * flick * power, 0.0, 1.0);
+}
+"""
+
 func _ready() -> void:
-	model = Models.spawn("res://assets/mecha.glb")
+	model = Models.spawn(model_path)
 	add_child(model)
 	s = Models.fit_height(model, H * 0.94)
 	ap = Models.anim_player(model)
-	Models.loop_clips(ap)
+	# a jump plays ONCE: looped, it kicks off again and again for as long
+	# as the mecha is in the air
+	Models.loop_clips(ap, ["jump"])
 	if ap:
 		ap.play("idle")
-	for sx in [-1.0, 1.0]:
-		var fl := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.9
-		cone.bottom_radius = 0.05
-		cone.height = 5.0
-		fl.mesh = cone
-		var m := StandardMaterial3D.new()
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(0.55, 0.9, 1.0, 0.85)
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		fl.material_override = m
-		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		fl.position = Vector3(sx * H * 0.11, H * 0.6, -H * 0.13)
-		fl.visible = false
-		add_child(fl)
-		flames.append(fl)
+	if statue:
+		return
+	var sh := Shader.new()
+	sh.code = PLUME
+	# the back pair lean out behind; the feet point straight down
+	for spec in [[Vector3(-H * 0.10, H * 0.62, -H * 0.17), 0.85, 1.0], [Vector3(H * 0.10, H * 0.62, -H * 0.17), 0.85, 1.0],
+			[Vector3(-H * 0.07, H * 0.03, 0.0), 0.0, 0.6], [Vector3(H * 0.07, H * 0.03, 0.0), 0.0, 0.6]]:
+		var jet := Node3D.new()
+		jet.position = spec[0]
+		jet.rotation.x = spec[1]
+		var k: float = spec[2]
+		for layer in [[0.6 * k, 0.08 * k, 9.0 * k, Color(0.18, 0.55, 1.0), 0.75], [0.26 * k, 0.03 * k, 4.2 * k, Color(0.55, 0.9, 1.0), 1.0]]:
+			var tube := CylinderMesh.new()
+			tube.top_radius = layer[0]
+			tube.bottom_radius = layer[1]
+			tube.height = layer[2]
+			tube.cap_top = false
+			tube.cap_bottom = false
+			tube.radial_segments = 20
+			var m := ShaderMaterial.new()
+			m.shader = sh
+			m.set_shader_parameter("cool", layer[3])
+			m.set_shader_parameter("seed", randf() * 10.0)
+			m.set_shader_parameter("power", layer[4])
+			m.set_shader_parameter("len", layer[2])
+			var mi := MeshInstance3D.new()
+			mi.mesh = tube
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.position = Vector3(0, -float(layer[2]) / 2.0, 0)
+			jet.add_child(mi)
+		# the nozzle itself, a disc of light that faces you: from behind a
+		# plume is end-on, and this is what says the engines are lit
+		var glow := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(3.2, 3.2) * k
+		glow.mesh = q
+		var gm := ShaderMaterial.new()
+		gm.shader = Shader.new()
+		gm.shader.code = """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, shadows_disabled;
+void vertex(){ MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]); }
+void fragment(){
+	float r = length(UV - 0.5) * 2.0;
+	float a = pow(max(0.0, 1.0 - r), 2.2);
+	ALBEDO = mix(vec3(0.3, 0.75, 1.0), vec3(1.0, 0.97, 0.9), a * a) * 2.0;
+	ALPHA = a;
+}
+"""
+		glow.material_override = gm
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		jet.add_child(glow)
+		jet.visible = false
+		add_child(jet)
+		jets.append(jet)
+	jet_light = OmniLight3D.new()
+	jet_light.light_color = Color(0.45, 0.85, 1.0)
+	jet_light.omni_range = H * 0.9
+	jet_light.light_energy = 0.0
+	# behind and low: it lights the ground under the jets, not the armour
+	jet_light.position = Vector3(0, H * 0.25, -H * 0.45)
+	add_child(jet_light)
 
 func park(at: Vector3, facing: Vector3) -> void:
 	dir = at.normalized()
@@ -191,9 +268,18 @@ func _drive(delta: float) -> void:
 	if ap:
 		var clip := "idle"
 		var sc := 1.0
+		air_t = 0.0 if on_ground else air_t + delta
 		if not on_ground:
-			clip = "fly" if (hover or slamming) else "jump"
-			sc = 0.8
+			if hover or slamming:
+				clip = "fly"
+				sc = 0.8
+			else:
+				# up with the jump, then HOLD its airborne pose until the
+				# ground comes back — not the take-off over and over
+				clip = "jump"
+				var a := ap.get_animation("jump")
+				var hold := a.length * 0.42 if a else 0.0
+				sc = 0.0 if ap.current_animation == "jump" and ap.current_animation_position >= hold else 0.8
 		elif absf(spd) > 0.6:
 			clip = "sprint" if dashing else "walk"
 			sc = absf(spd) / ((5.2 if dashing else 1.45) * s * 1.0)
@@ -205,12 +291,23 @@ func _drive(delta: float) -> void:
 	pilot.dir = dir
 	pilot.alt = alt
 
+## The jets ease up and down rather than blinking, and breathe while lit.
 func _flames(on: bool) -> void:
-	for fl in flames:
-		fl.visible = on
-		if on:
-			var k := randf_range(0.8, 1.15)
-			fl.scale = Vector3(k, randf_range(0.8, 1.4), k)
+	if jets.is_empty():
+		return
+	var want := 0.0
+	if on:
+		want = 1.25 if slamming else (1.0 if hover else 0.7)
+	burn = move_toward(burn, want, get_process_delta_time() * 4.0)
+	for i in jets.size():
+		var jet: Node3D = jets[i]
+		# the feet only fire to hold it up
+		var k := burn if i < 2 else (burn if hover else 0.0)
+		jet.visible = k > 0.02
+		if jet.visible:
+			var breathe := randf_range(0.92, 1.08)
+			jet.scale = Vector3(0.6 + 0.4 * k, (0.5 + 0.6 * k) * breathe, 0.6 + 0.4 * k)
+	jet_light.light_energy = burn * 1.1
 
 func _camera() -> void:
 	var cam := pilot.cam

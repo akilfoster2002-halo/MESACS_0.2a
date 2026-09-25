@@ -107,8 +107,26 @@ func _ready() -> void:
 		["09_mecha", func():
 			if w.hud.is_paused():
 				w.hud.toggle_pause()
-			p.dir = w.mecha.dir
-			w._use()],
+			var st: Mecha = w.statues[0]
+			_put(Planet.walk(st.dir, Planet.frame_at(st.dir).x, 24.0) * Planet.R, st.dir * Planet.R)
+			w.become_mech("vanguard")],
+		["18_mecha_jets", func():
+			w.mecha.hover = true
+			w.mecha.on_ground = false
+			w.mecha.alt += 14.0
+			w.mecha.set_process(false)
+			for i in 12:
+				w.mecha._flames(true)
+			w.mecha._camera()],
+		["19_seraph", func():
+			if w.mecha:
+				w.mecha.set_process(true)
+				w.mecha.on_ground = true
+				w._unmech()
+			if w.statues.size() > 1:
+				var st: Mecha = w.statues[1]
+				_put(Planet.walk(st.dir, Planet.frame_at(st.dir).z, 30.0) * Planet.R, st.dir * Planet.R)
+				p.pitch = 0.25],
 	]
 	for s in shots:
 		if only != "" and not (s[0] as String).contains(only):
