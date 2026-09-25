@@ -97,6 +97,15 @@ func _ready() -> void:
 		["16_pause", func():
 			w.hud.toggle_picker()
 			w.hud.toggle_pause()],
+		["22_kit", func():
+			var bl := _bld("mechanic")
+			_put(bl.to_global(Vector3(-0.2, 0, -1.4)), bl.to_global(Vector3(-2.0, 1.0, -4.3)))
+			p.pitch = -0.05
+			p.zoom = 3.2],
+		["21_garage", func():
+			_inside("mechanic")
+			p.pitch = -0.5
+			p.zoom = 9.0],
 		["20_talk", func():
 			_inside("mechanic")
 			w.hud.talk_open("mechanic", "Kit", "Mind the oil. Cars down the bays, mechas at the back, the ship's in the hangar. What do you need?")],

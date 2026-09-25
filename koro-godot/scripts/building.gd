@@ -48,9 +48,12 @@ func _ready() -> void:
 	if b.get("pad", false):
 		_pad()
 	elif b.get("shell", true):
-		_shell()
-		_dress()
-		_indoors()
+		if b.id == "mechanic" and ResourceLoader.exists(GARAGE):
+			_garage_model()
+		else:
+			_shell()
+			_dress()
+			_indoors()
 		match b.id:
 			"workshop":
 				_workshop()
@@ -482,13 +485,10 @@ func _mall() -> void:
 ## the thing, and the console beside it is where you choose it. What stands on
 ## the bay is the same car you drive.
 func _mechanic() -> void:
-	_strip_lights([-hd * 0.45, hd * 0.15], Color("fff6e0"))
-	var paint := mat("bay_mark", Color("3b3128"))
 	for i in Wallet.CARS.size():
 		var c: Dictionary = Wallet.CARS[i]
 		var x := -2.0
 		var z: float = -hd + 7.0 + i * 6.4
-		box(Vector3(6.2, 0.08, 4.6), Vector3(x, 0.13, z), paint)
 		var car := CarModel.make(c.paint, 5.4)
 		car.position = Vector3(x, 0.17, z)
 		car.rotation.y = PI / 2.0
@@ -496,24 +496,184 @@ func _mechanic() -> void:
 		_solid(Vector3(2.4, 1.3, 5.6), Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(x, 0.8, z)))
 		var id: String = c.id
 		panel(x - 5.4, z, "", Color("22406b"), PI / 2.0, "choose " + c.name, func(w): Wallet.choose_car(w, id))
-	# the Mechanic, among the cars
-	var who := Models.spawn("res://assets/characters/mechanic.glb")
-	add_child(who)
-	Models.use_vertex_colors(who)
-	Models.fit_height(who, 1.75)
-	who.position += Vector3(6.0, 0.1, 2.0)
-	who.rotation.y = PI * 0.75
-	var ap := Models.anim_player(who)
-	if ap and ap.has_animation("idle"):
-		Models.loop_clips(ap)
-		ap.play("idle")
-	usable(Vector3(6.0, 0, 2.0), "talk to Kit", func(w):
-		w.hud.talk_open("mechanic", "Kit", "Mind the oil. Cars down the bays, mechas at the back, the ship's in the hangar. What do you need?"))
+	_garage_posters()
+	_garage_props()
+	# Kit, at work: a round of jobs, each [where, facing, sparks?] — and a
+	# fourth `false` for a point she only walks through, round a car or a pad
+	if ResourceLoader.exists("res://assets/characters/character-kit.glb"):
+		add_child(Kit.new().setup(self, [
+			[Vector3(-2.0, 0, -4.3), PI, true],                 # the first car, from its side
+			[Vector3(_mech_x(0), 0, -hd + 6.9), PI, true],      # the Vanguard's plinth
+			[Vector3(_mech_x(1), 0, -hd + 6.9), PI, true],      # the Seraph's
+			[Vector3(16.6, 0, -3.0), PI / 2.0, false],          # the bench under the pegboard
+			[Vector3(14.5, 0, 3.5), 0.0, false, false],
+			[Vector3(16.9, 0, 9.1), PI / 2.0, false],           # the tool chests
+			[Vector3(2.4, 0, 5.8), -PI / 2.0, true],            # the third car
+			[Vector3(2.4, 0, 9.0), 0.0, false, false],
+			[Vector3(-7.0, 0, 9.0), 0.0, false, false],
+			[Vector3(-17.8, 0, 9.4), -PI / 2.0, false],         # the lockers
+			[Vector3(-9.5, 0, 2.6), 0.0, false, false],
+			[Vector3(-6.0, 0, -3.4), 0.0, false, false],
+		]))
 	_ship_bay()
 	_mech_bays()
 	panel(0, -hd + 3.4, "", Color("2a2013"), 0.0, "your coins", func(w):
 		w.hud.say("You have %d coins, and you are level %d." % [Wallet.coins(), Wallet.level()], 3.0))
 	_repaint_bays()
+
+# -------------------------------------------------------- the garage look
+
+## THE GARAGE, built as one model in Higgsfield's 3D Jutsu to the reference
+## photo (glb files/shop/, project "KORO — The Mechanic"): brick and steel
+## walls, a sawtooth roof, trusses and ducts, the mezzanine office, shelving,
+## lockers, pegboards, cage lamps. Glued to the game's own frame: +z is the
+## door, the car bays, the ship pad and the mecha plinths sit on its markings.
+const GARAGE := "res://assets/mechanic/garage.glb"
+
+func _garage_model() -> void:
+	var src := Models.spawn(GARAGE)
+	# 700 parts would be 700 draw calls: merged by material, it is a few dozen
+	var groups := {}
+	for n in src.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var xf := Transform3D()
+		var p: Node = mi
+		while p != src and p is Node3D:
+			xf = (p as Node3D).transform * xf
+			p = p.get_parent()
+		for si in mi.mesh.get_surface_count():
+			var m: Material = mi.get_active_material(si)
+			var key := "%d:%d" % [m.get_instance_id() if m else 0, mi.mesh.surface_get_format(si)]
+			if not groups.has(key):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				groups[key] = [st, m]
+			(groups[key][0] as SurfaceTool).append_from(mi.mesh, si, xf)
+	for key in groups:
+		var mesh: ArrayMesh = (groups[key][0] as SurfaceTool).commit()
+		var gm: Material = groups[key][1]
+		if gm is BaseMaterial3D and (gm as BaseMaterial3D).emission_enabled:
+			# Blender's emission was set for Blender's exposure; under the
+			# game's glow it blows out to white, so it is brought down here
+			gm = gm.duplicate()
+			(gm as BaseMaterial3D).emission_energy_multiplier *= 0.35
+		if gm:
+			mesh.surface_set_material(0, gm)
+		var out := MeshInstance3D.new()
+		out.mesh = mesh
+		# a hair above the plate every building stands on (+0.02), or the
+		# plate covers the painted floor
+		out.position.y = 0.03
+		add_child(out)
+	src.free()
+	_garage_solid()
+	_garage_lights()
+
+## What you bump into, stand on and climb: the model is only a picture.
+func _garage_solid() -> void:
+	const WH := 10.0
+	_solid(Vector3(b.w, WH, 0.5), Transform3D(Basis(), Vector3(0, WH / 2.0, -hd + 0.25)))
+	_solid(Vector3(0.5, WH, b.d), Transform3D(Basis(), Vector3(-hw + 0.25, WH / 2.0, 0)))
+	_solid(Vector3(0.5, WH, b.d), Transform3D(Basis(), Vector3(hw - 0.25, WH / 2.0, 0)))
+	var side: float = (b.w - 9.0) / 2.0
+	for sx in [-1.0, 1.0]:
+		_solid(Vector3(side, WH, 0.5), Transform3D(Basis(), Vector3(sx * (4.5 + side / 2.0), WH / 2.0, hd - 0.25)))
+	_solid(Vector3(9.0, 1.0, 0.5), Transform3D(Basis(), Vector3(0, 9.5, hd - 0.25)))
+	# the sawtooth roof, tooth by tooth, so you can land on it and walk it
+	var slope := atan2(3.5, 7.0)
+	for i in 4:
+		var zc: float = hd - 3.5 - i * 7.0
+		_solid(Vector3(b.w, 0.3, 7.83), Transform3D(Basis(Vector3.RIGHT, slope), Vector3(0, 11.75, zc)))
+	# the mezzanine: its deck, the stairs up (a ramp), the office, the rails
+	_solid(Vector3(13.5, 0.3, 5.5), Transform3D(Basis(), Vector3(-12.75, 4.05, -10.75)))
+	_solid(Vector3(2.0, 0.2, 7.32), Transform3D(Basis(Vector3.RIGHT, atan2(4.2, 6.0)), Vector3(-18.45, 2.1, -5.0)))
+	_solid(Vector3(8.7, 3.0, 4.1), Transform3D(Basis(), Vector3(-14.85, 5.7, -11.25)))
+	_solid(Vector3(11.3, 1.1, 0.1), Transform3D(Basis(), Vector3(-11.65, 4.75, -8.15)))
+	_solid(Vector3(0.1, 1.1, 5.5), Transform3D(Basis(), Vector3(-6.15, 4.75, -10.75)))
+	for x in [-6.3, -12.75]:
+		_solid(Vector3(0.35, 4.2, 0.35), Transform3D(Basis(), Vector3(x, 2.1, -8.3)))
+	# lockers, the racks under the deck, the tyre rack, barrels and crates
+	_solid(Vector3(0.6, 2.0, 4.9), Transform3D(Basis(), Vector3(-19.2, 1.0, 9.6)))
+	_solid(Vector3(10.4, 2.8, 0.8), Transform3D(Basis(), Vector3(-13.9, 1.4, -13.1)))
+	_solid(Vector3(0.6, 1.9, 2.9), Transform3D(Basis(), Vector3(19.05, 0.95, -10.5)))
+	for p in [[-16.6, 12.9, 0.0], [17.6, 12.2, PI / 2.0], [17.4, -5.8, PI / 2.0], [-15.2, -1.2, -0.3]]:
+		_solid(Vector3(2.64, 1.2, 1.05), Transform3D(Basis(Vector3.UP, p[2]), Vector3(p[0], 0.6, p[1])))
+	for p in [[13.3, 12.4], [-11.5, 12.6], [17.3, 4.2]]:
+		_solid(Vector3(2.1, 1.6, 0.9), Transform3D(Basis(), Vector3(p[0], 0.8, p[1])))
+
+## The game's own light: the model's lamps are drawn, these do the lighting.
+func _garage_lights() -> void:
+	for z in [8.75, 1.75, -5.25, -12.25]:
+		for x in [-9.0, 9.0]:
+			var sl := SpotLight3D.new()
+			sl.light_color = Color("ffd9a8")
+			sl.light_energy = 2.8
+			sl.spot_range = 13.0
+			sl.spot_angle = 48.0
+			sl.spot_attenuation = 0.8
+			sl.transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2.0), Vector3(x, 9.6, z))
+			_fade(sl)
+			add_child(sl)
+	# under each cage lamp, over the bays, the mechas and the ship
+	for p in [[-2.0, -7.0], [-2.0, -0.6], [-2.0, 5.8], [-2.0, 12.2], [6.0, -8.0], [13.5, -8.0], [10.4, -1.4]]:
+		var l := OmniLight3D.new()
+		l.light_color = Color("ffc98a")
+		l.light_energy = 1.6
+		l.omni_range = 8.5
+		l.position = Vector3(p[0], 5.7, p[1])
+		_fade(l)
+		add_child(l)
+	# the office windows and the neon throw a little colour of their own
+	for p in [[Vector3(-14.8, 6.0, -8.6), Color("ffc27a"), 1.4, 7.0], [Vector3(9.75, 7.2, -12.0), Color("ff7a2a"), 1.6, 9.0]]:
+		var g := OmniLight3D.new()
+		g.position = p[0]
+		g.light_color = p[1]
+		g.light_energy = p[2]
+		g.omni_range = p[3]
+		_fade(g)
+		add_child(g)
+
+func _garage_posters() -> void:
+	var spots := [[1, Transform3D(Basis(Vector3.UP, -PI / 2.0), Vector3(hw - 0.56, 4.6, 11.4))],
+		[2, Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(-hw + 0.56, 4.6, 3.8))],
+		[3, Transform3D(Basis(), Vector3(-2.8, 5.2, -hd + 0.56))]]
+	for sp in spots:
+		var pmat := StandardMaterial3D.new()
+		pmat.albedo_texture = load("res://assets/shop/poster%d.jpg" % sp[0])
+		pmat.roughness = 0.7
+		_quad(Vector2(1.9, 2.8), sp[1], pmat)
+
+func _quad(size: Vector2, xf: Transform3D, m: Material) -> void:
+	var q := QuadMesh.new()
+	q.size = size
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = m
+	mi.transform = xf
+	add_child(mi)
+
+## The Higgsfield props (assets/shop/*.glb), each only if it is there.
+## Every prop is [file, height, position, turn].
+func _garage_props() -> void:
+	var props := [
+		["chest", 1.5, Vector3(hw - 1.3, 0, 8.3), -PI / 2.0], ["chest", 1.5, Vector3(hw - 1.3, 0, 9.9), -PI / 2.0],
+		["chest", 1.5, Vector3(2.2, 0, -hd + 1.2), 0.0],
+		["bench", 1.9, Vector3(hw - 1.6, 0, -3.0), -PI / 2.0],
+		["lift", 4.8, Vector3(-2.0, 0, -7.0), PI / 2.0], ["lift", 4.8, Vector3(-2.0, 0, 5.8), PI / 2.0],
+	]
+	for p in props:
+		var path := "res://assets/shop/%s.glb" % p[0]
+		if not ResourceLoader.exists(path):
+			continue
+		# turned in a holder: fit_height centres the model by moving it, and
+		# a turn applied to the model itself would swing it off its spot
+		var holder := Node3D.new()
+		holder.position = p[2]
+		holder.rotation.y = p[3]
+		add_child(holder)
+		var m := Models.spawn(path)
+		holder.add_child(m)
+		Models.fit_height(m, p[1])
 
 func _repaint_bays() -> void:
 	for n in get_children():
