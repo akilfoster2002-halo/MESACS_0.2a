@@ -48,6 +48,9 @@ var first_person := false
 var moving := false
 var speed_now := 0.0
 var mount: Panda = null
+## A chair, a couch or a bed in a chat room: sat on, not ridden. Its height
+## (the "sit_h" meta) is where the hips go.
+var seat: Node3D = null
 var car: Car = null
 var hidden := false
 var hidden_in_mecha := false:
@@ -232,9 +235,33 @@ func _process(delta: float) -> void:
 
 # ------------------------------------------------------------------ walking
 
+func sit(on: Node3D) -> void:
+	seat = on
+	emote = ""
+	moving = false
+
+func stand() -> void:
+	seat = null
+	if model:
+		model.position = model_base
+
 func _walk(delta: float, up: Vector3) -> void:
 	var f := Ctl.axis("back", "forward")
 	var sd := Ctl.axis("left", "right")
+	if seat:
+		# any move, or a jump, and you get up; until then you are where the seat is
+		if not is_instance_valid(seat) or f != 0.0 or sd != 0.0 or Ctl.just("jump"):
+			stand()
+		else:
+			var at := seat.global_position
+			dir = at.normalized()
+			var face := seat.global_transform.basis.z
+			fwd = (face - dir * face.dot(dir)).normalized()
+			alt = at.length() - Planet.R
+			on_ground = true
+			vy = 0.0
+			moving = false
+			return
 	gait_f = f
 	gait_s = sd
 	if mount and sd != 0.0:
@@ -439,13 +466,17 @@ func _fly(delta: float, up: Vector3) -> void:
 ## HIPS ON THE SADDLE. Mixamo's sitting clip holds the hips well away from the
 ## character's origin, so the body is moved to bring them down onto the saddle.
 func _seat() -> void:
-	if not mount:
+	if not mount and not seat:
 		model.position = model_base
 		return
 	if skel == null or hips < 0:
 		return
 	var hw := skel.global_transform * skel.get_bone_global_pose(hips).origin
-	var want := mount.global_transform * Vector3(0, mount.back + 0.12, -Panda.LEN * 0.17 - 0.1)
+	var want: Vector3
+	if mount:
+		want = mount.global_transform * Vector3(0, mount.back + 0.12, -Panda.LEN * 0.17 - 0.1)
+	else:
+		want = seat.global_transform * Vector3(0, float(seat.get_meta("sit_h", 0.5)) + 0.08, 0.08)
 	model.position += global_transform.basis.inverse() * (want - hw)
 
 func _animate() -> void:
@@ -460,7 +491,7 @@ func _animate() -> void:
 			emote = ""
 	if emote != "":
 		want = emote
-	elif mount:
+	elif mount or seat:
 		want = "ride"
 	elif flying:
 		want = "fly"

@@ -21,6 +21,7 @@ signal changed
 signal players_in(list: Array)
 signal said(line: Dictionary)          # {from, text} or {sys}
 signal buzz(msg: Dictionary)           # a text arrived
+signal room_said(msg: Dictionary)      # a chat room: object state, an edit, an invite, a way out
 
 ## Where KORO lives unless a class runs its own: the Render service, which
 ## holds rooms (a socket needs a server that stays up). Free plan, so it
@@ -79,11 +80,27 @@ func set_room(id: String) -> void:
 	room = id
 	Settings.set_value("room", id)
 	if live:
-		_send({"t": "join", "server": room})
+		_send({"t": "join", "server": target()})
+
+## The socket room to be in: the chat room you are standing in, if you are
+## in one, else the public room you picked. Checked by the server either way.
+func target() -> String:
+	if Worlds.current == "chatroom" and Worlds.room_server != "":
+		return Worlds.room_server
+	return room
+
+## Walked into a new world (or a chat room): stand in its socket room.
+func go() -> void:
+	if live:
+		_send({"t": "join", "server": target()})
+
+## A chat room's object changed state here — tell everybody else inside.
+func room_state(obj_id: String, state: Dictionary) -> void:
+	_send({"t": "cro", "o": obj_id, "s": state})
 
 # ------------------------------------------------------------------ HTTP
 
-func api(path: String, body: Variant = null) -> Dictionary:
+func api(path: String, body: Variant = null, method := -1) -> Dictionary:
 	if base == "":
 		return {"ok": false, "error": "Type the server's address first."}
 	var req := HTTPRequest.new()
@@ -92,8 +109,9 @@ func api(path: String, body: Variant = null) -> Dictionary:
 	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
 	if cookie != "":
 		headers.append("Cookie: mq=" + cookie)
-	var method := HTTPClient.METHOD_POST if body != null else HTTPClient.METHOD_GET
-	var err := req.request(base + "/api" + path, headers, method, JSON.stringify(body) if body != null else "")
+	if method < 0:
+		method = HTTPClient.METHOD_POST if body != null else HTTPClient.METHOD_GET
+	var err := req.request(base + "/api" + path, headers, method as HTTPClient.Method, JSON.stringify(body) if body != null else "")
 	if err != OK:
 		req.queue_free()
 		return {"ok": false, "error": "Could not reach the server."}
@@ -219,7 +237,7 @@ func _process(delta: float) -> void:
 					said.emit({"sys": "Back on the server."})
 				retry = 0
 				fails = 0
-				_send({"t": "join", "server": room})
+				_send({"t": "join", "server": target()})
 				changed.emit()
 			while ws.get_available_packet_count() > 0:
 				var m = JSON.parse_string(ws.get_packet().get_string_from_utf8())
@@ -264,7 +282,10 @@ func _where() -> void:
 	var act := "idle"
 	if p.ap and p.ap.current_animation != "":
 		act = p.ap.current_animation
-	_send({"t": "pos", "x": snappedf(lon, 0.01), "z": snappedf(lat, 0.01), "yaw": snappedf(heading, 0.001),
+	# a chat room is small and sits on a big ball, where a hundredth of a
+	# degree is a third of a metre: there, more places
+	var fine := 0.00005 if Worlds.current == "chatroom" else 0.01
+	_send({"t": "pos", "x": snappedf(lon, fine), "z": snappedf(lat, fine), "yaw": snappedf(heading, 0.001),
 		"y": snappedf(over, 0.01), "char": p.character, "act": act,
 		"ride": Wallet.car_id() if p.car else null, "at": Worlds.current})
 
@@ -295,6 +316,46 @@ func _heard(m: Dictionary) -> void:
 			said.emit({"sys": "Your teacher muted the chat for you." if muted_until > Time.get_unix_time_from_system() else "You can chat again."})
 		"dm":
 			buzz.emit(m)
+		"cro", "cro_all", "crupdate", "crkick", "crinvite":
+			room_said.emit(m)
+
+# ------------------------------------------------------------------ chat rooms
+# Everything here is asked of the server, which checks it against the
+# database from your session (server/index.js, "chat rooms"): the game never
+# decides who owns a room or who may come in.
+
+func rooms_lists() -> Dictionary:
+	return await api("/rooms")
+
+func rooms_search(q: String) -> Dictionary:
+	return await api("/rooms/search?q=" + q.uri_encode())
+
+func room_create(name: String, access: String, template: String) -> Dictionary:
+	return await api("/rooms", {"name": name, "access": access, "template": template})
+
+func room_get(id: int) -> Dictionary:
+	return await api("/rooms/%d" % id)
+
+func room_enter(id: int) -> Dictionary:
+	return await api("/rooms/%d/enter" % id, {})
+
+func room_save(id: int, env: Dictionary, objects: Array) -> Dictionary:
+	return await api("/rooms/%d/save" % id, {"env": env, "objects": objects})
+
+func room_rename(id: int, name: String) -> Dictionary:
+	return await api("/rooms/%d/rename" % id, {"name": name})
+
+func room_access(id: int, access: String) -> Dictionary:
+	return await api("/rooms/%d/access" % id, {"access": access})
+
+func room_invite(id: int, username: String) -> Dictionary:
+	return await api("/rooms/%d/invite" % id, {"username": username})
+
+func room_remove(id: int, user_id: int) -> Dictionary:
+	return await api("/rooms/%d/remove" % id, {"userId": user_id})
+
+func room_delete(id: int) -> Dictionary:
+	return await api("/rooms/%d" % id, null, HTTPClient.METHOD_DELETE)
 
 # ------------------------------------------------------------------ the phone
 

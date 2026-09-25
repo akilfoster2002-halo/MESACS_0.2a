@@ -62,11 +62,15 @@ test('chat rooms: create, permit, share, furnish, sync, lock, delete', async () 
     ben.send(JSON.stringify({ t: 'join', server: 'cr:' + id }));
     assert.ok(await until(() => ben.heard.some(m => m.t === 'crkick')), 'the socket let Ben into a private room');
 
-    // 4. Ana invites Ben: now he may, and it is in his invited list
+    // 4. Ana invites Ben. Private is Ana alone, so he is on the list but not
+    //    yet in; made Invited, the list opens the door
     const inv = await api('ana', 'POST', `/rooms/${id}/invite`, { username: 'ben' });
     assert.strictEqual(inv.ok, true, inv.error);
+    assert.ok(inv.note, 'the owner was not told the room is still private');
     assert.ok(await until(() => ben.heard.some(m => m.t === 'crinvite' && m.id === id)), 'Ben was never told');
     assert.ok((await api('ben', 'GET', '/rooms')).invited.some(r => r.id === id));
+    assert.strictEqual((await api('ben', 'POST', `/rooms/${id}/enter`)).status, 403, 'private let an invited player in');
+    assert.strictEqual((await api('ana', 'POST', `/rooms/${id}/access`, { access: 'invited' })).ok, true);
     const entered = await api('ben', 'POST', `/rooms/${id}/enter`);
     assert.strictEqual(entered.server, 'cr:' + id);
     assert.ok((await api('ben', 'GET', '/rooms')).recent.some(r => r.id === id), 'not in RECENT');
@@ -106,7 +110,7 @@ test('chat rooms: create, permit, share, furnish, sync, lock, delete', async () 
     assert.strictEqual(env.brightness, 2);
     assert.strictEqual(objs.length, 3, 'an unknown object type was kept');
     const couch = objs.find(o => o.type === 'couch');
-    assert.strictEqual(couch.p[0], 12.8); assert.strictEqual(couch.p[1], 0);
+    assert.strictEqual(couch.p[0], 9.8); assert.strictEqual(couch.p[1], 0);
     assert.strictEqual(couch.r, 5); assert.strictEqual(couch.s, 4);
     assert.deepStrictEqual(couch.props, { color: '#abcdef' }, 'props outside the type were kept');
     assert.strictEqual(objs.find(o => o.type === 'neon_sign').props.text.length, 60);
@@ -133,12 +137,17 @@ test('chat rooms: create, permit, share, furnish, sync, lock, delete', async () 
     assert.ok(cy.heard.find(m => m.t === 'cro_all').states.some(s => s.o === objs[0].id), 'the switch was not remembered');
     const kicks = ws => ws.heard.filter(m => m.t === 'crkick').length;
     const benBefore = kicks(ben);             // his refusal back in step 3
-    await api('ana', 'POST', `/rooms/${id}/access`, { access: 'private' });
-    assert.ok(await until(() => kicks(cy) > 0), 'a stranger stayed in a room made private');
+    await api('ana', 'POST', `/rooms/${id}/access`, { access: 'invited' });
+    assert.ok(await until(() => kicks(cy) > 0), 'a stranger stayed in a room made invite-only');
     assert.strictEqual(kicks(ben), benBefore, 'an invited player was thrown out');
     // taken off the list, Ben goes too
     await api('ana', 'POST', `/rooms/${id}/remove`, { userId: people.ben });
     assert.ok(await until(() => kicks(ben) > benBefore), 'a removed player stayed in');
+    // and private is Ana alone, list or no list
+    await api('ana', 'POST', `/rooms/${id}/invite`, { username: 'ben' });
+    await api('ana', 'POST', `/rooms/${id}/access`, { access: 'private' });
+    assert.strictEqual((await api('ben', 'POST', `/rooms/${id}/enter`)).status, 403, 'private let a listed player in');
+    assert.strictEqual((await api('ana', 'POST', `/rooms/${id}/enter`)).ok, true, 'the owner was shut out of her own room');
 
     // 9. deleted: gone for everybody
     assert.strictEqual((await api('ana', 'DELETE', `/rooms/${id}`)).ok, true);

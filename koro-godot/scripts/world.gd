@@ -29,6 +29,10 @@ var env: Environment
 var ui_open := false
 var W: Dictionary
 var pad: Building
+## A chat room, when this world is one (chatroom.gd), and its editor while
+## the owner has it open (room_editor.gd).
+var room: ChatRoom
+var editor: RoomEditor
 
 const KEYS := {
 	"forward": [KEY_W, KEY_UP], "back": [KEY_S, KEY_DOWN],
@@ -37,6 +41,7 @@ const KEYS := {
 	"off": [KEY_R], "view": [KEY_V], "slam": [KEY_Q], "mouse": [KEY_ESCAPE],
 	"fly": [KEY_F], "dance": [KEY_G], "emote1": [KEY_1], "emote2": [KEY_2], "emote3": [KEY_3],
 	"who": [KEY_B], "pause": [KEY_P], "phone": [KEY_T], "roster": [KEY_O], "music": [KEY_M], "mech": [KEY_X],
+	"rooms": [KEY_C], "roommenu": [KEY_TAB],
 }
 
 var _t0 := 0
@@ -55,8 +60,13 @@ const HEAVY := ["res://assets/temple.glb", "res://assets/garden.glb", "res://ass
 func hub() -> bool:
 	return W.id == "hub"
 
+func in_room() -> bool:
+	return str(W.get("kind", "")) == "chatroom"
+
 func _ready() -> void:
 	_t0 = Time.get_ticks_msec()
+	if Worlds.current == "chatroom" and Worlds.room.is_empty():
+		Worlds.current = Worlds.planet()        # a room with nothing to stand up
 	W = Worlds.here()
 	Planet.use(W)
 	if hub():
@@ -66,30 +76,37 @@ func _ready() -> void:
 	seed(20260923 + int(W.seed))           # the same world every time you open it
 	_inputs()
 	_sky()
-	sky = SkyShow.new()
-	sky.world = self
-	add_child(sky)
-	# the pool is dug before the ground is built, so the mesh, your feet and
-	# the trees all agree where the bank is
-	if hub():
-		Islands.dig()
-	var ground := MeshInstance3D.new()
-	ground.mesh = Planet.build_mesh(6 if Planet.R > 200.0 else 5)
-	add_child(ground)
-	_lap("ground")
-	_buildings()
-	_lap("buildings")
-	if hub():
-		islands = Islands.new()
-		islands.world = self
-		add_child(islands)
-		_lap("islands")
-	var flies := Fireflies.new()
-	flies.tint = W.flies
-	add_child(flies)
-	_lap("fireflies")
-	_scenery()
-	_lap("flora")
+	if in_room():
+		# A CHAT ROOM brings everything it has: no ground, no town, no trees
+		room = ChatRoom.new().setup(Worlds.room, self)
+		room.position = Vector3(0, Planet.R, 0)
+		add_child(room)
+		_lap("room")
+	else:
+		sky = SkyShow.new()
+		sky.world = self
+		add_child(sky)
+		# the pool is dug before the ground is built, so the mesh, your feet and
+		# the trees all agree where the bank is
+		if hub():
+			Islands.dig()
+		var ground := MeshInstance3D.new()
+		ground.mesh = Planet.build_mesh(6 if Planet.R > 200.0 else 5)
+		add_child(ground)
+		_lap("ground")
+		_buildings()
+		_lap("buildings")
+		if hub():
+			islands = Islands.new()
+			islands.world = self
+			add_child(islands)
+			_lap("islands")
+		var flies := Fireflies.new()
+		flies.tint = W.flies
+		add_child(flies)
+		_lap("fireflies")
+		_scenery()
+		_lap("flora")
 	_creatures()
 	_lap("creatures")
 	others = Others.new()
@@ -98,18 +115,29 @@ func _ready() -> void:
 	net = get_node("/root/Online")
 	net.world = self
 	net.players_in.connect(others.show_list)
+	net.room_said.connect(_room_said)
 	tree_exiting.connect(func():
 		net.players_in.disconnect(others.show_list)
+		net.room_said.disconnect(_room_said)
 		net.world = null)
+	# stand in this world's socket room: the chat room's, or the public one
+	net.go()
 	hud = Hud.new()
 	hud.world = self
 	add_child(hud)
 	Sound.here(self)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if Worlds.by_ship:
+	if in_room():
+		var owner: Dictionary = Worlds.room.get("owner", {})
+		hud.say("%s — %s. E to use things · TAB for the room menu." % [Worlds.room.get("name", "A ROOM"),
+			"your room" if room.mine() else "%s's room" % owner.get("display", "somebody")], 6.0)
+	elif Worlds.note != "":
+		hud.say(Worlds.note, 6.0)
+	elif Worlds.by_ship:
 		hud.say("Welcome to %s — %s." % [W.name, W.sub], 5.0)
 	else:
-		hud.say("Welcome to Wano.  F to fly · R for your car · E to ride · B to change who you are", 6.0)
+		hud.say("Welcome to Wano.  F to fly · R for your car · E to ride · B to change who you are · C for chat rooms", 6.0)
+	Worlds.note = ""
 	Worlds.by_ship = false
 
 func _inputs() -> void:
@@ -153,6 +181,8 @@ func _sky() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	if in_room():
+		return
 
 	var town := Planet.dir_of(0, 0)
 	var f := Planet.frame_at(town)
@@ -214,6 +244,8 @@ func _buildings() -> void:
 ## The console, desk or person within reach, if there is one.
 func _usable() -> Dictionary:
 	var p := player.global_position
+	if room:
+		return room.use_near(p)
 	for bld in buildings:
 		if bld.global_position.distance_to(p) > 70.0:
 			continue
@@ -250,12 +282,20 @@ func _creatures() -> void:
 	if hub():
 		_wano_life()
 	# you: in front of Mission Control's door the first time, off the pad when
-	# you came by ship, and in front of the first building anywhere else
+	# you came by ship, in front of the first building anywhere else — in a
+	# chat room at its way out, and back where you were when you leave one
 	var start: Vector3
 	var facing: Vector3
-	var pd := Planet.dir_of(W.pad.lon, W.pad.lat)
-	var pf := Planet.frame_at(pd)
-	if Worlds.by_ship:
+	if in_room():
+		var sp := room.spawn()
+		start = sp[0]
+		facing = sp[1]
+	elif not Worlds.back_to.is_empty() and str(Worlds.back_to.get("world", "")) == Worlds.current:
+		start = Worlds.back_to.dir
+		facing = Worlds.back_to.fwd
+	elif Worlds.by_ship:
+		var pd := Planet.dir_of(W.pad.lon, W.pad.lat)
+		var pf := Planet.frame_at(pd)
 		start = Planet.walk(pd, pf.z, 13.0)
 		facing = pf.z
 	else:
@@ -264,16 +304,20 @@ func _creatures() -> void:
 		var tf := Planet.frame_at(td)
 		start = Planet.walk(td, tf.z, first.d / 2.0 + 21.0)
 		facing = td - start
+	Worlds.back_to = {}
 	player = Walker.new()
 	player.world = self
 	add_child(player)
 	player.place(start, facing)
-	# and your car, parked beside you
+	# and your car, parked beside you — kept out of sight in a chat room
 	car = Car.new()
 	car.world = self
 	add_child(car)
-	var sf := Planet.frame_at(start)
-	car.park(Planet.walk(start, sf.x, 6.0), facing)
+	var sf := Planet.frame_at(start.normalized())
+	car.park(Planet.walk(start.normalized(), sf.x, 6.0), facing)
+	if in_room():
+		car.visible = false
+		car.process_mode = Node.PROCESS_MODE_DISABLED
 
 func _wano_life() -> void:
 	var town := Planet.dir_of(0, 0)
@@ -390,6 +434,13 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_fly()
 	elif ev.is_action_pressed("mech"):
 		_mech()
+	elif ev.is_action_pressed("rooms"):
+		hud.rooms_open()
+	elif ev.is_action_pressed("roommenu"):
+		if room:
+			hud.room_menu_open()
+		else:
+			hud.rooms_open()
 	elif ev.is_action_pressed("view"):
 		if piloting():
 			mecha.first_person = not mecha.first_person
@@ -450,6 +501,12 @@ func _use() -> void:
 
 ## R: out of whatever you are in — or, on your own two feet, your car comes to you.
 func _off() -> void:
+	if room and not player.car and not player.mount and not piloting():
+		if player.seat:
+			player.stand()
+		else:
+			hud.say("No cars in here — the portal takes you back out.", 2.5)
+		return
 	if piloting():
 		_unmech()
 	elif player.car:
@@ -524,6 +581,8 @@ func _unmech() -> void:
 
 ## Under a roof: any building's, or the temple's.
 func indoors() -> bool:
+	if room:
+		return true
 	for b in buildings:
 		if not b.b.get("pad", false) and b.inside(player.global_position):
 			return true
@@ -537,7 +596,78 @@ func launch(dest: String) -> void:
 	Ctl.blocked = false
 	get_tree().change_scene_to_file("res://scenes/cruise.tscn")
 
+# ------------------------------------------------------------ chat rooms
+
+## Into a chat room the server has let you into (`r` as it described it,
+## `server` its socket room). You come back out where you went in.
+func enter_room(r: Dictionary, server: String) -> void:
+	if Worlds.current != "chatroom":
+		Worlds.came_from = {"world": Worlds.current, "dir": player.dir, "fwd": player.fwd}
+	Worlds.room = r
+	Worlds.room_server = server
+	Worlds.current = "chatroom"
+	_restage()
+
+## Out of the room, back to the world you came from — `why` is said there.
+func leave_room(why := "") -> void:
+	Worlds.back_to = Worlds.came_from.duplicate()
+	Worlds.current = str(Worlds.came_from.get("world", "hub"))
+	Worlds.room = {}
+	Worlds.room_server = ""
+	Worlds.came_from = {}
+	Worlds.note = why
+	_restage()
+
+## A portal to another room: the server decides whether you may.
+func goto_room(to: String) -> void:
+	var j: Dictionary = await net.room_enter(int(to))
+	if not j.ok:
+		hud.say(str(j.error), 4.0)
+		return
+	enter_room(j.room, str(j.server))
+
+func edit_room() -> void:
+	if room == null or not room.mine() or editor != null:
+		return
+	if player.seat:
+		player.stand()
+	editor = RoomEditor.new()
+	editor.world = self
+	editor.room = room
+	add_child(editor)
+
+func _restage() -> void:
+	get_tree().paused = false
+	Ctl.blocked = false
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+## What the server says about chat rooms: object state, an edit to the room
+## you are in, being sent out of it, an invitation.
+func _room_said(m: Dictionary) -> void:
+	var here := int(Worlds.room.get("id", -1))
+	match str(m.get("t", "")):
+		"cro", "cro_all":
+			if room:
+				room.heard(m)
+		"crinvite":
+			hud.say("%s invited you to \"%s\" — C for chat rooms." % [m.get("from", "Somebody"), m.get("name", "their room")], 6.0)
+		"crkick":
+			if room and int(m.get("id", -2)) == here:
+				leave_room(str(m.get("reason", "You were sent out of the room.")))
+		"crupdate":
+			if room and int(m.get("id", -2)) == here and editor == null:
+				var j: Dictionary = await net.room_get(here)
+				if not is_instance_valid(room):
+					return
+				if j.ok:
+					Worlds.room = j.room
+					room.reload(j.room)
+				else:
+					leave_room(str(j.error))
+
 func _near_car() -> bool:
+	if room:
+		return false
 	return player.dir.angle_to(car.dir) * Planet.R < 4.5 and absf(player.alt - car.alt) < 2.0
 
 func _near_panda() -> Panda:
@@ -553,6 +683,11 @@ func _near_panda() -> Panda:
 
 func _process(_delta: float) -> void:
 	ui_open = hud.any_open()
+	if editor:
+		hud.prompt.text = ""
+		hud.status.text = ""
+		hud.help.text = ""
+		return
 	var inside := indoors()
 	Sound.indoors(inside)
 	var calls := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
@@ -573,8 +708,15 @@ func _process(_delta: float) -> void:
 		hud.help.text = "W go · SHIFT gallop · A/D turn · SPACE hop · R get off · F fly · V view"
 	elif player.swimming:
 		hud.help.text = "WASD swim · SPACE kick out · F fly out of the water · P pause"
+	elif room:
+		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E use · G dance · TAB room menu · C chat rooms · P pause"
+		if player.seat:
+			hud.help.text = "Sitting — WASD or SPACE to get up · TAB room menu"
+		var u := _usable()
+		if not u.is_empty():
+			prompt = "E — " + str(u.label)
 	else:
-		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E ride / climb in · R car · G dance · B who you are · P pause" \
+		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E ride / climb in · R car · G dance · B who you are · C chat rooms · P pause" \
 			+ (" · X mecha" if Wallet.mech_id() != "" else "")
 		var u := _usable()
 		if not u.is_empty():

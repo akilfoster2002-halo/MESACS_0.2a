@@ -137,7 +137,8 @@ function fromTemplate(key) {
 /* --------------------------------------------------------- the store
    Every statement is written once, here, so server/memdb.js (the stand-in
    the dev server and the Mac app run on) has exactly these to answer. */
-const CARD = 'r.id,r.name,r.access,r.owner_id,u.display AS owner_display';
+/* a card carries the room's environment so a list can draw each room in its own colours */
+const CARD = 'r.id,r.name,r.access,r.owner_id,r.template,r.env,u.display AS owner_display';
 
 function makeStore(db) {
   const one = async (sql, p) => (await db.q(sql, p)).rows[0] || null;
@@ -149,10 +150,14 @@ function makeStore(db) {
     !!(await one('SELECT 1 AS yes FROM chat_room_members WHERE room_id=$1 AND user_id=$2', [roomId, userId]));
   return {
     room, isMember,
+    /* PRIVATE is the owner alone; INVITED is the owner and the people on the
+       list; PUBLIC is anybody signed in. The list is kept whatever the
+       access, so a room made private and opened again lets the same
+       people back in. */
     async canEnter(r, userId) {
       if (!r) return false;
       if (r.owner_id === userId || r.access === 'public') return true;
-      return isMember(r.id, userId);
+      return r.access === 'invited' && isMember(r.id, userId);
     },
     countOwned: async userId => Number((await one('SELECT count(*)::int AS n FROM chat_rooms WHERE owner_id=$1', [userId])).n || 0),
     create: async (ownerId, name, access, t) => one(

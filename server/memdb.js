@@ -218,7 +218,7 @@ function query(text, params){
   const now = () => new Date().toISOString();
   const byNewest = k => (a, b) => String(b[k]).localeCompare(String(a[k]));
   const card = r => { const u = userById(r.owner_id);
-    return { id:r.id, name:r.name, access:r.access, owner_id:r.owner_id, owner_display:u.display }; };
+    return { id:r.id, name:r.name, access:r.access, owner_id:r.owner_id, template:r.template, env:r.env, owner_display:u.display }; };
   const jsonOf = v => typeof v === 'string' ? JSON.parse(v) : v;
   if(like(sql, 'INSERT INTO chat_rooms')){
     const r = { id:nextRoomId++, owner_id:p[0], name:p[1], access:p[2], template:p[3],

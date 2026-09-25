@@ -39,6 +39,7 @@ var deck_bpm: Label
 var club: Club
 var travel: PanelContainer
 var travel_list: VBoxContainer
+var rooms: RoomsUI
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -97,6 +98,12 @@ func say(text: String, secs := 3.5) -> void:
 ## first — this node keeps running while everything else is paused.
 func _unhandled_input(ev: InputEvent) -> void:
 	var esc: bool = ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE)
+	if rooms.visible:
+		var typing := get_viewport().gui_get_focus_owner() is LineEdit
+		if esc or (not typing and (ev.is_action_pressed("roommenu") or ev.is_action_pressed("rooms"))):
+			rooms_close()
+			get_viewport().set_input_as_handled()
+		return
 	if account.visible or phone.visible or talk.visible or who.visible or decks.visible or travel.visible:
 		if esc or (who.visible and ev.is_action_pressed("who")):
 			account.visible = false
@@ -131,6 +138,8 @@ func _process(delta: float) -> void:
 	var status := "Guest — P → Your account to sign in"
 	if net.signed_in():
 		var room_name: String = Net.ROOMS.filter(func(r): return r[0] == net.room)[0][1] if net.room != "" else "?"
+		if Worlds.current == "chatroom":
+			room_name = str(Worlds.room.get("name", "a chat room"))
 		status = "%s · %s" % [net.me.get("display", "?"), room_name]
 		status += (" · %d here" % (world.others.count() + 1)) if net.live else " · no live room"
 		unread_t -= delta
@@ -299,7 +308,8 @@ func _pause() -> void:
 	var keys := Label.new()
 	keys.text = """WASD walk · mouse look · SHIFT run · SPACE jump · scroll zoom
 F fly · E ride, climb in, get in · R car / get out · V first person
-G dance · 1 2 3 emotes · B who you are · T phone · O who is here · M music · P pause"""
+G dance · 1 2 3 emotes · B who you are · T phone · O who is here · M music · P pause
+C chat rooms · TAB the room menu, in a room"""
 	keys.add_theme_font_size_override("font_size", 15)
 	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(keys)
@@ -325,7 +335,8 @@ func is_paused() -> bool:
 ## are in a room with other people, and it goes on without you.
 func _hold() -> void:
 	var still := picker.visible or paused.visible or book.visible
-	var up: bool = still or account.visible or phone.visible or talk.visible or who.visible
+	var up: bool = still or account.visible or phone.visible or talk.visible or who.visible or rooms.visible \
+		or world.editor != null
 	get_tree().paused = still
 	world.ui_open = up
 	Ctl.blocked = up
@@ -333,7 +344,7 @@ func _hold() -> void:
 
 func any_open() -> bool:
 	return picker.visible or paused.visible or book.visible or account.visible or phone.visible or who.visible \
-		or decks.visible or travel.visible or talk.visible
+		or decks.visible or travel.visible or talk.visible or rooms.visible or world.editor != null
 
 # ---------------------------------------------------------------- the decks
 
@@ -467,6 +478,8 @@ func _net_cards() -> void:
 	_style(phone)
 	talk = Talk.new().build(net, self)
 	_style(talk)
+	rooms = RoomsUI.new().build(net, self)
+	add_child(rooms)
 	who = _card()
 	who.custom_minimum_size = Vector2(420, 360)
 	var col := VBoxContainer.new()
@@ -539,6 +552,23 @@ func _check_unread() -> void:
 	if j.get("ok", false):
 		unread = int(j.get("count", 0))
 
+## CHAT ROOMS (rooms_ui.gd): C for the browser anywhere, TAB for the menu of
+## the room you are in.
+func rooms_open() -> void:
+	rooms.open_browser()
+	_hold()
+
+func room_menu_open() -> void:
+	rooms.open_menu()
+	_hold()
+
+func rooms_close() -> void:
+	rooms.visible = false
+	var f := get_viewport().gui_get_focus_owner()
+	if f:
+		f.release_focus()
+	_hold()
+
 func account_open() -> void:
 	account.visible = true
 	_hold()
@@ -569,7 +599,7 @@ func who_toggle() -> void:
 		var net: Net = world.net
 		var out := "[b]%s[/b]  (you)\n" % (net.me.get("display", "you") if net.signed_in() else "you")
 		for p in net.roster:
-			out += "%s%s\n" % [p.get("display", "?"), "" if str(p.get("at", "")) == "hub" else "  — elsewhere"]
+			out += "%s%s\n" % [p.get("display", "?"), "" if str(p.get("at", "")) == Worlds.current else "  — elsewhere"]
 		if not net.signed_in():
 			out += "\n[color=#ffe9a8]Sign in (P → Your account) to see your class.[/color]"
 		elif not net.live:

@@ -1,151 +1,1134 @@
 {
   "_": "CHAT ROOMS — the one description of what a room can be made of. The server reads it to decide what is allowed (server/chatrooms.js); the game reads it to build what it describes (scripts/chatroom.gd). A new object type or template is an entry here plus, for a new behaviour, one function in the game.",
-  "size": { "w": 26, "d": 26, "h": 9 },
-  "limits": { "objects": 150, "name": 32, "text": 60 },
+  "size": {
+    "w": 20,
+    "d": 20,
+    "h": 7
+  },
+  "limits": {
+    "objects": 150,
+    "name": 32,
+    "text": 60
+  },
   "env": {
-    "floor": ["wood", "tile", "carpet", "concrete", "grid", "grass", "metal"],
-    "walls": ["plain", "brick", "panel", "glass", "none"],
-    "light": ["warm", "cool", "neon", "daylight", "dim", "party"],
-    "sky": ["stars", "nebula", "sunset", "day", "void", "wano"],
-    "palette": ["#f4efe6", "#d9c3a5", "#9b6b43", "#5b3a29", "#2e2a33", "#16161d", "#e8e4f0", "#9aa3b5",
-                "#3a4a63", "#1f3b5c", "#8ff0ff", "#27a3b3", "#a8e6cf", "#3f7a35", "#ffd766", "#ff9f43",
-                "#ff6a6a", "#d42a35", "#ff6ad5", "#9b6bff"]
+    "floor": [
+      "wood",
+      "tile",
+      "carpet",
+      "concrete",
+      "grid",
+      "grass",
+      "metal"
+    ],
+    "walls": [
+      "plain",
+      "brick",
+      "panel",
+      "glass",
+      "none"
+    ],
+    "light": [
+      "warm",
+      "cool",
+      "neon",
+      "daylight",
+      "dim",
+      "party"
+    ],
+    "sky": [
+      "stars",
+      "nebula",
+      "sunset",
+      "day",
+      "void",
+      "wano"
+    ],
+    "palette": [
+      "#f4efe6",
+      "#d9c3a5",
+      "#9b6b43",
+      "#5b3a29",
+      "#2e2a33",
+      "#16161d",
+      "#e8e4f0",
+      "#9aa3b5",
+      "#3a4a63",
+      "#1f3b5c",
+      "#8ff0ff",
+      "#27a3b3",
+      "#a8e6cf",
+      "#3f7a35",
+      "#ffd766",
+      "#ff9f43",
+      "#ff6a6a",
+      "#d42a35",
+      "#ff6ad5",
+      "#9b6bff"
+    ]
   },
   "objects": {
-    "table":        { "name": "Table",          "cat": "furniture", "solid": [2.0, 0.9, 1.2] },
-    "chair":        { "name": "Chair",          "cat": "furniture", "behavior": "seat", "solid": [0.7, 1.0, 0.7] },
-    "couch":        { "name": "Couch",          "cat": "furniture", "behavior": "seat", "solid": [2.4, 1.0, 1.0], "props": { "color": "#9b6bff" } },
-    "bed":          { "name": "Bed",            "cat": "furniture", "behavior": "seat", "solid": [1.8, 0.7, 2.4], "props": { "color": "#27a3b3" } },
-    "desk":         { "name": "Desk",           "cat": "furniture", "solid": [1.8, 0.8, 0.9] },
-    "bookshelf":    { "name": "Bookshelf",      "cat": "furniture", "solid": [1.8, 2.2, 0.5] },
-    "rug":          { "name": "Rug",            "cat": "furniture", "props": { "color": "#ff6ad5" } },
-    "tool_chest":   { "name": "Tool Chest",     "cat": "furniture", "model": "res://assets/shop/chest.glb", "height": 1.5, "solid": [1.0, 1.5, 0.7] },
-    "workbench":    { "name": "Workbench",      "cat": "furniture", "model": "res://assets/shop/bench.glb", "height": 1.9, "solid": [2.2, 1.0, 1.0] },
-    "school_desk":  { "name": "School Desk",    "cat": "furniture", "solid": [1.1, 0.8, 0.7] },
-    "plant":        { "name": "Plant",          "cat": "decor", "solid": [0.6, 1.4, 0.6] },
-    "floor_lamp":   { "name": "Floor Lamp",     "cat": "decor", "solid": [0.5, 1.8, 0.5], "props": { "color": "#ffd766" } },
-    "poster":       { "name": "Poster",         "cat": "decor", "props": { "art": 1 } },
-    "neon_sign":    { "name": "Neon Sign",      "cat": "decor", "props": { "text": "MY ROOM", "color": "#ff6ad5" } },
-    "statue":       { "name": "Friend Statue",  "cat": "decor", "props": { "who": "nia" }, "solid": [0.8, 1.8, 0.8] },
-    "panda":        { "name": "Panda",          "cat": "decor", "model": "res://assets/panda.glb", "height": 1.3, "solid": [1.4, 1.3, 2.0] },
-    "mecha_model":  { "name": "Mecha Model",    "cat": "decor", "model": "res://assets/mecha-seraph.glb", "height": 2.4, "solid": [1.2, 2.4, 1.0] },
-    "globe":        { "name": "Planet Globe",   "cat": "decor", "solid": [0.9, 1.4, 0.9] },
-    "crate":        { "name": "Crate",          "cat": "decor", "solid": [1.0, 1.0, 1.0] },
-    "portal":       { "name": "Portal",         "cat": "interactive", "behavior": "portal", "props": { "to": "" }, "solid": [0.2, 3.0, 2.4] },
-    "light_switch": { "name": "Light Switch",   "cat": "interactive", "behavior": "lights" },
-    "jukebox":      { "name": "Jukebox",        "cat": "interactive", "behavior": "jukebox", "solid": [1.0, 1.8, 0.7] },
-    "tv":           { "name": "Television",     "cat": "interactive", "behavior": "tv", "props": { "text": "WELCOME" }, "solid": [2.2, 1.9, 0.5] },
-    "arcade":       { "name": "Arcade Machine", "cat": "interactive", "behavior": "arcade", "solid": [1.0, 2.0, 1.0] },
-    "robot":        { "name": "Robot",          "cat": "interactive", "behavior": "robot", "props": { "program": [["event.flag"], ["motion.move", 3], ["ctrl.wait", 1], ["motion.turn", "z", 90], ["looks.sayFor", "Hi!", 2]] }, "solid": [0.9, 1.3, 0.9] }
+    "table": {
+      "name": "Table",
+      "cat": "furniture",
+      "solid": [
+        2.0,
+        0.9,
+        1.2
+      ]
+    },
+    "chair": {
+      "name": "Chair",
+      "cat": "furniture",
+      "behavior": "seat",
+      "solid": [
+        0.7,
+        1.0,
+        0.7
+      ]
+    },
+    "couch": {
+      "name": "Couch",
+      "cat": "furniture",
+      "behavior": "seat",
+      "solid": [
+        2.4,
+        1.0,
+        1.0
+      ],
+      "props": {
+        "color": "#9b6bff"
+      }
+    },
+    "bed": {
+      "name": "Bed",
+      "cat": "furniture",
+      "behavior": "seat",
+      "solid": [
+        1.8,
+        0.7,
+        2.4
+      ],
+      "props": {
+        "color": "#27a3b3"
+      }
+    },
+    "desk": {
+      "name": "Desk",
+      "cat": "furniture",
+      "solid": [
+        1.8,
+        0.8,
+        0.9
+      ]
+    },
+    "bookshelf": {
+      "name": "Bookshelf",
+      "cat": "furniture",
+      "solid": [
+        1.8,
+        2.2,
+        0.5
+      ]
+    },
+    "rug": {
+      "name": "Rug",
+      "cat": "furniture",
+      "props": {
+        "color": "#ff6ad5"
+      }
+    },
+    "tool_chest": {
+      "name": "Tool Chest",
+      "cat": "furniture",
+      "model": "res://assets/shop/chest.glb",
+      "height": 1.5,
+      "solid": [
+        1.0,
+        1.5,
+        0.7
+      ]
+    },
+    "workbench": {
+      "name": "Workbench",
+      "cat": "furniture",
+      "model": "res://assets/shop/bench.glb",
+      "height": 1.9,
+      "solid": [
+        2.2,
+        1.0,
+        1.0
+      ]
+    },
+    "school_desk": {
+      "name": "School Desk",
+      "cat": "furniture",
+      "solid": [
+        1.1,
+        0.8,
+        0.7
+      ]
+    },
+    "plant": {
+      "name": "Plant",
+      "cat": "decor",
+      "solid": [
+        0.6,
+        1.4,
+        0.6
+      ]
+    },
+    "floor_lamp": {
+      "name": "Floor Lamp",
+      "cat": "decor",
+      "solid": [
+        0.5,
+        1.8,
+        0.5
+      ],
+      "props": {
+        "color": "#ffd766"
+      }
+    },
+    "poster": {
+      "name": "Poster",
+      "cat": "decor",
+      "props": {
+        "art": 1
+      }
+    },
+    "neon_sign": {
+      "name": "Neon Sign",
+      "cat": "decor",
+      "props": {
+        "text": "MY ROOM",
+        "color": "#ff6ad5"
+      }
+    },
+    "statue": {
+      "name": "Friend Statue",
+      "cat": "decor",
+      "props": {
+        "who": "nia"
+      },
+      "solid": [
+        0.8,
+        1.8,
+        0.8
+      ]
+    },
+    "panda": {
+      "name": "Panda",
+      "cat": "decor",
+      "model": "res://assets/panda.glb",
+      "height": 1.3,
+      "solid": [
+        1.4,
+        1.3,
+        2.0
+      ]
+    },
+    "mecha_model": {
+      "name": "Mecha Model",
+      "cat": "decor",
+      "model": "res://assets/mecha-seraph.glb",
+      "height": 2.4,
+      "solid": [
+        1.2,
+        2.4,
+        1.0
+      ]
+    },
+    "globe": {
+      "name": "Planet Globe",
+      "cat": "decor",
+      "solid": [
+        0.9,
+        1.4,
+        0.9
+      ]
+    },
+    "crate": {
+      "name": "Crate",
+      "cat": "decor",
+      "solid": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "portal": {
+      "name": "Portal",
+      "cat": "interactive",
+      "behavior": "portal",
+      "props": {
+        "to": ""
+      }
+    },
+    "light_switch": {
+      "name": "Light Switch",
+      "cat": "interactive",
+      "behavior": "lights"
+    },
+    "jukebox": {
+      "name": "Jukebox",
+      "cat": "interactive",
+      "behavior": "jukebox",
+      "solid": [
+        1.0,
+        1.8,
+        0.7
+      ]
+    },
+    "tv": {
+      "name": "Television",
+      "cat": "interactive",
+      "behavior": "tv",
+      "props": {
+        "text": "WELCOME"
+      },
+      "solid": [
+        2.2,
+        1.9,
+        0.5
+      ]
+    },
+    "arcade": {
+      "name": "Arcade Machine",
+      "cat": "interactive",
+      "behavior": "arcade",
+      "solid": [
+        1.0,
+        2.0,
+        1.0
+      ]
+    },
+    "robot": {
+      "name": "Robot",
+      "cat": "interactive",
+      "behavior": "robot",
+      "props": {
+        "program": [
+          [
+            "event.flag"
+          ],
+          [
+            "motion.move",
+            30
+          ],
+          [
+            "ctrl.wait",
+            2
+          ],
+          [
+            "motion.turn",
+            "z",
+            90
+          ],
+          [
+            "motion.move",
+            30
+          ],
+          [
+            "looks.sayFor",
+            "Hi!",
+            2
+          ]
+        ]
+      },
+      "solid": [
+        0.9,
+        1.3,
+        0.9
+      ]
+    }
   },
   "blocks": {
     "_": "The robot's blocks: the same ids as Koro's own language (public/blocks.js). Each entry is its argument kinds.",
     "event.flag": [],
-    "motion.move": ["n"],
-    "motion.turn": ["axis", "n"],
-    "motion.face": ["n"],
-    "ctrl.wait": ["n"],
-    "ctrl.repeat": ["n"],
+    "motion.move": [
+      "n"
+    ],
+    "motion.turn": [
+      "axis",
+      "n"
+    ],
+    "motion.face": [
+      "n"
+    ],
+    "ctrl.wait": [
+      "n"
+    ],
+    "ctrl.repeat": [
+      "n"
+    ],
     "ctrl.forever": [],
     "ctrl.end": [],
-    "looks.sayFor": ["text", "n"]
+    "looks.sayFor": [
+      "text",
+      "n"
+    ]
   },
   "templates": {
     "empty": {
-      "name": "Empty Room", "blurb": "A blank floor and four walls",
-      "env": { "floor": "concrete", "floorColor": "#9aa3b5", "walls": "plain", "wallColor": "#e8e4f0", "ceiling": true, "ceilingColor": "#f4efe6", "light": "daylight", "lightColor": "#ffffff", "brightness": 1.0, "sky": "stars" },
+      "name": "Empty Room",
+      "blurb": "A blank floor and four walls",
+      "env": {
+        "floor": "concrete",
+        "floorColor": "#9aa3b5",
+        "walls": "plain",
+        "wallColor": "#e8e4f0",
+        "ceiling": true,
+        "ceilingColor": "#f4efe6",
+        "light": "daylight",
+        "lightColor": "#ffffff",
+        "brightness": 1.0,
+        "sky": "stars"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     },
     "bedroom": {
-      "name": "Bedroom", "blurb": "Cosy, with somewhere to crash",
-      "env": { "floor": "wood", "floorColor": "#9b6b43", "walls": "plain", "wallColor": "#a8e6cf", "ceiling": true, "ceilingColor": "#f4efe6", "light": "warm", "lightColor": "#ffd766", "brightness": 0.9, "sky": "sunset" },
+      "name": "Bedroom",
+      "blurb": "Cosy, with somewhere to crash",
+      "env": {
+        "floor": "wood",
+        "floorColor": "#9b6b43",
+        "walls": "plain",
+        "wallColor": "#a8e6cf",
+        "ceiling": true,
+        "ceilingColor": "#f4efe6",
+        "light": "warm",
+        "lightColor": "#ffd766",
+        "brightness": 0.9,
+        "sky": "sunset"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 },
-        { "type": "bed", "p": [-7, 0, -9], "r": 0, "s": 1, "props": { "color": "#9b6bff" } },
-        { "type": "rug", "p": [0, 0, -2], "r": 0, "s": 1.6, "props": { "color": "#ff6ad5" } },
-        { "type": "desk", "p": [8, 0, -10.8], "r": 0, "s": 1 },
-        { "type": "chair", "p": [8, 0, -9.3], "r": 180, "s": 1 },
-        { "type": "bookshelf", "p": [12.4, 0, -3], "r": -90, "s": 1 },
-        { "type": "floor_lamp", "p": [-10.5, 0, -11], "r": 0, "s": 1, "props": { "color": "#ffd766" } },
-        { "type": "plant", "p": [11, 0, 8], "r": 0, "s": 1 },
-        { "type": "tv", "p": [0, 0, -12.2], "r": 0, "s": 1, "props": { "text": "MY ROOM" } },
-        { "type": "couch", "p": [0, 0, -5.5], "r": 180, "s": 1, "props": { "color": "#27a3b3" } },
-        { "type": "poster", "p": [-12.8, 3.2, 0], "r": 90, "s": 1, "props": { "art": 3 } },
-        { "type": "jukebox", "p": [-11.5, 0, 5], "r": 90, "s": 1 },
-        { "type": "light_switch", "p": [3, 1.4, 12.8], "r": 180, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "bed",
+          "p": [
+            -5.2,
+            0,
+            -8.7
+          ],
+          "r": 0,
+          "s": 1,
+          "props": {
+            "color": "#9b6bff"
+          }
+        },
+        {
+          "type": "rug",
+          "p": [
+            0.0,
+            0,
+            -1.54
+          ],
+          "r": 0,
+          "s": 1.6,
+          "props": {
+            "color": "#ff6ad5"
+          }
+        },
+        {
+          "type": "desk",
+          "p": [
+            6.15,
+            0,
+            -7.8
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "chair",
+          "p": [
+            6.15,
+            0,
+            -6.55
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "bookshelf",
+          "p": [
+            9.4,
+            0,
+            -2.31
+          ],
+          "r": -90,
+          "s": 1
+        },
+        {
+          "type": "floor_lamp",
+          "p": [
+            -7.5,
+            0,
+            -8.0
+          ],
+          "r": 0,
+          "s": 1,
+          "props": {
+            "color": "#ffd766"
+          }
+        },
+        {
+          "type": "plant",
+          "p": [
+            8.0,
+            0,
+            6.15
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "tv",
+          "p": [
+            0.0,
+            0,
+            -9.2
+          ],
+          "r": 0,
+          "s": 1,
+          "props": {
+            "text": "MY ROOM"
+          }
+        },
+        {
+          "type": "couch",
+          "p": [
+            0.0,
+            0,
+            -4.23
+          ],
+          "r": 180,
+          "s": 1,
+          "props": {
+            "color": "#27a3b3"
+          }
+        },
+        {
+          "type": "poster",
+          "p": [
+            -9.8,
+            2.49,
+            0.0
+          ],
+          "r": 90,
+          "s": 1,
+          "props": {
+            "art": 3
+          }
+        },
+        {
+          "type": "jukebox",
+          "p": [
+            -8.5,
+            0,
+            3.85
+          ],
+          "r": 90,
+          "s": 1
+        },
+        {
+          "type": "light_switch",
+          "p": [
+            2.31,
+            1.4,
+            9.8
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     },
     "arcade": {
-      "name": "Arcade", "blurb": "Neon, cabinets, a jukebox",
-      "env": { "floor": "grid", "floorColor": "#16161d", "walls": "panel", "wallColor": "#2e2a33", "ceiling": true, "ceilingColor": "#16161d", "light": "neon", "lightColor": "#ff6ad5", "brightness": 1.0, "sky": "nebula" },
+      "name": "Arcade",
+      "blurb": "Neon, cabinets, a jukebox",
+      "env": {
+        "floor": "grid",
+        "floorColor": "#16161d",
+        "walls": "panel",
+        "wallColor": "#2e2a33",
+        "ceiling": true,
+        "ceilingColor": "#16161d",
+        "light": "neon",
+        "lightColor": "#ff6ad5",
+        "brightness": 1.0,
+        "sky": "nebula"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [-9, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [-6.5, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [-4, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [4, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [6.5, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "arcade", "p": [9, 0, -11.6], "r": 0, "s": 1 },
-        { "type": "neon_sign", "p": [0, 5.5, -12.8], "r": 0, "s": 1.4, "props": { "text": "ARCADE", "color": "#8ff0ff" } },
-        { "type": "jukebox", "p": [11.8, 0, 0], "r": -90, "s": 1 },
-        { "type": "couch", "p": [-8, 0, 6], "r": 90, "s": 1, "props": { "color": "#ff6ad5" } },
-        { "type": "rug", "p": [0, 0, 2], "r": 0, "s": 2, "props": { "color": "#9b6bff" } },
-        { "type": "light_switch", "p": [3, 1.4, 12.8], "r": 180, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            -6.92,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            -5.0,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            -3.08,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            3.08,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            5.0,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "arcade",
+          "p": [
+            6.92,
+            0,
+            -8.6
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "neon_sign",
+          "p": [
+            0.0,
+            4.28,
+            -9.8
+          ],
+          "r": 0,
+          "s": 1.4,
+          "props": {
+            "text": "ARCADE",
+            "color": "#8ff0ff"
+          }
+        },
+        {
+          "type": "jukebox",
+          "p": [
+            8.8,
+            0,
+            0.0
+          ],
+          "r": -90,
+          "s": 1
+        },
+        {
+          "type": "couch",
+          "p": [
+            -6.15,
+            0,
+            4.62
+          ],
+          "r": 90,
+          "s": 1,
+          "props": {
+            "color": "#ff6ad5"
+          }
+        },
+        {
+          "type": "rug",
+          "p": [
+            0.0,
+            0,
+            1.54
+          ],
+          "r": 0,
+          "s": 2,
+          "props": {
+            "color": "#9b6bff"
+          }
+        },
+        {
+          "type": "light_switch",
+          "p": [
+            2.31,
+            1.4,
+            9.8
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     },
     "classroom": {
-      "name": "Classroom", "blurb": "Desks, a board, a robot to program",
-      "env": { "floor": "tile", "floorColor": "#d9c3a5", "walls": "plain", "wallColor": "#f4efe6", "ceiling": true, "ceilingColor": "#ffffff", "light": "daylight", "lightColor": "#ffffff", "brightness": 1.1, "sky": "day" },
+      "name": "Classroom",
+      "blurb": "Desks, a board, a robot to program",
+      "env": {
+        "floor": "tile",
+        "floorColor": "#d9c3a5",
+        "walls": "plain",
+        "wallColor": "#f4efe6",
+        "ceiling": true,
+        "ceilingColor": "#ffffff",
+        "light": "daylight",
+        "lightColor": "#ffffff",
+        "brightness": 1.1,
+        "sky": "day"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 },
-        { "type": "tv", "p": [0, 0, -12.2], "r": 0, "s": 1.3, "props": { "text": "TODAY: LOOPS" } },
-        { "type": "school_desk", "p": [-6, 0, -4], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [-2, 0, -4], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [2, 0, -4], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [6, 0, -4], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [-6, 0, 1], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [-2, 0, 1], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [2, 0, 1], "r": 180, "s": 1 },
-        { "type": "school_desk", "p": [6, 0, 1], "r": 180, "s": 1 },
-        { "type": "robot", "p": [-9, 0, -9], "r": 90, "s": 1 },
-        { "type": "bookshelf", "p": [12.4, 0, 4], "r": -90, "s": 1 },
-        { "type": "plant", "p": [-11.5, 0, 10.5], "r": 0, "s": 1 },
-        { "type": "globe", "p": [10.5, 0, -10], "r": 0, "s": 1 },
-        { "type": "light_switch", "p": [3, 1.4, 12.8], "r": 180, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "tv",
+          "p": [
+            0.0,
+            0,
+            -9.2
+          ],
+          "r": 0,
+          "s": 1.3,
+          "props": {
+            "text": "TODAY: LOOPS"
+          }
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            -4.62,
+            0,
+            -3.08
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            -1.54,
+            0,
+            -3.08
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            1.54,
+            0,
+            -3.08
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            4.62,
+            0,
+            -3.08
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            -4.62,
+            0,
+            0.77
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            -1.54,
+            0,
+            0.77
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            1.54,
+            0,
+            0.77
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "school_desk",
+          "p": [
+            4.62,
+            0,
+            0.77
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "robot",
+          "p": [
+            -6.92,
+            0,
+            -6.92
+          ],
+          "r": 90,
+          "s": 1
+        },
+        {
+          "type": "bookshelf",
+          "p": [
+            9.4,
+            0,
+            3.08
+          ],
+          "r": -90,
+          "s": 1
+        },
+        {
+          "type": "plant",
+          "p": [
+            -8.5,
+            0,
+            7.5
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "globe",
+          "p": [
+            7.5,
+            0,
+            -7.0
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "light_switch",
+          "p": [
+            2.31,
+            1.4,
+            9.8
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     },
     "workshop": {
-      "name": "Workshop", "blurb": "Benches, tools, a robot on the go",
-      "env": { "floor": "concrete", "floorColor": "#5b5f66", "walls": "brick", "wallColor": "#7a3a2c", "ceiling": true, "ceilingColor": "#2e2a33", "light": "warm", "lightColor": "#ffcf8a", "brightness": 1.0, "sky": "wano" },
+      "name": "Workshop",
+      "blurb": "Benches, tools, a robot on the go",
+      "env": {
+        "floor": "concrete",
+        "floorColor": "#9aa3b5",
+        "walls": "brick",
+        "wallColor": "#d9c3a5",
+        "ceiling": true,
+        "ceilingColor": "#2e2a33",
+        "light": "warm",
+        "lightColor": "#ffcf8a",
+        "brightness": 1.3,
+        "sky": "wano"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 },
-        { "type": "workbench", "p": [-10.5, 0, -11.2], "r": 0, "s": 1 },
-        { "type": "workbench", "p": [-5.5, 0, -11.2], "r": 0, "s": 1 },
-        { "type": "tool_chest", "p": [11.6, 0, -11.4], "r": 0, "s": 1 },
-        { "type": "tool_chest", "p": [11.6, 0, -8.6], "r": -90, "s": 1 },
-        { "type": "robot", "p": [0, 0, -3], "r": 0, "s": 1 },
-        { "type": "mecha_model", "p": [9, 0, 6], "r": -120, "s": 1.4 },
-        { "type": "crate", "p": [-11.4, 0, 8], "r": 10, "s": 1 },
-        { "type": "crate", "p": [-11.2, 1.0, 8.2], "r": 35, "s": 0.8 },
-        { "type": "poster", "p": [-12.8, 3.2, -2], "r": 90, "s": 1, "props": { "art": 1 } },
-        { "type": "light_switch", "p": [3, 1.4, 12.8], "r": 180, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "workbench",
+          "p": [
+            -7.5,
+            0,
+            -8.2
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "workbench",
+          "p": [
+            -4.23,
+            0,
+            -8.2
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "tool_chest",
+          "p": [
+            8.6,
+            0,
+            -8.4
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "tool_chest",
+          "p": [
+            8.6,
+            0,
+            -6.62
+          ],
+          "r": -90,
+          "s": 1
+        },
+        {
+          "type": "robot",
+          "p": [
+            0.0,
+            0,
+            -2.31
+          ],
+          "r": 0,
+          "s": 1
+        },
+        {
+          "type": "mecha_model",
+          "p": [
+            6.92,
+            0,
+            4.62
+          ],
+          "r": -120,
+          "s": 1.4
+        },
+        {
+          "type": "crate",
+          "p": [
+            -8.4,
+            0,
+            6.15
+          ],
+          "r": 10,
+          "s": 1
+        },
+        {
+          "type": "crate",
+          "p": [
+            -8.2,
+            1.0,
+            6.31
+          ],
+          "r": 35,
+          "s": 0.8
+        },
+        {
+          "type": "poster",
+          "p": [
+            -9.8,
+            2.49,
+            -1.54
+          ],
+          "r": 90,
+          "s": 1,
+          "props": {
+            "art": 1
+          }
+        },
+        {
+          "type": "light_switch",
+          "p": [
+            2.31,
+            1.4,
+            9.8
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     },
     "space_station": {
-      "name": "Space Station", "blurb": "Glass walls, the stars outside",
-      "env": { "floor": "metal", "floorColor": "#9aa3b5", "walls": "glass", "wallColor": "#8ff0ff", "ceiling": false, "ceilingColor": "#16161d", "light": "cool", "lightColor": "#8ff0ff", "brightness": 1.0, "sky": "nebula" },
+      "name": "Space Station",
+      "blurb": "Glass walls, the stars outside",
+      "env": {
+        "floor": "metal",
+        "floorColor": "#9aa3b5",
+        "walls": "glass",
+        "wallColor": "#8ff0ff",
+        "ceiling": false,
+        "ceilingColor": "#16161d",
+        "light": "cool",
+        "lightColor": "#8ff0ff",
+        "brightness": 1.0,
+        "sky": "nebula"
+      },
       "objects": [
-        { "type": "portal", "p": [0, 0, 12.4], "r": 0, "s": 1 },
-        { "type": "globe", "p": [0, 0, -6], "r": 0, "s": 2.2 },
-        { "type": "couch", "p": [-6, 0, 3], "r": 90, "s": 1, "props": { "color": "#1f3b5c" } },
-        { "type": "couch", "p": [6, 0, 3], "r": -90, "s": 1, "props": { "color": "#1f3b5c" } },
-        { "type": "robot", "p": [0, 0, 6], "r": 180, "s": 1 },
-        { "type": "neon_sign", "p": [0, 5.2, -12.8], "r": 0, "s": 1.2, "props": { "text": "STATION", "color": "#8ff0ff" } },
-        { "type": "plant", "p": [11, 0, -11], "r": 0, "s": 1.2 },
-        { "type": "jukebox", "p": [-11.8, 0, -8], "r": 90, "s": 1 },
-        { "type": "light_switch", "p": [3, 1.4, 12.8], "r": 180, "s": 1 }
+        {
+          "type": "portal",
+          "p": [
+            0.0,
+            0,
+            9.4
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "globe",
+          "p": [
+            0.0,
+            0,
+            -4.62
+          ],
+          "r": 0,
+          "s": 2.2
+        },
+        {
+          "type": "couch",
+          "p": [
+            -4.62,
+            0,
+            2.31
+          ],
+          "r": 90,
+          "s": 1,
+          "props": {
+            "color": "#1f3b5c"
+          }
+        },
+        {
+          "type": "couch",
+          "p": [
+            4.62,
+            0,
+            2.31
+          ],
+          "r": -90,
+          "s": 1,
+          "props": {
+            "color": "#1f3b5c"
+          }
+        },
+        {
+          "type": "robot",
+          "p": [
+            0.0,
+            0,
+            4.62
+          ],
+          "r": 180,
+          "s": 1
+        },
+        {
+          "type": "neon_sign",
+          "p": [
+            0.0,
+            4.04,
+            -9.8
+          ],
+          "r": 0,
+          "s": 1.2,
+          "props": {
+            "text": "STATION",
+            "color": "#8ff0ff"
+          }
+        },
+        {
+          "type": "plant",
+          "p": [
+            8.0,
+            0,
+            -8.0
+          ],
+          "r": 0,
+          "s": 1.2
+        },
+        {
+          "type": "jukebox",
+          "p": [
+            -8.8,
+            0,
+            -6.15
+          ],
+          "r": 90,
+          "s": 1
+        },
+        {
+          "type": "light_switch",
+          "p": [
+            2.31,
+            1.4,
+            9.8
+          ],
+          "r": 180,
+          "s": 1
+        }
       ]
     }
   }

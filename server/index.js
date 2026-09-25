@@ -683,7 +683,7 @@ app.post('/api/rooms/:id/access', async (req, res) => {
     const r = await ownRoom(req, res, s); if (!r) return;
     await roomStore.setAccess(r.id, access);
     if (access !== 'public') {
-      const allowed = new Set((await roomStore.members(r.id)).map(m => m.id));
+      const allowed = access === 'invited' ? new Set((await roomStore.members(r.id)).map(m => m.id)) : new Set();
       crKick(r.id, uid => uid === r.owner_id || allowed.has(uid), 'The owner closed the room.');
     }
     broadcastRoom('cr:' + r.id, { t:'crupdate', id:r.id });
@@ -700,7 +700,8 @@ app.post('/api/rooms/:id/invite', async (req, res) => {
     if (u.id === s.id) return bad(res, 400, 'It is your room already.');
     await roomStore.addMember(r.id, u.id);
     send(u.id, { t:'crinvite', id:r.id, name:r.name, from:r.owner_display });
-    ok(res, { members:await roomStore.members(r.id) });
+    ok(res, { members:await roomStore.members(r.id),
+              note: r.access === 'private' ? u.display + ' is on the list — make the room Invited to let them in.' : '' });
   } catch (e) { roomFail(res, e); }
 });
 app.post('/api/rooms/:id/remove', async (req, res) => {

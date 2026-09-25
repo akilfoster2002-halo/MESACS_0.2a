@@ -26,6 +26,9 @@ const POOL := 64
 const PEAK := 7.0              # meteors a second at a shower's height
 
 var world: Node3D
+## Where the sky is seen from: Wano's town, unless somebody says otherwise
+## (a chat room, on its own ball's north pole).
+var home := Vector3.ZERO
 var planet: Node3D
 var sun := Vector3.UP
 var mm: MultiMesh
@@ -45,9 +48,10 @@ func _ready() -> void:
 # ------------------------------------------------------------ the planet
 
 func _planet() -> void:
-	var town := Planet.dir_of(0, 0)
-	var north := (Planet.dir_of(0, 10) - town).normalized()
-	var east := (Planet.dir_of(10, 0) - town).normalized()
+	var town := home if home != Vector3.ZERO else Planet.dir_of(0, 0)
+	var tf := Planet.frame_at(town)
+	var north := tf.z if home != Vector3.ZERO else (Planet.dir_of(0, 10) - town).normalized()
+	var east := tf.x if home != Vector3.ZERO else (Planet.dir_of(10, 0) - town).normalized()
 	var level := (north * 0.8 + east * 0.6).normalized()
 	var up := deg_to_rad(PLANET_UP)
 	var d := (town * sin(up) + level * cos(up)).normalized()
@@ -242,6 +246,8 @@ func _places() -> Array:
 		out.append([str(spec.name), Planet.dir_of(spec.lon, spec.lat)])
 	if world and world.get("islands") and world.islands:
 		out.append(["THE FALLS", (world.islands.pool.dir as Vector3)])
+	if out.is_empty():
+		out.append(["you", home if home != Vector3.ZERO else Vector3.UP])
 	return out
 
 func _start_shower() -> void:

@@ -66,6 +66,15 @@ static var current := "hub"
 static var by_ship := false
 static var from := "hub"
 
+## A CHAT ROOM is a world too (scripts/chatroom.gd, server/chatrooms.js): the
+## room you are in as the server described it, its socket room (cr:<id>),
+## and where you were standing when you went in, to be put back there.
+static var room := {}
+static var room_server := ""
+static var came_from := {}      # {world, dir, fwd}
+static var back_to := {}        # set on leaving: where the next world stands you
+static var note := ""           # said on arriving: why you were sent out of a room
+
 ## Your own number, kept in the progress bag so it follows your account: a
 ## home planet that changed shape when you logged in from the other side of
 ## the classroom would not be a home.
@@ -101,7 +110,19 @@ static func get_world(id: String) -> Dictionary:
 			return ARENA
 		"home":
 			return home()
+		"chatroom":
+			return chatroom()
 	return HUB
+
+## The ball a chat room stands on: flat, bare, big enough that its floor is
+## level. Nothing grows on it; the room brings everything it has.
+static func chatroom() -> Dictionary:
+	return {
+		"id": "chatroom", "kind": "chatroom", "name": str(room.get("name", "A ROOM")), "sub": "a chat room",
+		"radius": 2000.0, "relief": 0.0, "seed": 3, "sky": Color("0b0d18"), "soil": HUB.soil,
+		"ambient": Color(0.62, 0.62, 0.7), "flora": "none", "ceiling": 60.0, "flies": Color(1, 1, 1),
+		"globe": Color("8ff0ff"), "buildings": [],
+	}
 
 static func here() -> Dictionary:
 	return get_world(current)
@@ -109,3 +130,7 @@ static func here() -> Dictionary:
 ## The places the ship can take you from here.
 static func destinations() -> Array:
 	return ["hub", "arena", "home"].filter(func(id): return id != current)
+
+## Where the ship leaves from when you are not on a planet: the one you came from.
+static func planet() -> String:
+	return str(came_from.get("world", "hub")) if current == "chatroom" else current
