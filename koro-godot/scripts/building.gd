@@ -507,8 +507,8 @@ func _mechanic() -> void:
 	if ap and ap.has_animation("idle"):
 		Models.loop_clips(ap)
 		ap.play("idle")
-	usable(Vector3(6.0, 0, 2.0), "talk to the Mechanic", func(w):
-		w.hud.say("THE MECHANIC — \"Walk down the bays. E at a price to take one. The big one outside? She's yours to drive — E next to her.\"", 5.5))
+	usable(Vector3(6.0, 0, 2.0), "talk to Kit", func(w):
+		w.hud.talk_open("mechanic", "Kit", "Mind the oil. Cars down the bays, mechas at the back, the ship's in the hangar. What do you need?"))
 	_ship_bay()
 	_mech_bays()
 	panel(0, -hd + 3.4, "", Color("2a2013"), 0.0, "your coins", func(w):
@@ -893,7 +893,8 @@ func _library() -> void:
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.position = Vector3(x, 2.5, z + 2.4)
 	add_child(tag)
-	usable(Vector3(x, 0, z + 2.4), "ask Ada what to read", func(w): w.hud.library_ask())
+	usable(Vector3(x, 0, z + 2.4), "talk to Ada", func(w):
+		w.hud.talk_open("ada", "Ada", "Hello! Stuck on something you are building, or just curious? Ask me anything about the language."))
 	panel(-5.5, -hd + 3.2, "THE LIBRARY\nLook up any word in the language", Color("22406b"), 0.0, "the catalogue",
 		func(w): w.hud.library_open(""))
 

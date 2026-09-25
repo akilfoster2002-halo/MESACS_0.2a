@@ -110,6 +110,8 @@ func _room() -> void:
 	sign.position = Vector3(0, 6.5, -hd + 1.0)
 	add_child(sign)
 	bld.usable(Vector3(0, 0, -hd + 6.0), "play the decks", func(w): w.hud.decks_open(self), 3.0)
+	bld.usable(Vector3(3.6, 0, -hd + 4.2), "talk to Volt", func(w):
+		w.hud.talk_open("dj", "Volt", "Hey hey! Welcome to the Loop. Want to know how a beat gets built?"), 1.8)
 	# the DJ, behind the decks
 	var dj := Models.spawn("res://assets/characters/character-kofi.glb")
 	add_child(dj)

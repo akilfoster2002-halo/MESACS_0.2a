@@ -97,7 +97,12 @@ func _ready() -> void:
 		["16_pause", func():
 			w.hud.toggle_picker()
 			w.hud.toggle_pause()],
+		["20_talk", func():
+			_inside("mechanic")
+			w.hud.talk_open("mechanic", "Kit", "Mind the oil. Cars down the bays, mechas at the back, the ship's in the hangar. What do you need?")],
 		["17_sky", func():
+			w.hud.talk.visible = false
+			w.hud._hold()
 			if w.hud.is_paused():
 				w.hud.toggle_pause()
 			_put(Planet.dir_of(0, -4) * Planet.R, w.sky.planet.position)

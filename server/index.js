@@ -22,6 +22,7 @@ const db = require('./db');
 const auth = require('./auth');
 const mech = require('./mechmatch');
 const tutor = require('./tutor');
+const npc = require('./npc');
 
 const app = express();
 /* Sixteen kilobytes is the right ceiling for everything this server took
@@ -78,7 +79,7 @@ const ok  = (res,data)=>res.json({ ok:true, ...data });
    answer. It still wants to know WHO is asking, so it sits below the
    sign-in check but above the database one, and a school running the
    game without Postgres still gets it. */
-const NO_DB_NEEDED = ['/health','/servers','/who','/tutor','/tutor/on'];
+const NO_DB_NEEDED = ['/health','/servers','/who','/tutor','/tutor/on','/npc','/npc/on'];
 app.use('/api',(req,res,next)=>{
   if(!db.ready && !NO_DB_NEEDED.includes(req.path))
     return res.status(503).json({ ok:false, error:'Sign-in is not connected yet (no database).' });
@@ -938,6 +939,35 @@ app.post('/api/tutor', async (req,res)=>{
     if(!rate) console.error('[tutor]', e && e.message ? e.message : e);
   }
   res.end();
+});
+
+/* ============================================================ the npcs
+   Kit, Ada and Volt, each a real conversation and each guarded on its own
+   (server/npc.js). Signed in, like the tutor — a call costs money — and a
+   short per-player limit on top so one player cannot hold the key down. */
+app.get('/api/npc/on',(req,res)=>ok(res,{ npc:npc.on(), who:Object.keys(npc.NPCS) }));
+
+const LAST_NPC = new Map();            // user id -> when they last spoke to one
+app.post('/api/npc', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'Sign in to talk — P → Your account.');
+  if(!npc.on()) return bad(res,503,'Nobody is answering here — no key on this server.');
+  const now = Date.now(), last = LAST_NPC.get(s.id) || 0;
+  if(now-last < 1500) return bad(res,429,'One at a time.');
+  if(rateLimited('npc:'+s.id, 20, 60000)) return bad(res,429,'Slow down a little — they need a breather.');
+  LAST_NPC.set(s.id, now);
+  const text = String(req.body.text||'').trim();
+  if(!text) return bad(res,400,'say something');
+  try{
+    const out = await npc.talk({ npc:String(req.body.npc||''), text,
+      history:req.body.history, context:req.body.context });
+    ok(res, out);
+  }catch(e){
+    if(e && e.status===404) return bad(res,404,'nobody by that name');
+    const busy = e && (e.status===429 || e.status===529);
+    if(!busy) console.error('[npc]', e && e.message ? e.message : e);
+    bad(res, busy?429:502, busy ? 'They are busy — try again in a moment.' : 'They did not hear you — try again.');
+  }
 });
 
 /* ===================================================== how it is started

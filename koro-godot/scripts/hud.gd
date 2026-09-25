@@ -22,6 +22,7 @@ var ideas: Array = []
 var ada_next := 0
 var account: Account
 var phone: Phone
+var talk: Talk
 var who: PanelContainer
 var who_text: RichTextLabel
 var me_label: Label
@@ -96,10 +97,11 @@ func say(text: String, secs := 3.5) -> void:
 ## first — this node keeps running while everything else is paused.
 func _unhandled_input(ev: InputEvent) -> void:
 	var esc: bool = ev.is_action_pressed("mouse") or (ev is InputEventKey and ev.pressed and ev.physical_keycode == KEY_ESCAPE)
-	if account.visible or phone.visible or who.visible or decks.visible or travel.visible:
+	if account.visible or phone.visible or talk.visible or who.visible or decks.visible or travel.visible:
 		if esc or (who.visible and ev.is_action_pressed("who")):
 			account.visible = false
 			phone.visible = false
+			talk.visible = false
 			who.visible = false
 			decks.visible = false
 			travel.visible = false
@@ -323,7 +325,7 @@ func is_paused() -> bool:
 ## are in a room with other people, and it goes on without you.
 func _hold() -> void:
 	var still := picker.visible or paused.visible or book.visible
-	var up: bool = still or account.visible or phone.visible or who.visible
+	var up: bool = still or account.visible or phone.visible or talk.visible or who.visible
 	get_tree().paused = still
 	world.ui_open = up
 	Ctl.blocked = up
@@ -331,7 +333,7 @@ func _hold() -> void:
 
 func any_open() -> bool:
 	return picker.visible or paused.visible or book.visible or account.visible or phone.visible or who.visible \
-		or decks.visible or travel.visible
+		or decks.visible or travel.visible or talk.visible
 
 # ---------------------------------------------------------------- the decks
 
@@ -463,6 +465,8 @@ func _net_cards() -> void:
 	_style(account)
 	phone = Phone.new().build(net, self)
 	_style(phone)
+	talk = Talk.new().build(net, self)
+	_style(talk)
 	who = _card()
 	who.custom_minimum_size = Vector2(420, 360)
 	var col := VBoxContainer.new()
@@ -547,6 +551,12 @@ func phone_open() -> void:
 	phone.visible = true
 	phone.opened()
 	unread = 0
+	_hold()
+
+## A conversation with somebody in the world (Talk, server/npc.js).
+func talk_open(id: String, name: String, hello: String) -> void:
+	talk.visible = true
+	talk.open(id, name, hello)
 	_hold()
 
 func phone_close() -> void:
