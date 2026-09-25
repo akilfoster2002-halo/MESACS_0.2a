@@ -1,9 +1,11 @@
 ## THE SKY SHOW: a ringed planet hanging over the town, and meteor showers.
 ##
-## The planet is a painting (Higgsfield, glb files/sky/) on one camera-facing
-## quad, placed out in the world rather than glued to the camera: it sits
-## over the town's north-east, rises and sets as you walk round the ball,
-## and the hills hide it from the far side, because it is really there.
+## The planet is a real body, not a picture: a sphere wrapped in a Higgsfield
+## map (assets/sky/planet_surface.jpg), lit from one side with a night side
+## and a glowing limb, a halo of air, and rings the planet shadows. It sits
+## 2.6 km out over the town's north-east, rises and sets as you walk round
+## the ball, and the hills hide it from the far side — it is really there,
+## so flying never loses it the way a camera-facing card got culled.
 ##
 ## A SHOWER happens over a PLACE. Every few minutes one picks a spot on the
 ## world — the temple, the Mall, the falls — and for most of a minute
@@ -18,13 +20,14 @@ class_name SkyShow
 extends Node3D
 
 const PLANET_AT := 2600.0      # from the town; the stars are a shell at 3000
-const PLANET_SIZE := 1500.0    # the painting's square — the disc is ~60% of it
+const PLANET_R := 330.0        # ~15 degrees of sky from the town, rings twice that
 const PLANET_UP := 22.0        # degrees above the town's horizon
 const POOL := 64
 const PEAK := 7.0              # meteors a second at a shower's height
 
 var world: Node3D
-var planet: MeshInstance3D
+var planet: Node3D
+var sun := Vector3.UP
 var mm: MultiMesh
 var live: Array = []           # {p, v, age, life, len, w, col}
 var shower := {}               # {spot, frame, v, t, dur, acc}
@@ -48,22 +51,152 @@ func _planet() -> void:
 	var level := (north * 0.8 + east * 0.6).normalized()
 	var up := deg_to_rad(PLANET_UP)
 	var d := (town * sin(up) + level * cos(up)).normalized()
-	var q := QuadMesh.new()
-	q.size = Vector2(PLANET_SIZE, PLANET_SIZE)
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	m.albedo_texture = load("res://assets/sky/planet.png")
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	m.disable_fog = true
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	q.material = m
-	planet = MeshInstance3D.new()
-	planet.mesh = q
-	planet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	planet = Node3D.new()
 	planet.position = town * Planet.R + d * PLANET_AT
+	# THE RINGS SEEN NEARLY EDGE-ON, the way Saturn's are: the ring plane's
+	# normal is the sky's "up" behind the planet, tipped 16 degrees towards
+	# the town, then the whole system leaned 22 degrees across the sky
+	var sky_up := (town - d * town.dot(d)).normalized()
+	var right := d.cross(town).normalized()
+	var n := (sky_up * cos(deg_to_rad(16.0)) - d * sin(deg_to_rad(16.0))).normalized()
+	n = n.rotated(d, deg_to_rad(22.0))
+	var bx := d.cross(n).normalized()
+	planet.basis = Basis(bx, n, bx.cross(n).normalized())
 	add_child(planet)
+	# the sun from over your left shoulder, mostly behind you: from the town
+	# the planet is nearly full, with a sliver of night down its right edge
+	sun = (-right * 0.55 + town * 0.3 - d * 0.75).normalized()
+	var surface: Texture2D = load("res://assets/sky/planet_surface.jpg") if ResourceLoader.exists("res://assets/sky/planet_surface.jpg") else null
+	# THE BODY: a sphere wrapped in the Higgsfield map, turning slowly
+	var body := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = PLANET_R
+	sm.height = PLANET_R * 2.0
+	sm.radial_segments = 96
+	sm.rings = 48
+	body.mesh = sm
+	var bm := ShaderMaterial.new()
+	bm.shader = Shader.new()
+	bm.shader.code = BODY
+	bm.set_shader_parameter("surface", surface)
+	bm.set_shader_parameter("sun_dir", sun)
+	body.material_override = bm
+	_sky_thing(body)
+	# THE AIR: a thin halo round the edge, bright where the sun is
+	var air := MeshInstance3D.new()
+	var am := SphereMesh.new()
+	am.radius = PLANET_R * 1.05
+	am.height = PLANET_R * 2.1
+	am.radial_segments = 96
+	am.rings = 48
+	air.mesh = am
+	var amat := ShaderMaterial.new()
+	amat.shader = Shader.new()
+	amat.shader.code = AIR
+	amat.set_shader_parameter("sun_dir", sun)
+	air.material_override = amat
+	_sky_thing(air)
+	# THE RINGS: a disc in the planet's own equator, banded, with gaps, and
+	# the planet's shadow falling across them
+	var ring := MeshInstance3D.new()
+	ring.mesh = _annulus(PLANET_R * 1.4, PLANET_R * 2.35, 160)
+	var rm := ShaderMaterial.new()
+	rm.shader = Shader.new()
+	rm.shader.code = RINGS
+	rm.set_shader_parameter("sun_dir", sun)
+	rm.set_shader_parameter("planet_r", PLANET_R)
+	rm.set_shader_parameter("r0", PLANET_R * 1.4)
+	rm.set_shader_parameter("r1", PLANET_R * 2.35)
+	ring.material_override = rm
+	_sky_thing(ring)
+
+func _sky_thing(mi: MeshInstance3D) -> void:
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	planet.add_child(mi)
+
+func _annulus(r0: float, r1: float, n: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in n:
+		var a0 := TAU * i / n
+		var a1 := TAU * (i + 1) / n
+		var p := [Vector3(cos(a0) * r0, 0, sin(a0) * r0), Vector3(cos(a0) * r1, 0, sin(a0) * r1),
+			Vector3(cos(a1) * r1, 0, sin(a1) * r1), Vector3(cos(a1) * r0, 0, sin(a1) * r0)]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_normal(Vector3.UP)
+			st.add_vertex(p[k])
+	return st.commit()
+
+const BODY := """
+shader_type spatial;
+render_mode unshaded, fog_disabled;
+uniform sampler2D surface : source_color, filter_linear_mipmap, repeat_enable;
+uniform vec3 sun_dir;
+varying vec3 wn;
+void vertex(){ wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz); }
+void fragment(){
+	vec2 uv = UV;
+	uv.x = fract(uv.x + TIME * 0.0035);
+	vec3 c = texture(surface, uv).rgb;
+	float ndl = dot(normalize(wn), normalize(sun_dir));
+	float day = smoothstep(-0.10, 0.30, ndl);
+	// the night side: nearly black, the brightest storms still faintly lit
+	vec3 night = c * 0.025 + pow(max(c - vec3(0.55), vec3(0.0)), vec3(1.6)) * vec3(0.4, 0.9, 1.0) * 0.5;
+	vec3 lit = c * (0.2 + 1.15 * max(ndl, 0.0));
+	vec3 col = mix(night, lit, day);
+	// the limb: a bright edge of atmosphere where the light grazes it
+	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 3.5);
+	col += vec3(0.35, 0.85, 1.0) * rim * (0.1 + 1.1 * day);
+	ALBEDO = col;
+}
+"""
+
+const AIR := """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_back, fog_disabled;
+uniform vec3 sun_dir;
+varying vec3 wn;
+void vertex(){ wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz); }
+void fragment(){
+	float f = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+	float lit = smoothstep(-0.35, 0.45, dot(normalize(wn), normalize(sun_dir)));
+	ALBEDO = vec3(0.35, 0.8, 1.0) * 1.8;
+	ALPHA = pow(f, 5.0) * (0.1 + 0.9 * lit);
+}
+"""
+
+const RINGS := """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
+uniform vec3 sun_dir;
+uniform float planet_r;
+uniform float r0;
+uniform float r1;
+varying vec3 lp;
+varying vec3 centre;
+void vertex(){
+	lp = VERTEX;
+	centre = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+}
+void fragment(){
+	float t = (length(lp.xz) - r0) / (r1 - r0);
+	float band = 0.55 + 0.22 * sin(t * 83.0) + 0.14 * sin(t * 211.0 + 1.3) + 0.09 * sin(t * 37.0 + 0.4);
+	float gaps = smoothstep(0.015, 0.045, abs(t - 0.62)) * smoothstep(0.008, 0.025, abs(t - 0.3));
+	float edge = smoothstep(0.0, 0.07, t) * smoothstep(1.0, 0.88, t);
+	vec3 col = mix(vec3(0.95, 0.72, 0.4), vec3(0.62, 0.52, 0.95), smoothstep(0.15, 0.95, t));
+	col = mix(col, vec3(0.55, 0.9, 1.0), 0.18 * sin(t * 57.0) * sin(t * 57.0));
+	// in the planet's shadow? a ray from here towards the sun, against the sphere
+	vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 L = normalize(sun_dir);
+	vec3 oc = wp - centre;
+	float b = dot(oc, L);
+	float c = dot(oc, oc) - planet_r * planet_r;
+	float h = b * b - c;
+	float shade = (h > 0.0 && b < 0.0) ? 0.12 : 1.0;
+	ALBEDO = col * (0.22 + 0.7 * shade);
+	ALPHA = clamp(band * gaps * edge * 0.62, 0.0, 1.0);
+}
+"""
 
 # ------------------------------------------------------------ the meteors
 

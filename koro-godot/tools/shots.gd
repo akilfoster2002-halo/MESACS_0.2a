@@ -114,8 +114,9 @@ func _ready() -> void:
 			w.hud._hold()
 			if w.hud.is_paused():
 				w.hud.toggle_pause()
-			_put(Planet.dir_of(0, -4) * Planet.R, w.sky.planet.position)
-			p.pitch = 0.42
+			_put(Planet.dir_of(5, -5) * Planet.R, w.sky.planet.position)
+			p.pitch = 0.5
+			p.zoom = 2.5
 			w.sky.start_over(Planet.dir_of(8, 6), "the test")
 			w.sky.shower.t = w.sky.shower.dur * 0.45],
 		["09_mecha", func():
