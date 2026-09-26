@@ -77,7 +77,33 @@ window.GARAGE = (function(){
       });
     }
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return flatten(geo, M, true);
+  }
+  /* A geometry with its matrix baked in, non-indexed, with the three
+     attributes merge() needs. */
+  function flatten(geo, M, keepUV){
+    geo = geo.index ? geo.toNonIndexed() : geo.clone();
+    geo.applyMatrix4(M);
+    if(!geo.attributes.normal) geo.computeVertexNormals();
+    if(!geo.attributes.uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count*2), 2));
     return geo;
+  }
+  function merge(list){
+    let n = 0; list.forEach(g2=>n += g2.attributes.position.count);
+    const pos = new Float32Array(n*3), nor = new Float32Array(n*3), uv = new Float32Array(n*2);
+    let o = 0;
+    list.forEach(g2=>{
+      const c = g2.attributes.position.count;
+      pos.set(g2.attributes.position.array.subarray(0, c*3), o*3);
+      nor.set(g2.attributes.normal.array.subarray(0, c*3), o*3);
+      uv.set(g2.attributes.uv.array.subarray(0, c*2), o*2);
+      o += c; g2.dispose();
+    });
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return out;
   }
 
   function solid(x, z, w, d, y1, y2){
@@ -92,22 +118,35 @@ window.GARAGE = (function(){
       if(g !== mine) return;
       const root = gl.scene;
       root.updateMatrixWorld(true);
+      /* NO LIGHTS FROM THE FILE. Blender exported its lamps with the model,
+         twenty-odd of them, and in three.js every light is paid for by
+         every lit surface on the whole planet — they were most of why Wano
+         lagged. The four in lights() below do the lighting. And the 700
+         parts are merged by material into a few dozen meshes, as Godot
+         does: 700 draw calls, every frame you are anywhere on Wano, was
+         the rest of it. */
+      const groups = new Map();
       root.traverse(o=>{
         if(!o.isMesh) return;
         const src = Array.isArray(o.material) ? o.material[0] : o.material;
         const spec = src && SURFACES[src.name];
-        if(spec){
-          o.geometry = boxUV(o.geometry, spec[1], o.matrixWorld);
-          o.material = new THREE.MeshLambertMaterial({ map:tex(spec[0]), color:spec[2] });
-        } else if(src){
-          const glow = src.emissive && (src.emissive.r+src.emissive.g+src.emissive.b) > 0.1;
-          o.material = new THREE.MeshLambertMaterial({ color:src.color || 0xffffff, map:src.map || null,
+        let key, mat;
+        if(spec){ key = 'S:'+src.name; mat = ()=>new THREE.MeshLambertMaterial({ map:tex(spec[0]), color:spec[2] }); }
+        else {
+          const glow = src && src.emissive && (src.emissive.r+src.emissive.g+src.emissive.b) > 0.1;
+          const col = src && src.color ? src.color.getHexString() : 'fff';
+          key = 'C:'+col+(glow ? ':'+src.emissive.getHexString() : '')+(src && src.map ? ':'+src.map.uuid : '');
+          mat = ()=>new THREE.MeshLambertMaterial({ color:src && src.color ? src.color : 0xffffff, map:src && src.map || null,
             emissive: glow ? src.emissive : 0x000000, emissiveIntensity: glow ? 0.6 : 0 });
         }
-        o.userData.flat = true;
+        const geo = spec ? boxUV(o.geometry, spec[1], o.matrixWorld) : flatten(o.geometry, o.matrixWorld);
+        if(!groups.has(key)) groups.set(key, { mat:mat(), geos:[] });
+        groups.get(key).geos.push(geo);
       });
-      root.position.y = 0.03;
-      g.add(root);
+      const out = new THREE.Group();
+      groups.forEach(gr=>{ const m = new THREE.Mesh(merge(gr.geos), gr.mat); m.userData.flat = true; out.add(m); });
+      out.position.y = 0.03;
+      g.add(out);
     });
     solids();
     lights();
