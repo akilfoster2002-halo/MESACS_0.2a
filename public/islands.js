@@ -86,7 +86,7 @@ window.ISLANDS = (function(){
        tiers of dark roof edged in pink-red neon, a golden spire, a red
        bonsai and a torii. The door is found at the foot of the pagoda once
        the model is in (placeDoor), facing `doorYaw`. */
-    { id:'neon',   lon:-8,  lat:22,  r:36, alt:92, spin:0.55, arcade:true, clouds:true,
+    { id:'neon',   lon:-8,  lat:22,  r:78, alt:80, spin:0.55, arcade:true, clouds:true,
       model:'islands/neon.glb', doorYaw:0 }
   ];
 
@@ -700,7 +700,8 @@ window.ISLANDS = (function(){
     const H=5.5;
     const door=new THREE.Mesh(new THREE.BoxGeometry(6, H, 1.2),
       new THREE.MeshBasicMaterial({ visible:false }));
-    door.position.set(dx*(wall+0.8), topAt(dx*(wall+1.5), dz*(wall+1.5))+H/2 || H/2, dz*(wall+0.8));
+    // at the deck (y 0 in the island's frame) — not topAt(), which is the eave overhead
+    door.position.set(dx*(wall+0.8), H/2, dz*(wall+0.8));
     door.rotation.y=a;
     const hold=new THREE.Group();
     hold.userData={ kind:'door', label:'NEON \u2014 the arcade', enter:'neon', verb:'E \u2014 go in' };
@@ -715,9 +716,62 @@ window.ISLANDS = (function(){
     const crown=new THREE.PointLight(0xff5a8a, 120, 60, 1.6);
     crown.position.set(0, 30, 6); rec.g.add(crown);
     // a warm pink spill at the doorway, so the way in reads from the air
-    const glow=new THREE.PointLight(0xff3f8a, 40, 30, 1.5);
+    const glow=new THREE.PointLight(0xff3f8a, 60, 30, 1.5);
     glow.position.set(dx*(wall+3), door.position.y+2, dz*(wall+3));
     rec.g.add(glow);
+    entrance(rec, door, a);
+  }
+
+  /* THE WAY IN, MADE OBVIOUS. The model's doorway is a dark gap under the
+     lowest eave, easy to miss; so it gets a glowing frame, a curtain of
+     light you walk into, NEON over the top, and a lit path out to the
+     torii — the one thing on the island that says "here". */
+  function entrance(rec, door, a){
+    const g=new THREE.Group();
+    g.position.copy(door.position); g.position.y -= 2.75;   // at the deck
+    g.rotation.y=a;
+    rec.g.add(g);
+    const k2=Math.max(1, rec.k.r/31);              // it grows with the island
+    g.scale.setScalar(k2);
+    const W=4.6, H=5.2;
+    const tube=(w,h,x,y)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.3), neonMat(NEON_PINK, 3));
+      m.position.set(x,y,0.5); g.add(m); };
+    tube(0.3, H, -W/2, H/2); tube(0.3, H, W/2, H/2); tube(W+0.3, 0.3, 0, H);
+    const curtain=new THREE.Mesh(new THREE.PlaneGeometry(W, H),
+      new THREE.MeshBasicMaterial({ color:0xff6ab0, transparent:true, opacity:0.45,
+        side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending }));
+    curtain.position.set(0, H/2, 0.45); g.add(curtain);
+    // the sign over it
+    const c=document.createElement('canvas'); c.width=512; c.height=128;
+    const x=c.getContext('2d');
+    x.font='bold 84px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+    x.shadowColor='#ff3fd0'; x.shadowBlur=28; x.fillStyle='#ffd6f0';
+    x.fillText('NEON', 256, 64); x.fillText('NEON', 256, 64);
+    const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+    const sign=new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.4),
+      new THREE.MeshBasicMaterial({ map:tex, transparent:true, side:THREE.DoubleSide }));
+    sign.position.set(0, H+1.1, 0.7); g.add(sign);
+    // a lit path out from the door
+    for(let i=0;i<7;i++){
+      const tile=new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.9), neonMat(i%2?NEON_CYAN:NEON_PINK, 1.6));
+      tile.position.set(0, 0.25, 2.2+i*1.8); g.add(tile);
+    }
+    rec.entrance=g;
+  }
+
+  /* STANDING AT THE DOOR IS ENOUGH. The chase camera rides behind and above
+     you, so the crosshair is often on the eave or the sky when you are
+     right in front of the way in; E should go in anyway. `me` is planet.js's
+     {dir, alt}. */
+  function nearDoor(me){
+    if(!me || !me.dir) return null;
+    for(const is of isles){
+      if(!is.door) continue;
+      const at=new THREE.Vector3(); is.door.getWorldPosition(at);
+      const p=me.dir.clone().multiplyScalar(W.PR + me.alt);
+      if(p.distanceTo(at) < 13) return is.door.userData.owner.userData;
+    }
+    return null;
   }
   /* THE GROUND OF A MODEL, FROM ITS TRIANGLES. Every triangle is laid flat
      onto an n-by-n grid over its footprint, and each grid point keeps the
@@ -1562,7 +1616,7 @@ window.ISLANDS = (function(){
     out.addScaledVector(up, -out.dot(up)).normalize();
     /* clear of the chase camera, but never off the edge of the rock */
     let dir = null;
-    for(let d=5.5; d>=2; d-=0.5){
+    for(let d=10; d>=2; d-=0.5){
       dir = at.clone().addScaledVector(out, d).normalize();
       if(floorAt(dir, is.k.alt+20)!==null) break;
     }
@@ -1577,7 +1631,7 @@ window.ISLANDS = (function(){
     group=null; isles=[]; fall=null; riv=null; pool=null; fish=[]; turtles=[]; t=0;
   }
 
-  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut,
+  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut, nearDoor,
            get count(){ return isles.length; },
            get pool(){ return pool; },
            /* WHAT IS ALIVE UP THERE, and where one of each is right now —

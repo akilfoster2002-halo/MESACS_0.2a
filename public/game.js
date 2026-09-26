@@ -853,6 +853,9 @@ function wireInput(){
       if(e.code==='KeyE' && G.running && G.room==='planet'){
         const u=G.focused && G.focused.userData;
         if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
+        // or simply standing in front of a door the crosshair is not on (islands.js)
+        const nd = window.ISLANDS && ISLANDS.nearDoor && window.PLANET && ISLANDS.nearDoor(PLANET.where);
+        if(nd){ e.preventDefault(); PLANET.use(nd.enter); return; }
       }
       /* CHAT ROOMS. C opens the list from anywhere you are standing — the
          same key the Godot game uses — and inside a room E sits you down,
@@ -1362,8 +1365,11 @@ function focusScan(){
        the room answers with whatever is within arm's reach instead
        (chatroom.js usable()), and it is said in the same box, because a
        second place that says "press E" is a second thing to learn. */
+    const door = (G.room==='planet' && window.ISLANDS && ISLANDS.nearDoor && window.PLANET)
+               ? ISLANDS.nearDoor(PLANET.where) : null;
     const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy
-               : (window.NEON && NEON.active) ? NEON.handy : null;
+               : (window.NEON && NEON.active) ? NEON.handy
+               : door ? { label:door.label, verb:door.verb } : null;
     if(near){
       cross.classList.add('on'); box.classList.remove('hidden');
       box.innerHTML = esc(t(near.label)) + '<small>' + esc(near.verb) + '</small>';
