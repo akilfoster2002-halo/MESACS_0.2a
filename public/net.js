@@ -3,7 +3,7 @@
    Guests can still play; they just get no multiplayer and no saved work.
    ===================================================================== */
 window.NET = (function(){
-  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null;
+  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null, onRoom=null;
   let muted=0;
   /* what we are meant to be connected to, so a dropped socket can put itself
      back. A deploy, a sleeping free-tier dyno or a flaky school wifi all end
@@ -13,9 +13,9 @@ window.NET = (function(){
   let want=null, handlers=null, retry=0, retryT=null, gone=false;
   let opening=false;              // a socket is being asked for (open_ awaits its ticket)
 
-  async function api(path, body){
+  async function api(path, body, method){
     const r = await fetch('/api'+path, {
-      method: body?'POST':'GET',
+      method: method || (body?'POST':'GET'),
       headers:{ 'Content-Type':'application/json' },
       credentials:'same-origin',
       body: body?JSON.stringify(body):undefined
@@ -52,6 +52,36 @@ window.NET = (function(){
     async logout(){ try{ await api('/logout',{}); }catch(e){} me=null;
       want=null; gone=true; clearTimeout(retryT); if(ws){ws.close();ws=null;} },
     async saveProgress(p){ if(me) try{ await api('/progress',{progress:p}); }catch(e){} },
+
+    /* ---- chat rooms ----
+       Places a player owns. Everything here is ASKED OF THE SERVER, which
+       checks it against the database from your session (server/chatrooms.js):
+       the browser never decides who owns a room or who may walk into one, and
+       a room it draws is a room the server said you may be in.
+
+       These throw on a refusal, with the server's own sentence — which is
+       written to be read by the person who was refused, so the panel shows
+       it rather than inventing one of its own. */
+    roomCatalog(){ return api('/rooms/catalog'); },
+    roomLists(){ return api('/rooms'); },
+    roomSearch(q){ return api('/rooms/search?q='+encodeURIComponent(q)); },
+    roomCreate(name, access, template){ return api('/rooms',{name,access,template}); },
+    roomGet(id){ return api('/rooms/'+id); },
+    roomEnter(id){ return api('/rooms/'+id+'/enter',{}); },
+    roomSave(id, env, objects){ return api('/rooms/'+id+'/save',{env,objects}); },
+    roomRename(id, name){ return api('/rooms/'+id+'/rename',{name}); },
+    roomAccess(id, access){ return api('/rooms/'+id+'/access',{access}); },
+    roomInvite(id, username){ return api('/rooms/'+id+'/invite',{username}); },
+    roomKick(id, userId){ return api('/rooms/'+id+'/remove',{userId}); },
+    roomDelete(id){ return api('/rooms/'+id, null, 'DELETE'); },
+    /* An object in a chat room changed state here — tell everybody inside.
+       The server stamps anything that runs over time with ITS clock and hands
+       it back, so every screen replays it from the same moment. */
+    roomState(objId, s){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'cro', o:objId, s})); },
+    /* Who wants to hear about rooms: the room you are standing in (object
+       state, an edit, a way out) and, wherever you are, an invitation. */
+    set onRoom(fn){ onRoom=fn; },
+    get onRoom(){ return onRoom; },
 
     /* ---- free play socket ---- */
     /* `server` is the room to stand in. The socket opens in no room at all
@@ -172,6 +202,14 @@ window.NET = (function(){
           : t('{w} beat {l} in the Mecha Arena, {x}–{y}',{
               w:m.winner==='A'?m.a:m.b, l:m.winner==='A'?m.b:m.a,
               x:Math.max(m.score.A,m.score.B), y:Math.min(m.score.A,m.score.B) }));
+        /* A CHAT ROOM'S FIVE. `cro`/`cro_all` are what is happening in the
+           room you are standing in; `crupdate` says its owner changed it
+           under you; `crkick` is being sent back out of it; `crinvite`
+           arrives wherever you are, because being asked into somebody's room
+           is news on a planet as much as in one. */
+        if(m.t==='cro'||m.t==='cro_all'||m.t==='crupdate'||m.t==='crkick'||m.t==='crinvite'){
+          if(onRoom) onRoom(m);
+        }
         if(m.t==='sys'&&onSys)    onSys(m.text);
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()
             ? t('Your teacher muted the chat for you.') : t('You can chat again.')); }

@@ -130,16 +130,23 @@ test('both pages are versioned together', ()=>{
     'bump.js no longer knows about both pages');
 });
 
-test('the site serves Pong at its root', ()=>{
-  /* NOT A `rewrite`. Vercel matches static files BEFORE rewrites, and
-     public/index.html is a static file at `/` — so a rewrite for `/` never
-     fired and the root kept serving the whole of KORO. `routes` are
-     evaluated ahead of the filesystem, which is the only way to put a
-     different page in front of one that already exists at that path. */
+test('the site serves the game at its root, and Pong at /pong', ()=>{
+  /* THE ROOT USED TO BE PONG. It was a deliberate route — `routes` are
+     evaluated ahead of the filesystem, which is the only way to put a page
+     in front of public/index.html, which already sits at `/` — and it meant
+     that somebody sent the site's address got a paddle game and no way to
+     tell that the rest of it was there. The game is the site; Pong is a
+     lesson in it, and lessons have their own address.
+
+     STILL NOT A `rewrite`. A rewrite for a path a static file already
+     occupies never fires, and routes may not be combined with rewrites at
+     all — which is why /pong and the API forward are both routes. */
   const v=JSON.parse(read('vercel.json'));
   assert.ok(Array.isArray(v.routes), 'vercel.json has no routes');
-  assert.deepStrictEqual(v.routes[0], { src:'/', dest:'/pong.html' },
-    'the root no longer serves the standalone Pong page');
+  assert.ok(!v.routes.some(r=>r.src==='/'),
+    'something is being served in front of the game at the root again');
+  assert.deepStrictEqual(v.routes.find(r=>r.dest==='/pong.html'),
+    { src:'/pong', dest:'/pong.html' }, 'Pong has no address of its own');
   assert.ok(!v.rewrites,
     'a rewrite for / cannot win against public/index.html, and routes may not '+
     'be combined with rewrites');

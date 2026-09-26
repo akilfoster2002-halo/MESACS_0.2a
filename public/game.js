@@ -829,6 +829,11 @@ function wireInput(){
       /* Who is here. It takes Esc while it is up, so it goes above the
          panels that also want it. */
       if(window.WHO && WHO.up && WHO.key(e)){ e.preventDefault(); return; }
+      /* And so does the rooms list, and the builder — both are panels you
+         read and type into, and Esc means "close this", not "let go of the
+         mouse". */
+      if(window.ROOMS && ROOMS.up && ROOMS.key(e)){ e.preventDefault(); return; }
+      if(window.ROOMEDIT && ROOMEDIT.open && ROOMEDIT.key(e)){ e.preventDefault(); return; }
       if(e.code==='KeyO' && G.running && window.WHO){
         e.preventDefault(); WHO.toggle(); return;
       }
@@ -848,6 +853,18 @@ function wireInput(){
       if(e.code==='KeyE' && G.running && G.room==='planet'){
         const u=G.focused && G.focused.userData;
         if(u && u.enter){ e.preventDefault(); PLANET.use(u.enter); return; }
+      }
+      /* CHAT ROOMS. C opens the list from anywhere you are standing — the
+         same key the Godot game uses — and inside a room E sits you down,
+         works the switch and runs the robot, R stands you up and B opens the
+         builder if it is yours. The room takes these BEFORE the panels
+         below, because a key pressed in a room is about the room. */
+      if(window.CHATROOM && CHATROOM.active && G.running && CHATROOM.key(e)){
+        e.preventDefault(); return;
+      }
+      if(e.code==='KeyC' && G.running && window.ROOMS
+         && (G.room==='planet' || G.room==='room')){
+        e.preventDefault(); ROOMS.toggle(); return;
       }
       /* THE WAY YOU TRAVEL. R used to mean "get in the car", which was the
          whole of the answer while a car was the only thing to get into.
@@ -986,6 +1003,10 @@ function loop(now){
   if(window.INVADERS && INVADERS.active && !paused) INVADERS.tick(dt);   // and the swarm keeps flying
   if(window.CRUISE && CRUISE.active) CRUISE.tick(dt);  // and the sky keeps going past the ship
   if(window.PLANET && PLANET.active) PLANET.tick(dt);  // and the class keeps walking about
+  /* A chat room keeps running while a panel is up: somebody else's robot is
+     half way through its program and the jukebox does not stop because you
+     opened the rooms list. */
+  if(window.CHATROOM && CHATROOM.active) CHATROOM.tick(dt);
   /* The district keeps running with a panel open: the whole idea of the
      inspector is that you change a condition and WATCH the machine do
      something about it, which cannot happen if the world stops dead the
@@ -1319,12 +1340,34 @@ function focusScan(){
                 : u.kind==='npc' ? t('E — ask')
                 : u.kind==='machine' ? t('E — inspect')
                 : u.kind==='find' ? t('E — examine') : t('E — go in')) + '</small>';
+    } else if(u.roomThing){
+      /* A THING IN A CHAT ROOM says what it is and what E would do with it.
+         The verb is worked out by the room each frame (chatroom.js usable())
+         rather than baked in here, because it is an answer about the room's
+         live state — the lights are off, the robot is already running — and
+         only the room knows that. No verb means it is furniture: it says
+         what it is and leaves you alone. */
+      box.innerHTML = esc(t(u.label)) + (u.verb ? '<small>' + esc(u.verb) + '</small>' : '');
     } else {
       box.innerHTML = t(u.label) + '<small>' + (u.kind==='gate'? t('walk in')
         : (G.selected===owner ? t('SELECTED')+' · '+t('double-click to open')
                               : t('one click')+' → '+t('double-click'))) + '</small>';
     }
-  } else { cross.classList.remove('on'); box.classList.add('hidden'); }
+  } else {
+    /* NOTHING UNDER THE CROSSHAIR — but in a chat room that is not the same
+       as nothing to do. The chase camera rides three metres over your head,
+       so a light switch at hip height in front of you cannot be pointed at;
+       the room answers with whatever is within arm's reach instead
+       (chatroom.js usable()), and it is said in the same box, because a
+       second place that says "press E" is a second thing to learn. */
+    const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy : null;
+    if(near){
+      cross.classList.add('on'); box.classList.remove('hidden');
+      box.innerHTML = esc(t(near.label)) + '<small>' + esc(near.verb) + '</small>';
+      return;
+    }
+    cross.classList.remove('on'); box.classList.add('hidden');
+  }
 }
 
 /* ---------------------------------------------------------- minimap */

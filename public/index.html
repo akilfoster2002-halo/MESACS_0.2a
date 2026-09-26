@@ -62,7 +62,7 @@
 @font-face{font-family:'JetBrains Mono';src:url('fonts/jetbrainsmono-var.woff2') format('woff2');
   font-weight:400 700;font-style:normal;font-display:swap}
 </style>
-<link rel="stylesheet" href="app.css?v=575">
+<link rel="stylesheet" href="app.css?v=577">
 </head>
 <body>
 <canvas id="view"></canvas>
@@ -213,6 +213,24 @@
     <div class="wayrow" id="travelRow"></div>
     <div class="swaphint" id="travelHint"></div>
   </div>
+</div>
+
+
+<!-- CHAT ROOMS: the list of places you own, were let into, and can find.
+     A card over the middle rather than a strip along the bottom, because you
+     are reading a list and typing into it, not choosing between three things
+     you can see behind it. -->
+<div id="rooms" class="hidden" role="dialog" aria-modal="true" aria-labelledby="roomsTitle">
+  <div class="roomcard">
+    <h2 id="roomsTitle"></h2>
+    <div id="roomsBody"></div>
+  </div>
+</div>
+
+<!-- BUILDING ONE. A strip along the bottom, because here you ARE looking at
+     the thing you are changing: it is in the room in front of you. -->
+<div id="build" class="hidden" role="dialog" aria-modal="false">
+  <div class="buildcard"><div id="buildBody"></div></div>
 </div>
 
 <div id="hurt"></div>
@@ -466,70 +484,74 @@
      keeps yesterday's character and no amount of reloading helps. The
      scripts have always carried ?v=; now the models do too, off the same
      number. Bump it here when an asset changes. -->
-<script>window.ASSETV='575';</script>
-<script src="lib/three.classic.js?v=575"></script>
-<script src="lib/meshopt_decoder.js?v=575"></script>
-<script src="strings.js?v=575"></script>
-<script src="music.js?v=575"></script>
-<script src="net.js?v=575"></script>
-<script src="avatar.js?v=575"></script>
-<script src="zombies.js?v=575"></script>
-<script src="building.js?v=575"></script>
-<script src="levels.js?v=575"></script>
-<script src="program.js?v=575"></script>
-<script src="code.js?v=575"></script>
-<script src="mechsim.js?v=575"></script>
-<script src="mech.js?v=575"></script>
-<script src="intro.js?v=575"></script>
-<script src="opening.js?v=575"></script>
-<script src="robots.js?v=575"></script>
-<script src="rules.js?v=575"></script>
-<script src="templates.js?v=575"></script>
-<script src="stages.js?v=575"></script>
-<script src="ask.js?v=575"></script>
-<script src="pit.js?v=575"></script>
-<script src="ring.js?v=575"></script>
-<script src="pong.js?v=575"></script>
-<script src="combat.js?v=575"></script>
-<script src="logic.js?v=575"></script>
-<script src="trail.js?v=575"></script>
-<script src="boolquiz.js?v=575"></script>
-<script src="scene.js?v=575"></script>
-<script src="ion.js?v=575"></script>
-<script src="brawl.js?v=575"></script>
-<script src="house.js?v=575"></script>
-<script src="puzzle.js?v=575"></script>
-<script src="nav.js?v=575"></script>
-<script src="tutorial.js?v=575"></script>
-<script src="race.js?v=575"></script>
-<script src="flight.js?v=575"></script>
-<script src="sub.js?v=575"></script>
-<script src="invaders.js?v=575"></script>
-<script src="school.js?v=575"></script>
-<script src="cruise.js?v=575"></script>
-<script src="club.js?v=575"></script>
-<script src="who.js?v=575"></script>
-<script src="arcade.js?v=575"></script>
-<script src="islands.js?v=575"></script>
-<script src="meadow.js?v=575"></script>
-<script src="temple/layout.js?v=575"></script>
-<script src="temple.js?v=575"></script>
-<script src="planet.js?v=575"></script>
-<script src="wallet.js?v=575"></script>
-<script src="shop.js?v=575"></script>
-<script src="library.js?v=575"></script>
-<script src="costumes.js?v=575"></script>
-<script src="missions.js?v=575"></script>
-<script src="coach.js?v=575"></script>
-<script src="owner.js?v=575"></script>
-<script src="blocks.js?v=575"></script>
-<script src="vm.js?v=575"></script>
-<script src="coder.js?v=575"></script>
-<script src="quiz.js?v=575"></script>
-<script src="chars.js?v=575"></script>
-<script src="title.js?v=575"></script>
-<script src="menu.js?v=575"></script>
-<script src="phone.js?v=575"></script>
-<script src="game.js?v=575"></script>
+<script>window.ASSETV='577';</script>
+<script src="lib/three.classic.js?v=577"></script>
+<script src="lib/meshopt_decoder.js?v=577"></script>
+<script src="strings.js?v=577"></script>
+<script src="music.js?v=577"></script>
+<script src="net.js?v=577"></script>
+<script src="avatar.js?v=577"></script>
+<script src="zombies.js?v=577"></script>
+<script src="building.js?v=577"></script>
+<script src="levels.js?v=577"></script>
+<script src="program.js?v=577"></script>
+<script src="code.js?v=577"></script>
+<script src="mechsim.js?v=577"></script>
+<script src="mech.js?v=577"></script>
+<script src="intro.js?v=577"></script>
+<script src="opening.js?v=577"></script>
+<script src="robots.js?v=577"></script>
+<script src="rules.js?v=577"></script>
+<script src="templates.js?v=577"></script>
+<script src="stages.js?v=577"></script>
+<script src="ask.js?v=577"></script>
+<script src="pit.js?v=577"></script>
+<script src="ring.js?v=577"></script>
+<script src="pong.js?v=577"></script>
+<script src="combat.js?v=577"></script>
+<script src="logic.js?v=577"></script>
+<script src="trail.js?v=577"></script>
+<script src="boolquiz.js?v=577"></script>
+<script src="scene.js?v=577"></script>
+<script src="ion.js?v=577"></script>
+<script src="brawl.js?v=577"></script>
+<script src="house.js?v=577"></script>
+<script src="puzzle.js?v=577"></script>
+<script src="nav.js?v=577"></script>
+<script src="tutorial.js?v=577"></script>
+<script src="race.js?v=577"></script>
+<script src="flight.js?v=577"></script>
+<script src="sub.js?v=577"></script>
+<script src="invaders.js?v=577"></script>
+<script src="school.js?v=577"></script>
+<script src="cruise.js?v=577"></script>
+<script src="club.js?v=577"></script>
+<script src="who.js?v=577"></script>
+<script src="arcade.js?v=577"></script>
+<script src="islands.js?v=577"></script>
+<script src="meadow.js?v=577"></script>
+<script src="temple/layout.js?v=577"></script>
+<script src="temple.js?v=577"></script>
+<script src="planet.js?v=577"></script>
+<script src="roomkit.js?v=577"></script>
+<script src="chatroom.js?v=577"></script>
+<script src="roomedit.js?v=577"></script>
+<script src="rooms.js?v=577"></script>
+<script src="wallet.js?v=577"></script>
+<script src="shop.js?v=577"></script>
+<script src="library.js?v=577"></script>
+<script src="costumes.js?v=577"></script>
+<script src="missions.js?v=577"></script>
+<script src="coach.js?v=577"></script>
+<script src="owner.js?v=577"></script>
+<script src="blocks.js?v=577"></script>
+<script src="vm.js?v=577"></script>
+<script src="coder.js?v=577"></script>
+<script src="quiz.js?v=577"></script>
+<script src="chars.js?v=577"></script>
+<script src="title.js?v=577"></script>
+<script src="menu.js?v=577"></script>
+<script src="phone.js?v=577"></script>
+<script src="game.js?v=577"></script>
 </body>
 </html>

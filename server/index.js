@@ -623,6 +623,18 @@ app.get('/api/rooms/search', async (req, res) => {
   if (!q) return ok(res, { rooms:[] });
   try { ok(res, { rooms:withCounts(await roomStore.search(q, s.id)) }); } catch (e) { roomFail(res, e); }
 });
+/* WHAT A ROOM MAY BE MADE OF. The one description of the parts — the same
+   file the Godot game reads off disk (koro-godot/data/chatrooms.json) and the
+   same one every save is washed through above. The browser cannot read that
+   file, so it asks for it; both clients build from one list or they disagree
+   about what a room contains.
+
+   ABOVE `/api/rooms/:id`, because Express takes the first route that matches
+   and `:id` would swallow the word "catalog" and answer 404. */
+app.get('/api/rooms/catalog', async (req, res) => {
+  const s = await roomUser(req, res); if (!s) return;
+  ok(res, { catalog:rooms.CATALOG, max:rooms.MAX_OWNED, access:rooms.ACCESS });
+});
 app.post('/api/rooms', async (req, res) => {
   const s = await roomUser(req, res); if (!s) return;
   const name = rooms.cleanName(req.body.name);

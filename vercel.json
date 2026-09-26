@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
-    { "src": "/", "dest": "/pong.html" },
+    { "src": "/pong", "dest": "/pong.html" },
     { "src": "/api/(.*)", "dest": "https://koro-server.onrender.com/api/$1" }
   ]
 }
