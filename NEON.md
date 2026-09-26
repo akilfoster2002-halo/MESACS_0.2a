@@ -153,3 +153,21 @@ There are **two arcades** and they are different places:
 
 If that turns out to be one too many for a nine-year-old, renaming NEON is a
 small change and renaming the VOLTA one is not.
+
+## Coins
+
+A go at any cabinet costs **5 coins** from the same wallet the Wardrobe and
+the shop use (`wallet.js`), and a finished go pays back by score — capped at
+40 a go (`neon.js`, `PAYS`):
+
+| cabinet | pays |
+|---|---|
+| BLOCK DROP | 1 per 60 points |
+| SNAKE | 1 per 20 points |
+| STAR SWARM | 1 per 100 points |
+| VOLLEY / TANK vs the machine | 10 for a win (VOLLEY: 1 per point if you lose, up to 4) |
+| VOLLEY / TANK vs somebody | 12 to the winner, 2 to the loser |
+
+Queueing for a match pays up front; nobody coming, or the other player
+walking out mid-game, gives the go back. Too few coins and the cabinet says
+so rather than starting.

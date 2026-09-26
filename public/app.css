@@ -1062,7 +1062,7 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 
 /* ---------- wallet, purse and shop ---------- */
 /* the earn banner: what you got and what for */
-#wallet{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:56;
+#wallet{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:61;
   background:rgba(12,20,38,.94);border:3px solid var(--mint);border-radius:16px;
   padding:9px 20px;text-align:center;pointer-events:none;min-width:190px}
 #wallet.up{border-color:var(--star);box-shadow:0 0 0 4px rgba(255,233,168,.28)}
