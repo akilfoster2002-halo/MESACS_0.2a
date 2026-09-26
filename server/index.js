@@ -334,7 +334,9 @@ app.post('/api/teacher/arcade/hide', async (req,res)=>{
    The class's best at each solo cabinet (public/neon.js). The games run in
    the browser, so a score is the browser's word for it — capped, and only
    ever raised, which keeps a mistake or a joke off the top for good. */
-const NEON_SOLO = ['drop','snake','swarm'];
+/* every one-player cabinet (public/cabgames*.js) */
+const NEON_SOLO = ['drop','snake','swarm','breakout','maze','hop','rocks','raider','shield',
+                   'peaks','dash','climb','fighter','blade','sumo','racer','slalom','golf'];
 app.get('/api/neon/scores', async (req,res)=>{
   try{
     const out = {};
