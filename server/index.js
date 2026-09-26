@@ -808,7 +808,7 @@ function roster(server){
    and nothing is announced. */
 const WENT = { hub:'outside', home:'outside', arena:'outside', workshop:'workshop',
                house:'house', counter:'counter', mission:'mission', gym:'gym',
-               space:'space' };
+               space:'space', arcade:'arcade' };
 function moveTo(p, raw){
   const at = (typeof raw==='string' && /^[a-z_]{1,16}$/.test(raw)) ? raw : null;
   if(p.at===at) return;
@@ -826,6 +826,46 @@ function headcount(){
   const n={}; SERVERS.forEach(s=>n[s.id]=0);
   for(const [,p] of live) if(p.server && n[p.server]!==undefined) n[p.server]++;
   return n;
+}
+
+/* ================================================= NEON, the arcade
+   TWO PEOPLE AT ONE CABINET. The Gym's lobby above matches two PROGRAMS
+   and decides the whole fight here, because a program is a thing you can
+   post and walk away from. A cabinet is not that: two people are holding
+   the controls at the same time, so what this does is much smaller — it
+   finds them each other, and then gets out of the way.
+
+   ONE SIDE IS THE HOST and its word is final. The host simulates and sends
+   the state; the guest sends what it is pressing. The server does not know
+   the rules of VOLLEY or TANK and never will: it relays what one side says
+   to the other and stops when somebody leaves. That is the honest division
+   — the games are in the browser, where they are readable and changeable by
+   the class, and the only thing that has to live on the server is who is
+   playing whom.
+
+   THE QUEUE IS PER ROOM, per game. Somebody waiting at the Meadow's VOLLEY
+   is not matched with somebody waiting at the Canyon's: you play against
+   the people you are in a room with, which is the same rule the rest of
+   this game runs on. */
+const arcWait = new Map();     // 'room|game' -> { id, ws, name }
+const arcPlay = new Map();     // userId -> { foe, game, side, ws }
+function arcKey(server, game){ return server + '|' + game; }
+function arcSend(ws, obj){ if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
+/* Out of the queue and out of any match — called when somebody presses
+   cancel, walks out of the room, or the tab goes away. The other side is
+   always told: a game that simply stops is a game that looks broken. */
+function arcDrop(p, ws){
+  if(!p) return;
+  for(const [k, w] of arcWait) if(w.id === p.id) arcWait.delete(k);
+  const m = arcPlay.get(p.id);
+  if(!m) return;
+  arcPlay.delete(p.id);
+  const foe = arcPlay.get(m.foe);
+  if(foe){
+    arcPlay.delete(m.foe);
+    arcSend(foe.ws, { t:'arc', op:'gone' });
+  }
+  void ws;
 }
 
 /* No cookie (a page on another address — see /api/ticket): the socket's
@@ -881,6 +921,7 @@ wss.on('connection', async (ws, req)=>{
       }
       if(p.server===want) return;
       lobby.cancel(p.id);          // you cannot wait in a Gym you have left
+      arcDrop(p, ws);              // nor at a cabinet in a room you have left
       const was = p.server;
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=want;
@@ -903,6 +944,7 @@ wss.on('connection', async (ws, req)=>{
     if(m.t==='leave'){
       const was = p.server;
       lobby.cancel(p.id);
+      arcDrop(p, ws);
       if(was) broadcastRoom(was,{ t:'left', id:p.id, display:p.display }, ws);
       p.server=null; p.objs.clear();
       forgetIfEmpty(was);
@@ -1040,6 +1082,58 @@ wss.on('connection', async (ws, req)=>{
       broadcastRoom(p.server,{ t:'cro', o, s:st, by:p.display, now:Date.now() });
       return;
     }
+    /* ------------------------------------------------------ the arcade */
+    if(m.t==='arc'){
+      if(m.op==='cancel'){ arcDrop(p, ws); arcSend(ws, { t:'arc', op:'cancelled' }); return; }
+      if(m.op==='queue'){
+        const game = String(m.game||'');
+        if(!/^[a-z]{1,12}$/.test(game)) return;
+        if(!p.server){ arcSend(ws, { t:'arc', op:'error', message:'You are not in a room.' }); return; }
+        if(rateLimited('arc:'+p.id, 30, 60000)){
+          arcSend(ws, { t:'arc', op:'error', message:'Too many goes — wait a moment.' }); return; }
+        arcDrop(p, ws);                       // one queue, one match, at a time
+        const key = arcKey(p.server, game);
+        const w = arcWait.get(key);
+        if(w && w.id !== p.id && w.ws.readyState===1){
+          arcWait.delete(key);
+          /* THE SAME NUMBERS ON BOTH MACHINES. A seed, not a state: the two
+             browsers run the same game and a ball that serves left here and
+             right there is two different games. */
+          const seed = (Math.random()*0xffffffff)>>>0;
+          arcPlay.set(w.id, { foe:p.id, game, side:'A', ws:w.ws });
+          arcPlay.set(p.id, { foe:w.id, game, side:'B', ws });
+          arcSend(w.ws, { t:'arc', op:'match', game, you:'A', seed, foe:p.display });
+          arcSend(ws,   { t:'arc', op:'match', game, you:'B', seed, foe:w.name });
+          return;
+        }
+        arcWait.set(key, { id:p.id, ws, name:p.display });
+        arcSend(ws, { t:'arc', op:'waiting', game });
+        // so the rest of the room knows there is somebody to go and play
+        broadcastRoom(p.server, { t:'arc', op:'open', game, name:p.display }, ws);
+        return;
+      }
+      /* THE RELAY. Whatever one side says, the other side hears — the server
+         does not read it, cap it or understand it beyond its size. Twenty
+         packets a second each is the busiest thing in this game, so it is
+         also the one place a message is dropped rather than queued. */
+      if(m.op==='in' || m.op==='st'){
+        const mine = arcPlay.get(p.id);
+        if(!mine) return;
+        const foe = arcPlay.get(mine.foe);
+        if(!foe) return;
+        if(JSON.stringify(m.d||null).length > 1200) return;
+        arcSend(foe.ws, { t:'arc', op:m.op, d:m.d });
+        return;
+      }
+      if(m.op==='over'){
+        const mine = arcPlay.get(p.id);
+        if(!mine) return;
+        const foe = arcPlay.get(mine.foe);
+        if(foe) arcSend(foe.ws, { t:'arc', op:'over', winner:String(m.winner||'') });
+        return;
+      }
+      return;
+    }
     if(m.t==='chat'){
       const text = String(m.text||'').slice(0,160).trim();
       if(!text) return;
@@ -1065,6 +1159,7 @@ wss.on('connection', async (ws, req)=>{
     const p=live.get(ws); live.delete(ws);
     if(!p) return;
     lobby.cancel(p.id);
+    arcDrop(p, ws);
     broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
     forgetIfEmpty(p.server);
   });

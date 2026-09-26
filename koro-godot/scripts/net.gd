@@ -328,7 +328,7 @@ func _heard(m: Dictionary) -> void:
 			said.emit({"sys": "%s left" % m.get("display", "?")})
 		"moved":
 			var went := {"outside": "came back outside", "workshop": "went into the Workshop", "house": "went home",
-				"counter": "went into the Wardrobe", "mission": "went into a mission", "gym": "went into the Gym", "space": "launched"}
+				"counter": "went into the Wardrobe", "mission": "went into a mission", "gym": "went into the Gym", "arcade": "went up to NEON", "space": "launched"}
 			if went.has(m.get("where", "")):
 				said.emit({"sys": "%s %s" % [m.get("display", "?"), went[m.where]]})
 		"sys":
