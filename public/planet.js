@@ -1934,6 +1934,17 @@ window.PLANET = (function(){
       TEMPLE.build(b, g, { panel, statue, STATIONS, t, signTexture });
       return;
     }
+    /* SO DOES THE MECHANIC: the Godot garage model, its props, Kit and the
+       mecha plinths (garage.js). The car bays and the hangar are still the
+       showroom's, on the same floor. */
+    if(b.id==='mechanic' && window.GARAGE){
+      GARAGE.build(b, g, { panel, repaint:(p, em, label, bg)=>{
+        const face=p.userData.glow; if(!face) return;
+        if(face.material.map) face.material.map.dispose();
+        face.material.map=panelTex(em, label, bg); face.material.needsUpdate=true; } });
+      showroom(g, b, hw, hd);
+      return;
+    }
 
     put(0,-hd, b.w, 1);
     put(-hw,0, 1, b.d);
@@ -2523,7 +2534,10 @@ window.PLANET = (function(){
             spd:0, fuel:MECHA.fuel, slamming:false, cool:0, shake:0, stride:0,
             jumpReady:true, qReady:true, rings:[], flames:[], mixer:null, acts:{}, cur:null, S:1 };
     const mine=W;
-    wanoModel('mecha').then(src=>{
+    /* whichever one you chose at the Mechanic: the Vanguard is wano/mecha,
+       the Seraph wano/seraph (garage.js) */
+    mecha.kind = (window.GARAGE && GARAGE.chosen()==='seraph') ? 'seraph' : 'vanguard';
+    wanoModel(mecha.kind==='seraph' ? 'seraph' : 'mecha').then(src=>{
       if(W!==mine || !mecha || mecha.g!==g) return;
       const m=cloneSkinned(src), sz=src.userData.size;
       const S=MECHA.H/Math.max(0.001, sz.y);
@@ -2570,6 +2584,21 @@ window.PLANET = (function(){
     if(window.beep) beep('win');
     keysFor();
     say(t('🤖 Online. <b>SHIFT</b> dash · <b>SPACE</b> mega jump · <b>Q</b> slam · <b>V</b> cockpit · <b>R</b> climb out'));
+  }
+  /* X: BECOME YOUR MECHA, where you stand — Godot's Wallet.choose_mech and
+     mecha.gd. Bought at the Mechanic; X again, or R, steps out. */
+  function summonMech(){
+    const id = window.GARAGE && GARAGE.chosen();
+    if(!id){ say(t('You have no mecha yet — they are 3,000 coins at <b>THE MECHANIC</b>.')); return true; }
+    if(piloting) return exitMech();
+    if(W.kind!=='hub'){ say(t('Mechas walk on Wano — go back there to use yours.')); return true; }
+    if(flying){ say(t('Land first, then call it.')); return true; }
+    if(aboard || G.room!=='planet') return false;
+    if(!mecha || mecha.kind!==id) mechaBuild();
+    if(!mecha) return false;
+    mecha.dir.copy(me.dir); mecha.fwd.copy(me.fwd); mecha.alt=me.alt;
+    pilotMech();
+    return true;
   }
   function exitMech(){
     if(!piloting) return false;
@@ -5345,6 +5374,7 @@ window.PLANET = (function(){
   function showroom(g, b, hw, hd){
     bays=[];
     if(!window.SHOP) return;
+    if(!(window.GARAGE && b.id==='mechanic')){      // the garage lights itself
     /* A roof that really blocks the sun means a workshop with no windows is
        a workshop with no light. Strip lamps down the middle, the way a real
        one is lit, plus a spill inside the door. */
@@ -5357,6 +5387,7 @@ window.PLANET = (function(){
     });
     const spill=new THREE.PointLight(0xdfe9ff, 110, 40, 1.5);
     spill.position.set(0, 5, hd-4); g.add(spill);
+    }
     const floorPaint=new THREE.MeshLambertMaterial({color:0x3b3128});
     /* Cars down the middle now rather than along the left wall. With the
        ships gone the right-hand half was bare floor, which reads as a room
@@ -6825,12 +6856,23 @@ window.PLANET = (function(){
                   whole of it was reachable and dead. `brawlgate` is the
                   way into the arena. */
                || id==='preflight' || id==='brawlgate'
+               || id==='kit' || id.indexOf('buymech:')===0     // the Mechanic (garage.js)
                || id==='neon'                 // the arcade in the clouds (islands.js)
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
     if(piloting && id!=='mecha'){ say(t('Climb out first — <b>R</b>.')); return; }
-    if(id==='mecha'){ pilotMech(); return; }
+    if(id==='kit'){ if(window.GARAGE) GARAGE.talk(); return; }
+    if(id.indexOf('buymech:')===0){ if(window.GARAGE) GARAGE.buyMech(id.slice(8), say); return; }
+    if(id==='mecha'){
+      /* THE ONE PARKED OUTSIDE IS A STATUE now, as in Godot: mechas are
+         bought at the Mechanic, and X becomes yours anywhere outdoors. */
+      if(window.GARAGE && !GARAGE.chosen()){
+        say(t('A mecha is 3,000 coins at <b>THE MECHANIC</b> — buy one there, then <b>X</b> becomes it anywhere outdoors.'));
+        return;
+      }
+      pilotMech(); return;
+    }
     if(id.indexOf('panda:')===0){ pandaUse(+id.slice(6)); return; }
     if(mount) dismount();                 // you do not ride into a building
     /* The Gym is a room you walk into and choose in, like the Mall: these
@@ -7213,6 +7255,7 @@ window.PLANET = (function(){
     }
     flyTick(dt); beastTick(dt); mechaTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
+    if(window.GARAGE) GARAGE.tick(dt);        // Kit at work, and the mechas idling on their plinths
     if(window.MEADOW) MEADOW.tick(dt, me);    // the grass round your feet
     if(window.TEMPLE) TEMPLE.tick(dt);        // petals, doves, the water
     adaTick(dt);
@@ -7675,7 +7718,7 @@ window.PLANET = (function(){
   }
   function stop(){ leave(); }
 
-  return { enter, tick, walk, use, stop, leave, tour:retour, fitRide, facing, toggleRide,
+  return { enter, tick, walk, use, stop, leave, tour:retour, summonMech, fitRide, facing, toggleRide,
            leaveShip, get aboard(){ return aboard; },
            specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
