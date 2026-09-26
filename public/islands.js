@@ -86,7 +86,7 @@ window.ISLANDS = (function(){
        tiers of dark roof edged in pink-red neon, a golden spire, a red
        bonsai and a torii. The door is found at the foot of the pagoda once
        the model is in (placeDoor), facing `doorYaw`. */
-    { id:'neon',   lon:-8,  lat:22,  r:78, alt:80, spin:0.55, arcade:true, clouds:true,
+    { id:'neon',   lon:-8,  lat:22,  r:78, alt:100, spin:0.55, arcade:true, clouds:true,
       model:'islands/neon.glb', doorYaw:0 }
   ];
 
