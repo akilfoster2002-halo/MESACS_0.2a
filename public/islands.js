@@ -81,7 +81,13 @@ window.ISLANDS = (function(){
        deck for the clouds to read as clouds rather than as fog on a hill.
        You can see the glow of it from the ground at night, which is what
        makes a child press F and go and find out. */
-    { id:'neon',   lon:-8,  lat:22,  r:31, alt:96, spin:0.55, arcade:true, clouds:true }
+    /* AND NOW IT IS A PAGODA on a floating rock (Higgsfield: a painted
+       concept from two reference pictures, then Meshy made it a mesh) — five
+       tiers of dark roof edged in pink-red neon, a golden spire, a red
+       bonsai and a torii. The door is found at the foot of the pagoda once
+       the model is in (placeDoor), facing `doorYaw`. */
+    { id:'neon',   lon:-8,  lat:22,  r:36, alt:92, spin:0.55, arcade:true, clouds:true,
+      model:'islands/neon.glb', doorYaw:0 }
   ];
 
   const GRASS=[0x4a7f3a, 0x5b9147, 0x6aa352];
@@ -307,6 +313,7 @@ window.ISLANDS = (function(){
       if(k.model){
         const rec={ k, dir, g, f, top:k.alt };
         isles.push(rec);
+        if(k.clouds) clouds(g, k, i);
         if(k.fall) makePool(rec);           // the pool is dug already; fill it now
         loadModel(rec);
         return;
@@ -596,9 +603,17 @@ window.ISLANDS = (function(){
          as it leaves Blender and under 10 once packed */
       if(window.MeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder);
     }
+    /* KEPT ONCE LOADED, so building Wano again — walking out of NEON is
+       the case — puts the island back in the same frame, not a moment later
+       with you already fallen through where it should have been. */
+    if(models[k.model]){ place(models[k.model].clone(true)); return; }
     loader.load(k.model+'?v='+(window.ASSETV||'1'), gl=>{
+      models[k.model]=gl.scene;
       if(group!==myGroup) return;             // the world was rebuilt meanwhile
-      let root=gl.scene;
+      place(gl.scene.clone(true));
+    });
+    function place(scene){
+      let root=scene;
       let field=null;
       root.traverse(o=>{
         if(o.userData && o.userData.field) field=JSON.parse(o.userData.field);
@@ -607,8 +622,14 @@ window.ISLANDS = (function(){
            colour map and a normal map; leaves and grass carry theirs in the
            vertices. Lambert either way, so it is lit like the rest of Wano. */
         const src=o.material, thin=/leaves|grass/.test(o.name);
+        /* THE ARCADE LIGHTS ITSELF: its own colours are its glow, so the
+           neon on every eave and the lit windows read at night the way the
+           reference picture has them, rather than as dark red paint. */
         o.material = src.map
-          ? new THREE.MeshLambertMaterial({ map:src.map, normalMap:src.normalMap||null })
+          ? new THREE.MeshLambertMaterial({ map:src.map, normalMap:src.normalMap||null,
+              emissive: k.arcade ? 0xffffff : 0x000000,
+              emissiveMap: k.arcade ? src.map : null,
+              emissiveIntensity: k.arcade ? 0.42 : 0 })
           : new THREE.MeshLambertMaterial({ vertexColors:true,
               side: thin ? THREE.DoubleSide : THREE.FrontSide });
         o.userData.flat=true;
@@ -626,7 +647,16 @@ window.ISLANDS = (function(){
       }
       if(!field) return;
       const tops=field.top.filter(v=>v!==null).sort((a,b)=>a-b);
-      const deck=tops[Math.floor(tops.length/2)];
+      let deck=tops[Math.floor(tops.length/2)];
+      /* A BUILDING COVERS HALF THE ISLAND, so the median surface is part way
+         up its roofs. There the deck is the commonest height instead — the
+         flat top of the rock, which is most of what is not pagoda. */
+      if(k.arcade){
+        const bin=field.cell*0.5, count=new Map();
+        tops.forEach(v=>{ const b=Math.round(v/bin); count.set(b,(count.get(b)||0)+1); });
+        let best=0, n=0; count.forEach((c,b)=>{ if(c>n){ n=c; best=b; } });
+        deck=best*bin;
+      }
       let reach=0;
       field.top.forEach((v,n)=>{
         if(v===null) return;
@@ -640,7 +670,54 @@ window.ISLANDS = (function(){
       rec.field=field; rec.s=s; rec.deck=deck;
       rec.top=k.alt+(tops[tops.length-1]-deck)*s;
       if(k.fall) pourFrom(rec);
-    });
+      if(k.arcade) placeDoor(rec, root);
+    }
+  }
+  const models={};
+
+  /* THE DOOR OF A MODELLED ARCADE. Walk out from the middle along doorYaw
+     until the height grid drops to the deck: that is the foot of the
+     pagoda's wall, and the door goes just outside it. Invisible — the
+     model is the door you see; this is the thing the crosshair finds. */
+  function placeDoor(rec, root){
+    const k=rec.k, F=rec.field, s=rec.s, a=k.doorYaw||0;
+    const dx=Math.sin(a), dz=Math.cos(a);
+    const topAt=(x,z)=>{
+      const i=Math.round((x/s-F.x0)/F.cell), j=Math.round((z/s-F.z0)/F.cell);
+      if(i<0||j<0||i>=F.nx||j>=F.nz) return null;
+      const v=F.top[j*F.nx+i]; return v===null ? null : (v-rec.deck)*s;
+    };
+    /* NOT FROM THE HEIGHT GRID, which keeps the highest surface over each
+       spot and so sees the eaves, not the wall under them. A ray at head
+       height, from outside the rock in toward the middle, meets the wall. */
+    let wall=k.r*0.3;
+    rec.g.updateMatrixWorld(true);
+    const from=rec.g.localToWorld(new THREE.Vector3(dx*k.r*1.3, 1.6, dz*k.r*1.3));
+    const to=rec.g.localToWorld(new THREE.Vector3(0, 1.6, 0));
+    const ray=new THREE.Raycaster(from, to.clone().sub(from).normalize(), 0, k.r*1.3);
+    const hit=ray.intersectObject(root, true)[0];
+    if(hit) wall=Math.max(2, k.r*1.3 - hit.distance);
+    const H=5.5;
+    const door=new THREE.Mesh(new THREE.BoxGeometry(6, H, 1.2),
+      new THREE.MeshBasicMaterial({ visible:false }));
+    door.position.set(dx*(wall+0.8), topAt(dx*(wall+1.5), dz*(wall+1.5))+H/2 || H/2, dz*(wall+0.8));
+    door.rotation.y=a;
+    const hold=new THREE.Group();
+    hold.userData={ kind:'door', label:'NEON \u2014 the arcade', enter:'neon', verb:'E \u2014 go in' };
+    door.userData.owner=hold;
+    rec.g.add(door); rec.g.add(hold);
+    G.hits.push(door);
+    rec.door=door;
+    /* and the glow the whole thing sits in: pink up from under the rock
+       onto the clouds round it, and a warm light high on the tiers */
+    const under=new THREE.PointLight(0xff2f7a, 260, 90, 1.4);
+    under.position.set(0, -18, 0); rec.g.add(under);
+    const crown=new THREE.PointLight(0xff5a8a, 120, 60, 1.6);
+    crown.position.set(0, 30, 6); rec.g.add(crown);
+    // a warm pink spill at the doorway, so the way in reads from the air
+    const glow=new THREE.PointLight(0xff3f8a, 40, 30, 1.5);
+    glow.position.set(dx*(wall+3), door.position.y+2, dz*(wall+3));
+    rec.g.add(glow);
   }
   /* THE GROUND OF A MODEL, FROM ITS TRIANGLES. Every triangle is laid flat
      onto an n-by-n grid over its footprint, and each grid point keeps the
@@ -1476,15 +1553,23 @@ window.ISLANDS = (function(){
      so the two can never disagree about where the door is. */
   function doorOut(id){
     const is = isles.find(r => r.k.id===(id||'neon'));
-    if(!is || !is.door) return null;
+    if(!is || !is.door) return null;           // not loaded yet: planet.js uses its own spot
     is.g.updateMatrixWorld(true);
     const at = new THREE.Vector3(); is.door.getWorldPosition(at);
     const centre = is.dir.clone().multiplyScalar(W.PR + is.k.alt);
     const up = at.clone().normalize();
     const out = at.clone().sub(centre);
     out.addScaledVector(up, -out.dot(up)).normalize();
-    const dir = at.clone().addScaledVector(out, 8.5).normalize();   // clear of the chase camera
-    const fwd = out.clone().addScaledVector(dir, -out.dot(dir)).normalize();
+    /* clear of the chase camera, but never off the edge of the rock */
+    let dir = null;
+    for(let d=5.5; d>=2; d-=0.5){
+      dir = at.clone().addScaledVector(out, d).normalize();
+      if(floorAt(dir, is.k.alt+20)!==null) break;
+    }
+    /* FACING THE PAGODA: coming out, the first thing you see is the
+       building you were just in, lit up, rather than the back of a gate. */
+    const back = out.clone().negate();
+    const fwd = back.addScaledVector(dir, -back.dot(dir)).normalize();
     return { dir, fwd, alt: is.k.alt + 20 };
   }
 
