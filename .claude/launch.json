@@ -1,0 +1,59 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "koro",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "port": 8788
+    },
+    {
+      "name": "koro-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 8799
+    },
+    {
+      "name": "flightschool",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "http-server",
+        "flightschool",
+        "-p",
+        "8790",
+        "-c-1"
+      ],
+      "port": 8790
+    },
+    {
+      "name": "paintcheck",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "http-server",
+        ".",
+        "-p",
+        "8791",
+        "-c-1"
+      ],
+      "port": 8791
+    },
+    {
+      "name": "koro-netcheck",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PORT=8811",
+        "DEV_SIGNED_IN=0",
+        "node",
+        "tools/dev-server.js"
+      ],
+      "port": 8811
+    }
+  ]
+}

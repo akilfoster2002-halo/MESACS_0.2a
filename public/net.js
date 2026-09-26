@@ -35,6 +35,7 @@ window.NET = (function(){
     counter :'{n} went into the Wardrobe',
     mission :'{n} went into a mission',
     gym     :'{n} went into the Gym',
+    arcade  :'{n} went up to NEON',
     space   :'{n} launched'
   };
 

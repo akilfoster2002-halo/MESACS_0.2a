@@ -6865,6 +6865,11 @@ window.PLANET = (function(){
     if(id.indexOf('fly:')===0){ travel(id.slice(4)); return; }
     if(id==='workshop'){ wentTo('workshop'); leave();
                          return FREE.enter(server||{id:null,name:'Workshop'}, null); }
+    /* NEON, the arcade in the clouds. The only door in the sky: it is on an
+       island (islands.js), and what is behind it is a room of its own the
+       way the house and the workshop are. */
+    if(id==='neon'){ wentTo('arcade'); leave();
+                     return NEON.enter(server); }
     // the Mall is a room you walk round, not a screen: only the counter
     // inside it opens the full list, and that is 'counter'
     if(id==='mall'){ say(t('Walk up to anyone. <b>E</b> to wear them.')); return; }
