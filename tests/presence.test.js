@@ -16,9 +16,9 @@ const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
 /* the roster the browser offers, straight out of avatar.js */
 function roster(){
-  const m = read('public/avatar.js').match(/const IDS\s*=\s*'([a-z]+)'\.split/);
-  assert.ok(m, 'avatar.js no longer declares IDS as a string of letters');
-  return m[1].split('');
+  const m = read('public/avatar.js').match(/const IDS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(m, 'avatar.js no longer declares IDS as a list of names');
+  return m[1].match(/'([a-z]+)'/g).map(s=>s.replace(/'/g,''));
 }
 /* the test the server applies to an incoming presence message */
 function serverAccepts(){
@@ -41,7 +41,7 @@ test('the character everybody starts as is the one the server assumes', ()=>{
      `char` and broke this test without anything being wrong. */
   const rec = read('server/index.js').match(/live\.set\(ws,\s*\{[\s\S]*?\}\);/);
   assert.ok(rec, 'server/index.js no longer seeds a live record per socket');
-  const m = rec[0].match(/char:\s*'([a-z])'/);
+  const m = rec[0].match(/char:\s*'([a-z]+)'/);
   assert.ok(m, 'the live record no longer seeds a default char');
   assert.strictEqual(m[1], first,
     'a roster read before the first pos message would show the wrong character');

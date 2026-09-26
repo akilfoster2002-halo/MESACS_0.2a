@@ -19,7 +19,10 @@ var talk: RichTextLabel
 var to_line: LineEdit
 var msg_line: LineEdit
 var with := ""
-var lines: Array[String] = []
+## THE ROOM'S LOG, kept with the id the server gave each line: a teacher can
+## take one line back out of a room, or clear the lot, and a line nobody was
+## meant to read is no less read on this screen than in a browser.
+var lines: Array[Dictionary] = []
 var poll_t := 0.0
 var t_nearby: Button
 var t_texts: Button
@@ -114,12 +117,24 @@ func opened() -> void:
 	_draw_log()
 
 func _heard(line: Dictionary) -> void:
+	# the teacher cleared the room, or took one line back out of it
+	if line.get("clear", false):
+		lines.clear()
+		if visible:
+			_draw_log()
+		return
+	if line.has("unsay"):
+		var gone := int(line.unsay)
+		lines = lines.filter(func(l): return int(l.get("id", 0)) != gone)
+		if visible:
+			_draw_log()
+		return
 	var s: String
 	if line.has("sys"):
-		s = "[color=#8fd3ff][i]%s[/i][/color]" % _esc(line.sys)
+		s = "[color=#8fd3ff][i]%s[/i][/color]" % _esc(line.get("sys", ""))
 	else:
-		s = "[b][color=#a8e6cf]%s[/color][/b]  %s" % [_esc(line.from), _esc(line.text)]
-	lines.append(s)
+		s = "[b][color=#a8e6cf]%s[/color][/b]  %s" % [_esc(line.get("from", "?")), _esc(line.get("text", ""))]
+	lines.append({"id": int(line.get("id", 0)), "text": s})
 	if lines.size() > 80:
 		lines.pop_front()
 	if visible:
@@ -131,7 +146,7 @@ func _draw_log() -> void:
 		head = "[color=#ffe9a8]Sign in (P → Your account) to talk to the room.[/color]\n"
 	elif not net.live:
 		head = "[color=#ffe9a8]No live room on this server right now.[/color]\n"
-	room_log.text = head + "\n".join(lines)
+	room_log.text = head + "\n".join(lines.map(func(l): return str(l.get("text", ""))))
 
 static func _esc(t: Variant) -> String:
 	return str(t).replace("[", "[lb]")

@@ -39,9 +39,19 @@ window.CRUISE = (function(){
      wherever they happened to take off. Two people cannot see each other in
      two different frames — and this is also what lets one of you fly out
      while the other flies back, and pass. */
+  /* AND THE SAME FRAME AS THE GODOT GAME, point for point — these three are
+     koro-godot/scripts/cruise.gd's AT, and TOP and TRIP_SECONDS above are its
+     TOP and TRIP_SECONDS, so the numbers a ship sends mean the same distance
+     out of either game. Move one of these and you move it in both.
+
+     HOME IS THE THIRD ONE, and it was missing: every id that was not VOLTA
+     came back as Wano, so a launch to a home planet was a course from Wano
+     to Wano — no length, no heading, and a pilot sitting still in a ship
+     pointed at nothing. */
   const WANO_AT  = new THREE.Vector3(0, 0, 0);
   const VOLTA_AT = new THREE.Vector3(0, 0, -TRIP);
-  const spotOf = id => id==='arena' ? VOLTA_AT : WANO_AT;
+  const HOME_AT  = new THREE.Vector3(TRIP*0.72, TRIP*0.12, -TRIP*0.35);
+  const spotOf = id => id==='arena' ? VOLTA_AT : id==='home' ? HOME_AT : WANO_AT;
 
   const ARRIVE = 780;                    // how close counts as orbit
   /* Something thirty-six kilometres away is past the far plane, and drawing

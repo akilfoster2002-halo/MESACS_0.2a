@@ -289,6 +289,26 @@ func _where() -> void:
 		"y": snappedf(over, 0.01), "char": p.character, "act": act,
 		"ride": Wallet.car_id() if p.car else null, "at": Worlds.current})
 
+## OUT BETWEEN THE PLANETS, where `_where()` has nothing to say.
+##
+## There is no world under your feet on the way to VOLTA, so the world node
+## is gone and the line above stops being sent — and stopping is not the same
+## as leaving. The server keeps the last thing it heard, so everybody still
+## standing on the planet you took off from watched you stand there with them
+## for the whole flight, a statue on the pad, while your ship was somewhere
+## else entirely. So the ship reports itself instead, and marks itself
+## `space`, which is the one place nobody draws onto a planet.
+##
+## THE FRAME IS THE ONE BOTH GAMES SHARE: absolute metres out from Wano, the
+## planets hanging where cruise.gd's AT and public/cruise.js's spotOf agree
+## they hang, and a heading and a pitch read the same way on both screens
+## (yaw then pitch, the ship's own YXZ). So a browser on its way to VOLTA and
+## a Godot player on the way back pass each other.
+func in_space(at: Vector3, yaw: float, pitch: float) -> void:
+	_send({"t": "pos", "x": snappedf(at.x, 0.1), "y": snappedf(at.y, 0.1), "z": snappedf(at.z, 0.1),
+		"yaw": snappedf(yaw, 0.001), "pit": snappedf(pitch, 0.001),
+		"char": Walker.cast_of(str(Progress.get_value("char", "nia"))), "at": "space"})
+
 func _heard(m: Dictionary) -> void:
 	match str(m.get("t", "")):
 		"players":
@@ -296,10 +316,12 @@ func _heard(m: Dictionary) -> void:
 			roster = (m.players as Array).filter(func(x): return int(x.id) != mine)
 			players_in.emit(roster)
 		"chat":
-			said.emit({"from": m.get("from", "?"), "text": m.get("text", "")})
+			said.emit({"from": m.get("from", "?"), "text": m.get("text", ""), "id": int(m.get("id", 0))})
 		"room":
+			said.emit({"clear": true})       # a new room starts on a clean feed
 			for h in m.get("history", []):
-				said.emit({"from": h.get("display", "?"), "text": h.get("text", ""), "old": true})
+				said.emit({"from": h.get("display", "?"), "text": h.get("text", ""),
+					"id": int(h.get("id", 0)), "old": true})
 		"joined":
 			said.emit({"sys": "%s joined" % m.get("display", "?")})
 		"left":
@@ -316,6 +338,14 @@ func _heard(m: Dictionary) -> void:
 			said.emit({"sys": "Your teacher muted the chat for you." if muted_until > Time.get_unix_time_from_system() else "You can chat again."})
 		"dm":
 			buzz.emit(m)
+		# THE TEACHER'S TWO BUTTONS (server/index.js: /api/teacher). Clearing a
+		# room and taking one line back out of it go to every socket in it, and
+		# a line nobody was meant to read is not less read on this screen than
+		# in a browser — until now only the browser was listening.
+		"clear":
+			said.emit({"clear": true})
+		"unsay":
+			said.emit({"unsay": int(m.get("id", 0))})
 		"cro", "cro_all", "crupdate", "crkick", "crinvite":
 			room_said.emit(m)
 

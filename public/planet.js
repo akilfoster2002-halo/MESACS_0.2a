@@ -4092,13 +4092,14 @@ window.PLANET = (function(){
       say(t('You have no ship. <b>THE MECHANIC</b> has one waiting.'));
       return;
     }
-    /* A SHUTTLE IS NOT A FLIGHT. CRUISE knows where two planets are —
-       Wano and VOLTA — and every other id it is handed comes back as
-       Wano, so a run from a third world to Wano would start and end at
-       the same point in space: a course of zero length, a heading off a
-       vector with no direction in it, and a player left sitting in a ship
-       pointed at nothing. The way off a world the game put you on is the
-       craft that brought you, and it simply takes you. */
+    /* A SHUTTLE IS NOT A FLIGHT. CRUISE knows where the three planets you
+       can own a course to are — Wano, VOLTA and your home — and every other
+       id it is handed comes back as Wano, so a run from a fourth world to
+       Wano would start and end at the same point in space: a course of zero
+       length, a heading off a vector with no direction in it, and a player
+       left sitting in a ship pointed at nothing. The way off a world the
+       game put you on is the craft that brought you, and it simply takes
+       you. */
     if(W.shuttle && !hasShip()){
       leave(); enter(server, id);
       say(t('The shuttle sets you down on {n}.',{n:worldById(id).name}));
@@ -7014,6 +7015,24 @@ window.PLANET = (function(){
      list is right, the chat they left behind is intact, and walking back
      out to Wano puts them in the room again with nothing to reconnect. */
   const solo = () => !!(W && W.mission);
+  /* ============================================ AND A HOME PLANET IS YOURS
+     Every home planet is generated from its owner's seed and every one of
+     them reports the same `at` — 'home' — because there is only one home
+     world in the list and each player's is a different ball built from it.
+     Read as a place, that made thirty students standing on thirty separate
+     planets into thirty students standing on each other's hills, at
+     coordinates that mean nothing where they landed.
+
+     The Godot game has always skipped the crowd on a home planet
+     (koro-godot/scripts/others.gd). This is the browser agreeing with it —
+     and the two have to agree, or one of them draws a classmate the other
+     knows is not there.
+
+     WHAT IS NOT SWITCHED OFF is broadcasting. 'home' is the honest answer
+     to where you are and the roster, the headcount and the chat all want
+     it; going quiet instead would leave you frozen on Wano for everybody
+     still standing on it, which is the bug this is next to. */
+  const alone = () => solo() || !!(W && W.id==='home');
 
   function connect(){
     if(solo()) return;
@@ -7033,8 +7052,9 @@ window.PLANET = (function(){
     /* A LATE PACKET IS STILL A PACKET. The socket does not stop the moment
        a mission world is entered — it is the hub's connection and it is
        kept on purpose — so this runs on RYU with a list of everybody, and
-       without this line it would draw the ones who are also there. */
-    if(solo()){
+       without this line it would draw the ones who are also there. The same
+       goes for a home planet, which is one ball per player. */
+    if(alone()){
       others.forEach(o=>{ if(o.g && o.g.parent) o.g.parent.remove(o.g); });
       others.clear();
       return;

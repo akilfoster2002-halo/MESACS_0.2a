@@ -50,7 +50,13 @@ serverless website, which cannot keep a socket open) you are in the room you
 picked with everybody else in it, whether they are in a browser or here: you
 see them where they are, as who they chose, in their car, dancing, flying;
 they see you; the room's chat is on the phone and along the bottom of the
-screen. Texts work either way.
+screen, and a teacher clearing the room or taking a line back clears it here
+too. Texts work either way.
+
+Out between the planets as well: the ship reports where it is in the frame
+both games share, so a classmate flying the other way passes you with their
+name over them. Your own home planet is the one place nobody else is drawn —
+everybody's is a different ball built from their own seed.
 
 `KORO_PROFILE=name` keeps a separate self in `user://name/`, for running two
 copies side by side. `tools/netcheck.gd` signs in against a server, stands in

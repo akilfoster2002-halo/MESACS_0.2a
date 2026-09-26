@@ -29,7 +29,7 @@ var me_label: Label
 var purse: Label
 var purse_was := -1
 var feed: Label
-var feed_lines: Array[String] = []
+var feed_lines: Array[Dictionary] = []
 var feed_t := 0.0
 var unread_t := 3.0
 var unread := 0
@@ -538,14 +538,29 @@ func _style(p: PanelContainer) -> void:
 ## The room, in a line or two at the bottom of the screen, for a few seconds:
 ## you should not have to open the phone to find out somebody said hello.
 func _feed(line: Dictionary) -> void:
+	# the teacher cleared the room, or took one line back out of it: it goes
+	# off this screen too, not just out of the browser's log
+	if line.get("clear", false):
+		feed_lines.clear()
+		_repaint_feed()
+		return
+	if line.has("unsay"):
+		var gone := int(line.unsay)
+		feed_lines = feed_lines.filter(func(l): return int(l.get("id", 0)) != gone)
+		_repaint_feed()
+		return
 	if line.get("old", false):
 		return
-	var s: String = str(line.sys) if line.has("sys") else "%s: %s" % [line.from, line.text]
-	feed_lines.append(s)
+	var s: String = str(line.get("sys", "")) if line.has("sys") \
+		else "%s: %s" % [line.get("from", "?"), line.get("text", "")]
+	feed_lines.append({"id": int(line.get("id", 0)), "text": s})
 	while feed_lines.size() > 5:
 		feed_lines.pop_front()
-	feed.text = "\n".join(feed_lines)
+	_repaint_feed()
 	feed_t = 10.0
+
+func _repaint_feed() -> void:
+	feed.text = "\n".join(feed_lines.map(func(l): return str(l.get("text", ""))))
 
 func _check_unread() -> void:
 	var j: Dictionary = await world.net.unread()

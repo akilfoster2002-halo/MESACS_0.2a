@@ -65,6 +65,13 @@ var hud_bar: ColorRect
 var hud_mark: Label
 var hud_say: Label
 var streaks: MultiMeshInstance3D
+## EVERYBODY ELSE OUT HERE (net.gd's in_space, public/cruise.js's seePlayers):
+## the ships crossing at the same time as you, each eased onto the last place
+## it said it was, drawn along its true bearing from where WE are.
+var net: Net
+var crowd: Node3D
+var mates := {}                  # id -> {node, at, to, yaw, tyaw, pit, tpit}
+var sent_t := 0.0
 
 func _ready() -> void:
 	randomize()
@@ -82,8 +89,21 @@ func _ready() -> void:
 	_ship()
 	_sky()
 	_hud()
+	_room()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_say("Fire the engines: W. Steer with the mouse. %s is the marker." % Worlds.get_world(target).name, 4.0)
+
+## THE ROOM COMES WITH YOU. The socket is the game's, not the world's, so it
+## is still open out here — and it has to be told, because a ship that stops
+## reporting does not leave the planet it took off from, it stands still on
+## it. What goes out is in_space(); what comes back is everybody else's, and
+## the ones who are also out here get drawn.
+func _room() -> void:
+	crowd = Node3D.new()
+	add_child(crowd)
+	net = get_node("/root/Online")
+	net.players_in.connect(_see)
+	tree_exiting.connect(func(): net.players_in.disconnect(_see))
 
 func _space() -> void:
 	var env := Environment.new()
@@ -430,8 +450,80 @@ func _process(delta: float) -> void:
 	_say_t -= delta
 	hud_say.modulate.a = clampf(_say_t / 0.6, 0.0, 1.0)
 	Sound.wind(clampf(speed / (TOP * BOOST), 0.0, 1.0) * 0.6)
+	_mates_tick(delta)
+	# eleven times a second, the same rate the ground uses
+	sent_t -= delta
+	if sent_t <= 0.0:
+		sent_t = 0.09
+		net.in_space(where, yaw, pitch)
 	if not done and real_dist <= ARRIVE:
 		_arrive()
+
+# ------------------------------------------------------ everybody else out here
+
+func _see(list: Array) -> void:
+	if crowd == null:
+		return
+	var seen := {}
+	for p in list:
+		if str(p.get("at", "")) != "space":   # they are on a planet, not out here
+			continue
+		var id := int(p.id)
+		seen[id] = true
+		var at := Vector3(float(p.get("x", 0)), float(p.get("y", 0)), float(p.get("z", 0)))
+		var m: Dictionary = mates.get(id, {})
+		if m.is_empty():
+			var n := Node3D.new()
+			crowd.add_child(n)
+			# the hull is scaled down when they are drawn short of where they
+			# really are; the name over it is not, so it stays legible
+			var hull := Building.ship_model(9.0)
+			n.add_child(hull)
+			var tag := Label3D.new()
+			tag.text = str(p.get("display", "?")).substr(0, 16)
+			tag.font_size = 48
+			tag.pixel_size = 0.004
+			tag.outline_size = 8
+			tag.modulate = Color("8fd3ff")
+			tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			# a ship forty kilometres off is a pixel, and a name tag on a pixel
+			# is unreadable — so the tag holds its size however far away they are
+			tag.fixed_size = true
+			tag.no_depth_test = true
+			tag.position = Vector3(0, 1.25, 0)
+			n.add_child(tag)
+			m = {"node": n, "hull": hull, "at": at, "to": at, "yaw": float(p.get("yaw", 0)),
+				"tyaw": float(p.get("yaw", 0)), "pit": float(p.get("pit", 0)),
+				"tpit": float(p.get("pit", 0))}
+			mates[id] = m
+		m.to = at
+		m.tyaw = float(p.get("yaw", 0))
+		m.tpit = float(p.get("pit", 0))
+	for id in mates.keys():
+		if not seen.has(id):
+			(mates[id].node as Node3D).queue_free()
+			mates.erase(id)
+
+## Presence lands about eleven times a second, which is nowhere near a frame
+## rate — so what arrives is a TARGET and the frame eases onto it, the way the
+## ground does with people walking. Drawn along their true bearing and pulled
+## in to the far plane if they are past it, exactly as a planet is (_show).
+func _mates_tick(delta: float) -> void:
+	if mates.is_empty():
+		return
+	var k := 1.0 - pow(0.0009, minf(delta, 0.1))
+	for id in mates:
+		var m: Dictionary = mates[id]
+		m.at = (m.at as Vector3).lerp(m.to, k)
+		m.yaw += wrapf(m.tyaw - m.yaw, -PI, PI) * k
+		m.pit += (m.tpit - m.pit) * k
+		var n: Node3D = m.node
+		var to: Vector3 = m.at - where
+		var dist := maxf(1.0, to.length())
+		var f := minf(dist, DRAW_MAX) / dist
+		n.position = to * f
+		n.basis = Basis(Vector3.UP, m.yaw) * Basis(Vector3.RIGHT, m.pit)
+		(m.hull as Node3D).scale = Vector3.ONE * f
 
 func _fly(delta: float) -> void:
 	var kx := Input.get_axis("ui_left", "ui_right")

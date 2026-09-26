@@ -22,7 +22,7 @@ const path = require('path');
 
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const roster = () => read('public/avatar.js')
-  .match(/const IDS\s*=\s*'([a-z]+)'\.split/)[1].split('');
+  .match(/const IDS\s*=\s*\[([^\]]*)\]/)[1].match(/'([a-z]+)'/g).map(s=>s.replace(/'/g,''));
 
 function gltf(id){
   const b = fs.readFileSync(path.join(__dirname,'..',

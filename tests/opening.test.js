@@ -425,7 +425,13 @@ test('a mission is played alone', ()=>{
 
   const paint=planet.slice(planet.indexOf('function paint(list)'),
                            planet.indexOf('function paint(list)')+900);
-  assert.match(paint, /if\(solo\(\)\)\{/,
+  /* `alone()` is solo() plus the other ball there is one of per player — a
+     home planet, whose whole class reports the same `at` (see
+     tests/crossplay.test.js). A mission is the reason this guard exists and
+     is still inside it. */
+  assert.match(planet, /const alone = \(\) => solo\(\) \|\| /,
+    'nothing widens "played alone" past a mission');
+  assert.match(paint, /if\(alone\(\)\)\{/,
     'a late packet on a mission world still draws whoever is in it');
   assert.match(paint, /others\.clear\(\)/,
     'anybody already drawn is left standing in the story');

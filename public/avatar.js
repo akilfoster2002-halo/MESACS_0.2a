@@ -24,11 +24,20 @@ window.AVATAR = (function(){
      (see "glb files"/README.md for how one gets here). Kyle leads: he is
      the character this game is about, and he is the one you are unless you
      say otherwise, which is now a keypress rather than a walk to the Mall. */
-  /* ROBIN IS ON THE ROSTER NOW, and she is on it as a character rather
-     than as a costume the game puts you in. See the paragraph below for
-     what that used to mean and why it changed. */
-  const IDS = 'stuvw'.split('');
-  const NAMES = { s:'Kyle', t:'Mia', u:'Savannah', v:'Carlos', w:'Robin' };
+  /* THE CAST IS NIA, SABLE, KOFI, THEO AND ZURI — the same five as the
+     Godot game (koro-godot/scripts/walker.gd), made in one style, rigged on
+     the same Mixamo skeleton with the same clips, and named by NAME rather
+     than by a letter, so a player in the browser and a player in Godot
+     each see the other as who they chose. Nia leads.
+
+     Kyle, Mia, Savannah, Carlos and Robin are retired. A save, or a player
+     still on an old page, that says s..x gets a fixed new body (RETIRED,
+     the same table the Godot game uses) rather than everybody becoming
+     the first one. Their files stay: a walk-on still wears one. */
+  const IDS = ['nia', 'sable', 'kofi', 'theo', 'zuri'];
+  const NAMES = { nia:'Nia', sable:'Sable', kofi:'Kofi', theo:'Theo', zuri:'Zuri' };
+  const RETIRED = { s:'theo', t:'zuri', u:'sable', v:'kofi', w:'nia', x:'nia' };
+  const castOf = id => RETIRED[id] || id;
   /* ?v= on the asset, not just on the script. Without it a changed model
      is invisible for a day behind the server's cache header. */
   const V = ()=> '?v='+(window.ASSETV||'1');
@@ -96,7 +105,7 @@ window.AVATAR = (function(){
      this; the Mall asks CHARS. A miss still falls back to the first
      character rather than throwing — a body that fails to resolve should
      be the wrong person, never a hole in the world. */
-  const bodyDef = id => BODIES.find(c=>c.id===id) || CHARS[0];
+  const bodyDef = id => BODIES.find(c=>c.id===castOf(id)) || CHARS[0];
 
   const BASE = 'characters/models/';     // so the .glb finds its texture
   const TALL = 1.85;                     // how tall a person stands, in world units
@@ -398,6 +407,23 @@ window.AVATAR = (function(){
            clip is baked into the characters, this alias stops being used
            without anything else changing. */
         name = ALIAS[name] && !clips.some(c=>c.name===name) ? ALIAS[name] : name;
+        /* AND A NAME OFF THE WIRE MAY BE A CLIP NOBODY HERE HAS.
+
+           What another player's body is doing arrives as the NAME of the
+           clip they are playing, and the name comes from whichever game
+           they are playing in. The Godot game sends its side-steps spelled
+           out ('walk_left', 'sprint_back') and a mech pilot as 'ride';
+           there will be more of them, because a clip added to one game is
+           not a deploy of the other.
+
+           Returning on a miss left the body in whatever pose it was last
+           in — frozen mid-stride, sliding across the field — which is the
+           one outcome worse than the wrong animation. So a name that
+           misses falls back to the gait it is a variant of, and then to
+           idle, which is what Godot does with a clip it does not know
+           (koro-godot/scripts/others.gd). */
+        if(!clips.some(c=>c.name===name)) name=String(name||'').split('_')[0];
+        if(!clips.some(c=>c.name===name)) name='idle';
         if(curName===name) return;
         loco.on=false;                                  // the blend fades itself out in update()
         const clip=clips.find(c=>c.name===name);
@@ -464,7 +490,7 @@ window.AVATAR = (function(){
      choice always wins, so this only ever fires once. */
   const FREE_AT_START = 4;
   let chosen = null;
-  try{ chosen = localStorage.getItem('dq_char'); }catch(e){}
+  try{ chosen = castOf(localStorage.getItem('dq_char')); }catch(e){}
   if(!chosen || !CHARS.some(c=>c.id===chosen)){
     /* Not a random one of the free four any more. There is a main
        character now, and being handed somebody else on your first run
@@ -767,7 +793,7 @@ window.AVATAR = (function(){
      safe to call whether anybody is signed in or not. */
   function restore(){
     if(!window.PROGRESS || !PROGRESS.get) return chosen;
-    const want=PROGRESS.get('char', null);
+    const want=castOf(PROGRESS.get('char', null));
     if(!want || want===chosen || !CHARS.some(c=>c.id===want)) return chosen;
     pick(want);
     return chosen;

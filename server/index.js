@@ -836,9 +836,9 @@ wss.on('connection', async (ws, req)=>{
   const u = r.rows[0];
   if(!u){ ws.close(4001,'unknown user'); return; }
   live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
-                // 's' is the character the browser starts everybody on, so a
+                // 'nia' is the character everybody starts on, so a
                 // roster read before their first 'pos' shows what they wear
-                x:0, y:0, z:0, yaw:0, pit:0, char:'s', act:null, ride:null,
+                x:0, y:0, z:0, yaw:0, pit:0, char:'nia', act:null, ride:null,
                 at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));

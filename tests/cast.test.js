@@ -16,24 +16,45 @@ const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const bare = src => src.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 
 function roster(){
-  const m = read('public/avatar.js').match(/const IDS\s*=\s*'([a-z]+)'\.split/);
-  assert.ok(m, 'avatar.js no longer declares IDS as a string of letters');
-  return m[1].split('');
+  const m = read('public/avatar.js').match(/const IDS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(m, 'avatar.js no longer declares IDS as a list of names');
+  return m[1].match(/'([a-z]+)'/g).map(s=>s.replace(/'/g,''));
 }
 
-test('the cast is Kyle, Mia, Savannah, Carlos and Robin, and Kyle leads', ()=>{
-  assert.deepStrictEqual(roster(), ['s','t','u','v','w']);
+test('the cast is Nia, Sable, Kofi, Theo and Zuri — the Godot game\'s five — and Nia leads', ()=>{
+  assert.deepStrictEqual(roster(), ['nia','sable','kofi','theo','zuri']);
   const names = read('public/avatar.js').match(/const NAMES\s*=\s*\{([^}]*)\}/);
   assert.ok(names, 'avatar.js still names them');
-  assert.match(names[1], /s:'Kyle'/);
-  assert.match(names[1], /t:'Mia'/);
-  assert.match(names[1], /u:'Savannah'/);
-  assert.match(names[1], /v:'Carlos'/);
-  assert.match(names[1], /w:'Robin'/);
+  for(const [id, name] of [['nia','Nia'],['sable','Sable'],['kofi','Kofi'],['theo','Theo'],['zuri','Zuri']])
+    assert.match(names[1], new RegExp(id+":'"+name+"'"));
+  /* THE SAME FIVE, UNDER THE SAME NAMES, AS THE GODOT GAME — or a player in
+     the browser and a player in Godot each see the other as somebody else. */
+  const walker = read('koro-godot/scripts/walker.gd');
+  for(const id of roster())
+    assert.match(walker, new RegExp('"'+id+'":'), `Godot has no '${id}': the two games disagree about who is who`);
   /* The default is CHARS[0] rather than a random pick, and CHARS is built
-     from IDS in order — so "Kyle leads" is a fact about the string above. */
+     from IDS in order — so "Nia leads" is a fact about the list above. */
   assert.match(read('public/avatar.js'), /chosen = CHARS\[0\]\.id/,
     'a new player is the first character in the roster');
+});
+
+test('an old choice finds a new body, and the same one Godot gives it', ()=>{
+  /* A save that says 's' (Kyle) is somebody who chose a character. Falling
+     back to the first one would make the whole class Nia; the retired
+     letters each map to a body, and to the same body in both games. */
+  const web = read('public/avatar.js').match(/const RETIRED\s*=\s*\{([^}]*)\}/);
+  const gd = read('koro-godot/scripts/walker.gd').match(/const RETIRED := \{([^}]*)\}/);
+  assert.ok(web && gd, 'one of the games no longer retires the old letters');
+  for(const c of ['s','t','u','v','w','x']){
+    const a = (web[1].match(new RegExp(c+":'([a-z]+)'"))||[])[1];
+    const b = (gd[1].match(new RegExp('"'+c+'": "([a-z]+)"'))||[])[1];
+    assert.ok(a && roster().includes(a), `'${c}' does not map to anybody on the roster`);
+    assert.strictEqual(a, b, `'${c}' is ${a} in the browser and ${b} in Godot`);
+  }
+  const av = read('public/avatar.js');
+  assert.match(av, /castOf\(localStorage\.getItem\('dq_char'\)\)/, 'a saved letter in this browser is not translated');
+  assert.match(av, /castOf\(PROGRESS\.get\('char', null\)\)/, 'a saved letter in the account is not translated');
+  assert.match(av, /BODIES\.find\(c=>c\.id===castOf\(id\)\)/, 'another player on an old letter is drawn as the first character');
 });
 
 test('all of them are free, and all of them are in the Mall', ()=>{
@@ -62,7 +83,7 @@ test('nobody casts an NPC by naming a letter', ()=>{
   assert.match(read('public/club.js'), /const CAST=\[[^\]]*\]/,
     'the club still names its floor');
   const cast = read('public/club.js').match(/const CAST=\[([^\]]*)\]/)[1]
-    .match(/'([a-z])'/g).map(s=>s.replace(/'/g,''));
+    .match(/'([a-z]+)'/g).map(s=>s.replace(/'/g,''));
   for(const c of cast)
     assert.ok(roster().includes(c), `the club's floor includes '${c}', who no longer exists`);
 });
@@ -123,24 +144,26 @@ test('everybody in the cast has every clip the game plays', ()=>{
   }
 });
 
-test('everybody is skinned, painted, and stored at the same scale', ()=>{
+test('everybody is skinned, coloured, and stored at the same scale', ()=>{
+  let first=null;
   for(const id of roster()){
     const g = gltf(id);
     const prim = g.meshes[0].primitives[0];
-    for(const attr of ['POSITION','NORMAL','JOINTS_0','WEIGHTS_0','COLOR_0'])
-      assert.ok(attr in prim.attributes,
-        `character-${id}.glb has no ${attr}: `+
-        (attr==='COLOR_0' ? 'it was never painted' : 'it cannot be posed'));
+    for(const attr of ['POSITION','NORMAL','JOINTS_0','WEIGHTS_0'])
+      assert.ok(attr in prim.attributes, `character-${id}.glb has no ${attr}: it cannot be posed`);
+    /* Coloured one way or the other: painted in its vertices, or wearing a
+       texture it carries inside the file (the new cast wears textures). */
+    const painted = 'COLOR_0' in prim.attributes;
+    const textured = 'TEXCOORD_0' in prim.attributes && (g.images||[]).length > 0;
+    assert.ok(painted || textured, `character-${id}.glb is neither painted nor textured: it would render white`);
     assert.ok(g.skins && g.skins.length, `character-${id}.glb has no skin`);
-    /* THE SCALE HAS TO AGREE ACROSS THE CAST, because the clips do not
-       carry one. Every character is stored at a hundredth of life size
-       with the hundred on the scene root — that is what FBX2glTF writes
-       and what every clip in "glb files"/rig/ is measured against. Ship one
-       at life size and the rotations still play, so it walks: with the bob
-       and the jump arc flattened to a hundredth of themselves. */
+    /* THE SCALE HAS TO AGREE ACROSS THE CAST, because the rig measures the
+       body and not the clips: one stored at a different scale from the
+       rest still walks, with its bob and jump arc out by the difference. */
     const root = g.nodes[g.scenes[g.scene||0].nodes[0]];
-    assert.deepStrictEqual(root.scale, [100,100,100],
-      `character-${id}.glb has root scale ${JSON.stringify(root.scale)}, not [100,100,100]`);
+    first = first || root.scale;
+    assert.deepStrictEqual(root.scale, first,
+      `character-${id}.glb has root scale ${JSON.stringify(root.scale)}, the rest ${JSON.stringify(first)}`);
   }
 });
 
@@ -182,9 +205,8 @@ test('the quick change is wired to a key, a button and the freeze', ()=>{
    The machinery stays, because a place is still ALLOWED to hand out a body
    and the rule that mattered about it still matters: it may never do so by
    writing to the save bag, because the choice is the player's. */
-test('Robin is chosen like anybody else, and no world casts her', ()=>{
+test('everybody is chosen, and no world casts anybody', ()=>{
   const avatar = read('public/avatar.js');
-  assert.ok(roster().includes('w'), 'Robin is off the roster again: she cannot be chosen');
 
   assert.match(avatar, /const BODIES = CHARS\.concat\(/, 'BODIES is the roster plus any cast-only bodies');
   assert.match(avatar, /const def = bodyDef\(id\);/,
@@ -216,10 +238,6 @@ test('Robin is chosen like anybody else, and no world casts her', ()=>{
   assert.match(read('public/planet.js'), /AVATAR\.bodyDef\(AVATAR\.bodyOf\(AVATAR\.chosen\)\)/,
     'the dashboard names the body you are in, cast or not');
 
-  const fs2 = require('fs');
-  for(const f of ['public/characters/models/character-w.glb',
-                  'public/characters/previews/character-w.png'])
-    assert.ok(fs2.existsSync(path.join(__dirname, '..', f)), f + ' is installed');
 });
 
 test('a world can cast everybody without touching what they chose', ()=>{
@@ -331,19 +349,16 @@ test('leaving the Robin Ryu mission comes out at Mission Control', ()=>{
     'lastWorld() would still hand back a mission world');
 });
 
-test('Robin has every clip the rig can drive', ()=>{
+test('everybody has every clip the rig can drive', ()=>{
   /* The five characters share one skeleton and one set of names, and
      rig.play() leaves the current clip alone when it cannot find the one it
      was asked for — so a character missing a clip does not fail, it just
      flies in its idle pose and says nothing about why. */
-  const fs2 = require('fs');
-  const file = path.join(__dirname, '..', 'public/characters/models/character-w.glb');
-  assert.ok(fs2.existsSync(file), 'character-w.glb is installed');
-  const b = fs2.readFileSync(file);
-  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
-  const clips = (json.animations || []).map(a => a.name);
-  for(const want of ['idle','walk','sprint','jump','dance','fly','swim','salsa','flip'])
-    assert.ok(clips.includes(want), `Robin has no '${want}' clip: ${clips.join(', ')}`);
+  for(const id of roster()){
+    const clips = (gltf(id).animations || []).map(a => a.name);
+    for(const want of ['idle','walk','sprint','jump','dance','fly','swim','salsa','flip','talk','talk2'])
+      assert.ok(clips.includes(want), `character-${id} has no '${want}' clip: ${clips.join(', ')}`);
+  }
 });
 
 test('every way INTO Koro opens on Wano, and no way back does', ()=>{

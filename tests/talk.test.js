@@ -24,7 +24,8 @@ function accessors(file){
   return JSON.parse(b.slice(20, 20+len).toString('utf8'));
 }
 
-const ROSTER = ['s','t','u','v','w'].map(c=>`public/characters/models/character-${c}.glb`);
+const CAST = ['nia','sable','kofi','theo','zuri'];
+const ROSTER = CAST.map(c=>`public/characters/models/character-${c}.glb`);
 
 test('every body that speaks has both talking clips', ()=>{
   /* TWO, AND THE REASON TO HAVE TWO is that one repeated across six
@@ -42,13 +43,8 @@ test('adding the talking clips took nothing away', ()=>{
      idling, so nothing looked broken until somebody took off. The clips a
      character had are not a list anybody remembers; they are a list only
      the file knows. */
-  const must = {
-    's':['idle','walk','sprint','jump','dance','fly'],
-    't':['idle','walk','sprint','jump','dance','fly'],
-    'u':['idle','walk','sprint','jump','dance','fly'],
-    'v':['idle','walk','sprint','jump','dance','fly','salsa','flip'],
-    'w':['idle','walk','sprint','jump','dance','fly','swim','salsa','flip']
-  };
+  const must = {};
+  for(const c of CAST) must[c]=['idle','walk','sprint','jump','dance','fly','swim','salsa','flip'];
   for(const c in must){
     const have=clips(`public/characters/models/character-${c}.glb`);
     for(const want of must[c])
@@ -146,9 +142,9 @@ test('the Mechanic is his own character, not somebody off the roster', ()=>{
 
   /* HE IS NOT ON THE ROSTER. Nobody picks him in the Mall: he is a person
      in the story, not a shirt. */
-  const ids=avatar.match(/const IDS = '([a-z]+)'/);
+  const ids=avatar.match(/const IDS = \[([^\]]*)\]/);
   assert.ok(ids, 'the roster ids have been renamed');
-  assert.ok(!ids[1].includes('m'), 'the Mechanic is on the pickable roster');
+  assert.ok(!/'mechanic'/.test(ids[1]), 'the Mechanic is on the pickable roster');
 });
 
 test('Ion is loaded as the prop he is', ()=>{

@@ -202,7 +202,7 @@ window.CLUB = (function(){
      so the floor is ten people actually dancing rather than two dancing
      and eight being posed. The fallback stays for any model that turns up
      without one. */
-  const CAST=['s','t'];
+  const CAST=['nia','kofi','sable','theo','zuri'];
 
   function room(g, b, hw, hd, api){
     stop();
