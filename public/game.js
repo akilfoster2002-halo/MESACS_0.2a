@@ -1365,7 +1365,7 @@ function focusScan(){
        the room answers with whatever is within arm's reach instead
        (chatroom.js usable()), and it is said in the same box, because a
        second place that says "press E" is a second thing to learn. */
-    const door = (G.room==='planet' && window.ISLANDS && ISLANDS.nearDoor && window.PLANET)
+    const door = (G.room==='planet' && !(window.NEON && NEON.active) && window.ISLANDS && ISLANDS.nearDoor && window.PLANET)
                ? ISLANDS.nearDoor(PLANET.where) : null;
     const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy
                : (window.NEON && NEON.active) ? NEON.handy

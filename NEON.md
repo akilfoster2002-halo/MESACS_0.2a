@@ -171,3 +171,25 @@ the shop use (`wallet.js`), and a finished go pays back by score — capped at
 Queueing for a match pays up front; nobody coming, or the other player
 walking out mid-game, gives the go back. Too few coins and the cabinet says
 so rather than starting.
+
+
+## Five floors, twenty games
+
+The inside is the pagoda again: five floors, one genre each, joined by lift
+pads at the back (E on a pad). Only the floor you are on is built.
+
+| floor | genre | cabinets |
+|---|---|---|
+| 1F | CLASSICS | SNAKE, BLOCK DROP, BRICK BREAK, GHOST MAZE, ROAD HOP |
+| 2F | SHOOTERS | STAR SWARM, ROCK BLASTER, SKY RAIDER, CITY SHIELD |
+| 3F | PLATFORM | PIXEL PEAKS, NEON DASH, SKY CLIMB |
+| 4F | FIGHTING | DOJO FIGHTER, BLADE DUEL, SUMO PUSH, TANK |
+| 5F | RACING & SPORTS | NIGHT RACER, SLALOM, MINI GOLF, VOLLEY |
+
+The fifteen new games are `public/cabgames2.js` (kit + classics),
+`cabgames3.js` (shooters, platform) and `cabgames4.js` (fighting, racing),
+all drawn in code — no image files. The kit gives them glow, particles,
+screen shake and parallax, and `CABGAMES.post` lays a CRT pass (scanlines,
+vignette, soft bloom) over every screen. Each machine carries its own `pay`
+rule for the coin payout; the class board on each floor shows that floor's
+one-player games.
