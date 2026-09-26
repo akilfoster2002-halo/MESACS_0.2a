@@ -67,7 +67,21 @@ window.ISLANDS = (function(){
     /* A stepping stone, deliberately small and low: it is the one you find
        first, and finding a small one is what tells you the big ones are
        worth looking for. */
-    { id:'stone',  lon:-3,  lat:-9,  r:11, alt:48, spin:1.2,  trees:1 }
+    { id:'stone',  lon:-3,  lat:-9,  r:11, alt:48, spin:1.2,  trees:1 },
+    /* NEON — the arcade, and the only island with a door in it.
+
+       THE OTHER FOUR ARE PLACES YOU LAND ON. This is a place you go INTO,
+       which is why it is the biggest and the flattest of them: an island
+       you have to hunt for a footing on is a bad approach to a building,
+       and the whole of the top is a landing apron with the pavilion in the
+       middle of it.
+
+       AND IT IS HIGH. Ninety-six metres, near the top of Wano's flight
+       ceiling, because an arcade in the clouds has to be above the cloud
+       deck for the clouds to read as clouds rather than as fog on a hill.
+       You can see the glow of it from the ground at night, which is what
+       makes a child press F and go and find out. */
+    { id:'neon',   lon:-8,  lat:22,  r:31, alt:96, spin:0.55, arcade:true, clouds:true }
   ];
 
   const GRASS=[0x4a7f3a, 0x5b9147, 0x6aa352];
@@ -327,6 +341,12 @@ window.ISLANDS = (function(){
       }
 
       const rec={ k, dir, g, f, top:k.alt + k.r*0.10 };
+      /* THE ONE ISLAND WITH A DOOR IN IT. Its walls are boxes in the
+         island's own frame, tested by blocked() below with the rock — the
+         planet's building collision works in a building's frame and this is
+         not one of its buildings. */
+      if(k.arcade){ rec.boxes=[]; arcade(g, k, rec); }
+      if(k.clouds) clouds(g, k, i);
       if(LAKE){
         const surface = LAKE.bed + k.r*0.024;      // held below the shore, or it spills
         const lk=lake(LAKE.r);
@@ -339,6 +359,226 @@ window.ISLANDS = (function(){
       isles.push(rec);
     });
     return isles.length;
+  }
+
+  /* ==================================================== NEON, from outside
+     A low hexagonal pavilion in the middle of the apron: dark panels, a
+     neon rim top and bottom, and an arch you walk into. What is inside is
+     not here — it is a room of its own (neon.js), the way the house and the
+     workshop are — so this is a door, a sign, and enough light spilling out
+     of it to be worth flying to.
+
+     THE SIGN IS THE POINT. From the ground, at night, the thing that makes
+     a child press F is a magenta glow a hundred metres up with a word in
+     it. So the marquee is emissive, the rim is emissive, and both of them
+     are bright enough to read against Wano's black sky. */
+  const NEON_PINK = 0xff2d95, NEON_CYAN = 0x27e8ff, NEON_GOLD = 0xffd766;
+  function neonMat(hex, glow){
+    const m = new THREE.MeshLambertMaterial({ color:hex });
+    m.emissive = new THREE.Color(hex);
+    m.emissiveIntensity = glow===undefined ? 1.6 : glow;
+    return m;
+  }
+  /* A word, drawn, on a plate that glows. Not a sprite: the marquee belongs
+     to the building and turns with it. */
+  function sign(text, w, h, hex){
+    const c=document.createElement('canvas');
+    c.width=512; c.height=Math.round(512*h/w);
+    const x=c.getContext('2d');
+    x.fillStyle='#0b0410'; x.fillRect(0,0,c.width,c.height);
+    const px=Math.round(c.height*0.62);
+    x.font='bold '+px+'px '+uiFont();
+    x.textAlign='center'; x.textBaseline='middle';
+    x.shadowColor='#'+hex.toString(16).padStart(6,'0'); x.shadowBlur=px*0.55;
+    x.fillStyle='#fff';
+    x.fillText(text, c.width/2, c.height/2);
+    x.fillStyle='#'+hex.toString(16).padStart(6,'0');
+    x.globalAlpha=0.75; x.fillText(text, c.width/2, c.height/2);
+    const tex=new THREE.CanvasTexture(c);
+    tex.colorSpace=THREE.SRGBColorSpace;
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+      new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
+    mesh.userData.flat=true;
+    return mesh;
+  }
+  function arcade(g, k, rec){
+    const R = 11;                       // the pavilion's own radius
+    const H = 7.2;
+    const y0 = crownY(k, 0);            // the crown under the middle of it
+    const hall = new THREE.Group();
+    hall.position.y = y0;
+    g.add(hall);
+
+    /* the apron it stands on: a dark deck with a lit edge, so the island
+       reads as somewhere built rather than somewhere landed on */
+    const apron = new THREE.Mesh(new THREE.CylinderGeometry(R+7, R+7, 0.5, 6),
+      new THREE.MeshLambertMaterial({ color:0x1a1426 }));
+    apron.position.y = -0.2;
+    apron.rotation.y = Math.PI/6;
+    hall.add(apron);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(R+7, 0.16, 8, 6),
+      neonMat(NEON_CYAN, 2.2));
+    ring.rotation.set(Math.PI/2, 0, Math.PI/6);
+    ring.position.y = 0.08;
+    hall.add(ring);
+
+    /* six walls, with the front one left open as the way in */
+    const wall = new THREE.MeshLambertMaterial({ color:0x140d22 });
+    for(let i=0;i<6;i++){
+      const a = i*Math.PI/3 + Math.PI/6;
+      if(i===0) continue;                       // the doorway
+      const w = new THREE.Mesh(new THREE.BoxGeometry(R*1.06, H, 0.8), wall);
+      w.position.set(Math.sin(a)*R, H/2, Math.cos(a)*R);
+      w.rotation.y = a;
+      hall.add(w);
+      rec.boxes.push(box(w.position.x, w.position.z, R*1.06, 0.8, a, y0, y0+H));
+      // a neon tube along the top of each panel, and one along the bottom
+      [H-0.4, 0.5].forEach((yy,n)=>{
+        const t = new THREE.Mesh(new THREE.BoxGeometry(R*1.0, 0.16, 0.16),
+          neonMat(n ? NEON_CYAN : NEON_PINK, 2.0));
+        t.position.set(Math.sin(a)*(R-0.5), yy, Math.cos(a)*(R-0.5));
+        t.rotation.y = a;
+        hall.add(t);
+      });
+    }
+    /* the roof: a shallow hex cap, lifted off the walls on a lit gap */
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(R+1.6, R+0.6, 1.4, 6),
+      new THREE.MeshLambertMaterial({ color:0x0f0a1a }));
+    cap.position.y = H + 0.9;
+    cap.rotation.y = Math.PI/6;
+    hall.add(cap);
+    const capRim = new THREE.Mesh(new THREE.TorusGeometry(R+1.3, 0.2, 8, 6),
+      neonMat(NEON_PINK, 2.4));
+    capRim.rotation.set(Math.PI/2, 0, Math.PI/6);
+    capRim.position.y = H + 0.25;
+    hall.add(capRim);
+
+    /* THE DOORWAY. Two lit posts, a lintel, and the sign over it — and the
+       door itself is what the crosshair finds (planet.js use('neon')). */
+    const front = Math.PI/6;                    // the panel that was skipped
+    const fx = Math.sin(front), fz = Math.cos(front);
+    [-1,1].forEach(side=>{
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.7, H, 0.7), wall);
+      const ox = Math.cos(front)*side*3.4, oz = -Math.sin(front)*side*3.4;
+      post.position.set(fx*R + ox, H/2, fz*R + oz);
+      hall.add(post);
+      const tube = new THREE.Mesh(new THREE.BoxGeometry(0.2, H-0.6, 0.2),
+        neonMat(NEON_CYAN, 2.2));
+      tube.position.set(fx*(R-0.45) + ox, H/2, fz*(R-0.45) + oz);
+      hall.add(tube);
+      // and the walls either side of the arch, so the hex is closed
+      const w = new THREE.Mesh(new THREE.BoxGeometry(R*1.06/2 - 3.0, H, 0.8), wall);
+      w.position.set(fx*R + ox*1.85, H/2, fz*R + oz*1.85);
+      w.rotation.y = front;
+      hall.add(w);
+      rec.boxes.push(box(w.position.x, w.position.z, R*1.06/2 - 3.0, 0.8, front, y0, y0+H));
+    });
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.4, 0.9), wall);
+    lintel.position.set(fx*R, H-0.7, fz*R);
+    lintel.rotation.y = front;
+    hall.add(lintel);
+
+    const marquee = sign('NEON', 7.2, 2.4, NEON_PINK);
+    marquee.position.set(fx*(R+0.55), H + 1.9, fz*(R+0.55));
+    marquee.rotation.y = front;
+    hall.add(marquee);
+    const sub = sign('\u25b6 PLAY \u25c0', 5.0, 0.9, NEON_CYAN);
+    sub.position.set(fx*(R+0.55), H - 0.7, fz*(R+0.55));
+    sub.rotation.y = front;
+    hall.add(sub);
+
+    /* the light that spills out of the doorway, and the glow that makes the
+       whole island findable from the ground */
+    const spill = new THREE.PointLight(NEON_PINK, 2.2, 34, 1.3);
+    spill.position.set(fx*(R-1.5), 3, fz*(R-1.5));
+    hall.add(spill);
+    const halo = new THREE.PointLight(NEON_CYAN, 1.5, 46, 1.4);
+    halo.position.set(0, H+2, 0);
+    hall.add(halo);
+
+    /* THE DOOR ITSELF: what the crosshair finds and E opens. Invisible —
+       the arch is the door, and a pane of glass in it would be a door you
+       cannot see through into a room that is not built yet. */
+    const door = new THREE.Mesh(new THREE.BoxGeometry(6.6, H-1.4, 0.4),
+      new THREE.MeshBasicMaterial({ visible:false }));
+    door.position.set(fx*(R-0.1), (H-1.4)/2, fz*(R-0.1));
+    door.rotation.y = front;
+    hall.add(door);
+    const hold = new THREE.Group();
+    hold.userData = { kind:'door', label:'NEON \u2014 the arcade', enter:'neon',
+                      verb:'E \u2014 go in' };
+    door.userData.owner = hold;
+    hall.add(hold);
+    G.hits.push(door);
+    rec.door = door;                            // doorOut() reads where it really is
+
+    /* two pylons on the approach, so the way in reads from the air */
+    [-1,1].forEach(side=>{
+      const a = front + side*0.42;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 6, 6),
+        new THREE.MeshLambertMaterial({ color:0x140d22 }));
+      p.position.set(Math.sin(a)*(R+6.4), 3, Math.cos(a)*(R+6.4));
+      hall.add(p);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 8),
+        neonMat(NEON_GOLD, 2.6));
+      lamp.position.set(Math.sin(a)*(R+6.4), 6.3, Math.cos(a)*(R+6.4));
+      hall.add(lamp);
+      rec.boxes.push(box(p.position.x, p.position.z, 1, 1, 0, y0, y0+6));
+    });
+  }
+  /* A box in the island's own frame, from a centre, a size and a turn. */
+  function box(x, z, w, d, rot, y1, y2){
+    const ca=Math.abs(Math.cos(rot)), sa=Math.abs(Math.sin(rot));
+    const ww=w*ca+d*sa, dd=w*sa+d*ca;
+    return { x1:x-ww/2, x2:x+ww/2, z1:z-dd/2, z2:z+dd/2, y1, y2 };
+  }
+
+  /* ----------------------------------------------------------- the clouds
+     A bank of them round the island and a thinner one drifting through it,
+     so the arcade sits IN weather rather than on a rock that happens to be
+     high up. They are soft round billboards — the cheapest thing that reads
+     as cloud — turned to the camera each frame and drifting slowly round.
+
+     NONE OF THEM IS SOLID and none of them casts a shadow: you fly through
+     a cloud, and a shadow from one would land on the world a hundred metres
+     below and follow you about. */
+  let puffTex=null;
+  function puff(){
+    if(puffTex) return puffTex;
+    const c=document.createElement('canvas');
+    c.width=c.height=128;
+    const x=c.getContext('2d');
+    for(let i=0;i<14;i++){
+      const px=20+Math.random()*88, py=30+Math.random()*68, r=14+Math.random()*26;
+      const gr=x.createRadialGradient(px,py,0,px,py,r);
+      gr.addColorStop(0,'rgba(255,255,255,.5)');
+      gr.addColorStop(1,'rgba(255,255,255,0)');
+      x.fillStyle=gr; x.beginPath(); x.arc(px,py,r,0,7); x.fill();
+    }
+    puffTex=new THREE.CanvasTexture(c);
+    puffTex.colorSpace=THREE.SRGBColorSpace;
+    return puffTex;
+  }
+  function clouds(g, k, seed){
+    const bank=new THREE.Group();
+    bank.name='clouds';
+    g.add(bank);
+    const tint=[0xffc8dd, 0xcdb4f6, 0x8fd3ff, 0xffffff];
+    for(let i=0;i<34;i++){
+      const a=rnd(seed*77+i)*Math.PI*2;
+      const rr=k.r*(0.85+rnd(seed*31+i)*0.75);
+      const yy=-k.r*(0.10+rnd(seed*13+i)*0.55);
+      const s=k.r*(0.34+rnd(seed*53+i)*0.5);
+      const m=new THREE.Sprite(new THREE.SpriteMaterial({
+        map:puff(), transparent:true, depthWrite:false,
+        color:tint[i%tint.length], opacity:0.34+rnd(seed*19+i)*0.3 }));
+      m.scale.set(s*2.2, s, 1);
+      m.position.set(Math.cos(a)*rr, yy, Math.sin(a)*rr);
+      m.userData.a=a; m.userData.rr=rr; m.userData.spin=0.02+rnd(seed*7+i)*0.05;
+      m.userData.sky=true;              // no shadows either way
+      bank.add(m);
+    }
+    return bank;
   }
 
   /* ------------------------------------------------------ a modelled isle
@@ -1063,6 +1303,18 @@ window.ISLANDS = (function(){
   function tick(dt){
     if(!group) return;
     t+=dt;
+    /* The weather round the arcade, going slowly round it. A cloud that
+       stands still is a rock painted white. */
+    for(const is of isles){
+      const bank = is.g && is.g.getObjectByName('clouds');
+      if(!bank) continue;
+      bank.children.forEach(m=>{
+        const u=m.userData;
+        u.a += u.spin*dt*0.12;
+        m.position.x = Math.cos(u.a)*u.rr;
+        m.position.z = Math.sin(u.a)*u.rr;
+      });
+    }
     /* All of the water is shaders now, and all a shader needs is the clock:
        every streak, drop, splash and ripple is a function of time. */
     if(fall){
@@ -1187,6 +1439,18 @@ window.ISLANDS = (function(){
   function blocked(dir, alt){
     if(!isles.length) return false;
     for(const is of isles){
+      /* THE ONE BUILDING UP HERE. The planet's own building collision works
+         in a building's local frame and knows nothing about the sky, so the
+         arcade's walls are boxes in the island's frame, tested here beside
+         the rock they stand on. */
+      if(is.boxes && is.boxes.length){
+        const R = W.PR + is.k.alt;
+        const v = dir.clone().multiplyScalar(R).sub(is.dir.clone().multiplyScalar(R));
+        const lx = v.dot(is.f.right), lz = v.dot(is.f.fwd);
+        const ly = alt - is.k.alt;
+        for(const b of is.boxes)
+          if(lx>b.x1 && lx<b.x2 && lz>b.z1 && lz<b.z2 && ly>b.y1-0.2 && ly<b.y2) return true;
+      }
       if(is.k.model){
         if(!is.field) continue;
         const h=fieldAt(is, dir);
@@ -1205,11 +1469,30 @@ window.ISLANDS = (function(){
     return false;
   }
 
+  /* WHERE NEON LETS YOU OUT: on the apron in front of the arch, facing away
+     from it, with an altitude above the deck so floorAt() answers with the
+     island rather than the grass underneath. Read off the arch mesh itself
+     (arcade() keeps it on the record) rather than worked out again here,
+     so the two can never disagree about where the door is. */
+  function doorOut(id){
+    const is = isles.find(r => r.k.id===(id||'neon'));
+    if(!is || !is.door) return null;
+    is.g.updateMatrixWorld(true);
+    const at = new THREE.Vector3(); is.door.getWorldPosition(at);
+    const centre = is.dir.clone().multiplyScalar(W.PR + is.k.alt);
+    const up = at.clone().normalize();
+    const out = at.clone().sub(centre);
+    out.addScaledVector(up, -out.dot(up)).normalize();
+    const dir = at.clone().addScaledVector(out, 8.5).normalize();   // clear of the chase camera
+    const fwd = out.clone().addScaledVector(dir, -out.dot(dir)).normalize();
+    return { dir, fwd, alt: is.k.alt + 20 };
+  }
+
   function clear(){
     group=null; isles=[]; fall=null; riv=null; pool=null; fish=[]; turtles=[]; t=0;
   }
 
-  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES,
+  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut,
            get count(){ return isles.length; },
            get pool(){ return pool; },
            /* WHAT IS ALIVE UP THERE, and where one of each is right now —

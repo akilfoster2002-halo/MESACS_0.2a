@@ -42,3 +42,10 @@ kenney_*/
 .env
 .env.*
 !.env.example
+
+# Blender's own automatic backups. Blender writes a .blend1 beside every
+# .blend it saves — a byte-for-byte copy of the PREVIOUS save, regenerated on
+# the next one. The .blend beside it is the file; this is forty-seven
+# megabytes of duplicate that would change on every save and stay in the
+# history for ever. Same reasoning as the sculpt ladders above.
+*.blend1

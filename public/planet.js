@@ -687,15 +687,19 @@ window.PLANET = (function(){
        The other worlds keep it. A home planet is yours and a night world is
        somewhere you were part-way through looking at, and on both of those
        being put back where you were is the whole point. */
+    /* OUT OF NEON: onto the island's apron, in front of the arch, which only
+       islands.js knows the place of — and only once it has built them, above. */
+    if(at && at.island){ at = (window.ISLANDS && ISLANDS.doorOut) ? ISLANDS.doorOut(at.island) : null; }
     const back = at ? null : (W.kind==='hub' ? null : savedSpot(W.id));
     if(at){
       /* Facing whatever is nearest, so you come out looking at something
          rather than at the horizon. */
-      me.dir=dirOf(at.lon, at.lat);
+      me.dir = at.dir ? at.dir.clone() : dirOf(at.lon, at.lat);
       let near=null, nd=1e9;
       BUILDINGS.forEach(b=>{ if(!b.dir) return;
         const d=b.dir.distanceTo(me.dir); if(d>0.001 && d<nd){ nd=d; near=b; } });
       me.fwd = near ? facing(me.dir, near.dir) : frameAt(me.dir,0).fwd.clone();
+      if(at.fwd) me.fwd = at.fwd.clone();
     }
     else if(back){ me.dir=back.dir.clone(); me.fwd=back.fwd.clone(); }
     else {
@@ -709,7 +713,7 @@ window.PLANET = (function(){
       me.dir=landingSpot();
       me.fwd=facing(me.dir, BUILDINGS[0].dir);
     }
-    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
+    me.alt=floorAt(me.dir, at && at.alt!==undefined ? at.alt : undefined); me.vy=0; me.onGround=true; me.spd=0; me.look=0;
     /* Every landing is on foot: the dome belonged to the world we left and
        is gone with its room group, and a ceiling is a property of the ball
        you are standing on. */
@@ -6821,6 +6825,7 @@ window.PLANET = (function(){
                   whole of it was reachable and dead. `brawlgate` is the
                   way into the arena. */
                || id==='preflight' || id==='brawlgate'
+               || id==='neon'                 // the arcade in the clouds (islands.js)
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
@@ -6865,6 +6870,11 @@ window.PLANET = (function(){
     if(id.indexOf('fly:')===0){ travel(id.slice(4)); return; }
     if(id==='workshop'){ wentTo('workshop'); leave();
                          return FREE.enter(server||{id:null,name:'Workshop'}, null); }
+    /* NEON, the arcade in the clouds. The only door in the sky: it is on an
+       island (islands.js), and what is behind it is a room of its own the
+       way the house and the workshop are. */
+    if(id==='neon'){ wentTo('arcade'); leave();
+                     return NEON.enter(server); }
     // the Mall is a room you walk round, not a screen: only the counter
     // inside it opens the full list, and that is 'counter'
     if(id==='mall'){ say(t('Walk up to anyone. <b>E</b> to wear them.')); return; }

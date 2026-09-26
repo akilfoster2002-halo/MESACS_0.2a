@@ -729,6 +729,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cab-by{font-size:11.5px;color:var(--sky);letter-spacing:.3px}
 .cab-row{margin-top:auto;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .cab-stars{color:var(--star);font-size:13px;letter-spacing:1px}
+.cab.down{opacity:.6}
+.cab-down{font-size:11px;color:#ff8a8a;letter-spacing:.3px}
 .cab-plays{font-size:11px;color:var(--muted)}
 .cab.own{border-color:var(--mint)}
 .cab-edit{position:absolute;bottom:9px;right:10px;font-size:10px;letter-spacing:1.2px;
@@ -2492,3 +2494,12 @@ body:not(.hud-live) #hud #objectives{display:none !important}
 .rm-out{width:100%;margin-top:10px;font-family:var(--font);cursor:pointer;font-size:13px;
   padding:8px 12px;border-radius:11px;border:2px solid var(--peach);
   background:var(--panel2);color:var(--peach)}
+
+/* NEON: the cabinet you are playing, filling the window with its pixels square */
+#neonPlay{position:fixed;inset:0;z-index:60;background:#000;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#neonPlay.on{display:flex}
+#neonPlay canvas{width:min(96vw,calc((100vh - 60px)*4/3));aspect-ratio:4/3;
+  image-rendering:pixelated;box-shadow:0 0 40px rgba(39,232,255,.35);border-radius:6px}
+#neonPlay .neon-foot{color:#8fd3ff;font:14px/1.3 var(--font,system-ui);letter-spacing:.4px;
+  text-align:center;padding:0 16px}

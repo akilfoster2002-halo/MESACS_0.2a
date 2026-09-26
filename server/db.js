@@ -84,6 +84,17 @@ async function init(){
     );
     CREATE INDEX IF NOT EXISTS games_open ON games (hidden, updated_at DESC);
 
+    /* NEON's high scores: each player's best at each solo cabinet. One row
+       per player per game, raised and never lowered, so the board is the
+       class's bests rather than a list of everybody's every go. */
+    CREATE TABLE IF NOT EXISTS arcade_scores (
+      user_id    INTEGER NOT NULL REFERENCES users(id),
+      game       TEXT NOT NULL,
+      best       INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (user_id, game)
+    );
+
     /* Chat is not a table any more. It lives in the server's memory for as
        long as somebody is standing in the room and is thrown away the moment
        the room empties, so there is nothing here to create. An older messages

@@ -3,7 +3,7 @@
    Guests can still play; they just get no multiplayer and no saved work.
    ===================================================================== */
 window.NET = (function(){
-  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null, onRoom=null;
+  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null, onRoom=null, onArc=null;
   let muted=0;
   /* what we are meant to be connected to, so a dropped socket can put itself
      back. A deploy, a sleeping free-tier dyno or a flaky school wifi all end
@@ -35,6 +35,7 @@ window.NET = (function(){
     counter :'{n} went into the Wardrobe',
     mission :'{n} went into a mission',
     gym     :'{n} went into the Gym',
+    arcade  :'{n} went up to NEON',
     space   :'{n} launched'
   };
 
@@ -80,6 +81,11 @@ window.NET = (function(){
     roomState(objId, s){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'cro', o:objId, s})); },
     /* Who wants to hear about rooms: the room you are standing in (object
        state, an edit, a way out) and, wherever you are, an invitation. */
+    /* NEON's cabinets: queue, relay and cancel (server/index.js `t:'arc'`).
+       The server pairs two players and passes what each says to the other. */
+    arc(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({}, msg, {t:'arc'}))); },
+    set onArc(fn){ onArc=fn; },
+    get onArc(){ return onArc; },
     set onRoom(fn){ onRoom=fn; },
     get onRoom(){ return onRoom; },
 
@@ -210,6 +216,7 @@ window.NET = (function(){
         if(m.t==='cro'||m.t==='cro_all'||m.t==='crupdate'||m.t==='crkick'||m.t==='crinvite'){
           if(onRoom) onRoom(m);
         }
+        if(m.t==='arc'&&onArc) onArc(m);
         if(m.t==='sys'&&onSys)    onSys(m.text);
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()
             ? t('Your teacher muted the chat for you.') : t('You can chat again.')); }
