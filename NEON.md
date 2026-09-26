@@ -1,6 +1,6 @@
 # NEON — the arcade in the clouds
 
-**Branch: `arcade`. Do not merge to `main` yet — it does not run.**
+**It runs.** Fly up to the island over Wano, walk through the arch, play.
 
 This is a handoff note. If you are picking this up cold (a Claude Cloud
 session, or Akil on another machine), read this first and you will not have to
@@ -37,20 +37,17 @@ another player in the same room.
 | `public/planet.js` | `use('neon')` → `wentTo('arcade')` → `leave()` → `NEON.enter(server)`. |
 | `public/net.js`, `koro-godot/scripts/net.gd` | Both clients say "went up to NEON". |
 
-### Not done — this is why the branch does not run
+### Finished
 
-1. **`public/neon.js` does not exist.** `planet.js` calls `NEON.enter()`, so
-   walking up to the door on the island throws. **Write this first.**
-2. **`index.html` loads neither `cabgames.js` nor `neon.js`.** Add the two
-   script tags (after `planet.js`, before `wallet.js`) and run
-   `node tools/bump.js` so the `?v=` cache-buster moves.
-3. **The client half of matchmaking is not written.** The server is ready and
-   waiting; nothing in the browser sends `{t:'arc'}` yet. Needs `NET.arc(msg)`
-   and `NET.onArc` in `public/net.js`, mirroring how `roomState`/`onRoom`
-   were added for chat rooms.
-4. **High scores are not persisted.** See "If you want scores to last" below.
-
----
+| | |
+|---|---|
+| `public/neon.js` | The hall: two storeys (a real mezzanine you can walk under and climb onto, LED stairs up the left wall), a starry black ceiling hung with glowing hexagons, blue trusses, neon trim, the window wall with clouds drifting past, five cabinets running their attract loops, and the HIGH SCORES board over the mezzanine. E at a cabinet takes the whole window; Esc walks away. VOLLEY and TANK ask **1** (the machine) or **2** (somebody here). E at the arch takes you back out onto the island's apron, facing away from the door. |
+| `public/index.html` | Loads `cabgames.js` and `neon.js` after `planet.js`; `?v=` bumped. |
+| `public/net.js` | `NET.arc(msg)` and `NET.onArc`. |
+| `public/planet.js` | `'neon'` added to the ids `use()` accepts — it refused it silently, so the door did nothing. `enter()` takes `{island:'neon'}` to put you down on the island rather than the grass under it. |
+| `public/islands.js` | `doorOut()` — where the arch is, read off the mesh itself. |
+| `server/` | `arcade_scores` table (and the same statements in `memdb.js`); `GET /api/neon/scores`, `POST /api/neon/score` — solo cabinets only, capped, only ever raised. Your own best also goes in the progress bag. |
+| `tests/neon.test.js` | Two real sockets queue at VOLLEY, are paired with one seed, relay state and keys, and the host is told when the guest leaves; the score board. |
 
 ## How the multiplayer works
 
@@ -90,7 +87,12 @@ this network tick, ~20/sec). Wire those to the socket and they work.
 
 ---
 
-## What to build next, in order
+## What could come next
+
+- Real art (below).
+- The Godot client has no NEON room yet; it only says "went up to NEON".
+
+## How it was built, in order
 
 1. **`public/neon.js`** — the interior, as a flat room in the `game.js` engine.
    `public/chatroom.js` is the closest model: it builds a room, walks you in

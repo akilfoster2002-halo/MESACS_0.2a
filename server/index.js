@@ -330,6 +330,41 @@ app.post('/api/teacher/arcade/hide', async (req,res)=>{
   }catch(e){ console.error(e); bad(res,500,'Could not do that'); }
 });
 
+/* ======================================================= NEON's scores
+   The class's best at each solo cabinet (public/neon.js). The games run in
+   the browser, so a score is the browser's word for it — capped, and only
+   ever raised, which keeps a mistake or a joke off the top for good. */
+const NEON_SOLO = ['drop','snake','swarm'];
+app.get('/api/neon/scores', async (req,res)=>{
+  try{
+    const out = {};
+    for(const game of NEON_SOLO){
+      const r = await db.q(
+        `SELECT u.display, s.best FROM arcade_scores s JOIN users u ON u.id=s.user_id
+          WHERE s.game=$1 ORDER BY s.best DESC LIMIT 5`,[game]);
+      out[game] = r.rows;
+    }
+    ok(res,{ scores:out });
+  }catch(e){ console.error(e); bad(res,500,'No scores right now'); }
+});
+app.post('/api/neon/score', async (req,res)=>{
+  const s = auth.fromReq(req);
+  if(!s) return bad(res,401,'not signed in');
+  const game = String(req.body.game||'');
+  const score = Math.floor(Number(req.body.score)||0);
+  if(!NEON_SOLO.includes(game)) return bad(res,400,'No such cabinet');
+  if(!(score > 0) || score > 999999) return bad(res,400,'That is not a score');
+  if(rateLimited('neon:'+s.id, 30, 60000)) return bad(res,429,'Slow down a little');
+  try{
+    await db.q(
+      `INSERT INTO arcade_scores (user_id, game, best) VALUES ($1,$2,$3)
+       ON CONFLICT (user_id, game)
+       DO UPDATE SET best=GREATEST(arcade_scores.best, EXCLUDED.best), updated_at=now()`,
+      [s.id, game, score]);
+    ok(res,{});
+  }catch(e){ console.error(e); bad(res,500,'Could not save that'); }
+});
+
 /* A rating and, if they want, one line about why. Voting on your own game
    is not a thing — it is the one vote that means nothing. */
 app.post('/api/arcade/:id/rate', async (req,res)=>{

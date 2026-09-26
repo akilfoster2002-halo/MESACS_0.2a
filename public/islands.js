@@ -510,6 +510,7 @@ window.ISLANDS = (function(){
     door.userData.owner = hold;
     hall.add(hold);
     G.hits.push(door);
+    rec.door = door;                            // doorOut() reads where it really is
 
     /* two pylons on the approach, so the way in reads from the air */
     [-1,1].forEach(side=>{
@@ -1468,11 +1469,30 @@ window.ISLANDS = (function(){
     return false;
   }
 
+  /* WHERE NEON LETS YOU OUT: on the apron in front of the arch, facing away
+     from it, with an altitude above the deck so floorAt() answers with the
+     island rather than the grass underneath. Read off the arch mesh itself
+     (arcade() keeps it on the record) rather than worked out again here,
+     so the two can never disagree about where the door is. */
+  function doorOut(id){
+    const is = isles.find(r => r.k.id===(id||'neon'));
+    if(!is || !is.door) return null;
+    is.g.updateMatrixWorld(true);
+    const at = new THREE.Vector3(); is.door.getWorldPosition(at);
+    const centre = is.dir.clone().multiplyScalar(W.PR + is.k.alt);
+    const up = at.clone().normalize();
+    const out = at.clone().sub(centre);
+    out.addScaledVector(up, -out.dot(up)).normalize();
+    const dir = at.clone().addScaledVector(out, 8.5).normalize();   // clear of the chase camera
+    const fwd = out.clone().addScaledVector(dir, -out.dot(dir)).normalize();
+    return { dir, fwd, alt: is.k.alt + 20 };
+  }
+
   function clear(){
     group=null; isles=[]; fall=null; riv=null; pool=null; fish=[]; turtles=[]; t=0;
   }
 
-  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES,
+  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut,
            get count(){ return isles.length; },
            get pool(){ return pool; },
            /* WHAT IS ALIVE UP THERE, and where one of each is right now —

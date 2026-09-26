@@ -862,6 +862,7 @@ function wireInput(){
       if(window.CHATROOM && CHATROOM.active && G.running && CHATROOM.key(e)){
         e.preventDefault(); return;
       }
+      if(window.NEON && NEON.active && G.running && NEON.key(e)){ e.preventDefault(); return; }
       if(e.code==='KeyC' && G.running && window.ROOMS
          && (G.room==='planet' || G.room==='room')){
         e.preventDefault(); ROOMS.toggle(); return;
@@ -1007,6 +1008,7 @@ function loop(now){
      half way through its program and the jukebox does not stop because you
      opened the rooms list. */
   if(window.CHATROOM && CHATROOM.active) CHATROOM.tick(dt);
+  if(window.NEON && NEON.active) NEON.tick(dt);    // the cabinets and the game you are at
   /* The district keeps running with a panel open: the whole idea of the
      inspector is that you change a condition and WATCH the machine do
      something about it, which cannot happen if the world stops dead the
@@ -1360,7 +1362,8 @@ function focusScan(){
        the room answers with whatever is within arm's reach instead
        (chatroom.js usable()), and it is said in the same box, because a
        second place that says "press E" is a second thing to learn. */
-    const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy : null;
+    const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy
+               : (window.NEON && NEON.active) ? NEON.handy : null;
     if(near){
       cross.classList.add('on'); box.classList.remove('hidden');
       box.innerHTML = esc(t(near.label)) + '<small>' + esc(near.verb) + '</small>';
