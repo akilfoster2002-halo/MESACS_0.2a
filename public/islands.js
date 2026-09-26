@@ -709,16 +709,8 @@ window.ISLANDS = (function(){
     rec.g.add(door); rec.g.add(hold);
     G.hits.push(door);
     rec.door=door;
-    /* and the glow the whole thing sits in: pink up from under the rock
-       onto the clouds round it, and a warm light high on the tiers */
-    const under=new THREE.PointLight(0xff2f7a, 260, 90, 1.4);
-    under.position.set(0, -18, 0); rec.g.add(under);
-    const crown=new THREE.PointLight(0xff5a8a, 120, 60, 1.6);
-    crown.position.set(0, 30, 6); rec.g.add(crown);
-    // a warm pink spill at the doorway, so the way in reads from the air
-    const glow=new THREE.PointLight(0xff3f8a, 60, 30, 1.5);
-    glow.position.set(dx*(wall+3), door.position.y+2, dz*(wall+3));
-    rec.g.add(glow);
+    /* NO LIGHTS HERE. It glows from its own emissive colours; a point light
+       would be paid for by every lit surface on the planet, every frame. */
     entrance(rec, door, a);
   }
 
