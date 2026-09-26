@@ -1,0 +1,41 @@
+<!doctype html><html><body style="margin:0;background:#9cc6d0">
+<script src="lib/three.classic.js"></script><script src="lib/meshopt_decoder.js"></script>
+<script>
+const q=new URLSearchParams(location.search);
+const R=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setSize(innerWidth,innerWidth*0.75);document.body.appendChild(R.domElement);
+const S=new THREE.Scene();S.background=new THREE.Color(0x9cc6d0);
+S.add(new THREE.HemisphereLight(0xffffff,0x556655,1.5));const d=new THREE.DirectionalLight(0xffffff,2);d.position.set(5,10,7);S.add(d);
+const L=new THREE.GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);
+window.SPREAD=+(q.get('spread')||0); window.AX=q.get('ax')||'z'; window.SEAT=+(q.get('seat')||1.05); window.FWD=+(q.get('fwd')||-0.1); window.KNEE=+(q.get('knee')||0);
+const views=[[0,0,1],[1,0,0]];   // side, front
+(async()=>{
+ const pbuf=await (await fetch('wano/panda.glb?z=1')).arrayBuffer();
+ const cbuf=await (await fetch((q.get('file')||'_s-sit.glb')+'?z='+Date.now())).arrayBuffer();
+ for(let v=0;v<2;v++){
+  const cam=new THREE.OrthographicCamera(-1.6,1.6,1.2,-1.2,0.1,100);
+  const p=await new Promise(r=>L.parse(pbuf.slice(0),'',r)); const pb=new THREE.Box3().setFromObject(p.scene);
+  const k=2.3/Math.max(pb.max.x-pb.min.x,pb.max.z-pb.min.z); p.scene.scale.setScalar(k);
+  const pm=new THREE.AnimationMixer(p.scene); const idle=p.animations.find(a=>a.name==='Idle'); if(idle){pm.clipAction(idle).play();pm.update(0.01);}
+  const grp=new THREE.Group(); grp.add(p.scene);
+  const c=await new Promise(r=>L.parse(cbuf.slice(0),'',r)); const cb=new THREE.Box3().setFromObject(c.scene); c.scene.scale.setScalar(1.7/(cb.max.y-cb.min.y));
+  const cm=new THREE.AnimationMixer(c.scene); cm.clipAction(c.animations.find(a=>a.name==='ride')).play(); cm.update(0.5);
+  // spread the thighs about their local axis, after the clip
+  c.scene.traverse(o=>{ if(o.isBone&&/UpLeg$/.test(o.name)){ const s=/Left/.test(o.name)?1:-1; const e=new THREE.Euler(); e[AX]=s*SPREAD; o.quaternion.multiply(new THREE.Quaternion().setFromEuler(e)); }
+                        if(o.isBone&&/[^p]Leg$/.test(o.name)&&!/UpLeg/.test(o.name)&&KNEE){ o.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),KNEE)); } });
+  // the back: highest point of the panda over the middle of its length
+  grp.updateMatrixWorld(true); let back=0; p.scene.traverse(o=>{ if(!o.isMesh) return; const P=o.geometry.attributes.position, v=new THREE.Vector3();
+    for(let i=0;i<P.count;i+=3){ v.fromBufferAttribute(P,i).applyMatrix4(o.matrixWorld); if(Math.abs(v.z-FWD)<0.25 && Math.abs(v.x)<0.2) back=Math.max(back,v.y); } });
+  c.scene.updateMatrixWorld(true); let hips; c.scene.traverse(o=>{ if(o.isBone&&/Hips$/.test(o.name)) hips=o; });
+  const hy=hips.getWorldPosition(new THREE.Vector3()).y;
+  c.scene.position.set(0, back - hy + SEAT - 1.05 + 0.08, FWD);
+  window.meas={back:+back.toFixed(3), hipsY:+hy.toFixed(3)};
+  grp.add(c.scene);
+  const holder=new THREE.Group(); holder.add(grp); holder.position.set(0,0,0);
+  const sc=new THREE.Scene(); sc.background=S.background; sc.add(holder); sc.add(new THREE.HemisphereLight(0xffffff,0x556655,1.5)); const dl=d.clone(); sc.add(dl);
+  const vd=views[v]; cam.position.set(vd[0]*20, 1.1, vd[2]*20); cam.lookAt(0,1.1,0);
+  R.setScissorTest(true); const W=innerWidth/2, H=innerWidth*0.75;
+  R.setViewport(v*W,0,W,H); R.setScissor(v*W,0,W,H); cam.left=-1.6;cam.right=1.6;cam.top=1.6*H/W;cam.bottom=-1.6*H/W+0.0;cam.updateProjectionMatrix();
+  R.render(sc,cam);
+ }
+ window.ready=true;})();
+</script></body></html>
