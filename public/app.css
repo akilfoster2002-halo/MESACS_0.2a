@@ -729,6 +729,8 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .cab-by{font-size:11.5px;color:var(--sky);letter-spacing:.3px}
 .cab-row{margin-top:auto;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .cab-stars{color:var(--star);font-size:13px;letter-spacing:1px}
+.cab.down{opacity:.6}
+.cab-down{font-size:11px;color:#ff8a8a;letter-spacing:.3px}
 .cab-plays{font-size:11px;color:var(--muted)}
 .cab.own{border-color:var(--mint)}
 .cab-edit{position:absolute;bottom:9px;right:10px;font-size:10px;letter-spacing:1.2px;

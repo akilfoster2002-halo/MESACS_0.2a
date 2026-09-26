@@ -157,7 +157,12 @@ function query(text, params){
     return Promise.resolve(rows(games.filter(g=>!g.hidden).sort(newest).slice(0,60).map(shelf)));
 
   if(like(sql, 'FROM games g', 'WHERE g.author_id=$1'))
-    return Promise.resolve(rows(games.filter(g=>g.author_id===p[0]).sort(newest).map(shelf)));
+    return Promise.resolve(rows(games.filter(g=>g.author_id===p[0]).sort(newest)
+      .map(g => Object.assign(shelf(g), { hidden:g.hidden }))));
+
+  if(like(sql, 'FROM games g', 'ORDER BY g.id DESC'))
+    return Promise.resolve(rows(games.slice().sort((a,b)=>b.id-a.id).slice(0,200)
+      .map(g => Object.assign(shelf(g), { hidden:g.hidden }))));
 
   if(like(sql, 'g.project', 'FROM games g', 'WHERE g.id=$1')){
     const g = games.find(x => x.id===p[0] && !x.hidden);
@@ -179,7 +184,7 @@ function query(text, params){
     const g = games.find(x => x.id===p[3]);
     if(g){ g.blurb=p[0]; g.stage=p[1];
            g.project = typeof p[2]==='string' ? JSON.parse(p[2]) : p[2];
-           g.hidden=false; g.updated_at=new Date().toISOString(); }
+           g.updated_at=new Date().toISOString(); }
     return Promise.resolve(rows(g ? [{ id:g.id }] : []));
   }
   if(like(sql, 'INSERT INTO games')){

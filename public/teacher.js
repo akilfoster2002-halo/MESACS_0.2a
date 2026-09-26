@@ -57,6 +57,7 @@ async function refresh(){
   $('#log').innerHTML = d.messages.map(m=>line(m)).join('');
   $('#log').scrollTop=$('#log').scrollHeight;
   texts();
+  arcade();
 }
 /* The phone's texts. Stored, unlike room chat, so this list is the whole
    record — from whom, to whom, and whether it has been taken down. */
@@ -70,6 +71,17 @@ async function texts(){
         <button class="ghost" onclick="hideText(${m.id},${m.hidden?'false':'true'})">${m.hidden?'Unhide':'Hide'}</button></div>
     </div>`).join('') || '<p class="note">No texts yet.</p>';
 }
+/* The arcade. A game is stored and shown to other children, so like the
+   texts it needs a way off the shelf — hidden, never deleted. */
+async function arcade(){
+  let d; try{ d=await api('/teacher/arcade'); }catch(e){ return; }
+  $('#games').innerHTML = (d.games||[]).map(g=>`
+    <div class="msg ${g.hidden?'hidden-msg':''}">
+      <div><b>${esc(g.title)}</b> <span class="note">by ${esc(g.author)} · ${g.stage==='flat'?'2D':'3D'} · ${Number(g.plays)||0} plays</span><br>${esc(g.blurb)}</div>
+      <div><button class="ghost" onclick="hideGame(${Number(g.id)},${g.hidden?'false':'true'})">${g.hidden?'Unhide':'Hide'}</button></div>
+    </div>`).join('') || '<p class="note">Nobody has published a game yet.</p>';
+}
+window.hideGame=async(id,hidden)=>{ await api('/teacher/arcade/hide',{id,hidden}); arcade(); };
 window.hideText=async(id,hidden)=>{ await api('/teacher/texts/hide',{id,hidden}); texts(); };
 setInterval(()=>{ if(me && me.role==='teacher') texts(); }, 10000);
 function line(m){

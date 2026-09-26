@@ -259,7 +259,8 @@ app.get('/api/arcade/:id', async (req,res)=>{
 
 /* Publish, or republish. An author has one cabinet per title rather than a
    new one per save — a class of thirty pressing PUBLISH after every change
-   is a wall of the same game otherwise. */
+   is a wall of the same game otherwise. Republishing leaves `hidden` alone:
+   a takedown that PUBLISH could undo would not be a takedown. */
 app.post('/api/arcade', bigJson, async (req,res)=>{
   const s = auth.fromReq(req);
   if(!s) return bad(res,401,'not signed in');
@@ -278,7 +279,7 @@ app.post('/api/arcade', bigJson, async (req,res)=>{
       'SELECT id FROM games WHERE author_id=$1 AND lower(title)=lower($2)',[s.id,title]);
     if(mine.rows.length){
       const r = await db.q(
-        `UPDATE games SET blurb=$1, stage=$2, project=$3, hidden=false, updated_at=now()
+        `UPDATE games SET blurb=$1, stage=$2, project=$3, updated_at=now()
          WHERE id=$4 RETURNING id`,[blurb,stage,JSON.stringify(project),mine.rows[0].id]);
       return ok(res,{ id:r.rows[0].id, updated:true });
     }
@@ -294,7 +295,7 @@ app.get('/api/arcade/mine/list', async (req,res)=>{
   const s = auth.fromReq(req);
   if(!s) return bad(res,401,'not signed in');
   try{
-    const r = await db.q(`SELECT ${SHELF} ${SHELF_FROM}
+    const r = await db.q(`SELECT ${SHELF}, g.hidden ${SHELF_FROM}
       WHERE g.author_id=$1 ORDER BY g.updated_at DESC`,[s.id]);
     ok(res,{ games:r.rows });
   }catch(e){ console.error(e); bad(res,500,'Could not read your games'); }
@@ -306,6 +307,27 @@ app.post('/api/arcade/:id/play', async (req,res)=>{
                [Number(req.params.id)||0]);
     ok(res,{});
   }catch(e){ bad(res,500,'no'); }
+});
+
+/* A teacher can take any game down. Hidden rather than deleted, so hiding
+   the wrong one is reversible — and the author still sees it on their own
+   shelf, marked, rather than finding it has silently vanished. */
+app.get('/api/teacher/arcade', async (req,res)=>{
+  const t = await requireTeacher(req,res); if(!t) return;
+  try{
+    const r = await db.q(`SELECT ${SHELF}, g.hidden ${SHELF_FROM}
+      ORDER BY g.id DESC LIMIT 200`);
+    ok(res,{ games:r.rows });
+  }catch(e){ console.error(e); bad(res,500,'Could not load the arcade'); }
+});
+app.post('/api/teacher/arcade/hide', async (req,res)=>{
+  const t = await requireTeacher(req,res); if(!t) return;
+  try{
+    const r = await db.q('UPDATE games SET hidden=$2 WHERE id=$1 RETURNING id',
+      [Number(req.body.id)||0, req.body.hidden!==false]);
+    if(!r.rows.length) return bad(res,404,'No such game');
+    ok(res,{});
+  }catch(e){ console.error(e); bad(res,500,'Could not do that'); }
 });
 
 /* A rating and, if they want, one line about why. Voting on your own game

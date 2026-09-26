@@ -126,7 +126,7 @@ window.ARCADE = (function(){
   const isMine = g => !!(window.NET && NET.me && NET.me.id===g.author_id);
   function cabinet(g, editable){
     const b=document.createElement('button');
-    b.className='cab'+(editable?' own':'');
+    b.className='cab'+(editable?' own':'')+(g.hidden?' down':'');
     b.appendChild(text('div','cab-top', g.stage==='flat' ? t('2D') : t('3D')));
     b.appendChild(text('b','', g.title));
     b.appendChild(text('small','', g.blurb));
@@ -135,6 +135,9 @@ window.ARCADE = (function(){
     row.appendChild(text('span','cab-stars', g.votes ? stars(g.stars) : t('not rated yet')));
     row.appendChild(text('span','cab-plays', t('{n} plays',{n:g.plays})));
     b.appendChild(row);
+    /* Taken down by a teacher. Shown to its author rather than silently
+       gone — they can still OPEN it and fix it, but not put it back. */
+    if(g.hidden) b.appendChild(text('div','cab-down', t('Taken down by your teacher')));
     if(editable){
       /* One card, two answers, decided by what was under the pointer —
          the same shape the mission cards use for START OVER. A nested
@@ -146,6 +149,7 @@ window.ARCADE = (function(){
     b.onclick=ev=>{
       if(editable && ev.target && ev.target.closest && ev.target.closest('[data-edit]'))
         return make(g);
+      if(g.hidden) return say(t('Your teacher has taken this game down.'));
       play(g.id);
     };
     return b;

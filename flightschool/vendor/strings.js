@@ -126,6 +126,8 @@ window.ES = {
   'THE ARCADE':'LOS RECREATIVOS','✚ MAKE A GAME':'✚ HACER UN JUEGO',
   'YOURS':'TUYOS','EVERYBODY ELSE':'DE LOS DEMÁS','OPEN':'ABRIR',
   'Sign in to make a game.':'Inicia sesión para hacer un juego.',
+  'Taken down by your teacher':'Retirado por tu profe',
+  'Your teacher has taken this game down.':'Tu profe retiró este juego.',
   'A new game. Press C for the blocks, PUBLISH when it is ready.':'Un juego nuevo. Pulsa C para los bloques y PUBLICAR cuando esté listo.',
   '{n} — press C to open the blocks, then PUBLISH.':'{n} — pulsa C para abrir los bloques y luego PUBLICAR.',
   'Play what your class has made, then tell them what you thought — or make one yourself.':'Juega lo que ha hecho tu clase y diles qué te pareció — o haz uno tú.',
