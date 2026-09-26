@@ -876,6 +876,14 @@ function wireInput(){
          first, like the decks and the quick change, because its arrows
          walk a row and arrows turn you round a planet everywhere else. */
       if(window.PLANET && PLANET.travelUp && PLANET.travelKey(e)){ e.preventDefault(); return; }
+      // X: become the mecha you bought at the Mechanic (garage.js), or step out of it
+      if(e.code==='KeyX' && G.running && G.room==='planet' && window.PLANET && PLANET.summonMech){
+        if(PLANET.summonMech()){ e.preventDefault(); return; }
+      }
+      // E beside Kit, wherever the crosshair is
+      if(e.code==='KeyE' && G.running && G.room==='planet' && window.GARAGE && GARAGE.near()){
+        e.preventDefault(); GARAGE.talk(); return;
+      }
       if(e.code==='KeyF' && G.running && G.room==='planet' && window.PLANET && PLANET.flyKey){
         if(PLANET.flyKey()){ e.preventDefault(); return; }
       }
@@ -1369,7 +1377,9 @@ function focusScan(){
                ? ISLANDS.nearDoor(PLANET.where) : null;
     const near = (window.CHATROOM && CHATROOM.active) ? CHATROOM.handy
                : (window.NEON && NEON.active) ? NEON.handy
-               : door ? { label:door.label, verb:door.verb } : null;
+               : door ? { label:door.label, verb:door.verb }
+               : (G.room==='planet' && window.GARAGE && GARAGE.near()) ? { label:'Kit — the Mechanic', verb:'E — talk to Kit' }
+               : null;
     if(near){
       cross.classList.add('on'); box.classList.remove('hidden');
       box.innerHTML = esc(t(near.label)) + '<small>' + esc(near.verb) + '</small>';
