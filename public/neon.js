@@ -415,6 +415,7 @@ window.NEON = (function(){
     x.fillStyle = 'rgba(5,6,15,.55)'; x.fillRect(0, T.H/2-30, T.W, 60);
     T.text(x, cab.m.name, T.W/2, T.H/2-22, 3, cab.m.a, 0.5);
     if(Math.floor(clock*2)%2) T.text(x, 'PRESS E TO PLAY', T.W/2, T.H/2+10, 1, '#fff', 0.5);
+    T.text(x, COST+' COINS A GO', T.W/2, T.H-14, 1, '#ffc53d', 0.5);
     const best = (scores[cab.m.id]||[])[0];
     if(best) T.text(x, 'HI '+best.best+' '+best.display, T.W/2, T.H/2+20, 1, '#ffc53d', 0.5);
     cab.tex.needsUpdate = true;
@@ -503,14 +504,70 @@ window.NEON = (function(){
     addEventListener('keydown', grab, true);
     addEventListener('keyup', grab, true);
   }
+  /* ============================================================ the coins
+     A go costs coins and a good go pays them back, in the same wallet the
+     Wardrobe and the shop spend (wallet.js) — so an afternoon at SNAKE is
+     a jacket, and a bad afternoon is a lesson about bad afternoons.
+
+     Break-even is a decent game, not a great one: five coins in, and five
+     back for 100 at SNAKE (ten pieces of food), 300 at BLOCK DROP or 500 at
+     STAR SWARM. Head to head the winner takes twelve and the loser two, so
+     playing somebody is never a straight loss. A go never pays more than
+     forty, so no one game is worth farming. */
+  const COST = 5, CAP = 40;
+  const PAYS = {
+    drop:  g => Math.floor(g.score/60),
+    snake: g => Math.floor(g.score/20),
+    swarm: g => Math.floor(g.score/100),
+    // against the machine: a win pays double the go; VOLLEY pays a point each if you lose
+    volley:g => g.winner==='A' ? 10 : Math.min(4, g.score),
+    tank:  g => g.winner==='A' ? 10 : 0
+  };
+  const W_ = () => window.WALLET;
+  const purse = () => W_() ? W_().coins() : 0;
+  /* Take the coins for a go. No wallet (it failed to load) means free,
+     rather than a cabinet nobody can use. */
+  function pay(){
+    if(!W_()) return true;
+    return W_().spend(COST);
+  }
+  function refund(){ if(W_() && play && play.paid){ W_().award(t('NEON — money back'), 0, COST); play.paid = false; } }
+  function broke(){
+    play.mode = 'broke';
+    foot(t('A go is {c} coins and you have {n}. Earn coins in missions, flying and the Gym. · Esc — walk away',
+           { c:COST, n:purse() }));
+  }
+  /* What a finished go is worth. */
+  function settle(){
+    const g = play.game;
+    if(!g || play.settled) return;
+    play.settled = true;
+    let won;
+    if(play.mode==='versus') won = (g.winner===play.side) ? 12 : 2;
+    else won = (PAYS[play.m.id] || (()=>0))(g);
+    won = Math.max(0, Math.min(CAP, won|0));
+    play.won = won;
+    if(won && W_()) W_().award(t('{g} — score {s}',{ g:play.m.name, s:g.score }), won, won);
+    foot((won ? t('+{n} coins',{n:won}) : t('No coins this time')) + ' · '
+         + t('you have {n}',{n:purse()}) + ' · '
+         + t('SPACE — again ({c} coins)',{c:COST}) + ' · ' + t('Esc — walk away'));
+  }
+
   /* A two-player cabinet asks first: the machine, or somebody here. */
   function choose(){
     play.mode = 'choose';
     const signed = window.NET && NET.signedIn && NET.live;
-    foot(signed ? t('1 — against the machine · 2 — against somebody here · Esc — walk away')
-                : t('1 — against the machine · Esc — walk away (sign in to play somebody)'));
+    foot((signed ? t('1 — against the machine · 2 — against somebody here · Esc — walk away')
+                 : t('1 — against the machine · Esc — walk away (sign in to play somebody)'))
+         + ' · ' + t('{c} coins a go, you have {n}',{ c:COST, n:purse() }));
   }
-  function begin(seed, side){
+  /* `paid`: a match found after queueing was paid for when you queued. */
+  function begin(seed, side, paid){
+    if(!paid){
+      if(!pay()) return broke();
+      play.paid = true;
+    }
+    play.settled = false; play.won = 0;
     play.game = CABGAMES.make(play.m.id);
     play.game.start(seed===null ? (Math.random()*0xffffffff)>>>0 : seed, side||undefined);
     play.mode = side ? 'versus' : 'solo';
@@ -523,6 +580,7 @@ window.NEON = (function(){
   function stopPlaying(quiet){
     if(!play) return;
     if(play.mode==='waiting' || play.mode==='versus'){ if(window.NET && NET.arc) NET.arc({ op:'cancel' }); }
+    if(play.mode==='waiting') refund();             // nobody came: that go was never played
     removeEventListener('keydown', grab, true);
     removeEventListener('keyup', grab, true);
     play = null;
@@ -543,13 +601,15 @@ window.NEON = (function(){
       if(!down) return;
       if(e.code==='Digit1'){ begin(null, null); return; }
       if(e.code==='Digit2' && window.NET && NET.signedIn && NET.live){
+        if(!pay()) return broke();
+        play.paid = true;
         play.mode = 'waiting';
         NET.arc({ op:'queue', game:play.m.id });
         foot(t('Waiting for somebody to come and play… · Esc — stop waiting'));
       }
       return;
     }
-    if(play.mode==='waiting' || play.mode==='gone') {
+    if(play.mode==='waiting' || play.mode==='gone' || play.mode==='broke') {
       if(down && play.mode==='gone' && e.code==='Space') choose();
       return;
     }
@@ -568,7 +628,7 @@ window.NEON = (function(){
     if(!play) return;
     if(m.op==='match' && play.mode==='waiting' && m.game===play.m.id){
       play.foe = String(m.foe||'').slice(0,16);
-      begin(m.seed>>>0, m.you==='B' ? 'B' : 'A');
+      begin(m.seed>>>0, m.you==='B' ? 'B' : 'A', true);
       return;
     }
     if(m.op==='in' || m.op==='st'){
@@ -577,6 +637,10 @@ window.NEON = (function(){
     }
     if(m.op==='gone' && (play.mode==='versus' || play.mode==='waiting')){
       if(play.game && play.game.over) return;        // they left after it finished
+      /* walked out on you, or before it began: your go back, and the win
+         if you were ahead is not something a disconnect should decide */
+      if(play.mode==='waiting') refund();
+      else if(play.game && !play.settled){ play.settled = true; refund(); }
       play.mode = 'gone';
       foot(t('{n} walked away. SPACE — back to the cabinet · Esc — leave it',{n:play.foe||t('They')}));
       return;
@@ -587,13 +651,15 @@ window.NEON = (function(){
   function playTick(dt){
     if(!play) return;
     const x = pctx, T = CABGAMES;
-    if(play.mode==='choose' || play.mode==='waiting' || play.mode==='gone'){
+    if(play.mode==='choose' || play.mode==='waiting' || play.mode==='gone' || play.mode==='broke'){
       x.fillStyle = '#05060f'; x.fillRect(0,0,T.W,T.H);
       T.text(x, play.m.name, T.W/2, 50, 4, play.m.a, 0.5);
       const words = play.mode==='choose' ? ['1  VS THE MACHINE', (window.NET && NET.live) ? '2  VS SOMEBODY HERE' : '']
                   : play.mode==='waiting' ? ['WAITING FOR', 'A PLAYER' + '...'.slice(0, 1+Math.floor(clock*2)%3)]
+                  : play.mode==='broke' ? ['NOT ENOUGH COINS', COST+' COINS A GO', 'YOU HAVE '+purse()]
                   : ['THEY LEFT', 'SPACE TO GO BACK'];
       words.forEach((w, k)=> w && T.text(x, w, T.W/2, 120 + k*22, 2, '#fff', 0.5));
+      if(play.mode==='choose') T.text(x, COST+' COINS A GO   YOU HAVE '+purse(), T.W/2, 200, 1, '#ffc53d', 0.5);
       return;
     }
     const g = play.game;
@@ -601,6 +667,11 @@ window.NEON = (function(){
     const wasOver = g.over;
     g.tick(Math.min(dt, 0.05));
     g.draw(x);
+    if(g.over){
+      if(!play.settled) settle();
+      // what it paid, over the game's own GAME OVER
+      T.text(x, play.won ? '+'+play.won+' COINS' : 'NO COINS', T.W/2, T.H-26, 2, play.won ? '#ffc53d' : '#8a8fb8', 0.5);
+    }
     if(play.mode==='versus'){
       /* twenty packets a second each way; the host's include "it is over",
          which is the only way the guest's copy ever finishes */
