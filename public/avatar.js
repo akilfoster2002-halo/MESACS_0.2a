@@ -94,7 +94,21 @@ window.AVATAR = (function(){
   const NAMED = [
     { id:'mechanic', name:'The Mechanic',
       model:'characters/models/mechanic.glb'+V(),
-      preview:'characters/previews/mechanic.png'+V() }
+      preview:'characters/previews/mechanic.png'+V() },
+    /* ROBIN, BY NAME, FOR THE ONE STORY THAT IS HERS. TSH (tsh.js) is
+       George Wang's script, and it is about Robin's face and Robin's
+       name — so that quest casts her with setCast('robin'), the way this
+       file says a place may, and hands you back whoever you picked on the
+       way out. Her file is the retired `w`; the letter still means Nia to
+       every old save, which is why she needs a name of her own here. */
+    { id:'robin', name:'Robin',
+      model:'characters/models/character-w.glb'+V(),
+      preview:'characters/previews/character-w.png'+V() },
+    /* And the retired roster as walk-ons: the people on TSH's pavements.
+       Same reason — their letters resolve to the new cast. */
+    ...['s','t','u','v','x'].map(c=>({ id:'walk-'+c, name:'Passer-by',
+      model:`characters/models/character-${c}.glb`+V(),
+      preview:`characters/previews/character-${c}.png`+V() }))
   ];
   const BODIES = CHARS.concat(CAST_ONLY.map(c=>({
     id:c, name:CAST_NAMES[c] || ('Character '+c.toUpperCase()),

@@ -783,6 +783,8 @@ function wireInput(){
     if(window.SCENE && SCENE.active && SCENE.key(e)){ e.preventDefault(); return; }
     // SANFRAN, the quest world: its dialogue, panels and fights take the keys first
     if(window.SANFRAN && SANFRAN.active && SANFRAN.key(e)){ e.preventDefault(); return; }
+    // TSH, the other quest: its gadgets, its bag, its pause and its cutscenes take the keys first
+    if(window.TSH && TSH.active && TSH.key(e)){ e.preventDefault(); return; }
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
     if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
@@ -1023,6 +1025,7 @@ function loop(now){
   if(window.CHATROOM && CHATROOM.active) CHATROOM.tick(dt);
   if(window.NEON && NEON.active) NEON.tick(dt);
   if(window.SANFRAN && SANFRAN.active) SANFRAN.tick(dt);   // the city, the rain, the fights    // the cabinets and the game you are at
+  if(window.TSH && TSH.active) TSH.tick(dt);               // the night: the clock, the drones, Kai, the heat
   /* The district keeps running with a panel open: the whole idea of the
      inspector is that you change a condition and WATCH the machine do
      something about it, which cannot happen if the world stops dead the
@@ -1069,7 +1072,10 @@ function loop(now){
   // not in a cockpit: the mecha's first-person view is a windscreen, not your hands
   if(window.GUN) GUN.carried(G.running && G.firstPerson && !overlayUp()
                              && !(window.PLANET && PLANET.piloting));
-  G.renderer.render(G.scene,G.camera);
+  /* TSH DRAWS ITS OWN FRAME: the wet street is a second camera, and the
+     neon is bloom — both are passes, and one render call cannot be both. */
+  if(window.TSH && TSH.active) TSH.render(dt);
+  else G.renderer.render(G.scene,G.camera);
 }
 /* Is one of the full-screen cards up — sign-in, the character picker, the
    mission grid, the title? They all carry .screen, and while any of them is

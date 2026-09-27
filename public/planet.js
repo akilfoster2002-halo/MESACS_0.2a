@@ -568,6 +568,10 @@ window.PLANET = (function(){
        joined through startMissionRoom('ion') in game.js, which opens the
        house rather than the planet, and that is where both of them are. */
     server = sv || null;
+    /* TSH draws its own frame and owns the renderer's look while it is on;
+       anything that brings you back to a planet has to switch it off first
+       (its own leave() does, the pause card's HOME did not). */
+    if(window.TSH && TSH.active) TSH.stop();
     // whichever ball we are standing on decides its own size, sky and soil
     setWorld(worldById(worldId || (W?W.id:'hub')));
     COMBAT.reset(); PUZZLE.stop(); NAV.stop(); TUTOR.stop(); RACE.stop();
@@ -659,6 +663,7 @@ window.PLANET = (function(){
     wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 36);   // Wano's are pandas
     mechaBuild();                  // and the giant beside the Mechanic
     questGate();                   // and the gate to SANFRAN, the quest world (sanfran.js)
+    tshGate();                     // and the one to TSH, George Wang's night in the city (tsh.js)
     /* AND THE TWO ON THE RIDGE, on RYU only, and only for somebody who has
        the glasses. Five and a half megabytes of robot is not a thing to
        fetch for a player who has not met the Mechanic yet and cannot see
@@ -2555,6 +2560,40 @@ window.PLANET = (function(){
     const hit=new THREE.Mesh(new THREE.BoxGeometry(6,7,1.5), new THREE.MeshBasicMaterial({ visible:false }));
     hit.position.y=3.5; hit.userData.owner=g; g.add(hit); G.hits.push(hit);
     Object.assign(g.userData, { enter:'sanfran', kind:'door', label:'SANFRAN — a quest', verb:'E — enter the quest' });
+  }
+  /* THE GATE TO TSH, beyond SANFRAN's along the same side of Mission
+     Control. It looks like where it goes: a steel frame out of Dragon
+     Alley, a tube of teal light, paper lanterns, and a sign that says
+     whose story it is — TSH was written by George Wang, and the credit
+     is on the door before it is anywhere else. */
+  function tshGate(){
+    if(W.kind!=='hub' || !window.TSH) return;
+    const b=BUILDINGS[0]; if(!b || !b.dir) return;
+    const f0=b.frame || frameAt(b.dir, 0);
+    const dir=b.dir.clone().applyAxisAngle(f0.fwd, (b.w/2 + 40)/PR).normalize();
+    const g=new THREE.Group(); G.roomGroup.add(g);
+    stand(g, dir, 0, floorAt(dir));
+    const steel=new THREE.MeshStandardMaterial({ color:0x1a2020, roughness:0.45, metalness:0.7 });
+    const lit=(c,k)=>new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:k||2 });
+    [-3,3].forEach(x=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(0.5,7.4,0.5), steel); p.position.set(x,3.7,0); g.add(p); });
+    const beam=new THREE.Mesh(new THREE.BoxGeometry(7.2,0.45,0.7), steel); beam.position.y=7.2; g.add(beam);
+    const tube=new THREE.Mesh(new THREE.BoxGeometry(6,0.08,0.08), lit(0x9ff5e0,2.6)); tube.position.set(0,6.8,0.3); g.add(tube);
+    [-1.9,-0.6,0.6,1.9].forEach((x,i)=>{
+      const l=new THREE.Mesh(new THREE.SphereGeometry(0.26,12,10), lit(i%2?0xff6a2a:0xff4a1a,2.4)); l.scale.set(1,1.3,1); l.position.set(x,5.7+(i%2)*0.2,0.35); g.add(l);
+    });
+    const cur=new THREE.Mesh(new THREE.PlaneGeometry(5.4,6.6), new THREE.MeshBasicMaterial({ color:0x0b3a34, transparent:true, opacity:0.55, side:THREE.DoubleSide, depthWrite:false }));
+    cur.position.y=3.4; g.add(cur);
+    const c=document.createElement('canvas'); c.width=512; c.height=200; const x=c.getContext('2d');
+    x.fillStyle='#050b0a'; x.fillRect(0,0,512,200); x.textAlign='center';
+    x.font='bold 84px '+uiFont(); x.shadowColor='#38ffd0'; x.shadowBlur=24; x.fillStyle='#d8fff4'; x.fillText('TSH', 256, 92);
+    x.shadowBlur=0; x.font='bold 26px '+uiFont(); x.fillStyle='#ff9a5a'; x.fillText('WRITTEN BY GEORGE WANG', 256, 140);
+    x.font='20px '+uiFont(); x.fillStyle='#8fd3c8'; x.fillText('A QUEST · ONE NIGHT IN THE CITY', 256, 176);
+    const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+    const sg=new THREE.Mesh(new THREE.PlaneGeometry(6.4,2.5), new THREE.MeshBasicMaterial({ map:tex, side:THREE.DoubleSide }));
+    sg.position.y=9.0; g.add(sg);
+    const hit=new THREE.Mesh(new THREE.BoxGeometry(6,7,1.5), new THREE.MeshBasicMaterial({ visible:false }));
+    hit.position.y=3.5; hit.userData.owner=g; g.add(hit); G.hits.push(hit);
+    Object.assign(g.userData, { enter:'tsh', kind:'door', label:'TSH — written by George Wang', verb:'E — enter the quest' });
   }
   function mechaBuild(){
     mecha=null; piloting=false;
@@ -6938,6 +6977,7 @@ window.PLANET = (function(){
                || id==='preflight' || id==='brawlgate'
                || id==='kit' || id.indexOf('buymech:')===0     // the Mechanic (garage.js)
                || id==='sanfran'                                // the quest world (sanfran.js)
+               || id==='tsh'                                    // TSH, the other one (tsh.js)
                || id==='neon'                 // the arcade in the clouds (islands.js)
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
@@ -6945,6 +6985,7 @@ window.PLANET = (function(){
     if(piloting && id!=='mecha'){ say(t('Climb out first — <b>R</b>.')); return; }
     if(id==='kit'){ if(window.GARAGE) GARAGE.talk(); return; }
     if(id==='sanfran'){ wentTo('quest'); leave(); return SANFRAN.enter(server); }
+    if(id==='tsh'){ wentTo('quest'); leave(); return TSH.enter(server); }
     if(id.indexOf('buymech:')===0){ if(window.GARAGE) GARAGE.buyMech(id.slice(8), say); return; }
     if(id==='mecha'){
       /* THE ONE PARKED OUTSIDE IS A STATUE now, as in Godot: mechas are
