@@ -7284,6 +7284,10 @@ window.PLANET = (function(){
     }
     flyTick(dt); beastTick(dt); mechaTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
+    /* THROUGH NEON'S DOORWAY ON FOOT IS INTO NEON (islands.js walkedIn) */
+    if(window.ISLANDS && ISLANDS.walkedIn && !flying && me.onGround && (G.keys.KeyW||G.keys.ArrowUp)){
+      const d=ISLANDS.walkedIn(me); if(d && d.enter){ use(d.enter); return; }
+    }
     if(window.GARAGE) GARAGE.tick(dt);        // Kit at work, and the mechas idling on their plinths
     if(window.MEADOW) MEADOW.tick(dt, me);    // the grass round your feet
     if(window.TEMPLE) TEMPLE.tick(dt);        // petals, doves, the water
