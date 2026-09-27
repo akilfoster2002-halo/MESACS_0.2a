@@ -781,6 +781,8 @@ function wireInput(){
        "next" — so this has to run before either of them is read as what
        it usually means, or advancing the story also makes Robin jump. */
     if(window.SCENE && SCENE.active && SCENE.key(e)){ e.preventDefault(); return; }
+    // SANFRAN, the quest world: its dialogue, panels and fights take the keys first
+    if(window.SANFRAN && SANFRAN.active && SANFRAN.key(e)){ e.preventDefault(); return; }
     if(e.code==='Escape' && document.pointerLockElement) document.exitPointerLock();
     if(e.code==='KeyR' && PUZZLE.active && !PUZZLE.busy){ e.preventDefault(); PUZZLE.retry(); }
     if(e.code==='KeyR' && NAV.active && !NAV.busy){ e.preventDefault(); NAV.retry(); }
@@ -1019,7 +1021,8 @@ function loop(now){
      half way through its program and the jukebox does not stop because you
      opened the rooms list. */
   if(window.CHATROOM && CHATROOM.active) CHATROOM.tick(dt);
-  if(window.NEON && NEON.active) NEON.tick(dt);    // the cabinets and the game you are at
+  if(window.NEON && NEON.active) NEON.tick(dt);
+  if(window.SANFRAN && SANFRAN.active) SANFRAN.tick(dt);   // the city, the rain, the fights    // the cabinets and the game you are at
   /* The district keeps running with a panel open: the whole idea of the
      inspector is that you change a condition and WATCH the machine do
      something about it, which cannot happen if the world stops dead the

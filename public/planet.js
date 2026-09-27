@@ -654,6 +654,7 @@ window.PLANET = (function(){
        nightclub is a different game. */
     wildlife(W.kind==='arena' ? 0 : W.kind==='home' ? 10 : 36);   // Wano's are pandas
     mechaBuild();                  // and the giant beside the Mechanic
+    questGate();                   // and the gate to SANFRAN, the quest world (sanfran.js)
     /* AND THE TWO ON THE RIDGE, on RYU only, and only for somebody who has
        the glasses. Five and a half megabytes of robot is not a thing to
        fetch for a player who has not met the Mechanic yet and cannot see
@@ -2517,6 +2518,32 @@ window.PLANET = (function(){
      keys move that, what the camera does, and what draws. */
   const MECHA={ H:20, walk:9, dash:34, jump:30, grav:24, thrust:34, fuel:3.2 };
   let mecha=null, piloting=false, wasFP=null, mhud=null;
+  /* THE GATE TO SANFRAN. A quest is a world of its own, entered the way a
+     chat room is: this is the door, beside Mission Control, lit so you
+     notice it — a gate frame, a curtain of rainy neon, and a sign. */
+  function questGate(){
+    if(W.kind!=='hub' || !window.SANFRAN) return;
+    const b=BUILDINGS[0]; if(!b || !b.dir) return;
+    const f0=b.frame || frameAt(b.dir, 0);
+    const dir=b.dir.clone().applyAxisAngle(f0.fwd, (b.w/2 + 26)/PR).normalize();
+    const g=new THREE.Group(); G.roomGroup.add(g);
+    stand(g, dir, 0, floorAt(dir));
+    const glow=c=>new THREE.MeshStandardMaterial({ color:c, emissive:c, emissiveIntensity:1.8 });
+    [-3,3].forEach(x=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(0.6,7,0.6), glow(0xff3fd0)); p.position.set(x,3.5,0); g.add(p); });
+    const top=new THREE.Mesh(new THREE.BoxGeometry(7.6,0.6,0.8), glow(0x27e8ff)); top.position.y=7; g.add(top);
+    const cur=new THREE.Mesh(new THREE.PlaneGeometry(5.4,6.6), new THREE.MeshBasicMaterial({ color:0x6a3aff, transparent:true, opacity:0.45, side:THREE.DoubleSide, depthWrite:false }));
+    cur.position.y=3.4; g.add(cur);
+    const c=document.createElement('canvas'); c.width=512; c.height=160; const x=c.getContext('2d');
+    x.fillStyle='#0a0620'; x.fillRect(0,0,512,160); x.textAlign='center'; x.font='bold 64px '+uiFont();
+    x.shadowColor='#ff3fd0'; x.shadowBlur=20; x.fillStyle='#ffd6f0'; x.fillText('SANFRAN', 256, 70);
+    x.shadowBlur=0; x.font='bold 30px '+uiFont(); x.fillStyle='#8fd3ff'; x.fillText('A QUEST · ACT 1', 256, 128);
+    const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+    const sg=new THREE.Mesh(new THREE.PlaneGeometry(6,1.9), new THREE.MeshBasicMaterial({ map:tex, side:THREE.DoubleSide }));
+    sg.position.y=8.6; g.add(sg);
+    const hit=new THREE.Mesh(new THREE.BoxGeometry(6,7,1.5), new THREE.MeshBasicMaterial({ visible:false }));
+    hit.position.y=3.5; hit.userData.owner=g; g.add(hit); G.hits.push(hit);
+    Object.assign(g.userData, { enter:'sanfran', kind:'door', label:'SANFRAN — a quest', verb:'E — enter the quest' });
+  }
   function mechaBuild(){
     mecha=null; piloting=false;
     if(W.kind!=='hub') return;
@@ -6857,12 +6884,14 @@ window.PLANET = (function(){
                   way into the arena. */
                || id==='preflight' || id==='brawlgate'
                || id==='kit' || id.indexOf('buymech:')===0     // the Mechanic (garage.js)
+               || id==='sanfran'                                // the quest world (sanfran.js)
                || id==='neon'                 // the arcade in the clouds (islands.js)
                || id.indexOf('fly:')===0
                || STATIONS.some(s=>s.id===id);
     if(!known) return;
     if(piloting && id!=='mecha'){ say(t('Climb out first — <b>R</b>.')); return; }
     if(id==='kit'){ if(window.GARAGE) GARAGE.talk(); return; }
+    if(id==='sanfran'){ wentTo('quest'); leave(); return SANFRAN.enter(server); }
     if(id.indexOf('buymech:')===0){ if(window.GARAGE) GARAGE.buyMech(id.slice(8), say); return; }
     if(id==='mecha'){
       /* THE ONE PARKED OUTSIDE IS A STATUE now, as in Godot: mechas are
