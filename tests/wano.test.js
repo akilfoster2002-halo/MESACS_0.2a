@@ -244,7 +244,33 @@ test('a modelled island with no baked grid still has ground', ()=>{
   /* The Higgsfield island arrives as a bare mesh. If its grid is not made
      from its triangles, you fall straight through a rock you can see. */
   const src=read('public/islands.js');
-  assert.match(src, /field=fieldFromMesh\(root, \d+\)/, 'a bare model gets no ground');
+  assert.match(src, /field=fieldFromMesh\(root, \d+(, [^)]*)?\)/, 'a bare model gets no ground');
+});
+
+test('the way into NEON is ground you can walk on, and walking through the door goes in', ()=>{
+  /* The grid keeps the highest surface over each spot, so the eaves over
+     NEON's door and the torii's beam over its path read as solid from the
+     deck up: the door stood in a column nobody could walk into, and coming
+     out of the arcade stood you on top of the torii. carveApproach() lowers
+     those cells to the floor under them — and must leave a torii LEG alone,
+     and must not mistake a kerb for a wall. */
+  const src=read('public/islands.js');
+  const carve=new Function('return '+src.match(/function carveApproach\(rec, wall, a\)\{[\s\S]*?\n  \}/)[0])();
+  // a strip of five cells running out from a door at z=2, one metre a cell, deck at 0
+  const nx=3, nz=12, N=nx*nz, cell=1;
+  const top=new Array(N).fill(0), ys=Array.from({length:N}, ()=>[0]), walls=Array.from({length:N}, ()=>[]);
+  const q=(i,j)=>j*nx+i;
+  for(let j=2;j<9;j++){ top[q(1,j)]=10; ys[q(1,j)].push(10); }          // the eave and the beam, overhead
+  top[q(0,5)]=18; ys[q(0,5)].push(18); walls[q(0,5)].push(0, 18);      // a torii leg, beside the path
+  walls[q(1,4)].push(0.4, 0.7); ys[q(1,4)].push(0.3);                  // a kerb: its edge, 40 to 70 cm
+  const F={ x0:-1, z0:0, cell, nx, nz, top, bot:new Array(N).fill(-5), ys, walls };
+  const rec={ field:F, s:1, deck:0, k:{ r:78 } };
+  carve(rec, 2, 0);
+  for(let j=2;j<9;j++) assert.ok(F.top[q(1,j)] < 1, `the path at ${j} m still has the roof as its floor (${F.top[q(1,j)]})`);
+  assert.strictEqual(F.top[q(0,5)], 18, 'the torii leg was carved away — you would walk through it');
+  // and the planet goes in when you walk through the doorway
+  assert.match(read('public/planet.js'), /ISLANDS\.walkedIn\(me\)[\s\S]{0,60}use\(d\.enter\)/, 'walking into the curtain does nothing');
+  assert.match(src, /f - is\.k\.alt < 2\.5/, 'coming out of NEON can stand you on the torii again');
 });
 
 test('the water leaves the pool along a river', ()=>{

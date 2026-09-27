@@ -643,7 +643,7 @@ window.ISLANDS = (function(){
         root.position.set(-c.x, -box.min.y, -c.z);
         inner.add(root);
         root=new THREE.Group(); root.add(inner);
-        field=fieldFromMesh(root, 72);
+        field=fieldFromMesh(root, 72, !!k.arcade);
       }
       if(!field) return;
       const tops=field.top.filter(v=>v!==null).sort((a,b)=>a-b);
@@ -709,9 +709,45 @@ window.ISLANDS = (function(){
     rec.g.add(door); rec.g.add(hold);
     G.hits.push(door);
     rec.door=door;
+    carveApproach(rec, wall, a);
     /* NO LIGHTS HERE. It glows from its own emissive colours; a point light
        would be paid for by every lit surface on the planet, every frame. */
     entrance(rec, door, a);
+  }
+
+  /* THE WAY IN IS GROUND YOU CAN WALK ON. The height grid keeps the highest
+     surface over each spot, which is right for a hillside and wrong in a
+     doorway: the eaves over the door and the torii's beam over the path
+     both read as solid from the deck up, so the door stood in a column you
+     could not walk into, pressing on it pushed you about, and coming out of
+     the arcade stood you on top of the torii eighteen metres up. Down the
+     path from the door, a cell whose only company above the floor is a roof
+     well over head height gets the floor as its top. Anything that stands
+     up through the body — the wall, a torii leg, the bonsai's trunk — is
+     left alone. */
+  function carveApproach(rec, wall, a){
+    const F=rec.field, s=rec.s, deck=rec.deck;
+    if(!F || !F.ys) return 0;
+    const dx=Math.sin(a), dz=Math.cos(a), px=Math.cos(a), pz=-Math.sin(a);   // along the path, across it
+    const L=Math.min(rec.k.r*0.55, 34), HALF=7;
+    const step=1.6/s, head=2.4/s;              // a kerb you step up; room for a head
+    let carved=0;
+    for(let j=0;j<F.nz;j++) for(let i=0;i<F.nx;i++){
+      const q=j*F.nx+i;
+      if(F.top[q]===null) continue;
+      const x=(F.x0+i*F.cell)*s, z=(F.z0+j*F.cell)*s;
+      const along=x*dx+z*dz, across=Math.abs(x*px+z*pz);
+      if(along < wall-1.5 || along > wall+L || across > HALF) continue;
+      const floor=F.ys[q].filter(y=>y <= deck+step).reduce((m,y)=>Math.max(m,y), -Infinity);
+      if(floor===-Infinity || F.top[q] <= floor+head) continue;        // nothing overhead to lift out
+      if(F.ys[q].some(y=>y > floor+0.05/s && y < floor+head)) continue; // a low roof: that is a wall
+      const w=F.walls[q]; let inTheWay=false;
+      for(let n=0;n<w.length;n+=2) if(w[n] < floor+2.0/s && w[n+1] > floor+0.9/s){ inTheWay=true; break; }   // a kerb is a step, not a wall
+      if(inTheWay) continue;
+      F.top[q]=floor; carved++;
+    }
+    rec.carved=carved;
+    return carved;
   }
 
   /* THE WAY IN, MADE OBVIOUS. The model's doorway is a dark gap under the
@@ -743,11 +779,34 @@ window.ISLANDS = (function(){
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.4),
       new THREE.MeshBasicMaterial({ map:tex, transparent:true, side:THREE.DoubleSide }));
     sign.position.set(0, H+1.1, 0.7); g.add(sign);
-    // a lit path out from the door
-    for(let i=0;i<7;i++){
+    const F=rec.field, s=rec.s, dx=Math.sin(a), dz=Math.cos(a), from=door.position.z*dz + door.position.x*dx;
+    const topAt=(x,z)=>{ const i=Math.round((x/s-F.x0)/F.cell), j=Math.round((z/s-F.z0)/F.cell);
+      if(!F || i<0||j<0||i>=F.nx||j>=F.nz) return null; const v=F.top[j*F.nx+i]; return v===null ? null : (v-rec.deck)*s; };
+    let run=from;
+    for(let d=from+1; d<from+40; d+=1){ const y=topAt(dx*d, dz*d); if(y===null || Math.abs(y) > 1.2) break; run=d; }
+    // a lit path out from the door, as far as there is rock under it...
+    for(let i=0;i<4;i++){
+      if(from + (2.2+i*1.8)*k2 > run) break;
       const tile=new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.9), neonMat(i%2?NEON_CYAN:NEON_PINK, 1.6));
       tile.position.set(0, 0.25, 2.2+i*1.8); g.add(tile);
     }
+    /* ...to a PAD TO LAND ON. From the air the island was a pagoda on a rock
+       with nowhere that said "here": now there is a ring you can see from
+       the ground, at the end of the path, on ground carveApproach() has
+       made sure you can walk from to the door. */
+    /* ON THE ROCK: out along the path as far as the deck runs level, less
+       the pad's own radius — the first one hung off the edge over the clouds. */
+    const PADR=2.2*k2, padAt=Math.max(from+4*k2, Math.min(from+26, run-PADR));
+    const pad=new THREE.Group(); pad.position.set(0, 0.2, (padAt-from)/k2); g.add(pad);
+    pad.scale.setScalar(2.2/3.05);
+    const ring=(r1, r2, hex, k)=>{ const m=new THREE.Mesh(new THREE.RingGeometry(r1, r2, 48), neonMat(hex, k));
+      m.material.side=THREE.DoubleSide; m.rotation.x=-Math.PI/2; pad.add(m); return m; };
+    ring(2.7, 3.05, NEON_CYAN, 2.4); ring(1.9, 2.05, NEON_PINK, 2.2);
+    const disc=new THREE.Mesh(new THREE.CircleGeometry(2.7, 48), new THREE.MeshBasicMaterial({ color:0x27e8ff, transparent:true, opacity:0.12, depthWrite:false }));
+    disc.rotation.x=-Math.PI/2; disc.position.y=-0.02; pad.add(disc);
+    for(let i=0;i<8;i++){ const a2=i/8*Math.PI*2, dot=new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.35), neonMat(NEON_GOLD, 2.4));
+      dot.position.set(Math.sin(a2)*3.4, 0.05, Math.cos(a2)*3.4); pad.add(dot); }
+    rec.pad=pad;
     rec.entrance=g;
   }
 
@@ -755,6 +814,20 @@ window.ISLANDS = (function(){
      you, so the crosshair is often on the eave or the sky when you are
      right in front of the way in; E should go in anyway. `me` is planet.js's
      {dir, alt}. */
+  /* AND WALKING INTO IT IS GOING IN. The curtain of light is a door, so
+     stepping through it is enough; E still works from further out. */
+  function walkedIn(me){
+    if(!me || !me.dir) return null;
+    for(const is of isles){
+      if(!is.door) continue;
+      const at=new THREE.Vector3(); is.door.getWorldPosition(at);
+      const p=me.dir.clone().multiplyScalar(W.PR + me.alt);
+      const up=at.clone().normalize(), d=p.clone().sub(at);
+      const rise=d.dot(up), flat=d.addScaledVector(up, -rise).length();
+      if(flat < 2.6 && Math.abs(rise) < 4) return is.door.userData.owner.userData;
+    }
+    return null;
+  }
   function nearDoor(me){
     if(!me || !me.dir) return null;
     for(const is of isles){
@@ -771,7 +844,11 @@ window.ISLANDS = (function(){
      (the underside). That is the same {top, bot} grid the Blender island
      bakes, made in a few milliseconds — rasterising forty thousand
      triangles is cheap where casting ten thousand rays at them is not. */
-  function fieldFromMesh(root, n){
+  /* `layers` (the arcade only) also keeps, for each cell, EVERY surface
+     over it (ys) and the height span of anything steep standing in it
+     (walls): the highest surface is the right floor for a hillside and the
+     wrong one under an eave — see carveApproach(). */
+  function fieldFromMesh(root, n, layers){
     root.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(root);
     const span=Math.max(box.max.x-box.min.x, box.max.z-box.min.z);
@@ -779,7 +856,9 @@ window.ISLANDS = (function(){
           nz=Math.ceil((box.max.z-box.min.z)/cell)+2;
     const x0=box.min.x-cell*0.5, z0=box.min.z-cell*0.5;
     const top=new Array(nx*nz).fill(null), bot=new Array(nx*nz).fill(null);
+    const ys=layers ? Array.from({length:nx*nz}, ()=>[]) : null, walls=layers ? Array.from({length:nx*nz}, ()=>[]) : null;
     const a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3();
+    const e1=new THREE.Vector3(), e2=new THREE.Vector3();
     root.traverse(o=>{
       if(!o.isMesh) return;
       const P=o.geometry.attributes.position, I=o.geometry.index, M=o.matrixWorld;
@@ -790,6 +869,17 @@ window.ISLANDS = (function(){
         b.fromBufferAttribute(P,ib).applyMatrix4(M);
         c.fromBufferAttribute(P,ic).applyMatrix4(M);
         const det=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z);
+        if(walls){
+          /* steep: a wall, a post, a trunk. It has no top to stand on, but it
+             is in the way from its foot to its head, over every cell it crosses */
+          const nrm=e1.subVectors(b,a).cross(e2.subVectors(c,a));
+          if(Math.abs(nrm.y) < 0.35*nrm.length()){
+            const wi0=Math.max(0,Math.floor((Math.min(a.x,b.x,c.x)-x0)/cell+0.5)), wi1=Math.min(nx-1,Math.floor((Math.max(a.x,b.x,c.x)-x0)/cell+0.5)),
+                  wj0=Math.max(0,Math.floor((Math.min(a.z,b.z,c.z)-z0)/cell+0.5)), wj1=Math.min(nz-1,Math.floor((Math.max(a.z,b.z,c.z)-z0)/cell+0.5));
+            const lo=Math.min(a.y,b.y,c.y), hi=Math.max(a.y,b.y,c.y);
+            for(let j=wj0;j<=wj1;j++) for(let i=wi0;i<=wi1;i++) walls[j*nx+i].push(lo, hi);
+          }
+        }
         if(Math.abs(det)<1e-12) continue;            // edge-on: a wall has no top
         const i0=Math.max(0,Math.ceil((Math.min(a.x,b.x,c.x)-x0)/cell)),
               i1=Math.min(nx-1,Math.floor((Math.max(a.x,b.x,c.x)-x0)/cell)),
@@ -804,10 +894,11 @@ window.ISLANDS = (function(){
           const y=l1*a.y+l2*b.y+l3*c.y, q=j*nx+i;
           if(top[q]===null || y>top[q]) top[q]=y;
           if(bot[q]===null || y<bot[q]) bot[q]=y;
+          if(ys) ys[q].push(y);
         }
       }
     });
-    return { x0, z0, cell, nx, nz, top, bot };
+    return { x0, z0, cell, nx, nz, top, bot, ys, walls };
   }
 
   /* WHERE THE WATER LEAVES. Walk out from the middle of the island toward
@@ -1607,10 +1698,15 @@ window.ISLANDS = (function(){
     const out = at.clone().sub(centre);
     out.addScaledVector(up, -out.dot(up)).normalize();
     /* clear of the chase camera, but never off the edge of the rock */
-    let dir = null;
-    for(let d=10; d>=2; d-=0.5){
+    /* ...and on the DECK: the first try stood you on top of the torii,
+       which is ground too as far as a height grid is concerned. */
+    let dir = null, any = null;
+    for(let d=12; d>=2; d-=0.5){
       dir = at.clone().addScaledVector(out, d).normalize();
-      if(floorAt(dir, is.k.alt+20)!==null) break;
+      const f = floorAt(dir, is.k.alt+20);
+      if(f!==null && !any) any = dir;
+      if(f!==null && f - is.k.alt < 2.5) break;
+      if(d<=2.5 && any) dir = any;
     }
     /* FACING THE PAGODA: coming out, the first thing you see is the
        building you were just in, lit up, rather than the back of a gate. */
@@ -1623,7 +1719,8 @@ window.ISLANDS = (function(){
     group=null; isles=[]; fall=null; riv=null; pool=null; fish=[]; turtles=[]; t=0;
   }
 
-  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut, nearDoor,
+  return { build, tick, floorAt, blocked, clear, spots, waterAt, fallPush, ISLES, doorOut, nearDoor, walkedIn,
+           isle:id=>isles.find(r=>r.k.id===id),
            get count(){ return isles.length; },
            get pool(){ return pool; },
            /* WHAT IS ALIVE UP THERE, and where one of each is right now —

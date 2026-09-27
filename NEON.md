@@ -45,7 +45,7 @@ another player in the same room.
 | `public/index.html` | Loads `cabgames.js` and `neon.js` after `planet.js`; `?v=` bumped. |
 | `public/net.js` | `NET.arc(msg)` and `NET.onArc`. |
 | `public/planet.js` | `'neon'` added to the ids `use()` accepts — it refused it silently, so the door did nothing. `enter()` takes `{island:'neon'}` to put you down on the island rather than the grass under it. |
-| `public/islands.js` | `doorOut()` — where the arch is, read off the mesh itself. |
+| `public/islands.js` | `doorOut()` — where the arch is, read off the mesh itself, and a spot on the deck in front of it (not the top of the torii). `carveApproach()` — the height grid keeps the highest surface over each cell, so the eaves and the torii beam made the doorway a wall; the path from the door is lowered to the floor under them, leaving anything that stands up through the body (the torii legs) solid. `walkedIn()` — stepping through the curtain of light goes in, no E needed. A landing pad at the end of the lit path, placed where the deck runs level. |
 | `server/` | `arcade_scores` table (and the same statements in `memdb.js`); `GET /api/neon/scores`, `POST /api/neon/score` — solo cabinets only, capped, only ever raised. Your own best also goes in the progress bag. |
 | `tests/neon.test.js` | Two real sockets queue at VOLLEY, are paired with one seed, relay state and keys, and the host is told when the guest leaves; the score board. |
 
