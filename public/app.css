@@ -2622,3 +2622,21 @@ body:not(.hud-live) #hud #objectives{display:none !important}
 #sf .sf-fs.heat i{background:#ff8a3d}#sf .sf-fs.pow i{background:#ffd23d}
 #sf.fight .sf-me,#sf.fight .sf-goal{opacity:.3}
 @media (max-width:600px){#sf .sf-banner{font-size:56px}#sf .sf-fc{width:140px}#sf .sf-keys .k{font-size:14px}}
+
+/* ============ THE OCEAN (ocean.js): how deep you are, the two keys that
+   take you up and down, and the card for a creature met for the first time */
+#oceanHud{position:fixed;inset:0;pointer-events:none;z-index:40;font:14px/1.2 var(--font,system-ui);color:#e8f8ff}
+#oceanHud.hidden,#oceanHud .hidden{display:none!important}
+#oceanHud .oc-depth{position:absolute;right:22px;top:50%;transform:translateY(-50%);width:58px;height:220px;border-radius:30px;
+  background:linear-gradient(#2a9cc0,#04132a);border:2px solid rgba(160,230,255,.5);box-shadow:0 0 20px rgba(0,40,80,.5);overflow:hidden}
+#oceanHud .oc-depth b{position:absolute;left:0;right:0;top:14px;text-align:center;font-size:20px;font-weight:800;z-index:1;text-shadow:0 2px 4px #000}
+#oceanHud .oc-depth small{position:absolute;left:0;right:0;top:38px;text-align:center;opacity:.8;z-index:1}
+#oceanHud .oc-depth i{position:absolute;left:0;right:0;top:0;background:rgba(255,255,255,.18);border-bottom:2px solid #9ff0ff}
+#oceanHud .oc-keys{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:14px;padding:6px 12px;border-radius:12px;background:rgba(4,20,40,.55);font-size:18px}
+#oceanHud .oc-keys span{display:flex;align-items:center;gap:6px}
+#oceanHud kbd{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 6px;border-radius:6px;background:#0f2a44;border:1px solid #4a7aa2;border-bottom-width:3px;font:700 12px/1 var(--font,system-ui);color:#fff}
+#oceanHud .oc-found{position:absolute;left:50%;top:16%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:10px 18px;border-radius:16px;
+  background:rgba(4,30,56,.88);border:2px solid #7fe6ff;box-shadow:0 0 30px rgba(80,220,255,.35)}
+#oceanHud .oc-found span{font-size:34px}#oceanHud .oc-found b{font-size:20px;letter-spacing:.5px}#oceanHud .oc-found small{color:#7fe6ff;font-weight:700}
+#oceanHud .oc-found.pop{animation:ocpop .5s ease-out}
+@keyframes ocpop{from{opacity:0;transform:translate(-50%,-10px) scale(1.3)}}

@@ -598,6 +598,7 @@ window.PLANET = (function(){
     mannequins=[]; flies=null; beasts=[]; sparkTex=null; basins=[];
     if(window.ISLANDS) ISLANDS.clear();
     if(window.MEADOW) MEADOW.clear();
+    if(window.OCEAN) OCEAN.clear();
     if(window.TEMPLE) TEMPLE.clear();
     shipBayPanel=null; shipBayModel=null; padPanel=null;
     /* RYU IS MISSION 8 AND THE OTHER BALLS ARE NOT. Three of this
@@ -636,6 +637,9 @@ window.PLANET = (function(){
        longitude and radius, so it can be asked for long before there is any
        water — which is the only way the ground can be dug out for it. */
     basins = window.ISLANDS ? ISLANDS.spots({ id:W.id, PR, dirOf, frameAt }) : [];
+    /* AND THE SEA, which is a basin too (ocean.js): everything that keeps
+       out of the plunge pool keeps out of it for the same reason. */
+    if(window.OCEAN) basins = basins.concat(OCEAN.spots({ id:W.id, PR, dirOf, frameAt }));
     seatBasins();                  // and level their rims before anything is dug
     surface();
     /* A PROP DOES NOT GET WALLS. build() makes a building — four walls, a
@@ -669,6 +673,9 @@ window.PLANET = (function(){
        is handed over rather than reached for — this file owns the world, and
        sky.js should not be keeping a second copy of its radius. */
     if(window.ISLANDS) ISLANDS.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH, basinRim });
+    /* THE OCEAN, east of the town: the seabed, the water, and what lives in it */
+    if(window.OCEAN) OCEAN.build({ id:W.id, group:G.roomGroup, PR, dirOf, frameAt, terrainH,
+                                   soil:dir=>soilAt(dir, terrainH(dir)/RELIEF) });
     /* and grass you can walk through, round your feet, on a world that has any */
     if(window.MEADOW) MEADOW.build({ id:W.id, biome:W.biome, group:G.roomGroup, PR, frameAt, terrainH, lushAt });
     G.scene.updateMatrixWorld(true);
@@ -947,6 +954,8 @@ window.PLANET = (function(){
     geo.setAttribute('color', new THREE.BufferAttribute(col,3));
     // recomputed AFTER displacing, or every hill is lit as though it were flat
     geo.computeVertexNormals();
+    // and under the sea the ball steps aside for a finer seabed (ocean.js)
+    if(window.OCEAN) OCEAN.trimIndex(geo);
     const soil=new THREE.MeshLambertMaterial({ vertexColors:true, map:grainTexture() });
     grassMaps(soil);
     const ball=new THREE.Mesh(geo, soil);
@@ -1092,6 +1101,7 @@ window.PLANET = (function(){
   function basinCut(dir, h){
     for(const b of basins){
       if(b.rim===undefined) continue;
+      if(b.cut){ h = b.cut(dir, h, b.rim); continue; }     // the sea: beaches, a reef, a wall and canyons (ocean.js)
       const off=Math.acos(Math.min(1, dir.dot(b.dir)))*PR;
       if(off>=b.r) continue;
       const u=off/b.r, s=1-u*u;
@@ -1401,6 +1411,7 @@ window.PLANET = (function(){
       // nothing grows through a floor, or across the walk to the front door
       if(BUILDINGS.some(b=>b.dir && dir.angleTo(b.dir)*PR <
            Math.max(b.w,b.d)/2 + apronOf(b) + 2)) continue;
+      if(nearBasin(dir, 1.02)) continue;      // nor under water
       /* No onPath() here. That rule exists so a TREE does not stand in the
          middle of the first instruction a student is given, and applying it to
          ankle-high grass shaved a bald thirteen-metre runway up to the gate —
@@ -2268,7 +2279,8 @@ window.PLANET = (function(){
         const want=bs.dir.clone().applyAxisAngle(axis, ang).normalize();
         // a building is a thing to walk round, not through
         const hit=BUILDINGS.some(b=>b.dir && want.angleTo(b.dir)*PR <
-                    Math.hypot(b.w,b.d)/2 + 5);
+                    Math.hypot(b.w,b.d)/2 + 5)
+                  || (window.OCEAN && OCEAN.inside(want) < 1.05);      // and the sea is a thing to walk round too
         if(hit){ bs.turn=1.6; }
         else { bs.dir.copy(want); bs.fwd.applyAxisAngle(axis, ang); bs.step+=v*dt; }
       }
@@ -6163,7 +6175,10 @@ window.PLANET = (function(){
     /* THE CEILING, AND THE GROUND. Both are walls rather than surprises:
        you stop rising and the dome lights up, or you stop falling and are
        standing on your feet again. */
-    const floor=floorAt(me.dir, me.alt), roof=floor+ceilingOf();
+    /* over the sea, the water is as low as flight goes: coming down onto it
+       and letting go (land) drops you in for a swim, not onto the seabed */
+    const sea=window.OCEAN ? OCEAN.waterAt(me.dir) : null;
+    const floor=Math.max(floorAt(me.dir, me.alt), sea===null ? -Infinity : sea+0.4), roof=floor+ceilingOf();
     me.alt += me.climb*dt;
     if(me.alt>=roof){ me.alt=roof; me.climb=Math.min(0,me.climb); }
     if(me.alt<=floor+AIR.floor){
@@ -6448,7 +6463,7 @@ window.PLANET = (function(){
     if(mount && sd){ me.fwd.applyAxisAngle(up, -sd*2.1*dt); me.fwd.normalize(); sd=0; }
     const running=!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !swimming;
     const spd=mount ? (swimming ? 3.8 : running ? 12 : 7)
-            : swimming ? 3.4 : (running?11:6.5)*(ride?RIDE_SPEED:1);
+            : swimming ? (me.dive ? 4.6 : 3.4) : (running?11:6.5)*(ride?RIDE_SPEED:1);
     if(window.AVATAR && AVATAR.gait) AVATAR.gait(sd, f);   // so a side-step looks like one
 
     let moved=false;
@@ -6468,6 +6483,7 @@ window.PLANET = (function(){
         const axis=new THREE.Vector3().crossVectors(up, move).normalize();
         const want=me.dir.clone().applyAxisAngle(axis, ang).normalize();
         if(blocked(want)) return false;
+        if(swimming && me.dive && terrainH(want)+0.6 > me.alt+0.25) return false;   // a slope you can swim up, a cliff you cannot
         me.dir.copy(want);
         me.fwd.applyAxisAngle(axis, ang);
         return true;
@@ -6505,9 +6521,31 @@ window.PLANET = (function(){
        middle of one: ankle-deep water is something you wade through, and
        being put into a swimming pose to cross a puddle is worse than
        nothing. */
-    const surf = window.ISLANDS ? ISLANDS.waterAt(me.dir) : null;
+    /* ------------------------------------------------------- the sea
+       NOT A POOL: deep enough to go down into (ocean.js). At the top you
+       swim as you do in the pool; SHIFT takes you under, and then you
+       stay at whatever depth you let go at — the way a diver hangs in the
+       water — SPACE brings you back up, and at the top you float again.
+       The bottom is a floor you cannot sink through, and a canyon wall is
+       a wall (tryMove). */
+    const sea = window.OCEAN ? OCEAN.waterAt(me.dir) : null;
+    const surf = window.ISLANDS ? ISLANDS.waterAt(me.dir) : null;       // the plunge pool, which is nowhere near the sea
     const swimHere = surf!==null && (surf-floor) > 1.6 && me.alt < surf+0.35;
-    if(swimHere){
+    if(sea!==null && (sea-floor) > 1.6 && me.alt < sea+0.35){
+      if(!swimming){ swimming=true; me.dive=false; if(window.AVATAR && !mount) AVATAR.posture('swim'); }
+      const upDown=(G.keys.Space?1:0) - ((G.keys.ShiftLeft||G.keys.ShiftRight||G.keys.KeyQ)?1:0);
+      if(upDown<0) me.dive=true;
+      if(me.dive){
+        me.alt += upDown*3.4*dt;
+        if(upDown>0 && me.alt >= sea-0.55) me.dive=false;         // back at the top
+        me.alt = Math.min(me.alt, sea-0.45);
+      } else {
+        const bob=-0.42 + 0.07*Math.sin(performance.now()*0.0021);
+        me.alt += (sea+bob-me.alt)*Math.min(1, dt*3.2);
+      }
+      me.alt = Math.max(me.alt, floor+0.6);                        // never through the bottom
+      me.vy=0; me.onGround=false;
+    } else if(swimHere){
       if(!swimming){ swimming=true; if(window.AVATAR && !mount) AVATAR.posture('swim'); }
       /* Eased rather than snapped: you sink a little on the way in and come
          back up, which is most of what entering water looks like. */
@@ -6521,6 +6559,7 @@ window.PLANET = (function(){
       me.vy=0; me.onGround=false;
     } else {
       if(swimming){ swimming=false; if(window.AVATAR) AVATAR.posture(null); }
+      me.dive=false;
       if(me.onGround && G.keys.Space){ me.vy=JUMP; me.onGround=false; }
       /* WALKED OFF AN EDGE. Without this, stepping off a roof does not drop
          you — it teleports you, because a grounded walker is pinned to
@@ -6848,6 +6887,20 @@ window.PLANET = (function(){
     if(flying) head.addScaledVector(camF, 1.6);
     const off=camF.clone().multiplyScalar(-back).addScaledVector(up, lift);
     off.applyAxisAngle(camR, G.pitch);
+    /* UNDER THE SEA THE GROUND IS ALL ROUND YOU: down a canyon the chase
+       camera would sit inside the wall. Walk back along the line from the
+       head until the whole of it is in water. */
+    if(swimming && me.dive){
+      const at=V(), clear=k=>{ for(let i=1;i<=6;i++){ at.copy(head).addScaledVector(off, k*i/6);
+        if(at.length() < PR + terrainH(at.clone().normalize()) + 0.6) return false; } return true; };
+      let k=1; while(k>0.2 && !clear(k)) k-=0.1;
+      off.multiplyScalar(Math.max(0.2, k));
+      /* and under the surface with you: a diver seen from above the waves is
+         a shape through wet glass, not somebody in the sea */
+      const sea=window.OCEAN ? OCEAN.waterAt(me.dir) : null;
+      if(sea!==null){ const camAlt=head.clone().add(off).length()-PR, over=camAlt-(sea-0.35);
+        if(over>0) off.addScaledVector(up, -over); }
+    }
     G.camera.position.copy(head).add(off);
     G.camera.up.copy(up);
     G.camera.lookAt(head);
@@ -7284,6 +7337,7 @@ window.PLANET = (function(){
     }
     flyTick(dt); beastTick(dt); mechaTick(dt);
     if(window.ISLANDS) ISLANDS.tick(dt);      // the falls run, and the fish swim
+    if(window.OCEAN) OCEAN.tick(dt, me, G.camera, swimming && OCEAN.waterAt(me.dir)!==null);   // the sea, and everything in it
     /* THROUGH NEON'S DOORWAY ON FOOT IS INTO NEON (islands.js walkedIn) */
     if(window.ISLANDS && ISLANDS.walkedIn && !flying && me.onGround && (G.keys.KeyW||G.keys.ArrowUp)){
       const d=ISLANDS.walkedIn(me); if(d && d.enter){ use(d.enter); return; }
@@ -7721,6 +7775,7 @@ window.PLANET = (function(){
     flying=false; travelClose(); dome=null; streak=null;
     me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     if(window.AVATAR) AVATAR.posture(null);
+    if(window.OCEAN) OCEAN.clear();      // and the underwater blue does not follow you indoors
     /* AND THE GLASSES COME OFF WHEN YOU GO INDOORS. The overlay is fixed
        to the viewport rather than to the world, so it would otherwise go
        on tinting the screen inside the tower — where there is no ridge to
