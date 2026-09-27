@@ -43,7 +43,20 @@ window.TSHCITY = (function(){
     const parts = new Map();
     const P = mat => { if(!parts.has(mat)) parts.set(mat, { p:[], n:[], u:[], i:[] }); return parts.get(mat); };
     const _m = new THREE.Matrix4(), _nm = new THREE.Matrix3(), _v = new V3();
+    /* WHAT HANGS OVER YOUR HEAD, kept as boxes while it is poured in. The
+       merged meshes cannot say where one sign ends, and the chase camera
+       needs to know: it sat at 4.6 m — the height of the alley's canopy
+       and every blade sign in the district — and filmed the back of them.
+       Anything whose underside is above head height goes on this list;
+       ceilingAt() below is how the camera reads it. */
+    const over = [], props = [];
+    const hang = (x1, x2, z1, z2, y1, y2) => {
+      if(y1 > 1.9 && y1 < 60 && x2-x1 < 90 && z2-z1 < 90) over.push({ x1, x2, z1, z2, y1 });
+      // and every smaller solid thing, for the lens: a lantern, a sign, a stall — not the buildings, which are walls
+      if(y2 > 0.4 && y1 < 40 && (x2-x1 < 12 || z2-z1 < 12) && x2-x1 < 40 && z2-z1 < 40) props.push({ x1, x2, y1, y2, z1, z2 });
+    };
     return {
+      over, props,
       quad(mat, a, b, c, d, uv){        // a b c d anticlockwise, seen from the front
         const t = P(mat), base = t.p.length/3;
         const n = new V3().subVectors(b, a).cross(new V3().subVectors(d, a)).normalize();
@@ -61,6 +74,8 @@ window.TSHCITY = (function(){
         const cs = Math.cos(ry), sn = Math.sin(ry);
         const W = (lx, ly, lz) => new V3(x + lx*cs + lz*sn, y + ly, z - lx*sn + lz*cs);
         const hw = w/2, hh = h/2, hd = d/2;
+        const ex = Math.abs(cs)*hw + Math.abs(sn)*hd, ez = Math.abs(sn)*hw + Math.abs(cs)*hd;
+        hang(x-ex, x+ex, z-ez, z+ez, y-hh, y+hh);
         const U = (a, b) => [0,0, a/s,0, a/s,b/s, 0,b/s];
         const oy = o.v0 || 0;             // shift v, so a facade's windows start at the right floor
         const Uy = (a, b) => [0,oy/sv, a/s,oy/sv, a/s,(b+oy)/sv, 0,(b+oy)/sv];
@@ -76,13 +91,16 @@ window.TSHCITY = (function(){
         _m.compose(pos || new V3(), new THREE.Quaternion().setFromEuler(rot || new THREE.Euler()), scl || new V3(1,1,1));
         _nm.getNormalMatrix(_m);
         const gp = g.attributes.position, gn = g.attributes.normal, gu = g.attributes.uv;
+        let x1 = Infinity, x2 = -Infinity, y1 = Infinity, y2 = -Infinity, z1 = Infinity, z2 = -Infinity;
         for(let k=0;k<gp.count;k++){
           _v.fromBufferAttribute(gp, k).applyMatrix4(_m); t.p.push(_v.x, _v.y, _v.z);
+          if(_v.x < x1) x1 = _v.x; if(_v.x > x2) x2 = _v.x; if(_v.y < y1) y1 = _v.y; if(_v.y > y2) y2 = _v.y; if(_v.z < z1) z1 = _v.z; if(_v.z > z2) z2 = _v.z;
           if(gn){ _v.fromBufferAttribute(gn, k).applyMatrix3(_nm).normalize(); t.n.push(_v.x, _v.y, _v.z); } else t.n.push(0,1,0);
           if(gu) t.u.push(gu.getX(k), gu.getY(k)); else t.u.push(0,0);
         }
         if(g.index) for(let k=0;k<g.index.count;k++) t.i.push(base + g.index.getX(k));
         else for(let k=0;k<gp.count;k++) t.i.push(base + k);
+        hang(x1, x2, z1, z2, y1, y2);
       },
       build(group, o){
         const out = [];
@@ -425,11 +443,83 @@ window.TSHCITY = (function(){
     BA.build(ag);
     out.aptGroup = ag; out.cityGroup = group;
 
+    out.ceilingAt = overhead(B.over);
+    out.lens = lensTest(B.props);
     const meshes = B.build(group);
     out.meshes = meshes;
     out.nav = navGraph(out);
     out.blds = blds;
     return out;
+  }
+
+  /* THE UNDERSIDE OF THE CITY, for the chase camera (game.js reads it
+     through G.ceiling). Given a spot and the level your feet are on, the
+     lowest thing hanging well above your head near that spot — a sign, an
+     awning, the alley's canopy, a pipe. A metre of margin, because what
+     blinds a camera is not the sign it is inside but the one just in
+     front of the lens. Bucketed in 4 m cells: it is asked every frame. */
+  function overhead(list){
+    const C = 4, M = 1.0, cells = new Map();
+    const key = (i, j) => i*100003 + j;
+    list.forEach(o=>{
+      for(let i=Math.floor((o.x1-M)/C); i<=Math.floor((o.x2+M)/C); i++)
+        for(let j=Math.floor((o.z1-M)/C); j<=Math.floor((o.z2+M)/C); j++){
+          const k = key(i, j); if(!cells.has(k)) cells.set(k, []); cells.get(k).push(o);
+        }
+    });
+    return (x, z, feet) => {
+      const c = cells.get(key(Math.floor(x/C), Math.floor(z/C))); if(!c) return Infinity;
+      let lid = Infinity;
+      for(const o of c){
+        // only what there is room to get under: a sign frame a hand above your hair is looked OVER, not ducked under
+        if(o.y1 > feet + 2.55 && o.y1 < lid && x > o.x1-M && x < o.x2+M && z > o.z1-M && z < o.z2+M) lid = o.y1;
+      }
+      return lid;
+    };
+  }
+
+  /* WHAT THE LENS CAN BUMP INTO. Every prop in the district as a box, in
+     4 m cells: near() — is anything within r of this point; seg() — is
+     anything between these two. The chase camera asks both before it
+     settles anywhere (tsh.js, chaseCam). */
+  function lensTest(list){
+    const C = 4, cells = new Map(), key = (i, j) => i*100003 + j;
+    list.forEach(o=>{
+      for(let i=Math.floor(o.x1/C); i<=Math.floor(o.x2/C); i++)
+        for(let j=Math.floor(o.z1/C); j<=Math.floor(o.z2/C); j++){ const k = key(i, j); if(!cells.has(k)) cells.set(k, []); cells.get(k).push(o); }
+    });
+    let stamp = 0;
+    const near = (x, y, z, r) => {
+      stamp++;
+      for(let i=Math.floor((x-r)/C); i<=Math.floor((x+r)/C); i++) for(let j=Math.floor((z-r)/C); j<=Math.floor((z+r)/C); j++){
+        const c = cells.get(key(i, j)); if(!c) continue;
+        for(const o of c){
+          if(o.s === stamp) continue; o.s = stamp;
+          const dx = x < o.x1 ? o.x1 - x : x > o.x2 ? x - o.x2 : 0, dy = y < o.y1 ? o.y1 - y : y > o.y2 ? y - o.y2 : 0, dz = z < o.z1 ? o.z1 - z : z > o.z2 ? z - o.z2 : 0;
+          if(dx*dx + dy*dy + dz*dz < r*r) return true;
+        }
+      }
+      return false;
+    };
+    const slab = (a, d, lo, hi, t) => {                 // one axis of the slab test; t = [t0, t1]
+      if(Math.abs(d) < 1e-9) return a >= lo && a <= hi;
+      let u = (lo - a)/d, v = (hi - a)/d; if(u > v){ const w = u; u = v; v = w; }
+      t[0] = Math.max(t[0], u); t[1] = Math.min(t[1], v); return t[0] <= t[1];
+    };
+    const seg = (ax, ay, az, bx, by, bz) => {
+      stamp++;
+      const dx = bx-ax, dy = by-ay, dz = bz-az;
+      for(let i=Math.floor(Math.min(ax, bx)/C); i<=Math.floor(Math.max(ax, bx)/C); i++) for(let j=Math.floor(Math.min(az, bz)/C); j<=Math.floor(Math.max(az, bz)/C); j++){
+        const c = cells.get(key(i, j)); if(!c) continue;
+        for(const o of c){
+          if(o.s === stamp) continue; o.s = stamp;
+          const t = [0, 1];
+          if(slab(ax, dx, o.x1, o.x2, t) && slab(ay, dy, o.y1, o.y2, t) && slab(az, dz, o.z1, o.z2, t)) return true;
+        }
+      }
+      return false;
+    };
+    return { near, seg, count:list.length };
   }
 
   /* ------------------------------------------------------------ props */
@@ -876,5 +966,5 @@ window.TSHCITY = (function(){
     return clip(-dx, ax-x1) && clip(dx, x2-ax) && clip(-dz, az-z1) && clip(dz, z2-az) && t0 <= t1;
   }
 
-  return { build, segBox, APT, BUILDINGS, HIGH, EDGE, AVE, MKT, LANES, get M(){ return M; } };
+  return { build, segBox, overhead, lensTest, APT, BUILDINGS, HIGH, EDGE, AVE, MKT, LANES, get M(){ return M; } };
 })();

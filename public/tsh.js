@@ -223,11 +223,19 @@ window.TSH = (function(){
 
   /* ============================================================ the world */
   let on = false, server = null, root = null, W = null, clock = 0, inside = false;
+  /* A TIMER BELONGS TO THE NIGHT THAT SET IT. Leave mid-scene and come
+     straight back, and the old night's timers used to go off in the new
+     one — Maya "leaving" a flat she had just walked into. Each entry is a
+     new run; a timer from another run does nothing. */
+  let run = 0;
+  const later = (f, ms) => { const r = run; return setTimeout(()=>{ if(on && run === r) f(); }, ms); };
   let things = [], mode = null, busy = null;          // mode: 'cut' | 'climb' | 'ride' | 'hide' | 'grab' | 'chair' | 'end'
   const dyn = [];                                      // solids that move (trucks), refreshed each frame
 
   function enter(sv){
     server = sv || null;
+    run++; talkQ = []; sayOver = null; cv = null; dealT = null;
+    inside = false;           // a night that was left from inside the flat starts on the street, like any other
     load();
     const resumed = restore();
     if(!resumed){ const runs = S.runs, last = S.last; S = fresh(); S.runs = runs; S.last = last; }
@@ -261,6 +269,7 @@ window.TSH = (function(){
      something else takes you out of the city (the pause card's HOME). */
   function stop(){
     if(!on) return;
+    cv = null; dealT = null;
     on = false; mode = null; busy = null;
     save();
     stopBed(); clearNpcs(); clearMarks();
@@ -291,13 +300,59 @@ window.TSH = (function(){
     W = CITY.build(root);
     W.solids.forEach(s=>G.solids.push(s));
     W.checkpoint.solids.forEach(s=>{ s.off = true; });        // switched on by the clock
-    G.ground = groundAt; G.ceiling = null;
+    G.ground = groundAt; G.ceiling = streetLid;
     applyLook();
     LOOK.init(G.renderer);
     makeLights();
     W.aptGroup.visible = false;
     things = [];
     wireThings();
+  }
+  /* THE CHASE CAMERA DUCKS. game.js keeps it out of walls; this keeps it
+     under what hangs off them. Asked at the lens and twice on the way back
+     to Robin's head, so a sign between the two pulls it down as well as a
+     sign it is sitting in. Outside only: the flat has a plain ceiling. */
+  function streetLid(x, z, fy){
+    if(!W || !W.ceilingAt) return Infinity;
+    let lid = W.ceilingAt(x, z, fy);
+    for(const k of [0.35, 0.7]) lid = Math.min(lid, W.ceilingAt(lerp(x, G.pos.x, k), lerp(z, G.pos.z, k), fy));
+    return lid;
+  }
+  /* THE LENS, LAST. game.js has put the chase camera behind Robin and
+     out of the walls; the district is also full of things that are not
+     walls — lanterns, awnings, blade signs, stalls, the alley's canopy —
+     and a camera parked in one films a lampshade. So just before the
+     frame is drawn: if the lens is up against something, or something is
+     between it and her, it comes in along the line back to her (and a
+     little lower) to the first spot that is clear. It comes in quickly
+     and goes back out slowly, so it does not pump.
+
+     game.js eases the camera from wherever it was last frame, so the
+     spot it chose is put back before it runs again (chaseBack, from
+     tick) — otherwise this would be feeding on its own correction. */
+  const chase = { k:1, dy:0, raw:null };
+  function chaseBack(){
+    if(chase.raw && mode === null && G.running) G.camera.position.copy(chase.raw);
+    chase.raw = null;
+  }
+  function chaseCam(dt){
+    if(mode !== null || !G.running || busy || inside || !W || !W.lens){ chase.k = 1; chase.dy = 0; return; }
+    const L = W.lens, cam = G.camera.position, head = V(G.pos.x, G.pos.y + 0.1, G.pos.z);
+    chase.raw = cam.clone();
+    const off = cam.clone().sub(head);
+    const at = (k, dy) => { const p = head.clone().addScaledVector(off, k); p.y = Math.max(head.y + 0.25, p.y + dy*k); return p; };
+    const clear = p => !L.near(p.x, p.y, p.z, 0.45) && !L.seg(p.x, p.y, p.z, head.x, head.y, head.z);
+    let tk = 1, tdy = 0;
+    if(!clear(cam)){
+      tk = 0.22; tdy = -1;
+      find: for(const k of [0.85, 0.7, 0.55, 0.42, 0.3]) for(const dy of [0, -0.7, -1.4]){ if(clear(at(k, dy))){ tk = k; tdy = dy; break find; } }
+    }
+    const e = 1 - Math.exp(-dt*(tk < chase.k ? 14 : 2.5));
+    chase.k = lerp(chase.k, tk, e); chase.dy = lerp(chase.dy, tdy, e);
+    if(chase.k > 0.995 && Math.abs(chase.dy) < 0.01) return;
+    cam.copy(at(chase.k, chase.dy));
+    const dir = V(-Math.sin(G.yaw), 0, -Math.cos(G.yaw));
+    G.camera.lookAt(head.clone().addScaledVector(dir, 6).setY(G.pos.y + Math.sin(G.pitch)*5));
   }
   /* the platforms: the highest one under you that you could have stepped onto */
   function groundAt(x, z, feet){
@@ -697,7 +752,8 @@ window.TSH = (function(){
   function fade(mid, then){
     if(fadeBusy) return; fadeBusy = true;
     const f = el.querySelector('.tsh-fade'); f.classList.add('on');
-    setTimeout(()=>{ if(!on){ fadeBusy = false; return; } try{ mid && mid(); }catch(e){ console.warn(e); }
+    const r = run;                         // not later(): a fade has to let go of the screen whatever happens
+    setTimeout(()=>{ if(!on || run !== r){ fadeBusy = false; f.classList.remove('on'); return; } try{ mid && mid(); }catch(e){ console.warn(e); }
       setTimeout(()=>{ f.classList.remove('on'); fadeBusy = false; then && then(); }, 120); }, 420);
   }
 
@@ -896,7 +952,7 @@ window.TSH = (function(){
     if(n.kind === 'civ' && !n.film) { n.sees = false; return; }
     if(n.stun > 0 || n.climb){ n.sees = false; n.aware = Math.max(0, n.aware - 0.2*dt); return; }
     const p = P();
-    if(me.hidden || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
+    if(me.hidden || mode === 'talk' || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
     const light = lightAt(p.x, p.y + 1, p.z) * (crowdAround(p.x, p.z) >= 3 ? 0.45 : 1);
     // in the dark you are a shape at arm's length and nothing further off
     const vis = canSee(n, p.x, p.y, p.z) && !(light < 0.12 && Math.hypot(p.x - n.x, p.z - n.z) > 2.6);
@@ -1050,7 +1106,7 @@ window.TSH = (function(){
     }
     d.src.x = bx; d.src.y = by + 2.2; d.src.z = bz;
     // is she in it?
-    const inBeam = !blind && !me.hidden && !inside && Math.hypot(p.x - bx, p.z - bz) < n.beam.r && Math.abs(p.y - by) < 2.5;
+    const inBeam = !blind && !me.hidden && mode !== 'talk' && !inside && Math.hypot(p.x - bx, p.z - bz) < n.beam.r && Math.abs(p.y - by) < 2.5;
     if(n.state === 'track'){
       if(inBeam){ n.lostT = 0; lastKnown = [p.x, p.z]; heatSeenT = 0; }
       else { n.lostT += dt; if(n.lostT > 4){ n.state = 'search'; n.searchT = 12; } }
@@ -1386,7 +1442,7 @@ window.TSH = (function(){
     const m = W.spots.drop;
     k.hidden = false;
     k.state = 'walk'; k.dest = [m[0]-0.3, m[1]+0.5, 0]; k.after = 'swap';
-    k.onArrive = ()=>{ k.state = 'catch'; setTimeout(()=>{ if(!on || k.gone) return; S.flags.dropCash = true; note('📱 Kai: "Done."'); k.state = 'walk'; k.dest = [-43.2, -12.8, 0]; k.after = 'stakeout'; k.stake = [-43.2, -12.8]; }, 3000); };
+    k.onArrive = ()=>{ k.state = 'catch'; later(()=>{ if(!on || k.gone) return; S.flags.dropCash = true; note('📱 Kai: "Done."'); k.state = 'walk'; k.dest = [-43.2, -12.8, 0]; k.after = 'stakeout'; k.stake = [-43.2, -12.8]; }, 3000); };
   }
   /* the glint of Maya's binoculars, from across the avenue */
   let glintMesh = null;
@@ -1432,7 +1488,7 @@ window.TSH = (function(){
       for(let i=0;i<8;i++){ const c = spawn('civ', CIV[(i+2) % CIV.length], 70 + (Math.random()-0.5)*6, -7 + Math.random()*2, { name:'club'+i, phone:true }); c.brisk = 0.7; }
       note('🎶 PULSE is letting out. A crowd is a good place to be nobody.'); }
     // the clock stops at two; nothing fails
-    S.t = Math.min(AI.AT.end, S.t + dt*AI.RATE*(mode === 'cut' ? 0 : 1));
+    S.t = Math.min(AI.AT.end, S.t + dt*AI.RATE*(mode === 'cut' || mode === 'talk' ? 0 : 1));
   }
   function checkpointOnOff(v){
     cpOn = v;
@@ -1469,7 +1525,7 @@ window.TSH = (function(){
     note('📻 WFC radio: "All units, Market Street. Unlicensed wearables."');
     // the checkpoint is left unmanned while they are busy
     ['cp0','cp1'].forEach(k=>{ const g = find(k); if(g){ g.state = 'raid'; g.leftPost = 45; } });
-    const start = ()=>{ if(!on || v.gone) return; talk('raid'); setTimeout(()=>{ if(!on || v.gone) return; v.state = 'flee'; v.fleeTo = [-8, 82]; }, 2600); };
+    const start = ()=>{ if(!on || v.gone) return; talk('raid'); later(()=>{ if(!on || v.gone) return; v.state = 'flee'; v.fleeTo = [-8, 82]; }, 2600); };
     const wait = setInterval(()=>{ if(!on || a.gone){ clearInterval(wait); return; } if(Math.hypot(a.x - v.x, a.z - v.z) < 4){ clearInterval(wait); start(); } }, 300);
     S.flags.raidT = clock;
   }
@@ -1520,8 +1576,8 @@ window.TSH = (function(){
     hud();
     const g = AI.QUEST[S.step];
     setObjective(S.step === 'home' && !S.cash ? 'Get home.' : g ? g.goal : '', INFO[S.step] || []);
-    if(S.step === 'deal' && first){ setTimeout(()=>{ if(on && S.step==='deal') talk('open'); }, 2600); }
-    if(['deal','home','out'].includes(S.step) && !inside) setTimeout(()=>{ if(on) checkpoint(); }, 400);
+    if(S.step === 'deal' && first){ later(()=>{ if(on && S.step==='deal') talk('open'); }, 2600); }
+    if(['deal','home','out'].includes(S.step) && !inside) later(()=>{ if(on) checkpoint(); }, 400);
     if(S.step === 'home' && !first) note('🏠 Get home: 214 Harbor Lane.');
   }
 
@@ -1538,7 +1594,8 @@ window.TSH = (function(){
       }
     }
     if(S.step === 'deal'){
-      if(kai && kai.state === 'wait' && !dealT && Math.hypot(p.x - kai.x, p.z - kai.z) < 3.8 && p.y < 1 && !mode) dealBegin(kai);
+      // E starts it from a few steps off; walk right up to him and he starts it himself
+      if(kai && kai.state === 'wait' && !dealT && S.rings && Math.hypot(p.x - kai.x, p.z - kai.z) < 2.0 && p.y < 1 && !mode) dealBegin(kai);
       if(dealT) tickDeal(dt, kai);
       if(S.t >= AI.AT.kaiGivesUp && !dealT){ if(kai && !kai.gone){ bark(kai, 'Waste of time.'); kaiLeave(kai); } note('⌚ 23:00. The buyer has gone.'); outcome('noshow'); }
     }
@@ -1556,33 +1613,53 @@ window.TSH = (function(){
     if(S.step === 'out' && !mode) tickOut(dt);
   }
 
-  /* THE DEAL, as George wrote it — with two places the player can step
-     out of it: handing the rings over before the money (Kai walks), and
-     walking away with the money before the rings (Kai chases). */
+  /* THE DEAL, as George wrote it — played, not read. Kai talks; Robin
+     answers when you say so; and twice the deal can go another way:
+       "Show me the merchandise." — hold out for the money, as Robin does,
+         or show him the rings, and watch them go into his pocket;
+       the envelope in her hand — toss him the rings, as Robin does, or
+         keep them and walk, and have Kai come after her. */
   function dealBegin(kai){
-    dealT = { stage:'talk1', t:0 };
+    if(mode) return;
+    dealT = { stage:'talk' };
     kai.state = 'deal'; S.flags.dealStarted = true;
-    talk('deal1', ()=>{ if(!dealT) return; dealT.stage = 'merch'; dealT.t = 3.2; });
+    const ok = convo([
+      ['kai', 'YU?'],
+      { ask:[
+        { say:'Spell it out.', hint:'make him say it' },
+        { say:'Who\'s asking?', hint:'play it cool', then:[['kai', 'The guy with your money.']] }
+      ]},
+      ['kai', 'Y, U.'],
+      ['robin', 'Cash first.'],
+      ['kai', 'Show me the merchandise.'],
+      { ask:[
+        { say:'I said. Money first.', hint:'don\'t budge' },
+        { icon:'💍', does:'Show him the rings.', hint:'let him see them first',
+          then:[()=>{ S.rings = false; cue('pick'); note('💍 He takes them out of your hand.', 'bad'); hud(); }, ...LINES.handed], act:()=>ringsTaken(kai), end:true }
+      ]},
+      ['kai', 'I\'d change that attitude.'],
+      ['robin', 'Not making friends here, are we?'],
+      ['kai', 'A word of advice.'],
+      { wait:1.1, act:()=>envelope(kai) },
+      { lines:()=>me.hood ? LINES.deal3.slice(0, 1) : LINES.deal3Bare.slice(0, 2) },
+      { ask:[
+        { icon:'💍', say:'Yeah, yeah. Thank you for your business.', hint:'toss him the rings', act:()=>{ if(dealT) dealT.stage = 'toss'; tossRings(); } },
+        { icon:'🏃', does:'Keep the rings. Walk away with the money.', hint:'he will come after you', act:()=>runWithIt(kai) }
+      ]}
+    ], { npc:kai });
+    if(!ok){ dealT = null; kai.state = 'wait'; S.flags.dealStarted = false; }
   }
   function tickDeal(dt, kai){
-    if(!kai || kai.gone){ dealT = null; return; }
-    const p = P(), d = Math.hypot(p.x - kai.x, p.z - kai.z);
-    if(dealT.stage === 'merch'){
-      dealT.t -= dt;
-      if(dealT.t <= 0){ dealT.stage = 'talk2'; talk('deal2', ()=>{ if(!dealT) return; envelope(kai); }); }
-    }
-    if(dealT.stage === 'toss' && d > 7){ dealT = null; walkedOff(kai); return; }
-    if(['talk1','merch','talk2'].includes(dealT.stage) && d > 9){ dealT = null; flushTalk(); bark(kai, 'Hey!'); kai.state = 'wait'; }
+    if(!kai || kai.gone){ dealT = null; if(cv) endConvo(); }
   }
   function envelope(kai){
-    dealT.stage = 'env';
+    if(dealT) dealT.stage = 'env';
     // the envelope is thrown, and caught
     const from = V(kai.x, kai.y + 1.4, kai.z), to = V(G.pos.x, feet() + 1.2, G.pos.z);
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.12), new THREE.MeshStandardMaterial({ color:0xd8c89a, roughness:0.7 })); W.cityGroup.add(m);
     tween(0.55, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*0.8, lerp(from.z, to.z, k)); m.rotation.y = k*9; }, ()=>{
       W.cityGroup.remove(m); S.cash = 3000; S.trail.tracker = 'on'; cue('pick'); note('✉ The envelope. It feels about right.'); hud();
       if(!me.hood){ S.trail.kaiSawFace = true; expose(10, 'Kai saw your face'); }
-      talk(me.hood ? 'deal3' : 'deal3Bare', ()=>{ if(dealT){ dealT.stage = 'toss'; } });
     });
   }
   function tossRings(){
@@ -1597,9 +1674,24 @@ window.TSH = (function(){
       kai.yaw += Math.PI*0.9;                       // he turns round…
       kai.state = 'search'; kai.searchT = 9; kai.aware = 0;
       // …and when you are gone, the can gets it
-      setTimeout(()=>{ if(!on || kai.gone || kai.state !== 'search' || kai.sees) return; kickCan(kai); }, 1600);
+      later(()=>{ if(!on || kai.gone || kai.state !== 'search' || kai.sees) return; kickCan(kai); }, 1600);
     });
     outcome('paid');
+  }
+  /* the rings before the money: he pockets them and walks back to his crew */
+  function ringsTaken(kai){
+    dealT = null; S.rings = false;
+    if(kai.gone) return;
+    kai.state = 'rob'; kai.aware = 0; kai.band = 'unaware';
+    outcome('robbed');
+  }
+  /* the money and not the rings: a heartbeat while it sinks in, then he runs */
+  function runWithIt(kai){
+    dealT = null;
+    endConvo();
+    note('🏃 Run.', 'big');
+    bark(kai, '…Hey.');
+    later(()=>{ if(!on || kai.gone) return; walkedOff(kai); }, 1000);
   }
   function kickCan(kai){
     if(!dropCan) return;
@@ -1607,13 +1699,6 @@ window.TSH = (function(){
     const from = dropCan.position.clone();
     tween(0.6, k=>{ dropCan.position.set(from.x + k*1.6, 0.4 + Math.sin(k*Math.PI)*0.6, from.z + k*0.8); dropCan.rotation.z = k*1.6; dropCan.scale.set(1, 1 - k*0.18, 1 + k*0.1); });
     noise(from.x, from.z, 14, 'kick');
-  }
-  function handOverFirst(){
-    const kai = find('kai'); if(!kai || !dealT || !['merch','talk2'].includes(dealT.stage)) return;
-    dealT = null; flushTalk(); S.rings = false;
-    cue('ui');
-    talk('handed', ()=>{ if(kai.gone) return; kai.state = 'rob'; kai.aware = 0; kai.band = 'unaware'; });
-    outcome('robbed');
   }
   function walkedOff(kai){
     talk('walkoff');
@@ -1623,7 +1708,7 @@ window.TSH = (function(){
   }
   function leaveInMailbox(){
     S.flags.dropLeft = true; S.rings = false; cue('pick');
-    talk('dropSent', ()=>setTimeout(()=>{ if(on) talk('dropReply'); }, 1500));
+    talk('dropSent', ()=>later(()=>{ if(on) talk('dropReply'); }, 1500));
     outcome('dropped');
     const kai = find('kai'); if(kai && kai.state !== 'offstage') kaiToDrop(kai);
   }
@@ -1641,8 +1726,8 @@ window.TSH = (function(){
     thing(m[0], m[1], 0, 'Leave the rings in the mailbox', ()=>leaveInMailbox(), { icon:'📬', r:1.6,
       when:()=>S.step==='deal' && S.rings && !S.flags.dealStarted && S.t < AI.AT.deal - 1 && (!find('kai') || ['offstage','walk'].includes(find('kai').state)) });
     thing(m[0], m[1], 0, 'Take the envelope', ()=>takeFromMailbox(), { icon:'✉', r:1.6, when:()=>S.step==='drop' && S.flags.dropCash });
-    const kaiThing = thing(0, 0, 0, 'Hand over the rings first', ()=>handOverFirst(), { icon:'💍', r:3.2, when:()=>{ const k = find('kai'); if(!k || !dealT || !['merch','talk2'].includes(dealT.stage)) return false; kaiThing.x = k.x; kaiThing.z = k.z; return true; } });
-    const toss = thing(0, 0, 0, 'Toss the rings', ()=>tossRings(), { icon:'💍', r:4.5, when:()=>{ const k = find('kai'); if(!k || !dealT || dealT.stage !== 'toss') return false; toss.x = k.x; toss.z = k.z; return true; } });
+    const meet = thing(0, 0, 0, 'Talk to the buyer', ()=>{ const k = find('kai'); if(k) dealBegin(k); }, { icon:'💬', r:4, when:()=>{
+      const k = find('kai'); if(S.step !== 'deal' || !k || k.state !== 'wait' || dealT || !S.rings) return false; meet.x = k.x; meet.z = k.z; return true; } });
     const lift = thing(0, 0, 0, 'Lift the envelope', ()=>liftEnvelope(find('kai')), { icon:'🤏', r:1.6, when:()=>{
       const k = find('kai'); if(S.step !== 'robbed' || !k || k.state !== 'rob' || k.aware >= 0.62 || k.stun > 0) return false;
       const behind = Math.abs(angDiff(angTo(k.x, k.z, G.pos.x, G.pos.z), k.yaw)) > 2.0; if(!behind) return false;
@@ -1672,14 +1757,14 @@ window.TSH = (function(){
     S.flags.speech = true;
     screensMode('news', 26);
     const near = W.screens.some(s=>Math.hypot(s.x - G.pos.x, s.z - G.pos.z) < 60);
-    if(near) talk('news', ()=>setTimeout(()=>{ if(on) roofCut(); }, 800));
-    else { note('📺 The Director is on every screen in the city.'); setTimeout(()=>{ if(on) roofCut(); }, 6000); }
+    if(near) talk('news', ()=>later(()=>{ if(on) roofCut(); }, 800));
+    else { note('📺 The Director is on every screen in the city.'); later(()=>{ if(on) roofCut(); }, 6000); }
   }
   /* MATCH CUT: Robin walking away, through a pair of binoculars — and then
      the roof those binoculars are on. What Maya says there depends on
      what happened in the alley, and what her tracker says. */
   function roofCut(){
-    if(inside || S.flags.roofCut || mode){ setTimeout(()=>{ if(on && !S.flags.roofCut && !inside) roofCut(); }, 2000); return; }
+    if(inside || S.flags.roofCut || mode){ later(()=>{ if(on && !S.flags.roofCut && !inside) roofCut(); }, 2000); return; }
     S.flags.roofCut = true;
     const maya = find('maya'), m = W.spots.maya, kai = find('kai');
     const tailing = kai && kai.state === 'tail';
@@ -1707,7 +1792,7 @@ window.TSH = (function(){
       { cam:[m[0] - 4.5, m[2] + 2.4, m[1] + 5], look:[m[0] + 0.8, m[2] + 1.4, m[1] + 0.6], cam2:[m[0] - 3.2, m[2] + 1.9, m[1] + 4.2], lines,
         act:()=>{ if(maya){ maya.yaw = 0.4; } if(actor){ actor.yaw = Math.PI + 0.6; } },
         onLine:(i, who, text)=>{ const sp = who === 'maya' ? maya : who === 'kai' ? actor : null; [maya, actor].forEach(n=>{ if(n) n.talking = n === sp; });
-          if(text === 'Put it on.' && maya) setTimeout(()=>{ if(on) aura(maya); }, 900); } }
+          if(text === 'Put it on.' && maya) later(()=>{ if(on) aura(maya); }, 900); } }
     ], ()=>{
       if(actor) despawn(actor);
       if(maya) despawn(maya);
@@ -1763,7 +1848,7 @@ window.TSH = (function(){
   function goOutside(where){
     inside = false;
     W.cityGroup.visible = true; W.aptGroup.visible = false;
-    G.ceiling = null; G.scene.fog.density = 0.0155; G.scene.background = new THREE.Color(0x0b2a26);
+    G.ceiling = streetLid; G.scene.fog.density = 0.0155; G.scene.background = new THREE.Color(0x0b2a26);
     muffle(false);
     const s = W.spots;
     if(where === 'window'){ const w = s.homeWindow; placePlayer(w[0] - 0.3, w[1] + 1.2, Math.PI/2, w[2] + EYE_); }
@@ -1807,10 +1892,10 @@ window.TSH = (function(){
     apt.kai = spawn('kai', 'kofi', W.spots.aptDoor[0], a.z2 + 1.4, { inApt:true, name:'kaiApt', state:'offstage' });
     setObjective(how.how === 'ambush' ? 'Home. Finally.' : 'Home. Lie low.', how.how === 'ambush' ? ['Turn on the lamp (E).'] :
       ['Somebody could come looking. Get ready.', 'Hide the photo. Take what you need from the bench.', 'The switch by the door kills every light.', 'The window opens onto the fire escape.']);
-    setTimeout(()=>{ if(on && inside){ phoneCard('Voicemail', 'COUNSELOR'); talk('voicemail'); } }, resume ? 400 : 1400);
+    later(()=>{ if(on && inside){ phoneCard('Voicemail', 'COUNSELOR'); talk('voicemail'); } }, resume ? 400 : 1400);
     checkpointApt();
   }
-  function checkpointApt(){ setTimeout(()=>{ if(on && inside) checkpoint(); }, 300); }
+  function checkpointApt(){ later(()=>{ if(on && inside) checkpoint(); }, 300); }
   function tickApt(dt){
     apt.t += dt;
     const maya = apt.maya, kai = apt.kai;
@@ -1823,7 +1908,7 @@ window.TSH = (function(){
       if(ready){
         apt.stage = 'enter';
         if(apt.mode === 'ambush'){ mayaEmerge(); }
-        else { cue('door'); talk('knock', ()=>{ if(!on || !inside) return; cue('door'); maya.x = W.spots.aptDoor[0]; maya.z = W.spots.aptDoor[1]; maya.hidden = false; maya.state = 'talk'; startConversation(); }); }
+        else knockAt();
       }
     }
     if(apt.stage === 'talk'){
@@ -1834,24 +1919,74 @@ window.TSH = (function(){
   function mayaEmerge(){
     const m = apt.maya; m.hidden = false; m.state = 'talk';
     if(!me.hood) setHood(true);
-    talk('apt0', ()=>startConversation());
+    startConversation(LINES.apt0);
   }
-  function startConversation(){
+  /* THE KNOCK. Her voice through the door — and it is your door, so what
+     happens next is up to you. */
+  function knockAt(){
+    cue('door');
+    const d = W.spots.aptDoor;
+    const ok = convo([
+      ...LINES.knock,
+      { ask:()=>[
+        { icon:'🚪', does:'Open the door.', hint:'let her say what she came to say', act:()=>{ endConvo(); mayaIn(true); } },
+        { icon:'🤫', does:'Say nothing.', hint:'she knows you are in here', then:[['maya', 'Have it your way.']], act:()=>{ endConvo(); cue('door'); mayaIn(true); } },
+        ...((apt.lamp || apt.ceiling) ? [{ icon:'🔌', does:'Kill the lights, and wait for her in the dark.', hint:'she walks in blind',
+          act:()=>{ endConvo(); apt.lamp = false; apt.ceiling = false; aptLights(); cue('ui'); mayaIn(false); later(()=>{ if(on && inside) questEvent('dark'); }, 700); } }] : []),
+        { icon:'🪟', does:'Out the window. Now.', hint:'before she is through the door', act:()=>{ endConvo(); aptExit('window'); } }
+      ]}
+    ], { look:[d[0], 1.5, d[1]] });
+    if(!ok) mayaIn(true);
+  }
+  function mayaIn(talkTo){
+    const maya = apt.maya; if(!on || !inside || !maya) return;
+    cue('door'); maya.x = W.spots.aptDoor[0]; maya.z = W.spots.aptDoor[1]; maya.hidden = false; maya.state = 'talk';
+    if(talkTo) startConversation();
+  }
+  /* MAYA'S PITCH, all of George's lines, at your pace. Every time it is
+     Robin's turn to speak you can say what she says — or stop talking and
+     do something: the switch, the window, the gloves, the cutter on the
+     bench. Talk all the way to the end and Maya calls Kai in. */
+  function startConversation(opener){
     apt.stage = 'talk';
-    const mom = AI.knowsMother(S.trail, S.exposure);
-    const seq = ['apt1', mom ? 'apt2Mom' : 'apt2', 'apt3', 'apt4', 'apt5'];
-    let i = 0;
-    const next = ()=>{
-      if(!on || !inside || apt.stage !== 'talk') return;
-      if(i >= seq.length){ apt.stage = 'kai'; talk('callKai', ()=>kaiIn()); return; }
-      let key = seq[i++];
-      // what she says in the fourth part depends on what she knows by then
-      if(key === 'apt4') key = AI.knowsMother(S.trail, S.exposure) ? 'apt4Mom' : 'apt4';
-      if(key === 'apt3') setTimeout(()=>{ if(on && apt.maya) aura(apt.maya); }, 2500);
-      talk(key, next);
-    };
-    next();
     setObjective('Somebody is in your flat.', INFO.apt);
+    const mom = () => AI.knowsMother(S.trail, S.exposure);
+    // every line Robin has becomes her turn
+    const turns = lines => lines.map(([who, text])=>who === 'robin' ? { ask:()=>[{ say:text }, ...aptMoves()] } : [who, text]);
+    const ok = convo([
+      ...(opener || []),
+      ...turns(LINES.apt1),
+      { lines:()=>LINES[mom() ? 'apt2Mom' : 'apt2'] },
+      ()=>{ later(()=>{ if(on && apt.maya) aura(apt.maya); }, 1400); },
+      ...turns(LINES.apt3),
+      { lines:()=>LINES[mom() ? 'apt4Mom' : 'apt4'] },
+      ...turns(LINES.apt5),
+      ...LINES.callKai,
+      ()=>{ endConvo(); if(!on || !inside) return; apt.stage = 'kai'; kaiIn(); }
+    ], { npc:apt.maya });
+    if(!ok){ apt.stage = 'kai'; kaiIn(); }
+  }
+  /* what Robin can do instead of answering */
+  function aptMoves(){
+    const m = [];
+    if(apt.lamp || apt.ceiling) m.push({ icon:'🔌', does:'Lunge for the light switch.', hint:'in the dark nobody sees much', act:moveLights });
+    m.push({ icon:'🪟', does:'Go for the window.', hint:'the fire escape — and she will send Kai after you', act:()=>{ endConvo(); aptExit('window'); } });
+    if(S.flash > 0) m.push({ icon:'✋', does:'Flash her.', hint:`the gloves · ${S.flash} charge${S.flash > 1 ? 's' : ''} left`, act:()=>{ endConvo(); flash(); } });
+    if(!S.flags.cutter) m.push({ icon:'🧰', does:'Palm the cutter off the bench.', hint:'in case this goes badly', act:movePalm, again:true });
+    return m;
+  }
+  function moveLights(){
+    endConvo();
+    const s = W.spots.aptSwitch;
+    fade(()=>{ placePlayer(s[0], s[1] - 0.8, 0); apt.lamp = false; apt.ceiling = false; aptLights(); cue('ui'); }, ()=>{ if(on && inside) questEvent('dark'); });
+  }
+  function movePalm(){
+    S.flags.cutter = true; cue('pick'); hud();
+    if(apt.lamp || apt.ceiling){
+      apt.sus += 0.55; note('✂ The cutter, up your sleeve. She saw you move.', 'warn');
+      return [['maya', 'Hands where I can see them.']];
+    }
+    note('✂ The cutter, up your sleeve. In the dark she didn\'t see a thing.');
   }
   function tickMayaApt(n, dt){
     const a = W.apt, s = W.spots, p = P();
@@ -1868,7 +2003,7 @@ window.TSH = (function(){
     const k = apt.kai; if(!k || !inside) return;
     if(S.step === 'apt') outcome('kaiIn');
     apt.stage = 'escape';
-    k.hidden = false; k.state = 'enter';
+    k.hidden = false; k.state = 'enter'; k.enterT = 1.6;
     k.x = W.spots.aptDoor[0]; k.z = W.spots.aptDoor[1] + 0.4; k.y = 0;
     cue('door'); bark(k, 'Evening.');
     setObjective(AI.QUEST.escape.goal, INFO.escape);
@@ -1876,7 +2011,9 @@ window.TSH = (function(){
   function tickKaiApt(n, dt){
     if(!dt || n.state === 'offstage') return;
     const p = P(), dark = !(apt.lamp || apt.ceiling);
-    if(n.state === 'enter'){ n.state = 'appr'; }
+    /* he fills the doorway for a moment before he comes for you: you
+       spent the conversation standing still, and this is your second */
+    if(n.state === 'enter'){ n.enterT = (n.enterT || 0) - dt; face(n, p.x, p.z, dt); n.clip = 'idle'; if(n.enterT <= 0) n.state = 'appr'; return; }
     if(n.state === 'appr'){
       // in the dark he goes to where he last saw you, slowly
       const tx = dark && n.lastSeen ? n.lastSeen[0] : p.x, tz = dark && n.lastSeen ? n.lastSeen[1] : p.z;
@@ -1895,7 +2032,7 @@ window.TSH = (function(){
     if(via === 'door' && kai && !kai.hidden && kai.stun <= 0 && Math.hypot(kai.x - G.pos.x, kai.z - G.pos.z) < 3.5){ note('Kai is in the doorway.', 'bad'); if(!mode) grab(kai); return; }
     if(via === 'door' && apt.stage === 'talk'){
       // walking out mid-conversation: Kai is on the stairs
-      flushTalk(); apt.stage = 'escape'; kaiIn(); setTimeout(()=>{ if(on && inside && !mode && apt.kai) grab(apt.kai); }, 500); return;
+      flushTalk(); apt.stage = 'escape'; kaiIn(); later(()=>{ if(on && inside && !mode && apt.kai) grab(apt.kai); }, 500); return;
     }
     if(S.step === 'chair') return;
     apt.exitVia = via;
@@ -1945,7 +2082,7 @@ window.TSH = (function(){
          you did not stand on the doorstep listening to it */
       const k = find('kai');
       if(k){ k.hidden = true; k.state = 'offstage';
-        setTimeout(()=>{ if(!on || k.gone) return; const h = W.spots.home; k.x = h[0]; k.z = h[1] + 1; k.hidden = false; k.state = 'hunt'; k.lastSeen = [h[0], h[1] + 4, 0, clock]; bark(k, 'YU!'); }, 9000); }
+        later(()=>{ if(!on || k.gone) return; const h = W.spots.home; k.x = h[0]; k.z = h[1] + 1; k.hidden = false; k.state = 'hunt'; k.lastSeen = [h[0], h[1] + 4, 0, clock]; bark(k, 'YU!'); }, 9000); }
       S.flags.afterDone = true;
       setObjective(AI.QUEST.out.goal, INFO.out);
     });
@@ -2048,8 +2185,8 @@ window.TSH = (function(){
     talk(lines, ()=>{
       if(!on) return;
       if(kai && maya) punch(kai, maya);
-      setTimeout(()=>{ if(!on) return; talk('barrier', ()=>{ if(kai){ stomp(kai); setTimeout(()=>{ if(on && kai){ cue('door'); despawn(kai); apt.kai = null; const k = find('kai'); if(!k){ const h = W.spots.home; const kk = spawn('kai', 'kofi', h[0], h[1] + 1, { name:'kai', state:'hunt' }); kk.lastSeen = [h[0], h[1], 0, clock]; } } }, 2000); }
-        setTimeout(()=>{ if(!on) return; talk('chairLeave', ()=>{ if(maya){ cue('door'); despawn(maya); apt.maya = null; } talk('chairCall'); }); }, 3200); }); }, 900);
+      later(()=>{ if(!on) return; talk('barrier', ()=>{ if(kai){ stomp(kai); later(()=>{ if(on && kai){ cue('door'); despawn(kai); apt.kai = null; const k = find('kai'); if(!k){ const h = W.spots.home; const kk = spawn('kai', 'kofi', h[0], h[1] + 1, { name:'kai', state:'hunt' }); kk.lastSeen = [h[0], h[1], 0, clock]; } } }, 2000); }
+        later(()=>{ if(!on) return; talk('chairLeave', ()=>{ if(maya){ cue('door'); despawn(maya); apt.maya = null; } talk('chairCall'); }); }, 3200); }); }, 900);
     });
   }
   function tickChair(dt){
@@ -2112,8 +2249,8 @@ window.TSH = (function(){
     const b = el.querySelector('.tsh-black'); b.classList.add('on');
     b.innerHTML = '<div class="tsh-cut">CUT TO BLACK.</div>';
     const sting = AI.ending(S.trail, S), [head, body] = AI.STINGS[sting];
-    setTimeout(()=>{ if(!on) return; b.innerHTML = `<div class="tsh-sting ${sting}"><i></i><b>${esc(head)}</b><p>${esc(body)}</p></div>`; cue(sting === 'clean' ? 'phone' : 'alert'); }, 2600);
-    setTimeout(()=>{ if(on) results(sting); }, 8200);
+    later(()=>{ if(!on) return; b.innerHTML = `<div class="tsh-sting ${sting}"><i></i><b>${esc(head)}</b><p>${esc(body)}</p></div>`; cue(sting === 'clean' ? 'phone' : 'alert'); }, 2600);
+    later(()=>{ if(on) results(sting); }, 8200);
   }
   function results(sting){
     S.done = true; S.runs = (S.runs||0) + 1;
@@ -2151,7 +2288,7 @@ window.TSH = (function(){
       if(inside && ['talk','kai'].includes(apt.stage)){ apt.stage = 'escape'; flushTalk(); talkNow('dark'); kaiIn(); }
     }
     if(name === 'dark' && inside && ['talk','enter','kai'].includes(apt.stage) && apt.maya && !apt.maya.hidden){
-      apt.stage = 'escape'; flushTalk(); talkNow('dark'); setTimeout(()=>{ if(on && inside) kaiIn(); }, 700);
+      apt.stage = 'escape'; flushTalk(); talkNow('dark'); later(()=>{ if(on && inside) kaiIn(); }, 700);
     }
     if(name === 'bench' && inside && apt.stage === 'talk') apt.benchUse = true;
     if(name === 'photo' && inside && apt.maya && !apt.maya.hidden && apt.maya.sees && S.trail.photo !== 'up') S.trail.mayaSawPhoto = true;
@@ -2180,13 +2317,16 @@ window.TSH = (function(){
 
   /* ============================================================ the talk
      Subtitles, the way a film has them: who is speaking, in their colour,
-     at the bottom of the frame. The world does not stop for them — in
-     the alley and in the flat you can walk about all through them. In a
-     cutscene SPACE moves on a line and ENTER skips the scene. */
+     at the bottom of the frame. These are the lines you OVERHEAR — the
+     Director on the screens, a voicemail, a text, somebody shouting in
+     the street — and they run on their own. A cutscene's lines are PACED:
+     each one waits for SPACE (or E, or a click), and ENTER skips the
+     scene. A conversation Robin is in is not subtitles at all: see
+     convo() below. */
   let talkQ = [], sayOver = null;
-  function talk(key, done){
+  function talk(key, done, o){
     const lines = Array.isArray(key) ? key : (LINES[key] || []);
-    talkQ.push({ lines, i:-1, t:0, done });
+    talkQ.push({ lines, i:-1, t:0, done, paced:!!(o && o.paced) });
   }
   function talkNow(key){
     const l = (LINES[key] || [])[0]; if(!l) return;
@@ -2194,7 +2334,7 @@ window.TSH = (function(){
     const n = speakerNpc(l[0]); if(n) bark(n, '');
   }
   function flushTalk(){ const q = talkQ; talkQ = []; q.forEach(x=>{ if(x.done) x.done(); }); subtitle(null); }
-  function skipLine(){ const q = talkQ[0]; if(q) q.t = 0; }
+  function skipLine(){ const q = talkQ[0]; if(q){ q.t = 0; q.go = true; } }
   function speakerNpc(who){
     const k = who === 'kai' ? (inside ? apt.kai : find('kai') || find('kaiRoof')) : who === 'maya' ? (inside ? apt.maya : find('maya')) : null;
     return k && !k.gone ? k : null;
@@ -2202,23 +2342,25 @@ window.TSH = (function(){
   function tickTalk(dt){
     if(sayOver){ sayOver.t -= dt; subtitle(sayOver.who, sayOver.text); if(sayOver.t <= 0){ sayOver = null; subtitle(null); } return; }
     const q = talkQ[0]; if(!q){ subtitle(null); return; }
-    q.t -= dt; if(q.t > 0) return;
+    if(q.paced && q.i >= 0){ if(!q.go) return; q.go = false; }   // a paced line stays up until you move it on
+    else { q.t -= dt; if(q.t > 0) return; }
     q.i++;
     if(q.i >= q.lines.length){ talkQ.shift(); subtitle(null); if(q.done) q.done(); return; }
     const [who, text] = q.lines[q.i];
     q.t = Math.max(1.8, 1.0 + text.length*0.052);
-    subtitle(who, text);
+    subtitle(who, text, q.paced);
     [find('kai'), find('maya'), apt.kai, apt.maya, find('kaiRoof')].forEach(n=>{ if(n) n.talking = false; });
     const n = speakerNpc(who); if(n) n.talking = true;
     if(cut && cut.shot && cut.shot.onLine) cut.shot.onLine(q.i, who, text);
   }
-  function subtitle(who, text){
+  function subtitle(who, text, paced){
     const s = el && el.querySelector('#tshSub'); if(!s) return;
     if(!who){ if(s.dataset.on){ s.dataset.on = ''; s.classList.remove('on'); } return; }
-    const key = who + text; if(s.dataset.on === key) return; s.dataset.on = key;
+    const key = who + text + (paced ? '·' : ''); if(s.dataset.on === key) return; s.dataset.on = key;
     const [name, col] = WHO[who] || [who.toUpperCase(), '#fff'];
     const phone = who === 'counselor' || (who === 'mom' && !S.flags.speechNow) || text.indexOf('📱') === 0;
-    s.innerHTML = `<b style="color:${col}">${phone && who !== 'counselor' ? '📱 ' : ''}${esc(name)}</b><span>${esc(text.replace(/^📱\s*/, ''))}</span>`;
+    s.innerHTML = `<b style="color:${col}">${phone && who !== 'counselor' ? '📱 ' : ''}${esc(name)}</b><span>${esc(text.replace(/^📱\s*/, ''))}</span>`
+      + (paced ? '<em class="tsh-more"><kbd>Space</kbd> next · <kbd>Enter</kbd> skip scene</em>' : '');
     s.classList.add('on');
   }
 
@@ -2240,7 +2382,7 @@ window.TSH = (function(){
     if(c.i >= c.shots.length) return endCut();
     const s = c.shot = c.shots[c.i]; c.t = 0; c.len = s.dur || 3;
     if(s.act) s.act();
-    if(s.lines){ talk(s.lines, ()=>{ if(cut === c && c.shot === s) c.linesDone = true; }); c.linesDone = false; }
+    if(s.lines){ talk(s.lines, ()=>{ if(cut === c && c.shot === s) c.linesDone = true; }, { paced:true }); c.linesDone = false; }
     if(s.inside !== undefined){ W.aptGroup.visible = !!s.inside || inside; W.cityGroup.visible = !s.inside; }
     el.classList.toggle('bino', !!s.bino);
     G.camera.fov = s.fov || c.fov; G.camera.updateProjectionMatrix();
@@ -2263,6 +2405,7 @@ window.TSH = (function(){
     G.camera.fov = c.fov; G.camera.updateProjectionMatrix();
     if(inside){ W.aptGroup.visible = true; W.cityGroup.visible = false; } else { W.cityGroup.visible = true; W.aptGroup.visible = false; }
     if(mode === 'cut'){ mode = null; G.running = true; }
+    letGoOfKeys();
     if(c.done) c.done();
   }
   function skipCut(){
@@ -2271,6 +2414,211 @@ window.TSH = (function(){
     for(let i=c.i+1;i<c.shots.length;i++){ const s = c.shots[i]; if(s.act) try{ s.act(); }catch(e){} }
     flushTalk();
     c.i = c.shots.length; endCut();
+  }
+
+  /* ======================================================= conversations
+     FACE TO FACE, YOU HAVE THE FLOOR. The deal in the alley and Maya in
+     the flat used to run as subtitles on a timer while Robin stood about:
+     the story read itself out. A conversation now holds the scene — the
+     camera finds the two of them, every line waits for SPACE (or E, or a
+     click), and at Robin's turns you choose. George's words are always
+     the first choice; the others are what Robin could DO instead, and
+     each one leads somewhere the night already knows how to go.
+
+     A script is a list of steps:
+       ['kai', 'text']          a line; it waits for you
+       { ask:[…] | ()=>[…] }    Robin's turn: 1–5, arrows, or a click
+       { lines:()=>[…] }        lines decided when they are reached
+       { wait:secs, act }       something happens (an envelope in the air)
+       fn                       something happens, and on we go; if it
+                                returns a list of steps, they play next
+     A choice is { say, does, icon, hint, then:[…], act, end }: `say` is
+     Robin's line, spoken; `does` is an action, not spoken; `then` plays
+     after it; `act` runs last; `end` drops the rest of the script;
+     `again` asks the same question once more afterwards. A
+     choice that leaves the scene at once (a flash, the window) calls
+     endConvo() itself.
+
+     While one runs the clock stands still and nobody's eyes gain on you:
+     you cannot run from a drone while you are choosing what to say, so it
+     does not get to choose for you. */
+  let cv = null;
+  function convo(steps, o){
+    o = o || {};
+    if(cv) endConvo();
+    if(mode === 'ride') unride();
+    if(mode === 'hide') unhide();
+    if(mode) return false;                         // held, tied, or in a cut: not now
+    flushTalk(); sayOver = null; subtitle(null);
+    mode = 'talk'; G.running = false;
+    cv = { steps:steps.slice(), i:-1, o, npc:o.npc || null, look:o.look || null, line:null, ctx:null, ask:null, sel:0, shown:0, hold:0,
+           side:1, camP:G.camera.position.clone(), camL:null };
+    cv.side = convoSide();
+    el.classList.add('talking');
+    if(document.pointerLockElement) document.exitPointerLock();
+    convoNext();
+    return true;
+  }
+  function convoNext(){
+    const c = cv;
+    while(cv === c){
+      if(c.line) c.ctx = c.line;
+      c.i++; c.line = null; c.ask = null;
+      if(c.i >= c.steps.length){ endConvo(); return; }
+      const s = c.steps[c.i];
+      if(typeof s === 'function'){ const more = s(); if(cv === c && Array.isArray(more)) c.steps.splice(c.i + 1, 0, ...more); continue; }
+      if(Array.isArray(s)){ convoLine(s[0], s[1]); return; }
+      if(s.lines){ c.steps.splice(c.i + 1, 0, ...s.lines()); continue; }
+      if(s.ask){
+        const list = (typeof s.ask === 'function' ? s.ask() : s.ask).filter(a=>!a.when || a.when());
+        if(!list.length) continue;
+        c.ask = list; c.sel = 0; c.askAt = clock; paintConvo(); return;
+      }
+      if(s.wait){ c.hold = s.wait; paintConvo(); if(s.act) s.act(); return; }
+    }
+  }
+  function convoLine(who, text){
+    const c = cv;
+    c.line = { who, text }; c.shown = 0;
+    [c.npc, find('kai'), apt.maya, apt.kai].forEach(n=>{ if(n) n.talking = false; });
+    const n = who === 'robin' ? null : (speakerNpc(who) || c.npc);
+    if(n) n.talking = true;
+    paintConvo();
+  }
+  function convoPick(i){
+    const c = cv; if(!c || !c.ask) return;
+    const o = c.ask[i]; if(!o) return;
+    cue('ui');
+    const next = [];
+    if(o.say) next.push(['robin', o.say]);
+    if(o.then) next.push(...o.then);
+    if(o.act) next.push(o.act);
+    if(o.again) next.push(c.steps[c.i]);                // a side-step: then it is still your turn
+    c.steps.splice(c.i + 1, 0, ...next);
+    if(o.end) c.steps.length = c.i + 1 + next.length;   // and that is the end of the scene
+    c.ask = null; c.ctx = null;
+    convoNext();
+  }
+  function convoAdvance(){
+    const c = cv; if(!c) return;
+    if(c.ask){ if(clock - c.askAt > 0.4) convoPick(c.sel); return; }
+    if(c.hold > 0) return;
+    if(c.line && c.shown < c.line.text.length){ c.shown = c.line.text.length; paintText(); return; }
+    convoNext();
+  }
+  function endConvo(){
+    const c = cv; if(!c) return;
+    cv = null;
+    if(el){ el.classList.remove('talking'); const t = el.querySelector('#tshTalk'); t.classList.remove('on'); t.innerHTML = ''; }
+    [c.npc, find('kai'), apt.maya, apt.kai].forEach(n=>{ if(n) n.talking = false; });
+    if(mode === 'talk'){ mode = null; G.running = true; }
+    letGoOfKeys();
+    if(!busy && on) lockPointer($('#view'));
+    if(c.o.done) c.o.done();
+  }
+  /* The key that ends a scene is still down when the world starts again:
+     SPACE for "next" was also a jump, E for "next" a door. Forget them. */
+  function letGoOfKeys(){ if(G.keys) Object.keys(G.keys).forEach(k=>{ G.keys[k] = false; }); }
+  function tickConvo(dt){
+    const c = cv; if(!c) return;
+    if(c.hold > 0){ c.hold -= dt; if(c.hold <= 0){ c.hold = 0; convoNext(); if(cv !== c) return; } }
+    if(c.line && c.shown < c.line.text.length){ c.shown = Math.min(c.line.text.length, c.shown + dt*55); paintText(); }
+    // Robin turns to whoever she is talking to, and the camera finds them both
+    const n = c.npc && !c.npc.gone && !c.npc.hidden ? c.npc : null;
+    const tx = n ? n.x : c.look ? c.look[0] : null, tz = n ? n.z : c.look ? c.look[2] : null;
+    if(tx !== null){ const a = angTo(G.pos.x, G.pos.z, tx, tz); G.yaw += angDiff(a + Math.PI, G.yaw)*Math.min(1, dt*6); }
+    if(window.AVATAR) AVATAR.update(dt, false, false, true);
+    convoCam(dt, n);
+  }
+  /* THE SHOT: over Robin's shoulder on whoever is talking to her, and
+     over theirs on her when it is her line — shot, reverse shot, the way
+     every film does two people talking. It glides between the two, stays
+     on one side of the line between them, and is kept out of walls and
+     under whatever hangs over the alley. */
+  function convoEye(c, n, robinTalks, side){
+    const fy = feet(), R = V(G.pos.x, fy, G.pos.z);
+    const T = n ? V(n.x, n.y, n.z) : c.look ? V(c.look[0], fy, c.look[2]) : R.clone().add(V(-Math.sin(G.yaw), 0, -Math.cos(G.yaw)).multiplyScalar(3));
+    const d = V(T.x - R.x, 0, T.z - R.z), dist = Math.max(0.6, d.length()); d.normalize();
+    const sv = V(d.z, 0, -d.x).multiplyScalar(side), back = 1.8 + Math.min(1.4, dist*0.2);
+    const rh = V(R.x, fy + 1.5, R.z), th = V(T.x, (n ? n.y : fy) + (n ? 1.5 : 1.3), T.z);
+    let eye, at;
+    if(robinTalks){ eye = th.clone().addScaledVector(d, back).addScaledVector(sv, 0.95); eye.y = th.y + 0.3; at = rh.clone().lerp(th, 0.2); eye = camClear(th, eye); }
+    else { eye = rh.clone().addScaledVector(d, -back).addScaledVector(sv, 1.15); eye.y = fy + 1.95; at = th.clone().lerp(rh, 0.25); eye = camClear(rh, eye); }
+    at.y -= 0.35;                 // heads in the top half: the words sit in the bottom one
+    return { eye, at };
+  }
+  function convoSide(){
+    const c = cv, n = c.npc;
+    const a = convoEye(c, n, false, 1).eye, b = convoEye(c, n, false, -1).eye, h = V(G.pos.x, G.pos.y, G.pos.z);
+    return a.distanceTo(h) >= b.distanceTo(h) - 0.05 ? 1 : -1;
+  }
+  function convoCam(dt, n){
+    const c = cv, robinTalks = !!(c.line && c.line.who === 'robin' && n);
+    const { eye, at } = convoEye(c, n, robinTalks, c.side);
+    const k = 1 - Math.exp(-dt*3.2);
+    if(!c.camL){ c.camL = G.camera.position.clone().add(V(-Math.sin(G.yaw), 0, -Math.cos(G.yaw)).multiplyScalar(6)); c.camL.y = G.pos.y; }
+    // from her shoulder to his is a CUT: a glide between the two goes straight through them both
+    if(c.shot !== undefined && c.shot !== robinTalks){ c.camP.copy(eye); c.camL.copy(at); }
+    c.shot = robinTalks;
+    c.camP.lerp(eye, k);
+    c.camL.lerp(at, k);
+    G.camera.position.copy(c.camP); G.camera.lookAt(c.camL);
+  }
+  /* pull a camera back towards `from` until nothing solid is between them */
+  function camClear(from, to){
+    const p = to.clone();
+    for(let i=1;i<=10;i++){
+      const k = i/10, x = lerp(from.x, to.x, k), z = lerp(from.z, to.z, k);
+      if(G.solids.some(s=>!s.off && (s.y1 === undefined || (p.y > s.y1 && p.y < s.y2)) && x > s.x1 - 0.3 && x < s.x2 + 0.3 && z > s.z1 - 0.3 && z < s.z2 + 0.3)){
+        const kk = Math.max(0, (i - 1.6)/10); p.x = lerp(from.x, to.x, kk); p.z = lerp(from.z, to.z, kk); break;
+      }
+    }
+    if(G.ceiling){ const lid = G.ceiling(p.x, p.z, feet()); if(lid < Infinity) p.y = Math.min(p.y, Math.max(feet() + 1.2, lid - 0.35)); }
+    // and not with a lantern or a sign against the lens, or between the lens and who it is looking at
+    const L = !inside && W && W.lens;
+    if(L && (L.near(p.x, p.y, p.z, 0.4) || L.seg(p.x, p.y, p.z, from.x, from.y, from.z))){
+      for(const k of [0.8, 0.6, 0.45, 0.3]){ const q = from.clone().lerp(p, k); if(!L.near(q.x, q.y, q.z, 0.4) && !L.seg(q.x, q.y, q.z, from.x, from.y, from.z)) return q; }
+      return from.clone().lerp(p, 0.25);
+    }
+    return p;
+  }
+  function paintConvo(){
+    const c = cv, t = el && el.querySelector('#tshTalk'); if(!c || !t) return;
+    const lineHtml = (l, cls) => { const [name, col] = WHO[l.who] || [l.who.toUpperCase(), '#fff'];
+      return `<div class="tsh-tk-line ${cls}" style="--c:${col}"><b style="color:${col}">${esc(name)}</b><p>${cls === 'ctx' ? esc(l.text) : '<span class="tsh-tk-t"></span>'}</p>`
+        + (cls === 'ctx' ? '' : '<em class="tsh-tk-next"><kbd>Space</kbd> next</em>') + '</div>'; };
+    let h = '';
+    if(c.line) h += lineHtml(c.line, 'now');
+    else if(c.ask && c.ctx) h += lineHtml(c.ctx, 'ctx');
+    if(c.ask){
+      const moves = c.ask.filter(o=>!o.say).length;
+      h += `<div class="tsh-tk-ask${moves >= 3 ? ' grid' : ''}">` + c.ask.map((o, i)=>`<button class="${o.say ? 'say' : 'do'}${i === c.sel ? ' sel' : ''}" data-i="${i}">`
+        + `<kbd>${i+1}</kbd>${o.icon ? `<i>${o.icon}</i>` : ''}<span>${o.say ? '“' + esc(o.say) + '”' : esc(o.does)}${o.hint ? `<small>${esc(o.hint)}</small>` : ''}</span></button>`).join('')
+        + '</div>';
+    }
+    t.innerHTML = h; t.classList.toggle('on', !!h);
+    paintText();
+  }
+  function paintText(){
+    const c = cv, s = el && el.querySelector('#tshTalk .tsh-tk-t'); if(!c || !c.line || !s) return;
+    s.textContent = c.line.text.slice(0, Math.floor(c.shown));
+    const nx = el.querySelector('#tshTalk .tsh-tk-next'); if(nx) nx.classList.toggle('on', c.shown >= c.line.text.length);
+  }
+  function convoSel(i){
+    const c = cv; if(!c || !c.ask) return;
+    c.sel = (i + c.ask.length) % c.ask.length;
+    el.querySelectorAll('#tshTalk .tsh-tk-ask button').forEach((b, k)=>b.classList.toggle('sel', k === c.sel));
+  }
+  function convoKey(e){
+    const c = e.code;
+    if(c === 'KeyP' || c === 'Escape'){ pause(); return true; }
+    if(cv && cv.ask){
+      const m = /^(Digit|Numpad)([1-9])$/.exec(c); if(m){ convoPick(+m[2] - 1); return true; }
+      if(c === 'ArrowUp' || c === 'KeyW'){ convoSel(cv.sel - 1); return true; }
+      if(c === 'ArrowDown' || c === 'KeyS'){ convoSel(cv.sel + 1); return true; }
+    }
+    if((c === 'Space' || c === 'Enter' || c === 'NumpadEnter' || c === 'KeyE') && !e.repeat) convoAdvance();
+    return true;
   }
 
   /* ================================================================== UI */
@@ -2286,6 +2634,7 @@ window.TSH = (function(){
         <div class="tsh-radar"><canvas id="tshRadar" width="220" height="220"></canvas></div>
         <div class="tsh-gad" id="tshGad"></div>
         <div class="tsh-sub" id="tshSub"></div>
+        <div class="tsh-talk" id="tshTalk"></div>
         <div class="tsh-prompt hidden" id="tshPrompt"></div>
         <div class="tsh-layer" id="tshLayer"></div>
         <div class="tsh-notes" id="tshNotes"></div>
@@ -2302,8 +2651,21 @@ window.TSH = (function(){
         <div class="tsh-black"></div>`;
       document.body.appendChild(el);
       el.querySelector('.tsh-pb').addEventListener('click', e=>{ const b = e.target.closest('[data-a]'); if(!b) return; cue('ui'); if(panelCb) panelCb(b.dataset.a); });
+      // a conversation answers the mouse: a choice by clicking it, a line by clicking anywhere on it
+      const tk = el.querySelector('#tshTalk');
+      tk.addEventListener('click', e=>{ if(!cv) return; const b = e.target.closest('[data-i]'); if(b) convoPick(+b.dataset.i); else convoAdvance(); });
+      tk.addEventListener('mouseover', e=>{ const b = e.target.closest('[data-i]'); if(b) convoSel(+b.dataset.i); });
+      // and a click in the picture moves a scene on, as SPACE does
+      addEventListener('mousedown', e=>{
+        if(!on || e.button !== 0 || busy) return;
+        if(mode === 'cut') skipLine();
+        else if(mode === 'talk' && cv && !cv.ask && e.target && e.target.id === 'view') convoAdvance();
+      });
     }
-    el.classList.remove('hidden', 'cine', 'bino');
+    el.classList.remove('hidden', 'cine', 'bino', 'talking');
+    el.querySelector('#tshTalk').classList.remove('on'); el.querySelector('#tshTalk').innerHTML = '';
+    el.querySelector('#tshGrab').classList.add('hidden'); el.querySelector('#tshPanel').classList.add('hidden');
+    el.querySelector('.tsh-fade').classList.remove('on'); fadeBusy = false;
     el.querySelector('.tsh-black').classList.remove('on'); el.querySelector('.tsh-black').innerHTML = '';
     el.querySelector('#tshNotes').innerHTML = '';
     document.body.classList.add('tsh-on');
@@ -2430,7 +2792,7 @@ window.TSH = (function(){
   function clearMarks(){ bubbles.forEach(b=>b.el.remove()); bubbles = []; npcs.forEach(n=>{ if(n.mark){ n.mark.remove(); n.mark = null; } }); if(objMark){ objMark.remove(); objMark = null; } }
   let objMark = null;
   function tickMarks(dt){
-    const layer = el.querySelector('#tshLayer'), hideAll = mode === 'cut' || mode === 'end';
+    const layer = el.querySelector('#tshLayer'), hideAll = mode === 'cut' || mode === 'end' || mode === 'talk';
     bubbles = bubbles.filter(b=>{ b.life -= dt; if(b.life <= 0){ b.el.remove(); return false; }
       const s = screenOf(b.at()); b.el.style.display = s.ok && !hideAll ? '' : 'none'; b.el.style.left = s.x+'px'; b.el.style.top = s.y+'px'; b.el.style.opacity = Math.min(1, b.life*3); return true; });
     npcs.forEach(n=>{
@@ -2602,9 +2964,11 @@ window.TSH = (function(){
   function tick(dt){
     if(!on || !W) return;
     clock += dt;
+    chaseBack();
     if(busy === 'panel'){ return; }
     switch(mode){
       case 'cut': tickCut(dt); break;
+      case 'talk': tickConvo(dt); break;
       case 'climb': tickClimb(dt); break;
       case 'ride': tickRide(dt); break;
       case 'hide': tickHide(); break;
@@ -2622,6 +2986,7 @@ window.TSH = (function(){
   }
   function render(dt){
     if(window.GUN) GUN.carried(false);
+    chaseCam(dt);
     LOOK.render(G.scene, G.camera, dt);
     LOOK.fx.flash = Math.max(0, LOOK.fx.flash - (dt||0.016)*2.2);
   }
@@ -2630,7 +2995,8 @@ window.TSH = (function(){
     const c = e.code;
     if(c === 'KeyB' || c === 'KeyC' || c === 'KeyT') return true;       // no costume changes, rooms or chat mid-heist
     if(busy === 'panel'){ if(c === 'Escape' || c === 'KeyI' || c === 'KeyP'){ const k = el.querySelector('#tshPanel').dataset.kind; if(k !== 'results') closePanel(); } return true; }
-    if(mode === 'cut'){ if(c === 'Space') skipLine(); if(c === 'Enter' || c === 'NumpadEnter') skipCut(); return true; }
+    if(mode === 'talk') return convoKey(e);
+    if(mode === 'cut'){ if((c === 'Space' || c === 'KeyE') && !e.repeat) skipLine(); if(c === 'Enter' || c === 'NumpadEnter') skipCut(); return true; }
     if(mode === 'end') return true;
     if(mode === 'grab'){ if(c === 'KeyF'){ if(flash()) breakFree(true); } if(c === 'KeyE'){ gr.mash += 0.13; cue('step'); } return true; }
     if(mode === 'chair') return chairKey(e) || c === 'KeyP';
@@ -2655,6 +3021,7 @@ window.TSH = (function(){
            _place:(x, z, yaw, y)=>{ placePlayer(x, z, yaw, y); if(typeof thirdPerson === 'function') for(let i=0;i<40;i++) thirdPerson(); },
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get dealT(){ return dealT; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
-                  homeDoor, aptExit, tossRings, handOverFirst, leaveInMailbox, takeFromMailbox, speech, roofCut, skipCut, chair, freed, ending, grab, caught,
-                  detained, questEvent, find, get lastKnown(){ return lastKnown; } } };
+                  homeDoor, aptExit, tossRings, dealBegin, leaveInMailbox, takeFromMailbox, speech, roofCut, skipCut, chair, freed, ending, grab, caught,
+                  detained, questEvent, find, get lastKnown(){ return lastKnown; },
+                  get convo(){ return cv; }, convoPick, convoAdvance } };
 })();
