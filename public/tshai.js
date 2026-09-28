@@ -177,7 +177,7 @@ window.TSHAI = (function(){
      order she finishes it at her bench. `key` is what uses it. */
   const KIT = {
     cuffs:   { name:'Gecko cuffs',   key:'G', icon:'🦎',
-               does:'Grip a building\'s wall and climb it, all the way to the roof. The film tires after about ten seconds on a wall and recovers on the ground. WFC who see them in use see illegal wearables.' },
+               does:'Grip a building\'s wall and climb it, all the way to the roof — or sprint at a wall and leap onto it. The film tires after about fifteen seconds on a wall and recovers on the ground. WFC who see them in use see illegal wearables.' },
     bangles: { name:'Flash bangles', key:'F', icon:'✋',
                does:'Clap, and anybody facing you sees white for four seconds. Three charges; they come back slowly. Loud — WFC hears it.' },
     studs:   { name:'Static studs',  key:'J', icon:'📡',
@@ -188,9 +188,12 @@ window.TSHAI = (function(){
   const KIT_ORDER = ['cuffs', 'bangles', 'studs', 'rings'];
   /* THE GRIP. Seconds of hold on a wall, how fast she goes up, down and
      along it, how fast it comes back on the ground, and how fast she
-     slides when it gives out. A 10-second hold at 2.2 m/s is 22 metres:
-     every roof in the district but the two towers on the outer ring. */
-  const GRIP = { hold:10, up:2.2, down:2.8, side:1.6, regen:2.5, slide:4.5 };
+     slides when it gives out. A 15-second hold at 1.5 m/s is 22 metres:
+     every roof in the district but the two towers on the outer ring.
+     `clip` is how far the climbing animation itself rises in a second
+     (animations/WallStuff: 1.33 m a two-second loop); the clip plays at
+     up/clip, so her hands keep pace with the wall going past. */
+  const GRIP = { hold:15, up:1.5, down:1.9, side:1.2, regen:2.5, slide:4.5, clip:0.67, leap:1.4 };
 
   /* =========================================================== the trail
      Everything that could lead Maya to your door, and what she knows

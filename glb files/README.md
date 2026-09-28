@@ -371,6 +371,40 @@ bare midriff and the choker covering the entire throat, and neither is visible a
 the size a character is on screen.
 
 
+## Robin climbs walls
+
+TSH gives Robin Gecko cuffs (G), and the four clips in `animations/WallStuff`
+are what she does on a wall. They are added ON TOP of the shipped
+`character-w.glb` rather than by re-running the recipe above: the file in
+`public/` carries eighteen clips (talk, the side-steps, ride) that the recipe
+does not make, and merging onto it keeps them.
+
+```bash
+cd "glb files"
+node fbx2clip.js "../animations/WallStuff/Climbing Up Wall.fbx"     rig/climb_up.glb
+node fbx2clip.js "../animations/WallStuff/Climbing Down Wall.fbx"   rig/climb_down.glb
+node fbx2clip.js "../animations/WallStuff/Sprint To Wall Climb.fbx" rig/climb_start.glb
+node fbx2clip.js "../animations/WallStuff/Braced Hang To Crouch.fbx" rig/climb_top.glb
+BASE_NAME=idle node merge-clips.js ../public/characters/models/character-w.glb robin-wall.glb \
+  climb_up=rig/climb_up.glb climb_down=rig/climb_down.glb \
+  climb_start=rig/climb_start.glb climb_top=rig/climb_top.glb \
+  still=climb_up,climb_down,climb_start,climb_top trim=climb_start:0:1.0
+cp robin-wall.glb ../public/characters/models/character-w.glb
+npm run bump
+```
+
+**`still=`** is `inplace` with the height taken out too. A climb's rise IS its
+root motion — about 1.3 m a two-second loop — and the game is already lifting
+her up the wall, so left in she shoots up and snaps back once a loop. The game
+plays `climb_up` at the speed she is climbing divided by that 0.67 m/s
+(`TSHAI.GRIP.clip`), so her hands keep pace with the wall.
+
+**`trim=climb_start:0:1.0`** keeps the sprint and the leap and drops the second
+half, where the clip pulls itself onto a low ledge and crouches — the game uses
+it as the run-up when G is pressed sprinting at a wall, and goes straight on
+into `climb_up`. `climb_top` (the braced hang, pulled up into a crouch) is the
+mantle onto the roof, 1.13 s, and the game's own tween is timed to it.
+
 ## Ion, and painting a machine
 
 Ion is a robot, he is nobody's character — you cannot wear him, buy him or be

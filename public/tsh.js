@@ -628,9 +628,9 @@ window.TSH = (function(){
      WFC who see it happen see illegal wearables in use, and anybody on
      the pavement with a phone sees something worth filming. */
   const grip = { left:AI.GRIP.hold, seenT:0, wallT:0, wall:null };
-  function wallAt(){
+  function wallAt(reach){
     const fy = feet(), fx = -Math.sin(G.yaw), fz = -Math.cos(G.yaw), x = G.pos.x, z = G.pos.z;
-    let best = null, bd = 1.6;
+    let best = null, bd = reach || 1.6;
     for(const s of G.solids){
       if(s.off || !s.tag || s.tag.indexOf('bld:') !== 0) continue;
       if(fy > s.y2 - 1.0 || fy < s.y1 - 1) continue;             // on its roof already, or under it
@@ -647,18 +647,29 @@ window.TSH = (function(){
     if(mode || busy) return;
     if(!has('cuffs')){ note('🦎 The cuffs are still on the bench.', 'warn'); return; }
     if(inside){ note('🦎 Not in here. Outside, on a building\'s wall.', 'warn'); return; }
-    const w = wallAt();
-    if(!w){ note('🦎 Face a building\'s wall, close up, and G grips it.', 'warn'); return; }
+    // sprinting at a wall, she leaps onto it from a few steps out
+    const run = P().running, w = wallAt() || (run ? wallAt(4.5) : null);
+    if(!w){ note('🦎 Face a building\'s wall, close up — or sprint at one — and G grips it.', 'warn'); return; }
     if(grip.left < 1.5){ note('🦎 The film needs a rest — a few seconds on the ground.', 'warn'); cue('fail'); return; }
     const s = w.s, along = w.nx ? 'z' : 'x';
     const lo = (along === 'z' ? s.z1 : s.x1) + 0.4, hi = (along === 'z' ? s.z2 : s.x2) - 0.4;
-    me.scale = { s, nx:w.nx, nz:w.nz, along, a:clamp(along === 'z' ? G.pos.z : G.pos.x, lo, hi), lo, hi, y:feet(), top:s.y2, mantle:null };
+    me.scale = { s, nx:w.nx, nz:w.nz, along, a:clamp(along === 'z' ? G.pos.z : G.pos.x, lo, hi), lo, hi, y:feet(), top:s.y2, mantle:null, leap:null };
+    if(run){ const leap = Math.min(AI.GRIP.leap, s.y2 - 1.4 - feet()); if(leap > 0.3) me.scale.leap = { t:0, x:G.pos.x, z:G.pos.z, y:feet(), up:leap }; }
     mode = 'scale'; G.running = false; G.vel.set(0, 0, 0);
     G.yaw = Math.atan2(w.nx, w.nz);                              // facing the wall
     cue('pick'); grip.seenT = 0.4;
     S.flags.scaled = (S.flags.scaled||0) + 1;
     cuffGlow(true);
     if(!S.flags.scaleTip){ S.flags.scaleTip = true; note('🦎 W climb · S down · A/D along the wall · SPACE let go', 'big'); }
+  }
+  /* THE BODY ON THE WALL: the climbing clips from animations/WallStuff,
+     baked into her model (character-w.glb). The clip plays at the speed
+     she is moving — frozen when she hangs still — so her hands keep pace
+     with the wall. A model from before the clips were baked walks up it. */
+  function wallClip(dt, name, speed){
+    if(!window.AVATAR) return;
+    if(AVATAR.can && AVATAR.can(name)){ AVATAR.posture(name); AVATAR.update(dt*speed, false, false, true); return; }
+    AVATAR.posture(speed ? null : 'jump'); AVATAR.gait(0, 1); AVATAR.update(dt, !!speed, false, true);
   }
   // where she is on the wall: `off` metres out from it (negative is onto the roof)
   function scalePos(sc, off){
@@ -668,11 +679,21 @@ window.TSH = (function(){
   }
   function tickScale(dt){
     const sc = me.scale; if(!sc) return;
-    if(sc.mantle){                                                 // pulling herself over the top
-      const m = sc.mantle; m.t += dt/0.55;
-      const q = Math.min(1, m.t), [ix, iz] = scalePos(sc, -1.3);
-      G.pos.set(lerp(m.x, ix, q*q), lerp(m.y, sc.top, Math.min(1, q*1.7)) + EYE_, lerp(m.z, iz, q*q));
-      if(window.AVATAR) AVATAR.update(dt, true, false, true);
+    if(sc.leap){                                                   // the run-up: across the ground and up onto the wall
+      const l = sc.leap; l.t += dt/1.0;                            // climb_start, trimmed to its run and leap
+      const q = Math.min(1, l.t), [wx, wz] = scalePos(sc, 0.5), h = clamp((q - 0.45)/0.55, 0, 1);
+      G.pos.set(lerp(l.x, wx, Math.min(1, q/0.6)), l.y + l.up*h*(2 - h) + EYE_, lerp(l.z, wz, Math.min(1, q/0.6)));
+      G.yaw = Math.atan2(sc.nx, sc.nz);
+      wallClip(dt, 'climb_start', 1);
+      if(typeof thirdPerson === 'function') thirdPerson();
+      if(q >= 1){ sc.y = l.y + l.up; sc.leap = null; }
+      return;
+    }
+    if(sc.mantle){                                                 // the braced hang, pulled up into a crouch on the roof
+      const m = sc.mantle; m.t += dt/1.13;                         // climb_top is 1.13 s
+      const q = Math.min(1, m.t), [ix, iz] = scalePos(sc, -0.9), up = Math.min(1, q/0.7), fwd = clamp((q - 0.45)/0.55, 0, 1);
+      G.pos.set(lerp(m.x, ix, fwd), lerp(m.y, sc.top, up*(2 - up)) + EYE_, lerp(m.z, iz, fwd));
+      wallClip(dt, 'climb_top', 1);
       if(typeof thirdPerson === 'function') thirdPerson();
       if(q >= 1) offWall(null);
       return;
@@ -692,8 +713,11 @@ window.TSH = (function(){
     const [x, z] = scalePos(sc, 0.5);
     G.pos.set(x, sc.y + EYE_, z);
     G.yaw = Math.atan2(sc.nx, sc.nz);
-    const moving = !!(vy || side);
-    if(window.AVATAR){ AVATAR.posture(moving ? null : 'jump'); AVATAR.gait(0, 1); AVATAR.update(dt, moving, false, true); }
+    const G_ = AI.GRIP;
+    if(slip) wallClip(dt, 'climb_down', 1.5);
+    else if(vy > 0) wallClip(dt, 'climb_up', G_.up/G_.clip);
+    else if(vy < 0) wallClip(dt, 'climb_down', G_.down/G_.clip);
+    else wallClip(dt, 'climb_up', side ? 1.6 : 0);                 // along the wall; still, a held pose
     if(typeof thirdPerson === 'function') thirdPerson();
     grip.seenT -= dt; if(grip.seenT <= 0){ grip.seenT = 1; scaleSeen(); }
   }
@@ -721,8 +745,8 @@ window.TSH = (function(){
     if(wfc){
       /* the first time, a warning rather than a star: the drone on Kiln Street
          sweeps right past the fire escape where you learn to climb */
-      if(!S.flags.gearSeen){ S.flags.gearSeen = true; cue('sus'); note('👁 WFC nearly saw the cuffs working. Next time that is heat — to them it is illegal wearables. Climb where nobody is looking.', 'bad'); }
-      else { heat(AI.raise(S.heat, 'gear'), AI.CRIMES.gear.label); lastKnown = [p.x, p.z]; }
+      if(!S.flags.gearSeen){ S.flags.gearSeen = true; if(me.scale) me.scale.grace = true; cue('sus'); note('👁 WFC nearly saw the cuffs working. Next time that is heat — to them it is illegal wearables. Climb where nobody is looking.', 'bad'); }
+      else if(!(me.scale && me.scale.grace)){ heat(AI.raise(S.heat, 'gear'), AI.CRIMES.gear.label); lastKnown = [p.x, p.z]; }   // the warning lasts the climb it came on
     }
     npcs.forEach(n=>{
       if(n.kind !== 'civ' || n.film || n.gone || n.stun > 0 || Math.hypot(n.x - p.x, n.z - p.z) > 20) return;
@@ -3070,13 +3094,18 @@ window.TSH = (function(){
     const mk = mode === 'cut' ? null : marker(), dd = el.querySelector('#tshDist');
     dd.textContent = mk ? Math.round(Math.hypot(mk[0]-G.pos.x, mk[1]-G.pos.z)) + ' m' : '';
     // what E does here — or, facing a building's wall with the cuffs on, what G does
-    if((grip.wallT -= dt) <= 0){ grip.wallT = 0.15; grip.wall = (!mode && !busy && !inside && has('cuffs')) ? wallAt() : null; }
+    if((grip.wallT -= dt) <= 0){
+      grip.wallT = 0.15; grip.leapTo = false;
+      const can_ = !mode && !busy && !inside && has('cuffs');
+      grip.wall = can_ ? wallAt() : null;
+      if(can_ && !grip.wall && P().running){ grip.wall = wallAt(4.5); grip.leapTo = !!grip.wall; }   // sprinting at one: leap
+    }
     const pr = el.querySelector('#tshPrompt');
     const n = (mode || busy) ? null : nearestThing();
     if(n){ const v = typeof n.verb === 'function' ? n.verb() : n.verb; const h = `<kbd>E</kbd><span>${n.icon ? n.icon+' ' : ''}${esc(v)}</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(mode === 'scale'){ const h = `<kbd>W</kbd><span>🦎 climb</span><kbd>S</kbd><span>down</span><kbd>Space</kbd><span>let go</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(!mode && !busy && grip.wall){
-      const h = `<kbd>G</kbd><span>🦎 Scale the wall · ${Math.round(grip.wall.s.y2 - feet())} m</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
+      const h = `<kbd>G</kbd><span>🦎 ${grip.leapTo ? 'Leap onto the wall' : 'Scale the wall'} · ${Math.round(grip.wall.s.y2 - feet())} m</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(mode === 'hide'){ pr.innerHTML = '<kbd>E</kbd><span>Climb out</span>'; pr.classList.remove('hidden'); }
     else if(mode === 'ride'){ pr.innerHTML = '<kbd>E</kbd><span>Get off</span>'; pr.classList.remove('hidden'); }
     else pr.classList.add('hidden');

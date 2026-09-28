@@ -142,3 +142,15 @@ test('G climbs a building\'s wall, and the ladders face the wall too', () => {
   has(t, /function crimeSeen\(kind\)/, 'climb() has always called crimeSeen; it has to exist');
   has(t, /G\.yaw = me\.climbing\.face \+ Math\.PI;/, 'climbing a ladder facing away from it put the camera between her and the wall');
 });
+
+test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/models/character-w.glb'));
+  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  const names = (json.animations || []).map(a => a.name);
+  ['climb_up', 'climb_down', 'climb_start', 'climb_top'].forEach(n => assert.ok(names.includes(n), 'character-w.glb has no ' + n + ' — see glb files/README.md, Robin climbs walls'));
+  ['idle', 'walk', 'sprint', 'jump', 'talk', 'talk2', 'walk_left', 'ride'].forEach(n => assert.ok(names.includes(n), 'merging the climbs dropped ' + n));
+  const t = read('public/tsh.js');
+  has(t, /wallClip\(dt, 'climb_up', G_\.up\/G_\.clip\)/, 'the climb plays at the speed she climbs');
+  has(t, /wallClip\(dt, 'climb_top', 1\)/, 'the mantle is the braced hang');
+  has(t, /wallClip\(dt, 'climb_start', 1\)/, 'the run-up is the sprint to the wall');
+});

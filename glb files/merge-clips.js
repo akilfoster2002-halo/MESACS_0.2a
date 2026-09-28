@@ -35,11 +35,12 @@ function raw(g,bin,i){
 
 const base=process.argv[2], out=process.argv[3];
 const extra=[];                       // name=file.glb, plus scale=N
-let SCALE=1, INPLACE=[], TRIM={}, DROPBASE=false;
+let SCALE=1, INPLACE=[], STILL=[], TRIM={}, DROPBASE=false;
 for(let i=4;i<process.argv.length;i++){
   const [name,file]=process.argv[i].split('=');
   if(name==='scale'){ SCALE=+file; continue; }
   if(name==='inplace'){ INPLACE=file.split(','); continue; }
+  if(name==='still'){ STILL=file.split(','); continue; }
   if(name==='trim'){ const [c,a,b]=file.split(':'); TRIM[c]=[+a,+b]; continue; }
   if(name==='dropbase'){ DROPBASE=true; continue; }
   extra.push({name,file});
@@ -164,20 +165,27 @@ function makeSampler(S, s, win, offset){
    in, the character slides away from its own position once per loop.
 
    Only x and z are flattened, to the value they hold on the first frame.
-   The y bounce is the walk, and taking it out gives a mech-like glide. */
-if(INPLACE.length){
+   The y bounce is the walk, and taking it out gives a mech-like glide.
+
+   STILL flattens y as well, for a clip whose rise IS the root motion: a
+   climb lifts the hips a metre and a half a loop, and the game is already
+   lifting the body up the wall — both together is a character who
+   shoots up the wall and snaps back down once per loop. */
+if(INPLACE.length || STILL.length){
   const hips=g.nodes.findIndex(n=>/Hips$/.test(n.name||''));
   for(const a of g.animations){
-    if(INPLACE.indexOf(a.name)<0) continue;
+    const still=STILL.indexOf(a.name)>=0;
+    if(INPLACE.indexOf(a.name)<0 && !still) continue;
     const ch=a.channels.find(c=>c.target.node===hips && c.target.path==='translation');
     if(!ch) continue;
     const acc=g.accessors[a.samplers[ch.sampler].output];
     const bv=g.bufferViews[acc.bufferView];
     const at=(bv.byteOffset||0)+(acc.byteOffset||0);
     const bytes=Buffer.concat(chunks);       // flatten what we have so far
-    const x0=bytes.readFloatLE(at), z0=bytes.readFloatLE(at+8);
+    const x0=bytes.readFloatLE(at), y0=bytes.readFloatLE(at+4), z0=bytes.readFloatLE(at+8);
     for(let i=0;i<acc.count;i++){
       bytes.writeFloatLE(x0, at+i*12);
+      if(still) bytes.writeFloatLE(y0, at+i*12+4);
       bytes.writeFloatLE(z0, at+i*12+8);
     }
     chunks.length=0; chunks.push(bytes); cur=bytes.length;
