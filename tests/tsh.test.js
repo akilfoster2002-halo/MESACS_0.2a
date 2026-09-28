@@ -85,3 +85,60 @@ test('the words are drawn on the letterbox, not under it', () => {
   const css = read('public/app.css');
   has(css, /#tsh \.tsh-sub,#tsh \.tsh-talk\{z-index:2\}/, 'subtitles have to sit above the black bars');
 });
+
+/* ------------------------------------------------------------ the kit
+   Robin's jewelry: finished at her bench before the night starts, and
+   what lets her climb, blind, and jam her way through it after. */
+function rules(){
+  const ctx = vm.createContext({ Math });
+  ctx.window = ctx;
+  vm.runInContext(read('public/tshai.js'), ctx, { filename:'tshai.js' });
+  return ctx.TSHAI;
+}
+
+test('the night starts at the bench, before ten, and the deal comes after it', () => {
+  const A = rules();
+  assert.equal(A.next('intro', 'start'), 'prep', 'a fresh night opens in the workshop');
+  assert.equal(A.next('prep', 'done'), 'deal', 'leaving the flat with the kit starts the deal');
+  assert.equal(A.clock(-20), '21:40', 'the workshop reads as 21:40, not 22:00');
+  assert.equal(A.clock(0), '22:00');
+  assert.equal(A.clock(75), '23:15');
+  assert.equal(A.CHECKPOINT.prep, 'prep');
+});
+
+test('every piece of the kit says what it does and what uses it', () => {
+  const A = rules();
+  assert.deepEqual([...A.KIT_ORDER], ['cuffs', 'bangles', 'studs', 'rings']);
+  const keys = A.KIT_ORDER.map(p => A.KIT[p].key).filter(Boolean);
+  assert.deepEqual(keys, ['G', 'F', 'J'], 'cuffs on G, bangles on F, studs on J');
+  A.KIT_ORDER.forEach(p => assert.ok(A.KIT[p].name && A.KIT[p].does.length > 30, p + ' needs a name and a sentence about what it does'));
+  assert.ok(A.CRIMES.gear, 'using the cuffs where WFC can see is a crime of its own');
+});
+
+test('the grip reaches a high roof but not the two towers', () => {
+  const { GRIP } = rules();
+  const reach = GRIP.hold*GRIP.up;
+  assert.ok(reach >= 16 + 2, 'the ending wants a roof over 16 m: the cuffs have to be one way up');
+  assert.ok(reach < 26, 'if nothing is out of reach the grip is not a limit at all');
+  assert.ok(GRIP.regen > 1, 'the film comes back on the ground in a few seconds');
+});
+
+test('the workshop builds every piece, and the pieces only work once they are built', () => {
+  const t = read('public/tsh.js');
+  has(t, /if\(S\.step === 'intro'\)\{ S\.step = 'prep'/, 'a fresh night starts in the workshop');
+  const build = t.slice(t.indexOf('const BUILD = {'), t.indexOf('const bench = {'));
+  ['cuffs', 'bangles', 'studs', 'rings'].forEach(p => has(build, new RegExp('\\n    ' + p + ': \\['), 'no bench steps for ' + p));
+  has(t, /function flash\(\)\{\s*if\(!has\('bangles'\)\)/, 'the bangles have to be finished before F does anything');
+  has(t, /function jam\(\)\{\s*if\(!has\('studs'\)\)/, 'the studs have to be finished before J does anything');
+  has(t, /if\(S\.step === 'prep'\) return prepOut\(via\);/, 'the flat\'s door and window end the workshop');
+  has(t, /if\(!kitDone\(\)\)\{ note\('Not yet/, 'and not before the pieces are finished');
+});
+
+test('G climbs a building\'s wall, and the ladders face the wall too', () => {
+  const t = read('public/tsh.js');
+  has(t, /if\(c === 'KeyG'\)\{ tryScale\(\); return true; \}/);
+  has(t, /case 'scale': tickScale\(dt\); break;/);
+  has(t, /s\.tag\.indexOf\('bld:'\) !== 0\) continue;/, 'only buildings are climbable: a hoarding at the edge of the map is not a way out of it');
+  has(t, /function crimeSeen\(kind\)/, 'climb() has always called crimeSeen; it has to exist');
+  has(t, /G\.yaw = me\.climbing\.face \+ Math\.PI;/, 'climbing a ladder facing away from it put the camera between her and the wall');
+});

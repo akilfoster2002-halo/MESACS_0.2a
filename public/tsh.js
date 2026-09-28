@@ -27,7 +27,12 @@
    tshai.js (the rules), and this — the night itself.
 
    KEYS: WASD move · Shift run · Space jump · E use · H hood & shades ·
-         F flash gloves · J jammer · Q throw · I bag · Tab details · P pause
+         G Gecko cuffs · F flash bangles · J static studs · Q throw · I bag ·
+         Tab details · P pause
+
+   THE KIT. Robin makes jewelry that does things, and the night starts at
+   her bench finishing tonight's pieces (the workshop) — that is where you
+   find out what each one does. See `the kit` below, and KIT in tshai.js.
    ===================================================================== */
 window.TSH = (function(){
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -122,16 +127,21 @@ window.TSH = (function(){
     detained:  [['wfc','Hands where we can see them!']],
     released:  [['mom','Robin. The desk sergeant called me.'], ['mom','We\'ll talk about this in the morning.']],
     raid:      [['wfc','WFC! Hands on the counter!'], ['vendor','Not again—']],
-    thanks:    [['vendor','Owe you one, kid. Here — for the gloves.']],
-    laugh:     [['robin','(laughs)']]
+    thanks:    [['vendor','Owe you one, kid. Here — for the bangles.']],
+    laugh:     [['robin','(laughs)']],
+    /* THE WORKSHOP'S LINES are not from the screenplay: they are the
+       hour before it, written to set up what Robin can do. */
+    prepText:  [['buyer','📱 YU? Two rings. Dragon Alley, 22:30. Cash.']],
+    prepOpen:  [['robin','Four pieces, one hour. Fine.']]
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
-                counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'] };
+                counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
   function fresh(){
     return { v:1, step:'intro', t:8, heat:0, maxHeat:0, exposure:0, cash:0, rings:true, flash:3, can:false,
+             kit:{ cuffs:false, bangles:false, studs:false, rings:false },
              trail:AI.freshTrail(), flags:{}, dealPath:[], done:false, runs:0, pos:null, cp:null, last:null };
   }
   let S = fresh();
@@ -253,7 +263,9 @@ window.TSH = (function(){
     if(window.AVATAR){ AVATAR.posture(null); AVATAR.setCast('robin'); }
     // where the beat you are in starts
     if(S.step === 'end') S.step = 'out';
-    if(S.step === 'intro'){ S.step = 'deal'; S.t = 8; S.dealPath = []; placePlayer(-86, 8, -Math.PI/2); }
+    if(S.step === 'intro'){ S.step = 'prep'; S.t = -20; S.dealPath = []; S.kit = fresh().kit; }
+    if(!S.kit) S.kit = fresh().kit;
+    if(S.step === 'prep'){ const h = W.spots.home; placePlayer(h[0], h[1], 0); goInside(true); }
     else if(S.pos) placePlayer(S.pos[0], S.pos[2], S.pos[3], S.pos[1]);
     else placePlayer(-86, 8, -Math.PI/2);
     if(S.step === 'apt' || S.step === 'escape' || S.step === 'chair' || S.step === 'escape2'){ S.step = 'apt'; goInside(true); }
@@ -269,7 +281,7 @@ window.TSH = (function(){
      something else takes you out of the city (the pause card's HOME). */
   function stop(){
     if(!on) return;
-    cv = null; dealT = null;
+    cv = null; dealT = null; me.scale = null; bench.reveal = null; bench.piece = null;
     on = false; mode = null; busy = null;
     save();
     stopBed(); clearNpcs(); clearMarks();
@@ -332,11 +344,12 @@ window.TSH = (function(){
      tick) — otherwise this would be feeding on its own correction. */
   const chase = { k:1, dy:0, raw:null };
   function chaseBack(){
-    if(chase.raw && mode === null && G.running) G.camera.position.copy(chase.raw);
+    if(chase.raw && ((mode === null && G.running) || mode === 'scale')) G.camera.position.copy(chase.raw);
     chase.raw = null;
   }
   function chaseCam(dt){
-    if(mode !== null || !G.running || busy || inside || !W || !W.lens){ chase.k = 1; chase.dy = 0; return; }
+    const free = (mode === null && G.running) || mode === 'scale';
+    if(!free || busy || inside || !W || !W.lens){ chase.k = 1; chase.dy = 0; return; }
     const L = W.lens, cam = G.camera.position, head = V(G.pos.x, G.pos.y + 0.1, G.pos.z);
     chase.raw = cam.clone();
     const off = cam.clone().sub(head);
@@ -478,7 +491,7 @@ window.TSH = (function(){
   const feet = () => G.pos.y - EYE_;
   const P = () => ({ x:G.pos.x, y:feet(), z:G.pos.z, moving:!!(G.keys.KeyW||G.keys.KeyS||G.keys.KeyA||G.keys.KeyD||G.keys.ArrowUp||G.keys.ArrowDown),
                      running:!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !!(G.keys.KeyW||G.keys.ArrowUp||G.keys.KeyA||G.keys.KeyD||G.keys.KeyS) });
-  /* HOOD AND SHADES, and the gloves. Hung off the rig's own head and
+  /* HOOD AND SHADES, the bangles and the cuffs. Hung off the rig's own head and
      hands, so they move with her; sized in metres by dividing the body's
      own scale back out (the same trick avatar.js uses for the blaster). */
   function boneOf(model, re){ let b = null; model.traverse(o=>{ if(!b && re.test(o.name||'')) b = o; }); return b; }
@@ -510,7 +523,13 @@ window.TSH = (function(){
       const k = worldK(hand), m = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.2, 1.9), transparent:true, opacity:0.9 }));
       m.scale.setScalar(k); m.position.set(0, 0.06*k, 0); hand.add(m); hand.userData.tshGlove = m;
       if(side === 'Left') me.glowL = m; else me.glowR = m;
+      // the Gecko cuffs: a dark band round the wrist, a teal line that burns while the film holds
+      const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.016, 8, 22),
+        new THREE.MeshStandardMaterial({ color:0x16211f, roughness:0.35, metalness:0.7, emissive:0x38ffd0, emissiveIntensity:0.5 }));
+      cuff.scale.setScalar(k); cuff.rotation.x = Math.PI/2; cuff.position.set(0, -0.01*k, 0); hand.add(cuff);
+      if(side === 'Left') me.cuffL = cuff; else me.cuffR = cuff;
     });
+    cuffGlow(mode === 'scale');
     if(me.dress) me.dress.visible = me.hood;
   }
   function setHood(v){
@@ -551,10 +570,11 @@ window.TSH = (function(){
     W.scooters.forEach((sc, i)=>{ sc.i = i; sc.thing = thing(sc.x, sc.z, 0, 'Take the scooter', ()=>ride(sc), { icon:'🛴', r:1.8, when:()=>!sc.gone && mode!=='ride' }); });
     // home
     const h = W.spots.home;
-    thing(h[0], h[1], 0, 'Go inside', ()=>homeDoor(), { icon:'🚪', r:2.2, when:()=>!inside });
+    const notYet = () => ['deal','intro','prep'].includes(S.step) && !S.dealPath.length;   // home is not a way out of the deal
+    thing(h[0], h[1], 0, 'Go inside', ()=>homeDoor(), { icon:'🚪', r:2.2, when:()=>!inside && !notYet() });
     // the window of the flat, from the fire escape
     const hw = W.spots.homeWindow;
-    thing(hw[0], hw[1], hw[2], 'Climb in the window', ()=>homeDoor(true), { icon:'🪟', r:1.8, when:()=>!inside && S.step !== 'out' && S.step !== 'end' });
+    thing(hw[0], hw[1], hw[2], 'Climb in the window', ()=>homeDoor(true), { icon:'🪟', r:1.8, when:()=>!inside && S.step !== 'out' && S.step !== 'end' && !notYet() });
     wireQuestThings();
   }
 
@@ -567,7 +587,7 @@ window.TSH = (function(){
     const from = up ? l.bottom : l.top, to = up ? l.top : l.bottom, y0 = up ? l.y0 : l.y1, y1 = up ? l.y1 : l.y0;
     mode = 'climb'; G.running = false;
     me.climbing = { l, t:0, dur:0.5 + Math.abs(y1-y0)*0.16, from, to, y0, y1, face:Math.atan2(-l.nx, -l.nz) };
-    G.yaw = me.climbing.face + (up ? 0 : Math.PI);
+    G.yaw = me.climbing.face + Math.PI;          // facing the ladder, up or down: facing away put the camera between her and the wall
     cue('step');
     crimeSeen('climb');
   }
@@ -584,6 +604,339 @@ window.TSH = (function(){
     if(window.AVATAR){ AVATAR.gait(0, 1); AVATAR.update(dt, k > 0.1 && k < 0.9, false, true); }
     if(typeof thirdPerson === 'function') thirdPerson();
     if(k >= 1){ me.climbing = null; mode = null; G.running = true; G.vel.y = 0; G.onGround = true; }
+  }
+
+  /* ============================================================ the kit
+     ROBIN MAKES JEWELRY. Pretty on a wrist or an ear, and every piece of
+     it what WFC calls illicit wearable weaponry. Tonight's kit is still on
+     her bench when the night starts (the workshop, below) — finishing it
+     is how you find out what each piece does — and after that it is hers:
+       G  Gecko cuffs     up any building's wall to its roof
+       F  flash bangles   blind whoever is facing her
+       J  static studs    six seconds of noise
+          the two rings   the merchandise: a shield in each
+     What each piece is and how long the grip holds live in tshai.js
+     (KIT, GRIP). Outside the workshop every piece is simply there. */
+  const has = p => S.step !== 'prep' || !!(S.kit && S.kit[p]);
+  const kitDone = () => AI.KIT_ORDER.every(p=>S.kit && S.kit[p]);
+
+  /* --------------------------------------------------- the Gecko cuffs
+     G, facing a building's wall and close to it: palms on the wall, and
+     up. W and S climb, A and D move along it, SPACE lets go. The film
+     holds for GRIP.hold seconds and gets them back on the ground; run out
+     and she slides down. At the top she pulls herself onto the roof.
+     WFC who see it happen see illegal wearables in use, and anybody on
+     the pavement with a phone sees something worth filming. */
+  const grip = { left:AI.GRIP.hold, seenT:0, wallT:0, wall:null };
+  function wallAt(){
+    const fy = feet(), fx = -Math.sin(G.yaw), fz = -Math.cos(G.yaw), x = G.pos.x, z = G.pos.z;
+    let best = null, bd = 1.6;
+    for(const s of G.solids){
+      if(s.off || !s.tag || s.tag.indexOf('bld:') !== 0) continue;
+      if(fy > s.y2 - 1.0 || fy < s.y1 - 1) continue;             // on its roof already, or under it
+      const alongZ = z > s.z1 + 0.3 && z < s.z2 - 0.3, alongX = x > s.x1 + 0.3 && x < s.x2 - 0.3;
+      for(const [nx, nz, d, over] of [[-1, 0, s.x1 - x, alongZ], [1, 0, x - s.x2, alongZ], [0, -1, s.z1 - z, alongX], [0, 1, z - s.z2, alongX]]){
+        if(!over || d < -0.2 || d > bd) continue;
+        if(-(fx*nx + fz*nz) < 0.5) continue;                     // she has to be facing it
+        bd = d; best = { s, nx, nz };
+      }
+    }
+    return best;
+  }
+  function tryScale(){
+    if(mode || busy) return;
+    if(!has('cuffs')){ note('🦎 The cuffs are still on the bench.', 'warn'); return; }
+    if(inside){ note('🦎 Not in here. Outside, on a building\'s wall.', 'warn'); return; }
+    const w = wallAt();
+    if(!w){ note('🦎 Face a building\'s wall, close up, and G grips it.', 'warn'); return; }
+    if(grip.left < 1.5){ note('🦎 The film needs a rest — a few seconds on the ground.', 'warn'); cue('fail'); return; }
+    const s = w.s, along = w.nx ? 'z' : 'x';
+    const lo = (along === 'z' ? s.z1 : s.x1) + 0.4, hi = (along === 'z' ? s.z2 : s.x2) - 0.4;
+    me.scale = { s, nx:w.nx, nz:w.nz, along, a:clamp(along === 'z' ? G.pos.z : G.pos.x, lo, hi), lo, hi, y:feet(), top:s.y2, mantle:null };
+    mode = 'scale'; G.running = false; G.vel.set(0, 0, 0);
+    G.yaw = Math.atan2(w.nx, w.nz);                              // facing the wall
+    cue('pick'); grip.seenT = 0.4;
+    S.flags.scaled = (S.flags.scaled||0) + 1;
+    cuffGlow(true);
+    if(!S.flags.scaleTip){ S.flags.scaleTip = true; note('🦎 W climb · S down · A/D along the wall · SPACE let go', 'big'); }
+  }
+  // where she is on the wall: `off` metres out from it (negative is onto the roof)
+  function scalePos(sc, off){
+    const s = sc.s;
+    return [sc.along === 'x' ? sc.a : (sc.nx < 0 ? s.x1 - off : s.x2 + off),
+            sc.along === 'z' ? sc.a : (sc.nz < 0 ? s.z1 - off : s.z2 + off)];
+  }
+  function tickScale(dt){
+    const sc = me.scale; if(!sc) return;
+    if(sc.mantle){                                                 // pulling herself over the top
+      const m = sc.mantle; m.t += dt/0.55;
+      const q = Math.min(1, m.t), [ix, iz] = scalePos(sc, -1.3);
+      G.pos.set(lerp(m.x, ix, q*q), lerp(m.y, sc.top, Math.min(1, q*1.7)) + EYE_, lerp(m.z, iz, q*q));
+      if(window.AVATAR) AVATAR.update(dt, true, false, true);
+      if(typeof thirdPerson === 'function') thirdPerson();
+      if(q >= 1) offWall(null);
+      return;
+    }
+    const k = G.keys, up = k.KeyW || k.ArrowUp, dn = k.KeyS || k.ArrowDown, lf = k.KeyA || k.ArrowLeft, rt = k.KeyD || k.ArrowRight;
+    grip.left = Math.max(0, grip.left - dt);
+    const slip = grip.left <= 0;
+    if(slip && !sc.slipped){ sc.slipped = true; cue('fail'); note('🦎 The film gives out — sliding.', 'warn'); }
+    const vy = slip ? -AI.GRIP.slide : (up ? AI.GRIP.up : 0) - (dn ? AI.GRIP.down : 0);
+    // along the wall, to her right as she faces it
+    const rx = sc.nz, rz = -sc.nx, side = slip ? 0 : ((rt ? 1 : 0) - (lf ? 1 : 0))*AI.GRIP.side*dt;
+    sc.a = clamp(sc.a + side*(sc.along === 'x' ? rx : rz), sc.lo, sc.hi);
+    sc.y += vy*dt;
+    const [bx, bz] = scalePos(sc, 1.0), base = groundAt(bx, bz, sc.y + 0.6);
+    if(sc.y <= base){ sc.y = base; if(dn || slip) return offWall(base); }
+    if(sc.y >= sc.top - 1.3 && up && !slip){ const [x, z] = scalePos(sc, 0.5); sc.mantle = { t:0, x, y:sc.y, z }; cue('step'); return; }
+    const [x, z] = scalePos(sc, 0.5);
+    G.pos.set(x, sc.y + EYE_, z);
+    G.yaw = Math.atan2(sc.nx, sc.nz);
+    const moving = !!(vy || side);
+    if(window.AVATAR){ AVATAR.posture(moving ? null : 'jump'); AVATAR.gait(0, 1); AVATAR.update(dt, moving, false, true); }
+    if(typeof thirdPerson === 'function') thirdPerson();
+    grip.seenT -= dt; if(grip.seenT <= 0){ grip.seenT = 1; scaleSeen(); }
+  }
+  /* off the wall: onto the roof (y null), onto the ground (y), or let go (drop) */
+  function offWall(y, drop){
+    const sc = me.scale; if(!sc) return;
+    me.scale = null; mode = null; G.running = true;
+    if(window.AVATAR) AVATAR.posture(null);
+    cuffGlow(false);
+    if(y === null){
+      const [x, z] = scalePos(sc, -1.3);
+      G.pos.set(x, sc.top + EYE_, z); G.vel.set(0, 0, 0); G.onGround = true;
+      if(!S.flags.firstRoof){ S.flags.firstRoof = true; talk([['robin', 'Still holds.']]); note('🦎 Any wall, any roof. Up here nobody looks — and the roofs go round the checkpoint.', 'big'); }
+      return;
+    }
+    const [x, z] = scalePos(sc, 0.95);
+    G.pos.set(x, y + EYE_, z);
+    G.vel.set(drop ? sc.nx*1.5 : 0, drop ? 2 : 0, drop ? sc.nz*1.5 : 0); G.onGround = !drop;
+    letGoOfKeys();
+  }
+  /* who saw the cuffs: WFC with eyes on her, a drone with her in its beam, a phone */
+  function scaleSeen(){
+    const p = P();
+    const wfc = npcs.some(n=>n.kind === 'wfc' && !n.gone && n.stun <= 0 && n.inApt === inside && n.sees) || drones.some(d=>d.inBeam && !d.static);
+    if(wfc){
+      /* the first time, a warning rather than a star: the drone on Kiln Street
+         sweeps right past the fire escape where you learn to climb */
+      if(!S.flags.gearSeen){ S.flags.gearSeen = true; cue('sus'); note('👁 WFC nearly saw the cuffs working. Next time that is heat — to them it is illegal wearables. Climb where nobody is looking.', 'bad'); }
+      else { heat(AI.raise(S.heat, 'gear'), AI.CRIMES.gear.label); lastKnown = [p.x, p.z]; }
+    }
+    npcs.forEach(n=>{
+      if(n.kind !== 'civ' || n.film || n.gone || n.stun > 0 || Math.hypot(n.x - p.x, n.z - p.z) > 20) return;
+      if(canSee(n, p.x, p.y, p.z) && Math.random() < 0.5) startFilm(n);
+    });
+  }
+  /* a crime a witness might care about (the ladders call this; a ladder is nobody's business) */
+  function crimeSeen(kind){ if(kind === 'scale') scaleSeen(); }
+  function cuffGlow(on_){ [me.cuffL, me.cuffR].forEach(m=>{ if(m){ m.visible = has('cuffs'); m.material.emissiveIntensity = on_ ? 3 : 0.5; } }); }
+
+  /* ======================================================== the workshop
+     21:40. Robin's bench, and tonight's four pieces not quite finished.
+     Each is finished by hand, and finishing it is how you learn what it
+     does: what holds a body on a wall, how much charge a clap takes,
+     which noise a drone cannot see through, what the buyer is paying for.
+     The clock does not run until she leaves the flat. */
+  const BUILD = {
+    cuffs: [
+      { kind:'pick', ask:'The pads. What holds a body on a wall?', opts:[
+        ['Suction cups', 'Hold on glass. Brick and concrete leak air.', false, 'Concrete leaks. Suction won\'t hold me up there.'],
+        ['Magnet strip', 'Holds on steel.', false, 'The city is concrete on the outside. Magnets do nothing.'],
+        ['Setae film', 'A million hairs finer than dust — the trick in a gecko\'s toes. Holds on anything dry.', true, 'Gecko feet. That holds on anything.'] ] },
+      { kind:'time', ask:'Wind the coil that curls the film. Stop the needle in the green.', hits:1, band:[0.62, 0.82],
+        say:'Up any wall in the city. Ten seconds of hold, then the film wants the ground.' }
+    ],
+    bangles: [
+      { kind:'time', ask:'Load the three charges. Stop the needle in the green, once for each.', hits:3, band:[0.4, 0.6],
+        say:'Clap, and anybody looking at me sees white. Three claps, then they need a while.' }
+    ],
+    studs: [
+      { kind:'tune', ask:'Tune the studs to the band the WFC drones talk on. Match the wave, then lock it.', target:0.7,
+        say:'That\'s their frequency. Six seconds of nothing on it — and nothing on anybody\'s phone either.' }
+    ],
+    rings: [
+      { kind:'time', ask:'Seat a shield core in each ring. Stop the needle in the green, twice.', hits:2, band:[0.46, 0.62], say:'Two cores, seated.' },
+      { kind:'show', ask:'Test one.', say:'Holds. And off it comes — they are not mine. Tonight they pay the rent.' }
+    ]
+  };
+  const bench = { piece:null, step:0, hits:0, struck:[], said:'', tune:0.25, reveal:null, t0:0 };
+  function workbench(){
+    if(!S.kit) S.kit = fresh().kit;
+    if(!bench.reveal && (!bench.piece || S.kit[bench.piece])){
+      bench.piece = AI.KIT_ORDER.find(p=>!S.kit[p]) || null;
+      bench.step = 0; bench.hits = 0; bench.struck = []; bench.said = ''; bench.tune = 0.25;
+    }
+    paintBench();
+  }
+  function benchStep(){ return bench.piece ? BUILD[bench.piece][bench.step] : null; }
+  function paintBench(){
+    const cards = AI.KIT_ORDER.map(p=>{
+      const k = AI.KIT[p], done = S.kit[p], cur = bench.piece === p || bench.reveal === p;
+      return `<div class="tsh-pc${done ? ' done' : ''}${cur ? ' cur' : ''}"><canvas data-art="${p}" width="120" height="96"></canvas>`
+        + `<b>${esc(k.name)}</b><small>${done ? (k.key ? `<kbd>${k.key}</kbd> ready` : 'packed') : cur ? 'on the bench' : 'unfinished'}</small></div>`;
+    }).join('');
+    let work = '';
+    const st = benchStep();
+    if(bench.reveal){
+      const k = AI.KIT[bench.reveal], last = BUILD[bench.reveal][BUILD[bench.reveal].length - 1];
+      work = `<div class="tsh-wk reveal"><h4>✓ ${esc(k.name)} — finished</h4>`
+        + `<p class="tsh-does">${k.key ? `<kbd>${k.key}</kbd> ` : ''}${esc(k.does)}</p>`
+        + `<p class="tsh-say"><b>ROBIN</b>${esc(last.say)}</p>`
+        + `<button data-a="next">${kitDone() ? 'Done ✓' : 'Next piece ▸'} <kbd>E</kbd></button></div>`;
+    } else if(st){
+      const k = AI.KIT[bench.piece], n = BUILD[bench.piece].length;
+      work = `<div class="tsh-wk"><h4>${esc(k.name)}${n > 1 ? ` · step ${bench.step + 1} of ${n}` : ''}</h4><p class="tsh-ask">${esc(st.ask)}</p>${stepHtml(st)}`
+        + (bench.said ? `<p class="tsh-say"><b>ROBIN</b>${esc(bench.said)}</p>` : '') + '</div>';
+    } else {
+      work = `<div class="tsh-wk reveal"><h4>Everything is finished.</h4><p class="tsh-ask">Four pieces, and time to spare. Dragon Alley at 22:30.</p>`
+        + `<p class="tsh-does">Out the door onto Harbor Lane — or out the window, and see what the cuffs can do.</p><button data-a="close">Go <kbd>E</kbd></button></div>`;
+    }
+    panel('bench', `<div class="tsh-bench"><h3>🛠 Robin's bench — tonight's pieces</h3><div class="tsh-pcs">${cards}</div>${work}`
+      + `<div class="tsh-close"><button data-a="close">Step away <kbd>Esc</kbd></button></div></div>`, benchAct);
+    const pb = el.querySelector('#tshPanel');
+    pb.querySelectorAll('canvas[data-art]').forEach(c=>drawPiece(c, c.dataset.art));
+    const wv = pb.querySelector('canvas.tsh-wave'); if(wv) drawWave(wv);
+    bench.t0 = performance.now();
+  }
+  function stepHtml(st){
+    if(st.kind === 'pick') return '<div class="tsh-opts">' + st.opts.map((o, i)=>`<button data-a="pick:${i}" class="${bench.struck.includes(i) ? 'struck' : ''}">`
+      + `<kbd>${i+1}</kbd><span><b>${esc(o[0])}</b><small>${esc(o[1])}</small></span></button>`).join('') + '</div>';
+    if(st.kind === 'time') return `<div class="tsh-meter"><i class="band" style="left:${st.band[0]*100}%;width:${(st.band[1]-st.band[0])*100}%"></i><i class="needle"></i></div>`
+      + `<div class="tsh-row"><span class="tsh-pips">${'●'.repeat(bench.hits)}${'○'.repeat(st.hits - bench.hits)}</span><button data-a="stop">Now <kbd>E</kbd></button></div>`;
+    if(st.kind === 'tune') return `<canvas class="tsh-wave" width="440" height="90"></canvas>`
+      + `<div class="tsh-row"><button data-a="tune:-1">◀ <kbd>A</kbd></button><span class="tsh-match">${Math.round(tuneMatch(st)*100)}% match</span>`
+      + `<button data-a="tune:1"><kbd>D</kbd> ▶</button><button data-a="lock">Lock it <kbd>E</kbd></button></div>`;
+    if(st.kind === 'show') return `<div class="tsh-shield${bench.shown ? ' on' : ''}"><i></i></div><div class="tsh-row"><button data-a="show">Put one on <kbd>E</kbd></button></div>`;
+    return '';
+  }
+  const needleAt = () => { const u = ((performance.now() - bench.t0)/900) % 2; return u <= 1 ? u : 2 - u; };   // 0.9 s across, then back: the CSS sweep
+  const tuneMatch = st => clamp(1 - Math.abs(bench.tune - st.target)*2, 0, 1);   // it climbs as you get warmer; 90% locks
+  function benchAct(a){
+    const st = benchStep();
+    if(a === 'close') return closePanel();
+    if(a === 'next'){ bench.reveal = null; if(kitDone()) return closePanel(); return workbench(); }
+    if(!st) return;
+    if(a.indexOf('pick:') === 0 && st.kind === 'pick'){
+      const i = +a.slice(5), o = st.opts[i]; if(!o || bench.struck.includes(i)) return;
+      bench.said = o[3];
+      if(o[2]){ cue('pick'); return benchNext(); }
+      bench.struck.push(i); cue('fail'); return paintBench();
+    }
+    if(a === 'stop' && st.kind === 'time'){
+      const p = needleAt();
+      if(p >= st.band[0] && p <= st.band[1]){ bench.hits++; cue('pick'); bench.said = ''; if(bench.hits >= st.hits){ bench.said = st.say; return benchNext(); } }
+      else { cue('fail'); bench.said = p < st.band[0] ? 'Too soon.' : 'Too far.'; }
+      return paintBench();
+    }
+    if(a.indexOf('tune:') === 0 && st.kind === 'tune'){
+      bench.tune = clamp(bench.tune + (+a.slice(5))*0.05, 0, 1); cue('step');
+      const pb = el.querySelector('#tshPanel'), wv = pb.querySelector('canvas.tsh-wave'), m = pb.querySelector('.tsh-match');
+      if(wv) drawWave(wv); if(m) m.textContent = Math.round(tuneMatch(st)*100) + '% match';
+      return;
+    }
+    if(a === 'lock' && st.kind === 'tune'){
+      if(tuneMatch(st) >= 0.9){ cue('pick'); bench.said = st.say; return benchNext(); }
+      cue('fail'); bench.said = 'Not quite. Listen for it.'; return paintBench();
+    }
+    if(a === 'show' && st.kind === 'show'){
+      cue('jam'); bench.shown = true; bench.said = st.say; paintBench();
+      return later(()=>{ bench.shown = false; if(busy === 'panel' && bench.piece === 'rings') benchNext(); }, 1600);
+    }
+  }
+  function benchNext(){
+    bench.step++; bench.hits = 0; bench.struck = [];
+    if(bench.step < BUILD[bench.piece].length) return paintBench();
+    const p = bench.piece;
+    S.kit[p] = true; save(); cue('win');
+    bench.reveal = p; bench.piece = null;
+    if(p === 'cuffs') cuffGlow(false);
+    hud();
+    if(kitDone()){ setObjective('Dragon Alley, 22:30.', INFO.prepDone); }
+    paintBench();
+  }
+  function benchKey(e){
+    const c = e.code, st = benchStep();
+    if(c === 'Escape' || c === 'KeyP'){ closePanel(); return; }
+    if(e.repeat) return;
+    const m = /^(Digit|Numpad)([1-9])$/.exec(c);
+    if(m && st && st.kind === 'pick') return benchAct('pick:' + (+m[2] - 1));
+    if(st && st.kind === 'tune' && (c === 'KeyA' || c === 'ArrowLeft')) return benchAct('tune:-1');
+    if(st && st.kind === 'tune' && (c === 'KeyD' || c === 'ArrowRight')) return benchAct('tune:1');
+    if(c === 'KeyE' || c === 'Space' || c === 'Enter' || c === 'NumpadEnter'){
+      if(bench.reveal) return benchAct('next');
+      if(!st) return benchAct('close');
+      if(st.kind === 'time') return benchAct('stop');
+      if(st.kind === 'tune') return benchAct('lock');
+      if(st.kind === 'show') return benchAct('show');
+    }
+  }
+  /* the pieces, drawn: nothing here is an image file */
+  function drawPiece(c, p){
+    const x = c.getContext('2d'), w = c.width, h = c.height, done = S.kit[p];
+    x.clearRect(0, 0, w, h); x.lineCap = 'round';
+    const teal = done ? '#38ffd0' : '#2a6a60', gold = done ? '#e8c46a' : '#6a5a3a', glow = (col, b) => { x.shadowColor = col; x.shadowBlur = done ? b : 0; };
+    if(p === 'cuffs'){
+      [[w*0.34, 0.2], [w*0.66, -0.2]].forEach(([cx, r])=>{
+        x.save(); x.translate(cx, h*0.5); x.rotate(r);
+        x.strokeStyle = '#1c2a28'; x.lineWidth = 11; x.beginPath(); x.ellipse(0, 0, 20, 30, 0, 0, 7); x.stroke();
+        glow(teal, 10); x.strokeStyle = teal; x.lineWidth = 3; x.beginPath(); x.ellipse(0, 0, 20, 30, 0, 0, 7); x.stroke();
+        x.fillStyle = teal; for(let i=0;i<5;i++){ const a = -1.1 + i*0.55; x.beginPath(); x.arc(Math.cos(a)*20, Math.sin(a)*30, 2.6, 0, 7); x.fill(); }
+        x.restore();
+      });
+    } else if(p === 'bangles'){
+      [18, 25, 32].forEach((r, i)=>{
+        x.strokeStyle = gold; x.lineWidth = 2.5; glow(gold, 6); x.beginPath(); x.ellipse(w/2, h/2, r*1.25, r*0.62, 0, 0, 7); x.stroke();
+        glow('#f4fffb', 14); x.fillStyle = done ? '#f4fffb' : '#556'; x.beginPath(); x.arc(w/2 + r*1.25*Math.cos(1 + i*1.9), h/2 + r*0.62*Math.sin(1 + i*1.9), 3.2, 0, 7); x.fill();
+      });
+    } else if(p === 'studs'){
+      [w*0.36, w*0.64].forEach((cx, i)=>{
+        glow('#b89cff', 10); x.fillStyle = done ? '#b89cff' : '#4a4460'; x.beginPath();
+        for(let k=0;k<6;k++){ const a = k*Math.PI/3; x.lineTo(cx + Math.cos(a)*9, h*0.42 + Math.sin(a)*9); } x.closePath(); x.fill();
+        x.strokeStyle = gold; x.lineWidth = 2; x.beginPath(); x.moveTo(cx, h*0.42 + 9); x.lineTo(cx, h*0.66); x.stroke();
+        if(done){ x.strokeStyle = 'rgba(184,156,255,.6)'; x.lineWidth = 1.5; [14, 20].forEach(r=>{ x.beginPath(); x.arc(cx, h*0.42, r, -0.9 + i*Math.PI, 0.9 + i*Math.PI); x.stroke(); }); }
+      });
+    } else if(p === 'rings'){
+      [[w*0.38, h*0.56], [w*0.62, h*0.5]].forEach(([cx, cy])=>{
+        x.strokeStyle = gold; x.lineWidth = 5; glow(gold, 6); x.beginPath(); x.ellipse(cx, cy, 16, 11, 0, 0, 7); x.stroke();
+        glow('#8fd8ff', 12); x.fillStyle = done ? '#8fd8ff' : '#345'; x.beginPath(); x.moveTo(cx, cy - 20); x.lineTo(cx + 6, cy - 12); x.lineTo(cx, cy - 7); x.lineTo(cx - 6, cy - 12); x.closePath(); x.fill();
+      });
+      if(done){ x.shadowBlur = 0; x.strokeStyle = 'rgba(143,216,255,.35)'; x.lineWidth = 1.5; x.beginPath(); x.arc(w/2, h*0.55, 40, Math.PI*1.1, Math.PI*1.9); x.stroke(); }
+    }
+    x.shadowBlur = 0;
+  }
+  function drawWave(c){
+    const st = benchStep(); if(!st) return;
+    const x = c.getContext('2d'), w = c.width, h = c.height, f = v => 1.5 + v*9;
+    x.clearRect(0, 0, w, h);
+    const line = (fr, col, lw) => { x.strokeStyle = col; x.lineWidth = lw; x.beginPath(); for(let i=0;i<=w;i+=3){ const y = h/2 + Math.sin(i/w*Math.PI*2*fr)*h*0.34; i ? x.lineTo(i, y) : x.moveTo(i, y); } x.stroke(); };
+    line(f(st.target), 'rgba(255,122,58,.55)', 5);                        // the drones' band
+    line(f(bench.tune), tuneMatch(st) >= 0.9 ? '#38ffd0' : '#b89cff', 2);  // the studs
+  }
+  /* the pieces go on: the cuffs as bands on her wrists (glowing when they hold) */
+  function prepBegin(){
+    apt.stage = 'prep'; apt.maya = null; apt.kai = null;
+    apt.lamp = true; aptLights();
+    const b = W.spots.bench; placePlayer(b[0], b[1] + 0.5, 0);
+    setObjective(kitDone() ? 'Dragon Alley, 22:30.' : AI.QUEST.prep.goal, kitDone() ? INFO.prepDone : INFO.prep);
+    later(()=>{ if(S.step !== 'prep') return; phoneCard('Message', 'UNKNOWN NUMBER'); talk('prepText', ()=>later(()=>{ if(S.step === 'prep') talk('prepOpen'); }, 700)); }, 1800);
+    if(S.runs > 0) later(()=>{ if(S.step === 'prep') note('You have been here before: P — skip the workshop.'); }, 5000);
+  }
+  /* out of the flat, kit and all: the night starts */
+  function prepOut(via){
+    if(!kitDone()){ note('Not yet — the pieces are still on the bench.', 'warn'); cue('fail'); return; }
+    fade(()=>{
+      goOutside(via);
+      if(via === 'window') G.yaw = -Math.PI/2;                   // facing the wall she is about to climb
+      S.step = 'deal'; S.t = 2; apt.stage = null;
+      castForBeat();
+      beatStart(false);
+      hud();
+    }, ()=>{
+      talk('open');
+      if(via === 'window') later(()=>note('🦎 The roof is four metres up. Face the wall and press G.', 'big'), 1200);
+    });
   }
 
   /* ------------------------------------------------------------- hiding */
@@ -674,7 +1027,7 @@ window.TSH = (function(){
   }
 
   /* ------------------------------------------------------------ gadgets
-     F: THE FLASH GLOVES. Clap, and everybody facing you inside nine
+     F: THE FLASH BANGLES. Clap, and everybody facing you inside nine
      metres is blind for four seconds — Kai, WFC, anybody. It is also the
      loudest thing you can do on a street: everybody who sees it from
      further away has seen a crime.
@@ -685,8 +1038,9 @@ window.TSH = (function(){
      look. */
   const gad = { flashCd:0, jam:0, jamCd:0, recharge:0 };
   function flash(){
+    if(!has('bangles')){ note('✋ The bangles are still on the bench.', 'warn'); return false; }
     if(gad.flashCd > 0 || mode === 'hide' || mode === 'cut' || mode === 'end') return false;
-    if(S.flash <= 0){ note('✋ The gloves are empty. They charge back slowly.', 'warn'); cue('fail'); return false; }
+    if(S.flash <= 0){ note('✋ The bangles are empty. They charge back slowly.', 'warn'); cue('fail'); return false; }
     S.flash--; gad.flashCd = 1.0; gad.recharge = 0;
     cue('flash');
     LOOK.fx.flash = 1.0; flashDom();
@@ -704,6 +1058,7 @@ window.TSH = (function(){
     return true;
   }
   function jam(){
+    if(!has('studs')){ note('📡 The studs are still on the bench.', 'warn'); return; }
     if(gad.jamCd > 0 || mode === 'cut' || mode === 'end'){ if(gad.jamCd > 0) note('📡 Jammer recharging…', 'warn'); return; }
     gad.jam = 6; gad.jamCd = 30;
     cue('jam');
@@ -740,7 +1095,7 @@ window.TSH = (function(){
     gad.jam = Math.max(0, gad.jam - dt); gad.jamCd = Math.max(0, gad.jamCd - dt);
     if(S.flags.trackerJam) S.flags.trackerJam = Math.max(0, S.flags.trackerJam - dt);
     if(S.flash < 3){ gad.recharge += dt; if(gad.recharge >= 45){ gad.recharge = 0; S.flash++; note('✋ A flash charge is back.'); hud(); } }
-    // the gloves glow with their charge
+    // the bangles glow with their charge
     const k = S.flash/3, pulse = 0.6 + 0.4*Math.sin(clock*4);
     [me.glowL, me.glowR].forEach(m=>{ if(m){ m.visible = S.flash > 0; m.material.opacity = 0.35 + 0.55*k*pulse; } });
   }
@@ -1488,7 +1843,7 @@ window.TSH = (function(){
       for(let i=0;i<8;i++){ const c = spawn('civ', CIV[(i+2) % CIV.length], 70 + (Math.random()-0.5)*6, -7 + Math.random()*2, { name:'club'+i, phone:true }); c.brisk = 0.7; }
       note('🎶 PULSE is letting out. A crowd is a good place to be nobody.'); }
     // the clock stops at two; nothing fails
-    S.t = Math.min(AI.AT.end, S.t + dt*AI.RATE*(mode === 'cut' || mode === 'talk' ? 0 : 1));
+    S.t = Math.min(AI.AT.end, S.t + dt*AI.RATE*(mode === 'cut' || mode === 'talk' || S.step === 'prep' ? 0 : 1));
   }
   function checkpointOnOff(v){
     cpOn = v;
@@ -1535,15 +1890,20 @@ window.TSH = (function(){
      ends; `beatStart()` sets up the next one — its goal, its optional
      information, where its marker is — and saves a checkpoint. */
   const INFO = {
+    prep:   ['E at the bench, against the north wall.', 'Four pieces: the Gecko cuffs, the flash bangles, the static studs — and the buyer\'s two rings.',
+             'Turn the photo face down while you are here, if you like.'],
+    prepDone:['Out the door onto Harbor Lane — or out the window onto the fire escape.', 'From the fire escape, G grips the wall: the roof is four metres up.',
+             'Dragon Alley is across the district, north of Neon Avenue.'],
     deal:   ['The buyer: Dragon Alley, off Neon Avenue, at 22:30.', 'A WFC drone sweeps the alley about once a minute.',
              'Or leave the rings in the mailbox at the back of the alley — a dead drop.', 'The fire escape in the alley goes up to the roofs.',
+             'G — the Gecko cuffs climb any wall. Nobody looks up; WFC who do see illegal wearables.',
              'H — hood and shades. Nobody has seen your face yet.'],
     drop:   ['Kai is watching the mailbox from the far end of the alley.', 'He checks his phone every so often.', 'Q throws a can — people go and look.', 'Hide in a dumpster (E) if he turns round.'],
     robbed: ['Kai is walking back to his crew.', 'Get behind him without being seen: E lifts the envelope.', 'Or a flash (F) makes him drop it.', 'Or let it go, and go home.'],
     home:   ['Home: 214 Harbor Lane, the south-east corner.', 'From 23:00 WFC closes the avenue east of Market Street.', 'The metro runs from Neon West to Harbor Lane.',
              'The back lanes and the roofs go round the checkpoint.', 'I — your bag. Check what you are carrying.'],
     apt:    ['The switch by the door kills every light.', 'The window opens onto the fire escape.', 'Your bench has tools on it.', 'The photo is on the shelf by the window.'],
-    escape: ['The door, or the window.', 'F — the flash gloves, if you have a charge.', 'In the dark, nobody sees much.'],
+    escape: ['The door, or the window.', 'F — the flash bangles, if there is a charge left.', 'In the dark, nobody sees much.'],
     chair:  ['A and D, again and again — work the tie loose.', 'If you took the cutter from the bench, E cuts it.'],
     escape2:['The window is the quiet way. The door is Maya\'s way.'],
     out:    ['Lose Kai, and any heat.', 'Then get up high: a roof over 16 m. The one next to your building is the tallest near you.', 'Nothing can be ★ when you stop to breathe.']
@@ -1744,9 +2104,10 @@ window.TSH = (function(){
       if(S.trail.photo === 'up'){ S.trail.photo = 'down'; cue('ui'); note('🖼 Face down. You and your mother, out of sight.'); }
       else { S.trail.photo = 'pocket'; cue('pick'); note('🖼 In your pocket. The frame is empty.'); }
       questEvent('photo'); photoMesh(); }, { icon:'🖼', r:1.5, when:()=>inside && ['up','down'].includes(S.trail.photo) && S.step !== 'chair' });
-    thing(s.bench[0], s.bench[1], 0, ()=>!S.flags.cutter ? 'Take the cutter' : 'Take a spare charge', ()=>{
-      if(!S.flags.cutter){ S.flags.cutter = true; note('✂ The cutter, in your sleeve.'); } else { S.flags.spare = true; S.flash = Math.min(4, S.flash+1); note('✋ A spare charge for the gloves.'); }
-      cue('pick'); questEvent('bench'); hud(); }, { icon:'🧰', r:1.7, when:()=>inside && S.step !== 'chair' && (!S.flags.cutter || !S.flags.spare) });
+    thing(s.bench[0], s.bench[1], 0, ()=>S.step === 'prep' ? 'Work at the bench' : !S.flags.cutter ? 'Take the cutter' : 'Take a spare charge', ()=>{
+      if(S.step === 'prep') return workbench();
+      if(!S.flags.cutter){ S.flags.cutter = true; note('✂ The cutter, in your sleeve.'); } else { S.flags.spare = true; S.flash = Math.min(4, S.flash+1); note('✋ A spare charge for the bangles.'); }
+      cue('pick'); questEvent('bench'); hud(); }, { icon:'🧰', r:1.7, when:()=>inside && S.step !== 'chair' && (S.step === 'prep' || !S.flags.cutter || !S.flags.spare) });
     thing(s.aptWindow[0], s.aptWindow[1], 0, 'Out the window', ()=>aptExit('window'), { icon:'🪟', r:1.6, when:()=>inside && S.step !== 'chair' });
     thing(s.aptDoor[0], s.aptDoor[1], 0, 'Out the door', ()=>aptExit('door'), { icon:'🚪', r:1.6, when:()=>inside && S.step !== 'chair' });
   }
@@ -1842,7 +2203,7 @@ window.TSH = (function(){
       else placePlayer(s.aptDoor[0], s.aptDoor[1] - 0.8, 0);
       apt.lamp = false; apt.ceiling = false; aptLights();
       photoMesh();
-      aptBegin(resume);
+      if(S.step === 'prep') prepBegin(); else aptBegin(resume);
     });
   }
   function goOutside(where){
@@ -1945,7 +2306,7 @@ window.TSH = (function(){
   }
   /* MAYA'S PITCH, all of George's lines, at your pace. Every time it is
      Robin's turn to speak you can say what she says — or stop talking and
-     do something: the switch, the window, the gloves, the cutter on the
+     do something: the switch, the window, the bangles, the cutter on the
      bench. Talk all the way to the end and Maya calls Kai in. */
   function startConversation(opener){
     apt.stage = 'talk';
@@ -1971,7 +2332,7 @@ window.TSH = (function(){
     const m = [];
     if(apt.lamp || apt.ceiling) m.push({ icon:'🔌', does:'Lunge for the light switch.', hint:'in the dark nobody sees much', act:moveLights });
     m.push({ icon:'🪟', does:'Go for the window.', hint:'the fire escape — and she will send Kai after you', act:()=>{ endConvo(); aptExit('window'); } });
-    if(S.flash > 0) m.push({ icon:'✋', does:'Flash her.', hint:`the gloves · ${S.flash} charge${S.flash > 1 ? 's' : ''} left`, act:()=>{ endConvo(); flash(); } });
+    if(S.flash > 0) m.push({ icon:'✋', does:'Flash her.', hint:`the bangles · ${S.flash} charge${S.flash > 1 ? 's' : ''} left`, act:()=>{ endConvo(); flash(); } });
     if(!S.flags.cutter) m.push({ icon:'🧰', does:'Palm the cutter off the bench.', hint:'in case this goes badly', act:movePalm, again:true });
     return m;
   }
@@ -2024,6 +2385,7 @@ window.TSH = (function(){
   }
   function aptExit(via){
     if(mode) return;
+    if(S.step === 'prep') return prepOut(via);
     // you are not getting out of this conversation by leaving before it starts
     if(apt.stage === 'arrive'){ apt.t = 999; apt.lamp = apt.lamp || false;
       if(apt.mode === 'ambush'){ flushTalk(); talk([['maya','Leaving so soon?']]); } else note('Somebody is on the stairs.', 'warn');
@@ -2102,7 +2464,7 @@ window.TSH = (function(){
   }
 
   /* ------------------------------------------------------- the struggle
-     Somebody has hold of you. F (if the gloves have a charge) and you are
+     Somebody has hold of you. F (if the bangles have a charge) and you are
      out of it; otherwise hammer E and hope. Lose, and it is WFC's cell,
      Kai's grip, or a zip-tie to the radiator — the story carries on. */
   let gr = null;
@@ -2689,9 +3051,12 @@ window.TSH = (function(){
     const gd = el.querySelector('#tshGad');
     const pips = n => '●'.repeat(Math.max(0, n)) + '○'.repeat(Math.max(0, 3-n));
     const jamK = gad.jam > 0 ? 'on' : gad.jamCd > 0 ? 'cd' : '';
+    const gp = Math.round(grip.left/AI.GRIP.hold*5), gripK = mode === 'scale' ? 'on' : grip.left < AI.GRIP.hold - 0.1 ? 'cd' : '';
+    const bench_ = p => !has(p) ? ' off' : '';
     const html = `<span class="${me.hood ? 'on' : 'warn'}"><kbd>H</kbd>🧥<em>${me.hood ? 'hood up' : 'face showing'}</em></span>`
-      + `<span class="${S.flash ? '' : 'off'}"><kbd>F</kbd>✋<em>${pips(S.flash)}</em></span>`
-      + `<span class="${jamK}"><kbd>J</kbd>📡<em>${gad.jam > 0 ? 'jamming' : gad.jamCd > 0 ? Math.ceil(gad.jamCd)+'s' : 'ready'}</em></span>`
+      + `<span class="${gripK}${bench_('cuffs')}" title="Gecko cuffs"><kbd>G</kbd>🦎<em>${!has('cuffs') ? 'on the bench' : 'grip ' + '▮'.repeat(gp) + '▯'.repeat(5 - gp)}</em></span>`
+      + `<span class="${S.flash ? '' : 'off'}${bench_('bangles')}" title="Flash bangles"><kbd>F</kbd>✋<em>${!has('bangles') ? 'on the bench' : pips(S.flash)}</em></span>`
+      + `<span class="${jamK}${bench_('studs')}" title="Static studs"><kbd>J</kbd>📡<em>${!has('studs') ? 'on the bench' : gad.jam > 0 ? 'jamming' : gad.jamCd > 0 ? Math.ceil(gad.jamCd)+'s' : 'ready'}</em></span>`
       + (S.can ? `<span><kbd>Q</kbd>🥫<em>throw</em></span>` : '')
       + `<span><kbd>I</kbd>🎒<em>bag</em></span>`;
     if(gd.dataset.h !== html){ gd.innerHTML = html; gd.dataset.h = html; }
@@ -2704,10 +3069,14 @@ window.TSH = (function(){
     // where to go
     const mk = mode === 'cut' ? null : marker(), dd = el.querySelector('#tshDist');
     dd.textContent = mk ? Math.round(Math.hypot(mk[0]-G.pos.x, mk[1]-G.pos.z)) + ' m' : '';
-    // what E does here
+    // what E does here — or, facing a building's wall with the cuffs on, what G does
+    if((grip.wallT -= dt) <= 0){ grip.wallT = 0.15; grip.wall = (!mode && !busy && !inside && has('cuffs')) ? wallAt() : null; }
     const pr = el.querySelector('#tshPrompt');
     const n = (mode || busy) ? null : nearestThing();
     if(n){ const v = typeof n.verb === 'function' ? n.verb() : n.verb; const h = `<kbd>E</kbd><span>${n.icon ? n.icon+' ' : ''}${esc(v)}</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
+    else if(mode === 'scale'){ const h = `<kbd>W</kbd><span>🦎 climb</span><kbd>S</kbd><span>down</span><kbd>Space</kbd><span>let go</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
+    else if(!mode && !busy && grip.wall){
+      const h = `<kbd>G</kbd><span>🦎 Scale the wall · ${Math.round(grip.wall.s.y2 - feet())} m</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(mode === 'hide'){ pr.innerHTML = '<kbd>E</kbd><span>Climb out</span>'; pr.classList.remove('hidden'); }
     else if(mode === 'ride'){ pr.innerHTML = '<kbd>E</kbd><span>Get off</span>'; pr.classList.remove('hidden'); }
     else pr.classList.add('hidden');
@@ -2848,7 +3217,7 @@ window.TSH = (function(){
     zoneT -= dt; if(zoneT > 0) return; zoneT = 0.5;
     if(mode === 'cut') return;
     const a = W.zones.alley, y = feet();
-    const z = inside ? 'INT. ROBIN\'S APARTMENT — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT'
+    const z = inside ? (S.step === 'prep' ? 'INT. ROBIN\'S APARTMENT — EARLIER' : 'INT. ROBIN\'S APARTMENT — NIGHT') : y > 5 ? 'EXT. ROOFTOP — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
     caption(z);
   }
@@ -2881,16 +3250,18 @@ window.TSH = (function(){
   function closePanel(){
     if(!el) return;
     el.querySelector('#tshPanel').classList.add('hidden'); panelCb = null;
-    if(busy === 'panel'){ busy = null; if(!mode){ G.running = true; lockPointer($('#view')); } }
+    if(busy === 'panel'){ busy = null; letGoOfKeys(); if(!mode){ G.running = true; lockPointer($('#view')); } }
   }
   function bag(){
     const env = S.cash > 0, tr = S.trail;
     const items = [];
-    if(S.rings) items.push(['💍', 'Two rings', 'Your work. A shield in each, if the wearer knows how.', '']);
+    if(S.rings) items.push(['💍', AI.KIT.rings.name, has('rings') ? AI.KIT.rings.does : 'Unfinished — the shield cores are still on the bench.', '']);
     if(env) items.push(['✉', 'Envelope · ¥' + S.cash.toLocaleString(), tr.trackerFound && tr.tracker === 'on' ? 'There is a tracker sewn into the lining.' : 'Cash. It feels about right.',
       tr.tracker === 'on' && !tr.trackerFound ? '<button data-a="lining">Check the lining</button>' : tr.tracker === 'on' ? '<button data-a="crush">Crush the tracker</button><em>or stand beside a delivery truck to plant it</em>' : '']);
-    items.push(['✋', 'Flash gloves', 'Charges: ' + S.flash + '. Clap (F) and everybody facing you is blind for four seconds.', '']);
-    items.push(['📡', 'Jammer', 'J: six seconds of noise — phones, drones, scanner arches, trackers.', '']);
+    // the jewelry: what each piece does, in Robin's own words for it
+    ['cuffs', 'bangles', 'studs'].forEach(p=>{ const k = AI.KIT[p];
+      items.push([k.icon, k.name + (k.key ? ` · ${k.key}` : '') + (p === 'bangles' && has(p) ? ` · ${S.flash} charge${S.flash === 1 ? '' : 's'}` : ''),
+                  has(p) ? k.does : 'Unfinished — it is still on the bench.', '']); });
     items.push(['🧥', 'Hood and shades', me.hood ? 'Up. Nobody sees your face.' : 'Down. Your face is showing.', '']);
     if(S.can) items.push(['🥫', 'A can', 'Q throws it. Whoever hears it goes to look.', '']);
     if(tr.photo === 'pocket') items.push(['🖼', 'The photo', 'You, small, and your mother.', '']);
@@ -2905,12 +3276,14 @@ window.TSH = (function(){
     const q = LOOK.quality;
     panel('pause', `<div class="tsh-bag"><h3>⏸ TSH — ${esc(AI.clock(S.t))}</h3>
       <div class="tsh-keys"><span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> run</span><span><kbd>Space</kbd> jump</span><span><kbd>E</kbd> use</span>
-        <span><kbd>H</kbd> hood</span><span><kbd>F</kbd> flash</span><span><kbd>J</kbd> jammer</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span></div>
+        <span><kbd>H</kbd> hood</span><span><kbd>G</kbd> Gecko cuffs</span><span><kbd>F</kbd> flash bangles</span><span><kbd>J</kbd> static studs</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span></div>
       <div class="tsh-pbtns"><button data-a="resume">▶ Back to the night</button>
+        ${S.step === 'prep' ? '<button data-a="skip">⏭ Skip the workshop — the pieces are finished</button>' : ''}
         <button data-a="beat">↺ Restart this beat</button><button data-a="over">↺ Start the night over</button>
         <button data-a="q">Graphics: ${q === 2 ? 'high' : q === 1 ? 'medium' : 'low'}</button><button data-a="wano">🌏 Leave to Wano</button></div>
       <div class="tsh-credit">From the screenplay <b>TSH V4</b> by <b>George Wang</b>.</div></div>`, act=>{
         if(act === 'resume') return closePanel();
+        if(act === 'skip'){ closePanel(); AI.KIT_ORDER.forEach(p=>{ S.kit[p] = true; }); cuffGlow(false); hud(); return prepOut('door'); }
         if(act === 'q'){ LOOK.quality = (q + 2) % 3; return pause(); }
         if(act === 'beat'){ closePanel(); const cp = S.cp; stop(); S.cp = cp; save(); enter(server); return; }
         if(act === 'over'){ closePanel(); const runs = S.runs, last = S.last; S = fresh(); S.runs = runs; S.last = last; save(); stop(); enter(server); return; }
@@ -2970,6 +3343,7 @@ window.TSH = (function(){
       case 'cut': tickCut(dt); break;
       case 'talk': tickConvo(dt); break;
       case 'climb': tickClimb(dt); break;
+      case 'scale': tickScale(dt); break;
       case 'ride': tickRide(dt); break;
       case 'hide': tickHide(); break;
       case 'grab': tickGrab(dt); break;
@@ -2979,6 +3353,7 @@ window.TSH = (function(){
     npcs.slice().forEach(n=>{ if(!n.gone) tickNpc(n, dt); });
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
+    if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
     tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
@@ -2994,6 +3369,7 @@ window.TSH = (function(){
     if(!on) return false;
     const c = e.code;
     if(c === 'KeyB' || c === 'KeyC' || c === 'KeyT') return true;       // no costume changes, rooms or chat mid-heist
+    if(busy === 'panel' && el.querySelector('#tshPanel').dataset.kind === 'bench'){ benchKey(e); return true; }
     if(busy === 'panel'){ if(c === 'Escape' || c === 'KeyI' || c === 'KeyP'){ const k = el.querySelector('#tshPanel').dataset.kind; if(k !== 'results') closePanel(); } return true; }
     if(mode === 'talk') return convoKey(e);
     if(mode === 'cut'){ if((c === 'Space' || c === 'KeyE') && !e.repeat) skipLine(); if(c === 'Enter' || c === 'NumpadEnter') skipCut(); return true; }
@@ -3004,8 +3380,14 @@ window.TSH = (function(){
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
+    if(mode === 'scale'){
+      if(c === 'Space' && !e.repeat){ const sc = me.scale; if(sc && !sc.mantle) offWall(sc.y, true); }
+      if(c === 'KeyP' || c === 'Escape') pause();
+      return true;
+    }
     if(c === 'KeyE'){ const t = nearestThing(); if(t){ t.act(); return true; } return false; }
     if(c === 'KeyF'){ flash(); return true; }
+    if(c === 'KeyG'){ tryScale(); return true; }
     if(c === 'KeyJ'){ jam(); return true; }
     if(c === 'KeyH'){ setHood(!me.hood); hud(); return true; }
     if(c === 'KeyQ'){ throwCan(); return true; }
@@ -3023,5 +3405,6 @@ window.TSH = (function(){
            _dbg:{ get apt(){ return apt; }, get dealT(){ return dealT; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
                   homeDoor, aptExit, tossRings, dealBegin, leaveInMailbox, takeFromMailbox, speech, roofCut, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, get lastKnown(){ return lastKnown; },
-                  get convo(){ return cv; }, convoPick, convoAdvance } };
+                  get convo(){ return cv; }, convoPick, convoAdvance,
+                  bench, benchAct, workbench, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();

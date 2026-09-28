@@ -2756,6 +2756,38 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-panel{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,6,5,.72);pointer-events:auto;backdrop-filter:blur(3px)}
 #tsh .tsh-panel.hidden{display:none}
 #tsh .tsh-bag{width:min(560px,92vw);max-height:84vh;overflow:auto;padding:20px 24px;background:#07110f;border:1px solid #1f4a44;border-top:3px solid var(--orange);border-radius:10px}
+/* the workshop: Robin's bench, the four pieces, and the one being finished */
+#tsh .tsh-bench{width:min(740px,94vw);max-height:88vh;overflow:auto;padding:20px 24px;background:#07110f;border:1px solid #1f4a44;border-top:3px solid var(--orange);border-radius:10px}
+#tsh .tsh-bench h3{margin:0;font:700 18px var(--font-disp);letter-spacing:.08em}
+#tsh .tsh-pcs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 16px}
+#tsh .tsh-pc{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;background:#0b1a18;border:1px solid #16332e;border-radius:8px;text-align:center}
+#tsh .tsh-pc canvas{width:100%;max-width:120px;height:auto;opacity:.5}
+#tsh .tsh-pc.done canvas{opacity:1}
+#tsh .tsh-pc.cur{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+#tsh .tsh-pc b{font-size:14px} #tsh .tsh-pc small{color:#8fb8ae;font-size:12px} #tsh .tsh-pc.done small{color:var(--teal)}
+#tsh .tsh-wk{padding:14px 16px;background:#0b1a18;border-radius:8px;border-left:3px solid var(--teal)}
+#tsh .tsh-wk h4{margin:0 0 6px;font:700 15px var(--font-disp);letter-spacing:.06em}
+#tsh .tsh-ask{margin:0 0 10px;color:#cfeee6}
+#tsh .tsh-does{margin:0 0 12px;color:#e6fff8;font-size:15px;line-height:1.5}
+#tsh .tsh-say{margin:12px 0 0;font:italic 600 15px/1.45 var(--font);color:#ffd9a8}
+#tsh .tsh-say b{font:700 11px var(--font-disp);font-style:normal;letter-spacing:.18em;margin-right:10px}
+#tsh .tsh-opts{display:flex;flex-direction:column;gap:6px}
+#tsh .tsh-opts button{display:flex;gap:10px;align-items:flex-start;text-align:left}
+#tsh .tsh-opts button b{display:block} #tsh .tsh-opts small{display:block;margin-top:2px;color:#8fb8ae;font-weight:500;font-size:13px}
+#tsh .tsh-opts button.struck{opacity:.45} #tsh .tsh-opts button.struck b{text-decoration:line-through}
+#tsh .tsh-meter{position:relative;height:22px;margin:6px 0 10px;background:#12302b;border-radius:11px;overflow:hidden}
+#tsh .tsh-meter .band{position:absolute;top:0;bottom:0;background:rgba(56,255,208,.3);border-left:2px solid var(--teal);border-right:2px solid var(--teal)}
+#tsh .tsh-meter .needle{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:#fff;box-shadow:0 0 8px #fff;animation:tshsweep .9s linear infinite alternate}
+@keyframes tshsweep{from{left:0}to{left:100%}}
+#tsh .tsh-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#tsh .tsh-pips{font-size:18px;letter-spacing:4px;color:var(--teal)}
+#tsh .tsh-wave{display:block;width:100%;height:auto;margin-bottom:8px;background:#050c0b;border-radius:8px}
+#tsh .tsh-match{min-width:96px;text-align:center;color:#b89cff;font-weight:700}
+#tsh .tsh-shield{height:90px;display:grid;place-items:center}
+#tsh .tsh-shield i{width:60px;height:60px;border-radius:50%;border:2px solid rgba(143,216,255,.25)}
+#tsh .tsh-shield.on i{animation:tshshield 1.4s ease-out}
+@keyframes tshshield{0%{transform:scale(.3);border-color:#8fd8ff;box-shadow:0 0 0 0 rgba(143,216,255,.9)}100%{transform:scale(1.6);border-color:rgba(143,216,255,0);box-shadow:0 0 40px 10px rgba(143,216,255,0)}}
+@media (max-width:600px){#tsh .tsh-pcs{grid-template-columns:repeat(2,1fr)}}
 #tsh .tsh-bag h3{margin:0 0 12px;font:700 18px var(--font-disp);letter-spacing:.08em}
 #tsh .tsh-it{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #12302b}
 #tsh .tsh-it>span{font-size:26px;width:36px;text-align:center}

@@ -4,6 +4,7 @@
    tested on its own (tests/tsh.test.js):
 
      THE CLOCK      one night, 22:00 to 02:00, run eight times fast
+     THE KIT        Robin's jewelry: what each piece does, and the grip
      PERCEPTION     how quickly somebody notices you, from what they can see
      HEAT           WFC's attention, 0 to 5, and how it cools
      THE PATHS      A* over the district's walking graph
@@ -35,7 +36,8 @@ window.TSHAI = (function(){
     end:        239       // 01:59 — the clock stops here; nothing fails at it
   };
   function clock(min){
-    const m = Math.max(0, Math.min(AT.end, min||0)), h = (22 + Math.floor(m/60)) % 24, mm = Math.floor(m%60);
+    // the workshop is before ten: minutes before 22:00 are negative, and read as 21:xx
+    const m = Math.max(-120, Math.min(AT.end, min||0)), h = (24 + 22 + Math.floor(m/60)) % 24, mm = ((Math.floor(m) % 60) + 60) % 60;
     return String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
   }
 
@@ -84,7 +86,8 @@ window.TSHAI = (function(){
     gate:       { sev:1, heard:0,  label:'the scanner arch' },
     brawl:      { sev:1, heard:14, label:'a fight in the street' },
     evade:      { sev:2, heard:0,  label:'running from WFC' },
-    trespass:   { sev:1, heard:0,  label:'the WFC post' }
+    trespass:   { sev:1, heard:0,  label:'the WFC post' },
+    gear:       { sev:1, heard:0,  label:'illegal wearables, in use' }
   };
   const HEAT = {
     max: 5,
@@ -145,7 +148,8 @@ window.TSHAI = (function(){
      (Kai spotting you after the deal is done, say) cannot knock the
      story off its rails. */
   const QUEST = {
-    intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'deal' } },
+    intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'prep' } },
+    prep:    { goal:'Finish tonight\'s pieces at the bench.', to:{ done:'deal' } },
     deal:    { goal:'Sell the rings to the buyer. Get paid.',
                to:{ paid:'home', robbed:'robbed', dropped:'drop', noshow:'home', confiscated:'home', stiffed:'home' } },
     drop:    { goal:'Get the envelope out of the mailbox.', to:{ retrieved:'home', robbed:'home', gaveup:'home', home:'apt' } },
@@ -164,8 +168,29 @@ window.TSHAI = (function(){
   }
   /* The checkpoints a visit restarts from: the beat is replayed, what
      you did in the beats before it stays done. */
-  const CHECKPOINT = { intro:'deal', deal:'deal', drop:'deal', robbed:'deal', home:'home', apt:'apt', escape:'apt',
+  const CHECKPOINT = { intro:'prep', prep:'prep', deal:'deal', drop:'deal', robbed:'deal', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end' };
+
+  /* ============================================================= the kit
+     ROBIN MAKES JEWELRY — pretty on a wrist or an ear, and every piece of
+     it what WFC calls illicit wearable weaponry. Tonight's kit, in the
+     order she finishes it at her bench. `key` is what uses it. */
+  const KIT = {
+    cuffs:   { name:'Gecko cuffs',   key:'G', icon:'🦎',
+               does:'Grip a building\'s wall and climb it, all the way to the roof. The film tires after about ten seconds on a wall and recovers on the ground. WFC who see them in use see illegal wearables.' },
+    bangles: { name:'Flash bangles', key:'F', icon:'✋',
+               does:'Clap, and anybody facing you sees white for four seconds. Three charges; they come back slowly. Loud — WFC hears it.' },
+    studs:   { name:'Static studs',  key:'J', icon:'📡',
+               does:'Six seconds of noise: phones stop uploading, drones lose their picture, scanner arches go deaf — and anything of yours that is transmitting shows up.' },
+    rings:   { name:'The two rings', key:'',  icon:'💍',
+               does:'The buyer\'s. A shield in each, if the wearer knows how. ¥3,000 on delivery.' }
+  };
+  const KIT_ORDER = ['cuffs', 'bangles', 'studs', 'rings'];
+  /* THE GRIP. Seconds of hold on a wall, how fast she goes up, down and
+     along it, how fast it comes back on the ground, and how fast she
+     slides when it gives out. A 10-second hold at 2.2 m/s is 22 metres:
+     every roof in the district but the two towers on the outer ring. */
+  const GRIP = { hold:10, up:2.2, down:2.8, side:1.6, regen:2.5, slide:4.5 };
 
   /* =========================================================== the trail
      Everything that could lead Maya to your door, and what she knows
@@ -220,11 +245,13 @@ window.TSHAI = (function(){
     if(tr.kaiTail) out.push('Kai followed you home.');
     if(tr.uploads) out.push(tr.uploads + (tr.uploads>1 ? ' videos' : ' video') + ' of YU went to the WFC tip line' + (tr.faceVideo ? ' — one with your face in it.' : '.'));
     if(tr.detained) out.push('WFC detained you. Somebody called your mother.');
+    const sc = (S.flags && S.flags.scaled) || 0;
+    if(sc) out.push('Went up ' + sc + (sc > 1 ? ' walls' : ' wall') + ' on the Gecko cuffs.');
     out.push(tr.photo==='pocket' ? 'Took the photo with you.' : tr.photo==='taken' ? 'Maya left with your photo.' : 'Turned the photo face down.');
     out.push('Most heat: ' + '★'.repeat(S.maxHeat||0) + '☆'.repeat(5-(S.maxHeat||0)) + ' · Exposure ' + Math.round(S.exposure||0) + '%');
     return out;
   }
 
   return { RATE, AT, clock, perceive, band, BANDS, CRIMES, HEAT, raise, report, cool, nearest, astar,
-           QUEST, next, CHECKPOINT, freshTrail, arrival, knowsMother, ending, STINGS, summary };
+           QUEST, next, CHECKPOINT, KIT, KIT_ORDER, GRIP, freshTrail, arrival, knowsMother, ending, STINGS, summary };
 })();
