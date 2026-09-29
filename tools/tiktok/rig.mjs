@@ -10,9 +10,34 @@
      to this browser only, a few getters are added before its final return,
      exposed as window.__P. The file on disk is untouched. */
 
-import puppeteer from 'puppeteer-core';
+import puppeteer from 'puppeteer';
+import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import ffmpegStatic from 'ffmpeg-static';
+
+/* ffmpeg: the system's if there is one, otherwise the one npm brought. */
+export const FFMPEG = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return 'ffmpeg'; } catch { return ffmpegStatic; } })();
+
+/* On a Mac, the installed Chrome on the GPU. Anywhere else (the cloud has no
+   GPU), the Chrome puppeteer downloaded, drawing WebGL in software. */
+const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const GPU = fs.existsSync(MAC_CHROME) && !process.env.KORO_SOFTWARE;
 
 export const W = 1080, H = 1920;
+export const PORT = +(process.env.KORO_PORT || 8799);
+
+/* The game, under the dev server (accounts in memory, signed in as Local
+   Dev). Started here if nothing is listening yet; left running otherwise. */
+export async function server() {
+  const up = async () => { try { return (await fetch(`http://localhost:${PORT}/`)).ok; } catch { return false; } };
+  if (await up()) return null;
+  const { spawn } = await import('node:child_process');
+  const root = new URL('../..', import.meta.url).pathname;
+  const proc = spawn('node', ['tools/dev-server.js'], { cwd: root, env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore', detached: false });
+  for (let i = 0; i < 150; i++) { if (await up()) return proc; await new Promise((r) => setTimeout(r, 200)); }
+  proc.kill();
+  throw new Error('the dev server did not come up on ' + PORT);
+}
 
 const CLOCK = `(() => {
   let now = 0; const t0 = Date.now(); let q = [];
@@ -35,8 +60,9 @@ const EXPOSE = `
 
 export async function open({ headless = true } = {}) {
   const browser = await puppeteer.launch({
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless,
-    args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--hide-scrollbars',
+    ...(GPU ? { executablePath: MAC_CHROME } : {}), headless,
+    args: [...(GPU ? ['--use-angle=metal', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--disable-dev-shm-usage']),
+      '--ignore-gpu-blocklist', '--hide-scrollbars',
       '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--autoplay-policy=no-user-gesture-required'],
   });
   const page = await browser.newPage();
@@ -52,7 +78,7 @@ export async function open({ headless = true } = {}) {
     if (at < 0) { console.error('rig: planet.js return not found'); return req.continue(); }
     req.respond({ status: 200, contentType: 'application/javascript', body: src.slice(0, at) + EXPOSE + src.slice(at) });
   });
-  await page.goto('http://localhost:8799/', { waitUntil: 'networkidle2', timeout: 120000 });
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle2', timeout: 180000 });
   return { browser, page };
 }
 

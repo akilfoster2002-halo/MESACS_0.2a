@@ -1,0 +1,8 @@
+{
+  "name": "koro-tiktok",
+  "private": true,
+  "type": "module",
+  "description": "Films short vertical KORO clips out of the real game (see README.md)",
+  "scripts": { "day": "node day.mjs", "publish": "node publish.mjs" },
+  "dependencies": { "ffmpeg-static": "^5.2.0", "puppeteer": "^24.0.0" }
+}
