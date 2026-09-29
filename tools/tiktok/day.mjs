@@ -33,6 +33,8 @@ const cabs = shuffle(CABS);
 const posts = types.map((type, n) => ({ n: n + 1, type, char: chars[n], song: SONGS[n % SONGS.length], cab: cabs[n % cabs.length], seed: Math.floor(rnd() * 1e6), time: TIMES[n] }));
 
 posts.splice(+arg('count', posts.length));
+// --slot n: only the nth post of the day (the cloud makes one per run)
+if (arg('slot')) posts.splice(0, posts.length, ...posts.filter((p) => p.n === +arg('slot')));
 if (process.argv.includes('--plan')) { console.table(posts); process.exit(0); }
 fs.mkdirSync(OUT, { recursive: true });
 const done = [];
