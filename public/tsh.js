@@ -663,7 +663,7 @@ window.TSH = (function(){
     if(!S.flags.scaleTip){ S.flags.scaleTip = true; note('🦎 W climb · S down · A/D along the wall · SPACE let go', 'big'); }
   }
   /* THE BODY ON THE WALL: the climbing clips from animations/WallStuff,
-     baked into her model (character-w.glb). The clip plays at the speed
+     baked into her model (character-x.glb). The clip plays at the speed
      she is moving — frozen when she hangs still — so her hands keep pace
      with the wall. A model from before the clips were baked walks up it. */
   function wallClip(dt, name, speed){

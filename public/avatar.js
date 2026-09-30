@@ -99,11 +99,13 @@ window.AVATAR = (function(){
        George Wang's script, and it is about Robin's face and Robin's
        name — so that quest casts her with setCast('robin'), the way this
        file says a place may, and hands you back whoever you picked on the
-       way out. Her file is the retired `w`; the letter still means Nia to
-       every old save, which is why she needs a name of her own here. */
+       way out. She wears `x` (the realistic one in the pink jacket, with
+       the climbing clips merged in the way `w` had them); the letters still
+       mean the new cast to every old save, which is why she needs a name of
+       her own here. */
     { id:'robin', name:'Robin',
-      model:'characters/models/character-w.glb'+V(),
-      preview:'characters/previews/character-w.png'+V() },
+      model:'characters/models/character-x.glb'+V(),
+      preview:'characters/previews/character-x.png'+V() },
     /* And the retired roster as walk-ons: the people on TSH's pavements.
        Same reason — their letters resolve to the new cast. */
     ...['s','t','u','v','x'].map(c=>({ id:'walk-'+c, name:'Passer-by',
