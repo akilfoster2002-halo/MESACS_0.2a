@@ -42,8 +42,11 @@ window.OCEAN = (function(){
   const smooth = (e0,e1,x)=>{ const t = clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
 
   /* WHERE. East of the town, far enough that the Mall's apron is dry and
-     near enough that the shore is the next thing you reach walking east. */
-  const SPEC = { lon:72, lat:2, R:156 };
+     near enough that the shore is the next thing you reach walking east.
+     240 m across the middle (it was 156): the centre moved east from 72 to
+     80 as it grew, so the edge still stops well short of the Club (lon 27,
+     ~296 m from here) and nothing in town is under water. */
+  const SPEC = { lon:80, lat:2, R:240 };
   const SHORE_OUT = 0.10;            // metres of beach and dunes between the waterline and the untouched land, as a share of R
 
   const GRID = 1.25;                 // metres a cell of the depth grid

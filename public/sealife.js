@@ -798,7 +798,10 @@ window.SEALIFE = (function(){
       try{
         const b = s.make();
         const k = { id:s.id, name:s.name, icon:s.icon, puffer:!!b.puffer, eels:!!b.eels };
-        k.mesh = herd({ id:s.id, mode:b.mode, mat:b.mat, tints:b.tints }, b.geo, b.count);
+        /* A bigger sea, as full as the old one: schools and reef fish scale
+           with its size; the giants (a whale shark, two orcas) stay rare. */
+        const n = b.count > 6 ? Math.round(b.count * (O.R || 156) / 156) : b.count;
+        k.mesh = herd({ id:s.id, mode:b.mode, mat:b.mat, tints:b.tints }, b.geo, n);
         b.place(k);
         if(k.update) k.update(0);
         k.mesh.instanceMatrix.needsUpdate = true;
