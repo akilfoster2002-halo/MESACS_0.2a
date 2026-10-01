@@ -807,6 +807,10 @@ window.PLANET = (function(){
     const stars=new THREE.Points(g, new THREE.PointsMaterial({
       color:0xdfe8ff, size:1.8, sizeAttenuation:true }));
     stars.userData.sky=true; G.roomGroup.add(stars);
+    /* WANO GETS THE WEBSITE'S SKY (skydome.js): golden hour over the hub,
+       with its own few stars, so the point-field above would be specks on
+       daylight. The other balls keep the night they were built with. */
+    if(W.id==='hub' && window.SKYDOME){ SKYDOME.build(G.roomGroup, 1500); stars.visible=false; }
     const neighbour=new THREE.Mesh(new THREE.SphereGeometry(150,48,32),
       new THREE.MeshLambertMaterial({color:W.night ? 0x3a2a5e : 0x7c5cc4}));
     neighbour.position.set(-520,180,-620);
@@ -7330,6 +7334,7 @@ window.PLANET = (function(){
   let sent=0;
   function tick(dt){
     if(!on) return;
+    if(window.SKYDOME && SKYDOME.dome) SKYDOME.tick(dt, G.camera);
     tourTick(dt);
     canopyTick(dt);
     smokeTick(dt);
@@ -7470,6 +7475,8 @@ window.PLANET = (function(){
     if(s){ s.intensity=k.i; s.color.setHex(k.c); }
     if(G.amb)  G.amb.intensity=k.amb;
     if(G.hemi) G.hemi.intensity=k.hemi;
+    // under the website's sky, the light is the sky's colour (skydome.js)
+    if(window.SKYDOME){ if(W.id==='hub') SKYDOME.light(s, G.hemi); else SKYDOME.restore(s, G.hemi); }
     if(G.renderer){
       if(exposureWas===null) exposureWas=G.renderer.toneMappingExposure;
       G.renderer.toneMappingExposure=k.exposure;
@@ -7479,6 +7486,7 @@ window.PLANET = (function(){
      the same three lights, so a night world that kept its own would make
      the next mission after VOLTA a night mission. */
   function dayAgain(){
+    if(window.SKYDOME) SKYDOME.restore(G.sun, G.hemi);
     if(G.amb)  G.amb.intensity=DAY.amb;
     if(G.hemi) G.hemi.intensity=DAY.hemi;
     if(G.renderer && exposureWas!==null){
