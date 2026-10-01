@@ -176,6 +176,7 @@ try {
   await page.evaluate(() => { const s = [...document.querySelectorAll('a,button')].find((b) => /skip the walkthrough/i.test(b.textContent)); if (s) s.click(); });
   await hold(page);
   await clean(page);
+  await page.evaluate(() => { if (window.HEALTH) HEALTH.immortal = true; });   // shots drop people out of the sky on purpose
   // who we are: the body is swapped in place and loads in the background
   // setCast, not pick: the dev server remembers whoever was picked last and puts them back
   await page.evaluate((c) => { window.__oldBody = AVATAR.body; window.__who = c; AVATAR.setCast(c); }, char);

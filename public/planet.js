@@ -393,6 +393,16 @@ window.PLANET = (function(){
      at has gone below the curve. So it is a fraction of the ball, capped at
      the distance Wano has always used. */
   const landingOff = ()=> Math.min(74, PR*0.24);
+  /* OUT OF HEALTH: back on your feet in front of Mission Control's door,
+     out of the water, off the mecha, on foot. */
+  function wakeAtDoor(){
+    if(piloting && mecha){ mecha.onGround=true; exitMech(); }
+    if(flying) land();
+    if(ride) toggleRide();
+    me.dir=landingSpot(); me.fwd=facing(me.dir, BUILDINGS[0].dir);
+    me.alt=floorAt(me.dir); me.vy=0; me.onGround=true; me.spd=0; me.dive=false;
+    swimming=false; if(window.AVATAR) AVATAR.posture(null);
+  }
   function landingSpot(){
     const b=BUILDINGS[0];
     if(!b.frame) return dirOf(b.lon, b.lat-14);
@@ -751,6 +761,12 @@ window.PLANET = (function(){
     document.querySelector('#mapwrap').classList.add('hidden');
     ['#health','#skill','#trigger','#fbeat','#radar'].forEach(s=>{
       const e=document.querySelector(s); if(e) e.classList.add('hidden'); });
+    /* HEALTH, on Wano (health.js): the bar, breath in the sea, the orbs, and
+       waking at Mission Control with no coins if it runs out. */
+    if(window.HEALTH){
+      if(W.kind==='hub') HEALTH.build({ group:G.roomGroup, PR, dirOf, floorAt:d=>floorAt(d), respawn:wakeAtDoor });
+      else HEALTH.clear();
+    }
     // there is nothing to shoot or double-click out here, so do not offer it
     keysFor();
     hud(); dash(); drawMap();
@@ -6612,7 +6628,11 @@ window.PLANET = (function(){
       if(me.onGround) me.alt=floor;
       else {
         me.vy-=GRAV*dt; me.alt+=me.vy*dt;
-        if(me.alt<=floor){ me.alt=floor; me.vy=0; me.onGround=true; }
+        if(me.alt<=floor){
+          // how hard you hit the ground is what a fall costs (health.js); a mecha's legs take it
+          if(window.HEALTH && !piloting && !mount) HEALTH.landed(-me.vy);
+          me.alt=floor; me.vy=0; me.onGround=true;
+        }
       }
     }
     place(dt, moved, running);
@@ -7335,6 +7355,10 @@ window.PLANET = (function(){
   function tick(dt){
     if(!on) return;
     if(window.SKYDOME && SKYDOME.dome) SKYDOME.tick(dt, G.camera);
+    if(window.HEALTH && HEALTH.active && me.dir){
+      const sea = window.OCEAN ? OCEAN.waterAt(me.dir) : null;
+      HEALTH.tick(dt, { dir:me.dir, alt:me.alt, inSea:sea!==null && swimming, under:sea!==null && swimming && !!me.dive && me.alt < sea-1.0 });
+    }
     tourTick(dt);
     canopyTick(dt);
     smokeTick(dt);
@@ -7824,6 +7848,7 @@ window.PLANET = (function(){
     flying=false; travelClose(); dome=null; streak=null;
     me.air=0; me.climb=0; me.bank=0; me.roll=0; me.lean=0;
     if(window.AVATAR) AVATAR.posture(null);
+    if(window.HEALTH) HEALTH.clear();          // the bar and the orbs are Wano's
     if(window.OCEAN) OCEAN.clear();      // and the underwater blue does not follow you indoors
     /* AND THE GLASSES COME OFF WHEN YOU GO INDOORS. The overlay is fixed
        to the viewport rather than to the world, so it would otherwise go
@@ -7855,7 +7880,7 @@ window.PLANET = (function(){
   }
   function stop(){ leave(); }
 
-  return { enter, tick, walk, use, stop, leave, tour:retour, summonMech, fitRide, facing, toggleRide,
+  return { enter, tick, walk, use, stop, leave, say, tour:retour, summonMech, fitRide, facing, toggleRide,
            leaveShip, get aboard(){ return aboard; },
            specsKey, get specs(){ return specsOn; }, get hasSpecs(){ return haveSpecs(); },
            travel:travelOpen, travelKey, get travelUp(){ return travelUp; },
