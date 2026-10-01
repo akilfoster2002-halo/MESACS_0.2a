@@ -72,6 +72,12 @@ export async function open({ headless = true } = {}) {
   await page.evaluateOnNewDocument(CLOCK);
   await page.setRequestInterception(true);
   page.on('request', async (req) => {
+    // the Mixamo dances live next to the rig, not in the game: handed to this browser only
+    const dm = req.url().match(/\/__tiktok\/dances\/([\w.-]+)$/);
+    if (dm) {
+      const f = new URL('./dances/' + dm[1], import.meta.url).pathname;
+      return fs.existsSync(f) ? req.respond({ status: 200, contentType: dm[1].endsWith('.json') ? 'application/json' : 'model/gltf-binary', body: fs.readFileSync(f) }) : req.respond({ status: 404, body: '' });
+    }
     if (!/\/planet\.js(\?|$)/.test(req.url())) return req.continue();
     const src = await (await fetch(req.url())).text();
     const at = src.lastIndexOf('  return { enter, tick, walk, use');

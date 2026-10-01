@@ -137,11 +137,28 @@
         }
       }
     }
+    /* a Mixamo dance on somebody: its own mixer, and the body's own clips stop */
+    let menu = null;
+    async function dances() { if (!menu) menu = await (await fetch('/__tiktok/dances/dances.json')).json(); return menu; }
+    function clipFile(file) {
+      return new Promise((res, rej) => new THREE.GLTFLoader().load('/__tiktok/dances/' + file, (g) => res(g.animations[0]), undefined, rej));
+    }
+    async function dance(x, file) {
+      const clip = await clipFile(file);
+      if (!clip) return false;
+      if (x.mixer && x.mixer !== x.ownMixer) x.mixer.stopAllAction();
+      x.rig = null;
+      x.mixer = x.mixer || new THREE.AnimationMixer(x.root);
+      x.mixer.stopAllAction();
+      const a = x.mixer.clipAction(clip); a.reset().play();
+      x.danceName = file;
+      return true;
+    }
     function clear() {
       for (const x of list) { if (x.root.parent) x.root.parent.remove(x.root); for (const e of [x.tag, x.bubble]) if (e) e.remove(); }
       list = [];
     }
-    return { add, model, stand, tick, clear, WHO, get list() { return list; } };
+    return { add, model, stand, tick, clear, dance, dances, WHO, get list() { return list; } };
   })();
   window.EX = EX;
 
@@ -350,8 +367,15 @@
         const F = frame(), w = others(4, AVATAR.cast || AVATAR.chosen), moves = ['salsa', 'flip', 'dance', 'salsa'];
         const spots = [[1.6, -2.2], [1.6, 2.2], [3.4, -1.1], [3.4, 1.1]];
         await Promise.all(w.map((id, i) => EX.add(id, { anim: moves[i], at: atRel(spots[i][0], spots[i][1], true) })));
+        // the whole Mixamo dance library, a different one each
+        const menu = await EX.dances().catch(() => []);
+        if (menu.length) {
+          const mine = shuffleWith(menu, menu.length);
+          await Promise.all(EX.list.map((x, i) => EX.dance(x, mine[i % mine.length].file).catch(() => false)));
+          this.mixamo = true;
+        }
       },
-      drive(u, T, first) { if (first || !AVATAR.emoting) AVATAR.emote(o.move || 'dance'); for (const x of EX.list) if (x.rig && u > 0.5 && !x.swapped) { x.swapped = true; x.rig.play(pick(['dance', 'salsa', 'flip'], Math.floor(Math.random() * 3))); } },
+      drive(u, T, first) { if (first || !AVATAR.emoting) AVATAR.emote(o.move || 'dance'); for (const x of EX.list) if (!this.mixamo && x.rig && u > 0.5 && !x.swapped) { x.swapped = true; x.rig.play(pick(['dance', 'salsa', 'flip'], Math.floor(Math.random() * 3))); } },
       cam: pick([
         (u) => { const F = frame(), a = 2.6 + ease(u) * 1.1; const c = rel(F, 1.6, 0, 0); return { pos: c.clone().addScaledVector(F.fwd, Math.cos(a) * 7).addScaledVector(F.right, Math.sin(a) * 7).addScaledVector(F.up, 2.4), look: c.clone().addScaledVector(F.up, 1), fov: 54 }; },
         (u) => { const F = frame(); return { pos: rel(F, 7.5 - u, 0, 1.0), look: rel(F, 1.5, 0, 1.1), fov: 58 }; },
