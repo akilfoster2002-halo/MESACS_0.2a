@@ -182,7 +182,20 @@
   }
   const others = (n, not) => shuffleWith(EX.WHO.filter((w) => w !== not), n);
   function shuffleWith(a, n) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); }
+  /* n friends in your frame, doing what you do: [ahead, right, up] each */
+  async function friends(n, anim, slots) {
+    const w = others(n, AVATAR.cast || window.__who);
+    await Promise.all(w.map((id, i) => EX.add(id, { anim, at: atRel(slots[i][0], slots[i][1], false, slots[i][2]) })));
+  }
+  const CHEERS = [
+    ['GET HIM 😤', 'seraph diff', 'run it back'],
+    ['oh he SLAMMED it', 'lmaooo', 'my turn next'],
+    ['vanguard is cooked', 'clip that', 'again again again'],
+  ];
   const HANG = [
+    ['who is coming to neon', 'me!!', 'bring coins', 'i got 400'],
+    ['race u to the spire', 'ur on', 'no flying', 'ok... maybe a little flying'],
+    ['the reef has a whale shark', 'NO WAY', 'come on', 'everybody dive'],
     ['yo who wants to race to the falls', 'loser buys skins', 'bet 😤', 'im already flying'],
     ['did u see the arcade in the clouds??', 'my snake score is 212', 'thats not real', 'come look then'],
     ['mech fight at kit\'s in 5', 'vanguard or seraph?', 'seraph obviously', 'ur going down'],
@@ -214,7 +227,7 @@
     /* underwater: swimming down the reef wall */
     dive: (o = {}) => ({
       room: 'planet', pre: 40,
-      setup() { onPlanet(); const s = pick([[-18, -52, 80], [10, -70, 200], [-40, -30, 20]], o.spot); const d = OCEAN.toDir(s[0], s[1]); P().me.dir.copy(d); P().me.alt = 0.2; P().me.vy = 0; face(s[2]); keys({ KeyW: true }); },
+      async setup() { onPlanet(); const s = pick([[-18, -52, 80], [10, -70, 200], [-40, -30, 20]], o.spot); const d = OCEAN.toDir(s[0], s[1]); P().me.dir.copy(d); P().me.alt = 0.2; P().me.vy = 0; face(s[2]); keys({ KeyW: true }); await friends(2, 'swim', [[-1.8, -2.2, 0.4], [-3.2, 2.0, -0.6]]); },
       drive(u) { keys({ KeyW: true, ShiftLeft: u > 0.02 && u < 0.5 }); },
       cam: pick([
         (u) => { const F = frame(); return { pos: rel(F, 0.6 - u * 0.6, 3.0, 0.1 + u * 0.3), look: rel(F, 0.3, 0, 0), fov: 60 }; },
@@ -225,7 +238,7 @@
     /* on the surface of the sea, swimming */
     swim: (o = {}) => ({
       room: 'planet', pre: 40,
-      setup() { onPlanet(); const d = OCEAN.toDir(pick([0, 30, -25], o.spot), -60); P().me.dir.copy(d); P().me.alt = P().floorAt(d, 50) + 0.5; P().me.vy = 0; face(pick([90, 200, 0], o.spot)); keys({ KeyW: true }); },
+      async setup() { onPlanet(); const d = OCEAN.toDir(pick([0, 30, -25], o.spot), -60); P().me.dir.copy(d); P().me.alt = P().floorAt(d, 50) + 0.5; P().me.vy = 0; face(pick([90, 200, 0], o.spot)); keys({ KeyW: true }); await friends(3, 'swim', [[-1.5, -2.0, 0], [-1.5, 2.0, 0], [-3.4, 0, 0]]); },
       drive() { keys({ KeyW: true }); },
       cam: pick([
         (u) => { const F = frame(); return { pos: rel(F, 2.6, 1.6, 0.9), look: rel(F, 0, 0, 0.1), fov: 58 }; },
@@ -408,9 +421,19 @@
           const p = x.pos0.clone(), u2 = p.clone().normalize(); p.copy(u2).multiplyScalar(P().PR + P().floorAt(u2, 200) + (x.hit ? Math.sin(Math.min(Math.PI, x.back * 4)) * 5 : 0));
           EX.stand(x.root, p, u2, dir);
         };
+        // friends watching from the side, out of the way, shouting at the screen
+        const side = rel(F, 50, -4.5, 0), up2 = side.clone().normalize(), ring = rel(F, 16, 0, 0);   // just past the Vanguard, a little aside: in shot from behind the Seraph and from in front
+        const w = others(3, AVATAR.cast || window.__who), cheer = pick(CHEERS, Math.floor(Math.random() * CHEERS.length));
+        await Promise.all(w.map((id, i) => {
+          const p = side.clone().addScaledVector(F.fwd, (i - 1) * 1.6), u2 = p.clone().normalize();
+          p.copy(u2).multiplyScalar(P().PR + P().floorAt(u2, P().me.alt + 20));
+          return EX.add(id, { anim: i === 1 ? 'dance' : 'talk', at: atFacing(p, ring) });
+        }));
+        this.cheer = cheer;
         keys({ KeyW: true, ShiftLeft: true });
       },
-      drive(u) {
+      drive(u, T, first) {
+        if (first && this.cheer) { const xs = EX.list.filter((x) => x.tag); this.cheer.forEach((text, i) => { const x = xs[i % xs.length]; if (x) x.say.push({ text, t0: T + i * 0.55, t1: T + i * 0.55 + 1.3 }); }); }
         keys({ KeyW: u < 0.55, ShiftLeft: u < 0.4, Space: u > 0.3 && u < 0.36, KeyQ: u > 0.5 && u < 0.56 });
         if (u > 0.62 && this.foe && !this.foe.hit) this.foe.hit = true;
       },

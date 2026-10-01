@@ -131,7 +131,7 @@ const RECIPES = {
       caption: `Meet ${name}. Who are you playing as in KORO?` };
   },
   pov() {
-    const [hook, set] = pick(POVS);
+    const [hook, set] = pick(POVS.filter(([, set]) => set.some((x) => ['squad', 'hangout', 'crew', 'mechfight'].includes(x))));
     return { shots: set.map((s, a) => ({ shot: s, opts: { angle: (a + ang()) % 3, spot: a, cab: pick(Object.keys(CABS)), id: pick(ISLES) } })),
       captions: [{ text: hook, b0: 0, b1: CARD }], title: hook.replace('POV: ', ''), caption: `${hook} 🌌` };
   },

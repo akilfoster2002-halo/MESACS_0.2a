@@ -26,12 +26,15 @@ const SONGS = fs.readdirSync(path.join(here, 'songs')).filter((f) => f.endsWith(
 // posting times, New York: spread from breakfast to late night
 const TIMES = Array.from({ length: 15 }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`);
 
-// every type once, and five more of the ones that show the game is multiplayer and loud
-const types = shuffle([...TYPES, ...shuffle(['squad', 'mech', 'city', 'danceoff', 'montage', 'pov']).slice(0, 5)]);
+// FRIENDS IN EVERYTHING: the day is built from the types where other players
+// are in the shot (squads, dance-offs, mech fights with a crowd, multiplayer
+// POVs, montages), with one solo type a day for variety.
+const FRIENDLY = ['squad', 'danceoff', 'mech', 'pov', 'montage', 'squad', 'danceoff', 'mech', 'pov', 'montage', 'squad', 'danceoff', 'city', 'montage'];
+const types = shuffle([...FRIENDLY, shuffle(['arcade', 'tour', 'showcase', 'intro'])[0]]);
 for (let i = 1; i < types.length; i++) if (types[i] === types[i - 1]) [types[i], types[(i + 2) % types.length]] = [types[(i + 2) % types.length], types[i]];
 const chars = [...shuffle(CHARS), ...shuffle(CHARS)];
 const cabs = shuffle(CABS);
-const posts = types.map((type, n) => ({ n: n + 1, type, char: chars[n], song: SONGS[n % SONGS.length], cab: cabs[n % cabs.length], seed: Math.floor(rnd() * 1e6), time: TIMES[n] }));
+const posts = types.map((type, n) => ({ n: n + 1, type, char: chars[n], song: SONGS[Math.floor(rnd() * SONGS.length)], cab: cabs[n % cabs.length], seed: Math.floor(rnd() * 1e6), time: TIMES[n] }));
 
 posts.splice(+arg('count', posts.length));
 // --slot n: only the nth post of the day (the cloud makes one per run)
