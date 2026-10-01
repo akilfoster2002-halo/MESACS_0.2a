@@ -154,3 +154,58 @@ test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
   has(t, /wallClip\(dt, 'climb_top', 1\)/, 'the mantle is the braced hang');
   has(t, /wallClip\(dt, 'climb_start', 1\)/, 'the run-up is the sprint to the wall');
 });
+
+/* ------------------------------------------------------- the storyboard
+   The second play-through: things happened at random. The Director came
+   on every screen because a clock said 23:30, a raid started because you
+   walked near a stall, the buyer left at eleven whatever you were doing.
+   Now every scene has a turn and a trigger, and nothing talks out of it. */
+test('the storyboard plays every scene in order, and only once', () => {
+  const A = rules();
+  const ids = A.STORY.map(s=>s.id);
+  assert.deepEqual(ids.slice(0, 7), ['text', 'leave', 'deal', 'drop', 'news', 'roof', 'voicemail']);
+  A.STORY.forEach(s=>{ assert.ok(s.on, s.id + ' says what sets it off'); (s.after||[]).forEach(a=>assert.ok(ids.indexOf(a) < ids.indexOf(s.id), s.id + ' comes after ' + a)); });
+  assert.equal(A.ready([], 'news'), false, 'no broadcast before the deal');
+  assert.equal(A.ready(['text', 'leave'], 'news'), false);
+  assert.equal(A.ready(['text', 'leave', 'drop'], 'news'), true, 'the dead drop counts as the deal');
+  assert.equal(A.ready(['text', 'leave', 'deal', 'news'], 'news'), false, 'a scene plays once');
+  assert.equal(A.ready(['text', 'leave', 'deal'], 'voicemail'), false, 'home comes after the roof');
+  assert.equal(A.ready(['text', 'leave', 'deal', 'news', 'roof'], 'maya'), false, 'Maya waits for the voicemail');
+  assert.equal(A.next('deal', 'paid'), 'news', 'after the deal, the street');
+  assert.equal(A.next('news', 'watched'), 'home');
+  assert.equal(A.next('news', 'home'), 'news', 'you do not get home without passing the screens');
+  assert.equal(A.next('drop', 'home'), 'drop', 'nor from the dead drop');
+  assert.deepEqual(A.seenBefore('home'), ['text', 'leave', 'deal', 'news', 'roof'], 'an old save picks up where it was');
+});
+
+test('nothing in the night happens because the clock said so', () => {
+  const A = rules(), t = read('public/tsh.js');
+  assert.deepEqual(Object.keys(A.AT).sort(), ['deal', 'end'], 'the clock has no story times in it');
+  hasNot(t, /AI\.AT\.(kaiArrives|kaiGivesUp|speech|checkpointOn|checkpointOff|clubOut)/, 'no beat reads a story time');
+  hasNot(t, /function raid\(/, 'no raid on a timer');
+  hasNot(t, /talk\('released'\)/, 'the Director does not phone out of nowhere');
+  hasNot(t, /function speech\(/, 'the speech is a scene now');
+  has(t, /scene\('news', newsScene\)/, 'the broadcast is the storyboard\'s news scene');
+  has(t, /const want = S\.step === 'home' \|\| S\.heat >= AI\.HEAT\.checkpoints;/, 'the checkpoint goes up with the walk home');
+  has(t, /scene\('voicemail'/, 'the voicemail is a scene');
+  has(t, /scene\('maya', /, 'and Maya is the one after it');
+});
+
+test('every line spoken in the night has a recording, in the voice of who says it', async () => {
+  const { lines, vkey } = await import('../tools/tsh-voices.mjs');
+  const t = read('public/tsh.js');
+  const ctx = vm.createContext({}); ctx.window = ctx;
+  vm.runInContext(read('public/tshvoice.js'), ctx);
+  const have = ctx.TSHVOICE.lines;
+  const all = lines(t);
+  assert.ok(all.length > 120, 'the whole script, not a sample');
+  const missing = all.filter(l=>!have[l.key]).map(l=>l.who + ': ' + l.text);
+  assert.deepEqual(missing, [], 'record these with tools/tsh-voices.mjs');
+  all.forEach(l=>assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'tsh', 'voice', l.key + '.mp3')), l.text));
+  // the game and the tool name a line the same way
+  const m = /function vkey\(who, text\)\{([\s\S]*?)\n  \}/.exec(t);
+  assert.ok(m, 'tsh.js has vkey');
+  const vk = new Function('who', 'text', m[1]);
+  ['Hi, Mom.', 'She\'s… on a delivery truck. Doing laps.', 'Kai — the window!'].forEach(s=>assert.equal(vk('maya', s), vkey('maya', s)));
+  hasNot(JSON.stringify(all.map(l=>l.text)), /📱/, 'texts are read, not heard');
+});

@@ -4,6 +4,7 @@
    tested on its own (tests/tsh.test.js):
 
      THE CLOCK      one night, 22:00 to 02:00, run eight times fast
+     THE STORYBOARD the scenes, in order, and what sets each one off
      THE KIT        Robin's jewelry: what each piece does, and the grip
      PERCEPTION     how quickly somebody notices you, from what they can see
      HEAT           WFC's attention, 0 to 5, and how it cools
@@ -23,16 +24,16 @@ window.TSHAI = (function(){
 
   /* ============================================================ the clock
      Minutes after 22:00. Eight game seconds to the real one: the four
-     hours of the night are thirty minutes of play. */
+     hours of the night are thirty minutes of play.
+
+     THE CLOCK STARTS NOTHING. It is on the screen to say how late it is;
+     no scene waits for a time, no buyer gives up at eleven, no speech
+     comes on at half past. Everything in the night happens because Robin
+     did something — walked somewhere, picked something, got caught —
+     and in the order the storyboard below says. */
   const RATE = 8/60;                         // game minutes per real second
   const AT = {
-    kaiArrives: 25,       // 22:25 — he walks into the alley
-    deal:       30,       // 22:30 — the time on the message
-    kaiGivesUp: 60,       // 23:00 — nobody waits for ever
-    checkpointOn: 60,     // 23:00 — WFC closes the avenue at x = 30
-    speech:     90,       // 23:30 — the Director, on every screen
-    checkpointOff: 160,   // 00:40
-    clubOut:    180,      // 01:00 — the crowd you can vanish into
+    deal:       30,       // 22:30 — the time on the buyer's message (it is only words: he waits)
     end:        239       // 01:59 — the clock stops here; nothing fails at it
   };
   function clock(min){
@@ -151,9 +152,10 @@ window.TSHAI = (function(){
     intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'prep' } },
     prep:    { goal:'Finish tonight\'s pieces at the bench.', to:{ done:'deal' } },
     deal:    { goal:'Sell the rings to the buyer. Get paid.',
-               to:{ paid:'home', robbed:'robbed', dropped:'drop', noshow:'home', confiscated:'home', stiffed:'home' } },
-    drop:    { goal:'Get the envelope out of the mailbox.', to:{ retrieved:'home', robbed:'home', gaveup:'home', home:'apt' } },
-    robbed:  { goal:'Kai walked off with the rings. Get paid anyway.', to:{ recovered:'home', gaveup:'home', home:'apt' } },
+               to:{ paid:'news', robbed:'robbed', dropped:'drop', confiscated:'news', stiffed:'news' } },
+    drop:    { goal:'Get the envelope out of the mailbox.', to:{ retrieved:'news', robbed:'news', gaveup:'news' } },
+    robbed:  { goal:'Kai walked off with the rings. Get paid anyway.', to:{ recovered:'news', gaveup:'news' } },
+    news:    { goal:'Get out of Dragon Alley.', to:{ watched:'home' } },
     home:    { goal:'Get home with the money.', to:{ home:'apt' } },
     apt:     { goal:'Somebody is in your flat.', to:{ kaiIn:'escape', out:'out' } },
     escape:  { goal:'Get out.', to:{ caught:'chair', out:'out' } },
@@ -168,8 +170,49 @@ window.TSHAI = (function(){
   }
   /* The checkpoints a visit restarts from: the beat is replayed, what
      you did in the beats before it stays done. */
-  const CHECKPOINT = { intro:'prep', prep:'prep', deal:'deal', drop:'deal', robbed:'deal', home:'home', apt:'apt', escape:'apt',
+  const CHECKPOINT = { intro:'prep', prep:'prep', deal:'deal', drop:'deal', robbed:'deal', news:'news', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end' };
+
+  /* ======================================================= the storyboard
+     THE NIGHT, SCENE BY SCENE. Every line anybody speaks belongs to one
+     of these, and a scene plays only when the one before it has played
+     (`after`: any one of them) and Robin has done the thing that sets it
+     off (`on`). Nothing talks out of turn: no speech on a timer, no
+     voice from across the city because a clock ticked over, no scene
+     from the end of the night before the middle of it. A scene plays
+     once; a checkpoint takes back the ones after it.
+
+       id         beat     what sets it off                                    after
+     ───────────────────────────────────────────────────────────────────────────── */
+  const STORY = [
+    { id:'text',      beat:'prep',   on:'the night starts at the bench: the buyer texts' },
+    { id:'leave',     beat:'deal',   on:'out of the flat with the kit finished',             after:['text'] },
+    { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley',           after:['leave'] },
+    { id:'drop',      beat:'deal',   on:'leaving the rings in the mailbox instead',          after:['leave'] },
+    { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the deal behind her', after:['deal', 'drop'] },
+    { id:'roof',      beat:'news',   on:'the broadcast ends: through Maya\'s binoculars',     after:['news'] },
+    { id:'voicemail', beat:'apt',    on:'through her own front door',                        after:['roof'] },
+    { id:'maya',      beat:'apt',    on:'the lamp goes on, or a knock at the door',          after:['voicemail'] },
+    { id:'kai',       beat:'escape', on:'the talk ends, or Robin ends it',                   after:['maya'] },
+    { id:'after',     beat:'out',    on:'out of the door past Kai, still on the floor',      after:['kai'] },
+    { id:'chair',     beat:'chair',  on:'Kai gets hold of her in the flat',                  after:['kai'] },
+    { id:'end',       beat:'end',    on:'up high, with nobody on her',                       after:['voicemail'] }
+  ];
+  /* may scene `id` play now, given the scenes that have? */
+  function ready(seen, id){
+    const s = STORY.find(x=>x.id === id);
+    if(!s || (seen||[]).includes(id)) return false;
+    return !s.after || s.after.some(a=>(seen||[]).includes(a));
+  }
+  /* The scenes behind a beat: what a save from before the storyboard, or
+     a night resumed in the middle, has already seen. */
+  function seenBefore(step){
+    const behind = { deal:['text','leave'], drop:['text','leave','deal'], robbed:['text','leave','deal'], news:['text','leave','deal'],
+                     home:['text','leave','deal','news','roof'], out:['text','leave','deal','news','roof','voicemail','maya','kai'] };
+    ['apt','escape','chair','escape2'].forEach(b=>{ behind[b] = behind.home; });
+    behind.end = behind.out;
+    return (behind[step] || []).slice();
+  }
 
   /* ============================================================= the kit
      ROBIN MAKES JEWELRY — pretty on a wrist or an ear, and every piece of
@@ -256,5 +299,5 @@ window.TSHAI = (function(){
   }
 
   return { RATE, AT, clock, perceive, band, BANDS, CRIMES, HEAT, raise, report, cool, nearest, astar,
-           QUEST, next, CHECKPOINT, KIT, KIT_ORDER, GRIP, freshTrail, arrival, knowsMother, ending, STINGS, summary };
+           QUEST, next, CHECKPOINT, STORY, ready, seenBefore, KIT, KIT_ORDER, GRIP, freshTrail, arrival, knowsMother, ending, STINGS, summary };
 })();
