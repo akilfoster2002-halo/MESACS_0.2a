@@ -81,8 +81,8 @@ func setup(e: Environment, light: DirectionalLight3D) -> GoldenSky:
 	sky.sky_material = mat
 	# a background, not a light source: the ambient stays a colour, so a
 	# uniform that changes every frame costs nothing in radiance updates
-	sky.process_mode = Sky.PROCESS_MODE_REALTIME
-	sky.radiance_size = Sky.RADIANCE_SIZE_32
+	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+	sky.radiance_size = Sky.RADIANCE_SIZE_64
 	env.sky = sky
 	env.background_mode = Environment.BG_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR

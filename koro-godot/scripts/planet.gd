@@ -35,6 +35,7 @@ static func use(w: Dictionary) -> void:
 			"w": 18.0, "d": 18.0, "h": 0.0, "pad": true, "plate_visible": false})
 	noise = null
 	basins.clear()
+	Ocean.on = false
 
 static var noise: FastNoiseLite = null
 
@@ -137,7 +138,10 @@ static func pad_k(dir: Vector3) -> float:
 static func height(dir: Vector3) -> float:
 	var k := pad_k(dir)
 	var h := 0.0 if k <= 0.0 else raw_height(dir) * k
-	return _basin_cut(dir, h) if basins.size() > 0 else h
+	if basins.size() > 0:
+		h = _basin_cut(dir, h)
+	# and the sea east of town (ocean.gd), which is a basin of its own shape
+	return Ocean.cut(dir, h) if Ocean.on else h
 
 ## Walk `metres` from `dir` along the great circle towards `heading`.
 static func walk(dir: Vector3, heading: Vector3, metres: float, radius := R) -> Vector3:
@@ -194,8 +198,12 @@ static func build_mesh(level := 6) -> ArrayMesh:
 	idx.resize(faces.size() * 3)
 	var k := 0
 	for f in faces:
+		# the ball's own triangles over the sea go: the seabed lies in their place
+		if Ocean.on and not Ocean.keep_face(verts[f[0]], verts[f[1]], verts[f[2]]):
+			continue
 		idx[k] = f[0]; idx[k + 1] = f[2]; idx[k + 2] = f[1]
 		k += 3
+	idx.resize(k)
 	var st := SurfaceTool.new()
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

@@ -90,12 +90,16 @@ func _ready() -> void:
 		# the trees all agree where the bank is
 		if hub():
 			Islands.dig()
+			Ocean.setup()         # the sea is part of the ground, so before the ground
 		var ground := MeshInstance3D.new()
 		ground.mesh = Planet.build_mesh(6 if Planet.R > 200.0 else 5)
 		add_child(ground)
 		_lap("ground")
 		_buildings()
 		_lap("buildings")
+		if hub() and Ocean.on:
+			add_child(Ocean.new())
+			_lap("ocean")
 		if hub():
 			islands = Islands.new()
 			islands.world = self
@@ -397,7 +401,8 @@ func base_floor(dir: Vector3) -> float:
 	return floor_at(dir, Planet.height(dir) + 2.2, 0.3)
 
 func water_at(dir: Vector3) -> float:
-	return islands.water_at(dir) if islands else NAN
+	var w: float = islands.water_at(dir) if islands else NAN
+	return w if not is_nan(w) else Ocean.water_at(dir)
 
 func fall_push(p: Vector3) -> Dictionary:
 	return islands.fall_push(p) if islands else {}

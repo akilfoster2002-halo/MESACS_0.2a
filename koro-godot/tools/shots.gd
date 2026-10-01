@@ -142,6 +142,20 @@ func _ready() -> void:
 				var st: Mecha = w.statues[1]
 				_put(Planet.walk(st.dir, Planet.frame_at(st.dir).z, 30.0) * Planet.R, st.dir * Planet.R)
 				p.pitch = 0.25],
+		# the sea (ocean.gd): from the beach on the town side, and out in it swimming
+		["20_ocean_beach", func():
+			var t: Vector2 = Ocean.town
+			_put(Ocean.to_world(t.x * Ocean.R * 0.86, 0.0, t.y * Ocean.R * 0.86), Ocean.C * Planet.R)
+			p.pitch = 0.1
+			p.zoom = 6.0],
+		["21_ocean_swim", func():
+			var t: Vector2 = Ocean.town
+			_put(Ocean.to_world(t.x * Ocean.R * 0.55, 0.0, t.y * Ocean.R * 0.55), Ocean.C * Planet.R)
+			p.alt = Ocean.SEA - 0.4
+			p.pitch = -0.15],
+		["22_sea_whaleshark", func(): _beside("whaleshark", 16.0)],
+		["23_sea_dolphins", func(): _beside("dolphin", 6.0)],
+		["24_sea_turtle", func(): _beside("turtle", 4.0)],
 	]
 	for s in shots:
 		if only != "" and not (s[0] as String).contains(only):
@@ -224,6 +238,24 @@ func _inside(id: String) -> void:
 	p.alt = w.floor_at(p.dir, 1.0)
 	p.pitch = -0.08
 	p.zoom = 4.0
+
+## Swim up beside the first of a species (sealife.gd), level with it, looking at it.
+func _beside(id: String, metres: float) -> void:
+	var found := w.find_children(id, "MultiMeshInstance3D", true, false)
+	if found.is_empty():
+		print("no ", id)
+		return
+	var mmi: MultiMeshInstance3D = found[0]
+	var x := mmi.multimesh.get_instance_transform(0)
+	var at: Vector3 = x.origin
+	var side: Vector3 = x.basis.x.normalized()
+	var from: Vector3 = at + side * metres
+	var p: Walker = w.player
+	p.dir = from.normalized()
+	p.fwd = (at - from).normalized()
+	p.alt = from.length() - Planet.R
+	p.swimming = true
+	p.pitch = 0.0
 
 func _put(at: Vector3, look: Vector3) -> void:
 	var p: Walker = w.player
