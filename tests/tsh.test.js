@@ -143,6 +143,11 @@ test('the opening is a film: the call, her room, the kit, the note, the window â
   const names = (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name);
   ['wake', 'text', 'kneel', 'walk', 'jump', 'roll'].forEach(n => assert.ok(names.includes(n), 'Robin\'s model has no ' + n + ' clip'));
   has(t, /if\(mode === 'reel'\)\{ if\(\(c === 'Enter'/, 'ENTER skips the film');
+  // her music, from the speaker: on from the start, loud with the room, gone when she jumps
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public/tsh/music/room.mp3')), 'her music is in the repo');
+  has(t, /fetch\('tsh\/music\/room\.mp3'\)/);
+  assert.ok(op.includes('musicPlay(') && op.indexOf('musicPlay(') < op.indexOf("talk('call')"), 'the music is already playing when the phone rings');
+  has(t, /function fallStart\(skipped\)\{[\s\S]{0,200}musicStop\(/, 'and it stops when she goes out of the window');
   // and then it is yours: in the air, slow, until SPACE fires the shoes
   has(t, /playReel\(shots, skipped=>fallStart\(skipped\)\)/, 'the film ends falling, skipped or not');
   has(t, /slow:\(\)=>slowFall\(\)/, 'the fall is slow until she fires');

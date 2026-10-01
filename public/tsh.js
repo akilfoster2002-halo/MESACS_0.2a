@@ -303,7 +303,7 @@ window.TSH = (function(){
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
     if(window.BOOTS) BOOTS.detach();
-    reel = null; staged = null; ringing(false); phoneBig(null); black(false); me.kit = null; me.kitT = null;
+    reel = null; staged = null; ringing(false); phoneBig(null); black(false); musicStop(0.3); me.kit = null; me.kitT = null;
     if(el) el.classList.add('hidden');
     document.body.classList.remove('tsh-on');
     LOOK.dispose();
@@ -969,6 +969,48 @@ window.TSH = (function(){
   }
   function black(v){ const b = el && el.querySelector('#tshBlack'); if(b) b.classList.toggle('on', !!v); }
 
+  /* ------------------------------------------------------- the music
+     Hers, from the speaker at the foot of the bed, still going from
+     whenever she fell asleep: low and dull under the call, LOUD when the
+     room comes up and she gets ready, down to almost nothing at her
+     mother's note, under the city once the window is open — and gone
+     when she jumps. */
+  const music = { src:null, gain:null, lp:null, buf:null, loading:null };
+  function musicLoad(){
+    const a = audio(); if(!a) return Promise.resolve(null);
+    if(music.buf) return Promise.resolve(music.buf);
+    if(!music.loading) music.loading = fetch('tsh/music/room.mp3').then(r=>r.ok ? r.arrayBuffer() : null)
+      .then(b=>b ? new Promise((ok, no)=>a.decodeAudioData(b, ok, no)) : null).then(b=>{ music.buf = b; return b; }).catch(()=>null);
+    return music.loading;
+  }
+  function musicPlay(vol, muffled){
+    const a = audio(); if(!a) return;
+    if(a.state === 'suspended') a.resume();
+    musicLoad().then(buf=>{
+      if(!buf || !on || music.src) return;
+      const src = a.createBufferSource(); src.buffer = buf; src.loop = true;
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = muffled ? 700 : 18000;
+      const g = a.createGain(); g.gain.value = 0;
+      src.connect(lp); lp.connect(g); g.connect(a.destination); src.start();
+      Object.assign(music, { src, gain:g, lp });
+      g.gain.setTargetAtTime(music.want === undefined ? vol : music.want, a.currentTime, 0.4);
+      if(music.muffled !== undefined) lp.frequency.value = music.muffled ? 700 : 18000;
+    });
+  }
+  /* how loud, how fast, and whether it is behind something; remembered if the track is still loading */
+  function musicLevel(v, secs, muffled){
+    music.want = v; music.muffled = !!muffled;
+    if(!music.gain || !AC) return;
+    music.gain.gain.setTargetAtTime(v, AC.currentTime, (secs||0.5)/3);
+    music.lp.frequency.setTargetAtTime(muffled ? 700 : 18000, AC.currentTime, (secs||0.5)/3);
+  }
+  function musicStop(secs){
+    const m = music; music.want = undefined; music.muffled = undefined;
+    if(!m.src || !AC) return;
+    const src = m.src; m.src = null;
+    try{ m.gain.gain.setTargetAtTime(0, AC.currentTime, (secs||1)/3); src.stop(AC.currentTime + (secs||1) + 0.1); }catch(e){}
+  }
+
   /* --------------------------------------------------------- the reel */
   const SILL = [59.95, 9.0, 34];                     // outside: up on the rail of the fire escape under her window, over Kiln Street
   function opening(){
@@ -982,6 +1024,7 @@ window.TSH = (function(){
     if(R.window) R.window.open(false);
     if(R.note) R.note.home();
     black(true);
+    musicLevel(0.28, 0.5, true); musicPlay(0.28, true);
     const sitUp = ()=>stage('wake', bed.x - 0.15, 0.76, bed.z - 0.05, Math.PI/2);
     const shoe = R.boots.at, form = R.form.at, pack = R.pack.at, kit = R.kitchen, note = R.note, mom = R.momDoor.at, win = R.window.at;
     const P = R.packing.at, bench = R.bench.at;
@@ -994,10 +1037,10 @@ window.TSH = (function(){
       // BLACK. The phone. She answers; the buyer; she hangs up.
       { dur:9.0, fov:40, cam:[bed.x + 1.5, 1.6, bed.z - 1], look:[bed.x, 0.8, bed.z],
         enter:()=>{ sitUp(); later(()=>{ if(reel) phoneBig('call'); }, 600); ringing(true); },
-        beats:[[3.2, ()=>{ ringing(false); cue('ui'); phoneBig('oncall'); }], [3.7, ()=>talk('call')], [8.1, ()=>{ cue('hangup'); phoneBig(null); }]] },
+        beats:[[3.2, ()=>{ ringing(false); cue('ui'); phoneBig('oncall'); musicLevel(0.1, 0.4, true); }], [3.7, ()=>talk('call')], [8.1, ()=>{ cue('hangup'); phoneBig(null); }]] },
       // her room, slowly, as she gets up — the lamp on, the black lifting
       { dur:5.2, fov:50, cam:[[a.x2 - 0.5, 2.5, a.z2 - 0.7], [a.x2 - 1.5, 2.2, a.z2 - 1.3]], look:[[bed.x, 0.9, bed.z], [bed.x - 0.6, 0.9, bed.z - 0.4]],
-        enter:()=>{ sitUp(); apt.lamp = true; aptLights(); cue('ui'); later(()=>black(false), 250); caption('INT. ROBIN\'S ROOM — 22:15'); } },
+        enter:()=>{ sitUp(); apt.lamp = true; aptLights(); cue('ui'); later(()=>black(false), 250); musicLevel(0.7, 1.2, false); caption('INT. ROBIN\'S ROOM — 22:15'); } },
       // the bench: a sewing machine, circuit boards, the tools, a glove half built
       { dur:4.2, fov:42, cam:[[bench[0] + 0.9, 1.75, bench[2] + 1.75], [bench[0] - 0.9, 1.7, bench[2] + 1.65]], look:[[bench[0] + 0.4, 0.98, bench[2] - 0.05], [bench[0] - 1.3, 0.98, bench[2] - 0.05]] },
       // the sketches of clothes, and a jacket on the dress form with wiring in the seams
@@ -1036,7 +1079,7 @@ window.TSH = (function(){
         enter:()=>stage('idle', stop[0], 0, stop[1], Math.atan2(kit.at[0] - stop[0], kit.at[2] - stop[1])) },
       // THE KITCHEN: dinner on the table, still covered, and a note
       { dur:3.4, fov:34, cam:[[kit.at[0] + 0.9, 1.35, kit.at[2] + 1.2], [kit.at[0] + 0.55, 1.2, kit.at[2] + 0.8]], look:[kit.at[0], 0.8, kit.at[2]],
-        enter:()=>stage('idle', atTable[0], 0, atTable[1], faceTable) },
+        enter:()=>{ stage('idle', atTable[0], 0, atTable[1], faceTable); musicLevel(0.08, 2.5, true); } },
       { dur:2.6, fov:34, cam:[kit.at[0] + 0.25, 1.4, kit.at[2] - 0.35], look:[atTable[0], 1.45, atTable[1]] },
       { dur:3.0, fov:24, cam:[note.at[0] - 0.05, note.at[1] + 0.55, note.at[2] + 0.28], look:[note.at[0], note.at[1], note.at[2]], ease:false },
       // she looks toward the rest of the flat: her mother's door, dark
@@ -1048,17 +1091,17 @@ window.TSH = (function(){
         after:()=>{ const h = handsAt(); if(h) note.hold(h.at, h.head); } },
       // and puts it back down
       { dur:2.2, fov:32, cam:[kit.at[0] + 0.6, 1.25, kit.at[2] + 0.55], look:[note.at[0], 0.8, note.at[2]],
-        enter:()=>{ note.home(); stage('idle', atTable[0], 0, atTable[1], faceTable); } },
+        enter:()=>{ note.home(); stage('idle', atTable[0], 0, atTable[1], faceTable); musicLevel(0.5, 1.5, false); } },
       // THE WINDOW. The city comes in.
       { dur:3.2, fov:44, cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
         tick:(dt, t, k)=>{ if(k < 0.45) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.45); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
-        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.hood = true; cue('ui'); }]] },
+        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); musicLevel(0.3, 1.0, false); }], [2.5, ()=>{ me.hood = true; cue('ui'); }]] },
       // up onto the sill
       { dur:2.4, fov:40, cam:[win[0] + 2.2, 0.6, win[2] + 0.6], look:[win[0] + 0.2, 1.6, win[2]],
         enter:()=>stage('kneel', win[0] + 0.32, 1.0, win[2], -Math.PI/2) },
       // OUTSIDE: on the sill, over Kiln Street. A look down.
       { dur:3.0, fov:42, inside:false, cam:[[55.3, 13.4, 30.8], [55.5, 13.1, 31.5]], look:[SILL[0] - 0.2, SILL[1] + 0.5, SILL[2]],
-        enter:()=>{ outsideLook(); stage('idle', SILL[0], SILL[1], SILL[2], -Math.PI/2); caption('EXT. KILN STREET — 22:17'); } },
+        enter:()=>{ outsideLook(); stage('idle', SILL[0], SILL[1], SILL[2], -Math.PI/2); musicLevel(0.14, 0.6, true); caption('EXT. KILN STREET — 22:17'); } },
       // and a smile
       { dur:2.2, fov:36, cam:[SILL[0] - 1.7, SILL[1] + 1.65, SILL[2] + 0.45], look:[SILL[0], SILL[1] + 1.5, SILL[2]] },
       // she jumps
@@ -1087,7 +1130,7 @@ window.TSH = (function(){
      straight up past the roofs, and the lesson has started. */
   function fallStart(skipped){
     staged = null; reel = null;
-    ringing(false); phoneBig(null); black(false);
+    ringing(false); phoneBig(null); black(false); musicStop(2.5);
     me.kit = null; me.kitT = null; me.hood = true;
     if(window.AVATAR) AVATAR.posture(null);
     outsideLook();
@@ -3738,6 +3781,7 @@ window.TSH = (function(){
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
     lessonTick();
+    if(W.room && W.room.eq && music.src) W.room.eq.forEach((b, i)=>{ b.scale.y = 0.4 + Math.abs(Math.sin(clock*(6 + i*1.7) + i))*2.2; });   // the speaker's lights, with the music
     if(window.BOOTS && BOOTS.active) BOOTS.show(!mode && !inside && !busy);
   }
   function render(dt){
