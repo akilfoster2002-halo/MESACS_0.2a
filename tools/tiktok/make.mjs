@@ -16,7 +16,8 @@ import { open, start, hold, clean, server, FFMPEG } from './rig.mjs';
 const here = path.dirname(new URL(import.meta.url).pathname);
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const SAMPLE = process.argv.includes('--sample');
-const FPS = 30, DUR = 15;
+const FPS = 30;
+let DUR = 15;                     // or the whole song, when it is shorter than that
 
 // ------------------------------------------------------------- a seeded die
 let seed = +arg('seed', Date.now() % 100000);
@@ -44,7 +45,9 @@ for (const f of fs.readdirSync(OUT)) if (f.startsWith('sample-')) fs.rmSync(path
 const songs = fs.readdirSync(path.join(here, 'songs')).filter((f) => f.endsWith('.mp3'));
 const song = arg('song', pick(songs));
 const map = JSON.parse(fs.readFileSync(path.join(here, 'songs', song.replace(/\.mp3$/, '.beats.json')), 'utf8'));
-const bars = map.beats.map((b, i) => ({ ...b, i })).filter((b) => b.bar && b.t + DUR < map.duration - 0.3);
+DUR = Math.min(15, Math.floor((map.duration - 0.4) * 10) / 10);
+const bars = map.beats.map((b, i) => ({ ...b, i })).filter((b) => b.bar && b.t + DUR <= map.duration - 0.3);
+if (!bars.length) bars.push({ ...map.beats[0], i: 0 });
 const score = (b) => { const w = map.beats.filter((x) => x.t >= b.t && x.t < b.t + DUR); return w.reduce((s, x) => s + x.loud, 0) / w.length; };
 const ranked = bars.map((b) => ({ b, s: score(b) })).sort((x, y) => y.s - x.s);
 const from = (arg('at') ? bars.find((b) => Math.abs(b.t - +arg('at')) < 0.3) : pick(ranked.slice(0, 4)).b);
@@ -189,7 +192,7 @@ try {
   await page.evaluate((o) => FX.init(o), { beats: B, loud: LOUD, look });
   for (let i = 0; i < shots.length; i++) {
     const s = shots[i];
-    const f0 = Math.round(bt(s.b0) * FPS), f1 = i === shots.length - 1 ? DUR * FPS : Math.round(bt(s.b1) * FPS);
+    const f0 = Math.round(bt(s.b0) * FPS), f1 = i === shots.length - 1 ? Math.round(DUR * FPS) : Math.round(bt(s.b1) * FPS);
     await page.evaluate((i) => FX.setup(i), i);
     await page.evaluate((n) => { for (let k = 0; k < n; k++) window.__step(1000 / 30); }, s.pre);
     if (s.start) { await page.keyboard.press(s.start); await page.evaluate(() => { for (let k = 0; k < 4; k++) window.__step(1000 / 30); }); await page.keyboard.press('Digit1'); }
