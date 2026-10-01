@@ -14,6 +14,9 @@ extends Node3D
 const STEP := 0.55             # the tallest step you walk up without a jump
 
 var player: Walker
+var health: Health
+var spawn_start := Vector3.ZERO
+var spawn_facing := Vector3.ZERO
 var mecha: Mecha                 # yours, only while you are it
 var statues: Array = []          # parked outside the Mechanic, to look at
 var car: Car
@@ -315,10 +318,17 @@ func _creatures() -> void:
 		start = Planet.walk(td, tf.z, first.d / 2.0 + 21.0)
 		facing = td - start
 	Worlds.back_to = {}
+	spawn_start = start
+	spawn_facing = facing
 	player = Walker.new()
 	player.world = self
 	add_child(player)
 	player.place(start, facing)
+	# HEALTH, on the hub (health.gd): the bar, breath in the sea, the orbs
+	if hub() and not in_room():
+		health = Health.new()
+		health.world = self
+		add_child(health)
 	# and your car, parked beside you — kept out of sight in a chat room
 	car = Car.new()
 	car.world = self
@@ -399,6 +409,21 @@ func blocked(to: Vector3, alt: float, r := 0.35, h := 1.75, step := STEP) -> boo
 ## travels to everybody else, so it means the same on a hill as in the Mall.
 func base_floor(dir: Vector3) -> float:
 	return floor_at(dir, Planet.height(dir) + 2.2, 0.3)
+
+## Out of health: back on your feet in front of Mission Control, on foot,
+## out of the water and off whatever you were riding.
+func wake_at_door() -> void:
+	if piloting():
+		mecha.on_ground = true
+		_unmech()
+	var p := player
+	if p.flying:
+		p.land()
+	p.swimming = false
+	p.diving = false
+	p.vy = 0.0
+	p.place(spawn_start, spawn_facing)
+	p.on_ground = true
 
 func water_at(dir: Vector3) -> float:
 	var w: float = islands.water_at(dir) if islands else NAN

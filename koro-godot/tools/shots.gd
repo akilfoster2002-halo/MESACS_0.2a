@@ -156,6 +156,19 @@ func _ready() -> void:
 		["22_sea_whaleshark", func(): _beside("whaleshark", 16.0)],
 		["23_sea_dolphins", func(): _beside("dolphin", 6.0)],
 		["24_sea_turtle", func(): _beside("turtle", 4.0)],
+		# health (health.gd): a knock, and a fall from a height that ends it
+		["25_health_hurt", func():
+			w.health.hurt(30)
+			print("hp after a 30 knock: ", w.health.hp)],
+		["26_hpfall_a", func():
+			Progress.set_value("w_coins", 77)
+			p.alt = Planet.height(p.dir) + 35.0
+			p.on_ground = false
+			p.vy = 0.0],
+		["27_hpfall_b", func():
+			print("after the fall: hp ", w.health.hp, "  coins ", Wallet.coins(), "  dead ", w.health.dead)],
+		["28_hpfall_c", func():
+			print("woken: hp ", w.health.hp, "  coins ", Wallet.coins(), "  at door ", p.dir.distance_to(w.spawn_start.normalized()) < 0.01)],
 	]
 	for s in shots:
 		if only != "" and not (s[0] as String).contains(only):

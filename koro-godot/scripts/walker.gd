@@ -365,6 +365,9 @@ func _walk(delta: float, up: Vector3) -> void:
 				alt = was                    # a ceiling
 				vy = 0.0
 			if alt <= floor:
+				# how hard you hit the ground is what a fall costs (health.gd)
+				if world.get("health") and not mount:
+					world.health.landed(-vy)
 				alt = floor
 				vy = 0.0
 				on_ground = true
