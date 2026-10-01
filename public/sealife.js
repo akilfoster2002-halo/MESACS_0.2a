@@ -809,6 +809,76 @@ window.SEALIFE = (function(){
       }catch(e){ console.warn('sealife: could not make', s.id, e); }
     }
     loadSeen();
+    dressAll();
+  }
+
+  /* ============================================================ the models
+     THE SHOWPIECES WEAR HIGGSFIELD MODELS (sea/*.glb, made from a picture of
+     each animal with Tripo image-to-3D). Everything above still builds first,
+     so the sea is full the moment you arrive; when a model has come down it
+     replaces that species' body in place, and nothing else changes:
+
+       the SIZE is the old body's: the model is scaled so its length matches;
+       the SWIM is the old body's: every vertex takes the aBend of the old
+       body at the same point along its length, so the shader that waved the
+       code-built fish waves the model the same way, and the same InstancedMesh
+       keeps its count, its phases and its place in the water;
+       the PAINT is the model's texture, multiplied by white vertex colour.
+
+     `flip` turns a model that came out tail-first; `axis` names the long one
+     (x for a manta, whose length is its wingspan). */
+  // Tripo puts the head at -z, so every one of them turns round; not the octopus, which has no front to speak of
+  const DRESS = {
+    whaleshark:{ flip:true }, humpback:{ flip:true }, orca:{ flip:true }, manta:{ axis:'x', flip:true }, turtle:{ flip:true },
+    dolphin:{ flip:true }, reefshark:{ flip:true }, octopus:{}, clownfish:{ flip:true },
+  };
+  let dressT = 0;
+  function dressAll(){
+    const run = ++dressT, L = new THREE.GLTFLoader();
+    if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+    for(const id in DRESS){
+      const k = kinds.find(x=>x.id===id); if(!k) continue;
+      L.load('sea/'+id+'.glb?v='+(window.ASSETV||'1'), g=>{
+        if(run !== dressT || !group || kinds.indexOf(k) < 0) return;  // the sea was cleared while it downloaded
+        try{ dress(k, g, DRESS[id]); }catch(e){ console.warn('sealife: could not dress', id, e); }
+      }, undefined, ()=>{});
+    }
+  }
+  function dress(k, g, o){
+    let src = null;
+    g.scene.updateMatrixWorld(true);
+    g.scene.traverse(n=>{ if(!src && n.isMesh) src = n; });
+    if(!src) return;
+    const geo = src.geometry.clone().applyMatrix4(src.matrixWorld);
+    const tex = src.material && src.material.map;
+    // lie the model along +z, nose forward, like every body in here
+    if(o.axis === 'x') geo.rotateY(-Math.PI/2);
+    if(o.flip) geo.rotateY(Math.PI);
+    const old = k.mesh.geometry;
+    old.computeBoundingBox(); geo.computeBoundingBox();
+    const ob = old.boundingBox, nb = geo.boundingBox;
+    const s = (ob.max.z - ob.min.z) / Math.max(1e-6, nb.max.z - nb.min.z);
+    geo.translate(-(nb.max.x + nb.min.x)/2, -(nb.max.y + nb.min.y)/2, -(nb.max.z + nb.min.z)/2);
+    geo.scale(s, s, s);
+    geo.translate((ob.max.x + ob.min.x)/2, (ob.max.y + ob.min.y)/2, (ob.max.z + ob.min.z)/2);
+    // the old body's bend, sampled along its length in 48 slices
+    const SL = 48, sum = new Float32Array(SL), cnt = new Float32Array(SL);
+    const OP = old.attributes.position, OB = old.attributes.aBend, z0 = ob.min.z, zl = Math.max(1e-6, ob.max.z - ob.min.z);
+    const slice = z => Math.min(SL-1, Math.max(0, Math.floor((z - z0)/zl*SL)));
+    if(OB) for(let i=0;i<OP.count;i++){ const j = slice(OP.getZ(i)); sum[j] += OB.getX(i); cnt[j]++; }
+    for(let j=0;j<SL;j++) if(!cnt[j]){ let a=j, b=j; while(a>0 && !cnt[a]) a--; while(b<SL-1 && !cnt[b]) b++; sum[j] = (cnt[a]?sum[a]/cnt[a]:0)*0.5 + (cnt[b]?sum[b]/cnt[b]:0)*0.5; cnt[j] = 1; }
+    const P = geo.attributes.position, n = P.count;
+    const bend = new Float32Array(n), glow = new Float32Array(n), col = new Float32Array(n*3).fill(1);
+    for(let i=0;i<n;i++){ const j = slice(P.getZ(i)); bend[i] = sum[j]/cnt[j]; }
+    geo.setAttribute('aBend', new THREE.BufferAttribute(bend, 1));
+    geo.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    if(!geo.attributes.normal) geo.computeVertexNormals();
+    geo.setAttribute('aPhase', old.getAttribute('aPhase'));
+    k.mesh.geometry = geo;
+    old.dispose();
+    if(tex){ tex.colorSpace = THREE.SRGBColorSpace; k.mesh.material.map = tex; k.mesh.material.needsUpdate = true; }
+    k.dressed = true;
   }
 
   /* ============================================================== frame */
@@ -878,6 +948,7 @@ window.SEALIFE = (function(){
     });
   }
   function clear(){
+    dressT++;
     kinds.forEach(k=>{ if(k.mesh){ k.mesh.geometry.dispose(); k.mesh.material.dispose(); } });
     kinds.length = 0;
     if(group && group.parent) group.parent.remove(group);
