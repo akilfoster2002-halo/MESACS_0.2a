@@ -892,7 +892,7 @@ window.TSHCITY = (function(){
     B.box(M.wood, x-2.5, 0.9, z1+0.55, 3.6, 0.08, 1.0); [-4.2, -0.8].forEach(k=>B.box(M.darkMetal, x+k, 0.45, z1+0.55, 0.08, 0.9, 0.9));
     solid(x-4.3, x-0.7, z1, z1+1.05, -1, 0.95, 'bench');
     for(let k=0;k<7;k++) B.box(M.metal, x-4+k*0.45, 1.3+((k*37)%3)*0.2, z1+0.12, 0.08, 0.5, 0.04);
-    B.box(M.teal, x-2.8, 0.98, z1+0.6, 0.25, 0.08, 0.32); B.box(M.metal, x-2.2, 0.99, z1+0.5, 0.4, 0.1, 0.25);
+    B.box(M.std({ color:0x1b2321, roughness:0.8 }), x-2.8, 0.97, z1+0.6, 0.25, 0.06, 0.32); B.box(M.teal, x-2.8, 1.003, z1+0.6, 0.012, 0.004, 0.28);   // the glove, half built: its seam lit B.box(M.metal, x-2.2, 0.99, z1+0.5, 0.4, 0.1, 0.25);
     B.box(M.darkMetal, x-1.5, 1.2, z1+0.4, 0.05, 0.6, 0.05);
     out.spots.bench = [x-2.5, z1+1.5, 1.4]; out.spots.lamp = [x-1.5, z1+0.4, 1.6];
     // the bed, along the south wall and clear of the door, and the suitcase open on the floor

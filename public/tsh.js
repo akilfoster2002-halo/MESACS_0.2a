@@ -587,10 +587,10 @@ window.TSH = (function(){
       if(hand && fore){
         const h = wp(hand), f = wp(fore);
         const axis = h.clone().sub(f).normalize(), qq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
-        const band = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.011, 8, 24), new THREE.MeshStandardMaterial({ color:0xe8eef0, roughness:0.25, metalness:0.9 }));
+        const band = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.011, 8, 24), new THREE.MeshStandardMaterial({ color:0xeef4f4, roughness:0.35, metalness:0.25, emissive:0x2a4644, emissiveIntensity:0.6 }));
         band.position.copy(h.clone().lerp(f, 0.22)); band.quaternion.copy(qq); G.scene.add(band); band.updateMatrixWorld(true); fore.attach(band); me.bangle = band;
         me.bangleLeds = [];
-        for(let i=0;i<6;i++){ const a_ = i/6*Math.PI*2, led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending }));
+        for(let i=0;i<6;i++){ const a_ = i/6*Math.PI*2, led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending }));
           led.position.set(Math.cos(a_)*0.047, Math.sin(a_)*0.047, 0.006); led.userData.flat = true; band.add(led); me.bangleLeds.push(led); }
       }
     }
@@ -970,7 +970,7 @@ window.TSH = (function(){
   function black(v){ const b = el && el.querySelector('#tshBlack'); if(b) b.classList.toggle('on', !!v); }
 
   /* --------------------------------------------------------- the reel */
-  const SILL = [61.7, 8.5, 34];                      // outside: the sill of her window, over the fire escape on Kiln Street
+  const SILL = [59.95, 9.0, 34];                     // outside: up on the rail of the fire escape under her window, over Kiln Street
   function opening(){
     const R = W.room, a = W.apt, bed = R.bed;
     const cx = (a.x1 + a.x2)/2, cz = (a.z1 + a.z2)/2;
@@ -1058,13 +1058,13 @@ window.TSH = (function(){
         enter:()=>stage('kneel', win[0] + 0.32, 1.0, win[2], -Math.PI/2) },
       // OUTSIDE: on the sill, over Kiln Street. A look down.
       { dur:3.0, fov:42, inside:false, cam:[[55.3, 13.4, 30.8], [55.5, 13.1, 31.5]], look:[SILL[0] - 0.2, SILL[1] + 0.5, SILL[2]],
-        enter:()=>{ outsideLook(); stage('kneel', SILL[0], SILL[1], SILL[2], -Math.PI/2); caption('EXT. KILN STREET — 22:17'); } },
+        enter:()=>{ outsideLook(); stage('idle', SILL[0], SILL[1], SILL[2], -Math.PI/2); caption('EXT. KILN STREET — 22:17'); } },
       // and a smile
-      { dur:2.2, fov:40, cam:[SILL[0] - 2.1, SILL[1] + 0.95, SILL[2] + 0.5], look:[SILL[0] - 0.1, SILL[1] + 0.8, SILL[2]] },
+      { dur:2.2, fov:36, cam:[SILL[0] - 1.7, SILL[1] + 1.65, SILL[2] + 0.45], look:[SILL[0], SILL[1] + 1.5, SILL[2]] },
       // she jumps
       { dur:0.8, fov:56, cam:[56.8, 6.6, 37.6], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, b.position.y + 1, b.position.z] : SILL; },
         enter:()=>{ cue('kick'); },
-        tick:(dt, t, k)=>stage('jump', SILL[0] - k*2.3, SILL[1] + Math.sin(k*Math.PI*0.6)*0.9, SILL[2], -Math.PI/2) }
+        tick:(dt, t, k)=>stage('jump', SILL[0] - k*1.6, SILL[1] + Math.sin(k*Math.PI*0.6)*0.7, SILL[2], -Math.PI/2) }
     ];
     playReel(shots, skipped=>fallStart(skipped));
   }
@@ -1097,7 +1097,7 @@ window.TSH = (function(){
     S.lesson = 0;
     castForBeat();
     // off the sill: out over the rail of the fire escape, falling
-    const x = SILL[0] - 2.3, y = SILL[1] + 0.7, z = SILL[2];
+    const x = SILL[0] - 1.6, y = SILL[1] + 0.55, z = SILL[2];
     placePlayer(x, z, 0.35, y + EYE_);                 // facing up Kiln Street, the roofs ahead
     G.pitch = -0.2;
     kitShow();
@@ -2906,7 +2906,7 @@ window.TSH = (function(){
     const hand = boneOf(body, /RightHand$/); if(!hand) return;
     const k = worldK(hand), m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.015), new THREE.MeshStandardMaterial({ color:0xd8c89a, roughness:0.7 }));
     m.scale.setScalar(k); m.position.set(0, 0.1*k, 0.04*k); hand.add(m);
-    if(S.trail.tracker === 'on'){ const led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), new THREE.MeshBasicMaterial({ color:new THREE.Color(6, 0.3, 0.2) })); led.position.set(0.06, -0.03, 0.01); m.add(led);
+    if(S.trail.tracker === 'on'){ const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), new THREE.MeshBasicMaterial({ color:new THREE.Color(6, 0.3, 0.2) })); led.position.set(0.06, -0.03, 0.01); m.add(led);
       tweenForever(t=>{ led.visible = (t*1.6|0) % 2 === 0; }); }
   }
   function tweenForever(f){ const t = { t:0, d:1e9, f:k=>f(clock), done:null }; tweens.push(t); }
