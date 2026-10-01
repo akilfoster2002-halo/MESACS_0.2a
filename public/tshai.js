@@ -33,6 +33,7 @@ window.TSHAI = (function(){
      and in the order the storyboard below says. */
   const RATE = 8/60;                         // game minutes per real second
   const AT = {
+    wake:       15,       // 22:15 — the buyer calls: is his order ready?
     deal:       30,       // 22:30 — the time on the buyer's message (it is only words: he waits)
     end:        239       // 01:59 — the clock stops here; nothing fails at it
   };
@@ -149,8 +150,9 @@ window.TSHAI = (function(){
      (Kai spotting you after the deal is done, say) cannot knock the
      story off its rails. */
   const QUEST = {
-    intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'prep' } },
-    prep:    { goal:'Finish tonight\'s pieces at the bench.', to:{ done:'deal' } },
+    intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'wake' } },
+    wake:    { goal:'', to:{ out:'lesson' } },
+    lesson:  { goal:'Get to Dragon Alley — over the roofs.', to:{ done:'deal' } },
     deal:    { goal:'Sell the rings to the buyer. Get paid.',
                to:{ paid:'news', robbed:'robbed', dropped:'drop', confiscated:'news', stiffed:'news' } },
     drop:    { goal:'Get the envelope out of the mailbox.', to:{ retrieved:'news', robbed:'news', gaveup:'news' } },
@@ -170,7 +172,7 @@ window.TSHAI = (function(){
   }
   /* The checkpoints a visit restarts from: the beat is replayed, what
      you did in the beats before it stays done. */
-  const CHECKPOINT = { intro:'prep', prep:'prep', deal:'deal', drop:'deal', robbed:'deal', news:'news', home:'home', apt:'apt', escape:'apt',
+  const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', news:'news', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end' };
 
   /* ======================================================= the storyboard
@@ -185,10 +187,10 @@ window.TSHAI = (function(){
        id         beat     what sets it off                                    after
      ───────────────────────────────────────────────────────────────────────────── */
   const STORY = [
-    { id:'text',      beat:'prep',   on:'the night starts at the bench: the buyer texts' },
-    { id:'leave',     beat:'deal',   on:'out of the flat with the kit finished',             after:['text'] },
-    { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley',           after:['leave'] },
-    { id:'drop',      beat:'deal',   on:'leaving the rings in the mailbox instead',          after:['leave'] },
+    { id:'wake',      beat:'wake',   on:'the night starts: the buyer calls; the kit on, out of the window' },
+    { id:'lesson',    beat:'lesson', on:'she falls from the window, and the shoes fire',     after:['wake'] },
+    { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley',           after:['lesson'] },
+    { id:'drop',      beat:'deal',   on:'leaving the rings in the mailbox instead',          after:['lesson'] },
     { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the deal behind her', after:['deal', 'drop'] },
     { id:'roof',      beat:'news',   on:'the broadcast ends: through Maya\'s binoculars',     after:['news'] },
     { id:'voicemail', beat:'apt',    on:'through her own front door',                        after:['roof'] },
@@ -207,8 +209,9 @@ window.TSHAI = (function(){
   /* The scenes behind a beat: what a save from before the storyboard, or
      a night resumed in the middle, has already seen. */
   function seenBefore(step){
-    const behind = { deal:['text','leave'], drop:['text','leave','deal'], robbed:['text','leave','deal'], news:['text','leave','deal'],
-                     home:['text','leave','deal','news','roof'], out:['text','leave','deal','news','roof','voicemail','maya','kai'] };
+    const O = ['wake','lesson'];
+    const behind = { lesson:['wake'], deal:O, drop:O.concat('deal'), robbed:O.concat('deal'), news:O.concat('deal'),
+                     home:O.concat('deal','news','roof'), out:O.concat('deal','news','roof','voicemail','maya','kai') };
     ['apt','escape','chair','escape2'].forEach(b=>{ behind[b] = behind.home; });
     behind.end = behind.out;
     return (behind[step] || []).slice();
@@ -219,6 +222,8 @@ window.TSHAI = (function(){
      it what WFC calls illicit wearable weaponry. Tonight's kit, in the
      order she finishes it at her bench. `key` is what uses it. */
   const KIT = {
+    boots:   { name:'Skyline shoes', key:'SPACE', icon:'👟',
+               does:'Her own sneakers, rebuilt: coils in the soles. HOLD SPACE and they take her roof to roof on their own — point where you want to go, even mid-air. Tap SPACE as she lands, when the ring goes gold, for a perfect bound. In the air SHIFT dives, SPACE in a dive pulls up, and SPACE at a wall kicks off it.' },
     cuffs:   { name:'Gecko cuffs',   key:'G', icon:'🦎',
                does:'Grip a building\'s wall and climb it, all the way to the roof — or sprint at a wall and leap onto it. The film tires after about fifteen seconds on a wall and recovers on the ground. WFC who see them in use see illegal wearables.' },
     bangles: { name:'Flash bangles', key:'F', icon:'✋',
@@ -228,7 +233,7 @@ window.TSHAI = (function(){
     rings:   { name:'The two rings', key:'',  icon:'💍',
                does:'The buyer\'s. A shield in each, if the wearer knows how. ¥3,000 on delivery.' }
   };
-  const KIT_ORDER = ['cuffs', 'bangles', 'studs', 'rings'];
+  const KIT_ORDER = ['boots', 'cuffs', 'bangles', 'studs', 'rings'];
   /* THE GRIP. Seconds of hold on a wall, how fast she goes up, down and
      along it, how fast it comes back on the ground, and how fast she
      slides when it gives out. A 15-second hold at 1.5 m/s is 22 metres:

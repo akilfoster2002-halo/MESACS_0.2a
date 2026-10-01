@@ -35,6 +35,7 @@ const OUT = path.join(ROOT, 'public', 'tshvoice.js');
 export const CAST = {
   robin:     { name:'Ainsley', id:'731b4ffe-e95e-59f4-8c00-81608936091f' },   // young, quick, a lot of range
   kai:       { name:'Dylan',   id:'b847bc29-f184-583a-8ad9-d1f1e16d1a60' },   // young man with a temper
+  buyer:     { name:'Dylan',   id:'b847bc29-f184-583a-8ad9-d1f1e16d1a60' },   // the buyer on the phone: Kai, before she has a name for him
   maya:      { name:'Soraya',  id:'5c1d2f7f-cdb4-5b1d-bca9-156439e3275e' },   // low, level, never in a hurry
   mom:       { name:'Vera',    id:'0c51919f-0756-5f8d-8169-026a339d8fd7' },   // the Director: measured, on camera
   counselor: { name:'Holden',  id:'3c9d6053-6334-592c-8997-4e325286af3f' },   // the voicemail
@@ -59,6 +60,7 @@ export function vkey(who, text){
    directions, with YU spelled the way Kai spells it. */
 export function spoken(text){
   if(text === '(laughs)') return 'Hah... ha ha. Haha!';
+  if(text === '(groans)') return 'Ughhh...';
   return text.replace(/^\([^)]*\)\s*/, '').replace(/\bYU\b/g, 'Y-U').trim();
 }
 
@@ -71,7 +73,7 @@ export function lines(src){
     const k = vkey(who, text); if(!found.has(k)) found.set(k, { key:k, who, text, tts:spoken(text), voice:CAST[who].id });
   };
   const Q = `'((?:[^'\\\\]|\\\\.)*)'`;
-  for(const m of src.matchAll(new RegExp(`\\[\\s*'(robin|kai|maya|mom|counselor|wfc|vendor)'\\s*,\\s*${Q}\\s*\\]`, 'g'))) add(m[1], unq(m[2]));
+  for(const m of src.matchAll(new RegExp(`\\[\\s*'(robin|kai|buyer|maya|mom|counselor|wfc|vendor)'\\s*,\\s*${Q}\\s*\\]`, 'g'))) add(m[1], unq(m[2]));
   for(const m of src.matchAll(new RegExp(`\\bsay:\\s*${Q}`, 'g'))) add('robin', unq(m[1]));
   for(const [who, list] of Object.entries(BARKS)) list.forEach(t=>{ if(src.includes(t.replace(/'/g, '\\\''))) add(who, t); });
   return [...found.values()];

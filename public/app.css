@@ -2826,3 +2826,43 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-res-p{margin-top:16px;padding:10px 12px;background:#0b1a18;border-radius:8px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:#a8d8cc}
 #tsh .tsh-res-p b{width:100%;color:#e6fff8}
 #tsh .tsh-res-b{margin-top:18px;display:flex;gap:10px;justify-content:center}
+
+/* ---- TSH: the opening — her phone, big; the lesson card */
+#tsh .tsh-phoneBig{position:absolute;right:9vw;top:50%;width:min(280px,34vw);aspect-ratio:9/18.5;transform:translate(0,160%) rotate(6deg);opacity:0;transition:transform .45s cubic-bezier(.2,.9,.3,1.2),opacity .3s;z-index:3;
+  background:#08090b;border:3px solid #2a2d31;border-radius:34px;box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 60px rgba(120,220,255,.15);overflow:hidden;pointer-events:none}
+#tsh .tsh-phoneBig.on{transform:translate(0,-50%) rotate(-4deg);opacity:1}
+#tsh .tsh-phoneBig.buzz{animation:tshbuzz .12s linear infinite}
+@keyframes tshbuzz{0%{margin-left:0}25%{margin-left:-4px}75%{margin-left:4px}100%{margin-left:0}}
+#tsh .pb-screen{position:absolute;inset:0;padding:18px 16px;background:radial-gradient(120% 80% at 30% 10%,#3a1a4a,#0a0f1a 60%,#05070a);color:#f4f6ff;font-family:var(--font)}
+#tsh .pb-top{display:flex;justify-content:space-between;font:600 12px var(--font);opacity:.8}
+#tsh .pb-big{margin-top:16%;text-align:center;font:200 64px/1 var(--font);letter-spacing:-.02em}
+#tsh .pb-big.huge{font-size:84px;margin-top:30%}
+#tsh .pb-big.dim{opacity:.45}
+#tsh .pb-date{text-align:center;font:600 14px var(--font);opacity:.75;margin-top:8px}
+#tsh .pb-alarm{margin:18% 4px 0;padding:14px;border-radius:18px;background:rgba(255,255,255,.12);font:700 12px var(--font);letter-spacing:.14em;color:#ffd23d}
+#tsh .pb-alarm b{display:block;margin-top:6px;font:700 20px var(--font);letter-spacing:0;color:#fff;text-transform:none}
+#tsh .pb-slide{position:absolute;left:16px;right:16px;bottom:26px;padding:12px;border-radius:30px;background:rgba(255,255,255,.14);text-align:center;font:600 13px var(--font);opacity:.85}
+#tsh .pb-note{margin:14% 2px 0;padding:14px;border-radius:18px;background:rgba(240,244,255,.16);backdrop-filter:blur(6px);animation:tshin .35s}
+#tsh .pb-note small{display:block;font:600 11px var(--font);letter-spacing:.12em;opacity:.7}
+#tsh .pb-note b{display:block;margin-top:6px;font:700 15px var(--font);color:#ff8a6a}
+#tsh .pb-note p{margin:6px 0 0;font:500 17px/1.3 var(--font)}
+#tsh .tsh-black{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 1.6s ease;z-index:2}
+#tsh .tsh-black.on{opacity:1;transition:none}
+#tsh .tsh-sub{z-index:4}
+#tsh .pb-caller{margin-top:30%;text-align:center}
+#tsh .pb-caller small{display:block;font:600 13px var(--font);opacity:.7;letter-spacing:.04em}
+#tsh .pb-caller b{display:block;margin-top:10px;font:300 34px/1.1 var(--font);letter-spacing:.04em}
+#tsh .pb-caller span{display:block;margin-top:6px;font:500 13px var(--font);opacity:.6}
+#tsh .pb-btns{position:absolute;left:0;right:0;bottom:12%;display:flex;justify-content:space-around}
+#tsh .pb-btns.one{justify-content:center}
+#tsh .pb-btns i{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font:700 24px var(--font);font-style:normal;color:#fff}
+#tsh .pb-btns .no{background:#e8304a}#tsh .pb-btns .yes{background:#30c85a;animation:tshbuzz .5s ease-in-out infinite}
+#tsh .tsh-lesson.big b{font-size:44px;letter-spacing:.12em}
+#tsh .tsh-lesson.big p{font-size:20px}
+#tsh .tsh-lesson{position:absolute;left:50%;top:15%;transform:translateX(-50%);max-width:min(560px,86vw);padding:14px 22px 16px;text-align:center;border-radius:14px;
+  background:rgba(4,12,11,.78);border:1px solid rgba(127,240,224,.4);opacity:0;pointer-events:none;transition:opacity .35s}
+#tsh .tsh-lesson.on{opacity:1}
+#tsh .tsh-lesson small{display:block;font:700 11px var(--font-code);letter-spacing:.2em;color:#7ff0e0}
+#tsh .tsh-lesson b{display:block;margin-top:4px;font:800 26px var(--font);letter-spacing:.06em;color:#fff}
+#tsh .tsh-lesson p{margin:6px 0 0;font:500 15px/1.4 var(--font);color:#d8fff4}
+#tsh.cine .tsh-lesson{opacity:0}

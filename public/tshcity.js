@@ -896,7 +896,8 @@ window.TSHCITY = (function(){
     B.box(M.darkMetal, x-1.5, 1.2, z1+0.4, 0.05, 0.6, 0.05);
     out.spots.bench = [x-2.5, z1+1.5, 1.4]; out.spots.lamp = [x-1.5, z1+0.4, 1.6];
     // the bed, along the south wall and clear of the door, and the suitcase open on the floor
-    B.box(M.wood, x-1.4, 0.25, z2-1.3, 2.2, 0.5, 2.4); B.box(M.std({ color:0x2a3a5a, roughness:0.9 }), x-1.4, 0.6, z2-1.3, 2.1, 0.22, 2.3);
+    B.box(M.wood, x-1.4, 0.42, z2-1.3, 2.2, 0.16, 2.4); B.box(M.std({ color:0x2a3a5a, roughness:0.9 }), x-1.4, 0.6, z2-1.3, 2.1, 0.22, 2.3);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, c])=>B.box(M.wood, x-1.4 + a*1.02, 0.17, z2-1.3 + c*1.12, 0.1, 0.34, 0.1));   // on legs: there is an under to it
     solid(x-2.5, x-0.3, z2-2.5, z2-0.1, -1, 0.72, 'bed');
     B.box(M.std({ color:0x3a2a22, roughness:0.7 }), x+1.2, 0.18, z2-1.2, 1.2, 0.36, 0.8);
     B.box(M.std({ color:0x3a2a22, roughness:0.7 }), x+1.2, 0.55, z2-1.62, 1.2, 0.8, 0.08);
@@ -918,6 +919,8 @@ window.TSHCITY = (function(){
     out.apt = { x, z, x1, x2, z1, z2, h };
     // the sources the room is lit by; the lamp is switched from tsh.js
     out.aptLights = { lamp:[x-1.5, 1.7, z1+0.7, 0xffc890, 9, 7], neon:[x1+0.6, 1.8, z+2.4, 0x3affd8, 5, 6], ceiling:[x+1, 3, z, 0xfff0d8, 12, 10] };
+    // and everything that makes it a sixteen-year-old's room (tshroom.js)
+    if(window.TSHROOM) TSHROOM.dress(group, B, out, M, out.apt);
   }
 
   /* ============================================================= the graph

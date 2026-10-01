@@ -17,6 +17,7 @@ const G = {
   selected:null, focused:null,
   keys:{}, locked:false, running:false, firstPerson:false,
   ground:null, ceiling:null,          // level's floor / ceiling probes, if it has them
+  mover:null,                         // a place's own movement (TSH's boots), asked before the walk below
   onGround:true,
   yaw:0, pitch:0,
   pos:new THREE.Vector3(0,1.7,14),
@@ -1265,6 +1266,11 @@ function step(dt){
      assumes up is up. It owns all of that itself and this hands straight
      over. Everything after this line is the flat-world game, unchanged. */
   if(window.PLANET && PLANET.active){ PLANET.walk(dt); return; }
+  /* A PLACE CAN BRING ITS OWN LEGS. TSH puts Robin's boots on (boots.js):
+     momentum, a super jump, dives and wall kicks, and a camera to match.
+     While one is set it does the moving, colliding and filming, and
+     answers true; everything below is the plain walk it replaces. */
+  if(G.mover && G.mover(dt)) return;
   /* And so does the arena. You are a spectator above a board there — no
      body to walk, no floor to fall through, and a camera that belongs to
      the mode rather than to a pair of legs. */

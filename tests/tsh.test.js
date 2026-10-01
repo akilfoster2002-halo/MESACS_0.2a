@@ -96,21 +96,23 @@ function rules(){
   return ctx.TSHAI;
 }
 
-test('the night starts at the bench, before ten, and the deal comes after it', () => {
+test('the night starts in her room at 22:15, and the deal comes after the shoes', () => {
   const A = rules();
-  assert.equal(A.next('intro', 'start'), 'prep', 'a fresh night opens in the workshop');
-  assert.equal(A.next('prep', 'done'), 'deal', 'leaving the flat with the kit starts the deal');
-  assert.equal(A.clock(-20), '21:40', 'the workshop reads as 21:40, not 22:00');
-  assert.equal(A.clock(0), '22:00');
+  assert.equal(A.next('intro', 'start'), 'wake', 'a fresh night opens in her room');
+  assert.equal(A.next('wake', 'out'), 'lesson', 'out of the window, and the shoes are hers to learn');
+  assert.equal(A.next('lesson', 'done'), 'deal', 'and then the buyer');
+  assert.equal(A.clock(A.AT.wake), '22:15', 'the buyer calls');
+  assert.equal(A.clock(A.AT.deal), '22:30');
   assert.equal(A.clock(75), '23:15');
-  assert.equal(A.CHECKPOINT.prep, 'prep');
+  assert.equal(A.CHECKPOINT.wake, 'wake');
+  assert.equal(A.CHECKPOINT.lesson, 'lesson');
 });
 
 test('every piece of the kit says what it does and what uses it', () => {
   const A = rules();
-  assert.deepEqual([...A.KIT_ORDER], ['cuffs', 'bangles', 'studs', 'rings']);
+  assert.deepEqual([...A.KIT_ORDER], ['boots', 'cuffs', 'bangles', 'studs', 'rings']);
   const keys = A.KIT_ORDER.map(p => A.KIT[p].key).filter(Boolean);
-  assert.deepEqual(keys, ['G', 'F', 'J'], 'cuffs on G, bangles on F, studs on J');
+  assert.deepEqual(keys, ['SPACE', 'G', 'F', 'J'], 'the boots on SPACE, cuffs on G, bangles on F, studs on J');
   A.KIT_ORDER.forEach(p => assert.ok(A.KIT[p].name && A.KIT[p].does.length > 30, p + ' needs a name and a sentence about what it does'));
   assert.ok(A.CRIMES.gear, 'using the cuffs where WFC can see is a crime of its own');
 });
@@ -123,15 +125,43 @@ test('the grip reaches a high roof but not the two towers', () => {
   assert.ok(GRIP.regen > 1, 'the film comes back on the ground in a few seconds');
 });
 
-test('the workshop builds every piece, and the pieces only work once they are built', () => {
+test('the opening is a film: the call, her room, the kit, the note, the window — and then she is falling', () => {
+  const t = read('public/tsh.js'), r = read('public/tshroom.js');
+  has(t, /scene\('wake', opening\)/, 'a fresh night starts with the opening');
+  const op = t.slice(t.indexOf('function opening('), t.indexOf('function outsideLook('));
+  // the order of the film, as written
+  const beats = ["phoneBig('call')", "talk('call')", "cue('hangup')", "black(false)", "kitOn('jacket')", "kitOn('gloves')", "kitOn('shoes')", "kitOn('bracelet')",
+                 "kitOn('pack')", 'note.hold(', "note.home(); stage(", 'R.window.open(true)', 'inside:false', "stage('jump'"];
+  beats.forEach((k, i) => { assert.ok(op.includes(k), 'the opening has ' + k); if(i) assert.ok(op.indexOf(beats[i - 1]) < op.indexOf(k), beats[i - 1] + ' comes before ' + k); });
+  has(t, /\['buyer','Hey\. You got my order\?'\], \['robin','Yeah\. It\\'s ready\.'\]/, 'the call, word for word');
+  has(t, /function vfx\(who, text\)\{ return who === 'counselor' \|\| who === 'buyer' \? 'phone'/, 'the buyer sounds like he is on the phone');
+  // the room: a sixteen-year-old's mess, and a business
+  ['function fashion(', 'function pcb(', 'room.sewing', 'room.form', 'room.packing', 'ORDER #', 'burner phones', 'cash', 'room.pack', 'room.kitchen', 'room.momDoor',
+   "Dinner\\'s in the fridge.", 'Love you.', '— Mom', 'function cityView(', 'open(v)', 'STATIC GIRLS', 'function bootPair(']
+    .forEach(k => assert.ok(r.includes(k), 'the room has ' + k));
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/models/character-x.glb'));
+  const names = (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name);
+  ['wake', 'text', 'kneel', 'walk', 'jump', 'roll'].forEach(n => assert.ok(names.includes(n), 'Robin\'s model has no ' + n + ' clip'));
+  has(t, /if\(mode === 'reel'\)\{ if\(\(c === 'Enter'/, 'ENTER skips the film');
+  // and then it is yours: in the air, slow, until SPACE fires the shoes
+  has(t, /playReel\(shots, skipped=>fallStart\(skipped\)\)/, 'the film ends falling, skipped or not');
+  has(t, /slow:\(\)=>slowFall\(\)/, 'the fall is slow until she fires');
+  has(t, /lessonId\(\) === 'fire' && c === 'Space'/, 'SPACE fires the shoes');
+  has(t, /BOOTS\.fire\(\)/);
+});
+
+test('the first thing you play is the shoes: fire them, then hold SPACE and they do the rest', () => {
   const t = read('public/tsh.js');
-  has(t, /if\(S\.step === 'intro'\)\{ S\.step = 'prep'/, 'a fresh night starts in the workshop');
-  const build = t.slice(t.indexOf('const BUILD = {'), t.indexOf('const bench = {'));
-  ['cuffs', 'bangles', 'studs', 'rings'].forEach(p => has(build, new RegExp('\\n    ' + p + ': \\['), 'no bench steps for ' + p));
-  has(t, /function flash\(\)\{\s*if\(!has\('bangles'\)\)/, 'the bangles have to be finished before F does anything');
-  has(t, /function jam\(\)\{\s*if\(!has\('studs'\)\)/, 'the studs have to be finished before J does anything');
-  has(t, /if\(S\.step === 'prep'\) return prepOut\(via\);/, 'the flat\'s door and window end the workshop');
-  has(t, /if\(!kitDone\(\)\)\{ note\('Not yet/, 'and not before the pieces are finished');
+  const L = t.slice(t.indexOf('const LESSON = ['), t.indexOf('const lesson = {'));
+  ['THE SHOES', 'HOLD SPACE', 'KEEP HOLDING', 'POINT', 'THE RHYTHM', 'DRAGON ALLEY'].forEach((k, i, all) => {
+    assert.ok(L.includes("title:'" + k + "'"), 'the lesson has ' + k);
+    if(i) assert.ok(L.indexOf("title:'" + all[i - 1] + "'") < L.indexOf("title:'" + k + "'"), all[i - 1] + ' comes before ' + k);
+  });
+  assert.ok(L.includes("teach:['bound','jump','steer']"), 'the bound is switched on when it is taught');
+  has(t, /BOOTS\.TECH\.early\.concat\(BOOTS\.TECH\.mid\)\.forEach\(t=>BOOTS\.learn\(t\)\)/, 'and the rest of the moves at the end of it');
+  has(t, /function lessonDone\(\)\{[\s\S]{0,400}outcome\('done'\)/, 'the lesson ends in the deal');
+  has(t, /BOOTS\.attach\(/, 'TSH puts the boots on');
+  has(t, /enabled:\(\)=>!inside/, 'and takes them off indoors');
 });
 
 test('G climbs a building\'s wall, and the ladders face the wall too', () => {
@@ -163,24 +193,26 @@ test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
 test('the storyboard plays every scene in order, and only once', () => {
   const A = rules();
   const ids = A.STORY.map(s=>s.id);
-  assert.deepEqual(ids.slice(0, 7), ['text', 'leave', 'deal', 'drop', 'news', 'roof', 'voicemail']);
+  assert.deepEqual(ids.slice(0, 7), ['wake', 'lesson', 'deal', 'drop', 'news', 'roof', 'voicemail']);
   A.STORY.forEach(s=>{ assert.ok(s.on, s.id + ' says what sets it off'); (s.after||[]).forEach(a=>assert.ok(ids.indexOf(a) < ids.indexOf(s.id), s.id + ' comes after ' + a)); });
   assert.equal(A.ready([], 'news'), false, 'no broadcast before the deal');
-  assert.equal(A.ready(['text', 'leave'], 'news'), false);
-  assert.equal(A.ready(['text', 'leave', 'drop'], 'news'), true, 'the dead drop counts as the deal');
-  assert.equal(A.ready(['text', 'leave', 'deal', 'news'], 'news'), false, 'a scene plays once');
-  assert.equal(A.ready(['text', 'leave', 'deal'], 'voicemail'), false, 'home comes after the roof');
-  assert.equal(A.ready(['text', 'leave', 'deal', 'news', 'roof'], 'maya'), false, 'Maya waits for the voicemail');
+  const O = ['wake', 'lesson'];
+  assert.equal(A.ready(O, 'news'), false);
+  assert.equal(A.ready([], 'lesson'), false, 'no lesson before the window');
+  assert.equal(A.ready(O.concat('drop'), 'news'), true, 'the dead drop counts as the deal');
+  assert.equal(A.ready(O.concat('deal', 'news'), 'news'), false, 'a scene plays once');
+  assert.equal(A.ready(O.concat('deal'), 'voicemail'), false, 'home comes after the roof');
+  assert.equal(A.ready(O.concat('deal', 'news', 'roof'), 'maya'), false, 'Maya waits for the voicemail');
   assert.equal(A.next('deal', 'paid'), 'news', 'after the deal, the street');
   assert.equal(A.next('news', 'watched'), 'home');
   assert.equal(A.next('news', 'home'), 'news', 'you do not get home without passing the screens');
   assert.equal(A.next('drop', 'home'), 'drop', 'nor from the dead drop');
-  assert.deepEqual(A.seenBefore('home'), ['text', 'leave', 'deal', 'news', 'roof'], 'an old save picks up where it was');
+  assert.deepEqual(A.seenBefore('home'), ['wake', 'lesson', 'deal', 'news', 'roof'], 'an old save picks up where it was');
 });
 
 test('nothing in the night happens because the clock said so', () => {
   const A = rules(), t = read('public/tsh.js');
-  assert.deepEqual(Object.keys(A.AT).sort(), ['deal', 'end'], 'the clock has no story times in it');
+  assert.deepEqual(Object.keys(A.AT).sort(), ['deal', 'end', 'wake'], 'the clock has no story times in it');
   hasNot(t, /AI\.AT\.(kaiArrives|kaiGivesUp|speech|checkpointOn|checkpointOff|clubOut)/, 'no beat reads a story time');
   hasNot(t, /function raid\(/, 'no raid on a timer');
   hasNot(t, /talk\('released'\)/, 'the Director does not phone out of nowhere');
