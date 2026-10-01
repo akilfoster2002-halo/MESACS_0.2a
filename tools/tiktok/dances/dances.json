@@ -1,21 +1,225 @@
 [
  {
+  "file": "101810901-dancing.glb",
+  "id": "101810901",
+  "name": "dancing",
+  "dur": 8.1
+ },
+ {
+  "file": "101810902-dancing.glb",
+  "id": "101810902",
+  "name": "dancing",
+  "dur": 7.33
+ },
+ {
+  "file": "101960902-hip-hop-dancing.glb",
+  "id": "101960902",
+  "name": "hip hop dancing",
+  "dur": 7.07
+ },
+ {
+  "file": "101960903-hip-hop-dancing.glb",
+  "id": "101960903",
+  "name": "hip hop dancing",
+  "dur": 6.33
+ },
+ {
+  "file": "101960904-hip-hop-dancing.glb",
+  "id": "101960904",
+  "name": "hip hop dancing",
+  "dur": 4.1
+ },
+ {
+  "file": "101960905-hip-hop-dancing.glb",
+  "id": "101960905",
+  "name": "hip hop dancing",
+  "dur": 3.37
+ },
+ {
+  "file": "101960906-hip-hop-dancing.glb",
+  "id": "101960906",
+  "name": "hip hop dancing",
+  "dur": 4.73
+ },
+ {
+  "file": "101960907-hip-hop-dancing.glb",
+  "id": "101960907",
+  "name": "hip hop dancing",
+  "dur": 4.47
+ },
+ {
+  "file": "101970901-jazz-dancing.glb",
+  "id": "101970901",
+  "name": "jazz dancing",
+  "dur": 5.43
+ },
+ {
+  "file": "101970902-jazz-dancing.glb",
+  "id": "101970902",
+  "name": "jazz dancing",
+  "dur": 2.03
+ },
+ {
+  "file": "101970903-jazz-dancing.glb",
+  "id": "101970903",
+  "name": "jazz dancing",
+  "dur": 2.33
+ },
+ {
+  "file": "101970904-jazz-dancing.glb",
+  "id": "101970904",
+  "name": "jazz dancing",
+  "dur": 2.27
+ },
+ {
+  "file": "108350901-hip-hop-dancing.glb",
+  "id": "108350901",
+  "name": "hip hop dancing",
+  "dur": 13.77
+ },
+ {
+  "file": "108650901-hip-hop-dancing.glb",
+  "id": "108650901",
+  "name": "hip hop dancing",
+  "dur": 18.57
+ },
+ {
+  "file": "108660901-hip-hop-dancing.glb",
+  "id": "108660901",
+  "name": "hip hop dancing",
+  "dur": 13.63
+ },
+ {
+  "file": "108690901-hip-hop-dancing.glb",
+  "id": "108690901",
+  "name": "hip hop dancing",
+  "dur": 11.97
+ },
+ {
+  "file": "108700901-hip-hop-dancing.glb",
+  "id": "108700901",
+  "name": "hip hop dancing",
+  "dur": 13.03
+ },
+ {
+  "file": "108710901-house-dancing.glb",
+  "id": "108710901",
+  "name": "house dancing",
+  "dur": 26.17
+ },
+ {
+  "file": "108720901-house-dancing.glb",
+  "id": "108720901",
+  "name": "house dancing",
+  "dur": 19.8
+ },
+ {
+  "file": "108730901-samba-dancing.glb",
+  "id": "108730901",
+  "name": "samba dancing",
+  "dur": 18.2
+ },
+ {
+  "file": "108740901-salsa-dancing.glb",
+  "id": "108740901",
+  "name": "salsa dancing",
+  "dur": 11.97
+ },
+ {
+  "file": "108780901-hip-hop-dancing.glb",
+  "id": "108780901",
+  "name": "hip hop dancing",
+  "dur": 15.77
+ },
+ {
   "file": "108830901-locking-hip-hop-dance.glb",
   "id": "108830901",
   "name": "locking hip hop dance",
-  "dur": 17
+  "dur": 0
+ },
+ {
+  "file": "108840901-hip-hop-dancing.glb",
+  "id": "108840901",
+  "name": "hip hop dancing",
+  "dur": 17.23
+ },
+ {
+  "file": "108850901-robot-hip-hop-dance.glb",
+  "id": "108850901",
+  "name": "robot hip hop dance",
+  "dur": 15.43
+ },
+ {
+  "file": "108860901-hip-hop-dancing.glb",
+  "id": "108860901",
+  "name": "hip hop dancing",
+  "dur": 15.33
  },
  {
   "file": "108870901-slide-hip-hop-dance.glb",
   "id": "108870901",
   "name": "slide hip hop dance",
-  "dur": 17.3
+  "dur": 0
  },
  {
   "file": "108880901-tut-hip-hop-dance.glb",
   "id": "108880901",
   "name": "tut hip hop dance",
-  "dur": 16.93
+  "dur": 0
+ },
+ {
+  "file": "108890901-tut-hip-hop-dance.glb",
+  "id": "108890901",
+  "name": "tut hip hop dance",
+  "dur": 12.1
+ },
+ {
+  "file": "108900901-wave-hip-hop-dance.glb",
+  "id": "108900901",
+  "name": "wave hip hop dance",
+  "dur": 16.83
+ },
+ {
+  "file": "108910902-wave-hip-hop-dance.glb",
+  "id": "108910902",
+  "name": "wave hip hop dance",
+  "dur": 1.17
+ },
+ {
+  "file": "108920901-belly-dance.glb",
+  "id": "108920901",
+  "name": "belly dance",
+  "dur": 19.63
+ },
+ {
+  "file": "108940901-dancing.glb",
+  "id": "108940901",
+  "name": "dancing",
+  "dur": 21.4
+ },
+ {
+  "file": "108970901-dancing.glb",
+  "id": "108970901",
+  "name": "dancing",
+  "dur": 12.37
+ },
+ {
+  "file": "108980901-dancing.glb",
+  "id": "108980901",
+  "name": "dancing",
+  "dur": 2.63
+ },
+ {
+  "file": "108990901-arms-hip-hop-dance.glb",
+  "id": "108990901",
+  "name": "arms hip hop dance",
+  "dur": 21.97
+ },
+ {
+  "file": "109000901-booty-hip-hop-dance.glb",
+  "id": "109000901",
+  "name": "booty hip hop dance",
+  "dur": 4.9
  },
  {
   "file": "109010901-step-hip-hop-dance.glb",
@@ -33,7 +237,139 @@
   "file": "109090901-shopping-cart-dance.glb",
   "id": "109090901",
   "name": "shopping cart dance",
-  "dur": 15.93
+  "dur": 0
+ },
+ {
+  "file": "109320901-samba-dancing.glb",
+  "id": "109320901",
+  "name": "samba dancing",
+  "dur": 27.87
+ },
+ {
+  "file": "109400901-samba-dancing.glb",
+  "id": "109400901",
+  "name": "samba dancing",
+  "dur": 18.63
+ },
+ {
+  "file": "109460902-salsa-dancing.glb",
+  "id": "109460902",
+  "name": "salsa dancing",
+  "dur": 2.43
+ },
+ {
+  "file": "109460903-salsa-dancing.glb",
+  "id": "109460903",
+  "name": "salsa dancing",
+  "dur": 2.27
+ },
+ {
+  "file": "109460904-salsa-dancing.glb",
+  "id": "109460904",
+  "name": "salsa dancing",
+  "dur": 2.27
+ },
+ {
+  "file": "109460905-salsa-dancing.glb",
+  "id": "109460905",
+  "name": "salsa dancing",
+  "dur": 2.6
+ },
+ {
+  "file": "109560901-house-dancing.glb",
+  "id": "109560901",
+  "name": "house dancing",
+  "dur": 21.37
+ },
+ {
+  "file": "109600901-swing-dancing.glb",
+  "id": "109600901",
+  "name": "swing dancing",
+  "dur": 23.3
+ },
+ {
+  "file": "109600902-swing-dancing.glb",
+  "id": "109600902",
+  "name": "swing dancing",
+  "dur": 2.47
+ },
+ {
+  "file": "109610901-swing-dancing.glb",
+  "id": "109610901",
+  "name": "swing dancing",
+  "dur": 20.9
+ },
+ {
+  "file": "109620901-swing-dancing.glb",
+  "id": "109620901",
+  "name": "swing dancing",
+  "dur": 24.7
+ },
+ {
+  "file": "109630901-swing-dancing.glb",
+  "id": "109630901",
+  "name": "swing dancing",
+  "dur": 5.2
+ },
+ {
+  "file": "112100901-jazz-dancing.glb",
+  "id": "112100901",
+  "name": "jazz dancing",
+  "dur": 2.73
+ },
+ {
+  "file": "114680901-thriller-idle.glb",
+  "id": "114680901",
+  "name": "thriller idle",
+  "dur": 4.33
+ },
+ {
+  "file": "114680902-thriller-part-1.glb",
+  "id": "114680902",
+  "name": "thriller part 1",
+  "dur": 29.83
+ },
+ {
+  "file": "114690901-thriller-part-2.glb",
+  "id": "114690901",
+  "name": "thriller part 2",
+  "dur": 18.83
+ },
+ {
+  "file": "114700901-thriller-part-3.glb",
+  "id": "114700901",
+  "name": "thriller part 3",
+  "dur": 25.57
+ },
+ {
+  "file": "114710901-thriller-part-4.glb",
+  "id": "114710901",
+  "name": "thriller part 4",
+  "dur": 37.07
+ },
+ {
+  "file": "121410901-northern-soul-spin.glb",
+  "id": "121410901",
+  "name": "northern soul spin",
+  "dur": 4.03
+ },
+ {
+  "file": "121420901-northern-soul-spin-combo.glb",
+  "id": "121420901",
+  "name": "northern soul spin combo",
+  "dur": 8.83
+ },
+ {
+  "file": "121430901-northern-soul-floor-combo.glb",
+  "id": "121430901",
+  "name": "northern soul floor combo",
+  "dur": 10.6
+ },
+ {
+  "file": "121440901-northern-soul-floor-spin.glb",
+  "id": "121440901",
+  "name": "northern soul floor spin",
+  "dur": 7.47
  },
  {
   "file": "125650901-chicken-dance.glb",
@@ -45,6 +381,30 @@
   "file": "125660901-ymca-dance.glb",
   "id": "125660901",
   "name": "ymca dance",
-  "dur": 4.5
+  "dur": 0
+ },
+ {
+  "file": "125670901-twist-dance.glb",
+  "id": "125670901",
+  "name": "twist dance",
+  "dur": 9.43
+ },
+ {
+  "file": "125680901-shuffling.glb",
+  "id": "125680901",
+  "name": "shuffling",
+  "dur": 7.5
+ },
+ {
+  "file": "128660901-dancing-maraschino-step.glb",
+  "id": "128660901",
+  "name": "dancing maraschino step",
+  "dur": 3.23
+ },
+ {
+  "file": "128660902-dancing-running-man.glb",
+  "id": "128660902",
+  "name": "dancing running man",
+  "dur": 10.83
  }
 ]
