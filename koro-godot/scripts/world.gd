@@ -215,6 +215,12 @@ func _sky() -> void:
 	stars.multimesh = mm
 	stars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(stars)
+	# WANO GETS THE WEBSITE'S SKY (golden_sky.gd): golden hour over the hub,
+	# the moon turned into its sun, and these stars put away for the daytime.
+	# The other balls keep their night.
+	if hub():
+		stars.visible = false
+		add_child(GoldenSky.new().setup(env, moon))
 
 func _buildings() -> void:
 	for spec in Planet.BUILDINGS:
