@@ -9,6 +9,7 @@
      pulse: 0..1 }                       // how hard the beat pushes */
 window.FX = (function () {
   let B = [], LOUD = [], look = {}, last = -1, cutT = 0, cam = null;
+  let nowT = 0, drawT = -1;
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   const el = (tag, css, html = '') => { const e = document.createElement(tag); e.className = '__keep'; e.style.cssText = css; e.innerHTML = html; document.body.appendChild(e); return e; };
   let flash, card, cap, view;
@@ -30,6 +31,8 @@ window.FX = (function () {
        <div id="__l2" style="font-size:5vw;font-weight:600;opacity:0">${c.line2 || 'link in bio'}</div>`);
     const r = G.renderer, render = r.render.bind(r);
     r.render = (scene, camera) => {
+      // the other players move just before the draw, after the game has moved you
+      if (window.EX && EX.list.length && drawT !== nowT) { drawT = nowT; EX.tick(1 / 30, nowT); }
       if (cam && G.room === 'planet') {
         camera.position.copy(cam.pos);
         camera.up.copy(window.__P.me.dir.clone().normalize());
@@ -40,9 +43,9 @@ window.FX = (function () {
     };
   }
 
-  function setup(i) {
+  async function setup(i) {
     const s = SHOTS[i]; cam = null;
-    s.setup && s.setup();
+    if (s.setup) await s.setup();
     for (let k = 0; k < 20; k++) window.__step(1000 / 30);
     s.pre2 && s.pre2();
     last = -1;
@@ -53,6 +56,7 @@ window.FX = (function () {
 
   function frame(i, u, T) {
     const s = SHOTS[i];
+    nowT = T;
     const first = last !== i;
     if (first) { last = i; cutT = T; }
     s.drive && s.drive(u, T, first);

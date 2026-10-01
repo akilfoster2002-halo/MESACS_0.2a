@@ -1,4 +1,4 @@
-/* A DAY OF POSTS: eight, no two alike.
+/* A DAY OF POSTS: fifteen, one an hour from 8am to 10pm New York, no two alike.
 
      node day.mjs --date 2026-09-30 --out /tmp/day    # plan and film all eight
      node day.mjs --date 2026-09-30 --plan            # print the plan only
@@ -19,14 +19,15 @@ let seed = [...date].reduce((s, c) => s * 31 + c.charCodeAt(0), 7) >>> 0;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-const TYPES = ['montage', 'showcase', 'arcade', 'intro', 'pov', 'tour'];
-const CHARS = ['nia', 'sable', 'kofi', 'theo', 'zuri'];
+const TYPES = ['montage', 'squad', 'mech', 'city', 'danceoff', 'showcase', 'arcade', 'intro', 'pov', 'tour'];
+const CHARS = ['nia', 'sable', 'kofi', 'theo', 'zuri', 'robin', 'walk-s', 'walk-t', 'walk-u', 'walk-v'];
 const CABS = ['drop', 'snake', 'breakout', 'maze', 'hop'];
 const SONGS = fs.readdirSync(path.join(here, 'songs')).filter((f) => f.endsWith('.mp3'));
 // posting times, New York: spread from breakfast to late night
-const TIMES = ['08:00', '10:30', '12:30', '14:30', '16:30', '18:30', '20:30', '22:30'];
+const TIMES = Array.from({ length: 15 }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`);
 
-const types = shuffle([...TYPES, ...shuffle(['montage', 'pov', 'arcade', 'intro']).slice(0, 2)]);
+// every type once, and five more of the ones that show the game is multiplayer and loud
+const types = shuffle([...TYPES, ...shuffle(['squad', 'mech', 'city', 'danceoff', 'montage', 'pov']).slice(0, 5)]);
 for (let i = 1; i < types.length; i++) if (types[i] === types[i - 1]) [types[i], types[(i + 2) % types.length]] = [types[(i + 2) % types.length], types[i]];
 const chars = [...shuffle(CHARS), ...shuffle(CHARS)];
 const cabs = shuffle(CABS);
@@ -50,4 +51,4 @@ for (const p of posts) {
   }
   fs.writeFileSync(path.join(OUT, 'day.json'), JSON.stringify({ date, posts: done }, null, 1));
 }
-console.log(`day ${date}: ${done.filter((d) => !d.failed).length}/8 made, in ${OUT}`);
+console.log(`day ${date}: ${done.filter((d) => !d.failed).length}/${posts.length} made, in ${OUT}`);

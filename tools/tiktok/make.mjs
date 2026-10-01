@@ -25,15 +25,17 @@ const pick = (a) => a[Math.floor(rnd() * a.length)];
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const ang = () => Math.floor(rnd() * 3);
 
-export const CHARS = { nia: 'Nia', sable: 'Sable', kofi: 'Kofi', theo: 'Theo', zuri: 'Zuri' };
+// who can be filmed: the five you pick from, Robin from TSH, and the walk-ons from TSH's pavements
+export const CHARS = { nia: 'Nia', sable: 'Sable', kofi: 'Kofi', theo: 'Theo', zuri: 'Zuri', robin: 'Robin', 'walk-s': null, 'walk-t': null, 'walk-u': null, 'walk-v': null };
 export const CABS = { drop: 'BLOCK DROP', snake: 'SNAKE', breakout: 'BREAKOUT', maze: 'MAZE', hop: 'HOP' };
-export const TYPES = ['montage', 'showcase', 'arcade', 'intro', 'pov', 'tour'];
+export const TYPES = ['montage', 'squad', 'mech', 'city', 'danceoff', 'showcase', 'arcade', 'intro', 'pov', 'tour'];
 
 const type = arg('type', pick(TYPES));
 const char = arg('char', pick(Object.keys(CHARS)));
-const name = CHARS[char];
+const name = CHARS[char] || 'a player';
 const OUT = path.resolve(arg('out', path.join(os.tmpdir(), 'koro-post')));
 fs.mkdirSync(OUT, { recursive: true });
+for (const f of fs.readdirSync(OUT)) if (f.startsWith('sample-')) fs.rmSync(path.join(OUT, f));
 
 // ------------------------------------------------------------- the song
 /* The loudest fifteen seconds that start on a bar, give or take: every bar
@@ -59,22 +61,51 @@ const CARD = N - Math.max(5, Math.round(2.2 / map.beat));
 // the Garden and the Stepping Stone are all trees: no camera gets a clean look at anyone on them
 const ISLES = ['falls', 'spire'];
 const POVS = [
-  ['POV: your home planet has a mech in the garage', ['seraph', 'seraph', 'fly']],
-  ['POV: you finished your homework and logged into KORO', ['sprint', 'fly', 'arcade']],
+  ['POV: your home planet has a mech in the garage', ['seraph', 'mechfight', 'mechfight']],
+  ['POV: you finished your homework and logged into KORO', ['squad', 'hangout', 'arcade']],
   ['POV: the ocean in this game goes all the way down', ['swim', 'dive', 'dive']],
   ['POV: you found the arcade in the clouds', ['fly', 'neon', 'arcade']],
-  ['POV: it is 2am and you are still flying around', ['fly', 'island', 'fly']],
-  ['POV: you and your mech vs. the whole map', ['seraph', 'sprint', 'seraph']],
+  ['POV: it is 2am and the whole squad is still online', ['hangout', 'squad', 'crew']],
+  ['POV: you and your mech vs. the whole map', ['mechfight', 'seraph', 'mechfight']],
+  ['POV: the new girl can climb anything', ['climb', 'climb', 'rooftop']],
+  ['POV: your friends said meet on the roof', ['climb', 'rooftop', 'rooftop']],
+  ['POV: someone said dance battle in chat', ['hangout', 'crew', 'crew']],
 ];
 const RECIPES = {
+  // any shots, in order: --shots squad,hangout,mechfight (for trying things out)
+  custom() {
+    return { shots: arg('shots').split(',').map((x) => { const [shot, a] = x.split(':'); return { shot, opts: { angle: +(a || 0), spot: +(a || 0) } }; }),
+      captions: [], title: 'KORO', caption: 'KORO.' };
+  },
   montage() {
-    const outdoor = shuffle(['dive', 'sprint', 'seraph', 'fly', 'island', 'dance', 'swim']).slice(0, 5);
-    const shots = outdoor.map((s) => ({ shot: s, opts: { angle: ang(), spot: ang(), id: pick(ISLES) } }));
+    // one of each kind of thing, never the same twice, the arcade last before the card
+    const pool = shuffle(['dive', 'mechfight', 'climb', 'rooftop', 'squad', 'hangout', 'crew', 'fly', 'island', 'seraph']).slice(0, 5);
+    const shots = pool.map((s) => ({ shot: s, opts: { angle: ang(), spot: ang(), id: pick(ISLES), fly: rnd() < 0.4 } }));
     shots.push({ shot: 'neon' }, { shot: 'arcade', opts: { cab: pick(Object.keys(CABS)) } });
-    return { shots, captions: [], title: `KORO: ${name}'s night on Wano`,
-      caption: pick([`Swim it. Pilot it. Fly it. Play it. ${name}'s night on Wano, all real gameplay.`,
-        `One night in KORO with ${name}: the reef, the Seraph, the sky islands and the arcade in the clouds.`,
-        `Everything you can do in one night on Wano. Played as ${name}.`]) };
+    return { shots, captions: [], title: `KORO: one night, everything`,
+      caption: pick([`Mechs, rooftops, the reef, the arcade in the clouds, and your friends online for all of it. All real gameplay.`,
+        `One night in KORO: climb the city, fight in a mech, dive the reef, then everybody meets in Neon.`,
+        `Everything you can do in one night in KORO, with whoever is online.`]) };
+  },
+  squad() {
+    const shots = [{ shot: 'squad', opts: { angle: ang(), spot: ang() } }, { shot: 'hangout', opts: { angle: ang(), spot: ang() } }, { shot: 'squad', opts: { angle: ang(), fly: true, spot: ang() } }, { shot: 'crew', opts: { angle: ang(), spot: ang() } }];
+    return { shots, captions: [{ text: pick(['Bring your friends. All of them.', 'Nobody plays KORO alone', 'The squad when the server goes live']), b0: 0, b1: 8 }],
+      title: 'KORO: the squad', caption: pick(['Run, fly and hang out with your friends on Wano. Everybody you see is somebody playing.', 'KORO is better with the squad: race to the Falls, talk trash, start a dance-off.']) };
+  },
+  mech() {
+    const shots = [{ shot: 'mechfight', opts: { angle: 0, spot: ang() } }, { shot: 'mechfight', opts: { angle: 2, spot: ang() } }, { shot: 'seraph', opts: { angle: ang(), spot: ang() } }, { shot: 'mechfight', opts: { angle: pick([0, 2]), spot: ang() } }];
+    return { shots, captions: [{ text: pick(['Vanguard vs Seraph', 'Mech fight at Kit\'s', 'Pick your mecha']), b0: 0, b1: 8 }],
+      title: 'KORO: mech fight', caption: pick(['Buy a mecha from Kit, take it outside, and settle it. Vanguard or Seraph?', 'Mega jump. Ground slam. Every player can pilot one.']) };
+  },
+  city() {
+    const shots = [{ shot: 'climb', opts: { spot: ang() } }, { shot: 'rooftop', opts: { spot: ang() } }, { shot: 'climb', opts: { spot: ang() + 1 } }, { shot: 'rooftop', opts: { spot: ang() + 1 } }];
+    return { shots, captions: [{ text: pick(['Robin can climb anything', 'Gecko cuffs: on', 'The city is a playground']), b0: 0, b1: 8 }],
+      title: 'KORO: TSH, the city', caption: pick(['Robin\'s Gecko cuffs climb any wall in the city. The roofs are the fast way home.', 'TSH: a whole city at night. Climb it, run the roofs, stay off the cameras.']) };
+  },
+  danceoff() {
+    const shots = [{ shot: 'hangout', opts: { angle: ang(), talk: 4 } }, { shot: 'crew', opts: { angle: 0, move: 'dance' } }, { shot: 'crew', opts: { angle: 1, move: 'salsa' } }, { shot: 'crew', opts: { angle: 0, move: 'flip' } }];
+    return { shots, captions: [{ text: pick(['Dance battle. Go.', 'Who won this?', 'Every emote, every character']), b0: 0, b1: 8 }],
+      title: 'KORO: dance battle', caption: 'Somebody said dance battle in chat. Who won?' };
   },
   showcase() {
     const scene = pick(['seraph', 'dive', 'fly', 'seraph']);
@@ -91,9 +122,10 @@ const RECIPES = {
       caption: `Fly up to Neon, walk in, play ${CABS[cab]}. Real cabinets, real high scores. ${name} is on the board.` };
   },
   intro() {
+    if (!CHARS[char]) return RECIPES.squad();
     const shots = [{ shot: 'dance', opts: { angle: 0, move: 'dance' }, n: 8 }, { shot: 'sprint', opts: { angle: ang() } }, { shot: 'fly', opts: { angle: ang() } }, { shot: pick(['swim', 'dive', 'seraph']), opts: { angle: ang() } }, { shot: 'dance', opts: { angle: 2, move: pick(['salsa', 'flip', 'dance']) } }];
     return { shots, captions: [{ text: `Meet ${name}`, b0: 0, b1: 8 }], title: `Meet ${name}`,
-      caption: `Meet ${name}, one of five you can play as in KORO. Who are you picking?` };
+      caption: `Meet ${name}. Who are you playing as in KORO?` };
   },
   pov() {
     const [hook, set] = pick(POVS);
@@ -142,7 +174,8 @@ try {
   await hold(page);
   await clean(page);
   // who we are: the body is swapped in place and loads in the background
-  await page.evaluate((c) => { window.__oldBody = AVATAR.body; AVATAR.pick(c); }, char);
+  // setCast, not pick: the dev server remembers whoever was picked last and puts them back
+  await page.evaluate((c) => { window.__oldBody = AVATAR.body; window.__who = c; AVATAR.setCast(c); }, char);
   // keep the clock going while the new body downloads: attach() finishes on a frame
   for (let k = 0; k < 120; k++) {
     await page.evaluate(() => { for (let i = 0; i < 5; i++) window.__step(1000 / 30); });
@@ -176,7 +209,7 @@ try {
 
 // ------------------------------------------------------------- the file and the words
 const TAGS = ['#KORO', '#gaming', '#gamedev', '#indiegame', '#indiedev', '#gameplay', '#openworld', '#fyp'];
-const EXTRA = { montage: ['#mecha', '#arcade', '#metaverse'], showcase: ['#mecha', '#robot', '#gamingclips'], arcade: ['#arcade', '#retrogaming', '#highscore'],
+const EXTRA = { custom: ['#gaming'], squad: ['#multiplayer', '#squad', '#friends'], mech: ['#mecha', '#robot', '#mechfight'], city: ['#parkour', '#cyberpunk', '#nightcity'], danceoff: ['#dancebattle', '#emotes', '#multiplayer'], montage: ['#mecha', '#arcade', '#metaverse'], showcase: ['#mecha', '#robot', '#gamingclips'], arcade: ['#arcade', '#retrogaming', '#highscore'],
   intro: ['#characterdesign', '#whoareyou', '#avatar'], pov: ['#pov', '#relatable', '#gamerlife'], tour: ['#floatingislands', '#exploration', '#cozygames'] };
 const post = { type, char, song, at: +t0.toFixed(2), title: R.title.slice(0, 80),
   caption: `${R.caption}\nKORO is free to play. Waitlist in bio.\n\n${[...TAGS.slice(0, 5), ...EXTRA[type], ...TAGS.slice(5)].join(' ')}` };
