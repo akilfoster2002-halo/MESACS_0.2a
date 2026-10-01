@@ -253,8 +253,9 @@ func _beside(id: String, metres: float) -> void:
 	var p: Walker = w.player
 	p.dir = from.normalized()
 	p.fwd = (at - from).normalized()
-	p.alt = from.length() - Planet.R
+	p.alt = minf(from.length() - Planet.R, Ocean.SEA - 1.5)
 	p.swimming = true
+	p.diving = true                 # under, and holding there
 	p.pitch = 0.0
 
 func _put(at: Vector3, look: Vector3) -> void:

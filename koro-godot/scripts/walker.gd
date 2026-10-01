@@ -61,6 +61,8 @@ var hidden_in_mecha := false:
 
 var flying := false
 var swimming := false
+## Under the sea rather than on it (the ocean only: the plunge pool is for floating).
+var diving := false
 var air := 0.0
 var climb := 0.0
 var roll := 0.0
@@ -299,7 +301,38 @@ func _walk(delta: float, up: Vector3) -> void:
 	var floor: float = world.floor_at(dir, alt)
 	var surf: float = world.water_at(dir)
 	var swim_here := not is_nan(surf) and surf - floor > 1.6 and alt < surf + 0.35
-	if swim_here:
+	# THE SEA IS DEEP ENOUGH TO GO DOWN INTO (ocean.gd), as in the browser: at
+	# the top you swim as in the pool; SHIFT (or Q) takes you under, and then
+	# you hang at whatever depth you let go at, the way a diver does; SPACE
+	# brings you back up, and at the top you float again. The bottom is a
+	# floor you cannot sink through.
+	var sea := not is_nan(Ocean.water_at(dir))
+	if swim_here and sea and not mount:
+		if not swimming:
+			swimming = true
+			diving = false
+			emote = ""
+		var up_down := (1.0 if Ctl.held("jump") else 0.0) - (1.0 if (Ctl.held("run") or Ctl.held("slam")) else 0.0)
+		if up_down < 0.0:
+			diving = true
+		if diving:
+			alt += up_down * 3.4 * delta
+			if up_down > 0.0 and alt >= surf - 0.55:
+				diving = false                 # back at the top
+			alt = minf(alt, surf - 0.45)
+		else:
+			var bob := -0.42 + 0.07 * sin(Time.get_ticks_msec() * 0.0021)
+			alt += (surf + bob - alt) * minf(1.0, delta * 3.2)
+			if Ctl.just("jump"):
+				vy = JUMP * 0.75               # a kick out of the water
+				alt = surf + 0.1
+				swimming = false
+		alt = maxf(alt, floor + 0.6)           # never through the bottom
+		if swimming:
+			vy = 0.0
+		on_ground = false
+	elif swim_here:
+		diving = false
 		if not swimming:
 			swimming = true
 			emote = ""
@@ -315,6 +348,7 @@ func _walk(delta: float, up: Vector3) -> void:
 			swimming = false
 	else:
 		swimming = false
+		diving = false
 		if on_ground and Ctl.just("jump"):
 			vy = JUMP * (1.12 if mount else 1.0)
 			on_ground = false

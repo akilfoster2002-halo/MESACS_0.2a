@@ -337,6 +337,34 @@ void fragment() {
 }
 """
 
+## UNDER THE SURFACE the world goes blue and close: the fog turns the colour
+## of deep water and thickens, and comes back as it was when you surface.
+var _env: Environment
+var _was := {}
+func _process(_dt: float) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	if _env == null:
+		var we := get_tree().root.find_children("*", "WorldEnvironment", true, false)
+		if we.is_empty():
+			return
+		_env = (we[0] as WorldEnvironment).environment
+	var p := cam.global_position
+	var under := not is_nan(water_at(p.normalized())) and p.length() < Planet.R + SEA
+	if under and _was.is_empty():
+		_was = {"c": _env.fog_light_color, "d": _env.fog_density, "s": _env.fog_sky_affect}
+		_env.fog_light_color = Color("0d3f78").srgb_to_linear().lerp(Color("1f8fb8").srgb_to_linear(), 0.35)
+		_env.fog_sky_affect = 1.0
+	if under:
+		var depth_now := Planet.R + SEA - p.length()
+		_env.fog_density = 0.035 + depth_now * 0.0012
+	elif not _was.is_empty():
+		_env.fog_light_color = _was.c
+		_env.fog_density = _was.d
+		_env.fog_sky_affect = _was.s
+		_was = {}
+
 func _ready() -> void:
 	if not on:
 		return

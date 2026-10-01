@@ -718,7 +718,12 @@ func _process(_delta: float) -> void:
 	elif player.mount:
 		hud.help.text = "W go · SHIFT gallop · A/D turn · SPACE hop · R get off · F fly · V view"
 	elif player.swimming:
-		hud.help.text = "WASD swim · SPACE kick out · F fly out of the water · P pause"
+		if player.diving:
+			hud.help.text = "WASD swim · SHIFT down · SPACE up · P pause"
+		elif not is_nan(Ocean.water_at(player.dir)):
+			hud.help.text = "WASD swim · SHIFT dive · SPACE kick out · F fly out of the water · P pause"
+		else:
+			hud.help.text = "WASD swim · SPACE kick out · F fly out of the water · P pause"
 	elif room:
 		hud.help.text = "WASD walk · mouse look · SHIFT run · SPACE jump · F fly · E use · G dance · TAB room menu · C chat rooms · P pause"
 		if player.seat:
