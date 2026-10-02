@@ -9,6 +9,7 @@
      PERCEPTION     how quickly somebody notices you, from what they can see
      HEAT           WFC's attention, 0 to 5, and how it cools
      THE PATHS      A* over the district's walking graph
+     THE CHASE      WFC after her across the roofs: missiles, cover, how heat cools
      THE QUEST      a state machine: which beat you are in and what moves it
      THE TRAIL      what you left behind, and what Maya can know from it
      THE ENDING     which last shot you earned
@@ -35,7 +36,7 @@ window.TSHAI = (function(){
   const AT = {
     wake:       15,       // 22:15 — the buyer calls: is his order ready?
     deal:       30,       // 22:30 — the time on the buyer's message (it is only words: he waits)
-    end:        239       // 01:59 — the clock stops here; nothing fails at it
+    end:        307       // 03:07 — the clock stops here; nothing fails at it (it is what her phone says when she gets in)
   };
   function clock(min){
     // the workshop is before ten: minutes before 22:00 are negative, and read as 21:xx
@@ -111,6 +112,54 @@ window.TSHAI = (function(){
     return unseen >= need ? { heat:heat-1, reset:true } : { heat, reset:false };
   }
 
+  /* =========================================================== the chase
+     AFTER THE ALLEY, WFC. The billboard over Neon Avenue reports illegal
+     wearables in Dragon Alley, and the squads arrive. From there it is a
+     chase, and it TEACHES ITSELF one stage at a time, in the order the
+     script has it: run, fight on the move, climb, the shoes, hide, the
+     phone — and then everything at once, home.
+
+     THE MISSILES ARE FAIR. Every one is telegraphed: a red line from the
+     drone, a lock-on tone, and a ring where it will land, a second and a
+     half before it does. It hits the RING, not Robin: moving always saves
+     her. In the air the lock follows her until it fires, and then it is
+     a straight shot at where she was going — so a dive, or a turn, takes
+     her out of it. Never more than two in the air; nobody fires at her
+     while she is hidden. A hit knocks her down; two in a row and WFC has
+     her (back to the start of the stage, never a game over).
+
+     HIDING IS NOT FAILING. Heat cools while nobody can see her — quickly
+     tucked behind cover, more slowly just out of sight — and never below
+     what the stage she is on holds it at (nobody calls off a chase while
+     it is still teaching you to run from it). */
+  const CHASE = {
+    stages: [
+      { id:'run',    title:'RUN',            how:'SHIFT sprints. East, down Neon Avenue — SPACE at a barrier vaults it.', floor:3 },
+      { id:'cutoff', title:'THE CUTOFF',     how:'Two of them in your way. Hit, then go.',                                floor:3 },
+      { id:'wall',   title:'G — GECKO CUFFS', how:'Dead end. Face the wall and G: up it, all the way to the roof.',      floor:3 },
+      { id:'roofs',  title:'HOLD SPACE',     how:'The shoes are charged. Hold SPACE: roof to roof, east.',               floor:3 },
+      { id:'hide',   title:'E — HIDE',       how:'You cannot outrun a gunship. Get behind the AC unit, and stay on the far side of whatever is looking.', floor:2 },
+      { id:'call',   title:'MOM',            how:'Keep the box between you and him.',                                   floor:2 },
+      { id:'home',   title:'GET HOME',       how:'Lose them — and land on your own roof with nobody on you.',           floor:0 }
+    ],
+    missile: { lock:1.5, airLock:1.1, fly:0.45, blast:2.8, live:2, gapGround:[3.4, 5.0], gapAir:[2.2, 3.2], lead:0.6 },
+    hits: 2,                 // knockdowns in a row before WFC has her
+    hitsForget: 20,          // seconds without a hit and the count starts again
+    cool: { cover:5, unseen:9 },
+    strafe: { every:[8, 11], rings:5, gap:3.4, step:0.32 }
+  };
+  const stageAt = id => CHASE.stages.findIndex(s=>s.id === id);
+  /* does a blast at `at` reach her at `p`? (both have y) */
+  function blastHits(at, p, r){ return Math.hypot(p.x - at.x, (p.y + 0.9) - at.y, p.z - at.z) < (r || CHASE.missile.blast); }
+  /* where a lock fires at: a little ahead of where she is going (on the ground), or exactly on her line for the flight time (in the air) */
+  function leadPoint(p, v, air){ const t = air ? CHASE.missile.fly : CHASE.missile.lead; return { x:p.x + v.x*t, y:p.y + (air ? v.y*t : 0), z:p.z + v.z*t }; }
+  /* the heat in a chase: down a star every `cover` seconds unseen behind cover, every `unseen` seconds out of sight, never below the stage's floor */
+  function chaseCool(heat, unseen, inCover, floor){
+    if(heat <= (floor||0)) return { heat:Math.max(heat, floor||0), reset:false };
+    const need = inCover ? CHASE.cool.cover : CHASE.cool.unseen;
+    return unseen >= need ? { heat:heat - 1, reset:true } : { heat, reset:false };
+  }
+
   /* ============================================================ the paths
      A* over the district graph (tshcity.js navGraph). Nodes carry x z y
      and a list of neighbour indices. */
@@ -153,7 +202,11 @@ window.TSHAI = (function(){
     intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'wake' } },
     wake:    { goal:'', to:{ out:'lesson' } },
     lesson:  { goal:'Get to Dragon Alley — over the roofs.', to:{ done:'deal' } },
-    deal:    { goal:'Meet the buyer in Dragon Alley. Get paid.', to:{ fought:'news', confiscated:'news' } },
+    deal:    { goal:'Meet the buyer in Dragon Alley. Get paid.', to:{ fought:'raid', confiscated:'raid' } },
+    raid:    { goal:'Get out of Dragon Alley.', to:{ home:'night' } },
+    night:   { goal:'', to:{ slept:'end' } },
+    /* PART TWO: the screens, the roof, the flat. George's scenes, kept for
+       the next chapter — the prologue ends with Maya at the binoculars. */
     news:    { goal:'Get out of Dragon Alley.', to:{ watched:'home' } },
     home:    { goal:'Get home with the money.', to:{ home:'apt' } },
     apt:     { goal:'Somebody is in your flat.', to:{ kaiIn:'escape', out:'out' } },
@@ -170,7 +223,7 @@ window.TSHAI = (function(){
   /* The checkpoints a visit restarts from: the beat is replayed, what
      you did in the beats before it stays done. (drop and robbed were the
      old deal with Kai's dead drop; a night saved in one is back at the deal.) */
-  const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', news:'news', home:'home', apt:'apt', escape:'apt',
+  const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', raid:'raid', night:'raid', news:'news', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end' };
 
   /* ======================================================= the storyboard
@@ -188,7 +241,12 @@ window.TSHAI = (function(){
     { id:'wake',      beat:'wake',   on:'the night starts: the buyer calls; the kit on, out of the window' },
     { id:'lesson',    beat:'lesson', on:'she falls from the window, and the shoes fire',     after:['wake'] },
     { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley: no money, his crew, the fight', after:['lesson'] },
-    { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the fight behind her', after:['deal'] },
+    { id:'raid',      beat:'raid',   on:'stepping out of Dragon Alley: the billboard, then WFC', after:['deal'] },
+    { id:'mom',       beat:'raid',   on:'hidden on a roof from the gunship, her phone rings', after:['raid'] },
+    { id:'sleep',     beat:'night',  on:'on her own roof with nobody on her: in at the window, 3 AM', after:['mom'] },
+    { id:'watchers',  beat:'night',  on:'across the street, through Maya\'s binoculars',     after:['sleep'] },
+    /* PART TWO, not played in the prologue (see QUEST) */
+    { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the fight behind her', after:['watchers'] },
     { id:'roof',      beat:'news',   on:'the broadcast ends: through Maya\'s binoculars',     after:['news'] },
     { id:'voicemail', beat:'apt',    on:'through her own front door',                        after:['roof'] },
     { id:'maya',      beat:'apt',    on:'the lamp goes on, or a knock at the door',          after:['voicemail'] },
@@ -207,7 +265,7 @@ window.TSHAI = (function(){
      a night resumed in the middle, has already seen. */
   function seenBefore(step){
     const O = ['wake','lesson'];
-    const behind = { lesson:['wake'], deal:O, news:O.concat('deal'),
+    const behind = { lesson:['wake'], deal:O, raid:O.concat('deal'), night:O.concat('deal', 'raid', 'mom'), news:O.concat('deal'),
                      home:O.concat('deal','news','roof'), out:O.concat('deal','news','roof','voicemail','maya','kai') };
     ['apt','escape','chair','escape2'].forEach(b=>{ behind[b] = behind.home; });
     behind.end = behind.out;
@@ -287,8 +345,10 @@ window.TSHAI = (function(){
                    noshow:'Never showed up to the deal.', confiscated:'WFC took the rings before you could sell them.', gaveup:'Let the money go.',
                    stiffed:'Walked off with the cash and the rings. Kai did not take it well.' };
     (S.dealPath||[]).forEach(p=>{ if(deal[p]) out.push(deal[p]); });
+    if(S.flags && S.flags.raidHome) out.push('Lost WFC across the roofs — two drones, a gunship, and a phone call from Mom behind an AC unit. "Really good TV."');
     if(tr.scouted) out.push('Spotted Maya watching from her roof.');
-    out.push(tr.tracker==='on' ? (tr.trackerFound ? 'Found the tracker — and kept it on you anyway.' : 'Carried the tracker home without knowing.') : tr.tracker==='crushed' ? 'Found the tracker and crushed it.' :
+    const flat = !(S.flags && S.flags.raidHome);          // the tracker and the photo are the flat's business: Part Two
+    if(flat) out.push(tr.tracker==='on' ? (tr.trackerFound ? 'Found the tracker — and kept it on you anyway.' : 'Carried the tracker home without knowing.') : tr.tracker==='crushed' ? 'Found the tracker and crushed it.' :
              tr.tracker==='planted' ? 'Stuck the tracker on a delivery truck.' : tr.tracker==='seized' ? 'The tracker went into a WFC evidence bag with the cash.' :
              tr.tracker==='returned' ? 'Kai took the envelope back — tracker and all.' : 'Never carried a tracker.');
     if(tr.kaiTail) out.push('Kai followed you home.');
@@ -296,11 +356,11 @@ window.TSHAI = (function(){
     if(tr.detained) out.push('WFC detained you. Somebody called your mother.');
     const sc = (S.flags && S.flags.scaled) || 0;
     if(sc) out.push('Went up ' + sc + (sc > 1 ? ' walls' : ' wall') + ' on the Gecko cuffs.');
-    out.push(tr.photo==='pocket' ? 'Took the photo with you.' : tr.photo==='taken' ? 'Maya left with your photo.' : 'Turned the photo face down.');
+    if(flat) out.push(tr.photo==='pocket' ? 'Took the photo with you.' : tr.photo==='taken' ? 'Maya left with your photo.' : 'Turned the photo face down.');
     out.push('Most heat: ' + '★'.repeat(S.maxHeat||0) + '☆'.repeat(5-(S.maxHeat||0)) + ' · Exposure ' + Math.round(S.exposure||0) + '%');
     return out;
   }
 
-  return { RATE, AT, clock, perceive, band, BANDS, CRIMES, HEAT, raise, report, cool, nearest, astar,
+  return { RATE, AT, clock, perceive, band, BANDS, CRIMES, HEAT, raise, report, cool, CHASE, stageAt, blastHits, leadPoint, chaseCool, nearest, astar,
            QUEST, next, CHECKPOINT, STORY, ready, seenBefore, KIT, KIT_ORDER, GRIP, freshTrail, arrival, knowsMother, ending, STINGS, summary };
 })();

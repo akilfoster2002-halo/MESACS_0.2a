@@ -207,17 +207,23 @@ test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
 test('the storyboard plays every scene in order, and only once', () => {
   const A = rules();
   const ids = A.STORY.map(s=>s.id);
-  assert.deepEqual(ids.slice(0, 7), ['wake', 'lesson', 'deal', 'news', 'roof', 'voicemail', 'maya']);
+  assert.deepEqual(ids.slice(0, 7), ['wake', 'lesson', 'deal', 'raid', 'mom', 'sleep', 'watchers'], 'the prologue: the alley, WFC, the phone, 3 AM, the binoculars');
+  assert.deepEqual(ids.slice(7, 11), ['news', 'roof', 'voicemail', 'maya'], 'and Part Two after it');
   A.STORY.forEach(s=>{ assert.ok(s.on, s.id + ' says what sets it off'); (s.after||[]).forEach(a=>assert.ok(ids.indexOf(a) < ids.indexOf(s.id), s.id + ' comes after ' + a)); });
-  assert.equal(A.ready([], 'news'), false, 'no broadcast before the deal');
   const O = ['wake', 'lesson'];
-  assert.equal(A.ready(O, 'news'), false);
   assert.equal(A.ready([], 'lesson'), false, 'no lesson before the window');
-  assert.equal(A.ready(O.concat('deal'), 'news'), true, 'the fight in the alley, then the street');
-  assert.equal(A.ready(O.concat('deal', 'news'), 'news'), false, 'a scene plays once');
-  assert.equal(A.ready(O.concat('deal'), 'voicemail'), false, 'home comes after the roof');
-  assert.equal(A.ready(O.concat('deal', 'news', 'roof'), 'maya'), false, 'Maya waits for the voicemail');
-  assert.equal(A.next('deal', 'fought'), 'news', 'after the fight, the street');
+  assert.equal(A.ready(O, 'raid'), false, 'no WFC before the deal');
+  assert.equal(A.ready(O.concat('deal'), 'raid'), true, 'the fight in the alley, then the billboard');
+  assert.equal(A.ready(O.concat('deal', 'raid'), 'raid'), false, 'a scene plays once');
+  assert.equal(A.ready(O.concat('deal'), 'mom'), false, 'Mom calls in the chase, not before it');
+  assert.equal(A.ready(O.concat('deal', 'raid'), 'sleep'), false, 'home comes after the call');
+  assert.equal(A.ready(O.concat('deal', 'raid', 'mom', 'sleep'), 'watchers'), true, 'and the binoculars last');
+  assert.equal(A.ready(O.concat('deal'), 'news'), false, 'the broadcast is Part Two now');
+  assert.equal(A.next('deal', 'fought'), 'raid', 'after the fight, WFC');
+  assert.equal(A.next('raid', 'home'), 'night', 'home over the roofs, and 3 AM');
+  assert.equal(A.next('night', 'slept'), 'end');
+  assert.equal(A.next('raid', 'watched'), 'raid', 'nothing else ends the chase');
+  assert.deepEqual(A.seenBefore('raid'), ['wake', 'lesson', 'deal']);
   assert.equal(A.next('deal', 'paid'), 'deal', 'there is no paying: the buyer never meant to');
   assert.equal(A.next('news', 'watched'), 'home');
   assert.equal(A.next('news', 'home'), 'news', 'you do not get home without passing the screens');
@@ -375,4 +381,96 @@ test('the car in Dragon Alley is a Higgsfield model, and something to throw a ma
   has(c, /mt\.metalness = 0\.15/, 'SAM\'s fully-metal default is undone');
   has(c, /solid\(car\.x1, car\.x2, car\.z1, car\.z2/, 'you cannot walk through it');
   has(read('public/tsh.js'), /car:W\.car/, 'the fight knows where it is');
+});
+
+/* ------------------------------------------------------- the chase
+   Out of the alley, the billboard, and WFC: a chase that teaches itself a
+   stage at a time, with missiles that are always telegraphed and cover
+   that is a real way out. */
+function chase(){
+  const ctx = vm.createContext({ Math, console });
+  ctx.window = ctx; ctx.THREE = { Vector3:function(){} }; ctx.G = { keys:{}, pos:{}, vel:{} };
+  vm.runInContext(read('public/tshai.js'), ctx, { filename:'tshai.js' });
+  vm.runInContext(read('public/tshchase.js'), ctx, { filename:'tshchase.js' });
+  return ctx;
+}
+
+test('the chase teaches itself in the order the script has it', () => {
+  const A = rules(), CH = A.CHASE;
+  assert.deepEqual(CH.stages.map(s=>s.id), ['run', 'cutoff', 'wall', 'roofs', 'hide', 'call', 'home']);
+  CH.stages.forEach(s=>assert.ok(s.title && s.how.length > 20, s.id + ' says what to do'));
+  assert.ok(CH.stages.slice(0, A.stageAt('roofs')).every(s=>s.floor >= 3), 'nobody calls off the chase while it is teaching you to run');
+  assert.equal(CH.stages[A.stageAt('home')].floor, 0, 'the last stretch is lost by hiding');
+  const t = read('public/tsh.js'), c = read('public/tshchase.js');
+  has(t, /scene\('raid', raidIntro\)/, 'stepping out of the alley plays the billboard');
+  has(t, /TSHCHASE\.start\(chaseCtx\(\), i \|\| 0, drone\)/, 'and then the chase is yours');
+  has(c, /shoes\(true\)[\s\S]{0,40}\n[\s\S]*roofs\(\)\{\s*shoes\(false\)/, 'the shoes are cold until the roofs');
+  has(c, /C\.ringing\(true\)[\s\S]{0,80}'MOM'/, 'the phone rings, and it is Mom');
+  has(t, /if\(S\.step === 'raid'\) return raidCaught\(\);/, 'caught in the chase is the stage again, not a booking');
+  const i = read('public/index.html');
+  assert.ok(i.indexOf('tshchase.js') > i.indexOf('tshfight.js') && i.indexOf('tshchase.js') < i.indexOf('src="tsh.js'), 'the chase loads before TSH');
+  // every line the chase says is in the script
+  (c.match(/talk\('(\w+)'/g) || []).forEach(m=>{ const k = m.match(/'(\w+)'/)[1]; assert.ok(t.includes('    ' + k + ':'), 'LINES has ' + k); });
+});
+
+test('the missiles are fair: telegraphed, aimed at a ring, never more than two', () => {
+  const A = rules(), M = A.CHASE.missile;
+  assert.ok(M.lock >= 1.2 && M.airLock >= 0.9, 'a second or more of warning');
+  assert.ok(M.live <= 2, 'never more than two in the air');
+  assert.ok(M.gapGround[0] > M.lock, 'one at a time on the ground');
+  const at = { x:0, y:0.9, z:0 };
+  assert.ok(A.blastHits(at, { x:1, y:0, z:1 }), 'standing in the ring is a hit');
+  assert.ok(!A.blastHits(at, { x:M.blast + 0.3, y:0, z:0 }), 'a step out of it is not');
+  assert.ok(!A.blastHits(at, { x:0, y:6, z:0 }), 'nor is being above it');
+  const lead = A.leadPoint({ x:0, y:10, z:0 }, { x:10, y:-5, z:0 }, true);
+  assert.equal(lead.x, 10*M.fly, 'in the air it fires at where she is going');
+  assert.ok(lead.y < 10, 'falling as she goes');
+  // a dive changes where she goes: the lead point is no longer where she ends up
+  const dive = { x:10*M.fly*0.7, y:10 - 20*M.fly };
+  assert.ok(!A.blastHits({ x:lead.x, y:lead.y + 0.9, z:0 }, { x:dive.x, y:dive.y, z:0 }), 'a dive takes her out of a lock');
+  const c = read('public/tshchase.js');
+  has(c, /if\(freeze \|\| C\.me\.hidden \|\| R\.cover/, 'nobody fires at her while she is hidden');
+  has(c, /const gapAt = Math\.floor\(Math\.random\(\)\*S_\.rings\);/, 'a strafing run always leaves a gap');
+});
+
+test('hiding is not failing: heat cools fastest behind cover, and never below the stage', () => {
+  const A = rules(), CH = A.CHASE;
+  assert.ok(CH.cool.cover < CH.cool.unseen, 'cover cools faster than just being out of sight');
+  assert.deepEqual({ ...A.chaseCool(4, CH.cool.cover, true, 0) }, { heat:3, reset:true }, 'a star off behind cover');
+  assert.deepEqual({ ...A.chaseCool(4, CH.cool.cover, false, 0) }, { heat:4, reset:false }, 'not yet, only out of sight');
+  assert.deepEqual({ ...A.chaseCool(3, 99, true, 3) }, { heat:3, reset:false }, 'never below the floor');
+  assert.equal(A.chaseCool(1, 0, false, 3).heat, 3, 'and raised to it');
+  const t = read('public/tsh.js');
+  has(t, /AI\.chaseCool\(S\.heat, heatSeenT, !!TSHCHASE\.cover/, 'the night uses the chase\'s cooling in the chase');
+  has(t, /const lo = me\.crouch \? 0\.45 : 1\.3/, 'down behind a box, there is less of her to see');
+});
+
+test('cover: she moves round the box, and the way round is continuous', () => {
+  const ctx = chase(), H = ctx.TSHCHASE;
+  const c = { x1:0, x2:2, z1:0, z2:1 }, P = H.perim(c);
+  assert.ok(Math.abs(P.L - 2*(3.1 + 2.1)) < 1e-9, 'the walk round is the box, half a metre out');
+  let last = H.perimAt(c, 0);
+  for(let s = 0.05; s <= P.L + 0.05; s += 0.05){
+    const q = H.perimAt(c, s);
+    assert.ok(Math.hypot(q[0] - last[0], q[1] - last[1]) < 0.051, 'no jumps at ' + s.toFixed(2));
+    const inX = q[0] > c.x1 - 0.5 && q[0] < c.x2 + 0.5, inZ = q[1] > c.z1 - 0.5 && q[1] < c.z2 + 0.5;
+    assert.ok(!(inX && inZ), 'never inside the box');
+    last = q;
+  }
+});
+
+test('home, 3 AM, and the binoculars: the prologue ends the way it was written', () => {
+  const t = read('public/tsh.js');
+  const night = t.slice(t.indexOf('function nightScene('), t.indexOf('function kitOff('));
+  const beats = ["talk('raidHome')", 'R.window.open(true)', "phoneBig('time')", "talk('rats')", "kitOff('jacket')", "kitOff('shoes')", 'lie(0)', "caption('EXT. ROOFTOP — NIGHT')", 'bino:true', "talk('watchers')"];
+  beats.forEach((k, i)=>{ assert.ok(night.includes(k), 'the night has ' + k); if(i) assert.ok(night.indexOf(beats[i - 1]) < night.indexOf(k), beats[i - 1] + ' comes before ' + k); });
+  has(t, /\['maya','That\\'s her\.'\], \['kai','You\\'re sure\?'\], \['maya','Yeah\.'\]/, 'word for word');
+  has(t, /\['momcall','At this hour\?'\], \['robin','Really good TV\.'\]/, 'and the call');
+  has(t, /END OF PROLOGUE/);
+  const A = rules();
+  assert.equal(A.clock(A.AT.end), '03:07', 'her phone says 3:07');
+  // the clips the chase and the night ask her body for
+  const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
+  const hers = clips('characters/fight/robin.glb').concat(clips('characters/models/character-robin.glb'));
+  ['kneel', 'text', 'idle', 'jump', 'roll', 'block', 'stagger', 'jab', 'cross', 'hook'].forEach(n=>assert.ok(hers.includes(n), 'Robin has no ' + n + ' clip'));
 });

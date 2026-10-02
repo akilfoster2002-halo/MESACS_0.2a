@@ -466,3 +466,17 @@ Maya looks through the binoculars one more time.
 **Pacing.** The music builds for the whole chase. It drops to near silence for the hide and the phone call, crashes back in when the officer finds her, and cuts out completely during the final jump.
 
 **The theme beat.** Robin hides from the WFC while lying to her mom on the phone, with the WFC gunship hanging over her. That's the first time the player feels the two halves of her life collide. Later, the bedroom shows the cost (3 AM, school in the morning), and the binoculars show the hook (someone has noticed her).
+
+---
+
+## In the game
+
+This finale is built: `public/tshchase.js` (the chase), with the films and the ending in `public/tsh.js` and the rules in `public/tshai.js` (`CHASE`). It replaces what used to come after the Dragon Alley fight. The old scenes (the news on the screens, Maya's roof, the flat) are kept in the code for Part Two.
+
+Where the build differs from the script above:
+- **The shoes are cold after the fight.** In this game Robin already learned the shoes on the way to the alley, so the chase keeps them off (on foot, vaulting, climbing) until the roofs. Then the *HOLD SPACE* card says they're charged again.
+- **The billboard runs WFC's ad first.** Robin says "Yeah. Sure." to it, then it cuts to the alert for Dragon Alley, where she's standing.
+- **The wall is a WFC barrier dropping across the gap between two buildings** (there's no fire escape there), climbed with the Gecko cuffs.
+- **The gate is on a rooftop.** You can slide under it, or bound over the fence.
+- **There's no single scripted "biggest jump".** The last stretch is open: any route home works, as long as she lands on her own roof with no stars.
+- **The new lines play as subtitles only** until they're recorded (`node tools/tsh-voices.mjs todo` lists them). Mom on the phone uses the Director's voice, since they're the same woman.

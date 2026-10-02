@@ -41,7 +41,8 @@ export const CAST = {
   maya:      { name:'Soraya',  id:'5c1d2f7f-cdb4-5b1d-bca9-156439e3275e' },   // low, level, never in a hurry
   mom:       { name:'Vera',    id:'0c51919f-0756-5f8d-8169-026a339d8fd7' },   // the Director: measured, on camera
   counselor: { name:'Holden',  id:'3c9d6053-6334-592c-8997-4e325286af3f' },   // the voicemail
-  wfc:       { name:'Landon',  id:'dc1c0a41-53cd-53af-aec5-ab637840505f' }    // the deepest voice there is
+  wfc:       { name:'Landon',  id:'dc1c0a41-53cd-53af-aec5-ab637840505f' },   // the deepest voice there is
+  momcall:   { name:'Vera',    id:'0c51919f-0756-5f8d-8169-026a339d8fd7' }    // the same woman as the Director, on the phone to her daughter from work
 };
 
 /* What NPCs shout (tsh.js bark()), by who shouts it. Words only: a 📱 or a
@@ -49,7 +50,8 @@ export const CAST = {
 const BARKS = {
   kai: ['Huh?', 'There you are.', 'Tch.', 'Where\'d she go…', 'Following me? Go home, kid.', 'Hey! That\'s—', 'There you are!', 'YU!',
         'You\'re mine.', '…Hey.', 'Evening.', 'Got you!', 'Not so fast.'],
-  wfc: ['Shades off, kid.', 'Evening. Where you headed?', 'Keep it moving.', 'Stop! WFC!', 'Hold it right there!', 'Suspect on foot!', 'Hold still!']
+  wfc: ['Shades off, kid.', 'Evening. Where you headed?', 'Keep it moving.', 'Stop! WFC!', 'Hold it right there!', 'Suspect on foot!', 'Hold still!',
+        'Down!', 'Stop!', 'Dispatch, I need—']
 };
 
 export function vkey(who, text){
@@ -75,7 +77,7 @@ export function lines(src){
     const k = vkey(who, text); if(!found.has(k)) found.set(k, { key:k, who, text, tts:spoken(text), voice:CAST[who].id });
   };
   const Q = `'((?:[^'\\\\]|\\\\.)*)'`;
-  for(const m of src.matchAll(new RegExp(`\\[\\s*'(robin|kai|buyer|dealer|thug|maya|mom|counselor|wfc|vendor)'\\s*,\\s*${Q}\\s*\\]`, 'g'))) add(m[1], unq(m[2]));
+  for(const m of src.matchAll(new RegExp(`\\[\\s*'(robin|kai|buyer|dealer|thug|maya|momcall|mom|counselor|wfc|vendor)'\\s*,\\s*${Q}\\s*\\]`, 'g'))) add(m[1], unq(m[2]));
   for(const m of src.matchAll(new RegExp(`\\bsay:\\s*${Q}`, 'g'))) add('robin', unq(m[1]));
   for(const [who, list] of Object.entries(BARKS)) list.forEach(t=>{ if(src.includes(t.replace(/'/g, '\\\''))) add(who, t); });
   return [...found.values()];
