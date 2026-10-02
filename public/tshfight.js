@@ -303,9 +303,10 @@ window.TSHFIGHT = (function(){
       R.face = a; R.sinceDodge = 0; ctx.cue('kick');
       event('wall'); return true;
     }
-    // with a direction: a cartwheel to the side, a flip away, a roll forward
-    const kind = !(fx || fz) ? null : Math.abs(fx) >= Math.abs(fz) ? (fx < 0 ? 'cartL' : 'cartR') : fz < 0 ? 'flip' : 'roll';
-    if(kind){
+    // the rest she picks herself (evadeFor): a backflip, a cartwheel, a roll — whatever gets her clear
+    const pick = evadeFor(p, (fx || fz) ? a : null);
+    if(pick){
+      const kind = pick.kind; a = pick.a;
       const v = EVADE[kind], to = clampArena(p.x + Math.sin(a)*v.go, p.z + Math.cos(a)*v.go);
       const len = robinClip(v.clip, true) || 1;
       R.act = 'dodge'; R.evade = kind; R.t = 0; R.len = len; R.iframe = v.iframe; R.buffer = null;
@@ -321,6 +322,48 @@ window.TSHFIGHT = (function(){
     R.sinceDodge = 0; robinClip('dodge', true); ctx.cue('swish');
     event('dodge');
     return true;
+  }
+  /* WHICH WAY OUT, and how: she reads the swing and the room round her. Straight back from the one swinging,
+     a backflip (still facing him); off to either side, a cartwheel, turned so her chest stays on him; when
+     going back would land her on somebody, a roll out to the side. Each way is scored by how clear it is
+     (walls, the car, the dumpster, the others where she would land), with a little chance in it and a
+     preference for not doing the same thing twice running. A direction held only steers: she goes that
+     way, and picks the move that fits it. Nowhere clear: the plain sidestep (null). */
+  function evadeFor(p, held){
+    const th = threat();
+    const from = th ? angTo(th.x, th.z, p.x, p.z) : R.face + Math.PI;         // straight away from him
+    const roomTo = (a, go) => {                                               // how far she can go that way
+      let d = 0;
+      for(let k = 0.5; k <= go + 0.01; k += 0.5){
+        const x = p.x + Math.sin(a)*k, z = p.z + Math.cos(a)*k;
+        if(x < ARENA.x1 || x > ARENA.x2 || z < ARENA.z1 || z > ARENA.z2) break;
+        if((ctx.blocks || []).concat(ctx.car ? [ctx.car] : []).some(b=>x > b.x1 - 0.3 && x < b.x2 + 0.3 && z > b.z1 - 0.3 && z < b.z2 + 0.3)) break;
+        d = k;
+      }
+      return d;
+    };
+    const crowd = (a, go) => { const x = p.x + Math.sin(a)*go, z = p.z + Math.cos(a)*go; return alive().filter(e=>e !== th && Math.hypot(e.x - x, e.z - z) < 1.4).length; };
+    // her chest on him through a cartwheel: the left-hand one turns her to the right of where she goes, the right-hand one to the left
+    const cart = a => { if(!th) return Math.random() < 0.5 ? 'cartL' : 'cartR'; const side = angDiff(angTo(p.x, p.z, th.x, th.z), a); return side < 0 ? 'cartL' : 'cartR'; };
+    const ways = [], fam = k => k.slice(0, 4) === 'cart' ? 'cart' : k;          // either cartwheel counts as a cartwheel
+    const offer = (kind, a, bonus) => { const v = EVADE[kind], room = roomTo(a, v.go);
+      if(room < v.go*0.55) return;
+      ways.push({ kind, a, score: room/v.go*3 - crowd(a, v.go)*2.5 + (bonus || 0) - (R.lastEvade === fam(kind) ? 0.9 : 0) + Math.random()*0.8 }); };
+    if(held !== null){
+      // steered: the move that fits the way she was sent, relative to the one swinging
+      const off = Math.abs(angDiff(held, from));
+      offer(off < 0.7 ? 'flip' : off < 2.3 ? cart(held) : 'roll', held, 1);
+    } else {
+      offer('flip', from, 0.2);
+      offer(cart(from + Math.PI/2), from + Math.PI/2, 0.4);
+      offer(cart(from - Math.PI/2), from - Math.PI/2, 0.4);
+      offer('roll', from + Math.PI/2 + 0.5, -0.3);
+      offer('roll', from - Math.PI/2 - 0.5, -0.3);
+    }
+    if(!ways.length) return null;
+    ways.sort((x, y)=>y.score - x.score);
+    R.lastEvade = fam(ways[0].kind);
+    return ways[0];
   }
   function parry(){
     if(R.grabbedBy) return false;
@@ -509,7 +552,7 @@ window.TSHFIGHT = (function(){
         }
         case 'down': {
           e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= Math.exp(-dt*5); e.vz *= Math.exp(-dt*5); e.y = Math.max(0, e.y - dt*4);
-          if(e.hp <= 0){ if(e.t > 0.9 && e.clip !== 'ko'){ e.state = 'ko'; hit1(e, 'ko'); if(e.rig) e.rig.update(9); } }
+          if(e.hp <= 0){ if(e.t > 0.9 && e.clip !== 'ko'){ e.state = 'ko'; e.koAt = performance.now(); hit1(e, 'ko'); if(e.rig) e.rig.update(9); } }
           else if(e.t > 2.4 && !(dir && dir.hold)){ e.state = 'getup'; e.t = 0; hit1(e, 'getup'); }
           break;
         }
@@ -699,7 +742,7 @@ window.TSHFIGHT = (function(){
       <div class="tshf-prompt"><kbd></kbd><b></b><small></small></div>
       <div class="tshf-keys">
         <span><kbd>MOUSE</kbd>aim</span><span><kbd>CLICK</kbd>strike</span><span><kbd>HOLD</kbd>power</span><span><kbd>G</kbd>pull</span>
-        <span><kbd>SPACE</kbd>dodge</span><span><kbd>+A/D</kbd>cartwheel</span><span><kbd>+S</kbd>flip</span><span><kbd>+W</kbd>roll</span><span><kbd>R</kbd>parry</span><span><kbd>F</kbd>pulse</span></div>`;
+        <span><kbd>SPACE</kbd>dodge</span><span><kbd>R</kbd>parry</span><span><kbd>F</kbd>pulse</span></div>`;
     (ctx.root || document.body).appendChild(el);
     return el;
   }
@@ -754,21 +797,28 @@ window.TSHFIGHT = (function(){
     { id:'more', title:'THE GAUNTLETS · POWER', how:'More of them. HOLD CLICK, then let go: the gauntlet\'s power punch. Put one through the car.',
       enter(){ ctx.say('fightMore'); wave2(); dir.free = true; dir.showKeys = true; },
       on:{ hit:(x)=>{ if(x.move === 'power') dir.powered = true; }, charge:()=>{ if(!dir.chargeSeen){ dir.chargeSeen = true; slowTo(0.45, 6); prompt('LET GO', 'POWER PUNCH', 'when you are ready'); } } },
-      done:()=>dir.powered },
+      done:()=>dir.powered || dir.t > 14 },
     { id:'pull', title:'THE GAUNTLETS · PULL', how:'G — the gauntlet casts a line at the one you are facing and drags him to you. Then hit him.',
       enter(){ const far = alive().sort((a, b)=>dist(b) - dist(a))[0]; if(far) ctx.later(()=>{ if(on && dir.id === 'pull' && !dir.pulled) freeze('G', 'PULL', 'drag him in', 'pull', far); }, 1600); },
       on:{ pull:()=>{ dir.pulled = true; } },
       done:()=>(dir.pulled && dir.t > 1.5) || (!alive().length && dir.t > 2) },
-    { id:'free', title:'EVERYTHING', how:'Use all of it. SPACE with A or D: a cartwheel. With S: a flip away. With W: a roll. Click as you land: a sweep. SPACE at one of them: over him; at a wall: off it, feet first.',
+    { id:'free', title:'EVERYTHING', how:'Use all of it. SPACE gets her out of the way — a backflip, a cartwheel, a roll, whatever fits; click as she lands for a sweep. Every one of them down, and it is over.',
       enter(){},
-      done:()=>alive().length <= 2 },
+      done:()=>false },                                    // it ends when the last of them is down (tickDirector), not before
     { id:'regret', title:'ONE MORE', how:'He is getting back up.',
-      enter(){ const k = E.find(e=>e.state === 'ko' && e.kind !== 'buyer'); if(k){ k.hp = 1; k.state = 'getup'; k.t = 0; hit1(k, 'getup'); dir.reg = k; k.tag = 'reg'; }
+      // the last one she put down gets back up
+      enter(){ const when = e => e.state === 'down' ? Infinity : (e.koAt || 0);              // still falling: that is the last one
+        const k = E.filter(e=>(e.state === 'ko' || e.state === 'down') && e.hp <= 0 && e.kind !== 'buyer').sort((a, b)=>when(b) - when(a))[0];
+        if(k){ k.hp = 1; k.state = 'getup'; k.t = 0; k.active = true; hit1(k, 'getup'); dir.reg = k; k.tag = 'reg'; }
         alive().forEach(e=>{ if(e !== dir.reg){ e.active = false; e.state = 'hesitate'; } });
-        ctx.later(()=>{ if(!on) return; ctx.say('fightRegret'); ctx.later(()=>{ if(on && dir.reg) freeze('CLICK', 'FINISH IT', '', 'attack', dir.reg); }, 2600); }, 1400); },
+        ctx.later(()=>{ if(!on) return; ctx.say('fightRegret'); ctx.later(()=>{ if(on && dir.reg && dir.reg.hp > 0) freeze('CLICK', 'FINISH IT', '', 'attack', dir.reg); }, 2200); }, 700); },
       done:()=>!dir.reg || dir.reg.hp <= 0 },
     { id:'last', title:'', how:'',
-      enter(){ dir.hold = true; alive().forEach(e=>{ e.active = false; e.state = 'hesitate'; e.t = 0; }); ctx.later(()=>{ if(!on) return; ctx.say('fightLast'); ctx.later(()=>{ if(on) ctx.say('fightGreat', ()=>{ if(on) finish(); }); }, 2600); }, 900); },
+      // "Anybody else?" — nobody — "Great." — and the film. On a clock, not on the voices: a line that never
+      // reports it has finished (not recorded, no sound) must not leave her standing in the alley
+      enter(){ dir.hold = true; alive().forEach(e=>{ e.active = false; e.state = 'hesitate'; e.t = 0; });
+        const fin = ()=>{ if(on && !dir.finished){ dir.finished = true; finish(); } };
+        ctx.later(()=>{ if(!on) return; ctx.say('fightLast'); ctx.later(()=>{ if(!on) return; ctx.say('fightGreat', fin); ctx.later(fin, 1300); }, 1600); }, 300); },
       done:()=>false }
   ];
   function pick(tag){ return E.find(e=>e.tag === tag) || { hp:0, state:'gone' }; }
@@ -821,6 +871,12 @@ window.TSHFIGHT = (function(){
     const pd = dir.pending; if(pd && pd.target.state === 'windup' && pd.target.t >= pd.at){ freeze(pd.key, pd.what, pd.sub, pd.want, pd.target); }
     else if(pd && pd.target.state !== 'windup') dir.pending = null;
     const s = STEPS[dir.i];
+    // THE END OF IT: once the second wave is in, the fight is over when the last of them is down for good —
+    // whatever lesson is still up (a prompt nobody is left to try it on is dropped, frozen or not)
+    if(dir.free && !dir.ending && s.id !== 'regret' && s.id !== 'last' && !E.some(e=>e.kind !== 'buyer' && e.hp > 0)){
+      dir.ending = true; dir.pending = null; if(dir.freeze) unfreeze(); R.forceTarget = null;
+      ctx.cue('win'); stepTo(STEPS.findIndex(x=>x.id === 'regret')); return;
+    }
     if(s.done() && !dir.freeze){
       if(s.after) ctx.say(s.after);
       ctx.cue('win');

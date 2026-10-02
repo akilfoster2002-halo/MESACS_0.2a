@@ -372,18 +372,30 @@ test('the alley is wide enough to fight in, and the fight stays inside it', () =
   [F.MEET.robin, F.MEET.buyer].forEach(p => assert.ok(p[0] > F.ARENA.x1 && p[0] < F.ARENA.x2, 'and starts inside it'));
 });
 
-test('out of the way: SPACE with a direction is a cartwheel, a flip or a roll, and a click comes out of it as a sweep', () => {
+test('out of the way: SPACE, and she picks the move — a backflip, a cartwheel, a roll — and a click comes out of it as a sweep', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), F = fight();
   const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
   const hers = clips('characters/fight/robin.glb');
   ['cartL', 'cartR', 'flip', 'roll', 'wall', 'vault'].forEach(k => { assert.ok(F.EVADE[k], k); assert.ok(hers.includes(F.EVADE[k].clip), 'her fight file has ' + F.EVADE[k].clip); });
   // the fight's own copies: the shoes' flip and roll keep their own speed
   assert.ok(!['flip', 'roll'].includes(F.EVADE.flip.clip) && !['flip', 'roll'].includes(F.EVADE.roll.clip), 'the fight plays its own copies of the flip and the roll');
-  has(src, /Math\.abs\(fx\) >= Math\.abs\(fz\) \? \(fx < 0 \? 'cartL' : 'cartR'\) : fz < 0 \? 'flip' : 'roll'/, 'A or D a cartwheel that way, S a backflip, W a roll');
+  has(src, /const pick = evadeFor\(p, \(fx \|\| fz\) \? a : null\);/, 'SPACE alone: she picks; a direction held only steers');
+  has(src, /offer\('flip', from,[\s\S]{0,200}offer\(cart\(from \+ Math\.PI\/2\)[\s\S]{0,200}offer\('roll'/, 'straight back a backflip, to the sides a cartwheel, a roll when back is crowded');
+  has(src, /if\(room < v\.go\*0\.55\) return;/, 'never into a wall or the car');
+  has(src, /R\.lastEvade === fam\(kind\) \? 0\.9 : 0/, 'and not the same move twice running if another will do');
   has(src, /if\(R\.act === 'dodge' && R\.evade && kind === 'punch'\)\{ R\.buffer = kind; return false; \}/, 'a click mid-cartwheel is kept for the landing');
   has(src, /if\(R\.outOfEvade\)\{[\s\S]{0,80}return 'sweep'/, 'and comes out as a sweep');
   has(t, /Object\.values\(TSHFIGHT\.EVADE\)\.forEach\(v=>\{ speed\[v\.clip\] = v\.speed; \}\)/, 'played at the speed the fight sets');
   ['cartL', 'cartR', 'bflip', 'wallkick', 'evroll', 'evflip'].forEach(n => has(t, new RegExp("'" + n + "'\\]?, ?|'" + n + "'\\]"), n + ' plays once'));
+});
+
+test('the fight is over when the last of them is down, whatever the lessons were doing', () => {
+  const src = read('public/tshfight.js'), F = fight();
+  assert.equal(F.STEPS.find(x=>x.id === 'free').done(), false, 'the free fight has no end of its own');
+  has(src, /if\(dir\.free && !dir\.ending && s\.id !== 'regret' && s\.id !== 'last' && !E\.some\(e=>e\.kind !== 'buyer' && e\.hp > 0\)\)\{/, 'the last one down ends it, from any step');
+  has(src, /if\(dir\.freeze\) unfreeze\(\);/, 'a lesson frozen on nobody is let go');
+  has(src, /const when = e => e\.state === 'down' \? Infinity/, 'the one who gets back up is the last one she put down');
+  has(src, /ctx\.say\('fightGreat', fin\); ctx\.later\(fin, 1300\);/, 'and the film after it starts on a clock, not on a voice that may never finish');
 });
 
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
