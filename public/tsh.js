@@ -2403,13 +2403,13 @@ window.TSH = (function(){
     { tag:'buyer', kind:'buyer', x:-41.6, z:-28.6, yaw:0, state:'idle' },
     { tag:'t1', kind:'lean', x:-42.7, z:-29.5, yaw:0.3, state:'idle' },
     { tag:'t2', kind:'big', x:-40.3, z:-29.9, yaw:-0.4, state:'idle' },
-    { tag:'t3', kind:'lean', x:-43.2, z:-19.2, yaw:Math.PI, state:'idle', hidden:true },               // behind the dumpster
-    { tag:'t4', kind:'big', x:-39.6, z:-18.6, yaw:Math.PI, state:'idle', hidden:true },                // in off the avenue
-    { tag:'t5', kind:'lean', x:-39.6, z:-31.4, yaw:0, state:'idle', hidden:true, hat:{ face:'shades' } },
-    { tag:'t6', kind:'big', x:-43.3, z:-31.0, yaw:0, state:'idle', hidden:true, weapon:true }           // from behind the car, with a pipe
+    { tag:'t3', kind:'lean', x:-47.0, z:-19.6, yaw:Math.PI, state:'idle', hidden:true },               // behind the dumpster, on the west wall
+    { tag:'t4', kind:'big', x:-33.2, z:-12.6, yaw:Math.PI, state:'idle', hidden:true },                // in off the avenue, by the east wall
+    { tag:'t5', kind:'lean', x:-33.6, z:-34.6, yaw:0, state:'idle', hidden:true, hat:{ face:'shades' } },   // round the bend
+    { tag:'t6', kind:'big', x:-46.6, z:-32.2, yaw:0, state:'idle', hidden:true, weapon:true }           // from behind the car, with a pipe
   ];
-  // where the four who step out end up: a ring round her
-  const RINGED = { t1:[-42.2, -26.6], t3:[-42.7, -22.2], t4:[-39.9, -22.0], t5:[-39.8, -27.4], t6:[-43.0, -27.0] };
+  // where the four who step out end up: a ring round her, wide enough to fight in
+  const RINGED = { t1:[-42.2, -26.6], t3:[-44.4, -22.4], t4:[-38.1, -21.8], t5:[-37.9, -27.7], t6:[-44.7, -27.5] };
   const BUYER_CORNER = [-40.1, -33.0];
   function crewCast(){
     if(!window.TSHFIGHT || !W.alleyBlocks) return;
@@ -2516,10 +2516,11 @@ window.TSH = (function(){
       { dur:linesLen('fightIn2') + 0.6, fov:32, cam:rel(R0[0], R0[1], ry, -0.8, 0.4, 1.7), look:head(B0[0], B0[1], 1.62),
         enter:()=>{ talk('fightIn2'); TSHFIGHT.play(buyer, 'talk'); } },
       // and the rest of them come out: from behind the dumpster, off the avenue, round the bend, from behind the car
-      { dur:3.6, fov:58, cam:[[-41.5, 2.9, -20.2], [-41.5, 3.0, -20.9]], look:[-41.5, 0.9, -27.5],
+      // (high and wide — but under the canopy: the alley is eighteen metres across, and they come from both walls and both ends)
+      { dur:4.4, fov:66, cam:[[-40.4, 3.6, -16.4], [-40.4, 3.75, -17.4]], look:[-41.2, 0.8, -26.2],         // under the canopy (4.4 m)
         enter:()=>{ cue('sus'); TSHFIGHT.play(buyer, 'idle'); },
         tick:(dt, t, k)=>{ const m = Math.min(1, k*1.1);
-          [['t3', [-43.2, -19.2]], ['t4', [-39.6, -18.6]], ['t5', [-39.6, -31.4]], ['t6', [-43.3, -31.0]], ['t1', [-42.7, -29.5]]].forEach(([t, a])=>{ const e = crewBy(t); crewWalk(e, a, RINGED[t], m); if(m >= 1) crewFace(e, R0[0], R0[1], 'fight'); });
+          [['t3', [-47.0, -19.6]], ['t4', [-33.2, -12.6]], ['t5', [-33.6, -34.6]], ['t6', [-46.6, -32.2]], ['t1', [-42.7, -29.5]]].forEach(([t, a])=>{ const e = crewBy(t); crewWalk(e, a, RINGED[t], m, Math.hypot(RINGED[t][0] - a[0], RINGED[t][1] - a[1]) > 7 ? 'sprint' : 'walk'); if(m >= 1) crewFace(e, R0[0], R0[1], 'fight'); });
           crewFace(t2, R0[0], R0[1], k > 0.5 ? 'fight' : null); } },
       // "Oh."
       { dur:linesLen('fightIn3') + 0.6, fov:30, cam:rel(R0[0], R0[1], ry, 0.95, -0.12, 1.6), look:head(R0[0], R0[1]),

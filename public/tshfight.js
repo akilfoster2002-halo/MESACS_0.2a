@@ -773,9 +773,9 @@ window.TSHFIGHT = (function(){
   ];
   function pick(tag){ return E.find(e=>e.tag === tag) || { hp:0, state:'gone' }; }
   const dist = e => Math.hypot(e.x - G.pos.x, e.z - G.pos.z);
-  /* the second wave: three from the mouth of the alley, one from the bend */
+  /* the second wave: three from the mouth of the alley (both corners and the middle), one from the bend */
   function wave2(){
-    [[-40.2, -13.8, 'big', {}], [-42.6, -14.2, 'lean', {}], [-41.4, -13.6, 'lean', { hat:{ face:'shades' } }], [-41.8, -37.2, 'big', {}]].forEach(([x, z, k, o], i)=>{
+    [[-34.4, -13.8, 'big', {}], [-46.6, -14.2, 'lean', {}], [-40.4, -13.6, 'lean', { hat:{ face:'shades' } }], [-35.8, -37.0, 'big', {}]].forEach(([x, z, k, o], i)=>{
       const e = spawn(k, x, z, Object.assign({ state:'approach', active:true, tag:'w' + i, yaw:Math.PI }, o));
       e.cool = 1 + i*0.8;
     });
