@@ -143,11 +143,13 @@ test('the opening is a film: the call, her room, the kit, the note, the window â
   const names = (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name);
   ['wake', 'text', 'kneel', 'walk', 'jump', 'roll'].forEach(n => assert.ok(names.includes(n), 'Robin\'s model has no ' + n + ' clip'));
   has(t, /if\(mode === 'reel'\)\{ if\(\(c === 'Enter'/, 'ENTER skips the film');
-  // her music, from the speaker: on from the start, loud with the room, gone when she jumps
-  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public/tsh/music/room.mp3')), 'her music is in the repo');
-  has(t, /fetch\('tsh\/music\/room\.mp3'\)/);
-  assert.ok(op.includes('musicPlay(') && op.indexOf('musicPlay(') < op.indexOf("talk('call')"), 'the music is already playing when the phone rings');
-  has(t, /function fallStart\(skipped\)\{[\s\S]{0,200}musicStop\(/, 'and it stops when she goes out of the window');
+  // the score: Web of Silence, cut to the film â€” the first hit on the lamp, the breakdown at the window, the beat held while she falls, the drop on the BOOM
+  ['tsh/music/wos-a.mp3', 'tsh/music/wos-b.mp3'].forEach(f => assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', f)), f + ' is in the repo'));
+  has(t, /hit:15\.91, hold:\[153\.50, 154\.45\], drop:154\.40/, 'the song\'s own landmarks');
+  assert.ok(op.includes('scoreStart()'), 'the song starts with the film');
+  assert.ok(op.indexOf('scoreBreak()') > op.indexOf('note.hold('), 'the breakdown comes after the note, at the window');
+  has(t, /function fallStart\(skipped\)\{[\s\S]{0,200}scoreHold\(\)/, 'falling, the last beat before the drop is held');
+  has(t, /BOOTS\.fire\(\);\s*scoreDrop\(\);/, 'and the drop is the BOOM');
   // and then it is yours: in the air, slow, until SPACE fires the shoes
   has(t, /playReel\(shots, skipped=>fallStart\(skipped\)\)/, 'the film ends falling, skipped or not');
   has(t, /slow:\(\)=>slowFall\(\)/, 'the fall is slow until she fires');
