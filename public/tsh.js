@@ -1540,6 +1540,7 @@ window.TSH = (function(){
     wfc:    { walk:1.35, run:5.7, eye:{ range:24, fov:0.95, near:3.5, gain:1.3 } },
     kai:    { walk:1.45, run:6.4, eye:{ range:22, fov:1.0, near:3.5, gain:1.4 } },
     maya:   { walk:1.1,  run:4.0, eye:{ range:14, fov:1.2, near:4.0, gain:1.2 } },
+    crew:   { walk:1.3,  run:5.9, eye:{ range:18, fov:1.0, near:2.5, gain:1.1 } },
     vendor: { walk:1.1,  run:5.3, eye:{ range:10, fov:1.0, near:2.0, gain:0.6 } }
   };
   function spawn(kind, char, x, z, o){
@@ -1555,6 +1556,7 @@ window.TSH = (function(){
       if(n.gone || !g.parent) return;
       n.model = m; g.add(m);
       if(n.uniform) uniform(m);
+      if(kind === 'crew') crewLook(m);
       if(o.phone) phoneProp(n);
     }).catch(()=>{});
     npcs.push(n);
@@ -1630,6 +1632,9 @@ window.TSH = (function(){
       const a = AI.nearest(nodes, n.x, n.z, n.y, 1.2), b = AI.nearest(nodes, x, z, y, 1.2);
       n.path = AI.astar(nodes, a, b); n.pi = 0;
       if(!n.path){ return stepTo(n, x, z, spd, dt); }
+      // the nearest node is often behind: walking back to it every repath is a man pacing on the spot
+      const p0 = nodes[n.path[0]], p1 = n.path.length > 1 ? nodes[n.path[1]] : null;
+      if(p1 && !(p0.ladder && p1.ladder === p0.ladder) && clearWay(n, p1.x, p1.y, p1.z)) n.pi = 1;
     }
     const nodes = W.nav.nodes;
     if(n.pi >= n.path.length) return stepTo(n, x, z, spd, dt);
@@ -1663,8 +1668,10 @@ window.TSH = (function(){
   }
   function interest(n){
     if(n.kind === 'wfc'){ if(n.state === 'raid' || n.state === 'escort') return 0.2; return S.heat > 0 ? 1.0 : (me.shades && !inside ? 0.28 : 0); }
-    if(n.kind === 'kai') return ({ wait:1, search:1.3, stakeout:1.1, hunt:1.35, pursue:1, tail:0.7, walk:0.5, rob:0.45, apt:1.2 })[n.state] || 0;
+    if(n.kind === 'kai') return ({ wait:1, search:1.3, stakeout:1.1, hunt:1.35, pursue:1, tail:0.7, walk:0.5, rob:0.45, handoff:0.4, up:0.45, apt:1.2 })[n.state] || 0;
     if(n.kind === 'maya') return n.state === 'talk' ? 1 : 0;
+    // the crew: eyes on the money while it is being counted, on the alley the rest of the time
+    if(n.kind === 'crew') return ({ hang:crew.env === n ? 0.3 : 0.4, pursue:1, search:1.3, return:0.8, leave:0.5 })[n.state] || 0;
     return 0;
   }
   function perceive(n, dt){
@@ -1716,6 +1723,7 @@ window.TSH = (function(){
       if(n.kind === 'wfc' && (see || heard)){ wfcSaw = true; n.aware = 1.1; n.band = 'alert'; n.lastSeen = [x, z, feet(), clock]; if(n.state !== 'raid' || type==='flash') n.state = 'pursue'; }
       else if(n.kind === 'civ' && (see || (heard && type === 'flash'))){ if(!n.film && d > 3) startFilm(n); else if(d <= 3) n.flee = 4; }
       else if(n.kind === 'kai' && see){ n.aware = 1.1; questEvent('kaiSaw', { n, type }); }
+      else if(n.kind === 'crew' && (see || heard)){ n.aware = 1.1; n.lastSeen = [x, z, feet(), clock]; crewAlert(n); }
     });
     if(wfcSaw) heat(AI.raise(S.heat, type), c.label);
   }
@@ -1896,6 +1904,7 @@ window.TSH = (function(){
     else if(n.kind === 'wfc') tickWfc(n, dt);
     else if(n.kind === 'kai') tickKai(n, dt);
     else if(n.kind === 'maya') tickMaya(n, dt);
+    else if(n.kind === 'crew') tickCrew(n, dt);
     else if(n.kind === 'vendor') tickVendor(n, dt);
     n.g.position.set(n.x, n.y, n.z); n.g.rotation.y = n.yaw;
     const far = Math.hypot(n.x - G.camera.position.x, n.z - G.camera.position.z);
@@ -2039,10 +2048,23 @@ window.TSH = (function(){
         if(!n.sees && n.lastSeen && clock - n.lastSeen[3] > 6){ n.state = n.fallback || 'hunt'; bark(n, 'Where\'d she go…'); }
         break; }
       case 'rob': {
-        const l = W.ladders.find(l=>l.id==='maya');
-        if(goTo(n, l.bottom[0], l.bottom[1], 0, n.def.walk, dt) && !n.climb){ questEvent('kaiGone', { n }); despawn(n); }
+        // across the avenue to his crew, with your money in his jacket
+        const c = CREW_AT.meet;
+        if(goTo(n, c[0], c[1], 0, n.def.walk, dt)){ n.state = 'handoff'; n.handT = 0; break; }
         // followed, he walks faster and says so; it takes a flash in the face to make him turn
         if(n.sees && d < 6 && !n.saidFollow){ n.saidFollow = true; bark(n, 'Following me? Go home, kid.'); }
+        break; }
+      case 'handoff': {
+        // the envelope goes to whoever counts it; the rings go up the ladder with him
+        const boss = find('crewBoss');
+        n.handT += dt; n.clip = 'idle';
+        if(boss) face(n, boss.x, boss.z, dt);
+        if(n.handT > 0.8 && !n.handed){ n.handed = true; crewHandoff(n, boss); }
+        if(n.handT > 3.6) n.state = 'up';
+        break; }
+      case 'up': {
+        const l = W.ladders.find(l=>l.id==='maya');
+        if(goTo(n, l.bottom[0], l.bottom[1], 0, n.def.walk, dt) && !n.climb){ questEvent('kaiGone', { n }); despawn(n); }
         break; }
       case 'stakeout': {
         const s = n.stake; if(Math.hypot(s[0]-n.x, s[1]-n.z) > 0.6){ goTo(n, s[0], s[1], 0, n.def.walk, dt); break; }
@@ -2086,12 +2108,225 @@ window.TSH = (function(){
     n.clip = n.talking ? 'talk' : 'idle';
   }
 
+  /* ---- KAI'S CREW. Three of his people round a burn barrel in the alley
+     under B18, across Neon Avenue from Dragon Alley — where Kai takes your
+     money when he walks off with the rings first. He tosses them the
+     envelope and goes up the ladder to Maya; one of them counts it with
+     his back to the alley, the other two keep him company, and every so
+     often the one counting looks over his shoulder: those are the seconds
+     you do not have.
+
+     Get it back by lifting it off whoever has it (from behind, before
+     anybody is sure of you), by a flash in his face (he drops it, and it
+     is a race to the envelope), or by a can thrown down the alley to turn
+     them all round. Or let it go: when the count is done they walk off
+     with it. Seen, they chase — out of their own alley, not much further.
+
+     NOBODY HERE IS VOICED. What the crew says is overheard, over their
+     heads, the way the street's people talk; Kai, who is, only says what
+     he has already said tonight. */
+  const CREW_AT = {
+    barrel:[-32, 26], meet:[-32, 24.4], exit:[-32, 50],
+    men:[ { name:'crewBoss', char:'walk-u', at:[-32, 27.35] },
+          { name:'crewA',    char:'walk-x', at:[-33.15, 25.35] },
+          { name:'crewB',    char:'walk-t', at:[-30.85, 25.35] } ]
+  };
+  const CREW_SAY = {
+    wait:   ['Where\'s Kai?', 'He\'s late.', 'Cold one tonight.', 'Drone. Heads down.', 'Kai said ten minutes.'],
+    hand:   ['From a kid?', 'Kid makes rings?', 'Kid makes money.'],
+    count:  ['…eleven hundred…', '…two thousand…', '…twenty-five…', 'Lost count.', 'Start again.'],
+    side:   ['Hurry up.', 'Is it all there?', 'Kai\'s cut first.'],
+    look:   ['…', 'Hm?', 'Thought I heard—'],
+    alert:  ['Hey! The kid!', 'Get her!', 'Grab her!'],
+    lifted: ['My pocket— she\'s got it!', 'The money!'],
+    lost:   ['Gone.', 'Over the roofs. Forget it.', 'Kai\'s gonna hear about this.'],
+    mine:   ['Mine now.'],
+    leave:  ['That\'s the lot. Let\'s eat.', 'Noodles. Kai\'s buying.'],
+    grab:   ['Gotcha.', 'Easy, kid.']
+  };
+  /* where the envelope is: 'kai', one of the crew, 'ground', 'robin', 'gone' */
+  function freshCrew(){ return { env:null, handed:false, countT:0, chatT:3, barrel:null, fire:null, src:null }; }
+  let crew = freshCrew();
+  const crewList = () => npcs.filter(n=>n.kind === 'crew' && !n.gone);
+  const holds = n => !!n && typeof n === 'object' && !n.gone;
+  function spawnCrew(){
+    crewBarrel();
+    CREW_AT.men.forEach(m=>{
+      const old = find(m.name); if(old) despawn(old);
+      const n = spawn('crew', m.char, m.at[0], m.at[1], { name:m.name, state:'hang', yaw:angTo(m.at[0], m.at[1], CREW_AT.barrel[0], CREW_AT.barrel[1]) });
+      n.home = m.at; n.lookT = 9 + Math.random()*4;
+    });
+    crew.countT = 0; crew.chatT = 3;
+  }
+  /* a dark beanie with a red band: a passer-by's body, Kai's colours */
+  function crewLook(m){
+    const head = boneOf(m, /Head$/); if(!head) return;
+    m.updateMatrixWorld(true);
+    const k = worldK(head), h = new THREE.Group(); h.scale.setScalar(k); head.add(h);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.155, 14, 10, 0, Math.PI*2, 0, Math.PI*0.55), new THREE.MeshStandardMaterial({ color:0x1a1a1e, roughness:0.95 }));
+    cap.position.set(0, 0.1, -0.005); h.add(cap);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.157, 0.157, 0.04, 16, 1, true), new THREE.MeshStandardMaterial({ color:0x9a1a14, roughness:0.8, side:THREE.DoubleSide }));
+    band.position.set(0, 0.09, -0.005); h.add(band);
+  }
+  /* the envelope in whoever's hand it is */
+  function envProp(n, show){
+    if(!n.envMesh){
+      const hand = boneOf(n.model, /RightHand$/); if(!hand) return;
+      const k = worldK(hand), e = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.11, 0.012), new THREE.MeshStandardMaterial({ color:0xd8ccb0, roughness:0.9 }));
+      e.scale.setScalar(k); e.position.set(0, 0.09*k, 0.05*k); hand.add(e); n.envMesh = e;
+    }
+    n.envMesh.visible = !!show;
+  }
+  /* the barrel, and the fire in it: the only light at that end of the alley */
+  function crewBarrel(){
+    if(crew.barrel && crew.barrel.parent === W.cityGroup) return;
+    const [x, z] = CREW_AT.barrel, g = new THREE.Group(); g.position.set(x, 0, z); W.cityGroup.add(g);
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.3, 0.9, 14), CITY.M.rust || CITY.M.metal); b.position.y = 0.45; g.add(b);
+    const fire = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(3.2, 1.3, 0.35), transparent:true, opacity:0.85, depthWrite:false, blending:THREE.AdditiveBlending }));
+    fire.position.y = 1.15; g.add(fire);
+    crew.barrel = g; crew.fire = fire;
+    crew.src = { x, y:1.4, z, col:new THREE.Color(0xff7a2a), k:9, d:8, mul:1 };
+    W.lights.push(crew.src);
+    G.solids.push({ x1:x-0.34, x2:x+0.34, z1:z-0.34, z2:z+0.34, y1:0, y2:0.95, tag:'barrel' });
+  }
+  function tickCrewFire(dt){
+    if(!crew.fire || !crew.fire.parent) return;
+    const f = 0.85 + Math.sin(clock*13)*0.1 + Math.sin(clock*31.7)*0.07;
+    crew.fire.scale.set(1, f, 1); crew.src.mul = f;
+    const [x, z] = CREW_AT.barrel;
+    if(Math.hypot(G.pos.x - x, G.pos.z - z) < 45 && Math.random() < dt*5)
+      particle(V(x + (Math.random()-0.5)*0.3, 1.3, z + (Math.random()-0.5)*0.3), { color:0xffa040, size:0.03, life:0.9, v:V((Math.random()-0.5)*0.4, 1.6, (Math.random()-0.5)*0.4) });
+  }
+  function tickCrew(n, dt){
+    const p = P(), d = Math.hypot(p.x-n.x, p.z-n.z), b = CREW_AT.barrel;
+    if(n.model) envProp(n, crew.env === n && !n.catching);
+    // whoever in the crew is sure it is you calls the rest
+    if(n.sees && n.aware >= 1 && !['pursue','grab'].includes(n.state)) crewAlert(n);
+    switch(n.state){
+      case 'hang': {
+        if(S.step !== 'robbed'){ n.state = 'leave'; break; }
+        if(crew.env === 'ground' && crew.handed && S.flags.envDropped){ n.state = 'return'; break; }   // it is on the floor: they all go for it
+        const h = n.home;
+        if(Math.hypot(h[0]-n.x, h[1]-n.z) > 0.4){ goTo(n, h[0], h[1], 0, n.def.walk, dt); break; }
+        n.clip = 'idle';
+        if(crew.env === n){
+          // the count — and a look over his shoulder every so often
+          n.lookT -= dt;
+          if(n.lookT < 0){
+            n.yaw += angDiff(angTo(n.x, n.z, b[0], b[1]) + Math.PI, n.yaw)*Math.min(1, dt*5);
+            if(!n.looked){ n.looked = true; bark(n, pick(CREW_SAY.look)); }
+            if(n.lookT < -2.4){ n.lookT = 8 + Math.random()*6; n.looked = false; }
+          } else face(n, b[0], b[1], dt);
+          crew.countT += dt;
+        }
+        else if(n.sees && n.band !== 'unaware') face(n, p.x, p.z, dt);
+        else face(n, b[0], b[1], dt);
+        break; }
+      case 'pursue': {
+        const seen = n.sees || (n.lastSeen && clock - n.lastSeen[3] < 1.2);
+        const tx = seen ? p.x : (n.lastSeen ? n.lastSeen[0] : p.x), tz = seen ? p.z : (n.lastSeen ? n.lastSeen[1] : p.z);
+        goTo(n, tx, tz, seen ? p.y : undefined, n.def.run, dt);
+        if(seen && d < 1.25 && Math.abs(p.y - n.y) < 1 && !mode && !me.hidden) grab(n);
+        if(!n.sees && n.lastSeen && clock - n.lastSeen[3] > 5){ n.state = 'search'; n.searchT = 10; n.sp = null; }
+        // nobody chases a kid far out of their own alley
+        if(Math.hypot(n.x - b[0], n.z - b[1]) > 55){ n.state = 'search'; n.searchT = 3; n.sp = null; }
+        break; }
+      case 'search': {
+        n.searchT -= dt;
+        if(!n.sp || Math.hypot(n.sp[0]-n.x, n.sp[1]-n.z) < 1){ const c = n.lastSeen || [n.x, n.z]; n.sp = [c[0] + (Math.random()-0.5)*12, c[1] + (Math.random()-0.5)*12]; }
+        goTo(n, n.sp[0], n.sp[1], undefined, n.def.walk*1.6, dt);
+        if(n.searchT <= 0){ n.state = 'return'; n.aware = Math.min(n.aware, 0.5); bark(n, pick(CREW_SAY.lost)); }
+        break; }
+      case 'return': {
+        // back to the barrel — picking the envelope up off the floor on the way
+        const e = S.flags.envDropped;
+        if(e && crew.env === 'ground' && crew.handed && S.step === 'robbed'){
+          if(goTo(n, e[0], e[1], 0, n.def.walk*1.6, dt) || Math.hypot(e[0]-n.x, e[1]-n.z) < 0.8){
+            S.flags.envDropped = null; crew.env = n; cue('pick'); bark(n, pick(CREW_SAY.mine)); n.state = 'hang'; }
+          break; }
+        if(goTo(n, n.home[0], n.home[1], 0, n.def.walk, dt)) n.state = S.step === 'robbed' ? 'hang' : 'leave';
+        break; }
+      case 'leave': {
+        const x = CREW_AT.exit;
+        if(goTo(n, x[0], x[1], 0, n.def.walk, dt)) crewGone(n);
+        break; }
+      case 'grab': n.clip = 'idle'; face(n, p.x, p.z, dt); break;
+      default: n.clip = 'idle';
+    }
+  }
+  function crewAlert(n){
+    if(['pursue','grab'].includes(n.state)) return;
+    bark(n, pick(CREW_SAY.alert)); cue('alert');
+    const p = P();
+    crewList().forEach(o=>{
+      if(o.stun > 0 || ['pursue','grab'].includes(o.state) || Math.hypot(o.x - n.x, o.z - n.z) > 20) return;
+      o.state = 'pursue'; o.aware = Math.max(o.aware, 1.05); o.lastSeen = [p.x, p.z, p.y, clock]; o.investigate = null;
+    });
+  }
+  /* Kai at the barrel: the envelope over the fire to whoever counts it */
+  function crewHandoff(kai, boss){
+    if(crew.env !== 'kai' || !holds(boss)){ bark(kai, 'Tch.'); return; }
+    crew.env = boss; crew.handed = true; crew.countT = 0;
+    bark(kai, 'Call it tuition.');
+    note('✉ Kai handed your money to his crew.', 'bad');
+    const from = V(kai.x, kai.y + 1.3, kai.z), to = V(boss.x, boss.y + 1.2, boss.z);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.11), new THREE.MeshStandardMaterial({ color:0xd8ccb0, roughness:0.9 })); W.cityGroup.add(m);
+    boss.catching = true;
+    tween(0.6, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*0.8, lerp(from.z, to.z, k)); m.rotation.y = k*6; },
+      ()=>{ W.cityGroup.remove(m); boss.catching = false; });
+    const say = (name, text, ms) => later(()=>{ const c = find(name); if(c) bark(c, text); }, ms);
+    say('crewA', CREW_SAY.hand[0], 1400); say('crewB', CREW_SAY.hand[1], 3000); say('crewBoss', CREW_SAY.hand[2], 4600);
+  }
+  /* the envelope is gone from his hand: whoever was watching saw it go; if nobody was, he finds out in a moment */
+  function crewMissed(from){
+    const saw = crewList().find(o=>o !== from && o.sees && o.aware >= 0.3 && o.stun <= 0);
+    if(saw){ bark(saw, pick(CREW_SAY.lifted)); crewAlert(saw); return; }
+    if(!holds(from)) return;
+    later(()=>{
+      if(from.gone || ['pursue','grab'].includes(from.state)) return;
+      bark(from, pick(CREW_SAY.lifted));
+      crewList().forEach(o=>{ if(['pursue','grab'].includes(o.state)) return;
+        o.state = 'search'; o.searchT = 9; o.sp = null; o.lastSeen = [from.x, from.z, 0, clock]; o.aware = Math.max(o.aware, 0.62); });
+    }, 2600);
+  }
+  function crewLeave(){
+    crewList().forEach(n=>{ if(n.state !== 'hang') return; n.state = 'leave'; if(crew.env === n) bark(n, pick(CREW_SAY.leave)); });
+  }
+  function crewGone(n){
+    if(crew.env === n){ crew.env = 'gone'; if(S.step === 'robbed'){ note('Kai\'s crew walked off with your money.', 'bad'); outcome('gaveup'); } }
+    despawn(n);
+  }
+  /* caught by them: the envelope goes back if you had it, and you go into the bins */
+  function crewCaught(n){
+    if(S.cash > 0 && crew.env === 'robin'){
+      S.cash = 0; crew.env = n; if(S.trail.tracker === 'on') S.trail.tracker = 'returned'; S.dealPath.push('retaken');
+      note('✉ Kai\'s crew took the envelope back.', 'bad');
+    } else note('They shove you into the bins, and laugh.', 'bad');
+    crewList().forEach(o=>{ o.state = 'return'; o.aware = 0.3; o.stun = 0; });
+    hud();
+  }
+  function tickCrewQuest(dt){
+    tickCrewFire(dt);
+    if(S.step !== 'robbed' || !crewList().length) return;
+    // they talk among themselves while you are near enough to hear it
+    crew.chatT -= dt;
+    if(crew.chatT <= 0){
+      crew.chatT = 5 + Math.random()*5;
+      const near = crewList().filter(n=>n.state === 'hang' && Math.hypot(n.x - G.pos.x, n.z - G.pos.z) < 30);
+      const who = holds(crew.env) && near.includes(crew.env) && Math.random() < 0.6 ? crew.env : pick(near.length ? near : [null]);
+      if(who) bark(who, pick(crew.env === who ? CREW_SAY.count : crew.handed ? CREW_SAY.side : CREW_SAY.wait));
+    }
+    // the count is done: they go and eat, with your money
+    if(holds(crew.env) && crew.countT > 50) crewLeave();
+  }
+
   /* ============================================================ populate
      Who is out tonight, and where — by the clock and by the beat. */
   const CIV = ['nia','theo','zuri','walk-s','walk-t','walk-u','walk-v','walk-x'];
   let dropCan = null;
   function populate(){
     clearNpcs();
+    crew = freshCrew();
     placeScooters();
     makeRain();
     // three drones on their rounds
@@ -2120,6 +2355,7 @@ window.TSH = (function(){
   }
   function castForBeat(){
     ['kai','maya'].forEach(k=>{ const n = find(k); if(n) despawn(n); });
+    crewList().forEach(despawn);
     if(['lesson','deal','drop','robbed','news'].includes(S.step)){
       const m = W.spots.maya;
       const maya = spawn('maya', 'sable', m[0], m[1], { y:m[2], name:'maya', state:'roof', yaw:Math.PI });
@@ -2127,7 +2363,7 @@ window.TSH = (function(){
     }
     if(S.step === 'deal' || S.step === 'lesson') kaiSchedule();
     if(S.step === 'drop') kaiSchedule();
-    if(S.step === 'robbed'){ const k = spawn('kai', 'kofi', -41.5, -30, { name:'kai', state:'rob' }); }
+    if(S.step === 'robbed'){ spawn('kai', 'kofi', -41.5, -30, { name:'kai', state:'rob' }); crew.env = 'kai'; crew.handed = false; spawnCrew(); }
     if(S.step === 'out'){ const h = W.spots.home; const k = spawn('kai', 'kofi', h[0], h[1] + 1, { name:'kai', state:'hunt' }); k.lastSeen = [G.pos.x, G.pos.z, 0, clock]; }
   }
   /* KAI IS ALREADY IN THE ALLEY. The message said 22:30, but nothing in
@@ -2223,7 +2459,9 @@ window.TSH = (function(){
              'G — the Gecko cuffs climb any wall. Nobody looks up; WFC who do see illegal wearables.',
              'H — shades. Nobody has seen your face yet.'],
     drop:   ['Kai is watching the mailbox from the far end of the alley.', 'He checks his phone every so often.', 'Q throws a can — people go and look.', 'Hide in a dumpster (E) if he turns round.'],
-    robbed: ['Kai is walking back to his crew.', 'Get behind him without being seen: E lifts the envelope.', 'Or a flash (F) makes him drop it.', 'Or let him go.'],
+    robbed: ['Kai is taking your money to his crew, round a fire in the alley across Neon Avenue.', 'Catch him first: get behind him without being seen and E lifts the envelope.',
+             'At the fire, the one counting has his back to the alley — but he looks round.', 'Q throws a can: they all go and look.',
+             'A flash (F) in his face and he drops it. Then it is a race.', 'Or let it go.'],
     news:   ['Out of the alley onto Neon Avenue — the street, or over the roofs.', 'Home is 214 Harbor Lane, the south-east corner of the district.'],
     home:   ['Home: 214 Harbor Lane, the south-east corner.', 'WFC has closed Neon Avenue east of Market Street.', 'The metro runs from Neon West to Harbor Lane.',
              'The back lanes and the roofs go round the checkpoint.', 'I — your bag. Check what you are carrying.'],
@@ -2239,7 +2477,11 @@ window.TSH = (function(){
       case 'lesson': return lessonMarker();
       case 'deal': return S.flags.dropLeft ? null : [s.kai[0], s.kai[1], 2.2, 'The buyer'];
       case 'drop': return S.flags.dropCash ? [s.drop[0], s.drop[1], 2, 'The mailbox'] : null;
-      case 'robbed': { const k = find('kai'); return k ? [k.x, k.z, k.y + 2.4, 'Kai'] : null; }
+      case 'robbed': {
+        const e = S.flags.envDropped, h = crew.env;
+        if(e) return [e[0], e[1], 1.2, 'The envelope'];
+        if(h === 'kai'){ const k = find('kai'); return k ? [k.x, k.z, k.y + 2.4, 'Kai'] : null; }
+        return holds(h) ? [h.x, h.z, h.y + 2.4, 'The envelope'] : null; }
       case 'news': return inAlley() ? [s.alleyMouth[0], s.alleyMouth[1], 2.4, 'Neon Avenue'] : null;
       case 'home': return [s.home[0], s.home[1], 2.6, 'Home'];
       case 'out': { const r = nearestHigh(); return r ? [r[0], r[1], r[2] + 1, 'High ground'] : null; }
@@ -2283,6 +2525,8 @@ window.TSH = (function(){
   let dealT = null;
   function tickQuest(dt){
     const p = P(), kai = find('kai');
+    // --- Kai's crew, round their fire with your money ---
+    tickCrewQuest(dt);
     // --- the deal: walk right up to him and he starts it himself (E starts it from a few steps off) ---
     if(S.step === 'deal'){
       if(kai && kai.state === 'wait' && !dealT && S.rings && Math.hypot(p.x - kai.x, p.z - kai.z) < 2.0 && p.y < 1 && !mode) dealBegin(kai);
@@ -2295,7 +2539,7 @@ window.TSH = (function(){
     }
     // --- the screens, the binoculars, the roof: as she steps out of the alley with the deal behind her ---
     if(S.step === 'news' && !inside && !mode && !busy && !inAlley()){
-      const chased = S.heat > 0 || (kai && !kai.gone && kai.state === 'pursue');
+      const chased = S.heat > 0 || (kai && !kai.gone && kai.state === 'pursue') || crewList().some(n=>n.state === 'pursue');
       if(!chased) scene('news', newsScene);
     }
     // --- Kai tailing you home ---
@@ -2377,6 +2621,7 @@ window.TSH = (function(){
     dealT = null; S.rings = false;
     if(kai.gone) return;
     kai.state = 'rob'; kai.aware = 0; kai.band = 'unaware';
+    crew.env = 'kai'; crew.handed = false; spawnCrew();
     outcome('robbed');
   }
   /* the money and not the rings: a heartbeat while it sinks in, then he runs */
@@ -2411,8 +2656,10 @@ window.TSH = (function(){
     S.flags.dropCash = false; S.cash = 3000; S.trail.tracker = 'on'; cue('pick'); note('✉ The envelope. Nobody saw — you think.'); hud();
     outcome('retrieved');
   }
-  function liftEnvelope(kai){
-    S.cash = 3000; S.trail.tracker = 'on'; S.flags.lifted = true; cue('pick'); note('✉ Lifted. He never felt a thing.'); hud();
+  function liftEnvelope(from){
+    S.cash = 3000; S.trail.tracker = 'on'; S.flags.lifted = true; cue('pick'); note(from ? '✉ Lifted. He never felt a thing.' : '✉ Got it back.'); hud();
+    crew.env = 'robin';
+    if(crew.handed){ S.flags.fromCrew = true; crewMissed(from); }
     outcome('recovered');
   }
   /* the pieces of the deal that are things you walk up to */
@@ -2424,9 +2671,13 @@ window.TSH = (function(){
     const meet = thing(0, 0, 0, 'Talk to the buyer', ()=>{ const k = find('kai'); if(k) dealBegin(k); }, { icon:'💬', r:4, when:()=>{
       const k = find('kai'); if(S.step !== 'deal' || !k || k.state !== 'wait' || dealT || !S.rings) return false; meet.x = k.x; meet.z = k.z; return true; } });
     const lift = thing(0, 0, 0, 'Lift the envelope', ()=>liftEnvelope(find('kai')), { icon:'🤏', r:1.6, when:()=>{
-      const k = find('kai'); if(S.step !== 'robbed' || !k || k.state !== 'rob' || k.aware >= 0.62 || k.stun > 0) return false;
+      const k = find('kai'); if(S.step !== 'robbed' || !k || k.state !== 'rob' || crew.env !== 'kai' || k.aware >= 0.62 || k.stun > 0) return false;
       const behind = Math.abs(angDiff(angTo(k.x, k.z, G.pos.x, G.pos.z), k.yaw)) > 2.0; if(!behind) return false;
       lift.x = k.x; lift.z = k.z; return true; } });
+    const liftC = thing(0, 0, 0, 'Lift the envelope', ()=>liftEnvelope(crew.env), { icon:'🤏', r:1.6, when:()=>{
+      const h = crew.env; if(S.step !== 'robbed' || !holds(h) || h.stun > 0 || h.aware >= 0.9 || !['hang','leave','return','search'].includes(h.state)) return false;
+      const behind = Math.abs(angDiff(angTo(h.x, h.z, G.pos.x, G.pos.z), h.yaw)) > 2.0; if(!behind) return false;
+      liftC.x = h.x; liftC.z = h.z; return true; } });
     const drop = thing(0, 0, 0, 'Pick up the envelope', ()=>{ S.flags.envDropped = null; liftEnvelope(); }, { icon:'✉', r:1.5, when:()=>{ const e = S.flags.envDropped; if(!e) return false; drop.x = e[0]; drop.z = e[1]; return true; } });
     const plant = thing(0, 0, 0, 'Plant the tracker on the truck', ()=>{ S.trail.tracker = 'planted'; plantOn.tracker = true; cue('pick'); note('📡 The tracker is riding a delivery truck now. Enjoy the tour, whoever you are.', 'big'); hud(); },
       { icon:'📡', r:3.4, when:()=>{ if(!(S.trail.trackerFound && S.trail.tracker === 'on') || inside) return false;
@@ -2483,6 +2734,7 @@ window.TSH = (function(){
     const tailing = kai && kai.state === 'tail';
     // he is on the roof with her for this, unless he is out following you: the one in the street goes
     if(kai && !tailing){ despawn(kai); kai = null; }
+    crewList().forEach(despawn);
     const path = S.dealPath;
     let lines = [];
     if(tailing){ lines = lines.concat(LINES.tail); }
@@ -2490,7 +2742,8 @@ window.TSH = (function(){
       lines = lines.concat(LINES.roof);
       if(path.includes('noshow') || path.includes('confiscated')) lines = lines.concat(LINES.roofNoShow);
       else if(path.includes('stiffed')) lines = lines.concat(LINES.roofStiffed);
-      else if(path.includes('recovered')) lines = lines.concat([['maya','The merchandise.'], ['kai','Two rings, and—'], ['kai','…where\'s the envelope?'], ['maya','She took it back. Out of your pocket.'], ['maya','Put it on.'], ['maya','Minimal force, and only on my mark. Are we clear?']]);
+      // taken back off his crew rather than off him, he does not know yet: Maya's tracker tells her
+      else if(path.includes('recovered') && !S.flags.fromCrew) lines = lines.concat([['maya','The merchandise.'], ['kai','Two rings, and—'], ['kai','…where\'s the envelope?'], ['maya','She took it back. Out of your pocket.'], ['maya','Put it on.'], ['maya','Minimal force, and only on my mark. Are we clear?']]);
       else if(path.includes('robbed') || path.includes('gaveup')) lines = lines.concat(LINES.roofRobbed);
       else lines = lines.concat(LINES.roofPaid);
     }
@@ -2841,7 +3094,7 @@ window.TSH = (function(){
     mode = 'grab'; G.running = false;
     gr = { n, t:1.9, mash:0 };
     n.state = 'grab';
-    bark(n, n.kind === 'kai' ? pick(['Got you!', 'Not so fast.']) : 'Hold still!');
+    bark(n, n.kind === 'kai' ? pick(['Got you!', 'Not so fast.']) : n.kind === 'crew' ? pick(CREW_SAY.grab) : 'Hold still!');
     cue('alert');
     showGrab(true);
   }
@@ -2869,6 +3122,7 @@ window.TSH = (function(){
     const n = gr.n; showGrab(false); gr = null; mode = null; G.running = true;
     cue('fail');
     if(n.kind === 'wfc') return detained(n);
+    if(n.kind === 'crew') return crewCaught(n);
     if(inside) return chair();
     // Kai on the street: he takes what he came for
     if(S.cash > 0){ S.cash = 0; if(S.trail.tracker === 'on') S.trail.tracker = 'returned'; note('✉ Kai took the envelope. "That\'s for the alley."', 'bad'); if(S.step === 'drop') S.dealPath.push('robbed'); }
@@ -3012,7 +3266,9 @@ window.TSH = (function(){
     if(name === 'flash'){
       const hit = d.hit || [];
       const kai = hit.find(n=>n.kind === 'kai');
-      if(kai && kai.state === 'rob' && S.step === 'robbed'){ S.flags.envDropped = [kai.x + 0.6, kai.z]; kai.state = 'pursue'; kai.fallback = 'rob'; note('✉ He dropped the envelope!'); }
+      if(kai && kai.state === 'rob' && S.step === 'robbed' && crew.env === 'kai'){ S.flags.envDropped = [kai.x + 0.6, kai.z]; crew.env = 'ground'; kai.state = 'pursue'; kai.fallback = 'rob'; note('✉ He dropped the envelope!'); }
+      const h = crew.env;
+      if(holds(h) && hit.includes(h) && S.step === 'robbed'){ S.flags.envDropped = [h.x + 0.5, h.z - 0.4]; crew.env = 'ground'; note('✉ He dropped the envelope!'); }
       if(kai && kai.inApt) apt.flashed = true;
       if(inside && ['talk','kai'].includes(apt.stage)){ apt.stage = 'escape'; flushTalk(); talkNow('dark'); kaiIn(); }
     }
@@ -3023,7 +3279,8 @@ window.TSH = (function(){
     if(name === 'photo' && inside && apt.maya && !apt.maya.hidden && apt.maya.sees && S.trail.photo !== 'up') S.trail.mayaSawPhoto = true;
     if(name === 'kaiSpot' && S.step === 'home'){ note('👁 Kai spotted you. He\'s following.', 'bad'); }
     if(name === 'kaiLost' && S.trail.kaiTail === false){ note('You lost Kai.'); }
-    if(name === 'kaiGone' && S.step === 'robbed'){ note('Kai climbed up to his crew. The money went with him.', 'bad'); outcome('gaveup'); }
+    // he goes up the ladder to Maya with the rings; the money stays down here with his crew
+    if(name === 'kaiGone' && S.step === 'robbed' && crew.env === 'kai'){ crew.env = 'gone'; note('Kai climbed up the ladder. The money went with him.', 'bad'); outcome('gaveup'); }
   }
   /* PLANET.enter() → TSH.stop(), so the pause card's HOME cannot leave the city running underneath Wano */
   function onHeat(h, was){
@@ -3852,7 +4109,7 @@ window.TSH = (function(){
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get dealT(){ return dealT; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
                   homeDoor, aptExit, tossRings, dealBegin, leaveInMailbox, takeFromMailbox, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
-                  detained, questEvent, find, get lastKnown(){ return lastKnown; },
+                  detained, questEvent, find, get lastKnown(){ return lastKnown; }, get crew(){ return crew; }, crewList, ringsTaken,
                   get convo(){ return cv; }, convoPick, convoAdvance,
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();

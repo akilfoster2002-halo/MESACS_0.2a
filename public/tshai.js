@@ -287,8 +287,12 @@ window.TSHAI = (function(){
     const deal = { paid:'Took the cash and vanished, the way you planned.', robbed:'Handed over the rings first — Kai walked.',
                    recovered:'Got your money back off Kai anyway.', dropped:'Left the rings in a dead drop.', retrieved:'Got the envelope out from under Kai\'s nose.',
                    noshow:'Never showed up to the deal.', confiscated:'WFC took the rings before you could sell them.', gaveup:'Let the money go.',
-                   stiffed:'Walked off with the cash and the rings. Kai did not take it well.' };
-    (S.dealPath||[]).forEach(p=>{ if(deal[p]) out.push(deal[p]); });
+                   stiffed:'Walked off with the cash and the rings. Kai did not take it well.',
+                   retaken:'Kai\'s crew caught you, and took the envelope back.' };
+    (S.dealPath||[]).forEach(p=>{
+      if(p === 'recovered' && S.flags && S.flags.fromCrew) out.push('Took your money back off Kai\'s crew, from round their own fire.');
+      else if(deal[p]) out.push(deal[p]);
+    });
     if(tr.scouted) out.push('Spotted Maya watching from her roof.');
     out.push(tr.tracker==='on' ? (tr.trackerFound ? 'Found the tracker — and kept it on you anyway.' : 'Carried the tracker home without knowing.') : tr.tracker==='crushed' ? 'Found the tracker and crushed it.' :
              tr.tracker==='planted' ? 'Stuck the tracker on a delivery truck.' : tr.tracker==='seized' ? 'The tracker went into a WFC evidence bag with the cash.' :

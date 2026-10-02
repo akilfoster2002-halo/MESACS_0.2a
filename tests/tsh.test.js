@@ -261,3 +261,23 @@ test('every line spoken in the night has a recording, in the voice of who says i
   ['Hi, Mom.', 'She\'s… on a delivery truck. Doing laps.', 'Kai — the window!'].forEach(s=>assert.equal(vk('maya', s), vkey('maya', s)));
   hasNot(JSON.stringify(all.map(l=>l.text)), /📱/, 'texts are read, not heard');
 });
+
+test('robbed, Kai takes the money to his crew, and the crew is a scene you can play', () => {
+  const t = read('public/tsh.js'), A = rules();
+  has(t, /case 'rob': \{[\s\S]{0,200}CREW_AT\.meet/, 'Kai walks to his crew, not straight up the ladder');
+  has(t, /case 'handoff': \{[\s\S]{0,300}crewHandoff\(n, boss\)/, 'and hands them the envelope');
+  has(t, /function ringsTaken\([\s\S]{0,200}spawnCrew\(\)/, 'the crew is there when he gets there');
+  const crew = t.slice(t.indexOf('/* ---- KAI\'S CREW.'), t.indexOf('/* ============================================================ populate'));
+  has(crew, /crew\.env === n[\s\S]{0,200}n\.lookT/, 'the one counting looks over his shoulder');
+  has(crew, /crew\.countT > 50\) crewLeave\(\)/, 'leave them be and they walk off with it');
+  has(crew, /outcome\('gaveup'\)/, 'which is the money gone');
+  has(t, /holds\(h\) && hit\.includes\(h\)[\s\S]{0,120}crew\.env = 'ground'/, 'a flash in his face and he drops it');
+  has(t, /'Lift the envelope', \(\)=>liftEnvelope\(crew\.env\)/, 'it can be lifted off whoever has it');
+  has(t, /if\(n\.kind === 'crew'\) return crewCaught\(n\);/, 'caught by the crew is its own ending to the struggle');
+  // the crew is overheard, not voiced: no line of theirs is in the recorded script
+  hasNot(t, /\[\s*'crew'\s*,/, 'the crew talks in bubbles, not subtitles');
+  const s = A.summary({ trail:A.freshTrail(), dealPath:['robbed', 'recovered'], flags:{ fromCrew:true }, exposure:0, maxHeat:0 });
+  assert.ok(s.some(l=>/Kai's crew/.test(l)), 'the end card says where the money came back from');
+  const r = A.summary({ trail:A.freshTrail(), dealPath:['robbed', 'recovered', 'retaken'], flags:{ fromCrew:true }, exposure:0, maxHeat:0 });
+  assert.ok(r.some(l=>/took the envelope back/.test(l)), 'and when they took it back again');
+});
