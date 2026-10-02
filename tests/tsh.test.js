@@ -157,6 +157,18 @@ test('the opening is a film: the call, her room, the kit, the note, the window â
   has(t, /BOOTS\.fire\(\)/);
 });
 
+test('the things in her room are Higgsfield models, each standing in for the boxes it replaces', () => {
+  const r = read('public/tshroom.js');
+  ['bed', 'sewing', 'form', 'jacket', 'sneakers', 'backpack', 'packages', 'guitar', 'amp', 'chair', 'table'].forEach(id => {
+    const f = path.join(__dirname, '..', 'public', 'tsh', 'room', id + '.glb');
+    assert.ok(fs.existsSync(f), id + '.glb is in public/tsh/room');
+    assert.ok(fs.statSync(f).size < 400000, id + '.glb is small enough to download with the room');
+    assert.ok(r.includes("swap('" + id + "'"), 'the room puts the ' + id + ' model in');
+  });
+  has(r, /mt\.metalness = o\.metal \|\| 0/, 'SAM\'s fully-metal default is undone, or every model is black');
+  has(read('public/tsh.js'), /TSHROOM\.swap\('backpack', pack/, 'and the backpack on her back is the same model');
+});
+
 test('the first thing you play is the shoes: fire them, then hold SPACE and they do the rest', () => {
   const t = read('public/tsh.js');
   const L = t.slice(t.indexOf('const LESSON = ['), t.indexOf('const lesson = {'));

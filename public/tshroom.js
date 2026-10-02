@@ -390,17 +390,23 @@ window.TSHROOM = (function(){
     const { x1, x2, z1, z2 } = A, cx = (x1 + x2)/2, cz = (z1 + z2)/2;
     const wallN = z1 + 0.012, wallW = x1 + 0.012, wallE = x2 - 0.012;
     const cream = std({ color:0xe8e0cc, roughness:0.5 }), steel = std({ color:0x9aa4a8, roughness:0.35, metalness:0.8 });
-    const box = (m, x, y, z, w, h, d, ry) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.y = ry || 0; group.add(o); return o; };
+    let into = null;                                    // while set, every box made is also listed here (so a model can replace them)
+    const box = (m, x, y, z, w, h, d, ry) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.y = ry || 0; group.add(o); if(into) into.push(o); return o; };
+    const keep = (list, f) => { into = list; f(); into = null; return list; };
+    const add = o => { group.add(o); if(into) into.push(o); return o; };
     const top = 0.94;                                   // the bench's top (tshcity.js)
 
     // ---- the bench: a sewing machine, circuit boards, a soldering iron, a bracelet in pieces
     const sx = cx - 3.85, sz = z1 + 0.5;
+    const sewing = keep([], ()=>{
     box(cream, sx, top + 0.03, sz, 0.42, 0.06, 0.2); box(cream, sx + 0.15, top + 0.14, sz, 0.08, 0.2, 0.15); box(cream, sx, top + 0.25, sz, 0.42, 0.07, 0.13);
     box(cream, sx - 0.17, top + 0.16, sz, 0.08, 0.15, 0.11); box(std({ color:0xc03050, roughness:0.5 }), sx, top + 0.25, sz + 0.067, 0.36, 0.02, 0.005);
     box(steel, sx - 0.17, top + 0.07, sz, 0.006, 0.06, 0.006);
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 16), steel); wheel.rotation.z = Math.PI/2; wheel.position.set(sx + 0.21, top + 0.2, sz); group.add(wheel);
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 16), steel); wheel.rotation.z = Math.PI/2; wheel.position.set(sx + 0.21, top + 0.2, sz); add(wheel);
     picture(group, fashion(1), 0.3, 0.22, new V3(sx - 0.1, top + 0.062, sz + 0.12), 0, { rx:-Math.PI/2, rz:0.3 });    // fabric under the needle, a pattern on it
-    const spool = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.05, 10), std({ color:0x38ffd0, roughness:0.6 })); spool.position.set(sx + 0.05, top + 0.31, sz); group.add(spool);
+    const spool = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.05, 10), std({ color:0x38ffd0, roughness:0.6 })); spool.position.set(sx + 0.05, top + 0.31, sz); add(spool);
+    });
+    swap('sewing', group, sewing, { x:sx, y:top, z:sz, w:0.46, ry:-Math.PI/2 });
     [[cx - 3.2, sz + 0.05, 0.2, 7], [cx - 3.0, sz + 0.3, -0.35, 9]].forEach(([px, pz, r, k])=>picture(group, pcb(k), 0.2, 0.15, new V3(px, top + 0.006, pz), 0, { rx:-Math.PI/2, rz:r }));
     const iron = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.014, 0.2, 8), std({ color:0x202020, roughness:0.5 })); iron.rotation.z = 1.2; iron.position.set(cx - 2.85, top + 0.05, sz - 0.05); group.add(iron);
     const tip = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 4), glowM(0xff6a1a, 3)); tip.position.set(cx - 2.95, top + 0.02, sz - 0.05); group.add(tip);
@@ -417,10 +423,15 @@ window.TSHROOM = (function(){
 
     // ---- the dress form, and the jacket on it: wiring in the seams
     const fx = x1 + 0.7, fz = z1 + 1.7;
+    const form = keep([], ()=>{
     box(M.darkMetal, fx, 0.02, fz, 0.4, 0.03, 0.06); box(M.darkMetal, fx, 0.02, fz, 0.06, 0.03, 0.4);
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.0, 8), M.darkMetal); pole.position.set(fx, 0.52, fz); group.add(pole);
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.55, 16), std({ color:0xd8ccb4, roughness:0.8 })); torso.position.set(fx, 1.32, fz); torso.scale.z = 0.7; group.add(torso);
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), std({ color:0xd8ccb4, roughness:0.8 })); neck.position.set(fx, 1.65, fz); group.add(neck);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.0, 8), M.darkMetal); pole.position.set(fx, 0.52, fz); add(pole);
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.55, 16), std({ color:0xd8ccb4, roughness:0.8 })); torso.position.set(fx, 1.32, fz); torso.scale.z = 0.7; add(torso);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), std({ color:0xd8ccb4, roughness:0.8 })); neck.position.set(fx, 1.65, fz); add(neck);
+    });
+    swap('form', group, form, { x:fx, y:0, z:fz, h:1.72, ry:Math.PI/4, done:m=>{
+      // the jacket hangs on the torso, which is not the middle of the whole form (the tripod's legs are not even)
+      const c = upperCentre(m, 1.05); if(c){ jacket.position.x = c.x; jacket.position.z = c.z; } } });
     const jacket = new THREE.Group(); jacket.position.set(fx, 1.3, fz); jacket.rotation.y = Math.PI/4; group.add(jacket);
     const cloth = std({ color:0x1b2321, roughness:0.9 }), seam = glowM(0x38ffd0, 2.4);
     const body_ = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.19, 0.5, 16, 1, true), cloth); body_.scale.z = 0.72; jacket.add(body_);
@@ -428,6 +439,7 @@ window.TSHROOM = (function(){
     [-1, 1].forEach(sd=>{ const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.5, 10), cloth); sl.position.set(sd*0.23, -0.02, 0); sl.rotation.z = sd*0.12; jacket.add(sl);
       const ln = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.46, 0.01), seam); ln.position.set(sd*0.07, 0, 0.142); jacket.add(ln);
       const sh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.01, 0.01), seam); sh.position.set(sd*0.12, 0.22, 0.09); jacket.add(sh); });
+    swap('jacket', jacket, jacket.children.slice(), { x:0, y:-0.33, z:0, h:0.72 });     // inside the jacket's own group: it goes when she takes it
     room.form = { at:[fx, 0, fz], jacket };
 
     // ---- the packing table along the east wall: tonight's orders
@@ -435,12 +447,15 @@ window.TSHROOM = (function(){
     box(M.wood, px, ptop - 0.02, pz, 0.6, 0.04, 2.0); [[-0.25, -0.92], [0.25, -0.92], [-0.25, 0.92], [0.25, 0.92]].forEach(([a, b])=>box(M.darkMetal, px + a, (ptop - 0.04)/2, pz + b, 0.04, ptop - 0.04, 0.04));
     const kraft = std({ color:0xb08a5a, roughness:0.95 });
     const parcel = (x, y, z, w, h, d, ry, n, to, what) => { box(kraft, x, y + h/2, z, w, h, d, ry); const tp = box(std({ color:0xc8a878, roughness:0.4 }), x, y + h + 0.002, z, w + 0.002, 0.003, 0.05, ry);
-      if(n) picture(group, label(n, to, what), Math.min(w, d)*0.8*1.45, Math.min(w, d)*0.8, new V3(x, y + h + 0.004, z), ry || 0, { rx:-Math.PI/2, rz:0.0 }); };
+      if(n){ const lb = picture(group, label(n, to, what), Math.min(w, d)*0.8*1.45, Math.min(w, d)*0.8, new V3(x, y + h + 0.004, z), ry || 0, { rx:-Math.PI/2, rz:0.0 }); if(into) into.push(lb); } };
     parcel(px - 0.05, ptop, pz - 0.7, 0.32, 0.18, 0.24, 0.2, '0414', 'K. / DRAGON ALLEY', '2 x rings (shield) — tonight');
     parcel(px, ptop, pz - 0.3, 0.26, 0.14, 0.2, -0.15, '0415', '"MAGS"', 'grip gloves, size S');
     parcel(px - 0.02, ptop + 0.14, pz - 0.3, 0.2, 0.1, 0.16, 0.1, '0416', 'P.O. 91 — KILN ST', 'flash cuff x2 — PAID');
-    parcel(px - 0.1, 0, pz + 1.3, 0.4, 0.26, 0.3, 0.3, '0412', 'L. CHEN', 'jacket mod (LED piping)');
-    parcel(px - 0.12, 0.26, pz + 1.28, 0.3, 0.18, 0.24, -0.2, '0413', 'NO NAME — CASH', 'static studs');
+    const stack = keep([], ()=>{
+      parcel(px - 0.1, 0, pz + 1.3, 0.4, 0.26, 0.3, 0.3, '0412', 'L. CHEN', 'jacket mod (LED piping)');
+      parcel(px - 0.12, 0.26, pz + 1.28, 0.3, 0.18, 0.24, -0.2, '0413', 'NO NAME — CASH', 'static studs');
+    });
+    swap('packages', group, stack, { x:px - 0.12, y:0, z:pz + 1.3, h:0.62, ry:-Math.PI/2 + 0.3 });
     const tape = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.02, 8, 18), std({ color:0xc8a878, roughness:0.4 })); tape.rotation.x = Math.PI/2; tape.position.set(px + 0.12, ptop + 0.02, pz + 0.05); group.add(tape);
     // burner phones, fanned out; cash, banded; the orders on cards
     [[0, 0], [0.07, 0.4], [0.14, 0.75]].forEach(([dx, r], i)=>{ const ph = box(std({ color:0x16181a, roughness:0.4, metalness:0.4 }), px - 0.15 + dx, ptop + 0.006 + i*0.004, pz + 0.25 + dx*0.4, 0.05, 0.012, 0.1, r);
@@ -458,11 +473,13 @@ window.TSHROOM = (function(){
     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.14), std({ color:0x15181b, roughness:0.85 })); bag.position.y = 0.19; pack.add(bag);
     const flap = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.12, 0.15), std({ color:0x22282c, roughness:0.8 })); flap.position.y = 0.33; pack.add(flap);
     const st = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.3, 0.005), glowM(0x38ffd0, 2.2)); st.position.set(0.1, 0.18, 0.072); pack.add(st);
+    swap('backpack', pack, [bag, flap, st], { x:0, y:0, z:0, h:0.44 });
     room.pack = { at:[cx + 0.3, 0, z2 - 2.55] };
 
     // ---- the kitchen corner: a small table, dinner under a cover, and the note
     const kx = cx + 3.1, kz = z1 + 1.8, ktop = 0.76;
-    box(M.wood, kx, ktop - 0.02, kz, 0.9, 0.04, 0.65); [[-0.4, -0.28], [0.4, -0.28], [-0.4, 0.28], [0.4, 0.28]].forEach(([a, b])=>box(M.darkMetal, kx + a, (ktop - 0.04)/2, kz + b, 0.035, ktop - 0.04, 0.035));
+    const table = keep([], ()=>{ box(M.wood, kx, ktop - 0.02, kz, 0.9, 0.04, 0.65); [[-0.4, -0.28], [0.4, -0.28], [-0.4, 0.28], [0.4, 0.28]].forEach(([a, b])=>box(M.darkMetal, kx + a, (ktop - 0.04)/2, kz + b, 0.035, ktop - 0.04, 0.035)); });
+    swap('table', group, table, { x:kx, y:0, z:kz, h:ktop });
     box(M.darkMetal, kx + 0.15, 0.45, kz + 0.62, 0.36, 0.04, 0.36); box(M.darkMetal, kx + 0.15, 0.22, kz + 0.62, 0.04, 0.44, 0.04);
     const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.015, 24), std({ color:0xf4f2ec, roughness:0.3 })); plate.position.set(kx - 0.1, ktop + 0.008, kz - 0.05); group.add(plate);
     const cover = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 10, 0, Math.PI*2, 0, Math.PI/2), std({ color:0xcfd6da, roughness:0.2, metalness:0.9 })); cover.scale.y = 0.7; cover.position.set(kx - 0.1, ktop + 0.015, kz - 0.05); group.add(cover);
@@ -495,6 +512,58 @@ window.TSHROOM = (function(){
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 0.64), new THREE.MeshStandardMaterial({ color:0x9fd8e0, roughness:0.05, metalness:0.2, transparent:true, opacity:0.22 })); pane.rotation.y = Math.PI/2; sash.add(pane);
     box(std({ color:0xd8d4c8, roughness:0.6 }), x1 + 0.12, 0.97, wz, 0.24, 0.05, 1.62);
     room.window = { at:[x1, 1.7, wz], open(v){ sash.position.y = v ? 1.95 : 1.35; view.material.emissiveIntensity = v ? 1.6 : 1.1; } };
+  }
+
+  /* ========================================================= the models
+     THE THINGS IN HER ROOM ARE HIGGSFIELD MODELS (tsh/room/*.glb): a product
+     shot of each (gpt_image_2_5), lifted into 3D by SAM 3D, welded, thinned,
+     the texture cut to 1024 px WebP. The room is built first out of boxes,
+     so all of it is there the moment the door opens; when a model has come
+     down it takes the place of the boxes it stands for — the same spot, the
+     same size, the same way round — and they are hidden. Every model comes
+     out of SAM facing +z; `ry` turns that front to face where the box did. */
+  const MODELS = {};
+  function model(id){
+    if(!MODELS[id]) MODELS[id] = new Promise(ok=>{
+      if(!THREE.GLTFLoader) return ok(null);
+      const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.load('tsh/room/' + id + '.glb?v=' + (window.ASSETV || '1'), g=>ok(g.scene), undefined, ()=>ok(null));
+    });
+    return MODELS[id];
+  }
+  /* model `id` into `parent` at (x, y, z) — its feet at y, centred on x z —
+     scaled so its height is h (or its width w, its depth d), turned by ry;
+     then `old` is hidden. A model that does not load leaves the boxes. */
+  function swap(id, parent, old, o){
+    return model(id).then(sc=>{
+      if(!sc || !parent) return null;
+      const m = sc.clone(true);
+      m.rotation.y = o.ry || 0; m.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(m).getSize(new V3());
+      m.scale.setScalar(o.h ? o.h/size.y : o.w ? o.w/size.x : o.d/size.z); m.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(m), c = b.getCenter(new V3());
+      m.position.set((o.x || 0) - c.x, (o.y || 0) - b.min.y, (o.z || 0) - c.z);
+      // SAM leaves the glTF default of a fully metal surface, which with nothing to reflect is black: these are cloth, wood, paint and plastic
+      m.traverse(n=>{ if(!n.isMesh) return; n.castShadow = n.receiveShadow = true;
+        const mt = n.material; if(mt){ mt.metalness = o.metal || 0; mt.roughness = 0.75; if(mt.map) mt.map.colorSpace = THREE.SRGBColorSpace; mt.needsUpdate = true; } });
+      parent.add(m);
+      (old || []).forEach(x=>{ if(x) x.visible = false; });
+      if(o.done) o.done(m);
+      return m;
+    });
+  }
+  /* the middle of a model above height y0 (a dress form's torso, not its tripod) */
+  function upperCentre(m, y0){
+    const v = new V3(), b = new THREE.Box3(); m.updateMatrixWorld(true);
+    m.traverse(n=>{ if(!n.isMesh) return; const P = n.geometry.attributes.position;
+      for(let i=0;i<P.count;i+=2){ v.fromBufferAttribute(P, i).applyMatrix4(n.matrixWorld); if(v.y > y0) b.expandByPoint(v); } });
+    return b.isEmpty() ? null : b.getCenter(new V3());
+  }
+  /* the height of the first surface under (x, z) on a model, from above */
+  function topOf(m, x, z){
+    m.updateMatrixWorld(true);
+    const hit = new THREE.Raycaster(new V3(x, 5, z), new V3(0, -1, 0)).intersectObject(m, true)[0];
+    return hit ? hit.point.y : null;
   }
 
   /* =========================================================== the room */
@@ -538,15 +607,18 @@ window.TSHROOM = (function(){
     B.box(std({ color:0x1a1a1a, roughness:0.8 }), bedX + 0.5, 0.09, bedZ - 0.6, 0.55, 0.18, 0.32);
     room.underBed = { at:[bedX + 0.7, 0.02, bedZ], cam:[bedX + 1.9, 0.2, bedZ - 0.5] };
     // the bed made into hers: a black duvet, rumpled, a skull pillow, a plush on the floor
-    B.box(std({ color:0x15151a, roughness:0.95 }), bedX - 0.1, 0.78, bedZ + 0.2, 1.9, 0.12, 1.7);
-    B.box(std({ color:0x15151a, roughness:0.95 }), bedX + 0.4, 0.84, bedZ - 0.3, 0.9, 0.1, 0.7);
-    B.box(std({ color:0xe8e4da, roughness:0.9 }), bedX - 0.75, 0.8, bedZ + 0.05, 0.45, 0.14, 0.95);
-    room.bed = { x:bedX, z:bedZ, top:0.72, head:[bedX - 0.8, bedZ], foot:[bedX + 0.9, bedZ] };
+    const mesh = (m, x, y, z, w, h, d) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); group.add(o); return o; };
+    const bedding = [mesh(std({ color:0x15151a, roughness:0.95 }), bedX - 0.1, 0.78, bedZ + 0.2, 1.9, 0.12, 1.7),
+                     mesh(std({ color:0x15151a, roughness:0.95 }), bedX + 0.4, 0.84, bedZ - 0.3, 0.9, 0.1, 0.7),
+                     mesh(std({ color:0xe8e4da, roughness:0.9 }), bedX - 0.75, 0.8, bedZ + 0.05, 0.45, 0.14, 0.95)];
+    room.bed = { x:bedX, z:bedZ, top:0.72, seat:0.76, head:[bedX - 0.8, bedZ], foot:[bedX + 0.9, bedZ] };
     room.pillow = [bedX - 0.75, 0.9, bedZ + 0.05];
 
     // ---- the boots, by the window, glowing faintly
     room.boots = { at:[x1 + 0.75, 0, cz + 1.3] };
-    bootPair(group, B, M, x1 + 0.75, cz + 1.3);
+    const pair = bootPair(group, B, M, x1 + 0.75, cz + 1.3);
+    const shoes = new THREE.Group(); shoes.userData.boot = true; group.add(shoes);
+    swap('sneakers', shoes, [], { x:x1 + 0.78, y:0, z:cz + 1.3, w:0.32, ry:Math.PI/2, done:()=>pair.forEach(g=>{ g.visible = false; delete g.userData.boot; }) });
     // ---- the business: the bench, the sketches, the jacket on its form, tonight's orders, the kitchen, the window
     workshop(group, B, M, room, A, std, glowM);
 
@@ -556,9 +628,10 @@ window.TSHROOM = (function(){
 
     // ---- music: a guitar against an amp, and the speaker that is playing
     const ampX = cx + 2.6, ampZ = z1 + 0.45;
-    B.box(std({ color:0x141414, roughness:0.6 }), ampX, 0.38, ampZ, 0.75, 0.76, 0.4);
-    picture(group, grille(), 0.66, 0.6, new V3(ampX, 0.38, ampZ + 0.205), 0);
-    guitar(group, ampX - 0.6, ampZ + 0.15, M);
+    const amp = [mesh(std({ color:0x141414, roughness:0.6 }), ampX, 0.38, ampZ, 0.75, 0.76, 0.4), picture(group, grille(), 0.66, 0.6, new V3(ampX, 0.38, ampZ + 0.205), 0)];
+    swap('amp', group, amp, { x:ampX, y:0, z:ampZ, h:0.66 });
+    const gtr = guitar(group, ampX - 0.6, ampZ + 0.15, M);
+    swap('guitar', gtr, gtr.children.slice(), { x:0, y:0, z:0, h:1.02 });
     const spk = new THREE.Group(); spk.position.set(bedX + 1.3, 0, bedZ - 1.0); group.add(spk);
     const sb = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.32, 0.22), std({ color:0x202326, roughness:0.5, metalness:0.3 })); sb.position.y = 0.16; spk.add(sb);
     [-0.15, 0.15].forEach(dx=>{ const cone = new THREE.Mesh(new THREE.CircleGeometry(0.09, 20), std({ color:0x0a0a0a, roughness:0.9 })); cone.position.set(dx, 0.16, 0.111); spk.add(cone); });
@@ -574,12 +647,13 @@ window.TSHROOM = (function(){
       const can = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 10), std({ color:pick([0x38ffd0, 0xff3fd0, 0xf2e94e]), roughness:0.3, metalness:0.7 })); can.position.set(px, 0.06, pz); group.add(can); });
     B.box(std({ color:0xc8a070, roughness:0.9 }), cx + 0.6, 0.03, cz - 1.2, 0.42, 0.05, 0.42);
     // the chair at the bench, the hoodie over it
-    B.box(M.darkMetal, cx - 2.5, 0.48, z1 + 1.35, 0.5, 0.05, 0.5); B.box(M.darkMetal, cx - 2.5, 0.8, z1 + 1.58, 0.5, 0.6, 0.05);
-    B.box(std({ color:0xd86a9a, roughness:0.95 }), cx - 2.5, 0.85, z1 + 1.6, 0.56, 0.5, 0.1);
+    const chair = [mesh(M.darkMetal, cx - 2.5, 0.48, z1 + 1.35, 0.5, 0.05, 0.5), mesh(M.darkMetal, cx - 2.5, 0.8, z1 + 1.58, 0.5, 0.6, 0.05),
+                   mesh(std({ color:0xd86a9a, roughness:0.95 }), cx - 2.5, 0.85, z1 + 1.6, 0.56, 0.5, 0.1)];
+    swap('chair', group, chair, { x:cx - 2.5, y:0, z:z1 + 1.4, h:0.92, ry:Math.PI });
     // a laptop on the bed, covered in stickers
-    B.box(std({ color:0x2a2a2e, roughness:0.4, metalness:0.5 }), bedX + 0.25, 0.86, bedZ + 0.5, 0.38, 0.02, 0.27);
-    picture(group, sticker(2), 0.08, 0.08, new V3(bedX + 0.2, 0.875, bedZ + 0.48), 0, { rx:-Math.PI/2, alpha:true });
-    picture(group, sticker(3), 0.08, 0.08, new V3(bedX + 0.32, 0.875, bedZ + 0.55), 0, { rx:-Math.PI/2, alpha:true });
+    const onBed = [mesh(std({ color:0x2a2a2e, roughness:0.4, metalness:0.5 }), bedX + 0.25, 0.86, bedZ + 0.5, 0.38, 0.02, 0.27),
+      picture(group, sticker(2), 0.08, 0.08, new V3(bedX + 0.2, 0.875, bedZ + 0.48), 0, { rx:-Math.PI/2, alpha:true }),
+      picture(group, sticker(3), 0.08, 0.08, new V3(bedX + 0.32, 0.875, bedZ + 0.55), 0, { rx:-Math.PI/2, alpha:true })];
 
     // ---- string lights along the top of the walls and over the bed
     room.fairy = [];
@@ -595,6 +669,14 @@ window.TSHROOM = (function(){
     ph.add(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.15, 0.008), std({ color:0x111111, roughness:0.3, metalness:0.5 })));
     const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.068, 0.14), new THREE.MeshBasicMaterial({ color:0x05080a })); scr.position.z = 0.0045; scr.userData.flat = true; ph.add(scr);
     room.phone = { group:ph, screen:scr, at:[bedX - 0.55, 0.9, bedZ - 0.25] };
+    onBed.push(ph);
+    // the bed model: the head at -x, as the boxes had it (SAM's has its head at -z); what was on the duvet goes onto its mattress
+    swap('bed', group, (out.bedParts || []).concat(bedding), { x:bedX, y:0, z:bedZ, w:2.15, ry:Math.PI/2, done:m=>{
+      const t = topOf(m, bedX + 0.2, bedZ); if(t === null) return;
+      const dy = t + 0.02 - 0.86;
+      onBed.forEach(o=>{ o.position.y += dy; });
+      room.bed.top = t; room.bed.seat = t - 0.06; room.phone.at[1] += dy; room.pillow[1] += dy;
+    } });
 
     // ---- where the shots stand
     room.door = { at:[x2 - 0.9, 1.1, z2] };
@@ -626,9 +708,10 @@ window.TSHROOM = (function(){
   }
   /* the shoes: her own high-top sneakers, rebuilt — a thick sole with coils in the heel, a teal seam that glows */
   function bootPair(group, B, M, x, z){
+    const pair = [];
     const white = M.std({ color:0xeceae4, roughness:0.6 }), grey = M.std({ color:0x5a6066, roughness:0.5 }), sole = M.std({ color:0x16191c, roughness:0.4, metalness:0.3 }), seam = M.glow(0x38ffd0, 2.2);
     [-0.13, 0.13].forEach((dz, i)=>{
-      const g = new THREE.Group(); g.position.set(x + (i ? 0.05 : 0), 0, z + dz); g.rotation.y = i ? 0.15 : -0.1; g.userData.boot = true; group.add(g);
+      const g = new THREE.Group(); g.position.set(x + (i ? 0.05 : 0), 0, z + dz); g.rotation.y = i ? 0.15 : -0.1; g.userData.boot = true; group.add(g); pair.push(g);
       const s_ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.11), sole); s_.position.set(0.02, 0.05, 0); g.add(s_);
       const heel = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.17, 0.105), white); heel.position.set(-0.06, 0.165, 0); g.add(heel);
       const vamp = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.08, 0.1), white); vamp.position.set(0.075, 0.12, 0); g.add(vamp);
@@ -637,6 +720,7 @@ window.TSHROOM = (function(){
       for(let k=0;k<3;k++){ const coil = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.007, 6, 14), seam); coil.rotation.x = Math.PI/2; coil.position.set(-0.07, 0.01 + k*0.014, 0); g.add(coil); }
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.008, 0.113), seam); line.position.set(0.02, 0.08, 0); g.add(line);
     });
+    return pair;
   }
   function guitar(group, x, z, M){
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.set(0, 0.3, 0.32); group.add(g);
@@ -644,7 +728,8 @@ window.TSHROOM = (function(){
     const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.052, 16), M.std({ color:0xf5f2e8, roughness:0.4 })); guard.rotation.x = Math.PI/2; guard.position.set(0.04, 0.3, 0); g.add(guard);
     const neck = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.03), M.std({ color:0x6a4a2a, roughness:0.6 })); neck.position.set(0, 0.82, 0); g.add(neck);
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.03), M.std({ color:0x111111, roughness:0.4 })); head.position.set(0, 1.2, 0); g.add(head);
+    return g;
   }
 
-  return { dress, newspaper, sketch, corkboard, envelope, poster };
+  return { dress, swap, model, newspaper, sketch, corkboard, envelope, poster };
 })();

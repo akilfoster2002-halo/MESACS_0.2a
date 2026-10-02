@@ -575,6 +575,7 @@ window.TSH = (function(){
         const flap = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.11, 0.13), new THREE.MeshStandardMaterial({ color:0x22282c, roughness:0.8 })); flap.position.y = 0.13; pack.add(flap);
         const strip = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.28, 0.005), lineM()); strip.position.set(0.09, -0.02, -0.062); strip.userData.flat = true; pack.add(strip);
         me.pack = hang(chest, pack, P(wp(mid).setY(cy + 0.04), 0, 0, -0.2));
+        if(window.TSHROOM && TSHROOM.swap) TSHROOM.swap('backpack', pack, [bag, flap, strip], { x:0, y:-0.2, z:0, h:0.42, ry:Math.PI });   // the same pack as on her floor; its straps to her back
       }
       me.shoes = [];
       ['Left', 'Right'].forEach(side=>{
@@ -1095,7 +1096,7 @@ window.TSH = (function(){
     if(R.note) R.note.home();
     black(true);
     scoreStop(); score.dropped = false; scoreLevel(0.22, 0.4, true);
-    const sitUp = ()=>stage('wake', bed.x - 0.15, 0.76, bed.z - 0.05, Math.PI/2);
+    const sitUp = ()=>stage('wake', bed.x - 0.15, bed.seat || 0.76, bed.z - 0.05, Math.PI/2);      // on the mattress, whatever height the bed's model put it at
     const shoe = R.boots.at, form = R.form.at, pack = R.pack.at, kit = R.kitchen, note = R.note, mom = R.momDoor.at, win = R.window.at;
     const P = R.packing.at, bench = R.bench.at;
     const stop = [cx + 2.4, cz + 0.9], atTable = [kit.at[0] - 0.3, kit.at[2] + 0.95];
