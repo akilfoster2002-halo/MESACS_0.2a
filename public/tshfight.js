@@ -34,9 +34,9 @@ window.TSHFIGHT = (function(){
   const EYE = 1.7;
 
   /* ------------------------------------------------------------ the alley
-     Dragon Alley (tshcity.js) is five metres wide, walls at x -44 and -39:
+     Dragon Alley (tshcity.js) is eleven metres wide, walls at x -47 and -36:
      the fight runs up and down it, between the mouth and the bend. */
-  const ARENA = { x1:-43.5, x2:-39.5, z1:-37.5, z2:-13.5 };
+  const ARENA = { x1:-46.5, x2:-36.5, z1:-37.5, z2:-13.5 };
   const MEET = { robin:[-41.4, -24.6], buyer:[-41.6, -28.6] };
 
   /* ------------------------------------------------------------ her moves

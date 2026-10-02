@@ -350,6 +350,18 @@ test('aim, then strike: the mouse picks the man, and what she throws depends on 
   has(src, /G\.camera\.fov = baseFov; G\.camera\.updateProjectionMatrix\(\);/, 'and the lens is put back after');
 });
 
+test('the alley is wide enough to fight in, and the fight stays inside it', () => {
+  const c = read('public/tshcity.js'), F = fight();
+  const m = c.match(/const X1 = (-?\d+), X2 = (-?\d+), Z1 = (-?\d+), Z2 = (-?\d+)/);
+  const [X1, X2] = [+m[1], +m[2]];
+  assert.ok(X2 - X1 >= 10, 'Dragon Alley is at least ten metres wide');
+  has(c, new RegExp("\\['B1', -56, " + X1 + ","), 'B1 stops at the west wall');
+  has(c, new RegExp("\\['B3', " + X2 + ","), 'B3 starts at the east wall');
+  has(c, new RegExp('alleyFloor\\(' + X1 + ', ' + X2 + ','), 'and the wet floor runs wall to wall');
+  assert.ok(F.ARENA.x1 > X1 && F.ARENA.x2 < X2, 'the fight stays off the walls');
+  [F.MEET.robin, F.MEET.buyer].forEach(p => assert.ok(p[0] > F.ARENA.x1 && p[0] < F.ARENA.x2, 'and starts inside it'));
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');

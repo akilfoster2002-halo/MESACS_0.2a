@@ -3718,7 +3718,7 @@ window.TSH = (function(){
     CITY.LANES.forEach(([ax, a, b])=>{ if(ax==='z') x.fillRect(mx(-CITY.EDGE.x), mz(a), CITY.EDGE.x*2*S2, (b-a)*S2); else x.fillRect(mx(a), mz(-CITY.EDGE.z), (b-a)*S2, CITY.EDGE.z*2*S2); });
     W.roofs.forEach(r=>{ x.fillStyle = r.high ? '#1c2a3a' : '#132220'; x.fillRect(mx(r.x1)+1, mz(r.z1)+1, (r.x2-r.x1)*S2-2, (r.z2-r.z1)*S2-2);
       x.strokeStyle = r.high ? '#6a5aa8' : '#23403c'; x.lineWidth = r.high ? 2 : 1; x.strokeRect(mx(r.x1)+1, mz(r.z1)+1, (r.x2-r.x1)*S2-2, (r.z2-r.z1)*S2-2); });
-    x.fillStyle = '#ff6a2a'; x.fillRect(mx(-44), mz(-44), 5*S2, 34*S2);            // Dragon Alley, in lantern orange
+    x.fillStyle = '#ff6a2a'; { const a = W.zones.alley; x.fillRect(mx(a.x1), mz(a.z1), (a.x2 - a.x1)*S2, (a.z2 - a.z1)*S2); }            // Dragon Alley, in lantern orange
     x.globalAlpha = 0.5; x.fillStyle = '#3aaaff'; [[-70,8],[46,50.5]].forEach(([a,b])=>{ x.beginPath(); x.arc(mx(a), mz(b), 5, 0, 7); x.fill(); }); x.globalAlpha = 1;
     radarMap = { c, mx, mz, S2 };
   }

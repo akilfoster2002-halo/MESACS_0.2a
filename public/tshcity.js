@@ -220,9 +220,9 @@ window.TSHCITY = (function(){
   /* THE BUILDINGS. [id, x1, x2, z1, z2, height, facade]. Roofs at 16 m
      and over are "high": the night ends on one of them. */
   const BUILDINGS = [
-    // north of the avenue, west of Market — Dragon Alley runs x -44…-39
-    ['B1', -56, -44, -44, -26, 10, 0], ['B2', -56, -44, -26, -10, 16, 1],
-    ['B3', -39, -24, -44, -26,  9, 2], ['B4', -39, -24, -26, -10, 12, 3],
+    // north of the avenue, west of Market — Dragon Alley runs x -47…-36 (eleven metres: room for the fight)
+    ['B1', -56, -47, -44, -26, 10, 0], ['B2', -56, -47, -26, -10, 16, 1],
+    ['B3', -36, -24, -44, -26,  9, 2], ['B4', -36, -24, -26, -10, 12, 3],
     ['B5', -21, -10, -44, -10, 12, 4],
     // north of the avenue, east of Market
     ['B6',  10,  34, -30, -10, 22, 5], ['B7',  10,  34, -44, -33, 10, 6], ['B8',  37,  56, -44, -10, 13, 7],
@@ -300,7 +300,7 @@ window.TSHCITY = (function(){
       const u = m.geometry.attributes.uv; for(let i=0;i<u.count;i++) u.setXY(i, u.getX(i)*(x2-x1)/9, u.getY(i)*(z2-z1)/9);
     };
     LANES.forEach(([ax, a, b])=>{ if(ax==='z') alleyFloor(-EDGE.x, EDGE.x, a, b); else alleyFloor(a, b, -EDGE.z, EDGE.z); });
-    alleyFloor(-44, -39, -44, -10);                          // Dragon Alley
+    alleyFloor(-47, -36, -44, -10);                          // Dragon Alley
     alleyFloor(-24, -21, -44, -10); alleyFloor(34, 37, -44, -10); alleyFloor(10, 34, -33, -30);
     alleyFloor(-34, -30, 10, 44); alleyFloor(30, 34, 10, 44); alleyFloor(84-22, 84, 21, 24);
     // the edge of the district: a fence of hoardings across every street end
@@ -728,7 +728,7 @@ window.TSHCITY = (function(){
 
   /* ========================================================== the alley */
   function alley(group, B, out, lightSrc, solid, plat){
-    const X1 = -44, X2 = -39, Z1 = -44, Z2 = -10, CX = (X1+X2)/2;
+    const X1 = -47, X2 = -36, Z1 = -44, Z2 = -10, CX = (X1+X2)/2;
     // the canopy: a steel frame over the middle of it, grated, with tubes under
     for(let z=Z1+4; z<Z2-4; z+=3){
       B.box(M.darkMetal, CX, 4.4, z, X2-X1, 0.14, 0.14);
@@ -736,7 +736,9 @@ window.TSHCITY = (function(){
     }
     B.box(M.darkMetal, X1+0.1, 4.4, (Z1+Z2)/2, 0.14, 0.14, Z2-Z1-8); B.box(M.darkMetal, X2-0.1, 4.4, (Z1+Z2)/2, 0.14, 0.14, Z2-Z1-8);
     [-38, -32, -26, -20].forEach(z=>{ B.box(M.tube, CX-0.8, 4.3, z, 0.06, 0.06, 1.8); B.box(M.tube, CX+1.2, 4.3, z+1.4, 1.6, 0.06, 0.06);
-      lightSrc(CX, 3.9, z, 0xb8ffe0, 9, 8); });
+      // eleven metres wide, to fight in: a light that reaches both walls (the city lends only a few real lights at once)
+      lightSrc(CX, 3.6, z, 0xb8ffe0, 24, 13);
+      [-3.4, 3.4].forEach(dx=>B.box(M.tube, CX+dx, 4.3, z+0.7, 0.06, 0.06, 1.8)); });
     // pipes along both walls and a few across, cables everywhere
     [[X1+0.18, 5.2, 0.14], [X1+0.18, 5.6, 0.08], [X2-0.18, 6.4, 0.16], [X2-0.18, 4.9, 0.07]].forEach(([x, y, r], i)=>pipe(B, new V3(x, y, Z1), new V3(x, y, Z2), r, i===2 ? M.pipeRed : M.pipe));
     for(let z=Z1+3; z<Z2-1; z+=4){ pipe(B, new V3(X1, 6.8+rnd(-0.3,0.4), z), new V3(X2, 6.8+rnd(-0.3,0.4), z+rnd(-1,1)), 0.06);
@@ -882,7 +884,7 @@ window.TSHCITY = (function(){
      graph, which is how Kai follows you up. */
   function ladders(B, out){
     const L_ = [
-      ['alleyEsc', -43.65, -31, 0, 10, 'px'],         // Dragon Alley, up B1
+      ['alleyEsc', -46.65, -31, 0, 10, 'px'],         // Dragon Alley, up B1
       ['b1b2', -50, -26.35, 10, 16, 'nz'],             // B1's roof to B2's (high)
       ['b3b4', -31, -26.35, 9, 12, 'nz'],              // B3 up to B4
       ['svc', -23.65, -18, 0, 12, 'px'],               // the service alley, up B4
