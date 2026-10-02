@@ -326,12 +326,36 @@ test('the fight teaches the gauntlets in the order the crew comes at her', () =>
   (src.match(/say\('(\w+)'/g) || []).concat((src.match(/after:'(\w+)'/g) || [])).forEach(m => { const k = m.match(/'(\w+)'/)[1]; assert.ok(t.includes('    ' + k + ':'), 'LINES has ' + k); });
 });
 
+test('aim, then strike: the mouse picks the man, and what she throws depends on where he is and what he is doing', () => {
+  const src = read('public/tshfight.js');
+  const F = fight();
+  // every move a click can throw is one of hers, and has a clip she has
+  const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
+  const hers = clips('characters/fight/robin.glb');
+  F.STRINGS.forEach(s => s.forEach(n => assert.ok(F.MOVE[n] && hers.includes(F.MOVE[n].clip), n + ' is a move with a clip')));
+  ['knee', 'elbow', 'zip', 'spin', 'sweep'].forEach(n => assert.ok(F.MOVE[n] && hers.includes(F.MOVE[n].clip), n));
+  assert.ok(F.MOVE.spin.area && F.MOVE.sweep.area, 'the hurricane kick and the sweep take everyone in reach');
+  assert.deepEqual([...F.STRINGS[0]], [...F.CHAIN], 'the first string is the one the lesson teaches');
+  // the aim: the camera (the mouse) and the direction held
+  has(src, /function aimDir\(\)\{[\s\S]{0,400}const look = G\.yaw \+ Math\.PI;/, 'the camera is the aim');
+  has(src, /cs <= bs \+ 0\.35/, 'the marked man keeps the mark until somebody is plainly a better pick');
+  has(src, /const t = \(R\.forceTarget && standing\(R\.forceTarget\)\) \? R\.forceTarget : \(aimTarget\(\)/, 'a click goes at the one you aim at');
+  has(src, /if\(t && d > FAR\)\{ R\.chain = 0; return 'zip'; \}/, 'across the alley: the flying kick');
+  has(src, /\(R\.combo \+ 1\) % 5 === 0/, 'every fifth hit is a finisher');
+  has(src, /t\.state === 'stagger' && t\.parried && d < 2\.2/, 'a man left wide open gets the knee and the elbow');
+  has(src, /if\(!dir \|\| !dir\.free\)\{[\s\S]{0,200}CHAIN\[R\.chain\+\+\]/, 'and the lessons still teach the chain as written');
+  // the camera keeps both of them in the picture, and pushes in on a hit
+  has(src, /cam\.pull = lerp\(cam\.pull, t \? clamp\(\(td - 2\)/, 'further back the further off he is');
+  has(src, /camPunch\(big \? 1 : 0\.45\)/, 'a hit pushes the lens in');
+  has(src, /G\.camera\.fov = baseFov; G\.camera\.updateProjectionMatrix\(\);/, 'and the lens is put back after');
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');
   has(src, /function freeze\([\s\S]{0,600}slowTo\(0\.0\d+/, 'a lesson drops the world to a crawl until the key');
   has(src, /function unfreeze\(\)\{[\s\S]{0,200}slowTo\(0\.25/, 'and ramps back up through slow motion as the move lands');
-  has(src, /function land\(\)\{[\s\S]{0,1200}hitstop\([\s\S]{0,40}shake\(/, 'a hit stops time for an instant and shakes the picture');
+  has(src, /function landOn\([\s\S]{0,1200}hitstop\([\s\S]{0,40}shake\(/, 'a hit stops time for an instant and shakes the picture');
   has(src, /function hurt\([\s\S]{0,600}shake\(/, 'and so does being hit');
   has(t, /function render\(dt\)\{[\s\S]{0,400}shk\.len > 0/, 'the shake is drawn');
   has(t, /G\.timeScale = 1; shk\.len = 0;/, 'leaving the city puts time back to normal');

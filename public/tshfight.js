@@ -49,9 +49,19 @@ window.TSHFIGHT = (function(){
     kick:    { clip:'kick',    speed:2.3, hit:0.36, free:0.58, dmg:2,   reach:2.1,  push:1.6,  shake:0.17, down:true },
     power:   { clip:'power',   speed:2.3, hit:0.32, free:0.60, dmg:4,   reach:2.1,  fly:12,    shake:0.45, down:true },
     flykick: { clip:'flykick', speed:1.5, hit:0.46, free:0.80, dmg:3,   reach:2.4,  fly:8,     shake:0.32, down:true },
-    counter: { clip:'hook',    speed:2.6, hit:0.31, free:0.50, dmg:3,   reach:1.9,  push:1.2,  shake:0.2,  down:true }
+    counter: { clip:'hook',    speed:2.6, hit:0.31, free:0.50, dmg:3,   reach:1.9,  push:1.2,  shake:0.2,  down:true },
+    knee:    { clip:'knee',    speed:2.6, hit:0.27, free:0.46, dmg:1.5, reach:1.6,  push:0.7,  shake:0.1 },
+    elbow:   { clip:'elbow',   speed:2.2, hit:0.30, free:0.50, dmg:1.5, reach:1.6,  push:0.9,  shake:0.1 },
+    zip:     { clip:'flykick', speed:1.5, hit:0.46, free:0.74, dmg:2,   reach:2.3,  push:1.8,  shake:0.22, down:true },
+    spin:    { clip:'spin',    speed:1.3, hit:0.42, free:0.74, dmg:2,   reach:2.3,  push:1.6,  shake:0.26, down:true, area:true },
+    sweep:   { clip:'sweep',   speed:2.0, hit:0.36, free:0.60, dmg:1,   reach:2.1,  push:0.6,  shake:0.18, down:true, area:true }
   };
   const CHAIN = ['jab', 'cross', 'hook', 'kick'];
+  /* WHAT A CLICK THROWS once she knows how (after the lessons): it depends where he is and what he is doing.
+     Close in, a string — a different one each time a combo starts, so no two run the same; every fifth hit
+     is a finisher; a man left wide open gets the knee and the elbow; a man across the alley, the flying kick. */
+  const STRINGS = [CHAIN, ['jab', 'elbow', 'cross', 'kick'], ['cross', 'hook', 'knee', 'elbow'], ['jab', 'jab', 'hook', 'knee'], ['elbow', 'cross', 'hook', 'kick']];
+  const FAR = 4.6, AIM_RANGE = 8;
 
   /* ------------------------------------------------------------ the crew */
   const KIND = {
@@ -128,6 +138,69 @@ window.TSHFIGHT = (function(){
     });
     return best;
   }
+  /* AIM: where you are pointing — the camera, turned by the mouse, and nudged by the direction you hold (W at
+     the one ahead, A at the one on the left, like the stick in Spider-Man) */
+  function aimDir(){
+    const k = G.keys; let fx = 0, fz = 0;
+    if(k.KeyW || k.ArrowUp) fz += 1; if(k.KeyS || k.ArrowDown) fz -= 1; if(k.KeyA || k.ArrowLeft) fx -= 1; if(k.KeyD || k.ArrowRight) fx += 1;
+    const look = G.yaw + Math.PI;
+    if(!fx && !fz) return look;
+    return look + Math.atan2(-fx, fz);
+  }
+  /* who you are pointing at: the one nearest the line you point along, near ones a little first; he keeps the
+     mark until somebody is plainly a better pick, so it does not flicker between two standing side by side */
+  function aimScore(e, a){
+    if(dir && !dir.free && !e.active) return Infinity;      // while she learns, only the ones the lesson sends at her
+    const p = P(), d = Math.hypot(e.x - p.x, e.z - p.z); if(d > AIM_RANGE) return Infinity;
+    const off = Math.abs(angDiff(angTo(p.x, p.z, e.x, e.z), a));
+    if(off > (d < 2.2 ? Math.PI : 1.05)) return Infinity;           // right next to her, anyone will do
+    return off*2.4 + d*0.16;
+  }
+  function aimTarget(){
+    const a = aimDir();
+    let best = null, bs = Infinity;
+    alive().forEach(e=>{ const s = aimScore(e, a); if(s < bs){ bs = s; best = e; } });
+    const cur = R.aim && standing(R.aim) ? R.aim : null, cs = cur ? aimScore(cur, a) : Infinity;
+    R.aim = (cur && cs < Infinity && cs <= bs + 0.35) ? cur : best;
+    return R.aim;
+  }
+  /* the mark under his feet */
+  let mark = null;
+  function markOn(){
+    if(mark) return mark;
+    mark = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 40), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending }));
+    mark.rotation.x = -Math.PI/2; mark.renderOrder = 5;
+    return mark;
+  }
+  function tickMark(real){
+    const t = R.act === 'attack' && R.target && standing(R.target) ? R.target : R.aim;
+    const m = markOn();
+    if(!t || !standing(t) || (dir && dir.freeze)){ if(m.parent) m.parent.remove(m); return; }
+    if(m.parent !== ctx.group) ctx.group.add(m);
+    m.position.set(t.x, 0.04 + (t.y || 0), t.z);
+    R.markT = (R.markT || 0) + real;
+    m.scale.setScalar(1 + Math.sin(R.markT*7)*0.06);
+    // orange when he is about to swing: that is the one to dodge, or parry
+    m.material.color.setHex(t.state === 'windup' ? 0xffa040 : 0xffffff);
+  }
+  /* which move a click throws at him (see STRINGS) */
+  function choose(t){
+    if(!dir || !dir.free){                                 // the lessons teach the chain as it is written down
+      if(R.chainT > 0 && R.chain > 0 && R.chain < CHAIN.length){ return CHAIN[R.chain++]; }
+      R.chain = 1; return 'jab';
+    }
+    const p = P(), d = t ? Math.hypot(t.x - p.x, t.z - p.z) : 0;
+    if(t && d > FAR){ R.chain = 0; return 'zip'; }
+    const going = R.chainT > 0 && R.chain > 0;
+    if(!going){ R.string = STRINGS[Math.floor(Math.random()*STRINGS.length)]; R.chain = 0; }
+    const near = alive().filter(e=>Math.hypot(e.x - p.x, e.z - p.z) < 2.3).length;
+    // every fifth hit: a finisher — round on all of them if there are two or more close, else the roundhouse
+    if(R.combo > 0 && (R.combo + 1) % 5 === 0){ R.chain = 0; return near >= 2 ? (Math.random() < 0.6 ? 'spin' : 'sweep') : 'kick'; }
+    // he is wide open (parried, dodged, pulled in): knee, then elbow
+    if(t && t.state === 'stagger' && t.parried && d < 2.2){ const n = R.lastMove === 'knee' ? 'elbow' : 'knee'; R.chain++; return n; }
+    const s = R.string || CHAIN, n = s[R.chain % s.length]; R.chain++;
+    return n;
+  }
 
   /* ------------------------------------------------------------ moving */
   function walkRobin(dt){
@@ -161,21 +234,28 @@ window.TSHFIGHT = (function(){
   }
 
   /* ------------------------------------------------------------ her actions */
+  const name0 = kind => kind === 'power' ? 5.5 : 4.6;
   function attack(kind){
     if(R.grabbedBy || R.act === 'hurt' || R.act === 'dodge' || R.act === 'vault' || R.act === 'wall') return false;
     if(R.act && R.act !== 'idle'){ const m = MOVE[R.move]; if(m && R.t < R.len*m.free){ R.buffer = kind; return false; } }
+    // who: the one a lesson is about, else the one you are aiming at, else whoever is close in front of her
+    const t = (R.forceTarget && standing(R.forceTarget)) ? R.forceTarget : (aimTarget() || pickTarget(name0(kind), 1.6));
     let name = kind;
-    // the chain: the next link if the last one was in time, else a fresh jab
-    if(kind === 'punch'){ if(R.chainT > 0 && R.chain > 0 && R.chain < CHAIN.length){ name = CHAIN[R.chain]; R.chain++; } else { name = 'jab'; R.chain = 1; } R.chainT = 1.1; }
+    if(kind === 'punch'){ name = choose(t); R.chainT = 1.1; }
     const m = MOVE[name];
-    const t = (R.forceTarget && standing(R.forceTarget)) ? R.forceTarget : pickTarget(name === 'power' ? 5.5 : 4.6, 1.6);
-    R.act = 'attack'; R.move = name; R.t = 0; R.target = t; R.landed = false;
+    R.act = 'attack'; R.move = name; R.lastMove = name; R.t = 0; R.target = t; R.landed = false;
     R.len = robinClip(m.clip, true) || 0.6;
     if(t){
       const p = P(), d = Math.hypot(t.x - p.x, t.z - p.z), a = angTo(p.x, p.z, t.x, t.z);
       R.face = a;
+      if(name === 'zip'){
+        // across the alley at him, feet first, landing on him as the kick lands
+        const go = Math.max(0, d - 1.3);
+        R.dash = { x0:p.x, z0:p.z, x1:p.x + Math.sin(a)*go, z1:p.z + Math.cos(a)*go, t:0, len:R.len*m.hit, arc:0.9 };
+        R.iframe = Math.max(R.iframe, R.len*m.hit); slowFor(0.4, 0.35);
+      }
       // close the gap: a step, or a lunge if he is a few metres off
-      if(d > m.reach - 0.3){ const go = Math.min(d - (m.reach - 0.55), 3.8); R.dash = { x0:p.x, z0:p.z, x1:p.x + Math.sin(a)*go, z1:p.z + Math.cos(a)*go, t:0, len:clamp(go*0.06, 0.08, 0.22) }; }
+      else if(d > m.reach - 0.3){ const go = Math.min(d - (m.reach - 0.55), 3.8); R.dash = { x0:p.x, z0:p.z, x1:p.x + Math.sin(a)*go, z1:p.z + Math.cos(a)*go, t:0, len:clamp(go*0.06, 0.08, 0.22) }; }
     }
     ctx.cue(name === 'power' ? 'boom' : 'swish');
     return true;
@@ -237,7 +317,7 @@ window.TSHFIGHT = (function(){
   function pull(){
     if(R.grabbedBy || (R.act && R.act !== 'idle')) return false;
     if(R.pullCd > 0){ ctx.note('🦎 The gauntlet needs a second.', 'warn'); return false; }
-    const t = (R.forceTarget && standing(R.forceTarget)) ? R.forceTarget : pickTarget(15, 0.6) || pickTarget(15, 3.2);
+    const t = (R.forceTarget && standing(R.forceTarget)) ? R.forceTarget : aimTarget() || pickTarget(15, 0.6) || pickTarget(15, 3.2);
     if(!t){ ctx.note('🦎 Nobody in reach of the line.', 'warn'); return false; }
     const p = P();
     R.pullCd = 1.6; R.act = 'pull'; R.t = 0; R.len = 0.55; R.face = angTo(p.x, p.z, t.x, t.z);
@@ -253,11 +333,22 @@ window.TSHFIGHT = (function(){
 
   /* the blow lands (or does not) */
   function land(){
-    const m = MOVE[R.move], t = R.target; R.landed = true;
+    const m = MOVE[R.move]; R.landed = true;
     const p = P();
+    // a kick round in a circle, or a sweep along the ground, takes everyone in reach
+    if(m.area){
+      const all = alive().filter(e=>Math.hypot(e.x - p.x, e.z - p.z) <= m.reach + 0.3);
+      if(!all.length){ ctx.cue('swish'); return; }
+      ring(V(p.x, p.y + (R.move === 'sweep' ? 0.12 : 0.9), p.z), m.reach + 0.4, 0xffffff, 0.3, true);
+      all.forEach(e=>landOn(e, m, p)); return;
+    }
+    const t = R.target;
     if(!t || !standing(t)){ return; }
     const d = Math.hypot(t.x - p.x, t.z - p.z);
     if(d > m.reach + 0.45) { ctx.cue('swish'); return; }
+    landOn(t, m, p);
+  }
+  function landOn(t, m, p){
     // the one a lesson is about turns her punches aside until that lesson has happened: you learn the move, not skip it
     if(t.guard && t.guard()){ spark(V(lerp(p.x, t.x, 0.6), p.y + 1.4, lerp(p.z, t.z, 0.6)), 0xffe0a0, 5); ctx.cue('clang'); shake(0.05, 0.1);
       if(t.state !== 'windup'){ t.state = 'stagger'; t.t = 0.3; t.vx = t.vz = 0; hit1(t, 'block'); } return; }
@@ -269,7 +360,7 @@ window.TSHFIGHT = (function(){
     spark(at, R.move === 'power' ? 0x9ff6ff : 0xffffff, R.move === 'power' ? 22 : 9);
     ctx.cue(m.fly ? 'boom' : 'punch');
     const big = m.fly || m.down || t.hp <= 0;
-    hitstop(big ? 0.11 : 0.055); shake(m.shake * (t.hp <= 0 ? 1.4 : 1), big ? 0.32 : 0.16);
+    hitstop(big ? 0.11 : 0.055); shake(m.shake * (t.hp <= 0 ? 1.4 : 1), big ? 0.32 : 0.16); camPunch(big ? 1 : 0.45);
     if(m.fly){ let ta = a;
       // toward the car, if it is close to where she is hitting him anyway
       if(ctx.car){ const ca = angTo(t.x, t.z, ctx.car.x, ctx.car.z); if(Math.abs(angDiff(ca, a)) < 1.1 && Math.hypot(ctx.car.x - t.x, ctx.car.z - t.z) < 11) ta = ca; }
@@ -544,15 +635,29 @@ window.TSHFIGHT = (function(){
      speck), and high, looking down on her: from shoulder height the man circling behind her stands
      between the lens and her, and from three metres the line to her passes over his head. Kept in the
      middle of the alley, clear of the lanterns on its walls, and under its canopy. */
-  let camOn = false;
+  /* It keeps her and the one she is on in the picture together: the further off he is, the further back
+     it sits, and it looks between the two of them. A hit pushes it in for an instant (a narrower lens). */
+  let camOn = false, baseFov = 70;
+  const cam = { pull:0, look:null, punch:0 };
+  function camPunch(k){ cam.punch = Math.max(cam.punch, k); }
   function fightCam(real){
     const yaw = G.yaw, pitch = G.pitch || 0, feet = G.pos.y - EYE;
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-    const back = 3.7, side = 0.4, up = clamp(3.1 - Math.sin(pitch)*1.2, 2.4, 3.8);
+    const t = R.act === 'attack' && R.target && standing(R.target) ? R.target : (R.aim && standing(R.aim) ? R.aim : null);
+    const td = t ? Math.hypot(t.x - G.pos.x, t.z - G.pos.z) : 0;
+    cam.pull = lerp(cam.pull, t ? clamp((td - 2)*0.35, 0, 1.6) : 0, 1 - Math.exp(-real*3));
+    const back = 3.7 + cam.pull, side = 0.4, up = clamp(3.1 - Math.sin(pitch)*1.2, 2.4, 3.8) + cam.pull*0.35;
     const want = V(G.pos.x - fx*back + rx*side, feet + up, G.pos.z - fz*back + rz*side);
     want.x = clamp(want.x, ARENA.x1 + 0.6, ARENA.x2 - 0.6);
-    if(!camOn){ G.camera.position.copy(want); camOn = true; } else G.camera.position.lerp(want, 1 - Math.exp(-real*10));
-    G.camera.lookAt(G.pos.x + fx*2.2 + rx*0.2, feet + 0.95 + Math.sin(pitch)*2.2, G.pos.z + fz*2.2 + rz*0.2);
+    if(!camOn){ G.camera.position.copy(want); camOn = true; cam.look = null; } else G.camera.position.lerp(want, 1 - Math.exp(-real*10));
+    // between her and him, a little nearer her; straight ahead of her when nobody is marked
+    const ahead = V(G.pos.x + fx*2.2 + rx*0.2, feet + 0.95 + Math.sin(pitch)*2.2, G.pos.z + fz*2.2 + rz*0.2);
+    const look = t ? V(lerp(G.pos.x, t.x, 0.42), feet + 1.05 + Math.sin(pitch)*1.4, lerp(G.pos.z, t.z, 0.42)).lerp(ahead, 0.3) : ahead;
+    if(!cam.look) cam.look = look.clone(); else cam.look.lerp(look, 1 - Math.exp(-real*8));
+    G.camera.lookAt(cam.look);
+    cam.punch = Math.max(0, cam.punch - real*5);
+    const fov = baseFov - 7*Math.sin(Math.min(1, cam.punch)*Math.PI/2);
+    if(Math.abs(G.camera.fov - fov) > 0.05){ G.camera.fov = fov; G.camera.updateProjectionMatrix(); }
   }
   function red(k){ const r = overlay().querySelector('.tshf-red'); r.style.transition = 'none'; r.style.opacity = k; void r.offsetWidth; r.style.transition = 'opacity .5s'; r.style.opacity = 0; }
 
@@ -563,7 +668,7 @@ window.TSHFIGHT = (function(){
     el.innerHTML = `<div class="tshf-red"></div><div class="tshf-hp"><i></i></div><div class="tshf-combo"></div>
       <div class="tshf-prompt"><kbd></kbd><b></b><small></small></div>
       <div class="tshf-keys">
-        <span><kbd>CLICK</kbd>punch</span><span><kbd>HOLD</kbd>power</span><span><kbd>G</kbd>pull</span>
+        <span><kbd>MOUSE</kbd>aim</span><span><kbd>CLICK</kbd>strike</span><span><kbd>HOLD</kbd>power</span><span><kbd>G</kbd>pull</span>
         <span><kbd>SPACE</kbd>dodge</span><span><kbd>R</kbd>parry</span><span><kbd>F</kbd>pulse</span></div>`;
     (ctx.root || document.body).appendChild(el);
     return el;
@@ -712,7 +817,7 @@ window.TSHFIGHT = (function(){
   /* the fight itself, with the crew where the film left them */
   function start(c){
     if(!ready) cast(c); else Object.assign(ctx, c);
-    on = true; camOn = false;
+    on = true; camOn = false; baseFov = G.camera ? G.camera.fov : 70; cam.punch = 0; cam.pull = 0; R.aim = null;
     resetRobin();
     dir = { i:0, t:0, free:false, showKeys:false };
     overlay().classList.add('on');
@@ -727,6 +832,8 @@ window.TSHFIGHT = (function(){
     on = false; listen(false);
     if(el){ el.classList.remove('on'); prompt(null); }
     E.forEach(tellOff);
+    if(mark && mark.parent) mark.parent.remove(mark);
+    if(G.camera && camOn){ G.camera.fov = baseFov; G.camera.updateProjectionMatrix(); } camOn = false;
     G.timeScale = 1; ramp.to = 1; stopT = 0; slowTimer = 0;
     input.held = false; input.charging = false;
     if(window.AVATAR) AVATAR.posture(null);
@@ -774,9 +881,10 @@ window.TSHFIGHT = (function(){
     }
     if(!R.act || R.act === 'idle'){
       const moved = walkRobin(dt);
-      if(!moved){ const t = pickTarget(5); if(t) R.face = turnTo(R.face, angTo(G.pos.x, G.pos.z, t.x, t.z), dt*6); robinClip(input.charging ? 'fight' : 'fight'); }
+      if(!moved){ const t = (R.aim && standing(R.aim) && dist(R.aim) < 5) ? R.aim : pickTarget(5); if(t) R.face = turnTo(R.face, angTo(G.pos.x, G.pos.z, t.x, t.z), dt*6); robinClip(input.charging ? 'fight' : 'fight'); }
     }
     if(window.AVATAR){ AVATAR.update(dt, false, false, true); if(AVATAR.body) AVATAR.body.rotation.y = R.face; }
+    aimTarget(); tickMark(real);
     fightCam(real);
     // them, the effects, the lesson
     tickCrew(dt);
@@ -830,5 +938,5 @@ window.TSHFIGHT = (function(){
 
   return { cast, pose, start, stop, clear, tick, key, play, hit1, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
            /* for tests and the console */
-           _E:()=>E, _R:()=>R, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
+           _E:()=>E, _R:()=>R, _aim:aimTarget, _choose:choose, _stepTo:stepTo, STRINGS, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
 })();
