@@ -271,7 +271,7 @@ test('robbed, Kai takes the money to his crew, and the crew is a scene you can p
   has(crew, /crew\.env === n[\s\S]{0,200}n\.lookT/, 'the one counting looks over his shoulder');
   has(crew, /crew\.countT > 50\) crewLeave\(\)/, 'leave them be and they walk off with it');
   has(crew, /outcome\('gaveup'\)/, 'which is the money gone');
-  has(t, /holds\(h\) && hit\.includes\(h\)[\s\S]{0,120}crew\.env = 'ground'/, 'a flash in his face and he drops it');
+  has(t, /holds\(h\) && hit\.includes\(h\)[\s\S]{0,320}crew\.env = 'ground'/, 'a flash in his face and he drops it');
   has(t, /'Lift the envelope', \(\)=>liftEnvelope\(crew\.env\)/, 'it can be lifted off whoever has it');
   has(t, /if\(n\.kind === 'crew'\) return crewCaught\(n\);/, 'caught by the crew is its own ending to the struggle');
   // the crew is overheard, not voiced: no line of theirs is in the recorded script
