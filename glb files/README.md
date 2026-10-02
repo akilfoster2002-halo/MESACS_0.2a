@@ -97,6 +97,24 @@ The roster cards (`character-<id>.png`, 256×328) are cut from the same art,
 head to thigh. `godot --path koro-godot res://tools/cast.tscn -- out.png [clip]`
 renders all five side by side in the game's own light.
 
+## TSH's fight: the buyer's crew, Robin's moves, the car
+
+Dragon Alley's buyer and his crew are three more Higgsfield bodies (Meshy 7,
+auto-rigged): `cast/thug-buyer-raw.glb`, `thug-a` (the big one) and `thug-b`
+(the lean one). `sh cast/build-thug.sh <buyer|a|b>` retargets the walk-and-talk
+set plus the Mixamo fight clips in `rig/fight` (guard, jab, cross, hook, kick,
+block, hit, stagger, fall, get up, KO) onto each, with smaller maps and fewer
+triangles than Robin's, since they are extras.
+
+Robin's own moves are a separate file: `sh cast/build-robin-fight.sh` puts
+twenty fight clips on her skeleton and keeps only the clips
+(`clips-only.js`), so the fight adds them to the body she already has and
+no other room downloads them.
+
+The parked car the fight throws a man into is a Higgsfield SAM 3D model
+(`props/car-raw.glb`, gitignored): welded, its texture resized to 1024 and
+converted to WebP, then quantized into `public/tsh/alley/car.glb`.
+
 ## The tools
 
 | | |

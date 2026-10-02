@@ -167,6 +167,31 @@
     return { buried:gcount ? Math.round(buried/gcount*1000) : 0, skin:skinIn(sm, gs), shot:R.domElement.toDataURL('image/jpeg', 0.85), clips:clips.length, frames:frames.length, holes:{ worst:wh.holesK, at:wh.clip + '@' + wh.f }, poke:{ worst:wp.pokeK, at:wp.clip + '@' + wp.f, n:wp.poke + '/' + wp.close }, doubled:{ worst:wd.dblK, at:wd.clip + '@' + wd.f },
       mean:{ holes:+(frames.reduce((a, f)=>a + f.holesK, 0)/frames.length).toFixed(2), poke:+(frames.reduce((a, f)=>a + f.pokeK, 0)/frames.length).toFixed(2) } };
   };
+  /* A SHEET OF MOVES: one body, clips from a moves file added to its rig, each at a moment, in a grid */
+  window.TRY.moves = async function(body, url, names, frac, slots){
+    const m = await AVATAR.load(body); S.add(m);
+    const rig = m.userData.rig;
+    if(url){ const g = await new Promise((ok, no)=>new THREE.GLTFLoader().load(url, ok, undefined, no)); rig.add(g.animations, { once:names }); }
+    if(slots) await WARDROBE.put(m, body, slots);
+    const n = names.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols), w = Math.floor(1024/cols), h = Math.floor(1024/rows);
+    R.setClearColor(0xc8ccd0, 1); R.setViewport(0, 0, 1024, 1024); R.setScissor(0, 0, 1024, 1024); R.clear();
+    const out = [];
+    for(let i=0;i<n;i++){
+      const name = names[i];
+      if(!rig.has(name)){ out.push(name + ':missing'); continue; }
+      rig.restart(name, 0); rig.update(0);
+      const len = rig.seconds(name);
+      rig.update(Math.max(0.001, len*(Array.isArray(frac) ? frac[i] : frac)));
+      m.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3());
+      const cam = new THREE.PerspectiveCamera(30, w/h, 0.05, 50); cam.position.set(c.x + 2.6, c.y + 0.6, c.z + 3.6); cam.lookAt(c.x, c.y, c.z);
+      const x = (i % cols)*w, y = 1024 - (Math.floor(i/cols) + 1)*h;
+      R.setViewport(x, y, w, h); R.setScissor(x, y, w, h); R.render(S, cam);
+      out.push(name + ':' + len.toFixed(2));
+    }
+    S.remove(m);
+    return { shot:R.domElement.toDataURL('image/jpeg', 0.85), clips:out };
+  };
   window.TRY.vertexColours = vertexColours;
   window.TRY.ready = true;
 })();

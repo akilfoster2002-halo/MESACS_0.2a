@@ -112,7 +112,15 @@ window.AVATAR = (function(){
        Same reason — their letters resolve to the new cast. */
     ...['s','t','u','v','x'].map(c=>({ id:'walk-'+c, name:'Passer-by',
       model:`characters/models/character-${c}.glb`+V(),
-      preview:`characters/previews/character-${c}.png`+V() }))
+      preview:`characters/previews/character-${c}.png`+V() })),
+    /* THE BUYER AND HIS CREW, in Dragon Alley (TSH's fight, tshfight.js): extras,
+       never on the roster, each with his own height — a big man is bigger. */
+    { id:'thug-buyer', name:'The buyer', tall:1.84,
+      model:'characters/models/character-thug-buyer.glb'+V(), preview:'characters/previews/character-thug-buyer.png'+V() },
+    { id:'thug-a', name:'Thug', tall:1.97,
+      model:'characters/models/character-thug-a.glb'+V(), preview:'characters/previews/character-thug-a.png'+V() },
+    { id:'thug-b', name:'Thug', tall:1.81,
+      model:'characters/models/character-thug-b.glb'+V(), preview:'characters/previews/character-thug-b.png'+V() }
   ];
   const BODIES = CHARS.concat(CAST_ONLY.map(c=>({
     id:c, name:CAST_NAMES[c] || ('Character '+c.toUpperCase()),
@@ -171,7 +179,7 @@ window.AVATAR = (function(){
        model that arrives a hundredth of a unit tall — which is exactly
        what comes back from FBX — fell under it, was left unscaled, and
        rendered as an invisible speck with no error anywhere. */
-    if(h > 1e-6) root.scale.setScalar(TALL / h);
+    if(h > 1e-6) root.scale.setScalar((bodyDef(id).tall || TALL) / h);     // (a body may have its own height: a big man is bigger)
     else console.warn('character has no height, cannot scale:', id);
     root.userData.rig = rig(root, g.animations||[]);
     return root;
@@ -341,6 +349,10 @@ window.AVATAR = (function(){
     }
     const mixer=new THREE.AnimationMixer(root);
     let cur=null, curName=null;
+    /* MOVES, NOT STATES. A punch is played once and holds its last frame
+       (`once`), at its own speed (`speed`); clips added at run time — a
+       fight's moves, loaded only by the scene that fights — go in with them. */
+    const once=new Set(), speed={};
 
     /* EIGHT DIRECTIONS FROM FOUR CLIPS A GAIT. The keys move you forward,
        back and sideways, and a body that only knows how to walk forward
@@ -447,6 +459,8 @@ window.AVATAR = (function(){
         const clip=clips.find(c=>c.name===name);
         if(!clip) return;
         const next=mixer.clipAction(clip);
+        if(once.has(name)){ next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished=true; }
+        next.timeScale=speed[name]||1;
         next.reset().setEffectiveWeight(1).fadeIn(fade===undefined?0.18:fade).play();
         if(cur) cur.fadeOut(fade===undefined?0.18:fade);
         cur=next; curName=name;
@@ -460,7 +474,42 @@ window.AVATAR = (function(){
       /* An emote can only be offered by a character who actually has one,
          and it has to know how long to hold before handing control back. */
       has(name){ return clips.some(c=>c.name===name); },
-      seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration:0; }
+      seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration/(speed[name]||1):0; },
+      /* more clips, from another file on the same skeleton; `o.once` the ones that are moves, `o.speed` their rates */
+      add(list, o){
+        (list||[]).forEach(c=>{ if(!clips.some(x=>x.name===c.name)) clips.push(c); });
+        ((o&&o.once)||[]).forEach(n=>once.add(n));
+        Object.assign(speed, (o&&o.speed)||{});
+      },
+      /* THE BODY HELD STANDING while `fn` measures it, then put back exactly as it was. What is hung on
+         a bone (shades on the head, a pack on the back) is fitted against where that bone is NOW; fitted
+         mid-clip — her head bowed over her hands, a fall, a kneel — the shades go on square to a bowed
+         head and sit on her forehead once she looks up. So they are fitted in the first frame of `name`
+         (idle: standing, looking ahead), the frame the wardrobe's own checks use. */
+      posed(name, fn){
+        const clip=clips.find(c=>c.name===name); if(!clip) return fn();
+        const saved=[]; root.traverse(o=>{ if(o.isBone) saved.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
+        const m=new THREE.AnimationMixer(root), a=m.clipAction(clip);
+        a.play(); m.update(0); root.updateMatrixWorld(true);
+        try{ return fn(); }
+        finally{ a.stop(); m.uncacheRoot(root);
+          saved.forEach(([o, p, q, sc])=>{ o.position.copy(p); o.quaternion.copy(q); o.scale.copy(sc); }); root.updateMatrixWorld(true); }
+      },
+      /* the same move again from its first frame (a second jab is not the first one held) */
+      restart(name, fade){
+        const clip=clips.find(c=>c.name===name); if(!clip) return 0;
+        loco.on=false;
+        const a=mixer.clipAction(clip);
+        if(once.has(name)){ a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished=true; }
+        a.timeScale=speed[name]||1;
+        a.reset().setEffectiveWeight(1).fadeIn(fade===undefined?0.08:fade).play();
+        if(cur && cur!==a) cur.fadeOut(fade===undefined?0.08:fade);
+        cur=a; curName=name;
+        return clip.duration/(a.timeScale||1);
+      },
+      /* how far through the clip now playing, 0..1 */
+      get progress(){ if(!cur) return 0; const d=cur.getClip().duration||1; return Math.min(1, cur.time/d); },
+      get current(){ return curName; }
     };
   }
   /* KEEP BREATHING WHILE THE WORLD IS HELD STILL. Whatever normally drives

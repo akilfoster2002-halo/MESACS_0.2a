@@ -60,14 +60,8 @@ test('the city hands the camera its lid and its lens, and TSH uses both', () => 
   has(t, /function render\(dt\)\{[\s\S]{0,120}chaseCam\(dt\)/, 'the lens check runs after game.js has placed the camera');
 });
 
-test('the deal and the flat are conversations you play, not subtitles on a timer', () => {
+test('the flat is a conversation you play, not subtitles on a timer', () => {
   const t = read('public/tsh.js');
-  const deal = t.slice(t.indexOf('function dealBegin('), t.indexOf('function tickDeal('));
-  has(deal, /convo\(\[/, 'the deal is a conversation');
-  assert.ok((deal.match(/\{ ask:/g) || []).length >= 3, 'Robin decides at least three things at the deal');
-  has(deal, /Show him the rings/, 'the rings-first choice is offered');
-  has(deal, /Keep the rings/, 'the run-with-the-money choice is offered');
-  hasNot(deal, /talk\('deal/, 'the deal must not fall back to timed subtitles');
   const flat = t.slice(t.indexOf('function startConversation('), t.indexOf('function aptMoves('));
   has(flat, /convo\(\[/, 'Maya\'s pitch is a conversation');
   has(t, /function aptMoves\(\)[\s\S]{0,900}Lunge for the light switch[\s\S]{0,400}Go for the window[\s\S]{0,400}Flash her/, 'Robin can act instead of answering');
@@ -213,20 +207,21 @@ test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
 test('the storyboard plays every scene in order, and only once', () => {
   const A = rules();
   const ids = A.STORY.map(s=>s.id);
-  assert.deepEqual(ids.slice(0, 7), ['wake', 'lesson', 'deal', 'drop', 'news', 'roof', 'voicemail']);
+  assert.deepEqual(ids.slice(0, 7), ['wake', 'lesson', 'deal', 'news', 'roof', 'voicemail', 'maya']);
   A.STORY.forEach(s=>{ assert.ok(s.on, s.id + ' says what sets it off'); (s.after||[]).forEach(a=>assert.ok(ids.indexOf(a) < ids.indexOf(s.id), s.id + ' comes after ' + a)); });
   assert.equal(A.ready([], 'news'), false, 'no broadcast before the deal');
   const O = ['wake', 'lesson'];
   assert.equal(A.ready(O, 'news'), false);
   assert.equal(A.ready([], 'lesson'), false, 'no lesson before the window');
-  assert.equal(A.ready(O.concat('drop'), 'news'), true, 'the dead drop counts as the deal');
+  assert.equal(A.ready(O.concat('deal'), 'news'), true, 'the fight in the alley, then the street');
   assert.equal(A.ready(O.concat('deal', 'news'), 'news'), false, 'a scene plays once');
   assert.equal(A.ready(O.concat('deal'), 'voicemail'), false, 'home comes after the roof');
   assert.equal(A.ready(O.concat('deal', 'news', 'roof'), 'maya'), false, 'Maya waits for the voicemail');
-  assert.equal(A.next('deal', 'paid'), 'news', 'after the deal, the street');
+  assert.equal(A.next('deal', 'fought'), 'news', 'after the fight, the street');
+  assert.equal(A.next('deal', 'paid'), 'deal', 'there is no paying: the buyer never meant to');
   assert.equal(A.next('news', 'watched'), 'home');
   assert.equal(A.next('news', 'home'), 'news', 'you do not get home without passing the screens');
-  assert.equal(A.next('drop', 'home'), 'drop', 'nor from the dead drop');
+  assert.equal(A.CHECKPOINT.drop, 'deal', 'a night saved in the old dead drop is back at the deal');
   assert.deepEqual(A.seenBefore('home'), ['wake', 'lesson', 'deal', 'news', 'roof'], 'an old save picks up where it was');
 });
 
@@ -260,4 +255,100 @@ test('every line spoken in the night has a recording, in the voice of who says i
   const vk = new Function('who', 'text', m[1]);
   ['Hi, Mom.', 'She\'s… on a delivery truck. Doing laps.', 'Kai — the window!'].forEach(s=>assert.equal(vk('maya', s), vkey('maya', s)));
   hasNot(JSON.stringify(all.map(l=>l.text)), /📱/, 'texts are read, not heard');
+});
+
+/* ------------------------------------------------------ Dragon Alley
+   The deal is a fight now: the buyer (not Kai — Kai is not seen yet) does
+   not pay, and his crew comes out of the alley. A film as the night
+   opened, then the gauntlets taught a move at a time in slow motion,
+   every hit landing with a jolt; then a film out. */
+function fight(){
+  const ctx = vm.createContext({ Math, console });
+  ctx.window = ctx; ctx.THREE = { Vector3:function(){} }; ctx.G = { keys:{}, pos:{} };
+  vm.runInContext(read('public/tshfight.js'), ctx, { filename:'tshfight.js' });
+  return ctx.TSHFIGHT;
+}
+
+test('Kai is not in the alley: the buyer is somebody else, with a crew', () => {
+  const t = read('public/tsh.js');
+  hasNot(t, /function dealBegin\(|function kaiSchedule\(|function leaveInMailbox\(/, 'the Kai deal is gone');
+  const story = t.slice(t.indexOf('const LINES = {'), t.indexOf('const WHO = {'));
+  const alley = story.slice(story.indexOf('fightIn1'), story.indexOf('fightOut5'));
+  hasNot(alley, /\['kai'/, 'Kai says nothing in Dragon Alley');
+  has(t, /dealer:\['THE BUYER'/, 'the buyer has a name card of his own');
+  has(t, /if\(S\.step === 'deal' \|\| S\.step === 'lesson'\) crewCast\(\);/, 'his crew is in the alley from the start of the beat');
+  has(t, /scene\('deal', fightIntro\)/, 'walking up to him starts the film');
+  ['character-thug-buyer.glb', 'character-thug-a.glb', 'character-thug-b.glb'].forEach(f => assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'characters', 'models', f)), f));
+  const a = read('public/avatar.js');
+  ['thug-buyer', 'thug-a', 'thug-b'].forEach(id => has(a, new RegExp("id:'" + id + "'"), id + ' is a body avatar.js can load'));
+});
+
+test('the alley scene is told the way the night opened: a film, then yours, then a film', () => {
+  const t = read('public/tsh.js');
+  const intro = t.slice(t.indexOf('function fightIntro('), t.indexOf('function fightBegin('));
+  // the script, in order
+  const beats = ["caption('EXT. DRAGON ALLEY", "talk('fightIn1')", "talk('fightIn2')", "cue('sus')", "talk('fightIn3')", "talk('fightIn4')", "fprop.bagOn = t1",
+                 "talk('fightIn5')", "fprop.bagOn = buyer", "cue('hurt')", "talk('fightIn6')", 'pack:false', "talk('fightIn7')", 'cuffGlow(true)'];
+  beats.forEach((k, i) => { assert.ok(intro.includes(k), 'the film has ' + k); if(i) assert.ok(intro.indexOf(beats[i - 1]) < intro.indexOf(k), beats[i - 1] + ' comes before ' + k); });
+  has(intro, /playReel\(shots, \(\)=>fightBegin\(/, 'a film (ENTER skips it), and the fight after it, skipped or not');
+  const outro = t.slice(t.indexOf('function fightOutro('), t.indexOf('function wireQuestThings('));
+  const after = ["fprop.bagOn = 'robin'", "talk('fightOut1')", "talk('fightOut2')", "talk('fightOut3')", 'me.kit = null', "phoneBig('text')", "talk('fightText')",
+                 "talk('fightOut4')", "talk('fightOut5')", "phoneBig('reply')", "outcome('fought')"];
+  after.forEach((k, i) => { assert.ok(outro.includes(k), 'the film after has ' + k); if(i) assert.ok(outro.indexOf(after[i - 1]) < outro.indexOf(k), after[i - 1] + ' comes before ' + k); });
+  has(t, /case 'fight': tickFight\(dt\); break;/, 'the fight runs in the frame');
+  has(t, /if\(mode === 'fight'\)\{[\s\S]{0,120}TSHFIGHT\.key\(e\)/, 'and has the keys');
+  has(t, /enabled:\(\)=>!inside && mode !== 'fight'/, 'the shoes stay out of it');
+  has(t, /if\(path\.includes\('fought'\)\) lines = lines\.concat\(LINES\.roofFought\)/, 'and the roof knows what happened in the alley');
+  const i = read('public/index.html');
+  assert.ok(i.indexOf('tshfight.js') > 0 && i.indexOf('tshfight.js') < i.indexOf('src="tsh.js'), 'the fight loads before TSH');
+});
+
+test('the fight teaches the gauntlets in the order the crew comes at her', () => {
+  const F = fight();
+  assert.deepEqual([...F.STEPS.map(s=>s.id)], ['attack', 'dodge', 'combo', 'break', 'parry', 'more', 'pull', 'free', 'regret', 'last']);
+  F.STEPS.filter(s=>s.title).forEach(s => assert.ok(s.how.length > 20, s.id + ' says what to press'));
+  const src = read('public/tshfight.js');
+  // the gauntlet's two moves: the power punch (hold, let go) and the pull, like a line cast out
+  assert.ok(F.MOVE.power.fly > F.MOVE.kick.push*4 && F.MOVE.power.dmg >= 4, 'the power punch throws a man');
+  has(src, /input\.heldT > 0\.38/, 'holding the punch charges it');
+  has(src, /t\.state = 'pulled'/, 'the pull drags him in');
+  has(src, /function tether\(e\)/, 'and you can see the line');
+  assert.deepEqual([...F.CHAIN], ['jab', 'cross', 'hook', 'kick'], 'four clicks: jab, cross, hook, kick');
+  // the robin clips the moves ask for are in her fight file or on her body
+  const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
+  const hers = clips('characters/fight/robin.glb').concat(clips('characters/models/character-robin.glb'));
+  Object.values(F.MOVE).forEach(m => assert.ok(hers.includes(m.clip), 'Robin has no ' + m.clip + ' clip'));
+  ['dodge', 'block', 'hit', 'fall', 'fight', 'flip', 'jump', 'stagger'].forEach(n => assert.ok(hers.includes(n), 'Robin has no ' + n + ' clip'));
+  const theirs = clips('characters/models/character-thug-a.glb');
+  ['fight', 'jab', 'cross', 'hook', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'walk_left', 'walk_back'].forEach(n => assert.ok(theirs.includes(n), 'the crew has no ' + n + ' clip'));
+  // every line the fight says is in the script
+  const t = read('public/tsh.js');
+  (src.match(/say\('(\w+)'/g) || []).concat((src.match(/after:'(\w+)'/g) || [])).forEach(m => { const k = m.match(/'(\w+)'/)[1]; assert.ok(t.includes('    ' + k + ':'), 'LINES has ' + k); });
+});
+
+test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
+  const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
+  has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');
+  has(src, /function freeze\([\s\S]{0,600}slowTo\(0\.0\d+/, 'a lesson drops the world to a crawl until the key');
+  has(src, /function unfreeze\(\)\{[\s\S]{0,200}slowTo\(0\.25/, 'and ramps back up through slow motion as the move lands');
+  has(src, /function land\(\)\{[\s\S]{0,1200}hitstop\([\s\S]{0,40}shake\(/, 'a hit stops time for an instant and shakes the picture');
+  has(src, /function hurt\([\s\S]{0,600}shake\(/, 'and so does being hit');
+  has(t, /function render\(dt\)\{[\s\S]{0,400}shk\.len > 0/, 'the shake is drawn');
+  has(t, /G\.timeScale = 1; shk\.len = 0;/, 'leaving the city puts time back to normal');
+  has(src, /const now = fx; fx = \[\];[\s\S]{0,300}fx = live\.concat\(fx\);/, 'sparks thrown off while effects run are kept and faded, not left hanging in the air');
+  has(src, /if\(!held\) e\.t \+= dt;/, 'the swing a lesson is frozen on hangs there until the key');
+  has(src, /function clearFor\(want\)/, 'and the key it asks for always works, whatever she was doing');
+  has(src, /dodged:R\.sinceDodge < 0\.9/, 'a swing at where she just was counts as dodged');
+  const F = fight();
+  F.STEPS.slice(0, 5).forEach(s => assert.ok(/freeze\(/.test(s.enter.toString() + JSON.stringify(Object.keys(s.on || {})) + Object.values(s.on || {}).map(f=>f.toString()).join('')), s.id + ' is taught in a freeze'));
+});
+
+test('the car in Dragon Alley is a Higgsfield model, and something to throw a man into', () => {
+  const c = read('public/tshcity.js');
+  const f = path.join(__dirname, '..', 'public', 'tsh', 'alley', 'car.glb');
+  assert.ok(fs.existsSync(f) && fs.statSync(f).size < 400000, 'tsh/alley/car.glb, small');
+  has(c, /function parkedCar\(/);
+  has(c, /mt\.metalness = 0\.15/, 'SAM\'s fully-metal default is undone');
+  has(c, /solid\(car\.x1, car\.x2, car\.z1, car\.z2/, 'you cannot walk through it');
+  has(read('public/tsh.js'), /car:W\.car/, 'the fight knows where it is');
 });

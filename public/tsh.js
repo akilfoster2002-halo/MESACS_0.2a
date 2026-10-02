@@ -60,14 +60,6 @@ window.TSH = (function(){
      his. `who` picks the colour and the name on the subtitle. */
   const LINES = {
     open:      [['robin','Let\'s go.']],
-    deal1:     [['kai','YU?'], ['robin','Spell it out.'], ['kai','Y, U.'], ['robin','Cash first.'], ['kai','Show me the merchandise.']],
-    deal2:     [['robin','I said. Money first.'], ['kai','I\'d change that attitude.'], ['robin','Not making friends here, are we?'], ['kai','A word of advice.']],
-    deal3:     [['kai','Shades and hoodies won\'t hide you forever.'], ['robin','Yeah, yeah. Thank you for your business.']],
-    deal3Bare: [['kai','No shades. No hood. Bold.'], ['kai','Faces get remembered, kid.'], ['robin','Yeah, yeah. Thank you for your business.']],
-    handed:    [['kai','Pleasure doing business.'], ['robin','Hey — the money!'], ['kai','Call it tuition.']],
-    walkoff:   [['kai','Hey! Where do you think you\'re going?']],
-    dropSent:  [['robin','📱 Mailbox. Dragon Alley. Rings inside. Leave the cash.']],
-    dropReply: [['kai','📱 Fine.']],
     news:      [['mom','Those who\'ve doubted us have been proven wrong.'],
                 ['mom','Security operations conducted by WFC have suppressed the violence plaguing parts of our city.'],
                 ['mom','With illicit wearable weaponry now off the streets,'],
@@ -83,6 +75,8 @@ window.TSH = (function(){
                 ['maya','Put it on.'], ['maya','Minimal force, and only on my mark. Are we clear?']],
     roofStiffed:[['maya','The merchandise.'], ['kai','She took the cash. And kept the rings.'], ['maya','…I like her more every minute.']],
     roofNoShow:[['kai','She never showed.'], ['maya','Then we go to her.']],
+    roofFought:[['kai','Six of them. She put six of them on the ground.'], ['maya','You sent a crew after a kid?'], ['kai','I wanted to see what she could do.'],
+                ['maya','Now you have. Next time, pay her.']],
     roofScout: [['maya','She looked right at me, you know. Earlier.']],
     trkOn:     [['maya','There you are.']],
     trkPlanted:[['maya','She\'s… on a delivery truck. Doing laps.'], ['kai','Clever.'], ['maya','Very.']],
@@ -134,9 +128,32 @@ window.TSH = (function(){
     chairCall: [['maya','(on the stairs) …no. She\'s thinking about it.'], ['maya','(on the stairs) Give her a minute.']],
     laugh:     [['robin','(laughs)']],
     /* THE OPENING'S CALL: the buyer, on the phone, and Robin half asleep */
-    call:      [['buyer','Hey. You got my order?'], ['robin','Yeah. It\'s ready.']]
+    call:      [['buyer','Hey. You got my order?'], ['robin','Yeah. It\'s ready.']],
+    /* DRAGON ALLEY: the buyer does not pay, and his crew comes out of the alley (the fight, tshfight.js) */
+    fightIn1:  [['dealer','You got the stuff?'], ['robin','Yeah. You got the money?']],
+    fightIn2:  [['dealer','About that...']],
+    fightIn3:  [['robin','Oh.']],
+    fightIn4:  [['robin','You\'re gonna be annoying.']],
+    fightIn5:  [['robin','Uh, no. That\'s actually mine.'], ['dealer','Not anymore.']],
+    fightIn6:  [['robin','Okay.']],
+    fightIn7:  [['robin','I really hate when people make me do things twice.']],
+    fightAttack:[['robin','See? That wasn\'t so hard.']],
+    fightDodge:[['robin','Little warning next time?']],
+    fightCombo:[['robin','Okay, there\'s a few more of you than I expected.']],
+    fightBreak:[['robin','Definitely keeping that.']],
+    fightParry:[['robin','Really?']],
+    fightMore: [['dealer','GET HER!'], ['robin','Do you guys have, like, a group chat or something?']],
+    fightRegret:[['thug','You\'re gonna regret this!'], ['robin','People keep saying that.']],
+    fightLast: [['robin','Anybody else?']],
+    fightGreat:[['robin','Great.']],
+    fightOut1: [['robin','So...']],
+    fightOut2: [['robin','My money?']],
+    fightOut3: [['robin','Right. Worth a shot.']],
+    fightText: [['unknown','📱 You just cost us a lot of money.']],
+    fightOut4: [['robin','Yeah?']],
+    fightOut5: [['robin','Send me an invoice.']]
   };
-  const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], buyer:['THE BUYER','#ff8a6a'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
+  const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'] };
 
   /* ============================================================ the save */
@@ -242,6 +259,16 @@ window.TSH = (function(){
       else if(kind==='door'){ burst(0.25, 500, 0.2); }
       else if(kind==='fail'){ tone(300, 120, 0.6, 'sawtooth', 0.05); }
       else if(kind==='win'){ tone(520, 1040, 0.5, 'sine', 0.06); }
+      // the fight (tshfight.js): air, a fist, a gauntlet, a body into a car
+      else if(kind==='swish'){ const s_ = a.createBufferSource(); s_.buffer = noiseBuf(0.18, false); const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+        bp.frequency.setValueAtTime(700, t); bp.frequency.exponentialRampToValueAtTime(2600, t + 0.16); const gg = a.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.18, t + 0.05); gg.gain.exponentialRampToValueAtTime(0.0008, t + 0.18);
+        s_.connect(bp); bp.connect(gg); gg.connect(a.destination); s_.start(t); }
+      else if(kind==='boom'){ burst(0.5, 160, 0.7, 0.4); tone(90, 32, 0.55, 'sine', 0.45); tone(2400, 600, 0.25, 'sawtooth', 0.03); }
+      else if(kind==='clang'){ tone(1800, 1750, 0.5, 'triangle', 0.09); tone(2650, 2600, 0.35, 'sine', 0.05); burst(0.06, 4000, 0.25); }
+      else if(kind==='hurt'){ burst(0.2, 300, 0.55, 0.6); tone(220, 90, 0.25, 'sine', 0.18); }
+      else if(kind==='grab'){ tone(300, 1600, 0.3, 'sawtooth', 0.04); burst(0.2, 2200, 0.12, 0.8); }
+      else if(kind==='alarm'){ [0, 0.32, 0.64, 0.96, 1.28].forEach(d=>{ const o = a.createOscillator(), gg = a.createGain(); o.type = 'square'; o.frequency.setValueAtTime(880, t + d); o.frequency.setValueAtTime(660, t + d + 0.16);
+        gg.gain.setValueAtTime(0.0001, t + d); gg.gain.exponentialRampToValueAtTime(0.035, t + d + 0.01); gg.gain.exponentialRampToValueAtTime(0.0008, t + d + 0.3); o.connect(gg); gg.connect(a.destination); o.start(t + d); o.stop(t + d + 0.32); }); }
     }catch(e){}
   }
 
@@ -258,7 +285,7 @@ window.TSH = (function(){
 
   function enter(sv){
     server = sv || null;
-    run++; talkQ = []; sayOver = null; cv = null; dealT = null;
+    run++; talkQ = []; sayOver = null; cv = null;
     inside = false;           // a night that was left from inside the flat starts on the street, like any other
     load();
     const resumed = restore();
@@ -278,6 +305,7 @@ window.TSH = (function(){
     if(window.AVATAR){ AVATAR.posture(null); AVATAR.setCast('robin'); }
     // where the beat you are in starts
     if(S.step === 'end') S.step = 'out';
+    if(S.step === 'drop' || S.step === 'robbed') S.step = 'deal';      // a night saved in the old Kai deal: the deal is the fight now
     if(S.step === 'intro' || S.step === 'prep'){ S.step = 'wake'; S.t = AI.AT.wake; S.dealPath = []; S.lesson = 0; S.boots = null; }
     if(S.step === 'wake'){ const r = W.room; placePlayer(r.bed.x, r.bed.z, 0); S.seen = S.seen.filter(x=>x !== 'wake'); }
     else if(S.step === 'lesson'){ placePlayer(HOME_ROOF[0], HOME_ROOF[2], Math.PI/2, HOME_ROOF[1] + EYE_); }
@@ -299,7 +327,8 @@ window.TSH = (function(){
      something else takes you out of the city (the pause card's HOME). */
   function stop(){
     if(!on) return;
-    cv = null; dealT = null; me.scale = null;
+    cv = null; me.scale = null;
+    if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0;
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -365,11 +394,11 @@ window.TSH = (function(){
      tick) — otherwise this would be feeding on its own correction. */
   const chase = { k:1, dy:0, raw:null };
   function chaseBack(){
-    if(chase.raw && ((mode === null && G.running) || mode === 'scale')) G.camera.position.copy(chase.raw);
+    if(chase.raw && ((mode === null && G.running) || mode === 'scale' || mode === 'fight')) G.camera.position.copy(chase.raw);
     chase.raw = null;
   }
   function chaseCam(dt){
-    const free = (mode === null && G.running) || mode === 'scale';
+    const free = (mode === null && G.running) || mode === 'scale' || mode === 'fight';
     if(!free || busy || inside || !W || !W.lens){ chase.k = 1; chase.dy = 0; return; }
     const L = W.lens, cam = G.camera.position, head = V(G.pos.x, G.pos.y + 0.1, G.pos.z);
     chase.raw = cam.clone();
@@ -795,10 +824,10 @@ window.TSH = (function(){
      It is a FILM, not a cutscene: no line waits for SPACE, the shots run
      on their own, and ENTER skips to the jump. */
   let reel = null;
-  function playReel(shots, done){
+  function playReel(shots, done, o){
     if(mode === 'ride') unride(); if(mode === 'hide') unhide();
     mode = 'reel'; G.running = false;
-    reel = { shots, i:-1, t:0, base:0, done, shot:null, fired:null, fov:G.camera.fov };
+    reel = { shots, i:-1, t:0, base:0, done, shot:null, fired:null, fov:G.camera.fov, own:!!(o && o.ownClock) };
     el.classList.add('cine');
     if(document.pointerLockElement) document.exitPointerLock();
     reelNext();
@@ -819,7 +848,7 @@ window.TSH = (function(){
   function tickReel(dt){
     const f = reel; if(!f || !f.shot) return;
     // with the song playing, the film runs on the song's clock: a slow frame can never put the picture behind the music
-    if(scoring() && AC && AC.state === 'running'){ const now = AC.currentTime; if(score.clockAt !== undefined) dt = Math.min(0.25, Math.max(0, now - score.clockAt)); score.clockAt = now; }
+    if(!f.own && scoring() && AC && AC.state === 'running'){ const now = AC.currentTime; if(score.clockAt !== undefined) dt = Math.min(0.25, Math.max(0, now - score.clockAt)); score.clockAt = now; }
     const s = f.shot; f.t += dt;
     (s.beats||[]).forEach(([t, fn], j)=>{ if(f.t >= t && !f.fired.has(j)){ f.fired.add(j); fn(); } });
     if(reel !== f) return;
@@ -908,8 +937,11 @@ window.TSH = (function(){
   function phoneBig(kind){
     const p = el.querySelector('#tshPhoneBig'); if(!p) return;
     if(!kind){ p.classList.remove('on', 'buzz'); return; }
-    const lock = (inner) => `<div class="pb-screen"><div class="pb-top"><span>22:15</span><span>▮▮▮ 18%</span></div>${inner}</div>`;
+    const lock = (inner) => `<div class="pb-screen"><div class="pb-top"><span>${kind === 'call' || kind === 'oncall' ? '22:15' : AI.clock(S.t)}</span><span>▮▮▮ 18%</span></div>${inner}</div>`;
     if(kind === 'call') p.innerHTML = lock(`<div class="pb-caller"><small>incoming call</small><b>UNKNOWN</b><span>mobile</span></div><div class="pb-btns"><i class="no">✕</i><i class="yes">✆</i></div>`);
+    // after the fight in Dragon Alley: a text from a number she does not know, and her answer
+    if(kind === 'text' || kind === 'reply') p.innerHTML = lock(`<div class="pb-note"><small>MESSAGES · NOW</small><b>Unknown number</b><p>${esc(LINES.fightText[0][1].replace(/^📱\s*/, ''))}</p></div>`
+      + (kind === 'reply' ? `<div class="pb-note me"><p>${esc(LINES.fightOut5[0][1])}</p></div>` : ''));
     if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>UNKNOWN</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
     p.classList.add('on'); p.classList.toggle('buzz', kind === 'call');
   }
@@ -1289,7 +1321,7 @@ window.TSH = (function(){
       have:S.boots && S.boots.length ? S.boots : BOOTS.ALL.filter(t=>BOOTS.TECH.late.indexOf(t) < 0),
       hooks:{
         audio:()=>audio(),
-        enabled:()=>!inside,
+        enabled:()=>!inside && mode !== 'fight',
         slow:()=>slowFall(),
         event:(e, b)=>bootEvent(e, b),
         learned:t=>{ S.boots = [...BOOTS.B.have]; save(); if(BOOTS.TECH.late.includes(t)) note('★ New technique: ' + ({ chain:'CHAIN — every kick and pull in a row hits harder', slide:'SLIDE — hold SHIFT into a fast landing and keep the speed' })[t], 'big'); }
@@ -1671,7 +1703,7 @@ window.TSH = (function(){
     if(n.kind === 'civ' && !n.film) { n.sees = false; return; }
     if(n.stun > 0 || n.climb){ n.sees = false; n.aware = Math.max(0, n.aware - 0.2*dt); return; }
     const p = P();
-    if(me.hidden || mode === 'talk' || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
+    if(me.hidden || mode === 'talk' || mode === 'fight' || mode === 'reel' || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
     const light = lightAt(p.x, p.y + 1, p.z) * (crowdAround(p.x, p.z) >= 3 ? 0.45 : 1);
     // in the dark you are a shape at arm's length and nothing further off
     const vis = canSee(n, p.x, p.y, p.z) && !(light < 0.12 && Math.hypot(p.x - n.x, p.z - n.z) > 2.6);
@@ -1796,6 +1828,7 @@ window.TSH = (function(){
     let tx, tz;
     if(n.state === 'track' && !blind){ tx = p.x; tz = p.z; }
     else if(n.state === 'search' && lastKnown){ const a = clock*0.6; tx = lastKnown[0] + Math.cos(a)*9; tz = lastKnown[1] + Math.sin(a)*9; n.searchT -= dt; if(n.searchT <= 0) n.state = 'patrol'; }
+    else if(n.away){ tx = n.away[0]; tz = n.away[1]; }                    // sent off its round while a scene plays under it
     else { const w = n.route[n.ri]; tx = w[0]; tz = w[1];
       if(Math.hypot(tx - n.x, tz - n.z) < 1){ if(n.hover[n.ri] && n.holdT <= 0) n.holdT = n.hover[n.ri]; if(n.holdT > 0){ n.holdT -= dt; if(n.holdT <= 0) n.ri = (n.ri+1) % n.route.length; } else n.ri = (n.ri+1) % n.route.length; } }
     const dx = tx - n.x, dz = tz - n.z, dd = Math.hypot(dx, dz);
@@ -2089,7 +2122,6 @@ window.TSH = (function(){
   /* ============================================================ populate
      Who is out tonight, and where — by the clock and by the beat. */
   const CIV = ['nia','theo','zuri','walk-s','walk-t','walk-u','walk-v','walk-x'];
-  let dropCan = null;
   function populate(){
     clearNpcs();
     placeScooters();
@@ -2113,37 +2145,19 @@ window.TSH = (function(){
     // delivery trucks
     spawnTruck('x', 2.8, 1, -70, 0x2a6a5a); spawnTruck('x', -2.8, -1, 40, 0x6a3a2a);
     spawnTruck('z', -2.8, 1, -50, 0x2a3a6a); spawnTruck('z', 2.8, -1, 30, 0x5a2a4a);
-    // the dented can Kai kicks
-    dropCan = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.8, 10), CITY.M.metal); dropCan.position.set(-40, 0.4, -24.5); W.cityGroup.add(dropCan);
     // the cast, by beat
     castForBeat();
   }
   function castForBeat(){
     ['kai','maya'].forEach(k=>{ const n = find(k); if(n) despawn(n); });
-    if(['lesson','deal','drop','robbed','news'].includes(S.step)){
+    if(['lesson','deal','news'].includes(S.step)){
       const m = W.spots.maya;
       const maya = spawn('maya', 'sable', m[0], m[1], { y:m[2], name:'maya', state:'roof', yaw:Math.PI });
       glint(maya);
     }
-    if(S.step === 'deal' || S.step === 'lesson') kaiSchedule();
-    if(S.step === 'drop') kaiSchedule();
-    if(S.step === 'robbed'){ const k = spawn('kai', 'kofi', -41.5, -30, { name:'kai', state:'rob' }); }
+    // the buyer and his crew are in Dragon Alley from the moment she sets off for it
+    if(S.step === 'deal' || S.step === 'lesson') crewCast();
     if(S.step === 'out'){ const h = W.spots.home; const k = spawn('kai', 'kofi', h[0], h[1] + 1, { name:'kai', state:'hunt' }); k.lastSeen = [G.pos.x, G.pos.z, 0, clock]; }
-  }
-  /* KAI IS ALREADY IN THE ALLEY. The message said 22:30, but nothing in
-     the night runs on the clock: he is at the meeting spot when you get
-     there, however long the workshop took, and he waits. */
-  function kaiSchedule(){
-    if(find('kai')) return;
-    const s = W.spots.kai;
-    const k = spawn('kai', 'kofi', s[0], s[1], { name:'kai', state:'wait', yaw:Math.PI });
-    if(S.step === 'drop' || S.flags.dropLeft) kaiToDrop(k);
-  }
-  function kaiToDrop(k){
-    const m = W.spots.drop;
-    k.hidden = false;
-    k.state = 'walk'; k.dest = [m[0]-0.3, m[1]+0.5, 0]; k.after = 'swap';
-    k.onArrive = ()=>{ k.state = 'catch'; later(()=>{ if(!on || k.gone) return; S.flags.dropCash = true; note('📱 Kai: "Done."'); k.state = 'walk'; k.dest = [-43.2, -12.8, 0]; k.after = 'stakeout'; k.stake = [-43.2, -12.8]; }, 3000); };
   }
   /* the glint of Maya's binoculars, from across the avenue */
   let glintMesh = null;
@@ -2161,7 +2175,7 @@ window.TSH = (function(){
     glintMesh.material.opacity = 0.15 + 0.85*k;
     glintMesh.scale.setScalar(0.6 + 2.4*k);
     // looking straight at it, with nothing in the way, is seeing her
-    if(!S.trail.scouted && ['deal','drop','robbed','home'].includes(S.step)){
+    if(!S.trail.scouted && ['deal','news','home'].includes(S.step)){
       const cp = G.camera.position, to = glintMesh.position.clone().sub(cp), d = to.length();
       const fwd = V(0, 0, -1).applyQuaternion(G.camera.quaternion);
       if(d < 120 && to.normalize().dot(fwd) > 0.9975 && los(cp.x, cp.y, cp.z, glintMesh.position.x, glintMesh.position.y, glintMesh.position.z)){
@@ -2218,12 +2232,10 @@ window.TSH = (function(){
      ends; `beatStart()` sets up the next one — its goal, its optional
      information, where its marker is — and saves a checkpoint. */
   const INFO = {
-    deal:   ['The buyer: Dragon Alley, off Neon Avenue. He is waiting.', 'A WFC drone sweeps the alley about once a minute.',
-             'Or leave the rings in the mailbox at the back of the alley — a dead drop.', 'The fire escape in the alley goes up to the roofs.',
+    deal:   ['The buyer: Dragon Alley, off Neon Avenue. He is waiting at the bend, with company.', 'A WFC drone sweeps the alley about once a minute.',
+             'The fire escape in the alley goes up to the roofs.',
              'G — the Gecko cuffs climb any wall. Nobody looks up; WFC who do see illegal wearables.',
              'H — shades. Nobody has seen your face yet.'],
-    drop:   ['Kai is watching the mailbox from the far end of the alley.', 'He checks his phone every so often.', 'Q throws a can — people go and look.', 'Hide in a dumpster (E) if he turns round.'],
-    robbed: ['Kai is walking back to his crew.', 'Get behind him without being seen: E lifts the envelope.', 'Or a flash (F) makes him drop it.', 'Or let him go.'],
     news:   ['Out of the alley onto Neon Avenue — the street, or over the roofs.', 'Home is 214 Harbor Lane, the south-east corner of the district.'],
     home:   ['Home: 214 Harbor Lane, the south-east corner.', 'WFC has closed Neon Avenue east of Market Street.', 'The metro runs from Neon West to Harbor Lane.',
              'The back lanes and the roofs go round the checkpoint.', 'I — your bag. Check what you are carrying.'],
@@ -2237,9 +2249,7 @@ window.TSH = (function(){
     const s = W.spots;
     switch(S.step){
       case 'lesson': return lessonMarker();
-      case 'deal': return S.flags.dropLeft ? null : [s.kai[0], s.kai[1], 2.2, 'The buyer'];
-      case 'drop': return S.flags.dropCash ? [s.drop[0], s.drop[1], 2, 'The mailbox'] : null;
-      case 'robbed': { const k = find('kai'); return k ? [k.x, k.z, k.y + 2.4, 'Kai'] : null; }
+      case 'deal': { const b = window.TSHFIGHT && TSHFIGHT.MEET.buyer; return b ? [b[0], b[1], 2.4, 'The buyer'] : null; }
       case 'news': return inAlley() ? [s.alleyMouth[0], s.alleyMouth[1], 2.4, 'Neon Avenue'] : null;
       case 'home': return [s.home[0], s.home[1], 2.6, 'Home'];
       case 'out': { const r = nearestHigh(); return r ? [r[0], r[1], r[2] + 1, 'High ground'] : null; }
@@ -2254,7 +2264,7 @@ window.TSH = (function(){
   function outcome(o){
     const nx = AI.next(S.step, o);
     if(nx === S.step) return false;
-    if(['paid','robbed','dropped','noshow','confiscated','recovered','retrieved','gaveup','stiffed'].includes(o)) S.dealPath.push(o);
+    if(['fought','paid','robbed','dropped','noshow','confiscated','recovered','retrieved','gaveup','stiffed'].includes(o)) S.dealPath.push(o);
     S.step = nx;
     beatStart(false);
     return true;
@@ -2280,19 +2290,15 @@ window.TSH = (function(){
   function inAlley(){ const a = W.zones.alley; return G.pos.x > a.x1 - 1 && G.pos.x < a.x2 + 1 && G.pos.z > a.z1 - 1 && G.pos.z < a.z2 + 1; }
 
   /* --------------------------------------------------------- beat by beat */
-  let dealT = null;
   function tickQuest(dt){
     const p = P(), kai = find('kai');
-    // --- the deal: walk right up to him and he starts it himself (E starts it from a few steps off) ---
-    if(S.step === 'deal'){
-      if(kai && kai.state === 'wait' && !dealT && S.rings && Math.hypot(p.x - kai.x, p.z - kai.z) < 2.0 && p.y < 1 && !mode) dealBegin(kai);
-      if(dealT) tickDeal(dt, kai);
+    // --- the deal: walk up the alley to the buyer, and it was never going to be a sale (the fight, below) ---
+    if(S.step === 'deal' && !inside && !mode && !busy && p.y < 1 && inAlley() && window.TSHFIGHT && TSHFIGHT.ready){
+      const m = TSHFIGHT.MEET.robin;
+      if(Math.hypot(p.x - m[0], p.z - m[1]) < 5 || (p.z < m[1] + 3 && p.z > -38)) scene('deal', fightIntro);
     }
-    // --- the dead drop: walk away from the envelope and it is gone ---
-    if(S.step === 'drop' && S.flags.dropCash && !inside){
-      const m = W.spots.drop;
-      if(Math.hypot(p.x - m[0], p.z - m[1]) > 60){ S.flags.dropCash = false; note('You walked away from the money.', 'bad'); outcome('gaveup'); }
-    }
+    // --- the alley after the fight: the crew stays on the ground until she has gone ---
+    if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on && S.step !== 'deal' && S.step !== 'lesson' && !mode && !inAlley()) TSHFIGHT.clear();
     // --- the screens, the binoculars, the roof: as she steps out of the alley with the deal behind her ---
     if(S.step === 'news' && !inside && !mode && !busy && !inAlley()){
       const chased = S.heat > 0 || (kai && !kai.gone && kai.state === 'pursue');
@@ -2306,128 +2312,301 @@ window.TSH = (function(){
     if(S.step === 'out' && !mode) tickOut(dt);
   }
 
-  /* THE DEAL, as George wrote it — played, not read. Kai talks; Robin
-     answers when you say so; and twice the deal can go another way:
-       "Show me the merchandise." — hold out for the money, as Robin does,
-         or show him the rings, and watch them go into his pocket;
-       the envelope in her hand — toss him the rings, as Robin does, or
-         keep them and walk, and have Kai come after her. */
-  function dealBegin(kai){
-    if(mode) return;
-    dealT = { stage:'talk' };
-    kai.state = 'deal'; S.flags.dealStarted = true;
-    const ok = convo([
-      ['kai', 'YU?'],
-      { ask:[
-        { say:'Spell it out.', hint:'make him say it' },
-        { say:'Who\'s asking?', hint:'play it cool', then:[['kai', 'The guy with your money.']] }
-      ]},
-      ['kai', 'Y, U.'],
-      ['robin', 'Cash first.'],
-      ['kai', 'Show me the merchandise.'],
-      { ask:[
-        { say:'I said. Money first.', hint:'don\'t budge' },
-        { icon:'💍', does:'Show him the rings.', hint:'let him see them first',
-          then:[()=>{ S.rings = false; cue('pick'); note('💍 He takes them out of your hand.', 'bad'); hud(); }, ...LINES.handed], act:()=>ringsTaken(kai), end:true }
-      ]},
-      ['kai', 'I\'d change that attitude.'],
-      ['robin', 'Not making friends here, are we?'],
-      ['kai', 'A word of advice.'],
-      { wait:1.1, act:()=>envelope(kai) },
-      { lines:()=>me.shades ? LINES.deal3.slice(0, 1) : LINES.deal3Bare.slice(0, 2) },
-      { ask:[
-        { icon:'💍', say:'Yeah, yeah. Thank you for your business.', hint:'toss him the rings', act:()=>{ if(dealT) dealT.stage = 'toss'; tossRings(); } },
-        { icon:'🏃', does:'Keep the rings. Walk away with the money.', hint:'he will come after you', act:()=>runWithIt(kai) }
-      ]}
-    ], { npc:kai });
-    if(!ok){ dealT = null; kai.state = 'wait'; S.flags.dealStarted = false; }
-    else mark('deal');
+  /* ========================================================= DRAGON ALLEY
+     THE DEAL WAS NEVER A SALE. The buyer is a man with a crew — not Kai;
+     Kai is not seen yet — waiting at the bend of the alley with two of his
+     people. "You got the stuff?" "You got the money?" "About that…", and
+     four more come out from behind the dumpster, the car and the corner.
+     One takes the bag out of her hand, one shoves her, and she puts her
+     backpack down.
+
+     It is told the way the night opened — a FILM: shots that run on their
+     own, the lines voiced and laid over them, ENTER to skip — and then it
+     is yours: the fight (tshfight.js), which teaches the gauntlets a move
+     at a time in slow motion. After it, a second film: the bag back, no
+     money, a text from a number she does not know, and out of the alley.
+
+     The crew is in the alley from the start of the beat (castForBeat);
+     the four who come out are there too, out of sight. */
+  const CREW = [
+    { tag:'buyer', kind:'buyer', x:-41.6, z:-28.6, yaw:0, state:'idle' },
+    { tag:'t1', kind:'lean', x:-42.7, z:-29.5, yaw:0.3, state:'idle' },
+    { tag:'t2', kind:'big', x:-40.3, z:-29.9, yaw:-0.4, state:'idle' },
+    { tag:'t3', kind:'lean', x:-43.2, z:-19.2, yaw:Math.PI, state:'idle', hidden:true },               // behind the dumpster
+    { tag:'t4', kind:'big', x:-39.6, z:-18.6, yaw:Math.PI, state:'idle', hidden:true },                // in off the avenue
+    { tag:'t5', kind:'lean', x:-39.6, z:-31.4, yaw:0, state:'idle', hidden:true, hat:{ face:'shades' } },
+    { tag:'t6', kind:'big', x:-43.3, z:-31.0, yaw:0, state:'idle', hidden:true, weapon:true }           // from behind the car, with a pipe
+  ];
+  // where the four who step out end up: a ring round her
+  const RINGED = { t1:[-42.2, -26.6], t3:[-42.7, -22.2], t4:[-39.9, -22.0], t5:[-39.8, -27.4], t6:[-43.0, -27.0] };
+  const BUYER_CORNER = [-40.1, -33.0];
+  function crewCast(){
+    if(!window.TSHFIGHT || !W.alleyBlocks) return;
+    TSHFIGHT.cast(fightCtx(CREW.map(c=>Object.assign({}, c))));
   }
-  function tickDeal(dt, kai){
-    if(!kai || kai.gone){ dealT = null; if(cv) endConvo(); }
+  const crewBy = tag => window.TSHFIGHT && TSHFIGHT.crew().find(e=>e.tag === tag);
+  function fightCtx(crew){
+    return { group:W.cityGroup, root:el, crew, car:W.car, blocks:(W.alleyBlocks || []).concat(W.car ? [W.car] : []),
+      cue, note, later, fade:fn=>fade(fn), blocked:()=>!!busy,
+      say:(key, done)=>talk(key, done),
+      shake, flash:k=>{ LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, k); },
+      charge:v=>cuffGlow(v),
+      lesson:(title, how, i, n)=>{
+        const c = el.querySelector('#tshLesson'); if(!title){ c.classList.remove('on'); return; }
+        c.innerHTML = `<small>THE GAUNTLETS · ${i} / ${n}</small><b>${esc(title)}</b><p>${esc(how)}</p>`;
+        c.classList.remove('on', 'big'); void c.offsetWidth; c.classList.add('on');
+        setObjective('Fight your way out.', [how]);
+      },
+      done:left=>fightOutro(left) };
   }
-  function envelope(kai){
-    if(dealT) dealT.stage = 'env';
-    // the envelope is thrown, and caught
-    const from = V(kai.x, kai.y + 1.4, kai.z), to = V(G.pos.x, feet() + 1.2, G.pos.z);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.12), new THREE.MeshStandardMaterial({ color:0xd8c89a, roughness:0.7 })); W.cityGroup.add(m);
-    tween(0.55, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*0.8, lerp(from.z, to.z, k)); m.rotation.y = k*9; }, ()=>{
-      W.cityGroup.remove(m); S.cash = 3000; S.trail.tracker = 'on'; cue('pick'); note('✉ The envelope. It feels about right.'); hud();
-      if(!me.shades){ S.trail.kaiSawFace = true; expose(10, 'Kai saw your face'); }
+  /* her punches, kicks and dodges: a file of clips on her own skeleton, loaded once, added to her rig */
+  let fightClipsP = null;
+  function fightClips(){
+    if(!fightClipsP) fightClipsP = new Promise(ok=>{
+      if(!THREE.GLTFLoader) return ok(null);
+      const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.load('characters/fight/robin.glb?v=' + (window.ASSETV || '1'), g=>ok(g.animations), undefined, ()=>ok(null));
+    });
+    return fightClipsP.then(list=>{
+      const r = window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
+      if(list && r && r.add){ const M = TSHFIGHT.MOVE, speed = {}; Object.keys(M).forEach(k=>{ if(M[k].clip === k) speed[k] = M[k].speed; });
+        r.add(list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin'], speed }); }
+      return list;
     });
   }
-  function tossRings(){
-    const kai = find('kai'); if(!kai || !dealT || dealT.stage !== 'toss') return;
-    dealT = null; S.rings = false;
-    const from = V(G.pos.x, feet() + 1.4, G.pos.z), to = V(kai.x, kai.y + 1.8, kai.z);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.14), new THREE.MeshStandardMaterial({ color:0x2a2a2a, roughness:0.5 })); W.cityGroup.add(m);
-    kai.state = 'catch';
-    cue('ui');
-    tween(1.9, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*7.5, lerp(from.z, to.z, k)); m.rotation.x = k*14; }, ()=>{
-      W.cityGroup.remove(m);
-      kai.yaw += Math.PI*0.9;                       // he turns round…
-      kai.state = 'search'; kai.searchT = 9; kai.aware = 0;
-      // …and when you are gone, the can gets it
-      later(()=>{ if(!on || kai.gone || kai.state !== 'search' || kai.sees) return; kickCan(kai); }, 1600);
+  /* the bag the deal was about, and her backpack once it is off */
+  const fprop = { bag:null, bagOn:null, pack:null };
+  function bagMesh(){
+    const g = new THREE.Group();
+    const cloth = new THREE.MeshStandardMaterial({ color:0x1a1c20, roughness:0.85 });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.17, 0.09), cloth));
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.008, 6, 16, Math.PI), new THREE.MeshStandardMaterial({ color:0x0c0d0f, roughness:0.6 })); strap.position.y = 0.085; g.add(strap);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.03), new THREE.MeshBasicMaterial({ color:0x38ffd0 })); tag.position.set(0.05, 0.02, 0.0455); g.add(tag);
+    g.traverse(o=>{ if(o.isMesh) o.castShadow = true; });
+    return g;
+  }
+  function packMesh(){
+    const g = new THREE.Group();
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.44, 0.18), new THREE.MeshStandardMaterial({ color:0x22262a, roughness:0.8 })); stand.position.y = 0.22; g.add(stand);
+    if(THREE.GLTFLoader){ const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.load('tsh/room/backpack.glb?v=' + (window.ASSETV || '1'), gl=>{ const m = gl.scene, sz = new THREE.Box3().setFromObject(m).getSize(V(0, 0, 0)); m.scale.setScalar(0.46/sz.y); m.updateMatrixWorld(true);
+        const b = new THREE.Box3().setFromObject(m), c = b.getCenter(V(0, 0, 0)); m.position.set(-c.x, -b.min.y, -c.z);
+        m.traverse(n=>{ if(n.isMesh){ n.castShadow = true; if(n.material){ n.material.metalness = 0; n.material.roughness = 0.8; if(n.material.map) n.material.map.colorSpace = THREE.SRGBColorSpace; n.material.needsUpdate = true; } } });
+        g.add(m); g.remove(stand); }, undefined, ()=>{}); }
+    return g;
+  }
+  /* where whoever has the bag is holding it */
+  function bagFollow(){
+    const b = fprop.bag; if(!b) return;
+    const on_ = fprop.bagOn;
+    if(on_ === 'robin'){ const h = handAt('Right'); if(h) b.position.copy(h).add(V(0, -0.1, 0)); }
+    else if(on_ && on_.model){ const bone = boneOf(on_.model, /RightHand$/); if(bone){ on_.model.updateMatrixWorld(true); bone.getWorldPosition(b.position); b.position.y -= 0.1; } }
+    else if(on_ && !on_.model) b.position.set(on_.x, 0.95, on_.z);
+  }
+  function bagThrow(from, to, secs, done){
+    const b = fprop.bag; if(!b) return;
+    fprop.bagOn = null; const a = b.position.clone();
+    tween(secs, k=>{ const t = typeof to === 'function' ? to() : to; b.position.set(lerp(a.x, t.x, k), lerp(a.y, t.y, k) + Math.sin(k*Math.PI)*0.9, lerp(a.z, t.z, k)); b.rotation.x = k*7; },
+      ()=>{ b.rotation.x = 0; if(done) done(); });
+  }
+  function fightPropsGone(){ [fprop.bag, fprop.pack].forEach(m=>{ if(m && m.parent) m.parent.remove(m); }); fprop.bag = fprop.pack = fprop.bagOn = null; }
+  /* the shot helpers: a crew member walking a to b over k, facing where he is going; or turned to her */
+  function crewWalk(e, a, b, k, clip){ if(!e) return; e.g.visible = true; e.x = lerp(a[0], b[0], k); e.z = lerp(a[1], b[1], k); if(k < 1){ e.yaw = Math.atan2(b[0] - a[0], b[1] - a[1]); TSHFIGHT.play(e, clip || 'walk'); } }
+  function crewFace(e, x, z, clip){ if(!e) return; e.yaw = Math.atan2(x - e.x, z - e.z); if(clip) TSHFIGHT.play(e, clip); }
+  const linesLen = key => (LINES[key] || []).reduce((t, [w, x])=>{ const d = vlen(w, x); return t + (d ? Math.max(1.4, d + 0.45) : Math.max(1.8, 1.0 + x.length*0.052)); }, 0);
+
+  /* ---------------------------------------------------- the film before it */
+  /* the alley drone hovers over the next block while the scene plays (its light in every shot otherwise) */
+  function droneAway(v){ const d = find('dAlley'); if(!d) return; d.away = v ? [-63, -28] : null; if(v){ d.x = d.away[0]; d.z = d.away[1]; d.state = 'patrol'; } }
+  function fightIntro(){
+    flushTalk(); clearChase(); droneAway(true);
+    const R0 = TSHFIGHT.MEET.robin, B0 = TSHFIGHT.MEET.buyer;
+    const ry = Math.atan2(B0[0] - R0[0], B0[1] - R0[1]);                       // her, facing him
+    const by = Math.atan2(R0[0] - B0[0], R0[1] - B0[1]);                       // him, facing her
+    const R1 = [R0[0] + 0.05, R0[1] + 0.6];                                    // where the shove puts her
+    const buyer = crewBy('buyer'), t1 = crewBy('t1'), t2 = crewBy('t2');
+    const ringFace = clip => ['t1', 't2', 't3', 't4', 't5', 't6'].forEach(t=>{ const e = crewBy(t); if(e){ e.g.visible = true; crewFace(e, G.pos.x, G.pos.z, clip); } });
+    fightPropsGone();
+    fprop.bag = bagMesh(); W.cityGroup.add(fprop.bag); fprop.bagOn = 'robin';
+    const head = (x, z, y) => [x, y || 1.55, z];
+    const shots = [
+      // EXT. DRAGON ALLEY. Down it from the mouth: Robin walks in; at the bend, the buyer and two of his.
+      { dur:4.6, fov:46, cam:[[-39.8, 1.0, -12.2], [-40.1, 1.3, -13.6]], look:[[-41.4, 1.5, -24], [-41.4, 1.5, -26]],
+        enter:()=>{ caption('EXT. DRAGON ALLEY — ' + AI.clock(S.t)); cue('step'); },
+        tick:(dt, t, k)=>walkStage([-41.0, -12.8], [-41.3, -19.6], k) },
+      // between the two of them, from behind: she comes up the alley
+      { dur:3.0, fov:40, cam:[[-40.9, 1.75, -31.8], [-40.9, 1.7, -31.3]], look:[-41.4, 1.3, -22],
+        tick:(dt, t, k)=>{ if(k < 0.92) walkStage([-41.3, -19.6], R0, k/0.92); else stage('idle', R0[0], 0, R0[1], ry); } },
+      // over his shoulder: "You got the stuff?" "Yeah. You got the money?"
+      { dur:linesLen('fightIn1') + 0.3, fov:36, cam:rel(B0[0], B0[1], by, -0.85, 0.42, 1.78), look:head(R0[0], R0[1], 1.5),
+        enter:()=>{ stage('idle', R0[0], 0, R0[1], ry); talk('fightIn1'); TSHFIGHT.play(buyer, 'talk'); } },
+      // over hers: "About that…"
+      { dur:linesLen('fightIn2') + 0.6, fov:32, cam:rel(R0[0], R0[1], ry, -0.8, 0.4, 1.7), look:head(B0[0], B0[1], 1.62),
+        enter:()=>{ talk('fightIn2'); TSHFIGHT.play(buyer, 'talk'); } },
+      // and the rest of them come out: from behind the dumpster, off the avenue, round the bend, from behind the car
+      { dur:3.6, fov:58, cam:[[-41.5, 2.9, -20.2], [-41.5, 3.0, -20.9]], look:[-41.5, 0.9, -27.5],
+        enter:()=>{ cue('sus'); TSHFIGHT.play(buyer, 'idle'); },
+        tick:(dt, t, k)=>{ const m = Math.min(1, k*1.1);
+          [['t3', [-43.2, -19.2]], ['t4', [-39.6, -18.6]], ['t5', [-39.6, -31.4]], ['t6', [-43.3, -31.0]], ['t1', [-42.7, -29.5]]].forEach(([t, a])=>{ const e = crewBy(t); crewWalk(e, a, RINGED[t], m); if(m >= 1) crewFace(e, R0[0], R0[1], 'fight'); });
+          crewFace(t2, R0[0], R0[1], k > 0.5 ? 'fight' : null); } },
+      // "Oh."
+      { dur:linesLen('fightIn3') + 0.6, fov:30, cam:rel(R0[0], R0[1], ry, 0.95, -0.12, 1.6), look:head(R0[0], R0[1]),
+        enter:()=>{ talk('fightIn3'); ringFace('fight'); } },
+      // "You're gonna be annoying."
+      { dur:linesLen('fightIn4') + 0.4, fov:42, cam:[-39.6, 1.5, -24.0], look:[-41.4, 1.35, -24.8],
+        enter:()=>{ stage('talk', R0[0], 0, R0[1], ry); talk('fightIn4'); } },
+      // the one beside the buyer steps in and takes the bag out of her hand
+      { dur:1.8, fov:44, cam:[-39.5, 1.25, -25.3], look:[-41.6, 1.2, -25.2],
+        enter:()=>stage('idle', R0[0], 0, R0[1], ry),
+        tick:(dt, t, k)=>{ if(t < 0.7) crewWalk(t1, RINGED.t1, [-41.75, -25.45], t/0.7); else crewFace(t1, R0[0], R0[1]); },
+        beats:[[0.72, ()=>TSHFIGHT.hit1(t1, 'jab')], [0.95, ()=>{ fprop.bagOn = t1; cue('swish'); }]] },
+      // "Uh, no. That's actually mine." — "Not anymore." — and it goes over to the buyer
+      { dur:linesLen('fightIn5') + 0.4, fov:38, cam:rel(R0[0], R0[1], ry, -0.8, -0.45, 1.7), look:[(B0[0] + R0[0])/2, 1.3, B0[1] + 1.2],
+        enter:()=>{ stage('talk', R0[0], 0, R0[1], ry); talk('fightIn5'); },
+        tick:(dt, t, k)=>{ if(t < 0.6) crewWalk(t1, [-41.75, -25.45], [-41.9, -26.3], t/0.6, 'walk_back'); crewFace(t1, R0[0], R0[1], t >= 0.6 ? 'fight' : null); },
+        beats:[[Math.max(0.8, linesLen('fightIn5') - 1.5), ()=>{ TSHFIGHT.hit1(t1, 'jab'); bagThrow(null, ()=>{ const b = boneOf(buyer.model || W.cityGroup, /RightHand$/); return b ? b.getWorldPosition(V(0, 0, 0)) : V(buyer.x, 1, buyer.z); }, 0.5, ()=>{ fprop.bagOn = buyer; }); }]] },
+      // the shove
+      { dur:1.7, fov:50, cam:[-39.5, 1.4, -24.0], look:[-41.5, 1.2, -25.0],
+        enter:()=>stage('idle', R0[0], 0, R0[1], ry),
+        tick:(dt, t, k)=>{ if(t < 0.4) crewWalk(t1, [-41.9, -26.3], [-41.6, -25.45], t/0.4); else crewFace(t1, R0[0], R0[1]);
+          if(t >= 0.55){ const q = Math.min(1, (t - 0.55)/0.3); stage(t < 1.2 ? 'stagger' : 'idle', lerp(R0[0], R1[0], q), 0, lerp(R0[1], R1[1], q), ry); } },
+        beats:[[0.35, ()=>TSHFIGHT.hit1(t1, 'cross')], [0.55, ()=>{ cue('hurt'); shake(0.22, 0.3); }]] },
+      // "Okay."
+      { dur:linesLen('fightIn6') + 0.7, fov:28, cam:rel(R1[0], R1[1], ry, 0.9, 0.1, 1.6), look:head(R1[0], R1[1]),
+        enter:()=>{ stage('idle', R1[0], 0, R1[1], ry); talk('fightIn6'); crewWalk(t1, [-41.6, -25.45], [-41.8, -26.2], 1); crewFace(t1, R1[0], R1[1], 'fight'); } },
+      // the backpack comes off and drops
+      { dur:1.6, fov:44, cam:[-39.7, 0.42, -23.0], look:[-41.2, 0.45, -23.8],
+        beats:[[0.3, ()=>{ me.kit = Object.assign({}, KIT_ON, { pack:false }); me.kitT = {}; dress();
+          const at = V(R1[0] - Math.sin(ry)*0.3, 1.05, R1[1] - Math.cos(ry)*0.3), to = V(R1[0] - Math.sin(ry)*0.45 + 0.25, 0, R1[1] - Math.cos(ry)*0.45);
+          fprop.pack = packMesh(); fprop.pack.position.copy(at); fprop.pack.rotation.y = ry + 2.6; W.cityGroup.add(fprop.pack);
+          tween(0.32, k=>{ fprop.pack.position.set(lerp(at.x, to.x, k), lerp(at.y, to.y, k*k), lerp(at.z, to.z, k)); fprop.pack.rotation.z = k*0.5; }, ()=>{ cue('door'); }); }]] },
+      // "I really hate when people make me do things twice." — the gauntlets wake up
+      { dur:linesLen('fightIn7') + 0.9, fov:38, cam:rel(R1[0], R1[1], ry, 1.7, 0.7, 0.75), look:head(R1[0], R1[1], 1.45),
+        enter:()=>{ stage('fight', R1[0], 0, R1[1], ry); talk('fightIn7'); },
+        beats:[[Math.max(0.4, linesLen('fightIn7') - 0.3), ()=>{ cuffGlow(true); cue('gear'); }]] }
+    ];
+    // the roofs' song goes down for the talking (the fight brings it back, from the drop)
+    if(scoring()){ scoreLevel(0, 1.4); later(()=>{ if(mode === 'reel') scoreStop(0.2); }, 1800); }
+    fightClips().then(()=>{ if(!on || S.step !== 'deal') return; playReel(shots, ()=>fightBegin(R1, ry), { ownClock:true }); });
+  }
+  /* it is yours: the fight */
+  function fightBegin(R1, ry){
+    staged = null; flushTalk();
+    if(window.AVATAR) AVATAR.posture(null);
+    // a skipped film leaves everyone where it would have
+    Object.keys(RINGED).forEach(t=>{ const e = crewBy(t); if(e){ e.g.visible = true; e.x = RINGED[t][0]; e.z = RINGED[t][1]; } });
+    if(!me.kit || me.kit.pack){ me.kit = Object.assign({}, KIT_ON, { pack:false }); me.kitT = {}; dress(); }
+    if(!fprop.pack){ fprop.pack = packMesh(); fprop.pack.position.set(R1[0] - Math.sin(ry)*0.45 + 0.25, 0, R1[1] - Math.cos(ry)*0.45); fprop.pack.rotation.set(0, ry + 2.6, 0.5); W.cityGroup.add(fprop.pack); }
+    const buyer = crewBy('buyer'); if(buyer){ buyer.state = 'watch'; buyer.home = BUYER_CORNER.slice(); if(fprop.bag) fprop.bagOn = buyer; }
+    G.pos.set(R1[0], EYE_, R1[1]); G.yaw = ry + Math.PI; G.pitch = 0;
+    mode = 'fight'; G.running = false;
+    el.classList.add('fighting');
+    cuffGlow(false);
+    TSHFIGHT.start(fightCtx());
+    scoreFight();
+    lockPointer($('#view'));
+  }
+  function tickFight(dt){
+    TSHFIGHT.tick(dt);
+    bagFollow();
+    // the song goes under water with the world when it slows down
+    const k = G.timeScale === undefined ? 1 : G.timeScale, f = k > 0.92 ? 18000 : 500 + 12000*k*k;
+    if(score.lp && AC && score.drop && Math.abs(f - (score.lpWas || 0)) > 300){ score.lpWas = f; score.lp.frequency.setTargetAtTime(f, AC.currentTime, 0.05); }
+  }
+  /* the fight's music: the song from the drop, round and round */
+  function scoreFight(){
+    const a = audio(); if(!a) return;
+    scoreLoad('b').then(buf=>{
+      if(!buf || !on || mode !== 'fight') return;
+      [score.a, score.b, score.loop, score.drop].forEach(n=>scoreKill(n)); score.a = score.b = score.loop = null;
+      const t = a.currentTime; scoreBus();
+      score.lp.frequency.cancelScheduledValues(t); score.lp.frequency.setValueAtTime(18000, t); score.lpWas = 18000;
+      score.gain.gain.cancelScheduledValues(t); score.gain.gain.setValueAtTime(0.0001, t); score.gain.gain.linearRampToValueAtTime(0.5, t + 0.6);
+      score.drop = scoreSrc('b', SONG.drop, 0, 0, [SONG.drop, SONG.b.from + buf.duration - 0.05]);
     });
-    outcome('paid');
   }
-  /* the rings before the money: he pockets them and walks back to his crew */
-  function ringsTaken(kai){
-    dealT = null; S.rings = false;
-    if(kai.gone) return;
-    kai.state = 'rob'; kai.aware = 0; kai.band = 'unaware';
-    outcome('robbed');
+  /* SHAKE: the picture jolts with a hit, harder the harder the hit, and settles (render) */
+  const shk = { amp:0, len:0, t:0, off:null };
+  function shake(amp, len){ const now = shk.len ? shk.amp*Math.max(0, 1 - shk.t/shk.len) : 0; if(amp >= now){ shk.amp = amp; shk.len = len; shk.t = 0; } }
+
+  /* ----------------------------------------------------- the film after it */
+  function fightOutro(left){
+    mode = null; cuffGlow(false); el.classList.remove('fighting');
+    if(AC && score.gain){ score.gain.gain.setTargetAtTime(0, AC.currentTime, 0.8); setTimeout(()=>{ if(mode !== 'fight') scoreStop(0.2); }, 3000); }
+    const buyer = crewBy('buyer');
+    const from = [G.pos.x, G.pos.z], BP = BUYER_CORNER, SPOT = [BP[0] - 0.25, BP[1] + 1.65], BAG = [BP[0] - 0.15, BP[1] + 0.95];
+    const ry = Math.atan2(BP[0] - SPOT[0], BP[1] - SPOT[1]), by = ry + Math.PI;
+    const PK = fprop.pack ? [fprop.pack.position.x, fprop.pack.position.z] : [-41.2, -23.8];
+    const Q = [PK[0] + 0.2, PK[1] + 0.5];
+    // the ones still standing run for it, each to the nearer end of the alley
+    const runners = TSHFIGHT.crew().filter(e=>e.kind !== 'buyer' && ['hesitate', 'circle', 'approach', 'recover', 'stagger', 'windup', 'getup', 'idle', 'watch'].includes(e.state));
+    runners.forEach(e=>{ e.flee = [e.x, e.z, e.x, e.z > from[1] ? -7 : -47]; e.state = 'fled'; });
+    const flee = t => runners.forEach(e=>{ const f = e.flee, k = Math.min(1, t*4.6/Math.abs(f[3] - f[1])); crewWalk(e, [f[0], f[1]], [f[2], f[3]], k, 'sprint'); if(k >= 1) e.g.visible = false; });
+    if(buyer){ buyer.state = 'cut'; buyer.x = BP[0]; buyer.z = BP[1]; buyer.yaw = by + Math.PI; }
+    const shots = [
+      // the alley, after: the ones on the floor; the rest are going; she walks to the buyer in his corner
+      { dur:3.4, fov:55, cam:[-39.5, 3.7, -20.5], look:[-41.3, 0.5, -29],
+        enter:()=>{ if(buyer){ crewFace(buyer, SPOT[0], SPOT[1]); TSHFIGHT.hit1(buyer, 'block'); } fprop.bagOn = null; if(fprop.bag) fprop.bag.position.set(BAG[0], 0.085, BAG[1]); },
+        tick:(dt, t, k)=>{ flee(t); walkStage(from, SPOT, Math.min(1, k*1.08)); } },
+      // down for the bag
+      { dur:2.4, fov:42, cam:[-39.4, 0.8, -30.2], look:[BAG[0], 0.4, BAG[1]],
+        enter:()=>{ flee(9); stage('kneel', SPOT[0], 0, SPOT[1], ry); },
+        beats:[[1.1, ()=>{ fprop.bagOn = 'robin'; cue('pick'); }]] },
+      // she looks in it. "So…"
+      { dur:linesLen('fightOut1') + 1.2, fov:38, cam:rel(SPOT[0], SPOT[1], ry, 1.1, 0.35, 1.72), look:[SPOT[0], 1.32, SPOT[1]],
+        enter:()=>stage('text', SPOT[0], 0, SPOT[1], ry),
+        after:()=>{ const h = handsAt(); if(h && fprop.bag) fprop.bag.position.copy(h.at); },
+        beats:[[0.6, ()=>talk('fightOut1')]] },
+      // "My money?"
+      { dur:linesLen('fightOut2') + 0.4, fov:34, cam:rel(SPOT[0], SPOT[1], ry, -0.75, 0.4, 1.7), look:[BP[0], 1.5, BP[1]],
+        enter:()=>{ stage('talk', SPOT[0], 0, SPOT[1], ry); talk('fightOut2'); if(buyer) TSHFIGHT.play(buyer, 'idle'); } },
+      // nothing
+      { dur:2.0, fov:30, cam:rel(BP[0], BP[1], by, 1.0, -0.25, 1.72), look:[BP[0], 1.66, BP[1]],
+        enter:()=>stage('idle', SPOT[0], 0, SPOT[1], ry) },
+      // "Right. Worth a shot."
+      { dur:linesLen('fightOut3') + 0.5, fov:40, cam:rel(SPOT[0], SPOT[1], ry, 1.6, -0.9, 1.45), look:[SPOT[0], 1.3, SPOT[1]],
+        enter:()=>{ stage('talk', SPOT[0], 0, SPOT[1], ry); talk('fightOut3'); } },
+      // back for her backpack; the buyer takes his chance round the bend
+      { dur:4.2, fov:50, cam:[-42.7, 2.6, -34.6], look:[-41.3, 0.9, -25.5],
+        tick:(dt, t, k)=>{ walkStage(SPOT, Q, Math.min(1, k*1.06)); if(buyer){ const m = Math.min(1, Math.max(0, t - 0.4)*4.2/14); crewWalk(buyer, BP, [BP[0] + 0.1, BP[1] - 14], m, 'sprint'); if(m >= 1) buyer.g.visible = false; } } },
+      // and it goes back on
+      { dur:2.2, fov:44, cam:[-39.6, 1.3, Q[1] + 1.6], look:[Q[0], 0.9, Q[1]],
+        enter:()=>{ if(buyer) buyer.g.visible = false; stage('kneel', Q[0], 0, Q[1], Math.atan2(PK[0] - Q[0], PK[1] - Q[1])); },
+        beats:[[1.0, ()=>{ if(fprop.pack && fprop.pack.parent) fprop.pack.parent.remove(fprop.pack); fprop.pack = null; me.kit = null; me.kitT = null; dress(); cue('zip'); stage('idle', Q[0], 0, Q[1], 0); }]] },
+      // her phone: a number she does not know
+      { dur:linesLen('fightText') + 1.6, fov:36, cam:[Q[0] + 0.05, 1.3, Q[1] + 1.35], look:[Q[0] + 0.32, 1.32, Q[1]],
+        enter:()=>stage('text', Q[0], 0, Q[1], 0),
+        after:()=>{ const h = handsAt(); if(h && fprop.bag) fprop.bag.position.copy(h.at).add(V(0.12, -0.2, 0)); },
+        beats:[[0.2, ()=>cue('phone')], [0.3, ()=>phoneBig('text')], [0.6, ()=>talk('fightText')]] },
+      // "Yeah?" … "Send me an invoice."
+      { dur:linesLen('fightOut4') + linesLen('fightOut5') + 0.5, fov:36, cam:rel(Q[0], Q[1], 0, -0.5, 0.35, 1.75), look:[Q[0], 1.2, Q[1] + 0.4],
+        enter:()=>{ talk('fightOut4'); talk('fightOut5'); },
+        beats:[[linesLen('fightOut4') + 0.1, ()=>{ phoneBig('reply'); cue('ui'); }]] },
+      // and out of the alley
+      { dur:3.0, fov:46, cam:[-41.0, 1.9, Q[1] - 5.5], look:[-41.2, 1.4, Q[1] + 6],
+        enter:()=>{ phoneBig(null); cue('hangup'); },
+        tick:(dt, t, k)=>walkStage(Q, [Q[0] - 0.1, Q[1] + 4.2], k) }
+    ];
+    playReel(shots, ()=>{
+      staged = null; flushTalk(); phoneBig(null);
+      if(window.AVATAR) AVATAR.posture(null);
+      runners.forEach(e=>{ e.g.visible = false; }); if(buyer) buyer.g.visible = false;
+      droneAway(false);
+      if(fprop.pack){ fprop.pack.parent && fprop.pack.parent.remove(fprop.pack); fprop.pack = null; }
+      if(fprop.bag){ fprop.bag.parent && fprop.bag.parent.remove(fprop.bag); fprop.bag = null; }
+      me.kit = null; me.kitT = null; dress();
+      placePlayer(Q[0] - 0.1, Q[1] + 4.2, Math.PI);
+      S.cash = 0;
+      cue('win');
+      outcome('fought');                                 // → the street; the checkpoint goes up with it
+      note('🎒 The bag, and the rings in it. No money.', 'big');
+      capWas = 'EXT. ALLEY — NIGHT';                      // the film said where she is
+      lockPointer($('#view'));
+    }, { ownClock:true });
   }
-  /* the money and not the rings: a heartbeat while it sinks in, then he runs */
-  function runWithIt(kai){
-    dealT = null;
-    endConvo();
-    note('🏃 Run.', 'big');
-    bark(kai, '…Hey.');
-    later(()=>{ if(!on || kai.gone) return; walkedOff(kai); }, 1000);
-  }
-  function kickCan(kai){
-    if(!dropCan) return;
-    cue('kick'); bark(kai, '!!');
-    const from = dropCan.position.clone();
-    tween(0.6, k=>{ dropCan.position.set(from.x + k*1.6, 0.4 + Math.sin(k*Math.PI)*0.6, from.z + k*0.8); dropCan.rotation.z = k*1.6; dropCan.scale.set(1, 1 - k*0.18, 1 + k*0.1); });
-    noise(from.x, from.z, 14, 'kick');
-  }
-  function walkedOff(kai){
-    talk('walkoff');
-    kai.state = 'pursue'; kai.fallback = 'hunt'; kai.aware = 1.1;
-    S.flags.stiffed = true;
-    outcome('stiffed');
-  }
-  function leaveInMailbox(){
-    S.flags.dropLeft = true; S.rings = false; cue('pick');
-    mark('drop');
-    talk('dropSent', ()=>later(()=>{ if(on) talk('dropReply'); }, 1500));
-    outcome('dropped');
-    const kai = find('kai'); if(kai && kai.state !== 'offstage') kaiToDrop(kai);
-  }
-  function takeFromMailbox(){
-    S.flags.dropCash = false; S.cash = 3000; S.trail.tracker = 'on'; cue('pick'); note('✉ The envelope. Nobody saw — you think.'); hud();
-    outcome('retrieved');
-  }
-  function liftEnvelope(kai){
-    S.cash = 3000; S.trail.tracker = 'on'; S.flags.lifted = true; cue('pick'); note('✉ Lifted. He never felt a thing.'); hud();
-    outcome('recovered');
-  }
-  /* the pieces of the deal that are things you walk up to */
+
+  /* the pieces of the night that are things you walk up to */
   function wireQuestThings(){
-    const m = W.spots.drop;
-    thing(m[0], m[1], 0, 'Leave the rings in the mailbox', ()=>leaveInMailbox(), { icon:'📬', r:1.6,
-      when:()=>S.step==='deal' && S.rings && !S.flags.dealStarted && !dealT });
-    thing(m[0], m[1], 0, 'Take the envelope', ()=>takeFromMailbox(), { icon:'✉', r:1.6, when:()=>S.step==='drop' && S.flags.dropCash });
-    const meet = thing(0, 0, 0, 'Talk to the buyer', ()=>{ const k = find('kai'); if(k) dealBegin(k); }, { icon:'💬', r:4, when:()=>{
-      const k = find('kai'); if(S.step !== 'deal' || !k || k.state !== 'wait' || dealT || !S.rings) return false; meet.x = k.x; meet.z = k.z; return true; } });
-    const lift = thing(0, 0, 0, 'Lift the envelope', ()=>liftEnvelope(find('kai')), { icon:'🤏', r:1.6, when:()=>{
-      const k = find('kai'); if(S.step !== 'robbed' || !k || k.state !== 'rob' || k.aware >= 0.62 || k.stun > 0) return false;
-      const behind = Math.abs(angDiff(angTo(k.x, k.z, G.pos.x, G.pos.z), k.yaw)) > 2.0; if(!behind) return false;
-      lift.x = k.x; lift.z = k.z; return true; } });
-    const drop = thing(0, 0, 0, 'Pick up the envelope', ()=>{ S.flags.envDropped = null; liftEnvelope(); }, { icon:'✉', r:1.5, when:()=>{ const e = S.flags.envDropped; if(!e) return false; drop.x = e[0]; drop.z = e[1]; return true; } });
     const plant = thing(0, 0, 0, 'Plant the tracker on the truck', ()=>{ S.trail.tracker = 'planted'; plantOn.tracker = true; cue('pick'); note('📡 The tracker is riding a delivery truck now. Enjoy the tour, whoever you are.', 'big'); hud(); },
       { icon:'📡', r:3.4, when:()=>{ if(!(S.trail.trackerFound && S.trail.tracker === 'on') || inside) return false;
         const t = trucks.find(t=>Math.hypot(t.x - G.pos.x, t.z - G.pos.z) < 4.5); if(!t) return false; plantOn = t; plant.x = t.x; plant.z = t.z; return true; } });
@@ -2488,7 +2667,8 @@ window.TSH = (function(){
     if(tailing){ lines = lines.concat(LINES.tail); }
     else {
       lines = lines.concat(LINES.roof);
-      if(path.includes('noshow') || path.includes('confiscated')) lines = lines.concat(LINES.roofNoShow);
+      if(path.includes('fought')) lines = lines.concat(LINES.roofFought);
+      else if(path.includes('noshow') || path.includes('confiscated')) lines = lines.concat(LINES.roofNoShow);
       else if(path.includes('stiffed')) lines = lines.concat(LINES.roofStiffed);
       else if(path.includes('recovered')) lines = lines.concat([['maya','The merchandise.'], ['kai','Two rings, and—'], ['kai','…where\'s the envelope?'], ['maya','She took it back. Out of your pocket.'], ['maya','Put it on.'], ['maya','Minimal force, and only on my mark. Are we clear?']]);
       else if(path.includes('robbed') || path.includes('gaveup')) lines = lines.concat(LINES.roofRobbed);
@@ -2871,11 +3051,10 @@ window.TSH = (function(){
     if(n.kind === 'wfc') return detained(n);
     if(inside) return chair();
     // Kai on the street: he takes what he came for
-    if(S.cash > 0){ S.cash = 0; if(S.trail.tracker === 'on') S.trail.tracker = 'returned'; note('✉ Kai took the envelope. "That\'s for the alley."', 'bad'); if(S.step === 'drop') S.dealPath.push('robbed'); }
+    if(S.cash > 0){ S.cash = 0; if(S.trail.tracker === 'on') S.trail.tracker = 'returned'; note('✉ Kai took the envelope. "That\'s for the alley."', 'bad'); }
     else if(S.rings){ S.rings = false; note('💍 Kai took the rings back. Fair, maybe.', 'bad'); }
     else note('Kai shoves you into the wall and walks off.', 'bad');
     n.state = 'leave'; n.dest = [-60, -48]; n.stun = 0; n.aware = 0;
-    if(S.step === 'drop') outcome('robbed');
     hud();
   }
   function detained(n){
@@ -2887,7 +3066,6 @@ window.TSH = (function(){
       S.heat = 0; S.t += 25;
       expose(35, 'WFC booked you — and called your mother');
       placePlayer(22, -45.5, Math.PI);
-      if(S.step === 'drop') outcome('gaveup');
       hud();
     });
   }
@@ -3012,7 +3190,6 @@ window.TSH = (function(){
     if(name === 'flash'){
       const hit = d.hit || [];
       const kai = hit.find(n=>n.kind === 'kai');
-      if(kai && kai.state === 'rob' && S.step === 'robbed'){ S.flags.envDropped = [kai.x + 0.6, kai.z]; kai.state = 'pursue'; kai.fallback = 'rob'; note('✉ He dropped the envelope!'); }
       if(kai && kai.inApt) apt.flashed = true;
       if(inside && ['talk','kai'].includes(apt.stage)){ apt.stage = 'escape'; flushTalk(); talkNow('dark'); kaiIn(); }
     }
@@ -3023,7 +3200,6 @@ window.TSH = (function(){
     if(name === 'photo' && inside && apt.maya && !apt.maya.hidden && apt.maya.sees && S.trail.photo !== 'up') S.trail.mayaSawPhoto = true;
     if(name === 'kaiSpot' && S.step === 'home'){ note('👁 Kai spotted you. He\'s following.', 'bad'); }
     if(name === 'kaiLost' && S.trail.kaiTail === false){ note('You lost Kai.'); }
-    if(name === 'kaiGone' && S.step === 'robbed'){ note('Kai climbed up to his crew. The money went with him.', 'bad'); outcome('gaveup'); }
   }
   /* PLANET.enter() → TSH.stop(), so the pause card's HOME cannot leave the city running underneath Wano */
   function onHeat(h, was){
@@ -3460,9 +3636,10 @@ window.TSH = (function(){
         if(!on || e.button !== 0 || busy) return;
         if(mode === 'cut') skipLine();
         else if(mode === 'talk' && cv && !cv.ask && e.target && e.target.id === 'view') convoAdvance();
+        else if(mode === 'fight' && !document.pointerLockElement && e.target && e.target.id === 'view') lockPointer($('#view'));
       });
     }
-    el.classList.remove('hidden', 'cine', 'bino', 'talking');
+    el.classList.remove('hidden', 'cine', 'bino', 'talking', 'fighting');
     el.querySelector('#tshTalk').classList.remove('on'); el.querySelector('#tshTalk').innerHTML = '';
     el.querySelector('#tshGrab').classList.add('hidden'); el.querySelector('#tshPanel').classList.add('hidden');
     el.querySelector('.tsh-fade').classList.remove('on'); fadeBusy = false;
@@ -3603,7 +3780,7 @@ window.TSH = (function(){
   function clearMarks(){ bubbles.forEach(b=>b.el.remove()); bubbles = []; npcs.forEach(n=>{ if(n.mark){ n.mark.remove(); n.mark = null; } }); if(objMark){ objMark.remove(); objMark = null; } }
   let objMark = null;
   function tickMarks(dt){
-    const layer = el.querySelector('#tshLayer'), hideAll = mode === 'cut' || mode === 'end' || mode === 'talk';
+    const layer = el.querySelector('#tshLayer'), hideAll = mode === 'cut' || mode === 'end' || mode === 'talk' || mode === 'reel' || mode === 'fight';
     bubbles = bubbles.filter(b=>{ b.life -= dt; if(b.life <= 0){ b.el.remove(); return false; }
       const s = screenOf(b.at()); b.el.style.display = s.ok && !hideAll ? '' : 'none'; b.el.style.left = s.x+'px'; b.el.style.top = s.y+'px'; b.el.style.opacity = Math.min(1, b.life*3); return true; });
     npcs.forEach(n=>{
@@ -3657,7 +3834,7 @@ window.TSH = (function(){
   let zoneT = 0;
   function tickZones(dt){
     zoneT -= dt; if(zoneT > 0) return; zoneT = 0.5;
-    if(mode === 'cut') return;
+    if(mode === 'cut' || mode === 'reel' || mode === 'fight') return;           // a film has its own captions
     const a = W.zones.alley, y = feet();
     const z = inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
@@ -3692,7 +3869,7 @@ window.TSH = (function(){
   function closePanel(){
     if(!el) return;
     el.querySelector('#tshPanel').classList.add('hidden'); panelCb = null;
-    if(busy === 'panel'){ busy = null; letGoOfKeys(); if(!mode){ G.running = true; lockPointer($('#view')); } }
+    if(busy === 'panel'){ busy = null; letGoOfKeys(); if(!mode){ G.running = true; lockPointer($('#view')); } else if(mode === 'fight') lockPointer($('#view')); }
   }
   function bag(){
     const env = S.cash > 0, tr = S.trail;
@@ -3783,6 +3960,7 @@ window.TSH = (function(){
     if(busy === 'panel'){ return; }
     switch(mode){
       case 'reel': tickReel(dt); break;
+      case 'fight': tickFight(dt); break;
       case 'cut': tickCut(dt); break;
       case 'talk': tickConvo(dt); break;
       case 'climb': tickClimb(dt); break;
@@ -3793,6 +3971,7 @@ window.TSH = (function(){
       case 'chair': tickChair(dt); break;
       case 'end': if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
     }
+    if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on){ TSHFIGHT.pose(dt); bagFollow(); }      // the buyer's crew, waiting (or on the floor)
     npcs.slice().forEach(n=>{ if(!n.gone) tickNpc(n, dt); });
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
@@ -3808,7 +3987,16 @@ window.TSH = (function(){
   function render(dt){
     if(window.GUN) GUN.carried(false);
     chaseCam(dt);
+    // the jolt of a hit: the lens knocked off its line for the frame, and put back after it is drawn
+    let off = null;
+    if(shk.len > 0){
+      const real = (dt || 0.016)/Math.max(0.01, G.timeScale === undefined ? 1 : G.timeScale);
+      shk.t += real; const k = Math.max(0, 1 - shk.t/shk.len), a = shk.amp*k*k*0.32;
+      if(k <= 0) shk.len = 0;
+      else { off = V((Math.random()*2 - 1)*a, (Math.random()*2 - 1)*a*0.7, (Math.random()*2 - 1)*a); G.camera.position.add(off); }
+    }
     LOOK.render(G.scene, G.camera, dt);
+    if(off) G.camera.position.sub(off);
     LOOK.fx.flash = Math.max(0, LOOK.fx.flash - (dt||0.016)*2.2);
   }
   function key(e){
@@ -3820,6 +4008,11 @@ window.TSH = (function(){
     if(mode === 'talk') return convoKey(e);
     if(!mode && S.step === 'lesson' && (c === 'Enter' || c === 'NumpadEnter') && !e.repeat){ lessonSkip(); return true; }
     if(!mode && S.step === 'lesson' && lessonId() === 'fire' && c === 'Space' && !e.repeat){ fireShoes(); return true; }
+    if(mode === 'fight'){
+      if(c === 'KeyP' || c === 'Escape'){ pause(); return true; }
+      if(window.TSHFIGHT && TSHFIGHT.key(e)) return true;
+      return ['KeyE', 'KeyQ', 'KeyI', 'KeyJ', 'KeyH', 'KeyF', 'KeyG', 'Tab'].includes(c);
+    }
     if(mode === 'cut'){ if((c === 'Space' || c === 'KeyE') && !e.repeat) skipLine(); if(c === 'Enter' || c === 'NumpadEnter') skipCut(); return true; }
     if(mode === 'end') return true;
     if(mode === 'grab'){ if(c === 'KeyF'){ if(flash()) breakFree(true); } if(c === 'KeyE'){ gr.mash += 0.13; cue('step'); } return true; }
@@ -3850,8 +4043,8 @@ window.TSH = (function(){
            _npcs:()=>npcs, _world:()=>W, _outcome:outcome, _heat:heat, _flash:flash, _jam:jam, _goInside:goInside,
            _place:(x, z, yaw, y)=>{ placePlayer(x, z, yaw, y); if(typeof thirdPerson === 'function') for(let i=0;i<40;i++) thirdPerson(); },
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
-           _dbg:{ get apt(){ return apt; }, get dealT(){ return dealT; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
-                  homeDoor, aptExit, tossRings, dealBegin, leaveInMailbox, takeFromMailbox, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
+           _dbg:{ get apt(){ return apt; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
+                  homeDoor, aptExit, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };

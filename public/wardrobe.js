@@ -339,10 +339,16 @@ window.WARDROBE = (function(){
       n.geometry = out; });
     return o;
   }
-  /* measure the body as it stands NOW (whatever its clip has it doing) and hang things on it as it is:
-     Object3D.attach keeps the relation to the bone, so where the bone goes the thing goes. (Not the
-     bind pose: these rigs' rest is at the file's own scale, and a pack sized there is sized wrong.) */
-  function within(model, sm, f){ model.updateMatrixWorld(true); return f(); }
+  /* measure the body STANDING and hang things on it there: Object3D.attach keeps the relation to the
+     bone, so where the bone goes the thing goes. Standing is the first frame of its idle (rig.posed),
+     whatever its clip has it doing at the moment — shades fitted to a head bowed over a phone sit on
+     the forehead ever after. (Not the bind pose: these rigs' rest is at the file's own scale, and a
+     pack sized there is sized wrong.) A body with no rig is measured as it stands. */
+  function within(model, sm, f){
+    const r = model.userData && model.userData.rig;
+    if(r && r.posed && r.has && r.has('idle')) return r.posed('idle', ()=>{ model.updateMatrixWorld(true); return f(); });
+    model.updateMatrixWorld(true); return f();
+  }
 
   /* ----------------------------------------------- measuring a body as it stands */
   function posed(mesh){

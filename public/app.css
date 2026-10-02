@@ -2900,4 +2900,29 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-lesson small{display:block;font:700 11px var(--font-code);letter-spacing:.2em;color:#7ff0e0}
 #tsh .tsh-lesson b{display:block;margin-top:4px;font:800 26px var(--font);letter-spacing:.06em;color:#fff}
 #tsh .tsh-lesson p{margin:6px 0 0;font:500 15px/1.4 var(--font);color:#d8fff4}
+#tsh .pb-note.me{margin:10px 0 0 28%;background:rgba(56,255,208,.24);animation:tshin .35s}
+#tsh .pb-note.me p{margin:0}
+
+/* ---- TSH: the fight in Dragon Alley (tshfight.js) — her health, the combo, the key to press in a slow-motion lesson */
+#tsh .tshf{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;z-index:1}
+#tsh.fighting .tsh-gad,#tsh.fighting .tsh-obj,#tsh.fighting .tsh-prompt{opacity:0;transition:opacity .3s}
+#tsh .tshf.on{opacity:1}
+#tsh.cine .tshf{opacity:0}
+#tsh .tshf-red{position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse at center,rgba(255,30,30,0) 45%,rgba(200,0,20,.55) 100%)}
+#tsh .tshf-hp{position:absolute;left:50%;bottom:6.2%;width:min(360px,60vw);height:9px;transform:translateX(-50%);border-radius:5px;background:rgba(0,0,0,.55);border:1px solid rgba(127,240,224,.45);overflow:hidden}
+#tsh .tshf-hp i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#38ffd0,#9ff6ff);transition:width .2s}
+#tsh .tshf-hp.low i{background:linear-gradient(90deg,#ff3a4a,#ff8a6a)}
+#tsh .tshf-combo{position:absolute;right:7vw;top:34%;font:900 44px/1 var(--font);letter-spacing:.04em;color:#fff;text-shadow:0 0 18px rgba(56,255,208,.8),0 3px 0 #0a3a32;opacity:0;transform:skewX(-8deg)}
+#tsh .tshf-combo.on{opacity:1}
+#tsh .tshf-combo.pop{animation:tshfpop .22s ease-out}
+@keyframes tshfpop{0%{transform:skewX(-8deg) scale(1.45)}100%{transform:skewX(-8deg) scale(1)}}
+#tsh .tshf-prompt{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%) scale(.8);text-align:center;opacity:0;transition:opacity .15s,transform .2s}
+#tsh .tshf-prompt.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#tsh .tshf-prompt kbd{display:inline-block;min-width:64px;padding:10px 18px;border-radius:12px;font:900 30px var(--font);color:#06201b;background:#38ffd0;box-shadow:0 0 0 3px rgba(56,255,208,.35),0 0 40px rgba(56,255,208,.7);animation:tshfkey .7s ease-in-out infinite}
+#tsh .tshf-prompt b{display:block;margin-top:12px;font:900 34px var(--font);letter-spacing:.14em;color:#fff;text-shadow:0 2px 12px #000}
+#tsh .tshf-prompt small{display:block;margin-top:4px;font:600 15px var(--font);color:#bff8ec;text-shadow:0 1px 6px #000}
+@keyframes tshfkey{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+#tsh .tshf-keys{position:absolute;left:50%;bottom:2.2%;transform:translateX(-50%);display:flex;gap:14px;flex-wrap:nowrap;white-space:nowrap;justify-content:center;opacity:0;transition:opacity .4s;font:600 12px var(--font);color:#cfeee6}
+#tsh .tshf-keys.on{opacity:.9}
+#tsh .tshf-keys kbd{margin-right:5px;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.55);border:1px solid rgba(127,240,224,.5);font:700 11px var(--font-code);color:#7ff0e0}
 #tsh.cine .tsh-lesson{opacity:0}

@@ -153,10 +153,7 @@ window.TSHAI = (function(){
     intro:   { goal:'Sell the rings to the buyer. Get paid.', to:{ start:'wake' } },
     wake:    { goal:'', to:{ out:'lesson' } },
     lesson:  { goal:'Get to Dragon Alley — over the roofs.', to:{ done:'deal' } },
-    deal:    { goal:'Sell the rings to the buyer. Get paid.',
-               to:{ paid:'news', robbed:'robbed', dropped:'drop', confiscated:'news', stiffed:'news' } },
-    drop:    { goal:'Get the envelope out of the mailbox.', to:{ retrieved:'news', robbed:'news', gaveup:'news' } },
-    robbed:  { goal:'Kai walked off with the rings. Get paid anyway.', to:{ recovered:'news', gaveup:'news' } },
+    deal:    { goal:'Meet the buyer in Dragon Alley. Get paid.', to:{ fought:'news', confiscated:'news' } },
     news:    { goal:'Get out of Dragon Alley.', to:{ watched:'home' } },
     home:    { goal:'Get home with the money.', to:{ home:'apt' } },
     apt:     { goal:'Somebody is in your flat.', to:{ kaiIn:'escape', out:'out' } },
@@ -171,7 +168,8 @@ window.TSHAI = (function(){
     return b.to[outcome] || step;
   }
   /* The checkpoints a visit restarts from: the beat is replayed, what
-     you did in the beats before it stays done. */
+     you did in the beats before it stays done. (drop and robbed were the
+     old deal with Kai's dead drop; a night saved in one is back at the deal.) */
   const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', news:'news', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end' };
 
@@ -189,9 +187,8 @@ window.TSHAI = (function(){
   const STORY = [
     { id:'wake',      beat:'wake',   on:'the night starts: the buyer calls; the kit on, out of the window' },
     { id:'lesson',    beat:'lesson', on:'she falls from the window, and the shoes fire',     after:['wake'] },
-    { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley',           after:['lesson'] },
-    { id:'drop',      beat:'deal',   on:'leaving the rings in the mailbox instead',          after:['lesson'] },
-    { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the deal behind her', after:['deal', 'drop'] },
+    { id:'deal',      beat:'deal',   on:'walking up to the buyer in Dragon Alley: no money, his crew, the fight', after:['lesson'] },
+    { id:'news',      beat:'news',   on:'stepping out of Dragon Alley, the fight behind her', after:['deal'] },
     { id:'roof',      beat:'news',   on:'the broadcast ends: through Maya\'s binoculars',     after:['news'] },
     { id:'voicemail', beat:'apt',    on:'through her own front door',                        after:['roof'] },
     { id:'maya',      beat:'apt',    on:'the lamp goes on, or a knock at the door',          after:['voicemail'] },
@@ -210,7 +207,7 @@ window.TSHAI = (function(){
      a night resumed in the middle, has already seen. */
   function seenBefore(step){
     const O = ['wake','lesson'];
-    const behind = { lesson:['wake'], deal:O, drop:O.concat('deal'), robbed:O.concat('deal'), news:O.concat('deal'),
+    const behind = { lesson:['wake'], deal:O, news:O.concat('deal'),
                      home:O.concat('deal','news','roof'), out:O.concat('deal','news','roof','voicemail','maya','kai') };
     ['apt','escape','chair','escape2'].forEach(b=>{ behind[b] = behind.home; });
     behind.end = behind.out;
@@ -284,7 +281,8 @@ window.TSHAI = (function(){
   /* A line for each thing you did, for the card at the end. */
   function summary(S){
     const tr = S.trail, out = [];
-    const deal = { paid:'Took the cash and vanished, the way you planned.', robbed:'Handed over the rings first — Kai walked.',
+    const deal = { fought:'The buyer never meant to pay. His crew came out of the alley — and you left them on the floor of it. Kept the rings; no money.',
+                   paid:'Took the cash and vanished, the way you planned.', robbed:'Handed over the rings first — Kai walked.',
                    recovered:'Got your money back off Kai anyway.', dropped:'Left the rings in a dead drop.', retrieved:'Got the envelope out from under Kai\'s nose.',
                    noshow:'Never showed up to the deal.', confiscated:'WFC took the rings before you could sell them.', gaveup:'Let the money go.',
                    stiffed:'Walked off with the cash and the rings. Kai did not take it well.' };

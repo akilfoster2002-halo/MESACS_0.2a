@@ -587,6 +587,37 @@ window.TSHCITY = (function(){
     solid(x-w/2, x+w/2, z-d/2, z+d/2, -1, 1.3, 'dumpster'); plat(x-w/2, x+w/2, z-d/2, z+d/2, 1.32, 'dumpster');
     out.covers.push([x, z, 1.4]);
   }
+  /* A CAR, parked along the west wall of Dragon Alley: somewhere in the
+     fight to put one of the buyer's crew (tshfight.js throws a man at it,
+     and it rocks and its alarm goes). The model is Higgsfield's — a photo
+     of a tired old hatchback lifted into 3D by SAM 3D (tsh/alley/car.glb,
+     200 KB) — and until it has come down a dark box stands in for it. */
+  function parkedCar(group, out, x, z, solid, plat){
+    const len = 3.7, wid = 1.86, h = 1.55;
+    const car = { x, z, x1:x - wid/2, x2:x + wid/2, z1:z - len/2, z2:z + len/2, mesh:new THREE.Group() };
+    car.mesh.position.set(x, 0, z); group.add(car.mesh);
+    const stand = new THREE.Group();
+    const paint = new THREE.MeshStandardMaterial({ color:0x15181b, roughness:0.45, metalness:0.3 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(wid, 0.8, len), paint); body.position.y = 0.6; stand.add(body);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(wid*0.86, 0.6, len*0.55), paint); cab.position.set(0, 1.25, -0.2); stand.add(cab);
+    car.mesh.add(stand);
+    solid(car.x1, car.x2, car.z1, car.z2, -1, h, 'car'); plat(car.x1, car.x2, car.z1, car.z2, h, 'car');
+    out.covers.push([x, z, h]);
+    out.car = car;
+    if(!THREE.GLTFLoader) return;
+    const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+    L.load('tsh/alley/car.glb?v=' + (window.ASSETV || '1'), g=>{
+      const m = g.scene;
+      const size = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3());
+      m.scale.setScalar(len/size.z); m.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(m), c = b.getCenter(new THREE.Vector3());
+      m.position.set(-c.x, -b.min.y, -c.z);
+      // SAM leaves glTF's fully-metal default, which with nothing to reflect is black: old paint, glass and rubber
+      m.traverse(n=>{ if(!n.isMesh) return; n.castShadow = n.receiveShadow = true;
+        const mt = n.material; if(mt){ mt.metalness = 0.15; mt.roughness = 0.55; if(mt.map) mt.map.colorSpace = THREE.SRGBColorSpace; mt.needsUpdate = true; } });
+      car.mesh.add(m); car.mesh.remove(stand);
+    }, undefined, ()=>{});
+  }
   function vending(B, group, out, x, z, ry, col, lightSrc, solid){
     B.box(M.darkMetal, x, 0.95, z, 1.0, 1.9, 0.8, { ry });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.3), M.glow(col, 2.6)); m.position.set(x + Math.sin(ry)*0.41, 1.15, z + Math.cos(ry)*0.41); m.rotation.y = ry; group.add(m);
@@ -726,6 +757,8 @@ window.TSHCITY = (function(){
     bike(B, X1+1.4, -17.6, Math.PI/2+0.25);
     trash(B, out, X1+0.9, -24.5, 5); trash(B, out, X2-0.9, -33, 4); trash(B, out, X1+0.9, -39, 3); trash(B, out, X2-0.8, -13, 3);
     vending(B, group, out, X2-0.55, -36.5, -Math.PI/2, 0x7affd8, lightSrc, solid);
+    out.alleyBlocks = [{ x1:X1+0.58, x2:X1+1.62, z1:-21.95, z2:-20.05 }, { x1:X2-1.1, x2:X2, z1:-37, z2:-36 }];   // the dumpster and the vending machine, for the fight
+    parkedCar(group, out, X1+1.02, -34.2, solid, plat);
     B.box(M.card, X2-0.6, 0.3, -24, 0.7, 0.6, 0.6, { ry:0.3 }); B.box(M.card, X2-0.7, 0.8, -24.2, 0.5, 0.4, 0.5, { ry:-0.2 });
     // the dead drop: a bank of mail slots on the east wall by the lane
     B.box(M.metal, X2-0.12, 1.5, -42.2, 0.2, 1.2, 1.4);

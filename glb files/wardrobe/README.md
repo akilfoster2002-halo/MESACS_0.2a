@@ -136,8 +136,11 @@ A file can't reach players without being checked.
 ## Accessories and things made in code
 
 Accessories are rigid models on one bone: the pack, cap, beanie and shades.
-They fit anybody and are sized from the skeleton when they go on. `tune`
-nudges them:
+They fit anybody and are sized from the skeleton when they go on. They are
+always fitted against the body standing, in the first frame of its `idle`
+(`rig.posed` in avatar.js), whatever clip it is playing at the time. Shades
+fitted to a head bowed over a phone used to stay square to that bowed head,
+and sat on the forehead once she looked up. `tune` nudges them:
 - `size`: fraction of head (or back) length.
 - `along`: how far up the bone.
 - `fwd`: forward of that.

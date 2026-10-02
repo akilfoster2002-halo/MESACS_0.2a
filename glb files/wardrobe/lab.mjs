@@ -39,7 +39,7 @@ export async function lab(){
   const br = await puppeteer.launch({ headless:'new', protocolTimeout:0, args:['--use-gl=angle', '--enable-unsafe-swiftshader'] });
   const pg = await br.newPage(); await pg.setViewport({ width:1024, height:1024 });
   pg.on('pageerror', e=>console.error('page:', e.message)); pg.on('console', m=>{ if(m.type() === 'error' || m.type() === 'warn') console.error('page:', m.text()); else console.log('page:', m.text()); });
-  const page = (process.argv[2] === 'try' || process.argv[2] === 'check' || process.env.PAGE === 'try') ? 'try.html' : 'lab.html';
+  const page = (['try', 'check', 'moves'].includes(process.argv[2]) || process.env.PAGE === 'try') ? 'try.html' : 'lab.html';
   await pg.goto(`http://localhost:${port}/glb files/wardrobe/${page}`);
   await pg.waitForFunction(page === 'try.html' ? 'window.TRY && window.TRY.ready' : 'window.LAB && window.LAB.ready', { timeout:60000 });
   const url = p => '/' + path.relative(ROOT, path.resolve(p)).split(path.sep).join('/');
@@ -65,6 +65,11 @@ if(cmd){
     if(cmd === 'try'){                                             // try <body> <slot:item,...> <out.jpg> [clip] [time]
       const [b, fit, out, clip, at] = args;
       const r = await L.pg.evaluate((b, f, c, t, hd, ch, hn, bg, ft)=>{ TRY.head = hd; TRY.chest = ch; TRY.hand = hn; TRY.bg = bg; TRY.feet = ft; return TRY(b, f, c, t); }, b, fit || '', clip || 'idle', +(at || 0), !!process.env.HEAD, !!process.env.CHEST, (process.env.HAND || null), process.env.BG || null, !!process.env.FEET);
+      fs.writeFileSync(out, Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot; console.log('wrote', out, JSON.stringify(r));
+    }
+    if(cmd === 'moves'){                                           // moves <body> <moves.glb|-> <a,b,c> <out.jpg> [frac] [slots]
+      const [b, f, list, out, frac, slots] = args;
+      const r = await L.pg.evaluate((b, u, l, fr, sl)=>TRY.moves(b, u, l, fr, sl), b, f === '-' ? null : L.url(f), list.split(','), frac ? (frac.includes(',') ? frac.split(',').map(Number) : +frac) : 0.45, slots || null);
       fs.writeFileSync(out, Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot; console.log('wrote', out, JSON.stringify(r));
     }
     if(cmd === 'check'){                                           // check <body> <slot:item,...> <out.jpg>  — every clip, measured; recorded in qa.json

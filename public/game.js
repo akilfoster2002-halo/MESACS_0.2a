@@ -1004,7 +1004,9 @@ function setGlow(g,on){
 let last=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
-  const dt=Math.min((now-last)/1000, 0.05); last=now;
+  /* SPEED RAMPS. A scene may slow the whole world (TSH's fight: a punch lands
+     in slow motion while you learn it); G.timeScale is 1 everywhere else. */
+  const dt=Math.min((now-last)/1000, 0.05)*(G.timeScale===undefined?1:G.timeScale); last=now;
   cleanHud();
   updateCodeBtn();
   updateEmoteBtn();
