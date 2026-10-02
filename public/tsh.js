@@ -30,12 +30,21 @@
    casts her (AVATAR.setCast('robin')) on the way in and gives you back
    on the way out.
 
+   AND THEN WFC. Out of the alley, under a billboard, and the squads
+   arrive: a chase over the roofs that teaches itself (tshchase.js) — a
+   gunship, drones firing missiles, a call from Mom while she hides — and
+   home at 3 AM, with Maya and Kai watching her sleep. The prologue ends
+   there; the flat (the screens, the roof, Maya at the door) is Part Two.
+
    THE FILES: tshlook.js (the picture), tshcity.js (the district),
-   tshai.js (the rules), and this — the night itself.
+   tshai.js (the rules), tshfight.js (the alley), tshchase.js (the
+   chase), and this — the night itself.
 
    KEYS: WASD move · Shift run · Space jump · E use · H shades ·
          G Gecko cuffs · F flash bangles · J static studs · Q throw · I bag ·
          Tab details · P pause
+         in the chase, also: Click / K hit · Right-click / R parry ·
+         G (no wall to climb) pull · Space at a barrier vault, at a gate slide
 
    THE KIT. Robin makes jewelry that does things, and the night starts at
    her bench finishing tonight's pieces (the workshop) — that is where you
@@ -151,10 +160,41 @@ window.TSH = (function(){
     fightOut3: [['robin','Right. Worth a shot.']],
     fightText: [['unknown','📱 You just cost us a lot of money.']],
     fightOut4: [['robin','Yeah?']],
-    fightOut5: [['robin','Send me an invoice.']]
+    fightOut5: [['robin','Send me an invoice.']],
+    /* NEON AVENUE: the billboard, and WFC (the chase, tshchase.js) */
+    raidIn1:   [['robin','Yeah. Sure.']],
+    raidIn2:   [['robin','...Huh.']],
+    raidDrone: [['drone','UNREGISTERED WEARABLE DETECTED.']],
+    raidIn3:   [['wfc','THERE! DROP THE BAG! GET ON THE GROUND!']],
+    raidIn4:   [['robin','Okay, little weird.']],
+    raidIn5:   [['robin','Actually...']],
+    raidRun:   [['wfc','STOP!'], ['robin','You\'re really committed to this!']],
+    raidAre:   [['robin','Are you KIDDING me?!']],
+    raidSorry: [['robin','Sorry! Reflex!']],
+    raidWall:  [['robin','Okay. Okay okay okay.'], ['robin','Please work.']],
+    raidOnWall:[['wfc','She\'s on the building!'], ['robin','Yeah. I noticed.']],
+    raidRoof:  [['robin','Okay. That\'s new.']],
+    raidSpace: [['robin','Okay, Robin. Don\'t embarrass yourself.']],
+    raidLanded:[['robin','Okay. Definitely keeping that.']],
+    raidGate:  [['robin','Seriously?!']],
+    raidGun:   [['wfc','SUSPECT IS ON THE ROOFTOPS. ALL UNITS, SECTOR 9.']],
+    raidShh:   [['robin','Shhh.']],
+    /* the phone, behind the AC unit: Mom, at work */
+    momRing:   [['robin','Oh, you\'ve gotta be kidding me.']],
+    momCall1:  [['robin','Hey, Mom.'], ['momcall','Hey, Robin. I\'m still at work. I think I\'m going to be later than usual tonight.'],
+                ['robin','Okay. Yeah. No problem.'], ['momcall','You okay? You sound out of breath.'], ['robin','Yeah. I\'m fine. Just... stairs.']],
+    momCall2:  [['momcall','What was that?'], ['robin','Uh... TV.'], ['momcall','At this hour?'], ['robin','Really good TV.'],
+                ['momcall','Alright. Don\'t stay up too late.'], ['robin','Yeah. You too.']],
+    momAfter:  [['robin','...Crap.']],
+    momFound:  [['robin','Oh, come on.']],
+    /* her own roof, her room, and across the street */
+    raidHome:  [['robin','Okay...'], ['robin','Definitely never doing that again.'], ['robin','...Probably.']],
+    rats:      [['robin','Rats.']],
+    watchers:  [['maya','That\'s her.'], ['kai','You\'re sure?'], ['maya','Yeah.']]
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
-                counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'] };
+                counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
+                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -267,6 +307,10 @@ window.TSH = (function(){
       else if(kind==='clang'){ tone(1800, 1750, 0.5, 'triangle', 0.09); tone(2650, 2600, 0.35, 'sine', 0.05); burst(0.06, 4000, 0.25); }
       else if(kind==='hurt'){ burst(0.2, 300, 0.55, 0.6); tone(220, 90, 0.25, 'sine', 0.18); }
       else if(kind==='grab'){ tone(300, 1600, 0.3, 'sawtooth', 0.04); burst(0.2, 2200, 0.12, 0.8); }
+      // the chase (tshchase.js): a lock tone, a launch, tyres
+      else if(kind==='lock'){ tone(1900, 1900, 0.045, 'square', 0.03); }
+      else if(kind==='launch'){ burst(0.5, 900, 0.3, 0.5); tone(300, 1400, 0.4, 'sawtooth', 0.04); }
+      else if(kind==='skid'){ burst(0.9, 1600, 0.22, 2.5); burst(0.5, 300, 0.25, 0.5); }
       else if(kind==='alarm'){ [0, 0.32, 0.64, 0.96, 1.28].forEach(d=>{ const o = a.createOscillator(), gg = a.createGain(); o.type = 'square'; o.frequency.setValueAtTime(880, t + d); o.frequency.setValueAtTime(660, t + d + 0.16);
         gg.gain.setValueAtTime(0.0001, t + d); gg.gain.exponentialRampToValueAtTime(0.035, t + d + 0.01); gg.gain.exponentialRampToValueAtTime(0.0008, t + d + 0.3); o.connect(gg); gg.connect(a.destination); o.start(t + d); o.stop(t + d + 0.32); }); }
     }catch(e){}
@@ -318,8 +362,11 @@ window.TSH = (function(){
     populate();
     bootsOn();
     if(S.step === 'wake'){ later(()=>{ if(on && S.step === 'wake') scene('wake', opening); }, 300); return; }
+    if(S.step === 'night'){ later(()=>{ if(on && S.step === 'night') nightScene(); }, 300); return; }
     beatStart(true);
     if(S.step === 'lesson'){ mark('wake'); lessonBegin(true); }
+    // a chase picked up at a checkpoint: the stage it was on, from its top
+    if(S.step === 'raid' && S.seen.includes('raid')){ later(()=>{ if(on && S.step === 'raid') raidGo(S.raid ? S.raid.stage : 0, true); }, 200); lockPointer($('#view')); return; }
     title();
     lockPointer($('#view'));
   }
@@ -329,6 +376,7 @@ window.TSH = (function(){
     if(!on) return;
     cv = null; me.scale = null;
     if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0;
+    if(window.TSHCHASE) TSHCHASE.stop();
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -840,6 +888,7 @@ window.TSH = (function(){
     if(f.i >= f.shots.length) return reelEnd(false);
     const s = f.shot = f.shots[f.i]; f.t = over; f.fired = new Set();
     if(s.inside !== undefined) showInside(s.inside);
+    el.classList.toggle('bino', !!s.bino);
     if(s.enter) s.enter();
     scoreSync();
     G.camera.fov = s.fov || 50; G.camera.updateProjectionMatrix();
@@ -872,7 +921,7 @@ window.TSH = (function(){
   function reelEnd(skipped){
     const f = reel; if(!f) return;
     reel = null; score.clockAt = undefined;
-    el.classList.remove('cine');
+    el.classList.remove('cine', 'bino');
     G.camera.fov = 70; G.camera.updateProjectionMatrix();
     if(mode === 'reel'){ mode = null; G.running = true; }
     letGoOfKeys();
@@ -942,6 +991,8 @@ window.TSH = (function(){
     // after the fight in Dragon Alley: a text from a number she does not know, and her answer
     if(kind === 'text' || kind === 'reply') p.innerHTML = lock(`<div class="pb-note"><small>MESSAGES · NOW</small><b>Unknown number</b><p>${esc(LINES.fightText[0][1].replace(/^📱\s*/, ''))}</p></div>`
       + (kind === 'reply' ? `<div class="pb-note me"><p>${esc(LINES.fightOut5[0][1])}</p></div>` : ''));
+    // home: the lock screen, and how late it is
+    if(kind === 'time') p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ 3%</span></div><div class="pb-caller"><small>${esc(AI.clock(S.t).replace(/^0/, ''))} AM</small><b>${esc(AI.clock(S.t).replace(/^0/, ''))}</b><span>⏰ School · 7:15 AM</span></div></div>`;
     if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>UNKNOWN</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
     p.classList.add('on'); p.classList.toggle('buzz', kind === 'call');
   }
@@ -1612,7 +1663,9 @@ window.TSH = (function(){
     const k = worldK(hand), p = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.01), new THREE.MeshBasicMaterial({ color:new THREE.Color(1.5, 2.2, 2.6) }));
     p.scale.setScalar(k); p.position.set(0, 0.1*k, 0.04*k); p.visible = false; hand.add(p); n.phone = p;
   }
-  function despawn(n){ n.gone = true; if(n.g.parent) n.g.parent.remove(n.g); npcs = npcs.filter(x=>x!==n); if(n.mark){ n.mark.remove(); n.mark = null; } }
+  function despawn(n){ n.gone = true; if(n.g.parent) n.g.parent.remove(n.g); npcs = npcs.filter(x=>x!==n); if(n.mark){ n.mark.remove(); n.mark = null; }
+    if(n.kind === 'drone'){ const i = drones.indexOf(n); if(i >= 0) drones.splice(i, 1);
+      [n.mesh.cone, n.mesh.foot, n.mesh.fill].forEach(m=>{ if(m.parent) m.parent.remove(m); }); if(W) W.lights = W.lights.filter(l=>l !== n.mesh.src); } }
   function clearNpcs(){ npcs.slice().forEach(despawn); npcs = []; drones.length = 0; trucks.length = 0; }
   const find = name => npcs.find(n=>n.name===name);
 
@@ -1691,7 +1744,9 @@ window.TSH = (function(){
   /* ------------------------------------------------------------ the eyes */
   function crowdAround(x, z){ let c = 0; for(const n of npcs) if(n.kind==='civ' && Math.hypot(n.x-x, n.z-z) < 2.6) c++; return c; }
   function canSee(n, x, y, z){
-    return los(n.x, n.y + 1.65, n.z, x, y + 1.3, z) || los(n.x, n.y + 1.65, n.z, x, y + 1.75, z);
+    // down behind a box (the chase's cover), there is less of her to see
+    const lo = me.crouch ? 0.45 : 1.3, hi = me.crouch ? 0.95 : 1.75;
+    return los(n.x, n.y + 1.65, n.z, x, y + lo, z) || los(n.x, n.y + 1.65, n.z, x, y + hi, z);
   }
   function interest(n){
     if(n.kind === 'wfc'){ if(n.state === 'raid' || n.state === 'escort') return 0.2; return S.heat > 0 ? 1.0 : (me.shades && !inside ? 0.28 : 0); }
@@ -1826,14 +1881,19 @@ window.TSH = (function(){
     const blind = n.static > 0 || n.stun > 0;
     const fast = S.heat >= 4 ? 1.45 : 1;
     let tx, tz;
-    if(n.state === 'track' && !blind){ tx = p.x; tz = p.z; }
+    // the chase's hunters fly where the chase says, at the height it says (and a drone the film dropped hangs where the film put it)
+    if(n.hunter && window.TSHCHASE && TSHCHASE.on){ const g = TSHCHASE.hunterGoal(n); tx = g[0]; tz = g[1]; n.yT = g[2]; if(n.state === 'track' && Math.hypot(p.x - n.x, p.z - n.z) > 16){ n.state = 'search'; n.searchT = 30; } }
+    else if(n.pin){ tx = n.pin[0]; tz = n.pin[1]; }
+    else if(n.state === 'track' && !blind){ tx = p.x; tz = p.z; }
     else if(n.state === 'search' && lastKnown){ const a = clock*0.6; tx = lastKnown[0] + Math.cos(a)*9; tz = lastKnown[1] + Math.sin(a)*9; n.searchT -= dt; if(n.searchT <= 0) n.state = 'patrol'; }
     else if(n.away){ tx = n.away[0]; tz = n.away[1]; }                    // sent off its round while a scene plays under it
     else { const w = n.route[n.ri]; tx = w[0]; tz = w[1];
       if(Math.hypot(tx - n.x, tz - n.z) < 1){ if(n.hover[n.ri] && n.holdT <= 0) n.holdT = n.hover[n.ri]; if(n.holdT > 0){ n.holdT -= dt; if(n.holdT <= 0) n.ri = (n.ri+1) % n.route.length; } else n.ri = (n.ri+1) % n.route.length; } }
     const dx = tx - n.x, dz = tz - n.z, dd = Math.hypot(dx, dz);
-    if(dd > 0.2){ const s = Math.min(dd, (n.state==='track' ? 7.5 : n.speed)*fast*dt); n.x += dx/dd*s; n.z += dz/dd*s; n.yaw += angDiff(Math.atan2(dx, dz), n.yaw)*Math.min(1, dt*2.5); }
-    n.y = 13 + Math.sin(clock*1.3 + n.x)*0.25;
+    if(dd > 0.2){ const s = Math.min(dd, (n.state==='track' || n.hunter ? 7.5 : n.speed)*fast*dt); n.x += dx/dd*s; n.z += dz/dd*s; n.yaw += angDiff(Math.atan2(dx, dz), n.yaw)*Math.min(1, dt*2.5); }
+    const yt = n.yT !== undefined ? n.yT : 13;
+    n.alt = n.alt === undefined ? yt : n.pin ? yt : lerp(n.alt, yt, Math.min(1, dt*1.5));
+    n.y = n.alt + Math.sin(clock*1.3 + n.x)*0.25;
     d.g.position.set(n.x, n.y, n.z); d.g.rotation.y = n.yaw;
     d.red.visible = S.heat > 0 ? (clock*6|0)%2===0 : (clock*1.5|0)%2===0; d.blue.visible = S.heat > 0 ? !d.red.visible : false;
     // the beam lands a few metres ahead, sweeping a little side to side
@@ -1858,7 +1918,9 @@ window.TSH = (function(){
     }
     d.src.x = bx; d.src.y = by + 2.2; d.src.z = bz;
     // is she in it?
-    const inBeam = !blind && !me.hidden && mode !== 'talk' && !inside && Math.hypot(p.x - bx, p.z - bz) < n.beam.r && Math.abs(p.y - by) < 2.5;
+    // down behind a box, only a drone nearly overhead can read her
+    const tucked = me.crouch && Math.hypot(p.x - n.x, p.z - n.z) > 6;
+    const inBeam = !blind && !me.hidden && !tucked && mode !== 'talk' && mode !== 'reel' && !inside && Math.hypot(p.x - bx, p.z - bz) < n.beam.r && Math.abs(p.y - by) < 2.5;
     if(n.state === 'track'){
       if(inBeam){ n.lostT = 0; lastKnown = [p.x, p.z]; heatSeenT = 0; }
       else { n.lostT += dt; if(n.lostT > 4){ n.state = 'search'; n.searchT = 12; } }
@@ -1924,6 +1986,8 @@ window.TSH = (function(){
     n.perT -= dt; if(n.perT <= 0){ n.perT = 0.1; perceive(n, 0.1); }
     n.moving = false; n.running = false; n.clip = null;
     if(n.stun > 0){ n.clip = 'idle'; n.yaw += Math.sin(n.t*9)*dt*2; }
+    else if(n.hold){ n.clip = 'idle'; }                                     // on a line, or being pulled: somebody else is moving him
+    else if(n.kind === 'wfc' && n.brawl && window.TSHCHASE && TSHCHASE.on) TSHCHASE.brawl(n, dt);
     else if(n.investigate && !['pursue','grab','deal','catch','talk','cut'].includes(n.state) && !n.hold) investigate(n, dt);
     else if(n.kind === 'civ') tickCiv(n, dt);
     else if(n.kind === 'wfc') tickWfc(n, dt);
@@ -1996,7 +2060,7 @@ window.TSH = (function(){
   function tickWfc(n, dt){
     const p = P();
     if(n.sees && S.heat > 0){ heatSeenT = 0; lastKnown = [p.x, p.z]; }
-    if(n.sees && S.heat > 0 && n.aware >= 1 && !['pursue','grab','raid','escort'].includes(n.state)){
+    if(n.sees && S.heat > 0 && n.aware >= 1 && !['pursue','grab','raid','escort','circle','cut'].includes(n.state)){
       n.state = 'pursue'; bark(n, pick(['Stop! WFC!', 'Hold it right there!', 'Suspect on foot!']));
       npcs.forEach(o=>{ if(o!==n && o.kind==='wfc' && !['pursue','grab'].includes(o.state) && Math.hypot(o.x-n.x, o.z-n.z) < 45){ o.investigate = [p.x, p.z, 6]; o.aware = Math.max(o.aware, 0.7); } });
     }
@@ -2030,6 +2094,8 @@ window.TSH = (function(){
         if(n.leaving && Math.hypot(h[0]-n.x, h[1]-n.z) < 2) despawn(n);
         break; }
       case 'grab': n.clip = 'idle'; face(n, p.x, p.z, dt); break;
+      case 'cut': n.clip = n.cutClip || 'idle'; break;
+      case 'circle': if(n.circle && window.TSHCHASE && TSHCHASE.on) TSHCHASE.circle(n, dt); else n.state = 'pursue'; break;
       default: n.clip = 'idle';
     }
   }
@@ -2236,6 +2302,7 @@ window.TSH = (function(){
              'The fire escape in the alley goes up to the roofs.',
              'G — the Gecko cuffs climb any wall. Nobody looks up; WFC who do see illegal wearables.',
              'H — shades. Nobody has seen your face yet.'],
+    raid:   ['Out of the alley onto Neon Avenue.'],
     news:   ['Out of the alley onto Neon Avenue — the street, or over the roofs.', 'Home is 214 Harbor Lane, the south-east corner of the district.'],
     home:   ['Home: 214 Harbor Lane, the south-east corner.', 'WFC has closed Neon Avenue east of Market Street.', 'The metro runs from Neon West to Harbor Lane.',
              'The back lanes and the roofs go round the checkpoint.', 'I — your bag. Check what you are carrying.'],
@@ -2250,6 +2317,7 @@ window.TSH = (function(){
     switch(S.step){
       case 'lesson': return lessonMarker();
       case 'deal': { const b = window.TSHFIGHT && TSHFIGHT.MEET.buyer; return b ? [b[0], b[1], 2.4, 'The buyer'] : null; }
+      case 'raid': return window.TSHCHASE && TSHCHASE.on ? TSHCHASE.marker() : inAlley() ? [s.alleyMouth[0], s.alleyMouth[1], 2.4, 'Neon Avenue'] : null;
       case 'news': return inAlley() ? [s.alleyMouth[0], s.alleyMouth[1], 2.4, 'Neon Avenue'] : null;
       case 'home': return [s.home[0], s.home[1], 2.6, 'Home'];
       case 'out': { const r = nearestHigh(); return r ? [r[0], r[1], r[2] + 1, 'High ground'] : null; }
@@ -2274,6 +2342,7 @@ window.TSH = (function(){
     const g = AI.QUEST[S.step];
     setObjective(S.step === 'home' && !S.cash ? 'Get home.' : g ? g.goal : '', INFO[S.step] || []);
     if(['deal','news','home','out'].includes(S.step) && !inside) later(()=>{ if(on) checkpoint(); }, 400);
+    if(S.step === 'raid' && !S.seen.includes('raid') && !inside) later(()=>{ if(on) checkpoint(); }, 400);
   }
   /* THE STORYBOARD (tshai.js STORY). `scene()` is how anything in the
      night gets said: it plays only when it is that scene's turn — the one
@@ -2299,7 +2368,9 @@ window.TSH = (function(){
     }
     // --- the alley after the fight: the crew stays on the ground until she has gone ---
     if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on && S.step !== 'deal' && S.step !== 'lesson' && !mode && !inAlley()) TSHFIGHT.clear();
-    // --- the screens, the binoculars, the roof: as she steps out of the alley with the deal behind her ---
+    // --- the billboard, and WFC: as she steps out of the alley with the deal behind her ---
+    if(S.step === 'raid' && !inside && !mode && !busy && !inAlley() && !(window.TSHCHASE && TSHCHASE.on)) scene('raid', raidIntro);
+    // --- (Part Two) the screens, the binoculars, the roof ---
     if(S.step === 'news' && !inside && !mode && !busy && !inAlley()){
       const chased = S.heat > 0 || (kai && !kai.gone && kai.state === 'pursue');
       if(!chased) scene('news', newsScene);
@@ -2705,6 +2776,241 @@ window.TSH = (function(){
     tween(2.4, k=>{ s.material.opacity = Math.sin(k*Math.PI)*0.35; s.position.set(n.x, n.y + 1.0, n.z); }, ()=>{ s.parent && s.parent.remove(s); });
   }
 
+  /* ===================================================== NEON AVENUE: WFC
+     THE BILLBOARD (storyboard: 'raid'). Robin steps out of Dragon Alley
+     with the bag, and the big screen across the avenue is running WFC's
+     own advert — PROTECTING NEW YORK — and she has an opinion about it.
+     Then it cuts to an alert: illegal wearables, Dragon Alley, which is
+     where she is standing. A drone drops out of the sky in front of her,
+     two vans come in from both ends of the avenue, and officers pour out.
+     "Actually..." — and it is yours: the chase (tshchase.js).
+
+     A FILM, like the alley's: the shots run on their own, the lines are
+     laid over them, ENTER skips it. */
+  const RAID = { from:[-41.4, -12.2], at:[-41.3, -7.8] };
+  function raidIntro(){
+    flushTalk(); clearChase(); sayOver = null;
+    TSHCHASE.build(chaseCtx());
+    const vans = TSHCHASE.vans(), B = RAID.at;
+    // the screen across the avenue, and the way she has to turn to read it
+    const scr = W.screens.slice().sort((a, b)=>Math.hypot(a.x - B[0], a.z - B[1]) - Math.hypot(b.x - B[0], b.z - B[1]))[0];
+    const ry = Math.atan2(scr.x - B[0], scr.z - B[1]), east = Math.PI/2;
+    screensMode('wfc', 9999);
+    // the avenue's delivery trucks wait out of shot while the film plays (one drove through the drone)
+    const held = trucks.filter(t=>t.axis === 'x').map(t=>{ const was = t.spd; t.s = B[0] + (t.dir > 0 ? -100 : 100); t.spd = t.v = 0; return [t, was]; });
+    // offstage, both ends of the avenue: they come in during the film
+    const VW = [-56, -2.8], VE = [-31, -2.8];
+    vans[0].place(VW[0] - 60, VW[1], Math.PI/2); vans[1].place(VE[0] + 45, VE[1], -Math.PI/2);
+    // the drone that drops in her face
+    const dr = spawnDrone([[B[0] + Math.sin(ry)*2.6, B[1] + Math.cos(ry)*2.6]], { name:'dRaid', speed:6 });
+    dr.pin = [B[0] + Math.sin(ry)*2.6, B[1] + Math.cos(ry)*2.6]; dr.yT = 20; dr.state = 'patrol';
+    // the squad, in the vans until they get out
+    const RING = [[-49.0, -4.6], [-48.0, -8.8], [-51.5, -6.6], [-46.5, -2.6]];
+    const cops = RING.map((r, i)=>{ const v = VW; const n = spawn('wfc', ['walk-t', 'theo', 'walk-x', 'nia'][i], v[0], v[1] - 1.6, { name:'raid' + i, state:'cut' });
+      n.hidden = true; n.home = v.slice(); n.base = 'search'; return n; });
+    const out_ = k => cops.forEach((n, i)=>{ const v = VW; n.hidden = false; n.x = lerp(v[0], RING[i][0], k); n.z = lerp(v[1] - 1.6, RING[i][1], k); n.yaw = Math.atan2(B[0] - n.x, B[1] - n.z); n.cutClip = k < 1 ? 'sprint' : 'idle'; });
+    const head = (x, z, y) => [x, y || 1.55, z];
+    const lead = RING[0];
+    const shots = [
+      // EXT. NEON AVENUE. Out of the alley, the bag in her hand.
+      { dur:3.0, fov:46, cam:[[-37.6, 1.4, -2.8], [-38.2, 1.5, -3.6]], look:[[-41.3, 1.2, -10], [-41.3, 1.3, -8]],
+        enter:()=>{ caption('EXT. NEON AVENUE — ' + AI.clock(S.t)); cue('step'); },
+        tick:(dt, t, k)=>walkStage(RAID.from, B, k) },
+      // the screen across the avenue: WFC, PROTECTING NEW YORK
+      { dur:3.4, fov:34, fov2:28, cam:[B[0] - 1.6, 1.3, B[1] + 0.8], look:[scr.x, scr.y, scr.z],
+        enter:()=>stage('idle', B[0], 0, B[1], ry) },
+      // "Yeah. Sure."
+      { dur:linesLen('raidIn1') + 0.7, fov:34, cam:rel(B[0], B[1], ry, 1.25, 0.3, 1.62), look:head(B[0], B[1], 1.58),
+        enter:()=>{ stage('idle', B[0], 0, B[1], ry); talk('raidIn1'); } },
+      // the screen cuts to an alert
+      { dur:3.4, fov:30, cam:[B[0] - 2.4, 1.8, B[1] + 1.4], look:[scr.x, scr.y, scr.z],
+        beats:[[0.5, ()=>{ screensMode('raid', 40); cue('alarm'); }]] },
+      // she reads it, and looks up at the sign over the alley she has just come out of
+      { dur:linesLen('raidIn2') + 1.4, fov:36, cam:rel(B[0], B[1], ry, 1.1, -0.5, 1.55), look:head(B[0], B[1], 1.62),
+        enter:()=>stage('idle', B[0], 0, B[1], ry),
+        beats:[[0.9, ()=>{ stage('idle', B[0], 0, B[1], Math.PI); talk('raidIn2'); }]] },
+      // red light: a drone drops out of the sky in front of her and reads her gloves
+      { dur:Math.max(3.0, linesLen('raidDrone') + 1.6), fov:40, cam:rel(B[0], B[1], ry, -1.5, 0.7, 1.55), look:[dr.pin[0], 2.6, dr.pin[1]],
+        enter:()=>{ stage('idle', B[0], 0, B[1], ry); cue('sus'); dr.state = 'track'; },
+        tick:(dt, t, k)=>{ dr.yT = lerp(20, 2.7, Math.min(1, t/1.1)); },
+        beats:[[1.0, ()=>{ cue('scan'); talk('raidDrone'); }]] },
+      // the vans, from both ends of the avenue, and the doors
+      { dur:3.4, fov:52, cam:[[-41.0, 6.5, 9.0], [-41.0, 5.6, 8.0]], look:[-41.2, 0.8, -4.5],
+        enter:()=>{ cue('skid'); later(()=>cue('alarm'), 300); },
+        tick:(dt, t, k)=>{ const q = 1 - Math.pow(1 - Math.min(1, t/1.5), 2);
+          vans[0].place(lerp(VW[0] - 60, VW[0], q), VW[1], Math.PI/2); vans[1].place(lerp(VE[0] + 45, VE[0], q), VE[1], -Math.PI/2);
+          if(t > 1.7) out_(Math.min(1, (t - 1.7)/1.4)); },
+        beats:[[1.6, ()=>cue('door')]] },
+      // over his shoulder: "THERE! DROP THE BAG! GET ON THE GROUND!"
+      { dur:linesLen('raidIn3') + 0.4, fov:38, cam:rel(lead[0], lead[1], Math.atan2(B[0] - lead[0], B[1] - lead[1]), -0.9, 0.45, 1.8), look:head(B[0], B[1], 1.4),
+        enter:()=>{ out_(1); stage('idle', B[0], 0, B[1], Math.atan2(lead[0] - B[0], lead[1] - B[1])); talk('raidIn3'); } },
+      // "Okay, little weird."
+      { dur:linesLen('raidIn4') + 0.6, fov:34, cam:rel(B[0], B[1], east + 0.6, 1.2, 0.2, 1.6), look:head(B[0], B[1], 1.56),
+        enter:()=>{ stage('idle', B[0], 0, B[1], east + 0.6); talk('raidIn4'); } },
+      // "Actually..."
+      { dur:linesLen('raidIn5') + 0.5, fov:30, cam:rel(B[0], B[1], east, 0.95, -0.2, 1.62), look:head(B[0], B[1], 1.6),
+        enter:()=>{ stage('idle', B[0], 0, B[1], east); talk('raidIn5'); } }
+    ];
+    playReel(shots, ()=>{
+      // a skipped film leaves everyone where it would have
+      vans[0].place(VW[0], VW[1], Math.PI/2); vans[1].place(VE[0], VE[1], -Math.PI/2); out_(1);
+      cops.forEach(n=>{ n.state = 'pursue'; n.cutClip = null; n.aware = 1.1; n.band = 'alert'; n.lastSeen = [B[0], B[1], 0, clock]; n.hold = true; });
+      later(()=>cops.forEach(n=>{ n.hold = false; }), 1200);          // a beat — "Actually..." — before they come
+      dr.pin = null;
+      held.forEach(([t, was])=>{ t.spd = was; });
+      placePlayer(B[0], B[1], east + Math.PI);
+      raidGo(0, false, dr);
+    }, { ownClock:true });
+  }
+  /* it is yours: the chase, from stage i */
+  function raidGo(i, resumed, drone){
+    staged = null; flushTalk();
+    if(window.AVATAR) AVATAR.posture(null);
+    if(resumed) screensMode('raid', 20);
+    if(window.BOOTS && BOOTS.B) BOOTS.sync();
+    fightClips();                                      // her hands: the alley's punches, on whatever body she has now
+    TSHCHASE.start(chaseCtx(), i || 0, drone);
+    scoreChase();
+    lockPointer($('#view'));
+  }
+  /* the chase's music: the song from the drop, round and round, as in the alley */
+  function scoreChase(){
+    const a = audio(); if(!a) return;
+    scoreLoad('b').then(buf=>{
+      if(!buf || !on || S.step !== 'raid') return;
+      [score.a, score.b, score.loop, score.drop].forEach(n=>scoreKill(n)); score.a = score.b = score.loop = null;
+      const t = a.currentTime; scoreBus();
+      score.lp.frequency.cancelScheduledValues(t); score.lp.frequency.setValueAtTime(18000, t);
+      score.gain.gain.cancelScheduledValues(t); score.gain.gain.setValueAtTime(0.0001, t); score.gain.gain.linearRampToValueAtTime(0.42, t + 1.2);
+      score.drop = scoreSrc('b', SONG.drop, 0, 0, [SONG.drop, SONG.b.from + buf.duration - 0.05]);
+    });
+  }
+  /* WFC has her: not a game over — the stage again, from its top */
+  function raidCaught(){
+    if(busy === 'caught') return;
+    busy = 'caught'; G.running = false;
+    cue('fail'); note('WFC has you. From the top of this stretch.', 'bad');
+    const b = el.querySelector('#tshBlack'); if(b) b.classList.add('on');
+    later(()=>{ busy = null; if(b) b.classList.remove('on'); const cp = S.cp; stop(); S.cp = cp; save(); enter(server); }, 1300);
+  }
+  /* what the chase is told about the night */
+  function chaseCtx(){
+    return { W, LOOK, S:()=>S, P, feet, clock:()=>clock, groundAt, los, npcs:()=>npcs, drones:()=>drones, spawn, despawn, spawnDrone, find,
+      heat, seen:(x, z)=>{ heatSeenT = 0; lastKnown = [x, z]; }, lastKnown:()=>lastKnown, crime, noise, stun, bark, face, goTo, blocked:blockedAt,
+      wallAt:(x, z, y)=>G.solids.some(s=>!s.off && x > s.x1 - 0.3 && x < s.x2 + 0.3 && z > s.z1 - 0.3 && z < s.z2 + 0.3 && y + 0.3 < s.y2 && y + 1.6 > s.y1),
+      wallNear:()=>!!(wallAt() || (P().running && wallAt(4.5))),
+      dropWall:()=>{ if(mode === 'scale' && me.scale) offWall(me.scale.y, true); },
+      note, talk, flushTalk, cue, particle, ring, tween, shake, later, audio, thing, grab, ringing, phoneCard, cuffGlow, mark,
+      flash:k=>{ LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, k); },
+      objective:(g, info)=>setObjective(g, info),
+      card:(title, how, i, n, stay)=>{
+        const c = el.querySelector('#tshLesson'); clearTimeout(c.offT); if(!title){ c.classList.remove('on'); return; }
+        c.innerHTML = `<small>THE CHASE · ${i} / ${n}</small><b>${esc(title)}</b><p>${esc(how)}</p>`;
+        c.classList.remove('on', 'big'); void c.offsetWidth; c.classList.add('on'); cue('ui');
+        if(!stay) c.offT = setTimeout(()=>c.classList.remove('on'), 7000);              // a lesson waiting for its key stays up until it gets it
+      },
+      checkpoint, caught:raidCaught, me,
+      mode:()=>mode, setMode:m=>{ mode = m; G.running = m === null; },
+      // the shoes, cold (nothing but her feet) or charged (everything she learned on the way to the alley)
+      boots:cold=>{ if(!window.BOOTS || !BOOTS.B) return; BOOTS.teach(cold ? [] : (S.boots && S.boots.length ? S.boots : BOOTS.ALL)); },
+      done:raidHome };
+  }
+
+  /* ================================================== HOME, AND 3 AM
+     On her own roof with nobody on her: "Okay... Definitely never doing
+     that again. ...Probably." In at the window (storyboard: 'sleep'):
+     her room, dark; the phone says 3:07; school in the morning. "Rats."
+     Everything off, onto the floor, and into bed. And across the street
+     (storyboard: 'watchers'), two people on a roof with binoculars. */
+  function raidHome(){
+    if(window.TSHCHASE) TSHCHASE.stop();
+    clearChase();
+    S.heat = 0; hud();
+    if(score.gain && AC) score.gain.gain.setTargetAtTime(0, AC.currentTime, 1.2);
+    outcome('home');                                       // → the night
+    nightScene();
+  }
+  function nightScene(){
+    mark('mom'); mark('sleep');
+    flushTalk(); sayOver = null;
+    const R = W.room, a = W.apt, bed = R.bed, win = R.window.at, form = R.form ? R.form.at : [a.x, 0, a.z];
+    const roof = [G.pos.x, feet(), G.pos.z], west = -Math.PI/2;
+    const inAt = [win[0] + 0.9, win[2]], faceIn = Math.PI/2;
+    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.16, 1.0), new THREE.MeshStandardMaterial({ color:0x15151a, roughness:0.95 }));
+    blanket.visible = false; blanket.position.set(bed.x - 0.15, (bed.top || 0.72) + 0.24, bed.z); W.aptGroup.add(blanket);
+    const lie = k=>stage('idle', bed.x + 0.75, (bed.top || 0.72) + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 });
+    // Maya and Kai, on the roof across Kiln Street from her window
+    const MK = { maya:[54.4, 34.9], kai:[54.4, 33.1], y:12 };
+    const maya = spawn('maya', 'sable', MK.maya[0], MK.maya[1], { y:MK.y, name:'mayaWatch', state:'cut', yaw:Math.PI/2 });
+    const kai = spawn('kai', 'kofi', MK.kai[0], MK.kai[1], { y:MK.y, name:'kaiWatch', state:'cut', yaw:Math.PI/2 });
+    const bino = [win[0] + 0.15, 1.65, win[2] + 0.1], bed_ = [bed.x, (bed.top || 0.72) + 0.25, bed.z];
+    const shots = [
+      // her own roof. "Okay..." — "Definitely never doing that again." — "...Probably."
+      { dur:linesLen('raidHome') + 1.2, fov:40, cam:rel(roof[0], roof[2], west, 2.6, 1.2, roof[1] + 1.4), look:[roof[0], roof[1] + 1.0, roof[2]],
+        enter:()=>{ caption('EXT. ROOFTOP — 214 HARBOR LANE'); stage('kneel', roof[0], roof[1], roof[2], west); talk('raidHome'); scoreStop(1.5); },
+        beats:[[linesLen('raidHome')*0.35, ()=>stage('idle', roof[0], roof[1], roof[2], west)]] },
+      // INT. ROBIN'S ROOM — NIGHT. The window slides open; she climbs in off the fire escape.
+      { dur:2.6, fov:40, inside:true, cam:[win[0] + 2.2, 0.7, win[2] + 0.7], look:[win[0] + 0.2, 1.5, win[2]],
+        enter:()=>{ inRoom();
+          apt.lamp = false; apt.ceiling = false; aptLights(); R.window.open(true); cue('window'); caption('INT. ROBIN\'S ROOM — NIGHT');
+          W.aptGroup.traverse(o=>{ if(o.userData.boot || o.userData.pack) o.visible = false; }); if(R.form) R.form.jacket.visible = false;
+          if(me.shades){ me.shades = false; dress(); }                    // the shades come off on the way in: nobody to hide from in here
+          stage('kneel', win[0] + 0.32, 1.0, win[2], faceIn); },
+        beats:[[1.5, ()=>stage('idle', inAt[0], 0, inAt[1], faceIn)], [2.1, ()=>{ R.window.open(false); cue('door'); muffle(true); }]] },
+      // the phone: 3:07
+      { dur:3.2, fov:34, cam:rel(inAt[0], inAt[1], faceIn, 0.9, 0.35, 1.6), look:[inAt[0] + 0.25, 1.25, inAt[1]],
+        enter:()=>{ S.t = AI.AT.end; hud(); stage('text', inAt[0], 0, inAt[1], faceIn); },
+        beats:[[0.3, ()=>{ cue('ui'); phoneBig('time'); }]] },
+      // her eyes go to her school clothes, hanging up; back to the clock
+      { dur:2.4, fov:44, cam:[inAt[0] + 0.4, 1.6, inAt[1] - 0.3], look:[[form[0], 1.4, form[2]], [form[0] + 0.3, 1.3, form[2]]],
+        enter:()=>phoneBig(null) },
+      // "Rats."
+      { dur:linesLen('rats') + 0.8, fov:30, cam:rel(inAt[0], inAt[1], faceIn, 1.0, -0.15, 1.6), look:[inAt[0], 1.55, inAt[1]],
+        enter:()=>{ stage('idle', inAt[0], 0, inAt[1], faceIn); talk('rats'); } },
+      // the bag drops; the jacket, the gloves, the shoes — everything onto the floor
+      { dur:3.4, fov:46, cam:[inAt[0] + 2.3, 1.3, inAt[1] + 1.4], look:[inAt[0], 0.9, inAt[1]],
+        enter:()=>{ me.kit = Object.assign({}, KIT_ON); me.kitT = {}; dress(); },
+        beats:[[0.3, ()=>{ cue('door'); kitOff('pack'); }], [1.0, ()=>{ cue('zip'); kitOff('jacket'); }], [1.7, ()=>{ cue('gear'); kitOff('gloves'); kitOff('bracelet'); }],
+               [2.5, ()=>{ cue('step'); kitOff('shoes'); W.aptGroup.traverse(o=>{ if(o.userData.boot) o.visible = true; }); }]] },
+      // face down into bed, the blanket over her; asleep before her head is all the way down
+      { dur:3.6, fov:42, cam:[[bed.x + 2.0, 2.1, bed.z - 1.6], [bed.x + 1.5, 1.8, bed.z - 1.2]], look:[bed.x - 0.1, 0.8, bed.z],
+        enter:()=>lie(0),
+        beats:[[0.9, ()=>{ blanket.visible = true; cue('door'); }]] },
+      // on the floor, the shoes' glow goes out
+      { dur:2.4, fov:36, cam:R.boots ? [R.boots.at[0] + 1.1, 0.45, R.boots.at[2] + 0.8] : [bed.x + 1.5, 0.5, bed.z - 1.5],
+        look:R.boots ? [R.boots.at[0], 0.12, R.boots.at[2]] : [bed.x, 0.2, bed.z] },
+      // EXT. ROOFTOP — NIGHT. Across the street, two of them.
+      { dur:3.4, fov:44, inside:false, cam:[[49.6, 13.9, 37.2], [50.2, 13.7, 36.6]], look:[62, 9.4, 34],
+        enter:()=>{ inside = false; outsideLook(); caption('EXT. ROOFTOP — NIGHT'); maya.yaw = kai.yaw = Math.PI/2; } },
+      // through the binoculars: her, asleep
+      { dur:3.0, fov:20, inside:true, bino:true, cam:bino, look:bed_, enter:()=>{ inRoom(); lie(0); } },
+      // Kai lowers them and looks at Maya; Maya takes them
+      { dur:2.4, fov:34, inside:false, cam:[60.4, 13.4, 34.2], look:[54.4, 13.5, 34.0],
+        enter:()=>{ outsideLook(); kai.yaw = 0; } },
+      // through them again: she shifts in her sleep
+      { dur:2.6, fov:20, inside:true, bino:true, cam:bino, look:bed_, enter:()=>{ inRoom(); lie(0); }, beats:[[1.2, ()=>lie(0.25)]] },
+      // "That's her." "You're sure?" "Yeah."
+      { dur:linesLen('watchers') + 1.0, fov:30, inside:false, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, 1.6, -0.6, MK.y + 1.7), look:[MK.maya[0], MK.y + 1.55, MK.maya[1]],
+        enter:()=>{ outsideLook(); maya.yaw = kai.yaw = Math.PI/2; talk('watchers'); },
+        onLine:(i, who)=>{ maya.talking = who === 'maya'; kai.talking = who === 'kai'; } }
+    ];
+    mark('watchers');
+    playReel(shots, ()=>prologueEnd(), { ownClock:true });
+  }
+  function kitOff(p){ if(!me.kit) return; me.kit[p] = false; dress(); }
+  /* her room, for a shot: its own light and its own air */
+  function inRoom(){ inside = true; G.scene.fog.density = 0.004; G.scene.background = new THREE.Color(0x020404); muffle(true); lightT = 0; }
+  /* CUT TO BLACK. END OF PROLOGUE. */
+  function prologueEnd(){
+    staged = null; flushTalk(); phoneBig(null);
+    S.step = 'end'; mark('end');
+    mode = 'end'; G.running = false;
+    const b = el.querySelector('.tsh-black'); b.classList.add('on');
+    b.innerHTML = '<div class="tsh-cut">CUT TO BLACK.</div>';
+    later(()=>{ if(!on) return; b.innerHTML = '<div class="tsh-sting clean"><i></i><b>END OF PROLOGUE</b><p>Somebody has noticed her.</p></div>'; cue('phone'); }, 2400);
+    later(()=>{ if(on) results('clean'); }, 7600);
+  }
+
   /* ================================================================ home */
   function homeDoor(fromWindow){
     if(mode) return;
@@ -3059,6 +3365,7 @@ window.TSH = (function(){
     hud();
   }
   function detained(n){
+    if(S.step === 'raid') return raidCaught();
     fade(()=>{
       clearChase();
       S.trail.detained = (S.trail.detained||0) + 1;
@@ -3164,8 +3471,9 @@ window.TSH = (function(){
   function results(sting){
     S.done = true; S.runs = (S.runs||0) + 1;
     const lines = AI.summary(S);
-    const partTwo = { maya: S.trail.photo === 'taken' || AI.knowsMother(S.trail, S.exposure) ? 'has leverage' : S.flags.arrival === 'knock' ? 'impressed' : 'curious',
-                      kai: S.flags.chairDone ? 'caught you once' : 'holds a grudge', exposure:Math.round(S.exposure), sting, tracker:S.trail.tracker,
+    const prologue = !!S.flags.raidHome;
+    const partTwo = { maya: prologue ? 'knows where you live' : S.trail.photo === 'taken' || AI.knowsMother(S.trail, S.exposure) ? 'has leverage' : S.flags.arrival === 'knock' ? 'impressed' : 'curious',
+                      kai: prologue ? 'has seen you asleep' : S.flags.chairDone ? 'caught you once' : 'holds a grudge', exposure:Math.round(S.exposure), sting, tracker:S.trail.tracker,
                       vendor:!!S.flags.helpedVendor, cash:S.cash };
     S.last = { lines, sting, partTwo };
     S.cp = null; S.pos = null;
@@ -3214,6 +3522,13 @@ window.TSH = (function(){
   }
   function tickHeat(dt){
     heatSeenT += dt;
+    // in the chase it cools by the chase's rules, never below what the stage holds it at
+    if(S.step === 'raid' && window.TSHCHASE && TSHCHASE.on){
+      const st_ = AI.CHASE.stages[TSHCHASE.i] || {}, r = AI.chaseCool(S.heat, heatSeenT, !!TSHCHASE.cover, st_.floor || 0);
+      if(r.reset) heatSeenT = 0;
+      if(r.heat !== S.heat){ heat(r.heat); if(r.heat === 0) clearChase(); }
+      return;
+    }
     if(S.heat > 0){
       const outside = !lastKnown || Math.hypot(G.pos.x - lastKnown[0], G.pos.z - lastKnown[1]) > AI.HEAT.radius(S.heat);
       const r = AI.cool(S.heat, heatSeenT, outside);
@@ -3254,7 +3569,7 @@ window.TSH = (function(){
     if(!v || !v.src || !AC) return;
     try{ v.g.gain.setTargetAtTime(0, AC.currentTime, 0.03); v.src.stop(AC.currentTime + 0.15); }catch(e){}
   }
-  function vfx(who, text){ return who === 'counselor' || who === 'buyer' ? 'phone' : who === 'mom' ? 'screen' : /^\(on the stairs\)/.test(text) ? 'door' : ''; }
+  function vfx(who, text){ return who === 'counselor' || who === 'buyer' ? 'phone' : who === 'momcall' ? 'phone' : who === 'mom' || who === 'drone' ? 'screen' : /^\(on the stairs\)/.test(text) ? 'door' : ''; }
   function voice(who, text, o){
     o = o || {};
     if(!o.bark) vstop();
@@ -3329,7 +3644,7 @@ window.TSH = (function(){
     if(!who){ if(s.dataset.on){ s.dataset.on = ''; s.classList.remove('on'); } return; }
     const key = who + text + (paced ? '·' : ''); if(s.dataset.on === key) return; s.dataset.on = key;
     const [name, col] = WHO[who] || [who.toUpperCase(), '#fff'];
-    const phone = who === 'counselor' || who === 'buyer' || (who === 'mom' && !S.flags.speechNow) || text.indexOf('📱') === 0;
+    const phone = who === 'counselor' || who === 'buyer' || who === 'momcall' || (who === 'mom' && !S.flags.speechNow) || text.indexOf('📱') === 0;
     s.innerHTML = `<b style="color:${col}">${phone && who !== 'counselor' ? '📱 ' : ''}${esc(name)}</b><span>${esc(text.replace(/^📱\s*/, ''))}</span>`
       + (paced ? '<em class="tsh-more"><kbd>Space</kbd> next · <kbd>Enter</kbd> skip scene</em>' : '');
     s.classList.add('on');
@@ -3639,6 +3954,9 @@ window.TSH = (function(){
         else if(mode === 'talk' && cv && !cv.ask && e.target && e.target.id === 'view') convoAdvance();
         else if(mode === 'fight' && !document.pointerLockElement && e.target && e.target.id === 'view') lockPointer($('#view'));
       });
+      // in the chase, the mouse is her hands: a click hits, a right-click parries
+      addEventListener('mousedown', e=>{ if(on && !busy && S.step === 'raid' && window.TSHCHASE && TSHCHASE.on && e.target && e.target.id === 'view') TSHCHASE.mouse(e); });
+      addEventListener('contextmenu', e=>{ if(on && S.step === 'raid') e.preventDefault(); });
     }
     el.classList.remove('hidden', 'cine', 'bino', 'talking', 'fighting');
     el.querySelector('#tshTalk').classList.remove('on'); el.querySelector('#tshTalk').innerHTML = '';
@@ -3693,7 +4011,9 @@ window.TSH = (function(){
     }
     const pr = el.querySelector('#tshPrompt');
     const n = (mode || busy) ? null : nearestThing();
-    if(n){ const v = typeof n.verb === 'function' ? n.verb() : n.verb; const h = `<kbd>E</kbd><span>${n.icon ? n.icon+' ' : ''}${esc(v)}</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
+    const cp = !busy && S.step === 'raid' && window.TSHCHASE && TSHCHASE.on ? TSHCHASE.prompt() : null;
+    if(cp){ if(pr.innerHTML !== cp) pr.innerHTML = cp; pr.classList.remove('hidden'); }
+    else if(n){ const v = typeof n.verb === 'function' ? n.verb() : n.verb; const h = `<kbd>E</kbd><span>${n.icon ? n.icon+' ' : ''}${esc(v)}</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(mode === 'scale'){ const h = `<kbd>W</kbd><span>🦎 climb</span><kbd>S</kbd><span>down</span><kbd>Space</kbd><span>let go</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(!mode && !busy && grip.wall){
       const h = `<kbd>G</kbd><span>🦎 ${grip.leapTo ? 'Leap onto the wall' : 'Scale the wall'} · ${Math.round(grip.wall.s.y2 - feet())} m</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
@@ -3755,6 +4075,8 @@ window.TSH = (function(){
       else if(n.kind === 'civ' && Math.hypot(n.x-G.pos.x, n.z-G.pos.z) < 30) dot(n.x, n.z, 'rgba(200,220,215,0.35)', 3);
     });
     trucks.forEach(t=>dot(t.x, t.z, t.tracker ? '#ff4a4a' : 'rgba(200,220,215,0.5)', 4));
+    const gs = window.TSHCHASE && TSHCHASE.on && TSHCHASE._gun();
+    if(gs && gs.state !== 'gone'){ const [a, b] = M(gs.light.x, gs.light.z); x.beginPath(); x.arc(a, b, gs.light.r*radarMap.S2, 0, 7); x.fillStyle = 'rgba(255,255,240,0.3)'; x.fill(); dot(gs.x, gs.z, '#ff4a4a', 8, true); }
     const mk = marker(); if(mk){ const [a, b] = M(mk[0], mk[1]); x.fillStyle = '#ffd23d'; x.beginPath(); x.moveTo(a, b - 9/Z); x.lineTo(a + 7/Z, b); x.lineTo(a, b + 9/Z); x.lineTo(a - 7/Z, b); x.fill(); }
     x.restore();
     // clamp the marker to the rim if it is off the map
@@ -3837,7 +4159,7 @@ window.TSH = (function(){
     zoneT -= dt; if(zoneT > 0) return; zoneT = 0.5;
     if(mode === 'cut' || mode === 'reel' || mode === 'fight') return;           // a film has its own captions
     const a = W.zones.alley, y = feet();
-    const z = inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT'
+    const z = inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT' : S.step === 'raid' && !inAlley() ? 'EXT. NEON AVENUE — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
     caption(z);
   }
@@ -3933,6 +4255,22 @@ window.TSH = (function(){
         x.fillStyle = '#04101c'; x.fillRect(0, h-26, w, 26); x.fillStyle = '#fff'; x.font = '16px '+(window.uiFont ? uiFont() : 'monospace');
         x.fillText('ILLICIT WEARABLE WEAPONRY OFF THE STREETS · CURFEW ADVISORY IN EFFECT · REPORT UNLICENSED TECH TO THE WFC TIP LINE ·', w - (t*60 % (w*2.2)), h-8);
         x.fillStyle = '#ff3a3a'; x.beginPath(); x.arc(24, 22, 7, 0, 7); x.fill(); x.fillStyle = '#fff'; x.font = 'bold 16px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('LIVE', 36, 28);
+      } else if(scrMode === 'wfc'){
+        // WFC's own advert: the officers in a line over the skyline
+        const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#06182c'); g.addColorStop(1, '#0c3048'); x.fillStyle = g; x.fillRect(0,0,w,h);
+        x.fillStyle = '#04101c'; for(let i=0;i<14;i++){ const bh = 40 + ((i*37)%70); x.fillRect(i*38, h - bh - 40, 34, bh); }
+        x.fillStyle = '#0a1a28'; for(let i=0;i<5;i++){ const cx = w*0.56 + i*40; x.beginPath(); x.ellipse(cx, h*0.5, 11, 13, 0, 0, 7); x.fill(); x.fillRect(cx - 16, h*0.5 + 12, 32, 70); }
+        x.fillStyle = 'rgba(143,240,255,0.9)'; for(let i=0;i<5;i++) x.fillRect(w*0.56 + i*40 - 8, h*0.5 - 3, 16, 4);
+        x.globalAlpha = 0.9; LOOK.wfcMark(x, w*0.2, h*0.32, 48, '#8ff0ff'); x.globalAlpha = 1;
+        x.fillStyle = '#fff'; x.textAlign = 'left'; x.font = 'bold 30px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('PROTECTING NEW YORK.', 18, h*0.7);
+        x.fillStyle = '#8ff0ff'; x.font = 'bold 17px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('SECURITY. ORDER. TRUST.', 18, h*0.7 + 28);
+      } else if(scrMode === 'raid'){
+        // the alert that brings them: where she is standing
+        const fl = (t*3|0)%2; x.fillStyle = fl ? '#3a0400' : '#1a0200'; x.fillRect(0,0,w,h);
+        x.strokeStyle = '#ff4a4a'; x.lineWidth = 8; x.strokeRect(8, 8, w - 16, h - 16);
+        x.fillStyle = '#ffd23d'; x.textAlign = 'center'; x.font = 'bold 34px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('⚠ CITIZEN ALERT ⚠', w/2, 64);
+        x.fillStyle = '#fff'; x.font = 'bold 25px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('ILLEGAL WEARABLE ACTIVITY', w/2, 130); x.fillText('REPORTED', w/2, 162);
+        x.fillStyle = fl ? '#ff6a5a' : '#ff9a8a'; x.font = 'bold 27px '+(window.uiFont ? uiFont() : 'monospace'); x.fillText('SECTOR 9 — DRAGON ALLEY', w/2, 232);
       } else if(scrMode === 'alert'){
         x.fillStyle = (t*2|0)%2 ? '#3a0000' : '#100000'; x.fillRect(0,0,w,h);
         x.fillStyle = '#ff4a4a'; x.font = 'bold 30px '+(window.uiFont ? uiFont() : 'monospace'); x.textAlign = 'center';
@@ -3971,7 +4309,10 @@ window.TSH = (function(){
       case 'grab': tickGrab(dt); break;
       case 'chair': tickChair(dt); break;
       case 'end': if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
+      case 'act': if(window.TSHCHASE) TSHCHASE.tickAct(dt); break;
+      case 'cover': if(window.TSHCHASE) TSHCHASE.tickCover(dt); break;
     }
+    if(S.step === 'raid' && window.TSHCHASE && TSHCHASE.on && mode !== 'reel' && mode !== 'cut') TSHCHASE.tick(dt);
     if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on){ TSHFIGHT.pose(dt); bagFollow(); }      // the buyer's crew, waiting (or on the floor)
     npcs.slice().forEach(n=>{ if(!n.gone) tickNpc(n, dt); });
     tickTrucks(dt);
@@ -4019,6 +4360,8 @@ window.TSH = (function(){
     if(mode === 'grab'){ if(c === 'KeyF'){ if(flash()) breakFree(true); } if(c === 'KeyE'){ gr.mash += 0.13; cue('step'); } return true; }
     if(mode === 'chair') return chairKey(e) || c === 'KeyP';
     if(c === 'KeyP' || c === 'Escape'){ pause(); return true; }
+    if(S.step === 'raid' && window.TSHCHASE && TSHCHASE.on && TSHCHASE.key(e)) return true;
+    if(mode === 'act') return true;
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
@@ -4048,5 +4391,6 @@ window.TSH = (function(){
                   homeDoor, aptExit, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
+                  raidIntro, raidGo, raidHome, nightScene, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();
