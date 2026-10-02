@@ -10,8 +10,7 @@
        red string, drone routes, and a clipping — WHO IS YU?
      · sketches for a costume and for the boots, under the bed and behind
        a poster that has come away at the corner
-     · the hood and the mask on a hook by the window, YU sprayed on the
-       wall behind them
+     · YU sprayed on the wall by the window
      · today's paper on the bench: THE CITY IS SAFE, says the Director
      · and by the door, an envelope from an admissions office, unopened.
    AND THE BUSINESS. She makes things and sells them, and the room is the
@@ -224,15 +223,14 @@ window.TSHROOM = (function(){
     if(kind === 'costume'){
       hand('YU — night kit', 100, 80, 42); hand('nobody sees the face. EVER.', 110, 122, 24, '#a02020');
       pencil(4);
-      // the figure: hood, mask, jacket, the cuffs glowing
+      // the figure: shades, jacket, the cuffs glowing
       x.beginPath(); x.arc(384, 260, 70, 0, 7); x.stroke();
-      wobble([[320, 230], [384, 180], [448, 230], [460, 330], [308, 330], [320, 230]]);
       x.fillStyle = 'rgba(30,30,40,0.85)'; x.fillRect(330, 250, 108, 26);
       wobble([[300, 340], [250, 560], [290, 580], [330, 420]]); wobble([[468, 340], [518, 560], [478, 580], [438, 420]]);
       wobble([[320, 340], [448, 340], [470, 620], [298, 620], [320, 340]]);
       wobble([[320, 620], [300, 900]]); wobble([[448, 620], [468, 900]]); wobble([[384, 640], [384, 900]]);
       x.strokeStyle = '#2a8a7a'; x.lineWidth = 6; x.beginPath(); x.ellipse(270, 570, 24, 10, 0.3, 0, 7); x.stroke(); x.beginPath(); x.ellipse(498, 570, 24, 10, -0.3, 0, 7); x.stroke();
-      hand('shades: polarised + IR cut', 470, 250, 22); hand('hood stays UP', 480, 200, 22);
+      hand('shades: polarised + IR cut', 470, 250, 22); hand('shades stay ON', 480, 200, 22);
       hand('gecko cuffs', 520, 600, 24); hand('jacket: pink lining (it\'s me)', 80, 700, 22);
       hand('the boots ↓', 330, 960, 26);
     }
@@ -589,7 +587,7 @@ window.TSHROOM = (function(){
     room.posterPeel = { at:[pX + 0.3, pY - 0.3, wallN], look:[pX + 0.24, pY - 0.26, wallN] };
     // stickers on the door, the amp, the window frame
     for(let i=0;i<9;i++){ picture(group, sticker(i), 0.16, 0.16, new V3(x2 - 1.4 + R(-0.45, 0.45), R(1.0, 2.0), wallS), Math.PI, { alpha:true, rz:R(-0.4, 0.4) }); }
-    // YU, sprayed by the window, half behind the hook
+    // YU, sprayed by the window
     picture(group, tag(), 1.1, 0.55, new V3(wallW, 2.45, cz + 0.9), Math.PI/2, { alpha:true });
 
     // ---- the corkboard over the bench, and today's paper on it

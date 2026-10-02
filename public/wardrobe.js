@@ -17,7 +17,7 @@
                 back, glasses on the face), sized and placed from the body's
                 own skeleton when it goes on — so one file fits everybody.
      made       an accessory drawn here in code: things too simple to be a
-                file (the hood and shades, the bangle).
+                file (the bangle).
 
    SLOTS hold one thing each. REGIONS are the parts of a body a garment can
    hide, read off the skin: a triangle belongs to whichever bone moves it
@@ -81,14 +81,12 @@ window.WARDROBE = (function(){
                       about:'Fingerless, armour over the knuckles, grip film in the palms; a teal line burns while she holds on.' },
     'flash-bangle': { name:'Flash bangle', slot:'wrist', kind:'made', make:'bangle',
                       about:'White enamel and six lights. Clap, and anybody facing you sees white.' },
-    'hood':         { name:'Hood and shades', slot:'head', kind:'made', make:'hood',
-                      about:'Up, and nobody filming you gets your face.' },
     'beanie':       { name:'Beanie', slot:'head', kind:'accessory', model:'beanie', fit:'crown', tune:{ size:0.205, along:0.49 },
                       about:'Black rib knit.' },
     'cap':          { name:'Cap', slot:'head', kind:'accessory', model:'cap', fit:'crown', tune:{ size:0.31, along:0.64, fwd:0.02, brim:true },
                       about:'A plain cap, worn forward.' },
-    'shades':       { name:'Sunglasses', slot:'face', kind:'accessory', model:'shades', fit:'eyes', tune:{ along:0.47, fwd:0.06, size:0.15 },
-                      about:'Round, black.' }
+    'shades':       { name:'Sunglasses', slot:'face', kind:'accessory', model:'shades', fit:'eyes', tune:{ along:0.47, fwd:0.05, size:0.15 },
+                      about:'Round, black, polarised and IR-cut: a camera gets glare, not a face.' }
   };
   const itemsIn = slot => Object.keys(ITEMS).filter(id=>ITEMS[id].slot === slot);
   /* a garment fits only the bodies it was made for */
@@ -442,24 +440,6 @@ window.WARDROBE = (function(){
       const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(G.e1, G.e2, axis));
       return [hang(fore, band, G.centre, q)];
     },
-    // TSH's hood and shades: a dark hood over the hair, a rim round the face, black shades with a teal glint
-    hood(model){
-      const head = boneOf(model, 'Head'), top = boneOf(model, 'HeadTop_End'); if(!head) return [];
-      const F = frame(model), a = new THREE.Vector3(), b = new THREE.Vector3(); head.getWorldPosition(a); (top || head).getWorldPosition(b);
-      const k = Math.max(0.6, a.distanceTo(b)/0.18);                  // sized to this head (base of skull to crown)
-      const g = new THREE.Group();
-      const cloth = new THREE.MeshStandardMaterial({ color:0x1b2321, roughness:0.95, side:THREE.DoubleSide });
-      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.145, 18, 12, Math.PI*0.62, Math.PI*1.76, 0, Math.PI*0.72), cloth);
-      hood.position.set(0, 0.105, -0.012); hood.scale.set(1.02, 1.08, 1.12); g.add(hood);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.018, 6, 20, Math.PI*1.25), cloth);
-      rim.position.set(0, 0.1, 0.075); rim.rotation.set(0, 0, Math.PI*1.12); g.add(rim);
-      const shades = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.034, 0.03), new THREE.MeshStandardMaterial({ color:0x050606, roughness:0.05, metalness:0.9 }));
-      shades.position.set(0, 0.085, 0.1); g.add(shades);
-      const glint = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.004, 0.002), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.6, 2.4, 2.0) }));
-      glint.position.set(0, 0.098, 0.116); g.add(glint);
-      g.scale.setScalar(k);
-      return [hang(head, g, a, F.q)];
-    }
   };
   function made(model, id){
     const sm = skinnedOf(model); if(!sm) return [];

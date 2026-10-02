@@ -47,7 +47,7 @@ export const CAST = {
 const BARKS = {
   kai: ['Huh?', 'There you are.', 'Tch.', 'Where\'d she go…', 'Following me? Go home, kid.', 'Hey! That\'s—', 'There you are!', 'YU!',
         'You\'re mine.', '…Hey.', 'Evening.', 'Got you!', 'Not so fast.'],
-  wfc: ['Hood down, kid.', 'Evening. Where you headed?', 'Keep it moving.', 'Stop! WFC!', 'Hold it right there!', 'Suspect on foot!', 'Hold still!']
+  wfc: ['Shades off, kid.', 'Evening. Where you headed?', 'Keep it moving.', 'Stop! WFC!', 'Hold it right there!', 'Suspect on foot!', 'Hold still!']
 };
 
 export function vkey(who, text){

@@ -33,7 +33,7 @@
    THE FILES: tshlook.js (the picture), tshcity.js (the district),
    tshai.js (the rules), and this — the night itself.
 
-   KEYS: WASD move · Shift run · Space jump · E use · H hood & shades ·
+   KEYS: WASD move · Shift run · Space jump · E use · H shades ·
          G Gecko cuffs · F flash bangles · J static studs · Q throw · I bag ·
          Tab details · P pause
 
@@ -502,7 +502,7 @@ window.TSH = (function(){
   }
 
   /* ========================================================== the player */
-  const me = { hidden:false, hood:true, dress:null, glowL:null, glowR:null, grip:0, climbing:null, kit:null, kitT:null };
+  const me = { hidden:false, shades:true, glowL:null, glowR:null, grip:0, climbing:null, kit:null, kitT:null };
   const HOME_ROOF = [66, 12, 34];                    // a night picked up in the lesson starts on her own roof
   function placePlayer(x, z, yaw, y){
     const top = y !== undefined ? y - EYE_ : groundAt(x, z, 100);
@@ -517,19 +517,19 @@ window.TSH = (function(){
   /* things hung off a bone are sized in metres by dividing the body's own scale back out (as avatar.js does for the blaster) */
   function worldK(bone){ const s = new THREE.Vector3(); bone.getWorldScale(s); return 1/(s.x||1); }
   /* HER KIT IS WARDROBE ITEMS (wardrobe.js): the jacket, the Gecko cuffs, the
-     shoes, the flash bangle, the pack, the hood and shades — put on her the
+     shoes, the flash bangle, the pack, the shades — put on her the
      way anything goes on anybody, so what she wears in the story is what the
      closet shows, and the opening's suit-up is the wardrobe putting each
      piece on in turn. The story says WHICH pieces (a cast, so the player's
      own saved outfits are not touched); TSH keeps handles on the ones it
-     lights and hides (the cuffs on a wall, the flash charges, the hood). */
+     lights and hides (the cuffs on a wall, the flash charges, the shades). */
   const KIT_ITEMS = { jacket:['outer', 'tech-jacket'], gloves:['hands', 'gecko-cuffs'], shoes:['shoes', 'skyline-shoes'], bracelet:['wrist', 'flash-bangle'], pack:['back', 'roll-top'] };
   // what she has on all night, kit or no kit: her own jeans
   const KIT_UNDER = { bottom:'baggy-jeans' };
   function kitSlots(){
     const k = me.kit || KIT_ON, s = Object.assign({}, KIT_UNDER);
     Object.keys(KIT_ITEMS).forEach(p=>{ if(k[p]){ const [slot, id] = KIT_ITEMS[p]; s[slot] = id; } });
-    if(me.hood) s.head = 'hood';
+    if(me.shades) s.face = 'shades';
     return s;
   }
   function dress(){
@@ -545,12 +545,12 @@ window.TSH = (function(){
     const cuffs = role('gecko-cuffs', 'cuff');
     me.cuffL = cuffs[0] || null; me.cuffR = cuffs[1] || null; me.glowL = null; me.glowR = null;
     me.bangle = worn('flash-bangle')[0] || null; me.bangleLeds = me.bangle ? me.bangle.children.filter(o=>o.userData.role === 'glow') : [];
-    me.pack = worn('roll-top')[0] || null; me.dress = worn('hood')[0] || null; me.jacket = worn('tech-jacket')[0] || null;
+    me.pack = worn('roll-top')[0] || null; me.jacket = worn('tech-jacket')[0] || null;
     cuffGlow(mode === 'scale');
   }
-  function setHood(v){
-    me.hood = v; dress();
-    note(v ? '🧥 Hood up, shades on' : '🧥 Hood down — your face is showing', v ? '' : 'warn');
+  function setShades(v){
+    me.shades = v; dress();
+    note(v ? '🕶 Shades on' : '🕶 Shades off — your face is showing', v ? '' : 'warn');
     cue('ui');
   }
 
@@ -1035,7 +1035,7 @@ window.TSH = (function(){
     showInside(true); inside = true;
     G.scene.fog.density = 0.004; G.scene.background = new THREE.Color(0x020404); muffle(true);
     apt.lamp = false; apt.ceiling = false; aptLights();
-    me.hood = false; me.kit = { jacket:false, gloves:false, shoes:false, bracelet:false, pack:false }; me.kitT = {};
+    me.shades = false; me.kit = { jacket:false, gloves:false, shoes:false, bracelet:false, pack:false }; me.kitT = {};
     dress();                                            // in her base outfit: what she sleeps in
     W.aptGroup.traverse(o=>{ if(o.userData.boot || o.userData.pack) o.visible = true; });
     if(R.window) R.window.open(false);
@@ -1113,7 +1113,7 @@ window.TSH = (function(){
       { dur:3.2, fov:44, cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
         enter:()=>{ scoreBreak(); scoreLevel(0.95, 1.2, false); },
         tick:(dt, t, k)=>{ if(k < 0.45) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.45); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
-        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.hood = true; dress(); cue('ui'); }]] },
+        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.shades = true; dress(); cue('ui'); }]] },
       // up onto the sill
       { dur:2.4, fov:40, cam:[win[0] + 2.2, 0.6, win[2] + 0.6], look:[win[0] + 0.2, 1.6, win[2]],
         enter:()=>stage('kneel', win[0] + 0.32, 1.0, win[2], -Math.PI/2) },
@@ -1151,7 +1151,7 @@ window.TSH = (function(){
   function fallStart(skipped){
     staged = null; reel = null;
     ringing(false); phoneBig(null); black(false); scoreHold();
-    me.kit = null; me.kitT = null; me.hood = true; dress();
+    me.kit = null; me.kitT = null; me.shades = true; dress();
     if(window.AVATAR) AVATAR.posture(null);
     outsideLook();
     if(W.room && W.room.note) W.room.note.home();
@@ -1383,7 +1383,7 @@ window.TSH = (function(){
   function metro(from, to){
     if(mode) return;
     if(S.heat >= 2){ note('🚇 The gates are locked down. WFC is looking for you.', 'bad'); cue('fail'); return; }
-    if(!me.hood){ expose(8, 'a metro gate camera logged your face'); }
+    if(!me.shades){ expose(8, 'a metro gate camera logged your face'); }
     fade(()=>{
       const s = W.spots['metro_'+to];
       placePlayer(s[0], s[1] + 1.5, to==='west' ? Math.PI : 0);
@@ -1662,7 +1662,7 @@ window.TSH = (function(){
     return los(n.x, n.y + 1.65, n.z, x, y + 1.3, z) || los(n.x, n.y + 1.65, n.z, x, y + 1.75, z);
   }
   function interest(n){
-    if(n.kind === 'wfc'){ if(n.state === 'raid' || n.state === 'escort') return 0.2; return S.heat > 0 ? 1.0 : (me.hood && !inside ? 0.28 : 0); }
+    if(n.kind === 'wfc'){ if(n.state === 'raid' || n.state === 'escort') return 0.2; return S.heat > 0 ? 1.0 : (me.shades && !inside ? 0.28 : 0); }
     if(n.kind === 'kai') return ({ wait:1, search:1.3, stakeout:1.1, hunt:1.35, pursue:1, tail:0.7, walk:0.5, rob:0.45, apt:1.2 })[n.state] || 0;
     if(n.kind === 'maya') return n.state === 'talk' ? 1 : 0;
     return 0;
@@ -1693,7 +1693,7 @@ window.TSH = (function(){
   }
   function onBand(n, b, was){
     if(b === 'suspicious' && was === 'unaware'){ cue('sus');
-      if(n.kind === 'wfc' && S.heat === 0 && !n.saidHood){ n.saidHood = true; bark(n, pick(['Hood down, kid.', 'Evening. Where you headed?', 'Keep it moving.'])); } }
+      if(n.kind === 'wfc' && S.heat === 0 && !n.saidShades){ n.saidShades = true; bark(n, pick(['Shades off, kid.', 'Evening. Where you headed?', 'Keep it moving.'])); } }
     if(b === 'alert') cue('alert');
     questEvent('band', { n, b, was });
   }
@@ -1943,7 +1943,7 @@ window.TSH = (function(){
   function tickFilm(n, dt){
     const f = n.film, p = P();
     face(n, p.x, p.z, dt); n.clip = 'idle';
-    if(n.sees){ f.lost = 0; if(f.rec < 1.6){ f.rec += dt; if(!me.hood) f.face = true; } }
+    if(n.sees){ f.lost = 0; if(f.rec < 1.6){ f.rec += dt; if(!me.shades) f.face = true; } }
     else f.lost += dt;
     if(f.rec >= 1.6){
       f.up += dt/5;
@@ -2221,7 +2221,7 @@ window.TSH = (function(){
     deal:   ['The buyer: Dragon Alley, off Neon Avenue. He is waiting.', 'A WFC drone sweeps the alley about once a minute.',
              'Or leave the rings in the mailbox at the back of the alley — a dead drop.', 'The fire escape in the alley goes up to the roofs.',
              'G — the Gecko cuffs climb any wall. Nobody looks up; WFC who do see illegal wearables.',
-             'H — hood and shades. Nobody has seen your face yet.'],
+             'H — shades. Nobody has seen your face yet.'],
     drop:   ['Kai is watching the mailbox from the far end of the alley.', 'He checks his phone every so often.', 'Q throws a can — people go and look.', 'Hide in a dumpster (E) if he turns round.'],
     robbed: ['Kai is walking back to his crew.', 'Get behind him without being seen: E lifts the envelope.', 'Or a flash (F) makes him drop it.', 'Or let him go.'],
     news:   ['Out of the alley onto Neon Avenue — the street, or over the roofs.', 'Home is 214 Harbor Lane, the south-east corner of the district.'],
@@ -2334,7 +2334,7 @@ window.TSH = (function(){
       ['robin', 'Not making friends here, are we?'],
       ['kai', 'A word of advice.'],
       { wait:1.1, act:()=>envelope(kai) },
-      { lines:()=>me.hood ? LINES.deal3.slice(0, 1) : LINES.deal3Bare.slice(0, 2) },
+      { lines:()=>me.shades ? LINES.deal3.slice(0, 1) : LINES.deal3Bare.slice(0, 2) },
       { ask:[
         { icon:'💍', say:'Yeah, yeah. Thank you for your business.', hint:'toss him the rings', act:()=>{ if(dealT) dealT.stage = 'toss'; tossRings(); } },
         { icon:'🏃', does:'Keep the rings. Walk away with the money.', hint:'he will come after you', act:()=>runWithIt(kai) }
@@ -2353,7 +2353,7 @@ window.TSH = (function(){
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.12), new THREE.MeshStandardMaterial({ color:0xd8c89a, roughness:0.7 })); W.cityGroup.add(m);
     tween(0.55, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*0.8, lerp(from.z, to.z, k)); m.rotation.y = k*9; }, ()=>{
       W.cityGroup.remove(m); S.cash = 3000; S.trail.tracker = 'on'; cue('pick'); note('✉ The envelope. It feels about right.'); hud();
-      if(!me.hood){ S.trail.kaiSawFace = true; expose(10, 'Kai saw your face'); }
+      if(!me.shades){ S.trail.kaiSawFace = true; expose(10, 'Kai saw your face'); }
     });
   }
   function tossRings(){
@@ -2646,7 +2646,7 @@ window.TSH = (function(){
   }
   function mayaEmerge(){
     const m = apt.maya; m.hidden = false; m.state = 'talk';
-    if(!me.hood) setHood(true);
+    if(!me.shades) setShades(true);
     startConversation(LINES.apt0);
   }
   /* THE KNOCK. Her voice through the door — and it is your door, so what
@@ -2938,7 +2938,7 @@ window.TSH = (function(){
   }
 
   /* ========================================================== the ending
-     Up high, nobody on you, the heat off: she takes off the mask, and the
+     Up high, nobody on you, the heat off: she takes off the shades, and the
      fear turns into something else. */
   let outT = 0;
   function tickOut(dt){
@@ -2954,7 +2954,7 @@ window.TSH = (function(){
     const tower = W.spots.tower, x = G.pos.x, z = G.pos.z, y = feet();
     const face_ = angTo(x, z, tower[0], tower[1]);
     G.yaw = face_ + Math.PI;                 // the body faces +z; the camera looks -z
-    if(me.hood){ me.hood = false; dress(); }
+    if(me.shades){ me.shades = false; dress(); }
     const bx = x - Math.sin(face_)*3.2, bz = z - Math.cos(face_)*3.2;
     const sx = x + Math.cos(face_)*2.6 + Math.sin(face_)*1.8, sz = z - Math.sin(face_)*2.6 + Math.cos(face_)*1.8;
     const tx = x + Math.sin(face_)*60, tz = z + Math.cos(face_)*60;
@@ -3490,7 +3490,7 @@ window.TSH = (function(){
     const pips = n => '●'.repeat(Math.max(0, n)) + '○'.repeat(Math.max(0, 3-n));
     const jamK = gad.jam > 0 ? 'on' : gad.jamCd > 0 ? 'cd' : '';
     const gp = Math.round(grip.left/AI.GRIP.hold*5), gripK = mode === 'scale' ? 'on' : grip.left < AI.GRIP.hold - 0.1 ? 'cd' : '';
-    const html = `<span class="${me.hood ? 'on' : 'warn'}"><kbd>H</kbd>🧥<em>${me.hood ? 'hood up' : 'face showing'}</em></span>`
+    const html = `<span class="${me.shades ? 'on' : 'warn'}"><kbd>H</kbd>🕶<em>${me.shades ? 'shades on' : 'face showing'}</em></span>`
       + `<span class="${gripK}" title="Gecko cuffs"><kbd>G</kbd>🦎<em>${'grip ' + '▮'.repeat(gp) + '▯'.repeat(5 - gp)}</em></span>`
       + `<span class="${S.flash ? '' : 'off'}" title="Flash bangles"><kbd>F</kbd>✋<em>${pips(S.flash)}</em></span>`
       + `<span class="${jamK}" title="Static studs"><kbd>J</kbd>📡<em>${gad.jam > 0 ? 'jamming' : gad.jamCd > 0 ? Math.ceil(gad.jamCd)+'s' : 'ready'}</em></span>`
@@ -3704,7 +3704,7 @@ window.TSH = (function(){
     // the jewelry: what each piece does, in Robin's own words for it
     ['cuffs', 'bangles', 'studs'].forEach(p=>{ const k = AI.KIT[p];
       items.push([k.icon, k.name + (k.key ? ` · ${k.key}` : '') + (p === 'bangles' ? ` · ${S.flash} charge${S.flash === 1 ? '' : 's'}` : ''), k.does, '']); });
-    items.push(['🧥', 'Hood and shades', me.hood ? 'Up. Nobody sees your face.' : 'Down. Your face is showing.', '']);
+    items.push(['🕶', 'Shades', me.shades ? 'On. Cameras get glare, not your face.' : 'Off. Your face is showing.', '']);
     if(S.can) items.push(['🥫', 'A can', 'Q throws it. Whoever hears it goes to look.', '']);
     if(tr.photo === 'pocket') items.push(['🖼', 'The photo', 'You, small, and your mother.', '']);
     panel('bag', `<div class="tsh-bag"><h3>🎒 Robin's bag</h3>${items.map(([i, n, d, a])=>`<div class="tsh-it"><span>${i}</span><div><b>${esc(n)}</b><small>${esc(d)}</small>${a ? '<div class="tsh-act">'+a+'</div>' : ''}</div></div>`).join('')}
@@ -3718,7 +3718,7 @@ window.TSH = (function(){
     const q = LOOK.quality;
     panel('pause', `<div class="tsh-bag"><h3>⏸ TSH — ${esc(AI.clock(S.t))}</h3>
       <div class="tsh-keys"><span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> run</span><span><kbd>Space</kbd> jump</span><span><kbd>E</kbd> use</span>
-        <span><kbd>H</kbd> hood</span><span><kbd>G</kbd> Gecko cuffs</span><span><kbd>F</kbd> flash bangles</span><span><kbd>J</kbd> static studs</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span></div>
+        <span><kbd>H</kbd> shades</span><span><kbd>G</kbd> Gecko cuffs</span><span><kbd>F</kbd> flash bangles</span><span><kbd>J</kbd> static studs</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span></div>
       <div class="tsh-pbtns"><button data-a="resume">▶ Back to the night</button>
         ${S.step === 'lesson' ? '<button data-a="skip">⏭ Skip the lesson — I know the shoes</button>' : ''}
         <button data-a="beat">↺ Restart this beat</button><button data-a="over">↺ Start the night over</button>
@@ -3837,7 +3837,7 @@ window.TSH = (function(){
     if(c === 'KeyF'){ flash(); return true; }
     if(c === 'KeyG'){ tryScale(); return true; }
     if(c === 'KeyJ'){ jam(); return true; }
-    if(c === 'KeyH'){ setHood(!me.hood); hud(); return true; }
+    if(c === 'KeyH'){ setShades(!me.shades); hud(); return true; }
     if(c === 'KeyQ'){ throwCan(); return true; }
     if(c === 'KeyI'){ bag(); return true; }
     if(c === 'Tab'){ infoOpen = !infoOpen; el.querySelector('.tsh-obj').classList.toggle('closed', !infoOpen); el.querySelector('#tshTabTxt').textContent = infoOpen ? 'hide details' : 'details'; return true; }
