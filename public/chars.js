@@ -391,7 +391,7 @@ window.CHARS = (function(){
   }
   function swHint(msg){
     const el=document.querySelector('#swapHint'); if(!el) return;
-    el.innerHTML = msg || t('<b>← →</b> pick &nbsp; <b>B</b> or <b>Esc</b> close');
+    el.innerHTML = msg || t('<b>← →</b> pick &nbsp; <b>Tab</b> what you have on &nbsp; <b>B</b> or <b>Esc</b> close');
   }
   function swChoose(id, owned){
     /* THE SHOP STAYS IN THE SHOP. This panel switches between characters
@@ -471,6 +471,9 @@ window.CHARS = (function(){
     if(!swOpen) return false;
     const k=e.code;
     if(k==='Escape'||k==='KeyB'){ quickClose(); return true; }
+    /* THE OTHER HALF: what you have on (closet.js). Who you are and what you
+       are wearing are one question to a child changing clothes. */
+    if(k==='Tab' && window.CLOSET){ quickClose(true); CLOSET.open(); return true; }
     const tiles=[...document.querySelectorAll('#swapRow .swaptile')];
     if(!tiles.length) return false;
     if(k==='ArrowLeft'||k==='ArrowRight'){
@@ -497,7 +500,7 @@ window.CHARS = (function(){
       .find(n=>n.dataset.c===AVATAR.chosen);
     if(cur) cur.focus();
   }
-  function quickClose(){
+  function quickClose(toCloset){
     if(!swOpen) return;
     swOpen=false;
     const el=document.querySelector('#swap'); if(el) el.classList.add('hidden');
@@ -505,7 +508,7 @@ window.CHARS = (function(){
     /* Back to the game, and back to mouse-look — but only if the game is
        what we came from. Opening this over a menu and handing the pointer
        to a canvas nobody is looking at is how a menu stops taking clicks. */
-    if(window.G && G.running && window.lockPointer){
+    if(!toCloset && window.G && G.running && window.lockPointer){
       const view=document.querySelector('#view'); if(view) lockPointer(view);
     }
   }

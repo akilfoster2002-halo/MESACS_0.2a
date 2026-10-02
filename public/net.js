@@ -115,7 +115,9 @@ window.NET = (function(){
        on, or 'inside' for a room off it. Presence has to carry both or a
        classmate drives past still walking, and somebody who has gone indoors
        is left standing in the field with their indoor coordinates. */
-    pos(p){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'pos',...p})); },
+    /* what you have on travels with who you are (wardrobe.js), so a classmate sees the jacket */
+    pos(p){ if(ws&&ws.readyState===1){ if(p && p.char && window.WARDROBE && p.fit===undefined) p = Object.assign({}, p, { fit:WARDROBE.code(WARDROBE.on(p.char)) });
+            ws.send(JSON.stringify({t:'pos',...p})); } },
     /* one-shot: they have just walked into somewhere, and the room is told */
     place(at){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({t:'place',at})); },
     /* ---- the Gym ----

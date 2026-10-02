@@ -99,13 +99,15 @@ window.AVATAR = (function(){
        George Wang's script, and it is about Robin's face and Robin's
        name — so that quest casts her with setCast('robin'), the way this
        file says a place may, and hands you back whoever you picked on the
-       way out. She wears `x` (the realistic one in the pink jacket, with
-       the climbing clips merged in the way `w` had them); the letters still
-       mean the new cast to every old save, which is why she needs a name of
-       her own here. */
+       way out. She is `character-robin.glb`: rebuilt from reference photos
+       of the real person she is based on (glb files/wardrobe/README.md),
+       standing in the wardrobe's plain base outfit, with every clip the
+       story needs — her look for the night is put on by WARDROBE. The old
+       `x` in the pink jacket is a passer-by now. The letters still mean the
+       new cast to every old save, which is why she needs a name of her own. */
     { id:'robin', name:'Robin',
-      model:'characters/models/character-x.glb'+V(),
-      preview:'characters/previews/character-x.png'+V() },
+      model:'characters/models/character-robin.glb'+V(),
+      preview:'characters/previews/character-robin.png'+V() },
     /* And the retired roster as walk-ons: the people on TSH's pavements.
        Same reason — their letters resolve to the new cast. */
     ...['s','t','u','v','x'].map(c=>({ id:'walk-'+c, name:'Passer-by',
@@ -573,7 +575,7 @@ window.AVATAR = (function(){
   }
 
   /* the player's own body, third person */
-  let body=null, model=null;
+  let body=null, model=null, dressHooked=false;
   /* WHAT THE BODY IS DOING, worked out in one place because three callers
      want it: the two that draw us, and presence, which sends the name to
      everybody else's screen.  Their body used to guess from how fast it
@@ -701,6 +703,13 @@ window.AVATAR = (function(){
        mannequin with its arms out. */
     const r=m.userData.rig;
     if(r){ r.play('idle', 0); r.update(0.05); }
+    /* WHAT THEY HAVE ON (wardrobe.js): put on over the body that has just
+       arrived, and put on again whenever the closet changes — only the
+       difference, on the same body, so a try-on never reloads anybody. */
+    if(window.WARDROBE){
+      WARDROBE.put(m, bodyOf(chosen));
+      if(!dressHooked){ dressHooked=true; WARDROBE.onChange(who=>{ if(model && (!who || who===bodyOf(chosen))) WARDROBE.put(model, bodyOf(chosen)); }); }
+    }
     /* The hips, found once. Whatever the body is doing, that bone is the
        middle of it — see centre() below. */
     hipBone=null;
@@ -847,7 +856,7 @@ window.AVATAR = (function(){
            tickClip, myName, myFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
-           get body(){ return body; },
+           get body(){ return body; }, get model(){ return model; },
            emote, canEmote, get emoting(){ return emoting>0; },
            get act(){ return acting; },
            get chosen(){ return chosen; }, set chosen(v){ chosen=v; } };

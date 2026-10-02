@@ -13,6 +13,9 @@ node_modules/
 glb files/**/*.glb
 glb files/**/*.obj
 glb files/rig/
+# the wardrobe lab's scratch: renders, SAM/Meshy downloads, and the reference
+# photos a body was made from (a real person's, lent for this — never committed)
+glb files/wardrobe/work/
 animations/
 
 # Source art, not runtime. The game only ever loads from public/ — these are

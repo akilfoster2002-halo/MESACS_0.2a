@@ -682,7 +682,7 @@ const PROGRESS=(function(){
 
   const AT = id => 'at_'+id;
   return {
-    load(p){ done=p||{}; },
+    load(p){ done=p||{}; if(window.WARDROBE) WARDROBE.restore(); },   // the closet rides in the bag too
     all(){ return done; },
     complete(id){
       if(!id) return;
@@ -831,6 +831,8 @@ function wireInput(){
          before anything else — its arrows walk the row, and left and right
          turn you round a planet everywhere else. */
       if(window.CHARS && CHARS.quickUp && CHARS.quickKey(e)){ e.preventDefault(); return; }
+      // and the closet, its other half (B: who you are, Tab from there: what you have on)
+      if(window.CLOSET && CLOSET.up && CLOSET.key(e)){ e.preventDefault(); return; }
       /* Who is here. It takes Esc while it is up, so it goes above the
          panels that also want it. */
       if(window.WHO && WHO.up && WHO.key(e)){ e.preventDefault(); return; }
@@ -1109,6 +1111,7 @@ function frozen(){
   return !!(window.WHO && WHO.up)          // reading the list is not walking
       || CODE.isOpen()
       || !!(window.CHARS && CHARS.quickUp)   // choosing a body is not a moment to walk
+      || !!(window.CLOSET && CLOSET.up)      // nor is getting dressed
       || !!(window.PLANET && PLANET.travelUp)  // nor is choosing how to travel
       || !!(window.TRAIL && TRAIL.busy)        // nor is reading a machine's mind
       || !$('#teach').classList.contains('hidden')     // reading instructions pauses the world

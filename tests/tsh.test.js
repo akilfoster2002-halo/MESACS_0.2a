@@ -139,7 +139,7 @@ test('the opening is a film: the call, her room, the kit, the note, the window â
   ['function fashion(', 'function pcb(', 'room.sewing', 'room.form', 'room.packing', 'ORDER #', 'burner phones', 'cash', 'room.pack', 'room.kitchen', 'room.momDoor',
    "Dinner\\'s in the fridge.", 'Love you.', 'â€” Mom', 'function cityView(', 'open(v)', 'STATIC GIRLS', 'function bootPair(']
     .forEach(k => assert.ok(r.includes(k), 'the room has ' + k));
-  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/models/character-x.glb'));
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/models/character-robin.glb'));
   const names = (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name);
   ['wake', 'text', 'kneel', 'walk', 'jump', 'roll'].forEach(n => assert.ok(names.includes(n), 'Robin\'s model has no ' + n + ' clip'));
   has(t, /if\(mode === 'reel'\)\{ if\(\(c === 'Enter'/, 'ENTER skips the film');
@@ -166,7 +166,8 @@ test('the things in her room are Higgsfield models, each standing in for the box
     assert.ok(r.includes("swap('" + id + "'"), 'the room puts the ' + id + ' model in');
   });
   has(r, /mt\.metalness = o\.metal \|\| 0/, 'SAM\'s fully-metal default is undone, or every model is black');
-  has(read('public/tsh.js'), /TSHROOM\.swap\('backpack', pack/, 'and the backpack on her back is the same model');
+  const roll = fs.readFileSync(path.join(__dirname, '..', 'public/characters/wardrobe/roll-top.glb')), floor = fs.readFileSync(path.join(__dirname, '..', 'public/tsh/room/backpack.glb'));
+  assert.ok(roll.equals(floor), 'and the backpack on her back (the wardrobe\'s roll-top) is the one off her floor');
 });
 
 test('the first thing you play is the shoes: fire them, then hold SPACE and they do the rest', () => {

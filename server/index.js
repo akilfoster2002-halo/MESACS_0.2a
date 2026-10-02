@@ -856,7 +856,7 @@ function roster(server){
   for(const [,p] of live) if(p.server===server && p.role==='student')
     out.push({ id:p.id, display:p.display, x:p.x, y:p.y, z:p.z,
                yaw:p.yaw, pit:p.pit,
-               char:p.char, act:p.act, ride:p.ride, at:p.at });
+               char:p.char, fit:p.fit || '', act:p.act, ride:p.ride, at:p.at });
   return out;
 }
 /* Where somebody is standing: the planet they are out on, or the room they
@@ -1035,6 +1035,10 @@ wss.on('connection', async (ws, req)=>{
          below, so a name it does not know simply draws nothing new. */
       p.act = (typeof m.act==='string' && /^[a-z][a-z0-9_]{0,15}$/.test(m.act)) ? m.act : null;
       p.ride = (typeof m.ride==='string' && /^[a-z_]{1,16}$/.test(m.ride)) ? m.ride : null;
+      /* WHAT THEY HAVE ON: "slot:item,…" (wardrobe.js). Shape only, like
+         `ride`: the browser decides what an item name means and ignores
+         one it does not know. */
+      p.fit = (typeof m.fit==='string' && /^[a-z0-9:,\-]{0,200}$/.test(m.fit)) ? m.fit : '';
       moveTo(p, m.at);
       return;
     }

@@ -22,6 +22,7 @@ for(const m of json.materials||[]){
   if(m.extensions){ delete m.extensions.KHR_materials_specular; delete m.extensions.KHR_materials_ior;
     if(!Object.keys(m.extensions).length) delete m.extensions; }
   m.pbrMetallicRoughness=Object.assign(m.pbrMetallicRoughness||{}, {metallicFactor:0, roughnessFactor:0.85});
+  delete m.pbrMetallicRoughness.metallicRoughnessTexture;      // a metal map on a matte body is only bytes (prune drops the image)
 }
 const used=new Set(); for(const m of json.materials||[]) for(const k of Object.keys(m.extensions||{})) used.add(k);
 for(const key of ['extensionsUsed','extensionsRequired']) if(json[key]){

@@ -7246,6 +7246,11 @@ window.PLANET = (function(){
     });
     CHAT.show();
   }
+  /* what somebody else has on (wardrobe.js): put on their body when it changes, nothing when it does not */
+  function dressOther(o, fit){
+    if(!o.model || !window.WARDROBE || (fit||'')===(o.fit||'')) return;
+    o.fit = fit || ''; WARDROBE.put(o.model, o.char, o.fit);
+  }
   function paint(list){
     if(!crowd) return;
     /* A LATE PACKET IS STILL A PACKET. The socket does not stop the moment
@@ -7292,9 +7297,10 @@ window.PLANET = (function(){
       if(want && o.char!==want){
         o.char=want;
         AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model=m;
-                                    m.visible=!o.car; o.g.add(m); })
+                                    m.visible=!o.car; o.g.add(m); o.fit=null; dressOther(o, p.fit); })
                          .catch(()=>{});
       }
+      dressOther(o, p.fit);
       /* Somebody who gets into a car has to be SEEN to get into a car. The
          same swap the driver makes — body away, car under them — made from
          the one field their presence carries. */

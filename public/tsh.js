@@ -274,6 +274,7 @@ window.TSH = (function(){
     if(window.CHAT) CHAT.hide();
     buildWorld();
     ui();
+    if(window.WARDROBE) WARDROBE.cast('robin', kitSlots());          // her kit, before her body arrives, so it arrives dressed
     if(window.AVATAR){ AVATAR.posture(null); AVATAR.setCast('robin'); }
     // where the beat you are in starts
     if(S.step === 'end') S.step = 'out';
@@ -304,6 +305,7 @@ window.TSH = (function(){
     vstop(); stopBed(); clearNpcs(); clearMarks();
     if(window.BOOTS) BOOTS.detach();
     reel = null; staged = null; ringing(false); phoneBig(null); black(false); scoreStop(0.3); me.kit = null; me.kitT = null;
+    if(window.WARDROBE) WARDROBE.cast('robin', null);
     if(el) el.classList.add('hidden');
     document.body.classList.remove('tsh-on');
     LOOK.dispose();
@@ -511,95 +513,40 @@ window.TSH = (function(){
   const feet = () => G.pos.y - EYE_;
   const P = () => ({ x:G.pos.x, y:feet(), z:G.pos.z, moving:!!(G.keys.KeyW||G.keys.KeyS||G.keys.KeyA||G.keys.KeyD||G.keys.ArrowUp||G.keys.ArrowDown),
                      running:!!(G.keys.ShiftLeft||G.keys.ShiftRight) && !!(G.keys.KeyW||G.keys.ArrowUp||G.keys.KeyA||G.keys.KeyD||G.keys.KeyS) });
-  /* HOOD AND SHADES, the bangles and the cuffs. Hung off the rig's own head and
-     hands, so they move with her; sized in metres by dividing the body's
-     own scale back out (the same trick avatar.js uses for the blaster). */
   function boneOf(model, re){ let b = null; model.traverse(o=>{ if(!b && re.test(o.name||'')) b = o; }); return b; }
+  /* things hung off a bone are sized in metres by dividing the body's own scale back out (as avatar.js does for the blaster) */
   function worldK(bone){ const s = new THREE.Vector3(); bone.getWorldScale(s); return 1/(s.x||1); }
-  function hoodMesh(){
-    const g = new THREE.Group();
-    const cloth = new THREE.MeshStandardMaterial({ color:0x1b2321, roughness:0.95, side:THREE.DoubleSide });
-    const hood = new THREE.Mesh(new THREE.SphereGeometry(0.145, 18, 12, Math.PI*0.62, Math.PI*1.76, 0, Math.PI*0.72), cloth);
-    hood.position.set(0, 0.105, -0.012); hood.scale.set(1.02, 1.08, 1.12); g.add(hood);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.018, 6, 20, Math.PI*1.25), cloth);
-    rim.position.set(0, 0.1, 0.075); rim.rotation.set(0, 0, Math.PI*1.12); g.add(rim);
-    const shades = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.034, 0.03), new THREE.MeshStandardMaterial({ color:0x050606, roughness:0.05, metalness:0.9 }));
-    shades.position.set(0, 0.085, 0.1); g.add(shades);
-    const glint = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.004, 0.002), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.6, 2.4, 2.0) }));
-    glint.position.set(0, 0.098, 0.116); g.add(glint);
-    return g;
+  /* HER KIT IS WARDROBE ITEMS (wardrobe.js): the jacket, the Gecko cuffs, the
+     shoes, the flash bangle, the pack, the hood and shades — put on her the
+     way anything goes on anybody, so what she wears in the story is what the
+     closet shows, and the opening's suit-up is the wardrobe putting each
+     piece on in turn. The story says WHICH pieces (a cast, so the player's
+     own saved outfits are not touched); TSH keeps handles on the ones it
+     lights and hides (the cuffs on a wall, the flash charges, the hood). */
+  const KIT_ITEMS = { jacket:['outer', 'tech-jacket'], gloves:['hands', 'gecko-cuffs'], shoes:['shoes', 'skyline-shoes'], bracelet:['wrist', 'flash-bangle'], pack:['back', 'roll-top'] };
+  function kitSlots(){
+    const k = me.kit || KIT_ON, s = {};
+    Object.keys(KIT_ITEMS).forEach(p=>{ if(k[p]){ const [slot, id] = KIT_ITEMS[p]; s[slot] = id; } });
+    if(me.hood) s.head = 'hood';
+    return s;
   }
   function dress(){
-    const body = window.AVATAR && AVATAR.body; if(!body) return;
-    const model = body.children[0]; if(!model) return;
-    const head = boneOf(model, /Head$/);
-    if(head && !head.userData.tshHood){
-      model.updateMatrixWorld(true);
-      const k = worldK(head), g = hoodMesh(); g.scale.setScalar(k); head.add(g); head.userData.tshHood = g; me.dress = g;
-    }
-    ['Left', 'Right'].forEach(side=>{
-      const hand = boneOf(model, new RegExp(side+'Hand$'));
-      if(!hand || hand.userData.tshGlove) return;
-      const k = worldK(hand), m = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.2, 1.9), transparent:true, opacity:0.9 }));
-      m.scale.setScalar(k); m.position.set(0, 0.06*k, 0); hand.add(m); hand.userData.tshGlove = m;
-      if(side === 'Left') me.glowL = m; else me.glowR = m;
-      // the Gecko cuffs: a dark band round the wrist, a teal line that burns while the film holds
-      const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.016, 8, 22),
-        new THREE.MeshStandardMaterial({ color:0x16211f, roughness:0.35, metalness:0.7, emissive:0x38ffd0, emissiveIntensity:0.5 }));
-      cuff.scale.setScalar(k); cuff.rotation.x = Math.PI/2; cuff.position.set(0, -0.01*k, 0); hand.add(cuff);
-      if(side === 'Left') me.cuffL = cuff; else me.cuffR = cuff;
-    });
-    // the rest of what she made: wiring in the jacket's seams, the shoes' soles, the bracelet, the backpack
-    if(!model.userData.tshKit){
-      model.userData.tshKit = true;
-      model.updateWorldMatrix(true, true);
-      // her own frame, read off the skeleton: which way is up, left and forward on this rig
-      const wp = bone => { const p = new THREE.Vector3(); if(bone) bone.getWorldPosition(p); return p; };
-      const ls = boneOf(model, /LeftArm$/), rs = boneOf(model, /RightArm$/), hips = boneOf(model, /Hips$/);
-      const sp = boneOf(model, /Spine$/) || hips, chest = boneOf(model, /Spine2$/) || boneOf(model, /Spine1$/), mid = boneOf(model, /Spine1$/) || chest, neck = boneOf(model, /Neck$/);
-      if(chest && ls && rs && sp && neck){
-        const up = new THREE.Vector3(0, 1, 0), left = wp(ls).sub(wp(rs)).setY(0).normalize(), fwd = new THREE.Vector3().crossVectors(left, up).normalize();
-        const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(left, up, fwd));
-        const hang = (bone, mesh, pos, quat) => { mesh.position.copy(pos); mesh.quaternion.copy(quat || q); G.scene.add(mesh); mesh.updateMatrixWorld(true); bone.attach(mesh); return mesh; };
-        const lineM = () => new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending });
-        const P = (base, l, u, f) => base.clone().addScaledVector(left, l).addScaledVector(up, u).addScaledVector(fwd, f);
-        const y0 = wp(sp).y, y1 = wp(chest).y, cy = (y0 + y1)/2, spineAt = wp(mid).setY(cy), len = Math.max(0.2, y1 - y0 + 0.06);
-        const m = lineM(), bar = (w, h, d, pos, bone) => { const o = hang(bone || mid, new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), pos); o.userData.flat = true; return o; };
-        // the jacket: two seams down the front, one down the back, and one over each shoulder
-        me.seams = [bar(0.012, len, 0.012, P(spineAt, 0.075, 0, 0.16)), bar(0.012, len, 0.012, P(spineAt, -0.075, 0, 0.16)), bar(0.012, len, 0.012, P(spineAt, 0, 0, -0.11))];
-        [ls, rs].forEach(arm=>{ const a_ = wp(arm), n_ = wp(neck), c = n_.clone().lerp(a_, 0.55).addScaledVector(up, 0.035);
-          me.seams.push(bar(Math.max(0.08, a_.distanceTo(n_)*0.7), 0.012, 0.012, c, chest)); });
-        // the backpack, on her back
-        const pack = new THREE.Group();
-        const bag = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.36, 0.12), new THREE.MeshStandardMaterial({ color:0x15181b, roughness:0.85 })); pack.add(bag);
-        const flap = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.11, 0.13), new THREE.MeshStandardMaterial({ color:0x22282c, roughness:0.8 })); flap.position.y = 0.13; pack.add(flap);
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.28, 0.005), lineM()); strip.position.set(0.09, -0.02, -0.062); strip.userData.flat = true; pack.add(strip);
-        me.pack = hang(chest, pack, P(wp(mid).setY(cy + 0.04), 0, 0, -0.2));
-        if(window.TSHROOM && TSHROOM.swap) TSHROOM.swap('backpack', pack, [bag, flap, strip], { x:0, y:-0.2, z:0, h:0.42, ry:Math.PI });   // the same pack as on her floor; its straps to her back
-      }
-      me.shoes = [];
-      ['Left', 'Right'].forEach(side=>{
-        const foot = boneOf(model, new RegExp(side + 'Foot$')); if(!foot) return;
-        const g = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending }));
-        g.userData.flat = true; g.position.copy(wp(foot)); G.scene.add(g); g.updateMatrixWorld(true); foot.attach(g); me.shoes.push(g);
-      });
-      // the bracelet: a band of white metal a little up the right forearm, and its lights
-      const hand = boneOf(model, /RightHand$/), fore = boneOf(model, /RightForeArm$/);
-      if(hand && fore){
-        const h = wp(hand), f = wp(fore);
-        const axis = h.clone().sub(f).normalize(), qq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
-        const band = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.011, 8, 24), new THREE.MeshStandardMaterial({ color:0xeef4f4, roughness:0.35, metalness:0.25, emissive:0x2a4644, emissiveIntensity:0.6 }));
-        band.position.copy(h.clone().lerp(f, 0.22)); band.quaternion.copy(qq); G.scene.add(band); band.updateMatrixWorld(true); fore.attach(band); me.bangle = band;
-        me.bangleLeds = [];
-        for(let i=0;i<6;i++){ const a_ = i/6*Math.PI*2, led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending }));
-          led.position.set(Math.cos(a_)*0.047, Math.sin(a_)*0.047, 0.006); led.userData.flat = true; band.add(led); me.bangleLeds.push(led); }
-      }
-    }
+    if(!window.WARDROBE) return Promise.resolve();
+    const slots = kitSlots(); WARDROBE.cast('robin', slots);
+    const model = window.AVATAR && AVATAR.model; if(!model) return Promise.resolve();
+    return WARDROBE.put(model, 'robin', slots).then(()=>handles(model));
+  }
+  function handles(model){
+    if(!window.AVATAR || AVATAR.model !== model) return;
+    const worn = id => WARDROBE.wornOn(model, id), role = (id, r) => worn(id).filter(o=>o.userData.role === r);
+    const cuffs = role('gecko-cuffs', 'cuff'), glows = role('gecko-cuffs', 'glow');
+    me.cuffL = cuffs[0] || null; me.cuffR = cuffs[1] || null; me.glowL = glows[0] || null; me.glowR = glows[1] || null;
+    me.bangle = worn('flash-bangle')[0] || null; me.bangleLeds = me.bangle ? me.bangle.children.filter(o=>o.userData.role === 'glow') : [];
+    me.pack = worn('roll-top')[0] || null; me.dress = worn('hood')[0] || null; me.jacket = worn('tech-jacket')[0] || null;
     cuffGlow(mode === 'scale');
-    kitShow();
   }
   function setHood(v){
-    me.hood = v; if(me.dress) me.dress.visible = v;
+    me.hood = v; dress();
     note(v ? '🧥 Hood up, shades on' : '🧥 Hood down — your face is showing', v ? '' : 'warn');
     cue('ui');
   }
@@ -943,18 +890,13 @@ window.TSH = (function(){
      In the film the pieces go on one at a time, and each one wakes up —
      a flicker, then steady. Everywhere else she has all of it on. */
   const KIT_ON = { jacket:true, gloves:true, shoes:true, bracelet:true, pack:true };
-  function kitOn(p){ if(!me.kit) return; me.kit[p] = true; me.kitT[p] = 0; }
+  function kitOn(p){ if(!me.kit) return; me.kit[p] = true; me.kitT[p] = 0; dress(); }
   function kitShow(){
-    const k = me.kit || KIT_ON, t = me.kitT || {};
-    const lit = p => !k[p] ? 0 : (t[p] === undefined || t[p] > 0.75) ? 1 : (Math.random() < 0.5 ? 0.15 + t[p] : 1);
-    const glow = (list, p) => (list || []).forEach(m=>{ if(!m) return; m.visible = !!k[p]; if(m.material) m.material.opacity = 0.92*lit(p); });
-    glow([me.glowL, me.glowR], 'gloves');
-    [me.cuffL, me.cuffR].forEach(m=>{ if(m) m.visible = !!k.gloves; });
-    glow(me.seams, 'jacket'); glow(me.bangleLeds, 'bracelet'); glow(me.shoes, 'shoes');
-    (me.shoes || []).forEach(m=>{ if(!reel) m.visible = false; });          // in play the shoes' own glow (boots.js) takes over
-    if(me.bangle) me.bangle.visible = !!k.bracelet;
-    if(me.pack) me.pack.visible = !!k.pack;
-    if(me.dress) me.dress.visible = !!me.hood && !!k.jacket;
+    const t = me.kitT || {};
+    const lit = p => (t[p] === undefined || t[p] > 0.75) ? 1 : (Math.random() < 0.5 ? 0.15 + t[p] : 1);
+    [me.glowL, me.glowR].forEach(m=>{ if(m && m.material) m.material.opacity = 0.92*lit('gloves'); });
+    (me.bangleLeds || []).forEach(m=>{ if(m.material) m.material.opacity = 0.92*lit('bracelet'); });
+    if(me.jacket && me.jacket.material) me.jacket.material.emissiveIntensity = 0.35*lit('jacket');
   }
 
   /* -------------------------------------------------------- the phone
@@ -1091,6 +1033,7 @@ window.TSH = (function(){
     G.scene.fog.density = 0.004; G.scene.background = new THREE.Color(0x020404); muffle(true);
     apt.lamp = false; apt.ceiling = false; aptLights();
     me.hood = false; me.kit = { jacket:false, gloves:false, shoes:false, bracelet:false, pack:false }; me.kitT = {};
+    dress();                                            // in her base outfit: what she sleeps in
     W.aptGroup.traverse(o=>{ if(o.userData.boot || o.userData.pack) o.visible = true; });
     if(R.window) R.window.open(false);
     if(R.note) R.note.home();
@@ -1167,7 +1110,7 @@ window.TSH = (function(){
       { dur:3.2, fov:44, cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
         enter:()=>{ scoreBreak(); scoreLevel(0.95, 1.2, false); },
         tick:(dt, t, k)=>{ if(k < 0.45) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.45); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
-        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.hood = true; cue('ui'); }]] },
+        beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.hood = true; dress(); cue('ui'); }]] },
       // up onto the sill
       { dur:2.4, fov:40, cam:[win[0] + 2.2, 0.6, win[2] + 0.6], look:[win[0] + 0.2, 1.6, win[2]],
         enter:()=>stage('kneel', win[0] + 0.32, 1.0, win[2], -Math.PI/2) },
@@ -1205,7 +1148,7 @@ window.TSH = (function(){
   function fallStart(skipped){
     staged = null; reel = null;
     ringing(false); phoneBig(null); black(false); scoreHold();
-    me.kit = null; me.kitT = null; me.hood = true;
+    me.kit = null; me.kitT = null; me.hood = true; dress();
     if(window.AVATAR) AVATAR.posture(null);
     outsideLook();
     if(W.room && W.room.note) W.room.note.home();
@@ -3008,7 +2951,7 @@ window.TSH = (function(){
     const tower = W.spots.tower, x = G.pos.x, z = G.pos.z, y = feet();
     const face_ = angTo(x, z, tower[0], tower[1]);
     G.yaw = face_ + Math.PI;                 // the body faces +z; the camera looks -z
-    if(me.hood) { me.hood = false; if(me.dress) me.dress.visible = false; }
+    if(me.hood){ me.hood = false; dress(); }
     const bx = x - Math.sin(face_)*3.2, bz = z - Math.cos(face_)*3.2;
     const sx = x + Math.cos(face_)*2.6 + Math.sin(face_)*1.8, sz = z - Math.sin(face_)*2.6 + Math.cos(face_)*1.8;
     const tx = x + Math.sin(face_)*60, tz = z + Math.cos(face_)*60;

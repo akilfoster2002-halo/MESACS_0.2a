@@ -713,6 +713,11 @@ window.NEON = (function(){
 
   /* ========================================================== the class
      Everybody else up here, drawn as who they chose, in room metres. */
+  /* what somebody else has on (wardrobe.js): put on their body when it changes, nothing when it does not */
+  function dressOther(o, fit){
+    if(!o.model || !window.WARDROBE || (fit||'')===(o.fit||'')) return;
+    o.fit = fit || ''; WARDROBE.put(o.model, o.char, o.fit);
+  }
   function paint(list){
     if(!on || !group) return;
     const seen = new Set();
@@ -734,9 +739,10 @@ window.NEON = (function(){
       const want = p.char && AVATAR.bodyOf(p.char);
       if(want && o.char!==want){
         o.char = want;
-        AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model = m; o.g.add(m); })
+        AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model = m; o.g.add(m); o.fit = null; dressOther(o, p.fit); })
                          .catch(()=>{});
       }
+      dressOther(o, p.fit);
       o.tx = +p.x||0; o.ty = +p.y||0; o.tz = +p.z||0;
       o.tyaw = +p.yaw||0;
       o.act = p.act || null;

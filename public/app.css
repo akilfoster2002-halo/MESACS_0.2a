@@ -825,6 +825,41 @@ body.cdragging .cin,body.cdragging .cblk{pointer-events:none}
 .swaphint{text-align:center;font-size:11.5px;color:var(--muted);margin-top:8px;letter-spacing:.3px}
 .swaphint b{color:var(--text)}
 
+/* ---------- the closet (closet.js) ---------- */
+#closet{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4vh;pointer-events:none;
+  background:linear-gradient(to top,rgba(8,10,18,.72),rgba(8,10,18,0) 46%)}
+#closet.hidden{display:none}
+.closetcard{max-width:min(980px,96vw)}
+#closetTitle{margin:0 0 8px;font-size:12.5px;letter-spacing:2.6px;color:var(--mint);text-align:center;font-weight:bold}
+.closetbody{display:flex;gap:14px;align-items:stretch}
+#closetView{width:150px;height:200px;flex:0 0 auto;border:3px solid var(--line);border-radius:16px;background:rgba(20,16,38,.55);cursor:grab;touch-action:none}
+#closetView:active{cursor:grabbing}
+.closetmain{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.closettabs{display:flex;gap:6px;flex-wrap:wrap}
+.ctab{position:relative;border:2px solid var(--line);border-radius:999px;background:rgba(20,16,38,.55);color:var(--muted);
+  font:bold 12px system-ui;letter-spacing:.3px;padding:5px 12px;cursor:pointer}
+.ctab.on{border-color:var(--mint);color:var(--mint)}
+.ctab i{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--mint)}
+.closetrow{display:flex;gap:9px;overflow-x:auto;padding:4px 2px 6px;min-height:92px}
+.citem{flex:0 0 auto;width:150px;min-height:84px;border:3px solid var(--line);border-radius:14px;background:rgba(20,16,38,.55);
+  color:var(--text);cursor:pointer;text-align:left;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1.5),border-color .16s,box-shadow .16s}
+.citem b{font-size:13px;letter-spacing:.2px}
+.citem small{font-size:11px;color:var(--muted);line-height:1.3}
+.citem:hover,.citem:focus-visible{transform:translateY(-3px);border-color:var(--sky);outline:none}
+.citem.on{border-color:var(--mint);box-shadow:0 0 0 3px rgba(168,230,207,.4)}
+.citem.on b::after{content:' ✓';color:var(--mint)}
+.citem.locked{cursor:not-allowed;filter:grayscale(.7);opacity:.55}
+.citem.off{border-style:dashed}
+.closetfits{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.cfit{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden;background:rgba(20,16,38,.55)}
+.cfit button,button.cfit{border:0;background:none;color:var(--text);font:bold 12px system-ui;padding:5px 11px;cursor:pointer}
+.cfit .x{color:var(--muted);padding:5px 9px;border-left:2px solid var(--line)}
+button.cfit.plain{border:2px dashed var(--line);border-radius:999px;color:var(--muted)}
+#closetSave{display:inline-flex;gap:5px}
+#closetSave input{width:150px;border:2px solid var(--line);border-radius:999px;background:rgba(10,8,20,.6);color:var(--text);padding:5px 11px;font:12px system-ui}
+#closetSave button{border:2px solid var(--mint);border-radius:999px;background:none;color:var(--mint);font:bold 12px system-ui;padding:5px 12px;cursor:pointer}
+
 /* ---------- difficulty picker ---------- */
 .difflbl{font-size:11.5px;letter-spacing:2.2px;color:var(--mint);font-weight:bold;margin-top:4px}
 .diffrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px;margin:8px 0 2px}

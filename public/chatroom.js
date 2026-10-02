@@ -842,6 +842,11 @@ window.CHATROOM = (function(){
   /* ========================================================== the class
      Everybody else in the room, drawn as who they chose. The numbers come
      off the same wire the planets use, read back into room metres. */
+  /* what somebody else has on (wardrobe.js): put on their body when it changes, nothing when it does not */
+  function dressOther(o, fit){
+    if(!o.model || !window.WARDROBE || (fit||'')===(o.fit||'')) return;
+    o.fit = fit || ''; WARDROBE.put(o.model, o.char, o.fit);
+  }
   function paint(list){
     if(!on || !group) return;
     const seen = new Set();
@@ -862,9 +867,10 @@ window.CHATROOM = (function(){
       const want = p.char && AVATAR.bodyOf(p.char);
       if(want && o.char!==want){
         o.char = want;
-        AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model = m; o.g.add(m); })
+        AVATAR.load(want).then(m=>{ if(o.model) o.g.remove(o.model); o.model = m; o.g.add(m); o.fit = null; dressOther(o, p.fit); })
                          .catch(()=>{});
       }
+      dressOther(o, p.fit);
       o.tx = at.x; o.ty = at.y; o.tz = at.z;
       /* their heading, read back into the yaw this browser turns bodies by
          (avatar.js: the model faces +z and the camera looks -z) */
