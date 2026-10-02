@@ -3,10 +3,12 @@
 # dodges and falls (rig/fight) on Robin's own Higgsfield skeleton — and then
 # only the clips, with her mesh and textures taken out (clips-only.js), so the
 # fight adds them to the body the game already has (avatar.js rig.add) and no
-# other room pays for them. about 820 KB. `cart` is the cartwheel out of
-# Mixamo's "Au To Role" (the au only, not the role after it). `evflip` and `evroll` are
-# her flip and roll again under the fight's own names, so the fight can play them at
-# its own speed without changing the shoes' landings. 23 clips.
+# other room pays for them. About 850 KB. Her ways out of a swing, all Mixamo,
+# trimmed to the move and held in place (the fight moves her itself): `cartL` and
+# `cartR`, a cartwheel leading with the left hand and with the right (the second
+# is Mixamo's mirror of the first), `bflip` a backflip, `wallkick` the push off a
+# wall, and `evroll` her roll again under the fight's own name, so the fight can
+# play it at its own speed without changing the shoes' landings.
 #
 #   sh cast/build-robin-fight.sh     # cast/robin-raw.glb -> public/characters/fight/robin.glb
 set -e
@@ -18,7 +20,8 @@ node retarget.js cast/robin-raw.glb "$T-rt.glb" higgsfield.map.json ref=rig/idle
   knee=$F/kneekicklead.glb elbow=$F/elbowpunch.glb power=$F/hookpunch1.glb dodge=$F/dodging.glb block=$F/block.glb \
   hit=$F/receiveuppercuttotheface.glb stagger=$F/takingpunch.glb fall=$F/sweepfall.glb getup=$F/crouchtostand.glb ko=$F/dying.glb \
   flykick=$F/flyingkick.glb sweep=$F/legsweep.glb spin=$F/hurricanekick.glb boxing=$F/boxing.glb \
-  cart=$F/autorole.glb trim=cart:0.70:2.45 evflip=rig/flip.glb evroll=rig/roll.glb inplace=cart,evflip,evroll \
+  cartL=$F/cartwheel.glb cartR=$F/cartwheel-mirror.glb bflip=$F/backflip.glb wallkick=$F/jumpfromwall.glb evroll=rig/roll.glb \
+  trim=cartL:0.85:2.75 trim=cartR:0.80:2.70 trim=bflip:0.95:2.65 trim=wallkick:0.30:1.27 inplace=cartL,cartR,bflip,wallkick,evroll \
   floor=idle,fight,jab,cross,hook,kick,knee,elbow,power,dodge,block,hit,stagger,boxing
 node clips-only.js "$T-rt.glb" "$T-a.glb"
 npx -y @gltf-transform/cli prune "$T-a.glb" "$T-b.glb"

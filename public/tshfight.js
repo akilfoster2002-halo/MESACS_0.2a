@@ -63,13 +63,16 @@ window.TSHFIGHT = (function(){
   const STRINGS = [CHAIN, ['jab', 'elbow', 'cross', 'kick'], ['cross', 'hook', 'knee', 'elbow'], ['jab', 'jab', 'hook', 'knee'], ['elbow', 'cross', 'hook', 'kick']];
   const FAR = 4.6, AIM_RANGE = 8;
   /* GETTING OUT OF THE WAY, by the direction held with SPACE (from where the camera looks): A or D, a
-     cartwheel that way; S, a flip away; W, a roll forward; nothing held, the sidestep. `go` is how far
-     it takes her, `iframe` how long nothing lands on her. A click during one, or just after, comes out
-     of it as a sweep along the ground. */
+     cartwheel that way (her back to you either way: the left hand leads one, the right the other); S, a
+     backflip, still facing them; W, a roll forward; nothing held, the sidestep. `go` is how far it takes
+     her, `iframe` how long nothing lands on her. A click during one, or just after, comes out of it as a
+     sweep along the ground. `wall` is the push off a wall before the flying kick (dodge, below). */
   const EVADE = {
-    cart: { clip:'cart',   speed:1.6, go:3.4, iframe:0.75, travel:0.85 },
-    flip: { clip:'evflip', speed:1.4, go:3.0, iframe:0.7,  travel:0.8 },
-    roll: { clip:'evroll', speed:1.3, go:3.2, iframe:0.6,  travel:0.8 }
+    cartL: { clip:'cartL',    speed:1.5,  go:3.4, iframe:0.8,  travel:0.85 },
+    cartR: { clip:'cartR',    speed:1.5,  go:3.4, iframe:0.8,  travel:0.85 },
+    flip:  { clip:'bflip',    speed:1.35, go:3.0, iframe:0.75, travel:0.8, back:true },
+    roll:  { clip:'evroll',   speed:1.3,  go:3.2, iframe:0.6,  travel:0.8 },
+    wall:  { clip:'wallkick', speed:1.9 }
   };
 
   /* ------------------------------------------------------------ the crew */
@@ -292,20 +295,21 @@ window.TSHFIGHT = (function(){
     const wx = p.x + Math.sin(a)*1.2, wz = p.z + Math.cos(a)*1.2;
     const t = pickTarget(9, 3.2);
     if(t && (wx < ARENA.x1 + 0.05 || wx > ARENA.x2 - 0.05)){
-      R.act = 'wall'; R.t = 0; R.len = 0.32; R.iframe = 0.9; R.wallTo = t;
+      // to the wall, a foot on it, and push off it, turning round in the air (then the flying kick, in tick)
       const w = clampArena(wx, wz); R.dash = { x0:p.x, z0:p.z, x1:w[0], z1:w[1], t:0, len:0.22 };
-      R.face = a; R.sinceDodge = 0; robinClip('jump', true); ctx.cue('kick');
+      R.act = 'wall'; R.t = 0; R.len = Math.min(0.55, (robinClip(EVADE.wall.clip, true) || 0.5)*0.8); R.iframe = 0.9; R.wallTo = t;
+      R.face = a; R.sinceDodge = 0; ctx.cue('kick');
       event('wall'); return true;
     }
     // with a direction: a cartwheel to the side, a flip away, a roll forward
-    const kind = !(fx || fz) ? null : Math.abs(fx) >= Math.abs(fz) ? 'cart' : fz < 0 ? 'flip' : 'roll';
+    const kind = !(fx || fz) ? null : Math.abs(fx) >= Math.abs(fz) ? (fx < 0 ? 'cartL' : 'cartR') : fz < 0 ? 'flip' : 'roll';
     if(kind){
       const v = EVADE[kind], to = clampArena(p.x + Math.sin(a)*v.go, p.z + Math.cos(a)*v.go);
       const len = robinClip(v.clip, true) || 1;
       R.act = 'dodge'; R.evade = kind; R.t = 0; R.len = len; R.iframe = v.iframe; R.buffer = null;
       R.dash = { x0:p.x, z0:p.z, x1:to[0], z1:to[1], t:0, len:len*v.travel };
-      // the au goes over her left hand: her left side leads; the flip and the roll go the way she faces
-      R.face = kind === 'cart' ? a - Math.PI/2 : a;
+      // a cartwheel and a roll go the way she faces (the cartwheel turns her side-on by itself); the backflip goes back
+      R.face = v.back ? a + Math.PI : a;
       R.sinceDodge = 0; ctx.cue('swish'); slowFor(0.55, 0.25);
       event('dodge');
       return true;
