@@ -362,6 +362,20 @@ test('the alley is wide enough to fight in, and the fight stays inside it', () =
   [F.MEET.robin, F.MEET.buyer].forEach(p => assert.ok(p[0] > F.ARENA.x1 && p[0] < F.ARENA.x2, 'and starts inside it'));
 });
 
+test('out of the way: SPACE with a direction is a cartwheel, a flip or a roll, and a click comes out of it as a sweep', () => {
+  const src = read('public/tshfight.js'), t = read('public/tsh.js'), F = fight();
+  const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
+  const hers = clips('characters/fight/robin.glb');
+  ['cart', 'flip', 'roll'].forEach(k => { assert.ok(F.EVADE[k], k); assert.ok(hers.includes(F.EVADE[k].clip), 'her fight file has ' + F.EVADE[k].clip); });
+  // the fight's own copies: the shoes' flip and roll keep their own speed
+  assert.ok(!['flip', 'roll'].includes(F.EVADE.flip.clip) && !['flip', 'roll'].includes(F.EVADE.roll.clip), 'the fight plays its own copies of the flip and the roll');
+  has(src, /Math\.abs\(fx\) >= Math\.abs\(fz\) \? 'cart' : fz < 0 \? 'flip' : 'roll'/, 'A or D a cartwheel, S a flip, W a roll');
+  has(src, /if\(R\.act === 'dodge' && R\.evade && kind === 'punch'\)\{ R\.buffer = kind; return false; \}/, 'a click mid-cartwheel is kept for the landing');
+  has(src, /if\(R\.outOfEvade\)\{[\s\S]{0,80}return 'sweep'/, 'and comes out as a sweep');
+  has(t, /Object\.values\(TSHFIGHT\.EVADE\)\.forEach\(v=>\{ speed\[v\.clip\] = v\.speed; \}\)/, 'played at the speed the fight sets');
+  ['cart', 'evflip', 'evroll'].forEach(n => has(t, new RegExp("'" + n + "'\\]?, ?|'" + n + "'\\]"), n + ' plays once'));
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');

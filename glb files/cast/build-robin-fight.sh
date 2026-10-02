@@ -3,7 +3,10 @@
 # dodges and falls (rig/fight) on Robin's own Higgsfield skeleton — and then
 # only the clips, with her mesh and textures taken out (clips-only.js), so the
 # fight adds them to the body the game already has (avatar.js rig.add) and no
-# other room pays for them. 20 clips, about 750 KB.
+# other room pays for them. about 820 KB. `cart` is the cartwheel out of
+# Mixamo's "Au To Role" (the au only, not the role after it). `evflip` and `evroll` are
+# her flip and roll again under the fight's own names, so the fight can play them at
+# its own speed without changing the shoes' landings. 23 clips.
 #
 #   sh cast/build-robin-fight.sh     # cast/robin-raw.glb -> public/characters/fight/robin.glb
 set -e
@@ -15,6 +18,7 @@ node retarget.js cast/robin-raw.glb "$T-rt.glb" higgsfield.map.json ref=rig/idle
   knee=$F/kneekicklead.glb elbow=$F/elbowpunch.glb power=$F/hookpunch1.glb dodge=$F/dodging.glb block=$F/block.glb \
   hit=$F/receiveuppercuttotheface.glb stagger=$F/takingpunch.glb fall=$F/sweepfall.glb getup=$F/crouchtostand.glb ko=$F/dying.glb \
   flykick=$F/flyingkick.glb sweep=$F/legsweep.glb spin=$F/hurricanekick.glb boxing=$F/boxing.glb \
+  cart=$F/autorole.glb trim=cart:0.70:2.45 evflip=rig/flip.glb evroll=rig/roll.glb inplace=cart,evflip,evroll \
   floor=idle,fight,jab,cross,hook,kick,knee,elbow,power,dodge,block,hit,stagger,boxing
 node clips-only.js "$T-rt.glb" "$T-a.glb"
 npx -y @gltf-transform/cli prune "$T-a.glb" "$T-b.glb"

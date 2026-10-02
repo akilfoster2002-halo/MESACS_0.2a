@@ -2370,7 +2370,8 @@ window.TSH = (function(){
     return fightClipsP.then(list=>{
       const r = window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
       if(list && r && r.add){ const M = TSHFIGHT.MOVE, speed = {}; Object.keys(M).forEach(k=>{ if(M[k].clip === k) speed[k] = M[k].speed; });
-        r.add(list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin'], speed }); }
+        Object.values(TSHFIGHT.EVADE).forEach(v=>{ speed[v.clip] = v.speed; });
+        r.add(list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin', 'cart', 'evflip', 'evroll'], speed }); }
       return list;
     });
   }

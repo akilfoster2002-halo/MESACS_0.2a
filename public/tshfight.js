@@ -62,6 +62,15 @@ window.TSHFIGHT = (function(){
      is a finisher; a man left wide open gets the knee and the elbow; a man across the alley, the flying kick. */
   const STRINGS = [CHAIN, ['jab', 'elbow', 'cross', 'kick'], ['cross', 'hook', 'knee', 'elbow'], ['jab', 'jab', 'hook', 'knee'], ['elbow', 'cross', 'hook', 'kick']];
   const FAR = 4.6, AIM_RANGE = 8;
+  /* GETTING OUT OF THE WAY, by the direction held with SPACE (from where the camera looks): A or D, a
+     cartwheel that way; S, a flip away; W, a roll forward; nothing held, the sidestep. `go` is how far
+     it takes her, `iframe` how long nothing lands on her. A click during one, or just after, comes out
+     of it as a sweep along the ground. */
+  const EVADE = {
+    cart: { clip:'cart',   speed:1.6, go:3.4, iframe:0.75, travel:0.85 },
+    flip: { clip:'evflip', speed:1.4, go:3.0, iframe:0.7,  travel:0.8 },
+    roll: { clip:'evroll', speed:1.3, go:3.2, iframe:0.6,  travel:0.8 }
+  };
 
   /* ------------------------------------------------------------ the crew */
   const KIND = {
@@ -190,6 +199,7 @@ window.TSHFIGHT = (function(){
       R.chain = 1; return 'jab';
     }
     const p = P(), d = t ? Math.hypot(t.x - p.x, t.z - p.z) : 0;
+    if(R.outOfEvade){ R.outOfEvade = false; if(!t || d < 3){ R.chain = 0; return 'sweep'; } }
     if(t && d > FAR){ R.chain = 0; return 'zip'; }
     const going = R.chainT > 0 && R.chain > 0;
     if(!going){ R.string = STRINGS[Math.floor(Math.random()*STRINGS.length)]; R.chain = 0; }
@@ -236,12 +246,13 @@ window.TSHFIGHT = (function(){
   /* ------------------------------------------------------------ her actions */
   const name0 = kind => kind === 'power' ? 5.5 : 4.6;
   function attack(kind){
+    if(R.act === 'dodge' && R.evade && kind === 'punch'){ R.buffer = kind; return false; }
     if(R.grabbedBy || R.act === 'hurt' || R.act === 'dodge' || R.act === 'vault' || R.act === 'wall') return false;
     if(R.act && R.act !== 'idle'){ const m = MOVE[R.move]; if(m && R.t < R.len*m.free){ R.buffer = kind; return false; } }
     // who: the one a lesson is about, else the one you are aiming at, else whoever is close in front of her
     const t = (R.forceTarget && standing(R.forceTarget)) ? R.forceTarget : (aimTarget() || pickTarget(name0(kind), 1.6));
     let name = kind;
-    if(kind === 'punch'){ name = choose(t); R.chainT = 1.1; }
+    if(kind === 'punch'){ if(R.evadeEnd !== undefined && !R.outOfEvade){ R.outOfEvade = true; R.evadeEnd = undefined; } name = choose(t); R.chainT = 1.1; }
     const m = MOVE[name];
     R.act = 'attack'; R.move = name; R.lastMove = name; R.t = 0; R.target = t; R.landed = false;
     R.len = robinClip(m.clip, true) || 0.6;
@@ -286,8 +297,21 @@ window.TSHFIGHT = (function(){
       R.face = a; R.sinceDodge = 0; robinClip('jump', true); ctx.cue('kick');
       event('wall'); return true;
     }
+    // with a direction: a cartwheel to the side, a flip away, a roll forward
+    const kind = !(fx || fz) ? null : Math.abs(fx) >= Math.abs(fz) ? 'cart' : fz < 0 ? 'flip' : 'roll';
+    if(kind){
+      const v = EVADE[kind], to = clampArena(p.x + Math.sin(a)*v.go, p.z + Math.cos(a)*v.go);
+      const len = robinClip(v.clip, true) || 1;
+      R.act = 'dodge'; R.evade = kind; R.t = 0; R.len = len; R.iframe = v.iframe; R.buffer = null;
+      R.dash = { x0:p.x, z0:p.z, x1:to[0], z1:to[1], t:0, len:len*v.travel };
+      // the au goes over her left hand: her left side leads; the flip and the roll go the way she faces
+      R.face = kind === 'cart' ? a - Math.PI/2 : a;
+      R.sinceDodge = 0; ctx.cue('swish'); slowFor(0.55, 0.25);
+      event('dodge');
+      return true;
+    }
     const to = clampArena(p.x + Math.sin(a)*2.6, p.z + Math.cos(a)*2.6);
-    R.act = 'dodge'; R.t = 0; R.len = 0.42; R.iframe = 0.42; R.dash = { x0:p.x, z0:p.z, x1:to[0], z1:to[1], t:0, len:0.3 };
+    R.act = 'dodge'; R.evade = null; R.t = 0; R.len = 0.42; R.iframe = 0.42; R.dash = { x0:p.x, z0:p.z, x1:to[0], z1:to[1], t:0, len:0.3 };
     R.sinceDodge = 0; robinClip('dodge', true); ctx.cue('swish');
     event('dodge');
     return true;
@@ -669,7 +693,7 @@ window.TSHFIGHT = (function(){
       <div class="tshf-prompt"><kbd></kbd><b></b><small></small></div>
       <div class="tshf-keys">
         <span><kbd>MOUSE</kbd>aim</span><span><kbd>CLICK</kbd>strike</span><span><kbd>HOLD</kbd>power</span><span><kbd>G</kbd>pull</span>
-        <span><kbd>SPACE</kbd>dodge</span><span><kbd>R</kbd>parry</span><span><kbd>F</kbd>pulse</span></div>`;
+        <span><kbd>SPACE</kbd>dodge</span><span><kbd>+A/D</kbd>cartwheel</span><span><kbd>+S</kbd>flip</span><span><kbd>+W</kbd>roll</span><span><kbd>R</kbd>parry</span><span><kbd>F</kbd>pulse</span></div>`;
     (ctx.root || document.body).appendChild(el);
     return el;
   }
@@ -729,7 +753,7 @@ window.TSHFIGHT = (function(){
       enter(){ const far = alive().sort((a, b)=>dist(b) - dist(a))[0]; if(far) ctx.later(()=>{ if(on && dir.id === 'pull' && !dir.pulled) freeze('G', 'PULL', 'drag him in', 'pull', far); }, 1600); },
       on:{ pull:()=>{ dir.pulled = true; } },
       done:()=>(dir.pulled && dir.t > 1.5) || (!alive().length && dir.t > 2) },
-    { id:'free', title:'EVERYTHING', how:'Use all of it. SPACE at one of them: over him. SPACE at a wall: off it, feet first.',
+    { id:'free', title:'EVERYTHING', how:'Use all of it. SPACE with A or D: a cartwheel. With S: a flip away. With W: a roll. Click as you land: a sweep. SPACE at one of them: over him; at a wall: off it, feet first.',
       enter(){},
       done:()=>alive().length <= 2 },
     { id:'regret', title:'ONE MORE', how:'He is getting back up.',
@@ -859,6 +883,7 @@ window.TSHFIGHT = (function(){
     R.iframe = Math.max(0, R.iframe - dt); R.parryT = Math.max(0, R.parryT - dt); R.chainT = Math.max(0, R.chainT - dt);
     R.sinceDodge += dt; R.pulseCd = Math.max(0, R.pulseCd - dt); R.pullCd = Math.max(0, R.pullCd - dt); R.comboT = Math.max(0, R.comboT - dt); R.hurtT += dt; R.lastHitT += dt;
     if(R.comboT <= 0) R.combo = 0;
+    if(R.evadeEnd !== undefined){ R.evadeEnd += dt; if(R.evadeEnd > 0.35){ R.evadeEnd = undefined; R.outOfEvade = false; } }
     if(R.hurtT > 3 && R.hp < 100) R.hp = Math.min(100, R.hp + dt*6);
     if(input.held){ input.heldT += real; if(input.heldT > 0.38 && !input.charging && (!R.act || R.act === 'idle')){ input.charging = true; robinClip('fight'); ctx.charge(true); event('charge'); } }
     if(R.dash){ const d = R.dash; d.t += dt; const k = clamp(d.t/d.len, 0, 1), e = 1 - (1 - k)*(1 - k);
@@ -877,6 +902,8 @@ window.TSHFIGHT = (function(){
         if(t && standing(t)){ R.target = t; const p = P(), a = angTo(p.x, p.z, t.x, t.z), d = Math.hypot(t.x - p.x, t.z - p.z), go = Math.max(0, d - 1.1);
           R.act = 'attack'; R.move = 'flykick'; R.t = 0; R.landed = false; R.face = a; R.len = robinClip('flykick', true) || 0.9;
           R.dash = { x0:p.x, z0:p.z, x1:p.x + Math.sin(a)*go, z1:p.z + Math.cos(a)*go, t:0, len:R.len*MOVE.flykick.hit, arc:1.1 }; slowFor(0.3, 0.6); } }
+      else if(R.act === 'dodge' && R.evade && R.t >= R.len*0.82){ const b = R.buffer; R.act = null; R.evade = null; R.buffer = null; R.evadeEnd = 0;
+        if(b){ R.outOfEvade = true; attack(b); } }
       else if(R.act !== 'grabbed' && R.act !== 'down' && R.t >= R.len){ R.act = null; R.blocking = false; }
     }
     if(!R.act || R.act === 'idle'){
@@ -938,5 +965,5 @@ window.TSHFIGHT = (function(){
 
   return { cast, pose, start, stop, clear, tick, key, play, hit1, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
            /* for tests and the console */
-           _E:()=>E, _R:()=>R, _aim:aimTarget, _choose:choose, _stepTo:stepTo, STRINGS, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
+           _E:()=>E, _R:()=>R, _aim:aimTarget, _choose:choose, _stepTo:stepTo, STRINGS, EVADE, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
 })();
