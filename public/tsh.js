@@ -524,8 +524,10 @@ window.TSH = (function(){
      own saved outfits are not touched); TSH keeps handles on the ones it
      lights and hides (the cuffs on a wall, the flash charges, the hood). */
   const KIT_ITEMS = { jacket:['outer', 'tech-jacket'], gloves:['hands', 'gecko-cuffs'], shoes:['shoes', 'skyline-shoes'], bracelet:['wrist', 'flash-bangle'], pack:['back', 'roll-top'] };
+  // what she has on all night, kit or no kit: her own jeans
+  const KIT_UNDER = { bottom:'baggy-jeans' };
   function kitSlots(){
-    const k = me.kit || KIT_ON, s = {};
+    const k = me.kit || KIT_ON, s = Object.assign({}, KIT_UNDER);
     Object.keys(KIT_ITEMS).forEach(p=>{ if(k[p]){ const [slot, id] = KIT_ITEMS[p]; s[slot] = id; } });
     if(me.hood) s.head = 'hood';
     return s;
@@ -539,8 +541,9 @@ window.TSH = (function(){
   function handles(model){
     if(!window.AVATAR || AVATAR.model !== model) return;
     const worn = id => WARDROBE.wornOn(model, id), role = (id, r) => worn(id).filter(o=>o.userData.role === r);
-    const cuffs = role('gecko-cuffs', 'cuff'), glows = role('gecko-cuffs', 'glow');
-    me.cuffL = cuffs[0] || null; me.cuffR = cuffs[1] || null; me.glowL = glows[0] || null; me.glowR = glows[1] || null;
+    // the gauntlets are one garment (both hands): its teal lines are what burns while she holds on
+    const cuffs = role('gecko-cuffs', 'cuff');
+    me.cuffL = cuffs[0] || null; me.cuffR = cuffs[1] || null; me.glowL = null; me.glowR = null;
     me.bangle = worn('flash-bangle')[0] || null; me.bangleLeds = me.bangle ? me.bangle.children.filter(o=>o.userData.role === 'glow') : [];
     me.pack = worn('roll-top')[0] || null; me.dress = worn('hood')[0] || null; me.jacket = worn('tech-jacket')[0] || null;
     cuffGlow(mode === 'scale');
@@ -766,7 +769,7 @@ window.TSH = (function(){
   }
   /* a crime a witness might care about (the ladders call this; a ladder is nobody's business) */
   function crimeSeen(kind){ if(kind === 'scale') scaleSeen(); }
-  function cuffGlow(on_){ [me.cuffL, me.cuffR].forEach(m=>{ if(m){ m.visible = true; m.material.emissiveIntensity = on_ ? 3 : 0.5; } }); }
+  function cuffGlow(on_){ [me.cuffL, me.cuffR].forEach(m=>{ if(m && m.material){ m.visible = true; m.material.emissiveIntensity = on_ ? 3 : 0.5; } }); }
 
   /* ========================================================= the opening
      BLACK. A phone ringing — a call, not an alarm. Robin answers it half
@@ -894,7 +897,7 @@ window.TSH = (function(){
   function kitShow(){
     const t = me.kitT || {};
     const lit = p => (t[p] === undefined || t[p] > 0.75) ? 1 : (Math.random() < 0.5 ? 0.15 + t[p] : 1);
-    [me.glowL, me.glowR].forEach(m=>{ if(m && m.material) m.material.opacity = 0.92*lit('gloves'); });
+    [me.cuffL, me.cuffR].forEach(m=>{ if(m && m.material) m.material.emissiveIntensity = 0.5*lit('gloves'); });
     (me.bangleLeds || []).forEach(m=>{ if(m.material) m.material.opacity = 0.92*lit('bracelet'); });
     if(me.jacket && me.jacket.material) me.jacket.material.emissiveIntensity = 0.35*lit('jacket');
   }
@@ -1456,9 +1459,9 @@ window.TSH = (function(){
     gad.jam = Math.max(0, gad.jam - dt); gad.jamCd = Math.max(0, gad.jamCd - dt);
     if(S.flags.trackerJam) S.flags.trackerJam = Math.max(0, S.flags.trackerJam - dt);
     if(S.flash < 3){ gad.recharge += dt; if(gad.recharge >= 45){ gad.recharge = 0; S.flash++; note('✋ A flash charge is back.'); hud(); } }
-    // the bangles glow with their charge
-    const k = S.flash/3, pulse = 0.6 + 0.4*Math.sin(clock*4);
-    [me.glowL, me.glowR].forEach(m=>{ if(m){ m.visible = S.flash > 0; m.material.opacity = 0.35 + 0.55*k*pulse; } });
+    // the bangle's six lights are its charges, two to a flash; the next to go pulses
+    const pulse = 0.6 + 0.4*Math.sin(clock*4);
+    (me.bangleLeds || []).forEach((m, i)=>{ if(!m.material) return; const lit = i < S.flash*2; m.visible = lit; m.material.opacity = lit ? (i >= S.flash*2 - 2 ? 0.5 + 0.42*pulse : 0.92) : 0; });
   }
 
   /* --------------------------------------------------------- the flash

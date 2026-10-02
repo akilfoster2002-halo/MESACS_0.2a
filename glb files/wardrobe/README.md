@@ -1,10 +1,8 @@
-# The wardrobe: how clothes are made
+# The wardrobe: how clothes are made, and how we know they are clean
 
 The runtime is `public/wardrobe.js` (what everybody wears) and `public/closet.js`
-(the panel: TAB from the quick change). This folder holds the tools that make the
-files they load: a body in a plain base outfit, garments fitted to that body, the
-same garments fitted to other bodies, and a fitting room to check the result in
-the game's own code before anything ships.
+(the panel, TAB from the quick change). This folder holds the tools that make the
+files those two load, and the check that every file must pass before it ships.
 
 Everything runs in headless Chrome over the repository's own three.js:
 
@@ -12,100 +10,143 @@ Everything runs in headless Chrome over the repository's own three.js:
 node "glb files/wardrobe/lab.mjs" <command> ...
 ```
 
-`lab.mjs` serves the repo, opens `lab.html` (or `try.html`), calls one function
-on `window.LAB` / `window.TRY`, and writes the result to disk. It borrows
-puppeteer from `tools/tiktok/node_modules`. Scratch goes in `work/`, which git
-ignores. Keep reference photos there and nowhere else.
+`lab.mjs` serves the repo and opens `lab.html` (or `try.html`, the fitting room).
+It calls one function there and writes the result to disk. It borrows puppeteer
+from `tools/tiktok/node_modules`.
 
-## The three kinds of thing
+Scratch goes in `work/`, which git ignores. Reference photos of a real person
+stay there and nowhere else.
 
-| kind | what it is | one file fits |
-|---|---|---|
-| **garment** | a skinned mesh in one body's bind space (jacket, trousers). It hides the body regions it covers. | one body: `characters/wardrobe/<item>/<body>.glb` |
-| **accessory** | a rigid model hung on a bone (shoes, pack, cap, glasses), sized from the skeleton when it goes on | everybody: `characters/wardrobe/<model>.glb` |
-| **made** | drawn in code in `wardrobe.js` (hood, cuffs, bangle) | everybody |
+## The rule that keeps swaps clean
 
-## A base body (a character in their modest base outfit)
+**A garment is cut from the same person, wearing it.** Never build a garment as
+a separate object and wrap it around a body. That is how the first jacket ended
+up with a hand moulded into each sleeve, ragged hems and a shredded wrist.
 
-Robin is the first. Her script is `../cast/build-robin.sh`.
+1. **The picture.** Take the body's own reference picture (Robin: Higgsfield
+   image `22803068…`, `work/robin2-ref.png`). Edit it with `gpt_image_2_5` at
+   high quality so it adds *only* the garment, with the same pose and framing.
+   Ask for bare hands below cuffs and feet left where they are.
+2. **The dressed person.** Lift that picture with the settings the body was made
+   with: `meshy_v7_image_to_3d`, ultra, texture, PBR, a-pose,
+   `target_polycount` 150000. That costs 44 credits. Meshy makes one surface,
+   so the sleeves have nothing inside them: the hands are hers.
+3. **The cut.** Run:
 
-1. **The picture.** Use `gpt_image_2_5` (Higgsfield) with the reference photos
-   as `image_references`. Ask for a full-body T-pose in the base outfit: fitted
-   grey tee, black knee-length bike shorts, white socks, on plain white.
-2. **The body.** Run `meshy_v7_image_to_3d` (ultra, texture, PBR) on that
-   picture. It costs about 44 credits. The cheap SAM 3D body (1 credit) comes
-   back at about 4k triangles and looks it.
-3. **The rig.** Run `meshy_rigging` (5 credits). Its 24-bone skeleton maps to
-   ours with `../higgsfield.map.json`.
-4. **The clips.** Run `sh "glb files/cast/build-robin.sh"`. It retargets every
-   clip the game uses and fixes the material: glTF's default metalness of 1
-   renders a SAM or Meshy body black. It then halves the triangles, quantizes,
-   and writes `public/characters/models/character-<id>.glb`.
-5. **The card.** Run `lab.mjs card <character.glb> <out.png>` to make the
-   256×328 roster card.
+   ```
+   lab.mjs extract work/dressed-X.glb public/characters/models/character-robin.glb work/x-X.glb \
+     '{"on":[regions],"ref":"work/robin2-ref.png","pic":"work/r3-X.png", ...}'
+   ```
 
-`lab.mjs base <sam.glb> <character.glb> <out.glb>` puts SAM's body on an
-existing character's skeleton (ICP plus weight transfer). It was the first
-attempt; Meshy rigging is better.
+   The steps it runs:
+   - **Line up.** It lines the dressed person up on the body, then bends the
+     body's arms and legs joint by joint to match.
+   - **Classify.** A point is garment when it lies over a region the garment
+     may cover (`on`) and has the garment's own colours. Those colours are
+     learned from where the two pictures differ, with her skin removed. It must
+     also differ from her there, by colour or by standing off her.
+   - **Use the picture where it's exact.** On the torso, points that face the
+     camera use the picture itself.
+   - **Clean the shape.** A majority vote and an open-and-close tidy it. Specks
+     are dropped and pinholes filled, but a hole that is her skin is never
+     filled. Hanging triangles are removed and the cut edge is smoothed into
+     a line.
+   - **Back to rest.** The garment is unposed into the body's rest pose and
+     pushed a few millimetres off the skin. It gets the body's weights, with
+     every copy of a seam point weighted alike.
+   - **Covers.** It records `covers`: exactly which of the body's vertices it
+     lies over. `wardrobe.js` stops drawing those, and only those. The skin
+     ends just inside a cuff, and nothing is ever cut by bone region.
+   - **Glow mask.** It bakes a glow mask of the garment's teal lines, which TSH
+     lights.
+   - **The review image.** It writes `-cut.jpg` beside the output. This is the
+     dressed person with the garment in magenta, front and back, and it is the
+     first thing to look at.
 
-## A garment
+   Settings that worked:
 
-1. Draw it on the body's reference picture. Edit the picture with
-   `gpt_image_2_5` ("the same person, now wearing …"), so the two images differ
-   only by the garment.
-2. Run `sam_3_3d` on the edited picture to get `<garment>-sam.glb`.
-3. Run `lab.mjs garment <sam.glb> <body.glb> <ref.png> <garment.png> <out.glb>`.
-   - It differences the two pictures to find where the garment is, then puts
-     SAM's mesh in that box, centred in depth on the body's skin.
-   - It pushes the mesh outward off the skin only, never through hair. Hair is
-     the dark texels. The push is smoothed.
-   - It drops the loose fragments and weights every vertex from the nearest
-     skin vertex that faces the same way.
-4. Run `lab.mjs transfer <garment.glb> <from-body.glb> <to-body.glb> <out.glb>`
-   to fit it to everybody else. It moves the garment bone by bone from one
-   body's bind pose to the other's, keeps each point's distance off the skin,
-   and takes the new body's weights.
-5. Compress each file: `gltf-transform resize --width 1024`, then `webp
-   --quality 85`. That comes to about 350 KB.
+   | garment | `on` | other options |
+   |---|---|---|
+   | jacket | `torso, neck, upperArms, forearms, hands, hips` | `"near":60` |
+   | gauntlets | `forearms, hands, upperArms` | `"keep":0.4,"fill":0.04` |
+   | jeans | `hips, thighs, shins, feet, torso` | `"reach":0.06,"colour":45,"picture":false` |
+   | shoes | `feet, shins` | `"always":["feet"],"near":75,"fill":0.08` |
 
-Check every body before you add it to `bodies`. A body whose own mesh has bulky
-clothes baked in will show the garment through them. Theo's denim jacket does
-this, so the tech jacket is not made for Theo; he needs a base body first.
+   - **Jeans:** the colour threshold is lower because dark denim over black
+     shorts differs only a little. The picture test is off because those two
+     colours barely differ in the pictures either.
+   - **Shoes:** `always` takes anything in the shoe's colours on the feet,
+     since white shoes over white socks differ in neither colour nor depth.
 
-## An accessory
+4. **Ship it.** Run `sh shrink.sh work/x-X.glb public/characters/wardrobe/<item>/robin.glb`.
+   This welds the mesh, keeps about half its triangles with the edges kept
+   where they are, makes the maps WebP, and quantizes. The game binds each
+   garment with its own inverse binds, so quantized files are fine.
+5. **Other bodies.** Run
+   `lab.mjs transfer work/x-X.glb character-robin.glb character-<b>.glb out.glb ['{"gap":0.007}']`.
+   It moves the garment bone by bone onto the other body, keeps each point's
+   distance off the skin, and measures that body's own `covers`. Then shrink
+   and check it like any garment. A body with bulky clothes built into its
+   model may need a bigger `gap`. If the check still fails, it doesn't get the
+   garment: Theo's built-in coat, for one.
 
-1. Get the picture: one object, three-quarter view, plain background.
-2. Run `sam_3_3d` on it.
-3. Run `gltf-transform simplify` (`--ratio 0.12 --error 0.01` for a hat), then
-   `quantize`. Keep it under 400 KB; `tests/wardrobe.test.js` holds the line.
-4. Add the entry with a `fit`: `feet`, `back`, `crown` or `eyes`. `tune` nudges
-   it:
-   - `size` is the fraction of head length (or foot or back length).
-   - `along` is how far up the bone it sits.
-   - `fwd` moves it forward.
-   - `brim:true` turns a cap's longest horizontal axis to face front.
+## Layers
 
-## Adding it to the game
+`wardrobe.js` wears things in this order: shoes, then trousers, then jackets,
+then gloves. Where two garments overlap, the one underneath stops being drawn
+over the skin the outer one covers. So a sleeve ends where the gauntlet starts,
+tucked in, and a shoe's collar goes up inside a jeans hem. The match is made
+once per pair, when the outfit changes.
 
-One entry in `ITEMS` in `public/wardrobe.js`:
+The things made in code (the flash bangle) are measured on whatever is on the
+wrist, so the bangle hugs the gauntlet's cuff, or her skin without one. They
+are made again whenever the garments under them change.
 
-```js
-'tech-jacket': { name:'Techwear jacket', slot:'outer', kind:'garment',
-                 hides:['upperArms', 'forearms'], bodies:['robin', 'nia', ...], about:'...' },
+## The check
+
+```
+node "glb files/wardrobe/lab.mjs" check robin "outer:tech-jacket,hands:gecko-cuffs" work/qa.jpg
 ```
 
-Then run `npm test`. `tests/wardrobe.test.js` checks that every file the
-catalog names exists, that each garment's files match its `bodies` list, and
-that nothing is too heavy.
+The game's own `avatar.js` and `wardrobe.js` dress the body. The check then
+runs it through fourteen clips at eight frames each: idle, walk, sprint, jump,
+kneel, roll, flip, dance, salsa, climbs, riding, strafes and walking backwards.
+It measures five things against the body at rest:
 
-## The fitting room
+- **holes:** skin that isn't drawn but has nothing over it now (see-through).
+- **poke-through:** skin that was under a garment at rest and is outside it now.
+- **doubled:** skin that is drawn with a garment surface lying right on it.
+- **skin:** how much of a garment is skin-coloured, such as a hand moulded into
+  a sleeve. The old jacket fails on this one.
+- **buried:** how much of a garment lies under her drawn surface at rest. This
+  catches jeans sitting inside a body's own wider trousers; Nia's star-print
+  pair showed through until it was measured.
 
-```
-node "glb files/wardrobe/lab.mjs" try <body> "outer:tech-jacket,shoes:skyline-shoes,head:cap" work/out.jpg walk 0.4
-HEAD=1 node ... try ...     # the head, for hats and glasses
-CHEST=1 node ... try ...    # the chest, for collars and seams
-```
+The result goes into `qa.json` with the files' fingerprints. The jpg shows the
+worst frame on magenta, so any hole shows.
 
-This is the game's own `avatar.js` and `wardrobe.js`, with the body in a clip at
-a moment and four views. It prints what is worn and where its bounding box sits.
-Look at every body in walk, sprint and kneel before shipping.
+`tests/wardrobe.test.js` fails whenever:
+- a garment file has no passing check,
+- a garment or body file changed after its check,
+- a garment has no `covers` for its body,
+- Robin's whole TSH look hasn't passed together.
+
+A file can't reach players without being checked.
+
+## Accessories and things made in code
+
+Accessories are rigid models on one bone: the pack, cap, beanie and shades.
+They fit anybody and are sized from the skeleton when they go on. `tune`
+nudges them:
+- `size`: fraction of head (or back) length.
+- `along`: how far up the bone.
+- `fwd`: forward of that.
+- `brim:true`: turns a cap's brim to the front.
+
+Anything that has to bend with a joint, like shoes on a foot or gloves on a
+wrist, is made as a garment instead.
+
+## Adding an item
+
+Add one entry to `ITEMS` in `public/wardrobe.js`. A garment lists `bodies`, the
+bodies it has files for and has passed the check on. Then run `npm test`.

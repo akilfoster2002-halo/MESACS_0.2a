@@ -57,16 +57,61 @@ test('nothing in the wardrobe is heavy enough to stall a try-on', ()=>{
   const dir = path.join(root, 'public/characters/wardrobe');
   const walk = d => fs.readdirSync(d, { withFileTypes:true }).flatMap(e=>e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
   for(const f of walk(dir).filter(f=>f.endsWith('.glb'))){
-    const kb = fs.statSync(f).size/1024;
-    assert.ok(kb < 400, path.relative(root, f) + ' is ' + Math.round(kb) + ' KB');
+    const kb = fs.statSync(f).size/1024, garment = path.dirname(f) !== dir;    // a garment (a file per body) carries its own maps
+    assert.ok(kb < (garment ? 1600 : 400), path.relative(root, f) + ' is ' + Math.round(kb) + ' KB');
   }
+});
+
+/* a .glb's JSON chunk */
+function glbJson(f){ const b = fs.readFileSync(f), len = b.readUInt32LE(12); return JSON.parse(b.slice(20, 20 + len).toString('utf8')); }
+const sha = f => require('crypto').createHash('sha1').update(fs.readFileSync(path.join(root, f))).digest('hex').slice(0, 12);
+
+test('a garment made in the lab knows which skin it covers, on the very body file it was made for', ()=>{
+  const { W } = wardrobe();
+  for(const [id, it] of Object.entries(W.ITEMS)){
+    if(it.kind !== 'garment') continue;
+    for(const b of it.bodies){
+      const g = glbJson(path.join(root, 'public/characters/wardrobe', id, b + '.glb')), body = glbJson(path.join(root, 'public/characters/models/character-' + b + '.glb'));
+      const extras = (g.nodes || []).map(n=>n.extras).find(x=>x && x.covers);
+      assert.ok(extras, id + '/' + b + '.glb has no `covers`: it would hide whole regions of ' + b + ' (a cut hand, a shredded wrist)');
+      const count = body.accessors[body.meshes[0].primitives[0].attributes.POSITION].count;
+      assert.strictEqual(extras.coversOf, count, id + '/' + b + '.glb was measured on a different ' + b + ' (' + extras.coversOf + ' vertices, the file has ' + count + ')');
+    }
+  }
+});
+
+/* THE CHECK (glb files/wardrobe/lab.mjs check): every garment, on every body it is made for, run through
+   every clip and measured — holes, poke-through, doubled surfaces, skin inside a garment — and recorded
+   with the files it measured. A garment that changed since, or a body that did, has not been checked. */
+test('every garment has passed the check, as it is now, on every body it is made for', ()=>{
+  const { W } = wardrobe();
+  const qa = JSON.parse(read('glb files/wardrobe/qa.json'));
+  for(const [id, it] of Object.entries(W.ITEMS)){
+    if(it.kind !== 'garment') continue;
+    for(const b of it.bodies){
+      const r = qa[b + ' ' + it.slot + ':' + id];
+      assert.ok(r, id + ' on ' + b + ' has never been checked: node "glb files/wardrobe/lab.mjs" check ' + b + ' ' + it.slot + ':' + id + ' out.jpg');
+      assert.ok(r.pass, id + ' on ' + b + ' failed the check: ' + JSON.stringify({ holes:r.holes, poke:r.poke, doubled:r.doubled, skin:r.skin }));
+      assert.strictEqual(r.files[id], sha('public/characters/wardrobe/' + id + '/' + b + '.glb'), id + '/' + b + '.glb changed after it was checked');
+      assert.strictEqual(r.files.body, sha('public/characters/models/character-' + b + '.glb'), b + ' changed after ' + id + ' was checked on her');
+    }
+  }
+});
+
+test("Robin's whole look for the night has passed the check together", ()=>{
+  const tsh = read('public/tsh.js'), qa = JSON.parse(read('glb files/wardrobe/qa.json'));
+  const kit = eval('(' + tsh.match(/const KIT_ITEMS = (\{[^\n]*\});/)[1] + ')'), under = eval('(' + tsh.match(/const KIT_UNDER = (\{[^\n]*\});/)[1] + ')');
+  const slots = Object.assign({}, under); Object.values(kit).forEach(([slot, id])=>slots[slot] = id);
+  const key = 'robin ' + Object.keys(slots).map(k=>k + ':' + slots[k]).sort().join(',');
+  assert.ok(qa[key], 'her TSH look has never been checked together: ' + key);
+  assert.ok(qa[key].pass, 'her TSH look fails together: ' + JSON.stringify(qa[key]));
 });
 
 test('a garment goes only on a body it was made for; anything else fits anybody', ()=>{
   const { W } = wardrobe();
   assert.ok(W.fits('tech-jacket', 'robin'));
   assert.ok(!W.fits('tech-jacket', 'theo'), 'the jacket was never fitted to Theo — his own coat is in the way');
-  assert.ok(W.fits('cap', 'theo') && W.fits('skyline-shoes', 'theo'), 'accessories are for everybody');
+  assert.ok(W.fits('cap', 'theo') && W.fits('shades', 'theo'), 'accessories are for everybody');
   assert.strictEqual(W.wear('tech-jacket', 'theo'), false);
   same(W.on('theo'), {});
   W.setOn('theo', { outer:'tech-jacket', head:'cap', shoes:'cap' });

@@ -17,7 +17,7 @@
                 back, glasses on the face), sized and placed from the body's
                 own skeleton when it goes on — so one file fits everybody.
      made       an accessory drawn here in code: things too simple to be a
-                file (the hood and shades, the Gecko cuffs, the bangle).
+                file (the hood and shades, the bangle).
 
    SLOTS hold one thing each. REGIONS are the parts of a body a garment can
    hide, read off the skin: a triangle belongs to whichever bone moves it
@@ -69,14 +69,16 @@ window.WARDROBE = (function(){
      made for (a garment is a file per body); an accessory or a made thing
      fits anybody. `hides` is the regions of the body it covers. */
   const ITEMS = {
-    'tech-jacket':  { name:'Techwear jacket', slot:'outer', kind:'garment', hides:['upperArms', 'forearms'], bodies:['robin', 'nia', 'kofi', 'sable', 'zuri'], glow:0.35,
+    'tech-jacket':  { name:'Techwear jacket', slot:'outer', kind:'garment', hides:['upperArms', 'forearms'], bodies:['robin'], glow:0.35,
                       about:'Cropped, high collar, conductive thread in the seams. Robin made it.' },
-    'skyline-shoes':{ name:'Skyline shoes', slot:'shoes', kind:'accessory', model:'skyline-shoe', fit:'feet', hides:['feet'],
+    'baggy-jeans':  { name:'Baggy jeans', slot:'bottom', kind:'garment', hides:['hips', 'thighs', 'shins'], bodies:['robin', 'kofi', 'sable'],
+                      about:'Dark indigo denim, wide in the leg, stacked at the ankle.' },
+    'skyline-shoes':{ name:'Skyline shoes', slot:'shoes', kind:'garment', hides:['feet'], bodies:['robin'], glow:0.6,
                       about:'Her own high-tops, rebuilt: coils in the heels.' },
     'roll-top':     { name:'Roll-top backpack', slot:'back', kind:'accessory', model:'roll-top', fit:'back',
                       about:'Black, water-tight, a teal strip down one side.' },
-    'gecko-cuffs':  { name:'Gecko cuffs', slot:'hands', kind:'made', make:'cuffs',
-                      about:'Grip film in the palms; a teal line burns while it holds.' },
+    'gecko-cuffs':  { name:'Gecko gauntlets', slot:'hands', kind:'garment', hides:['hands', 'forearms'], bodies:['robin'], glow:0.5, role:'cuff',
+                      about:'Fingerless, armour over the knuckles, grip film in the palms; a teal line burns while she holds on.' },
     'flash-bangle': { name:'Flash bangle', slot:'wrist', kind:'made', make:'bangle',
                       about:'White enamel and six lights. Clap, and anybody facing you sees white.' },
     'hood':         { name:'Hood and shades', slot:'head', kind:'made', make:'hood',
@@ -160,26 +162,47 @@ window.WARDROBE = (function(){
   const clean = n => String(n || '').replace(/^mixamorig:?/, '');
   function boneOf(model, name){ let b = null; model.traverse(o=>{ if(!b && o.isBone && clean(o.name) === name) b = o; }); return b; }
 
-  /* the body's triangles, sorted by region, so a region can be switched off as one draw group */
+  /* THE BODY UNDER THE CLOTHES. A triangle of the body is drawn unless what is worn
+     covers it. A garment made in the lab carries the list of this body's vertices it
+     covers (`covers`, measured against this very file: glb files/wardrobe/README.md),
+     and a triangle goes only when all three of its corners are under something — so
+     the skin stops just inside a cuff, not at a bone's edge, and a hand is never cut.
+     Anything without that list hides whole REGIONS instead: a triangle belongs to the
+     region of the bone that moves its first corner most. */
   function regions(mesh){
     if(mesh.userData.regions) return mesh.userData.regions;
     const g = mesh.geometry, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight;
-    if(!g.index || !SI){ mesh.userData.regions = { groups:[] }; return mesh.userData.regions; }
+    if(!g.index || !SI){ mesh.userData.regions = { tris:0 }; return mesh.userData.regions; }
     const names = mesh.skeleton.bones.map(b=>clean(b.name));
     const regionOfVert = i => { let best = 0, bw = -1; for(let k=0;k<4;k++){ const w = SW.getComponent(i, k); if(w > bw){ bw = w; best = SI.getComponent(i, k); } } return REGION_OF[names[best]] || 'torso'; };
-    const idx = g.index.array, buckets = {}; REGIONS.forEach(r=>buckets[r] = []);
-    for(let t=0;t<idx.length;t+=3){ const r = regionOfVert(idx[t]); (buckets[r] || buckets.torso).push(idx[t], idx[t+1], idx[t+2]); }
-    const out = [], groups = []; let at = 0;
-    REGIONS.forEach(r=>{ const b = buckets[r]; if(!b.length) return; groups.push({ region:r, start:at, count:b.length }); for(const v of b) out.push(v); at += b.length; });
-    g.setIndex(out); g.clearGroups(); groups.forEach(gr=>g.addGroup(gr.start, gr.count, 0));
+    const index0 = Uint32Array.from(g.index.array), tris = index0.length/3, region = new Uint8Array(tris);
+    for(let t=0;t<tris;t++) region[t] = Math.max(0, REGIONS.indexOf(regionOfVert(index0[t*3])));
     const shown = mesh.material, hidden = shown.clone(); hidden.visible = false;
     mesh.material = [shown, hidden];
-    mesh.userData.regions = { groups };
+    mesh.userData.regions = { index0, region, tris, key:null };
     return mesh.userData.regions;
   }
-  function hideRegions(mesh, set){
-    const R = regions(mesh);
-    R.groups.forEach((gr, i)=>{ mesh.geometry.groups[i].materialIndex = set.has(gr.region) ? 1 : 0; });
+  /* draw everything but the regions in `set` and the triangles `covered` (one byte per vertex) lies over */
+  function hideRegions(mesh, set, covered){
+    const R = regions(mesh); if(!R.tris) return;
+    const key = [...set].sort().join(',') + '|' + (covered ? covered.sum : 0);
+    if(R.key === key) return; R.key = key;
+    const off = new Uint8Array(REGIONS.length); set.forEach(r=>{ const i = REGIONS.indexOf(r); if(i >= 0) off[i] = 1; });
+    const I = R.index0, shown = [], hid = [];
+    for(let t=0;t<R.tris;t++){
+      const a = I[t*3], b = I[t*3+1], c = I[t*3+2];
+      ((off[R.region[t]] || (covered && covered[a] && covered[b] && covered[c])) ? hid : shown).push(a, b, c);
+    }
+    const g = mesh.geometry; g.setIndex(shown.concat(hid)); g.clearGroups();
+    g.addGroup(0, shown.length, 0); if(hid.length) g.addGroup(shown.length, hid.length, 1);
+  }
+  /* a garment's `covers`: base64, one bit per vertex of the body it was made on */
+  function coversOf(obj, n){
+    const c = obj.userData && obj.userData.covers; if(!c || obj.userData.coversOf !== n) return null;
+    if(obj.userData.coverBits) return obj.userData.coverBits;
+    const bin = atob(c), out = new Uint8Array(n);
+    for(let i=0;i<n;i++) out[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1;
+    return (obj.userData.coverBits = out);
   }
 
   /* the body's frame at bind: up, its left and its forward, read off the shoulders (no rig agrees on bone axes) */
@@ -199,17 +222,22 @@ window.WARDROBE = (function(){
     const sm = skinnedOf(model); if(!sm) return null;
     const g = await gltf(DIR + id + '/' + body + '.glb');
     let src = null; g.scene.traverse(o=>{ if(!src && o.isSkinnedMesh) src = o; }); if(!src) return null;
-    const theirs = src.skeleton.bones.map(b=>clean(b.name)), ours = sm.skeleton.bones.map(b=>clean(b.name));
-    const remap = theirs.map(n=>Math.max(0, ours.indexOf(n)));
-    const geo = src.geometry.clone(), SI = geo.attributes.skinIndex;
-    for(let i=0;i<SI.count;i++) for(let k=0;k<4;k++) SI.setComponent(i, k, remap[SI.getComponent(i, k)]);
-    const mat = src.material.clone(); mat.metalness = 0;
-    // a garment with light in it (piping, a strip): its own colours, lit from inside, so the dark cloth stays dark
-    if(ITEMS[id].glow && mat.map){ mat.emissiveMap = mat.map; mat.emissive = new THREE.Color(1, 1, 1); mat.emissiveIntensity = ITEMS[id].glow; }
+    // this body's own bones, in the garment's order, with the garment's own inverse binds: a file that was
+    // quantized carries its dequantization in those, and a garment made for this body has this body's rest
+    const ours = new Map(sm.skeleton.bones.map(b=>[clean(b.name), b]));
+    const bones = src.skeleton.bones.map(b=>ours.get(clean(b.name)) || sm.skeleton.bones[0]);
+    const skel = new THREE.Skeleton(bones, src.skeleton.boneInverses.map(m=>m.clone()));
+    const geo = src.geometry.clone();
+    const mat = src.material.clone(); mat.metalness = 0; mat.metalnessMap = null;
+    // a garment with light in it (piping, a strip): lit from inside where its glow mask says (the lab bakes one:
+    // only the lit lines), else its own colours, so the dark cloth stays dark
+    if(ITEMS[id].glow && (mat.emissiveMap || mat.map)){ mat.emissiveMap = mat.emissiveMap || mat.map; mat.emissive = new THREE.Color(1, 1, 1); mat.emissiveIntensity = ITEMS[id].glow; }
     const m = new THREE.SkinnedMesh(geo, mat);
-    m.userData.worn = id; m.frustumCulled = false; m.name = 'worn:' + id;
+    m.userData.worn = id; m.userData.role = ITEMS[id].role || null; m.frustumCulled = false; m.name = 'worn:' + id;
+    const cov = coversOf(src, sm.geometry.attributes.position.count);
+    if(cov){ m.userData.coverBits = cov; }
     sm.parent.add(m); m.position.copy(sm.position); m.quaternion.copy(sm.quaternion); m.scale.copy(sm.scale);
-    m.bind(sm.skeleton, sm.bindMatrix);
+    m.bind(skel, src.bindMatrix);
     return [m];
   }
 
@@ -318,29 +346,101 @@ window.WARDROBE = (function(){
      bind pose: these rigs' rest is at the file's own scale, and a pack sized there is sized wrong.) */
   function within(model, sm, f){ model.updateMatrixWorld(true); return f(); }
 
+  /* ----------------------------------------------- measuring a body as it stands */
+  function posed(mesh){
+    const P = mesh.geometry.attributes.position, out = new Float32Array(P.count*3), v = new THREE.Vector3();
+    mesh.updateMatrixWorld(true); if(mesh.skeleton) mesh.skeleton.update();
+    for(let i=0;i<P.count;i++){ v.fromBufferAttribute(P, i); if(mesh.isSkinnedMesh) mesh.applyBoneTransform(i, v); v.applyMatrix4(mesh.matrixWorld); out[i*3] = v.x; out[i*3+1] = v.y; out[i*3+2] = v.z; }
+    return out;
+  }
+  function domBones(mesh){
+    const SI = mesh.geometry.attributes.skinIndex, SW = mesh.geometry.attributes.skinWeight, names = mesh.skeleton.bones.map(b=>clean(b.name)), out = new Array(SI.count);
+    for(let i=0;i<SI.count;i++){ let b = 0, w = -1; for(let k=0;k<4;k++){ const x = SW.getComponent(i, k); if(x > w){ w = x; b = SI.getComponent(i, k); } } out[i] = names[b]; }
+    return out;
+  }
+  /* the arm's cross-section in a thin slice across `axis` at `at` — skin, or what is on it: its middle,
+     and the oval round it (two radii along its two main directions in the slice) */
+  function girth(model, at, axis, half, bones, reach){
+    const pts = []; const v = new THREE.Vector3();
+    // where the plane cuts the triangles (exact however sparse the mesh is along a forearm)
+    model.traverse(m=>{ if(!m.isSkinnedMesh || m.visible === false || !m.geometry.index) return;
+      const P = posed(m), dom = domBones(m), I = m.geometry.index.array, end = Math.min(I.length, m.geometry.drawRange.count === Infinity ? I.length : m.geometry.drawRange.count);
+      const side = new Float32Array(P.length/3); for(let i=0;i<side.length;i++) side[i] = (P[i*3]-at.x)*axis.x + (P[i*3+1]-at.y)*axis.y + (P[i*3+2]-at.z)*axis.z;
+      for(let t=0;t<end;t+=3){ const tri = [I[t], I[t+1], I[t+2]]; if(!tri.some(i=>bones.includes(dom[i]))) continue;
+        for(let e=0;e<3;e++){ const a = tri[e], b = tri[(e+1)%3], sa = side[a], sb = side[b]; if((sa > 0) === (sb > 0)) continue;
+          const k = sa/(sa - sb); v.set(P[a*3] + (P[b*3]-P[a*3])*k - at.x, P[a*3+1] + (P[b*3+1]-P[a*3+1])*k - at.y, P[a*3+2] + (P[b*3+2]-P[a*3+2])*k - at.z);
+          if(v.length() <= reach) pts.push(v.clone()); } } });
+    if(pts.length < 8) return null;
+    const c = pts.reduce((a, p)=>a.add(p), new THREE.Vector3()).multiplyScalar(1/pts.length);
+    // the slice's main direction (power iteration on its 2D spread)
+    const e1 = new THREE.Vector3(1, 0, 0).projectOnPlane(axis); if(e1.lengthSq() < 1e-6) e1.set(0, 1, 0).projectOnPlane(axis); e1.normalize();
+    for(let k=0;k<12;k++){ const n = new THREE.Vector3(); pts.forEach(p=>{ const q = p.clone().sub(c); n.addScaledVector(q, q.dot(e1)); }); if(n.lengthSq() < 1e-12) break; e1.copy(n.projectOnPlane(axis).normalize()); }
+    const e2 = new THREE.Vector3().crossVectors(axis, e1).normalize();
+    const a1 = pts.map(p=>Math.abs(p.clone().sub(c).dot(e1))).sort((x, y)=>x - y), a2 = pts.map(p=>Math.abs(p.clone().sub(c).dot(e2))).sort((x, y)=>x - y);
+    const q = arr => arr[Math.floor(arr.length*0.96)];
+    return { centre:c.add(at), r1:q(a1), r2:q(a2), e1, e2 };
+  }
+  function grid3(P, cell){
+    const map = new Map(), key = (x, y, z) => x + ',' + y + ',' + z;
+    for(let i=0;i<P.length/3;i++){ const k = key(Math.floor(P[i*3]/cell), Math.floor(P[i*3+1]/cell), Math.floor(P[i*3+2]/cell)); let a = map.get(k); if(!a) map.set(k, a = []); a.push(i); }
+    return (x, y, z, R) => { const cx = Math.floor(x/cell), cy = Math.floor(y/cell), cz = Math.floor(z/cell); let best = -1, bd = Infinity;
+      for(let dx=-R; dx<=R; dx++) for(let dy=-R; dy<=R; dy++) for(let dz=-R; dz<=R; dz++){ const a = map.get(key(cx+dx, cy+dy, cz+dz)); if(!a) continue;
+        for(const i of a){ const ex = P[i*3]-x, ey = P[i*3+1]-y, ez = P[i*3+2]-z, d = ex*ex + ey*ey + ez*ez; if(d < bd){ bd = d; best = i; } } }
+      return best; };
+  }
+  /* LAYERS. Where two garments overlap, the one worn over wins (a gauntlet over a sleeve: hands are worn
+     over jackets, jackets over trousers): what of the one under lies over skin the one over covers is not
+     drawn — the sleeve ends where the gauntlet starts, tucked into it; a shoe's collar goes up inside a hem. Worked out once per pair, in
+     whatever pose the body is in (each garment point is matched to the skin point under it). */
+  const LAYER = { shoes:0.5, bottom:1, top:1, outer:2, hands:3 };             // (trousers are worn over shoes: a hem stacks on the shoe)
+  function underneath(sm, worn){
+    const gs = Object.keys(worn).filter(id=>ITEMS[id].kind === 'garment' && LAYER[ITEMS[id].slot]).map(id=>({ id, m:worn[id][0], layer:LAYER[ITEMS[id].slot] })).filter(g=>g.m);
+    if(gs.length < 2){ gs.forEach(g=>hideOwn(g.m, null)); return; }
+    let B = null, near = null;
+    gs.forEach(g=>{
+      const over = gs.filter(o=>o.layer > g.layer && o.m.userData.coverBits);
+      if(!over.length){ hideOwn(g.m, null); return; }
+      if(!B){ B = posed(sm); near = grid3(B, 0.04); }
+      if(!g.m.userData.bodyNear){ const P = posed(g.m), out = new Int32Array(P.length/3); for(let i=0;i<out.length;i++) out[i] = near(P[i*3], P[i*3+1], P[i*3+2], 1); g.m.userData.bodyNear = out; }
+      const bn = g.m.userData.bodyNear, mask = new Uint8Array(bn.length);
+      for(let i=0;i<bn.length;i++){ const j = bn[i]; if(j >= 0 && over.some(o=>o.m.userData.coverBits[j])) mask[i] = 1; }
+      mask.sum = over.map(o=>o.id).join(',');
+      hideOwn(g.m, mask);
+    });
+  }
+  /* a garment's own triangles under `mask` (one byte per vertex) not drawn: moved to the end of its index, past the draw range */
+  function hideOwn(m, mask){
+    const g = m.geometry; if(!g.index) return;
+    const R = m.userData.own || (m.userData.own = { index0:Uint32Array.from(g.index.array), key:'' });
+    const key = mask ? mask.sum : ''; if(R.key === key) return; R.key = key;
+    if(!mask){ g.setIndex(Array.from(R.index0)); g.setDrawRange(0, Infinity); return; }
+    const I = R.index0, shown = [], hid = [];
+    for(let t=0;t<I.length;t+=3){ const a = I[t], b = I[t+1], c = I[t+2]; (mask[a] && mask[b] && mask[c] ? hid : shown).push(a, b, c); }
+    g.setIndex(shown.concat(hid)); g.setDrawRange(0, shown.length);
+  }
+
   /* --------------------------------------------- the things drawn in code */
   const glowM = () => new THREE.MeshBasicMaterial({ color:new THREE.Color(0.4, 2.0, 1.8), transparent:true, opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending });
   const MADE = {
-    cuffs(model){
-      return ['Left', 'Right'].map(side=>{
-        const hand = boneOf(model, side + 'Hand'), fore = boneOf(model, side + 'ForeArm'); if(!hand || !fore) return [];
-        const h = new THREE.Vector3(), f = new THREE.Vector3(); hand.getWorldPosition(h); fore.getWorldPosition(f);
-        const axis = h.clone().sub(f).normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
-        const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.016, 8, 22), new THREE.MeshStandardMaterial({ color:0x16211f, roughness:0.35, metalness:0.7, emissive:0x38ffd0, emissiveIntensity:0.5 }));
-        const palm = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), glowM());
-        const hc = hang(hand, cuff, h.clone().lerp(f, 0.05), q);
-        const pc = hang(hand, palm, h.clone().addScaledVector(axis, 0.06), q);
-        cuff.userData.role = 'cuff'; palm.userData.role = 'glow';
-        return [hc, pc];
-      }).flat();
-    },
+    // white enamel, six lights, snug on the right wrist — over whatever is on the wrist (a gauntlet's cuff), sized to it
     bangle(model){
       const hand = boneOf(model, 'RightHand'), fore = boneOf(model, 'RightForeArm'); if(!hand || !fore) return [];
       const h = new THREE.Vector3(), f = new THREE.Vector3(); hand.getWorldPosition(h); fore.getWorldPosition(f);
-      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), h.clone().sub(f).normalize());
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.011, 8, 24), new THREE.MeshStandardMaterial({ color:0xeef4f4, roughness:0.35, metalness:0.25, emissive:0x2a4644, emissiveIntensity:0.6 }));
-      for(let i=0;i<6;i++){ const a = i/6*Math.PI*2, led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), glowM()); led.position.set(Math.cos(a)*0.047, Math.sin(a)*0.047, 0.006); led.userData.role = 'glow'; band.add(led); }
-      return [hang(fore, band, h.clone().lerp(f, 0.22), q)];
+      const axis = h.clone().sub(f).normalize(), len = h.distanceTo(f), at = h.clone().addScaledVector(axis, -len*0.13);
+      const G = girth(model, at, axis, len*0.035, ['RightArm', 'RightForeArm', 'RightHand'], len*0.3) || { centre:at, r1:len*0.12, r2:len*0.1, e1:new THREE.Vector3(1, 0, 0).projectOnPlane(axis).normalize(), e2:null };
+      if(!G.e2) G.e2 = new THREE.Vector3().crossVectors(axis, G.e1).normalize();
+      const tube = len*0.011, gap = tube*0.9;
+      // a unit band, stretched to the oval round the wrist: x along its long way, y across, z along the arm
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1, tube, 10, 64), new THREE.MeshStandardMaterial({ color:0xeef3f1, roughness:0.3, metalness:0.1 }));
+      band.geometry.scale(1, 1, 2.4);
+      const P = band.geometry.attributes.position;
+      for(let i=0;i<P.count;i++){ const x = P.getX(i), y = P.getY(i), r = Math.hypot(x, y) || 1, k = r - 1;   // k: across the tube
+        const ux = x/r, uy = y/r; P.setXYZ(i, ux*(G.r1 + gap) + ux*k, uy*(G.r2 + gap) + uy*k, P.getZ(i)); }
+      band.geometry.computeVertexNormals();
+      for(let i=0;i<6;i++){ const a = Math.PI*(0.18 + i*0.13), led = new THREE.Mesh(new THREE.SphereGeometry(tube*0.55, 8, 6), glowM());
+        led.position.set(Math.cos(a)*(G.r1 + gap + tube*0.85), Math.sin(a)*(G.r2 + gap + tube*0.85), 0); led.userData.role = 'glow'; band.add(led); }
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(G.e1, G.e2, axis));
+      return [hang(fore, band, G.centre, q)];
     },
     // TSH's hood and shades: a dark hood over the hair, a rim round the face, black shades with a teal glint
     hood(model){
@@ -377,8 +477,14 @@ window.WARDROBE = (function(){
     const ids = new Set(Object.values(want).filter(id=>ITEMS[id] && fits(id, body)));
     // off: anything not wanted
     Object.keys(worn).forEach(id=>{ if(!ids.has(id)){ worn[id].forEach(o=>{ if(o.parent) o.parent.remove(o); }); delete worn[id]; } });
-    // on: anything new
-    for(const id of ids){
+    // on: anything new — garments first (a bangle is sized to what is on the wrist), and what is made in
+    // code is made again when the garments change under it
+    const rank = id => ({ garment:0, accessory:1, made:2 })[ITEMS[id].kind] || 1;
+    const order = [...ids].sort((a, b)=>rank(a) - rank(b));
+    const garmentsBefore = Object.keys(worn).filter(id=>ITEMS[id].kind === 'garment').sort().join(',');
+    const garmentsAfter = order.filter(id=>ITEMS[id].kind === 'garment').sort().join(',');
+    if(garmentsBefore !== garmentsAfter) Object.keys(worn).forEach(id=>{ if(ITEMS[id].kind === 'made'){ worn[id].forEach(o=>{ if(o.parent) o.parent.remove(o); }); delete worn[id]; } });
+    for(const id of order){
       if(worn[id]) continue;
       const it = ITEMS[id]; let objs = null;
       try{ objs = it.kind === 'garment' ? await garment(model, body, id) : it.kind === 'accessory' ? await accessory(model, body, id) : made(model, id); }
@@ -386,9 +492,15 @@ window.WARDROBE = (function(){
       if(model.userData.dressRun !== run){ (objs || []).forEach(o=>{ if(o.parent) o.parent.remove(o); }); return model; }   // changed again while this loaded
       if(objs && objs.length) worn[id] = objs;
     }
-    // the regions everything on now covers
-    const hide = new Set(); Object.keys(worn).forEach(id=>(ITEMS[id].hides || []).forEach(r=>hide.add(r)));
-    hideRegions(sm, hide);
+    // what everything on now covers: the vertices a lab-made garment lists, or the regions of anything else
+    const hide = new Set(), n = sm.geometry.attributes.position.count; let covered = null;
+    Object.keys(worn).forEach(id=>{
+      const bits = worn[id].map(o=>o.userData.coverBits).find(Boolean);
+      if(bits && bits.length === n){ if(!covered){ covered = new Uint8Array(n); covered.sum = 0; } for(let i=0;i<n;i++) if(bits[i] && !covered[i]){ covered[i] = 1; covered.sum += i + 1; } }
+      else (ITEMS[id].hides || []).forEach(r=>hide.add(r));
+    });
+    hideRegions(sm, hide, covered);
+    underneath(sm, worn);
     model.userData.look = code(want);
     return model;
   }

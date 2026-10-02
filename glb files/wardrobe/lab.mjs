@@ -11,6 +11,9 @@
      base    <sam.glb> <character.glb> <out.glb>   SAM's base-outfit body, rigged as the character
      garment <sam.glb> <body.glb> <ref.png> <garment.png> <out.glb>
                                          a garment drawn on the body's reference picture, put on the body
+     extract <dressed.glb> <body.glb> <out.glb> [options json]
+                                         THE CLEAN WAY: the garment cut out of the same person lifted
+                                         again wearing it; options: on (regions), colour, gap, over, reach
      transfer <garment.glb> <from.glb> <to.glb> <out.glb>
                                          a garment made for one body, fitted to another
      card    <character.glb> <out.png>  the 256x328 roster card
@@ -33,10 +36,10 @@ export async function lab(){
   });
   await new Promise(ok=>srv.listen(0, ok));
   const port = srv.address().port;
-  const br = await puppeteer.launch({ headless:'new', args:['--use-gl=angle', '--enable-unsafe-swiftshader'] });
+  const br = await puppeteer.launch({ headless:'new', protocolTimeout:0, args:['--use-gl=angle', '--enable-unsafe-swiftshader'] });
   const pg = await br.newPage(); await pg.setViewport({ width:1024, height:1024 });
   pg.on('pageerror', e=>console.error('page:', e.message)); pg.on('console', m=>{ if(m.type() === 'error' || m.type() === 'warn') console.error('page:', m.text()); else console.log('page:', m.text()); });
-  const page = process.argv[2] === 'try' ? 'try.html' : 'lab.html';
+  const page = (process.argv[2] === 'try' || process.argv[2] === 'check' || process.env.PAGE === 'try') ? 'try.html' : 'lab.html';
   await pg.goto(`http://localhost:${port}/glb files/wardrobe/${page}`);
   await pg.waitForFunction(page === 'try.html' ? 'window.TRY && window.TRY.ready' : 'window.LAB && window.LAB.ready', { timeout:60000 });
   const url = p => '/' + path.relative(ROOT, path.resolve(p)).split(path.sep).join('/');
@@ -61,12 +64,42 @@ if(cmd){
     }
     if(cmd === 'try'){                                             // try <body> <slot:item,...> <out.jpg> [clip] [time]
       const [b, fit, out, clip, at] = args;
-      const r = await L.pg.evaluate((b, f, c, t, hd, ch)=>{ TRY.head = hd; TRY.chest = ch; return TRY(b, f, c, t); }, b, fit || '', clip || 'idle', +(at || 0), !!process.env.HEAD, !!process.env.CHEST);
-      await L.pg.screenshot({ path:out, type:'jpeg', quality:80 }); console.log('wrote', out, JSON.stringify(r));
+      const r = await L.pg.evaluate((b, f, c, t, hd, ch, hn, bg, ft)=>{ TRY.head = hd; TRY.chest = ch; TRY.hand = hn; TRY.bg = bg; TRY.feet = ft; return TRY(b, f, c, t); }, b, fit || '', clip || 'idle', +(at || 0), !!process.env.HEAD, !!process.env.CHEST, (process.env.HAND || null), process.env.BG || null, !!process.env.FEET);
+      fs.writeFileSync(out, Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot; console.log('wrote', out, JSON.stringify(r));
+    }
+    if(cmd === 'check'){                                           // check <body> <slot:item,...> <out.jpg>  — every clip, measured; recorded in qa.json
+      const [b, fit, out] = args;
+      const r = await L.pg.evaluate((b, f)=>TRY.check(b, f), b, fit || '');
+      fs.writeFileSync(out, Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot;
+      const crypto = await import('node:crypto'), sha = f => crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex').slice(0, 12);
+      const W = await L.pg.evaluate(()=>({ ITEMS:Object.fromEntries(Object.entries(WARDROBE.ITEMS).map(([k, v])=>[k, { kind:v.kind, model:v.model }])) }));
+      const files = { body:sha(path.join(ROOT, 'public/characters/models/character-' + b + '.glb')) };
+      String(fit || '').split(',').filter(Boolean).forEach(p=>{ const id = p.split(':')[1], it = W.ITEMS[id]; if(!it) return;
+        const f = it.kind === 'garment' ? 'public/characters/wardrobe/' + id + '/' + b + '.glb' : it.kind === 'accessory' ? 'public/characters/wardrobe/' + it.model + '.glb' : null;
+        if(f) files[id] = sha(path.join(ROOT, f)); });
+      const LIMIT = { holes:5, poke:25, doubled:2, skin:15, buried:20 };   // thousandths (of the skin each could happen to; of the garment, for skin and buried), worst frame
+      const pass = r.holes.worst <= LIMIT.holes && r.poke.worst <= LIMIT.poke && r.doubled.worst <= LIMIT.doubled && r.skin <= LIMIT.skin && r.buried <= LIMIT.buried;
+      const qaPath = path.join(HERE, 'qa.json'), qa = fs.existsSync(qaPath) ? JSON.parse(fs.readFileSync(qaPath, 'utf8')) : {};
+      const key = b + ' ' + String(fit || '').split(',').filter(Boolean).sort().join(',');
+      qa[key] = { pass, files, holes:r.holes, poke:r.poke, doubled:r.doubled, skin:r.skin, buried:r.buried, mean:r.mean, frames:r.frames, limit:LIMIT };
+      fs.writeFileSync(qaPath, JSON.stringify(Object.fromEntries(Object.entries(qa).sort()), null, 1) + '\n');
+      console.log((pass ? 'PASS ' : 'FAIL ') + key, JSON.stringify(r));
+    }
+    if(cmd === 'eval'){                                            // eval <js>  (debugging: an async expression in the lab page)
+      const r = await L.pg.evaluate(async src=>JSON.stringify(await (0, eval)('(async()=>{' + src + '})()')), args[0]);
+      console.log(r);
+    }
+    if(cmd === 'extract'){                                         // extract <dressed.glb> <body.glb> <out.glb> [json options]
+      const [d, b, out, opt] = args; const o = opt ? JSON.parse(opt) : {};
+      if(o.over) o.over = L.url(o.over);
+      if(o.ref) o.ref = L.url(o.ref); if(o.pic) o.pic = L.url(o.pic);
+      const r = await L.pg.evaluate((a, b, c, o)=>LAB.extract(a, b, c, o), L.url(d), L.url(b), L.url(out), o);
+      fs.writeFileSync(out.replace(/\.glb$/, '-cut.jpg'), Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot;
+      console.log('wrote', out, JSON.stringify(r));
     }
     if(cmd === 'transfer'){                                        // transfer <garment.glb> <from-body.glb> <to-body.glb> <out.glb>
-      const [g, r, b, out] = args;
-      const res = await L.pg.evaluate((a, b, c, d)=>LAB.transfer(a, b, c, d), L.url(g), L.url(r), L.url(b), L.url(out));
+      const [g, r, b, out, opt] = args;
+      const res = await L.pg.evaluate((a, b, c, d, o)=>LAB.transfer(a, b, c, d, o), L.url(g), L.url(r), L.url(b), L.url(out), opt ? JSON.parse(opt) : {});
       console.log('wrote', out, JSON.stringify(res));
     }
     if(cmd === 'card'){                                            // card <character.glb> <out.png>
