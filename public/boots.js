@@ -13,6 +13,9 @@
    to the roof over there — and you keep the RHYTHM: tap SPACE as her
    feet touch (the shoes and the ring on the roof go gold) and the next
    bound is a perfect one, quicker and further, and the flow builds.
+   THE RHYTHM STACKS: every perfect one in a row goes higher than the
+   last; miss the beat (SPACE held through the landing, or pressed late)
+   and the streak is gone and the next one is lower.
    Let go and she lands and runs on.
 
    TWO BUTTONS. SPACE is "do the move": held, it is the bound; on the
@@ -99,6 +102,12 @@ window.BOOTS = (function(){
     boundPerfectBonus: 1.15, // a perfect bound is this much quicker, and reaches further
     boundFlowGravity: 0.35,  // flow makes every arc quicker: gravity × (1 + this × flow)
     boundRetarget: 0.35,     // rad off her line before the keys pick a new roof in mid-air
+    // the rhythm: perfect landings in a row go higher; a missed beat goes lower
+    rhythmMax: 4,            // perfect beats in a row that still add height
+    rhythmStep: 0.1,         // each one adds this share to the next launch's height (and a little reach)
+    rhythmMiss: 0.7,         // missed the beat: the next launch is this high
+    rhythmMissReach: 0.8,    // …and a bound off a missed beat reaches this much as far
+    missWindow: 0.45,        // s after a landing that a late press is a miss; after it, a jump is just a jump
     ignite: 30,              // m/s straight up when the shoes first fire
     // the air
     gravity: 30,             // m/s²
@@ -176,12 +185,22 @@ window.BOOTS = (function(){
     return Object.assign({ x:0, y:0, z:0, vx:0, vy:0, vz:0, ground:true, heading:0, state:'ground',
       coyote:0, jumpBuf:9, jumpHeld:false, cut:true, airT:0, diveT:0, swoop:null, wall:null, slideWall:null,
       dashT:0, dashCD:0, charges:TUNE.dashCharges, roll:0, sliding:false, flow:0, chain:0,
-      bound:null, plant:0, landT:9, hops:0, aimT:0,
+      bound:null, plant:0, landT:9, hops:0, aimT:0, rhythm:0, rhythmWas:0, missed:false, beat:false, launched:false,
       have:new Set(ALL), events:[], last:{}, gold:false }, o||{});
   }
   const hspeed = b => hyp(b.vx, b.vz);
   const speed = b => hyp(b.vx, b.vy, b.vz);
   const flowK = (b, k) => 1 + TUNE[k]*b.flow;
+  /* how high the next launch goes, from the rhythm: up with every perfect beat in a row, down after a missed one */
+  const heightK = b => b.missed ? TUNE.rhythmMiss : 1 + TUNE.rhythmStep*Math.min(b.rhythm, TUNE.rhythmMax);
+  /* A PRESS ON A BEAT: just after landing from her own launch, it is either the late edge of perfect, or a miss */
+  function beat(b, fresh, perfect){
+    if(!b.beat || !b.ground || b.landT > TUNE.missWindow) return;
+    if(perfect){ b.rhythm = b.rhythmWas + 1; b.missed = false; }
+    else if(fresh){ b.missed = true; emit(b, 'beatMissed', { was:b.rhythmWas }); }
+    else return;
+    b.beat = false;
+  }
 
   /* THE WORLD, as the body asks it: the highest floor under a point that
      is no higher than a step above the feet, and the solid boxes (x1 x2 z1
@@ -237,7 +256,7 @@ window.BOOTS = (function(){
     if(!inp.jump && b.jumpHeld && !b.cut && b.vy > 0 && b.state === 'air'){ b.vy *= TUNE.jumpCut; b.cut = true; }
     b.jumpHeld = !!inp.jump;
     const wish = wishDir(inp);
-    if(b.ground){ b.landT += dt; if(b.landT > 0.4) b.hops = 0; }
+    if(b.ground){ b.landT += dt; if(b.landT > 0.4) b.hops = 0; if(b.landT > TUNE.missWindow && b.plant <= 0){ b.rhythm = 0; b.rhythmWas = 0; b.missed = false; b.beat = false; } }
     decide(b, inp, wish, env);
     steerBound(b, inp, wish, dt, env);
     const n = Math.max(1, Math.min(10, Math.ceil(speed(b)*dt/0.4)));
@@ -273,11 +292,13 @@ window.BOOTS = (function(){
     // the ground with a roof in reach: the bound — on a press, or with SPACE still held once her feet have planted
     if((b.ground || b.coyote > 0) && b.have.has('bound') && b.plant <= 0 && (buffered || inp.jump) && !(b.roll > TUNE.rollTime - 0.08)){
       const late = b.ground && fresh && b.landT <= TUNE.boundLate && b.fromBound;      // pressed just after her feet touched: still perfect
+      if(buffered) beat(b, fresh, late);
       if(tryBound(b, inp, wish, env, late)){ b.jumpBuf = 9; return; }
     }
     // the ground (or a moment after leaving it) with nowhere to bound to: the super jump
     if((b.ground || b.coyote > 0) && buffered && b.have.has('jump')){
       if(b.roll > 0 && b.roll > TUNE.rollTime - 0.08) return;       // the first instant of a roll is all knees
+      beat(b, fresh, false);
       superJump(b, wish, 1, 'jump'); b.jumpBuf = 9; return;
     }
     if(b.ground || !fresh) return;
@@ -295,7 +316,7 @@ window.BOOTS = (function(){
   }
 
   function superJump(b, wish, k, why){
-    const p = flowK(b, 'flowPower')*k;
+    const p = flowK(b, 'flowPower')*k*heightK(b);
     b.vy = TUNE.jumpUp*p;
     b.vx *= TUNE.jumpCarry; b.vz *= TUNE.jumpCarry;
     if(wish){ b.vx += wish.x*TUNE.jumpFwd; b.vz += wish.z*TUNE.jumpFwd; }
@@ -303,7 +324,8 @@ window.BOOTS = (function(){
     b.slideWall = null; b.shiftLatch = true;
     addFlow(b, 'jump');
     b.last.jump = b.vy;
-    emit(b, why || 'jump', { vy:b.vy });
+    emit(b, why || 'jump', { vy:b.vy, rhythm:b.rhythm, missed:b.missed });
+    b.missed = false; b.launched = true;
   }
 
   /* ================================================================ the bound
@@ -326,7 +348,8 @@ window.BOOTS = (function(){
   /* the arc from where she stands to c: up over the higher end, then down onto it */
   function arcTo(b, c, g, extra){
     const h = hyp(c.x - b.x, c.z - b.z);
-    const top = Math.max(b.y, c.y) + TUNE.boundLift + h*TUNE.boundArc + (extra || 0);
+    // a streak lifts the arc; a miss never drops it below what clears the edge (it costs reach instead)
+    const top = Math.max(b.y, c.y) + (TUNE.boundLift + h*TUNE.boundArc)*Math.max(1, heightK(b)) + (extra || 0);
     const vy = Math.sqrt(2*g*(top - b.y)), T = vy/g + Math.sqrt(2*Math.max(0.01, top - c.y)/g);
     return { vy, vx:(c.x - b.x)/T, vz:(c.z - b.z)/T, T, top };
   }
@@ -341,8 +364,9 @@ window.BOOTS = (function(){
     o = o || {};
     const roofs = env.roofs; if(!roofs || !roofs.length || !dir) return null;
     const hs = hspeed(b), g = boundG(b, o.perfect);
-    const reach = TUNE.boundReach + TUNE.boundReachFlow*b.flow + (o.perfect ? 6 : 0);
-    const ideal = clamp(TUNE.boundIdeal + hs*TUNE.boundIdealSpeed + b.flow*8 + (o.perfect ? 4 : 0), TUNE.boundMin + 2, reach - 2);
+    const streak = b.missed ? 0 : Math.min(b.rhythm, TUNE.rhythmMax);
+    const reach = (TUNE.boundReach + TUNE.boundReachFlow*b.flow + (o.perfect ? 6 : 0) + streak*3)*(b.missed ? TUNE.rhythmMissReach : 1);
+    const ideal = clamp(TUNE.boundIdeal + hs*TUNE.boundIdealSpeed + b.flow*8 + (o.perfect ? 4 : 0) + streak*2, TUNE.boundMin + 2, reach - 2);
     const here = b.ground ? roofUnder(env, b) : null;
     const cands = [];
     for(const r of roofs){
@@ -410,7 +434,8 @@ window.BOOTS = (function(){
     b.hops++;
     addFlow(b, perfect ? 'boundPerfect' : 'bound');
     b.last.bound = { d:t.d, T:a.T, perfect:!!perfect, roof:t.roof && t.roof.id };
-    emit(b, perfect ? 'boundPerfect' : 'bound', { d:t.d, x:t.x, y:t.y, z:t.z, T:a.T, roof:t.roof && t.roof.id });
+    emit(b, perfect ? 'boundPerfect' : 'bound', { d:t.d, x:t.x, y:t.y, z:t.z, T:a.T, roof:t.roof && t.roof.id, rhythm:b.rhythm, missed:b.missed });
+    b.missed = false; b.launched = true;
   }
   /* IN THE AIR, SPACE held: point somewhere else and she bends to the roof over
      there; falling free (off a kick, a pull, the first burn of the shoes) and
@@ -682,28 +707,33 @@ window.BOOTS = (function(){
     if(b.swoop){ b.swoop = null; b.flow *= 0.6; b.chain = 0; emit(b, 'swoopCrash', { impact }); }
     b.vx *= TUNE.landKeep; b.vz *= TUNE.landKeep;
     b.last.land = { impact, hs };
+    // the beat: did this landing come off one of her own launches, and what was the streak going into it
+    b.beat = b.launched; b.launched = false; b.rhythmWas = b.rhythm;
     // off a bound: pressed in the gold, straight into a perfect one; SPACE still held, a beat on her feet and on
     b.fromBound = bounded;
     if(bounded && b.have.has('bound')){
       if(b.jumpBuf <= TUNE.boundPerfect){
-        b.jumpBuf = 9;
+        b.jumpBuf = 9; b.rhythm++; b.missed = false; b.beat = false;
         emit(b, 'boundLand', { perfect:true, hops:b.hops, impact });
         if(tryBound(b, inp, wish, env, true)) return;
         superJump(b, wish, TUNE.perfectLandingBonus, 'jumpPerfect'); return;
       }
-      if(inp.jump){ b.plant = TUNE.boundPlant; emit(b, 'boundLand', { perfect:false, hops:b.hops, impact }); return; }
+      if(inp.jump){
+        // held straight through the landing: on she goes, but the beat is missed
+        b.plant = TUNE.boundPlant; b.rhythm = 0; b.missed = true; b.beat = false;
+        emit(b, 'boundLand', { perfect:false, hops:b.hops, impact }); emit(b, 'beatMissed', { was:b.rhythmWas }); return; }
       // let go: the bound's speed was the shoes'; she touches down at a run, not off the far side of the roof
       const k = Math.min(1, TUNE.runSpeed*1.3/Math.max(hs, 0.01)); b.vx *= k; b.vz *= k;
     }
     if(b.jumpBuf <= TUNE.perfectLanding && b.have.has('jump')){
       addFlow(b, 'landPerfect');
       emit(b, 'landPerfect', { impact });
-      b.jumpBuf = 9;
+      b.jumpBuf = 9; b.rhythm++; b.missed = false; b.beat = false;
       if(b.have.has('bound') && tryBound(b, inp, wish, env, true)) return;
       superJump(b, wish, TUNE.perfectLandingBonus, 'jumpPerfect');
       return;
     }
-    b.chain = 0;
+    b.chain = 0; b.rhythm = 0;             // no press yet: a late one is still perfect (beat()), a later one a miss
     if(inp.shift && hs > TUNE.runSpeed && b.have.has('slide')){ b.sliding = true; emit(b, 'slide', { hs }); return; }
     if(impact > TUNE.rollImpact || (impact > 14 && hs > 16)){ b.roll = TUNE.rollTime; addFlow(b, 'roll'); emit(b, 'roll', { impact }); }
     else emit(b, 'land', { impact });
@@ -859,7 +889,9 @@ window.BOOTS = (function(){
     if(n === 'dash') sfx('dash');
     if(n === 'land' || n === 'roll' || n === 'swoopCrash') sfx('land', clamp((e.impact||0)/40, 0.2, 1));
     if(n === 'landPerfect'){ sfx('perfect'); }
-    if(WORDS[n]) say(WORDS[n]);
+    if((n === 'boundPerfect' || n === 'jumpPerfect') && e.rhythm >= 2) say('PERFECT ×' + e.rhythm);
+    else if(n === 'beatMissed'){ if(e.was) say('MISSED THE BEAT'); }
+    else if(WORDS[n]) say(WORDS[n]);
     if(hooks.event) hooks.event(e, B);
   }
 

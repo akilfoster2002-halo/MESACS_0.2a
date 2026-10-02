@@ -1196,7 +1196,7 @@ window.TSH = (function(){
     { id:'bound',  title:'HOLD SPACE', how:'Hold SPACE. The shoes pick the roof you are facing — the ring — and take you there.', teach:['bound','jump','steer'] },
     { id:'chain',  title:'KEEP HOLDING', how:'Keep it held: every landing springs into the next. Three roofs in a row.' },
     { id:'steer',  title:'POINT', how:'Look where you want to go — the mouse, or A and D, even in the air. North, over Neon Avenue.' },
-    { id:'rhythm', title:'THE RHYTHM', how:'Tap SPACE as her feet touch, when the ring goes gold. Perfect bounds go quicker and further. Two in a row.' },
+    { id:'rhythm', title:'THE RHYTHM', how:'Tap SPACE as her feet touch, when the ring goes gold. Every perfect one in a row goes higher; miss the beat and the next is lower. Two in a row.' },
     { id:'alley',  title:'DRAGON ALLEY', how:'The buyer is in Dragon Alley. Let go of SPACE over it and drop in.' }
   ];
   const lesson = { i:0, perfect:0, lands:0, touched:false, goal:null };
@@ -3268,7 +3268,10 @@ window.TSH = (function(){
       const kai = hit.find(n=>n.kind === 'kai');
       if(kai && kai.state === 'rob' && S.step === 'robbed' && crew.env === 'kai'){ S.flags.envDropped = [kai.x + 0.6, kai.z]; crew.env = 'ground'; kai.state = 'pursue'; kai.fallback = 'rob'; note('✉ He dropped the envelope!'); }
       const h = crew.env;
-      if(holds(h) && hit.includes(h) && S.step === 'robbed'){ S.flags.envDropped = [h.x + 0.5, h.z - 0.4]; crew.env = 'ground'; note('✉ He dropped the envelope!'); }
+      if(holds(h) && hit.includes(h) && S.step === 'robbed'){
+        // it falls out of his hand on your side of him, away from the fire
+        const a = angTo(h.x, h.z, G.pos.x, G.pos.z);
+        S.flags.envDropped = [h.x + Math.sin(a)*0.8, h.z + Math.cos(a)*0.8]; crew.env = 'ground'; note('✉ He dropped the envelope!'); }
       if(kai && kai.inApt) apt.flashed = true;
       if(inside && ['talk','kai'].includes(apt.stage)){ apt.stage = 'escape'; flushTalk(); talkNow('dark'); kaiIn(); }
     }

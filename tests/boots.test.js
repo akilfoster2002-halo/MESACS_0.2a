@@ -266,3 +266,30 @@ test('the game hands its step to the boots, and TSH puts them on', () => {
   const h = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   assert.match(h, /<script src="boots\.js\?v=\d+"><\/script>\s*<script src="tsh\.js/, 'boots.js loads before tsh.js');
 });
+
+test('the rhythm stacks: each perfect landing in a row jumps higher, and a missed beat jumps lower', () => {
+  const B = boots(), env = world();
+  // tap to go, then tap again just before her feet touch, every time
+  const b = B.body();
+  let tap = 0;
+  const log = fly(B, b, env, 9, (t, bb)=>{
+    if(t < 0.05) return { space:true };
+    // one press per fall, a tenth of a second before her feet touch
+    if(bb.vy < 0 && bb.y < -bb.vy*0.1 && bb.y > 0.05){ tap++; return { space:tap === 1 }; }
+    if(bb.vy > 0) tap = 0; return {};
+  });
+  const ups = log.events.filter(e=>e.name === 'jumpPerfect').map(e=>e.vy);
+  assert.ok(ups.length >= 4, 'four perfect landings in a row, made ' + ups.length);
+  for(let i=1;i<Math.min(ups.length, 4);i++) assert.ok(ups[i] > ups[i-1] + 1, 'each one higher than the last: ' + ups.map(v=>v.toFixed(1)).join(' '));
+  assert.ok(log.events.some(e=>e.name === 'jumpPerfect' && e.rhythm >= 3), 'and the streak is counted');
+  // the same first jump, then a press a beat late: lower than a plain jump
+  const c = B.body(); let late = false;
+  const log2 = fly(B, c, env, 4, (t, cc)=>{
+    if(t < 0.05) return { space:true };
+    if(cc.ground && cc.landT > 0.25 && !late){ late = true; return { space:true }; }
+    return {};
+  });
+  const jumps = log2.events.filter(e=>e.name === 'jump');
+  assert.ok(jumps.length >= 2 && log2.events.some(e=>e.name === 'beatMissed'), 'the late press is a missed beat');
+  assert.ok(jumps[1].vy < jumps[0].vy*0.8, 'and it jumps lower: ' + jumps[1].vy.toFixed(1) + ' after ' + jumps[0].vy.toFixed(1));
+});

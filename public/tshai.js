@@ -223,7 +223,7 @@ window.TSHAI = (function(){
      order she finishes it at her bench. `key` is what uses it. */
   const KIT = {
     boots:   { name:'Skyline shoes', key:'SPACE', icon:'👟',
-               does:'Her own sneakers, rebuilt: coils in the soles. HOLD SPACE and they take her roof to roof on their own — point where you want to go, even mid-air. Tap SPACE as she lands, when the ring goes gold, for a perfect bound. In the air SHIFT dives, SPACE in a dive pulls up, and SPACE at a wall kicks off it.' },
+               does:'Her own sneakers, rebuilt: coils in the soles. HOLD SPACE and they take her roof to roof on their own — point where you want to go, even mid-air. Tap SPACE as she lands, when the ring goes gold, for a perfect bound — every one in a row goes higher, and a missed beat goes lower. In the air SHIFT dives, SPACE in a dive pulls up, and SPACE at a wall kicks off it.' },
     cuffs:   { name:'Gecko cuffs',   key:'G', icon:'🦎',
                does:'Grip a building\'s wall and climb it, all the way to the roof — or sprint at a wall and leap onto it. The film tires after about fifteen seconds on a wall and recovers on the ground. WFC who see them in use see illegal wearables.' },
     bangles: { name:'Flash bangles', key:'F', icon:'✋',
