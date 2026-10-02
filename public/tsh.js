@@ -2371,7 +2371,7 @@ window.TSH = (function(){
       const r = window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
       if(list && r && r.add){ const M = TSHFIGHT.MOVE, speed = {}; Object.keys(M).forEach(k=>{ if(M[k].clip === k) speed[k] = M[k].speed; });
         Object.values(TSHFIGHT.EVADE).forEach(v=>{ speed[v.clip] = v.speed; });
-        r.add(list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin', 'cartL', 'cartR', 'bflip', 'wallkick', 'evroll'], speed }); }
+        r.add(list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin', 'cartL', 'cartR', 'bflip', 'wallkick', 'evroll', 'evflip'], speed }); }
       return list;
     });
   }

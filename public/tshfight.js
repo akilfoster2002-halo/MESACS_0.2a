@@ -34,9 +34,9 @@ window.TSHFIGHT = (function(){
   const EYE = 1.7;
 
   /* ------------------------------------------------------------ the alley
-     Dragon Alley (tshcity.js) is eleven metres wide, walls at x -47 and -36:
+     Dragon Alley (tshcity.js) is eighteen metres wide, walls at x -49 and -31:
      the fight runs up and down it, between the mouth and the bend. */
-  const ARENA = { x1:-46.5, x2:-36.5, z1:-37.5, z2:-13.5 };
+  const ARENA = { x1:-48.5, x2:-31.5, z1:-37.5, z2:-13.5 };
   const MEET = { robin:[-41.4, -24.6], buyer:[-41.6, -28.6] };
 
   /* ------------------------------------------------------------ her moves
@@ -68,11 +68,12 @@ window.TSHFIGHT = (function(){
      her, `iframe` how long nothing lands on her. A click during one, or just after, comes out of it as a
      sweep along the ground. `wall` is the push off a wall before the flying kick (dodge, below). */
   const EVADE = {
-    cartL: { clip:'cartL',    speed:1.5,  go:3.4, iframe:0.8,  travel:0.85 },
-    cartR: { clip:'cartR',    speed:1.5,  go:3.4, iframe:0.8,  travel:0.85 },
-    flip:  { clip:'bflip',    speed:1.35, go:3.0, iframe:0.75, travel:0.8, back:true },
-    roll:  { clip:'evroll',   speed:1.3,  go:3.2, iframe:0.6,  travel:0.8 },
-    wall:  { clip:'wallkick', speed:1.9 }
+    cartL: { clip:'cartL',    speed:2.6,  go:3.8, iframe:0.5,  travel:0.85 },
+    cartR: { clip:'cartR',    speed:2.6,  go:3.8, iframe:0.5,  travel:0.85 },
+    flip:  { clip:'bflip',    speed:2.5,  go:3.4, iframe:0.5,  travel:0.8, back:true },
+    roll:  { clip:'evroll',   speed:2.2,  go:3.6, iframe:0.45, travel:0.8 },
+    wall:  { clip:'wallkick', speed:2.6 },
+    vault: { clip:'evflip',   speed:1.7 }
   };
 
   /* ------------------------------------------------------------ the crew */
@@ -286,8 +287,9 @@ window.TSHFIGHT = (function(){
     const over = alive().find(e=>{ const d = Math.hypot(e.x - p.x, e.z - p.z); return d < 2.1 && Math.abs(angDiff(angTo(p.x, p.z, e.x, e.z), a)) < 0.6; });
     if(over){
       const b = angTo(p.x, p.z, over.x, over.z), land = clampArena(over.x + Math.sin(b)*1.3, over.z + Math.cos(b)*1.3);
-      R.act = 'vault'; R.t = 0; R.len = 0.62; R.iframe = 0.7; R.dash = { x0:p.x, z0:p.z, x1:land[0], z1:land[1], t:0, len:0.6, arc:1.9 };
-      R.face = b; R.sinceDodge = 0; robinClip('flip', true); ctx.cue('kick'); slowFor(0.35, 0.5);
+      const vl = robinClip(EVADE.vault.clip, true) || 0.62;
+      R.act = 'vault'; R.t = 0; R.len = vl; R.iframe = vl + 0.1; R.dash = { x0:p.x, z0:p.z, x1:land[0], z1:land[1], t:0, len:vl*0.95, arc:1.9 };
+      R.face = b; R.sinceDodge = 0; ctx.cue('kick'); slowFor(0.35, 0.5);
       if(over.state !== 'stagger'){ over.state = 'stagger'; over.t = 0; hit1(over, 'stagger'); }
       event('vault'); return true;
     }
