@@ -3326,9 +3326,8 @@ window.TSH = (function(){
     const R = W.room, a = W.apt, bed = R.bed, win = R.window.at, form = R.form ? R.form.at : [a.x, 0, a.z];
     const roof = [G.pos.x, feet(), G.pos.z], west = -Math.PI/2;
     const inAt = [win[0] + 0.9, win[2]], faceIn = Math.PI/2;
-    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.16, 1.0), new THREE.MeshStandardMaterial({ color:0x15151a, roughness:0.95 }));
-    blanket.visible = false; blanket.position.set(bed.x - 0.15, (bed.top || 0.72) + 0.24, bed.z); W.aptGroup.add(blanket);
-    const lie = k=>stage('idle', bed.x + 0.75, (bed.top || 0.72) + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 });
+    const blanket = blanketOn(W.aptGroup);
+    const lie = k=>{ stage('idle', bed.x + 0.75, (bed.top || 0.72) + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 }); setTimeout(()=>{ if(on && blanket.visible) blanket.fit(bed.top || 0.72); }, 80); };
     // Maya and Kai, on the roof across Kiln Street from her window
     const MK = { maya:[54.4, 34.9], kai:[54.4, 33.1], y:12 };
     const maya = spawn('maya', 'maya', MK.maya[0], MK.maya[1], { y:MK.y, name:'mayaWatch', state:'cut', yaw:Math.PI/2 });
@@ -3367,7 +3366,7 @@ window.TSH = (function(){
       // face down into bed, the blanket over her; asleep before her head is all the way down
       { dur:3.6, fov:42, cam:[[bed.x + 2.0, 2.1, bed.z - 1.6], [bed.x + 1.5, 1.8, bed.z - 1.2]], look:[bed.x - 0.1, 0.8, bed.z],
         enter:()=>lie(0),
-        beats:[[0.9, ()=>{ blanket.visible = true; cue('door'); }]] },
+        beats:[[0.9, ()=>{ blanket.fit(bed.top || 0.72); blanket.visible = true; cue('door'); }]] },
       // on the floor, the shoes' glow goes out
       { dur:2.4, fov:36, cam:R.boots ? [R.boots.at[0] + 1.1, 0.45, R.boots.at[2] + 0.8] : [bed.x + 1.5, 0.5, bed.z - 1.5],
         look:R.boots ? [R.boots.at[0], 0.12, R.boots.at[2]] : [bed.x, 0.2, bed.z] },
@@ -3409,6 +3408,62 @@ window.TSH = (function(){
     ];
     mark('watchers');
     playReel(shots, ()=>prologueEnd(), { ownClock:true });
+  }
+  /* A BLANKET, NOT A BLOCK. A cloth over her as she lies: a height field over the bed, the highest point of her
+     body (and what she wears) under each point of it and the cloth falling away from there, softened, its edges
+     turned down — stopping at her shoulders. Read off her pose (the skinned vertices) each time she is laid down,
+     so it lies on her, not through her or on top of her like a box. */
+  let quiltTex = null;
+  function quilt(){
+    if(quiltTex) return quiltTex;
+    const c = LOOK.cv(256, 256), x = c.getContext('2d');
+    x.fillStyle = '#4c5f82'; x.fillRect(0, 0, 256, 256);
+    for(let i = 0; i < 3000; i++){ x.fillStyle = `rgba(${Math.random() < 0.5 ? '20,26,40' : '140,160,200'},0.08)`; x.fillRect(Math.random()*256, Math.random()*256, 2, 2); }
+    x.strokeStyle = 'rgba(28,36,58,0.55)'; x.lineWidth = 2; x.setLineDash([5, 4]);
+    for(let k = -256; k < 512; k += 64){ x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 256, 256); x.stroke(); x.beginPath(); x.moveTo(k + 256, 0); x.lineTo(k, 256); x.stroke(); }
+    quiltTex = LOOK.tex(c); quiltTex.wrapS = quiltTex.wrapT = THREE.RepeatWrapping; return quiltTex;
+  }
+  function blanketOn(group){
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ map:quilt(), roughness:0.95, side:THREE.DoubleSide }));
+    mesh.castShadow = true; mesh.receiveShadow = true; mesh.visible = false; group.add(mesh);
+    function fit(top){
+      const m = window.AVATAR && AVATAR.model; if(!m) return;
+      m.updateMatrixWorld(true);
+      const head = boneOf(m, /Head$/), hd = new THREE.Vector3(); if(head) head.getWorldPosition(hd);
+      const pts = [], v = new THREE.Vector3();
+      m.traverse(o=>{ if(!o.isSkinnedMesh || !o.visible) return; const P = o.geometry.attributes.position, step = Math.max(1, Math.floor(P.count/14000));
+        for(let i = 0; i < P.count; i += step){ o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld); if(!head || v.distanceTo(hd) > 0.3) pts.push(v.x, v.y, v.z); } });
+      if(!pts.length) return;
+      let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+      for(let i = 0; i < pts.length; i += 3){ x0 = Math.min(x0, pts[i]); x1 = Math.max(x1, pts[i]); z0 = Math.min(z0, pts[i + 2]); z1 = Math.max(z1, pts[i + 2]); }
+      // her length runs along the longer side; the cloth stops just short of her head at that end and runs past her feet at the other
+      const alongX = x1 - x0 > z1 - z0, mid = alongX ? (x0 + x1)/2 : (z0 + z1)/2, headEnd = (alongX ? hd.x : hd.z) > mid ? 1 : -1;
+      const side = 0.3, foot = 0.18, nearHead = -0.04;
+      if(alongX){ if(headEnd > 0){ x1 += nearHead; x0 -= foot; } else { x0 -= nearHead; x1 += foot; } z0 -= side; z1 += side; }
+      else { if(headEnd > 0){ z1 += nearHead; z0 -= foot; } else { z0 -= nearHead; z1 += foot; } x0 -= side; x1 += side; }
+      const NX = 44, NZ = 34, dx = (x1 - x0)/(NX - 1), dz = (z1 - z0)/(NZ - 1), base = top + 0.012;
+      const hb = new Float32Array(NX*NZ).fill(-1e9);
+      for(let i = 0; i < pts.length; i += 3){ const a = Math.round((pts[i] - x0)/dx), b = Math.round((pts[i + 2] - z0)/dz);
+        if(a >= 0 && b >= 0 && a < NX && b < NZ) hb[b*NX + a] = Math.max(hb[b*NX + a], pts[i + 1] + 0.035); }
+      // the cloth tents from each high point and falls away at about the slope a sheet does
+      const R = 7, H = new Float32Array(NX*NZ);
+      for(let b = 0; b < NZ; b++) for(let a = 0; a < NX; a++){ let h = base;
+        for(let j = -R; j <= R; j++) for(let i = -R; i <= R; i++){ const aa = a + i, bb = b + j; if(aa < 0 || bb < 0 || aa >= NX || bb >= NZ) continue; const hv = hb[bb*NX + aa]; if(hv < -1e8) continue;
+          const d = Math.hypot(i*dx, j*dz); h = Math.max(h, hv - d*0.95); }
+        H[b*NX + a] = h; }
+      const tent = H.slice();
+      for(let pass = 0; pass < 3; pass++){ const C = H.slice(); for(let b = 1; b < NZ - 1; b++) for(let a = 1; a < NX - 1; a++){ let s = 0; for(let j = -1; j <= 1; j++) for(let i = -1; i <= 1; i++) s += C[(b + j)*NX + a + i]; H[b*NX + a] = Math.max(base, s/9); } }
+      // softened, but never through her: never below the tent itself (a soft peak over her toes, not a hole)
+      for(let k = 0; k < H.length; k++) H[k] = Math.max(H[k], tent[k] - 0.004);
+      // its edges turned down over the mattress
+      const pos = [], uv = [], idx = [];
+      for(let b = 0; b < NZ; b++) for(let a = 0; a < NX; a++){ const e = Math.min(a, b, NX - 1 - a, NZ - 1 - b)*Math.min(dx, dz), drop = e < 0.07 ? (0.07 - e)*1.4 : 0;
+        const x = x0 + a*dx, z = z0 + b*dz; pos.push(x, H[b*NX + a] - drop, z); uv.push((x - x0)*1.6, (z - z0)*1.6); }
+      for(let b = 0; b < NZ - 1; b++) for(let a = 0; a < NX - 1; a++){ const i = b*NX + a; idx.push(i, i + NX, i + 1, i + 1, i + NX, i + NX + 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      mesh.geometry.dispose(); mesh.geometry = g;
+    }
+    return { mesh, fit, get visible(){ return mesh.visible; }, set visible(v){ mesh.visible = v; }, get parent(){ return mesh.parent; }, remove(){ if(mesh.parent) mesh.parent.remove(mesh); } };
   }
   function kitOff(p){ if(!me.kit) return; me.kit[p] = false; dress(); }
   /* MAYA'S ARMS (tentacles.js): four of them out of her back, and they carry her — her feet never touch the
@@ -3487,10 +3542,8 @@ window.TSH = (function(){
     if(R.window) R.window.open(false);
     scoreStop();
     const top = (bed.top || 0.72);
-    // a duvet, down to the mattress all round: no gap under it
-    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.34, 1.08), new THREE.MeshStandardMaterial({ color:0x55678a, roughness:1 }));
-    blanket.position.set(bed.x - 0.1, top + 0.19, bed.z); W.aptGroup.add(blanket);
-    const lie = k=>stage('idle', bed.x + 0.75, top + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 });
+    const blanket = blanketOn(W.aptGroup); blanket.visible = true;
+    const lie = k=>{ stage('idle', bed.x + 0.75, top + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 }); setTimeout(()=>{ if(on && blanket.visible) blanket.fit(top); }, 80); };
     const sitUp = ()=>stage('wake', bed.x - 0.15, bed.seat || 0.76, bed.z - 0.05, Math.PI/2);
     const shoe = R.boots.at, form = R.form.at, pack = R.pack.at, win = R.window.at;
     const F = [form[0] + 0.75, form[2] + 0.6], fry = Math.atan2(-0.75, -0.6);                 // at the clothes, facing them
@@ -3531,7 +3584,7 @@ window.TSH = (function(){
         enter:()=>cue('kick'),
         tick:(dt, t, k)=>stage('jump', SILL[0] - k*1.6, SILL[1] + Math.sin(k*Math.PI*0.6)*0.7, SILL[2], -Math.PI/2) }
     ];
-    playReel(shots, ()=>{ if(blanket.parent) blanket.parent.remove(blanket); commuteStart(); }, { ownClock:true });
+    playReel(shots, ()=>{ blanket.remove(); commuteStart(); }, { ownClock:true });
   }
   /* daylight in the flat: the sun through the window, the lamp and the ceiling off */
   function dayRoom(v){ apt.sun = !!v; apt.lamp = false; apt.ceiling = false; aptLights(); if(W.room && W.room.window && W.room.window.day) W.room.window.day(day()); }

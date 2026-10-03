@@ -729,3 +729,12 @@ test('after END OF PROLOGUE the results can be clicked: the panel is over the bl
   const z = rule => { const m = [...css.matchAll(new RegExp(rule.replace('.', '\\.') + '\\{[^}]*z-index:(\\d+)', 'g'))].pop(); return m ? +m[1] : 0; };
   assert.ok(z('#tsh .tsh-panel') > z('#tsh .tsh-black'), 'the results panel is above the black screen');
 });
+
+test('a blanket, not a block: a cloth draped over her pose, in both bedroom scenes', () => {
+  const t = read('public/tsh.js');
+  has(t, /function blanketOn\(group\)\{[\s\S]{0,2000}getVertexPosition\(i, v\)/, 'it is laid over her body as it lies');
+  has(t, /H\[k\] = Math\.max\(H\[k\], tent\[k\] - 0\.004\)/, 'softened, but never through her');
+  hasNot(t, /const blanket = new THREE\.Mesh\(new THREE\.BoxGeometry/, 'no box on her any more');
+  const n = t.slice(t.indexOf('  function nightScene('), t.indexOf('  function kitOff(')), m = t.slice(t.indexOf('  function morning('), t.indexOf('  function dayRoom('));
+  assert.ok(n.includes('blanketOn(W.aptGroup)') && m.includes('blanketOn(W.aptGroup)'), 'at 3 AM and in the morning');
+});
