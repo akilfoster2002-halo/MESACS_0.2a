@@ -441,6 +441,10 @@ window.TSH = (function(){
       if(S.step === 'morning'){ later(()=>{ if(on && S.step === 'morning') morning(); }, 300); return; }
       me.kit = Object.assign({}, SCHOOL_KIT); me.shades = false; dress();     // no shades at school: she is just Robin
       beatStart(true); title(); lockPointer($('#view'));
+      // picked up inside the school: the sneak from the lobby, or detention
+      if(['sneak', 'detention', 'after'].includes(S.step) && W.school){ intoSchool();
+        if(S.step === 'sneak'){ const X = W.school.X; placePlayer(X(0.3), 10.4, 0); later(()=>{ if(on && S.step === 'sneak') sneakBegin(); }, 400); }
+        else later(()=>{ if(on) detention(); }, 400); }
       return;
     }
     if(S.step === 'wake'){ later(()=>{ if(on && S.step === 'wake') scene('wake', opening); }, 300); return; }
@@ -460,6 +464,7 @@ window.TSH = (function(){
     if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0; raidCrew = false;
     if(window.TSHCHASE) TSHCHASE.stop();
     octoStop();
+    if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -491,6 +496,7 @@ window.TSH = (function(){
     G.solids = []; G.hits = []; G.selected = null; G.focused = null;
     G.vel.set(0,0,0); G.onGround = true;
     W = CITY.build(root);
+    W.school = window.TSHSCHOOL ? TSHSCHOOL.build(root, W) : null;     // Harbor Lane High, off the map like the flat (The Other Robin)
     W.solids.forEach(s=>G.solids.push(s));
     W.checkpoint.solids.forEach(s=>{ s.off = true; });        // switched on by the clock
     G.ground = groundAt; G.ceiling = streetLid;
@@ -642,7 +648,7 @@ window.TSH = (function(){
   }
   function tickLights(dt){
     lightT -= dt;
-    const srcs = inside ? aptSources() : W.lights;
+    const srcs = inside ? (inSchool && W.school ? W.school.lights : aptSources()) : W.lights;
     if(lightT <= 0){
       lightT = 0.25;
       const cx = G.camera.position.x, cz = G.camera.position.z, px = G.pos.x, pz = G.pos.z;
@@ -758,8 +764,11 @@ window.TSH = (function(){
     return best;
   }
   function wireThings(){
-    // the school's revolving door (The Other Robin)
+    // the school's revolving door, and inside it the bulletin board and the bathroom (The Other Robin)
     { const d = W.spots.schoolDoor; if(d) thing(d[0], d[1], 0, 'Go in', ()=>schoolDoor(), { icon:'🏫', r:2.4, when:()=>day() && S.step === 'school' }); }
+    if(W.school){ const sp = W.school.spots;
+      thing(sp.board[0], sp.board[1], 0, 'Read the bulletin board', ()=>readStart(), { icon:'📌', r:1.6, when:()=>inSchool && TSHSCHOOL.on && !mode });
+      thing(sp.bathroom[0], sp.bathroom[1], 0, 'Hide in the bathroom', ()=>wcEnter(), { icon:'🚻', r:1.6, when:()=>inSchool && TSHSCHOOL.on && !mode }); }
     // ladders, both ends
     W.ladders.forEach(l=>{
       thing(l.bottom[0], l.bottom[1], l.y0, 'Climb up', ()=>climb(l, true), { icon:'🪜', r:1.5 });
@@ -1064,7 +1073,8 @@ window.TSH = (function(){
     if(f.done) f.done(skipped);
   }
   function skipReel(){ if(reel) reelEnd(true); }
-  function showInside(v){ W.aptGroup.visible = !!v; W.cityGroup.visible = !v; }
+  function showInside(v){ W.aptGroup.visible = !!v && !inSchool; W.cityGroup.visible = !v; if(W.school) W.school.group.visible = !!v && inSchool; }
+  let inSchool = false;                                  // inside, and the inside is the school, not the flat
 
   /* ROBIN WHERE THE SHOT NEEDS HER: a clip, a place, a heading (and a tilt) */
   let staged = null;
@@ -1762,14 +1772,15 @@ window.TSH = (function(){
     wfc:    { walk:1.35, run:5.7, eye:{ range:24, fov:0.95, near:3.5, gain:1.3 } },
     kai:    { walk:1.45, run:6.4, eye:{ range:22, fov:1.0, near:3.5, gain:1.4 } },
     maya:   { walk:1.1,  run:4.0, eye:{ range:14, fov:1.2, near:4.0, gain:1.2 } },
-    vendor: { walk:1.1,  run:5.3, eye:{ range:10, fov:1.0, near:2.0, gain:0.6 } }
+    vendor: { walk:1.1,  run:5.3, eye:{ range:10, fov:1.0, near:2.0, gain:0.6 } },
+    school: { walk:1.15, run:4.0, eye:{ range:9, fov:1.2, near:2.0, gain:0 } }     // the school's people (tshschool.js moves them; nobody there is looking for YU)
   };
   /* MAYA, as she dresses: her body is the base layer; each of these is its own garment and comes off */
   const MAYA_LOOK = { top:'red-turtleneck', bottom:'navy-trousers', shoes:'black-boots', outer:'lab-coat', face:'round-glasses' };
   function spawn(kind, char, x, z, o){
     o = o||{};
     if(char === 'maya' && !o.wear) o.wear = MAYA_LOOK;
-    const g = new THREE.Group(); (o.inApt ? W.aptGroup : W.cityGroup).add(g);
+    const g = new THREE.Group(); (o.group || (o.inApt ? W.aptGroup : W.cityGroup)).add(g);
     const y = o.y !== undefined ? o.y : groundAt(x, z, 1);
     const n = { kind, char, g, model:null, x, y, z, yaw:o.yaw||0, state:o.state||'idle', aware:0, band:'unaware', sees:false,
                 lastSeen:null, stun:0, path:null, pi:0, goal:null, route:o.route||null, ri:0, wait:0, film:null, flee:0,
@@ -1900,7 +1911,7 @@ window.TSH = (function(){
     return 0;
   }
   function perceive(n, dt){
-    if(n.kind === 'civ' && !n.film) { n.sees = false; return; }
+    if((n.kind === 'civ' && !n.film) || n.kind === 'school') { n.sees = false; return; }
     if(n.stun > 0 || n.climb){ n.sees = false; n.aware = Math.max(0, n.aware - 0.2*dt); return; }
     const p = P();
     if(me.hidden || mode === 'talk' || mode === 'fight' || mode === 'reel' || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
@@ -2140,6 +2151,7 @@ window.TSH = (function(){
     else if(n.kind === 'kai') tickKai(n, dt);
     else if(n.kind === 'maya') tickMaya(n, dt);
     else if(n.kind === 'vendor') tickVendor(n, dt);
+    else if(n.kind === 'school' && window.TSHSCHOOL) TSHSCHOOL.tickPerson(n, dt);
     n.g.position.set(n.x, n.y, n.z); n.g.rotation.y = n.yaw;
     const far = Math.hypot(n.x - G.camera.position.x, n.z - G.camera.position.z);
     n.g.visible = !n.hidden && n.inApt === inside && far < 95;
@@ -2495,6 +2507,7 @@ window.TSH = (function(){
       case 'out': { const r = nearestHigh(); return r ? [r[0], r[1], r[2] + 1, 'High ground'] : null; }
       case 'commute': { const o = s.schoolOverlook; return [o[0], o[1], o[2] + 1.2, 'School'] ; }
       case 'school': { const d = s.schoolDoor; return [d[0], d[1], 2.6, 'Harbor Lane High']; }
+      case 'sneak': { const r = W.school && W.school.spots.room114; return r ? [r[0], r[1], 2.4, 'Room 114'] : null; }
     }
     return null;
   }
@@ -3518,12 +3531,134 @@ window.TSH = (function(){
       lockPointer($('#view'));
     }, { ownClock:true });
   }
-  /* the school doors (the inside is the next thing built) */
+  /* ============================================== HARBOR LANE HIGH (tshschool.js)
+     Through the revolving doors: the guard ("Morning, Robin." "Long night?"), and across the lobby, her
+     teacher. "...Nope." Then the sneak — up the hall to 114 without being seen — and however it goes,
+     "Robin." */
   function schoolDoor(){
-    if(S.step !== 'school' || mode) return;
-    if(window.TSHSCHOOL && TSHSCHOOL.enter) return TSHSCHOOL.enter();
-    note('🏫 Harbor Lane High. (The school itself is coming in the next update.)');
+    if(S.step !== 'school' || mode || !W.school) return;
+    fade(()=>{ intoSchool(); scene('lobby', lobbyScene); });
   }
+  function intoSchool(){
+    inside = true; inSchool = true; showInside(true);
+    G.ceiling = ()=>W.school.H; G.scene.fog.density = 0.002; G.scene.background = new THREE.Color(0xe6ece8);
+    muffle(true); lightT = 0;
+    if(window.BOOTS && BOOTS.B) BOOTS.B.ground = true;
+    if(!W.school.people.length) TSHSCHOOL.populate((kind, char, x, z, o)=>spawn(kind, char, x, z, o));
+    const i = W.school.spots.inside; placePlayer(i[0], i[1], 0);
+    el.classList.add('school');
+  }
+  function lobbyScene(){
+    const sc = W.school, X = sc.X, sp = sc.spots, guard = sc.guard, teacher = sc.teacher;
+    const door = [sp.door[0], 15.2], in_ = [X(0.6), 12.2], stop = [X(0.3), 10.0], north = Math.PI;
+    teacher.x = X(2); teacher.z = 4.8; teacher.yaw = Math.PI; teacher.hold = true; guard.hold = true;
+    const faceT = angTo(stop[0], stop[1], teacher.x, teacher.z);
+    const shots = [
+      // in through the revolving door, out of the sun
+      { dur:2.4, fov:46, inside:true, cam:[X(4.2), 1.7, 9.5], look:[X(1), 1.3, 13.8],
+        enter:()=>{ caption('INT. HARBOR LANE HIGH — 9:01 AM'); cue('door'); },
+        tick:(dt, t, k)=>walkStage(door, in_, k) },
+      // past the desk: "Morning, Robin." "Morning." "Long night?" — a half-second stop — "You could say that."
+      { dur:linesLen('lobby') + 0.6, fov:44, cam:[X(4.2), 1.9, 12.4], look:k=>{ const b = AVATAR.body; return b ? [b.position.x - 1.6, 1.4, b.position.z - 0.4] : [X(-2), 1.4, 10]; },
+        enter:()=>{ talk('lobby'); guard.yaw = angTo(guard.x, guard.z, in_[0], in_[1]); },
+        tick:(dt, t, k)=>{ const ln = linesLen('lobby'), a = (linesLen('lobby') - 3.2)/ln;
+          if(t < ln*0.55) walkStage(in_, stop, Math.min(1, t/(ln*0.55)));
+          else stage('idle', stop[0], 0, stop[1], north);
+          const b = AVATAR.body; if(b) guard.yaw += angDiff(angTo(guard.x, guard.z, b.position.x, b.position.z), guard.yaw)*Math.min(1, dt*3); } },
+      // the guard watches her go
+      { dur:1.8, fov:34, cam:[X(-1.8), 1.7, 11.6], look:[X(-5.3), 1.55, 9.6],
+        enter:()=>{ stage('idle', stop[0], 0, stop[1], north); guard.yaw = angTo(guard.x, guard.z, stop[0], stop[1]); } },
+      // she looks up, across the lobby
+      { dur:1.6, fov:30, mood:'tired', cam:rel(stop[0], stop[1], faceT, -0.6, 0.35, 1.68), look:[teacher.x, 1.55, teacher.z] },
+      // and her teacher sees her
+      { dur:1.6, fov:26, cam:rel(teacher.x, teacher.z, faceT + Math.PI, 2.2, 0.2, 1.6), look:[teacher.x, 1.6, teacher.z],
+        enter:()=>{ teacher.yaw = Math.PI; },
+        tick:(dt, t)=>{ if(t > 0.5) teacher.yaw += angDiff(faceT + Math.PI, teacher.yaw)*Math.min(1, dt*6); } },
+      // "...Nope." — straight round
+      { dur:linesLen('nope') + 0.9, fov:36, mood:'nervous', cam:rel(stop[0], stop[1], faceT + Math.PI, 1.6, 0.3, 1.6), look:[stop[0], 1.45, stop[1]],
+        enter:()=>{ stage('idle', stop[0], 0, stop[1], faceT); talk('nope'); },
+        tick:(dt, t)=>{ const k = clamp((t - 0.25)/0.35, 0, 1); stage('idle', stop[0], 0, stop[1], faceT + Math.PI*k); } }
+    ];
+    playReel(shots, ()=>{
+      staged = null; reel = null;
+      if(window.AVATAR) AVATAR.posture(null);
+      placePlayer(stop[0], stop[1] + 0.4, faceT);                       // her back to her teacher
+      teacher.hold = false; guard.hold = false; guard.yaw = Math.PI*0.75;
+      outcome('spotted');                                                // → sneak
+      sneakBegin();
+      lockPointer($('#view'));
+    }, { ownClock:true });
+  }
+  function sneakBegin(){
+    TSHSCHOOL.sneakStart({ player:()=>({ x:G.pos.x, z:G.pos.z }), los, cue, note, onCaught:caughtScene });
+    seenBar(true);
+    checkpoint();
+  }
+  // E at the bulletin board: read it, facing it, with your back to the hall
+  function readStart(){
+    if(mode || !TSHSCHOOL.on) return;
+    const b = W.school.spots.board;
+    mode = 'read'; G.running = false; G.vel.set(0, 0, 0);
+    stage('idle', b[0], 0, b[1], -Math.PI/2); applyStage();
+    TSHSCHOOL.board(true); cue('ui');
+    note('📌 Very interested in the Robotics Club. (Any key to stop.)');
+  }
+  function readStop(){ staged = null; if(window.AVATAR) AVATAR.posture(null); TSHSCHOOL.board(false); mode = null; G.running = true; }
+  // E at the bathroom door: in, and wait it out
+  function wcEnter(){
+    if(mode || !TSHSCHOOL.on) return;
+    fade(()=>{ mode = 'wc'; G.running = false; if(AVATAR.body) AVATAR.body.visible = false; TSHSCHOOL.bathroom(); cue('door'); note('🚻 Give it a minute.'); });
+  }
+  /* "Robin." However it went. She freezes, turns round: "Yes?" "My classroom. Now." "That's fair." */
+  function caughtScene(how){
+    seenBar(false);
+    const go = ()=>{
+      if(mode === 'read') readStop();
+      if(AVATAR.body) AVATAR.body.visible = true;
+      const sc = W.school, t = sc.teacher, sp = sc.spots;
+      const at = how === 'bathroom' ? [sp.bathroom[0] + 0.9, sp.bathroom[1]] : [G.pos.x, G.pos.z];
+      const away = how === 'bathroom' ? Math.PI/2 : angTo(t.x, t.z, at[0], at[1]);           // her back to her teacher
+      const toT = angTo(at[0], at[1], t.x, t.z), side = angTo(t.x, t.z, at[0], at[1]);
+      const mid = [(t.x + at[0])/2, (t.z + at[1])/2], two = freeCam(mid, side, 3.0, 1.6);
+      scene('caught', ()=>{});
+      const shots = [
+        // over her teacher's shoulder: "Robin."
+        { dur:linesLen('caught') + 0.7, fov:38, inside:true, cam:rel(t.x, t.z, side, -1.1, 0.45, 1.75), look:[at[0], 1.35, at[1]],
+          enter:()=>{ stage('idle', at[0], 0, at[1], away); talk('caught'); cue('sus'); } },
+        // she freezes. Turns round.
+        { dur:1.5, fov:34, mood:'nervous', cam:rel(at[0], at[1], toT, 1.3, -0.25, 1.6), look:[at[0], 1.5, at[1]],
+          tick:(dt, tt)=>{ const k = clamp((tt - 0.55)/0.5, 0, 1); stage('idle', at[0], 0, at[1], away + angDiff(toT, away)*k); } },
+        // "Yes?" "My classroom. Now." "That's fair."
+        { dur:linesLen('caught2') + 1.0, fov:Math.min(72, 40/two.k), mood:'sheepish', cam:two, look:[mid[0], 1.45, mid[1]],
+          enter:()=>{ stage('idle', at[0], 0, at[1], toT); talk('caught2'); } }
+      ];
+      playReel(shots, ()=>{ staged = null; reel = null; if(window.AVATAR) AVATAR.posture(null);
+        outcome('caught');                                                    // → detention
+        fade(()=>detention()); }, { ownClock:true });
+    };
+    if(how === 'bathroom') fade(go); else go();
+  }
+  /* a camera to one side of two people: whichever side is not inside a desk, a wall or a locker */
+  function freeCam(mid, along, d, y){
+    const solidAt = (x, z) => G.solids.some(s=>!s.off && x > s.x1 - 0.25 && x < s.x2 + 0.25 && z > s.z1 - 0.25 && z < s.z2 + 0.25 && y < s.y2 && y > s.y1);
+    for(const k of [1, 0.75, 0.5]) for(const sg of [1, -1]){ const c = rel(mid[0], mid[1], along + sg*Math.PI/2, d*k, 0, y);
+      let ok = !solidAt(c[0], c[2]); for(let j = 1; ok && j < 8; j++){ const f = j/8; ok = !solidAt(lerp(c[0], mid[0], f), lerp(c[2], mid[1], f)); } if(ok){ c.k = k; return c; } }
+    const c = rel(mid[0], mid[1], along + Math.PI/2, d*0.4, 0, y); c.k = 0.4; return c;
+  }
+  // the hud: how close her teacher is to seeing her
+  function seenBar(v){ const b = el && el.querySelector('#tshSeen'); if(b) b.classList.toggle('hidden', !v); }
+  function tickSeenBar(){ const b = el && el.querySelector('#tshSeen i'); if(b && window.TSHSCHOOL) b.style.width = Math.round(TSHSCHOOL.meter()*100) + '%'; }
+  /* DETENTION (Room 120): the films and the puzzles are tshpuzzle.js's and the next part of this */
+  function detention(){
+    const sc = W.school, s = sc.spots;
+    placePlayer(s.seat[0], s.seat[1], Math.PI);
+    sc.teacher.x = s.teacherDesk[0]; sc.teacher.z = s.teacherDesk[1]; sc.teacher.hold = true;
+    if(window.TSHPUZZLE && detentionScene) return detentionScene();
+    setObjective('Detention.', []);
+    note('📚 Detention. (The robot is coming in the next update.)');
+  }
+  let detentionScene = null;
+
   function dayPopulate(){
     clearNpcs();
     placeScooters();
@@ -4253,6 +4388,7 @@ window.TSH = (function(){
   function flushTalk(){ const q = talkQ; talkQ = []; vstop(); q.forEach(x=>{ if(x.done) x.done(); }); subtitle(null); }
   function skipLine(){ const q = talkQ[0]; if(q){ q.t = 0; q.go = true; } }
   function speakerNpc(who){
+    if((who === 'guard' || who === 'teacher') && W.school){ const n = who === 'guard' ? W.school.guard : W.school.teacher; return n && !n.gone ? n : null; }
     const k = who === 'kai' ? (inside ? apt.kai : find('kai') || find('kaiRoof')) : who === 'maya' ? (inside ? apt.maya : find('maya')) : null;
     return k && !k.gone ? k : null;
   }
@@ -4561,6 +4697,7 @@ window.TSH = (function(){
         <div class="tsh-layer" id="tshLayer"></div>
         <div class="tsh-notes" id="tshNotes"></div>
         <div class="tsh-scan hidden" id="tshScan"><span>SCANNING</span><div><i></i></div></div>
+        <div class="tsh-seen hidden" id="tshSeen"><span>👀 YOUR TEACHER</span><div><i></i></div></div>
         <div class="tsh-grab hidden" id="tshGrab"></div>
         <div class="tsh-phone hidden" id="tshPhone"></div>
         <div class="tsh-black" id="tshBlack"></div>
@@ -4790,7 +4927,7 @@ window.TSH = (function(){
     zoneT -= dt; if(zoneT > 0) return; zoneT = 0.5;
     if(mode === 'cut' || mode === 'reel' || mode === 'fight') return;           // a film has its own captions
     const a = W.zones.alley, y = feet();
-    const z = inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT' : S.step === 'raid' && !inAlley() ? 'EXT. NEON AVENUE — NIGHT'
+    const z = inSchool ? 'INT. HARBOR LANE HIGH — NIGHT' : inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT' : S.step === 'raid' && !inAlley() ? 'EXT. NEON AVENUE — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
     caption(day() ? z.replace('NIGHT', 'MORNING') : z);
   }
@@ -4940,6 +5077,7 @@ window.TSH = (function(){
       case 'scale': tickScale(dt); break;
       case 'ride': tickRide(dt); break;
       case 'hide': tickHide(); break;
+      case 'read': case 'wc': if(staged) applyStage(); if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
       case 'grab': tickGrab(dt); break;
       case 'chair': tickChair(dt); break;
       case 'end': if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
@@ -4958,6 +5096,7 @@ window.TSH = (function(){
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
     lessonTick();
     tickDay(dt);
+    if(inSchool && window.TSHSCHOOL){ TSHSCHOOL.tickSneak(dt); tickSeenBar(); }
     if(W.room && W.room.eq && inside && scoring()) W.room.eq.forEach((b, i)=>{ b.scale.y = 0.4 + Math.abs(Math.sin(clock*(6 + i*1.7) + i))*2.2; });   // the speaker's lights, with the music
     if(window.BOOTS && BOOTS.active) BOOTS.show(!mode && !inside && !busy);
   }
@@ -4998,6 +5137,9 @@ window.TSH = (function(){
     if(S.step === 'raid' && window.TSHCHASE && TSHCHASE.on && TSHCHASE.key(e)) return true;
     if(mode === 'act') return true;
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
+    if(mode === 'read'){ if(['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) readStop(); return true; }
+    if(mode === 'wc') return true;
+    if(day() && (['KeyF', 'KeyJ', 'KeyQ'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
     if(mode === 'scale'){

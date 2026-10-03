@@ -96,6 +96,8 @@ window.WARDROBE = (function(){
                       about:'White, open, a pen in the pocket and a patch over the heart.' },
     'round-glasses':{ name:'Round glasses', slot:'face', kind:'accessory', model:'glasses', fit:'eyes', tune:{ along:0.36, fwd:0.056, size:0.11 },
                       about:'Thin wire rims, big and round, clear lenses.' },
+    'teacher-glasses':{ name:'Reading glasses', slot:'face', kind:'accessory', model:'glasses', fit:'eyes', tune:{ along:0.4, fwd:0.1, size:0.125 },
+                      about:'The round glasses, set for a longer face: Robin\'s teacher (TSH).' },
     'shades':       { name:'Sunglasses', slot:'face', kind:'accessory', model:'shades', fit:'eyes', tune:{ along:0.47, fwd:0.05, size:0.15 },
                       about:'Round, black, polarised and IR-cut: a camera gets glare, not a face.' }
   };

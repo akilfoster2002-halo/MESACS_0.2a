@@ -2928,3 +2928,8 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh.cine .tsh-lesson{opacity:0}
 /* TSH, the morning after: no heat, no exposure, no gadget bar — it is a school day */
 #tsh.day .tsh-heat,#tsh.day .tsh-expo,#tsh.day .tsh-gad,#tsh.day .tsh-cash{display:none}
+/* in school: no map of the district; the teacher meter */
+#tsh.school .tsh-radar{display:none}
+#tsh .tsh-seen{position:absolute;left:50%;top:86px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:999px;background:rgba(10,14,16,.6);font:700 12px var(--font-disp);letter-spacing:.12em;color:#ffe08a}
+#tsh .tsh-seen div{width:160px;height:7px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+#tsh .tsh-seen i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd060,#ff5a3a);transition:width .1s}

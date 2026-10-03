@@ -624,3 +624,24 @@ test('The Other Robin: the morning after — late, over the roofs in daylight, t
   has(c, /HARBOR LANE HIGH SCHOOL/, 'and its name over it');
   has(t, /scene\('overlook', overlookScene\)/, 'and from the roof across the lane: 8:57');
 });
+
+test('The Other Robin: Harbor Lane High — the guard, her teacher across the lobby, and a sneak that ends in "Robin."', () => {
+  const t = read('public/tsh.js'), sc = read('public/tshschool.js'), i = read('public/index.html'), w = read('public/wardrobe.js');
+  assert.ok(i.indexOf('tshschool.js') > 0 && i.indexOf('tshschool.js') < i.indexOf('src="tsh.js'), 'the school loads before TSH');
+  has(t, /W\.school = window\.TSHSCHOOL \? TSHSCHOOL\.build\(root, W\) : null;[\s\S]{0,120}W\.solids\.forEach/, 'built with the district, its walls solid');
+  has(sc, /const SX = 400/, 'off the map, like the flat');
+  // the lobby: the guard, the teacher, "...Nope."
+  const L = t.slice(t.indexOf('  function lobbyScene('), t.indexOf('  function sneakBegin('));
+  ["talk('lobby')", "talk('nope')", "outcome('spotted')", 'sneakBegin()'].forEach(b => assert.ok(L.includes(b), 'the lobby has ' + b));
+  has(sc, /S\.guard = add\('mechanic'/, 'the guard is a body from the cast');
+  has(sc, /S\.teacher = add\('sable'[\s\S]{0,120}teacher-glasses/, 'and so is her teacher, in her glasses');
+  has(w, /'teacher-glasses':\{[^}]*fit:'eyes'/, 'glasses set for the teacher\'s face');
+  // the sneak: a cone she can see down, walls and students in the way, the board, the bathroom — and caught, whatever happens
+  has(sc, /function sees\(px, pz\)\{[\s\S]{0,700}K\.los[\s\S]{0,500}< 0\.42\) return 0;/, 'walls and a student between them hide her');
+  has(sc, /if\(sn\.board\)\{ k \*= /, 'reading the board is a back like anybody\'s');
+  has(sc, /return caught\('bathroom', out\)/, 'out of the bathroom, and she is right there');
+  has(sc, /if\(d114 < 1\.3\) return caught\('door'\)/, 'and at 114, she is right behind you');
+  has(sc, /if\(sn\.meter >= 1\) return caught\('seen'\)/, 'or she just sees you');
+  const C = t.slice(t.indexOf('  function caughtScene('), t.indexOf('  function freeCam('));
+  ["talk('caught')", "talk('caught2')", "outcome('caught')"].forEach(b => assert.ok(C.includes(b), 'caught has ' + b));
+});
