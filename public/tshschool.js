@@ -138,7 +138,10 @@ window.TSHSCHOOL = (function(){
     const panelM = glowM(0xfffaf0, 1.4), lockA = std({ map:lockerTex('#2f5f9a'), roughness:0.45, metalness:0.4 }), lockB = std({ map:lockerTex('#c9cdd2'), roughness:0.4, metalness:0.5 });
     const box = (m, x, y, z, w, h, d, o) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); if(o && o.ry) b.rotation.y = o.ry; if(o && o.rz) b.rotation.z = o.rz; if(o && o.rx) b.rotation.x = o.rx; b.castShadow = !!(o && o.shadow); b.receiveShadow = true; g.add(b); return b; };
     const plane = (m, x, y, z, w, h, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.y = ry || 0; g.add(p); return p; };
-    const solid = (x1, x2, z1, z2, y2) => { const s = { x1, x2, z1, z2, y1:-1, y2:y2 === undefined ? 60 : y2, tag:'school' }; solids.push(s); return s; };
+    const solid = (x1, x2, z1, z2, y2, y1) => { const s = { x1, x2, z1, z2, y1:y1 === undefined ? -1 : y1, y2:y2 === undefined ? 60 : y2, tag:'school' }; solids.push(s); return s; };
+    const floorAt = (x1, x2, z1, z2, top) => plats.push({ x1, x2, z1, z2, top, tag:'school' });
+    // a glass rail she cannot walk through, at the level it guards
+    const rail = (x1, x2, z1, z2, y) => solid(x1, x2, z1, z2, y + 1.15, y - 0.3);
     // a wall: white plaster over a concrete base, a dark skirting; solid all the way up
     const wall = (x1, x2, z1, z2, h) => { const cx = (x1 + x2)/2, cz = (z1 + z2)/2, w = x2 - x1, d = z2 - z1;
       box(white, cx, (h + 1.2)/2, cz, w, h - 1.2, d); box(conc, cx, 0.6, cz, w + 0.01, 1.2, d + 0.01); box(trimM, cx, 0.05, cz, w + 0.02, 0.1, d + 0.02); solid(x1, x2, z1, z2); };
@@ -159,7 +162,7 @@ window.TSHSCHOOL = (function(){
     const A = ROOMS.atrium;
     wall(X(-10) - T, X(-10), -6 - T, 16 + T, A); wall(X(14), X(14) + T, -6 - T, 16 + T, A);
     wall(X(-10), X(-1), -6 - T, -6, A); wall(X(5), X(14), -6 - T, -6, A);
-    box(white, X(2), (ROOMS.hall + A)/2, -6 - T/2, 6, A - ROOMS.hall, T);                      // over the hall's mouth
+    box(white, X(2), (ROOMS.hall + A)/2, -6 - T/2, 6, A - ROOMS.hall, T); solid(X(-1), X(5), -6 - T, -6, A, ROOMS.hall);   // over the hall's mouth
     box(glass, X(2), A/2, 16.1, 24, A, 0.06); solid(X(-10), X(14), 16, 16 + T);
     plane(glowM(0xe4eef6, 0.5), X(2), A/2, 16.45, 24, A, Math.PI);                            // the street's daylight beyond it
     for(let k = -10; k <= 14; k += 2) box(dark, X(k), A/2, 16.06, 0.1, A, 0.14);
@@ -181,6 +184,9 @@ window.TSHSCHOOL = (function(){
     /* ---- the galleries: three floors looking down into the atrium, along its north and west walls */
     [5.5, 11, 16.5].forEach((y, fl)=>{
       box(conc, X(2), y, -4.5, 24, 0.45, 3); box(conc, X(-8.5), y, 6.5, 3, 0.45, 21);                    // the slabs
+      floorAt(X(-10), X(14), -6, -3, y + 0.225); floorAt(X(-10), X(-7), -3, 16, y + 0.225);              // and you can walk them
+      solid(X(-10), X(14), -6, -3, y + 0.225, y - 0.25); solid(X(-10), X(-7), -3, 16, y + 0.225, y - 0.25);   // (and the camera cannot sit inside them)
+      rail(X(-7), X(9), -3.05, -2.95, y + 0.225); rail(X(-7.05), X(-6.95), -3, fl === 1 ? 13.6 : 16, y + 0.225);   // (the second floor's opens onto the sky bridge)
       box(white, X(2), y - 0.35, -3.0, 24, 0.3, 0.1); box(white, X(-7.0), y - 0.35, 6.5, 0.1, 0.3, 21);   // their edges
       box(glass, X(2.2), y + 0.75, -3.0, 21.6, 1.1, 0.04); box(glass, X(-7.0), y + 0.75, 6.8, 0.04, 1.1, 18.4);   // glass rails
       box(steel, X(2.2), y + 1.3, -3.0, 21.6, 0.05, 0.06); box(steel, X(-7.0), y + 1.3, 6.8, 0.06, 0.05, 18.4);
@@ -191,21 +197,32 @@ window.TSHSCHOOL = (function(){
       lamp(X(2), y - 0.25, -4.5, 2.5, 9, 3); lamp(X(-8.5), y - 0.25, 6.5, 2.5, 9, 3);
     });
 
-    /* ---- the grand stair, a flight at a time up the east side (stacked, the way Cooper Union's climbs) */
+    /* ---- the grand stair, a flight at a time up the east side (stacked, the way Cooper Union's climbs). You can
+       climb it: every tread is a step to stand on (and, under it, a block, so the stair is walked up from its foot,
+       not into from the side); the landings and the galleries are floors; a sky bridge along the glass crosses the
+       atrium on the second floor, to the west gallery. */
     const flight = (x1, x2, zA, zB, yA, yB) => { const n = Math.round((yB - yA)/0.18), dz = (zB - zA)/n, dy = (yB - yA)/n, cx = (x1 + x2)/2;
-      for(let i = 0; i < n; i++) box(i % 2 ? conc : white, cx, yA + dy*(i + 0.5), zA + dz*(i + 0.5), x2 - x1, Math.abs(dy) + 0.02, Math.abs(dz) + 0.01);
+      for(let i = 0; i < n; i++){ const top = yA + dy*(i + 1), z0 = zA + dz*i, z1 = zA + dz*(i + 1);
+        box(i % 2 ? conc : white, cx, top - Math.abs(dy)/2, (z0 + z1)/2, x2 - x1, Math.abs(dy) + 0.02, Math.abs(dz) + 0.01);
+        floorAt(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top); solid(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top, yA > 0.5 ? top - 0.45 : -1); }
       const len = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA), mid = [(zA + zB)/2, (yA + yB)/2];
-      [x1 - 0.08, x2 + 0.08].forEach(xs=>{ const s = box(white, xs, mid[1] - 0.25, mid[0], 0.16, 0.9, len); s.rotation.x = -ang;
+      [x1 - 0.08, x2 + 0.08].forEach(xs=>{ const s_ = box(white, xs, mid[1] - 0.25, mid[0], 0.16, 0.9, len); s_.rotation.x = -ang;
         const r = box(glass, xs, mid[1] + 0.75, mid[0], 0.03, 1.0, len); r.rotation.x = -ang;
         const h = box(steel, xs, mid[1] + 1.25, mid[0], 0.05, 0.05, len); h.rotation.x = -ang; }); };
-    flight(X(9), X(12), 13, 1, 0, 5.5);                         // up from the lobby, north, to the first gallery
-    box(conc, X(11), 5.5, -1, 6, 0.45, 4);                       // its landing, joining the gallery
-    flight(X(11.4), X(13.8), -2.5, 9.5, 5.5, 11);                // back south, a floor up
-    box(conc, X(11.5), 11, 11.5, 5, 0.45, 4);
-    flight(X(9), X(12), 13, 1, 11, 16.5);                        // and north again, under the skylight
-    solid(X(8.7), X(14), 1, 14);
+    const landing = (x1, x2, z1, z2, y) => { box(conc, (x1 + x2)/2, y - 0.2, (z1 + z2)/2, x2 - x1, 0.45, z2 - z1); floorAt(x1, x2, z1, z2, y); solid(x1, x2, z1, z2, y, y - 0.45); };
+    flight(X(9), X(11.6), 13, 1, 0, 5.5);                       // up from the lobby, north, to the first gallery
+    landing(X(9), X(14), -3, 1, 5.725);
+    flight(X(11.6), X(14), -2.5, 9.5, 5.725, 11.225);           // back south, a floor up
+    landing(X(9), X(14), 9.5, 13.6, 11.225);
+    flight(X(9), X(11.6), 13, 1.2, 11.225, 16.725);             // and north again, under the skylight
+    landing(X(9), X(14), -3, 1.2, 16.725);
+    rail(X(8.95), X(9.05), -3, 1, 5.725); rail(X(8.95), X(9.05), 9.5, 13.6, 11.225); rail(X(8.95), X(9.05), -3, 1.2, 16.725);
+    // the sky bridge, second floor, along the glass: from the stair's landing to the west gallery
+    box(conc, X(1), 11.0, 14.8, 16, 0.45, 2.4); floorAt(X(-7), X(9), 13.6, 16, 11.225);
+    box(glass, X(1), 11.95, 13.6, 16, 1.1, 0.04); box(steel, X(1), 12.5, 13.6, 16, 0.05, 0.06); rail(X(-7), X(9), 13.55, 13.65, 11.225);
+    spots.landing1 = [X(11.5), -1];
     /* ---- the lattice: a white net of diagonal ribs, curving up round the stair from above head height to the roof */
-    { const ribs = [], U = 26, Vn = 30, surf = (u, v) => { const z = 15 - u*20, x = 7.6 - Math.sin(u*Math.PI)*2.6 + Math.sin(v*Math.PI)*0.9, y = 3.4 + v*(A - 4.2); return new V3(X(x), y, z); };
+    { const ribs = [], U = 26, Vn = 30, surf = (u, v) => { const z = 12.6 - u*15, x = 7.6 - Math.sin(u*Math.PI)*2.6 + Math.sin(v*Math.PI)*0.9, y = 3.4 + v*(A - 4.2); return new V3(X(x), y, z); };
       for(let k = -Vn; k <= U + Vn; k += 1.2) for(const sgn of [1, -1]){ let prev = null;
         for(let j = 0; j <= Vn; j++){ const v = j/Vn, u = (k + sgn*j)/U; if(u < 0 || u > 1){ prev = null; continue; }
           const p = surf(u, v); if(prev) ribs.push([prev, p]); prev = p; } }
@@ -381,8 +398,9 @@ window.TSHSCHOOL = (function(){
   const angD = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   /* her eyes: a cone 70° wide and nine metres long, walls in the way, a student in the way */
   const CONE = { half:0.62, range:9 };
-  function sees(px, pz){
+  function sees(px, pz, py){
     const t = S.teacher; if(!t) return 0;
+    if(py > 2.5) return 0;                               // up on a gallery: out of her eyeline
     const dx = px - t.x, dz = pz - t.z, d = Math.hypot(dx, dz);
     if(d > CONE.range) return 0;
     if(Math.abs(angD(Math.atan2(dx, dz), t.yaw)) > CONE.half && d > 1.2) return 0;
@@ -405,7 +423,7 @@ window.TSHSCHOOL = (function(){
   function sneakStart(hooks){
     K = hooks;
     const t = S.teacher; t.ri = 1; t.wait = 0.6; t.hold = false;
-    sn = { meter:0, hidden:null, board:false, done:false, cone:coneMesh() };
+    sn = { meter:0, hidden:null, board:false, done:false, cone:coneMesh(), t:0, pa:false };
     S.group.add(sn.cone);
   }
   function sneakStop(){ if(sn && sn.cone.parent) sn.cone.parent.remove(sn.cone); sn = null; }
@@ -420,15 +438,27 @@ window.TSHSCHOOL = (function(){
       if(sn.hidden.t <= 0){ const out = sn.hidden; sn.hidden = null; return caught('bathroom', out); }
       return;
     }
-    let k = sees(p.x, p.z);
+    sn.t += dt;
+    // exploring long enough, or off where she cannot follow: the PA calls her in
+    if(!sn.pa && sn.t > PA_AFTER) return pa();
+    if(sn.pa) return;                                    // the PA's film is playing; it ends at Room 120
+    let k = sees(p.x, p.z, p.y || 0);
     if(sn.board){ k *= Math.hypot(p.x - t.x, p.z - t.z) < 2.4 ? 1.4 : 0.2; }   // reading the board: a back like anybody's — until she is right behind you
     if(k > 0){ sn.meter = Math.min(1, sn.meter + k*dt*0.55); if(!sn.warned && sn.meter > 0.35){ sn.warned = true; K.cue('sus'); } }
     else sn.meter = Math.max(0, sn.meter - dt*0.25);
     sn.cone.material.color.setRGB(1, 0.82 - sn.meter*0.6, 0.38 - sn.meter*0.3); sn.cone.material.opacity = 0.16 + sn.meter*0.2;
     if(sn.meter >= 1) return caught('seen');
-    // made it to 114: and she is right behind you
+    // made it to 114: if she is right behind you, that is that; if she is nowhere near, the PA has your name
     const d114 = Math.hypot(p.x - S.spots.room114[0], p.z - S.spots.room114[1]);
-    if(d114 < 1.3) return caught('door');
+    if(d114 < 1.3 && !sn.pa){ const near = Math.hypot(p.x - t.x, p.z - t.z) < 9 && K.los && K.los(t.x, 1.6, t.z, p.x, 1.3, p.z); return near ? caught('door') : pa(); }
+  }
+  /* THE PA: three notes, and her name. A film (tsh.js): she hears it — and then Room 120's doorway, her
+     teacher waiting in it. */
+  const PA_AFTER = 150;
+  function pa(){
+    if(!sn || sn.pa) return;
+    sn.pa = true; sn.meter = 0;
+    if(K.onPA) K.onPA(()=>caught('pa')); else caught('pa');
   }
   function caught(how, o){
     if(!sn || sn.done) return;
@@ -438,6 +468,7 @@ window.TSHSCHOOL = (function(){
     // wherever it was, she is a couple of steps behind Robin when Robin turns round
     if(how === 'bathroom'){ t.x = S.spots.bathroom[0] + 2.2; t.z = S.spots.bathroom[1] + 0.4; }
     else if(how === 'door'){ t.x = p.x - 2.0; t.z = p.z + 0.3; }
+    else if(how === 'pa'){ t.x = S.spots.room120In[0]; t.z = S.spots.room120In[1] - 0.4; }
     t.yaw = Math.atan2(p.x - t.x, p.z - t.z); t.hold = true;
     K.onCaught(how);
   }
@@ -446,6 +477,6 @@ window.TSHSCHOOL = (function(){
   function bathroom(){ if(!sn || sn.hidden) return false; sn.hidden = { t:4.5 }; return true; }
   function meter(){ return sn ? sn.meter : 0; }
 
-  return { build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot,
+  return { build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot, 
            get S(){ return S; }, get on(){ return !!sn && !sn.done; }, get hiding(){ return !!(sn && sn.hidden); }, get reading(){ return !!(sn && sn.board); }, SX, H };
 })();

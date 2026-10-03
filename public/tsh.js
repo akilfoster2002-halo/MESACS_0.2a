@@ -205,6 +205,7 @@ window.TSH = (function(){
     lobby:     [['guard','Morning, Robin.'], ['robin','Morning.'], ['guard','Long night?'], ['robin','You could say that.']],
     nope:      [['robin','...Nope.']],
     caught:    [['teacher','Robin.']],
+    pa:        [['pa','Robin, please report to Room 120. Robin, Room 120.']],
     caught2:   [['robin','Yes?'], ['teacher','My classroom. Now.'], ['robin','That\'s fair.']],
     /* detention, and the robot */
     where:     [['teacher','Where is it?']],
@@ -223,7 +224,7 @@ window.TSH = (function(){
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
-                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'] };
+                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -342,6 +343,11 @@ window.TSH = (function(){
       const burst = (dur, f, vol, q) => { const s = a.createBufferSource(); s.buffer = noiseBuf(dur, false); const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q||0.7;
         const gg = a.createGain(); gg.gain.setValueAtTime(vol, t); gg.gain.exponentialRampToValueAtTime(0.0008, t+dur); s.connect(bp); bp.connect(gg); gg.connect(a.destination); s.start(t); };
       if(kind==='flash'){ burst(0.5, 3000, 0.5, 0.4); tone(2200, 300, 0.4, 'square', 0.05); }
+      // the school PA: three notes up, each ringing on in the building (an echo a beat behind)
+      else if(kind==='pa'){ [[523.25, 0], [659.25, 0.42], [783.99, 0.84]].forEach(([f, at])=>[0, 0.18].forEach((echo, j)=>{
+        const o = a.createOscillator(), gg = a.createGain(), t0 = t + at + echo; o.type = 'sine'; o.frequency.value = f;
+        gg.gain.setValueAtTime(0.0001, t0); gg.gain.exponentialRampToValueAtTime(j ? 0.035 : 0.11, t0 + 0.02); gg.gain.exponentialRampToValueAtTime(0.0005, t0 + 1.3);
+        o.connect(gg); gg.connect(a.destination); o.start(t0); o.stop(t0 + 1.4); })); }
       else if(kind==='jam'){ tone(200, 1800, 0.5, 'sawtooth', 0.04); tone(1800, 200, 0.5, 'sawtooth', 0.03); }
       else if(kind==='alert'){ tone(520, 780, 0.18, 'square', 0.06); setTimeout(()=>cue('alert2'), 170); }
       else if(kind==='alert2'){ tone(780, 520, 0.18, 'square', 0.06); }
@@ -3641,7 +3647,7 @@ window.TSH = (function(){
     }, { ownClock:true });
   }
   function sneakBegin(){
-    TSHSCHOOL.sneakStart({ player:()=>({ x:G.pos.x, z:G.pos.z }), los, cue, note, onCaught:caughtScene });
+    TSHSCHOOL.sneakStart({ player:()=>({ x:G.pos.x, z:G.pos.z, y:feet() }), los, cue, note, onCaught:caughtScene, onPA:schoolPA });
     seenBar(true);
     checkpoint();
   }
@@ -3660,6 +3666,19 @@ window.TSH = (function(){
     if(mode || !TSHSCHOOL.on) return;
     fade(()=>{ mode = 'wc'; G.running = false; if(AVATAR.body) AVATAR.body.visible = false; TSHSCHOOL.bathroom(); cue('door'); note('🚻 Give it a minute.'); });
   }
+  /* THE PA: the school's three notes, and her name over every speaker in the building. */
+  function schoolPA(then){
+    seenBar(false);
+    if(mode === 'read') readStop();
+    const at = [G.pos.x, feet(), G.pos.z], face = G.yaw + Math.PI;
+    const shots = [
+      // wherever she is: the three notes, and every speaker in the building has her name
+      { dur:linesLen('pa') + 2.2, fov:36, inside:true, mood:'annoyed', cam:rel(at[0], at[2], face, 1.4, 0.3, at[1] + 1.35), look:[at[0], at[1] + 1.55, at[2]],
+        enter:()=>{ stage('idle', at[0], at[1], at[2], face); cue('pa'); },
+        beats:[[1.5, ()=>talk('pa')], [linesLen('pa') + 1.5, ()=>stage('idle', at[0], at[1], at[2], face + 0.6)]] }
+    ];
+    playReel(shots, ()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null); fade(()=>then && then()); }, { ownClock:true });
+  }
   /* "Robin." However it went. She freezes, turns round: "Yes?" "My classroom. Now." "That's fair." */
   function caughtScene(how){
     seenBar(false);
@@ -3667,8 +3686,9 @@ window.TSH = (function(){
       if(mode === 'read') readStop();
       if(AVATAR.body) AVATAR.body.visible = true;
       const sc = W.school, t = sc.teacher, sp = sc.spots;
-      const at = how === 'bathroom' ? [sp.bathroom[0] + 0.9, sp.bathroom[1]] : [G.pos.x, G.pos.z];
-      const away = how === 'bathroom' ? Math.PI/2 : angTo(t.x, t.z, at[0], at[1]);           // her back to her teacher
+      const at = how === 'bathroom' ? [sp.bathroom[0] + 0.9, sp.bathroom[1]] : how === 'pa' ? [sp.room120Door[0], sp.room120Door[1] + 1.4] : [G.pos.x, G.pos.z];
+      if(how === 'pa'){ placePlayer(at[0], at[1], 0); t.yaw = angTo(t.x, t.z, at[0], at[1]); }
+      const away = how === 'bathroom' ? Math.PI/2 : how === 'pa' ? angTo(at[0], at[1], t.x, t.z) : angTo(t.x, t.z, at[0], at[1]);   // her back to her teacher (at the PA's door, facing her)
       const toT = angTo(at[0], at[1], t.x, t.z), side = angTo(t.x, t.z, at[0], at[1]);
       const mid = [(t.x + at[0])/2, (t.z + at[1])/2], two = freeCam(mid, side, 3.0, 1.6);
       scene('caught', ()=>{});

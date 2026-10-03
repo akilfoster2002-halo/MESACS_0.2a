@@ -637,11 +637,19 @@ test('The Other Robin: Harbor Lane High — the guard, her teacher across the lo
   has(sc, /S\.teacher = add\('sable'[\s\S]{0,120}teacher-glasses/, 'and so is her teacher, in her glasses');
   has(w, /'teacher-glasses':\{[^}]*fit:'eyes'/, 'glasses set for the teacher\'s face');
   // the sneak: a cone she can see down, walls and students in the way, the board, the bathroom — and caught, whatever happens
-  has(sc, /function sees\(px, pz\)\{[\s\S]{0,700}K\.los[\s\S]{0,500}< 0\.42\) return 0;/, 'walls and a student between them hide her');
+  has(sc, /function sees\(px, pz, py\)\{[\s\S]{0,700}K\.los[\s\S]{0,500}< 0\.42\) return 0;/, 'walls and a student between them hide her');
   has(sc, /if\(sn\.board\)\{ k \*= /, 'reading the board is a back like anybody\'s');
   has(sc, /return caught\('bathroom', out\)/, 'out of the bathroom, and she is right there');
-  has(sc, /if\(d114 < 1\.3\) return caught\('door'\)/, 'and at 114, she is right behind you');
+  has(sc, /if\(d114 < 1\.3 && !sn\.pa\)/, 'and at 114, she is right behind you (or the PA has your name)');
   has(sc, /if\(sn\.meter >= 1\) return caught\('seen'\)/, 'or she just sees you');
+  // and the school is yours to walk: the stair climbs, the galleries and the bridge are floors
+  has(sc, /floorAt\(x1, x2, Math\.min\(z0, z1\), Math\.max\(z0, z1\), top\)/, 'every tread of the stair is a step');
+  has(sc, /floorAt\(X\(-7\), X\(9\), 13\.6, 16, 11\.225\)/, 'the sky bridge');
+  has(sc, /if\(py > 2\.5\) return 0;/, 'up on a gallery she cannot see you');
+  // the PA, when she is nowhere near: a film, and it ends at Room 120's door
+  has(sc, /return near \? caught\('door'\) : pa\(\);/, 'at 114 with her nowhere near: the PA');
+  has(sc, /if\(!sn\.pa && sn\.t > PA_AFTER\) return pa\(\);/, 'or after long enough');
+  has(t, /function schoolPA\(then\)\{[\s\S]{0,900}cue\('pa'\)[\s\S]{0,200}talk\('pa'\)/, 'three notes and her name');
   const C = t.slice(t.indexOf('  function caughtScene('), t.indexOf('  function freeCam('));
   ["talk('caught')", "talk('caught2')", "outcome('caught')"].forEach(b => assert.ok(C.includes(b), 'caught has ' + b));
 });
