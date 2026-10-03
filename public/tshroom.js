@@ -367,16 +367,20 @@ window.TSHROOM = (function(){
     return c;
   }
   /* THE CITY THROUGH HER WINDOW: towers, lit windows, the WFC spire's red light */
-  function cityView(){
+  /* the city through her window: at night lit windows on black towers; in the morning (day) grey towers on a blue sky */
+  function cityView(day){
     const c = canvas(512, 480), x = c.getContext('2d'), w = 512, h = 480;
-    const sky = x.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#04161a'); sky.addColorStop(0.6, '#0e3a38'); sky.addColorStop(1, '#1a5048');
+    const sky = x.createLinearGradient(0, 0, 0, h);
+    if(day){ sky.addColorStop(0, '#5f9ad8'); sky.addColorStop(0.55, '#b8d4ea'); sky.addColorStop(1, '#e6ecea'); }
+    else { sky.addColorStop(0, '#04161a'); sky.addColorStop(0.6, '#0e3a38'); sky.addColorStop(1, '#1a5048'); }
     x.fillStyle = sky; x.fillRect(0, 0, w, h);
     const tower = (x0, wd, top, col) => { x.fillStyle = col; x.fillRect(x0, top, wd, h - top);
-      for(let yy=top + 8; yy<h; yy+=14) for(let xx=x0 + 5; xx<x0 + wd - 6; xx+=10) if(rnd() < 0.42){ x.fillStyle = rnd() < 0.8 ? 'rgba(255,214,140,0.9)' : 'rgba(80,255,220,0.9)'; x.fillRect(xx, yy, 5, 7); } };
-    tower(230, 26, 40, '#071a1c'); x.fillStyle = '#ff3a3a'; x.beginPath(); x.arc(243, 34, 5, 0, 7); x.fill();
-    [[0, 90, 180], [80, 70, 240], [150, 80, 150], [270, 90, 210], [350, 70, 130], [420, 92, 200]].forEach(([a, b, t])=>tower(a, b, t, '#0a2224'));
-    [[10, 140, 320], [140, 120, 300], [300, 110, 330], [400, 112, 290]].forEach(([a, b, t])=>tower(a, b, t, '#061416'));
-    x.fillStyle = '#ff3fd0'; x.fillRect(160, 318, 70, 14); x.fillStyle = '#38ffd0'; x.fillRect(318, 352, 54, 12);
+      for(let yy=top + 8; yy<h; yy+=14) for(let xx=x0 + 5; xx<x0 + wd - 6; xx+=10) if(rnd() < 0.42){
+        x.fillStyle = day ? (rnd() < 0.7 ? 'rgba(40,60,80,0.55)' : 'rgba(220,235,245,0.7)') : rnd() < 0.8 ? 'rgba(255,214,140,0.9)' : 'rgba(80,255,220,0.9)'; x.fillRect(xx, yy, 5, 7); } };
+    tower(230, 26, 40, day ? '#6a7a86' : '#071a1c'); x.fillStyle = '#ff3a3a'; x.beginPath(); x.arc(243, 34, 5, 0, 7); x.fill();
+    [[0, 90, 180], [80, 70, 240], [150, 80, 150], [270, 90, 210], [350, 70, 130], [420, 92, 200]].forEach(([a, b, t], i)=>tower(a, b, t, day ? ['#8a96a0', '#9aa2a6', '#7e8c98'][i % 3] : '#0a2224'));
+    [[10, 140, 320], [140, 120, 300], [300, 110, 330], [400, 112, 290]].forEach(([a, b, t], i)=>tower(a, b, t, day ? ['#5e6a72', '#6c6660'][i % 2] : '#061416'));
+    if(!day){ x.fillStyle = '#ff3fd0'; x.fillRect(160, 318, 70, 14); x.fillStyle = '#38ffd0'; x.fillRect(318, 352, 54, 12); }
     return c;
   }
 
@@ -509,7 +513,9 @@ window.TSHROOM = (function(){
       const b_ = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frame); b_.position.set(0, yy, i === 2 ? -0.74 : i === 3 ? 0.74 : 0); sash.add(b_); });
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 0.64), new THREE.MeshStandardMaterial({ color:0x9fd8e0, roughness:0.05, metalness:0.2, transparent:true, opacity:0.22 })); pane.rotation.y = Math.PI/2; sash.add(pane);
     box(std({ color:0xd8d4c8, roughness:0.6 }), x1 + 0.12, 0.97, wz, 0.24, 0.05, 1.62);
-    room.window = { at:[x1, 1.7, wz], open(v){ sash.position.y = v ? 1.95 : 1.35; view.material.emissiveIntensity = v ? 1.6 : 1.1; } };
+    const nightMap = view.material.map; let dayMap = null;
+    room.window = { at:[x1, 1.7, wz], open(v){ sash.position.y = v ? 1.95 : 1.35; view.material.emissiveIntensity = v ? 1.6 : 1.1; },
+      day(v){ if(v && !dayMap) dayMap = tex(cityView(true)); view.material.map = view.material.emissiveMap = v ? dayMap : nightMap; view.material.needsUpdate = true; } };
   }
 
   /* ========================================================= the models

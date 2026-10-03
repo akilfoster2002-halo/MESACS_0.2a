@@ -2926,3 +2926,5 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tshf-keys.on{opacity:.9}
 #tsh .tshf-keys kbd{margin-right:5px;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.55);border:1px solid rgba(127,240,224,.5);font:700 11px var(--font-code);color:#7ff0e0}
 #tsh.cine .tsh-lesson{opacity:0}
+/* TSH, the morning after: no heat, no exposure, no gadget bar — it is a school day */
+#tsh.day .tsh-heat,#tsh.day .tsh-expo,#tsh.day .tsh-gad,#tsh.day .tsh-cash{display:none}

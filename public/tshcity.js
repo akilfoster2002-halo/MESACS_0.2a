@@ -177,6 +177,10 @@ window.TSHCITY = (function(){
     M.facades = walls.map((w, i)=>{ const t = T.windows({ wall:w, seed:17+i*13, lit:0.22+((i*7)%5)*0.05, bays:4, floors:6 });
       t.map.wrapS = t.map.wrapT = THREE.RepeatWrapping; t.glow.wrapS = t.glow.wrapT = THREE.RepeatWrapping;
       return std({ map:t.map, emissiveMap:t.glow, emissive:new THREE.Color(1,1,1), emissiveIntensity:0.85, roughness:0.85 }); });
+    // the school's: red brick, white frames, big classroom windows (B31)
+    { const t = T.windows({ wall:'#9a4e38', frame:'#e6e2d6', seed:91, lit:0.12, bays:6, floors:5 }); t.map.wrapS = t.map.wrapT = THREE.RepeatWrapping; t.glow.wrapS = t.glow.wrapT = THREE.RepeatWrapping;
+      M.school = std({ map:t.map, emissiveMap:t.glow, emissive:new THREE.Color(1,1,1), emissiveIntensity:0.5, roughness:0.85 });
+      M.schoolBase = std({ color:0xcfc8b8, roughness:0.8 }); }
     M.plasters = ['#4a5550','#3f4a47','#5a4a40','#4a4a52','#3a4442'].map(c=>{ const t = T.plaster(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return std({ map:t, roughness:0.9 }); });
     M.shutters = [0,1,2,3,4,5].map(i=>{ const s = T.shutter(100+i*7, { base:['#667570','#5e6b69','#707a6a','#5a6660'][i%4], tag:['#c8322a','#d8402a','#b02a4a','#c83a2a'][i%4] });
       return std({ map:s.map, normalMap:s.normal, normalScale:new THREE.Vector2(0.8,0.8), roughness:0.55, metalness:0.45 }); });
@@ -324,8 +328,9 @@ window.TSHCITY = (function(){
       const w = b.x2-b.x1, d = b.z2-b.z1, cx = (b.x1+b.x2)/2, cz = (b.z1+b.z2)/2;
       const faces = ['px','nx','pz','nz'].filter(f=>!touching(b, f)).join(' ') + ' py';
       // the upper floors: windows from 4 m up; the ground floor is dressed separately
-      B.box(M.facades[b.f % M.facades.length], cx, (b.h+4)/2, cz, w, b.h-4, d, { s:12, sv:18, faces:faces.replace('py',''), v0:0 });
-      B.box(M.plasters[b.f % M.plasters.length], cx, 2, cz, w, 4, d, { s:6, faces:faces.replace('py','') });
+      const school = b.id === 'B31';
+      B.box(school ? M.school : M.facades[b.f % M.facades.length], cx, (b.h+4)/2, cz, w, b.h-4, d, { s:school ? 16 : 12, sv:school ? 14 : 18, faces:faces.replace('py',''), v0:0 });
+      B.box(school ? M.schoolBase : M.plasters[b.f % M.plasters.length], cx, 2, cz, w, 4, d, { s:6, faces:faces.replace('py','') });
       B.box(M.roof, cx, b.h, cz, w, 0.02, d, { s:8, faces:'py' });
       // a band between the shops and the flats, and a parapet round the roof
       B.box(M.concrete, cx, 4.05, cz, w+0.3, 0.3, d+0.3, { faces:'px nx pz nz ny' });
@@ -424,6 +429,7 @@ window.TSHCITY = (function(){
     placeCheckpoint(group, B, out, lightSrc, solid);
     placeClub(group, B, out, lightSrc);
     placeHome(group, B, out, lightSrc, solid, plat);
+    placeSchool(group, B, out, lightSrc);
     placeMayaRoof(group, B, out, solid);
     placeWfcPost(group, B, out, lightSrc, solid);
     noodleStand(group, B, out, 40, 8.6, Math.PI, lightSrc, solid);
@@ -648,6 +654,7 @@ window.TSHCITY = (function(){
       const P = (a, up, off) => along==='x' ? new V3(a, up, wallAt + out_*off) : new V3(wallAt + out_*off, up, a);
       // outer-ring buildings face only the lanes; skip their far sides entirely
       if(Math.abs(wallAt) >= EDGE.x-1 || (along==='x' && Math.abs(wallAt) >= EDGE.z-1)) return;
+      if(b.id === 'B31') return;                     // the school: no shops, no shutters (placeSchool dresses its front)
       const bay = 3.6, n = Math.floor((a2-a1)/bay);
       const start = a1 + ((a2-a1) - n*bay)/2;
       const busy = isBusy(b, f);
@@ -878,6 +885,33 @@ window.TSHCITY = (function(){
     // the window of the flat, lit warm
     B.box(M.glow(0xffc27a, 1.4), 62-0.02, 9.3, 34, 0.02, 1.6, 1.4, { faces:'nx' });
     out.spots.homeWindow = [fx-0.9, 34, 8];
+  }
+  /* THE SCHOOL (B31, across Harbor Lane from B21's roof): where Robin is supposed to be at eight in the
+     morning. A glass front with the revolving door in the middle of it, a canopy with the name on it,
+     steps down to the pavement. Inside is off the map, like the flat (tshschool.js). */
+  function placeSchool(group, B, out, lightSrc){
+    const dx = -28, dz = 52, fr = M.darkMetal;          // the front is B31's north face (z = 52), on Harbor Lane: outside is z < 52
+    B.box(M.glow(0x7fb4c4, 0.35), dx, 2.1, dz - 0.04, 10, 4.0, 0.06, { faces:'nz' });                 // the glass front
+    for(let k = -5; k <= 5; k += 2.5) B.box(fr, dx + k, 2.1, dz - 0.06, 0.14, 4.2, 0.14);               // its mullions
+    B.box(fr, dx, 4.15, dz - 0.06, 10.2, 0.16, 0.16); B.box(fr, dx, 0.05, dz - 0.06, 10.2, 0.1, 0.16);
+    // the canopy, and the name over it
+    B.box(M.concrete, dx, 4.6, dz - 1.4, 12, 0.3, 2.8); [-5.6, 5.6].forEach(k=>B.box(fr, dx + k, 2.3, dz - 2.6, 0.18, 4.6, 0.18));
+    const name = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.1), M.glow(0xffffff, 1.1, { map:L().hsign('HARBOR LANE HIGH SCHOOL', 31, { ink:'#f4f1e6', bg:'#16324a', glyphs:0, w:1024, h:128 }) }));
+    name.position.set(dx, 5.5, dz - 0.06); name.rotation.y = Math.PI; name.userData.flat = true; group.add(name);
+    B.box(M.concrete, dx, 0.11, dz - 1.3, 10, 0.22, 2.6, { faces:'py nz px nx' });                     // the step
+    // the revolving door: a glass drum and four wings, turning slowly
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 2.6, 24, 1, true),
+      new THREE.MeshStandardMaterial({ color:0xb8dce8, roughness:0.1, metalness:0.2, transparent:true, opacity:0.25, side:THREE.DoubleSide, depthWrite:false }));
+    drum.position.set(dx, 1.3, dz - 0.4); group.add(drum);
+    const wings = new THREE.Group(); wings.position.set(dx, 1.25, dz - 0.4); group.add(wings);
+    for(let k = 0; k < 4; k++){ const w = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.3, 0.04), new THREE.MeshStandardMaterial({ color:0xcfe8f0, roughness:0.1, transparent:true, opacity:0.35 }));
+      w.position.set(Math.cos(k*Math.PI/2)*0.66, 0, Math.sin(k*Math.PI/2)*0.66); w.rotation.y = -k*Math.PI/2; wings.add(w); }
+    B.box(fr, dx, 2.65, dz - 0.4, 2.9, 0.1, 2.9);
+    out.anims.push(t=>{ wings.rotation.y = t*0.45; });
+    lightSrc(dx, 4.2, dz - 1.6, 0xfff0d8, 7, 7);
+    out.spots.schoolDoor = [dx, dz - 2.2, 0];
+    out.spots.schoolOverlook = [-27.5, 42.6, 8];                 // B21's roof, at the corner over the lane: the whole front of the school
+    out.zones.school = { x1:-56, x2:-10, z1:52, z2:85 };
   }
   /* LADDERS. [x, z, bottom, top, which way the wall faces]. A ladder is
      climbed with E at either end; the NPCs use them as links in the

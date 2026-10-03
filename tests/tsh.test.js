@@ -603,3 +603,24 @@ test('the three fights: each one the alley\'s fight in uniform, each opened by a
   const films = t.slice(t.indexOf('function raidFight('), t.indexOf('function raidFightBegin('));
   ['raidVan', 'raidFine', 'raidDrop', 'raidOkay', 'raidHands', 'raidPass', 'momFound'].forEach(k=>assert.ok(films.includes("talk('" + k + "')") && t.includes('    ' + k + ':'), k));
 });
+
+test('The Other Robin: the morning after — late, over the roofs in daylight, to school', () => {
+  const t = read('public/tsh.js'), ai = read('public/tshai.js'), c = read('public/tshcity.js'), look = read('public/tshlook.js');
+  // it follows the prologue: a button on its results, and a checkpoint at the top of the morning so enter() resumes it
+  has(t, /data-a="day">☀ Next: The Other Robin/, 'the prologue ends with the way into the morning');
+  has(t, /S\.day = true; S\.step = 'morning'; S\.dm = 8\*60 \+ 42;[\s\S]{0,200}S\.cp = JSON\.stringify\(snap\)/, '8:42, and a checkpoint so it is the morning that loads');
+  ['morning', 'commute', 'school', 'sneak', 'detention'].forEach(k => has(ai, new RegExp('\\b' + k + ':\\s*\\{'), 'a beat for ' + k));
+  ['late', 'overlook', 'lobby', 'caught', 'detention', 'repair', 'device', 'mother', 'outside'].forEach(k => has(ai, new RegExp("id:'" + k + "'"), 'a scene for ' + k));
+  // daylight: the sun, a sky, the street only damp; nothing out looking for her
+  has(t, /function air\(\)\{ return day\(\) \?/, 'the morning air is not the night\'s');
+  has(t, /W\.sky\.material[\s\S]{0,120}daySky\(\)/, 'a morning sky');
+  has(look, /function setWet\(k\)/, 'and a street that has dried');
+  has(t, /function gearSeen\(what\)\{\s*if\(day\(\)\) return;/, 'nobody reports the shoes on a school day');
+  has(t, /function populate\(\)\{\s*if\(day\(\)\) return dayPopulate\(\);/, 'no drones, no WFC on the beat');
+  // the scene: the alarm, 8:42, Rats, the boots, the window; then the roofs to the school
+  const m = t.slice(t.indexOf('  function morning('), t.indexOf('  function dayRoom('));
+  ["alarm(true)", "phoneBig('late')", "talk('rats')", "kitOn('pack')", "talk('upBoots')", "kitOn('shoes')", 'R.window.open(true)'].forEach(b => assert.ok(m.includes(b), 'the morning has ' + b));
+  has(c, /out\.spots\.schoolDoor = /, 'the school has a door');
+  has(c, /HARBOR LANE HIGH SCHOOL/, 'and its name over it');
+  has(t, /scene\('overlook', overlookScene\)/, 'and from the roof across the lane: 8:57');
+});

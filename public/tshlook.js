@@ -563,11 +563,14 @@ window.TSHLOOK = (function(){
     if(avg > 1/26 && quality > 0){ quality--; applyQuality(); }
   }
   function applyQuality(){
-    wetMats.forEach(m=>{ m.userData.reflU.uReflK.value = quality >= 2 ? m.userData.reflK : 0; });
+    wetMats.forEach(m=>{ m.userData.reflU.uReflK.value = quality >= 2 ? m.userData.reflK*fx.wet : 0; });
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0 };
+  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1,
+                gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
+  /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
+  function setWet(k){ fx.wet = k; applyQuality(); }
   function render(scene, camera, dt){
     if(!R) return;
     measure();
@@ -601,7 +604,7 @@ window.TSHLOOK = (function(){
     // 4. put it together, tone map it, grade it
     const c = P.comp.uniforms;
     c.tScene.value = P.scene.texture; c.tBloom.value = P.mips[0].texture;
-    c.uBloom.value = fx.bloom; c.uTime.value = (P.t%10);
+    c.uBloom.value = fx.bloom; c.uTime.value = (P.t%10); c.uGain.value.copy(fx.gain); c.uVig.value = fx.vig;
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);
     c.uLetter.value = fx.letter; c.uFade.value = fx.fade;
     pass(P.comp, null);
@@ -619,7 +622,7 @@ window.TSHLOOK = (function(){
     R = null;
   }
 
-  return { init, render, dispose, wet, hideInMirror, fx,
+  return { init, render, dispose, wet, setWet, hideInMirror, fx,
            asphalt, paving, plaster, shutter, windows, shopfront, vsign, hsign, neonText, neon, dragon,
            fashionAd, wfcSign, wfcMark, lanternTex, skyTex, glyphs, cv, tex, seeded,
            get quality(){ return quality; }, set quality(q){ pinned = q; quality = q; applyQuality(); },

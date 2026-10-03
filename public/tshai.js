@@ -216,7 +216,16 @@ window.TSHAI = (function(){
     chair:   { goal:'Get free.', to:{ free:'escape2' } },
     escape2: { goal:'Get out before Maya comes back.', to:{ out:'out' } },
     out:     { goal:'Lose them. Get somewhere high.', to:{ high:'end' } },
-    end:     { goal:'', to:{} }
+    end:     { goal:'', to:{} },
+    /* THE OTHER ROBIN: the morning after. Late for school, over the roofs in daylight, past her
+       teacher (or not), detention, a robot nobody else could fix — and what her teacher says about it. */
+    morning: { goal:'', to:{ out:'commute' } },
+    commute: { goal:'Get to school. You are late.', to:{ there:'school' } },
+    school:  { goal:'Get into school.', to:{ spotted:'sneak' } },
+    sneak:   { goal:'Get to class without your teacher seeing you.', to:{ caught:'detention' } },
+    detention:{ goal:'', to:{ fixed:'after' } },
+    after:   { goal:'', to:{ out:'day' } },
+    day:     { goal:'', to:{} }
   };
   function next(step, outcome){
     const b = QUEST[step]; if(!b) return step;
@@ -226,7 +235,8 @@ window.TSHAI = (function(){
      you did in the beats before it stays done. (drop and robbed were the
      old deal with Kai's dead drop; a night saved in one is back at the deal.) */
   const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', raid:'raid', night:'raid', news:'news', home:'home', apt:'apt', escape:'apt',
-                       chair:'apt', escape2:'apt', out:'out', end:'end' };
+                       chair:'apt', escape2:'apt', out:'out', end:'end',
+                       morning:'morning', commute:'commute', school:'school', sneak:'sneak', detention:'detention', after:'detention', day:'day' };
 
   /* ======================================================= the storyboard
      THE NIGHT, SCENE BY SCENE. Every line anybody speaks belongs to one
@@ -255,7 +265,17 @@ window.TSHAI = (function(){
     { id:'kai',       beat:'escape', on:'the talk ends, or Robin ends it',                   after:['maya'] },
     { id:'after',     beat:'out',    on:'out of the door past Kai, still on the floor',      after:['kai'] },
     { id:'chair',     beat:'chair',  on:'Kai gets hold of her in the flat',                  after:['kai'] },
-    { id:'end',       beat:'end',    on:'up high, with nobody on her',                       after:['voicemail'] }
+    { id:'end',       beat:'end',    on:'up high, with nobody on her',                       after:['voicemail'] },
+    /* THE OTHER ROBIN (the morning after the prologue) */
+    { id:'late',      beat:'morning', on:'the alarm has been going a while: 8:42; the clothes, the boots, the window' },
+    { id:'overlook',  beat:'commute', on:'on the roof across Harbor Lane from school: 8:57',  after:['late'] },
+    { id:'lobby',     beat:'school',  on:'through the revolving doors: the guard, then her teacher', after:['overlook'] },
+    { id:'caught',    beat:'sneak',   on:'her teacher sees her, wherever she has got to',    after:['lobby'] },
+    { id:'detention', beat:'detention', on:'in the classroom: the missing assignment',       after:['caught'] },
+    { id:'repair',    beat:'detention', on:'the robot runs again',                           after:['detention'] },
+    { id:'device',    beat:'detention', on:'the second thing works again',                   after:['repair'] },
+    { id:'mother',    beat:'after',   on:'her teacher looks at her work',                    after:['device'] },
+    { id:'outside',   beat:'after',   on:'out through the school doors, into the sun',       after:['mother'] }
   ];
   /* may scene `id` play now, given the scenes that have? */
   function ready(seen, id){

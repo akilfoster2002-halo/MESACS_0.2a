@@ -198,11 +198,32 @@ window.TSH = (function(){
     /* her own roof, her room, and across the street */
     raidHome:  [['robin','Okay...'], ['robin','Definitely never doing that again.'], ['robin','...Probably.']],
     rats:      [['robin','Rats.']],
-    watchers:  [['maya','That\'s her.'], ['kai','You\'re sure?'], ['maya','Yeah.']]
+    watchers:  [['maya','That\'s her.'], ['kai','You\'re sure?'], ['maya','Yeah.']],
+    /* THE OTHER ROBIN — the morning after. Late; over the roofs to school; the guard; her teacher. */
+    upBoots:   [['robin','You\'re up.']],
+    overlook:  [['robin','Okay. Technically not that late.']],
+    lobby:     [['guard','Morning, Robin.'], ['robin','Morning.'], ['guard','Long night?'], ['robin','You could say that.']],
+    nope:      [['robin','...Nope.']],
+    caught:    [['teacher','Robin.']],
+    caught2:   [['robin','Yes?'], ['teacher','My classroom. Now.'], ['robin','That\'s fair.']],
+    /* detention, and the robot */
+    where:     [['teacher','Where is it?']],
+    where2:    [['teacher','The assignment. The one you\'ve had for two weeks.'], ['robin','I was going to do it.'], ['teacher','When?'], ['robin','Eventually?']],
+    detained:  [['teacher','Detention.'], ['robin','Of course.']],
+    robot:     [['teacher','Since you\'re here, you can help me with something.'], ['robin','Who messed this up?'], ['teacher','That\'s what I\'d like you to figure out.']],
+    fixed:     [['robin','...Whoever built this was an idiot.']],
+    fixed2:    [['robin','Good thing I\'m here.']],
+    /* what her teacher says about it */
+    see:       [['teacher','See?'], ['teacher','This is what I\'m talking about.']],
+    bright:    [['teacher','You\'re incredibly bright, Robin.'], ['teacher','You solve problems that half my seniors can\'t solve.'],
+                ['teacher','But you don\'t turn in your work. You barely sleep. You\'re constantly late.'], ['teacher','You have to actually apply yourself.']],
+    proud:     [['teacher','Because if you did...'], ['teacher','Your mother would be incredibly proud of you.']],
+    yeah:      [['robin','Yeah.']],
+    thanks:    [['robin','Thanks.']]
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
-                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'] };
+                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -259,13 +280,13 @@ window.TSH = (function(){
       const hum = a.createBufferSource(); hum.buffer = noiseBuf(4, true); hum.loop = true;
       const hg = a.createGain(); hg.gain.value = 0.0; hum.connect(hg); hg.connect(a.destination); hum.start();
       bed = { rain, hum, g, hg, lp };
-      g.gain.setTargetAtTime(0.05, a.currentTime, 1.5); hg.gain.setTargetAtTime(0.07, a.currentTime, 2);
+      g.gain.setTargetAtTime(day() ? 0.006 : 0.05, a.currentTime, 1.5); hg.gain.setTargetAtTime(0.07, a.currentTime, 2);     // the morning: the rain has stopped
     }catch(e){ bed = null; }
   }
   function muffle(inside){
     if(!bed || !AC) return;
     bed.lp.frequency.setTargetAtTime(inside ? 380 : 1400, AC.currentTime, 0.4);
-    bed.g.gain.setTargetAtTime(inside ? 0.025 : 0.05, AC.currentTime, 0.4);
+    bed.g.gain.setTargetAtTime((inside ? 0.025 : 0.05)*(day() ? 0.12 : 1), AC.currentTime, 0.4);
   }
   function stopBed(){
     if(!bed) return;
@@ -405,6 +426,9 @@ window.TSH = (function(){
     if(S.step === 'intro' || S.step === 'prep'){ S.step = 'wake'; S.t = AI.AT.wake; S.dealPath = []; S.lesson = 0; S.boots = null; }
     if(S.step === 'wake'){ const r = W.room; placePlayer(r.bed.x, r.bed.z, 0); S.seen = S.seen.filter(x=>x !== 'wake'); }
     else if(S.step === 'lesson'){ placePlayer(HOME_ROOF[0], HOME_ROOF[2], Math.PI/2, HOME_ROOF[1] + EYE_); }
+    else if(day() && S.step === 'morning'){ const r = W.room; placePlayer(r.bed.x, r.bed.z, 0); }
+    else if(day() && !S.pos && S.step === 'commute') placePlayer(HOME_ROOF[0], HOME_ROOF[2], -Math.PI/2, HOME_ROOF[1] + EYE_);
+    else if(day() && !S.pos){ const d = W.spots.schoolDoor; placePlayer(d[0] + 1.5, d[1] - 2.5, Math.PI); }
     else if(S.pos) placePlayer(S.pos[0], S.pos[2], S.pos[3], S.pos[1]);
     else placePlayer(-86, 8, -Math.PI/2);
     if(S.step === 'apt' || S.step === 'escape' || S.step === 'chair' || S.step === 'escape2'){ S.step = 'apt'; goInside(true); }
@@ -413,6 +437,12 @@ window.TSH = (function(){
     startBed();
     populate();
     bootsOn();
+    if(day()){
+      if(S.step === 'morning'){ later(()=>{ if(on && S.step === 'morning') morning(); }, 300); return; }
+      me.kit = Object.assign({}, SCHOOL_KIT); me.shades = false; dress();     // no shades at school: she is just Robin
+      beatStart(true); title(); lockPointer($('#view'));
+      return;
+    }
     if(S.step === 'wake'){ later(()=>{ if(on && S.step === 'wake') scene('wake', opening); }, 300); return; }
     if(S.step === 'night'){ later(()=>{ if(on && S.step === 'night') nightScene(); }, 300); return; }
     beatStart(true);
@@ -434,7 +464,7 @@ window.TSH = (function(){
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
     if(window.BOOTS) BOOTS.detach();
-    reel = null; staged = null; ringing(false); phoneBig(null); black(false); scoreStop(0.3); me.kit = null; me.kitT = null;
+    reel = null; staged = null; ringing(false); alarm(false); phoneBig(null); black(false); scoreStop(0.3); me.kit = null; me.kitT = null;
     if(window.WARDROBE) WARDROBE.cast('robin', null);
     if(el) el.classList.add('hidden');
     document.body.classList.remove('tsh-on');
@@ -550,29 +580,55 @@ window.TSH = (function(){
     if(envRT){ envRT.dispose(); envRT = null; }
     rigWas = null;
   }
+  /* THE MORNING (The Other Robin): the same street with the rain stopped. A low sun out of the east, a
+     pale sky, the road only damp in the gutters, the neon still on and nothing next to the daylight. */
+  const DAY_AIR = 0xc9dde0;
+  const day = () => !!(S && S.day);
+  function air(){ return day() ? [DAY_AIR, 0.0026] : [0x0b2a26, 0.0155]; }
+  /* a clear morning sky: deep blue overhead, white haze at the horizon, a few clouds catching the sun */
+  function daySky(){
+    const c = LOOK.cv(64, 512), x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 512);
+    g.addColorStop(0, '#3f7fd0'); g.addColorStop(0.3, '#7fb0e2'); g.addColorStop(0.47, '#d6e6ee'); g.addColorStop(0.52, '#eef2ec'); g.addColorStop(0.6, '#c2ccca'); g.addColorStop(1, '#8a9290');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 512);
+    for(let i = 0; i < 26; i++){ const y = 120 + Math.random()*120, w = 10 + Math.random()*30; x.fillStyle = `rgba(255,252,246,${0.12 + Math.random()*0.22})`; x.beginPath(); x.ellipse(Math.random()*64, y, w, 3 + Math.random()*5, 0, 0, 7); x.fill(); }
+    return LOOK.tex(c);
+  }
   function applyLook(){
-    const fogCol = 0x0b2a26;
+    const [fogCol, fogD] = air();
     G.scene.background = new THREE.Color(fogCol);
-    G.scene.fog = new THREE.FogExp2(fogCol, 0.0155);
-    G.amb.color.setHex(0x1f5a50); G.amb.intensity = 0.42;
-    G.hemi.color.setHex(0x46b8a4); G.hemi.groundColor.setHex(0x0a1210); G.hemi.intensity = 0.85;
-    G.sun.color.setHex(0x7af0dc); G.sun.intensity = 0.7;
+    G.scene.fog = new THREE.FogExp2(fogCol, fogD);
     const c = G.sun.shadow.camera; c.left = -45; c.right = 45; c.top = 45; c.bottom = -45; c.updateProjectionMatrix();
-    G.renderer.toneMappingExposure = 0.95;
+    if(day()){
+      G.amb.color.setHex(0xe4ecf2); G.amb.intensity = 0.8;
+      G.hemi.color.setHex(0xcfe6ff); G.hemi.groundColor.setHex(0x7a7068); G.hemi.intensity = 1.4;
+      // the towers' windows are lit for the night: by day most of them are glass with the sky in it
+      if(W && W.cityGroup) W.cityGroup.traverse(o=>{ const m = o.material; if(o.isMesh && m && m.isMeshStandardMaterial && m.emissiveMap && !m.userData.dayDone){ m.userData.dayDone = true; m.emissiveIntensity *= 0.3; } });
+      G.sun.color.setHex(0xffe6c4); G.sun.intensity = 2.4;
+      G.renderer.toneMappingExposure = 1.0;
+      Object.assign(LOOK.fx, { bloom:0.18, vig:0.28 }); LOOK.fx.gain.set(1.04, 1.0, 0.95); LOOK.setWet(0.18);
+      if(W && W.sky && W.sky.material){ const m = W.sky.material; if(!m.userData.night) m.userData.night = m.map; m.map = daySky(); m.needsUpdate = true; }
+    } else {
+      G.amb.color.setHex(0x1f5a50); G.amb.intensity = 0.42;
+      G.hemi.color.setHex(0x46b8a4); G.hemi.groundColor.setHex(0x0a1210); G.hemi.intensity = 0.85;
+      G.sun.color.setHex(0x7af0dc); G.sun.intensity = 0.7;
+      G.renderer.toneMappingExposure = 0.95;
+      Object.assign(LOOK.fx, { bloom:0.75, vig:0.55 }); LOOK.fx.gain.set(0.93, 1.03, 1.0); LOOK.setWet(1);
+      if(W && W.sky && W.sky.material && W.sky.material.userData.night){ const m = W.sky.material; m.map = m.userData.night; m.userData.night = null; m.needsUpdate = true; }
+    }
     // the environment: a teal dome, orange lanterns low down, the tubes, the neon
     try{
       const es = new THREE.Scene(), trash = [];
       const sg = new THREE.SphereGeometry(50, 32, 16), P = sg.attributes.position, col = [];
-      const top = new THREE.Color(0x0e3a34), hor = new THREE.Color(0x2a7a6c), bot = new THREE.Color(0x050807), cc = new THREE.Color();
+      const top = new THREE.Color(day() ? 0x5a9ae0 : 0x0e3a34), hor = new THREE.Color(day() ? 0xe8eeee : 0x2a7a6c), bot = new THREE.Color(day() ? 0x4a4642 : 0x050807), cc = new THREE.Color();
       for(let i=0;i<P.count;i++){ const y = P.getY(i)/50; if(y > 0) cc.copy(hor).lerp(top, Math.pow(y, 0.5)); else cc.copy(hor).lerp(bot, Math.pow(-y, 0.4)); col.push(cc.r, cc.g, cc.b); }
       sg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
       const sm = new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide }); es.add(new THREE.Mesh(sg, sm)); trash.push(sg, sm);
       [[0xff6a2a, 3, 25, 3, 10, 8, 3], [0xff5a1a, 2.5, -20, 2, 25, 6, 3], [0xc8ffe8, 4, 0, 18, 0, 14, 2], [0x38ffd0, 3, -30, 6, -15, 10, 4],
-       [0xff3fd0, 2, 30, 8, -25, 8, 4], [0x8fd8ff, 2.5, 5, 10, 35, 12, 5]].forEach(([hex, k, x, y, z, w, h])=>{
+       [0xff3fd0, 2, 30, 8, -25, 8, 4], [0x8fd8ff, 2.5, 5, 10, 35, 12, 5]].filter(()=>!day()).forEach(([hex, k, x, y, z, w, h])=>{
         const pg = new THREE.PlaneGeometry(w, h), pm = new THREE.MeshBasicMaterial({ color:new THREE.Color(hex).multiplyScalar(k), side:THREE.DoubleSide });
         const m = new THREE.Mesh(pg, pm); m.position.set(x, y, z); m.lookAt(0, 0, 0); es.add(m); trash.push(pg, pm); });
       const pm = new THREE.PMREMGenerator(G.renderer); envRT = pm.fromScene(es, 0.03); pm.dispose(); trash.forEach(t=>t.dispose());
-      G.scene.environment = envRT.texture; G.scene.environmentIntensity = 0.6;
+      G.scene.environment = envRT.texture; G.scene.environmentIntensity = day() ? 0.8 : 0.6;
     }catch(e){ G.scene.environment = null; }
   }
   /* A DOZEN REAL LIGHTS, borrowed by the nearest of the city's sources
@@ -600,13 +656,16 @@ window.TSH = (function(){
     }
     lights.forEach(l=>{
       const u = l.userData;
-      if(u.next && l.intensity < 0.05){ const s = u.next; u.src = s; u.next = null; l.position.set(s.x, s.y, s.z); l.color.copy(s.col); l.distance = s.d*1.5; u.want = s.k*(s.mul===undefined ? 1 : s.mul); }
+      const dim = day() && !inside ? 0.12 : 1;               // in daylight a lantern is a coloured thing, not a light
+      if(u.next && l.intensity < 0.05){ const s = u.next; u.src = s; u.next = null; l.position.set(s.x, s.y, s.z); l.color.copy(s.col); l.distance = s.d*1.5; u.want = s.k*(s.mul===undefined ? 1 : s.mul)*dim; }
       else if(u.next) u.want = 0;
-      else if(u.src) u.want = u.src.k*(u.src.mul===undefined ? 1 : u.src.mul);
+      else if(u.src) u.want = u.src.k*(u.src.mul===undefined ? 1 : u.src.mul)*dim;
       l.intensity += (u.want - l.intensity)*Math.min(1, dt*5);
     });
     // the moon follows you, so its shadows are sharp where you are
-    G.sun.position.set(G.pos.x - 28, 60, G.pos.z + 22); G.sun.target.position.set(G.pos.x, 0, G.pos.z); G.sun.target.updateMatrixWorld();
+    if(day()) G.sun.position.set(G.pos.x + 44, 40, G.pos.z - 26);          // the morning sun, low in the north-east: on the school's front
+    else G.sun.position.set(G.pos.x - 28, 60, G.pos.z + 22);
+    G.sun.target.position.set(G.pos.x, 0, G.pos.z); G.sun.target.updateMatrixWorld();
   }
   /* how lit a spot is, 0 (black) to about 1.5 (under a lamp), for who can see you */
   function lightAt(x, y, z){
@@ -657,7 +716,7 @@ window.TSH = (function(){
   // what she has on all night, kit or no kit: her own jeans
   const KIT_UNDER = { bottom:'baggy-jeans' };
   function kitSlots(){
-    const k = me.kit || KIT_ON, s = Object.assign({}, KIT_UNDER);
+    const k = me.kit || (day() ? SCHOOL_KIT : KIT_ON), s = Object.assign({}, KIT_UNDER);
     Object.keys(KIT_ITEMS).forEach(p=>{ if(k[p]){ const [slot, id] = KIT_ITEMS[p]; s[slot] = id; } });
     if(me.shades) s.face = 'shades';
     return s;
@@ -699,6 +758,8 @@ window.TSH = (function(){
     return best;
   }
   function wireThings(){
+    // the school's revolving door (The Other Robin)
+    { const d = W.spots.schoolDoor; if(d) thing(d[0], d[1], 0, 'Go in', ()=>schoolDoor(), { icon:'🏫', r:2.4, when:()=>day() && S.step === 'school' }); }
     // ladders, both ends
     W.ladders.forEach(l=>{
       thing(l.bottom[0], l.bottom[1], l.y0, 'Climb up', ()=>climb(l, true), { icon:'🪜', r:1.5 });
@@ -884,6 +945,7 @@ window.TSH = (function(){
   /* who saw the gear — the cuffs on a wall, the shoes in the air: WFC with eyes on her, a drone with her in its beam, a phone */
   function scaleSeen(){ gearSeen('cuffs'); }
   function gearSeen(what){
+    if(day()) return;                                     // a school day: nobody out looking for wearables
     const p = P();
     const wfc = npcs.some(n=>n.kind === 'wfc' && !n.gone && n.stun <= 0 && n.inApt === inside && n.sees) || drones.some(d=>d.inBeam && !d.static);
     if(wfc){
@@ -1066,7 +1128,9 @@ window.TSH = (function(){
     if(kind === 'text' || kind === 'reply') p.innerHTML = lock(`<div class="pb-note"><small>MESSAGES · NOW</small><b>Unknown number</b><p>${esc(LINES.fightText[0][1].replace(/^📱\s*/, ''))}</p></div>`
       + (kind === 'reply' ? `<div class="pb-note me"><p>${esc(LINES.fightOut5[0][1])}</p></div>` : ''));
     // home: the lock screen, and how late it is
-    if(kind === 'time') p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ 3%</span></div><div class="pb-caller"><small>${esc(AI.clock(S.t).replace(/^0/, ''))} AM</small><b>${esc(AI.clock(S.t).replace(/^0/, ''))}</b><span>⏰ School · 7:15 AM</span></div></div>`;
+    if(kind === 'time' && !day()) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ 3%</span></div><div class="pb-caller"><small>${esc(AI.clock(S.t).replace(/^0/, ''))} AM</small><b>${esc(AI.clock(S.t).replace(/^0/, ''))}</b><span>⏰ School · 7:15 AM</span></div></div>`;
+    // the morning after: how late she is
+    if(kind === 'late' || (kind === 'time' && day())) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ ${kind === 'late' ? 2 : 1}%</span></div><div class="pb-caller"><small>${esc(dclock(S.dm))} AM</small><b>${esc(dclock(S.dm))}</b><span>${kind === 'late' ? '⏰ 7:15 AM · snoozed' : ''}</span><span>🏫 School · 8:00 AM</span></div></div>`;
     if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>UNKNOWN</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
     p.classList.add('on'); p.classList.toggle('buzz', kind === 'call');
   }
@@ -1291,9 +1355,10 @@ window.TSH = (function(){
   /* outside, at night: what the street mode is lit and fogged like */
   function outsideLook(){
     inside = false; showInside(false);
-    G.ceiling = streetLid; G.scene.fog.density = 0.0155; G.scene.background = new THREE.Color(0x0b2a26); muffle(false);
+    G.ceiling = streetLid; outsideAir(); muffle(false);
     lightT = 0;
   }
+  function outsideAir(){ const [c, d] = air(); G.scene.fog.color.setHex(c); G.scene.fog.density = d; G.scene.background = new THREE.Color(c); }
   /* the shoes wake up: the coils whine and the soles go bright */
   function shoesOn(){
     const a = audio(); if(a){ try{ const t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(1400, t + 0.9);
@@ -1871,6 +1936,7 @@ window.TSH = (function(){
      heat and come; people who could see it get their phones out; Kai
      just gets angrier. */
   function crime(type, x, z, spare){
+    if(day()) return;
     spare = spare || [];
     const c = AI.CRIMES[type] || { sev:1, heard:0 };
     let wfcSaw = false;
@@ -1905,7 +1971,7 @@ window.TSH = (function(){
   }
   let heatSeenT = 0, lastKnown = null;
   function heat(h, why){
-    const was = S.heat; h = Math.max(0, Math.min(5, h));
+    const was = S.heat; h = day() ? 0 : Math.max(0, Math.min(5, h));
     if(h === was) return;
     S.heat = h; S.maxHeat = Math.max(S.maxHeat||0, h);
     if(h > was){ cue('heat'); note('★'.repeat(h) + ' WFC — ' + (why||'they are looking for YU'), 'bad'); heatSeenT = 0; lastKnown = [G.pos.x, G.pos.z]; }
@@ -2294,6 +2360,7 @@ window.TSH = (function(){
      Who is out tonight, and where — by the clock and by the beat. */
   const CIV = ['nia','theo','zuri','walk-s','walk-t','walk-u','walk-v','walk-x'];
   function populate(){
+    if(day()) return dayPopulate();
     clearNpcs();
     placeScooters();
     makeRain();
@@ -2426,6 +2493,8 @@ window.TSH = (function(){
       case 'news': return inAlley() ? [s.alleyMouth[0], s.alleyMouth[1], 2.4, 'Neon Avenue'] : null;
       case 'home': return [s.home[0], s.home[1], 2.6, 'Home'];
       case 'out': { const r = nearestHigh(); return r ? [r[0], r[1], r[2] + 1, 'High ground'] : null; }
+      case 'commute': { const o = s.schoolOverlook; return [o[0], o[1], o[2] + 1.2, 'School'] ; }
+      case 'school': { const d = s.schoolDoor; return [d[0], d[1], 2.6, 'Harbor Lane High']; }
     }
     return null;
   }
@@ -3312,6 +3381,171 @@ window.TSH = (function(){
     later(()=>{ if(on) results('clean'); }, 7600);
   }
 
+  /* ===================================================== THE OTHER ROBIN
+     The morning after. The alarm has been going for a while: 8:42, and school started at 8:00. "Rats."
+     School clothes, the backpack — and the boots by the window. "You're up." Out of the window into
+     daylight, over the roofs the way she went last night, because the shoes are not only for the night:
+     to the roof across Harbor Lane from the school, at 8:57. "Okay. Technically not that late."
+
+     IT IS A SCHOOL DAY, not a night out: no heat, no drones, no WFC on the beat, nobody filming the
+     shoes. People going to work. (day() is what everything that is different asks.) */
+  const DAY_KIT = { jacket:false, gloves:false, shoes:false, bracelet:false, pack:false };
+  const SCHOOL_KIT = { jacket:false, gloves:false, shoes:true, bracelet:false, pack:true };
+  const dclock = m => { const h = Math.floor(m/60), mm = Math.floor(m) % 60; return ((h + 11) % 12 + 1) + ':' + String(mm).padStart(2, '0'); };
+  function startDay(){
+    if(!on) return;
+    closePanel();
+    const runs = S.runs, last = S.last;
+    S = fresh(); S.runs = runs; S.last = last; S.day = true; S.step = 'morning'; S.dm = 8*60 + 42;
+    const snap = Object.assign({}, S); delete snap.cp; delete snap.last; S.cp = JSON.stringify(snap);   // a checkpoint at the top of the morning: enter() resumes it
+    save(); stop(); enter(server);
+  }
+  /* the alarm: a phone's, two beeps and a gap, over and over */
+  let alarmT = null;
+  function alarm(on_){
+    clearInterval(alarmT); alarmT = null;
+    if(!on_) return;
+    const beep = ()=>{ const a = audio(); if(!a) return; try{ [0, 0.16].forEach(dt=>{ const t = a.currentTime + dt, o = a.createOscillator(), g = a.createGain();
+      o.type = 'square'; o.frequency.value = 1760; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.01); g.gain.setValueAtTime(0.05, t + 0.09); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.13); }); }catch(e){} };
+    beep(); alarmT = setInterval(beep, 900);
+  }
+  function morning(){
+    const R = W.room, a = W.apt, bed = R.bed;
+    showInside(true); inRoom(); dayRoom(true);
+    S.seen = S.seen.filter(x=>x !== 'late'); mark('late');
+    me.shades = false; me.kit = Object.assign({}, DAY_KIT); me.kitT = {}; dress();
+    W.aptGroup.traverse(o=>{ if(o.userData.boot || o.userData.pack) o.visible = true; });
+    if(R.form) R.form.jacket.visible = true;
+    if(R.window) R.window.open(false);
+    scoreStop();
+    const top = (bed.top || 0.72);
+    // a duvet, down to the mattress all round: no gap under it
+    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.34, 1.08), new THREE.MeshStandardMaterial({ color:0x55678a, roughness:1 }));
+    blanket.position.set(bed.x - 0.1, top + 0.19, bed.z); W.aptGroup.add(blanket);
+    const lie = k=>stage('idle', bed.x + 0.75, top + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 });
+    const sitUp = ()=>stage('wake', bed.x - 0.15, bed.seat || 0.76, bed.z - 0.05, Math.PI/2);
+    const shoe = R.boots.at, form = R.form.at, pack = R.pack.at, win = R.window.at;
+    const F = [form[0] + 0.75, form[2] + 0.6], fry = Math.atan2(-0.75, -0.6);                 // at the clothes, facing them
+    const K = [shoe[0] + 0.55, shoe[2]], kry = -Math.PI/2;                                    // by the boots
+    const shots = [
+      // the alarm, going and going; she is face down under the blanket
+      { dur:3.6, fov:40, mood:'sleepy', cam:[[bed.x + 2.1, 1.9, bed.z - 1.6], [bed.x + 1.6, 1.6, bed.z - 1.1]], look:[bed.x - 0.1, 0.8, bed.z],
+        enter:()=>{ lie(0); alarm(true); caption('INT. ROBIN\'S ROOM — MORNING'); },
+        beats:[[1.6, ()=>lie(0.2)], [2.6, ()=>lie(-0.1)]] },
+      // her hand finds the phone: 8:42
+      { dur:2.6, fov:36, mood:'sleepy', cam:[bed.x + 1.2, 1.4, bed.z - 0.9], look:[bed.x + 0.3, 0.9, bed.z],
+        enter:()=>{ alarm(false); cue('ui'); phoneBig('late'); } },
+      // "Rats."
+      { dur:linesLen('rats') + 1.0, fov:34, cam:rel(bed.x - 0.15, bed.z - 0.05, Math.PI/2, 1.1, 0.2, 1.3), look:[bed.x - 0.15, 1.15, bed.z - 0.05],
+        enter:()=>{ phoneBig(null); blanket.visible = false; sitUp(); cue('door'); talk('rats'); } },
+      // clothes on, the backpack — fast
+      { dur:2.4, fov:46, mood:'focused', cam:[[F[0] + 1.6, 1.6, F[1] + 1.3], [F[0] + 1.2, 1.5, F[1] + 1.0]], look:[F[0], 1.1, F[1]],
+        enter:()=>stage('idle', F[0], 0, F[1], fry),
+        beats:[[0.2, ()=>cue('zip')], [0.8, ()=>cue('door')], [1.5, ()=>{ W.aptGroup.traverse(o=>{ if(o.userData.pack) o.visible = false; }); kitOn('pack'); cue('pick'); }]] },
+      // and then she sees them: the boots, by the window, the coils in the soles
+      { dur:2.6, fov:30, cam:[[shoe[0] + 1.3, 0.45, shoe[2] - 0.8], [shoe[0] + 1.0, 0.36, shoe[2] - 0.55]], look:[shoe[0], 0.12, shoe[2]],
+        enter:()=>stage('idle', K[0] + 0.6, 0, K[1] + 0.4, kry) },
+      // "You're up."
+      { dur:linesLen('upBoots') + 1.4, fov:32, mood:'grin', cam:rel(K[0] + 0.6, K[1] + 0.4, kry, 1.0, -0.15, 1.55), look:[K[0] + 0.6, 1.5, K[1] + 0.4],
+        enter:()=>{ stage('idle', K[0] + 0.6, 0, K[1] + 0.4, kry); talk('upBoots'); } },
+      // on, and the soles light
+      { dur:2.6, fov:38, mood:'grin', cam:[[shoe[0] + 1.5, 0.6, shoe[2] - 1.1], [shoe[0] + 1.2, 0.5, shoe[2] - 0.8]], look:[shoe[0] + 0.2, 0.3, shoe[2]],
+        enter:()=>stage('kneel', shoe[0] + 0.35, 0, shoe[2], kry),
+        beats:[[1.1, ()=>{ W.aptGroup.traverse(o=>{ if(o.userData.boot) o.visible = false; }); kitOn('shoes'); shoesOn(); later(()=>{ if(on) scoreDrop(); }, 700); }]] },
+      // the window, open; the morning comes in
+      { dur:2.6, fov:44, mood:'determined', cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
+        tick:(dt, t, k)=>{ if(k < 0.5) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.5); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
+        beats:[[1.4, ()=>{ R.window.open(true); cue('window'); muffle(false); }]] },
+      // out on the sill, over Kiln Street, in the sun
+      { dur:2.4, fov:42, mood:'grin', inside:false, cam:[[55.3, 13.4, 30.8], [55.5, 13.1, 31.5]], look:[SILL[0] - 0.2, SILL[1] + 0.5, SILL[2]],
+        enter:()=>{ outsideLook(); dayRoom(false); stage('idle', SILL[0], SILL[1], SILL[2], -Math.PI/2); caption('EXT. KILN STREET — 8:44 AM'); } },
+      { dur:0.8, fov:56, mood:'grin', cam:[56.8, 6.6, 37.6], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, b.position.y + 1, b.position.z] : SILL; },
+        enter:()=>cue('kick'),
+        tick:(dt, t, k)=>stage('jump', SILL[0] - k*1.6, SILL[1] + Math.sin(k*Math.PI*0.6)*0.7, SILL[2], -Math.PI/2) }
+    ];
+    playReel(shots, ()=>{ if(blanket.parent) blanket.parent.remove(blanket); commuteStart(); }, { ownClock:true });
+  }
+  /* daylight in the flat: the sun through the window, the lamp and the ceiling off */
+  function dayRoom(v){ apt.sun = !!v; apt.lamp = false; apt.ceiling = false; aptLights(); if(W.room && W.room.window && W.room.window.day) W.room.window.day(day()); }
+  function commuteStart(){
+    staged = null; reel = null; alarm(false); phoneBig(null); black(false);
+    if(!score.drop) scoreDrop();
+    me.kit = Object.assign({}, SCHOOL_KIT); me.kitT = null; me.shades = false; dress();
+    if(window.AVATAR) AVATAR.posture(null);
+    outsideLook(); dayRoom(false);
+    if(S.step === 'morning') outcome('out');                     // → commute
+    S.dm = Math.max(S.dm || 0, 8*60 + 44);
+    const x = SILL[0] - 1.6, y = SILL[1] + 0.55, z = SILL[2];
+    placePlayer(x, z, -Math.PI/2 + 0.2, y + EYE_);                // facing west, along the roofs, toward school
+    G.pitch = -0.15;
+    kitShow();
+    if(window.BOOTS && BOOTS.B){ BOOTS.sync(); Object.assign(BOOTS.B, { vx:-2.5, vy:1.4, vz:0, ground:false, state:'air', airT:0.2, cut:true }); }
+    later(()=>{ if(on && S.step === 'commute') checkpoint(); }, 1500);
+    lockPointer($('#view'));
+  }
+  /* on the roof across the lane from school: the time, and down she goes */
+  function onOverlook(){
+    const o = W.spots.schoolOverlook, r = W.roofs.find(r=>G.pos.x > r.x1 && G.pos.x < r.x2 && G.pos.z > r.z1 && G.pos.z < r.z2 && Math.abs(feet() - r.h) < 0.7);
+    return !!r && Math.abs(r.h - o[2]) < 0.7 && Math.hypot(G.pos.x - o[0], G.pos.z - o[1]) < 9;
+  }
+  function overlookScene(){
+    const o = W.spots.schoolOverlook, d = W.spots.schoolDoor, at = [G.pos.x, feet(), G.pos.z];
+    const face = angTo(at[0], at[2], d[0], d[1]);
+    S.dm = 8*60 + 57;
+    const shots = [
+      // the school, across the lane: she is above it, looking down
+      { dur:3.0, fov:46, cam:k=>rel(at[0], at[2], face, -3.0 - k*0.8, 1.0, at[1] + 3.0 + k*0.4), look:[d[0], 3.4, d[1] + 2.2],
+        enter:()=>{ stage('idle', at[0], at[1], at[2], face); caption('HARBOR LANE HIGH SCHOOL'); } },
+      // the phone: 8:57
+      { dur:2.2, fov:40, cam:rel(at[0], at[2], face, 1.5, 0.5, at[1] + 1.7), look:[at[0], at[1] + 1.25, at[2]],
+        enter:()=>{ stage('text', at[0], at[1], at[2], face); cue('ui'); phoneBig('time'); } },
+      // "Okay. Technically not that late."
+      { dur:linesLen('overlook') + 1.0, fov:32, mood:'sheepish', cam:rel(at[0], at[2], face, 1.1, -0.2, at[1] + 1.55), look:[at[0], at[1] + 1.5, at[2]],
+        enter:()=>{ phoneBig(null); stage('idle', at[0], at[1], at[2], face); talk('overlook'); } },
+      // and over the edge
+      { dur:1.3, fov:52, cam:[d[0] + 6, 2.2, d[1] - 6], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, b.position.y + 1, b.position.z] : [d[0], 2, d[1]]; },
+        enter:()=>cue('kick'),
+        tick:(dt, t, k)=>stage('jump', lerp(at[0], d[0] + 1.5, k), at[1]*(1 - k*k) + Math.sin(k*Math.PI)*1.2, lerp(at[2], d[1] - 2.5, k), face) }
+    ];
+    scoreLevel(0.25, 1.5, false);
+    playReel(shots, ()=>{
+      staged = null; reel = null; phoneBig(null);
+      if(window.AVATAR) AVATAR.posture(null);
+      placePlayer(d[0] + 1.5, d[1] - 2.5, Math.PI);
+      outcome('there');                                          // → school
+      checkpoint();
+      lockPointer($('#view'));
+    }, { ownClock:true });
+  }
+  /* the school doors (the inside is the next thing built) */
+  function schoolDoor(){
+    if(S.step !== 'school' || mode) return;
+    if(window.TSHSCHOOL && TSHSCHOOL.enter) return TSHSCHOOL.enter();
+    note('🏫 Harbor Lane High. (The school itself is coming in the next update.)');
+  }
+  function dayPopulate(){
+    clearNpcs();
+    placeScooters();
+    // people on their way to work and school, and more of them than at night
+    const spots = [[-80,8],[-70,-8],[-30,-8],[-10,8],[15,-8],[25,8],[48,-8],[70,8],[90,-8],[-8,-30],[8,30],[-8,60],[8,-60],[-30,48],[30,-48],[80,48],[-90,48],[-59,20],
+                   [-40,47],[-20,49],[-45,49],[-12,50],[60,-8],[-50,8],[35,8],[-8,20],[8,-20]];
+    spots.forEach(([x, z], i)=>{ const c = spawn('civ', CIV[i % CIV.length], x, z, { name:'civ'+i, phone:i % 3 === 0 }); c.brisk = 1.0 + Math.random()*0.4; });
+    [[40, 7.2, 40, 8.6], [41.2, 7.3, 40, 8.6], [-64, -7.2, -64, -8.6]].forEach(([x, z, fx, fz], i)=>{
+      const c = spawn('civ', CIV[(i*3+1) % CIV.length], x, z, { name:'stand'+i, state:'stand', phone:true }); c.faceTo = [fx, fz]; });
+    { const v = W.spots.vendor; spawn('vendor', 'walk-v', v[0]-0.2, v[1], { name:'vendor', state:'stand', yaw:Math.PI/2 }); }
+    spawnTruck('x', 2.8, 1, -70, 0x2a6a5a); spawnTruck('x', -2.8, -1, 40, 0x6a3a2a);
+    spawnTruck('z', -2.8, 1, -50, 0x2a3a6a); spawnTruck('z', 2.8, -1, 30, 0x5a2a4a);
+  }
+  /* the morning's own beats, every frame */
+  function tickDay(dt){
+    if(!day()) return;
+    if(S.step === 'commute'){
+      if(!mode) S.dm = Math.min(8*60 + 56, (S.dm || 524) + dt/12);  // a minute every twelve seconds, and it is never quite nine
+      if(!inside && !mode && !busy && G.onGround !== false && onOverlook()) scene('overlook', overlookScene);
+    }
+  }
+
   /* ================================================================ home */
   function homeDoor(fromWindow){
     if(mode) return;
@@ -3328,8 +3562,10 @@ window.TSH = (function(){
   const apt = { lamp:false, ceiling:false, mode:null, t:0, maya:null, kai:null, stage:null, sus:0, talked:[], exitVia:null };
   let aptSrc = null;
   function aptSources(){
-    if(!aptSrc){ const L = W.aptLights; aptSrc = Object.fromEntries(Object.entries(L).map(([k, v])=>[k, { x:v[0], y:v[1], z:v[2], col:new THREE.Color(v[3]), k:v[4], d:v[5], mul:0 }])); }
-    Object.keys(aptSrc).forEach(k=>{ aptSrc[k].mul = k === 'lamp' ? (apt.lamp ? 1 : 0) : k === 'ceiling' ? (apt.ceiling ? 1 : 0) : 1; });
+    if(!aptSrc){ const L = W.aptLights; aptSrc = Object.fromEntries(Object.entries(L).map(([k, v])=>[k, { x:v[0], y:v[1], z:v[2], col:new THREE.Color(v[3]), k:v[4], d:v[5], mul:0 }]));
+      // the morning: the sun in at the window, on the floor and the bed
+      const w = L.neon; aptSrc.sun = { x:w[0] + 1.6, y:2.4, z:w[2], col:new THREE.Color(0xffe2b8), k:22, d:11, mul:0 }; }
+    Object.keys(aptSrc).forEach(k=>{ aptSrc[k].mul = k === 'lamp' ? (apt.lamp ? 1 : 0) : k === 'ceiling' ? (apt.ceiling ? 1 : 0) : k === 'sun' ? (apt.sun ? 1 : 0) : k === 'neon' && apt.sun ? 0.3 : 1; });
     return Object.values(aptSrc);
   }
   function aptLights(){ lightT = 0; }
@@ -3354,7 +3590,7 @@ window.TSH = (function(){
   function goOutside(where){
     inside = false;
     W.cityGroup.visible = true; W.aptGroup.visible = false;
-    G.ceiling = streetLid; G.scene.fog.density = 0.0155; G.scene.background = new THREE.Color(0x0b2a26);
+    G.ceiling = streetLid; outsideAir();
     muffle(false);
     const s = W.spots;
     if(where === 'window'){ const w = s.homeWindow; placePlayer(w[0] - 0.3, w[1] + 1.2, Math.PI/2, w[2] + EYE_); }
@@ -3787,10 +4023,11 @@ window.TSH = (function(){
         <ul>${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>
         <div class="tsh-res-p"><b>Carried into Part Two</b>
           <span>Maya ${esc(partTwo.maya)}</span><span>Kai ${esc(partTwo.kai)}</span><span>Exposure ${partTwo.exposure}%</span>${partTwo.vendor ? '<span>The vendor owes you</span>' : ''}</div>
-        <div class="tsh-res-b"><button data-a="again">↺ Play the night again</button><button data-a="wano">🌏 Back to Wano</button></div>
+        <div class="tsh-res-b">${prologue ? '<button data-a="day">☀ Next: The Other Robin</button>' : ''}<button data-a="again">↺ Play the night again</button><button data-a="wano">🌏 Back to Wano</button></div>
       </div>`, act=>{
         if(act === 'again'){ closePanel(); const runs = S.runs, last = S.last; S = fresh(); S.runs = runs; S.last = last; save(); stop(); enter(server); }
         if(act === 'wano'){ closePanel(); leave(); }
+        if(act === 'day') startDay();
       }, true);
   }
 
@@ -3923,7 +4160,11 @@ window.TSH = (function(){
     'Who even trains you guys?':'sarcastic', "Yeah, I'm gonna pass on that.":'smug', "Oh, you've gotta be kidding me.":'annoyed',
     'Hey, Mom.':'nervous', 'Okay. Yeah. No problem.':'nervous', "Yeah. I'm fine. Just... stairs.":'sheepish', 'Uh... TV.':'sheepish',
     'Really good TV.':'sheepish', 'Yeah. You too.':'tired', '...Crap.':'shocked', 'Oh, come on.':'annoyed', 'Okay...':'nervous',
-    'Definitely never doing that again.':'tired', '...Probably.':'grin', 'Rats.':'annoyed', 'Still holds.':'smug'
+    'Definitely never doing that again.':'tired', '...Probably.':'grin', 'Rats.':'annoyed', 'Still holds.':'smug',
+    // the morning after
+    "You're up.":'grin', 'Okay. Technically not that late.':'sheepish', 'Morning.':'tired', 'You could say that.':'tired', '...Nope.':'nervous',
+    'Yes?':'sheepish', "That's fair.":'sheepish', 'I was going to do it.':'sheepish', 'Eventually?':'sheepish', 'Of course.':'deadpan',
+    'Who messed this up?':'skeptical', '...Whoever built this was an idiot.':'smug', "Good thing I'm here.":'grin', 'Yeah.':'sad', 'Thanks.':'sad'
   };
   const feelOf = text => FEEL[text] || (/\?!|!\?/.test(text) ? 'shocked' : /\?\s*$/.test(text) ? 'skeptical' : /!\s*$/.test(text) ? 'surprised' : /^\.\.\./.test(text) ? 'tired' : null);
   function lipsSay(text, recorded, secs){
@@ -4366,7 +4607,8 @@ window.TSH = (function(){
   }
   function hud(){
     if(!el) return;
-    el.querySelector('#tshClock').textContent = AI.clock(S.t);
+    el.querySelector('#tshClock').textContent = day() ? dclock(S.dm) + ' AM' : AI.clock(S.t);
+    el.classList.toggle('day', day());
     el.querySelector('#tshCash').textContent = S.cash ? '¥' + S.cash.toLocaleString() : '';
     el.querySelector('#tshExpo').style.width = Math.round(S.exposure||0) + '%';
     el.querySelector('#tshExpoN').textContent = Math.round(S.exposure||0) + '%';
@@ -4550,11 +4792,12 @@ window.TSH = (function(){
     const a = W.zones.alley, y = feet();
     const z = inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT' : S.step === 'raid' && !inAlley() ? 'EXT. NEON AVENUE — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
-    caption(z);
+    caption(day() ? z.replace('NIGHT', 'MORNING') : z);
   }
   function title(){
     const t = el.querySelector('#tshTitle');
-    t.innerHTML = `<div class="tsh-t1">TSH</div><div class="tsh-t2">WRITTEN BY GEORGE WANG</div><div class="tsh-t3">A KORO QUEST · PART ONE</div>`;
+    t.innerHTML = day() ? `<div class="tsh-t1">TSH</div><div class="tsh-t2">THE OTHER ROBIN</div><div class="tsh-t3">A KORO QUEST · PART TWO</div>`
+                        : `<div class="tsh-t1">TSH</div><div class="tsh-t2">WRITTEN BY GEORGE WANG</div><div class="tsh-t3">A KORO QUEST · PART ONE</div>`;
     t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
     setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 5200);
   }
@@ -4714,6 +4957,7 @@ window.TSH = (function(){
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
     lessonTick();
+    tickDay(dt);
     if(W.room && W.room.eq && inside && scoring()) W.room.eq.forEach((b, i)=>{ b.scale.y = 0.4 + Math.abs(Math.sin(clock*(6 + i*1.7) + i))*2.2; });   // the speaker's lights, with the music
     if(window.BOOTS && BOOTS.active) BOOTS.show(!mode && !inside && !busy);
   }
