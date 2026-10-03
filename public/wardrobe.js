@@ -85,6 +85,17 @@ window.WARDROBE = (function(){
                       about:'Black rib knit.' },
     'cap':          { name:'Cap', slot:'head', kind:'accessory', model:'cap', fit:'crown', tune:{ size:0.31, along:0.64, fwd:0.02, brim:true },
                       about:'A plain cap, worn forward.' },
+    // MAYA'S (glb files/wardrobe: cut from her, wearing them; the glasses made in make-glasses.js)
+    'red-turtleneck':{ name:'Red turtleneck', slot:'top', kind:'garment', hides:['neck', 'torso', 'upperArms', 'forearms'], bodies:['maya'],
+                      about:'Fine red rib, a rolled collar up to the chin, tucked in.' },
+    'navy-trousers':{ name:'Navy trousers', slot:'bottom', kind:'garment', hides:['hips', 'thighs', 'shins'], bodies:['maya'],
+                      about:'Straight-legged, pressed, the hems over the boots.' },
+    'black-boots':  { name:'Black boots', slot:'shoes', kind:'garment', hides:['feet'], bodies:['maya'],
+                      about:'Black leather ankle boots, a low heel.' },
+    'lab-coat':     { name:'Lab coat', slot:'outer', kind:'garment', hides:['upperArms', 'forearms'], bodies:['maya'],
+                      about:'White, open, a pen in the pocket and a patch over the heart.' },
+    'round-glasses':{ name:'Round glasses', slot:'face', kind:'accessory', model:'glasses', fit:'eyes', tune:{ along:0.36, fwd:0.07, size:0.12 },
+                      about:'Thin wire rims, big and round, clear lenses.' },
     'shades':       { name:'Sunglasses', slot:'face', kind:'accessory', model:'shades', fit:'eyes', tune:{ along:0.47, fwd:0.05, size:0.15 },
                       about:'Round, black, polarised and IR-cut: a camera gets glare, not a face.' }
   };
@@ -396,7 +407,7 @@ window.WARDROBE = (function(){
      over jackets, jackets over trousers): what of the one under lies over skin the one over covers is not
      drawn — the sleeve ends where the gauntlet starts, tucked into it; a shoe's collar goes up inside a hem. Worked out once per pair, in
      whatever pose the body is in (each garment point is matched to the skin point under it). */
-  const LAYER = { shoes:0.5, bottom:1, top:1, outer:2, hands:3 };             // (trousers are worn over shoes: a hem stacks on the shoe)
+  const LAYER = { shoes:0.5, top:0.8, bottom:1, outer:2, hands:3 };           // (trousers are worn over shoes: a hem stacks on the shoe; a top is tucked into them)
   function underneath(sm, worn){
     const gs = Object.keys(worn).filter(id=>ITEMS[id].kind === 'garment' && LAYER[ITEMS[id].slot]).map(id=>({ id, m:worn[id][0], layer:LAYER[ITEMS[id].slot] })).filter(g=>g.m);
     if(gs.length < 2){ gs.forEach(g=>hideOwn(g.m, null)); return; }

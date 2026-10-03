@@ -715,6 +715,11 @@ async function extract(dressedUrl, bodyUrl, outPath, o){
   for(let i=0;i<n;i++){
     const r = GB.nearest(P[i*3], P[i*3+1], P[i*3+2], null, 8); near[i] = r.i; if(r.i < 0) continue;
     const j = r.i; if(!on.has(B.region[j])) continue;
+    // `headBox: [halfWidth, top]` (metres): a garment that reaches up under the chin (a turtleneck's collar) takes the
+    // head's region only there — narrower than a bob of hair, and no higher than the chin
+    if(o.headBox && B.region[j] === 'head' && (Math.abs(P[i*3]) > o.headBox[0] || P[i*3+1] > o.headBox[1])) continue;
+    // and its third number, a depth: the collar only in front of it (behind, a bob of hair hangs over the collar and hides it)
+    if(o.headBox && o.headBox[2] !== undefined && (B.region[j] === 'head' || B.region[j] === 'neck') && (P[i*3+2] < o.headBox[2] || Math.abs(P[i*3]) > o.headBox[0])) continue;
     const cd = Math.abs(dcol[i*3] - B.col[j*3]) + Math.abs(dcol[i*3+1] - B.col[j*3+1]) + Math.abs(dcol[i*3+2] - B.col[j*3+2]);
     const hair = lum(B.col, j) < 40 && lum(dcol, i) < 40 && /^(head|neck|torso|upperArms)$/.test(B.region[j]);   // (dark on dark lower down is jeans over black shorts)
     // standing off her: a garment has thickness and the same surface twice does not
@@ -788,7 +793,8 @@ async function extract(dressedUrl, bodyUrl, outPath, o){
   const Q = geo.attributes.position.array, gap = B.H*(o.gap || 0.0025), GS = grid(B.W, B.H/90);
   // the floor is everything of her but hair (dark is not hair below the shoulders: black shorts are a floor too)
   const floors = [{ G:GS, W:B.W, N:B.Wn, ok:j=>B.region[j] !== 'head' && (B.skin[j] || !/^(neck|torso|upperArms)$/.test(B.region[j])) }];
-  if(o.over){ const g2 = await load(o.over); let gm2 = null; g2.scene.traverse(x=>{ if(!gm2 && x.isSkinnedMesh) gm2 = x; }); gm2.skeleton.pose(); g2.scene.updateMatrixWorld(true);
+  // `over`: what it is worn over — one garment, or a list (a coat over a turtleneck AND trousers): off all of them
+  for(const ov of [].concat(o.over || [])){ const g2 = await load(ov); let gm2 = null; g2.scene.traverse(x=>{ if(!gm2 && x.isSkinnedMesh) gm2 = x; }); gm2.skeleton.pose(); g2.scene.updateMatrixWorld(true);
     const W2 = worldVerts(gm2), N2 = new Float32Array(W2.length), g2geo = new THREE.BufferGeometry(); g2geo.setAttribute('position', new THREE.BufferAttribute(W2.slice(), 3)); g2geo.setIndex(gm2.geometry.index); g2geo.computeVertexNormals(); N2.set(g2geo.attributes.normal.array);
     floors.push({ G:grid(W2, B.H/90), W:W2, N:N2, ok:null }); }
   const push = new Float32Array(Q.length);

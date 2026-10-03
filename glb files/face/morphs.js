@@ -24,11 +24,12 @@
       band from her lower lid up past the upper lid closes down onto the
       lower lid line.
 
-     node face/morphs.js <in.glb> <out.glb>     (in: Robin before quantize)
+     node face/morphs.js <in.glb> <out.glb> [face/<who>.landmarks.json]
+     (in: the body before quantize; landmarks default to Robin's)
    ===================================================================== */
 const F = require('./rig'), io = require('./glbio'), T = F.THREE;
-const [,, inPath, outPath] = process.argv;
-const HIS = require('./rigtest.landmarks.json'), HERS = require('./robin.landmarks.json');
+const [,, inPath, outPath, marksPath] = process.argv;
+const HIS = require('./rigtest.landmarks.json'), HERS = require(marksPath ? require('path').resolve(marksPath) : './robin.landmarks.json');
 const n = s => s + '_Rig_Facial';
 
 /* ---------------------------------------------------------- 1. his shapes */
@@ -112,9 +113,11 @@ function lookup(v){
 /* SYMMETRIC ON HER TOO: the bend from his face to hers is not quite even (the landmarks are picked by eye),
    so each point also reads the mirror of its mirror point, about the middle of her face, and keeps the average */
 const MID = (HERS.eyeR[0] + HERS.eyeL[0] + HERS.mouthR[0] + HERS.mouthL[0])/4;
+/* where her face is, from her landmarks: under the chin to above the forehead, and in front of the middle of her head */
+const FACE_Y = [HERS.chin[1] - 0.03, HERS.forehead[1] + 0.045], FACE_Z = (HERS.eyeR[2] + HERS.eyeL[2])/2 - 0.075;
 let touched = 0;
 P.forEach((q, vi)=>{
-  if(q[1] < 1.40 || q[1] > 1.62 || q[2] < 0.03) return;            // her face, from under the chin to the hairline, front half
+  if(q[1] < FACE_Y[0] || q[1] > FACE_Y[1] || q[2] < FACE_Z) return;   // her face, from under the chin to the hairline, front half
   const a = lookup(new T.Vector3(...q)), b = lookup(new T.Vector3(2*MID - q[0], q[1], q[2]));
   if(!a && !b) return;
   SHAPES.forEach((s, si)=>{ const A = a ? a[si] : new T.Vector3(), B = b ? b[si].clone() : new T.Vector3(); B.x = -B.x;

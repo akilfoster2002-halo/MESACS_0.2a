@@ -429,6 +429,7 @@ window.TSH = (function(){
     cv = null; me.scale = null;
     if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0; raidCrew = false;
     if(window.TSHCHASE) TSHCHASE.stop();
+    octoStop();
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -1698,8 +1699,11 @@ window.TSH = (function(){
     maya:   { walk:1.1,  run:4.0, eye:{ range:14, fov:1.2, near:4.0, gain:1.2 } },
     vendor: { walk:1.1,  run:5.3, eye:{ range:10, fov:1.0, near:2.0, gain:0.6 } }
   };
+  /* MAYA, as she dresses: her body is the base layer; each of these is its own garment and comes off */
+  const MAYA_LOOK = { top:'red-turtleneck', bottom:'navy-trousers', shoes:'black-boots', outer:'lab-coat', face:'round-glasses' };
   function spawn(kind, char, x, z, o){
     o = o||{};
+    if(char === 'maya' && !o.wear) o.wear = MAYA_LOOK;
     const g = new THREE.Group(); (o.inApt ? W.aptGroup : W.cityGroup).add(g);
     const y = o.y !== undefined ? o.y : groundAt(x, z, 1);
     const n = { kind, char, g, model:null, x, y, z, yaw:o.yaw||0, state:o.state||'idle', aware:0, band:'unaware', sees:false,
@@ -1712,6 +1716,7 @@ window.TSH = (function(){
       n.model = m;
       AVATAR.animate(m, 0, n.cutClip || n.clip || 'idle');                 // posed before it is ever drawn: never a frame of T-pose
       g.add(m);
+      if(o.wear && window.WARDROBE) WARDROBE.put(m, char, o.wear);          // dressed a piece at a time (Maya: wardrobe.js)
       if(n.uniform) uniform(m);
       if(o.phone) phoneProp(n);
     }).catch(()=>{});
@@ -2075,7 +2080,29 @@ window.TSH = (function(){
     if(n.model && n.g.visible && (far < 60 || (n.t*10|0)%3===0)){
       const clip = n.moving ? (n.running ? 'sprint' : 'walk') : (n.clip || 'idle');
       AVATAR.animate(n.model, far < 60 ? dt : dt*3, clip);
+      if(far < 25) npcFace(n, dt);
     }
+  }
+  /* A FACE ON SOMEBODY ELSE (Maya's body has the shapes; glb files/face): she blinks, and while her line is up her
+     mouth moves — as loud as her voice when it is recorded, a talker's rhythm when it is not */
+  function npcFace(n, dt){
+    if(n.faceMesh === undefined){ n.faceMesh = null; n.model.traverse(o=>{ if(!n.faceMesh && o.morphTargetDictionary && o.morphTargetDictionary.jawOpen !== undefined) n.faceMesh = o; }); }
+    const f = n.faceMesh; if(!f) return;
+    const D = f.morphTargetDictionary, I = f.morphTargetInfluences;
+    n.blinkIn = (n.blinkIn === undefined ? 1 + Math.random()*3 : n.blinkIn) - dt;
+    if(n.blinkIn <= 0){ n.blinkT = 0.17; n.blinkIn = Math.random() < 0.15 ? 0.25 : 2 + Math.random()*4; }
+    let b = 0; if(n.blinkT > 0){ n.blinkT = Math.max(0, n.blinkT - dt); b = Math.min(1, 1.4*(1 - Math.abs(n.blinkT/0.17*2 - 1))); }
+    let v = 0;
+    if(n.talking){
+      if(lips.who === n.kind && vnow) v = lips.level;
+      else { const was = n.ph || 0; n.ph = was + dt*5.2; if(Math.floor(n.ph) !== Math.floor(was)) n.amp = 0.35 + Math.random()*0.6; v = Math.max(0, Math.sin(n.ph*Math.PI))*(n.amp || 0.6); }
+    }
+    const k = 1 - Math.exp(-dt*22);
+    I[D.blink] = b;
+    I[D.jawOpen] += (v*0.5 - I[D.jawOpen])*k;
+    I[D.mouthO] += (v*0.2 - I[D.mouthO])*k;
+    // a little life in the brows while she talks
+    if(D.browUp !== undefined) I[D.browUp] += ((n.talking ? 0.25 + 0.2*Math.sin(n.t*1.7) : 0) - I[D.browUp])*Math.min(1, dt*4);
   }
   function investigate(n, dt){
     const iv = n.investigate;
@@ -2293,7 +2320,7 @@ window.TSH = (function(){
     ['kai','maya'].forEach(k=>{ const n = find(k); if(n) despawn(n); });
     if(['lesson','deal','news'].includes(S.step)){
       const m = W.spots.maya;
-      const maya = spawn('maya', 'sable', m[0], m[1], { y:m[2], name:'maya', state:'roof', yaw:Math.PI });
+      const maya = spawn('maya', 'maya', m[0], m[1], { y:m[2], name:'maya', state:'roof', yaw:Math.PI });
       glint(maya);
     }
     // the buyer and his crew are in Dragon Alley from the moment she sets off for it
@@ -3165,8 +3192,10 @@ window.TSH = (function(){
     const lie = k=>stage('idle', bed.x + 0.75, (bed.top || 0.72) + 0.12, bed.z, Math.PI/2, { rx:-Math.PI/2, rz:k || 0 });
     // Maya and Kai, on the roof across Kiln Street from her window
     const MK = { maya:[54.4, 34.9], kai:[54.4, 33.1], y:12 };
-    const maya = spawn('maya', 'sable', MK.maya[0], MK.maya[1], { y:MK.y, name:'mayaWatch', state:'cut', yaw:Math.PI/2 });
+    const maya = spawn('maya', 'maya', MK.maya[0], MK.maya[1], { y:MK.y, name:'mayaWatch', state:'cut', yaw:Math.PI/2 });
     const kai = spawn('kai', 'kofi', MK.kai[0], MK.kai[1], { y:MK.y, name:'kaiWatch', state:'cut', yaw:Math.PI/2 });
+    const oc = octoStart(maya, MK.y, Math.PI/2);                // up on her arms the whole time she is there
+    const mayaHead = () => [maya.x, maya.y + 1.55, maya.z];
     const bino = [win[0] + 0.15, 1.65, win[2] + 0.1], bed_ = [bed.x, (bed.top || 0.72) + 0.25, bed.z];
     const shots = [
       // her own roof. "Okay..." — "Definitely never doing that again." — "...Probably."
@@ -3214,19 +3243,45 @@ window.TSH = (function(){
       // through them again: she shifts in her sleep
       { dur:2.6, fov:20, inside:true, bino:true, cam:bino, look:bed_, enter:()=>{ inRoom(); lie(0); }, beats:[[1.2, ()=>lie(0.25)]] },
       // "That's her." "You're sure?" "Yeah."
-      { dur:linesLen('watchers') + 1.0, fov:30, inside:false, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, 1.6, -0.6, MK.y + 1.7), look:[MK.maya[0], MK.y + 1.55, MK.maya[1]],
-        enter:()=>{ outsideLook(); maya.yaw = kai.yaw = Math.PI/2; talk('watchers'); },
-        onLine:(i, who)=>{ maya.talking = who === 'maya'; kai.talking = who === 'kai'; } }
+      { dur:linesLen('watchers') + 1.0, fov:30, inside:false, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, 2.0, -0.8, MK.y + 2.3), look:mayaHead,
+        enter:()=>{ outsideLook(); kai.yaw = Math.PI/2; talk('watchers'); },
+        onLine:(i, who)=>{ maya.talking = who === 'maya'; kai.talking = who === 'kai'; } },
+      // and she goes: the arms carry her off across the roof, a claw at a time; Kai watches her go
+      { dur:5.0, fov:42, inside:false, cam:[[MK.maya[0] + 4.5, MK.y + 2.6, MK.maya[1] - 4.2], [MK.maya[0] + 3.6, MK.y + 2.8, MK.maya[1] - 3.4]], look:()=>[maya.x, maya.y + 1.2, maya.z],
+        enter:()=>{ if(oc) oc.to(MK.maya[0] - 9, MK.maya[1] + 3, 1.7); },
+        tick:()=>{ kai.yaw = Math.atan2(maya.x - kai.x, maya.z - kai.z); } }
     ];
     mark('watchers');
     playReel(shots, ()=>prologueEnd(), { ownClock:true });
   }
   function kitOff(p){ if(!me.kit) return; me.kit[p] = false; dress(); }
+  /* MAYA'S ARMS (tentacles.js): four of them out of her back, and they carry her — her feet never touch the
+     roof. They hold her body (her hips) where they have it; this puts her there each frame, turned their way. */
+  let octo = null;
+  function octoStart(n, floor, yaw){
+    octoStop();
+    if(!window.TENTACLES) return null;
+    const oc = TENTACLES.make(W.cityGroup, { floor, at:[n.x, floor, n.z], yaw, lift:1.5 });
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+    oc.socket(()=>{ const b = n.model && boneOf(n.model, /Spine2$/); if(!b) return null;
+      const p = new THREE.Vector3(); b.getWorldPosition(p); q.setFromAxisAngle(up, oc.yaw); return new THREE.Matrix4().compose(p, q, one); });
+    octo = { oc, n, hip:0.95 };
+    return oc;
+  }
+  function octoTick(dt){
+    if(!octo) return;
+    const { oc, n } = octo;
+    if(n.gone){ octoStop(); return; }
+    oc.update(dt);
+    n.x = oc.body.x; n.z = oc.body.z; n.y = oc.body.y - octo.hip; n.yaw = oc.yaw; n.cutClip = 'idle';
+    oc.root.visible = !inside;
+  }
+  function octoStop(){ if(octo){ octo.oc.dispose(); octo = null; } }
   /* her room, for a shot: its own light and its own air */
   function inRoom(){ inside = true; G.scene.fog.density = 0.004; G.scene.background = new THREE.Color(0x020404); muffle(true); lightT = 0; }
   /* CUT TO BLACK. END OF PROLOGUE. */
   function prologueEnd(){
-    staged = null; flushTalk(); phoneBig(null);
+    staged = null; flushTalk(); phoneBig(null); octoStop();
     S.step = 'end'; mark('end');
     mode = 'end'; G.running = false;
     const b = el.querySelector('.tsh-black'); b.classList.add('on');
@@ -3322,7 +3377,7 @@ window.TSH = (function(){
     S.flags.arrival = how.how; S.flags.arrivalBy = how.by;
     ['mayaApt','kaiApt'].forEach(k=>{ const n = find(k); if(n) despawn(n); });
     const a = W.apt;
-    apt.maya = spawn('maya', 'sable', a.x1 + 1.1, a.z1 + 1.3, { inApt:true, name:'mayaApt', state:how.how === 'ambush' ? 'hidden' : 'hidden', yaw:Math.PI*0.75 });
+    apt.maya = spawn('maya', 'maya', a.x1 + 1.1, a.z1 + 1.3, { inApt:true, name:'mayaApt', state:how.how === 'ambush' ? 'hidden' : 'hidden', yaw:Math.PI*0.75 });
     apt.kai = spawn('kai', 'kofi', W.spots.aptDoor[0], a.z2 + 1.4, { inApt:true, name:'kaiApt', state:'offstage' });
     setObjective(how.how === 'ambush' ? 'Home. Finally.' : 'Home. Lie low.', how.how === 'ambush' ? ['Turn on the lamp (E).'] :
       ['Somebody could come looking. Get ready.', 'Hide the photo. Take what you need from the bench.', 'The switch by the door kills every light.', 'The window opens onto the fire escape.']);
@@ -3499,7 +3554,7 @@ window.TSH = (function(){
   function afterCut(){
     mark('after');
     const a = W.apt, s = W.spots;
-    const maya = apt.maya || spawn('maya', 'sable', a.x - 1, a.z, { inApt:true, name:'mayaApt', state:'talk' });
+    const maya = apt.maya || spawn('maya', 'maya', a.x - 1, a.z, { inApt:true, name:'mayaApt', state:'talk' });
     const kai = apt.kai || spawn('kai', 'kofi', a.x + 1, a.z + 1, { inApt:true, name:'kaiApt', state:'talk' });
     [maya, kai].forEach(n=>{ n.hidden = false; n.state = 'cut'; n.stun = 0; });
     maya.x = W.photoAt.x + 0.7; maya.z = W.photoAt.z; maya.yaw = -Math.PI/2; kai.x = a.x + 1.4; kai.z = a.z + 1.2; kai.yaw = -2.4;
@@ -3863,10 +3918,13 @@ window.TSH = (function(){
   function lipsTick(dt){
     if(!window.AVATAR || !AVATAR.mouth) return;
     let v = 0;
-    if(lips.an && vnow && vnow.robin){
+    lips.level = 0; lips.who = vnow && vnow.who;
+    if(lips.an && vnow && vnow.who){
       lips.an.getFloatTimeDomainData(lips.buf); let sum = 0; for(let i = 0; i < lips.buf.length; i++) sum += lips.buf[i]*lips.buf[i];
-      v = Math.max(0, Math.min(1, (Math.sqrt(sum/lips.buf.length) - 0.012)*9));
-    } else if(lips.flap > 0){
+      lips.level = Math.max(0, Math.min(1, (Math.sqrt(sum/lips.buf.length) - 0.012)*9));
+    }
+    if(vnow && vnow.robin){ v = lips.level; }
+    else if(lips.flap > 0){
       lips.flap -= dt; const was = lips.ph; lips.ph += dt*5.2;
       if(Math.floor(lips.ph) !== Math.floor(was)) lips.amp = 0.35 + Math.random()*0.6;      // a new syllable, its own size
       v = Math.max(0, Math.sin(lips.ph*Math.PI))*lips.amp*Math.min(1, lips.flap*4);
@@ -3902,7 +3960,7 @@ window.TSH = (function(){
         const d = a.createDelay(0.5), e = a.createGain(); d.delayTime.value = 0.14; e.gain.value = 0.25; head.connect(d); d.connect(e); e.connect(g);
       }
       head.connect(g); g.connect(a.destination);
-      if(who === 'robin' && !o.bark){ const an = a.createAnalyser(); an.fftSize = 512; head.connect(an); lips.an = an; lips.buf = new Float32Array(an.fftSize); mine.robin = true; }
+      if(!o.bark){ const an = a.createAnalyser(); an.fftSize = 512; head.connect(an); lips.an = an; lips.buf = new Float32Array(an.fftSize); mine.who = who; mine.robin = who === 'robin'; }
       src.start();
       mine.src = src; mine.g = g;
     });
@@ -4604,6 +4662,7 @@ window.TSH = (function(){
     if(!on || !W) return;
     clock += dt;
     lipsTick(dt);
+    octoTick(dt);
     chaseBack();
     if(busy === 'panel'){ return; }
     switch(mode){

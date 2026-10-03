@@ -435,6 +435,29 @@ test("Robin's face: the shapes are on her, she blinks and talks with them, and e
   has(t, /if\(mode === 'reel' && lips\.mood && lips\.feelT <= 0/, 'a shot\'s mood holds under her lines');
 });
 
+test('Maya: her own body, dressed a piece at a time, a face, and four arms that carry her at the end', () => {
+  const t = read('public/tsh.js'), a = read('public/avatar.js'), w = read('public/wardrobe.js'), i = read('public/index.html');
+  has(a, /id:'maya', name:'Maya'/, 'Maya is a body avatar.js can load');
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'characters', 'models', 'character-maya.glb'));
+  const J = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  ['jawOpen', 'smile', 'blink', 'browUp'].forEach(n => assert.ok(((J.meshes[0].extras || {}).targetNames || []).includes(n), 'her face has ' + n));
+  hasNot(t, /spawn\('maya', 'sable'/, 'Maya is not Sable any more');
+  has(t, /const MAYA_LOOK = \{ top:'red-turtleneck', bottom:'navy-trousers', shoes:'black-boots', outer:'lab-coat', face:'round-glasses' \};/, 'her look');
+  ['red-turtleneck', 'navy-trousers', 'black-boots', 'lab-coat'].forEach(id => { has(w, new RegExp("'" + id + "':\\s*\\{[^}]*bodies:\\['maya'\\]"), id + ' is made for her');
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'characters', 'wardrobe', id, 'maya.glb')), id + ' file'); });
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'characters', 'wardrobe', 'glasses.glb')), 'the glasses');
+  has(t, /function npcFace\(n, dt\)/, 'she blinks and talks');
+  // the arms
+  assert.ok(i.indexOf('tentacles.js') > 0 && i.indexOf('tentacles.js') < i.indexOf('src="tsh.js'), 'the arms load before TSH');
+  const n = t.slice(t.indexOf('  function nightScene('), t.indexOf('  function kitOff('));
+  has(n, /const oc = octoStart\(maya, MK\.y, Math\.PI\/2\);/, 'on the roof she is up on her arms');
+  has(n, /oc\.to\(MK\.maya\[0\] - 9, MK\.maya\[1\] \+ 3, 1\.7\)/, 'and they carry her off');
+  has(t, /n\.y = oc\.body\.y - octo\.hip;/, 'her feet never touch the roof: the arms hold her body');
+  const T = read('public/tentacles.js');
+  has(T, /function solve\(pts, base, target, L\)/, 'each arm is a chain solved to its claw');
+  has(T, /Math\.sin\(k\*Math\.PI\*2\.2 - t\*3\.1 \+ phase\)\*wave\*env/, 'with a ripple down it, still at both ends: a snake');
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');

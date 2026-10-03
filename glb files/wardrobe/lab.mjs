@@ -96,7 +96,7 @@ if(cmd){
     }
     if(cmd === 'extract'){                                         // extract <dressed.glb> <body.glb> <out.glb> [json options]
       const [d, b, out, opt] = args; const o = opt ? JSON.parse(opt) : {};
-      if(o.over) o.over = L.url(o.over);
+      if(o.over) o.over = [].concat(o.over).map(L.url);
       if(o.ref) o.ref = L.url(o.ref); if(o.pic) o.pic = L.url(o.pic);
       const r = await L.pg.evaluate((a, b, c, o)=>LAB.extract(a, b, c, o), L.url(d), L.url(b), L.url(out), o);
       fs.writeFileSync(out.replace(/\.glb$/, '-cut.jpg'), Buffer.from(r.shot.split(',')[1], 'base64')); delete r.shot;

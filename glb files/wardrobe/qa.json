@@ -33,6 +33,215 @@
    "buried": 20
   }
  },
+ "maya bottom:navy-trousers": {
+  "pass": true,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "navy-trousers": "6b608bde67b4"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 0.1,
+   "at": "jump@2",
+   "n": "1/6"
+  },
+  "doubled": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "skin": 0,
+  "buried": 15,
+  "mean": {
+   "holes": 0,
+   "poke": 0.01
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "maya bottom:navy-trousers,outer:lab-coat,shoes:black-boots,top:red-turtleneck": {
+  "pass": false,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "navy-trousers": "6b608bde67b4",
+   "lab-coat": "d7b9878497d2",
+   "black-boots": "b86ea01dfa99",
+   "red-turtleneck": "7318ca6a29c2"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 0.5,
+   "at": "salsa@4",
+   "n": "7/151"
+  },
+  "doubled": {
+   "worst": 0.5,
+   "at": "flip@2"
+  },
+  "skin": 2,
+  "buried": 32,
+  "mean": {
+   "holes": 0,
+   "poke": 0.06
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "maya bottom:navy-trousers,shoes:black-boots,top:red-turtleneck": {
+  "pass": false,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "navy-trousers": "6b608bde67b4",
+   "black-boots": "b86ea01dfa99",
+   "red-turtleneck": "7318ca6a29c2"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 1.7,
+   "at": "jump@2",
+   "n": "23/535"
+  },
+  "doubled": {
+   "worst": 0.7,
+   "at": "flip@7"
+  },
+  "skin": 2,
+  "buried": 21,
+  "mean": {
+   "holes": 0,
+   "poke": 0.26
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "maya outer:lab-coat": {
+  "pass": true,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "lab-coat": "ba74834c07f7"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 0,
+   "at": "idle@0",
+   "n": "0/55"
+  },
+  "doubled": {
+   "worst": 0.1,
+   "at": "flip@2"
+  },
+  "skin": 3,
+  "buried": 20,
+  "mean": {
+   "holes": 0,
+   "poke": 0
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "maya shoes:black-boots": {
+  "pass": true,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "black-boots": "b86ea01dfa99"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 0,
+   "at": "idle@0",
+   "n": "0/31"
+  },
+  "doubled": {
+   "worst": 0.2,
+   "at": "salsa@4"
+  },
+  "skin": 0,
+  "buried": 9,
+  "mean": {
+   "holes": 0,
+   "poke": 0
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "maya top:red-turtleneck": {
+  "pass": true,
+  "files": {
+   "body": "7d5d0b9e6eaa",
+   "red-turtleneck": "7318ca6a29c2"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0"
+  },
+  "poke": {
+   "worst": 3.5,
+   "at": "jump@2",
+   "n": "22/622"
+  },
+  "doubled": {
+   "worst": 0.5,
+   "at": "flip@3"
+  },
+  "skin": 5,
+  "buried": 11,
+  "mean": {
+   "holes": 0,
+   "poke": 0.62
+  },
+  "frames": 80,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
  "robin back:roll-top,bottom:baggy-jeans,hands:gecko-cuffs,outer:tech-jacket,shoes:skyline-shoes,wrist:flash-bangle": {
   "pass": true,
   "files": {

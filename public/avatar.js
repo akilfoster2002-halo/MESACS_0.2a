@@ -108,6 +108,13 @@ window.AVATAR = (function(){
     { id:'robin', name:'Robin',
       model:'characters/models/character-robin.glb'+V(),
       preview:'characters/previews/character-robin.png'+V() },
+    /* MAYA (TSH): rebuilt from her reference art like Robin — a body in the
+       wardrobe's base layer (black crop top and shorts), her face shapes on it
+       (glb files/face), and what she wears put on by WARDROBE, a piece at a time:
+       the turtleneck, the trousers, the boots, the lab coat, the glasses. */
+    { id:'maya', name:'Maya', tall:1.68,
+      model:'characters/models/character-maya.glb'+V(),
+      preview:'characters/previews/character-maya.png'+V() },
     /* And the retired roster as walk-ons: the people on TSH's pavements.
        Same reason — their letters resolve to the new cast. */
     ...['s','t','u','v','x'].map(c=>({ id:'walk-'+c, name:'Passer-by',
