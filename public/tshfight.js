@@ -927,14 +927,17 @@ window.TSHFIGHT = (function(){
   /* THEIR FACES (the crew's bodies carry the face shapes: glb files/face, build-thug.sh). They blink; while one
      of them has the line he talks; and the rest is the fight on them — a scowl squaring up, teeth on a roar,
      a wince when he is hit, and his eyes shut on the ground. */
-  // past 1 on purpose: their faces hold a shout and a scowl stronger than the rig's own, and at fight distance they need it
+  /* EXAGGERATED, on purpose: up to about twice the rig's own strength (past that the mouth smears). Thugs at
+     fight distance, in a game about a girl with gadgets, play big: a sneer standing about, a snarl squaring up,
+     a shout on every swing, a howl when they are hit. The buyer has his own: a smug grin while he talks. */
   const FACES = {
-    calm:  { frown:0.35, browDown:0.5 },
-    fight: { frown:1.1, browDown:1.4 },
-    roar:  { frown:1.4, browDown:1.6, jawOpen:0.8 },
-    swing: { frown:1.4, browDown:1.5, jawOpen:0.35 },
-    hurt:  { frown:1.5, browUp:1.2, jawOpen:0.6 },
-    out:   { blink:1, jawOpen:0.25 }
+    calm:  { frown:1.1, browDown:1.5 },
+    smug:  { smile:1.4, browDown:1.2, browUp:0 },
+    fight: { frown:1.8, browDown:1.9 },
+    roar:  { frown:1.9, browDown:1.9, jawOpen:0.95 },
+    swing: { frown:1.9, browDown:1.9, jawOpen:0.6 },
+    hurt:  { frown:1.5, browUp:1.3, jawOpen:0.75, blink:0.5 },
+    out:   { blink:1, jawOpen:0.35, frown:0.6 }
   };
   function face(e, dt){
     if(!e.model) return;
@@ -947,7 +950,7 @@ window.TSHFIGHT = (function(){
       : c === 'roar' ? FACES.roar
       : ['jab', 'cross', 'hook', 'kick'].includes(c) ? FACES.swing
       : (c === 'fight' || c === 'block' || c.indexOf('walk') === 0 || e.state === 'circle' || e.state === 'attack') ? FACES.fight
-      : FACES.calm;
+      : e.kind === 'buyer' ? FACES.smug : FACES.calm;
     // talking: a talker's rhythm under his line
     let mouth = 0;
     if(e.talking){ const was = f.ph; f.ph += dt*5.2; if(Math.floor(f.ph) !== Math.floor(was)) f.amp = 0.35 + Math.random()*0.6; mouth = Math.max(0, Math.sin(f.ph*Math.PI))*f.amp; }
@@ -957,8 +960,8 @@ window.TSHFIGHT = (function(){
     ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{
       if(D[n] === undefined) return;
       let t = want[n] || 0;
-      if(n === 'jawOpen') t = Math.min(0.85, t + mouth*0.5);
-      if(n === 'mouthO') t = Math.max(t, mouth*0.2);
+      if(n === 'jawOpen') t = Math.min(0.95, t + mouth*0.8);          // and they talk big: a wide mouth on every syllable
+      if(n === 'mouthO') t = Math.max(t, mouth*0.5);
       if(n === 'blink') t = Math.max(t, blink);
       f.cur[n] = (f.cur[n] || 0) + (t - (f.cur[n] || 0))*(n === 'blink' ? 1 : k);
       I[D[n]] = f.cur[n];
