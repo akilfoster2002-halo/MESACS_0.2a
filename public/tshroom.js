@@ -431,9 +431,19 @@ window.TSHROOM = (function(){
     const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.55, 16), std({ color:0xd8ccb4, roughness:0.8 })); torso.position.set(fx, 1.32, fz); torso.scale.z = 0.7; add(torso);
     const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), std({ color:0xd8ccb4, roughness:0.8 })); neck.position.set(fx, 1.65, fz); add(neck);
     });
+    // the form slimmed and the jacket a size up, so it hangs on the form and not inside it: its collar on the form's neck.
+    // Either may load first.
+    let formM = null, jackM = null;
+    const fitJacket = () => { if(!formM || !jackM) return;
+      const nb = band(formM, 1.6, 1.8); if(nb.isEmpty()) return;
+      const neck = nb.getCenter(new V3()); jacket.updateMatrixWorld(true);
+      const jb = new THREE.Box3().setFromObject(jackM), col = band(jackM, jb.max.y - 0.1, 9).getCenter(new V3());
+      jacket.position.x += neck.x - col.x; jacket.position.z += neck.z - col.z; jacket.position.y += 1.71 - jb.max.y; };
     swap('form', group, form, { x:fx, y:0, z:fz, h:1.72, ry:Math.PI/4, done:m=>{
-      // the jacket hangs on the torso, which is not the middle of the whole form (the tripod's legs are not even)
-      const c = upperCentre(m, 1.05); if(c){ jacket.position.x = c.x; jacket.position.z = c.z; } } });
+      m.scale.x *= 0.66; m.scale.z *= 0.66;
+      // centred on its torso, which is not the middle of the whole form (the tripod's legs are not even)
+      const c = band(m, 1.1, 1.6).getCenter(new V3()); m.position.x += fx - c.x; m.position.z += fz - c.z;
+      formM = m; fitJacket(); } });
     const jacket = new THREE.Group(); jacket.position.set(fx, 1.3, fz); jacket.rotation.y = Math.PI/4; group.add(jacket);
     const cloth = std({ color:0x1b2321, roughness:0.9 }), seam = glowM(0x38ffd0, 2.4);
     const body_ = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.19, 0.5, 16, 1, true), cloth); body_.scale.z = 0.72; jacket.add(body_);
@@ -441,7 +451,7 @@ window.TSHROOM = (function(){
     [-1, 1].forEach(sd=>{ const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.5, 10), cloth); sl.position.set(sd*0.23, -0.02, 0); sl.rotation.z = sd*0.12; jacket.add(sl);
       const ln = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.46, 0.01), seam); ln.position.set(sd*0.07, 0, 0.142); jacket.add(ln);
       const sh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.01, 0.01), seam); sh.position.set(sd*0.12, 0.22, 0.09); jacket.add(sh); });
-    swap('jacket', jacket, jacket.children.slice(), { x:0, y:-0.33, z:0, h:0.72 });     // inside the jacket's own group: it goes when she takes it
+    swap('jacket', jacket, jacket.children.slice(), { x:0, y:-0.33, z:0, h:0.86, done:m=>{ jackM = m; fitJacket(); } });     // inside the jacket's own group: it goes when she takes it
     room.form = { at:[fx, 0, fz], jacket };
 
     // ---- the packing table along the east wall: tonight's orders
@@ -556,12 +566,12 @@ window.TSHROOM = (function(){
       return m;
     });
   }
-  /* the middle of a model above height y0 (a dress form's torso, not its tripod) */
-  function upperCentre(m, y0){
+  /* the box round the part of a model between two heights (a dress form's torso, not its tripod; a jacket's collar) */
+  function band(m, y0, y1){
     const v = new V3(), b = new THREE.Box3(); m.updateMatrixWorld(true);
     m.traverse(n=>{ if(!n.isMesh) return; const P = n.geometry.attributes.position;
-      for(let i=0;i<P.count;i+=2){ v.fromBufferAttribute(P, i).applyMatrix4(n.matrixWorld); if(v.y > y0) b.expandByPoint(v); } });
-    return b.isEmpty() ? null : b.getCenter(new V3());
+      for(let i=0;i<P.count;i++){ v.fromBufferAttribute(P, i).applyMatrix4(n.matrixWorld); if(v.y > y0 && v.y < y1) b.expandByPoint(v); } });
+    return b;
   }
   /* the height of the first surface under (x, z) on a model, from above */
   function topOf(m, x, z){

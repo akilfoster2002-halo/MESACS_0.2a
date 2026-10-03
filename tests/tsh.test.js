@@ -767,3 +767,11 @@ test('ROBIN RYU is drawn as solid blocks: real extruded letters that spin in, ro
   has(css, /\.tsh-title\.rr\.rr3d \.rr-l[^{]*\{visibility:hidden\}/, 'over the flat letters, which keep the layout');
   has(r, /if\(!window\.THREE \|\| !setup\(\)\) return false;/, 'and the flat title still plays without WebGL');
 });
+
+test('the jacket hangs on the dress form, not inside it: the form slimmed, the jacket a size up, its collar on the neck', () => {
+  const r = read('public/tshroom.js');
+  has(r, /m\.scale\.x \*= 0\.66; m\.scale\.z \*= 0\.66;/, 'the form slimmed through the body');
+  has(r, /swap\('jacket', jacket, [^;]*h:0\.86, done:m=>\{ jackM = m; fitJacket\(\); \}/, 'the jacket a size up');
+  has(r, /jacket\.position\.x \+= neck\.x - col\.x; jacket\.position\.z \+= neck\.z - col\.z;/, 'its collar centred on the form\'s neck');
+  has(r, /const fitJacket = \(\) => \{ if\(!formM \|\| !jackM\) return;/, 'whichever model loads first');
+});
