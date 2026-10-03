@@ -1246,7 +1246,7 @@ window.TSH = (function(){
   }
   /* BOOM: the drop, now — and the rest of the song for the first roofs */
   function scoreDrop(){
-    const a = audio(); if(!a) return;
+    const a = audio(); if(!a || !scoreBus()) return;              // the morning starts the song here, with no opening to have built its bus
     score.dropped = true;
     scoreLoad('b').then(buf=>{
       if(!buf || !on) return;
