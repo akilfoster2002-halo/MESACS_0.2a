@@ -277,16 +277,19 @@ window.TSH = (function(){
       const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 300;
       const g = a.createGain(); g.gain.value = 0.0;
       rain.connect(hp); hp.connect(lp); lp.connect(g); g.connect(a.destination); rain.start();
+      // the city under it: by day only the low rumble of traffic (its hiss, on its own, is rain again)
       const hum = a.createBufferSource(); hum.buffer = noiseBuf(4, true); hum.loop = true;
-      const hg = a.createGain(); hg.gain.value = 0.0; hum.connect(hg); hg.connect(a.destination); hum.start();
+      const hlp = a.createBiquadFilter(); hlp.type = 'lowpass'; hlp.frequency.value = day() ? 320 : 20000;
+      const hg = a.createGain(); hg.gain.value = 0.0; hum.connect(hlp); hlp.connect(hg); hg.connect(a.destination); hum.start();
       bed = { rain, hum, g, hg, lp };
-      g.gain.setTargetAtTime(day() ? 0.006 : 0.05, a.currentTime, 1.5); hg.gain.setTargetAtTime(0.07, a.currentTime, 2);     // the morning: the rain has stopped
+      // the rain is heard only while it is raining: the night. The morning after, it has stopped.
+      g.gain.setTargetAtTime(raining() ? 0.05 : 0, a.currentTime, 1.5); hg.gain.setTargetAtTime(day() ? 0.09 : 0.07, a.currentTime, 2);
     }catch(e){ bed = null; }
   }
   function muffle(inside){
     if(!bed || !AC) return;
     bed.lp.frequency.setTargetAtTime(inside ? 380 : 1400, AC.currentTime, 0.4);
-    bed.g.gain.setTargetAtTime((inside ? 0.025 : 0.05)*(day() ? 0.12 : 1), AC.currentTime, 0.4);
+    bed.g.gain.setTargetAtTime(raining() ? (inside ? 0.025 : 0.05) : 0, AC.currentTime, 0.4);
   }
   function stopBed(){
     if(!bed) return;
@@ -593,6 +596,7 @@ window.TSH = (function(){
      pale sky, the road only damp in the gutters, the neon still on and nothing next to the daylight. */
   const DAY_AIR = 0xc9dde0;
   const day = () => !!(S && S.day);
+  const raining = () => !day();                          // it rains all night; the morning after is dry
   function air(){ return day() ? [DAY_AIR, 0.0026] : [0x0b2a26, 0.0155]; }
   /* a clear morning sky: deep blue overhead, white haze at the horizon, a few clouds catching the sun */
   function daySky(){
