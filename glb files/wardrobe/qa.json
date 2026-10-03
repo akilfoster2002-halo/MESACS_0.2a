@@ -36,7 +36,7 @@
  "maya bottom:navy-trousers": {
   "pass": true,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "navy-trousers": "6b608bde67b4"
   },
   "holes": {
@@ -70,9 +70,9 @@
  "maya bottom:navy-trousers,outer:lab-coat,shoes:black-boots,top:red-turtleneck": {
   "pass": false,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "navy-trousers": "6b608bde67b4",
-   "lab-coat": "d7b9878497d2",
+   "lab-coat": "ba74834c07f7",
    "black-boots": "b86ea01dfa99",
    "red-turtleneck": "7318ca6a29c2"
   },
@@ -89,7 +89,7 @@
    "worst": 0.5,
    "at": "flip@2"
   },
-  "skin": 2,
+  "skin": 3,
   "buried": 32,
   "mean": {
    "holes": 0,
@@ -107,7 +107,7 @@
  "maya bottom:navy-trousers,shoes:black-boots,top:red-turtleneck": {
   "pass": false,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "navy-trousers": "6b608bde67b4",
    "black-boots": "b86ea01dfa99",
    "red-turtleneck": "7318ca6a29c2"
@@ -143,7 +143,7 @@
  "maya outer:lab-coat": {
   "pass": true,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "lab-coat": "ba74834c07f7"
   },
   "holes": {
@@ -177,7 +177,7 @@
  "maya shoes:black-boots": {
   "pass": true,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "black-boots": "b86ea01dfa99"
   },
   "holes": {
@@ -211,7 +211,7 @@
  "maya top:red-turtleneck": {
   "pass": true,
   "files": {
-   "body": "7d5d0b9e6eaa",
+   "body": "825dd55beb37",
    "red-turtleneck": "7318ca6a29c2"
   },
   "holes": {
@@ -245,7 +245,7 @@
  "robin back:roll-top,bottom:baggy-jeans,hands:gecko-cuffs,outer:tech-jacket,shoes:skyline-shoes,wrist:flash-bangle": {
   "pass": true,
   "files": {
-   "body": "fee4a0b77a28",
+   "body": "43938d0cb236",
    "roll-top": "814b6b9079a1",
    "baggy-jeans": "c7420968765d",
    "gecko-cuffs": "ec2cf412da37",
@@ -283,7 +283,7 @@
  "robin bottom:baggy-jeans": {
   "pass": true,
   "files": {
-   "body": "fee4a0b77a28",
+   "body": "43938d0cb236",
    "baggy-jeans": "c7420968765d"
   },
   "holes": {
@@ -317,7 +317,7 @@
  "robin hands:gecko-cuffs": {
   "pass": true,
   "files": {
-   "body": "fee4a0b77a28",
+   "body": "43938d0cb236",
    "gecko-cuffs": "ec2cf412da37"
   },
   "holes": {
@@ -351,7 +351,7 @@
  "robin outer:tech-jacket": {
   "pass": true,
   "files": {
-   "body": "fee4a0b77a28",
+   "body": "43938d0cb236",
    "tech-jacket": "6db98f69b480"
   },
   "holes": {
@@ -385,7 +385,7 @@
  "robin shoes:skyline-shoes": {
   "pass": true,
   "files": {
-   "body": "fee4a0b77a28",
+   "body": "43938d0cb236",
    "skyline-shoes": "5d50663a8f17"
   },
   "holes": {

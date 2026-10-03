@@ -27,4 +27,6 @@ npx -y @gltf-transform/cli prune "$T-c.glb" "cast/maya.glb"
 npx -y @gltf-transform/cli simplify "cast/maya.glb" "$T-s.glb" --ratio 0.32 --error 0.0008
 node face/morphs.js "$T-s.glb" "$T-f.glb" face/maya.landmarks.json
 npx -y @gltf-transform/cli quantize "$T-f.glb" "$T-q.glb"
-npx -y @gltf-transform/cli sparse "$T-q.glb" "../public/characters/models/character-maya.glb"
+# NOT `gltf-transform sparse`: on these quantized shapes it wrote every moved value as 0, and the face was
+# there by name and moved nothing (found 2026-10-03). The full quantized shapes cost ~2 MB; they work.
+cp "$T-q.glb" "../public/characters/models/character-maya.glb"

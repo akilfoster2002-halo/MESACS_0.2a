@@ -584,7 +584,8 @@ window.AVATAR = (function(){
       if(e){ e.t -= dt; if(e.t > 0) want = e.v; else delete face.expr[n]; }
       held[n] = (face.cur['_' + n] || 0) + (want - (face.cur['_' + n] || 0))*ke; face.cur['_' + n] = held[n]; });
     ['smile', 'frown', 'browUp', 'browDown'].forEach(n=>{ face.cur[n] = held[n]; });
-    face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.8, face.mouth*0.55 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
+    // no further than about half: past that the lips stretch over a mouth with no inside to it
+    face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.5, face.mouth*0.5 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
     face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
     faceSet(m, 'blink', Math.max(blink, held.blink));                 // heavy lids (sleepy) under the blinks
     for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);

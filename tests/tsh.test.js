@@ -669,3 +669,19 @@ test('The Other Robin: detention, the robot she fixes, what her teacher says, an
   const O = t.slice(t.indexOf('  function outsideScene('), t.indexOf('  function dayPopulate('));
   ['headphones(true)', '3:20 PM', 'The rest of the day is hers.'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
 });
+
+test('the face shapes really move: Robin\'s and Maya\'s are not empty (a sparse export once wrote them as zeros)', () => {
+  ['robin', 'maya'].forEach(who => {
+    const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'characters', 'models', 'character-' + who + '.glb'));
+    const jl = b.readUInt32LE(12), J = JSON.parse(b.slice(20, 20 + jl).toString('utf8')), bin = b.slice(20 + jl + 8);
+    const prim = J.meshes[0].primitives[0], names = J.meshes[0].extras.targetNames;
+    ['jawOpen', 'smile', 'blink'].forEach(n => {
+      const a = J.accessors[prim.targets[names.indexOf(n)].POSITION];
+      assert.ok(!a.sparse, who + ' ' + n + ': stored whole, not sparse');
+      const bv = J.bufferViews[a.bufferView], sz = { 5126:4, 5122:2, 5120:1 }[a.componentType], rd = { 5126:'readFloatLE', 5122:'readInt16LE', 5120:'readInt8' }[a.componentType];
+      const st = bv.byteStride || 3*sz; let moved = 0;
+      for(let i = 0; i < a.count; i++) for(let c = 0; c < 3; c++) if(bin[rd]((bv.byteOffset || 0) + (a.byteOffset || 0) + i*st + c*sz)) moved++;
+      assert.ok(moved > 50, who + ' ' + n + ' moves some of her face (' + moved + ' values)');
+    });
+  });
+});
