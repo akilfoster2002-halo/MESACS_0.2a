@@ -177,10 +177,23 @@ window.TSHCITY = (function(){
     M.facades = walls.map((w, i)=>{ const t = T.windows({ wall:w, seed:17+i*13, lit:0.22+((i*7)%5)*0.05, bays:4, floors:6 });
       t.map.wrapS = t.map.wrapT = THREE.RepeatWrapping; t.glow.wrapS = t.glow.wrapT = THREE.RepeatWrapping;
       return std({ map:t.map, emissiveMap:t.glow, emissive:new THREE.Color(1,1,1), emissiveIntensity:0.85, roughness:0.85 }); });
-    // the school's: red brick, white frames, big classroom windows (B31)
-    { const t = T.windows({ wall:'#9a4e38', frame:'#e6e2d6', seed:91, lit:0.12, bays:6, floors:5 }); t.map.wrapS = t.map.wrapT = THREE.RepeatWrapping; t.glow.wrapS = t.glow.wrapT = THREE.RepeatWrapping;
-      M.school = std({ map:t.map, emissiveMap:t.glow, emissive:new THREE.Color(1,1,1), emissiveIntensity:0.5, roughness:0.85 });
-      M.schoolBase = std({ color:0xcfc8b8, roughness:0.8 }); }
+    // THE SCHOOL'S SKIN (B31), after 41 Cooper Square: perforated stainless-steel panels over glass — silver, in
+    // vertical panels, the holes thicker in some than others so the glass and the floors behind come through
+    { const c = T.cv(256, 256), x = c.getContext('2d');
+      x.fillStyle = '#b4b8bb'; x.fillRect(0, 0, 256, 256);
+      for(let p = 0; p < 4; p++){ const x0 = p*64, dens = [0.55, 0.85, 0.35, 0.7][p];
+        x.fillStyle = `rgba(255,255,255,${0.05 + p*0.02})`; x.fillRect(x0, 0, 64, 256);
+        for(let yy = 3; yy < 256; yy += 6) for(let xx = x0 + 3; xx < x0 + 62; xx += 6){ if(((xx*7 + yy*13) % 100)/100 > dens) continue; x.fillStyle = 'rgba(30,40,48,0.75)'; x.beginPath(); x.arc(xx, yy, 1.7, 0, 7); x.fill(); }
+        x.fillStyle = 'rgba(40,44,48,0.6)'; x.fillRect(x0, 0, 2, 256); }
+      x.fillStyle = 'rgba(40,44,48,0.5)'; x.fillRect(0, 0, 256, 2); x.fillRect(0, 128, 256, 2);
+      const t = T.tex(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      M.school = std({ map:t, roughness:0.32, metalness:0.75 });
+      // the ground floor: glass, set back, its mullions
+      const g = T.cv(256, 128), y = g.getContext('2d'), gr = y.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#3a4c58'); gr.addColorStop(1, '#1c262e');
+      y.fillStyle = gr; y.fillRect(0, 0, 256, 128); y.fillStyle = 'rgba(255,240,210,0.18)'; for(let k = 0; k < 6; k++) y.fillRect(10 + k*42, 40, 24, 60);
+      y.fillStyle = '#14181c'; for(let k = 0; k <= 4; k++) y.fillRect(k*64 - 2, 0, 4, 128); y.fillRect(0, 0, 256, 5);
+      const gt = T.tex(g); gt.wrapS = gt.wrapT = THREE.RepeatWrapping;
+      M.schoolBase = std({ map:gt, roughness:0.08, metalness:0.4 }); }
     M.plasters = ['#4a5550','#3f4a47','#5a4a40','#4a4a52','#3a4442'].map(c=>{ const t = T.plaster(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return std({ map:t, roughness:0.9 }); });
     M.shutters = [0,1,2,3,4,5].map(i=>{ const s = T.shutter(100+i*7, { base:['#667570','#5e6b69','#707a6a','#5a6660'][i%4], tag:['#c8322a','#d8402a','#b02a4a','#c83a2a'][i%4] });
       return std({ map:s.map, normalMap:s.normal, normalScale:new THREE.Vector2(0.8,0.8), roughness:0.55, metalness:0.45 }); });
@@ -329,7 +342,7 @@ window.TSHCITY = (function(){
       const faces = ['px','nx','pz','nz'].filter(f=>!touching(b, f)).join(' ') + ' py';
       // the upper floors: windows from 4 m up; the ground floor is dressed separately
       const school = b.id === 'B31';
-      B.box(school ? M.school : M.facades[b.f % M.facades.length], cx, (b.h+4)/2, cz, w, b.h-4, d, { s:school ? 16 : 12, sv:school ? 14 : 18, faces:faces.replace('py',''), v0:0 });
+      B.box(school ? M.school : M.facades[b.f % M.facades.length], cx, (b.h+4)/2, cz, w, b.h-4, d, { s:school ? 6 : 12, sv:school ? 7 : 18, faces:faces.replace('py',''), v0:0 });
       B.box(school ? M.schoolBase : M.plasters[b.f % M.plasters.length], cx, 2, cz, w, 4, d, { s:6, faces:faces.replace('py','') });
       B.box(M.roof, cx, b.h, cz, w, 0.02, d, { s:8, faces:'py' });
       // a band between the shops and the flats, and a parapet round the roof
@@ -894,10 +907,33 @@ window.TSHCITY = (function(){
     B.box(M.glow(0x7fb4c4, 0.35), dx, 2.1, dz - 0.04, 10, 4.0, 0.06, { faces:'nz' });                 // the glass front
     for(let k = -5; k <= 5; k += 2.5) B.box(fr, dx + k, 2.1, dz - 0.06, 0.14, 4.2, 0.14);               // its mullions
     B.box(fr, dx, 4.15, dz - 0.06, 10.2, 0.16, 0.16); B.box(fr, dx, 0.05, dz - 0.06, 10.2, 0.1, 0.16);
-    // the canopy, and the name over it
-    B.box(M.concrete, dx, 4.6, dz - 1.4, 12, 0.3, 2.8); [-5.6, 5.6].forEach(k=>B.box(fr, dx + k, 2.3, dz - 2.6, 0.18, 4.6, 0.18));
-    const name = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.1), M.glow(0xffffff, 1.1, { map:L().hsign('HARBOR LANE HIGH SCHOOL', 31, { ink:'#f4f1e6', bg:'#16324a', glyphs:0, w:1024, h:128 }) }));
-    name.position.set(dx, 5.5, dz - 0.06); name.rotation.y = Math.PI; name.userData.flat = true; group.add(name);
+    /* THE CUT (after 41 Cooper Square): up the front from over the doors to the roof, the steel skin is torn
+       open in a leaning, widening slash — and through it the glass, the floors and the white lattice of the
+       atrium behind. Its edges are the skin's own depth, half a metre of it. */
+    const cut = [[-31.5, 4.4], [-24.5, 4.4], [-21.5, 8.2], [-17.5, 12.6], [-15.0, 18.0], [-23.5, 18.0], [-26.6, 12.8], [-29.8, 8.4]];
+    { const xs = cut.map(p=>p[0]), x0 = Math.min(...xs), x1 = Math.max(...xs);
+      const c = L().cv(256, 512), x = c.getContext('2d'), gr = x.createLinearGradient(0, 0, 0, 512);
+      gr.addColorStop(0, '#5f7f96'); gr.addColorStop(1, '#22313c'); x.fillStyle = gr; x.fillRect(0, 0, 256, 512);
+      // the lattice behind the glass, and the floors crossing it
+      x.strokeStyle = 'rgba(240,240,236,0.5)'; x.lineWidth = 2; for(let k = -512; k < 768; k += 11){ x.beginPath(); x.moveTo(k, 512); x.lineTo(k + 512, 0); x.stroke(); x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 512, 512); x.stroke(); }
+      for(let f = 1; f < 4; f++){ const yy = 512 - f*512*3.6/14; x.fillStyle = '#cfd2cc'; x.fillRect(0, yy - 5, 256, 10); x.fillStyle = 'rgba(255,236,200,0.35)'; x.fillRect(0, yy + 5, 256, 30); }
+      x.fillStyle = 'rgba(255,255,255,0.12)'; for(let k = 0; k < 6; k++) x.fillRect(k*48, 0, 2, 512);
+      const shape = new THREE.Shape(cut.map(([px, py])=>new THREE.Vector2(px, py)));
+      const geo = new THREE.ShapeGeometry(shape), P = geo.attributes.position, U = geo.attributes.uv;
+      for(let i = 0; i < P.count; i++) U.setXY(i, (P.getX(i) - x0)/(x1 - x0), (P.getY(i) - 4.4)/13.6);
+      const glassCut = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map:L().tex(c), emissive:new THREE.Color(1, 1, 1), emissiveMap:L().tex(c), emissiveIntensity:0.35, roughness:0.08, metalness:0.3, side:THREE.DoubleSide }));
+      glassCut.position.z = dz - 0.03; group.add(glassCut);
+      // its edges: the skin's thickness, turned in
+      cut.forEach((p, i)=>{ const q = cut[(i + 1) % cut.length], len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        const lip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.14, 0.6), M.school); lip.position.set((p[0] + q[0])/2, (p[1] + q[1])/2, dz - 0.3); lip.rotation.z = Math.atan2(q[1] - p[1], q[0] - p[0]); group.add(lip); });
+      lightSrc(-23, 10, dz - 2, 0xfff0d8, 8, 12); }
+    // the name, in steel letters on the skin
+    { const c = L().cv(1024, 128), x = c.getContext('2d'); x.font = 'bold 74px ' + (window.uiFont ? uiFont() : 'sans-serif'); x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillStyle = 'rgba(20,24,28,0.6)'; x.fillText('HARBOR LANE HIGH SCHOOL', 516, 70); x.fillStyle = '#eef1f2'; x.fillText('HARBOR LANE HIGH SCHOOL', 512, 64);
+      const t = L().tex(c), name = new THREE.Mesh(new THREE.PlaneGeometry(12, 1.5), new THREE.MeshStandardMaterial({ map:t, transparent:true, roughness:0.3, metalness:0.8 }));
+      name.position.set(-44, 5.6, dz - 0.05); name.rotation.y = Math.PI; group.add(name); }
+    // the ground floor set back behind slanted columns, in pairs
+    [-52, -45, -38, -18, -13].forEach(x=>[-1, 1].forEach(sd=>{ const col = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.4, 0.4), M.concrete); col.position.set(x + sd*0.5, 2.1, dz - 0.6); col.rotation.z = sd*0.2; group.add(col); }));
     B.box(M.concrete, dx, 0.11, dz - 1.3, 10, 0.22, 2.6, { faces:'py nz px nx' });                     // the step
     // the revolving door: a glass drum and four wings, turning slowly
     const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 2.6, 24, 1, true),
