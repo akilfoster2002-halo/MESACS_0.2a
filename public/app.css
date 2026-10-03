@@ -2958,3 +2958,5 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-mute.off{border-color:rgba(255,106,138,.6);background:rgba(40,8,14,.75)}
 #tsh.cine .tsh-mute{top:14px;opacity:.75}
 @media (max-width:640px){#tsh .tsh-mute{right:auto;left:16px;top:auto;bottom:16px}}
+/* a panel (the results after END OF PROLOGUE, the pause card) is always over the black it opens on — the black took its clicks */
+#tsh .tsh-panel{z-index:6}

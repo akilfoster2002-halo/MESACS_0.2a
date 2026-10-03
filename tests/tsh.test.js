@@ -723,3 +723,9 @@ test('a mute button: on screen and on M, and it silences everything without stop
   has(t, /localStorage\.setItem\('tsh_mute'/, 'and it is remembered');
   has(css, /#tsh \.tsh-mute\{[^}]*pointer-events:auto/, 'and it can be clicked');
 });
+
+test('after END OF PROLOGUE the results can be clicked: the panel is over the black it opens on', () => {
+  const css = read('public/app.css');
+  const z = rule => { const m = [...css.matchAll(new RegExp(rule.replace('.', '\\.') + '\\{[^}]*z-index:(\\d+)', 'g'))].pop(); return m ? +m[1] : 0; };
+  assert.ok(z('#tsh .tsh-panel') > z('#tsh .tsh-black'), 'the results panel is above the black screen');
+});
