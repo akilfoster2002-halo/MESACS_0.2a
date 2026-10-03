@@ -460,7 +460,7 @@ window.TSH = (function(){
       beatStart(true); title(); lockPointer($('#view'));
       // picked up inside the school: the sneak from the lobby, or detention
       if(['sneak', 'detention', 'after'].includes(S.step) && W.school){ intoSchool();
-        if(S.step === 'sneak'){ const X = W.school.X; placePlayer(X(0.3), 10.4, 0); later(()=>{ if(on && S.step === 'sneak') sneakBegin(); }, 400); }
+        if(S.step === 'sneak'){ const ls = W.school.spots.lobbyStop; placePlayer(ls[0], ls[1] + 0.4, 0); later(()=>{ if(on && S.step === 'sneak') sneakBegin(); }, 400); }
         else later(()=>{ if(on) detention(); }, 400); }
       // the afternoon, after: hers to walk about in
       if(S.step === 'day'){ setObjective('', []); later(()=>{ if(on) headphones(true); }, 1500); }
@@ -556,6 +556,7 @@ window.TSH = (function(){
   }
   function chaseCam(dt){
     const free = (mode === null && G.running) || mode === 'scale' || mode === 'fight';
+    if(free && !busy && inSchool && W && W.school) return schoolCam(dt);
     if(!free || busy || inside || !W || !W.lens){ chase.k = 1; chase.dy = 0; return; }
     const L = W.lens, cam = G.camera.position, head = V(G.pos.x, G.pos.y + 0.1, G.pos.z);
     chase.raw = cam.clone();
@@ -573,6 +574,29 @@ window.TSH = (function(){
     cam.copy(at(chase.k, chase.dy));
     const dir = V(-Math.sin(G.yaw), 0, -Math.cos(G.yaw));
     G.camera.lookAt(head.clone().addScaledVector(dir, 6).setY(G.pos.y + Math.sin(G.pitch)*5));
+  }
+  /* IN THE SCHOOL the camera goes round what is behind her. With her back to a wall or a run of lockers there
+     is no room behind her, and pulled in to her head it looks straight down past her; so it tries the directions
+     round her — straight behind, then a little to each side, then more — and sits on the first with room,
+     looking at her. */
+  const scam = { a:0 };
+  function schoolCam(dt){
+    const head = V(G.pos.x, G.pos.y, G.pos.z), y = G.pos.y + 1.4, want = 4.6, sol = W.school.solids;
+    const room = ang => { const dx = Math.sin(G.yaw + ang), dz = Math.cos(G.yaw + ang); let best = want;
+      for(const s of sol){ if(y < s.y1 || y > s.y2) continue; const t = segT(head.x, head.z, head.x + dx*(want + 0.5), head.z + dz*(want + 0.5), s.x1 - 0.25, s.x2 + 0.25, s.z1 - 0.25, s.z2 + 0.25);
+        if(t){ const d = t[0]*(want + 0.5) - 0.3; if(d < best) best = d; } }
+      return Math.max(0.6, best); };
+    let pick = 0, got = room(0);
+    if(got < 3.2) for(const a of [0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.75, -1.75]){ const r = room(a); if(r > got + 0.4){ got = r; pick = a; } if(r >= 3.2){ pick = a; got = r; break; } }
+    scam.a += angDiff(pick, scam.a)*Math.min(1, dt*3);
+    const d = Math.min(got, room(scam.a)), a = G.yaw + scam.a;
+    const lid = W.school.ceilingAt(head.x, head.z) - 0.6;
+    const cam = V(head.x + Math.sin(a)*d, Math.min(lid, G.pos.y + 0.9 + (want - d)*0.12 - Math.sin(G.pitch)*2), head.z + Math.cos(a)*d);
+    if(!scam.p || scam.p.distanceTo(cam) > 12) scam.p = cam.clone(); else scam.p.lerp(cam, Math.min(1, dt*8));
+    G.camera.position.copy(scam.p);                    // its own, kept between frames: the game's chase camera pulls the other way every frame
+    const fwd = V(-Math.sin(G.yaw), 0, -Math.cos(G.yaw));
+    const ahead = 2.5*Math.max(0, 1 - Math.abs(scam.a)/1.2);   // swung round her, it looks at her rather than past her
+    G.camera.lookAt(head.x + fwd.x*ahead, G.pos.y - 0.2 + Math.sin(G.pitch)*4, head.z + fwd.z*ahead);
   }
   /* the platforms: the highest one under you that you could have stepped onto */
   function groundAt(x, z, feet){
@@ -3565,7 +3589,7 @@ window.TSH = (function(){
   }
   function intoSchool(){
     inside = true; inSchool = true; showInside(true);
-    G.ceiling = ()=>W.school.H; G.scene.fog.density = 0.002; G.scene.background = new THREE.Color(0xe6ece8);
+    G.ceiling = (x, z)=>W.school.ceilingAt(x, z); G.scene.fog.density = 0.002; G.scene.background = new THREE.Color(0xe6ece8);
     muffle(true); lightT = 0;
     if(window.BOOTS && BOOTS.B) BOOTS.B.ground = true;
     if(!W.school.people.length) TSHSCHOOL.populate((kind, char, x, z, o)=>spawn(kind, char, x, z, o));
@@ -3574,24 +3598,27 @@ window.TSH = (function(){
   }
   function lobbyScene(){
     const sc = W.school, X = sc.X, sp = sc.spots, guard = sc.guard, teacher = sc.teacher;
-    const door = [sp.door[0], 15.2], in_ = [X(0.6), 12.2], stop = [X(0.3), 10.0], north = Math.PI;
-    teacher.x = X(2); teacher.z = 4.8; teacher.yaw = Math.PI; teacher.hold = true; guard.hold = true;
-    const faceT = angTo(stop[0], stop[1], teacher.x, teacher.z);
+    const door = [sp.door[0], 15.2], in_ = [sp.inside[0], 12.4], stop = sp.lobbyStop, north = Math.PI, tl = sp.teacherLobby;
+    teacher.x = tl[0]; teacher.z = tl[1]; teacher.yaw = Math.PI; teacher.hold = true; guard.hold = true;
+    const faceT = angTo(stop[0], stop[1], teacher.x, teacher.z), faceG = angTo(guard.x, guard.z, stop[0], stop[1]);
     const shots = [
       // in through the revolving door, out of the sun
-      { dur:2.4, fov:46, inside:true, cam:[X(4.2), 1.7, 9.5], look:[X(1), 1.3, 13.8],
+      { dur:2.4, fov:46, inside:true, cam:[X(5.6), 1.6, 9.2], look:[X(2), 1.4, 14],
         enter:()=>{ caption('INT. HARBOR LANE HIGH — 9:01 AM'); cue('door'); },
         tick:(dt, t, k)=>walkStage(door, in_, k) },
+      // and up: twenty metres of it — the stair climbing a floor at a time, the white lattice, the galleries, the skylight
+      { dur:3.6, fov:62, cam:[[X(1.0), 1.3, 13.4], [X(0.6), 1.2, 13.0]], look:k=>[X(4 + k*3), 3 + k*14, 4 - k*4],
+        enter:()=>stage('idle', in_[0], 0, in_[1], north) },
       // past the desk: "Morning, Robin." "Morning." "Long night?" — a half-second stop — "You could say that."
-      { dur:linesLen('lobby') + 0.6, fov:44, cam:[X(4.2), 1.9, 12.4], look:k=>{ const b = AVATAR.body; return b ? [b.position.x - 1.6, 1.4, b.position.z - 0.4] : [X(-2), 1.4, 10]; },
-        enter:()=>{ talk('lobby'); guard.yaw = angTo(guard.x, guard.z, in_[0], in_[1]); },
-        tick:(dt, t, k)=>{ const ln = linesLen('lobby'), a = (linesLen('lobby') - 3.2)/ln;
+      { dur:linesLen('lobby') + 0.6, fov:50, cam:[X(5.2), 2.0, 14.4], look:()=>{ const b = AVATAR.body; return b ? [(b.position.x + guard.x)/2, 1.3, (b.position.z + guard.z)/2] : [X(-2), 1.3, 10]; },
+        enter:()=>{ talk('lobby'); guard.yaw = faceG; },
+        tick:(dt, t, k)=>{ const ln = linesLen('lobby');
           if(t < ln*0.55) walkStage(in_, stop, Math.min(1, t/(ln*0.55)));
           else stage('idle', stop[0], 0, stop[1], north);
           const b = AVATAR.body; if(b) guard.yaw += angDiff(angTo(guard.x, guard.z, b.position.x, b.position.z), guard.yaw)*Math.min(1, dt*3); } },
       // the guard watches her go
-      { dur:1.8, fov:34, cam:[X(-1.8), 1.7, 11.6], look:[X(-5.3), 1.55, 9.6],
-        enter:()=>{ stage('idle', stop[0], 0, stop[1], north); guard.yaw = angTo(guard.x, guard.z, stop[0], stop[1]); } },
+      { dur:1.8, fov:32, cam:rel(guard.x, guard.z, faceG, 1.5, 0.35, 1.72), look:[guard.x, 1.6, guard.z],
+        enter:()=>{ stage('idle', stop[0], 0, stop[1], north); guard.yaw = faceG; } },
       // she looks up, across the lobby
       { dur:1.6, fov:30, mood:'tired', cam:rel(stop[0], stop[1], faceT, -0.6, 0.35, 1.68), look:[teacher.x, 1.55, teacher.z] },
       // and her teacher sees her
@@ -3607,7 +3634,7 @@ window.TSH = (function(){
       staged = null; reel = null;
       if(window.AVATAR) AVATAR.posture(null);
       placePlayer(stop[0], stop[1] + 0.4, faceT);                       // her back to her teacher
-      teacher.hold = false; guard.hold = false; guard.yaw = Math.PI*0.75;
+      teacher.hold = false; guard.hold = false; guard.yaw = Math.PI*0.25;
       outcome('spotted');                                                // → sneak
       sneakBegin();
       lockPointer($('#view'));
@@ -3704,11 +3731,11 @@ window.TSH = (function(){
       paper = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.29), new THREE.MeshStandardMaterial({ map:LOOK.tex(c), roughness:0.9 }));
       paper.rotation.x = -Math.PI/2; sc.group.add(paper); }
     paper.visible = false; paper.position.set(d[0] - 0.15, 0.775, d[1] + 0.05); paper.rotation.z = 0.25;
-    R.position.set(X(8.2), 0.91, -35); R.rotation.y = -Math.PI/2;
+    R.position.set(...sp.benchTop); R.rotation.y = -Math.PI/2;
     const two = freeCam([(T1[0] + sp.seat[0])/2, (T1[1] + sp.seat[1])/2], faceR, 2.6, 1.45);
     const shots = [
       // Room 120: empty but for the two of them
-      { dur:3.0, fov:52, inside:true, cam:[X(-4.2), 2.6, -31], look:[d[0] + 1, 0.9, d[1]],
+      { dur:3.0, fov:54, inside:true, cam:[X(-4.2), 3.6, -34.8], look:[d[0] + 1, 0.9, d[1] - 1],
         enter:()=>{ caption('INT. ROOM 120 — DETENTION'); seated(); t.x = sp.teacherDesk[0]; t.z = sp.teacherDesk[1]; },
         tick:(dt, tt, k)=>{ t.x = lerp(sp.teacherDesk[0], T1[0], Math.min(1, k*1.4)); t.z = lerp(sp.teacherDesk[1], T1[1], Math.min(1, k*1.4)); t.yaw = faceR; t.moving = k < 0.7; } },
       // the paper, down on the desk. "Where is it?" — and nothing back
@@ -3723,8 +3750,8 @@ window.TSH = (function(){
       { dur:linesLen('detained') + 0.8, fov:34, mood:'deadpan', cam:rel(sp.seat[0], sp.seat[1], faceT, 1.4, 0.3, 1.25), look:[sp.seat[0], 1.05, sp.seat[1]],
         enter:()=>{ seated(); talk('detained'); } },
       // the robot, off the bench
-      { dur:2.2, fov:44, cam:[X(5.6), 1.7, -32.2], look:[X(8.2), 1.0, -35],
-        enter:()=>{ t.x = X(7.2); t.z = -35; t.yaw = Math.PI/2; },
+      { dur:2.2, fov:44, cam:[sp.bench[0] - 1.8, 1.7, sp.bench[1] + 2.6], look:[sp.benchTop[0], 1.0, sp.benchTop[2]],
+        enter:()=>{ t.x = sp.bench[0]; t.z = sp.bench[1]; t.yaw = Math.PI/2; },
         beats:[[1.3, ()=>cue('gear')]] },
       // and onto her desk: "Since you're here, you can help me with something." "Who messed this up?" "That's what I'd like you to figure out."
       { dur:linesLen('robot') + 0.8, fov:36, mood:'skeptical', cam:rel(d[0], d[1], faceR + Math.PI, -0.6, 0.9, 1.45), look:[d[0], 0.9, d[1]],

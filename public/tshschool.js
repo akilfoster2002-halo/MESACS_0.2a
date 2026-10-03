@@ -3,17 +3,18 @@
    across the lane from B21: off the map at x = 400, like the flat, so the
    street is not drawn through its walls and its door is a fade.
 
-       ┌──── ROOM 120 (her teacher's) ────┐          z −42 … −30
-       │  desks · whiteboard · workbench  │
-       └───────────────┤door├─────────────┘
-          ┌─GIRLS┐      │    │
-          │ WC   ├──────┤ H  ├──────────────┐ 114   (west branch z −12…−8,
-          └──────┘      │ A  │──────────────┘        east branch z −24…−20)
-                        │ L  │  lockers both sides
-                        │ L  │  bulletin board
-          ┌─────────────┘    └─────────────┐
-          │ OFFICE   LOBBY   (guard's desk)│        z 4 … 16
-          └──────────(revolving door)──────┘
+       ┌─────── ROOM 120 (5 m) ───────┐                 z −48 … −34
+       │ windows · desks · workbench  │
+       └────────────┤door├────────────┘
+         ┌GIRLS┐      │    │
+         │ WC  ├──────┤ H  ├──────────────┐ 114      (west branch z −18…−14,
+         └─────┘      │ A  │──────────────┘           east branch z −28…−24)
+                      │ L  │ 7 m: lockers, the bulletin board, borrowed light
+            ┌─────────┘ L  └───────────────┐
+            │ galleries ×3      ░ lattice  │ THE ATRIUM, 20 m, after Cooper Union:
+            │ OFFICE      LOBBY ░ ╱stair╲  │ a skylight, three floors of galleries,
+            │ guard's desk     ░  stacked  │ the grand stair and its white lattice
+            └────────(revolving door)──────┘ z −6 … 16
 
    THE SNEAK. She is late, her teacher is in the lobby, and Room 114 is up
    the hall and round the corner. Her teacher walks a round — the office,
@@ -32,7 +33,7 @@
    ===================================================================== */
 window.TSHSCHOOL = (function(){
   const V3 = THREE.Vector3;
-  const SX = 400, H = 3.6;
+  const SX = 400, H = 20;
   let S = null;                  // what build() made
   let K = null;                  // tsh.js's hooks, while the sneak runs
   const std = o => new THREE.MeshStandardMaterial(o);
@@ -42,7 +43,7 @@ window.TSHSCHOOL = (function(){
   const font = (px, w) => (w || 'bold ') + px + 'px ' + (window.uiFont ? uiFont() : 'sans-serif');
 
   /* ----------------------------------------------------------- the art */
-  function sign(text, o){
+  function sign_(text, o){
     o = Object.assign({ w:512, h:128, bg:'#1e3a56', ink:'#f2efe6' }, o||{});
     const c = cv(o.w, o.h), x = c.getContext('2d');
     x.fillStyle = o.bg; x.fillRect(0, 0, o.w, o.h); x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 6; x.strokeRect(8, 8, o.w - 16, o.h - 16);
@@ -108,116 +109,181 @@ window.TSHSCHOOL = (function(){
     return tex(c);
   }
 
-  /* ========================================================== the build */
+  /* ========================================================== the build
+     AFTER COOPER UNION (41 Cooper Square). The lobby is the bottom of an atrium twenty metres tall: a
+     skylight at the top, galleries on three floors looking down into it, a grand stair climbing the east side
+     a flight at a time, and wrapped round the stair a white lattice — a net of diagonal ribs, the building's
+     "cloud" — that rises from above head height to the roof. Slanted concrete columns in pairs by the glass
+     front, polished concrete underfoot. The hall off it is seven metres high, with borrowed light along the
+     top of its walls and concrete beams across; the classrooms are five.
+
+     EVERY WALL IS SOLID TO THE ROOF (sixty metres, in fact): the chase camera rides three metres above her
+     head, and a wall that stopped below it was not a wall to it — it sat in them. */
+  const ROOMS = { atrium:20, hall:7, room:5 };
+  function concrete(){
+    const c = cv(512, 512), x = c.getContext('2d');
+    x.fillStyle = '#9a9c98'; x.fillRect(0, 0, 512, 512);
+    for(let i = 0; i < 9000; i++){ const v = 120 + Math.random()*60 | 0; x.fillStyle = `rgba(${v},${v},${v - 4},${0.06 + Math.random()*0.1})`; x.fillRect(Math.random()*512, Math.random()*512, 2 + Math.random()*5, 2 + Math.random()*5); }
+    for(let i = 0; i < 18; i++){ const g = x.createRadialGradient(Math.random()*512, Math.random()*512, 0, Math.random()*512, Math.random()*512, 80 + Math.random()*120); g.addColorStop(0, 'rgba(255,255,255,0.06)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 512, 512); }
+    x.strokeStyle = 'rgba(40,40,38,0.35)'; x.lineWidth = 2; x.strokeRect(1, 1, 510, 510);     // a saw-cut joint every two metres
+    const t = tex(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  }
   function build(root, out){
     const g = new THREE.Group(); g.visible = false; root.add(g);
     const solids = [], plats = [], lights = [], spots = {};
-    const wallM = std({ color:0xd9d2bf, roughness:0.85 }), lowM = std({ color:0x4f7a8c, roughness:0.7 });
-    const floorT = tiles(), floorM = std({ map:floorT, roughness:0.32, metalness:0.05 });
-    const ceilM = std({ color:0xf2f2ee, roughness:0.9 }), trimM = std({ color:0x2a4a6a, roughness:0.6 }), woodM = std({ color:0x8a6a48, roughness:0.6 });
-    const panelM = glowM(0xfffaf0, 1.6), lockA = std({ map:lockerTex('#2f5f9a'), roughness:0.45, metalness:0.4 }), lockB = std({ map:lockerTex('#7a2a2a'), roughness:0.45, metalness:0.4 });
-    const box = (m, x, y, z, w, h, d, o) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); if(o && o.ry) b.rotation.y = o.ry; b.castShadow = !!(o && o.shadow); b.receiveShadow = true; g.add(b); return b; };
+    const white = std({ color:0xeceae4, roughness:0.85 }), conc = std({ color:0x8e908c, roughness:0.75 }), dark = std({ color:0x22262a, roughness:0.5, metalness:0.4 });
+    const floorM = std({ map:concrete(), roughness:0.28, metalness:0.05 }), steel = std({ color:0xb8bcc0, roughness:0.3, metalness:0.85 });
+    const glass = std({ color:0xcfe8f0, roughness:0.05, metalness:0.1, transparent:true, opacity:0.22, depthWrite:false, side:THREE.DoubleSide });
+    const woodM = std({ color:0x7a5a3c, roughness:0.6 }), trimM = std({ color:0x2a2e32, roughness:0.6 });
+    const panelM = glowM(0xfffaf0, 1.4), lockA = std({ map:lockerTex('#2f5f9a'), roughness:0.45, metalness:0.4 }), lockB = std({ map:lockerTex('#c9cdd2'), roughness:0.4, metalness:0.5 });
+    const box = (m, x, y, z, w, h, d, o) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); if(o && o.ry) b.rotation.y = o.ry; if(o && o.rz) b.rotation.z = o.rz; if(o && o.rx) b.rotation.x = o.rx; b.castShadow = !!(o && o.shadow); b.receiveShadow = true; g.add(b); return b; };
     const plane = (m, x, y, z, w, h, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.y = ry || 0; g.add(p); return p; };
-    const solid = (x1, x2, z1, z2, y2) => { const s = { x1, x2, z1, z2, y1:-1, y2:y2 === undefined ? H + 1 : y2, tag:'school' }; solids.push(s); return s; };
-    // a wall: cream over a painted dado, a rail between them, a dark skirting
-    const wall = (x1, x2, z1, z2) => { const cx = (x1 + x2)/2, cz = (z1 + z2)/2, w = x2 - x1, d = z2 - z1;
-      box(wallM, cx, (H + 1.1)/2, cz, w, H - 1.1, d); box(lowM, cx, 0.55, cz, w + 0.01, 1.1, d + 0.01);
-      box(trimM, cx, 1.12, cz, w + 0.03, 0.06, d + 0.03); box(trimM, cx, 0.06, cz, w + 0.02, 0.12, d + 0.02); solid(x1, x2, z1, z2); };
-    const room = (x1, x2, z1, z2) => { const f = box(floorM, (x1 + x2)/2, -0.05, (z1 + z2)/2, x2 - x1, 0.1, z2 - z1);
-      const uv = f.geometry.attributes.uv; for(let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i)*(x2 - x1)/4, uv.getY(i)*(z2 - z1)/4);
-      box(ceilM, (x1 + x2)/2, H + 0.05, (z1 + z2)/2, x2 - x1, 0.1, z2 - z1); plats.push({ x1, x2, z1, z2, top:0, tag:'school' }); };
-    const lamp = (x, z, k) => { box(panelM, x, H - 0.02, z, 1.2, 0.04, 0.6); lights.push({ x, y:H - 0.3, z, col:new THREE.Color(0xfff4e4), k:(k || 7)*0.5, d:8 }); };
-    const X = v => SX + v;                                // plan coordinates are relative to x = 400
+    const solid = (x1, x2, z1, z2, y2) => { const s = { x1, x2, z1, z2, y1:-1, y2:y2 === undefined ? 60 : y2, tag:'school' }; solids.push(s); return s; };
+    // a wall: white plaster over a concrete base, a dark skirting; solid all the way up
+    const wall = (x1, x2, z1, z2, h) => { const cx = (x1 + x2)/2, cz = (z1 + z2)/2, w = x2 - x1, d = z2 - z1;
+      box(white, cx, (h + 1.2)/2, cz, w, h - 1.2, d); box(conc, cx, 0.6, cz, w + 0.01, 1.2, d + 0.01); box(trimM, cx, 0.05, cz, w + 0.02, 0.1, d + 0.02); solid(x1, x2, z1, z2); };
+    const room = (x1, x2, z1, z2, h) => { const f = box(floorM, (x1 + x2)/2, -0.05, (z1 + z2)/2, x2 - x1, 0.1, z2 - z1);
+      const uv = f.geometry.attributes.uv; for(let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i)*(x2 - x1)/2, uv.getY(i)*(z2 - z1)/2);
+      box(white, (x1 + x2)/2, h + 0.1, (z1 + z2)/2, x2 - x1, 0.2, z2 - z1); plats.push({ x1, x2, z1, z2, top:0, tag:'school' }); };
+    const lamp = (x, y, z, k, d, w) => { box(panelM, x, y, z, w || 1.2, 0.04, 0.5); lights.push({ x, y:y - 0.3, z, col:new THREE.Color(0xfff4e4), k, d }); };
+    const X = v => SX + v, T = 0.3;
+    const sign = (txt, x, y, z, ry, o) => { const p = plane(new THREE.MeshBasicMaterial({ map:signTex(txt, o) }), x, y, z, (o && o.w) || 0.7, (o && o.h) || 0.26, ry); p.userData.flat = true; return p; };
 
-    // ---- the rooms' floors and ceilings
-    room(X(-8), X(10), 4, 16);                            // lobby
-    room(X(-1), X(4), -30, 4);                            // the hall
-    room(X(-14), X(-1), -12, -8);                         // west branch, to the bathroom
-    room(X(4), X(20), -24, -20);                          // east branch, to 114
-    room(X(-5), X(9), -42, -30);                          // Room 120
-    // ---- walls
-    const T = 0.3;
-    // lobby
-    wall(X(-8) - T, X(-8), 4 - T, 16 + T); wall(X(10), X(10) + T, 4 - T, 16 + T);
-    wall(X(-8), X(-1), 4 - T, 4); wall(X(4), X(10), 4 - T, 4);
-    // the glass front, with the revolving door in it (it only turns: the way out is E)
-    box(std({ color:0xa8d4e4, roughness:0.05, metalness:0.1, transparent:true, opacity:0.35 }), X(1), 1.9, 16.1, 18, 3.8, 0.06); solid(X(-8), X(10), 16, 16 + T);
-    const daylight = glowM(0xdceaf6, 0.55); plane(daylight, X(1), 1.9, 16.4, 18, 3.8, Math.PI);
-    for(let k = -8; k <= 10; k += 3) box(trimM, X(k), 1.9, 16.05, 0.12, 3.8, 0.12);
+    /* ---- the plan: the atrium (lobby), the hall north off it, two branches, Room 120 at the end */
+    room(X(-10), X(14), -6, 16, ROOMS.atrium);
+    room(X(-1), X(5), -34, -6, ROOMS.hall);
+    room(X(-14), X(-1), -18, -14, ROOMS.hall);
+    room(X(5), X(20), -28, -24, ROOMS.hall);
+    room(X(-5), X(11), -48, -34, ROOMS.room);
+    // the atrium's walls, to the roof; its glass front with the revolving door in it
+    const A = ROOMS.atrium;
+    wall(X(-10) - T, X(-10), -6 - T, 16 + T, A); wall(X(14), X(14) + T, -6 - T, 16 + T, A);
+    wall(X(-10), X(-1), -6 - T, -6, A); wall(X(5), X(14), -6 - T, -6, A);
+    box(white, X(2), (ROOMS.hall + A)/2, -6 - T/2, 6, A - ROOMS.hall, T);                      // over the hall's mouth
+    box(glass, X(2), A/2, 16.1, 24, A, 0.06); solid(X(-10), X(14), 16, 16 + T);
+    plane(glowM(0xe4eef6, 0.5), X(2), A/2, 16.45, 24, A, Math.PI);                            // the street's daylight beyond it
+    for(let k = -10; k <= 14; k += 2) box(dark, X(k), A/2, 16.06, 0.1, A, 0.14);
+    for(let y = 4; y < A; y += 4) box(dark, X(2), y, 16.06, 24, 0.1, 0.14);
     { const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 2.6, 24, 1, true), std({ color:0xb8dce8, roughness:0.1, transparent:true, opacity:0.25, side:THREE.DoubleSide, depthWrite:false }));
-      drum.position.set(X(1), 1.3, 15.4); g.add(drum); }
-    spots.inside = [X(1), 13.6]; spots.door = [X(1), 14.6];
-    // the hall (gaps for the branches)
-    wall(X(-1) - T, X(-1), -30, -12); wall(X(-1) - T, X(-1), -8, 4 - T);
-    wall(X(4), X(4) + T, -30, -24); wall(X(4), X(4) + T, -20, 4 - T);
-    // west branch, and the bathroom door at its end
-    wall(X(-14), X(-1) - T, -12 - T, -12); wall(X(-14), X(-1) - T, -8, -8 + T); wall(X(-14) - T, X(-14), -12 - T, -8 + T);
-    box(woodM, X(-14) + 0.04, 1.05, -10, 0.06, 2.1, 1.0);
-    { const s = plane(new THREE.MeshBasicMaterial({ map:sign('GIRLS', { w:256, h:96, bg:'#7a3a6a' }) }), X(-14) + 0.08, 2.4, -10, 0.7, 0.26, Math.PI/2); s.userData.flat = true; }
-    spots.bathroom = [X(-13.2), -10];
-    // east branch, and 114 at its end
-    wall(X(4) + T, X(20), -24 - T, -24); wall(X(4) + T, X(20), -20, -20 + T); wall(X(20), X(20) + T, -24 - T, -20 + T);
-    box(woodM, X(20) - 0.04, 1.05, -22, 0.06, 2.1, 1.0);
-    box(glowM(0xdfe8ee, 0.6), X(20) - 0.07, 1.5, -21.75, 0.02, 0.5, 0.25);
-    plane(new THREE.MeshBasicMaterial({ map:sign('ROOM 114', { w:256, h:96 }) }), X(20) - 0.08, 2.4, -22, 0.7, 0.26, -Math.PI/2);
-    spots.room114 = [X(19), -22];
-    // Room 120, and its door off the end of the hall
-    wall(X(-5) - T, X(-5), -42 - T, -30 + T); wall(X(9), X(9) + T, -42 - T, -30 + T); wall(X(-5), X(9), -42 - T, -42);
-    wall(X(-5), X(1), -30, -30 + T); wall(X(3), X(9), -30, -30 + T); wall(X(-1) - T, X(-1), -30, -30 + T); wall(X(4), X(4) + T, -30, -30 + T);
-    box(trimM, X(2), 2.25, -30 + T/2, 2, 0.1, T); box(wallM, X(2), H - 0.65, -30 + T/2, 2, 1.3, T);
-    plane(new THREE.MeshBasicMaterial({ map:sign('ROOM 120', { w:256, h:96 }) }), X(2), 2.5, -29.62, 0.7, 0.26, 0);
-    spots.room120Door = [X(2), -29.2]; spots.room120In = [X(2), -31.4];
+      drum.position.set(X(2), 1.3, 15.4); g.add(drum); box(dark, X(2), 2.66, 15.4, 2.8, 0.12, 2.8); }
+    spots.inside = [X(2), 13.6]; spots.door = [X(2), 15.0];
+    // the skylight
+    box(glowM(0xf4f8ff, 1.3), X(2), A - 0.02, 5, 16, 0.05, 14);
+    for(let k = -6; k <= 10; k += 2) box(dark, X(k), A - 0.1, 5, 0.12, 0.2, 14);
+    for(let z = -2; z <= 12; z += 2) box(dark, X(2), A - 0.1, z, 16, 0.2, 0.12);
+    // light: the skylight down the whole atrium, and lamps on the gallery soffits
+    [[-4, 0], [8, 0], [-4, 10], [8, 10]].forEach(([x, z])=>lights.push({ x:X(x), y:A - 3, z, col:new THREE.Color(0xf6f8ff), k:16, d:34 }));
+    [[-2, 3.4, 8], [6, 3.4, 8], [2, 3.4, 12]].forEach(([x, y, z])=>lamp(X(x), y + 1.6, z, 3, 10));
 
-    // ---- lockers, both sides of the hall and along the east branch; a bulletin board in the run of them
-    const lockers = (x, z1, z2, face) => { for(let z = z1; z < z2 - 0.1; z += 2){ const len = Math.min(2, z2 - z); const m = (Math.floor(z/2) % 2) ? lockA : lockB;
-      box(m, x + face*0.22, 1.0, z + len/2, 0.44, 2.0, len); } solid(Math.min(x, x + face*0.45), Math.max(x, x + face*0.45), z1, z2, 2.1); };
-    lockers(X(-1), -29.6, -13, 1); lockers(X(-1), -7, -2, 1); lockers(X(-1), 1.6, 3.6, 1);
-    lockers(X(4), -29.6, -25, -1); lockers(X(4), -19, -4, -1);
-    // the board: between the lockers on the west wall
-    plane(std({ map:corkboard(), roughness:0.9 }), X(-1) + 0.03, 1.55, -0.2, 3.2, 1.6, Math.PI/2);
-    box(woodM, X(-1) + 0.04, 1.55, -0.2, 0.05, 1.72, 3.32).material = woodM;
-    spots.board = [X(-0.1), -0.2];
-    // ---- the lobby: the guard's desk, a bench, the trophy case, the office door, a banner
-    box(woodM, X(-4.5), 0.5, 9, 0.6, 1.0, 3.2, { shadow:true }); box(woodM, X(-3.4), 0.5, 10.4, 2.2, 1.0, 0.6, { shadow:true });
-    box(std({ color:0xe8e6e0, roughness:0.4 }), X(-4.3), 1.02, 9, 0.9, 0.04, 3.4); solid(X(-4.8), X(-2.3), 7.4, 10.7, 1.0);
-    box(std({ color:0x111418, roughness:0.4 }), X(-4.6), 1.35, 8.6, 0.05, 0.35, 0.5, {}).material.emissive = new THREE.Color(0.15, 0.3, 0.4);
-    spots.guard = [X(-5.5), 9.6];
-    box(woodM, X(7.5), 0.25, 12.5, 2.6, 0.5, 0.6); solid(X(6.2), X(8.8), 12.2, 12.8, 0.5);
-    plane(std({ map:trophyTex(), roughness:0.3 }), X(10) - 0.03, 1.4, 8, 3, 1.5, -Math.PI/2);
-    box(std({ color:0xcfe8f0, transparent:true, opacity:0.2, roughness:0.05 }), X(10) - 0.25, 1.4, 8, 0.45, 1.6, 3.1);
-    box(woodM, X(-8) + 0.04, 1.05, 6.2, 0.06, 2.1, 1.0);
-    plane(new THREE.MeshBasicMaterial({ map:sign('MAIN OFFICE', { w:384, h:96 }) }), X(-8) + 0.08, 2.4, 6.2, 0.9, 0.24, Math.PI/2);
-    spots.office = [X(-7), 6.2];
-    { const b = plane(new THREE.MeshBasicMaterial({ map:sign('HARBOR LANE HIGH · HOME OF THE HAWKS', { w:1024, h:128, bg:'#16324a', ink:'#f0c040' }) }), X(1), 3.1, 4.05, 7, 0.9, 0); b.userData.flat = true; }
-    // ---- Room 120: desks in rows, the whiteboard, her desk, and the workbench with the robot on it
-    plane(std({ map:whiteboard(), roughness:0.25 }), X(2), 1.7, -41.68, 6, 2.25, 0);
-    box(trimM, X(2), 0.56, -41.6, 6.2, 0.06, 0.18);
+    /* ---- slanted concrete columns, in pairs, by the glass (after the lobby of 41 Cooper Square) */
+    [[-3.5, 13.2], [7.2, 13.2]].forEach(([x, z])=>{ [-1, 1].forEach(s=>box(conc, X(x + s*0.7), 3.2, z, 0.5, 6.8, 0.5, { rz:s*0.2, shadow:true })); solid(X(x - 1.6), X(x + 1.6), z - 0.35, z + 0.35, 7); });
+
+    /* ---- the galleries: three floors looking down into the atrium, along its north and west walls */
+    [5.5, 11, 16.5].forEach((y, fl)=>{
+      box(conc, X(2), y, -4.5, 24, 0.45, 3); box(conc, X(-8.5), y, 6.5, 3, 0.45, 21);                    // the slabs
+      box(white, X(2), y - 0.35, -3.0, 24, 0.3, 0.1); box(white, X(-7.0), y - 0.35, 6.5, 0.1, 0.3, 21);   // their edges
+      box(glass, X(2.2), y + 0.75, -3.0, 21.6, 1.1, 0.04); box(glass, X(-7.0), y + 0.75, 6.8, 0.04, 1.1, 18.4);   // glass rails
+      box(steel, X(2.2), y + 1.3, -3.0, 21.6, 0.05, 0.06); box(steel, X(-7.0), y + 1.3, 6.8, 0.06, 0.05, 18.4);
+      // classroom doors along the back wall of each, with their numbers
+      for(let k = -7; k <= 11; k += 4.5){ if(fl === 0 && k > -2 && k < 6) continue;
+        box(woodM, X(k), y + 1.25, -5.98, 1.0, 2.1, 0.06); sign('ROOM ' + (2 + fl) + String(10 + Math.round(k + 8)).padStart(2, '0'), X(k), y + 2.6, -5.92, 0, { w:0.7, h:0.22 }); }
+      [0, 7, 13].forEach(z=>box(woodM, X(-9.98), y + 1.25, z, 0.06, 2.1, 1.0));
+      lamp(X(2), y - 0.25, -4.5, 2.5, 9, 3); lamp(X(-8.5), y - 0.25, 6.5, 2.5, 9, 3);
+    });
+
+    /* ---- the grand stair, a flight at a time up the east side (stacked, the way Cooper Union's climbs) */
+    const flight = (x1, x2, zA, zB, yA, yB) => { const n = Math.round((yB - yA)/0.18), dz = (zB - zA)/n, dy = (yB - yA)/n, cx = (x1 + x2)/2;
+      for(let i = 0; i < n; i++) box(i % 2 ? conc : white, cx, yA + dy*(i + 0.5), zA + dz*(i + 0.5), x2 - x1, Math.abs(dy) + 0.02, Math.abs(dz) + 0.01);
+      const len = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA), mid = [(zA + zB)/2, (yA + yB)/2];
+      [x1 - 0.08, x2 + 0.08].forEach(xs=>{ const s = box(white, xs, mid[1] - 0.25, mid[0], 0.16, 0.9, len); s.rotation.x = -ang;
+        const r = box(glass, xs, mid[1] + 0.75, mid[0], 0.03, 1.0, len); r.rotation.x = -ang;
+        const h = box(steel, xs, mid[1] + 1.25, mid[0], 0.05, 0.05, len); h.rotation.x = -ang; }); };
+    flight(X(9), X(12), 13, 1, 0, 5.5);                         // up from the lobby, north, to the first gallery
+    box(conc, X(11), 5.5, -1, 6, 0.45, 4);                       // its landing, joining the gallery
+    flight(X(11.4), X(13.8), -2.5, 9.5, 5.5, 11);                // back south, a floor up
+    box(conc, X(11.5), 11, 11.5, 5, 0.45, 4);
+    flight(X(9), X(12), 13, 1, 11, 16.5);                        // and north again, under the skylight
+    solid(X(8.7), X(14), 1, 14);
+    /* ---- the lattice: a white net of diagonal ribs, curving up round the stair from above head height to the roof */
+    { const ribs = [], U = 26, Vn = 30, surf = (u, v) => { const z = 15 - u*20, x = 7.6 - Math.sin(u*Math.PI)*2.6 + Math.sin(v*Math.PI)*0.9, y = 3.4 + v*(A - 4.2); return new V3(X(x), y, z); };
+      for(let k = -Vn; k <= U + Vn; k += 1.2) for(const sgn of [1, -1]){ let prev = null;
+        for(let j = 0; j <= Vn; j++){ const v = j/Vn, u = (k + sgn*j)/U; if(u < 0 || u > 1){ prev = null; continue; }
+          const p = surf(u, v); if(prev) ribs.push([prev, p]); prev = p; } }
+      const geo = new THREE.BoxGeometry(0.09, 0.14, 1), inst = new THREE.InstancedMesh(geo, std({ color:0xf4f2ee, roughness:0.6, emissive:new THREE.Color(0.08, 0.08, 0.08) }), ribs.length);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), zAxis = new V3(0, 0, 1);
+      ribs.forEach(([a, b], i)=>{ const d = b.clone().sub(a), l = d.length(); q.setFromUnitVectors(zAxis, d.clone().normalize()); m.compose(a.clone().add(b).multiplyScalar(0.5), q, new V3(1, 1, l)); inst.setMatrixAt(i, m); });
+      inst.castShadow = true; g.add(inst); }
+
+    /* ---- the lobby: the guard's desk by the doors, the office, a bench, the trophy case, the school's name */
+    box(woodM, X(-6), 0.5, 12.0, 3.2, 1.0, 0.6, { shadow:true }); box(woodM, X(-4.4), 0.5, 10.8, 0.6, 1.0, 2.4, { shadow:true });
+    box(std({ color:0xe8e6e0, roughness:0.4 }), X(-6), 1.02, 12.0, 3.4, 0.04, 0.8);
+    box(std({ color:0x111418, roughness:0.4, emissive:new THREE.Color(0.15, 0.3, 0.4) }), X(-6.4), 1.3, 11.8, 0.5, 0.35, 0.05);
+    solid(X(-7.6), X(-4.1), 9.5, 12.4, 1.0);
+    spots.guard = [X(-6.0), 10.9];
+    box(woodM, X(-1), 0.25, 3.5, 3.0, 0.5, 0.6); solid(X(-2.5), X(0.5), 3.2, 3.8, 0.5);
+    plane(std({ map:trophyTex(), roughness:0.3 }), X(-9.97), 1.6, 8.5, 3, 1.5, Math.PI/2);
+    box(glass, X(-9.75), 1.6, 8.5, 0.45, 1.7, 3.1);
+    box(woodM, X(-9.96), 1.05, 2, 0.06, 2.1, 1.0); sign('MAIN OFFICE', X(-9.92), 2.4, 2, Math.PI/2, { w:0.9, h:0.24 });
+    spots.office = [X(-9), 2];
+    { const b = plane(new THREE.MeshBasicMaterial({ map:sign_('HARBOR LANE HIGH · HOME OF THE HAWKS', { w:1024, h:128, bg:'#16324a', ink:'#f0c040' }) }), X(2), 8.6, -5.95, 9, 1.15, 0); b.userData.flat = true; }
+    spots.lobbyStop = [X(1.2), 7.6]; spots.teacherLobby = [X(2.5), -4.2];
+
+    /* ---- the hall: seven metres, lockers both sides, borrowed light along the top, beams across */
+    const HH = ROOMS.hall;
+    wall(X(-1) - T, X(-1), -34, -18, HH); wall(X(-1) - T, X(-1), -14, -6 - T, HH);
+    wall(X(5), X(5) + T, -34, -28, HH); wall(X(5), X(5) + T, -24, -6 - T, HH);
+    for(let z = -32; z < -6; z += 4){ box(conc, X(2), HH - 0.3, z, 6, 0.5, 0.4); lamp(X(2), HH - 0.6, z + 2, 5, 13); }
+    [[-1.02, Math.PI/2], [5.02, -Math.PI/2]].forEach(([x, ry])=>{ for(let z = -32; z < -7; z += 3.2){ plane(glowM(0xdfeaf2, 0.55), X(x), 5.2, z, 2.6, 1.6, ry); } });
+    // west branch, and the bathroom at its end
+    wall(X(-14), X(-1) - T, -18 - T, -18, HH); wall(X(-14), X(-1) - T, -14, -14 + T, HH); wall(X(-14) - T, X(-14), -18 - T, -14 + T, HH);
+    box(woodM, X(-14) + 0.04, 1.05, -16, 0.06, 2.1, 1.0); sign('GIRLS', X(-14) + 0.08, 2.4, -16, Math.PI/2, { bg:'#7a3a6a' });
+    lamp(X(-7.5), HH - 0.6, -16, 4, 11);
+    spots.bathroom = [X(-13.2), -16];
+    // east branch, and 114 at its end
+    wall(X(5) + T, X(20), -28 - T, -28, HH); wall(X(5) + T, X(20), -24, -24 + T, HH); wall(X(20), X(20) + T, -28 - T, -24 + T, HH);
+    box(woodM, X(20) - 0.04, 1.05, -26, 0.06, 2.1, 1.0); box(glowM(0xdfe8ee, 0.6), X(20) - 0.07, 1.5, -25.75, 0.02, 0.5, 0.25);
+    sign('ROOM 114', X(20) - 0.08, 2.4, -26, -Math.PI/2);
+    lamp(X(12.5), HH - 0.6, -26, 4, 11);
+    spots.room114 = [X(19), -26];
+    // lockers, with the bulletin board in the run of them on the west wall
+    const lockers = (x, z1, z2, face) => { for(let z = z1; z < z2 - 0.1; z += 2){ const len = Math.min(2, z2 - z); box((Math.floor(z/2) % 2) ? lockA : lockB, x + face*0.22, 1.0, z + len/2, 0.44, 2.0, len); } solid(Math.min(x, x + face*0.45), Math.max(x, x + face*0.45), z1, z2, 2.1); };
+    lockers(X(-1), -33.6, -18, 1); lockers(X(-1), -14, -11.8, 1); lockers(X(-1), -8.2, -6.4, 1);
+    lockers(X(5), -33.6, -28, -1); lockers(X(5), -24, -6.4, -1);
+    plane(std({ map:corkboard(), roughness:0.9 }), X(-1) + 0.03, 1.55, -10, 3.2, 1.6, Math.PI/2);
+    box(woodM, X(-1) + 0.04, 1.55, -10, 0.05, 1.72, 3.32);
+    spots.board = [X(-0.1), -10];
+
+    /* ---- Room 120: five metres, a wall of windows, desks in rows, the whiteboard, her desk, the workbench */
+    const RH = ROOMS.room;
+    wall(X(-5) - T, X(-5), -48 - T, -34 + T, RH); wall(X(11), X(11) + T, -48 - T, -34 + T, RH); wall(X(-5), X(11), -48 - T, -48, RH);
+    wall(X(-5), X(1), -34, -34 + T, RH); wall(X(3), X(11), -34, -34 + T, RH);
+    box(white, X(2), (2.4 + RH)/2, -34 + T/2, 2, RH - 2.4, T); box(trimM, X(2), 2.42, -34 + T/2, 2.04, 0.06, T + 0.02);
+    sign('ROOM 120', X(2), 2.75, -33.62, 0);
+    for(let z = -46.5; z < -35; z += 2.6) plane(glowM(0xeaf2f8, 0.9), X(-4.98), 2.9, z, 2.0, 3.4, Math.PI/2);   // the windows
+    plane(std({ map:whiteboard(), roughness:0.25 }), X(3), 1.8, -47.68, 6, 2.25, 0); box(trimM, X(3), 0.66, -47.6, 6.2, 0.06, 0.18);
     const deskM = std({ color:0xd8c8a8, roughness:0.5 }), legM = std({ color:0x3a3a40, roughness:0.4, metalness:0.6 });
     const desk = (x, z) => { box(deskM, x, 0.74, z, 1.1, 0.05, 0.62); [[-0.5, -0.26], [0.5, -0.26], [-0.5, 0.26], [0.5, 0.26]].forEach(([a, b])=>box(legM, x + a, 0.37, z + b, 0.04, 0.74, 0.04));
       box(std({ color:0x2a4a6a, roughness:0.6 }), x, 0.45, z + 0.62, 0.45, 0.05, 0.42); solid(x - 0.56, x + 0.56, z - 0.32, z + 0.32, 0.78); };
-    for(let r = 0; r < 3; r++) for(let c = 0; c < 4; c++) desk(X(-3 + c*2.3), -38.6 + r*2.2);
-    spots.seat = [X(1.6), -34.2 + 0.62];                     // the desk she is sat at (front row of the back)
-    spots.seatDesk = [X(1.6), -34.2];
-    box(woodM, X(5.4), 0.4, -39.4, 1.8, 0.8, 0.8, { shadow:true }); solid(X(4.5), X(6.3), -39.8, -39, 0.82);  // her desk
-    spots.teacherDesk = [X(5.4), -38.6];
-    // the workbench along the east wall
-    box(std({ color:0x5a5f66, roughness:0.4, metalness:0.6 }), X(8.2), 0.88, -35, 1.2, 0.06, 3.4); [-1.6, 1.6].forEach(dz=>box(legM, X(8.2), 0.44, -35 + dz, 1.1, 0.88, 0.06));
-    solid(X(7.5), X(9), -36.8, -33.2, 0.92);
-    spots.bench = [X(7.0), -35];
-    for(let k = 0; k < 5; k++) box(std({ color:[0xc84a2a, 0x2a8ac8, 0xe8c040, 0x3aaa5a, 0x8a5ac8][k], roughness:0.5 }), X(8.5), 1.0, -36.4 + k*0.25, 0.25, 0.18, 0.18);
-    // ---- the lights: panels down the hall and over the rooms
-    for(let z = 1; z > -30; z -= 5) lamp(X(1.5), z, 6);
-    lamp(X(-2), 8); lamp(X(4), 8); lamp(X(-2), 13); lamp(X(4), 13);
-    lamp(X(-7), -10, 5); lamp(X(12), -22, 5);
-    lamp(X(0), -34, 8); lamp(X(5), -34, 8); lamp(X(0), -39, 8); lamp(X(5), -39, 8);
-    // and the robot on the bench (tsh.js lifts it and puts it down; it moves when it is fixed)
-    const robot = makeRobot(); robot.position.set(X(8.2), 0.91, -35); robot.rotation.y = -Math.PI/2; g.add(robot);
-    const gadget = makeGadget(); gadget.position.set(X(5.2), 0.83, -39.3); g.add(gadget);
+    for(let r = 0; r < 4; r++) for(let c = 0; c < 5; c++) desk(X(-3 + c*2.4), -44.6 + r*2.4);
+    spots.seatDesk = [X(1.8), -37.4]; spots.seat = [X(1.8), -37.4 + 0.62];
+    box(woodM, X(7.8), 0.4, -45.6, 1.8, 0.8, 0.8, { shadow:true }); solid(X(6.9), X(8.7), -46, -45.2, 0.82);
+    spots.teacherDesk = [X(7.8), -44.8];
+    box(std({ color:0x5a5f66, roughness:0.4, metalness:0.6 }), X(10.2), 0.88, -40, 1.2, 0.06, 3.4); [-1.6, 1.6].forEach(dz=>box(legM, X(10.2), 0.44, -40 + dz, 1.1, 0.88, 0.06));
+    solid(X(9.5), X(11), -41.8, -38.2, 0.92);
+    for(let k = 0; k < 5; k++) box(std({ color:[0xc84a2a, 0x2a8ac8, 0xe8c040, 0x3aaa5a, 0x8a5ac8][k], roughness:0.5 }), X(10.5), 1.0, -41.4 + k*0.25, 0.25, 0.18, 0.18);
+    spots.bench = [X(9.0), -40]; spots.benchTop = [X(10.2), 0.91, -40];
+    spots.room120Door = [X(2), -33.2]; spots.room120In = [X(2), -35.5];
+    [[-1, -44], [5, -44], [-1, -38.5], [5, -38.5]].forEach(([x, z])=>lamp(X(x), RH - 0.05, z, 5, 10));
+    // the robot on the bench, and the second thing on her desk (tsh.js moves them)
+    const robot = makeRobot(); robot.position.set(...spots.benchTop); robot.rotation.y = -Math.PI/2; g.add(robot);
+    const gadget = makeGadget(); gadget.position.set(X(7.6), 0.83, -45.5); g.add(gadget);
 
     out.solids.push(...solids); out.plats.push(...plats);
-    S = { group:g, solids, lights, spots, robot, gadget, H, people:[], X };
+    const ceilingAt = (x, z) => z > -6 ? ROOMS.atrium : z < -34 ? ROOMS.room : ROOMS.hall;
+    S = { group:g, solids, lights, spots, robot, gadget, H:ROOMS.atrium, ceilingAt, people:[], X };
     return S;
   }
+  function signTex(text, o){ const t = { w:256, h:96 }; if(o && o.bg) t.bg = o.bg; if(o && o.ink) t.ink = o.ink; return sign_(text, t); }
   /* THE ROBOT: a little two-legged thing with a camera head and an arm, made of boxes. Broken, it slumps;
      fixed (robot.userData.on), it stands, looks about, and waves. */
   function makeRobot(){
@@ -270,18 +336,19 @@ window.TSHSCHOOL = (function(){
     const X = S.X, P = S.people; P.length = 0;
     const add = (char, x, z, o) => { const n = spawn('school', char, x, z, Object.assign({ inApt:true, group:S.group, state:'school', y:0 }, o)); P.push(n); return n; };
     S.guard = add('mechanic', S.spots.guard[0], S.spots.guard[1], { yaw:Math.PI*0.75, name:'guard', wear:{ head:'cap' } });
-    S.teacher = add('sable', X(2), 5.0, { yaw:Math.PI, name:'teacher', wear:{ face:'teacher-glasses' } });
+    const tl = S.spots.teacherLobby;
+    S.teacher = add('sable', tl[0], tl[1], { yaw:0, name:'teacher', wear:{ face:'teacher-glasses' } });
     S.teacher.route = TEACHER_ROUTE.map(([x, z, w, look])=>({ x:X(x), z, w, look }));
-    // students walking the hall in twos and threes, up and down, at their own pace
-    [[0, 2.2, -2, 0.95], [1, 3.0, -26, 1.1], [2, 0.4, -14, 0.85], [3, 1.4, -6, 1.0], [4, 2.6, 1.5, 0.9]].forEach(([i, x, z, sp], k)=>{
-      const n = add(STUDENTS[i], X(x), z, { name:'student' + k }); n.walk = { a:-28, b:3, dir:k % 2 ? 1 : -1, sp, x:X(x) }; });
-    // and a few standing about: at the lockers, in the lobby, by 114
-    [[5, -0.3, -18, Math.PI/2], [6, 3.3, -9, -Math.PI/2], [7, 6, 12, Math.PI*0.9], [1, 12, -21.2, Math.PI], [2, 13, -22.8, 0]].forEach(([i, x, z, yaw], k)=>{
+    // students walking up and down the hall and across the atrium, in twos and threes, at their own pace
+    [[0, 2.6, -10, 0.95, -32, -7], [1, 3.6, -26, 1.1, -32, -7], [2, 0.4, -18, 0.85, -32, -7], [3, 1.4, -8, 1.0, -32, -7], [4, -3, 6, 0.9, 1, 14], [5, 6.6, 2, 1.05, -4, 12]].forEach(([i, x, z, sp, a, b], k)=>{
+      const n = add(STUDENTS[i], X(x), z, { name:'student' + k }); n.walk = { a, b, dir:k % 2 ? 1 : -1, sp, x:X(x) }; });
+    // and a few standing about: at the lockers, under the stair, by 114
+    [[6, -0.3, -22, Math.PI/2], [7, 4.3, -12, -Math.PI/2], [1, 5.6, 9, Math.PI*0.9], [2, 12, -25.2, Math.PI], [3, 13, -26.8, 0]].forEach(([i, x, z, yaw], k)=>{
       const n = add(STUDENTS[i], X(x), z, { yaw, name:'stand' + k }); n.chat = true; });
   }
   // her round: [x (plan), z, wait at it, which way she looks while she waits]
-  const TEACHER_ROUTE = [[2, 5, 2.5, Math.PI], [-6.4, 6.4, 3.5, -Math.PI/2], [-2, 9, 0.8, 0], [1.5, 2, 1.2, 0], [1.5, -10, 2.2, -Math.PI/2],
-                         [1.5, -22, 2.4, Math.PI/2], [2, -29, 0.6, Math.PI], [2, -32, 3.5, 0], [2, -28, 0.5, 0], [1.5, -16, 1.5, Math.PI/2], [1.5, 1, 1, 0]];
+  const TEACHER_ROUTE = [[2.5, -4.2, 2.5, 0], [-8.6, 2, 3.5, -Math.PI/2], [-3, 6.5, 0.8, 0], [2, -5, 1.2, Math.PI], [2, -16, 2.2, -Math.PI/2],
+                         [2, -26, 2.4, Math.PI/2], [2, -32.8, 0.6, Math.PI], [2, -36, 3.5, 0], [2, -31, 0.5, 0], [2, -20, 1.5, Math.PI/2], [2, -5, 1, 0]];
   function tickPerson(n, dt){
     if(!S) return;
     if(n === S.teacher) return tickTeacher(n, dt);
