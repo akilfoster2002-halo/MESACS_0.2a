@@ -969,9 +969,26 @@ window.TSH = (function(){
   function reelCam(){
     const f = reel, s = f.shot, k = Math.min(1, f.t/s.dur), e = s.ease === false ? k : k*k*(3 - 2*k);
     const at = v => typeof v === 'function' ? v(k, f.t) : Array.isArray(v[0]) ? v[0].map((a, i)=>lerp(a, v[1][i], e)) : v;
-    const c = at(s.cam), l = at(s.look);
+    const c = shotClear(at(s.cam), at(s.look)), l = at(s.look);
     G.camera.position.set(c[0], c[1], c[2]); G.camera.lookAt(l[0], l[1], l[2]);
     if(s.fov2){ G.camera.fov = lerp(s.fov || 50, s.fov2, e); G.camera.updateProjectionMatrix(); }
+  }
+  /* A FILM'S CAMERA SEES WHAT IT LOOKS AT. A shot placed from where she is goes wherever she happens to be —
+     crouched with her back to an AC unit, a step behind her is inside the unit; from her hiding place, the
+     stairwell hut stands between the camera and the stairwell door — and the whole frame is the side of a
+     box. So a camera inside anything solid, or with something solid between it and what it looks at, moves
+     along its line of sight to the first place it is out of things and can see. (Not indoors: the flat is
+     inside its building's box.) */
+  function shotClear(c, l){
+    if(inside) return c;
+    const sol = G.solids || [], m = 0.12;
+    const solidAt = (x, y, z) => sol.some(s=>!s.off && x > s.x1 - m && x < s.x2 + m && z > s.z1 - m && z < s.z2 + m && y > (s.y1 === undefined ? -1e9 : s.y1) - m && y < (s.y2 === undefined ? 1e9 : s.y2) + m);
+    const d = [l[0] - c[0], l[1] - c[1], l[2] - c[2]], len = Math.hypot(d[0], d[1], d[2]) || 1, u = d.map(v=>v/len);
+    const at = k => [c[0] + u[0]*k, c[1] + u[1]*k, c[2] + u[2]*k];
+    const sees = k => { for(let j = k; j < len - 0.6; j += 0.2){ const p = at(j); if(solidAt(p[0], p[1], p[2])) return false; } return true; };
+    if(sees(0)) return c;
+    for(let k = 0.1; k < len - 0.8; k += 0.1){ const p = at(k); if(!solidAt(p[0], p[1], p[2]) && sees(k)) return p; }
+    return [c[0], c[1] + 1.5, c[2]];                       // nowhere along the line: lift it over
   }
   function reelEnd(skipped){
     const f = reel; if(!f) return;
@@ -3060,8 +3077,8 @@ window.TSH = (function(){
       // "HANDS WHERE I CAN SEE THEM!"
       { dur:linesLen('raidHands') + 0.5, fov:38, cam:rel(R0[0], R0[1], ry, -0.9, 0.45, floor + 1.75), look:head(lead[0], lead[1]),
         enter:()=>{ crewFace(by('a'), R0[0], R0[1], 'fight'); talk('raidHands'); } },
-      // the stairwell door: another one
-      { dur:2.6, fov:50, cam:[R0[0] - 3.5, floor + 3.2, R0[1] + 4.5], look:[53, floor + 1, -32],
+      // the stairwell door: another one — over her shoulder, high enough to see over the box she hid behind, on him all the way
+      { dur:2.6, fov:46, cam:[R0[0] - 1.1, floor + 2.7, R0[1] + 2.3], look:()=>{ const e = by('b'); return e ? [e.x, floor + 1.3, e.z] : [53, floor + 1, -32]; },
         tick:(dt, t, k)=>walk('b', k*1.15, 'sprint') },
       // "Yeah, I'm gonna pass on that."
       { dur:linesLen('raidPass') + 0.6, fov:32, cam:rel(R0[0], R0[1], ry, 1.0, 0.2, floor + 1.6), look:head(R0[0], R0[1]),
@@ -4683,6 +4700,6 @@ window.TSH = (function(){
                   homeDoor, aptExit, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
-                  raidIntro, raidGo, raidHome, nightScene, get chase(){ return window.TSHCHASE; },
+                  raidIntro, raidGo, raidHome, raidFight, nightScene, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();
