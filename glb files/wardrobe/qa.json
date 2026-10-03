@@ -36,7 +36,7 @@
  "robin back:roll-top,bottom:baggy-jeans,hands:gecko-cuffs,outer:tech-jacket,shoes:skyline-shoes,wrist:flash-bangle": {
   "pass": true,
   "files": {
-   "body": "591d2777a91b",
+   "body": "fee4a0b77a28",
    "roll-top": "814b6b9079a1",
    "baggy-jeans": "c7420968765d",
    "gecko-cuffs": "ec2cf412da37",
@@ -74,7 +74,7 @@
  "robin bottom:baggy-jeans": {
   "pass": true,
   "files": {
-   "body": "591d2777a91b",
+   "body": "fee4a0b77a28",
    "baggy-jeans": "c7420968765d"
   },
   "holes": {
@@ -93,7 +93,7 @@
   "skin": 0,
   "buried": 0,
   "mean": {
-   "holes": 1.77,
+   "holes": 1.96,
    "poke": 0.09
   },
   "frames": 112,
@@ -108,7 +108,7 @@
  "robin hands:gecko-cuffs": {
   "pass": true,
   "files": {
-   "body": "591d2777a91b",
+   "body": "fee4a0b77a28",
    "gecko-cuffs": "ec2cf412da37"
   },
   "holes": {
@@ -142,7 +142,7 @@
  "robin outer:tech-jacket": {
   "pass": true,
   "files": {
-   "body": "591d2777a91b",
+   "body": "fee4a0b77a28",
    "tech-jacket": "6db98f69b480"
   },
   "holes": {
@@ -176,7 +176,7 @@
  "robin shoes:skyline-shoes": {
   "pass": true,
   "files": {
-   "body": "591d2777a91b",
+   "body": "fee4a0b77a28",
    "skyline-shoes": "5d50663a8f17"
   },
   "holes": {

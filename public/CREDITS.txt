@@ -1,0 +1,12 @@
+KORO — third-party assets that ask to be credited
+
+Robin's facial expressions (TSH)
+  Derived from "Facial Rig test." by bayuitra
+  https://sketchfab.com/3d-models/facial-rig-test-956ee2d0aec84917949c7b66b26b7aa6
+  Licensed CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/)
+  Changes: the rig's expressions were measured, made symmetric and carried
+  onto Robin's face as blendshapes; the model itself is not included.
+
+Also used, no credit required (CC0)
+  Kenney — Blocky Characters, Building Kit, Impact Sounds, Sci-fi Sounds,
+  Interface Sounds (kenney.nl)

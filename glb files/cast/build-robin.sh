@@ -27,5 +27,10 @@ npx -y @gltf-transform/cli prune "$T-c.glb" "cast/robin.glb"
 # 70k triangles is a lot of one person for a phone: about half of them, then quantized,
 # and that is the game's Robin
 npx -y @gltf-transform/cli simplify "cast/robin.glb" "$T-s.glb" --ratio 0.55 --error 0.0008
-npx -y @gltf-transform/cli quantize "$T-s.glb" "../public/characters/models/character-robin.glb"
+# her face: blendshapes carried over from a facial rig (face/morphs.js; it reads face/rig-test.glb, the
+# Sketchfab "Facial Rig test." by bayuitra, CC-BY 4.0) — then quantized with the rest of her, and only the
+# vertices each shape moves kept (sparse), so seven shapes cost about 40 KB
+node face/morphs.js "$T-s.glb" "$T-f.glb"
+npx -y @gltf-transform/cli quantize "$T-f.glb" "$T-q.glb"
+npx -y @gltf-transform/cli sparse "$T-q.glb" "../public/characters/models/character-robin.glb"
 # her roster card: node wardrobe/lab.mjs card ../public/characters/models/character-robin.glb ../public/characters/previews/character-robin.png

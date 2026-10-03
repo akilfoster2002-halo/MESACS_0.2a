@@ -548,7 +548,44 @@ window.AVATAR = (function(){
   let gx=0, gz=1;
   function gait(x, z){ gx=x||0; gz=z||0; }
   /* the player's own clip: the eight-way walk when there is one to blend */
+  /* A FACE, on a body that has one: morph targets on the skin (Robin's, made from a facial rig by
+     glb files/face/morphs.js) — jawOpen, smile, mouthO, frown, browUp, browDown, blink. She blinks on her
+     own, every few seconds and now and then twice; whoever runs the scene sets how open her mouth is
+     (mouth(), from her voice) and asks for an expression (expr(name, amount, seconds)). A body without
+     the shapes ignores all of it. */
+  const face = { model:null, mesh:null, blinkIn:2.5, blinkT:0, mouth:0, expr:{}, cur:{} };
+  function faceMesh(){
+    if(face.model !== model){ face.model = model; face.mesh = null; face.cur = {};
+      if(model) model.traverse(o=>{ if(!face.mesh && o.morphTargetDictionary && o.morphTargetDictionary.jawOpen !== undefined) face.mesh = o; }); }
+    return face.mesh;
+  }
+  function faceSet(m, name, v){ const i = m.morphTargetDictionary[name]; if(i !== undefined) m.morphTargetInfluences[i] = v; }
+  function faceTick(dt){
+    const m = faceMesh(); if(!m || !(dt >= 0)) return;
+    // the blink: about a sixth of a second, closed in the middle of it
+    face.blinkIn -= dt;
+    if(face.blinkIn <= 0){ face.blinkT = 0.17; face.blinkIn = Math.random() < 0.15 ? 0.25 : 2 + Math.random()*4; }
+    let blink = 0; if(face.blinkT > 0){ face.blinkT = Math.max(0, face.blinkT - dt); blink = Math.min(1, 1.4*(1 - Math.abs(face.blinkT/0.17*2 - 1))); }
+    // the mouth: as open as the voice is loud (a little round on the way)
+    const k = 1 - Math.exp(-dt*22);
+    // expressions ease in, hold for their time, and ease back out (a held-open mouth — surprise — under the talking)
+    const ke = 1 - Math.exp(-dt*7), held = {};
+    ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen'].forEach(n=>{ const e = face.expr[n]; let want = 0;
+      if(e){ e.t -= dt; if(e.t > 0) want = e.v; else delete face.expr[n]; }
+      held[n] = (face.cur['_' + n] || 0) + (want - (face.cur['_' + n] || 0))*ke; face.cur['_' + n] = held[n]; });
+    ['smile', 'frown', 'browUp', 'browDown'].forEach(n=>{ face.cur[n] = held[n]; });
+    face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.8, face.mouth*0.55 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
+    face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
+    faceSet(m, 'blink', blink);
+    for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);
+  }
+  function mouth(v){ face.mouth = Math.max(0, Math.min(1, v || 0)); }
+  function expr(name, v, secs){ face.expr[name] = { v:v === undefined ? 1 : v, t:secs || 1.5 }; }
+  /* a whole feeling at once: { smile:.7, browDown:.3 } for `secs`; the shapes it does not name let go */
+  function feel(f, secs){ ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen'].forEach(n=>{ if(f && f[n]) expr(n, f[n], secs); else delete face.expr[n]; }); }
+  const hasFace = () => !!faceMesh();
   function stride(dt, moving, running, onGround){
+    faceTick(dt);
     const name=clipFor(dt, moving, running, onGround);
     const r=rigOf(model);
     if((name==='walk' || name==='sprint') && r && r.locomote &&
@@ -840,6 +877,7 @@ window.AVATAR = (function(){
      nothing else. */
   function tickClip(dt, moving, running, onGround){
     if(!model) return;
+    faceTick(dt);
     animate(model, dt, clipFor(dt, moving, running, onGround));
   }
 
@@ -914,7 +952,7 @@ window.AVATAR = (function(){
   }
 
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle, gait,
-           tickClip, myName, myFace,
+           tickClip, myName, myFace, mouth, expr, feel, hasFace,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            get body(){ return body; }, get model(){ return model; },

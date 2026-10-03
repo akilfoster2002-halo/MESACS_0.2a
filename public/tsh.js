@@ -293,6 +293,7 @@ window.TSH = (function(){
   }
   /* the cues: a recording if there is one, else a shaped tone or a burst of filtered noise */
   function cue(kind){
+    faceCue(kind);
     const a = audio(); if(!a) return;
     try{
       if(a.state === 'suspended') a.resume();
@@ -3774,10 +3775,87 @@ window.TSH = (function(){
     try{ v.g.gain.setTargetAtTime(0, AC.currentTime, 0.03); v.src.stop(AC.currentTime + 0.15); }catch(e){}
   }
   function vfx(who, text){ return who === 'counselor' || who === 'buyer' ? 'phone' : who === 'momcall' ? 'phone' : who === 'mom' || who === 'drone' ? 'screen' : /^\(on the stairs\)/.test(text) ? 'door' : ''; }
+  /* HER FACE WHEN SHE TALKS (avatar.js mouth/expr; the shapes are on her model): her mouth as open as her
+     voice is loud, read off a meter on it; a line not recorded yet gets a talker's rhythm for as long as it is
+     up; a question lifts her brows. */
+  const lips = { an:null, buf:null, flap:0, ph:0, amp:0.6 };
+  /* WHAT SHE FEELS SAYING IT. Big on purpose: she is sixteen and every feeling is on her face. A feeling is
+     a mix of her face's shapes; every line she has is given one (a line added without one gets a guess
+     from its punctuation, and the tests ask for it to be given one). */
+  const FEELS = {
+    smug:       { smile:0.75, browDown:0.3 },
+    grin:       { smile:1, browUp:0.35 },
+    happy:      { smile:0.9, browUp:0.55 },
+    sarcastic:  { smile:0.5, browUp:0.75 },
+    annoyed:    { frown:0.75, browDown:0.85 },
+    angry:      { frown:1, browDown:1, jawOpen:0.05 },
+    determined: { browDown:0.75, frown:0.3 },
+    skeptical:  { browDown:0.55, frown:0.45, smile:0.15 },
+    deadpan:    { browDown:0.4, frown:0.25 },
+    surprised:  { browUp:1, mouthO:0.5, jawOpen:0.2 },
+    shocked:    { browUp:1, mouthO:0.8, jawOpen:0.45 },
+    nervous:    { browUp:0.85, frown:0.55 },
+    sheepish:   { smile:0.55, browUp:0.8 },
+    tired:      { browUp:0.45, frown:0.45 },
+    hush:       { mouthO:0.7, browUp:0.5 },
+    pain:       { frown:1, browDown:0.6, browUp:0.4, jawOpen:0.25 }
+  };
+  const FEEL = {
+    "Let's go.":'determined', 'Hi, Mom.':'sarcastic', 'Oh you prick.':'angry', 'Who are you?':'surprised', 'Do not call me that.':'annoyed',
+    'What do you want?':'skeptical', "Didn't know chances like that would turn up unannounced in the middle of the night. Not interested, no thanks.":'deadpan',
+    "Okay, first, you're not me. Second, you and me, we're very different. I don't break into other people's home and threaten them.":'annoyed',
+    'You need to leave. Now.':'angry', "How do I know you're not the danger?":'skeptical', "That's supposed to convince me?":'sarcastic',
+    "You come here, uninvited, dropping threats veiled as compliments, and you think that's going to convince me?":'annoyed',
+    'You chose to follow them.':'determined', 'Well, I make my own rules.':'smug', '(laughs)':'grin', "Yeah. It's ready.":'deadpan',
+    'Yeah. You got the money?':'skeptical', 'Oh.':'surprised', "You're gonna be annoying.":'deadpan', "Uh, no. That's actually mine.":'annoyed',
+    'Okay.':'determined', 'I really hate when people make me do things twice.':'annoyed', "See? That wasn't so hard.":'smug',
+    'Little warning next time?':'sarcastic', "Okay, there's a few more of you than I expected.":'nervous', 'Definitely keeping that.':'grin',
+    'Really?':'skeptical', 'Do you guys have, like, a group chat or something?':'sarcastic', 'People keep saying that.':'smug',
+    'Anybody else?':'smug', 'Great.':'smug', 'So...':'sheepish', 'My money?':'sarcastic', 'Right. Worth a shot.':'sheepish', 'Yeah?':'skeptical',
+    'Send me an invoice.':'smug', 'Yeah. Sure.':'deadpan', '...Huh.':'surprised', 'Okay, little weird.':'nervous', 'Actually...':'sheepish',
+    "You're really committed to this!":'sarcastic', 'Are you KIDDING me?!':'shocked', 'Sorry! Reflex!':'sheepish', 'Okay. Okay okay okay.':'nervous',
+    'Please work.':'nervous', 'Yeah. I noticed.':'deadpan', "Okay. That's new.":'surprised', "Okay, Robin. Don't embarrass yourself.":'nervous',
+    'Okay. Definitely keeping that.':'grin', 'Seriously?!':'shocked', 'Shhh.':'hush', 'Okay. Fine.':'annoyed', '...Okay.':'tired',
+    'Who even trains you guys?':'sarcastic', "Yeah, I'm gonna pass on that.":'smug', "Oh, you've gotta be kidding me.":'annoyed',
+    'Hey, Mom.':'nervous', 'Okay. Yeah. No problem.':'nervous', "Yeah. I'm fine. Just... stairs.":'sheepish', 'Uh... TV.':'sheepish',
+    'Really good TV.':'sheepish', 'Yeah. You too.':'tired', '...Crap.':'shocked', 'Oh, come on.':'annoyed', 'Okay...':'nervous',
+    'Definitely never doing that again.':'tired', '...Probably.':'grin', 'Rats.':'annoyed', 'Still holds.':'smug'
+  };
+  const feelOf = text => FEEL[text] || (/\?!|!\?/.test(text) ? 'shocked' : /\?\s*$/.test(text) ? 'skeptical' : /!\s*$/.test(text) ? 'surprised' : /^\.\.\./.test(text) ? 'tired' : null);
+  function lipsSay(text, recorded, secs){
+    if(!window.AVATAR || !AVATAR.feel) return;
+    const words = text.replace(/^\([^)]*\)\s*/, '');
+    lips.flap = recorded ? 0 : 0.9 + words.length*0.05;
+    const f = feelOf(text); if(f){ lips.feelT = (secs || lips.flap || 1.5) + 0.9; AVATAR.feel(FEELS[f], lips.feelT); }
+  }
+  /* her face between lines: a wince when she is hit, set while she fights, a small smile when it goes her way */
+  function faceCue(kind){
+    if(!window.AVATAR || !AVATAR.feel) return;
+    const f = kind === 'hurt' ? ['pain', 0.55] : kind === 'win' ? ['smug', 1.2] : kind === 'sting' ? ['surprised', 1.4] : null;
+    if(f){ lips.feelT = f[1]; AVATAR.feel(FEELS[f[0]], f[1]); }
+  }
+  function lipsTick(dt){
+    if(!window.AVATAR || !AVATAR.mouth) return;
+    let v = 0;
+    if(lips.an && vnow && vnow.robin){
+      lips.an.getFloatTimeDomainData(lips.buf); let sum = 0; for(let i = 0; i < lips.buf.length; i++) sum += lips.buf[i]*lips.buf[i];
+      v = Math.max(0, Math.min(1, (Math.sqrt(sum/lips.buf.length) - 0.012)*9));
+    } else if(lips.flap > 0){
+      lips.flap -= dt; const was = lips.ph; lips.ph += dt*5.2;
+      if(Math.floor(lips.ph) !== Math.floor(was)) lips.amp = 0.35 + Math.random()*0.6;      // a new syllable, its own size
+      v = Math.max(0, Math.sin(lips.ph*Math.PI))*lips.amp*Math.min(1, lips.flap*4);
+    }
+    AVATAR.mouth(v);
+    // fighting, she is set: brows down, mouth firm — under whatever she says or feels
+    lips.feelT = Math.max(0, (lips.feelT || 0) - dt);
+    if(mode === 'fight' && AVATAR.expr && lips.feelT <= 0){ lips.set = (lips.set || 0) - dt; if(lips.set <= 0){ lips.set = 0.25; AVATAR.expr('browDown', 0.7, 0.4); AVATAR.expr('frown', 0.25, 0.4); } }
+  }
   function voice(who, text, o){
     o = o || {};
     if(!o.bark) vstop();
-    const k = vkey(who, text); if(!VOX[k]) return;
+    const k = vkey(who, text);
+    if(who === 'robin' && !o.bark) lipsSay(text, !!VOX[k], VOX[k]);
+    if(!VOX[k]) return;
     const a = audio(); if(!a) return;
     if(a.state === 'suspended') a.resume();
     const mine = { k }; if(!o.bark) vnow = mine;
@@ -3796,6 +3874,7 @@ window.TSH = (function(){
         const d = a.createDelay(0.5), e = a.createGain(); d.delayTime.value = 0.14; e.gain.value = 0.25; head.connect(d); d.connect(e); e.connect(g);
       }
       head.connect(g); g.connect(a.destination);
+      if(who === 'robin' && !o.bark){ const an = a.createAnalyser(); an.fftSize = 512; head.connect(an); lips.an = an; lips.buf = new Float32Array(an.fftSize); mine.robin = true; }
       src.start();
       mine.src = src; mine.g = g;
     });
@@ -4496,6 +4575,7 @@ window.TSH = (function(){
   function tick(dt){
     if(!on || !W) return;
     clock += dt;
+    lipsTick(dt);
     chaseBack();
     if(busy === 'panel'){ return; }
     switch(mode){

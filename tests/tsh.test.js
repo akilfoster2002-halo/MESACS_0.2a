@@ -411,6 +411,24 @@ test('recorded sound effects: every file the list names is there, and a cue with
   assert.ok(i.indexOf('tshsfx.js') > 0 && i.indexOf('tshsfx.js') < i.indexOf('src="tsh.js'), 'the list loads before TSH');
 });
 
+test("Robin's face: the shapes are on her, she blinks and talks with them, and every line she says has a feeling", async () => {
+  const t = read('public/tsh.js'), a = read('public/avatar.js');
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'characters', 'models', 'character-robin.glb'));
+  const J = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  const names = (J.meshes[0].extras || {}).targetNames || [];
+  ['jawOpen', 'smile', 'mouthO', 'frown', 'browUp', 'browDown', 'blink'].forEach(n => assert.ok(names.includes(n), 'her model has the ' + n + ' shape'));
+  assert.equal((J.meshes[0].primitives[0].targets || []).length, names.length, 'one target per name');
+  has(a, /function faceTick\(dt\)\{[\s\S]{0,400}face\.blinkIn -= dt;/, 'she blinks by herself');
+  has(t, /lips\.an\.getFloatTimeDomainData/, 'her mouth follows her voice');
+  has(t, /lips\.flap = recorded \? 0 :/, 'and a line not recorded yet still moves her mouth');
+  const FEELS = eval('(' + t.match(/const FEELS = (\{[\s\S]*?\n  \});/)[1] + ')'), FEEL = eval('(' + t.match(/const FEEL = (\{[\s\S]*?\n  \});/)[1] + ')');
+  Object.values(FEEL).forEach(f => assert.ok(FEELS[f], 'a feeling that exists: ' + f));
+  const { lines } = await import('../tools/tsh-voices.mjs');
+  const hers = lines(t).filter(l => l.who === 'robin').map(l => l.text);
+  hers.forEach(x => assert.ok(FEEL[x], 'what does she feel saying "' + x + '"? (FEEL in tsh.js)'));
+  assert.ok(new Set(hers.map(x => FEEL[x])).size >= 10, 'a range of feelings, not three');
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');
