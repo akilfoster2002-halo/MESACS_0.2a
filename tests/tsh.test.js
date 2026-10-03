@@ -398,6 +398,19 @@ test('the fight is over when the last of them is down, whatever the lessons were
   has(src, /ctx\.say\('fightGreat', fin\); ctx\.later\(fin, 1300\);/, 'and the film after it starts on a clock, not on a voice that may never finish');
 });
 
+test('recorded sound effects: every file the list names is there, and a cue with none keeps its tone', () => {
+  const t = read('public/tsh.js');
+  const ctx = vm.createContext({}); ctx.window = ctx;
+  vm.runInContext(read('public/tshsfx.js'), ctx);
+  const S = ctx.TSHSFX;
+  assert.ok(S && S.files && S.vol, 'the list is loaded');
+  Object.entries(S.files).forEach(([k, list]) => list.forEach(f => assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'tsh', 'sfx', f)), k + ': ' + f)));
+  Object.keys(S.vol).forEach(k => assert.ok(S.files[k], 'a volume for a sound with no files: ' + k));
+  has(t, /sfxLoad\(a\); if\(sfxPlay\(a, kind\)\) return;/, 'cue plays the recording when there is one, and falls through to the tone when not');
+  const i = read('public/index.html');
+  assert.ok(i.indexOf('tshsfx.js') > 0 && i.indexOf('tshsfx.js') < i.indexOf('src="tsh.js'), 'the list loads before TSH');
+});
+
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
   const src = read('public/tshfight.js'), t = read('public/tsh.js'), g = read('public/game.js');
   has(g, /const dt=Math\.min\(\(now-last\)\/1000, 0\.05\)\*\(G\.timeScale===undefined\?1:G\.timeScale\)/, 'the whole world runs on G.timeScale');

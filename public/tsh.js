@@ -272,11 +272,31 @@ window.TSH = (function(){
     try{ bed.rain.stop(); bed.hum.stop(); }catch(e){}
     bed = null;
   }
-  /* the cues: a shaped tone or a burst of filtered noise */
+  /* RECORDED CUES (tshsfx.js): a kind with files in tsh/sfx/ plays one of them; the rest keep their tones */
+  const sfxBuf = {}; let sfxAsked = false;
+  function sfxLoad(a){
+    if(sfxAsked) return; sfxAsked = true;
+    const files = (window.TSHSFX && TSHSFX.files) || {};
+    Object.keys(files).forEach(k=>files[k].forEach(f=>{
+      fetch('tsh/sfx/' + f + '?v=' + (window.ASSETV || '1')).then(r=>r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+        .then(b=>new Promise((ok, no)=>a.decodeAudioData(b, ok, no))).then(buf=>{ (sfxBuf[k] = sfxBuf[k] || []).push(buf); }).catch(()=>{});
+    }));
+  }
+  function sfxPlay(a, kind){
+    const list = sfxBuf[kind]; if(!list || !list.length) return false;
+    const src = a.createBufferSource(), g = a.createGain();
+    src.buffer = list[Math.floor(Math.random()*list.length)];
+    src.playbackRate.value = 0.95 + Math.random()*0.1;
+    g.gain.value = ((window.TSHSFX && TSHSFX.vol) || {})[kind] || 0.8;
+    src.connect(g); g.connect(a.destination); src.start();
+    return true;
+  }
+  /* the cues: a recording if there is one, else a shaped tone or a burst of filtered noise */
   function cue(kind){
     const a = audio(); if(!a) return;
     try{
       if(a.state === 'suspended') a.resume();
+      sfxLoad(a); if(sfxPlay(a, kind)) return;
       const t = a.currentTime, g = a.createGain(); g.connect(a.destination);
       const tone = (f0, f1, dur, type, vol) => { const o = a.createOscillator(); o.type = type||'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t+dur);
         const gg = a.createGain(); gg.gain.setValueAtTime(vol||0.08, t); gg.gain.exponentialRampToValueAtTime(0.0008, t+dur); o.connect(gg); gg.connect(a.destination); o.start(t); o.stop(t+dur+0.05); };
