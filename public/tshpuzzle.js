@@ -75,18 +75,50 @@ window.TSHPUZZLE = (function(){
     for(let b = 0; b < n; b++) for(let a = 0; a < n; a++){ let k = 1 + Math.floor(r()*3); while(k--) g[b][a] = rot(g[b][a]); }
     return { n, g, sy, ey, sol };
   }
+  /* THE NETWORK (boards 2 and 3): the whole board is one circuit — a tree through every tile, no loops — and
+     every tile is turned wrong. Power has to reach every tile, and no tile may leave a connection hanging:
+     a loose end is a short. (The classic network puzzle: far more turning than a single route, and the pink
+     loose ends tell you where you are wrong.) A random tree grown out from the cell, a tile at a time. */
+  function netLevel(n, seed){
+    const r = rand(seed), g = Array.from({ length:n }, ()=>Array(n).fill(0));
+    const sy = Math.floor(r()*n), ey = Math.floor(r()*n), inT = new Set(['0,' + sy]), edges = [];
+    const addEdges = (a, b) => DIRS.forEach(([dx, dy, me, it])=>{ const c = a + dx, d = b + dy; if(c >= 0 && d >= 0 && c < n && d < n) edges.push([a, b, c, d, me, it]); });
+    addEdges(0, sy);
+    while(inT.size < n*n){
+      const i = Math.floor(r()*edges.length), [a, b, c, d, me, it] = edges.splice(i, 1)[0];
+      if(inT.has(c + ',' + d)) continue;
+      // keep it from branching into a star: a tile that already has three ways out takes a fourth only rarely
+      const bits = m => (m & 1) + (m >> 1 & 1) + (m >> 2 & 1) + (m >> 3 & 1);
+      if(bits(g[b][a]) >= 3 && r() < 0.8){ edges.push([a, b, c, d, me, it]); if(edges.length > 4*n*n) edges.length = 0; continue; }
+      g[b][a] |= me; g[d][c] |= it; inT.add(c + ',' + d); addEdges(c, d);
+    }
+    g[sy][0] |= 8; g[ey][n - 1] |= 2;
+    const sol = g.map(row=>row.slice());
+    for(let b = 0; b < n; b++) for(let a = 0; a < n; a++){ let k = 1 + Math.floor(r()*3); while(k--) g[b][a] = rot(g[b][a]); }
+    return { n, g, sy, ey, sol, net:true };
+  }
   function powered(L){
     const on = new Set(), q = [];
     if(L.g[L.sy][0] & 8){ on.add('0,' + L.sy); q.push([0, L.sy]); }
     while(q.length){ const [a, b] = q.shift(), m = L.g[b][a];
       DIRS.forEach(([dx, dy, me, it])=>{ const c = a + dx, d = b + dy; if(!(m & me) || c < 0 || d < 0 || c >= L.n || d >= L.n) return;
         if((L.g[d][c] & it) && !on.has(c + ',' + d)){ on.add(c + ',' + d); q.push([c, d]); } }); }
-    return { on, done:on.has((L.n - 1) + ',' + L.ey) && !!(L.g[L.ey][L.n - 1] & 2) };
+    const reach = on.has((L.n - 1) + ',' + L.ey) && !!(L.g[L.ey][L.n - 1] & 2);
+    if(!L.net) return { on, done:reach, loose:new Set() };
+    // the network: every tile lit, and no connection left hanging (the cell's and the processor's ports excepted)
+    const loose = new Set();
+    for(let b = 0; b < L.n; b++) for(let a = 0; a < L.n; a++){ const m = L.g[b][a];
+      DIRS.forEach(([dx, dy, me, it])=>{ if(!(m & me)) return; const c = a + dx, d = b + dy;
+        if(c < 0 && b === L.sy && me === 8) return; if(c >= L.n && b === L.ey && me === 2) return;
+        if(c < 0 || d < 0 || c >= L.n || d >= L.n || !(L.g[d][c] & it)) loose.add(a + ',' + b + ',' + me); }); }
+    return { on, loose, done:reach && on.size === L.n*L.n && !loose.size };
   }
   function route(o, done){
     const ui = panel('ROUTE THE POWER', 'Click a tile to turn it. Get power from the cell to the processor.');
-    const sizes = [4, 5, 6].slice(0, o.levels || 3);
-    let lv = 0, L = routeLevel(sizes[0], 101), solved = 0, spin = {};
+    // a single route to warm up; then the network, twice, bigger
+    const BOARDS = [[4, 'route'], [5, 'net'], [6, 'net']].slice(0, o.levels || 3), sizes = BOARDS;
+    const make = i => BOARDS[i][1] === 'net' ? netLevel(BOARDS[i][0], 211 + i*53) : routeLevel(BOARDS[i][0], 101 + i*37);
+    let lv = 0, L = make(0), solved = 0, spin = {};
     const geo = () => { const n = L.n, s = Math.min(400/n, 84), w = s*n; return { n, s, ox:(640 - w)/2, oy:(520 - w)/2 + 6 }; };
     function draw(t){
       const x = ui.x, G = geo(), pw = powered(L);
@@ -108,13 +140,17 @@ window.TSHPUZZLE = (function(){
         if(!m) continue;
         const sp = spin[a + ',' + b] || 0;
         x.save(); x.translate(cx, cyy); x.rotate(-sp*Math.PI/2);
-        DIRS.forEach(([dx, dy, me])=>{ if(m & me) glowLine(x, [[0, 0], [dx*G.s/2, dy*G.s/2]], lit ? TEAL : DIM, G.s*0.16, lit ? 14 : 0); });
+        DIRS.forEach(([dx, dy, me])=>{ if(!(m & me)) return; const bad = lit && pw.loose.has(a + ',' + b + ',' + me);
+          glowLine(x, [[0, 0], [dx*G.s/2, dy*G.s/2]], bad ? PINK : lit ? TEAL : DIM, G.s*0.16, lit ? 14 : 0); });
         x.fillStyle = lit ? TEAL : '#2a4a46'; x.beginPath(); x.arc(0, 0, G.s*0.11, 0, 7); x.fill();
         x.restore();
       }
       ui.lv.textContent = 'BOARD ' + (lv + 1) + ' / ' + sizes.length;
       if(pw.done && !solved){ solved = t; ui.msg.textContent = 'Power to the processor.'; window.TSH && TSH._cue && TSH._cue('win'); }
-      if(solved && t - solved > 1100){ solved = 0; lv++; if(lv >= sizes.length){ close(); done && done(); return false; } L = routeLevel(sizes[lv], 101 + lv*37); spin = {}; ui.msg.textContent = lv === 1 ? 'More pieces. More than one way through.' : 'Last board.'; }
+      if(solved && t - solved > 1100){ solved = 0; lv++; if(lv >= sizes.length){ close(); done && done(); return false; } L = make(lv); spin = {};
+        ui.msg.className = 'tsh-puz-msg'; ui.msg.textContent = lv === 1 ? 'The whole board is the circuit now. Every tile lit, no loose ends (pink).' : 'The main board. Same rules, bigger.'; }
+      if(!solved && L.net){ const lit = pw.on.size, n2 = L.n*L.n, lo = [...pw.loose].filter(k=>pw.on.has(k.split(',').slice(0, 2).join(','))).length;
+        ui.lv.textContent += ' · ' + lit + ' / ' + n2 + ' lit' + (lo ? ' · ' + lo + ' loose' : ''); }
       for(const k in spin){ spin[k] *= 0.75; if(spin[k] < 0.01) delete spin[k]; }
       return true;
     }
@@ -294,5 +330,5 @@ window.TSHPUZZLE = (function(){
     close();
     ({ route, signal, gears, diagnose })[kind](o || {}, done);
   }
-  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE };
+  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE };
 })();

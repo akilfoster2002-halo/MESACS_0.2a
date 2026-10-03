@@ -652,8 +652,10 @@ test('The Other Robin: detention, the robot she fixes, what her teacher says, an
   // the puzzles, every board solvable and none solved before she touches it
   const ctx = vm.createContext({ performance:{ now:()=>0 } }); ctx.window = ctx; vm.runInContext(pz, ctx);
   const P = ctx.TSHPUZZLE;
-  [4, 5, 6].forEach((n, k)=>{ const L = P._route(n, 101 + k*37), g = L.g; assert.equal(P._powered(L).done, false, 'board ' + n + ' starts broken');
-    L.g = L.sol; assert.equal(P._powered(L).done, true, 'board ' + n + ' can be solved'); L.g = g; });
+  { const L = P._route(4, 101), g = L.g; assert.equal(P._powered(L).done, false, 'board 1 starts broken'); L.g = L.sol; assert.equal(P._powered(L).done, true, 'board 1 can be solved'); L.g = g; }
+  // boards 2 and 3: the network — every tile lit, no loose ends
+  [[5, 264], [6, 317]].forEach(([n, seed])=>{ const L = P._net(n, seed), g = L.g; assert.equal(P._powered(L).done, false, 'network ' + n + ' starts broken');
+    L.g = L.sol; const p = P._powered(L); assert.ok(p.done && p.on.size === n*n && !p.loose.size, 'network ' + n + ' can be solved, every tile lit'); L.g = g; });
   P.SIGNALS.forEach((L, k)=>{ const used = new Set(); L.ends.forEach((e, c)=>{ const p = P._solPath(L, c), l = p[p.length - 1];
     assert.deepEqual(l, e[1], 'bus ' + k + ': signal ' + c + ' reaches its twin');
     p.forEach(q=>{ assert.ok(!used.has(q + ''), 'bus ' + k + ': no two signals cross'); used.add(q + ''); }); }); });
