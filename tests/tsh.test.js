@@ -685,3 +685,21 @@ test('the face shapes really move: Robin\'s and Maya\'s are not empty (a sparse 
     });
   });
 });
+
+test("the buyer and his crew have faces: shapes on their bodies, and the fight on them", () => {
+  ['thug-buyer', 'thug-a', 'thug-b'].forEach(who => {
+    const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'characters', 'models', 'character-' + who + '.glb'));
+    const jl = b.readUInt32LE(12), J = JSON.parse(b.slice(20, 20 + jl).toString('utf8')), bin = b.slice(20 + jl + 8);
+    const names = (J.meshes[0].extras || {}).targetNames || [], prim = J.meshes[0].primitives[0];
+    ['jawOpen', 'frown', 'browDown', 'blink'].forEach(n => assert.ok(names.includes(n), who + ' has ' + n));
+    const a = J.accessors[prim.targets[names.indexOf('jawOpen')].POSITION], bv = J.bufferViews[a.bufferView];
+    assert.ok(!a.sparse, who + ': shapes stored whole');
+    let moved = 0; for(let i = 0; i < a.count*3; i++) if(bin.readInt16LE((bv.byteOffset || 0) + (a.byteOffset || 0) + i*2)) moved++;
+    assert.ok(moved > 50, who + "'s jaw moves");
+  });
+  const f = read('public/tshfight.js'), t = read('public/tsh.js');
+  has(f, /function face\(e, dt\)\{/, 'their faces are driven');
+  has(f, /\(c === 'hit' \|\| c === 'stagger'\) \? FACES\.hurt/, 'a wince when hit');
+  has(f, /e\.state === 'ko'[\s\S]{0,80}FACES\.out/, 'eyes shut on the ground');
+  has(t, /TSHFIGHT\.talker\(who\)/, 'and the one with the line talks');
+});

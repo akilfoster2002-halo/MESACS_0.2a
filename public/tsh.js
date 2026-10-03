@@ -4584,7 +4584,7 @@ window.TSH = (function(){
     if(q.paced && q.i >= 0){ if(!q.go) return; q.go = false; }   // a paced line stays up until you move it on
     else { q.t -= dt; if(q.t > 0) return; }
     q.i++;
-    if(q.i >= q.lines.length){ talkQ.shift(); subtitle(null); if(q.done) q.done(); return; }
+    if(q.i >= q.lines.length){ talkQ.shift(); subtitle(null); if(window.TSHFIGHT && TSHFIGHT.ready) TSHFIGHT.talker(null); if(q.done) q.done(); return; }
     const [who, text] = q.lines[q.i];
     const dur = vlen(who, text);
     q.t = dur ? Math.max(1.4, dur + 0.45) : Math.max(1.8, 1.0 + text.length*0.052);
@@ -4592,6 +4592,7 @@ window.TSH = (function(){
     voice(who, text);
     [find('kai'), find('maya'), apt.kai, apt.maya, find('kaiRoof')].forEach(n=>{ if(n) n.talking = false; });
     const n = speakerNpc(who); if(n) n.talking = true;
+    if(window.TSHFIGHT && TSHFIGHT.ready) TSHFIGHT.talker(who);        // the buyer and his crew talk with their faces too
     if(cut && cut.shot && cut.shot.onLine) cut.shot.onLine(q.i, who, text);
   }
   function subtitle(who, text, paced){

@@ -23,5 +23,9 @@ npx -y @gltf-transform/cli webp "$T-a.glb" "$T-b.glb" --quality 84
 node cast/fix-material.js "$T-b.glb" "$T-c.glb"
 npx -y @gltf-transform/cli prune "$T-c.glb" "$T-d.glb"
 npx -y @gltf-transform/cli simplify "$T-d.glb" "$T-e.glb" --ratio 0.4 --error 0.001
-npx -y @gltf-transform/cli quantize "$T-e.glb" "../public/characters/models/character-$N.glb"
+# a face: his landmarks found from Robin's (face/autolandmarks.js), the rig's shapes bent onto them (face/morphs.js)
+node face/autolandmarks.js "$T-e.glb" "face/$N.landmarks.json" face/robin-ref.glb face/robin.landmarks.json
+node face/morphs.js "$T-e.glb" "$T-f.glb" "face/$N.landmarks.json"
+# quantized, and NOT made sparse (gltf-transform sparse writes these shapes as zeros: see build-robin.sh)
+npx -y @gltf-transform/cli quantize "$T-f.glb" "../public/characters/models/character-$N.glb"
 rm -f "$T"-*.glb

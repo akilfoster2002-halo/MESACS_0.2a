@@ -585,6 +585,7 @@ window.TSHFIGHT = (function(){
       if(e.state !== 'flying'){ const c = clampArena(e.x, e.z, 0.3); e.x = c[0]; e.z = c[1]; }
       e.g.position.set(e.x, e.y, e.z); e.g.rotation.y = e.yaw;
       if(e.rig) e.rig.update(held ? 0 : dt);
+      face(e, held ? 0 : dt);
       if(e.tell) e.tell.position.set(e.x, e.y + 2.3, e.z);
     });
   }
@@ -920,8 +921,54 @@ window.TSHFIGHT = (function(){
   }
   function pose(dt){
     if(!ready || on) return;
-    E.forEach(e=>{ e.g.position.set(e.x, e.y, e.z); e.g.rotation.y = e.yaw; if(e.rig) e.rig.update(dt); });
+    E.forEach(e=>{ e.g.position.set(e.x, e.y, e.z); e.g.rotation.y = e.yaw; if(e.rig) e.rig.update(dt); face(e, dt); });
     tickFx(dt);
+  }
+  /* THEIR FACES (the crew's bodies carry the face shapes: glb files/face, build-thug.sh). They blink; while one
+     of them has the line he talks; and the rest is the fight on them — a scowl squaring up, teeth on a roar,
+     a wince when he is hit, and his eyes shut on the ground. */
+  // past 1 on purpose: their faces hold a shout and a scowl stronger than the rig's own, and at fight distance they need it
+  const FACES = {
+    calm:  { frown:0.35, browDown:0.5 },
+    fight: { frown:1.1, browDown:1.4 },
+    roar:  { frown:1.4, browDown:1.6, jawOpen:0.8 },
+    swing: { frown:1.4, browDown:1.5, jawOpen:0.35 },
+    hurt:  { frown:1.5, browUp:1.2, jawOpen:0.6 },
+    out:   { blink:1, jawOpen:0.25 }
+  };
+  function face(e, dt){
+    if(!e.model) return;
+    if(e.face === undefined){ e.face = null; e.model.traverse(o=>{ if(!e.face && o.morphTargetDictionary && o.morphTargetDictionary.jawOpen !== undefined) e.face = { m:o, cur:{}, blinkIn:1 + Math.random()*3, blinkT:0, ph:0, amp:0.6 }; }); }
+    const f = e.face; if(!f || !(dt >= 0)) return;
+    const D = f.m.morphTargetDictionary, I = f.m.morphTargetInfluences;
+    const c = e.clip || '';
+    const want = (e.state === 'ko' || e.state === 'down' || c === 'ko' || c === 'fall') ? FACES.out
+      : (c === 'hit' || c === 'stagger') ? FACES.hurt
+      : c === 'roar' ? FACES.roar
+      : ['jab', 'cross', 'hook', 'kick'].includes(c) ? FACES.swing
+      : (c === 'fight' || c === 'block' || c.indexOf('walk') === 0 || e.state === 'circle' || e.state === 'attack') ? FACES.fight
+      : FACES.calm;
+    // talking: a talker's rhythm under his line
+    let mouth = 0;
+    if(e.talking){ const was = f.ph; f.ph += dt*5.2; if(Math.floor(f.ph) !== Math.floor(was)) f.amp = 0.35 + Math.random()*0.6; mouth = Math.max(0, Math.sin(f.ph*Math.PI))*f.amp; }
+    f.blinkIn -= dt; if(f.blinkIn <= 0){ f.blinkT = 0.17; f.blinkIn = Math.random() < 0.15 ? 0.25 : 2 + Math.random()*4; }
+    let blink = 0; if(f.blinkT > 0){ f.blinkT = Math.max(0, f.blinkT - dt); blink = Math.min(1, 1.4*(1 - Math.abs(f.blinkT/0.17*2 - 1))); }
+    const k = 1 - Math.exp(-dt*(want === FACES.hurt ? 18 : 8));
+    ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{
+      if(D[n] === undefined) return;
+      let t = want[n] || 0;
+      if(n === 'jawOpen') t = Math.min(0.85, t + mouth*0.5);
+      if(n === 'mouthO') t = Math.max(t, mouth*0.2);
+      if(n === 'blink') t = Math.max(t, blink);
+      f.cur[n] = (f.cur[n] || 0) + (t - (f.cur[n] || 0))*(n === 'blink' ? 1 : k);
+      I[D[n]] = f.cur[n];
+    });
+  }
+  /* who has the line (tsh.js, as each line goes up): the buyer's are 'dealer', his crew's 'thug' */
+  function talker(who){
+    E.forEach(e=>{ e.talking = false; });
+    if(who === 'dealer' || who === 'buyer'){ const b = E.find(e=>e.kind === 'buyer'); if(b) b.talking = true; }
+    if(who === 'thug'){ const t = E.filter(e=>e.kind !== 'buyer' && e.hp > 0 && !['ko', 'down'].includes(e.state))[0]; if(t) t.talking = true; }
   }
   /* the fight itself, with the crew where the film left them */
   function start(c){
@@ -1048,7 +1095,7 @@ window.TSHFIGHT = (function(){
     }
   }
 
-  return { cast, pose, start, stop, clear, tick, key, play, hit1, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
+  return { cast, pose, start, stop, clear, tick, key, play, hit1, talker, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
            /* for tests and the console */
            _E:()=>E, _R:()=>R, _aim:aimTarget, _choose:choose, _stepTo:stepTo, STRINGS, EVADE, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
 })();
