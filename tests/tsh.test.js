@@ -745,11 +745,25 @@ test('the title is ROBIN RYU, after KILL BILL: yellow band, black capitals, a sl
   hasNot(t, /<div class="tsh-t1">TSH<\/div>|<div class="tsh-res-t">TSH<\/div>/, 'and TSH is gone from the screen');
   hasNot(css, /\.rr-band/, 'no box behind it: letters');
   has(css, /\.rr-mark \.rr-z\.rr-f\{[^}]*linear-gradient\(180deg,#fff27a/, 'yellow faces, with a glint to run across them');
-  has(t, /const DEPTH = 26/, 'in 3-D: each letter a solid block of layers stepping back into the screen');
+  has(t, /const DEPTH = 26/, 'without WebGL, each letter still a stack of layers stepping back into the screen');
   has(css, /\.rr-mark \.rr-l\{[^}]*transform-style:preserve-3d/, 'turned in real 3-D');
   has(t, /y0 = 85 - 70\*x0, y1 = 85 - 70\*x1/, 'every letter cut on the one slash through the word');
   has(t, /const ax = -0\.04\*W, ay = 0\.878\*Hh, bx = 1\.04\*W, by = 0\.122\*Hh;/, 'and the slash drawn along that very cut');
   has(t, /--ry:\$\{/, 'each letter spins in on its own');
   ['rrSpin', 'rrShake', 'rrSlash', 'rrTopCut', 'rrGlint', 'rrTopOut', 'rrBotOut', 'rrBurn'].forEach(k => has(css, new RegExp('@keyframes ' + k), 'animated: ' + k));
   has(p, /label:'ROBIN RYU — written by George Wang'/, 'and the door in Wano says so too');
+});
+
+test('ROBIN RYU is drawn as solid blocks: real extruded letters that spin in, rock in and out of the page, and are cut by the slash', () => {
+  const r = read('public/rrtitle.js'), t = read('public/tsh.js'), css = read('public/app.css'), html = read('public/index.html');
+  has(html, /<script src="rrtitle\.js\?v=\d+"><\/script>[\s\S]*<script src="tsh\.js/, 'loaded before the quest');
+  has(t, /title\(\)\{[\s\S]{0,1200}RRTITLE\.play\(t, 'ROBIN RYU'\)/, 'the title card plays it');
+  has(r, /new THREE\.ExtrudeGeometry\(shapes, \{ depth:DEPTH, bevelEnabled:true/, 'each letter a bevelled block');
+  has(r, /const FONT = "'Dela Gothic One'"/, 'in the title font, traced from it');
+  has(r, /s\.holes\.push/, 'with the holes in O, B, R left open');
+  has(r, /rock\*0\.55\*Math\.sin\(w\)/, 'each letter rocking back and forth into and out of the page');
+  has(r, /phase:i\*0\.62/, 'out of step with its neighbours');
+  has(r, /f\.clippingPlanes = \[planes\[h\]\]/, 'cut in two along the slash');
+  has(css, /\.tsh-title\.rr\.rr3d \.rr-l[^{]*\{visibility:hidden\}/, 'over the flat letters, which keep the layout');
+  has(r, /if\(!window\.THREE \|\| !setup\(\)\) return false;/, 'and the flat title still plays without WebGL');
 });

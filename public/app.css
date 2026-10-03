@@ -3017,3 +3017,6 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 @keyframes rrOut{to{opacity:0}}
 /* on the results */
 #tsh .tsh-res .rr-mark{font-size:54px;margin:0 auto 6px;display:table}
+/* ROBIN RYU in solid 3-D (rrtitle.js): the flat letters keep the layout, the blocks are drawn over them */
+#tsh .tsh-title.rr .rr-gl{position:absolute;left:0;top:0;pointer-events:none;filter:drop-shadow(0 .5vw .9vw rgba(0,0,0,.65))}
+#tsh .tsh-title.rr.rr3d .rr-l,#tsh .tsh-title.rr.rr3d .rr-slash{visibility:hidden}

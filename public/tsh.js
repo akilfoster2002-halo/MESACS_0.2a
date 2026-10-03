@@ -5244,7 +5244,7 @@ window.TSH = (function(){
   function rrMark(word, cls){
     const chars = [...word], n = chars.filter(c=>c !== ' ').length; let i = 0;
     const r = (a, b) => (a + Math.random()*(b - a)).toFixed(2);
-    // a solid block: twenty-six layers packed close, lit gold at the face and falling to bronze at the back
+    // the flat fallback and the results: twenty-six layers packed close, lit gold at the face and falling to bronze at the back
     const DEPTH = 26, shade = k => { const t = k/(DEPTH - 1), l = t < 0.08 ? 1.1 : 1; return `rgb(${Math.round((214 - 128*t)*l)},${Math.round((150 - 104*t)*l)},${Math.round(8 + 10*t)})`; };
     // a half: its face and the nine layers behind it
     const half = (c, cls_) => `<span class="rr-half ${cls_}">` + Array.from({ length:DEPTH }, (_, k)=>`<span class="rr-z" style="--k:${DEPTH - k};--c:${shade(DEPTH - 1 - k)}">${c}</span>`).join('') + `<span class="rr-z rr-f">${c}</span></span>`;
@@ -5273,6 +5273,7 @@ window.TSH = (function(){
     rrFit(t);
     t.style.setProperty('--n', 8);                       // the letters' count, for the credits' and the flash's timing too
     t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
+    if(typeof RRTITLE !== 'undefined') RRTITLE.play(t, 'ROBIN RYU');      // solid blocks of gold over the flat letters, when there is WebGL
     for(let k = 0; k < 8; k++) later(()=>cue('swish'), 120 + k*110);                // a whoosh as each letter spins in
     later(()=>cue('kick'), 1600); later(()=>cue('flash'), 1950); later(()=>cue('swish'), 4650);
     clearTimeout(t.offT); t.offT = setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 6000);
