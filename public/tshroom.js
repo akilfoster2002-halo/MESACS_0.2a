@@ -435,14 +435,14 @@ window.TSHROOM = (function(){
     // Either may load first.
     let formM = null, jackM = null;
     const fitJacket = () => { if(!formM || !jackM) return;
-      const nb = band(formM, 1.6, 1.8); if(nb.isEmpty()) return;
+      const nb = slice(formM, 1.6, 1.8); if(nb.isEmpty()) return;
       const neck = nb.getCenter(new V3()); jacket.updateMatrixWorld(true);
-      const jb = new THREE.Box3().setFromObject(jackM), col = band(jackM, jb.max.y - 0.1, 9).getCenter(new V3());
+      const jb = new THREE.Box3().setFromObject(jackM), col = slice(jackM, jb.max.y - 0.1, 9).getCenter(new V3());
       jacket.position.x += neck.x - col.x; jacket.position.z += neck.z - col.z; jacket.position.y += 1.71 - jb.max.y; };
     swap('form', group, form, { x:fx, y:0, z:fz, h:1.72, ry:Math.PI/4, done:m=>{
       m.scale.x *= 0.66; m.scale.z *= 0.66;
       // centred on its torso, which is not the middle of the whole form (the tripod's legs are not even)
-      const c = band(m, 1.1, 1.6).getCenter(new V3()); m.position.x += fx - c.x; m.position.z += fz - c.z;
+      const c = slice(m, 1.1, 1.6).getCenter(new V3()); m.position.x += fx - c.x; m.position.z += fz - c.z;
       formM = m; fitJacket(); } });
     const jacket = new THREE.Group(); jacket.position.set(fx, 1.3, fz); jacket.rotation.y = Math.PI/4; group.add(jacket);
     const cloth = std({ color:0x1b2321, roughness:0.9 }), seam = glowM(0x38ffd0, 2.4);
@@ -566,8 +566,8 @@ window.TSHROOM = (function(){
       return m;
     });
   }
-  /* the box round the part of a model between two heights (a dress form's torso, not its tripod; a jacket's collar) */
-  function band(m, y0, y1){
+  /* the box round the slice of a model between two heights (a dress form's torso, not its tripod; a jacket's collar) */
+  function slice(m, y0, y1){
     const v = new V3(), b = new THREE.Box3(); m.updateMatrixWorld(true);
     m.traverse(n=>{ if(!n.isMesh) return; const P = n.geometry.attributes.position;
       for(let i=0;i<P.count;i++){ v.fromBufferAttribute(P, i).applyMatrix4(n.matrixWorld); if(v.y > y0 && v.y < y1) b.expandByPoint(v); } });

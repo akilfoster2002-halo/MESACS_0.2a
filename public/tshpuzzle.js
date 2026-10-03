@@ -14,6 +14,10 @@
               notch up and the drive runs, centre to rim.
      DIAGNOSE the second thing: examine it — the light, the battery, the
               motor, the sensor, the log — and say what is actually wrong.
+     FREQ     the Psi field's oscillation, live: tune the robot to it —
+              frequency, then phase, then a second harmonic — until it locks.
+   With { psi:true }, ROUTE carries the field's energy to the robot's core
+   and GEARS are its actuators, lined up to move with the field.
 
    Drawn on one canvas in a panel over the room, in her colours: black
    glass, teal power, a pink for what is wrong.
@@ -114,7 +118,9 @@ window.TSHPUZZLE = (function(){
     return { on, loose, done:reach && on.size === L.n*L.n && !loose.size };
   }
   function route(o, done){
-    const ui = panel('ROUTE THE POWER', 'Click a tile to turn it. Get power from the cell to the processor.');
+    const psi = !!o.psi, SRC = psi ? 'FIELD' : 'CELL', DST = psi ? 'CORE' : 'CPU';
+    const ui = psi ? panel('ROUTE THE PSI ENERGY', 'Tap a conduit to turn it. Carry the field\'s energy to the robot\'s core — and nowhere else.')
+                   : panel('ROUTE THE POWER', 'Click a tile to turn it. Get power from the cell to the processor.');
     // a single route to warm up; then the network, twice, bigger
     const BOARDS = [[4, 'route'], [5, 'net'], [6, 'net']].slice(0, o.levels || 3), sizes = BOARDS;
     const make = i => BOARDS[i][1] === 'net' ? netLevel(BOARDS[i][0], 211 + i*53) : routeLevel(BOARDS[i][0], 101 + i*37);
@@ -126,11 +132,11 @@ window.TSHPUZZLE = (function(){
       // the cell and the processor
       const cy = G.oy + (L.sy + 0.5)*G.s, py = G.oy + (L.ey + 0.5)*G.s;
       x.fillStyle = '#0b1513'; rr(x, G.ox - 70, cy - 26, 52, 52, 8); x.fill(); x.strokeStyle = TEAL; x.lineWidth = 2; x.stroke();
-      x.fillStyle = TEAL; x.font = font(12); x.textAlign = 'center'; x.fillText('CELL', G.ox - 44, cy + 4);
+      x.fillStyle = TEAL; x.font = font(12); x.textAlign = 'center'; x.fillText(SRC, G.ox - 44, cy + 4);
       glowLine(x, [[G.ox - 18, cy], [G.ox, cy]], TEAL, 6, 12);
       x.fillStyle = '#0b1513'; rr(x, G.ox + G.n*G.s + 18, py - 30, 60, 60, 6); x.fill(); x.strokeStyle = pw.done ? TEAL : '#556'; x.stroke();
       for(let k = 0; k < 4; k++){ x.fillStyle = pw.done ? TEAL : '#556'; x.fillRect(G.ox + G.n*G.s + 26 + k*12, py - 36, 4, 6); x.fillRect(G.ox + G.n*G.s + 26 + k*12, py + 30, 4, 6); }
-      x.fillStyle = pw.done ? TEAL : '#889'; x.fillText('CPU', G.ox + G.n*G.s + 48, py + 4);
+      x.fillStyle = pw.done ? TEAL : '#889'; x.fillText(DST, G.ox + G.n*G.s + 48, py + 4);
       glowLine(x, [[G.ox + G.n*G.s, py], [G.ox + G.n*G.s + 18, py]], pw.done ? TEAL : '#334', 6, pw.done ? 12 : 0);
       // the tiles
       for(let b = 0; b < L.n; b++) for(let a = 0; a < L.n; a++){
@@ -146,9 +152,10 @@ window.TSHPUZZLE = (function(){
         x.restore();
       }
       ui.lv.textContent = 'BOARD ' + (lv + 1) + ' / ' + sizes.length;
-      if(pw.done && !solved){ solved = t; ui.msg.textContent = 'Power to the processor.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(pw.done && !solved){ solved = t; ui.msg.textContent = psi ? 'The field reaches the core.' : 'Power to the processor.'; window.TSH && TSH._cue && TSH._cue('win'); }
       if(solved && t - solved > 1100){ solved = 0; lv++; if(lv >= sizes.length){ close(); done && done(); return false; } L = make(lv); spin = {};
-        ui.msg.className = 'tsh-puz-msg'; ui.msg.textContent = lv === 1 ? 'The whole board is the circuit now. Every tile lit, no loose ends (pink).' : 'The main board. Same rules, bigger.'; }
+        ui.msg.className = 'tsh-puz-msg'; ui.msg.textContent = lv === 1 ? (psi ? 'Unstable energy leaks out of any open end. Every conduit lit, no loose ends (pink).' : 'The whole board is the circuit now. Every tile lit, no loose ends (pink).')
+                                       : (psi ? 'The main manifold. Same rules, bigger.' : 'The main board. Same rules, bigger.'); }
       if(!solved && L.net){ const lit = pw.on.size, n2 = L.n*L.n, lo = [...pw.loose].filter(k=>pw.on.has(k.split(',').slice(0, 2).join(','))).length;
         ui.lv.textContent += ' · ' + lit + ' / ' + n2 + ' lit' + (lo ? ' · ' + lo + ' loose' : ''); }
       for(const k in spin){ spin[k] *= 0.75; if(spin[k] < 0.01) delete spin[k]; }
@@ -238,7 +245,9 @@ window.TSHPUZZLE = (function(){
      turns the one inside it the other way. All notches at the top and the
      drive runs straight out from the hub to the rim. */
   function gears(o, done){
-    const ui = panel('ALIGN THE DRIVE', 'Click a ring to turn it (right-click: the other way). Each ring drags the one inside it. Line every notch up with the shaft.');
+    const psi = !!o.psi;
+    const ui = psi ? panel('STABILISE THE ACTUATORS', 'Tap a ring to turn it (right-click or shift: the other way). Each actuator drags the one inside it. Line every one up with the field\'s swing, so none of them fights it.')
+                   : panel('ALIGN THE DRIVE', 'Click a ring to turn it (right-click: the other way). Each ring drags the one inside it. Line every notch up with the shaft.');
     const LV = [{ n:3, seed:5 }, { n:4, seed:9 }].slice(0, o.levels || 2), STEPS = 8;
     let lv = 0, R, ang, solved = 0;
     const load = () => { const L = LV[lv], r = rand(L.seed*101); R = Array(L.n).fill(0); ang = Array(L.n).fill(0);
@@ -271,9 +280,9 @@ window.TSHPUZZLE = (function(){
       x.fillStyle = '#2a3a38'; x.beginPath(); x.arc(cx, cy, 20, 0, 7); x.fill();
       const all = aligned.every(Boolean);
       if(all){ glowLine(x, [[cx, cy], [cx, cy - rad(n - 1) - 40]], TEAL, 8, 18); x.fillStyle = TEAL; x.beginPath(); x.arc(cx, cy, 12, 0, 7); x.fill(); }
-      ui.lv.textContent = 'DRIVE ' + (lv + 1) + ' / ' + LV.length + ' · ' + aligned.filter(Boolean).length + ' / ' + n + ' aligned';
-      if(all && !solved){ solved = t; ui.msg.textContent = 'The drive runs.'; window.TSH && TSH._cue && TSH._cue('win'); }
-      if(solved && t - solved > 1200){ solved = 0; lv++; if(lv >= LV.length){ close(); done && done(); return false; } load(); ui.msg.textContent = 'The leg joint: four rings.'; }
+      ui.lv.textContent = (psi ? 'JOINT ' : 'DRIVE ') + (lv + 1) + ' / ' + LV.length + ' · ' + aligned.filter(Boolean).length + ' / ' + n + (psi ? ' with the field' : ' aligned');
+      if(all && !solved){ solved = t; ui.msg.textContent = psi ? 'It moves with the field now, not against it.' : 'The drive runs.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(solved && t - solved > 1200){ solved = 0; lv++; if(lv >= LV.length){ close(); done && done(); return false; } load(); ui.msg.textContent = psi ? 'The legs: four actuators.' : 'The leg joint: four rings.'; }
       return true;
     }
     const ringAt = e => { const [px, py] = pt(e, ui.c), d = Math.hypot(px - cx, py - cy); for(let i = 0; i < R.length; i++) if(d < rad(i) + 10) return i; return -1; };
@@ -320,6 +329,57 @@ window.TSHPUZZLE = (function(){
     P = { ui, raf:0 };
   }
 
+  /* ============================================================ FREQ
+     The Psi field's oscillation, drawn live; the robot's, drawn over it.
+     Tune the robot's frequency (then its phase, then a second harmonic) —
+     tap the arrows — until the two are one line and it locks. Every value
+     moves in steps, so every level has an exact answer. */
+  const FREQS = [
+    { keys:['f'],                 target:{ f:3, p:0, f2:0, p2:0 }, start:{ f:1.5, p:0, f2:0, p2:0 } },
+    { keys:['f', 'p'],            target:{ f:2.5, p:90, f2:0, p2:0 }, start:{ f:4.5, p:270, f2:0, p2:0 } },
+    { keys:['f', 'p', 'f2'],      target:{ f:2, p:60, f2:5, p2:0 }, start:{ f:3.5, p:180, f2:2, p2:0 } }
+  ];
+  const FSTEP = { f:0.5, p:30, f2:0.5 }, FMIN = { f:0.5, p:0, f2:0.5 }, FMAX = { f:6, p:330, f2:8 };
+  const FNAME = { f:'FREQUENCY', p:'PHASE', f2:'HARMONIC' }, FUNIT = { f:' Hz', p:'°', f2:' Hz' };
+  function wave(v, x, t){ const a = 2*Math.PI*(v.f*x + v.p/360) + t; let y = Math.sin(a); if(v.f2) y = y*0.7 + 0.45*Math.sin(2*Math.PI*v.f2*x + t*1.6); return y; }
+  function freq(o, done){
+    const ui = panel('MATCH THE FREQUENCY', 'The Psi field oscillates. Tap the arrows to tune the robot to it, until the two waves are one.');
+    const LV = FREQS.slice(0, o.levels || 3);
+    let lv = 0, L, v, solved = 0, held = 0, last = 0;
+    const load = () => { L = LV[lv]; v = Object.assign({}, L.start); paint(); };
+    const err = () => L.keys.reduce((e, k)=>e + Math.abs(v[k] - L.target[k])/(k === 'p' ? 180 : 2), 0);
+    const match = () => L.keys.every(k=>v[k] === L.target[k]);
+    function paint(){
+      ui.side.innerHTML = '<div class="tsh-puz-dials">' + L.keys.map(k=>`<div class="tsh-puz-dial"><small>${FNAME[k]}</small><button data-k="${k}" data-d="-1">◀</button><b>${v[k]}${FUNIT[k]}</b><button data-k="${k}" data-d="1">▶</button></div>`).join('') + '</div>';
+      ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ if(solved) return; const k = b.dataset.k, d = +b.dataset.d;
+        let n = v[k] + d*FSTEP[k]; if(k === 'p') n = (n + 360) % 360; else n = Math.max(FMIN[k], Math.min(FMAX[k], n));
+        v[k] = Math.round(n*2)/2; window.TSH && TSH._cue && TSH._cue('ui'); paint(); });
+    }
+    load();
+    function draw(t){
+      const x = ui.x, dt = Math.min(0.05, (t - last)/1000); last = t; x.clearRect(0, 0, 640, 520);
+      const T = t/1000*1.4, ox = 30, w = 580, cy = 250, amp = 120, e = err(), m = match();
+      // the grid
+      x.strokeStyle = 'rgba(56,255,208,0.07)'; x.lineWidth = 1;
+      for(let k = 0; k <= 10; k++){ x.beginPath(); x.moveTo(ox + k*w/10, cy - 160); x.lineTo(ox + k*w/10, cy + 160); x.stroke(); }
+      for(let k = -4; k <= 4; k++){ x.beginPath(); x.moveTo(ox, cy + k*40); x.lineTo(ox + w, cy + k*40); x.stroke(); }
+      const line = (vv, col, wd, glow) => { const pts = []; for(let i = 0; i <= 160; i++){ const u = i/160; pts.push([ox + u*w, cy - wave(vv, u, T)*amp]); } glowLine(x, pts, col, wd, glow); };
+      line(L.target, '#b48aff', 7, 18);                                      // the field
+      line(v, m ? TEAL : PINK, 3, m ? 14 : 6);                               // the robot
+      x.font = font(13); x.textAlign = 'left'; x.fillStyle = '#b48aff'; x.fillText('Ψ FIELD', ox, 40); x.fillStyle = m ? TEAL : PINK; x.fillText('ROBOT', ox + 90, 40);
+      const sync = Math.max(0, Math.round(100 - e*55));
+      x.textAlign = 'right'; x.fillStyle = m ? TEAL : INK; x.fillText('SYNC ' + (m ? 100 : Math.min(99, sync)) + '%', ox + w, 40);
+      held = m ? held + dt : 0;
+      ui.lv.textContent = 'STAGE ' + (lv + 1) + ' / ' + LV.length;
+      if(held > 0.6 && !solved){ solved = t; ui.msg.textContent = 'Locked to the field.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(solved && t - solved > 1200){ solved = 0; held = 0; lv++; if(lv >= LV.length){ close(); done && done(); return false; } load();
+        ui.msg.textContent = lv === 1 ? 'Same frequency isn\'t enough: it has to swing at the same moment. Phase.' : 'The field has a second voice in it. Find both.'; }
+      return true;
+    }
+    run(ui, draw);
+    P.solve = ()=>{ L.keys.forEach(k=>{ v[k] = L.target[k]; }); paint(); };
+  }
+
   function run(ui, draw){
     const t0 = performance.now();
     P = { ui, raf:0 };
@@ -328,7 +388,7 @@ window.TSHPUZZLE = (function(){
   }
   function open(kind, o, done){
     close();
-    ({ route, signal, gears, diagnose })[kind](o || {}, done);
+    ({ route, signal, gears, diagnose, freq })[kind](o || {}, done);
   }
-  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE };
+  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave };
 })();

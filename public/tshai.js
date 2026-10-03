@@ -218,7 +218,8 @@ window.TSHAI = (function(){
     out:     { goal:'Lose them. Get somewhere high.', to:{ high:'end' } },
     end:     { goal:'', to:{} },
     /* THE OTHER ROBIN: the morning after. Late for school, over the roofs in daylight, past her
-       teacher (or not), detention, a robot nobody else could fix — and what her teacher says about it. */
+       teacher (or not), the assignment she hasn't done, the lab and its Psi Energy, a prototype nobody
+       else could fix — and what her teacher says about her. ('detention' is the lab beat's old name.) */
     morning: { goal:'', to:{ out:'commute' } },
     commute: { goal:'Get to school. You are late.', to:{ there:'school' } },
     school:  { goal:'Get into school.', to:{ spotted:'sneak' } },
@@ -271,10 +272,10 @@ window.TSHAI = (function(){
     { id:'overlook',  beat:'commute', on:'on the roof across Harbor Lane from school: 8:57',  after:['late'] },
     { id:'lobby',     beat:'school',  on:'through the revolving doors: the guard, then her teacher', after:['overlook'] },
     { id:'caught',    beat:'sneak',   on:'her teacher sees her, wherever she has got to',    after:['lobby'] },
-    { id:'detention', beat:'detention', on:'in the classroom: the missing assignment',       after:['caught'] },
-    { id:'repair',    beat:'detention', on:'the robot runs again',                           after:['detention'] },
-    { id:'device',    beat:'detention', on:'the second thing works again',                   after:['repair'] },
-    { id:'mother',    beat:'after',   on:'her teacher looks at her work',                    after:['device'] },
+    { id:'assignment', beat:'sneak',  on:'the assignment she hasn\'t done; "I need your help"', after:['caught'] },
+    { id:'psi',       beat:'detention', on:'the robotics lab: Psi Energy, and the prototype that fights it', after:['assignment'] },
+    { id:'repair',    beat:'detention', on:'the prototype runs in the field',                 after:['psi'] },
+    { id:'mother',    beat:'after',   on:'brilliant, and starting to disappear',             after:['repair'] },
     { id:'outside',   beat:'after',   on:'out through the school doors, into the sun',       after:['mother'] }
   ];
   /* may scene `id` play now, given the scenes that have? */

@@ -35,6 +35,7 @@ window.TSHSCHOOL = (function(){
   const V3 = THREE.Vector3;
   const SX = 400, H = 20;
   let S = null;                  // what build() made
+  let S_lab = null;              // the lab's moving parts (Room 120)
   let K = null;                  // tsh.js's hooks, while the sneak runs
   const std = o => new THREE.MeshStandardMaterial(o);
   const glowM = (col, k, map) => new THREE.MeshStandardMaterial({ color:0x000000, emissive:new THREE.Color(col), emissiveIntensity:k||1, emissiveMap:map||null, map:map||null, roughness:0.6 });
@@ -99,6 +100,53 @@ window.TSHSCHOOL = (function(){
     x.fillStyle = '#1a1a1a'; x.font = font(28, ''); x.fillText('e(t) = r(t) − y(t)', 60, 190); x.fillText('u(t) = Kp·e + Ki∫e dt + Kd·de/dt', 60, 240);
     x.strokeStyle = '#2a6a2a'; x.beginPath(); x.moveTo(640, 320); for(let i = 0; i < 300; i++){ const t = i/300; x.lineTo(640 + i, 320 - 200*(1 - Math.exp(-t*5)*Math.cos(t*14))); } x.stroke();
     return tex(c);
+  }
+
+  /* the lab's whiteboard: her teacher's notes on the field */
+  function psiBoard(){
+    const c = cv(1024, 384), x = c.getContext('2d');
+    x.fillStyle = '#f6f7f5'; x.fillRect(0, 0, 1024, 384);
+    x.font = font(34, ''); x.fillStyle = '#4a2a8a'; x.fillText('Ψ — CONTAINMENT TRIALS', 40, 56);
+    x.font = font(24, ''); x.fillStyle = '#1a1a1a';
+    ['trial 41: field held 3.2 s', 'trial 42: 11.8 s (!!)', 'trial 43: prototype seized — again', 'output spikes when the field dips. WHY?'].forEach((l, i)=>x.fillText(l, 50, 110 + i*40));
+    x.fillStyle = '#b22'; x.fillText('DON\'T TOUCH THE RIG', 50, 290); x.fillStyle = '#1a3a8a'; x.fillText('Ψ(t) ≈ A·sin(ωt + φ) + ε(t)', 50, 340);
+    x.strokeStyle = '#6a3aaa'; x.lineWidth = 3; x.beginPath(); for(let i = 0; i < 360; i++){ const t = i/360; x.lineTo(600 + i, 200 - 90*Math.sin(t*20)*Math.exp(-t*1.5) - 30*Math.sin(t*61)); } x.stroke();
+    x.strokeStyle = '#999'; x.lineWidth = 1; x.beginPath(); x.moveTo(600, 200); x.lineTo(970, 200); x.stroke();
+    return tex(c);
+  }
+  function hazardTex(){
+    const c = cv(512, 64), x = c.getContext('2d'); x.fillStyle = '#e8c020'; x.fillRect(0, 0, 512, 64); x.fillStyle = '#16181a';
+    for(let i = -2; i < 20; i++){ x.beginPath(); x.moveTo(i*32, 64); x.lineTo(i*32 + 16, 64); x.lineTo(i*32 + 48, 0); x.lineTo(i*32 + 32, 0); x.closePath(); x.fill(); }
+    const t = tex(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(6, 1); return t;
+  }
+  function rackTex(){
+    const c = cv(128, 512), x = c.getContext('2d'); x.fillStyle = '#05070a'; x.fillRect(0, 0, 128, 512);
+    for(let r = 0; r < 24; r++){ x.fillStyle = '#12161c'; x.fillRect(6, 6 + r*21, 116, 17);
+      for(let k = 0; k < 6; k++){ const on = Math.random() < 0.6; x.fillStyle = on ? (Math.random() < 0.2 ? '#ffb030' : Math.random() < 0.5 ? '#38ffd0' : '#b48aff') : '#1a2026'; x.fillRect(80 + k*6, 12 + r*21, 4, 4); } }
+    return c;
+  }
+  /* the monitors: the field's trace, its spectrum, and how unstable it is */
+  function paintMonitors(c, t, sync){
+    const x = c.getContext('2d'), W = c.width, H = c.height, w = W/3, h = H/2;
+    x.fillStyle = '#04060a'; x.fillRect(0, 0, W, H);
+    const sc = (i, j, title, col) => { const ox = i*w, oy = j*h; x.strokeStyle = 'rgba(180,138,255,0.18)'; x.lineWidth = 1;
+      for(let k = 1; k < 6; k++){ x.beginPath(); x.moveTo(ox + k*w/6, oy + 18); x.lineTo(ox + k*w/6, oy + h - 8); x.stroke(); }
+      x.fillStyle = col; x.font = font(16); x.fillText(title, ox + 12, oy + 22); return [ox, oy]; };
+    const tr = (ox, oy, f, col, amp, wob) => { x.strokeStyle = col; x.lineWidth = 3; x.shadowColor = col; x.shadowBlur = 10; x.beginPath();
+      for(let i = 0; i <= 200; i++){ const u = i/200, y = Math.sin(u*f + t*3) + wob*Math.sin(u*f*3.3 + t*7.1)*Math.sin(t*1.7); x.lineTo(ox + 10 + u*(w - 20), oy + h/2 + 8 - y*amp); } x.stroke(); x.shadowBlur = 0; };
+    let [ox, oy] = sc(0, 0, 'Ψ FIELD — RAW', '#c8a0ff'); tr(ox, oy, 18, '#b48aff', 60, 0.6);
+    [ox, oy] = sc(1, 0, 'PROTOTYPE — ACTUATOR OUT', sync ? '#38ffd0' : '#ff5a7a');
+    tr(ox, oy, 18, sync ? '#38ffd0' : '#ff3f6a', sync ? 60 : 40, sync ? 0.6 : 0); if(!sync){ x.fillStyle = '#ff3f6a'; x.fillText('▲ SPIKE', ox + w - 110, oy + 50 + 10*Math.sin(t*9)); }
+    [ox, oy] = sc(2, 0, 'SPECTRUM', '#9fd8ff'); for(let k = 0; k < 28; k++){ const v = Math.abs(Math.sin(k*0.7 + t*2))*(k === 6 || k === 15 ? 1 : 0.35); x.fillStyle = k === 6 || k === 15 ? '#b48aff' : '#3a5a7a'; x.fillRect(ox + 14 + k*11, oy + h - 14 - v*170, 8, v*170); }
+    [ox, oy] = sc(0, 1, 'CONTAINMENT', '#ffd23d'); const st = 0.55 + 0.4*Math.sin(t*0.9) + 0.08*Math.sin(t*7);
+    x.fillStyle = '#1a1e24'; x.fillRect(ox + 20, oy + 60, w - 40, 36); x.fillStyle = st < 0.3 ? '#ff3f6a' : '#ffd23d'; x.fillRect(ox + 20, oy + 60, (w - 40)*Math.max(0.05, Math.min(1, st)), 36);
+    x.fillStyle = '#e8e6d8'; x.font = font(22); x.fillText((st*100).toFixed(0) + '% · UNSTABLE', ox + 20, oy + 140); x.font = font(14); x.fillText('FIELD HELD ' + (t % 60).toFixed(1) + ' s', ox + 20, oy + 170);
+    [ox, oy] = sc(1, 1, 'PHASE (Ψ vs PROTOTYPE)', '#9fd8ff'); x.strokeStyle = sync ? '#38ffd0' : '#ff5a7a'; x.lineWidth = 2; x.beginPath();
+    for(let i = 0; i <= 120; i++){ const a = i/120*6.283, ph = sync ? 0 : 1.6 + 0.6*Math.sin(t); x.lineTo(ox + w/2 + Math.sin(a + t)*90, oy + h/2 + 10 + Math.sin(a + t + ph)*90); } x.stroke();
+    [ox, oy] = sc(2, 1, 'LOG', '#9fb4c0'); x.font = font(13, ''); x.fillStyle = '#9fb4c0';
+    const L = sync ? ['42:11 trial 44 · field on', '42:13 prototype OK', '42:13 actuators: FOLLOW', '42:14 output locked to Ψ', '42:20 stable'] : ['41:58 trial 43 · field on', '41:59 output spike', '41:59 actuator compensating', '42:00 OVERCURRENT', '42:00 prototype seized'];
+    L.forEach((l, i)=>x.fillText(l, ox + 14, oy + 54 + i*24));
+    for(let i = 1; i < 3; i++){ x.fillStyle = '#000'; x.fillRect(i*w - 3, 0, 6, H); } x.fillRect(0, h - 3, W, 6);
   }
   function trophyTex(){
     const c = cv(512, 256), x = c.getContext('2d');
@@ -274,34 +322,111 @@ window.TSHSCHOOL = (function(){
     box(woodM, X(-1) + 0.04, 1.55, -10, 0.05, 1.72, 3.32);
     spots.board = [X(-0.1), -10];
 
-    /* ---- Room 120: five metres, a wall of windows, desks in rows, the whiteboard, her desk, the workbench */
+    /* ---- Room 120, THE ROBOTICS LAB: five metres, a wall of windows — and not a school room. In the middle,
+       on a dais, a containment rig: coils, three gimbal rings, and held in them a few centimetres of Psi
+       energy, violet and never quite still. Monitors on the back wall reading it; server racks; two
+       industrial arms; the physics bench; and on its own test stand, the prototype it keeps breaking. */
     const RH = ROOMS.room;
     wall(X(-5) - T, X(-5), -48 - T, -34 + T, RH); wall(X(11), X(11) + T, -48 - T, -34 + T, RH); wall(X(-5), X(11), -48 - T, -48, RH);
     wall(X(-5), X(1), -34, -34 + T, RH); wall(X(3), X(11), -34, -34 + T, RH);
     box(white, X(2), (2.4 + RH)/2, -34 + T/2, 2, RH - 2.4, T); box(trimM, X(2), 2.42, -34 + T/2, 2.04, 0.06, T + 0.02);
-    sign('ROOM 120', X(2), 2.75, -33.62, 0);
-    for(let z = -46.5; z < -35; z += 2.6) plane(glowM(0xeaf2f8, 0.9), X(-4.98), 2.9, z, 2.0, 3.4, Math.PI/2);   // the windows
-    plane(std({ map:whiteboard(), roughness:0.25 }), X(3), 1.8, -47.68, 6, 2.25, 0); box(trimM, X(3), 0.66, -47.6, 6.2, 0.06, 0.18);
-    const deskM = std({ color:0xd8c8a8, roughness:0.5 }), legM = std({ color:0x3a3a40, roughness:0.4, metalness:0.6 });
-    const desk = (x, z) => { box(deskM, x, 0.74, z, 1.1, 0.05, 0.62); [[-0.5, -0.26], [0.5, -0.26], [-0.5, 0.26], [0.5, 0.26]].forEach(([a, b])=>box(legM, x + a, 0.37, z + b, 0.04, 0.74, 0.04));
-      box(std({ color:0x2a4a6a, roughness:0.6 }), x, 0.45, z + 0.62, 0.45, 0.05, 0.42); solid(x - 0.56, x + 0.56, z - 0.32, z + 0.32, 0.78); };
-    for(let r = 0; r < 4; r++) for(let c = 0; c < 5; c++) desk(X(-3 + c*2.4), -44.6 + r*2.4);
-    spots.seatDesk = [X(1.8), -37.4]; spots.seat = [X(1.8), -37.4 + 0.62];
-    box(woodM, X(7.8), 0.4, -45.6, 1.8, 0.8, 0.8, { shadow:true }); solid(X(6.9), X(8.7), -46, -45.2, 0.82);
-    spots.teacherDesk = [X(7.8), -44.8];
+    sign('ROOM 120 · ROBOTICS', X(2), 2.75, -33.62, 0, { w:1.0 });
+    for(let z = -46.5; z < -35; z += 2.6) plane(glowM(0xeaf2f8, 0.6), X(-4.98), 2.9, z, 2.0, 3.4, Math.PI/2);   // the windows
+    plane(std({ map:psiBoard(), roughness:0.25 }), X(-1.2), 1.8, -47.68, 5, 1.9, 0); box(trimM, X(-1.2), 0.82, -47.6, 5.2, 0.06, 0.18);
+    const legM = std({ color:0x3a3a40, roughness:0.4, metalness:0.6 }), steelD = std({ color:0x5a5f66, roughness:0.35, metalness:0.7 });
+    const copper = std({ color:0xb8692e, roughness:0.3, metalness:0.9 }), orange = std({ color:0xe8742a, roughness:0.45, metalness:0.3 });
+    const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
+    const lab = { t:0, rings:[], arms:[], leds:[] };
+
+    // the monitors: one canvas, redrawn as the field moves, across six screens
+    const mon = cv(1024, 512), monT = tex(mon); lab.mon = { c:mon, t:monT, next:0 };
+    box(trimM, X(6.3), 1.95, -47.78, 4.3, 1.75, 0.1);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 1.6), new THREE.MeshBasicMaterial({ map:monT, toneMapped:false })); screen.userData.flat = true; add(screen, X(6.3), 1.95, -47.72);
+    for(let k = 1; k < 3; k++) box(trimM, X(6.3) - 2.05 + k*4.1/3, 1.95, -47.71, 0.04, 1.62, 0.02);
+    box(trimM, X(6.3), 1.95, -47.71, 4.12, 0.04, 0.02);
+
+    // the containment rig
+    const RX = X(3), RZ = -42.4, FY = 1.55;
+    add(new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.65, 0.22, 40), steelD), RX, 0.11, RZ);
+    const haz = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.5, 48), std({ map:hazardTex(), roughness:0.6 })); haz.rotation.x = -Math.PI/2; add(haz, RX, 0.225, RZ);
+    for(let k = 0; k < 4; k++){ const a = Math.PI/4 + k*Math.PI/2, px = RX + Math.cos(a)*1.3, pz = RZ + Math.sin(a)*1.3;
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 2.6, 12), steelD), px, 1.52, pz);
+      for(let j = 0; j < 9; j++) add(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 6, 16), copper), px, 0.8 + j*0.09, pz).rotation.x = Math.PI/2;
+      const tip = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.75, 0.45, 1.6) })), px, 2.86, pz); lab.leds.push(tip); }
+    [[1.0, 0.035], [0.82, 0.03], [0.64, 0.026]].forEach(([r, w], i)=>{ const ring = add(new THREE.Mesh(new THREE.TorusGeometry(r, w, 10, 64), std({ color:0xd0d6dc, roughness:0.2, metalness:0.95 })), RX, FY, RZ);
+      ring.rotation.set(i*0.9, i*0.6, 0); lab.rings.push(ring); });
+    const add_ = (r, op) => new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.7, 0.35, 1.0), transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false }));
+    lab.core = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 14), new THREE.MeshBasicMaterial({ color:new THREE.Color(1.6, 1.2, 2.2) })), RX, FY, RZ);
+    lab.glow = [add(add_(0.24, 0.5), RX, FY, RZ), add(add_(0.42, 0.18), RX, FY, RZ), add(add_(0.7, 0.07), RX, FY, RZ)];
+    // motes, orbiting it
+    const NM = 90, mp = new Float32Array(NM*3); lab.motes = { n:NM, seed:Array.from({ length:NM }, ()=>[Math.random()*6.28, 0.18 + Math.random()*0.45, (Math.random() - 0.5)*2, 0.6 + Math.random()*1.6]) };
+    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(mp, 3));
+    lab.motes.pts = add(new THREE.Points(mg, new THREE.PointsMaterial({ color:0xc8a0ff, size:0.035, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false })), RX, FY, RZ);
+    lights.push({ x:RX, y:FY, z:RZ, col:new THREE.Color(0xa070ff), k:7, d:9 });
+    solid(RX - 1.7, RX + 1.7, RZ - 1.7, RZ + 1.7, 3.2);
+    // cables across the floor: to the monitors, to the racks, to the test stand
+    [[RX + 1.4, RZ - 0.6, X(6.3), -47.5], [RX + 1.5, RZ + 0.3, X(10.2), -45], [RX + 1.2, RZ + 0.9, X(6.2), -40.2]].forEach(([a, b, c, d])=>{
+      const len = Math.hypot(c - a, d - b), m = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, len, 6), trimM), (a + c)/2, 0.03, (b + d)/2);
+      m.lookAt(c, 0.03, d); m.rotateX(Math.PI/2); });
+    lab.at = [RX, FY, RZ];
+
+    // the prototype's test stand, and her stool in front of it
+    const TX = X(6.4), TZ = -40.0;
+    box(steelD, TX, 0.74, TZ, 1.5, 0.05, 0.85); [[-0.68, -0.36], [0.68, -0.36], [-0.68, 0.36], [0.68, 0.36]].forEach(([a, b])=>box(legM, TX + a, 0.37, TZ + b, 0.05, 0.74, 0.05));
+    solid(TX - 0.76, TX + 0.76, TZ - 0.44, TZ + 0.44, 0.8);
+    // an emitter ring on the stand, so the field can be put on it
+    const em = add(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.025, 8, 40), copper), TX + 0.05, 0.8, TZ - 0.05); em.rotation.x = Math.PI/2;
+    lab.beam = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.8, 0.5, 1.6), transparent:true, opacity:0.0, blending:THREE.AdditiveBlending, depthWrite:false })), 0, 0, 0);
+    spots.seatDesk = [TX, TZ]; spots.seat = [TX, TZ + 0.62];
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16), steelD), TX, 0.47, TZ + 0.66); add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.45, 8), legM), TX, 0.23, TZ + 0.66);
+
+    // her teacher's desk, by the monitors
+    box(std({ color:0xd8c8a8, roughness:0.5 }), X(9.4), 0.74, -45.6, 1.8, 0.05, 0.8, { shadow:true }); box(legM, X(9.4), 0.37, -45.9, 1.7, 0.74, 0.04);
+    solid(X(8.5), X(10.3), -46, -45.2, 0.82);
+    spots.teacherDesk = [X(9.4), -44.8];
+
+    // the physics bench: a scope, a supply, a coil, canisters of something that glows
     box(std({ color:0x5a5f66, roughness:0.4, metalness:0.6 }), X(10.2), 0.88, -40, 1.2, 0.06, 3.4); [-1.6, 1.6].forEach(dz=>box(legM, X(10.2), 0.44, -40 + dz, 1.1, 0.88, 0.06));
     solid(X(9.5), X(11), -41.8, -38.2, 0.92);
-    for(let k = 0; k < 5; k++) box(std({ color:[0xc84a2a, 0x2a8ac8, 0xe8c040, 0x3aaa5a, 0x8a5ac8][k], roughness:0.5 }), X(10.5), 1.0, -41.4 + k*0.25, 0.25, 0.18, 0.18);
+    box(std({ color:0x2a2e34, roughness:0.4 }), X(10.35), 1.08, -41.2, 0.5, 0.34, 0.4); lab.scope = plane(new THREE.MeshBasicMaterial({ map:monT, toneMapped:false }), X(10.09), 1.1, -41.2, 0.32, 0.22, -Math.PI/2);
+    box(std({ color:0xd8d8d0, roughness:0.5 }), X(10.35), 1.0, -40.4, 0.45, 0.2, 0.35);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 14), copper), X(10.3), 1.16, -39.4); add(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.05, 10, 20), steel), X(10.3), 1.45, -39.4).rotation.x = Math.PI/2;
+    for(let k = 0; k < 4; k++){ const cx = X(10.05) + k*0.16;
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 14), glass), cx, 1.04, -38.6);
+      lab.leds.push(add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.2, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.6, 0.3, 1.2) })), cx, 1.04, -38.6)); }
     spots.bench = [X(9.0), -40]; spots.benchTop = [X(10.2), 0.91, -40];
     spots.room120Door = [X(2), -33.2]; spots.room120In = [X(2), -35.5];
-    [[-1, -44], [5, -44], [-1, -38.5], [5, -38.5]].forEach(([x, z])=>lamp(X(x), RH - 0.05, z, 5, 10));
-    // the robot on the bench, and the second thing on her desk (tsh.js moves them)
-    const robot = makeRobot(); robot.position.set(...spots.benchTop); robot.rotation.y = -Math.PI/2; g.add(robot);
-    const gadget = makeGadget(); gadget.position.set(X(7.6), 0.83, -45.5); g.add(gadget);
+
+    // the server racks, blinking
+    const rackT = tex(rackTex());
+    for(let k = 0; k < 3; k++){ box(std({ color:0x15181c, roughness:0.4, metalness:0.5 }), X(10.45), 1.05, -47.2 + k*0.68, 0.9, 2.1, 0.62);
+      const f = plane(glowM(0xffffff, 1.0, rackT), X(9.99), 1.05, -47.2 + k*0.68, 0.58, 1.9, -Math.PI/2); lab.leds.push(f); }
+    solid(X(10), X(11), -47.6, -45.3, 2.2);
+
+    // two industrial arms on their pedestals
+    [[X(-2.6), -38.6, 0.4], [X(-2.6), -45.2, 2.2]].forEach(([ax, az, ph])=>{
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.5, 20), steelD), ax, 0.25, az);
+      const base = add(new THREE.Group(), ax, 0.5, az), b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.3, 16), orange); b1.position.y = 0.15; base.add(b1);
+      const sh = new THREE.Group(); sh.position.y = 0.36; base.add(sh);
+      const up = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.2), orange); up.position.y = 0.47; sh.add(up);
+      const el_ = new THREE.Group(); el_.position.y = 0.95; sh.add(el_);
+      const fo = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.16), orange); fo.position.y = 0.37; el_.add(fo);
+      const wr = new THREE.Group(); wr.position.y = 0.75; el_.add(wr);
+      wr.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 12), steelD));
+      [-1, 1].forEach(sd=>{ const f = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.05), steelD); f.position.set(sd*0.05, 0.12, 0); wr.add(f); });
+      [sh, el_].forEach(j=>j.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), steelD)));
+      lab.arms.push({ base, sh, el:el_, wr, ph });
+      solid(ax - 0.45, ax + 0.45, az - 0.45, az + 0.45, 2.4); });
+
+    [[-1, -44], [5, -44], [-1, -38.5], [5, -38.5]].forEach(([x, z])=>lamp(X(x), RH - 0.05, z, 4, 10));
+    // the prototype on its stand, and the old sensor puck on the bench
+    const robot = makeRobot(); robot.position.set(TX, 0.77, TZ - 0.05); robot.scale.setScalar(1.5); g.add(robot);
+    const gadget = makeGadget(); gadget.position.set(X(10.1), 0.95, -40.8); g.add(gadget);
+    S_lab = lab;
 
     out.solids.push(...solids); out.plats.push(...plats);
     const ceilingAt = (x, z) => z > -6 ? ROOMS.atrium : z < -34 ? ROOMS.room : ROOMS.hall;
-    S = { group:g, solids, lights, spots, robot, gadget, H:ROOMS.atrium, ceilingAt, people:[], X };
+    S = { group:g, solids, lights, spots, robot, gadget, lab:S_lab, H:ROOMS.atrium, ceilingAt, people:[], X };
     return S;
   }
   function signTex(text, o){ const t = { w:256, h:96 }; if(o && o.bg) t.bg = o.bg; if(o && o.ink) t.ink = o.ink; return sign_(text, t); }
@@ -327,13 +452,38 @@ window.TSHSCHOOL = (function(){
   function tickRobot(dt){
     if(!S) return;
     const u = S.robot.userData; u.t += dt;
-    if(!u.on) return;
-    u.body.rotation.x += (0 - u.body.rotation.x)*Math.min(1, dt*4);
+    tickLab(dt);
+    if(!u.on){
+      // in the field, and not fixed: it fights itself — every joint jerking against the swing (less as she fixes it)
+      if(u.field){ const k = Math.max(0, 1 - (u.fix || 0)/3), j = () => (Math.random() - 0.5)*k;
+        u.body.rotation.x = 0.15 + j()*0.5; u.body.rotation.z = j()*0.4; u.head.rotation.set(j()*0.8, j()*1.2, 0); u.arm.rotation.z = 0.8 + j()*2.2;
+        u.eye.emissive.setRGB(1, 0.2, 0.2); u.eye.emissiveIntensity = Math.random() < 0.5 ? 2.5*k : 0.2; u.panel.material.emissive.setRGB(1, 0.25 + (u.fix || 0)*0.2, 0.15); }
+      return;
+    }
+    u.body.rotation.x += (0 - u.body.rotation.x)*Math.min(1, dt*4); u.body.rotation.z += (0 - u.body.rotation.z)*Math.min(1, dt*4);
     u.head.rotation.x += (0 - u.head.rotation.x)*Math.min(1, dt*4);
     u.head.rotation.y = Math.sin(u.t*1.3)*0.6;
     u.arm.rotation.z = u.t < 4 ? 2.4 + Math.sin(u.t*9)*0.4 : 0.2 + Math.sin(u.t*2)*0.1;      // a wave, then rest
-    u.eye.emissiveIntensity = 2.2 + Math.sin(u.t*4)*0.4;
+    u.eye.emissive.setRGB(0.2, 0.9, 1.0); u.eye.emissiveIntensity = 2.2 + Math.sin(u.t*4)*0.4;
     u.panel.material.emissive.setRGB(0.2, 1, 0.5);
+  }
+  /* THE LAB, alive: the rings turn, the field breathes and never quite holds still, the motes orbit it, the
+     arms work, the monitors read it — and when the prototype is in it, a thread of it reaches the stand. */
+  function tickLab(dt){
+    const L = S && S.lab; if(!L || !S.group.visible) return;
+    L.t += dt; const t = L.t, u = S.robot.userData;
+    L.rings.forEach((r, i)=>{ r.rotation.x += dt*(0.35 + i*0.22); r.rotation.y += dt*(0.5 - i*0.17); });
+    const pulse = 1 + 0.12*Math.sin(t*3.1) + 0.06*Math.sin(t*11.7) + (Math.random() < 0.02 ? 0.35 : 0);
+    L.core.scale.setScalar(pulse); L.glow.forEach((g, i)=>{ g.scale.setScalar(pulse*(1 + 0.08*Math.sin(t*2 + i))); g.material.opacity = [0.5, 0.18, 0.07][i]*(0.8 + 0.3*Math.sin(t*5 + i)); });
+    const P = L.motes.pts.geometry.attributes.position;
+    L.motes.seed.forEach(([a, r, h, sp], i)=>{ const q = a + t*sp; P.setXYZ(i, Math.cos(q)*r, h*0.25 + Math.sin(q*1.7)*0.06, Math.sin(q)*r); }); P.needsUpdate = true;
+    L.arms.forEach(A=>{ const q = t*0.5 + A.ph; A.base.rotation.y = Math.sin(q)*0.9; A.sh.rotation.z = -0.4 + Math.sin(q*1.3)*0.3; A.el.rotation.z = 1.1 + Math.sin(q*0.9)*0.4; A.wr.rotation.y = q*2; });
+    // the beam: from the field to the stand, while the prototype sits in it
+    const b = L.beam, on = !!u.field;
+    b.material.opacity = on ? (u.on ? 0.35 : 0.2 + Math.random()*0.5) : 0;
+    if(on){ const a = new THREE.Vector3(...L.at), r = S.robot.position.clone(); r.y += 0.45; const m = a.clone().add(r).multiplyScalar(0.5);
+      b.position.copy(m); b.scale.set(1, a.distanceTo(r), 1); b.lookAt(r); b.rotateX(Math.PI/2); }
+    if(t > L.mon.next){ L.mon.next = t + 0.1; paintMonitors(L.mon.c, t, !!u.on); L.mon.t.needsUpdate = true; }
   }
   /* the second thing: a small sensor puck with a status light */
   function makeGadget(){
@@ -481,6 +631,6 @@ window.TSHSCHOOL = (function(){
   function bathroom(){ if(!sn || sn.hidden) return false; sn.hidden = { t:4.5 }; return true; }
   function meter(){ return sn ? sn.meter : 0; }
 
-  return { build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot, 
+  return { build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot, tickLab, 
            get S(){ return S; }, get on(){ return !!sn && !sn.done; }, get hiding(){ return !!(sn && sn.hidden); }, get reading(){ return !!(sn && sn.board); }, SX, H };
 })();

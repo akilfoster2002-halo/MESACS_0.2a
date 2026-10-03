@@ -610,7 +610,7 @@ test('The Other Robin: the morning after — late, over the roofs in daylight, t
   has(t, /data-a="day">☀ Next: The Other Robin/, 'the prologue ends with the way into the morning');
   has(t, /S\.day = true; S\.step = 'morning'; S\.dm = 8\*60 \+ 42;[\s\S]{0,200}S\.cp = JSON\.stringify\(snap\)/, '8:42, and a checkpoint so it is the morning that loads');
   ['morning', 'commute', 'school', 'sneak', 'detention'].forEach(k => has(ai, new RegExp('\\b' + k + ':\\s*\\{'), 'a beat for ' + k));
-  ['late', 'overlook', 'lobby', 'caught', 'detention', 'repair', 'device', 'mother', 'outside'].forEach(k => has(ai, new RegExp("id:'" + k + "'"), 'a scene for ' + k));
+  ['late', 'overlook', 'lobby', 'caught', 'assignment', 'psi', 'repair', 'mother', 'outside'].forEach(k => has(ai, new RegExp("id:'" + k + "'"), 'a scene for ' + k));
   // daylight: the sun, a sky, the street only damp; nothing out looking for her
   has(t, /function air\(\)\{ return day\(\) \?/, 'the morning air is not the night\'s');
   has(t, /W\.sky\.material[\s\S]{0,120}daySky\(\)/, 'a morning sky');
@@ -654,8 +654,8 @@ test('The Other Robin: Harbor Lane High — the guard, her teacher across the lo
   ["talk('caught')", "talk('caught2')", "outcome('caught')"].forEach(b => assert.ok(C.includes(b), 'caught has ' + b));
 });
 
-test('The Other Robin: detention, the robot she fixes, what her teacher says, and out into the sun', () => {
-  const t = read('public/tsh.js'), pz = read('public/tshpuzzle.js'), i = read('public/index.html');
+test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fixes, what her teacher says, and out into the sun', () => {
+  const t = read('public/tsh.js'), pz = read('public/tshpuzzle.js'), i = read('public/index.html'), sch = read('public/tshschool.js');
   assert.ok(i.indexOf('tshpuzzle.js') > 0 && i.indexOf('tshpuzzle.js') < i.indexOf('src="tsh.js'), 'the puzzles load before TSH');
   // the puzzles, every board solvable and none solved before she touches it
   const ctx = vm.createContext({ performance:{ now:()=>0 } }); ctx.window = ctx; vm.runInContext(pz, ctx);
@@ -667,15 +667,29 @@ test('The Other Robin: detention, the robot she fixes, what her teacher says, an
   P.SIGNALS.forEach((L, k)=>{ const used = new Set(); L.ends.forEach((e, c)=>{ const p = P._solPath(L, c), l = p[p.length - 1];
     assert.deepEqual(l, e[1], 'bus ' + k + ': signal ' + c + ' reaches its twin');
     p.forEach(q=>{ assert.ok(!used.has(q + ''), 'bus ' + k + ': no two signals cross'); used.add(q + ''); }); }); });
-  assert.equal(P.CASE.causes.filter(c=>c[2] === null).length, 1, 'the diagnosis has one right answer');
-  // the scenes, in order
-  const D = t.slice(t.indexOf('  function detentionScene('), t.indexOf('  function benchMode('));
-  ["talk('where')", "talk('where2')", "talk('detained')", "talk('robot')", 'benchPuzzles()'].forEach(b => assert.ok(D.includes(b), 'detention has ' + b));
-  has(t, /TSHPUZZLE\.open\('route', \{ levels:3 \}, \(\)=>TSHPUZZLE\.open\('signal', \{ levels:3 \}, \(\)=>TSHPUZZLE\.open\('gears'/, 'power, then signals, then the drive');
+  // the frequency: every stage starts off the field, and its answer is on the dials' steps and in range
+  const STEP = { f:0.5, p:30, f2:0.5 }, MIN = { f:0.5, p:0, f2:0.5 }, MAX = { f:6, p:330, f2:8 };
+  P.FREQS.forEach((L, k)=>{ assert.ok(L.keys.some(q=>L.start[q] !== L.target[q]), 'stage ' + k + ' starts out of tune');
+    L.keys.forEach(q=>{ const v = L.target[q]; assert.ok(v >= MIN[q] && v <= MAX[q] && Math.abs((v - MIN[q])/STEP[q] - Math.round((v - MIN[q])/STEP[q])) < 1e-9, 'stage ' + k + ': ' + q + ' can be dialled'); }); });
+  assert.ok(P.FREQS[2].keys.length === 3, 'the last stage has the field\'s second voice in it');
+  // the catch, in the hall: "I was here yesterday." — and instead of detention, "Come on. I need your help."
+  const C = t.slice(t.indexOf('  function caughtScene('), t.indexOf('  /* a camera to one side of two people:'));
+  ["talk('caught')", "talk('caught2')", "talk('caught3')", "talk('assign')", "talk('frustrate')", "talk('help')", "mood:'soft'", 'detention()'].forEach(b => assert.ok(C.includes(b), 'the catch has ' + b));
+  has(t, /caught2:\s*\[\['robin','I was here yesterday\.'\], \['teacher','That\\'s not really how attendance works\.'\]\]/, 'her script');
+  has(t, /help:\s*\[\['teacher','Come on\. I need your help\.'\]/, 'not detention: her help');
+  // the lab: not a normal school robotics room
+  ['spots.room120Door', 'spots.room120In', 'spots.seat ', 'spots.teacherDesk'].forEach(b => assert.ok(sch.includes(b), 'the lab keeps ' + b));
+  ["psiBoard()", 'containment rig', 'lab.rings', 'lab.motes', 'lab.arms', 'paintMonitors(', "'ROOM 120 · ROBOTICS'"].forEach(b => assert.ok(sch.includes(b), 'the lab has ' + b));
+  has(sch, /if\(u\.field\)\{ const k = Math\.max\(0, 1 - \(u\.fix \|\| 0\)\/3\)/, 'the prototype fights the field until she fixes it');
+  const D = t.slice(t.indexOf('  function labScene('), t.indexOf('  /* at the stand: the puzzles'));
+  ["talk('psi')", "talk('psi2')", "talk('spike')", "talk('what')", "talk('fighting')", "talk('fighting2')", "talk('keepYou')", 'benchPuzzles()', "caption('INT. ROBOTICS LAB — ROOM 120')"].forEach(b => assert.ok(D.includes(b), 'the lab has ' + b));
+  has(t, /TSHPUZZLE\.open\('route', \{ levels:3, psi:true \}[\s\S]{0,80}TSHPUZZLE\.open\('freq', \{ levels:3 \}[\s\S]{0,80}TSHPUZZLE\.open\('gears', \{ levels:2, psi:true \}/, 'route the energy, match the frequency, stabilise the actuators');
   const R = t.slice(t.indexOf('  function robotLives('), t.indexOf('  function talkScene('));
-  ["talk('fixed')", "talk('fixed2')", "TSHPUZZLE.open('diagnose'", "outcome('fixed')"].forEach(b => assert.ok(R.includes(b), 'the robot runs, then ' + b));
+  ["talk('didIt')", "talk('most')", "talk('laugh')", "outcome('fixed')"].forEach(b => assert.ok(R.includes(b), 'it runs, then ' + b));
   const T = t.slice(t.indexOf('  function talkScene('), t.indexOf('  let phones = null;'));
-  ["talk('see')", "talk('bright')", "talk('proud')", "mood:'sad'", "talk('yeah')", "talk('thanks')"].forEach(b => assert.ok(T.includes(b), 'the talk has ' + b));
+  ["talk('worried')", "talk('brilliant')", "talk('intuition')", "talk('but')", "talk('disappear')", "talk('best')", "talk('mom')", "mood:'sad'", "talk('yeah')", "talk('toClass')"].forEach(b => assert.ok(T.includes(b), 'the talk has ' + b));
+  has(t, /mom:\s*\[\['teacher','Your mom knows how talented you are\.'\], \['teacher','She\\'d be proud to see what you\\'re capable of\.'\]\]/, 'simple, not dramatic');
+  hasNot(t, /talk\('detained'\)|TSHPUZZLE\.open\('diagnose'/, 'no detention, no second device');
   const O = t.slice(t.indexOf('  function outsideScene('), t.indexOf('  function dayPopulate('));
   ['headphones(true)', '3:20 PM', 'The rest of the day is hers.'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
 });
@@ -774,4 +788,5 @@ test('the jacket hangs on the dress form, not inside it: the form slimmed, the j
   has(r, /swap\('jacket', jacket, [^;]*h:0\.86, done:m=>\{ jackM = m; fitJacket\(\); \}/, 'the jacket a size up');
   has(r, /jacket\.position\.x \+= neck\.x - col\.x; jacket\.position\.z \+= neck\.z - col\.z;/, 'its collar centred on the form\'s neck');
   has(r, /const fitJacket = \(\) => \{ if\(!formM \|\| !jackM\) return;/, 'whichever model loads first');
+  hasNot(r, /\bband\(/, 'not called band: the cash on the packing table has a `band` of its own in the same function');
 });

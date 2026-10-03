@@ -206,21 +206,34 @@ window.TSH = (function(){
     nope:      [['robin','...Nope.']],
     caught:    [['teacher','Robin.']],
     pa:        [['pa','Robin, please report to Room 120. Robin, Room 120.']],
-    caught2:   [['robin','Yes?'], ['teacher','My classroom. Now.'], ['robin','That\'s fair.']],
-    /* detention, and the robot */
-    where:     [['teacher','Where is it?']],
-    where2:    [['teacher','The assignment. The one you\'ve had for two weeks.'], ['robin','I was going to do it.'], ['teacher','When?'], ['robin','Eventually?']],
-    detained:  [['teacher','Detention.'], ['robin','Of course.']],
-    robot:     [['teacher','Since you\'re here, you can help me with something.'], ['robin','Who messed this up?'], ['teacher','That\'s what I\'d like you to figure out.']],
-    fixed:     [['robin','...Whoever built this was an idiot.']],
-    fixed2:    [['robin','Good thing I\'m here.']],
-    /* what her teacher says about it */
-    see:       [['teacher','See?'], ['teacher','This is what I\'m talking about.']],
-    bright:    [['teacher','You\'re incredibly bright, Robin.'], ['teacher','You solve problems that half my seniors can\'t solve.'],
-                ['teacher','But you don\'t turn in your work. You barely sleep. You\'re constantly late.'], ['teacher','You have to actually apply yourself.']],
-    proud:     [['teacher','Because if you did...'], ['teacher','Your mother would be incredibly proud of you.']],
+    caught2:   [['robin','I was here yesterday.'], ['teacher','That\'s not really how attendance works.']],
+    caught3:   [['robin','Worth a shot.']],
+    /* the missing assignment */
+    assign:    [['teacher','Assignment six-two?']],
+    frustrate: [['teacher','You know what\'s frustrating?'], ['robin','The fact that I\'m standing here?'], ['teacher','The fact that I know you could have finished this in an hour.']],
+    help:      [['teacher','Come on. I need your help.'], ['robin','So I\'m not in trouble?'], ['teacher','You\'re absolutely in trouble.'], ['robin','Okay.'], ['teacher','But you\'re also useful.']],
+    /* the lab: Psi Energy */
+    psi:       [['teacher','This is what I\'ve been working on.'], ['teacher','We\'re calling it Psi Energy.'], ['teacher','Honestly? We don\'t completely understand it yet.'],
+                ['teacher','We\'ve managed to hold a tiny field. It\'s unstable. But it\'s real.']],
+    psi2:      [['teacher','The problem is the prototype. Every time we expose it to the field, it malfunctions.']],
+    spike:     [['teacher','The energy output spikes whenever the actuator—'], ['robin','Because the actuator is compensating.']],
+    what:      [['teacher','What?']],
+    fighting:  [['robin','You\'re telling it to maintain a constant output while the Psi field is fluctuating.']],
+    fighting2: [['robin','It\'s fighting itself.']],
+    keepYou:   [['teacher','That\'s why I keep you around.']],
+    didIt:     [['teacher','You did it.'], ['robin','Obviously.']],
+    most:      [['teacher','You know, most people wait until I finish explaining the problem.'], ['robin','Most people aren\'t me.']],
+    laugh:     [['teacher','(laughs)']],
+    /* and then it is not about the robot */
+    worried:   [['teacher','That\'s exactly what I\'m worried about.']],
+    brilliant: [['teacher','You\'re brilliant, Robin. You know that, right?'], ['robin','I\'ve heard.'], ['teacher','No. I don\'t think you have.']],
+    intuition: [['teacher','You have the kind of intuition that could take you somewhere extraordinary.']],
+    but:       [['teacher','But you\'re late. You\'re missing assignments. You\'re exhausted. You\'re somewhere else half the time.']],
+    disappear: [['teacher','I don\'t care about one late assignment. I care that you\'re starting to disappear.']],
+    best:      [['teacher','You could be one of the best roboticists I\'ve ever taught.']],
+    mom:       [['teacher','Your mom knows how talented you are.'], ['teacher','She\'d be proud to see what you\'re capable of.']],
     yeah:      [['robin','Yeah.']],
-    thanks:    [['robin','Thanks.']]
+    toClass:   [['robin','I should get to class.']]
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
@@ -432,6 +445,7 @@ window.TSH = (function(){
     if(!resumed){ const runs = S.runs, last = S.last; S = fresh(); S.runs = runs; S.last = last; }
     if(window.MENU && MENU.hideAll) MENU.hideAll();
     on = true; busy = null; mode = null; clock = 0;
+    G.camera.up.set(0, 1, 0);
     keepRig();
     G.room = 'tsh'; G.hudOwner = 'tsh';
     G.firstPerson = false;
@@ -490,7 +504,7 @@ window.TSH = (function(){
     if(window.TSHCHASE) TSHCHASE.stop();
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
-    if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null; paper = null;
+    if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -1072,6 +1086,7 @@ window.TSH = (function(){
     lips.mood = s.mood || null; if(lips.moodOn){ lips.feelT = 0; lips.moodOn = false; }   // a new shot, a new mood (or none)
     if(window.AVATAR) AVATAR.tickClip(0, false, false, true);          // the shot's pose now, before the frame is drawn
     scoreSync();
+    G.camera.up.set(0, 1, 0);                                          // whatever flew the camera last (cruise.js rolls it) left its up behind
     G.camera.fov = s.fov || 50; G.camera.updateProjectionMatrix();
     reelCam();
   }
@@ -3732,7 +3747,9 @@ window.TSH = (function(){
     ];
     playReel(shots, ()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null); fade(()=>then && then()); }, { ownClock:true });
   }
-  /* "Robin." However it went. She freezes, turns round: "Yes?" "My classroom. Now." "That's fair." */
+  /* "Robin." However it went. She stops. "I was here yesterday." "That's not really how attendance works." A
+     small smile: "Worth a shot." Then the assignment she hasn't done, and what is frustrating about it — and
+     instead of detention: "Come on. I need your help." */
   function caughtScene(how){
     seenBar(false);
     const go = ()=>{
@@ -3744,20 +3761,36 @@ window.TSH = (function(){
       const away = how === 'bathroom' ? Math.PI/2 : how === 'pa' ? angTo(at[0], at[1], t.x, t.z) : angTo(t.x, t.z, at[0], at[1]);   // her back to her teacher (at the PA's door, facing her)
       const toT = angTo(at[0], at[1], t.x, t.z), side = angTo(t.x, t.z, at[0], at[1]);
       const mid = [(t.x + at[0])/2, (t.z + at[1])/2], two = freeCam(mid, side, 3.0, 1.6);
+      const mine = rel(at[0], at[1], toT, 1.15, -0.25, 1.58), hers = rel(t.x, t.z, side, 1.25, 0.2, 1.62);
+      const still = () => stage('idle', at[0], 0, at[1], toT);
       scene('caught', ()=>{});
       const shots = [
         // over her teacher's shoulder: "Robin."
         { dur:linesLen('caught') + 0.7, fov:38, inside:true, cam:rel(t.x, t.z, side, -1.1, 0.45, 1.75), look:[at[0], 1.35, at[1]],
           enter:()=>{ stage('idle', at[0], 0, at[1], away); talk('caught'); cue('sus'); } },
-        // she freezes. Turns round.
+        // she stops. Turns round.
         { dur:1.5, fov:34, mood:'nervous', cam:rel(at[0], at[1], toT, 1.3, -0.25, 1.6), look:[at[0], 1.5, at[1]],
           tick:(dt, tt)=>{ const k = clamp((tt - 0.55)/0.5, 0, 1); stage('idle', at[0], 0, at[1], away + angDiff(toT, away)*k); } },
-        // "Yes?" "My classroom. Now." "That's fair."
-        { dur:linesLen('caught2') + 1.0, fov:Math.min(72, 40/two.k), mood:'sheepish', cam:two, look:[mid[0], 1.45, mid[1]],
-          enter:()=>{ stage('idle', at[0], 0, at[1], toT); talk('caught2'); } }
+        // "I was here yesterday." "That's not really how attendance works."
+        { dur:linesLen('caught2') + 0.4, fov:Math.min(72, 40/two.k), mood:'sheepish', cam:two, look:[mid[0], 1.45, mid[1]], enter:()=>{ still(); talk('caught2'); } },
+        // a small smile. "Worth a shot."
+        { dur:linesLen('caught3') + 0.9, fov:30, mood:'grin', cam:mine, look:[at[0], 1.55, at[1]], enter:()=>{ still(); talk('caught3'); } },
+        // "Assignment six-two?"
+        { dur:linesLen('assign') + 0.5, fov:30, cam:hers, look:[t.x, 1.6, t.z], enter:()=>talk('assign') },
+        // she has nothing
+        { dur:1.7, fov:30, mood:'sheepish', cam:mine, look:[at[0], 1.55, at[1]], tick:(dt, tt)=>stage('idle', at[0], 0, at[1], toT + Math.sin(tt*2.2)*0.12) },
+        // "You know what's frustrating?" "The fact that I'm standing here?" "The fact that I know you could have finished this in an hour."
+        { dur:linesLen('frustrate') + 0.4, fov:Math.min(72, 40/two.k), cam:two, look:[mid[0], 1.45, mid[1]], enter:()=>{ still(); talk('frustrate'); } },
+        // and she doesn't really have an answer to that
+        { dur:2.2, fov:28, mood:'tired', cam:mine, look:[at[0], 1.55, at[1]], tick:(dt, tt)=>{ if(tt > 0.9) stage('idle', at[0], 0, at[1], toT + 0.45); } },
+        // "Come on. I need your help." "So I'm not in trouble?" "You're absolutely in trouble." "Okay." "But you're also useful."
+        { dur:linesLen('help') + 0.3, fov:Math.min(72, 40/two.k), mood:'skeptical', cam:two, look:[mid[0], 1.45, mid[1]], enter:()=>{ still(); talk('help'); } },
+        // that gets a little smile out of her
+        { dur:1.8, fov:28, mood:'soft', cam:mine, look:[at[0], 1.55, at[1]], enter:still }
       ];
       playReel(shots, ()=>{ staged = null; reel = null; if(window.AVATAR) AVATAR.posture(null);
-        outcome('caught');                                                    // → detention
+        outcome('caught');                                                    // → the lab
+        mark('assignment');
         fade(()=>detention()); }, { ownClock:true });
     };
     if(how === 'bathroom') fade(go); else go();
@@ -3772,133 +3805,162 @@ window.TSH = (function(){
   // the hud: how close her teacher is to seeing her
   function seenBar(v){ const b = el && el.querySelector('#tshSeen'); if(b) b.classList.toggle('hidden', !v); }
   function tickSeenBar(){ const b = el && el.querySelector('#tshSeen i'); if(b && window.TSHSCHOOL) b.style.width = Math.round(TSHSCHOOL.meter()*100) + '%'; }
-  /* ================================================== DETENTION (Room 120)
-     The paper on the desk. "Where is it?" She does not answer. "The assignment. The one you've had for two
-     weeks." "I was going to do it." "When?" "Eventually?" A look. "Detention." "Of course." And the robot off
-     the bench: "Since you're here, you can help me with something." "Who messed this up?" "That's what I'd like
-     you to figure out." Then the inside of it (tshpuzzle.js): the power, the signals, the drive — and it stands
-     up. "...Whoever built this was an idiot." A look at her own work. "Good thing I'm here." Then the second
-     thing, which will not start, and she works out why. */
+  /* ================================================== THE LAB (Room 120)
+     Not a normal school robotics room: a containment rig with a few centimetres of Psi Energy held in it,
+     monitors reading it, racks, arms, the physics bench. "This is what I've been working on." The field is
+     unstable, they don't completely understand it — and the prototype seizes up whenever it is put in it.
+     Robin is at the robot before the explanation is over: "Because the actuator is compensating." "What?"
+     "You're telling it to maintain a constant output while the Psi field is fluctuating. It's fighting
+     itself." "That's why I keep you around." Then the inside of it (tshpuzzle.js): route the energy, match
+     the frequency, stabilise the actuators — and it runs in the field. (`detention` is the beat's old name.) */
   function detention(){
     const sc = W.school, s = sc.spots;
     sc.teacher.x = s.teacherDesk[0]; sc.teacher.z = s.teacherDesk[1]; sc.teacher.hold = true;
     if(TSHSCHOOL.on) TSHSCHOOL.sneakStop();
     seenBar(false);
-    placePlayer(s.seat[0], s.seat[1], Math.PI);
+    placePlayer(s.seat[0], s.seat[1] + 0.3, Math.PI);
+    const R = sc.robot; R.position.set(s.seatDesk[0], 0.77, s.seatDesk[1] - 0.05); R.rotation.y = 0; R.userData.fix = 0;
     if(S.step === 'after') return talkScene();
-    detentionScene();
+    labScene();
   }
-  let paper = null;
-  /* sat at her desk: the scooter's seated pose ('ride': knees bent, hands forward) on the chair */
+  /* sat at the test stand: the scooter's seated pose ('ride': knees bent, hands forward) on her stool */
   function seated(){ const s = W.school.spots; stage('ride', s.seat[0], 0, s.seat[1] + 0.1, Math.PI); }
-  function detentionScene(){
-    const sc = W.school, sp = sc.spots, t = sc.teacher, X = sc.X, d = sp.seatDesk, R = sc.robot;
-    const T1 = [d[0] + 1.0, d[1] - 0.7], faceR = angTo(T1[0], T1[1], sp.seat[0], sp.seat[1]), faceT = angTo(sp.seat[0], sp.seat[1], T1[0], T1[1]);
-    mark('detention');
-    if(!paper){
-      // the assignment: printed, her name on it, nothing else
-      const c = LOOK.cv(256, 352), x = c.getContext('2d'); x.fillStyle = '#f6f4ec'; x.fillRect(0, 0, 256, 352);
-      x.fillStyle = '#222'; x.font = 'bold 15px sans-serif'; x.fillText('AP ENGINEERING', 20, 30); x.font = '12px sans-serif'; x.fillText('Assignment 6.2 — PID control', 20, 50);
-      x.fillText('Name: Robin', 20, 74); x.strokeStyle = '#99a'; for(let i = 0; i < 11; i++){ x.beginPath(); x.moveTo(20, 110 + i*20); x.lineTo(236, 110 + i*20); x.stroke(); }
-      x.save(); x.translate(150, 230); x.rotate(-0.25); x.strokeStyle = '#c22'; x.lineWidth = 4; x.strokeRect(-70, -24, 140, 44); x.fillStyle = '#c22'; x.font = 'bold 26px sans-serif'; x.fillText('MISSING', -58, 9); x.restore();
-      paper = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.29), new THREE.MeshStandardMaterial({ map:LOOK.tex(c), roughness:0.9 }));
-      paper.rotation.x = -Math.PI/2; sc.group.add(paper); }
-    paper.visible = false; paper.position.set(d[0] - 0.15, 0.775, d[1] + 0.05); paper.rotation.z = 0.25;
-    R.position.set(...sp.benchTop); R.rotation.y = -Math.PI/2;
-    const two = freeCam([(T1[0] + sp.seat[0])/2, (T1[1] + sp.seat[1])/2], faceR, 2.6, 1.45);
+  /* where the two of them stand at the stand: Robin at the robot, her teacher at her shoulder */
+  function standSpots(){ const sp = W.school.spots; return { ex:[sp.seat[0], sp.seat[1] + 0.3], T2:[sp.seat[0] - 1.45, sp.seat[1] + 0.85] }; }
+  function labScene(){
+    const sc = W.school, sp = sc.spots, t = sc.teacher, X = sc.X, R = sc.robot, L = sc.lab;
+    const rig = [L.at[0], L.at[2]], door = [sp.room120Door[0], sp.room120Door[1] - 0.6];
+    const A = [X(3.4), -38.0], B = [X(4.8), -37.6], { ex, T2 } = standSpots(), d = sp.seatDesk;
+    const faceA = angTo(A[0], A[1], rig[0], rig[1]), faceB = angTo(B[0], B[1], A[0], A[1]);
+    const toBot = angTo(ex[0], ex[1], d[0], d[1]), toRobin = angTo(T2[0], T2[1], ex[0], ex[1]), toTeach = angTo(ex[0], ex[1], T2[0], T2[1]);
+    const mid = [(A[0] + B[0])/2, (A[1] + B[1])/2], away = Math.atan2(mid[0] - rig[0], mid[1] - rig[1]);
+    const twoRig = [mid[0] + Math.sin(away)*2.4 + Math.cos(away)*0.6, 1.6, mid[1] + Math.cos(away)*2.4 - Math.sin(away)*0.6];
+    const hers = rel(T2[0], T2[1], toRobin, 0.95, 0.4, 1.62), mine = rel(ex[0], ex[1], toTeach, 0.9, -0.4, 1.56);
+    const tGo = (a, b, k) => { t.x = lerp(a[0], b[0], k); t.z = lerp(a[1], b[1], k); t.yaw = angTo(a[0], a[1], b[0], b[1]); t.moving = k < 1; };
+    R.userData.on = false; R.userData.field = false; R.userData.fix = 0;
+    mark('psi');
     const shots = [
-      // Room 120: empty but for the two of them
-      { dur:3.0, fov:54, inside:true, cam:[X(-4.2), 3.6, -34.8], look:[d[0] + 1, 0.9, d[1] - 1],
-        enter:()=>{ caption('INT. ROOM 120 — DETENTION'); seated(); t.x = sp.teacherDesk[0]; t.z = sp.teacherDesk[1]; },
-        tick:(dt, tt, k)=>{ t.x = lerp(sp.teacherDesk[0], T1[0], Math.min(1, k*1.4)); t.z = lerp(sp.teacherDesk[1], T1[1], Math.min(1, k*1.4)); t.yaw = faceR; t.moving = k < 0.7; } },
-      // the paper, down on the desk. "Where is it?" — and nothing back
-      { dur:linesLen('where') + 2.0, fov:30, mood:'deadpan', cam:rel(d[0], d[1], 0, -0.9, 0.3, 1.5), look:[d[0], 0.78, d[1]],
-        enter:()=>{ t.x = T1[0]; t.z = T1[1]; t.moving = false; seated(); paper.visible = true; cue('pick'); talk('where'); } },
-      // "The assignment. The one you've had for two weeks." "I was going to do it." "When?" "Eventually?"
-      { dur:linesLen('where2') + 0.6, fov:Math.min(70, 42/two.k), mood:'sheepish', cam:two, look:[(T1[0] + sp.seat[0])/2, 1.2, (T1[1] + sp.seat[1])/2],
-        enter:()=>{ seated(); talk('where2'); } },
-      // the look
-      { dur:1.5, fov:28, cam:rel(T1[0], T1[1], faceR, 1.3, 0.1, 1.62), look:[T1[0], 1.6, T1[1]] },
-      // "Detention." "Of course." — and she leans back
-      { dur:linesLen('detained') + 0.8, fov:34, mood:'deadpan', cam:rel(sp.seat[0], sp.seat[1], faceT, 1.4, 0.3, 1.25), look:[sp.seat[0], 1.05, sp.seat[1]],
-        enter:()=>{ seated(); talk('detained'); } },
-      // the robot, off the bench
-      { dur:2.2, fov:44, cam:[sp.bench[0] - 1.8, 1.7, sp.bench[1] + 2.6], look:[sp.benchTop[0], 1.0, sp.benchTop[2]],
-        enter:()=>{ t.x = sp.bench[0]; t.z = sp.bench[1]; t.yaw = Math.PI/2; },
-        beats:[[1.3, ()=>cue('gear')]] },
-      // and onto her desk: "Since you're here, you can help me with something." "Who messed this up?" "That's what I'd like you to figure out."
-      { dur:linesLen('robot') + 0.8, fov:36, mood:'skeptical', cam:rel(d[0], d[1], faceR + Math.PI, -0.6, 0.9, 1.45), look:[d[0], 0.9, d[1]],
-        enter:()=>{ t.x = T1[0]; t.z = T1[1]; t.yaw = faceR; R.position.set(d[0] + 0.1, 0.77, d[1] - 0.08); R.rotation.y = 0; paper.visible = false; seated(); talk('robot'); } }
+      // in through the door: and it is not a classroom
+      { dur:3.8, fov:56, inside:true, cam:[X(-3.6), 3.4, -35.0], look:[rig[0], 1.3, rig[1]],
+        enter:()=>{ caption('INT. ROBOTICS LAB — ROOM 120'); cue('door'); },
+        tick:(dt, tt, k)=>{ walkStage(door, A, Math.min(1, k*1.25)); tGo([door[0] + 0.6, door[1] + 0.3], B, Math.min(1, k*1.2)); } },
+      // the field on her face
+      { dur:2.6, fov:30, mood:'focused', cam:rel(A[0], A[1], faceA, 1.1, 0.25, 1.6), look:[A[0], 1.55, A[1]],
+        enter:()=>{ stage('idle', A[0], 0, A[1], faceA); t.x = B[0]; t.z = B[1]; t.moving = false; t.yaw = faceB; } },
+      // the rig: three rings turning, and in them, something violet that will not hold still
+      { dur:3.4, fov:40, cam:k=>[lerp(rig[0] + 0.3, rig[0] + 0.15, k), lerp(1.25, 1.5, k), lerp(rig[1] + 3.3, rig[1] + 2.3, k)], look:[rig[0], 1.55, rig[1]],
+        beats:[[0.3, ()=>cue('rise')]] },
+      // the monitors reading it
+      { dur:2.4, fov:44, cam:[X(4.6), 1.8, -44.6], look:k=>[X(5.0 + k*2.6), 1.95, -47.7] },
+      // "This is what I've been working on." "We're calling it Psi Energy." ...
+      { dur:linesLen('psi') + 0.4, fov:44, mood:'focused', cam:twoRig, look:[(mid[0] + rig[0])/2, 1.45, (mid[1] + rig[1])/2],
+        enter:()=>{ stage('idle', A[0], 0, A[1], faceA); talk('psi'); },
+        tick:(dt, tt)=>{ t.yaw += angDiff(tt % 5 < 2.6 ? faceB : angTo(B[0], B[1], rig[0], rig[1]), t.yaw)*Math.min(1, dt*3); } },
+      // "The problem is the prototype." The field goes on it — and it seizes, every joint against itself
+      { dur:linesLen('psi2') + 1.4, fov:40, inside:true, cam:[d[0] - 1.4, 1.4, d[1] + 1.5], look:[d[0], 1.05, d[1]],
+        enter:()=>{ talk('psi2'); }, beats:[[1.2, ()=>{ R.userData.field = true; cue('fail'); }]] },
+      // she's already going over to it
+      { dur:2.4, fov:46, cam:[X(4.2), 1.7, -36.6], look:()=>{ const b = AVATAR.body; return b ? [b.position.x, 1.2, b.position.z] : [ex[0], 1.2, ex[1]]; },
+        tick:(dt, tt, k)=>{ walkStage(A, ex, k); tGo(B, T2, Math.min(1, k*1.1)); } },
+      // "The energy output spikes whenever the actuator—" "Because the actuator is compensating."
+      { dur:linesLen('spike') + 0.4, fov:34, mood:'focused', cam:[d[0] + 0.95, 1.7, d[1] - 1.05], look:[ex[0] - 0.05, 1.45, ex[1]],
+        enter:()=>{ stage('idle', ex[0], 0, ex[1], toBot); t.x = T2[0]; t.z = T2[1]; t.moving = false; t.yaw = toRobin; talk('spike'); } },
+      // her teacher stops. "What?"
+      { dur:linesLen('what') + 0.5, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('what') },
+      // she points it out: "You're telling it to maintain a constant output while the Psi field is fluctuating."
+      { dur:linesLen('fighting') + 0.4, fov:40, cam:[ex[0] + 1.6, 1.55, (ex[1] + d[1])/2 + 0.35], look:[ex[0] - 0.2, 1.2, (ex[1] + d[1])/2],
+        enter:()=>{ stage('talk', ex[0], 0, ex[1], toBot + 0.35); talk('fighting'); } },
+      // and looks at her. "It's fighting itself."
+      { dur:linesLen('fighting2') + 0.6, fov:30, cam:mine, look:[ex[0], 1.55, ex[1]], enter:()=>{ stage('idle', ex[0], 0, ex[1], toTeach); talk('fighting2'); } },
+      // the teacher smiles. "That's why I keep you around."
+      { dur:linesLen('keepYou') + 0.8, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('keepYou') }
     ];
     playReel(shots, ()=>{ reel = null; benchPuzzles(); }, { ownClock:true });
   }
-  /* at her desk: the puzzles, over a camera on her shoulder */
+  /* at the stand: the puzzles, over a camera on her shoulder */
   let bench = null;
   function benchMode(on_){
     const d = W.school.spots.seatDesk;
-    if(on_){ mode = 'puzzle'; G.running = false; bench = { cam:[d[0] + 0.55, 1.55, d[1] + 0.95], look:[d[0], 0.85, d[1] - 0.05] }; seated(); }
+    if(on_){ mode = 'puzzle'; G.running = false; bench = { cam:[d[0] + 0.6, 1.6, d[1] + 1.05], look:[d[0], 1.0, d[1] - 0.05] }; seated(); }
     else { bench = null; mode = null; }
   }
   function benchPuzzles(){
-    benchMode(true);
-    setObjective('Fix the robot.', ['Power, then the signals, then the drive.']);
-    TSHPUZZLE.open('route', { levels:3 }, ()=>TSHPUZZLE.open('signal', { levels:3 }, ()=>TSHPUZZLE.open('gears', { levels:2 }, ()=>{ benchMode(false); robotLives(); })));
+    const R = W.school.robot, step = () => { R.userData.fix = (R.userData.fix || 0) + 1; cue('gear'); };
+    benchMode(true); R.userData.field = true;
+    setObjective('Stop the prototype fighting the field.', ['Route the Psi energy.', 'Match its frequency.', 'Stabilise the actuators.']);
+    TSHPUZZLE.open('route', { levels:3, psi:true }, ()=>{ step();
+      TSHPUZZLE.open('freq', { levels:3 }, ()=>{ step();
+        TSHPUZZLE.open('gears', { levels:2, psi:true }, ()=>{ step(); benchMode(false); robotLives(); }); }); });
   }
+  /* it runs, in the field. "You did it." "Obviously." "You know, most people wait until I finish explaining
+     the problem." "Most people aren't me." That gets a laugh. */
   function robotLives(){
-    const sc = W.school, sp = sc.spots, d = sp.seatDesk, R = sc.robot;
+    const sc = W.school, sp = sc.spots, d = sp.seatDesk, R = sc.robot, t = sc.teacher, { ex, T2 } = standSpots();
+    const toRobin = angTo(T2[0], T2[1], ex[0], ex[1]), toTeach = angTo(ex[0], ex[1], T2[0], T2[1]);
+    const two = freeCam([(ex[0] + T2[0])/2, (ex[1] + T2[1])/2], toTeach, 2.6, 1.55), hers = rel(T2[0], T2[1], toRobin, 0.95, 0.4, 1.62);
+    t.x = T2[0]; t.z = T2[1]; t.yaw = toRobin; t.hold = true;
     mark('repair');
     const shots = [
-      // it stands up: the eye, the panel goes green, a wave
-      { dur:3.2, fov:46, inside:true, cam:[d[0] + 1.25, 1.35, d[1] + 0.9], look:[d[0] + 0.05, 0.98, d[1] - 0.05],
-        enter:()=>{ seated(); R.userData.on = true; R.userData.t = 0; cue('win'); } },
-      // "...Whoever built this was an idiot."
-      { dur:linesLen('fixed') + 0.6, fov:34, mood:'smug', cam:rel(sp.seat[0], sp.seat[1], Math.PI, 1.3, -0.3, 1.3), look:[sp.seat[0], 1.05, sp.seat[1]],
-        enter:()=>{ seated(); talk('fixed'); } },
-      // a look at what she did
-      { dur:1.6, fov:30, cam:[d[0] - 0.7, 1.25, d[1] + 0.5], look:[d[0] + 0.1, 0.95, d[1] - 0.08] },
-      // "Good thing I'm here."
-      { dur:linesLen('fixed2') + 0.8, fov:32, mood:'grin', cam:rel(sp.seat[0], sp.seat[1], Math.PI, 1.2, 0.25, 1.3), look:[sp.seat[0], 1.05, sp.seat[1]],
-        enter:()=>{ seated(); talk('fixed2'); } },
-      // and the second thing, put down beside it
-      { dur:2.2, fov:36, cam:rel(d[0], d[1], Math.PI, -0.7, -0.4, 1.4), look:[d[0] - 0.25, 0.8, d[1]],
-        enter:()=>{ sc.gadget.position.set(d[0] - 0.3, 0.8, d[1] + 0.02); cue('pick'); note('🔧 Another one. It won\'t start.'); } }
+      // in the field, and steady: the eye, the panel goes green, a wave
+      { dur:3.4, fov:44, inside:true, cam:[d[0] + 1.3, 1.5, d[1] + 1.0], look:[d[0] + 0.05, 1.1, d[1] - 0.05],
+        enter:()=>{ seated(); R.userData.field = true; R.userData.on = true; R.userData.t = 0; cue('win'); } },
+      // "You did it." "Obviously."
+      { dur:linesLen('didIt') + 0.5, fov:Math.min(70, 42/two.k), mood:'smug', cam:two, look:[(ex[0] + T2[0])/2, 1.45, (ex[1] + T2[1])/2],
+        enter:()=>{ stage('idle', ex[0], 0, ex[1], toTeach); talk('didIt'); } },
+      // "You know, most people wait until I finish explaining the problem." "Most people aren't me."
+      { dur:linesLen('most') + 0.4, fov:Math.min(70, 42/two.k), mood:'grin', cam:two, look:[(ex[0] + T2[0])/2, 1.45, (ex[1] + T2[1])/2], enter:()=>talk('most') },
+      // a laugh
+      { dur:linesLen('laugh') + 0.8, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('laugh') }
     ];
-    playReel(shots, ()=>{ reel = null; benchMode(true); setObjective('Find out what is wrong with it.', []);
-      TSHPUZZLE.open('diagnose', {}, ()=>{ sc.gadget.userData.fix(); benchMode(false); mark('device'); outcome('fixed'); checkpoint(); later(()=>{ if(on) talkScene(); }, 900); }); }, { ownClock:true });
+    playReel(shots, ()=>{ reel = null; outcome('fixed'); checkpoint(); talkScene(); }, { ownClock:true });
   }
-  /* "See? This is what I'm talking about." ... "Your mother would be incredibly proud of you." "Yeah." "Thanks." */
+  /* "That's exactly what I'm worried about." Brilliant — and late, and exhausted, and starting to disappear.
+     "Your mom knows how talented you are. She'd be proud to see what you're capable of." It hits her; her
+     teacher sees it and lets it be. "Yeah." She packs up. "I should get to class." */
   function talkScene(){
-    const sc = W.school, sp = sc.spots, t = sc.teacher, d = sp.seatDesk;
-    const T1 = [d[0] + 1.0, d[1] - 0.7], stand = [sp.seat[0], sp.seat[1] + 0.25];
-    const faceR = angTo(T1[0], T1[1], stand[0], stand[1]), faceT = angTo(stand[0], stand[1], T1[0], T1[1]);
-    t.x = T1[0]; t.z = T1[1]; t.yaw = faceR; t.hold = true;
-    sc.robot.userData.on = true; sc.robot.position.set(d[0] + 0.1, 0.77, d[1] - 0.08); sc.robot.rotation.y = 0;
-    sc.gadget.position.set(d[0] - 0.3, 0.8, d[1] + 0.02); sc.gadget.userData.fix();
+    const sc = W.school, sp = sc.spots, t = sc.teacher, d = sp.seatDesk, { ex, T2 } = standSpots();
+    const toRobin = angTo(T2[0], T2[1], ex[0], ex[1]), toTeach = angTo(ex[0], ex[1], T2[0], T2[1]);
+    t.x = T2[0]; t.z = T2[1]; t.yaw = toRobin; t.hold = true;
+    sc.robot.userData.on = true; sc.robot.userData.field = true; sc.robot.position.set(d[0], 0.77, d[1] - 0.05); sc.robot.rotation.y = 0;
     mark('mother');
-    const mine = rel(stand[0], stand[1], faceT, 1.1, -0.25, 1.55), hers = rel(T1[0], T1[1], faceR, 1.25, 0.2, 1.6);
+    const mine = rel(ex[0], ex[1], toTeach, 0.9, -0.4, 1.56), hers = rel(T2[0], T2[1], toRobin, 0.95, 0.4, 1.62);
+    const two = freeCam([(ex[0] + T2[0])/2, (ex[1] + T2[1])/2], toTeach, 2.6, 1.55), twoLook = [(ex[0] + T2[0])/2, 1.45, (ex[1] + T2[1])/2];
+    const still = (k) => stage('idle', ex[0], 0, ex[1], toTeach + (k || 0));
     const shots = [
-      // she looks at the robot, and at Robin: "See?" "This is what I'm talking about."
-      { dur:linesLen('see') + 0.5, fov:36, inside:true, cam:hers, look:[T1[0], 1.55, T1[1]],
-        enter:()=>{ seated(); talk('see'); } },
-      // Robin packs up while it goes on
-      { dur:linesLen('bright') + 0.4, fov:42, mood:'tired', cam:rel(stand[0], stand[1], faceT + 0.5, 1.6, 0, 1.45), look:[stand[0], 1.1, stand[1]],
-        enter:()=>{ stage('text', stand[0], 0, stand[1], Math.PI); talk('bright'); } },
-      // she stops, and looks at her
-      { dur:1.4, fov:32, mood:'tired', cam:mine, look:[stand[0], 1.5, stand[1]], enter:()=>stage('idle', stand[0], 0, stand[1], faceT) },
-      // "Because if you did..." — a smile — "Your mother would be incredibly proud of you."
-      { dur:linesLen('proud') + 0.4, fov:30, cam:hers, look:[T1[0], 1.58, T1[1]], enter:()=>talk('proud') },
-      // and the energy goes out of her face. A long beat.
-      { dur:3.4, fov:26, mood:'sad', cam:rel(stand[0], stand[1], faceT, 0.9, -0.15, 1.56), look:[stand[0], 1.52, stand[1]],
-        enter:()=>scoreStop(1),
-        tick:(dt, tt)=>{ if(tt > 1.2) stage('idle', stand[0], 0, stand[1], faceT + 0.5); } },
+      // the tone changes. "That's exactly what I'm worried about."
+      { dur:linesLen('worried') + 0.6, fov:30, inside:true, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>{ still(0.7); talk('worried'); scoreStop(2); } },
+      // Robin looks up
+      { dur:1.4, fov:30, mood:'skeptical', cam:mine, look:[ex[0], 1.55, ex[1]], tick:(dt, tt)=>{ const k = clamp(tt/0.6, 0, 1); still(0.7*(1 - k)); } },
+      // "You're brilliant, Robin. You know that, right?" A shrug: "I've heard." "No. I don't think you have."
+      { dur:linesLen('brilliant') + 0.4, fov:Math.min(70, 42/two.k), cam:two, look:twoLook, enter:()=>{ still(); talk('brilliant'); } },
+      // the kind of intuition that could take her somewhere extraordinary
+      { dur:linesLen('intuition') + 0.3, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('intuition') },
+      // but: late, missing assignments, exhausted, somewhere else — on Robin's face
+      { dur:linesLen('but') + 0.3, fov:28, mood:'tired', cam:mine, look:[ex[0], 1.55, ex[1]], enter:()=>{ still(0.25); talk('but'); } },
+      // "I don't care about one late assignment. I care that you're starting to disappear."
+      { dur:linesLen('disappear') + 0.3, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('disappear') },
+      // nothing back
+      { dur:2.2, fov:28, mood:'tired', cam:mine, look:[ex[0], 1.55, ex[1]], enter:()=>still(0.3) },
+      // "You could be one of the best roboticists I've ever taught."
+      { dur:linesLen('best') + 0.4, fov:30, cam:hers, look:[T2[0], 1.6, T2[1]], enter:()=>talk('best') },
+      // she looks away
+      { dur:1.8, fov:30, mood:'sad', cam:mine, look:[ex[0], 1.55, ex[1]], tick:(dt, tt)=>still(0.75*clamp(tt/0.8, 0, 1)) },
+      // "Your mom knows how talented you are." "She'd be proud to see what you're capable of."
+      { dur:linesLen('mom') + 0.4, fov:30, cam:hers, look:[T2[0], 1.58, T2[1]], enter:()=>talk('mom') },
+      // and that hits her. All of it goes out of her face. A long beat.
+      { dur:3.6, fov:26, mood:'sad', cam:rel(ex[0], ex[1], toTeach + 0.75, 0.95, -0.1, 1.56), look:[ex[0], 1.52, ex[1]],
+        tick:(dt, tt)=>{ if(tt > 1.4) still(0.75 + 0.25*clamp((tt - 1.4)/1.2, 0, 1)); } },
+      // her teacher notices. Doesn't push.
+      { dur:1.8, fov:30, cam:hers, look:[T2[0], 1.58, T2[1]] },
       // "Yeah."
-      { dur:linesLen('yeah') + 1.2, fov:28, mood:'sad', cam:rel(stand[0], stand[1], faceT + 0.5, 1.0, 0.1, 1.55), look:[stand[0], 1.5, stand[1]], enter:()=>talk('yeah') },
-      // her teacher notices
-      { dur:1.6, fov:30, cam:hers, look:[T1[0], 1.58, T1[1]] },
-      // the backpack. "Thanks." And out.
-      { dur:linesLen('thanks') + 2.2, fov:44, mood:'sad', cam:rel(stand[0], stand[1], faceT, 2.6, 0.6, 1.6), look:()=>{ const b = AVATAR.body; return b ? [b.position.x, 1.3, b.position.z] : [stand[0], 1.3, stand[1]]; },
-        enter:()=>talk('thanks'),
-        tick:(dt, tt)=>{ const L = linesLen('thanks'); if(tt < L) stage('idle', stand[0], 0, stand[1], Math.PI*0.9); else walkStage(stand, [sp.room120Door[0], sp.room120Door[1] - 0.8], Math.min(1, (tt - L)/2.2)); } }
+      { dur:linesLen('yeah') + 1.1, fov:28, mood:'sad', cam:rel(ex[0], ex[1], toTeach + 0.9, 1.0, 0.1, 1.55), look:[ex[0], 1.5, ex[1]], enter:()=>{ still(1.0); talk('yeah'); } },
+      // she packs up
+      { dur:2.2, fov:40, mood:'sad', cam:rel(ex[0], ex[1], toTeach + 0.4, 1.7, 0, 1.45), look:[ex[0], 1.1, ex[1]],
+        enter:()=>{ stage('text', ex[0], 0, ex[1], Math.PI*0.9); }, beats:[[0.8, ()=>cue('zip')]] },
+      // "I should get to class." And out.
+      { dur:linesLen('toClass') + 2.4, fov:44, mood:'sad', cam:rel(ex[0], ex[1], toTeach, 2.8, 0.6, 1.6), look:()=>{ const b = AVATAR.body; return b ? [b.position.x, 1.3, b.position.z] : [ex[0], 1.3, ex[1]]; },
+        enter:()=>{ still(0.4); talk('toClass'); },
+        tick:(dt, tt)=>{ const n = linesLen('toClass'); if(tt < n) still(0.4); else walkStage(ex, [sp.room120Door[0], sp.room120Door[1] - 0.8], Math.min(1, (tt - n)/2.4)); } }
     ];
     playReel(shots, ()=>{ reel = null; outcome('out'); checkpoint(); fade(()=>outsideScene()); }, { ownClock:true });
   }
@@ -4599,8 +4661,9 @@ window.TSH = (function(){
     'Definitely never doing that again.':'tired', '...Probably.':'grin', 'Rats.':'annoyed', 'Still holds.':'smug',
     // the morning after
     "You're up.":'grin', 'Okay. Technically not that late.':'sheepish', 'Morning.':'tired', 'You could say that.':'tired', '...Nope.':'nervous',
-    'Yes?':'sheepish', "That's fair.":'sheepish', 'I was going to do it.':'sheepish', 'Eventually?':'sheepish', 'Of course.':'deadpan',
-    'Who messed this up?':'skeptical', '...Whoever built this was an idiot.':'smug', "Good thing I'm here.":'grin', 'Yeah.':'sad', 'Thanks.':'sad'
+    'I was here yesterday.':'sheepish', 'Worth a shot.':'grin', "The fact that I'm standing here?":'sarcastic', "So I'm not in trouble?":'skeptical',
+    'Because the actuator is compensating.':'focused', "You're telling it to maintain a constant output while the Psi field is fluctuating.":'focused',
+    "It's fighting itself.":'smug', 'Obviously.':'smug', "Most people aren't me.":'grin', "I've heard.":'sarcastic', 'Yeah.':'sad', 'I should get to class.':'sad'
   };
   const feelOf = text => FEEL[text] || (/\?!|!\?/.test(text) ? 'shocked' : /\?\s*$/.test(text) ? 'skeptical' : /!\s*$/.test(text) ? 'surprised' : /^\.\.\./.test(text) ? 'tired' : null);
   function lipsSay(text, recorded, secs){
@@ -5509,7 +5572,7 @@ window.TSH = (function(){
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
                   homeDoor, aptExit, title, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
-                  detained, questEvent, find, get lastKnown(){ return lastKnown; },
+                  detained, questEvent, find, caughtScene, detention, labScene, robotLives, talkScene, benchPuzzles, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
                   raidIntro, raidGo, raidHome, raidFight, nightScene, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
