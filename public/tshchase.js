@@ -4,28 +4,34 @@
    the stages, the missiles' timings, how heat cools — are in tshai.js
    (CHASE), so they can be read and tested on their own.
 
-   IT TEACHES ITSELF, a stage at a time, in the order the script has it:
+   IT IS A CHASE. Robin runs; WFC comes after her. In order:
      1 RUN       Neon Avenue, east. SHIFT sprints, SPACE vaults a barrier.
                  The shoes are cold after the fight — this is on foot. The
                  first missile: a red line, a tone, a ring. Get out of it.
-     2 CUTOFF    a van brakes across the pavement and two officers get out.
-                 RIGHT-CLICK parries the baton, CLICK counters, G pulls the
-                 one on his radio across the street into her fist. Then go.
+     2 VAN       a van brakes across the pavement: cornered — FIGHT 1.
      3 WALL      a WFC barrier drops across the gap between the buildings:
                  a dead end. G, and up the wall on the Gecko cuffs.
      4 ROOFS     the shoes are charged: HOLD SPACE, roof to roof, with the
                  drones firing at her in the air (a dive or a turn takes her
-                 out of a lock), a rappel team on the roof, the flash
-                 bangles, and a gate to slide under.
-     5 HIDE      a gunship. Its searchlight sweeps the roof; E behind the AC
+                 out of a lock).
+     5 RAPPEL    the gunship drops a team on the roof in front of her — FIGHT 2.
+                 Then a gate to slide under.
+     6 HIDE      the gunship's searchlight sweeps the roof; E behind the AC
                  unit, and WASD keep the box between her and whatever looks.
                  J blinds a drone's scanner.
-     6 CALL      her phone rings — it's Mom. She answers it, still hidden,
+     7 CALL      her phone rings — it's Mom. She answers it, still hidden,
                  while an officer walks round the box towards the sound.
-     7 HOME      everything at once, no prompts: the gunship strafing the
+     8 FOUND     he comes round the box — FIGHT 3.
+     9 HOME      everything at once, no prompts: the gunship strafing the
                  roofs, two drones, officers on the roofs, cover to lose them
                  in. Land on her own roof with nobody on her, and the night
                  is over (tsh.js films the rest).
+
+   THREE FIGHTS, NOT A FIGHT EVERY FEW STEPS. Running is the whole of the
+   rest of it. Each fight is the alley's own (tshfight.js, no lessons, WFC
+   in uniform), and each opens with a short film (tsh.js, raidFight) that
+   ends on GET READY and the keys, so nobody is thrown into one cold. No
+   slow motion anywhere in the chase: the world runs at full speed.
 
    Everything here is told what it needs by tsh.js (start(ctx)): the
    world, who is out, and the night's own helpers — heat, notes, lines,
@@ -64,8 +70,8 @@ window.TSHCHASE = (function(){
   let C = null, on = false, clock = 0;
   const st = { i:0, t:0, flags:{} };
   let props = [], missiles = [], vaults = [], covers = [], gun = null, gate = null, wfcBarrier = null;
-  let fireT = 4, strafeT = 9, hits = 0, lastHitT = -99, spottedT = -99, freeze = null, coldNoteT = 0;
-  const R = { cover:null, act:null, down:0, iframe:0, strikeN:0 };
+  let fireT = 4, strafeT = 9, hits = 0, lastHitT = -99, spottedT = -99, coldNoteT = 0;
+  const R = { cover:null, act:null, iframe:0 };
   const stage = () => CH().stages[st.i] || {};
   const sid = () => stage().id;
 
@@ -162,7 +168,7 @@ window.TSHCHASE = (function(){
     if(built) return;
     C = ctx; built = true; clock = 0;
     props = []; missiles = []; vaults = []; covers = []; gun = null; gate = null; wfcBarrier = null;
-    st.flags = {}; st.i = 0; st.brawl = []; st.hunters = []; st.cop = null;
+    st.flags = {}; st.i = 0; st.hunters = []; st.cop = null; st.van = null;
     ROUTE.barriers.forEach(([x, z1, z2])=>barrier(x, z1, z2));
     { const a = ROUTE.ac; acUnit(a.x, a.z, ROUTE.roofEast.h, a.w, a.d, a.h); }
     ROUTE.covers.forEach(([x, z, top, w, d, h])=>acUnit(x, z, top, w, d, h));
@@ -172,8 +178,8 @@ window.TSHCHASE = (function(){
   }
   function start(ctx, from, drone){
     build(ctx); C = ctx; on = true;
-    fireT = 3; strafeT = 9; hits = 0; lastHitT = -99; spottedT = -99; freeze = null; coldNoteT = 0;
-    R.cover = null; R.act = null; R.down = 0; R.iframe = 0;
+    fireT = 3; strafeT = 9; hits = 0; lastHitT = -99; spottedT = -99; coldNoteT = 0;
+    R.cover = null; R.act = null; R.iframe = 0;
     // two drones that are here for her, not on a round (one of them may be the one the film dropped in her face)
     st.hunters = [0, 1].map(i=>{ const d = (i === 0 && drone && !drone.gone) ? drone : C.spawnDrone([[ROUTE.mouth[0] + (i ? 10 : -10), ROUTE.mouth[1] + 6]], { name:'hunt' + i, speed:6 });
       d.hunter = true; d.state = 'track'; d.side = i ? 1 : -1; d.yT = 13; return d; });
@@ -187,29 +193,28 @@ window.TSHCHASE = (function(){
     if(gun){ gun.g.visible = gun.cone.visible = gun.pool.visible = false; gun.src.mul = 0; }
     (st.hunters || []).forEach(d=>{ if(!d.gone) C.despawn(d); }); st.hunters = [];
     if(R.cover) leaveCover(true);
-    if(freeze){ freeze = null; G.timeScale = 1; }
     C.card(null);
     // the meshes went with the world (tsh.js rebuilds it on every entry); the solids too
     props = []; vaults = []; covers = []; gun = null; gate = null;
   }
   /* into stage i: its card, its objective, its cast; a checkpoint at the top of every one */
   function go(i, first){
-    if(freeze) unslow();
     st.i = i; st.t = 0;
     const s = stage(); if(!s.id) return;
     C.S().raid = { stage:i };
-    C.card(s.title, s.how, i + 1, CH().stages.length);
+    if(!s.fight) C.card(s.title, s.how, i + 1, CH().stages.length);
     C.objective(goal(), info());
     const enter = ENTER[s.id]; if(enter) enter(first);
     C.later(()=>{ if(on && st.i === i) C.checkpoint(); }, 500);
   }
   function next(){ if(st.i < CH().stages.length - 1) go(st.i + 1); }
-  function goal(){ return ({ run:'Run.', cutoff:'Get past them.', wall:'Up the wall.', roofs:'Over the roofs, east.', hide:'Hide.', call:'Answer it. Quietly.', home:'Get home.' })[sid()] || ''; }
+  function goal(){ return ({ run:'Run.', van:'Fight your way out.', wall:'Up the wall.', roofs:'Over the roofs, east.', rappel:'Fight your way out.', hide:'Hide.', call:'Answer it. Quietly.', found:'Fight your way out.', home:'Get home.' })[sid()] || ''; }
+  const fighting = () => !!stage().fight;
   function info(){
     const s = sid(), out = [];
     if(st.i < AI().stageAt('roofs')) out.push('👟 The shoes are cold after the fight — on foot until they charge.');
     if(s === 'run') out.push('SPACE at a barrier vaults it. A red ring is a missile: get out of it.');
-    if(s === 'cutoff') out.push('RIGHT-CLICK (R) parries · CLICK (K) hits · G pulls one to you.');
+    if(stage().fight) out.push('CLICK strike · hold CLICK power · SPACE dodge · R parry · G pull · F pulse.');
     if(s === 'wall') out.push('G facing the wall. W climbs. They do not look up much.');
     if(s === 'roofs') out.push('In the air, a lock follows you: SHIFT dives, or turn, and it misses.', 'F — the flash bangles blind everyone facing you.');
     if(s === 'hide' || s === 'call') out.push('Behind cover, WASD move you round it. Keep it between you and them.', 'J blinds a drone\'s scanner for six seconds.');
@@ -219,16 +224,13 @@ window.TSHCHASE = (function(){
   function shoes(cold){ C.boots(cold); }
 
   const ENTER = {
-    run(first){ shoes(true); if(first) C.later(()=>{ if(on) C.talk('raidRun'); }, 1600); },
-    cutoff(){
+    run(first){ shoes(true); if(first) C.later(()=>{ if(on && !fighting()) C.talk('raidRun'); }, 1600); },
+    /* FIGHT 1: a van brakes across the pavement ahead, and they get out of it (tsh.js films it, then the fight) */
+    van(){
       shoes(true);
-      // a van brakes across the pavement ahead, and two of them get out
-      const v = van(ROUTE.van[0] + 30, ROUTE.van[1], -Math.PI/2); st.vans.push(v);
+      const v = van(ROUTE.van[0] + 30, ROUTE.van[1], -Math.PI/2); st.vans.push(v); st.van = v;
       C.cue('skid'); C.tween(0.9, k=>v.place(lerp(ROUTE.van[0] + 30, ROUTE.van[0], 1 - (1 - k)*(1 - k)), ROUTE.van[1], -Math.PI/2 + (1 - k)*0.4), ()=>{ v.place(ROUTE.van[0], ROUTE.van[1], 0); C.cue('door'); });
-      const a = C.spawn('wfc', 'walk-t', ROUTE.van[0] - 3, -8.2, { name:'brawlA', state:'brawl' }), b = C.spawn('wfc', 'nia', ROUTE.van[0] - 2.5, -4.8, { name:'brawlB', state:'brawl' });
-      a.brawl = { s:'close', t:0 }; b.brawl = { s:'radio', t:0 };
-      [a, b].forEach(n=>{ n.aware = 1.1; n.band = 'alert'; n.home = [ROUTE.van[0] - 3, -8]; n.base = 'return'; });
-      st.brawl = [a, b]; st.flags.teach = 'parry';
+      C.fight(1, ()=>{ C.talk('raidSorry'); next(); });
     },
     wall(){
       shoes(true);
@@ -239,13 +241,17 @@ window.TSHCHASE = (function(){
     roofs(){
       shoes(false);
       C.talk('raidSpace');
-      // a rappel team for B8's roof, dropped when she gets there
-      st.flags.rappel = false;
+    },
+    /* FIGHT 2: the gunship comes in over B8 and drops a team on the roof in front of her */
+    rappel(){
+      shoes(false);
+      ensureGun(); gun.x = 60; gun.y = 34; gun.z = -24; gun.state = 'hunt'; gun.leave = false;
+      C.fight(2, ()=>{ C.talk('raidTrains'); next(); });
     },
     hide(){
       shoes(false);
       (st.hunters || []).forEach(d=>{ if(!d.gone){ d.state = 'search'; d.searchT = 30; } });
-      if(!gun){ ensureGun(); C.talk('raidGun'); }
+      ensureGun(); C.talk('raidGun');
       gun.state = 'arrive'; gun.leave = false;
       // the stairwell door opens once she is behind something (or after a while, if she is not)
       st.flags.copAt = 9;
@@ -259,9 +265,16 @@ window.TSHCHASE = (function(){
       C.ringing(true); C.phoneCard('INCOMING CALL', 'MOM');
       C.talk('momRing');
     },
+    /* FIGHT 3: he has come round the box */
+    found(){
+      shoes(false); C.ringing(false);
+      ensureGun();
+      C.fight(3, ()=>next());
+    },
     home(){
       shoes(false);
       C.ringing(false);
+      (st.hunters || []).forEach(d=>{ if(!d.gone) d.state = 'track'; });
       ensureGun();
       gun.state = 'hunt'; gun.leave = false;
       C.heat(Math.max(C.S().heat, 4), 'the gunship has you');
@@ -297,9 +310,15 @@ window.TSHCHASE = (function(){
     if(!on) return;
     clock += dt; st.t += dt;
     const p = C.P(), s = sid(), mode = C.mode();
+    // a fight (and the film before it) is the fight's: the chase holds its breath, the gunship just hangs there
+    if(fighting()){ missiles.forEach(killMissile); missiles = []; if(gun) tickGun(dt, p, true); tickVans(); fireT = 3; return; }
     R.iframe = Math.max(0, R.iframe - dt);
     if(clock - lastHitT > CH().hitsForget) hits = 0;
     coldNoteT -= dt;
+    // the ones the chase has left far behind go home for good: a dozen bodies animating out of sight is frame rate for nothing
+    st.cullT = (st.cullT || 0) - dt;
+    if(st.cullT <= 0){ st.cullT = 2;
+      C.npcs().filter(n=>n.kind === 'wfc' && !n.gone && /^(raid|gapCop|rp|rf)/.test(n.name) && !n.sees && Math.hypot(n.x - p.x, n.z - p.z) > 60).forEach(n=>C.despawn(n)); }
     // anybody with eyes on her (the gunship's light says so itself)
     const cop = C.npcs().find(n=>n.kind === 'wfc' && !n.gone && n.sees), drone = (C.drones() || []).find(d=>d.state === 'track' && d.inBeam);
     if(cop || drone){ spottedT = clock; st.flags.seenBy = cop ? cop.name : drone.name; }
@@ -321,15 +340,8 @@ window.TSHCHASE = (function(){
   const TICK = {
     run(dt, p){
       // the first missile is a lesson: the world slows while the ring is up
-      if(!st.flags.firstShot && p.x > -38.5){ st.flags.firstShot = true; const m = fire(false, true); if(m) slowFor('ring', 0.35); C.card('INCOMING', 'A red line, a tone, a ring: a missile. Get out of the ring.', 1, CH().stages.length, true); }
+      if(!st.flags.firstShot && p.x > -38.5){ st.flags.firstShot = true; fire(false, true); C.card('INCOMING', 'A red line, a tone, a ring: a missile. Get out of the ring.', 1, CH().stages.length); }
       if(p.x > ROUTE.runDone && p.z > -12 && p.y < 1) next();
-    },
-    cutoff(dt, p){
-      // a lesson waits: the one she parried stays open until she hits him
-      if(freeze === 'counter' && st.brawl[0] && !st.brawl[0].gone) st.brawl[0].stun = Math.max(st.brawl[0].stun, 0.4);
-      // past them into the gap: the lesson is over whether or not she took it
-      if(inGap(p) && p.z < -13){ st.brawl.forEach(n=>{ if(!n.gone){ n.brawl = null; n.state = 'pursue'; } }); next(); return; }
-      if(st.flags.teach === 'go' && st.brawl.every(n=>n.gone || n.stun > 0)){ st.flags.teach = 'done'; C.card('DON\'T STAY', 'More are coming. North, into the gap between the buildings.', 2, CH().stages.length); C.objective('Into the gap.', info()); }
     },
     wall(dt, p){
       if(!st.flags.barrierDown && inGap(p) && p.z < -16){ st.flags.barrierDown = true;
@@ -337,23 +349,21 @@ window.TSHCHASE = (function(){
         if(wfcBarrier) C.tween(0.35, k=>{ wfcBarrier.g.position.y = 5*(1 - k*k); });
         C.talk('raidWall');
         // and they come in behind her
-        [0, 1, 2].forEach(i=>{ const n = C.spawn('wfc', ['theo', 'walk-u', 'walk-v'][i], -22.5 + (i - 1)*0.8, -9 + i, { name:'gapCop' + i, state:'pursue' }); n.aware = 1.1; n.band = 'alert'; n.lastSeen = [p.x, p.z, p.y, C.clock()]; n.base = 'search'; n.home = [-22.5, -6]; });
+        [0, 1].forEach(i=>{ const n = C.spawn('wfc', ['theo', 'walk-u'][i], -22.5 + (i - 0.5)*1.2, -9 + i, { name:'gapCop' + i, state:'pursue' }); n.aware = 1.1; n.band = 'alert'; n.lastSeen = [p.x, p.z, p.y, C.clock()]; n.base = 'search'; n.home = [-22.5, -6]; });
       }
-      if(mode() === 'scale' && !st.flags.onWall){ st.flags.onWall = true; C.later(()=>{ if(on) C.talk('raidOnWall'); }, 1400); }
+      if(mode() === 'scale' && !st.flags.onWall){ st.flags.onWall = true; C.later(()=>{ if(on && !fighting()) C.talk('raidOnWall'); }, 1400); }
       if(p.y > 10 && onRoof(p, 'B5', 'B4')){ C.talk('raidRoof'); next(); }
     },
     roofs(dt, p){
       const r = ROUTE.roofEast;
       if(!st.flags.landed && p.y > 8 && G.onGround && !onRoof(p, 'B5', 'B4')){ st.flags.landed = true; C.talk('raidLanded'); }
-      if(!st.flags.rappel && onRoof(p, 'B8')){ st.flags.rappel = true; rappel(41, -20, r.h, 'rpA'); rappel(41.5, -33, r.h, 'rpB'); }
-      // the flash, the first time somebody is close enough for it
-      if(!st.flags.flashTip && C.npcs().some(n=>n.kind === 'wfc' && !n.gone && n.stun <= 0 && Math.hypot(n.x - p.x, n.z - p.z) < 8 && Math.abs(n.y - p.y) < 2)){
-        st.flags.flashTip = true; C.card('F — FLASH BANGLES', 'Everyone facing you sees white for four seconds.', 4, CH().stages.length); }
-      // the gate starts down as she comes at it
-      if(gate && !gate.closing && onRoof(p, 'B8') && p.x > ROUTE.gate.x - 10 && p.x < ROUTE.gate.x){ gate.closing = true; C.cue('alarm'); }
-      if(onRoof(p, 'B8') && p.x > ROUTE.gate.x + 1 && p.y > r.h - 1){ next(); }
+      // down on B8's roof, west of the fence: the team comes down on her
+      if(onRoof(p, 'B8') && G.onGround && p.x < ROUTE.gate.x - 0.5 && p.y > r.h - 1){ next(); return; }
+      if(onRoof(p, 'B8') && p.x > ROUTE.gate.x + 1 && p.y > r.h - 1){ st.i++; next(); }             // over the fence and past them: no fight
     },
+    rappel(dt, p){},
     hide(dt, p){
+      if(gate && !gate.closing && onRoof(p, 'B8') && p.x > ROUTE.gate.x - 10 && p.x < ROUTE.gate.x){ gate.closing = true; C.cue('alarm'); }
       if(st.flags.copAt !== undefined && (R.cover || st.t > st.flags.copAt)){ st.flags.copAt = undefined; ensureCop(); }
       if(!st.flags.hideTip && R.cover){ st.flags.hideTip = true; C.talk('raidShh'); }
       // tucked in, unseen, the officer gone past: the phone
@@ -363,7 +373,7 @@ window.TSHCHASE = (function(){
     },
     call(dt, p){
       const f = st.flags, cop = st.cop;
-      if(f.found){ f.foundT += dt; if(f.foundT > 1.4){ unslow(); if(R.cover) leaveCover(); next(); } return; }
+      if(f.found) return;
       if(!f.answered){
         f.ringT += dt;
         // every ring is a noise, and he goes to look at it
@@ -412,14 +422,13 @@ window.TSHCHASE = (function(){
       C.talk('momCall2', ()=>{ if(!on || f.found) return; C.talk('momAfter', ()=>{ f.callOver = true; }); });
     });
   }
-  /* he has come round the box: she has been seen */
+  /* he has come round the box: she has been seen — and it is a fight (the stage after this one) */
   function found(){
     const f = st.flags; if(f.found) return; f.found = true;
-    C.flushTalk(); C.talk('momFound');
-    const cop = st.cop; if(cop && !cop.gone){ cop.circle = null; cop.state = 'pursue'; cop.aware = 1.1; cop.band = 'alert'; cop.lastSeen = [G.pos.x, G.pos.z, C.feet(), C.clock()]; C.bark(cop, 'Hold it right there!'); }
-    slowFor('found', 0.25);
-    C.card('FOUND', 'CLICK — take him down · SPACE — bolt.', 6, CH().stages.length, true);
-    st.flags.foundT = 0;
+    C.flushTalk(); C.ringing(false);
+    const cop = st.cop; if(cop && !cop.gone){ cop.circle = null; cop.state = 'cut'; cop.yaw = Math.atan2(G.pos.x - cop.x, G.pos.z - cop.z); }
+    if(R.cover) leaveCover(true);
+    next();
   }
   function inGap(p){ const g = ROUTE.gap; return p.x > g.x1 - 0.2 && p.x < g.x2 + 0.2 && p.z > g.z1 && p.z < g.z2 + 1; }
   function onRoof(p){ const ids = [].slice.call(arguments, 1); return C.W.roofs.some(r=>ids.includes(r.id) && p.x > r.x1 && p.x < r.x2 && p.z > r.z1 && p.z < r.z2 && Math.abs(p.y - r.h) < 2.5); }
@@ -427,8 +436,7 @@ window.TSHCHASE = (function(){
   function tickVans(){ (st.vans || []).forEach(v=>{ const k = (clock*4|0)%2 === 0; v.red.visible = k; v.blue.visible = !k; v.src.col.setHex(k ? 0xff3a3a : 0x3a6aff); }); }
 
   /* ============================================================ the moves
-     On foot she has a few things the shoes do not do: a vault, a slide,
-     and her hands. */
+     On foot she has two things the shoes do not do: a vault and a slide. */
   function fwd(){
     const sp = Math.hypot(G.vel.x, G.vel.z);
     return sp > 1.2 ? { x:G.vel.x/sp, z:G.vel.z/sp } : { x:-Math.sin(G.yaw), z:-Math.cos(G.yaw) };
@@ -484,90 +492,6 @@ window.TSHCHASE = (function(){
     const b = AVATAR.body; if(b && face !== undefined) b.rotation.set(0, face, 0);
     if(!ownCam && typeof thirdPerson === 'function') thirdPerson();
   }
-
-  /* -------------------------------------------------------------- hands
-     CLICK / K strikes whoever is in front of her and in reach; RIGHT-CLICK
-     / R parries a baton that is coming; G (with no wall to climb) pulls
-     the nearest one in front across to her. Fight on the move: hit, go. */
-  const STRIKES = ['jab', 'cross', 'hook'];
-  function officers(){ return C.npcs().filter(n=>n.kind === 'wfc' && !n.gone && !n.hidden && Math.abs(n.y - C.feet()) < 1.5); }
-  function inFront(n, reach, cone){
-    const p = C.P(), d = Math.hypot(n.x - p.x, n.z - p.z); if(d > reach) return false;
-    const a = Math.atan2(n.x - p.x, n.z - p.z), look = Math.atan2(-Math.sin(G.yaw), -Math.cos(G.yaw));
-    return d < 1.2 || Math.abs(angDiff(a, look)) < cone;
-  }
-  function strike(){
-    if(mode() !== null) return false;
-    const t = officers().filter(n=>inFront(n, 2.5, 1.15)).sort((a, b)=>Math.hypot(a.x - G.pos.x, a.z - G.pos.z) - Math.hypot(b.x - G.pos.x, b.z - G.pos.z))[0];
-    const clip = STRIKES[R.strikeN++ % STRIKES.length];
-    const face = t ? Math.atan2(t.x - G.pos.x, t.z - G.pos.z) : Math.atan2(-Math.sin(G.yaw), -Math.cos(G.yaw));
-    act('strike', 0.45, null, clip, face);
-    R.act.hit = 0.17;
-    R.act.onHit = ()=>{
-      C.cue('swish');
-      if(!t || t.gone || Math.hypot(t.x - G.pos.x, t.z - G.pos.z) > 2.8) return;
-      const open = t.brawl && t.brawl.s === 'open';
-      C.stun(t, open ? 9 : 5); if(t.brawl) t.brawl.s = 'down';
-      const a = Math.atan2(t.x - G.pos.x, t.z - G.pos.z); knock(t, Math.sin(a)*1.6, Math.cos(a)*1.6);
-      C.cue('punch'); C.shake(open ? 0.3 : 0.16, 0.25);
-      C.crime('brawl', G.pos.x, G.pos.z);
-      if(st.flags.teach === 'counter' && t === st.brawl[0]){ unslow(); st.flags.teach = 'pull'; C.talk('raidSorry'); C.card('G — PULL', 'The one on his radio. G drags him across the street into your fist.', 2, CH().stages.length, true); slowFor('pull', 0.3); }
-      if(st.flags.found){ unslow(); next(); }
-    };
-    return true;
-  }
-  function parry(){
-    if(mode() !== null) return false;
-    const n = officers().find(n=>n.brawl && n.brawl.s === 'wind' && Math.hypot(n.x - G.pos.x, n.z - G.pos.z) < 2.8);
-    act('parry', 0.32, null, 'block', n ? Math.atan2(n.x - G.pos.x, n.z - G.pos.z) : undefined);
-    if(!n) return true;
-    n.brawl.s = 'open'; n.stun = 1.8; C.cue('clang'); C.shake(0.12, 0.2); C.flash(0.2);
-    if(st.flags.teach === 'parry'){ unslow(); st.flags.teach = 'counter'; C.card('CLICK — COUNTER', 'He is open. Hit him.', 2, CH().stages.length, true); slowFor('counter', 0.35); }
-    return true;
-  }
-  function pull(){
-    if(mode() !== null) return false;
-    const p = C.P();
-    const t = officers().filter(n=>n.stun <= 0 && inFront(n, 9.5, 0.6) && C.los(p.x, p.y + 1.3, p.z, n.x, n.y + 1.3, n.z)).sort((a, b)=>Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
-    if(!t) return false;
-    const from = [t.x, t.z], d = Math.hypot(t.x - p.x, t.z - p.z), to = [p.x + (t.x - p.x)/d*1.1, p.z + (t.z - p.z)/d*1.1];
-    t.hold = true; C.cuffGlow(true); C.cue('grab');
-    act('pull', 0.36, k=>{ t.x = lerp(from[0], to[0], k*k); t.z = lerp(from[1], to[1], k*k); }, 'hook', Math.atan2(t.x - p.x, t.z - p.z));
-    R.act.hit = 0.3; R.act.onHit = ()=>{ t.hold = false; C.stun(t, 6); if(t.brawl) t.brawl.s = 'down'; C.cue('punch'); C.shake(0.3, 0.3); C.cuffGlow(false); C.crime('brawl', p.x, p.z);
-      if(st.flags.teach === 'pull'){ unslow(); st.flags.teach = 'go'; } };
-    return true;
-  }
-  function knock(n, dx, dz){ const x0 = n.x, z0 = n.z; C.tween(0.25, k=>{ const x = x0 + dx*k, z = z0 + dz*k; if(!C.blocked(n, x, z)){ n.x = x; n.z = z; } }); }
-  /* the two at the van: one comes at her with a baton, one gets on the radio */
-  function brawl(n, dt){
-    const b = n.brawl, p = C.P(), d = Math.hypot(n.x - p.x, n.z - p.z);
-    n.clip = 'idle';
-    if(n.stun > 0) return;
-    if(b.s === 'down' || b.s === 'open'){ b.s = 'close'; }
-    if(b.s === 'radio'){
-      C.face(n, p.x, p.z, dt);
-      if(st.flags.teach !== 'pull' && st.flags.teach !== 'go' && st.flags.teach !== 'done'){ if(d > 7) C.goTo(n, p.x, p.z, undefined, n.def.walk, dt); return; }
-      if(!b.said){ b.said = true; C.bark(n, 'Dispatch, I need—'); }
-      if(st.flags.teach === 'go' || st.flags.teach === 'done') b.s = 'close';
-      return;
-    }
-    if(b.s === 'close'){
-      if(d > 1.7){ C.goTo(n, p.x, p.z, undefined, n.def.run, dt); return; }
-      b.s = 'wind'; b.t = 0.62; C.bark(n, pick(['Down!', 'Hold still!', 'Stop!']));
-      if(st.flags.teach === 'parry' && !st.flags.parryShown){ st.flags.parryShown = true; slowFor('parry', 0.08); C.card('RIGHT-CLICK — PARRY', 'The baton. Right-click (or R) the moment before it lands.', 2, CH().stages.length, true); }
-    }
-    if(b.s === 'wind'){
-      C.face(n, p.x, p.z, dt); n.band = 'alert';
-      b.t -= dt;
-      if(freeze === 'parry' && st.flags.teach === 'parry'){ b.t = Math.max(b.t, 0.12); return; }       // the lesson waits, his baton in the air
-      if(b.t > 0) return;
-      C.cue('swish');
-      if(d < 2.2 && R.iframe <= 0 && mode() !== 'act') hit(n.x, n.z, 'baton');
-      b.s = 'recover'; b.t = 0.9;
-    }
-    if(b.s === 'recover'){ b.t -= dt; if(b.t <= 0) b.s = 'close'; }
-  }
-  const pick = a => a[Math.floor(Math.random()*a.length)];
 
   /* ------------------------------------------------------------ knocked down */
   function hit(fx, fz, why){
@@ -653,9 +577,8 @@ window.TSHCHASE = (function(){
 
   /* =========================================================== the missiles */
   function canFire(p, mode){
-    if(freeze || C.me.hidden || R.cover || mode === 'act' || mode === 'grab') return false;
+    if(C.me.hidden || R.cover || mode === 'act' || mode === 'grab') return false;
     const s = sid();
-    if(s === 'cutoff') return false;
     if(s === 'run' && !st.flags.firstShot) return false;
     if((s === 'hide' || s === 'call') && clock - spottedT > 3) return false;
     return missiles.filter(m=>m.phase !== 'gone').length < CH().missile.live;
@@ -678,7 +601,7 @@ window.TSHCHASE = (function(){
     else { const l = AI().leadPoint(p, G.vel, false); at = V(l.x, C.groundAt(l.x, l.z, p.y + 1.2) + 0.9, l.z); }
     const m = makeMissile(src, at, air, air ? MS.airLock : MS.lock, 0, !(air || onWall));
     if(lesson) m.lesson = true;
-    if(!st.flags.saidAre && !lesson){ st.flags.saidAre = true; C.later(()=>{ if(on) C.talk('raidAre'); }, 1900); }
+    if(!st.flags.saidAre && !lesson){ st.flags.saidAre = true; C.later(()=>{ if(on && !fighting()) C.talk('raidAre'); }, 1900); }
     return m;
   }
   function makeMissile(src, at, air, lock, delay, flat){
@@ -716,14 +639,13 @@ window.TSHCHASE = (function(){
           if(m.air){ const l = AI().leadPoint(p, G.vel, true); m.at.set(l.x, l.y + 0.9, l.z); m.ring.position.copy(m.at); m.fill.position.copy(m.at); }
           m.rocket = mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.7, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(5, 3, 1.5) }), m.from.x, m.from.y, m.from.z);
           m.laser.visible = false; C.cue('launch');
-          if(m.lesson && freeze === 'ring') unslow();
         }
         return true;
       }
       if(m.phase === 'fly'){
         const k = Math.min(1, m.t/CH().missile.fly), pos = m.from.clone().lerp(m.at, k);
         m.rocket.position.copy(pos); m.rocket.lookAt(m.at); m.rocket.rotateX(Math.PI/2);
-        if(Math.random() < 0.8) C.particle(pos.clone(), { color:0xff9a4a, k:3, size:0.12, life:0.35, grow:0.6, op:0.8, v:V(0, 0.4, 0) });
+        if(Math.random() < 0.35) C.particle(pos.clone(), { color:0xff9a4a, k:3, size:0.12, life:0.35, grow:0.6, op:0.8, v:V(0, 0.4, 0) });
         if(k >= 1){ boom(m); killMissile(m); return false; }
         return true;
       }
@@ -742,8 +664,8 @@ window.TSHCHASE = (function(){
     const p = C.P(), d = Math.hypot(at.x - p.x, at.y - p.y, at.z - p.z);
     C.cue('boom');
     if(d < 30){ C.flash(Math.max(0, 0.4 - d*0.012)); C.shake(Math.max(0.05, 0.6 - d*0.02), 0.45); }
-    for(let i = 0; i < (far ? 16 : 26); i++) C.particle(at.clone(), { color:i % 3 ? 0xff7a2a : 0xffd27a, k:4, size:0.14, life:0.55, grow:0.5, v:V(rnd(-7, 7), rnd(1, 8), rnd(-7, 7)), grav:9 });
-    for(let i = 0; i < 10; i++) C.particle(at.clone().add(V(rnd(-1, 1), 0.3, rnd(-1, 1))), { color:0x4a4a4a, k:0.4, op:0.35, size:0.5, grow:1.6, life:2.2, v:V(rnd(-0.6, 0.6), rnd(1, 2), rnd(-0.6, 0.6)) });
+    for(let i = 0; i < (far ? 10 : 18); i++) C.particle(at.clone(), { color:i % 3 ? 0xff7a2a : 0xffd27a, k:4, size:0.14, life:0.55, grow:0.5, v:V(rnd(-7, 7), rnd(1, 8), rnd(-7, 7)), grav:9 });
+    for(let i = 0; i < 6; i++) C.particle(at.clone().add(V(rnd(-1, 1), 0.3, rnd(-1, 1))), { color:0x4a4a4a, k:0.4, op:0.35, size:0.5, grow:1.6, life:2.2, v:V(rnd(-0.6, 0.6), rnd(1, 2), rnd(-0.6, 0.6)) });
     C.ring(V(at.x, at.y - 0.8, at.z), 4, 0xff7a3a);
   }
 
@@ -753,7 +675,7 @@ window.TSHCHASE = (function(){
      seen. Later, a strafing run: a line of rings across her roof that go
      off one after the other, and a gap in it somewhere. When the heat is
      gone, so is it. */
-  function tickGun(dt, p){
+  function tickGun(dt, p, idle){
     if(!gun) return;
     const g = gun; g.t += dt;
     g.rot.forEach((r, i)=>{ if(i) r.rotation.x += dt*40; else r.rotation.z += dt*30; });
@@ -790,12 +712,12 @@ window.TSHCHASE = (function(){
       // a sweep passing over her is not a sighting: the light has to stay on her a moment
       const inPool = Math.hypot(p.x - L.x, p.z - L.z) < L.r && Math.abs(p.y - L.y) < 3;
       const h_ = C.me.crouch ? 0.6 : 1.3;
-      const lit = inPool && !C.me.hidden && C.los(g.x, g.y - 1.6, g.z, p.x, p.y + h_, p.z);
+      const lit = !idle && inPool && !C.me.hidden && C.los(g.x, g.y - 1.6, g.z, p.x, p.y + h_, p.z);
       g.dwell = lit ? Math.min(1, (g.dwell || 0) + dt) : Math.max(0, (g.dwell || 0) - dt*2);
       if(g.dwell > (seenNow ? 0 : 0.6)) spotted('light');
     }
     // the strafing run, in the last stage
-    if(sid() === 'home' && !g.leave && heat > 0){
+    if(!idle && sid() === 'home' && !g.leave && heat > 0){
       strafeT -= dt;
       if(strafeT <= 0 && !R.cover && !C.me.hidden && clock - spottedT < 4){ strafeT = rnd(...CH().strafe.every); strafe(p); }
     }
@@ -862,11 +784,6 @@ window.TSHCHASE = (function(){
   }
   function rotorLevel(g){ if(!rot || !C.audio()) return; const d = Math.hypot(g.x - G.pos.x, g.y - G.pos.y, g.z - G.pos.z); rot.g.gain.setTargetAtTime(Math.max(0, 0.32 - d*0.004), C.audio().currentTime, 0.3); }
 
-  /* ------------------------------------------------------------ slow motion
-     A lesson waits in slow motion for its key, as the fight's do. */
-  function slowFor(why, k){ freeze = why; G.timeScale = k; }
-  function unslow(){ freeze = null; G.timeScale = 1; if(C) C.card(null); }
-
   /* where the hunters want to be: either side of her and above, or circling where she was */
   function hunterGoal(n){
     const p = C.P();
@@ -879,10 +796,11 @@ window.TSHCHASE = (function(){
   function key(e){
     if(!on) return false;
     const c = e.code, m = mode();
-    if(m === 'act' || m === 'down') return ['Space', 'KeyE', 'KeyG', 'KeyF', 'KeyK', 'KeyR', 'KeyJ', 'KeyQ'].includes(c);
+    if(m === 'act') return ['Space', 'KeyE', 'KeyG', 'KeyF', 'KeyJ', 'KeyQ'].includes(c);
     if(m === 'cover'){
-      if((c === 'KeyE' || c === 'Space') && !e.repeat){ if(c === 'Space') G.keys.Space = false; leaveCover(); if(st.flags.found) next(); return true; }
-      if(c === 'KeyK' && !e.repeat){ leaveCover(); strike(); return true; }
+      // the phone ringing while she hides: E answers it, and she stays down
+      if(c === 'KeyE' && !e.repeat && sid() === 'call' && !st.flags.answered){ answer(); return true; }
+      if((c === 'KeyE' || c === 'Space') && !e.repeat){ if(c === 'Space') G.keys.Space = false; leaveCover(); return true; }
       if(c === 'KeyJ' || c === 'KeyH' || c === 'KeyI' || c === 'KeyP' || c === 'Escape') return false;          // the studs work from behind a box
       if(c === 'KeyF') return false;
       return ['KeyQ', 'KeyG'].includes(c);
@@ -893,48 +811,36 @@ window.TSHCHASE = (function(){
     if(c === 'Space' && !e.repeat){
       const pk = parkour();
       if(pk){ G.keys.Space = false; if(pk.kind === 'vault') vault(pk.v); else slide(); return true; }
-      if(st.flags.found && sid() === 'call'){ unslow(); next(); return false; }      // bolt: the shoes take it from here
       if(st.i < AI().stageAt('roofs')){ G.keys.Space = false; if(coldNoteT <= 0){ coldNoteT = 4; C.note('👟 The shoes are still cold from the fight.', 'warn'); } return true; }
     }
-    if(c === 'KeyK' && !e.repeat){ strike(); return true; }
-    if(c === 'KeyR' && !e.repeat){ parry(); return true; }
-    if(c === 'KeyG' && !e.repeat && !C.wallNear() && pull()) return true;
     return false;
-  }
-  function mouse(e){
-    if(!on || e.button === undefined) return;
-    if(mode() === 'cover' && e.button === 0 && st.flags.found){ leaveCover(); strike(); return; }
-    if(mode() !== null) return;
-    if(e.button === 0) strike();
-    if(e.button === 2){ e.preventDefault && e.preventDefault(); parry(); }
   }
   /* what to show over the keys, here */
   function prompt(){
     if(!on) return null;
     const m = mode();
-    if(m === 'cover') return st.flags.found ? '<kbd>Click</kbd><span>take him down</span><kbd>Space</kbd><span>bolt</span>' : '<kbd>WASD</kbd><span>🧱 round it</span><kbd>E</kbd><span>up</span>';
     if(sid() === 'call' && !st.flags.answered) return '<kbd>E</kbd><span>📱 Answer — it\'s loud</span>';
+    if(m === 'cover') return '<kbd>WASD</kbd><span>🧱 round it</span><kbd>E</kbd><span>up</span>';
     if(m !== null) return null;
     const pk = parkour();
     if(pk) return pk.kind === 'vault' ? '<kbd>Space</kbd><span>Vault</span>' : '<kbd>Space</kbd><span>Slide under</span>';
-    const t = officers().find(n=>inFront(n, 2.5, 1.15));
-    if(t) return t.brawl && t.brawl.s === 'wind' ? '<kbd>Right-click</kbd><span>parry</span>' : '<kbd>Click</kbd><span>hit</span>';
     return null;
   }
   function marker(){
     const s = sid();
     if(s === 'run') return [ROUTE.runDone + 1, -8, 2.4, 'East'];
-    if(s === 'cutoff') return [-22.5, -14, 2.4, 'Into the gap'];
+    if(s === 'wall' && !st.flags.barrierDown) return [-22.5, -14, 2.4, 'Into the gap'];
     if(s === 'wall') return [-17, -25, 12.5, 'The roof'];
-    if(s === 'roofs') return [ROUTE.gate.x + 3, (ROUTE.gate.z1 + ROUTE.gate.z2)/2, 14, 'East'];
+    if(s === 'roofs') return [42, -27, 14, 'East'];
     if(s === 'hide') return R.cover ? null : [ROUTE.ac.x, ROUTE.ac.z, 15, 'Cover'];
     if(s === 'home') return [ROUTE.home.at[0], ROUTE.home.at[1], 13.5, 'Home'];
     return null;
   }
 
   function vans(){ return st.vans || []; }
-  return { build, vans, start, stop, tick, key, mouse, prompt, marker, brawl, circle, hunterGoal, tickAct, tickCover, ROUTE,
-           get on(){ return on; }, get stage(){ return sid(); }, get i(){ return st.i; }, get cover(){ return R.cover; },
+  return { build, vans, start, stop, tick, key, prompt, marker, circle, hunterGoal, tickAct, tickCover, ROUTE,
+           get on(){ return on; }, get stage(){ return sid(); }, get i(){ return st.i; }, get cover(){ return R.cover; }, get fighting(){ return on && fighting(); },
+           get cop(){ return st.cop; }, get van(){ return st.van; }, get gun(){ return gun; },
            /* for tests and the console */
            _go:go, _fire:fire, _missiles:()=>missiles, _gun:()=>gun, _hits:()=>hits, _st:st, _parkour:parkour, _found:found, _answer:answer, perimAt, perim };
 })();

@@ -437,16 +437,17 @@ function chase(){
   return ctx;
 }
 
-test('the chase teaches itself in the order the script has it', () => {
+test('the chase is a chase: she runs, in the order the script has it, and is cornered three times', () => {
   const A = rules(), CH = A.CHASE;
-  assert.deepEqual(CH.stages.map(s=>s.id), ['run', 'cutoff', 'wall', 'roofs', 'hide', 'call', 'home']);
+  assert.deepEqual(CH.stages.map(s=>s.id), ['run', 'van', 'wall', 'roofs', 'rappel', 'hide', 'call', 'found', 'home']);
+  assert.deepEqual(CH.stages.filter(s=>s.fight).map(s=>s.fight), [1, 2, 3], 'three fights, no more');
   CH.stages.forEach(s=>assert.ok(s.title && s.how.length > 20, s.id + ' says what to do'));
   assert.ok(CH.stages.slice(0, A.stageAt('roofs')).every(s=>s.floor >= 3), 'nobody calls off the chase while it is teaching you to run');
   assert.equal(CH.stages[A.stageAt('home')].floor, 0, 'the last stretch is lost by hiding');
   const t = read('public/tsh.js'), c = read('public/tshchase.js');
   has(t, /scene\('raid', raidIntro\)/, 'stepping out of the alley plays the billboard');
   has(t, /TSHCHASE\.start\(chaseCtx\(\), i \|\| 0, drone\)/, 'and then the chase is yours');
-  has(c, /shoes\(true\)[\s\S]{0,40}\n[\s\S]*roofs\(\)\{\s*shoes\(false\)/, 'the shoes are cold until the roofs');
+  has(c, /shoes\(true\)[\s\S]*roofs\(\)\{\s*shoes\(false\)/, 'the shoes are cold until the roofs');
   has(c, /C\.ringing\(true\)[\s\S]{0,80}'MOM'/, 'the phone rings, and it is Mom');
   has(t, /if\(S\.step === 'raid'\) return raidCaught\(\);/, 'caught in the chase is the stage again, not a booking');
   const i = read('public/index.html');
@@ -471,7 +472,7 @@ test('the missiles are fair: telegraphed, aimed at a ring, never more than two',
   const dive = { x:10*M.fly*0.7, y:10 - 20*M.fly };
   assert.ok(!A.blastHits({ x:lead.x, y:lead.y + 0.9, z:0 }, { x:dive.x, y:dive.y, z:0 }), 'a dive takes her out of a lock');
   const c = read('public/tshchase.js');
-  has(c, /if\(freeze \|\| C\.me\.hidden \|\| R\.cover/, 'nobody fires at her while she is hidden');
+  has(c, /if\(C\.me\.hidden \|\| R\.cover/, 'nobody fires at her while she is hidden');
   has(c, /const gapAt = Math\.floor\(Math\.random\(\)\*S_\.rings\);/, 'a strafing run always leaves a gap');
 });
 
@@ -515,4 +516,23 @@ test('home, 3 AM, and the binoculars: the prologue ends the way it was written',
   const clips = f => { const b = fs.readFileSync(path.join(__dirname, '..', 'public', f)); return (JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8')).animations || []).map(a => a.name); };
   const hers = clips('characters/fight/robin.glb').concat(clips('characters/models/character-robin.glb'));
   ['kneel', 'text', 'idle', 'jump', 'roll', 'block', 'stagger', 'jab', 'cross', 'hook'].forEach(n=>assert.ok(hers.includes(n), 'Robin has no ' + n + ' clip'));
+});
+
+test('the three fights: each one the alley\'s fight in uniform, each opened by a short film that ends on GET READY', () => {
+  const t = read('public/tsh.js'), c = read('public/tshchase.js'), f = read('public/tshfight.js');
+  // nothing in the chase slows the world down, and her hands are only hers in a fight
+  hasNot(c, /G\.timeScale/, 'no slow motion in the chase');
+  hasNot(c, /function (strike|parry|pull|brawl)\(/, 'no fighting on the run');
+  ['van', 'rappel', 'found'].forEach((id, i)=>has(c, new RegExp(id + '\\(\\)\\{[\\s\\S]{0,500}C\\.fight\\(' + (i + 1)), id + ' is fight ' + (i + 1)));
+  // the fight engine takes a place of its own and a straight fight with no lessons
+  has(f, /ARENA = c\.arena \|\| ALLEY; FLOOR = c\.floor \|\| 0;/, 'an arena and a floor of its own (a roof is 13 m up)');
+  has(f, /steps:ctx\.script === 'brawl' \? BRAWL : STEPS/, 'and no lessons');
+  hasNot(f.slice(f.indexOf('const BRAWL'), f.indexOf('function pick(')), /freeze\(/, 'nobody frozen in a straight fight');
+  // each film: about ten seconds, the last shot GET READY over her gauntlets, then the fight
+  has(t, /function raidFight\(n, done\)/);
+  has(t, /readyCard\(n, true\)/, 'GET READY, and the keys');
+  has(t, /playReel\(shots, \(\)=>raidFightBegin\(n, R0, ry, fctx\)/, 'the film, then the fight');
+  has(t, /dressCrew:\(e, m\)=>uniform\(m\)/, 'WFC in uniform');
+  const films = t.slice(t.indexOf('function raidFight('), t.indexOf('function raidFightBegin('));
+  ['raidVan', 'raidFine', 'raidDrop', 'raidOkay', 'raidHands', 'raidPass', 'momFound'].forEach(k=>assert.ok(films.includes("talk('" + k + "')") && t.includes('    ' + k + ':'), k));
 });
