@@ -427,8 +427,11 @@ window.AVATAR = (function(){
         if(!loco.on){
           if(cur) cur.fadeOut(0.18);
           cur=null; curName='__loco'; loco.on=true;
-          // the blend sets each clip's time itself: one play() ran at its own speed must not run on top of that
-          for(const n in loco.act) loco.act[n].timeScale=0;
+          /* the blend sets each clip's time itself: one play() ran at its own speed must not run on top of that.
+             AND EACH ONE BACK ON. A cutscene that walked her and then cut to a stand faded its walk to nothing,
+             and three.js switches off an action whose fade-out finishes — the same action this blend drives —
+             so the blend set weights on a walk that was off, and she slid about in the bind pose. */
+          for(const n in loco.act){ const a=loco.act[n]; a.stopFading(); a.enabled=true; a.timeScale=0; if(!a.isRunning()) a.play(); }
         }
         let len=Math.hypot(x,z);
         if(len<1e-6){ x=0; z=1; len=1; }             // moved by something other than the keys
