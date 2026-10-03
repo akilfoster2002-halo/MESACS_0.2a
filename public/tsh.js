@@ -5507,7 +5507,7 @@ window.TSH = (function(){
            _place:(x, z, yaw, y)=>{ placePlayer(x, z, yaw, y); if(typeof thirdPerson === 'function') for(let i=0;i<40;i++) thirdPerson(); },
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
-                  homeDoor, aptExit, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
+                  homeDoor, aptExit, title, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
                   raidIntro, raidGo, raidHome, raidFight, nightScene, get chase(){ return window.TSHCHASE; },
