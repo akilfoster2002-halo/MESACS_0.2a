@@ -2608,13 +2608,16 @@ window.PLANET = (function(){
     x.fillStyle='#050b0a'; x.fillRect(0,0,512,200); x.textAlign='center'; x.textBaseline='alphabetic';
     x.fillStyle='#f7d117'; x.fillRect(36,14,440,104);
     const QUEST_TITLE = 'ROBIN RYU';     // the quest's name on its door (a title, not anybody speaking)
-    const word = y0 => { x.font='86px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'; x.fillStyle='#0b0b0b'; x.fillText(QUEST_TITLE, 256, y0); };
+    const word = y0 => { x.font='62px "Dela Gothic One", Impact, sans-serif'; x.fillStyle='#0b0b0b'; x.fillText(QUEST_TITLE, 256, y0 - 8); };
     const cut = (top, dx, dy) => { x.save(); x.beginPath(); if(top){ x.moveTo(36,14); x.lineTo(476,14); x.lineTo(476,52); x.lineTo(36,84); } else { x.moveTo(36,84); x.lineTo(476,52); x.lineTo(476,118); x.lineTo(36,118); } x.closePath(); x.clip(); x.translate(dx, dy); word(100); x.restore(); };
     cut(true, -3, -2); cut(false, 3, 2);
     x.strokeStyle='#ffffff'; x.lineWidth=4; x.shadowColor='#fff'; x.shadowBlur=10; x.beginPath(); x.moveTo(24, 86); x.lineTo(488, 50); x.stroke(); x.shadowBlur=0;
     x.font='bold 24px '+uiFont(); x.fillStyle='#f7d117'; x.fillText('WRITTEN BY GEORGE WANG', 256, 154);
     x.font='19px '+uiFont(); x.fillStyle='#e8e6d8'; x.fillText('A QUEST · ONE NIGHT IN THE CITY', 256, 184);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+    // the title's font may still be on its way: once it is in, the letters again
+    if(document.fonts && !document.fonts.check('62px "Dela Gothic One"')) document.fonts.load('62px "Dela Gothic One"').then(()=>{ x.fillStyle='#f7d117'; x.fillRect(36,14,440,104); cut(true, -3, -2); cut(false, 3, 2);
+      x.strokeStyle='#ffffff'; x.lineWidth=4; x.shadowColor='#fff'; x.shadowBlur=10; x.beginPath(); x.moveTo(24, 86); x.lineTo(488, 50); x.stroke(); x.shadowBlur=0; tex.needsUpdate=true; }).catch(()=>{});
     const sg=new THREE.Mesh(new THREE.PlaneGeometry(6.4,2.5), new THREE.MeshBasicMaterial({ map:tex, side:THREE.DoubleSide }));
     sg.position.y=9.0; g.add(sg);
     const hit=new THREE.Mesh(new THREE.BoxGeometry(6,7,1.5), new THREE.MeshBasicMaterial({ visible:false }));

@@ -2960,48 +2960,58 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 @media (max-width:640px){#tsh .tsh-mute{right:auto;left:16px;top:auto;bottom:16px}}
 /* a panel (the results after END OF PROLOGUE, the pause card) is always over the black it opens on — the black took its clicks */
 #tsh .tsh-panel{z-index:6}
-/* ===== ROBIN RYU — the title, after KILL BILL: black capitals on a yellow band, cut through by a slash =====
-   IN: the band wipes in from the left; the letters slam down onto it (big, blurred, then sharp); a white slash
-   streaks across them and the two halves of every letter slip apart along the cut; the credits come up.
-   OUT: the halves fly off along the cut (the top up and left, the bottom down and right) and the band wipes away. */
-.rr-mark{--rrY:#f7d117;--rrK:#0b0b0b;position:relative;display:inline-block;padding:.12em .42em .08em;line-height:.9}
-.rr-mark .rr-band{position:absolute;inset:0;background:var(--rrY);transform-origin:left center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-.rr-mark .rr-word{position:relative;display:block;font:400 1em/1 Impact,'Haettenschweiler','Arial Narrow Bold','Anton',sans-serif;letter-spacing:.02em;color:var(--rrK);white-space:nowrap;text-transform:uppercase}
-.rr-mark .rr-half{display:block}
-.rr-mark .rr-top{clip-path:polygon(0 0,100% 0,100% 15%,0 85%)}
-.rr-mark .rr-bot{position:absolute;inset:0;clip-path:polygon(0 85%,100% 15%,100% 100%,0 100%)}
-/* the slash runs along the very line the letters are cut on (0,85%)→(100%,15%), a little past each end */
-.rr-mark .rr-slash{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.rr-mark .rr-slash line{stroke:#fff;stroke-width:.05em;vector-effect:non-scaling-stroke;stroke-linecap:round;filter:drop-shadow(0 0 .08em #fff) drop-shadow(0 0 .25em rgba(255,255,255,.6));stroke-dasharray:1;stroke-dashoffset:0}
+/* ===== ROBIN RYU — the title: 3-D yellow capitals that spin into place letter by letter, then a slash =====
+   Each letter is a stack of ten layers, a face and nine behind it stepping back into the screen, darker as
+   they go (gold to bronze) — real depth in CSS 3-D, so as a letter turns you see its sides. Each layer is two
+   halves, above and below the one diagonal cut through the whole word (fitted per letter by tsh.js rrFit).
+   IN: letter by letter they come spinning out of the dark, end over end, and land; the word shudders; a white
+   slash tears along the cut with a flash and every letter splits on it; a glint crosses the faces.
+   OUT: letter by letter, the top halves are thrown up and right and the bottom halves down and left, tumbling. */
+.rr-mark{--rrY:#f7d117;position:relative;display:inline-block;line-height:1;padding:.04em .12em}
+.rr-mark{perspective:9em}
+.rr-mark .rr-word{position:relative;display:block;font:400 1em/1.02 'Dela Gothic One',Impact,'Arial Black',sans-serif;letter-spacing:.01em;white-space:nowrap;text-transform:uppercase;transform-style:preserve-3d;transform:var(--tilt)}
+.rr-mark{--tilt:rotateX(20deg) rotateY(-26deg)}
+.rr-mark .rr-l{position:relative;display:inline-block;transform-style:preserve-3d}
+.rr-mark .rr-sp{display:inline-block;width:.26em}
+.rr-mark .rr-half{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.rr-mark .rr-half.rr-t{position:relative;display:block}
+.rr-mark .rr-z{position:absolute;left:0;top:0;display:block;color:var(--c);transform:translateZ(calc(var(--k)*-.032em))}
+.rr-mark .rr-z.rr-f{position:relative;color:transparent;background:linear-gradient(105deg,var(--rrY) 0%,var(--rrY) 42%,#fffbe0 50%,var(--rrY) 58%,var(--rrY) 100%) 120% 0/300% 100% no-repeat;-webkit-background-clip:text;background-clip:text;transform:translateZ(.001em)}
+.rr-mark .rr-slash{position:absolute;height:0;transform-origin:0 0;pointer-events:none}
+.rr-mark .rr-slash b{position:absolute;left:0;top:-.022em;width:100%;height:.044em;border-radius:.03em;transform-origin:left center;transform:translateZ(.2em);
+  background:linear-gradient(90deg,rgba(255,255,255,0),#fff 12%,#fff 88%,rgba(255,255,255,0));box-shadow:0 0 .07em #fff,0 0 .25em rgba(255,240,200,.8)}
+.rr-mark.static .rr-l{transform:rotateY(-14deg) rotateX(6deg)}
+.rr-mark.static .rr-t{transform:translate(.06em,-.026em)}
+.rr-mark.static .rr-b{transform:translate(-.06em,.026em)}
 /* the title card */
-#tsh .tsh-title.rr{background:radial-gradient(ellipse at center,rgba(0,0,0,.65),rgba(0,0,0,.25) 70%);opacity:1;pointer-events:none;visibility:hidden}
+#tsh .tsh-title.rr{z-index:8;background:radial-gradient(ellipse at center,rgba(0,0,0,.72),rgba(0,0,0,.3) 75%);opacity:1;pointer-events:none;visibility:hidden}
 #tsh .tsh-title.rr.on{animation:none;visibility:visible}
-#tsh .tsh-title.rr .rr-mark{font-size:min(15vw,150px)}
-#tsh .tsh-title.rr .rr-sub{margin-top:22px;font:700 17px var(--font-disp);letter-spacing:.42em;color:#f7d117;opacity:0;text-shadow:0 2px 8px #000}
-#tsh .tsh-title.rr .rr-sub2{margin-top:8px;font:13px var(--font);letter-spacing:.32em;color:#e8e6d8;opacity:0}
-#tsh .tsh-title.rr.on .rr-band{animation:rrBandIn .38s cubic-bezier(.7,0,.3,1) both,rrBandOut .45s cubic-bezier(.7,0,.3,1) 4.65s forwards}
-#tsh .tsh-title.rr.on .rr-word{animation:rrSlam .42s cubic-bezier(.2,1.4,.4,1) .22s both}
-#tsh .tsh-title.rr.on .rr-top{animation:rrTopCut .25s ease-out 1.0s both,rrTopOut .55s cubic-bezier(.6,0,.9,.4) 4.3s forwards}
-#tsh .tsh-title.rr.on .rr-bot{animation:rrBotCut .25s ease-out 1.0s both,rrBotOut .55s cubic-bezier(.6,0,.9,.4) 4.3s forwards}
-#tsh .tsh-title.rr.on .rr-slash line{animation:rrSlash .26s cubic-bezier(.8,0,.2,1) .78s both}
-#tsh .tsh-title.rr.on .rr-slash{animation:rrFade .3s ease 4.25s forwards}
-#tsh .tsh-title.rr.on .rr-sub{animation:rrUp .5s ease 1.35s both,rrFade .35s ease 4.25s forwards}
-#tsh .tsh-title.rr.on .rr-sub2{animation:rrUp .5s ease 1.6s both,rrFade .35s ease 4.25s forwards}
-#tsh .tsh-title.rr.on::after{content:'';position:absolute;inset:0;background:#fff;opacity:0;animation:rrFlash .35s ease-out .8s both}
-#tsh .tsh-title.rr.on{animation:rrOut .4s ease 5.0s forwards}
-@keyframes rrBandIn{0%{transform:scaleX(0) skewX(-14deg)}100%{transform:scaleX(1) skewX(0)}}
-@keyframes rrBandOut{0%{transform:scaleX(1);transform-origin:right center}100%{transform:scaleX(0);transform-origin:right center}}
-@keyframes rrSlam{0%{transform:scale(1.9);filter:blur(10px);opacity:0}70%{opacity:1}100%{transform:scale(1);filter:blur(0);opacity:1}}
-@keyframes rrSlash{0%{stroke-dashoffset:1}100%{stroke-dashoffset:0}}
-@keyframes rrTopCut{0%{transform:translate(0,0)}100%{transform:translate(.07em,-.03em)}}
-@keyframes rrBotCut{0%{transform:translate(0,0)}100%{transform:translate(-.07em,.03em)}}
-@keyframes rrTopOut{0%{transform:translate(.07em,-.03em);opacity:1}100%{transform:translate(2.2em,-.5em);opacity:0}}
-@keyframes rrBotOut{0%{transform:translate(-.07em,.03em);opacity:1}100%{transform:translate(-2.2em,.5em);opacity:0}}
-@keyframes rrUp{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
+#tsh .tsh-title.rr .rr-mark{font-size:min(11.5vw,128px)}
+#tsh .tsh-title.rr .rr-sub{margin-top:26px;font:700 17px var(--font-disp);letter-spacing:.46em;color:#f7d117;opacity:0;text-shadow:0 2px 10px #000}
+#tsh .tsh-title.rr .rr-sub2{margin-top:9px;font:13px var(--font);letter-spacing:.34em;color:#e8e6d8;opacity:0}
+#tsh .tsh-title.rr.on .rr-l{animation:rrSpin .85s cubic-bezier(.2,1.25,.35,1) calc(var(--i)*.11s) both}
+#tsh .tsh-title.rr.on .rr-word{animation:rrShake .34s linear calc(var(--n)*.11s + .72s) both}
+#tsh .tsh-title.rr.on .rr-t{animation:rrTopCut .22s cubic-bezier(.2,1.6,.4,1) calc(var(--n)*.11s + 1.14s) both,rrTopOut .75s cubic-bezier(.55,0,.9,.35) calc(4.65s + var(--i)*.05s) forwards}
+#tsh .tsh-title.rr.on .rr-b{animation:rrBotCut .22s cubic-bezier(.2,1.6,.4,1) calc(var(--n)*.11s + 1.14s) both,rrBotOut .75s cubic-bezier(.55,0,.9,.35) calc(4.65s + var(--i)*.05s) forwards}
+#tsh .tsh-title.rr.on .rr-f{animation:rrGlint 1.1s ease-in-out calc(var(--n)*.11s + 1.6s) both}
+#tsh .tsh-title.rr.on .rr-slash b{animation:rrSlash .2s cubic-bezier(.9,0,.3,1) calc(var(--n)*.11s + .95s) both,rrBurn .5s ease-in 4.6s forwards}
+#tsh .tsh-title.rr.on .rr-sub{animation:rrUp .55s cubic-bezier(.2,1,.3,1) calc(var(--n)*.11s + 1.3s) both,rrFade .35s ease 4.6s forwards}
+#tsh .tsh-title.rr.on .rr-sub2{animation:rrUp .55s cubic-bezier(.2,1,.3,1) calc(var(--n)*.11s + 1.5s) both,rrFade .35s ease 4.6s forwards}
+#tsh .tsh-title.rr.on::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#fff,rgba(255,250,230,.4) 40%,transparent 70%);opacity:0;animation:rrFlash .45s ease-out calc(9*.11s + .97s) both}
+#tsh .tsh-title.rr.on{animation:rrOut .45s ease 5.5s forwards}
+@keyframes rrSpin{0%{transform:translate3d(var(--dx),var(--dy),-6em) rotateY(var(--ry)) rotateX(var(--rx)) rotateZ(var(--r));opacity:0}
+  25%{opacity:1}100%{transform:none;opacity:1}}
+@keyframes rrShake{0%,100%{transform:var(--tilt)}15%{transform:var(--tilt) translate(-.02em,.015em) rotate(-.4deg)}30%{transform:var(--tilt) translate(.025em,-.01em) rotate(.3deg)}50%{transform:var(--tilt) translate(-.012em,.008em)}70%{transform:var(--tilt) translate(.008em,-.006em)}}
+@keyframes rrSlash{0%{transform:translateZ(.2em) scaleX(0)}100%{transform:translateZ(.2em) scaleX(1)}}
+@keyframes rrBurn{0%{opacity:1;transform:translateZ(.2em) scaleY(1)}40%{opacity:1;transform:translateZ(.2em) scaleY(2.2)}100%{opacity:0;transform:translateZ(.2em) scaleY(0)}}
+@keyframes rrTopCut{0%{transform:none}100%{transform:translate(.06em,-.026em)}}
+@keyframes rrBotCut{0%{transform:none}100%{transform:translate(-.06em,.026em)}}
+@keyframes rrTopOut{0%{transform:translate(.06em,-.026em);opacity:1}100%{transform:translate3d(1.9em,-1.1em,2em) rotateX(var(--rt)) rotateZ(25deg);opacity:0}}
+@keyframes rrBotOut{0%{transform:translate(-.06em,.026em);opacity:1}100%{transform:translate3d(-1.9em,1.1em,2em) rotateX(var(--rb)) rotateZ(-25deg);opacity:0}}
+@keyframes rrGlint{0%{background-position:120% 0}100%{background-position:-20% 0}}
+@keyframes rrUp{0%{opacity:0;transform:translateY(14px);letter-spacing:.8em}100%{opacity:1;transform:none}}
 @keyframes rrFade{to{opacity:0}}
-@keyframes rrFlash{0%{opacity:.55}100%{opacity:0}}
+@keyframes rrFlash{0%{opacity:0}2%{opacity:.75}100%{opacity:0}}
 @keyframes rrOut{to{opacity:0}}
 /* on the results */
-#tsh .tsh-res .rr-mark{font-size:68px;margin:0 auto 4px;display:table}
-#tsh .tsh-res .rr-mark .rr-top{transform:translate(.07em,-.03em)}
-#tsh .tsh-res .rr-mark .rr-bot{transform:translate(-.07em,.03em)}
+#tsh .tsh-res .rr-mark{font-size:54px;margin:0 auto 6px;display:table}

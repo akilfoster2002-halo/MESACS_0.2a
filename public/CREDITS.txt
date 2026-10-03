@@ -10,3 +10,6 @@ Robin's facial expressions (TSH)
 Also used, no credit required (CC0)
   Kenney — Blocky Characters, Building Kit, Impact Sounds, Sci-fi Sounds,
   Interface Sounds (kenney.nl)
+
+Dela Gothic One (public/fonts/delagothicone-400.woff2), by artakana — ROBIN RYU's title.
+  SIL Open Font License 1.1. https://fonts.google.com/specimen/Dela+Gothic+One

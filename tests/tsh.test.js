@@ -743,9 +743,13 @@ test('the title is ROBIN RYU, after KILL BILL: yellow band, black capitals, a sl
   const t = read('public/tsh.js'), css = read('public/app.css'), p = read('public/planet.js');
   has(t, /title\(\)\{[\s\S]{0,200}rrMark\('ROBIN RYU'\)/, 'the title card says ROBIN RYU');
   hasNot(t, /<div class="tsh-t1">TSH<\/div>|<div class="tsh-res-t">TSH<\/div>/, 'and TSH is gone from the screen');
-  has(css, /\.rr-mark \.rr-band\{[^}]*background:var\(--rrY\)/, 'a yellow band');
-  has(css, /\.rr-mark \.rr-top\{clip-path:polygon\(0 0,100% 0,100% 15%,0 85%\)\}/, 'the letters cut on a slash');
-  has(t, /<line x1="-6" y1="89\.2" x2="106" y2="10\.8"/, 'and the slash drawn along that very cut');
-  ['rrBandIn', 'rrSlam', 'rrSlash', 'rrTopOut', 'rrBotOut', 'rrBandOut'].forEach(k => has(css, new RegExp('@keyframes ' + k), 'animated: ' + k));
+  hasNot(css, /\.rr-band/, 'no box behind it: letters');
+  has(css, /\.rr-mark \.rr-z\.rr-f\{[^}]*background:linear-gradient\(105deg,var\(--rrY\)/, 'yellow letters, with a glint to run across them');
+  has(t, /const DEPTH = 10/, 'in 3-D: each a stack of layers stepping back into the screen');
+  has(css, /\.rr-mark \.rr-l\{[^}]*transform-style:preserve-3d/, 'turned in real 3-D');
+  has(t, /y0 = 85 - 70\*x0, y1 = 85 - 70\*x1/, 'every letter cut on the one slash through the word');
+  has(t, /const ax = -0\.04\*W, ay = 0\.878\*Hh, bx = 1\.04\*W, by = 0\.122\*Hh;/, 'and the slash drawn along that very cut');
+  has(t, /--ry:\$\{/, 'each letter spins in on its own');
+  ['rrSpin', 'rrShake', 'rrSlash', 'rrTopCut', 'rrGlint', 'rrTopOut', 'rrBotOut', 'rrBurn'].forEach(k => has(css, new RegExp('@keyframes ' + k), 'animated: ' + k));
   has(p, /label:'ROBIN RYU — written by George Wang'/, 'and the door in Wano says so too');
 });

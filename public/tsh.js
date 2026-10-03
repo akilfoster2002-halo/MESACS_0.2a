@@ -4464,6 +4464,7 @@ window.TSH = (function(){
         if(act === 'wano'){ closePanel(); leave(); }
         if(act === 'day') startDay();
       }, true);
+    requestAnimationFrame(()=>rrFit(el.querySelector('.tsh-pb')));      // the results' title, cut on its slash
   }
 
   /* ----------------------------------------------------- quest events
@@ -5239,15 +5240,41 @@ window.TSH = (function(){
   /* ROBIN RYU, after KILL BILL's title: black capitals on a yellow band, a slash through them (app.css .rr-mark).
      The card animates in (the band, the letters slamming down, the slash and the cut) and out (the halves flying
      off along the cut); the same mark, standing still, heads the results. */
-  const rrMark = (word, cls) => `<span class="rr-mark ${cls || ''}"><span class="rr-band"></span><span class="rr-word"><span class="rr-half rr-top">${word}</span><span class="rr-half rr-bot" aria-hidden="true">${word}</span><svg class="rr-slash" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="-6" y1="89.2" x2="106" y2="10.8" pathLength="1"/></svg></span></span>`;
+  /* each letter its own, with a direction to fly in from and a spin to fly out with */
+  function rrMark(word, cls){
+    const chars = [...word], n = chars.filter(c=>c !== ' ').length; let i = 0;
+    const r = (a, b) => (a + Math.random()*(b - a)).toFixed(2);
+    const DEPTH = 10, shade = k => { const t = k/(DEPTH - 1); return `rgb(${Math.round(222 - 120*t)},${Math.round(160 - 100*t)},${Math.round(10 + 6*t)})`; };
+    // a half: its face and the nine layers behind it
+    const half = (c, cls_) => `<span class="rr-half ${cls_}">` + Array.from({ length:DEPTH }, (_, k)=>`<span class="rr-z" style="--k:${DEPTH - k};--c:${shade(DEPTH - 1 - k)}">${c}</span>`).join('') + `<span class="rr-z rr-f">${c}</span></span>`;
+    const letters = chars.map(c=>{
+      if(c === ' ') return '<span class="rr-sp"></span>';
+      const k = i++, side = k % 2 ? 1 : -1;
+      const v = `--i:${k};--side:${side};--dx:${r(0.4, 1.4)*side}em;--dy:${r(-1.2, -0.3)}em;--ry:${(side*r(360, 720))}deg;--rx:${r(-200, 200)}deg;--r:${r(-30, 30)}deg;--rt:${r(120, 300)}deg;--rb:${r(-300, -120)}deg`;
+      return `<span class="rr-l" style="${v}">${half(c, 'rr-t')}${half(c, 'rr-b')}</span>`;
+    }).join('');
+    return `<span class="rr-mark ${cls || ''}"><span class="rr-word" style="--n:${n}">${letters}<i class="rr-slash"><b></b></i></span></span>`;
+  }
+  /* the one cut through the whole word — from (0, 85%) to (100%, 15%) of it — fitted to every layer of every letter */
+  function rrFit(root){
+    (root || document).querySelectorAll('.rr-word').forEach(w=>{ const W = w.offsetWidth || 1, Hh = w.offsetHeight || 1;
+      const sl = w.querySelector('.rr-slash'); if(sl){ const ax = -0.04*W, ay = 0.878*Hh, bx = 1.04*W, by = 0.122*Hh;
+        Object.assign(sl.style, { left:ax + 'px', top:ay + 'px', width:Math.hypot(bx - ax, by - ay) + 'px', transform:`rotate(${Math.atan2(by - ay, bx - ax)}rad)` }); }
+      w.querySelectorAll('.rr-l').forEach(l=>{ const x0 = l.offsetLeft/W, x1 = (l.offsetLeft + l.offsetWidth)/W, y0 = 85 - 70*x0, y1 = 85 - 70*x1;
+        const top = `polygon(0 0,100% 0,100% ${y1}%,0 ${y0}%)`, bot = `polygon(0 ${y0}%,100% ${y1}%,100% 100%,0 100%)`;
+        l.querySelectorAll('.rr-t .rr-z').forEach(z=>{ z.style.clipPath = top; }); l.querySelectorAll('.rr-b .rr-z').forEach(z=>{ z.style.clipPath = bot; }); }); });
+  }
   function title(){
     const t = el.querySelector('#tshTitle');
     t.classList.add('rr');
     t.innerHTML = rrMark('ROBIN RYU') + (day() ? `<div class="rr-sub">PART TWO · THE OTHER ROBIN</div><div class="rr-sub2">WRITTEN BY GEORGE WANG · A KORO QUEST</div>`
                                                : `<div class="rr-sub">PART ONE · THE NIGHT</div><div class="rr-sub2">WRITTEN BY GEORGE WANG · A KORO QUEST</div>`);
+    rrFit(t);
+    t.style.setProperty('--n', 8);                       // the letters' count, for the credits' and the flash's timing too
     t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
-    later(()=>cue('swish'), 780); later(()=>cue('kick'), 1000); later(()=>cue('swish'), 4300);
-    clearTimeout(t.offT); t.offT = setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 5500);
+    for(let k = 0; k < 8; k++) later(()=>cue('swish'), 120 + k*110);                // a whoosh as each letter spins in
+    later(()=>cue('kick'), 1600); later(()=>cue('flash'), 1950); later(()=>cue('swish'), 4650);
+    clearTimeout(t.offT); t.offT = setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 6000);
   }
   function showGrab(v){ el.querySelector('#tshGrab').classList.toggle('hidden', !v); }
   function paintGrab(){
