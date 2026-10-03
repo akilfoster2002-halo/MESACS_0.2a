@@ -2952,3 +2952,9 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 .tsh-puz-ans small{width:100%;font:700 11px var(--font-disp);letter-spacing:.14em;color:#ff9fe8}
 .tsh-puz-ans button{border-color:rgba(255,63,208,.4);background:rgba(255,63,208,.08)}
 .tsh-puz-ans button:disabled{opacity:.35;cursor:default}
+/* TSH: the mute button (M), there through films, fights and puzzles */
+#tsh .tsh-mute{position:absolute;top:14px;right:170px;z-index:70;width:42px;height:42px;border-radius:50%;border:1px solid rgba(56,255,208,.4);background:rgba(3,12,11,.7);color:#e6fff8;font-size:19px;line-height:1;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#tsh .tsh-mute:hover{border-color:#38ffd0;box-shadow:0 0 12px rgba(56,255,208,.4)}
+#tsh .tsh-mute.off{border-color:rgba(255,106,138,.6);background:rgba(40,8,14,.75)}
+#tsh.cine .tsh-mute{top:14px;opacity:.75}
+@media (max-width:640px){#tsh .tsh-mute{right:auto;left:16px;top:auto;bottom:16px}}

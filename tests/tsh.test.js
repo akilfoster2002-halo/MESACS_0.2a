@@ -703,3 +703,13 @@ test("the buyer and his crew have faces: shapes on their bodies, and the fight o
   has(f, /e\.state === 'ko'[\s\S]{0,80}FACES\.out/, 'eyes shut on the ground');
   has(t, /TSHFIGHT\.talker\(who\)/, 'and the one with the line talks');
 });
+
+test('a mute button: on screen and on M, and it silences everything without stopping the clock', () => {
+  const t = read('public/tsh.js'), css = read('public/app.css');
+  has(t, /<button class="tsh-mute" id="tshMute"/, 'the button is on the HUD');
+  has(t, /Object\.defineProperty\(AC, 'destination', \{ value:m/, 'everything goes through one gain');
+  has(t, /AC\.master\.gain\.setTargetAtTime\(muted \? 0 : 1/, 'muting turns that gain down (not a suspend: the films are timed on the context clock)');
+  has(t, /if\(c === 'KeyM' && !e\.repeat[^\n]*setMute\(!muted\)/, 'M works anywhere');
+  has(t, /localStorage\.setItem\('tsh_mute'/, 'and it is remembered');
+  has(css, /#tsh \.tsh-mute\{[^}]*pointer-events:auto/, 'and it can be clicked');
+});

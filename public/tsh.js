@@ -261,7 +261,21 @@ window.TSH = (function(){
   function audio(){
     if(AC) return AC;
     try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC = null; }
+    /* ONE VOLUME KNOB FOR ALL OF IT. Everything here — the rain, the score, the voices, the cues, the shoes —
+       is wired to `a.destination`, so the context's destination is a gain in front of the real one: the mute
+       button turns that to nothing, and nothing has to stop (a suspended context stops the clock the lines
+       are timed on, and the film waits for a line that never ends). */
+    if(AC){ try{ const real = AC.destination, m = AC.createGain(); m.connect(real); m.gain.value = muted ? 0 : 1;
+      Object.defineProperty(AC, 'destination', { value:m, configurable:true }); AC.master = m; }catch(e){} }
     return AC;
+  }
+  let muted = false;
+  try{ muted = localStorage.getItem('tsh_mute') === '1'; }catch(e){}
+  function setMute(v){
+    muted = !!v;
+    try{ localStorage.setItem('tsh_mute', muted ? '1' : '0'); }catch(e){}
+    if(AC && AC.master) AC.master.gain.setTargetAtTime(muted ? 0 : 1, AC.currentTime, 0.03);
+    const b = el && el.querySelector('#tshMute'); if(b){ b.textContent = muted ? '🔇' : '🔊'; b.title = (muted ? 'Sound off' : 'Sound on') + ' (M)'; b.classList.toggle('off', muted); }
   }
   function noiseBuf(secs, brown){
     const a = audio(); if(!a) return null;
@@ -4869,10 +4883,12 @@ window.TSH = (function(){
   /* ================================================================== UI */
   let el = null, radarMap = null, infoOpen = true;
   function ui(){
+    if(el) setMute(muted);
     if(!el){
       el = document.createElement('div'); el.id = 'tsh';
       el.innerHTML = `
         <div class="tsh-obj"><small>OBJECTIVE</small><b id="tshGoal"></b><em id="tshDist"></em><ul id="tshInfo"></ul><div class="tsh-tab"><kbd>Tab</kbd> <span id="tshTabTxt">hide details</span></div></div>
+        <button class="tsh-mute" id="tshMute" title="Sound on (M)">🔊</button>
         <div class="tsh-top"><div class="tsh-clock" id="tshClock"></div><div class="tsh-heat" id="tshHeat"></div>
           <div class="tsh-expo" title="Exposure: how close anybody is to knowing YU is Robin"><span>👁</span><div><i id="tshExpo"></i></div><em id="tshExpoN"></em></div>
           <div class="tsh-cash" id="tshCash"></div></div>
@@ -4899,6 +4915,8 @@ window.TSH = (function(){
         <div class="tsh-fade"></div>
         <div class="tsh-black"></div>`;
       document.body.appendChild(el);
+      // the mute button: a click on it is only that (not a click that moves a scene on, or grabs the mouse)
+      { const mb = el.querySelector('#tshMute'); ['mousedown', 'pointerdown', 'click'].forEach(t=>mb.addEventListener(t, e=>{ e.stopPropagation(); if(t === 'click'){ e.preventDefault(); setMute(!muted); mb.blur(); } }));  setMute(muted); }
       el.querySelector('.tsh-pb').addEventListener('click', e=>{ const b = e.target.closest('[data-a]'); if(!b) return; cue('ui'); if(panelCb) panelCb(b.dataset.a); });
       // a conversation answers the mouse: a choice by clicking it, a line by clicking anywhere on it
       const tk = el.querySelector('#tshTalk');
@@ -5307,6 +5325,7 @@ window.TSH = (function(){
   function key(e){
     if(!on) return false;
     const c = e.code;
+    if(c === 'KeyM' && !e.repeat && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))){ setMute(!muted); return true; }   // in a film, a fight, a puzzle: anywhere
     if(c === 'KeyB' || c === 'KeyC' || c === 'KeyT') return true;       // no costume changes, rooms or chat mid-heist
     if(busy === 'panel'){ if(c === 'Escape' || c === 'KeyI' || c === 'KeyP'){ const k = el.querySelector('#tshPanel').dataset.kind; if(k !== 'results') closePanel(); } return true; }
     if(mode === 'reel'){ if((c === 'Enter' || c === 'NumpadEnter' || c === 'Escape') && !e.repeat) skipReel(); return true; }
