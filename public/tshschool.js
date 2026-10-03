@@ -204,7 +204,9 @@ window.TSHSCHOOL = (function(){
     const flight = (x1, x2, zA, zB, yA, yB) => { const n = Math.round((yB - yA)/0.18), dz = (zB - zA)/n, dy = (yB - yA)/n, cx = (x1 + x2)/2;
       for(let i = 0; i < n; i++){ const top = yA + dy*(i + 1), z0 = zA + dz*i, z1 = zA + dz*(i + 1);
         box(i % 2 ? conc : white, cx, top - Math.abs(dy)/2, (z0 + z1)/2, x2 - x1, Math.abs(dy) + 0.02, Math.abs(dz) + 0.01);
-        floorAt(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top); solid(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top, yA > 0.5 ? top - 0.45 : -1); }
+        floorAt(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top); solid(x1, x2, Math.min(z0, z1), Math.max(z0, z1), top, yA > 0.5 ? top - 0.45 : -1);
+        // and its sides, rail-high: off a flight only at its top or its foot
+        [[x1 - 0.12, x1], [x2, x2 + 0.12]].forEach(([a, b])=>rail(a, b, Math.min(z0, z1) - 0.02, Math.max(z0, z1) + 0.02, top)); }
       const len = Math.hypot(zB - zA, yB - yA), ang = Math.atan2(yB - yA, zB - zA), mid = [(zA + zB)/2, (yA + yB)/2];
       [x1 - 0.08, x2 + 0.08].forEach(xs=>{ const s_ = box(white, xs, mid[1] - 0.25, mid[0], 0.16, 0.9, len); s_.rotation.x = -ang;
         const r = box(glass, xs, mid[1] + 0.75, mid[0], 0.03, 1.0, len); r.rotation.x = -ang;
@@ -213,10 +215,12 @@ window.TSHSCHOOL = (function(){
     flight(X(9), X(11.6), 13, 1, 0, 5.5);                       // up from the lobby, north, to the first gallery
     landing(X(9), X(14), -3, 1, 5.725);
     flight(X(11.6), X(14), -2.5, 9.5, 5.725, 11.225);           // back south, a floor up
-    landing(X(9), X(14), 9.5, 13.6, 11.225);
+    landing(X(9), X(14), 9.5, 16, 11.225);                     // (out to the glass, where the sky bridge meets it)
     flight(X(9), X(11.6), 13, 1.2, 11.225, 16.725);             // and north again, under the skylight
     landing(X(9), X(14), -3, 1.2, 16.725);
     rail(X(8.95), X(9.05), -3, 1, 5.725); rail(X(8.95), X(9.05), 9.5, 13.6, 11.225); rail(X(8.95), X(9.05), -3, 1.2, 16.725);
+    rail(X(11.6), X(14), 1.15, 1.3, 16.725);                   // the top landing's open side, over the flights below
+    box(glass, X(12.8), 17.3, 1.22, 2.4, 1.1, 0.04); box(steel, X(12.8), 17.85, 1.22, 2.4, 0.05, 0.06);
     // the sky bridge, second floor, along the glass: from the stair's landing to the west gallery
     box(conc, X(1), 11.0, 14.8, 16, 0.45, 2.4); floorAt(X(-7), X(9), 13.6, 16, 11.225);
     box(glass, X(1), 11.95, 13.6, 16, 1.1, 0.04); box(steel, X(1), 12.5, 13.6, 16, 0.05, 0.06); rail(X(-7), X(9), 13.55, 13.65, 11.225);
