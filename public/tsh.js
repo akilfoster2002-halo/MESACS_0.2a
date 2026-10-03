@@ -445,6 +445,8 @@ window.TSH = (function(){
       if(['sneak', 'detention', 'after'].includes(S.step) && W.school){ intoSchool();
         if(S.step === 'sneak'){ const X = W.school.X; placePlayer(X(0.3), 10.4, 0); later(()=>{ if(on && S.step === 'sneak') sneakBegin(); }, 400); }
         else later(()=>{ if(on) detention(); }, 400); }
+      // the afternoon, after: hers to walk about in
+      if(S.step === 'day'){ setObjective('', []); later(()=>{ if(on) headphones(true); }, 1500); }
       return;
     }
     if(S.step === 'wake'){ later(()=>{ if(on && S.step === 'wake') scene('wake', opening); }, 300); return; }
@@ -465,6 +467,7 @@ window.TSH = (function(){
     if(window.TSHCHASE) TSHCHASE.stop();
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
+    if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null; paper = null;
     on = false; mode = null; busy = null;
     save();
     vstop(); stopBed(); clearNpcs(); clearMarks();
@@ -596,7 +599,10 @@ window.TSH = (function(){
     const c = LOOK.cv(64, 512), x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 512);
     g.addColorStop(0, '#3f7fd0'); g.addColorStop(0.3, '#7fb0e2'); g.addColorStop(0.47, '#d6e6ee'); g.addColorStop(0.52, '#eef2ec'); g.addColorStop(0.6, '#c2ccca'); g.addColorStop(1, '#8a9290');
     x.fillStyle = g; x.fillRect(0, 0, 64, 512);
-    for(let i = 0; i < 26; i++){ const y = 120 + Math.random()*120, w = 10 + Math.random()*30; x.fillStyle = `rgba(255,252,246,${0.12 + Math.random()*0.22})`; x.beginPath(); x.ellipse(Math.random()*64, y, w, 3 + Math.random()*5, 0, 0, 7); x.fill(); }
+    // soft clouds, drawn three times across so they wrap round the dome without a seam
+    for(let i = 0; i < 22; i++){ const y = 130 + Math.random()*110, cx = Math.random()*64, w = 6 + Math.random()*16, h = 2 + Math.random()*4, a = 0.08 + Math.random()*0.16;
+      [-64, 0, 64].forEach(o=>{ const g = x.createRadialGradient(cx + o, y, 0, cx + o, y, w); g.addColorStop(0, `rgba(255,252,246,${a})`); g.addColorStop(1, 'rgba(255,252,246,0)');
+        x.save(); x.translate(cx + o, y); x.scale(1, h/w); x.translate(-(cx + o), -y); x.fillStyle = g; x.beginPath(); x.arc(cx + o, y, w, 0, 7); x.fill(); x.restore(); }); }
     return LOOK.tex(c);
   }
   function applyLook(){
@@ -669,7 +675,7 @@ window.TSH = (function(){
       l.intensity += (u.want - l.intensity)*Math.min(1, dt*5);
     });
     // the moon follows you, so its shadows are sharp where you are
-    if(day()) G.sun.position.set(G.pos.x + 44, 40, G.pos.z - 26);          // the morning sun, low in the north-east: on the school's front
+    if(day()) G.sun.position.set(G.pos.x + (S.dm >= 720 ? -44 : 44), 40, G.pos.z - 26);   // the morning sun in the north-east (on the school's front); the afternoon's in the west
     else G.sun.position.set(G.pos.x - 28, 60, G.pos.z + 22);
     G.sun.target.position.set(G.pos.x, 0, G.pos.z); G.sun.target.updateMatrixWorld();
   }
@@ -1028,7 +1034,7 @@ window.TSH = (function(){
     const s = f.shot; f.t += dt;
     (s.beats||[]).forEach(([t, fn], j)=>{ if(f.t >= t && !f.fired.has(j)){ f.fired.add(j); fn(); } });
     if(reel !== f) return;
-    if(staged && !s.tick) applyStage();
+    if(staged) applyStage();                           // held every frame (a shot's tick may stage her again after this)
     if(me.kitT) for(const p in me.kitT) me.kitT[p] += dt;
     kitShow();
     if(s.tick) s.tick(dt, f.t, Math.min(1, f.t/s.dur));
@@ -3648,16 +3654,192 @@ window.TSH = (function(){
   // the hud: how close her teacher is to seeing her
   function seenBar(v){ const b = el && el.querySelector('#tshSeen'); if(b) b.classList.toggle('hidden', !v); }
   function tickSeenBar(){ const b = el && el.querySelector('#tshSeen i'); if(b && window.TSHSCHOOL) b.style.width = Math.round(TSHSCHOOL.meter()*100) + '%'; }
-  /* DETENTION (Room 120): the films and the puzzles are tshpuzzle.js's and the next part of this */
+  /* ================================================== DETENTION (Room 120)
+     The paper on the desk. "Where is it?" She does not answer. "The assignment. The one you've had for two
+     weeks." "I was going to do it." "When?" "Eventually?" A look. "Detention." "Of course." And the robot off
+     the bench: "Since you're here, you can help me with something." "Who messed this up?" "That's what I'd like
+     you to figure out." Then the inside of it (tshpuzzle.js): the power, the signals, the drive — and it stands
+     up. "...Whoever built this was an idiot." A look at her own work. "Good thing I'm here." Then the second
+     thing, which will not start, and she works out why. */
   function detention(){
     const sc = W.school, s = sc.spots;
-    placePlayer(s.seat[0], s.seat[1], Math.PI);
     sc.teacher.x = s.teacherDesk[0]; sc.teacher.z = s.teacherDesk[1]; sc.teacher.hold = true;
-    if(window.TSHPUZZLE && detentionScene) return detentionScene();
-    setObjective('Detention.', []);
-    note('📚 Detention. (The robot is coming in the next update.)');
+    if(TSHSCHOOL.on) TSHSCHOOL.sneakStop();
+    seenBar(false);
+    placePlayer(s.seat[0], s.seat[1], Math.PI);
+    if(S.step === 'after') return talkScene();
+    detentionScene();
   }
-  let detentionScene = null;
+  let paper = null;
+  /* sat at her desk: the scooter's seated pose ('ride': knees bent, hands forward) on the chair */
+  function seated(){ const s = W.school.spots; stage('ride', s.seat[0], 0, s.seat[1] + 0.1, Math.PI); }
+  function detentionScene(){
+    const sc = W.school, sp = sc.spots, t = sc.teacher, X = sc.X, d = sp.seatDesk, R = sc.robot;
+    const T1 = [d[0] + 1.0, d[1] - 0.7], faceR = angTo(T1[0], T1[1], sp.seat[0], sp.seat[1]), faceT = angTo(sp.seat[0], sp.seat[1], T1[0], T1[1]);
+    mark('detention');
+    if(!paper){
+      // the assignment: printed, her name on it, nothing else
+      const c = LOOK.cv(256, 352), x = c.getContext('2d'); x.fillStyle = '#f6f4ec'; x.fillRect(0, 0, 256, 352);
+      x.fillStyle = '#222'; x.font = 'bold 15px sans-serif'; x.fillText('AP ENGINEERING', 20, 30); x.font = '12px sans-serif'; x.fillText('Assignment 6.2 — PID control', 20, 50);
+      x.fillText('Name: Robin', 20, 74); x.strokeStyle = '#99a'; for(let i = 0; i < 11; i++){ x.beginPath(); x.moveTo(20, 110 + i*20); x.lineTo(236, 110 + i*20); x.stroke(); }
+      x.save(); x.translate(150, 230); x.rotate(-0.25); x.strokeStyle = '#c22'; x.lineWidth = 4; x.strokeRect(-70, -24, 140, 44); x.fillStyle = '#c22'; x.font = 'bold 26px sans-serif'; x.fillText('MISSING', -58, 9); x.restore();
+      paper = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.29), new THREE.MeshStandardMaterial({ map:LOOK.tex(c), roughness:0.9 }));
+      paper.rotation.x = -Math.PI/2; sc.group.add(paper); }
+    paper.visible = false; paper.position.set(d[0] - 0.15, 0.775, d[1] + 0.05); paper.rotation.z = 0.25;
+    R.position.set(X(8.2), 0.91, -35); R.rotation.y = -Math.PI/2;
+    const two = freeCam([(T1[0] + sp.seat[0])/2, (T1[1] + sp.seat[1])/2], faceR, 2.6, 1.45);
+    const shots = [
+      // Room 120: empty but for the two of them
+      { dur:3.0, fov:52, inside:true, cam:[X(-4.2), 2.6, -31], look:[d[0] + 1, 0.9, d[1]],
+        enter:()=>{ caption('INT. ROOM 120 — DETENTION'); seated(); t.x = sp.teacherDesk[0]; t.z = sp.teacherDesk[1]; },
+        tick:(dt, tt, k)=>{ t.x = lerp(sp.teacherDesk[0], T1[0], Math.min(1, k*1.4)); t.z = lerp(sp.teacherDesk[1], T1[1], Math.min(1, k*1.4)); t.yaw = faceR; t.moving = k < 0.7; } },
+      // the paper, down on the desk. "Where is it?" — and nothing back
+      { dur:linesLen('where') + 2.0, fov:30, mood:'deadpan', cam:rel(d[0], d[1], 0, -0.9, 0.3, 1.5), look:[d[0], 0.78, d[1]],
+        enter:()=>{ t.x = T1[0]; t.z = T1[1]; t.moving = false; seated(); paper.visible = true; cue('pick'); talk('where'); } },
+      // "The assignment. The one you've had for two weeks." "I was going to do it." "When?" "Eventually?"
+      { dur:linesLen('where2') + 0.6, fov:Math.min(70, 42/two.k), mood:'sheepish', cam:two, look:[(T1[0] + sp.seat[0])/2, 1.2, (T1[1] + sp.seat[1])/2],
+        enter:()=>{ seated(); talk('where2'); } },
+      // the look
+      { dur:1.5, fov:28, cam:rel(T1[0], T1[1], faceR, 1.3, 0.1, 1.62), look:[T1[0], 1.6, T1[1]] },
+      // "Detention." "Of course." — and she leans back
+      { dur:linesLen('detained') + 0.8, fov:34, mood:'deadpan', cam:rel(sp.seat[0], sp.seat[1], faceT, 1.4, 0.3, 1.25), look:[sp.seat[0], 1.05, sp.seat[1]],
+        enter:()=>{ seated(); talk('detained'); } },
+      // the robot, off the bench
+      { dur:2.2, fov:44, cam:[X(5.6), 1.7, -32.2], look:[X(8.2), 1.0, -35],
+        enter:()=>{ t.x = X(7.2); t.z = -35; t.yaw = Math.PI/2; },
+        beats:[[1.3, ()=>cue('gear')]] },
+      // and onto her desk: "Since you're here, you can help me with something." "Who messed this up?" "That's what I'd like you to figure out."
+      { dur:linesLen('robot') + 0.8, fov:36, mood:'skeptical', cam:rel(d[0], d[1], faceR + Math.PI, -0.6, 0.9, 1.45), look:[d[0], 0.9, d[1]],
+        enter:()=>{ t.x = T1[0]; t.z = T1[1]; t.yaw = faceR; R.position.set(d[0] + 0.1, 0.77, d[1] - 0.08); R.rotation.y = 0; paper.visible = false; seated(); talk('robot'); } }
+    ];
+    playReel(shots, ()=>{ reel = null; benchPuzzles(); }, { ownClock:true });
+  }
+  /* at her desk: the puzzles, over a camera on her shoulder */
+  let bench = null;
+  function benchMode(on_){
+    const d = W.school.spots.seatDesk;
+    if(on_){ mode = 'puzzle'; G.running = false; bench = { cam:[d[0] + 0.55, 1.55, d[1] + 0.95], look:[d[0], 0.85, d[1] - 0.05] }; seated(); }
+    else { bench = null; mode = null; }
+  }
+  function benchPuzzles(){
+    benchMode(true);
+    setObjective('Fix the robot.', ['Power, then the signals, then the drive.']);
+    TSHPUZZLE.open('route', { levels:3 }, ()=>TSHPUZZLE.open('signal', { levels:3 }, ()=>TSHPUZZLE.open('gears', { levels:2 }, ()=>{ benchMode(false); robotLives(); })));
+  }
+  function robotLives(){
+    const sc = W.school, sp = sc.spots, d = sp.seatDesk, R = sc.robot;
+    mark('repair');
+    const shots = [
+      // it stands up: the eye, the panel goes green, a wave
+      { dur:3.2, fov:46, inside:true, cam:[d[0] + 1.25, 1.35, d[1] + 0.9], look:[d[0] + 0.05, 0.98, d[1] - 0.05],
+        enter:()=>{ seated(); R.userData.on = true; R.userData.t = 0; cue('win'); } },
+      // "...Whoever built this was an idiot."
+      { dur:linesLen('fixed') + 0.6, fov:34, mood:'smug', cam:rel(sp.seat[0], sp.seat[1], Math.PI, 1.3, -0.3, 1.3), look:[sp.seat[0], 1.05, sp.seat[1]],
+        enter:()=>{ seated(); talk('fixed'); } },
+      // a look at what she did
+      { dur:1.6, fov:30, cam:[d[0] - 0.7, 1.25, d[1] + 0.5], look:[d[0] + 0.1, 0.95, d[1] - 0.08] },
+      // "Good thing I'm here."
+      { dur:linesLen('fixed2') + 0.8, fov:32, mood:'grin', cam:rel(sp.seat[0], sp.seat[1], Math.PI, 1.2, 0.25, 1.3), look:[sp.seat[0], 1.05, sp.seat[1]],
+        enter:()=>{ seated(); talk('fixed2'); } },
+      // and the second thing, put down beside it
+      { dur:2.2, fov:36, cam:rel(d[0], d[1], Math.PI, -0.7, -0.4, 1.4), look:[d[0] - 0.25, 0.8, d[1]],
+        enter:()=>{ sc.gadget.position.set(d[0] - 0.3, 0.8, d[1] + 0.02); cue('pick'); note('🔧 Another one. It won\'t start.'); } }
+    ];
+    playReel(shots, ()=>{ reel = null; benchMode(true); setObjective('Find out what is wrong with it.', []);
+      TSHPUZZLE.open('diagnose', {}, ()=>{ sc.gadget.userData.fix(); benchMode(false); mark('device'); outcome('fixed'); checkpoint(); later(()=>{ if(on) talkScene(); }, 900); }); }, { ownClock:true });
+  }
+  /* "See? This is what I'm talking about." ... "Your mother would be incredibly proud of you." "Yeah." "Thanks." */
+  function talkScene(){
+    const sc = W.school, sp = sc.spots, t = sc.teacher, d = sp.seatDesk;
+    const T1 = [d[0] + 1.0, d[1] - 0.7], stand = [sp.seat[0], sp.seat[1] + 0.25];
+    const faceR = angTo(T1[0], T1[1], stand[0], stand[1]), faceT = angTo(stand[0], stand[1], T1[0], T1[1]);
+    t.x = T1[0]; t.z = T1[1]; t.yaw = faceR; t.hold = true;
+    sc.robot.userData.on = true; sc.robot.position.set(d[0] + 0.1, 0.77, d[1] - 0.08); sc.robot.rotation.y = 0;
+    sc.gadget.position.set(d[0] - 0.3, 0.8, d[1] + 0.02); sc.gadget.userData.fix();
+    mark('mother');
+    const mine = rel(stand[0], stand[1], faceT, 1.1, -0.25, 1.55), hers = rel(T1[0], T1[1], faceR, 1.25, 0.2, 1.6);
+    const shots = [
+      // she looks at the robot, and at Robin: "See?" "This is what I'm talking about."
+      { dur:linesLen('see') + 0.5, fov:36, inside:true, cam:hers, look:[T1[0], 1.55, T1[1]],
+        enter:()=>{ seated(); talk('see'); } },
+      // Robin packs up while it goes on
+      { dur:linesLen('bright') + 0.4, fov:42, mood:'tired', cam:rel(stand[0], stand[1], faceT + 0.5, 1.6, 0, 1.45), look:[stand[0], 1.1, stand[1]],
+        enter:()=>{ stage('text', stand[0], 0, stand[1], Math.PI); talk('bright'); } },
+      // she stops, and looks at her
+      { dur:1.4, fov:32, mood:'tired', cam:mine, look:[stand[0], 1.5, stand[1]], enter:()=>stage('idle', stand[0], 0, stand[1], faceT) },
+      // "Because if you did..." — a smile — "Your mother would be incredibly proud of you."
+      { dur:linesLen('proud') + 0.4, fov:30, cam:hers, look:[T1[0], 1.58, T1[1]], enter:()=>talk('proud') },
+      // and the energy goes out of her face. A long beat.
+      { dur:3.4, fov:26, mood:'sad', cam:rel(stand[0], stand[1], faceT, 0.9, -0.15, 1.56), look:[stand[0], 1.52, stand[1]],
+        enter:()=>scoreStop(1),
+        tick:(dt, tt)=>{ if(tt > 1.2) stage('idle', stand[0], 0, stand[1], faceT + 0.5); } },
+      // "Yeah."
+      { dur:linesLen('yeah') + 1.2, fov:28, mood:'sad', cam:rel(stand[0], stand[1], faceT + 0.5, 1.0, 0.1, 1.55), look:[stand[0], 1.5, stand[1]], enter:()=>talk('yeah') },
+      // her teacher notices
+      { dur:1.6, fov:30, cam:hers, look:[T1[0], 1.58, T1[1]] },
+      // the backpack. "Thanks." And out.
+      { dur:linesLen('thanks') + 2.2, fov:44, mood:'sad', cam:rel(stand[0], stand[1], faceT, 2.6, 0.6, 1.6), look:()=>{ const b = AVATAR.body; return b ? [b.position.x, 1.3, b.position.z] : [stand[0], 1.3, stand[1]]; },
+        enter:()=>talk('thanks'),
+        tick:(dt, tt)=>{ const L = linesLen('thanks'); if(tt < L) stage('idle', stand[0], 0, stand[1], Math.PI*0.9); else walkStage(stand, [sp.room120Door[0], sp.room120Door[1] - 0.8], Math.min(1, (tt - L)/2.2)); } }
+    ];
+    playReel(shots, ()=>{ reel = null; outcome('out'); checkpoint(); fade(()=>outsideScene()); }, { ownClock:true });
+  }
+  /* OUTSIDE. Through the school doors into the sun; students everywhere. Headphones in. She walks — not
+     bouncing now — and looks up at the city, and past it at the sky. Then it is hers again. */
+  let phones = null;
+  function headphones(v){
+    if(phones){ if(phones.parent) phones.parent.remove(phones); phones = null; }
+    const m = v && window.AVATAR && AVATAR.model, head = m && boneOf(m, /Head$/); if(!head) return;
+    const k = worldK(head), g = new THREE.Group(); g.scale.setScalar(k); head.add(g);
+    const shell = new THREE.MeshStandardMaterial({ color:0x111316, roughness:0.35, metalness:0.4 }), pad = new THREE.MeshStandardMaterial({ color:0x2a2c30, roughness:0.9 });
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.098, 0.011, 8, 24, Math.PI), shell); band.position.set(0, 0.075, 0); g.add(band);
+    [-1, 1].forEach(sd=>{ const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.03, 18), shell); cup.rotation.z = Math.PI/2; cup.position.set(sd*0.094, 0.07, 0); g.add(cup);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.008, 6, 16), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.2, 1.4, 1.1) })); ring.rotation.y = Math.PI/2; ring.position.set(sd*0.111, 0.07, 0); g.add(ring);
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.012, 16), pad); p.rotation.z = Math.PI/2; p.position.set(sd*0.078, 0.07, 0); g.add(p); });
+    phones = g;
+  }
+  function leaveSchool(){
+    inSchool = false; inside = false; showInside(false); outsideLook(); el.classList.remove('school');
+    if(window.TSHSCHOOL) TSHSCHOOL.sneakStop();
+  }
+  function outsideScene(){
+    leaveSchool();
+    S.dm = 15*60 + 20;
+    mark('outside');
+    const d = W.spots.schoolDoor, lane = [d[0] - 1.0, d[1] - 4.2], far = [d[0] - 7, d[1] - 4.6];
+    // everybody else getting out
+    [[1.5, -1.2], [-2.4, -2.0], [3.2, -3.4], [-4.5, -3.6], [2.0, -5.2], [-1.0, -6.0], [5.0, -2.2]].forEach(([a, b], i)=>{
+      if(find('out' + i)) return;
+      const c = spawn('civ', ['walk-s', 'walk-t', 'walk-u', 'walk-v', 'walk-x', 'theo', 'zuri'][i], d[0] + a, d[1] + b, { name:'out' + i, state:'stand', phone:i % 2 === 0 });
+      c.faceTo = [d[0] + a + (i % 2 ? 1 : -1), d[1] + b - 1]; });
+    const shots = [
+      // through the doors, into the sun
+      { dur:3.0, fov:46, inside:false, cam:[d[0] + 3.2, 1.7, d[1] - 6.2], look:[d[0], 1.4, d[1] - 0.6],
+        enter:()=>{ outsideLook(); caption('EXT. HARBOR LANE HIGH — 3:20 PM'); cue('door'); },
+        tick:(dt, t, k)=>walkStage([d[0], d[1] + 0.6], lane, k*0.8) },
+      // headphones in
+      { dur:2.4, fov:30, mood:'sad', cam:rel(lane[0], lane[1], Math.PI, 1.0, 0.25, 1.6), look:[lane[0], 1.55, lane[1]],
+        enter:()=>stage('idle', lane[0], 0, lane[1], Math.PI),
+        beats:[[0.7, ()=>{ headphones(true); cue('ui'); }]] },
+      // she walks. Not bouncing now.
+      { dur:4.0, fov:40, mood:'sad', cam:k=>[lerp(lane[0] + 1.6, far[0] + 1.6, k), 1.5, lerp(lane[1] - 2.6, far[1] - 2.6, k)], look:()=>{ const b = AVATAR.body; return b ? [b.position.x, 1.3, b.position.z] : [lane[0], 1.3, lane[1]]; },
+        tick:(dt, t, k)=>walkStage(lane, far, k) },
+      // up at the city
+      { dur:2.8, fov:50, mood:'sad', cam:rel(far[0], far[1], -Math.PI/2, 0.6, 0.3, 1.0), look:[far[0] - 20, 26, far[1] - 10],
+        enter:()=>stage('idle', far[0], 0, far[1], -Math.PI/2 + 0.3) },
+      // and past it, the sky
+      { dur:3.0, fov:44, cam:[far[0] + 0.3, 1.6, far[1] + 0.4], look:k=>[far[0] - 10, 30 + k*60, far[1] - 30] }
+    ];
+    playReel(shots, ()=>{
+      reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
+      placePlayer(far[0], far[1], -Math.PI/2);
+      if(S.step === 'after') outcome('out');
+      setObjective('', []);
+      note('The rest of the day is hers.');
+      headphones(true);
+      checkpoint(); lockPointer($('#view'));
+    }, { ownClock:true });
+  }
 
   function dayPopulate(){
     clearNpcs();
@@ -4744,7 +4926,7 @@ window.TSH = (function(){
   }
   function hud(){
     if(!el) return;
-    el.querySelector('#tshClock').textContent = day() ? dclock(S.dm) + ' AM' : AI.clock(S.t);
+    el.querySelector('#tshClock').textContent = day() ? dclock(S.dm) + (S.dm >= 720 ? ' PM' : ' AM') : AI.clock(S.t);
     el.classList.toggle('day', day());
     el.querySelector('#tshCash').textContent = S.cash ? '¥' + S.cash.toLocaleString() : '';
     el.querySelector('#tshExpo').style.width = Math.round(S.exposure||0) + '%';
@@ -5078,6 +5260,8 @@ window.TSH = (function(){
       case 'ride': tickRide(dt); break;
       case 'hide': tickHide(); break;
       case 'read': case 'wc': if(staged) applyStage(); if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
+      case 'puzzle': if(staged) applyStage(); if(window.AVATAR) AVATAR.tickClip(dt, false, false, true);
+        if(bench){ G.camera.position.set(...bench.cam); G.camera.lookAt(...bench.look); G.camera.fov = 50; G.camera.updateProjectionMatrix(); } break;
       case 'grab': tickGrab(dt); break;
       case 'chair': tickChair(dt); break;
       case 'end': if(window.AVATAR) AVATAR.tickClip(dt, false, false, true); break;
@@ -5138,7 +5322,7 @@ window.TSH = (function(){
     if(mode === 'act') return true;
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
     if(mode === 'read'){ if(['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) readStop(); return true; }
-    if(mode === 'wc') return true;
+    if(mode === 'wc' || mode === 'puzzle') return true;
     if(day() && (['KeyF', 'KeyJ', 'KeyQ'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
@@ -5161,7 +5345,7 @@ window.TSH = (function(){
   return { enter, leave, stop, tick, key, render, LINES,
            get active(){ return on; }, get state(){ return S; }, get mode(){ return mode; }, get inside(){ return inside; },
            /* for tests and the console */
-           _npcs:()=>npcs, _world:()=>W, _outcome:outcome, _heat:heat, _flash:flash, _jam:jam, _goInside:goInside,
+           _cue:k=>cue(k), _npcs:()=>npcs, _world:()=>W, _outcome:outcome, _heat:heat, _flash:flash, _jam:jam, _goInside:goInside,
            _place:(x, z, yaw, y)=>{ placePlayer(x, z, yaw, y); if(typeof thirdPerson === 'function') for(let i=0;i<40;i++) thirdPerson(); },
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,

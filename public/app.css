@@ -2933,3 +2933,22 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-seen{position:absolute;left:50%;top:86px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:999px;background:rgba(10,14,16,.6);font:700 12px var(--font-disp);letter-spacing:.12em;color:#ffe08a}
 #tsh .tsh-seen div{width:160px;height:7px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
 #tsh .tsh-seen i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd060,#ff5a3a);transition:width .1s}
+/* TSH — Robin's bench: the puzzles (tshpuzzle.js) */
+#tsh .tsh-puz,.tsh-puz{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(4,10,9,.55),rgba(0,0,0,.82));pointer-events:auto}
+.tsh-puz-card{position:relative;width:min(720px,94vw);padding:18px 20px 16px;border-radius:22px;background:linear-gradient(160deg,rgba(14,24,22,.96),rgba(6,10,10,.96));border:1px solid rgba(56,255,208,.35);box-shadow:0 0 40px rgba(56,255,208,.15),0 20px 60px rgba(0,0,0,.6);color:#e8fff8}
+.tsh-puz-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.tsh-puz-h b{font:800 20px var(--font-disp);letter-spacing:.14em;color:#38ffd0;text-shadow:0 0 12px rgba(56,255,208,.6)}
+.tsh-puz-lv{font:700 12px var(--font-disp);letter-spacing:.12em;color:#ff9fe8}
+.tsh-puz-sub{margin:4px 0 8px;font-size:13px;opacity:.75}
+.tsh-puz canvas{display:block;width:100%;height:auto;border-radius:14px;background:#070b0a;touch-action:none;cursor:pointer}
+.tsh-puz-msg{min-height:20px;margin:10px 0 0;font:700 14px var(--font-disp);letter-spacing:.06em;color:#38ffd0;text-align:center}
+.tsh-puz-msg.bad{color:#ff6a8a}
+.tsh-puz-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.tsh-puz-checks button,.tsh-puz-ans button{font:inherit;color:#e8fff8;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid rgba(56,255,208,.25);background:rgba(56,255,208,.06);cursor:pointer}
+.tsh-puz-checks button b{display:block;font:700 13px var(--font-disp);letter-spacing:.08em;color:#38ffd0;margin-bottom:3px}
+.tsh-puz-checks button span{font-size:12px;opacity:.85}
+.tsh-puz-checks button.seen{background:rgba(56,255,208,.12)}
+.tsh-puz-ans{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tsh-puz-ans small{width:100%;font:700 11px var(--font-disp);letter-spacing:.14em;color:#ff9fe8}
+.tsh-puz-ans button{border-color:rgba(255,63,208,.4);background:rgba(255,63,208,.08)}
+.tsh-puz-ans button:disabled{opacity:.35;cursor:default}

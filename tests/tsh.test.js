@@ -645,3 +645,27 @@ test('The Other Robin: Harbor Lane High — the guard, her teacher across the lo
   const C = t.slice(t.indexOf('  function caughtScene('), t.indexOf('  function freeCam('));
   ["talk('caught')", "talk('caught2')", "outcome('caught')"].forEach(b => assert.ok(C.includes(b), 'caught has ' + b));
 });
+
+test('The Other Robin: detention, the robot she fixes, what her teacher says, and out into the sun', () => {
+  const t = read('public/tsh.js'), pz = read('public/tshpuzzle.js'), i = read('public/index.html');
+  assert.ok(i.indexOf('tshpuzzle.js') > 0 && i.indexOf('tshpuzzle.js') < i.indexOf('src="tsh.js'), 'the puzzles load before TSH');
+  // the puzzles, every board solvable and none solved before she touches it
+  const ctx = vm.createContext({ performance:{ now:()=>0 } }); ctx.window = ctx; vm.runInContext(pz, ctx);
+  const P = ctx.TSHPUZZLE;
+  [4, 5, 6].forEach((n, k)=>{ const L = P._route(n, 101 + k*37), g = L.g; assert.equal(P._powered(L).done, false, 'board ' + n + ' starts broken');
+    L.g = L.sol; assert.equal(P._powered(L).done, true, 'board ' + n + ' can be solved'); L.g = g; });
+  P.SIGNALS.forEach((L, k)=>{ const used = new Set(); L.ends.forEach((e, c)=>{ const p = P._solPath(L, c), l = p[p.length - 1];
+    assert.deepEqual(l, e[1], 'bus ' + k + ': signal ' + c + ' reaches its twin');
+    p.forEach(q=>{ assert.ok(!used.has(q + ''), 'bus ' + k + ': no two signals cross'); used.add(q + ''); }); }); });
+  assert.equal(P.CASE.causes.filter(c=>c[2] === null).length, 1, 'the diagnosis has one right answer');
+  // the scenes, in order
+  const D = t.slice(t.indexOf('  function detentionScene('), t.indexOf('  function benchMode('));
+  ["talk('where')", "talk('where2')", "talk('detained')", "talk('robot')", 'benchPuzzles()'].forEach(b => assert.ok(D.includes(b), 'detention has ' + b));
+  has(t, /TSHPUZZLE\.open\('route', \{ levels:3 \}, \(\)=>TSHPUZZLE\.open\('signal', \{ levels:3 \}, \(\)=>TSHPUZZLE\.open\('gears'/, 'power, then signals, then the drive');
+  const R = t.slice(t.indexOf('  function robotLives('), t.indexOf('  function talkScene('));
+  ["talk('fixed')", "talk('fixed2')", "TSHPUZZLE.open('diagnose'", "outcome('fixed')"].forEach(b => assert.ok(R.includes(b), 'the robot runs, then ' + b));
+  const T = t.slice(t.indexOf('  function talkScene('), t.indexOf('  let phones = null;'));
+  ["talk('see')", "talk('bright')", "talk('proud')", "mood:'sad'", "talk('yeah')", "talk('thanks')"].forEach(b => assert.ok(T.includes(b), 'the talk has ' + b));
+  const O = t.slice(t.indexOf('  function outsideScene('), t.indexOf('  function dayPopulate('));
+  ['headphones(true)', '3:20 PM', 'The rest of the day is hers.'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
+});
