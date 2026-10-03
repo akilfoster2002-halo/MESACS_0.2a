@@ -94,7 +94,7 @@ window.WARDROBE = (function(){
                       about:'Black leather ankle boots, a low heel.' },
     'lab-coat':     { name:'Lab coat', slot:'outer', kind:'garment', hides:['upperArms', 'forearms'], bodies:['maya'],
                       about:'White, open, a pen in the pocket and a patch over the heart.' },
-    'round-glasses':{ name:'Round glasses', slot:'face', kind:'accessory', model:'glasses', fit:'eyes', tune:{ along:0.36, fwd:0.07, size:0.12 },
+    'round-glasses':{ name:'Round glasses', slot:'face', kind:'accessory', model:'glasses', fit:'eyes', tune:{ along:0.36, fwd:0.056, size:0.11 },
                       about:'Thin wire rims, big and round, clear lenses.' },
     'shades':       { name:'Sunglasses', slot:'face', kind:'accessory', model:'shades', fit:'eyes', tune:{ along:0.47, fwd:0.05, size:0.15 },
                       about:'Round, black, polarised and IR-cut: a camera gets glare, not a face.' }

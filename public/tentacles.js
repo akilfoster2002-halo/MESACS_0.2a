@@ -22,6 +22,13 @@
      oc.socket(()=>matrix4)   // her back, each frame (her Spine2 bone's world matrix)
      oc.to(x, z)              // where to carry her
      oc.update(dt)            // then: her root = oc.body
+
+   THEY CAN BE KEPT IN. hide() puts all four away inside her back (she stands
+   on her own feet); burst(k, at, o) throws arm k out of her — fast, past its
+   length and back, whipping — to a point (in her frame: x right, y up from her
+   hips, z ahead; or o.world), where it holds, twitching like an insect, for
+   o.hold seconds before it goes back to carrying her. A leg's burst stabs the
+   roof (o.floor) and stays planted there.
    ===================================================================== */
 window.TENTACLES = (function(){
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -31,7 +38,7 @@ window.TENTACLES = (function(){
     return {
       shell: new THREE.MeshStandardMaterial({ color:0x15171b, roughness:0.32, metalness:0.85 }),
       ring:  new THREE.MeshStandardMaterial({ color:0x2b2f36, roughness:0.25, metalness:0.95 }),
-      eye:   new THREE.MeshBasicMaterial({ color:new THREE.Color(2.4, 0.5, 0.4) })      // a red light in each claw's palm
+      eye:   new THREE.MeshBasicMaterial({ color:new THREE.Color(2.4, 0.5, 0.4) })      // a red light in each claw's palm (flares as an arm comes out)
     };
   }
 
@@ -58,7 +65,7 @@ window.TENTACLES = (function(){
     }
     group.add(claw);
     const pts = []; for(let i = 0; i <= SEG; i++) pts.push(V(0, 0, 0));
-    return { segs, claw, fingers, pts, L, len, open:0.6 };
+    return { segs, claw, fingers, pts, L, len, open:0.6, ext:1, out:null };
   }
 
   /* FABRIK: the chain from base to target, segment lengths kept */
@@ -89,7 +96,7 @@ window.TENTACLES = (function(){
       return v.clone().addScaledVector(side, w).addScaledVector(lift, w2); });
     for(let i = 0; i < n; i++){
       const s = A.segs[i], a = q[i], b = q[i + 1], d = b.clone().sub(a), l = d.length() || 1e-6;
-      s.position.copy(a); s.quaternion.setFromUnitVectors(UP, d.divideScalar(l)); s.scale.set(1, l/A.L, 1);
+      s.position.copy(a); s.quaternion.setFromUnitVectors(UP, d.divideScalar(l)); s.scale.set(1, Math.max(1e-3, l/A.L), 1);
     }
     const tip = q[n], last = q[n].clone().sub(q[n - 1]).normalize();
     A.claw.position.copy(tip); A.claw.quaternion.setFromUnitVectors(UP, last);
@@ -107,7 +114,7 @@ window.TENTACLES = (function(){
     const st = {
       body:V(at[0], floor + (o.lift === undefined ? 1.15 : o.lift), at[2]),   // her hips, held up off the roof
       goal:V(at[0], 0, at[2]), yaw:o.yaw || 0, speed:1.3, lift:o.lift === undefined ? 1.15 : o.lift,
-      socketM:null, t:0, moving:false
+      socketM:null, t:0, moving:false, flare:0
     };
     // where the legs stand when she is still: out to her sides and a little behind
     const stance = (k, yaw) => { const side = k === 2 ? -1 : 1, a = yaw + side*1.9; return V(st.body.x + Math.sin(a)*1.25, floor, st.body.z + Math.cos(a)*1.25); };
@@ -127,8 +134,9 @@ window.TENTACLES = (function(){
       const to = V(st.goal.x - st.body.x, 0, st.goal.z - st.body.z), dist = to.length();
       st.moving = dist > 0.08;
       if(st.moving){ const step = Math.min(dist, st.speed*dt); st.body.addScaledVector(to.normalize(), step); st.yaw += Math.atan2(Math.sin(Math.atan2(to.x, to.z) - st.yaw), Math.cos(Math.atan2(to.x, to.z) - st.yaw))*Math.min(1, dt*3); }
-      const swinging = legs.some(l=>l.to);
-      st.body.y += ((floor + st.lift + (swinging ? 0.06 : 0) + Math.sin(st.t*1.3)*0.025) - st.body.y)*Math.min(1, dt*4);
+      const swinging = legs.some(l=>l.to), held = arms.some(A=>A.ext > 0.5);
+      st.body.y += ((floor + st.lift + (held ? (swinging ? 0.06 : 0) + Math.sin(st.t*1.3)*0.025 : 0)) - st.body.y)*Math.min(1, dt*(held ? 4 : 8));
+      if(st.flare > 0){ st.flare = Math.max(0, st.flare - dt*1.6); M.eye.color.setRGB(2.4 + st.flare*5, 0.5 + st.flare*0.6, 0.4 + st.flare*0.4); }
       // the legs: a claw planted until her body is a stride from where it would stand, then one step, one leg at a time
       legs.forEach(l=>{
         const home = stance(l.k, st.yaw);
@@ -150,14 +158,36 @@ window.TENTACLES = (function(){
       // solve and draw every arm from its socket
       const S = sockets();
       arms.forEach((A, k)=>{
-        const target = k >= 2 ? legs[k - 2].at.clone().add(V(0, 0.04, 0)) : free[k].at;
+        let target = k >= 2 ? legs[k - 2].at.clone().add(V(0, 0.04, 0)) : free[k].at, wave = k >= 2 ? 0.05 : 0.11;
+        const B = A.out;
+        if(B){
+          // coming out: past its full length in a sixth of a second, then ringing back to it
+          B.t += dt; const u = B.t - B.wait;
+          if(u < 0) A.ext = B.from;
+          else A.ext = u < 0.16 ? B.from + (1.14 - B.from)*(1 - Math.pow(1 - u/0.16, 3)) : 1 + 0.14*Math.exp(-(u - 0.16)*7)*Math.cos((u - 0.16)*24);
+          if(u >= 0 && !B.lit){ B.lit = true; st.flare = 1; }
+          // where it strikes, and it holds there — never quite still
+          const at = B.world ? B.world.clone() : place(B.at, B.floor);
+          if(!B.floor){ B.jt -= dt; if(B.jt <= 0){ B.jt = 0.05 + Math.random()*0.09; B.jit.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.16); } at.add(B.jit); }
+          target = at; wave += 0.32*Math.exp(-Math.max(0, u)*2.4);
+          A.open = u < 0 ? 0 : u < B.hold - 0.12 ? 1 : 0.05;
+          if(u >= B.hold){ A.out = null; A.ext = 1;
+            if(k >= 2){ const l = legs[k - 2]; l.at.copy(at); l.at.y = floor; l.to = null; } else free[k].at.copy(at); }
+        }
+        if(A.ext < 0.02){ A.segs.forEach(s=>s.visible = false); A.claw.visible = false; return; }
+        A.segs.forEach(s=>s.visible = true); A.claw.visible = true;
         // the chain bows outward from her back before it turns down to the claw: start the solve from a bent guess
         const out = S[k].clone().sub(st.body).setY(0).normalize();
         A.pts.forEach((p, i)=>{ const kk = i/(A.pts.length - 1); p.copy(S[k]).lerp(target, kk).addScaledVector(out, Math.sin(kk*Math.PI)*0.9).add(V(0, Math.sin(kk*Math.PI)*0.5, 0)); });
-        solve(A.pts, S[k], target, A.L);
-        if(k >= 2) A.open = legs[k - 2].to ? 0.9 : 0.15;
-        pose(A, k >= 2 ? 0.05 : 0.11, st.t, k*1.7);
+        solve(A.pts, S[k], target, A.L*A.ext);
+        if(k >= 2 && !B) A.open = legs[k - 2].to ? 0.9 : 0.15;
+        pose(A, wave*Math.min(1, A.ext), st.t, k*1.7);
       });
+    }
+    // a point in her frame (x right, y up from her hips, z ahead) in the world; on the floor if it is a stab
+    function place(p, onFloor){
+      const s = Math.sin(st.yaw), c = Math.cos(st.yaw);
+      return V(st.body.x + p[0]*-c + p[2]*s, onFloor ? floor : st.body.y + p[1], st.body.z + p[0]*s + p[2]*c);
     }
     return {
       root, arms,
@@ -165,6 +195,10 @@ window.TENTACLES = (function(){
       to(x, z, speed){ st.goal.set(x, 0, z); if(speed) st.speed = speed; },
       place(x, z, yaw){ st.body.set(x, floor + st.lift, z); st.goal.set(x, 0, z); if(yaw !== undefined) st.yaw = yaw; legs.forEach(l=>{ l.at.copy(stance(l.k, st.yaw)); l.to = null; }); free.forEach(f=>f.at.set(0, 0, 0)); },
       lift(h){ st.lift = h; },
+      hide(){ arms.forEach(A=>{ A.ext = 0; A.out = null; }); },
+      burst(k, at, o){ o = o || {}; const A = arms[k];
+        A.out = { t:0, wait:o.wait || 0, from:A.ext, at, world:o.world ? V(o.world[0], o.world[1], o.world[2]) : null, floor:!!o.floor, hold:o.hold || 1.2, jit:V(0, 0, 0), jt:0, lit:false }; },
+      out(k){ return arms[k].ext > 0.02; },
       get body(){ return st.body; }, get yaw(){ return st.yaw; }, get moving(){ return st.moving; },
       update,
       dispose(){ if(root.parent) root.parent.remove(root); }

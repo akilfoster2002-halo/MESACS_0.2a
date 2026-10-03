@@ -450,11 +450,18 @@ test('Maya: her own body, dressed a piece at a time, a face, and four arms that 
   // the arms
   assert.ok(i.indexOf('tentacles.js') > 0 && i.indexOf('tentacles.js') < i.indexOf('src="tsh.js'), 'the arms load before TSH');
   const n = t.slice(t.indexOf('  function nightScene('), t.indexOf('  function kitOff('));
-  has(n, /const oc = octoStart\(maya, MK\.y, Math\.PI\/2\);/, 'on the roof she is up on her arms');
+  has(n, /const oc = octoStart\(maya, MK\.y, Math\.PI\/2, \{ hidden:true \}\);/, 'on the roof her arms are kept in');
+  const yeah = n.indexOf("talk('watchers')"), out = n.indexOf('oc.burst(');
+  assert.ok(yeah > 0 && out > yeah, 'until she has said it: then they come out');
+  [0, 1, 2, 3].forEach(k => has(n, new RegExp('oc\\.burst\\(' + k + ','), 'arm ' + k + ' comes out its own way'));
+  has(n, /world:\[kai\.x/, 'one goes for Kai');
+  has(n, /oc\.lift\(1\.5\)/, 'and they lift her off the roof');
   has(n, /oc\.to\(MK\.maya\[0\] - 9, MK\.maya\[1\] \+ 3, 1\.7\)/, 'and they carry her off');
   has(t, /n\.y = oc\.body\.y - octo\.hip;/, 'her feet never touch the roof: the arms hold her body');
   const T = read('public/tentacles.js');
   has(T, /function solve\(pts, base, target, L\)/, 'each arm is a chain solved to its claw');
+  has(T, /hide\(\)\{ arms\.forEach\(A=>\{ A\.ext = 0;/, 'they fold away into her back');
+  has(T, /u < 0\.16 \? B\.from \+ \(1\.14 - B\.from\)/, 'and come out fast, past their length, and ring back');
   has(T, /Math\.sin\(k\*Math\.PI\*2\.2 - t\*3\.1 \+ phase\)\*wave\*env/, 'with a ripple down it, still at both ends: a snake');
 });
 

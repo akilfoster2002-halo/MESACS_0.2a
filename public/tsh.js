@@ -2090,6 +2090,7 @@ window.TSH = (function(){
     const f = n.faceMesh; if(!f) return;
     const D = f.morphTargetDictionary, I = f.morphTargetInfluences;
     n.blinkIn = (n.blinkIn === undefined ? 1 + Math.random()*3 : n.blinkIn) - dt;
+    if(n.stare) n.blinkIn = 1;                                 // a stare does not blink
     if(n.blinkIn <= 0){ n.blinkT = 0.17; n.blinkIn = Math.random() < 0.15 ? 0.25 : 2 + Math.random()*4; }
     let b = 0; if(n.blinkT > 0){ n.blinkT = Math.max(0, n.blinkT - dt); b = Math.min(1, 1.4*(1 - Math.abs(n.blinkT/0.17*2 - 1))); }
     let v = 0;
@@ -2102,7 +2103,9 @@ window.TSH = (function(){
     I[D.jawOpen] += (v*0.5 - I[D.jawOpen])*k;
     I[D.mouthO] += (v*0.2 - I[D.mouthO])*k;
     // a little life in the brows while she talks
-    if(D.browUp !== undefined) I[D.browUp] += ((n.talking ? 0.25 + 0.2*Math.sin(n.t*1.7) : 0) - I[D.browUp])*Math.min(1, dt*4);
+    if(D.browUp !== undefined) I[D.browUp] += ((n.talking ? 0.25 + 0.2*Math.sin(n.t*1.7) : (n.feel && n.feel.browUp) || 0) - I[D.browUp])*Math.min(1, dt*4);
+    // and a feeling, when the scene gives one
+    ['smile', 'frown', 'browDown'].forEach(m=>{ if(D[m] !== undefined) I[D[m]] += (((n.feel && n.feel[m]) || 0) - I[D[m]])*Math.min(1, dt*5); });
   }
   function investigate(n, dt){
     const iv = n.investigate;
@@ -3194,7 +3197,7 @@ window.TSH = (function(){
     const MK = { maya:[54.4, 34.9], kai:[54.4, 33.1], y:12 };
     const maya = spawn('maya', 'maya', MK.maya[0], MK.maya[1], { y:MK.y, name:'mayaWatch', state:'cut', yaw:Math.PI/2 });
     const kai = spawn('kai', 'kofi', MK.kai[0], MK.kai[1], { y:MK.y, name:'kaiWatch', state:'cut', yaw:Math.PI/2 });
-    const oc = octoStart(maya, MK.y, Math.PI/2);                // up on her arms the whole time she is there
+    const oc = octoStart(maya, MK.y, Math.PI/2, { hidden:true });   // her arms are in her back, until she has said it
     const mayaHead = () => [maya.x, maya.y + 1.55, maya.z];
     const bino = [win[0] + 0.15, 1.65, win[2] + 0.1], bed_ = [bed.x, (bed.top || 0.72) + 0.25, bed.z];
     const shots = [
@@ -3246,6 +3249,23 @@ window.TSH = (function(){
       { dur:linesLen('watchers') + 1.0, fov:30, inside:false, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, 2.0, -0.8, MK.y + 2.3), look:mayaHead,
         enter:()=>{ outsideLook(); kai.yaw = Math.PI/2; talk('watchers'); },
         onLine:(i, who)=>{ maya.talking = who === 'maya'; kai.talking = who === 'kai'; } },
+      /* AND THEN THEY COME OUT. Not all at once and not the same way twice: one rears up over her shoulder
+         while she stares down the lens; two stab the roof behind her and lift her off it; one goes for Kai's
+         face and stops a hand short of it, its claw open; then all four, spread wide against the sky like a spider's legs. */
+      { dur:1.6, fov:34, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, 1.7, 0.2, MK.y + 1.0), look:()=>[maya.x, maya.y + 1.8, maya.z],
+        enter:()=>{ maya.talking = kai.talking = false; maya.stare = true; maya.feel = FEELS.menace; scoreStop(0.4); cue('rise'); },
+        beats:[[0.8, ()=>{ if(oc) oc.burst(0, [0.25, 1.15, 0.6], { hold:3.6 }); cue('gear'); shake(0.12, 0.3); }]] },
+      { dur:1.6, fov:48, cam:rel(MK.maya[0], MK.maya[1], Math.PI/2, -1.9, 1.3, MK.y + 0.3), look:()=>[maya.x, maya.y + 1.4, maya.z],
+        beats:[[0.25, ()=>{ if(oc){ oc.burst(2, [1.7, 0, -0.7], { floor:true, hold:0.5 }); oc.lift(1.5); } cue('blast'); shake(0.45, 0.45); }],
+               [0.6, ()=>{ if(oc) oc.burst(3, [-1.2, 0, 0.9], { floor:true, hold:0.5 }); cue('clang'); shake(0.3, 0.35); }]] },
+      { dur:1.9, fov:40, cam:()=>[kai.x + 0.75, MK.y + 1.8, kai.z - 0.5], look:()=>[maya.x, maya.y + 1.5, maya.z],
+        enter:()=>{ kai.yaw = Math.atan2(maya.x - kai.x, maya.z - kai.z); cue('sting');
+          if(oc) oc.burst(1, null, { world:[kai.x + 0.25, MK.y + 1.68, kai.z + 0.45], wait:0.2, hold:1.4 }); },
+        beats:[[0.45, ()=>{ cue('clang'); kai.z -= 0.2; }]] },
+      { dur:1.8, fov:58, cam:k=>rel(maya.x, maya.z, Math.PI/2, 3.8 - k*0.9, -0.9, MK.y + 0.2), look:()=>[maya.x, maya.y + 1.6, maya.z],
+        enter:()=>{ if(oc){ oc.burst(0, [1.7, 0.9, 1.4], { hold:1.7 }); oc.burst(1, [-1.7, 0.8, 1.5], { hold:1.7, wait:0.12 });
+          oc.burst(2, [2.0, 0, -1.3], { floor:true, hold:0.4, wait:0.3 }); oc.burst(3, [-2.0, 0, -1.1], { floor:true, hold:0.4, wait:0.45 }); } cue('gear'); },
+        beats:[[0.35, ()=>{ cue('clang'); shake(0.2, 0.25); }], [0.5, ()=>cue('clang')]] },
       // and she goes: the arms carry her off across the roof, a claw at a time; Kai watches her go
       { dur:5.0, fov:42, inside:false, cam:[[MK.maya[0] + 4.5, MK.y + 2.6, MK.maya[1] - 4.2], [MK.maya[0] + 3.6, MK.y + 2.8, MK.maya[1] - 3.4]], look:()=>[maya.x, maya.y + 1.2, maya.z],
         enter:()=>{ if(oc) oc.to(MK.maya[0] - 9, MK.maya[1] + 3, 1.7); },
@@ -3258,10 +3278,12 @@ window.TSH = (function(){
   /* MAYA'S ARMS (tentacles.js): four of them out of her back, and they carry her — her feet never touch the
      roof. They hold her body (her hips) where they have it; this puts her there each frame, turned their way. */
   let octo = null;
-  function octoStart(n, floor, yaw){
+  function octoStart(n, floor, yaw, o){
     octoStop();
     if(!window.TENTACLES) return null;
-    const oc = TENTACLES.make(W.cityGroup, { floor, at:[n.x, floor, n.z], yaw, lift:1.5 });
+    const hidden = !!(o && o.hidden);                         // kept in: she stands on her own feet until they come out
+    const oc = TENTACLES.make(W.cityGroup, { floor, at:[n.x, floor, n.z], yaw, lift:hidden ? 0.95 : 1.5 });
+    if(hidden) oc.hide();
     const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
     oc.socket(()=>{ const b = n.model && boneOf(n.model, /Spine2$/); if(!b) return null;
       const p = new THREE.Vector3(); b.getWorldPosition(p); q.setFromAxisAngle(up, oc.yaw); return new THREE.Matrix4().compose(p, q, one); });
@@ -3878,6 +3900,7 @@ window.TSH = (function(){
     sad:        { browUp:0.85, frown:0.7 },
     soft:       { smile:0.4, browUp:0.45 },
     focused:    { browDown:0.6, frown:0.1 },
+    menace:     { smile:0.35, browDown:0.8 },
     resolve:    { browDown:0.65, frown:0.4 },
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
