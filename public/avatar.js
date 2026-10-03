@@ -382,11 +382,20 @@ window.AVATAR = (function(){
         loco.act[n]=a; loco.w[n]=0;
       });
     }
-    /* weights toward their targets, and every clip posed at the one phase */
+    /* weights toward their targets, and every clip posed at the one phase.
+
+       NOT THE ONE play() HAS. three.js hands out ONE action per clip, so the
+       walk this blend drives and the walk play('walk') starts are the same
+       object — and a cutscene that walks her (posture 'walk') after she has
+       walked about herself got its walk faded straight back to nothing here,
+       every frame: no clip with any weight is the bind pose, arms out. So the
+       action that is playing on its own is left alone; the blend is only the
+       blend's. */
     function locoStep(dt, target){
       const k=1-Math.exp(-12*dt);
       let sum=0, dur=0;
       for(const n in loco.act){
+        if(!loco.on && loco.act[n]===cur){ loco.w[n]=0; continue; }
         loco.w[n]+=((target[n]||0)-loco.w[n])*k;
         if(loco.w[n]<0.002) loco.w[n]=0;
         sum+=loco.w[n]; dur+=loco.w[n]*loco.act[n].getClip().duration;
@@ -395,6 +404,7 @@ window.AVATAR = (function(){
       loco.phase=(loco.phase + dt/Math.max(0.2, D)) % 1;
       for(const n in loco.act){
         const a=loco.act[n];
+        if(!loco.on && a===cur) continue;
         a.time=loco.phase*a.getClip().duration;
         a.setEffectiveWeight(loco.w[n]);
       }
@@ -410,6 +420,8 @@ window.AVATAR = (function(){
         if(!loco.on){
           if(cur) cur.fadeOut(0.18);
           cur=null; curName='__loco'; loco.on=true;
+          // the blend sets each clip's time itself: one play() ran at its own speed must not run on top of that
+          for(const n in loco.act) loco.act[n].timeScale=0;
         }
         let len=Math.hypot(x,z);
         if(len<1e-6){ x=0; z=1; len=1; }             // moved by something other than the keys
