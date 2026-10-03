@@ -2604,16 +2604,22 @@ window.PLANET = (function(){
     const cur=new THREE.Mesh(new THREE.PlaneGeometry(5.4,6.6), new THREE.MeshBasicMaterial({ color:0x0b3a34, transparent:true, opacity:0.55, side:THREE.DoubleSide, depthWrite:false }));
     cur.position.y=3.4; g.add(cur);
     const c=document.createElement('canvas'); c.width=512; c.height=200; const x=c.getContext('2d');
-    x.fillStyle='#050b0a'; x.fillRect(0,0,512,200); x.textAlign='center';
-    x.font='bold 84px '+uiFont(); x.shadowColor='#38ffd0'; x.shadowBlur=24; x.fillStyle='#d8fff4'; x.fillText('TSH', 256, 92);
-    x.shadowBlur=0; x.font='bold 26px '+uiFont(); x.fillStyle='#ff9a5a'; x.fillText('WRITTEN BY GEORGE WANG', 256, 140);
-    x.font='20px '+uiFont(); x.fillStyle='#8fd3c8'; x.fillText('A QUEST · ONE NIGHT IN THE CITY', 256, 176);
+    /* ROBIN RYU, as its title card has it (after KILL BILL): black capitals on a yellow band, cut by a slash */
+    x.fillStyle='#050b0a'; x.fillRect(0,0,512,200); x.textAlign='center'; x.textBaseline='alphabetic';
+    x.fillStyle='#f7d117'; x.fillRect(36,14,440,104);
+    const QUEST_TITLE = 'ROBIN RYU';     // the quest's name on its door (a title, not anybody speaking)
+    const word = y0 => { x.font='86px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'; x.fillStyle='#0b0b0b'; x.fillText(QUEST_TITLE, 256, y0); };
+    const cut = (top, dx, dy) => { x.save(); x.beginPath(); if(top){ x.moveTo(36,14); x.lineTo(476,14); x.lineTo(476,52); x.lineTo(36,84); } else { x.moveTo(36,84); x.lineTo(476,52); x.lineTo(476,118); x.lineTo(36,118); } x.closePath(); x.clip(); x.translate(dx, dy); word(100); x.restore(); };
+    cut(true, -3, -2); cut(false, 3, 2);
+    x.strokeStyle='#ffffff'; x.lineWidth=4; x.shadowColor='#fff'; x.shadowBlur=10; x.beginPath(); x.moveTo(24, 86); x.lineTo(488, 50); x.stroke(); x.shadowBlur=0;
+    x.font='bold 24px '+uiFont(); x.fillStyle='#f7d117'; x.fillText('WRITTEN BY GEORGE WANG', 256, 154);
+    x.font='19px '+uiFont(); x.fillStyle='#e8e6d8'; x.fillText('A QUEST · ONE NIGHT IN THE CITY', 256, 184);
     const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
     const sg=new THREE.Mesh(new THREE.PlaneGeometry(6.4,2.5), new THREE.MeshBasicMaterial({ map:tex, side:THREE.DoubleSide }));
     sg.position.y=9.0; g.add(sg);
     const hit=new THREE.Mesh(new THREE.BoxGeometry(6,7,1.5), new THREE.MeshBasicMaterial({ visible:false }));
     hit.position.y=3.5; hit.userData.owner=g; g.add(hit); G.hits.push(hit);
-    Object.assign(g.userData, { enter:'tsh', kind:'door', label:'TSH — written by George Wang', verb:'E — enter the quest' });
+    Object.assign(g.userData, { enter:'tsh', kind:'door', label:'ROBIN RYU — written by George Wang', verb:'E — enter the quest' });
   }
   function mechaBuild(){
     mecha=null; piloting=false;

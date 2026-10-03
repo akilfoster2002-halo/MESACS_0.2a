@@ -738,3 +738,14 @@ test('a blanket, not a block: a cloth draped over her pose, in both bedroom scen
   const n = t.slice(t.indexOf('  function nightScene('), t.indexOf('  function kitOff(')), m = t.slice(t.indexOf('  function morning('), t.indexOf('  function dayRoom('));
   assert.ok(n.includes('blanketOn(W.aptGroup)') && m.includes('blanketOn(W.aptGroup)'), 'at 3 AM and in the morning');
 });
+
+test('the title is ROBIN RYU, after KILL BILL: yellow band, black capitals, a slash through them, animated in and out', () => {
+  const t = read('public/tsh.js'), css = read('public/app.css'), p = read('public/planet.js');
+  has(t, /title\(\)\{[\s\S]{0,200}rrMark\('ROBIN RYU'\)/, 'the title card says ROBIN RYU');
+  hasNot(t, /<div class="tsh-t1">TSH<\/div>|<div class="tsh-res-t">TSH<\/div>/, 'and TSH is gone from the screen');
+  has(css, /\.rr-mark \.rr-band\{[^}]*background:var\(--rrY\)/, 'a yellow band');
+  has(css, /\.rr-mark \.rr-top\{clip-path:polygon\(0 0,100% 0,100% 15%,0 85%\)\}/, 'the letters cut on a slash');
+  has(t, /<line x1="-6" y1="89\.2" x2="106" y2="10\.8"/, 'and the slash drawn along that very cut');
+  ['rrBandIn', 'rrSlam', 'rrSlash', 'rrTopOut', 'rrBotOut', 'rrBandOut'].forEach(k => has(css, new RegExp('@keyframes ' + k), 'animated: ' + k));
+  has(p, /label:'ROBIN RYU — written by George Wang'/, 'and the door in Wano says so too');
+});

@@ -1342,7 +1342,7 @@ window.TSH = (function(){
         beats:[[3.2, ()=>{ ringing(false); cue('ui'); phoneBig('oncall'); scoreLevel(0.14, 0.4, true); }], [3.7, ()=>talk('call')], [8.1, ()=>{ cue('hangup'); phoneBig(null); }]] },
       // her room, slowly, as she gets up — the lamp on, the black lifting
       { dur:5.2, fov:50, mood:'sleepy', cam:[[a.x2 - 0.5, 2.5, a.z2 - 0.7], [a.x2 - 1.5, 2.2, a.z2 - 1.3]], look:[[bed.x, 0.9, bed.z], [bed.x - 0.6, 0.9, bed.z - 0.4]],
-        enter:()=>{ sitUp(); apt.lamp = true; aptLights(); cue('ui'); later(()=>black(false), 250); scoreLevel(0.8, 0.15, false); caption('INT. ROBIN\'S ROOM — 22:15'); } },
+        enter:()=>{ sitUp(); apt.lamp = true; aptLights(); cue('ui'); later(()=>black(false), 250); scoreLevel(0.8, 0.15, false); caption('INT. ROBIN\'S ROOM — 22:15'); later(()=>{ if(on && reel) title(); }, 600); } },
       // the bench: a sewing machine, circuit boards, the tools, a glove half built
       { dur:4.2, fov:42, cam:[[bench[0] + 0.9, 1.75, bench[2] + 1.75], [bench[0] - 0.9, 1.7, bench[2] + 1.65]], look:[[bench[0] + 0.4, 0.98, bench[2] - 0.05], [bench[0] - 1.3, 0.98, bench[2] - 0.05]] },
       // the sketches of clothes, and a jacket on the dress form with wiring in the seams
@@ -3572,7 +3572,7 @@ window.TSH = (function(){
       // on, and the soles light
       { dur:2.6, fov:38, mood:'grin', cam:[[shoe[0] + 1.5, 0.6, shoe[2] - 1.1], [shoe[0] + 1.2, 0.5, shoe[2] - 0.8]], look:[shoe[0] + 0.2, 0.3, shoe[2]],
         enter:()=>stage('kneel', shoe[0] + 0.35, 0, shoe[2], kry),
-        beats:[[1.1, ()=>{ W.aptGroup.traverse(o=>{ if(o.userData.boot) o.visible = false; }); kitOn('shoes'); shoesOn(); later(()=>{ if(on) scoreDrop(); }, 700); }]] },
+        beats:[[1.1, ()=>{ W.aptGroup.traverse(o=>{ if(o.userData.boot) o.visible = false; }); kitOn('shoes'); shoesOn(); later(()=>{ if(on) scoreDrop(); }, 700); later(()=>{ if(on) title(); }, 700); }]] },
       // the window, open; the morning comes in
       { dur:2.6, fov:44, mood:'determined', cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
         tick:(dt, t, k)=>{ if(k < 0.5) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.5); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
@@ -4454,7 +4454,7 @@ window.TSH = (function(){
     let reward = null;
     try{ if(window.WALLET) reward = WALLET.award('TSH — Part One', 180, 120, 'tsh1'); }catch(e){}
     panel('results', `<div class="tsh-res">
-        <div class="tsh-res-t">TSH</div><div class="tsh-res-s">PART ONE · WRITTEN BY GEORGE WANG</div>
+        ${rrMark('ROBIN RYU', 'static')}<div class="tsh-res-s">PART ONE · WRITTEN BY GEORGE WANG</div>
         <ul>${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>
         <div class="tsh-res-p"><b>Carried into Part Two</b>
           <span>Maya ${esc(partTwo.maya)}</span><span>Kai ${esc(partTwo.kai)}</span><span>Exposure ${partTwo.exposure}%</span>${partTwo.vendor ? '<span>The vendor owes you</span>' : ''}</div>
@@ -5236,12 +5236,18 @@ window.TSH = (function(){
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
     caption(day() ? z.replace('NIGHT', 'MORNING') : z);
   }
+  /* ROBIN RYU, after KILL BILL's title: black capitals on a yellow band, a slash through them (app.css .rr-mark).
+     The card animates in (the band, the letters slamming down, the slash and the cut) and out (the halves flying
+     off along the cut); the same mark, standing still, heads the results. */
+  const rrMark = (word, cls) => `<span class="rr-mark ${cls || ''}"><span class="rr-band"></span><span class="rr-word"><span class="rr-half rr-top">${word}</span><span class="rr-half rr-bot" aria-hidden="true">${word}</span><svg class="rr-slash" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="-6" y1="89.2" x2="106" y2="10.8" pathLength="1"/></svg></span></span>`;
   function title(){
     const t = el.querySelector('#tshTitle');
-    t.innerHTML = day() ? `<div class="tsh-t1">TSH</div><div class="tsh-t2">THE OTHER ROBIN</div><div class="tsh-t3">A KORO QUEST · PART TWO</div>`
-                        : `<div class="tsh-t1">TSH</div><div class="tsh-t2">WRITTEN BY GEORGE WANG</div><div class="tsh-t3">A KORO QUEST · PART ONE</div>`;
+    t.classList.add('rr');
+    t.innerHTML = rrMark('ROBIN RYU') + (day() ? `<div class="rr-sub">PART TWO · THE OTHER ROBIN</div><div class="rr-sub2">WRITTEN BY GEORGE WANG · A KORO QUEST</div>`
+                                               : `<div class="rr-sub">PART ONE · THE NIGHT</div><div class="rr-sub2">WRITTEN BY GEORGE WANG · A KORO QUEST</div>`);
     t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
-    setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 5200);
+    later(()=>cue('swish'), 780); later(()=>cue('kick'), 1000); later(()=>cue('swish'), 4300);
+    clearTimeout(t.offT); t.offT = setTimeout(()=>{ if(el) el.querySelector('#tshTitle').classList.remove('on'); }, 5500);
   }
   function showGrab(v){ el.querySelector('#tshGrab').classList.toggle('hidden', !v); }
   function paintGrab(){
