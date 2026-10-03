@@ -570,19 +570,19 @@ window.AVATAR = (function(){
     const k = 1 - Math.exp(-dt*22);
     // expressions ease in, hold for their time, and ease back out (a held-open mouth — surprise — under the talking)
     const ke = 1 - Math.exp(-dt*7), held = {};
-    ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen'].forEach(n=>{ const e = face.expr[n]; let want = 0;
+    ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{ const e = face.expr[n]; let want = 0;
       if(e){ e.t -= dt; if(e.t > 0) want = e.v; else delete face.expr[n]; }
       held[n] = (face.cur['_' + n] || 0) + (want - (face.cur['_' + n] || 0))*ke; face.cur['_' + n] = held[n]; });
     ['smile', 'frown', 'browUp', 'browDown'].forEach(n=>{ face.cur[n] = held[n]; });
     face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.8, face.mouth*0.55 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
     face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
-    faceSet(m, 'blink', blink);
+    faceSet(m, 'blink', Math.max(blink, held.blink));                 // heavy lids (sleepy) under the blinks
     for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);
   }
   function mouth(v){ face.mouth = Math.max(0, Math.min(1, v || 0)); }
   function expr(name, v, secs){ face.expr[name] = { v:v === undefined ? 1 : v, t:secs || 1.5 }; }
   /* a whole feeling at once: { smile:.7, browDown:.3 } for `secs`; the shapes it does not name let go */
-  function feel(f, secs){ ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen'].forEach(n=>{ if(f && f[n]) expr(n, f[n], secs); else delete face.expr[n]; }); }
+  function feel(f, secs){ ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{ if(f && f[n]) expr(n, f[n], secs); else delete face.expr[n]; }); }
   const hasFace = () => !!faceMesh();
   function stride(dt, moving, running, onGround){
     faceTick(dt);

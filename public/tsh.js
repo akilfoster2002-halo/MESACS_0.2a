@@ -943,6 +943,7 @@ window.TSH = (function(){
     el.classList.toggle('bino', !!s.bino);
     if(s.enter) s.enter();
     if(staged) applyStage();
+    lips.mood = s.mood || null; if(lips.moodOn){ lips.feelT = 0; lips.moodOn = false; }   // a new shot, a new mood (or none)
     if(window.AVATAR) AVATAR.tickClip(0, false, false, true);          // the shot's pose now, before the frame is drawn
     scoreSync();
     G.camera.fov = s.fov || 50; G.camera.updateProjectionMatrix();
@@ -974,6 +975,7 @@ window.TSH = (function(){
   }
   function reelEnd(skipped){
     const f = reel; if(!f) return;
+    lips.mood = null;
     reel = null; score.clockAt = undefined;
     el.classList.remove('cine', 'bino');
     G.camera.fov = 70; G.camera.updateProjectionMatrix();
@@ -1189,11 +1191,11 @@ window.TSH = (function(){
     const faceTable = Math.atan2(kit.at[0] - atTable[0], kit.at[2] - atTable[1]), faceMom = Math.atan2(mom[0] - atTable[0], mom[2] - atTable[1]);
     const shots = [
       // BLACK. The phone. She answers; the buyer; she hangs up.
-      { dur:9.0, fov:40, cam:[bed.x + 1.5, 1.6, bed.z - 1], look:[bed.x, 0.8, bed.z],
+      { dur:9.0, fov:40, mood:'sleepy', cam:[bed.x + 1.5, 1.6, bed.z - 1], look:[bed.x, 0.8, bed.z],
         enter:()=>{ sitUp(); later(()=>{ if(reel) phoneBig('call'); }, 600); ringing(true); },
         beats:[[3.2, ()=>{ ringing(false); cue('ui'); phoneBig('oncall'); scoreLevel(0.14, 0.4, true); }], [3.7, ()=>talk('call')], [8.1, ()=>{ cue('hangup'); phoneBig(null); }]] },
       // her room, slowly, as she gets up — the lamp on, the black lifting
-      { dur:5.2, fov:50, cam:[[a.x2 - 0.5, 2.5, a.z2 - 0.7], [a.x2 - 1.5, 2.2, a.z2 - 1.3]], look:[[bed.x, 0.9, bed.z], [bed.x - 0.6, 0.9, bed.z - 0.4]],
+      { dur:5.2, fov:50, mood:'sleepy', cam:[[a.x2 - 0.5, 2.5, a.z2 - 0.7], [a.x2 - 1.5, 2.2, a.z2 - 1.3]], look:[[bed.x, 0.9, bed.z], [bed.x - 0.6, 0.9, bed.z - 0.4]],
         enter:()=>{ sitUp(); apt.lamp = true; aptLights(); cue('ui'); later(()=>black(false), 250); scoreLevel(0.8, 0.15, false); caption('INT. ROBIN\'S ROOM — 22:15'); } },
       // the bench: a sewing machine, circuit boards, the tools, a glove half built
       { dur:4.2, fov:42, cam:[[bench[0] + 0.9, 1.75, bench[2] + 1.75], [bench[0] - 0.9, 1.7, bench[2] + 1.65]], look:[[bench[0] + 0.4, 0.98, bench[2] - 0.05], [bench[0] - 1.3, 0.98, bench[2] - 0.05]] },
@@ -1204,63 +1206,63 @@ window.TSH = (function(){
       // the sneakers by the window: coils in the soles
       { dur:3.0, fov:34, cam:[[shoe[0] + 1.1, 0.42, shoe[2] - 0.7], [shoe[0] + 0.85, 0.32, shoe[2] - 0.45]], look:[shoe[0], 0.12, shoe[2]] },
       // and her, up
-      { dur:3.0, fov:44, cam:[[bed.x + 1.7, 1.55, bed.z - 2.4], [bed.x + 1.4, 1.6, bed.z - 2.1]], look:[bed.x + 0.6, 1.25, bed.z - 1.0],
+      { dur:3.0, fov:44, mood:'tired', cam:[[bed.x + 1.7, 1.55, bed.z - 2.4], [bed.x + 1.4, 1.6, bed.z - 2.1]], look:[bed.x + 0.6, 1.25, bed.z - 1.0],
         enter:()=>stage('idle', bed.x + 0.6, 0, bed.z - 1.15, Math.PI) },
       // THE JACKET, off the form — the seams wake up
-      { dur:3.2, fov:42, cam:[[form[0] + 1.9, 1.6, form[2] + 1.6], [form[0] + 1.6, 1.55, form[2] + 1.3]], look:[form[0] + 0.3, 1.3, form[2] + 0.3],
+      { dur:3.2, fov:42, mood:'focused', cam:[[form[0] + 1.9, 1.6, form[2] + 1.6], [form[0] + 1.6, 1.55, form[2] + 1.3]], look:[form[0] + 0.3, 1.3, form[2] + 0.3],
         enter:()=>stage('idle', J[0], 0, J[1], jry + Math.PI),
         beats:[[1.3, ()=>{ R.form.jacket.visible = false; kitOn('jacket'); cue('zip'); }]] },
-      { dur:2.2, fov:34, cam:rel(J[0], J[1], jry, 0.95, 0.25, 1.4), look:rel(J[0], J[1], jry, 0, 0, 1.2),
+      { dur:2.2, fov:34, mood:'focused', cam:rel(J[0], J[1], jry, 0.95, 0.25, 1.4), look:rel(J[0], J[1], jry, 0, 0, 1.2),
         enter:()=>stage('idle', J[0], 0, J[1], jry), beats:[[0.3, ()=>{ me.kitT.jacket = 0; cue('gear'); }]] },
       // THE GLOVES, at the bench
-      { dur:2.8, fov:34, cam:rel(GL[0], GL[1], gry, 0.95, -0.2, 1.4), look:k=>{ const h = handsAt(); return h ? [h.at.x, h.at.y, h.at.z] : rel(GL[0], GL[1], gry, 0.3, 0, 1.1); },
+      { dur:2.8, fov:34, mood:'focused', cam:rel(GL[0], GL[1], gry, 0.95, -0.2, 1.4), look:k=>{ const h = handsAt(); return h ? [h.at.x, h.at.y, h.at.z] : rel(GL[0], GL[1], gry, 0.3, 0, 1.1); },
         enter:()=>stage('text', GL[0], 0, GL[1], gry),
         beats:[[0.9, ()=>{ kitOn('gloves'); cue('gear'); }]] },
       // THE SHOES: down on one knee by the window
-      { dur:3.2, fov:38, cam:[[shoe[0] + 1.5, 0.6, shoe[2] - 1.1], [shoe[0] + 1.2, 0.5, shoe[2] - 0.8]], look:[shoe[0] + 0.2, 0.3, shoe[2]],
+      { dur:3.2, fov:38, mood:'focused', cam:[[shoe[0] + 1.5, 0.6, shoe[2] - 1.1], [shoe[0] + 1.2, 0.5, shoe[2] - 0.8]], look:[shoe[0] + 0.2, 0.3, shoe[2]],
         enter:()=>stage('kneel', shoe[0] + 0.35, 0, shoe[2], -Math.PI/2),
         beats:[[1.5, ()=>{ kitOn('shoes'); shoesOn(); }]] },
       // THE BRACELET
-      { dur:2.6, fov:30, cam:rel(BR[0], BR[1], bry, 0.75, 0.35, 1.3), look:k=>{ const h = handAt('Right'); return h ? [h.x, h.y, h.z] : rel(BR[0], BR[1], bry, 0.3, 0.15, 1.1); },
+      { dur:2.6, fov:30, mood:'soft', cam:rel(BR[0], BR[1], bry, 0.75, 0.35, 1.3), look:k=>{ const h = handAt('Right'); return h ? [h.x, h.y, h.z] : rel(BR[0], BR[1], bry, 0.3, 0.15, 1.1); },
         enter:()=>stage('text', BR[0], 0, BR[1], bry),
         beats:[[0.8, ()=>{ kitOn('bracelet'); cue('gear'); later(()=>cue('pick'), 260); }]] },
       // the backpack, and the door
-      { dur:3.0, fov:46, cam:[[pack[0] + 1.2, 1.5, pack[2] - 2.2], [stop[0] - 0.6, 1.55, stop[1] - 2.0]], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, 1.1, b.position.z] : [pack[0], 1, pack[2]]; },
+      { dur:3.0, fov:46, mood:'focused', cam:[[pack[0] + 1.2, 1.5, pack[2] - 2.2], [stop[0] - 0.6, 1.55, stop[1] - 2.0]], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, 1.1, b.position.z] : [pack[0], 1, pack[2]]; },
         enter:()=>{ W.aptGroup.traverse(o=>{ if(o.userData.pack) o.visible = false; }); kitOn('pack'); cue('pick'); },
         tick:(dt, t, k)=>walkStage([pack[0] - 0.2, pack[2] - 0.5], stop, Math.min(1, k*1.05)) },
       // she stops
-      { dur:2.0, fov:40, cam:[stop[0] + 1.3, 1.5, stop[1] + 1.4], look:[stop[0], 1.4, stop[1]],
+      { dur:2.0, fov:40, mood:'sad', cam:[stop[0] + 1.3, 1.5, stop[1] + 1.4], look:[stop[0], 1.4, stop[1]],
         enter:()=>{ stage('idle', stop[0], 0, stop[1], Math.atan2(kit.at[0] - stop[0], kit.at[2] - stop[1])); scoreLevel(0.25, 2, false); } },
       // THE KITCHEN: dinner on the table, still covered, and a note
-      { dur:3.4, fov:34, cam:[[kit.at[0] + 0.9, 1.35, kit.at[2] + 1.2], [kit.at[0] + 0.55, 1.2, kit.at[2] + 0.8]], look:[kit.at[0], 0.8, kit.at[2]],
+      { dur:3.4, fov:34, mood:'sad', cam:[[kit.at[0] + 0.9, 1.35, kit.at[2] + 1.2], [kit.at[0] + 0.55, 1.2, kit.at[2] + 0.8]], look:[kit.at[0], 0.8, kit.at[2]],
         enter:()=>{ stage('idle', atTable[0], 0, atTable[1], faceTable); scoreLevel(0.06, 2.5, true); } },
-      { dur:2.6, fov:34, cam:[kit.at[0] + 0.25, 1.4, kit.at[2] - 0.35], look:[atTable[0], 1.45, atTable[1]] },
-      { dur:3.0, fov:24, cam:[note.at[0] - 0.05, note.at[1] + 0.55, note.at[2] + 0.28], look:[note.at[0], note.at[1], note.at[2]], ease:false },
+      { dur:2.6, fov:34, mood:'sad', cam:[kit.at[0] + 0.25, 1.4, kit.at[2] - 0.35], look:[atTable[0], 1.45, atTable[1]] },
+      { dur:3.0, fov:24, mood:'sad', cam:[note.at[0] - 0.05, note.at[1] + 0.55, note.at[2] + 0.28], look:[note.at[0], note.at[1], note.at[2]], ease:false },
       // she looks toward the rest of the flat: her mother's door, dark
-      { dur:2.8, fov:40, cam:[atTable[0] + 0.45, 1.65, atTable[1] + 0.8], look:[mom[0], 1.2, mom[2]],
+      { dur:2.8, fov:40, mood:'sad', cam:[atTable[0] + 0.45, 1.65, atTable[1] + 0.8], look:[mom[0], 1.2, mom[2]],
         enter:()=>stage('idle', atTable[0], 0, atTable[1], faceMom) },
       // she picks the note up. Looks at it.
-      { dur:3.6, fov:40, cam:rel(atTable[0], atTable[1], faceTable, 0.85, 0.15, 1.5), look:rel(atTable[0], atTable[1], faceTable, 0.15, 0, 1.3),
+      { dur:3.6, fov:40, mood:'sad', cam:rel(atTable[0], atTable[1], faceTable, 0.85, 0.15, 1.5), look:rel(atTable[0], atTable[1], faceTable, 0.15, 0, 1.3),
         enter:()=>stage('text', atTable[0], 0, atTable[1], faceTable),
         after:()=>{ const h = handsAt(); if(h) note.hold(h.at, h.head); } },
       // and puts it back down
-      { dur:2.2, fov:32, cam:[kit.at[0] + 0.6, 1.25, kit.at[2] + 0.55], look:[note.at[0], 0.8, note.at[2]],
+      { dur:2.2, fov:32, mood:'resolve', cam:[kit.at[0] + 0.6, 1.25, kit.at[2] + 0.55], look:[note.at[0], 0.8, note.at[2]],
         enter:()=>{ note.home(); stage('idle', atTable[0], 0, atTable[1], faceTable); } },
       // THE WINDOW. The city comes in.
-      { dur:3.2, fov:44, cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
+      { dur:3.2, fov:44, mood:'determined', cam:[win[0] + 2.4, 1.6, win[2] - 1.2], look:[win[0], 1.5, win[2]],
         enter:()=>{ scoreBreak(); scoreLevel(0.95, 1.2, false); },
         tick:(dt, t, k)=>{ if(k < 0.45) walkStage([win[0] + 2.0, win[2] - 0.9], [win[0] + 0.75, win[2]], k/0.45); else stage('idle', win[0] + 0.75, 0, win[2], -Math.PI/2); },
         beats:[[1.7, ()=>{ R.window.open(true); cue('window'); muffle(false); }], [2.5, ()=>{ me.shades = true; dress(); cue('ui'); }]] },
       // up onto the sill
-      { dur:2.4, fov:40, cam:[win[0] + 2.2, 0.6, win[2] + 0.6], look:[win[0] + 0.2, 1.6, win[2]],
+      { dur:2.4, fov:40, mood:'focused', cam:[win[0] + 2.2, 0.6, win[2] + 0.6], look:[win[0] + 0.2, 1.6, win[2]],
         enter:()=>stage('kneel', win[0] + 0.32, 1.0, win[2], -Math.PI/2) },
       // OUTSIDE: on the sill, over Kiln Street. A look down.
-      { dur:3.0, fov:42, inside:false, cam:[[55.3, 13.4, 30.8], [55.5, 13.1, 31.5]], look:[SILL[0] - 0.2, SILL[1] + 0.5, SILL[2]],
+      { dur:3.0, fov:42, mood:'focused', inside:false, cam:[[55.3, 13.4, 30.8], [55.5, 13.1, 31.5]], look:[SILL[0] - 0.2, SILL[1] + 0.5, SILL[2]],
         enter:()=>{ outsideLook(); stage('idle', SILL[0], SILL[1], SILL[2], -Math.PI/2); caption('EXT. KILN STREET — 22:17'); } },
       // and a smile
-      { dur:2.2, fov:36, cam:[SILL[0] - 1.7, SILL[1] + 1.65, SILL[2] + 0.45], look:[SILL[0], SILL[1] + 1.5, SILL[2]] },
+      { dur:2.2, fov:36, mood:'grin', cam:[SILL[0] - 1.7, SILL[1] + 1.65, SILL[2] + 0.45], look:[SILL[0], SILL[1] + 1.5, SILL[2]] },
       // she jumps
-      { dur:0.8, fov:56, cam:[56.8, 6.6, 37.6], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, b.position.y + 1, b.position.z] : SILL; },
+      { dur:0.8, fov:56, mood:'grin', cam:[56.8, 6.6, 37.6], look:k=>{ const b = AVATAR.body; return b ? [b.position.x, b.position.y + 1, b.position.z] : SILL; },
         enter:()=>{ cue('kick'); },
         tick:(dt, t, k)=>stage('jump', SILL[0] - k*1.6, SILL[1] + Math.sin(k*Math.PI*0.6)*0.7, SILL[2], -Math.PI/2) }
     ];
@@ -3798,7 +3800,14 @@ window.TSH = (function(){
     sheepish:   { smile:0.55, browUp:0.8 },
     tired:      { browUp:0.45, frown:0.45 },
     hush:       { mouthO:0.7, browUp:0.5 },
-    pain:       { frown:1, browDown:0.6, browUp:0.4, jawOpen:0.25 }
+    pain:       { frown:1, browDown:0.6, browUp:0.4, jawOpen:0.25 },
+    // the ones she has without a word (a shot's `mood`)
+    sleepy:     { blink:0.5, browUp:0.3, frown:0.2 },
+    sad:        { browUp:0.85, frown:0.7 },
+    soft:       { smile:0.4, browUp:0.45 },
+    focused:    { browDown:0.6, frown:0.1 },
+    resolve:    { browDown:0.65, frown:0.4 },
+    relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
     "Let's go.":'determined', 'Hi, Mom.':'sarcastic', 'Oh you prick.':'angry', 'Who are you?':'surprised', 'Do not call me that.':'annoyed',
@@ -3848,6 +3857,8 @@ window.TSH = (function(){
     AVATAR.mouth(v);
     // fighting, she is set: brows down, mouth firm — under whatever she says or feels
     lips.feelT = Math.max(0, (lips.feelT || 0) - dt);
+    // a film shot's mood: held for the shot, under her lines (a line's own feeling wins while it lasts)
+    if(mode === 'reel' && lips.mood && lips.feelT <= 0 && AVATAR.feel){ AVATAR.feel(FEELS[lips.mood], 0.5); lips.feelT = 0.35; lips.moodOn = true; }
     if(mode === 'fight' && AVATAR.expr && lips.feelT <= 0){ lips.set = (lips.set || 0) - dt; if(lips.set <= 0){ lips.set = 0.25; AVATAR.expr('browDown', 0.7, 0.4); AVATAR.expr('frown', 0.25, 0.4); } }
   }
   function voice(who, text, o){

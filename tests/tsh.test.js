@@ -427,6 +427,12 @@ test("Robin's face: the shapes are on her, she blinks and talks with them, and e
   const hers = lines(t).filter(l => l.who === 'robin').map(l => l.text);
   hers.forEach(x => assert.ok(FEEL[x], 'what does she feel saying "' + x + '"? (FEEL in tsh.js)'));
   assert.ok(new Set(hers.map(x => FEEL[x])).size >= 10, 'a range of feelings, not three');
+  // the films' silent moods: each one a feeling there is, and the opening (where her face is bare) acted all the way through
+  (t.match(/mood:'(\w+)'/g) || []).forEach(m => { const k = m.slice(6, -1); assert.ok(FEELS[k], 'a mood that exists: ' + k); });
+  const open = t.slice(t.indexOf('  function opening('), t.indexOf('  function opening(') + 12000);
+  assert.ok((open.match(/mood:'/g) || []).length >= 15, 'the opening has her feeling her way through it');
+  ['sleepy', 'sad', 'grin'].forEach(k => assert.ok(open.includes("mood:'" + k + "'"), 'the opening has ' + k));
+  has(t, /if\(mode === 'reel' && lips\.mood && lips\.feelT <= 0/, 'a shot\'s mood holds under her lines');
 });
 
 test('slow, then fast: every lesson waits in slow motion, and every hit lands with a jolt', () => {
