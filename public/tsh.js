@@ -306,7 +306,30 @@ window.TSH = (function(){
       else if(kind==='jam'){ tone(200, 1800, 0.5, 'sawtooth', 0.04); tone(1800, 200, 0.5, 'sawtooth', 0.03); }
       else if(kind==='alert'){ tone(520, 780, 0.18, 'square', 0.06); setTimeout(()=>cue('alert2'), 170); }
       else if(kind==='alert2'){ tone(780, 520, 0.18, 'square', 0.06); }
-      else if(kind==='sus'){ tone(420, 560, 0.2, 'triangle', 0.05); }
+      /* SUSPENSE, made here rather than recorded. `sus` is the short one — somebody noticed — and it is heard
+         a lot, so it is a low stab, not a fanfare. `rise` pulls the floor up under a shot before a reveal;
+         `sting` is the reveal: a sub falling away under a cluster a semitone apart that opens and closes. */
+      else if(kind==='sus'){
+        const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4; lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(180, t + 1.1);
+        const gg = a.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.07, t + 0.03); gg.gain.exponentialRampToValueAtTime(0.0008, t + 1.2);
+        lp.connect(gg); gg.connect(a.destination);
+        [98, 103.8].forEach(f=>{ const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(t); o.stop(t + 1.25); });
+        tone(62, 44, 0.9, 'sine', 0.22); }
+      else if(kind==='rise'){
+        const s_ = a.createBufferSource(); s_.buffer = noiseBuf(2.3, false); const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.2;
+        bp.frequency.setValueAtTime(260, t); bp.frequency.exponentialRampToValueAtTime(5200, t + 2.1);
+        const gg = a.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.16, t + 2.05); gg.gain.exponentialRampToValueAtTime(0.0005, t + 2.25);
+        s_.connect(bp); bp.connect(gg); gg.connect(a.destination); s_.start(t); s_.stop(t + 2.3);
+        const o = a.createOscillator(), og = a.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(440, t + 2.1);
+        og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.06, t + 2.0); og.gain.exponentialRampToValueAtTime(0.0005, t + 2.2); o.connect(og); og.connect(a.destination); o.start(t); o.stop(t + 2.3); }
+      else if(kind==='sting'){
+        tone(58, 34, 2.6, 'sine', 0.38);
+        const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 3;
+        lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(2600, t + 1.0); lp.frequency.exponentialRampToValueAtTime(380, t + 2.9);
+        const gg = a.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.06, t + 0.25); gg.gain.setValueAtTime(0.06, t + 1.1); gg.gain.exponentialRampToValueAtTime(0.0006, t + 3.0);
+        lp.connect(gg); gg.connect(a.destination);
+        [[110, -7], [116.5, 6], [164.8, -4], [233.1, 9]].forEach(([f, c])=>{ const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = c; o.connect(lp); o.start(t); o.stop(t + 3.05); });
+        burst(0.35, 6500, 0.12, 1.5); }
       else if(kind==='heat'){ tone(900, 600, 0.25, 'square', 0.05); setTimeout(()=>{ try{ tone(900, 600, 0.25, 'square', 0.05); }catch(e){} }, 280); }
       else if(kind==='pick'){ tone(700, 1200, 0.12, 'sine', 0.07); }
       else if(kind==='step'){ burst(0.08, 900, 0.05); }
@@ -331,7 +354,7 @@ window.TSH = (function(){
       else if(kind==='swish'){ const s_ = a.createBufferSource(); s_.buffer = noiseBuf(0.18, false); const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
         bp.frequency.setValueAtTime(700, t); bp.frequency.exponentialRampToValueAtTime(2600, t + 0.16); const gg = a.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.18, t + 0.05); gg.gain.exponentialRampToValueAtTime(0.0008, t + 0.18);
         s_.connect(bp); bp.connect(gg); gg.connect(a.destination); s_.start(t); }
-      else if(kind==='boom'){ burst(0.5, 160, 0.7, 0.4); tone(90, 32, 0.55, 'sine', 0.45); tone(2400, 600, 0.25, 'sawtooth', 0.03); }
+      else if(kind==='boom' || kind==='blast'){ burst(0.5, 160, 0.7, 0.4); tone(90, 32, 0.55, 'sine', 0.45); tone(2400, 600, 0.25, 'sawtooth', 0.03); }
       else if(kind==='clang'){ tone(1800, 1750, 0.5, 'triangle', 0.09); tone(2650, 2600, 0.35, 'sine', 0.05); burst(0.06, 4000, 0.25); }
       else if(kind==='hurt'){ burst(0.2, 300, 0.55, 0.6); tone(220, 90, 0.25, 'sine', 0.18); }
       else if(kind==='grab'){ tone(300, 1600, 0.3, 'sawtooth', 0.04); burst(0.2, 2200, 0.12, 0.8); }
@@ -2546,11 +2569,11 @@ window.TSH = (function(){
         enter:()=>{ stage('idle', R0[0], 0, R0[1], ry); talk('fightIn1'); TSHFIGHT.play(buyer, 'talk'); } },
       // over hers: "About that…"
       { dur:linesLen('fightIn2') + 0.6, fov:32, cam:rel(R0[0], R0[1], ry, -0.8, 0.4, 1.7), look:head(B0[0], B0[1], 1.62),
-        enter:()=>{ talk('fightIn2'); TSHFIGHT.play(buyer, 'talk'); } },
+        enter:()=>{ talk('fightIn2'); TSHFIGHT.play(buyer, 'talk'); later(()=>cue('rise'), Math.max(0, linesLen('fightIn2')*1000 - 1500)); } },
       // and the rest of them come out: from behind the dumpster, off the avenue, round the bend, from behind the car
       // (high and wide — but under the canopy: the alley is eighteen metres across, and they come from both walls and both ends)
       { dur:4.4, fov:66, cam:[[-40.4, 3.6, -16.4], [-40.4, 3.75, -17.4]], look:[-41.2, 0.8, -26.2],         // under the canopy (4.4 m)
-        enter:()=>{ cue('sus'); TSHFIGHT.play(buyer, 'idle'); },
+        enter:()=>{ cue('sting'); TSHFIGHT.play(buyer, 'idle'); },
         tick:(dt, t, k)=>{ const m = Math.min(1, k*1.1);
           [['t3', [-47.0, -19.6]], ['t4', [-33.2, -12.6]], ['t5', [-33.6, -34.6]], ['t6', [-46.6, -32.2]], ['t1', [-42.7, -29.5]]].forEach(([t, a])=>{ const e = crewBy(t); crewWalk(e, a, RINGED[t], m, Math.hypot(RINGED[t][0] - a[0], RINGED[t][1] - a[1]) > 7 ? 'sprint' : 'walk'); if(m >= 1) crewFace(e, R0[0], R0[1], 'fight'); });
           crewFace(t2, R0[0], R0[1], k > 0.5 ? 'fight' : null); } },
@@ -2861,10 +2884,10 @@ window.TSH = (function(){
       // she reads it, and looks up at the sign over the alley she has just come out of
       { dur:linesLen('raidIn2') + 1.4, fov:36, cam:rel(B[0], B[1], ry, 1.1, -0.5, 1.55), look:head(B[0], B[1], 1.62),
         enter:()=>stage('idle', B[0], 0, B[1], ry),
-        beats:[[0.9, ()=>{ stage('idle', B[0], 0, B[1], Math.PI); talk('raidIn2'); }]] },
+        beats:[[0.9, ()=>{ stage('idle', B[0], 0, B[1], Math.PI); talk('raidIn2'); }], [Math.max(0.2, linesLen('raidIn2') + 1.4 - 2.1), ()=>cue('rise')]] },
       // red light: a drone drops out of the sky in front of her and reads her gloves
       { dur:Math.max(3.0, linesLen('raidDrone') + 1.6), fov:40, cam:rel(B[0], B[1], ry, -1.5, 0.7, 1.55), look:[dr.pin[0], 2.6, dr.pin[1]],
-        enter:()=>{ stage('idle', B[0], 0, B[1], ry); cue('sus'); dr.state = 'track'; },
+        enter:()=>{ stage('idle', B[0], 0, B[1], ry); cue('sting'); dr.state = 'track'; },
         tick:(dt, t, k)=>{ dr.yT = lerp(20, 2.7, Math.min(1, t/1.1)); },
         beats:[[1.0, ()=>{ cue('scan'); talk('raidDrone'); }]] },
       // the vans, from both ends of the avenue, and the doors

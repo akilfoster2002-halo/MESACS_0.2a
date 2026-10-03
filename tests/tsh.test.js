@@ -297,7 +297,7 @@ test('the alley scene is told the way the night opened: a film, then yours, then
   const t = read('public/tsh.js');
   const intro = t.slice(t.indexOf('function fightIntro('), t.indexOf('function fightBegin('));
   // the script, in order
-  const beats = ["caption('EXT. DRAGON ALLEY", "talk('fightIn1')", "talk('fightIn2')", "cue('sus')", "talk('fightIn3')", "talk('fightIn4')", "fprop.bagOn = t1",
+  const beats = ["caption('EXT. DRAGON ALLEY", "talk('fightIn1')", "talk('fightIn2')", "cue('rise')", "cue('sting')", "talk('fightIn3')", "talk('fightIn4')", "fprop.bagOn = t1",
                  "talk('fightIn5')", "fprop.bagOn = buyer", "cue('hurt')", "talk('fightIn6')", 'pack:false', "talk('fightIn7')", 'cuffGlow(true)'];
   beats.forEach((k, i) => { assert.ok(intro.includes(k), 'the film has ' + k); if(i) assert.ok(intro.indexOf(beats[i - 1]) < intro.indexOf(k), beats[i - 1] + ' comes before ' + k); });
   has(intro, /playReel\(shots, \(\)=>fightBegin\(/, 'a film (ENTER skips it), and the fight after it, skipped or not');

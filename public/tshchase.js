@@ -662,7 +662,7 @@ window.TSHCHASE = (function(){
   function boom(m){ boomAt(m.at, false); const p = C.P(); if(AI().blastHits(m.at, p) && C.mode() !== 'grab') hit(m.at.x, m.at.z, 'missile'); }
   function boomAt(at, far){
     const p = C.P(), d = Math.hypot(at.x - p.x, at.y - p.y, at.z - p.z);
-    C.cue('boom');
+    C.cue('blast');
     if(d < 30){ C.flash(Math.max(0, 0.4 - d*0.012)); C.shake(Math.max(0.05, 0.6 - d*0.02), 0.45); }
     for(let i = 0; i < (far ? 10 : 18); i++) C.particle(at.clone(), { color:i % 3 ? 0xff7a2a : 0xffd27a, k:4, size:0.14, life:0.55, grow:0.5, v:V(rnd(-7, 7), rnd(1, 8), rnd(-7, 7)), grav:9 });
     for(let i = 0; i < 6; i++) C.particle(at.clone().add(V(rnd(-1, 1), 0.3, rnd(-1, 1))), { color:0x4a4a4a, k:0.4, op:0.35, size:0.5, grow:1.6, life:2.2, v:V(rnd(-0.6, 0.6), rnd(1, 2), rnd(-0.6, 0.6)) });
