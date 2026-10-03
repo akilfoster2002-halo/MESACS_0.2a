@@ -5244,7 +5244,8 @@ window.TSH = (function(){
   function rrMark(word, cls){
     const chars = [...word], n = chars.filter(c=>c !== ' ').length; let i = 0;
     const r = (a, b) => (a + Math.random()*(b - a)).toFixed(2);
-    const DEPTH = 10, shade = k => { const t = k/(DEPTH - 1); return `rgb(${Math.round(222 - 120*t)},${Math.round(160 - 100*t)},${Math.round(10 + 6*t)})`; };
+    // a solid block: twenty-six layers packed close, lit gold at the face and falling to bronze at the back
+    const DEPTH = 26, shade = k => { const t = k/(DEPTH - 1), l = t < 0.08 ? 1.1 : 1; return `rgb(${Math.round((214 - 128*t)*l)},${Math.round((150 - 104*t)*l)},${Math.round(8 + 10*t)})`; };
     // a half: its face and the nine layers behind it
     const half = (c, cls_) => `<span class="rr-half ${cls_}">` + Array.from({ length:DEPTH }, (_, k)=>`<span class="rr-z" style="--k:${DEPTH - k};--c:${shade(DEPTH - 1 - k)}">${c}</span>`).join('') + `<span class="rr-z rr-f">${c}</span></span>`;
     const letters = chars.map(c=>{

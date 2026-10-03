@@ -2975,8 +2975,10 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 .rr-mark .rr-sp{display:inline-block;width:.26em}
 .rr-mark .rr-half{position:absolute;left:0;top:0;transform-style:preserve-3d}
 .rr-mark .rr-half.rr-t{position:relative;display:block}
-.rr-mark .rr-z{position:absolute;left:0;top:0;display:block;color:var(--c);transform:translateZ(calc(var(--k)*-.032em))}
-.rr-mark .rr-z.rr-f{position:relative;color:transparent;background:linear-gradient(105deg,var(--rrY) 0%,var(--rrY) 42%,#fffbe0 50%,var(--rrY) 58%,var(--rrY) 100%) 120% 0/300% 100% no-repeat;-webkit-background-clip:text;background-clip:text;transform:translateZ(.001em)}
+.rr-mark .rr-z{position:absolute;left:0;top:0;display:block;color:var(--c);transform:translateZ(calc(var(--k)*-.0105em));-webkit-text-stroke:.012em var(--c)}
+.rr-mark .rr-z.rr-f{position:relative;color:transparent;-webkit-text-stroke:.018em #8a5a00;
+  background:linear-gradient(105deg,rgba(255,255,255,0) 42%,rgba(255,252,230,.95) 50%,rgba(255,255,255,0) 58%) 120% 0/300% 100% no-repeat,linear-gradient(180deg,#fff27a 0%,#f7d117 38%,#f0b40a 78%,#d98c00 100%);
+  -webkit-background-clip:text;background-clip:text;transform:translateZ(.001em)}
 .rr-mark .rr-slash{position:absolute;height:0;transform-origin:0 0;pointer-events:none}
 .rr-mark .rr-slash b{position:absolute;left:0;top:-.022em;width:100%;height:.044em;border-radius:.03em;transform-origin:left center;transform:translateZ(.2em);
   background:linear-gradient(90deg,rgba(255,255,255,0),#fff 12%,#fff 88%,rgba(255,255,255,0));box-shadow:0 0 .07em #fff,0 0 .25em rgba(255,240,200,.8)}
@@ -3008,7 +3010,7 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 @keyframes rrBotCut{0%{transform:none}100%{transform:translate(-.06em,.026em)}}
 @keyframes rrTopOut{0%{transform:translate(.06em,-.026em);opacity:1}100%{transform:translate3d(1.9em,-1.1em,2em) rotateX(var(--rt)) rotateZ(25deg);opacity:0}}
 @keyframes rrBotOut{0%{transform:translate(-.06em,.026em);opacity:1}100%{transform:translate3d(-1.9em,1.1em,2em) rotateX(var(--rb)) rotateZ(-25deg);opacity:0}}
-@keyframes rrGlint{0%{background-position:120% 0}100%{background-position:-20% 0}}
+@keyframes rrGlint{0%{background-position:120% 0,0 0}100%{background-position:-20% 0,0 0}}
 @keyframes rrUp{0%{opacity:0;transform:translateY(14px);letter-spacing:.8em}100%{opacity:1;transform:none}}
 @keyframes rrFade{to{opacity:0}}
 @keyframes rrFlash{0%{opacity:0}2%{opacity:.75}100%{opacity:0}}
