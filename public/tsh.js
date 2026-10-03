@@ -179,6 +179,14 @@ window.TSH = (function(){
     raidGate:  [['robin','Seriously?!']],
     raidGun:   [['wfc','SUSPECT IS ON THE ROOFTOPS. ALL UNITS, SECTOR 9.']],
     raidShh:   [['robin','Shhh.']],
+    /* the three times they corner her: the films before the fights */
+    raidVan:   [['wfc','END OF THE LINE, KID.']],
+    raidFine:  [['robin','Okay. Fine.']],
+    raidDrop:  [['wfc','SUSPECT CONTAINED.']],
+    raidOkay:  [['robin','...Okay.']],
+    raidTrains:[['robin','Who even trains you guys?']],
+    raidHands: [['wfc','HANDS WHERE I CAN SEE THEM!']],
+    raidPass:  [['robin','Yeah, I\'m gonna pass on that.']],
     /* the phone, behind the AC unit: Mom, at work */
     momRing:   [['robin','Oh, you\'ve gotta be kidding me.']],
     momCall1:  [['robin','Hey, Mom.'], ['momcall','Hey, Robin. I\'m still at work. I think I\'m going to be later than usual tonight.'],
@@ -375,7 +383,7 @@ window.TSH = (function(){
   function stop(){
     if(!on) return;
     cv = null; me.scale = null;
-    if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0;
+    if(window.TSHFIGHT) TSHFIGHT.clear(); fightPropsGone(); G.timeScale = 1; shk.len = 0; raidCrew = false;
     if(window.TSHCHASE) TSHCHASE.stop();
     on = false; mode = null; busy = null;
     save();
@@ -890,6 +898,8 @@ window.TSH = (function(){
     if(s.inside !== undefined) showInside(s.inside);
     el.classList.toggle('bino', !!s.bino);
     if(s.enter) s.enter();
+    if(staged) applyStage();
+    if(window.AVATAR) AVATAR.tickClip(0, false, false, true);          // the shot's pose now, before the frame is drawn
     scoreSync();
     G.camera.fov = s.fov || 50; G.camera.updateProjectionMatrix();
     reelCam();
@@ -1636,7 +1646,9 @@ window.TSH = (function(){
     g.position.set(x, y, z); g.rotation.y = n.yaw;
     if(window.AVATAR) AVATAR.load(char).then(m=>{
       if(n.gone || !g.parent) return;
-      n.model = m; g.add(m);
+      n.model = m;
+      AVATAR.animate(m, 0, n.cutClip || n.clip || 'idle');                 // posed before it is ever drawn: never a frame of T-pose
+      g.add(m);
       if(n.uniform) uniform(m);
       if(o.phone) phoneProp(n);
     }).catch(()=>{});
@@ -1887,7 +1899,7 @@ window.TSH = (function(){
     else if(n.state === 'track' && !blind){ tx = p.x; tz = p.z; }
     else if(n.state === 'search' && lastKnown){ const a = clock*0.6; tx = lastKnown[0] + Math.cos(a)*9; tz = lastKnown[1] + Math.sin(a)*9; n.searchT -= dt; if(n.searchT <= 0) n.state = 'patrol'; }
     else if(n.away){ tx = n.away[0]; tz = n.away[1]; }                    // sent off its round while a scene plays under it
-    else { const w = n.route[n.ri]; tx = w[0]; tz = w[1];
+    else { n.ri = n.ri % n.route.length; const w = n.route[n.ri]; tx = w[0]; tz = w[1];          // a one-point round (the chase's drones) is a place to hang, not an index past the end
       if(Math.hypot(tx - n.x, tz - n.z) < 1){ if(n.hover[n.ri] && n.holdT <= 0) n.holdT = n.hover[n.ri]; if(n.holdT > 0){ n.holdT -= dt; if(n.holdT <= 0) n.ri = (n.ri+1) % n.route.length; } else n.ri = (n.ri+1) % n.route.length; } }
     const dx = tx - n.x, dz = tz - n.z, dd = Math.hypot(dx, dz);
     if(dd > 0.2){ const s = Math.min(dd, (n.state==='track' || n.hunter ? 7.5 : n.speed)*fast*dt); n.x += dx/dd*s; n.z += dz/dd*s; n.yaw += angDiff(Math.atan2(dx, dz), n.yaw)*Math.min(1, dt*2.5); }
@@ -2367,7 +2379,7 @@ window.TSH = (function(){
       if(Math.hypot(p.x - m[0], p.z - m[1]) < 5 || (p.z < m[1] + 3 && p.z > -38)) scene('deal', fightIntro);
     }
     // --- the alley after the fight: the crew stays on the ground until she has gone ---
-    if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on && S.step !== 'deal' && S.step !== 'lesson' && !mode && !inAlley()) TSHFIGHT.clear();
+    if(window.TSHFIGHT && TSHFIGHT.ready && !TSHFIGHT.on && S.step !== 'deal' && S.step !== 'lesson' && !mode && !inAlley() && !raidCrew) TSHFIGHT.clear();
     // --- the billboard, and WFC: as she steps out of the alley with the deal behind her ---
     if(S.step === 'raid' && !inside && !mode && !busy && !inAlley() && !(window.TSHCHASE && TSHCHASE.on)) scene('raid', raidIntro);
     // --- (Part Two) the screens, the binoculars, the roof ---
@@ -2894,6 +2906,154 @@ window.TSH = (function(){
     const b = el.querySelector('#tshBlack'); if(b) b.classList.add('on');
     later(()=>{ busy = null; if(b) b.classList.remove('on'); const cp = S.cp; stop(); S.cp = cp; save(); enter(server); }, 1300);
   }
+  /* ===================================================== THE THREE FIGHTS
+     THREE TIMES THEY CORNER HER, and only then is the chase a fight: the
+     van across Neon Avenue, the team the gunship drops on B8's roof, and
+     the officer who comes round the AC unit after Mom's call. Each one is
+     the alley's fight (tshfight.js) with WFC in uniform and no lessons —
+     she learned all of it in the alley — on its own patch of ground, and
+     each opens with a FILM of about ten seconds: who they are, a line or
+     two, and a last shot of her gauntlets waking up under GET READY and
+     the keys. Then it is yours. When the last of them is down, the chase
+     picks up where it left off. */
+  let raidCrew = false;
+  const RAIDFIGHT = {
+    1: { arena:{ x1:-33, x2:-15.5, z1:-9.6, z2:-1.0 }, floor:0, blocks:()=>{ const v = TSHCHASE.van; return v && v.s ? [v.s] : []; },
+         crew:[{ tag:'a', kind:'wfc', x:-21.6, z:-5.2, to:[-24.6, -5.8] }, { tag:'b', kind:'wfcLean', x:-21.6, z:-8.4, to:[-24.8, -8.6], weapon:true },
+               { tag:'c', kind:'wfc', x:-38, z:-3.2, to:[-31.4, -6.4], hidden:true }],
+         robin:p=>[clamp(p.x, -29.5, -26.5), clamp(p.z, -9, -3)] },
+    2: { arena:{ x1:37.6, x2:46.4, z1:-43.4, z2:-10.6 }, floor:13, blocks:()=>[],
+         crew:null,                                         // round wherever she landed (below)
+         robin:p=>[clamp(p.x, 39.5, 44.5), clamp(p.z, -40, -14)] },
+    3: { arena:{ x1:47.6, x2:55.6, z1:-43.4, z2:-10.6 }, floor:13, blocks:()=>{ const c = TSHCHASE.ROUTE.ac; return [{ x1:c.x - c.w/2, x2:c.x + c.w/2, z1:c.z - c.d/2, z2:c.z + c.d/2 }]; },
+         crew:null,                                         // the one who found her, and one more out of the stairwell
+         robin:p=>[clamp(p.x, 48.4, 54.8), clamp(p.z, -42, -12)] }
+  };
+  const READY = 'CLICK strike · hold CLICK, let go: power · SPACE dodge · R parry · G pull · F pulse';
+  function readyCard(n, show){
+    const c = el.querySelector('#tshLesson'); clearTimeout(c.offT);
+    if(!show){ c.classList.remove('on', 'big'); return; }
+    c.innerHTML = `<small>WFC · FIGHT ${n} / 3</small><b>GET READY</b><p>${esc(READY)}</p>`;
+    c.classList.remove('on'); void c.offsetWidth; c.classList.add('on', 'big'); cue('ui');
+  }
+  function raidFight(n, done){
+    const F = RAIDFIGHT[n], p = P(), floor = F.floor;
+    const R0 = F.robin(p);
+    // whoever is out on the street hangs back while this plays: nobody walks into the middle of it
+    clearChase(); flushTalk(); sayOver = null;
+    if(mode === 'scale' && me.scale) offWall(me.scale.y, false);
+    if(mode === 'grab'){ showGrab(false); gr = null; }
+    if(mode === 'hide') unhide();
+    me.crouch = false;
+    if(mode && mode !== 'reel') mode = null;
+    // who she fights, and where they start
+    let crew = F.crew;
+    if(n === 2){
+      const at = (dx, dz) => [clamp(R0[0] + dx, F.arena.x1 + 0.8, F.arena.x2 - 0.8), clamp(R0[1] + dz, F.arena.z1 + 0.8, F.arena.z2 - 0.8)];
+      crew = [['a', 'wfc', 3.2, 0.4], ['b', 'wfcLean', -0.6, 3.4], ['c', 'wfc', 0.4, -3.4]].map(([tag, kind, dx, dz])=>{ const q = at(dx, dz); return { tag, kind, x:q[0], z:q[1], to:q, drop:true }; });
+    }
+    if(n === 3){
+      const cop = TSHCHASE.cop, c0 = cop && !cop.gone ? [clamp(cop.x, F.arena.x1 + 0.6, F.arena.x2 - 0.6), clamp(cop.z, F.arena.z1 + 0.6, F.arena.z2 - 0.6)] : [R0[0] + 2.4, R0[1] + 1.2];
+      if(cop && !cop.gone) despawn(cop);
+      crew = [{ tag:'a', kind:'wfc', x:c0[0], z:c0[1], to:c0 }, { tag:'b', kind:'wfcLean', x:55, z:-40, to:[clamp(R0[0] + 1.5, 48.4, 54.8), clamp(R0[1] - 3.2, -42, -12)], hidden:true, weapon:true }];
+    }
+    const fctx = { group:W.cityGroup, root:el, crew:crew.map(c=>Object.assign({ yaw:Math.atan2(R0[0] - c.x, R0[1] - c.z), state:'idle' }, c)),
+      car:null, blocks:F.blocks(), arena:F.arena, floor, meet:R0, script:'brawl', ground:()=>floor,
+      dressCrew:(e, m)=>uniform(m),
+      cue, note, later, fade:fn=>fade(fn), blocked:()=>!!busy, say:(key, d)=>talk(key, d), shake,
+      flash:k=>{ LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, k); }, charge:v=>cuffGlow(v),
+      lesson:()=>readyCard(n, false),
+      done:()=>raidFightEnd(n, done) };
+    raidCrew = true;
+    TSHFIGHT.cast(fctx);
+    const by = t => TSHFIGHT.crew().find(e=>e.tag === t);
+    const ry = Math.atan2((crew[0].to[0]) - R0[0], (crew[0].to[1]) - R0[1]);       // her, facing the first of them
+    const head = (x, z) => [x, floor + 1.55, z];
+    const walk = (t, k, clip) => { const c = crew.find(c=>c.tag === t), e = by(t); if(!c || !e) return; crewWalk(e, [c.x, c.z], c.to, Math.min(1, k), clip || 'walk'); if(k >= 1) crewFace(e, R0[0], R0[1], 'fight'); };
+    const lead = crew[0].to, ly = Math.atan2(R0[0] - lead[0], R0[1] - lead[1]);
+    const gauntlets = { dur:3.0, fov:38, cam:rel(R0[0], R0[1], ry, 1.25, 0.55, floor + 1.25), look:[R0[0], floor + 1.05, R0[1]],
+      enter:()=>{ stage('fight', R0[0], floor, R0[1], ry); crew.forEach(c=>walk(c.tag, 1)); readyCard(n, true); },
+      beats:[[0.5, ()=>{ cuffGlow(true); cue('gear'); }]] };
+    let shots;
+    if(n === 1) shots = [
+      // the van, across the pavement; she stops
+      { dur:2.4, fov:50, cam:[-26.5, 2.4, 2.6], look:[-21.0, 1.0, -6.8],
+        enter:()=>{ caption('EXT. NEON AVENUE — NIGHT'); stage('idle', R0[0], 0, R0[1], ry); } },
+      // the doors, and two of them out of it, batons out
+      { dur:2.8, fov:44, cam:[[-25.5, 1.7, -1.4], [-25.8, 1.6, -2.0]], look:[-22.5, 1.2, -6.6],
+        enter:()=>cue('door'), tick:(dt, t, k)=>{ walk('a', k*1.2); walk('b', k*1.2); } },
+      // "END OF THE LINE, KID."
+      { dur:linesLen('raidVan') + 0.5, fov:36, cam:rel(lead[0], lead[1], ly, -0.9, 0.45, 1.8), look:head(R0[0], R0[1]),
+        enter:()=>{ walk('a', 1); walk('b', 1); talk('raidVan'); } },
+      // and one behind her. "Okay. Fine."
+      { dur:Math.max(2.6, linesLen('raidFine') + 1.2), fov:44, cam:rel(R0[0], R0[1], ry, 1.6, -0.8, 1.6), look:[-31.4, 1.2, -6.4],
+        tick:(dt, t, k)=>walk('c', k*1.4, 'sprint'),
+        beats:[[1.0, ()=>{ stage('idle', R0[0], 0, R0[1], ry + 0.5); talk('raidFine'); }]] },
+      gauntlets
+    ];
+    if(n === 2) shots = [
+      // the gunship comes in low over the roof
+      { dur:2.6, fov:50, cam:[R0[0] - 2.5, floor + 1.4, R0[1] + 3.5], look:()=>{ const g = TSHCHASE.gun; return g ? [g.g.position.x, g.g.position.y, g.g.position.z] : [R0[0] + 10, floor + 18, R0[1]]; },
+        enter:()=>{ caption('EXT. ROOFTOP — NIGHT'); stage('idle', R0[0], floor, R0[1], ry); crew.forEach(c=>{ const e = by(c.tag); if(e){ e.g.visible = false; } }); cue('alarm'); } },
+      // three of them, down lines, round her
+      { dur:3.0, fov:56, cam:[[R0[0] - 6.5, floor + 4.5, R0[1] + 6.5], [R0[0] - 6, floor + 4, R0[1] + 6]], look:[R0[0], floor + 1.5, R0[1]],
+        tick:(dt, t, k)=>crew.forEach((c, i)=>{ const e = by(c.tag); if(!e) return; const q = clamp(k*1.25 - i*0.12, 0, 1); e.g.visible = q > 0; e.y = floor + 7*(1 - q); crewFace(e, R0[0], R0[1], q >= 1 ? 'fight' : 'idle'); }),
+        beats:[[2.6, ()=>cue('step')]] },
+      // "SUSPECT CONTAINED."
+      { dur:linesLen('raidDrop') + 0.5, fov:36, cam:rel(lead[0], lead[1], ly, -0.9, 0.45, floor + 1.8), look:head(R0[0], R0[1]),
+        enter:()=>{ crew.forEach(c=>{ const e = by(c.tag); if(e){ e.g.visible = true; e.y = floor; } }); talk('raidDrop'); } },
+      // "Seriously?!" ... "...Okay."
+      { dur:linesLen('raidGate') + linesLen('raidOkay') + 0.8, fov:32, cam:rel(R0[0], R0[1], ry, 1.0, -0.15, floor + 1.6), look:head(R0[0], R0[1]),
+        enter:()=>{ stage('idle', R0[0], floor, R0[1], ry); talk('raidGate'); talk('raidOkay'); } },
+      gauntlets
+    ];
+    if(n === 3) shots = [
+      // "Oh, come on."
+      { dur:linesLen('momFound') + 0.9, fov:32, cam:rel(R0[0], R0[1], ry, 1.0, -0.15, floor + 1.55), look:head(R0[0], R0[1]),
+        enter:()=>{ stage('idle', R0[0], floor, R0[1], ry); talk('momFound'); } },
+      // "HANDS WHERE I CAN SEE THEM!"
+      { dur:linesLen('raidHands') + 0.5, fov:38, cam:rel(R0[0], R0[1], ry, -0.9, 0.45, floor + 1.75), look:head(lead[0], lead[1]),
+        enter:()=>{ crewFace(by('a'), R0[0], R0[1], 'fight'); talk('raidHands'); } },
+      // the stairwell door: another one
+      { dur:2.6, fov:50, cam:[R0[0] - 3.5, floor + 3.2, R0[1] + 4.5], look:[53, floor + 1, -32],
+        tick:(dt, t, k)=>walk('b', k*1.15, 'sprint') },
+      // "Yeah, I'm gonna pass on that."
+      { dur:linesLen('raidPass') + 0.6, fov:32, cam:rel(R0[0], R0[1], ry, 1.0, 0.2, floor + 1.6), look:head(R0[0], R0[1]),
+        enter:()=>{ walk('b', 1); talk('raidPass'); } },
+      gauntlets
+    ];
+    fightClips().then(()=>{ if(!on || S.step !== 'raid') return; playReel(shots, ()=>raidFightBegin(n, R0, ry, fctx), { ownClock:true }); });
+  }
+  /* it is yours */
+  function raidFightBegin(n, R0, ry, fctx){
+    staged = null; flushTalk();
+    if(window.AVATAR) AVATAR.posture(null);
+    TSHFIGHT.crew().forEach(e=>{ const c = fctx.crew.find(c=>c.tag === e.tag); e.g.visible = true; e.y = fctx.floor; if(c){ e.x = c.to[0]; e.z = c.to[1]; } });
+    G.pos.set(R0[0], fctx.floor + EYE_, R0[1]); G.yaw = ry + Math.PI; G.pitch = 0;
+    mode = 'fight'; G.running = false;
+    el.classList.add('fighting');
+    cuffGlow(false);
+    TSHFIGHT.start(fctx);
+    readyCard(n, false);
+    setObjective('Fight your way out.', [READY]);
+    lockPointer($('#view'));
+  }
+  /* the last of them down: back to running */
+  function raidFightEnd(n, done){
+    mode = null; G.running = true; el.classList.remove('fighting'); cuffGlow(false);
+    if(window.AVATAR) AVATAR.posture(null);
+    if(window.BOOTS && BOOTS.B) BOOTS.sync();
+    cue('win');
+    // the ones on the floor stay on it until she is well away (tickQuest), then the street is theirs again
+    raidCrewOut();
+    if(done) done();
+    lockPointer($('#view'));
+  }
+  function raidCrewOut(){ const t = setInterval(()=>{ if(!on || !raidCrew){ clearInterval(t); return; }
+    if(mode === 'fight' || mode === 'reel') return;
+    const far = !TSHFIGHT.crew().length || TSHFIGHT.crew().every(e=>Math.hypot(e.x - G.pos.x, e.z - G.pos.z) > 30);
+    if(far){ clearInterval(t); raidCrew = false; TSHFIGHT.clear(); } }, 1000); }
+
   /* what the chase is told about the night */
   function chaseCtx(){
     return { W, LOOK, S:()=>S, P, feet, clock:()=>clock, groundAt, los, npcs:()=>npcs, drones:()=>drones, spawn, despawn, spawnDrone, find,
@@ -2910,7 +3070,7 @@ window.TSH = (function(){
         c.classList.remove('on', 'big'); void c.offsetWidth; c.classList.add('on'); cue('ui');
         if(!stay) c.offT = setTimeout(()=>c.classList.remove('on'), 7000);              // a lesson waiting for its key stays up until it gets it
       },
-      checkpoint, caught:raidCaught, me,
+      checkpoint, caught:raidCaught, me, fight:(n, done)=>raidFight(n, done),
       mode:()=>mode, setMode:m=>{ mode = m; G.running = m === null; },
       // the shoes, cold (nothing but her feet) or charged (everything she learned on the way to the alley)
       boots:cold=>{ if(!window.BOOTS || !BOOTS.B) return; BOOTS.teach(cold ? [] : (S.boots && S.boots.length ? S.boots : BOOTS.ALL)); },
@@ -3955,9 +4115,6 @@ window.TSH = (function(){
         else if(mode === 'talk' && cv && !cv.ask && e.target && e.target.id === 'view') convoAdvance();
         else if(mode === 'fight' && !document.pointerLockElement && e.target && e.target.id === 'view') lockPointer($('#view'));
       });
-      // in the chase, the mouse is her hands: a click hits, a right-click parries
-      addEventListener('mousedown', e=>{ if(on && !busy && S.step === 'raid' && window.TSHCHASE && TSHCHASE.on && e.target && e.target.id === 'view') TSHCHASE.mouse(e); });
-      addEventListener('contextmenu', e=>{ if(on && S.step === 'raid') e.preventDefault(); });
     }
     el.classList.remove('hidden', 'cine', 'bino', 'talking', 'fighting');
     el.querySelector('#tshTalk').classList.remove('on'); el.querySelector('#tshTalk').innerHTML = '';

@@ -36,8 +36,14 @@ window.TSHFIGHT = (function(){
   /* ------------------------------------------------------------ the alley
      Dragon Alley (tshcity.js) is eighteen metres wide, walls at x -49 and -31:
      the fight runs up and down it, between the mouth and the bend. */
-  const ARENA = { x1:-48.5, x2:-31.5, z1:-37.5, z2:-13.5 };
+  const ALLEY = { x1:-48.5, x2:-31.5, z1:-37.5, z2:-13.5 };
   const MEET = { robin:[-41.4, -24.6], buyer:[-41.6, -28.6] };
+  /* ANOTHER FIGHT, SOMEWHERE ELSE (the chase, tshchase.js): start() can be
+     given its own `arena`, the `floor` it stands on (a roof is thirteen
+     metres up), where she gets up if she goes down (`meet`), and a
+     `script` — 'brawl' for a straight fight with no lessons in it, over
+     when the last of them is down. The alley's are the defaults. */
+  let ARENA = ALLEY, FLOOR = 0, SPOT = MEET.robin;
 
   /* ------------------------------------------------------------ her moves
      `hit` is how far through the clip the blow lands, `free` when the next
@@ -80,7 +86,10 @@ window.TSHFIGHT = (function(){
   const KIND = {
     buyer: { char:'thug-buyer', hp:6, dmg:0,  windup:0.7,  walk:1.4, run:4.0 },
     big:   { char:'thug-a',     hp:5, dmg:16, windup:0.80, walk:1.2, run:3.6 },
-    lean:  { char:'thug-b',     hp:3, dmg:11, windup:0.58, walk:1.6, run:4.5 }
+    lean:  { char:'thug-b',     hp:3, dmg:11, windup:0.58, walk:1.6, run:4.5 },
+    // WFC, in the chase's three fights: the same bodies (they have the fight clips), in uniform (tsh.js dresses them)
+    wfc:     { char:'thug-a',   hp:4, dmg:12, windup:0.78, walk:1.3, run:4.0 },
+    wfcLean: { char:'thug-b',   hp:3, dmg:10, windup:0.62, walk:1.6, run:4.6 }
   };
 
   let ctx = null, on = false, ready = false, el = null, E = [], fx = [], dir = null, nextId = 1;
@@ -93,10 +102,10 @@ window.TSHFIGHT = (function(){
   function spawn(kind, x, z, o){
     o = o || {};
     const K = KIND[kind];
-    const e = { id:nextId++, kind, K, hp:o.hp || K.hp, max:o.hp || K.hp, x, z, y:0, vx:0, vy:0, vz:0, yaw:o.yaw === undefined ? 0 : o.yaw,
+    const e = { id:nextId++, kind, K, hp:o.hp || K.hp, max:o.hp || K.hp, x, z, y:FLOOR, vx:0, vy:0, vz:0, yaw:o.yaw === undefined ? 0 : o.yaw,
                 state:o.state || 'idle', t:0, model:null, rig:null, g:new THREE.Group(), weapon:!!o.weapon, grabber:!!o.grabber, cool:rnd(1.2, 2.6),
                 clip:null, tell:null, pipe:null, active:!!o.active, tag:o.tag || null, wantRing:rnd(2.5, 3.4), side:Math.random() < 0.5 ? -1 : 1 };
-    ctx.group.add(e.g); e.g.position.set(x, 0, z);
+    ctx.group.add(e.g); e.g.position.set(x, FLOOR, z);
     if(o.hidden) e.g.visible = false;
     if(window.AVATAR) AVATAR.load(K.char).then(m=>{
       if(!ready || !e.g.parent){ return; }
@@ -105,7 +114,9 @@ window.TSHFIGHT = (function(){
       m.traverse(n=>{ if(n.isMesh) n.castShadow = true; });
       if(o.hat && window.WARDROBE) WARDROBE.put(m, K.char, o.hat);
       if(e.weapon) e.pipe = pipe(m);
+      if(ctx.dressCrew) ctx.dressCrew(e, m);                    // somebody else's crew: WFC, in uniform
       play(e, e.clipWant || (e.state === 'talk' ? 'talk' : e.state === 'idle' || e.state === 'watch' ? 'idle' : 'fight'), 0);
+      if(e.rig) e.rig.update(0);                                // posed now, not on the next frame: never drawn in its T-pose
     }).catch(()=>{});
     E.push(e);
     return e;
@@ -469,7 +480,7 @@ window.TSHFIGHT = (function(){
     R.act = 'down'; R.t = 0; robinClip('fall', true); slowTo(0.25, 6);
     ctx.later(()=>{ if(!on) return; ctx.fade(()=>{
       R.hp = 100; R.act = null; robinClip('fight');
-      const p = MEET.robin; G.pos.x = p[0]; G.pos.z = p[1];
+      const p = SPOT; G.pos.x = p[0]; G.pos.z = p[1];
       alive().forEach((e, i)=>{ e.state = 'circle'; e.t = 0; e.cool = 2 + i*0.6; });
       slowTo(1, 4); ctx.note('Back on your feet. They are still here.', 'warn');
     }); }, 1100);
@@ -538,20 +549,20 @@ window.TSHFIGHT = (function(){
         case 'pulled': {
           const k = clamp(e.t/0.34, 0, 1), q = k*k;
           e.x = lerp(e.from[0], e.to[0], q); e.z = lerp(e.from[1], e.to[1], q); e.yaw = toHer;
-          e.y = Math.sin(k*Math.PI)*0.35;
-          if(k >= 1){ e.y = 0; e.state = 'stagger'; e.t = 0; e.vx = e.vz = 0; e.parried = true; shake(0.2, 0.2); hitstop(0.06); spark(V(e.x, 1.2, e.z), 0x8ff0ff, 10); ctx.cue('punch'); }
+          e.y = FLOOR + Math.sin(k*Math.PI)*0.35;
+          if(k >= 1){ e.y = FLOOR; e.state = 'stagger'; e.t = 0; e.vx = e.vz = 0; e.parried = true; shake(0.2, 0.2); hitstop(0.06); spark(V(e.x, FLOOR + 1.2, e.z), 0x8ff0ff, 10); ctx.cue('punch'); }
           break;
         }
         case 'flying': {
           e.x += e.vx*dt; e.z += e.vz*dt; e.y += e.vy*dt; e.vy -= 18*dt;
           const c = crash(e);
-          if(c || e.y <= 0){ e.y = Math.max(0, e.y);
+          if(c || e.y <= FLOOR){ e.y = Math.max(FLOOR, e.y);
             if(c){ shake(c === 'car' ? 0.5 : 0.3, 0.35); hitstop(0.07); ctx.cue('boom'); if(c === 'car'){ carHit(); event('car'); } spark(V(e.x, e.y + 1, e.z), 0xffe0a0, 12); }
             e.state = 'down'; e.t = 0; e.vx *= 0.2; e.vz *= 0.2; }
           break;
         }
         case 'down': {
-          e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= Math.exp(-dt*5); e.vz *= Math.exp(-dt*5); e.y = Math.max(0, e.y - dt*4);
+          e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= Math.exp(-dt*5); e.vz *= Math.exp(-dt*5); e.y = Math.max(FLOOR, e.y - dt*4);
           if(e.hp <= 0){ if(e.t > 0.9 && e.clip !== 'ko'){ e.state = 'ko'; e.koAt = performance.now(); hit1(e, 'ko'); if(e.rig) e.rig.update(9); } }
           else if(e.t > 2.4 && !(dir && dir.hold)){ e.state = 'getup'; e.t = 0; hit1(e, 'getup'); }
           break;
@@ -607,7 +618,7 @@ window.TSHFIGHT = (function(){
     const w = new THREE.Vector3(); p.getWorldPosition(w); p.parent.remove(p);
     const m = new THREE.Mesh(p.geometry, p.material); m.position.copy(w); ctx.group.add(m);
     let vy = 2.5; const vx = rnd(-1.5, 1.5), vz = rnd(-1.5, 1.5);
-    fx.push({ t:0, len:9, step:(dt)=>{ m.position.x += vx*dt; m.position.z += vz*dt; m.position.y = Math.max(0.03, m.position.y + vy*dt); vy -= 14*dt; m.rotation.x += dt*9; if(m.position.y <= 0.03){ vy = 0; m.rotation.set(Math.PI/2, 0, m.rotation.z); } }, end:()=>{} });
+    fx.push({ t:0, len:9, step:(dt)=>{ m.position.x += vx*dt; m.position.z += vz*dt; m.position.y = Math.max(FLOOR + 0.03, m.position.y + vy*dt); vy -= 14*dt; m.rotation.x += dt*9; if(m.position.y <= FLOOR + 0.03){ vy = 0; m.rotation.set(Math.PI/2, 0, m.rotation.z); } }, end:()=>{} });
   }
   /* what a thrown man hits: the alley's walls, or the car */
   function crash(e){
@@ -821,6 +832,16 @@ window.TSHFIGHT = (function(){
         ctx.later(()=>{ if(!on) return; ctx.say('fightLast'); ctx.later(()=>{ if(!on) return; ctx.say('fightGreat', fin); ctx.later(fin, 1300); }, 1600); }, 300); },
       done:()=>false }
   ];
+  /* A STRAIGHT FIGHT (the chase's): everything she learned in the alley, no lessons, nobody frozen —
+     over when the last of them is down, with a beat to see it */
+  const BRAWL = [
+    { id:'free', title:'', how:'',
+      enter(){ dir.free = true; dir.showKeys = true; E.forEach((e, i)=>{ e.active = true; e.state = 'approach'; e.t = 0; e.cool = 0.8 + i*0.7; }); },
+      done:()=>false },
+    { id:'last', title:'', how:'',
+      enter(){ dir.hold = true; ctx.later(()=>{ if(on && !dir.finished){ dir.finished = true; finish(); } }, 1400); },
+      done:()=>false }
+  ];
   function pick(tag){ return E.find(e=>e.tag === tag) || { hp:0, state:'gone' }; }
   const dist = e => Math.hypot(e.x - G.pos.x, e.z - G.pos.z);
   /* the second wave: three from the mouth of the alley (both corners and the middle), one from the bend */
@@ -856,13 +877,14 @@ window.TSHFIGHT = (function(){
   }
   function event(name, x){
     if(!dir) return;
-    const s = STEPS[dir.i];
+    const s = dir.steps[dir.i];
     if(s && s.on && s.on[name]) s.on[name](x || {});
   }
   function stepTo(i){
-    dir.i = i; dir.t = 0; dir.id = STEPS[i].id;
-    const s = STEPS[i];
-    if(s.title) ctx.lesson(s.title, s.how, i + 1, STEPS.length - 1);
+    const ST = dir.steps;
+    dir.i = i; dir.t = 0; dir.id = ST[i].id;
+    const s = ST[i];
+    if(s.title) ctx.lesson(s.title, s.how, i + 1, ST.length - 1);
     else ctx.lesson(null);
     s.enter();
   }
@@ -870,17 +892,17 @@ window.TSHFIGHT = (function(){
     dir.t += dt;
     const pd = dir.pending; if(pd && pd.target.state === 'windup' && pd.target.t >= pd.at){ freeze(pd.key, pd.what, pd.sub, pd.want, pd.target); }
     else if(pd && pd.target.state !== 'windup') dir.pending = null;
-    const s = STEPS[dir.i];
+    const ST = dir.steps, s = ST[dir.i];
     // THE END OF IT: once the second wave is in, the fight is over when the last of them is down for good —
     // whatever lesson is still up (a prompt nobody is left to try it on is dropped, frozen or not)
     if(dir.free && !dir.ending && s.id !== 'regret' && s.id !== 'last' && !E.some(e=>e.kind !== 'buyer' && e.hp > 0)){
       dir.ending = true; dir.pending = null; if(dir.freeze) unfreeze(); R.forceTarget = null;
-      ctx.cue('win'); stepTo(STEPS.findIndex(x=>x.id === 'regret')); return;
+      ctx.cue('win'); const r = ST.findIndex(x=>x.id === 'regret'); stepTo(r >= 0 ? r : ST.findIndex(x=>x.id === 'last')); return;
     }
     if(s.done() && !dir.freeze){
       if(s.after) ctx.say(s.after);
       ctx.cue('win');
-      if(dir.i + 1 < STEPS.length) stepTo(dir.i + 1);
+      if(dir.i + 1 < ST.length) stepTo(dir.i + 1);
     }
   }
 
@@ -892,6 +914,7 @@ window.TSHFIGHT = (function(){
   function cast(c){
     clear();
     ctx = c; ready = true; E = []; fx = []; nextId = 1;
+    ARENA = c.arena || ALLEY; FLOOR = c.floor || 0; SPOT = c.meet || MEET.robin;
     (c.crew || []).forEach(m=>spawn(m.kind, m.x, m.z, m));
     return E;
   }
@@ -905,7 +928,7 @@ window.TSHFIGHT = (function(){
     if(!ready) cast(c); else Object.assign(ctx, c);
     on = true; camOn = false; baseFov = G.camera ? G.camera.fov : 70; cam.punch = 0; cam.pull = 0; R.aim = null;
     resetRobin();
-    dir = { i:0, t:0, free:false, showKeys:false };
+    dir = { i:0, t:0, free:false, showKeys:false, steps:ctx.script === 'brawl' ? BRAWL : STEPS };
     overlay().classList.add('on');
     E.forEach(e=>{ e.g.visible = true; if(e.kind !== 'buyer'){ e.state = 'circle'; e.t = 0; e.active = false; } });
     G.timeScale = 1; ramp.to = 1;

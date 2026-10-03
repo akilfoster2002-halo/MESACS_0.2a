@@ -9,7 +9,7 @@
      PERCEPTION     how quickly somebody notices you, from what they can see
      HEAT           WFC's attention, 0 to 5, and how it cools
      THE PATHS      A* over the district's walking graph
-     THE CHASE      WFC after her across the roofs: missiles, cover, how heat cools
+     THE CHASE      WFC after her across the roofs: missiles, cover, three fights, how heat cools
      THE QUEST      a state machine: which beat you are in and what moves it
      THE TRAIL      what you left behind, and what Maya can know from it
      THE ENDING     which last shot you earned
@@ -134,12 +134,14 @@ window.TSHAI = (function(){
      it is still teaching you to run from it). */
   const CHASE = {
     stages: [
-      { id:'run',    title:'RUN',            how:'SHIFT sprints. East, down Neon Avenue — SPACE at a barrier vaults it.', floor:3 },
-      { id:'cutoff', title:'THE CUTOFF',     how:'Two of them in your way. Hit, then go.',                                floor:3 },
-      { id:'wall',   title:'G — GECKO CUFFS', how:'Dead end. Face the wall and G: up it, all the way to the roof.',      floor:3 },
+      { id:'run',    title:'RUN',            how:'Get away from them. SHIFT sprints — east, down Neon Avenue. SPACE at a barrier vaults it.', floor:3 },
+      { id:'van',    title:'CORNERED',       how:'A van across the pavement, and they get out of it.', floor:3, fight:1 },
+      { id:'wall',   title:'RUN',            how:'North, into the gap between the buildings. If it closes: G, and up the wall.', floor:3 },
       { id:'roofs',  title:'HOLD SPACE',     how:'The shoes are charged. Hold SPACE: roof to roof, east.',               floor:3 },
-      { id:'hide',   title:'E — HIDE',       how:'You cannot outrun a gunship. Get behind the AC unit, and stay on the far side of whatever is looking.', floor:2 },
+      { id:'rappel', title:'DROPPED IN',     how:'The gunship puts a team on the roof in front of her.', floor:3, fight:2 },
+      { id:'hide',   title:'E — HIDE',       how:'You cannot outrun a gunship. Through the gate, behind the AC unit — and stay on the far side of whatever is looking.', floor:2 },
       { id:'call',   title:'MOM',            how:'Keep the box between you and him.',                                   floor:2 },
+      { id:'found',  title:'FOUND',          how:'He came round the box.', floor:2, fight:3 },
       { id:'home',   title:'GET HOME',       how:'Lose them — and land on your own roof with nobody on you.',           floor:0 }
     ],
     missile: { lock:1.5, airLock:1.1, fly:0.45, blast:2.8, live:2, gapGround:[3.4, 5.0], gapAir:[2.2, 3.2], lead:0.6 },

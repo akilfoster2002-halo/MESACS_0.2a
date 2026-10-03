@@ -474,6 +474,7 @@ Maya looks through the binoculars one more time.
 This finale is built: `public/tshchase.js` (the chase), with the films and the ending in `public/tsh.js` and the rules in `public/tshai.js` (`CHASE`). It replaces what used to come after the Dragon Alley fight. The old scenes (the news on the screens, Maya's roof, the flat) are kept in the code for Part Two.
 
 Where the build differs from the script above:
+- **It's a chase, with three fights.** Robin spends the sequence running: on foot, up a wall, across roofs, behind cover. WFC corners her three times, and only those are fights: the van on Neon Avenue, the team the gunship drops on the roof, and the officer who finds her after Mom's call. Each fight opens with a film of about ten seconds that ends on a **GET READY** card listing the fight keys. There's no fighting while running and no slow motion during the chase.
 - **The shoes are cold after the fight.** In this game Robin already learned the shoes on the way to the alley, so the chase keeps them off (on foot, vaulting, climbing) until the roofs. Then the *HOLD SPACE* card says they're charged again.
 - **The billboard runs WFC's ad first.** Robin says "Yeah. Sure." to it, then it cuts to the alert for Dragon Alley, where she's standing.
 - **The wall is a WFC barrier dropping across the gap between two buildings** (there's no fire escape there), climbed with the Gecko cuffs.
