@@ -514,6 +514,7 @@ window.TSH = (function(){
     if(el) el.classList.add('hidden');
     document.body.classList.remove('tsh-on');
     LOOK.dispose();
+    if(window.TSHNYC) TSHNYC.detach();
     lights.forEach(l=>{ if(l.parent) l.parent.remove(l); }); lights.length = 0;
     if(root && root.parent) root.parent.remove(root);
     root = null; W = null; dyn.length = 0;
@@ -536,6 +537,7 @@ window.TSH = (function(){
     G.solids = []; G.hits = []; G.selected = null; G.focused = null;
     G.vel.set(0,0,0); G.onGround = true;
     W = CITY.build(root);
+    if(window.TSHNYC) TSHNYC.attach(W.cityGroup, W);            // Lower Manhattan, past the hoardings
     W.school = window.TSHSCHOOL ? TSHSCHOOL.build(root, W) : null;     // Harbor Lane High, off the map like the flat (The Other Robin)
     W.solids.forEach(s=>G.solids.push(s));
     W.checkpoint.solids.forEach(s=>{ s.off = true; });        // switched on by the clock
@@ -671,6 +673,7 @@ window.TSH = (function(){
     const [fogCol, fogD] = air();
     G.scene.background = new THREE.Color(fogCol);
     G.scene.fog = new THREE.FogExp2(fogCol, fogD);
+    if(window.TSHNYC) TSHNYC.look(day(), fogCol, fogD);
     const c = G.sun.shadow.camera; c.left = -45; c.right = 45; c.top = 45; c.bottom = -45; c.updateProjectionMatrix();
     if(day()){
       G.amb.color.setHex(0xe4ecf2); G.amb.intensity = 0.8;
@@ -5498,7 +5501,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); if(window.TSHNYC) TSHNYC.tick(clock); tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();

@@ -52,3 +52,7 @@ kenney_*/
 # megabytes of duplicate that would change on every save and stay in the
 # history for ever. Same reasoning as the sculpt ladders above.
 *.blend1
+
+# Source models for tools/pack-nyc.py (and the like): large, and only the
+# packed result in public/ is what the game loads.
+maps/

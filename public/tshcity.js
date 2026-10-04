@@ -358,15 +358,15 @@ window.TSHCITY = (function(){
     });
 
     /* --------------------------------------------------- the skyline
-       Towers beyond the fence, lost in the haze, and the WFC tower on the
-       axis of Market Street, so it is at the end of the view from almost
-       anywhere and from every roof. */
-    const far = new THREE.Group(); group.add(far);
+       Past the fence is Lower Manhattan now (tshnyc.js), loaded after
+       this. What stays is the WFC tower on the axis of Market Street, so
+       it is at the end of the view from almost anywhere and from every
+       roof — the model is cut open round its footprint to make room. */
+    // the boxes that stood here drew from the seed: draw the same numbers, so everything after them is where it was
     for(let i=0;i<46;i++){
-      const a = i/46*Math.PI*2 + rnd(-0.05,0.05), r = rnd(170, 320), h = rnd(40, 150), w = rnd(18, 40);
-      const x = Math.cos(a)*r*1.2, z = Math.sin(a)*r;
-      if(Math.abs(x) < 30 && z < -150) continue;              // leave the tower its view
-      B.box(M.facades[i % M.facades.length], x, h/2, z, w, h, w*rnd(0.7,1.3), { s:14, sv:21, ry:rnd(0,1), faces:'px nx pz nz' });
+      const a = i/46*Math.PI*2 + rnd(-0.05,0.05), r = rnd(170, 320); rnd(40, 150); rnd(18, 40);
+      if(Math.abs(Math.cos(a)*r*1.2) < 30 && Math.sin(a)*r < -150) continue;
+      rnd(0.7,1.3); rnd(0,1);
     }
     const TW = { x:0, z:-265, h:210 };
     B.box(M.facades[5], TW.x, TW.h/2, TW.z, 40, TW.h, 40, { s:10, sv:15, faces:'px nx pz nz' });
