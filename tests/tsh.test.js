@@ -790,3 +790,14 @@ test('the jacket hangs on the dress form, not inside it: the form slimmed, the j
   has(r, /const fitJacket = \(\) => \{ if\(!formM \|\| !jackM\) return;/, 'whichever model loads first');
   hasNot(r, /\bband\(/, 'not called band: the cash on the packing table has a `band` of its own in the same function');
 });
+
+test('a touchpad can look about: more speed when one is found, two-finger swipes turn, and a look speed the player sets', () => {
+  const g = read('public/game.js'), t = read('public/tsh.js');
+  has(g, /function lookGain\(\)\{ return 0\.0022\*G\.lookSens\*\(G\.pad \? 1\.9 : 1\); \}/, 'the player\'s speed, nearly doubled on a touchpad');
+  has(g, /G\.yaw   -= e\.movementX\*k;/, 'every mouse movement goes through it');
+  has(g, /e\.deltaMode===0 && \(e\.deltaX!==0 \|\| !Number\.isInteger\(e\.deltaY\)\)/, 'a touchpad, known by its sideways or fractional scroll');
+  has(g, /G\.yaw  \+= e\.deltaX\*k;/, 'two fingers turn the view');
+  has(g, /e\.code==='Minus' \|\| e\.code==='Equal'/, '- and = set the speed, anywhere');
+  has(g, /localStorage\.setItem\('koro\.look'/, 'kept between visits');
+  has(t, /data-a="look"/, 'and TSH\'s pause menu has it');
+});

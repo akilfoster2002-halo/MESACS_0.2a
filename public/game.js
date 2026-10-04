@@ -777,6 +777,7 @@ function wireInput(){
     }
     G.keys[e.code]=true;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    if((e.code==='Minus' || e.code==='Equal') && !e.metaKey && !e.ctrlKey){ setLookSpeed(G.lookSens*(e.code==='Equal' ? 1.15 : 1/1.15)); return; }
     /* A LINE OF DIALOGUE ANSWERS FIRST. SPACE is jump and E is go-in
        everywhere else in this game, and during a scene they are both
        "next" — so this has to run before either of them is read as what
@@ -980,11 +981,26 @@ function wireInput(){
     lockPointer(canvas);
   });
   document.addEventListener('pointerlockchange',()=>{ G.locked=!!document.pointerLockElement; });
+  /* LOOKING ABOUT, with a touchpad as well as a mouse. A mouse sends plenty of movement; a laptop's
+     touchpad sends a fraction of it per swipe, and turning round took three swipes. So a touchpad —
+     found by how it scrolls: two fingers send sideways and fractional scroll, a mouse wheel never
+     does — looks nearly twice as fast, a two-finger swipe turns you as well, and the speed is the
+     player's: - and = anywhere (or LOOK SPEED in TSH's pause menu), kept between visits. */
   document.addEventListener('mousemove',e=>{
     if(!G.locked) return;
-    G.yaw   -= e.movementX*0.0022;
-    G.pitch  = clamp(G.pitch - e.movementY*0.0022, -1.2, 1.2);
+    const k = lookGain();
+    G.yaw   -= e.movementX*k;
+    G.pitch  = clamp(G.pitch - e.movementY*k, -1.2, 1.2);
   });
+  addEventListener('wheel',e=>{
+    if(!G.locked) return;
+    if(!G.pad && e.deltaMode===0 && (e.deltaX!==0 || !Number.isInteger(e.deltaY))){ G.pad = true; try{ localStorage.setItem('koro.pad','1'); }catch(err){} }
+    if(!G.pad) return;
+    e.preventDefault();
+    const k = 0.0034*G.lookSens;
+    G.yaw  += e.deltaX*k;
+    G.pitch = clamp(G.pitch + e.deltaY*k*0.7, -1.2, 1.2);
+  }, { passive:false });
   canvas.addEventListener('click',e=>{
     if(!G.running) return;
     if(COMBAT.inRange){ COMBAT.rangeShot(); return; }   // the range is pure aiming
@@ -992,6 +1008,20 @@ function wireInput(){
   });
   canvas.addEventListener('dblclick',()=>{ if(G.running) open(); });
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
+}
+
+/* how far the view turns per pixel of mouse movement: the player's speed, and more on a touchpad */
+function readNum(k, d){ try{ const v = parseFloat(localStorage.getItem(k)); return isFinite(v) && v > 0 ? v : d; }catch(e){ return d; } }
+G.lookSens = readNum('koro.look', 1);
+G.pad = (()=>{ try{ return localStorage.getItem('koro.pad')==='1'; }catch(e){ return false; } })();
+function lookGain(){ return 0.0022*G.lookSens*(G.pad ? 1.9 : 1); }
+function setLookSpeed(v){
+  G.lookSens = Math.round(clamp(v, 0.3, 4)*100)/100;
+  try{ localStorage.setItem('koro.look', String(G.lookSens)); }catch(e){}
+  let t = document.getElementById('lookToast');
+  if(!t){ t = document.createElement('div'); t.id = 'lookToast'; t.className = 'look-toast'; document.body.appendChild(t); }
+  t.textContent = 'LOOK SPEED ' + Math.round(G.lookSens*100) + '%' + (G.pad ? ' · touchpad' : '') + '   ( - / = )';
+  t.classList.add('on'); clearTimeout(t.off); t.off = setTimeout(()=>t.classList.remove('on'), 1400);
 }
 
 function setGlow(g,on){

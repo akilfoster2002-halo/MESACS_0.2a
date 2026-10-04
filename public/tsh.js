@@ -5390,15 +5390,18 @@ window.TSH = (function(){
     const q = LOOK.quality;
     panel('pause', `<div class="tsh-bag"><h3>⏸ TSH — ${esc(AI.clock(S.t))}</h3>
       <div class="tsh-keys"><span><kbd>WASD</kbd> move</span><span><kbd>Shift</kbd> run</span><span><kbd>Space</kbd> jump</span><span><kbd>E</kbd> use</span>
-        <span><kbd>H</kbd> shades</span><span><kbd>G</kbd> Gecko cuffs</span><span><kbd>F</kbd> flash bangles</span><span><kbd>J</kbd> static studs</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span></div>
+        <span><kbd>H</kbd> shades</span><span><kbd>G</kbd> Gecko cuffs</span><span><kbd>F</kbd> flash bangles</span><span><kbd>J</kbd> static studs</span><span><kbd>Q</kbd> throw</span><span><kbd>I</kbd> bag</span><span><kbd>Tab</kbd> details</span><span><kbd>-</kbd><kbd>=</kbd> look speed</span></div>
       <div class="tsh-pbtns"><button data-a="resume">▶ Back to the night</button>
         ${S.step === 'lesson' ? '<button data-a="skip">⏭ Skip the lesson — I know the shoes</button>' : ''}
         <button data-a="beat">↺ Restart this beat</button><button data-a="over">↺ Start the night over</button>
-        <button data-a="q">Graphics: ${q === 2 ? 'high' : q === 1 ? 'medium' : 'low'}</button><button data-a="wano">🌏 Leave to Wano</button></div>
+        <button data-a="q">Graphics: ${q === 2 ? 'high' : q === 1 ? 'medium' : 'low'}</button>
+        <button data-a="look">Look speed: ${Math.round((G.lookSens || 1)*100)}%${G.pad ? ' (touchpad)' : ''}</button><button data-a="wano">🌏 Leave to Wano</button></div>
       <div class="tsh-credit">From the screenplay <b>TSH V4</b> by <b>George Wang</b>.</div></div>`, act=>{
         if(act === 'resume') return closePanel();
         if(act === 'skip'){ closePanel(); while(S.step === 'lesson') lessonNext(); return; }
         if(act === 'q'){ LOOK.quality = (q + 2) % 3; return pause(); }
+        // look speed: round the steps (and - / = anywhere for finer)
+        if(act === 'look'){ const steps = [0.6, 0.8, 1, 1.3, 1.7, 2.2, 3], cur = G.lookSens || 1, nx = steps.find(v=>v > cur + 0.01) || steps[0]; if(typeof setLookSpeed === 'function') setLookSpeed(nx); return pause(); }
         if(act === 'beat'){ closePanel(); const cp = S.cp; stop(); S.cp = cp; save(); enter(server); return; }
         if(act === 'over'){ closePanel(); const runs = S.runs, last = S.last; S = fresh(); S.runs = runs; S.last = last; save(); stop(); enter(server); return; }
         if(act === 'wano'){ closePanel(); leave(); }

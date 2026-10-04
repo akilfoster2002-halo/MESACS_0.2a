@@ -3026,3 +3026,7 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 /* ROBIN RYU in solid 3-D (rrtitle.js): the flat letters keep the layout, the blocks are drawn over them */
 #tsh .tsh-title.rr .rr-gl{position:absolute;left:0;top:0;pointer-events:none;filter:drop-shadow(0 .5vw .9vw rgba(0,0,0,.65))}
 #tsh .tsh-title.rr.rr3d .rr-l,#tsh .tsh-title.rr.rr3d .rr-slash{visibility:hidden}
+
+/* the look-speed readout (- and =) */
+.look-toast{position:fixed;left:50%;bottom:18%;transform:translate(-50%,8px);z-index:90;padding:9px 16px;border-radius:12px;background:rgba(6,12,12,.86);border:1px solid rgba(56,255,208,.4);color:#e8fff8;font:700 13px var(--font-disp);letter-spacing:.12em;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.look-toast.on{opacity:1;transform:translate(-50%,0)}
