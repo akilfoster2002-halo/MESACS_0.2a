@@ -13,6 +13,12 @@ zip, one 8K texture). What the game gets:
            uint32 indices — and the land as rectangles on a 4 m grid, so the
            road can be laid on the island and not on the harbour.
   nyc.jpg  the texture at 4096.
+  nyc-solids.bin  what Robin walks into: boxes read off the model from above
+           (each a wall she can grip and a roof she can stand on), the
+           harbour's kerb, and where the streetlamps go.
+
+The district's two avenues are cut on through the model until they meet
+real streets, so all four of their ends lead out into Manhattan.
 
 WHERE THE DISTRICT SITS: model units are about 160 m; the district's centre
 is at (0.68, 1.28) in the model, turned 60 degrees, which is where its two
@@ -31,8 +37,12 @@ OUT = os.path.join(ROOT, 'public', 'tsh', 'nyc')
 S = 160.0                 # metres per model unit
 CX, CZ, ROT = 0.68, 1.28, 60.0
 G0 = -1.174               # street level in the model
-# the district and its fence, with a margin, and the WFC tower's footprint (game metres)
-HOLES = [(-128, 128, -104, 104), (-32, 32, -298, -232)]
+# the district (its streets open straight into Manhattan's), and the WFC tower's footprint (game metres)
+HOLES = [(-113, 113, -88, 88), (-32, 32, -298, -232),
+         # Neon Avenue and Market Street carry on into Manhattan: cut through to the nearest real street
+         (112, 152, -10, 10), (-176, -112, -10, 10), (-10, 10, 87, 140), (-10, 10, -144, -87)]
+CC = 2.0                  # the collision grid, metres
+SOLID_H = 2.0             # anything standing taller than this is in the way
 Q = 0.05                  # position step, metres
 
 def read_obj():
@@ -66,7 +76,9 @@ def main():
     GV = np.stack([(cs*x - sn*zz)*S, (V[:, 1]-G0)*S, (sn*x + cs*zz)*S], 1)
     GP = GV[F[:, :, 0]]; cen = GP.mean(1)
     cut = np.zeros(len(F), bool)
-    for x1, x2, z1, z2 in HOLES: cut |= (cen[:, 0] > x1) & (cen[:, 0] < x2) & (cen[:, 2] > z1) & (cen[:, 2] < z2)
+    for x1, x2, z1, z2 in HOLES:                          # anything touching a hole goes, not just what is centred in it
+        cut |= (cen[:, 0] > x1) & (cen[:, 0] < x2) & (cen[:, 2] > z1) & (cen[:, 2] < z2)
+        for v in range(3): cut |= (GP[:, v, 0] > x1) & (GP[:, v, 0] < x2) & (GP[:, v, 2] > z1) & (GP[:, v, 2] < z2)
     keep = ~ground & ~cut
 
     # one vertex per (position, uv) pair
@@ -121,7 +133,90 @@ def main():
     subprocess.run(['sips', '-Z', '4096', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70',
                     os.path.join(SRC, 'textures', 'tex.jpg'), '--out', os.path.join(OUT, 'nyc.jpg')],
                    check=True, capture_output=True)
+    solids(GP[keep], land, lo, C)
     print(f'{len(qp)} vertices, {len(idx)//3} triangles, {len(R)} land rectangles')
+
+def rects_of(mask):
+    """A boolean grid as rectangles: runs along each row, a run repeated on the next row merged in."""
+    out, open_ = [], {}
+    NX, NZ = mask.shape
+    for j in range(NZ):
+        row = mask[:, j]; i = 0; seen = set()
+        while i < NX:
+            if not row[i]: i += 1; continue
+            s0 = i
+            while i < NX and row[i]: i += 1
+            k = (s0, i); seen.add(k)
+            if k in open_ and open_[k][3] == j-1: open_[k][3] = j
+            else:
+                if k in open_: out.append(open_[k])
+                open_[k] = [s0, i, j, j]
+        for k in [k for k in open_ if k not in seen]: out.append(open_.pop(k))
+    return out + list(open_.values())
+
+def solids(tris, land, lo, C):
+    """WHAT ROBIN WALKS INTO. The model is a skin, not a set of buildings, so
+    its collision is read off it from above: the tallest thing over every two
+    metres of ground. Where that is over SOLID_H it is a building (or a tree,
+    or the FDR Drive), poured into boxes by height so a box's top is a roof
+    she can stand on. Where the land meets the harbour there is a kerb she
+    cannot step off. And where a street is clear, a lamp every so often, so
+    the night has light in it out there as well."""
+    x0, z0, size = -1400.0, -1400.0, 2800.0
+    N = int(size/CC)
+    H = np.full((N, N), -1e9, np.float32)
+    # sample every triangle densely enough that no cell under it is missed
+    e = np.maximum.reduce([np.linalg.norm(tris[:, a]-tris[:, b], axis=1) for a, b in ((0, 1), (1, 2), (2, 0))])
+    k = np.clip(np.ceil(e/(CC*0.5)).astype(int), 1, 400)
+    for kk in np.unique(k):
+        T = tris[k == kk]
+        u, v = np.meshgrid(np.arange(kk+1), np.arange(kk+1), indexing='ij'); m = (u+v) <= kk
+        u = u[m]/kk; v = v[m]/kk; w = 1-u-v
+        Pts = T[:, None, 0]*w[None, :, None] + T[:, None, 1]*u[None, :, None] + T[:, None, 2]*v[None, :, None]
+        Pts = Pts.reshape(-1, 3)
+        ii = ((Pts[:, 0]-x0)/CC).astype(int); jj = ((Pts[:, 2]-z0)/CC).astype(int)
+        ok = (ii >= 0) & (ii < N) & (jj >= 0) & (jj < N)
+        np.maximum.at(H, (ii[ok], jj[ok]), Pts[ok, 1])
+    solid = H > SOLID_H
+    # slivers of the capture hanging across a street are thinner than anything real standing in one: gone.
+    # then the one-cell slits between samples of the same wall are closed, so nobody walks through a wall
+    solid = binary_closing(binary_opening(solid, iterations=1), iterations=1)
+    for x1, x2, z1, z2 in HOLES:                          # and nothing of it stands in a hole, whatever spans it
+        solid[max(0, int((x1-x0)/CC)):int((x2-x0)/CC)+1, max(0, int((z1-z0)/CC)):int((z2-z0)/CC)+1] = False
+    Hf = np.where(solid, np.maximum(H, SOLID_H + 0.5), 0)
+    # boxes, height band by height band, each as tall as the tallest cell in it
+    bands = np.digitize(Hf, [SOLID_H, 6, 10, 16, 24, 34, 48, 64, 90, 130, 180, 240])
+    boxes = []
+    for b in range(1, bands.max()+1):
+        for i1, i2, j1, j2 in rects_of(bands == b):
+            top = float(Hf[i1:i2, j1:j2+1].max())
+            boxes.append((x0+i1*CC, x0+i2*CC, z0+j1*CC, z0+(j2+1)*CC, top, 0))
+    # the harbour's edge: water cells next to land
+    from scipy.ndimage import binary_dilation
+    edge = (~land) & binary_dilation(land, iterations=1)
+    for i1, i2, j1, j2 in rects_of(edge):
+        boxes.append((lo+i1*C, lo+i2*C, lo+j1*C, lo+(j2+1)*C, 3.0, 1))
+    B = np.array(boxes, np.float32)
+    # lamps: clear street, a few metres off a building, at least 26 m from the last one
+    from scipy.ndimage import distance_transform_edt
+    landC = np.zeros_like(solid)
+    li = ((np.arange(N)*CC + x0 - lo)/C).astype(int).clip(0, land.shape[0]-1)
+    landC = land[li][:, li]
+    d = distance_transform_edt(~solid)*CC
+    cand = np.argwhere(landC & ~solid & (d > 2.5) & (d < 5.0))
+    rng = np.random.default_rng(7); rng.shuffle(cand)
+    lamps = []; grid = {}
+    for i, j in cand:
+        x, z = x0+(i+0.5)*CC, z0+(j+0.5)*CC
+        if abs(x) < 120 and abs(z) < 95: continue                    # the district has its own
+        gk = (int(x//26), int(z//26))
+        if any(np.hypot(x-a, z-b) < 26 for dx in (-1, 0, 1) for dz in (-1, 0, 1) for a, b in grid.get((gk[0]+dx, gk[1]+dz), [])): continue
+        grid.setdefault(gk, []).append((x, z)); lamps.append((x, z))
+    L = np.array(lamps, np.float32)
+    with open(os.path.join(OUT, 'nyc-solids.bin'), 'wb') as f:
+        f.write(b'NYS1'); f.write(struct.pack('<II', len(B), len(L)))
+        f.write(B.tobytes()); f.write(L.tobytes())
+    print(f'{len(B)} boxes ({int((B[:, 5] == 1).sum())} on the waterfront), {len(L)} lamps')
 
 if __name__ == '__main__':
     main()

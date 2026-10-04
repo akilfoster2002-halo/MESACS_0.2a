@@ -39,7 +39,7 @@ test('nothing of Manhattan stands in the district', ()=>{
     let x = 0, z = 0;
     for(let k=0;k<3;k++){ const v = d.idx[t+k]*3; x += d.qp[v]*d.q; z += d.qp[v+2]*d.q; }
     x /= 3; z /= 3;
-    if(Math.abs(x) < 120 && Math.abs(z) < 95) inside++;
+    if(Math.abs(x) < 112 && Math.abs(z) < 87) inside++;
   }
   assert.strictEqual(inside, 0, `${inside} triangles of the model stand inside the district`);
 });
@@ -65,4 +65,40 @@ test('the quest hangs Manhattan on the city, tells it the air, and lets it go', 
   const city = read('public/tshcity.js');
   assert.ok(!/const far = new THREE\.Group\(\)/.test(city), 'the box skyline is still built');
   assert.match(city, /draw the same numbers, so everything after them is where it was/);
+});
+
+function solidsFile(){
+  const buf = fs.readFileSync(path.join(__dirname, '..', 'public/tsh/nyc/nyc-solids.bin'));
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), dv = new DataView(ab);
+  assert.strictEqual(buf.toString('latin1', 0, 4), 'NYS1');
+  const nb = dv.getUint32(4, true), nl = dv.getUint32(8, true);
+  assert.strictEqual(12 + nb*24 + nl*8, ab.byteLength, 'the solids file is not what its header says');
+  return { B:new Float32Array(ab, 12, nb*6), L:new Float32Array(ab, 12 + nb*24, nl*2), nb, nl };
+}
+
+test('Manhattan can be walked: walls, a kerb, lamps, and nothing in the district or its avenues', ()=>{
+  const { B, nb, nl } = solidsFile();
+  assert.ok(nb > 5000, 'too few walls to be the city');
+  assert.ok(nl > 200, 'the streets have no lamps');
+  let kerb = 0;
+  // the district, and Neon Avenue and Market Street cut on through to real streets
+  const open = [[-112, 112, -87, 87], [112, 150, -9, 9], [-174, -112, -9, 9], [-9, 9, 87, 138], [-9, 9, -142, -87]];
+  for(let i=0;i<nb;i++){
+    const [x1, x2, z1, z2, top, k] = B.slice(i*6, i*6+6);
+    if(k > 0.5) kerb++;
+    assert.ok(top > 2, 'a wall too low to be in the way');
+    for(const [a1, a2, b1, b2] of open)
+      assert.ok(x2 <= a1 || x1 >= a2 || z2 <= b1 || z1 >= b2, `a wall at ${x1},${z1} stands in the street that leads out`);
+  }
+  assert.ok(kerb > 100, 'nothing stops her walking into the harbour');
+});
+
+test('only what is near her goes in the lists the quest checks every frame, and the shoes are not fenced in', ()=>{
+  const nyc = read('public/tshnyc.js');
+  assert.match(nyc, /const GC = 32, NEAR = 48/, 'the walls are not kept in a grid');
+  assert.match(nyc, /tag:kerb \? 'kerb:nyc' : 'bld:nyc'/, 'Manhattan’s walls cannot be gripped');
+  const tsh = read('public/tsh.js');
+  assert.match(tsh, /if\(!inside\) TSHNYC\.near\(G\.pos\.x, G\.pos\.z, G\.solids, W\.plats, clock\)/);
+  assert.match(tsh, /const E = window\.TSHNYC \? \{ x:1400, z:1400 \} : CITY\.EDGE;/, 'the shoes still hold her inside the district');
+  assert.ok(!/hoarding\(/.test(read('public/tshcity.js')), 'the district is still fenced');
 });

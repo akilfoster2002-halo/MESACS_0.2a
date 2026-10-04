@@ -320,15 +320,9 @@ window.TSHCITY = (function(){
     alleyFloor(-49, -31, -44, -10);                          // Dragon Alley
     alleyFloor(-24, -21, -44, -10); alleyFloor(34, 37, -44, -10); alleyFloor(10, 34, -33, -30);
     alleyFloor(-34, -30, 10, 44); alleyFloor(30, 34, 10, 44); alleyFloor(84-22, 84, 21, 24);
-    // the edge of the district: a fence of hoardings across every street end
-    const hoarding = (x, z, w, d) => {
-      B.box(M.darkMetal, x, 2, z, w, 4, d); solid(x-w/2, x+w/2, z-d/2, z+d/2, -1, 4.2);
-      B.box(M.red, x, 4.1, z, w, 0.08, d+0.02, { faces:'py pz nz px nx' });
-    };
-    hoarding(-EDGE.x+0.5, 0, 1, 20); hoarding(EDGE.x-0.5, 0, 1, 20);
-    [-48, 48].forEach(z=>{ hoarding(-EDGE.x+0.5, z, 1, 8); hoarding(EDGE.x-0.5, z, 1, 8); });
-    hoarding(0, -EDGE.z+0.5, 20, 1); hoarding(0, EDGE.z-0.5, 20, 1);
-    [-59, 59].forEach(x=>{ hoarding(x, -EDGE.z+0.5, 6, 1); hoarding(x, EDGE.z-0.5, 6, 1); });
+    /* THE EDGE OF THE DISTRICT used to be a fence of hoardings across every
+       street end. There are none now: the streets run on into Lower
+       Manhattan (tshnyc.js), and Robin can follow them. */
 
     /* ------------------------------------------------------- buildings */
     const blds = BUILDINGS.map(([id, x1, x2, z1, z2, h, f])=>({ id, x1, x2, z1, z2, h, f }));
@@ -370,6 +364,7 @@ window.TSHCITY = (function(){
     }
     const TW = { x:0, z:-265, h:210 };
     B.box(M.facades[5], TW.x, TW.h/2, TW.z, 40, TW.h, 40, { s:10, sv:15, faces:'px nx pz nz' });
+    solid(TW.x-20, TW.x+20, TW.z-20, TW.z+20, -1, TW.h, 'wfc');              // she can walk to it now, so it is in the way
     B.box(M.darkMetal, TW.x, TW.h+6, TW.z, 30, 12, 30);
     B.box(M.teal, TW.x, TW.h+12.2, TW.z, 30.2, 0.4, 30.2, { faces:'px nx pz nz' });
     for(let k=0;k<5;k++) B.box(M.tube, TW.x, 30+k*38, TW.z+20.1, 41, 0.35, 0.2, { faces:'pz' });

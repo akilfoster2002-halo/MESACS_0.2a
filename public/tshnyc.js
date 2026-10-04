@@ -33,8 +33,21 @@
 
    It is LOADED, not built: 300 thousand triangles and one texture, after
    the district is already standing, so the night does not wait for it.
-   Nothing here can be walked into — the hoardings still close every
-   street — so it adds no solids, platforms or navigation.
+
+   AND IT CAN BE WALKED. The hoardings are gone; Neon Avenue and Market
+   Street are cut on through the model until they meet real streets, and
+   Robin can go anywhere on the island. What stops her is read off the
+   model from above when it is packed (tools/pack-nyc.py): thirty thousand
+   boxes, one per patch of building at one height, each a wall she can
+   grip and a roof she can stand on, and a kerb along the harbour. Thirty
+   thousand is far too many for the lists the quest checks every frame —
+   a dozen loops run over G.solids — so they live in a grid here, and only
+   the ones within a few dozen metres of her are put into those lists, a
+   few times a second as she moves (near()). The streets get lamps, a
+   thousand of them, which go into the same list of light sources the
+   district's lanterns are in, so the lights that follow her light
+   Manhattan's pavements the way they light hers. The people of the night —
+   Kai, WFC, the crowd — still live in the district.
    ===================================================================== */
 window.TSHNYC = (function(){
   const U = {
@@ -44,7 +57,10 @@ window.TSHNYC = (function(){
     uFogC:  { value:new THREE.Color(0x0b2a26) },
     uTime:  { value:0 }
   };
-  let group = null, mesh = null, land = null, water = null, waterMat = null, loading = null;
+  let group = null, mesh = null, land = null, water = null, waterMat = null, loading = null, lamps = null;
+  /* WHAT STOPS HER: every box in a grid of GC-metre cells, and what is in the live lists now */
+  const GC = 32, NEAR = 48, RADAR = 96;
+  let grid = null, boxes = [], live = { s:[], p:[] }, at = { x:1e9, z:1e9, t:0 }, radarList = [];
 
   /* The capture's material. A plain MeshBasicMaterial underneath, so it
      goes through the same tone mapping and colour space as the rest of
@@ -150,8 +166,9 @@ window.TSHNYC = (function(){
     const mine = group;
     loading = Promise.all([
       fetch('tsh/nyc/nyc.bin' + v).then(r=>r.ok ? r.arrayBuffer() : Promise.reject(r.status)),
-      new Promise((ok, no)=>new THREE.TextureLoader().load('tsh/nyc/nyc.jpg' + v, ok, undefined, no))
-    ]).then(([buf, tex])=>{
+      new Promise((ok, no)=>new THREE.TextureLoader().load('tsh/nyc/nyc.jpg' + v, ok, undefined, no)),
+      fetch('tsh/nyc/nyc-solids.bin' + v).then(r=>r.ok ? r.arrayBuffer() : null).catch(()=>null)
+    ]).then(([buf, tex, sol])=>{
       if(group !== mine) return;                      // left before it arrived
       const d = unpack(buf);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.flipY = true;
@@ -161,15 +178,85 @@ window.TSHNYC = (function(){
       g.setIndex(new THREE.BufferAttribute(d.idx, 1));
       g.computeBoundingSphere();
       const m = material(); m.map = tex;
+      m.side = THREE.DoubleSide;                        // where the model was cut open, its far walls read as walls, not as holes
       mesh = new THREE.Mesh(g, m); mesh.name = 'manhattan'; mesh.matrixAutoUpdate = false; mesh.updateMatrix();
       group.add(mesh);
       const road = W && W.M && W.M.road;
       if(road){ land = landMesh(d.rects, road, { x1:-131, x2:131, z1:-106, z2:106 }); group.add(land); if(window.TSHLOOK) TSHLOOK.hideInMirror.push(land); }
+      if(sol) walkable(sol, W);
     }).catch(e=>console.warn('Manhattan did not load:', e));
     return group;
   }
+  /* The boxes, the kerb and the lamps (tools/pack-nyc.py: nyc-solids.bin). */
+  function walkable(buf, W){
+    const dv = new DataView(buf);
+    if(String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)) !== 'NYS1') return;
+    const nb = dv.getUint32(4, true), nl = dv.getUint32(8, true);
+    const B = new Float32Array(buf, 12, nb*6), Lp = new Float32Array(buf, 12 + nb*24, nl*2);
+    grid = new Map(); boxes = [];
+    for(let i=0;i<nb;i++){
+      const x1 = B[i*6], x2 = B[i*6+1], z1 = B[i*6+2], z2 = B[i*6+3], top = B[i*6+4], kerb = B[i*6+5] > 0.5;
+      // a building is a wall she can grip ('bld:'), and its top a roof; the kerb is neither
+      const b = { s:{ x1, x2, z1, z2, y1:-1, y2:top, tag:kerb ? 'kerb:nyc' : 'bld:nyc', nyc:true },
+                  p:kerb ? null : { x1, x2, z1, z2, top, tag:'roof', nyc:true } };
+      boxes.push(b);
+      for(let gx = Math.floor(x1/GC); gx <= Math.floor(x2/GC); gx++)
+        for(let gz = Math.floor(z1/GC); gz <= Math.floor(z2/GC); gz++){
+          const k = gx + ',' + gz; let c = grid.get(k); if(!c) grid.set(k, c = []); c.push(b);
+        }
+    }
+    lampsFrom(Lp, W);
+    at.x = 1e9;                                          // whatever she is next to now is put in on the next tick
+  }
+  /* A lamp on every stretch of Manhattan's pavement: a post, an arm, a
+     tube, as the district's own streetlights are made — two instanced
+     meshes for all of them — and each one a light source. Most burn the
+     district's teal-white; one in four is an old sodium lamp. */
+  function lampsFrom(Lp, W){
+    const n = Lp.length/2; if(!n || !W || !W.M) return;
+    const post = new THREE.InstancedMesh(new THREE.BoxGeometry(0.18, 7.2, 0.18), W.M.darkMetal, n);
+    const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.1, 0.9), W.M.tube, n);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0);
+    for(let i=0;i<n;i++){
+      const x = Lp[i*2], z = Lp[i*2+1], ry = (i*2.399) % (Math.PI*2);
+      q.setFromAxisAngle(up, ry);
+      post.setMatrixAt(i, m4.compose(new THREE.Vector3(x, 3.6, z), q, one));
+      head.setMatrixAt(i, m4.compose(new THREE.Vector3(x + Math.sin(ry)*1.0, 6.95, z + Math.cos(ry)*1.0), q, one));
+      const warm = i % 4 === 0;
+      W.lights.push({ x:x + Math.sin(ry)*1.0, y:6.7, z:z + Math.cos(ry)*1.0, col:new THREE.Color(warm ? 0xffb066 : 0x9ff5e0), k:warm ? 22 : 24, d:18, nyc:true });
+    }
+    [post, head].forEach(m=>{ m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); group.add(m); });
+    post.castShadow = false; head.userData.flat = true;
+    lamps = { post, head };
+  }
+  /* THE LIVE LISTS. Out with the boxes put in last time, in with the ones
+     near her now. Cheap enough to do whenever she has moved a few metres
+     or half a second has gone. */
+  function near(x, z, solids, plats, t){
+    if(!grid) return;
+    if(Math.hypot(x - at.x, z - at.z) < 5 && t - at.t < 0.5) return;
+    at.x = x; at.z = z; at.t = t;
+    const pick = new Set(), wide = new Set();
+    const g0x = Math.floor((x - RADAR)/GC), g1x = Math.floor((x + RADAR)/GC), g0z = Math.floor((z - RADAR)/GC), g1z = Math.floor((z + RADAR)/GC);
+    for(let gx = g0x; gx <= g1x; gx++) for(let gz = g0z; gz <= g1z; gz++){
+      const c = grid.get(gx + ',' + gz); if(!c) continue;
+      for(const b of c){
+        const dx = Math.max(b.s.x1 - x, 0, x - b.s.x2), dz = Math.max(b.s.z1 - z, 0, z - b.s.z2);
+        if(dx < RADAR && dz < RADAR) wide.add(b);
+        if(dx < NEAR && dz < NEAR) pick.add(b);
+      }
+    }
+    strip(solids); strip(plats);
+    live = { s:[], p:[] };
+    pick.forEach(b=>{ solids.push(b.s); live.s.push(b.s); if(b.p){ plats.push(b.p); live.p.push(b.p); } });
+    radarList = [...wide].map(b=>b.s);
+  }
+  function strip(arr){ if(!arr) return; let j = 0; for(let i=0;i<arr.length;i++) if(!arr[i].nyc) arr[j++] = arr[i]; arr.length = j; }
+
   function detach(){
     if(!group) return;
+    grid = null; boxes = []; radarList = []; at.x = 1e9;
+    if(lamps){ lamps.post.geometry.dispose(); lamps.head.geometry.dispose(); lamps.post.dispose(); lamps.head.dispose(); lamps = null; }
     if(group.parent) group.parent.remove(group);
     [mesh, land, water].forEach(m=>{ if(m) m.geometry.dispose(); });
     if(waterMat) waterMat.dispose();
@@ -187,5 +274,6 @@ window.TSHNYC = (function(){
   }
   function tick(t){ U.uTime.value = t; }
 
-  return { attach, detach, look, tick, get ready(){ return !!mesh; }, get loading(){ return loading; } };
+  return { attach, detach, look, tick, near, get ready(){ return !!mesh; }, get walkable(){ return !!grid; }, get loading(){ return loading; },
+           get radar(){ return radarList; }, get count(){ return boxes.length; }, _live:()=>live };
 })();

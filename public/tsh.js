@@ -1586,7 +1586,8 @@ window.TSH = (function(){
      flat (the ceiling is three metres up) and during films and scenes. */
   function bootsOn(){
     if(!window.BOOTS) return;
-    const E = CITY.EDGE;
+    /* the island, not the district: she can walk Manhattan now (tshnyc.js), and its harbour kerb is the real edge */
+    const E = window.TSHNYC ? { x:1400, z:1400 } : CITY.EDGE;
     BOOTS.attach({
       env:{ solids:G.solids, ground:groundAt, bounds:{ x1:-E.x + 1.5, x2:E.x - 1.5, z1:-E.z + 1.5, z2:E.z - 1.5 },
             roofs:W.roofs.map(r=>({ id:r.id, x1:r.x1, x2:r.x2, z1:r.z1, z2:r.z2, top:r.h })) },
@@ -5198,6 +5199,9 @@ window.TSH = (function(){
     x.translate(-radarMap.mx(G.pos.x), -radarMap.mz(G.pos.z));
     x.drawImage(radarMap.c, 0, 0);
     const M = (px, pz) => [radarMap.mx(px), radarMap.mz(pz)];
+    // Manhattan past the district: the blocks round her, as she walks
+    if(window.TSHNYC) TSHNYC.radar.forEach(b=>{ const [a, c] = M(b.x1, b.z1), w_ = (b.x2-b.x1)*radarMap.S2, h_ = (b.z2-b.z1)*radarMap.S2;
+      x.fillStyle = b.tag === 'kerb:nyc' ? '#1d4a6a' : b.y2 > 60 ? '#1c2a3a' : '#132220'; x.fillRect(a, c, w_, h_); });
     const dot = (px, pz, col, r, ring) => { const [a, b] = M(px, pz); x.beginPath(); x.arc(a, b, (r||3)/Z*0.5, 0, 7); if(ring){ x.strokeStyle = col; x.lineWidth = 1.5/Z*0.5; x.stroke(); } else { x.fillStyle = col; x.fill(); } };
     // the search circle
     if(S.heat > 0 && lastKnown){ const [a, b] = M(lastKnown[0], lastKnown[1]); x.beginPath(); x.arc(a, b, AI.HEAT.radius(S.heat)*radarMap.S2, 0, 7);
@@ -5501,7 +5505,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); if(window.TSHNYC) TSHNYC.tick(clock); tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
