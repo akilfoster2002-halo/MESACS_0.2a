@@ -463,7 +463,10 @@ app.post('/api/teacher/mute', async (req,res)=>{
   await db.q('UPDATE users SET muted_until=$1 WHERE id=$2',[until,userId]);
   // enforce on the open connection too: without this the mute is advisory and
   // a student whose client ignores it keeps talking
-  for(const [,p] of live) if(p.id===Number(userId)) p.mutedUntil = until ? until.getTime() : 0;
+  for(const [,p] of live) if(p.id===Number(userId)){
+    p.mutedUntil = until ? until.getTime() : 0;
+    if(until) voiceOff(p, 'Your teacher muted you.');
+  }
   send(userId,{ t:'muted', until: until? until.getTime():0 });
   if(until) calls.muted(Number(userId));
   ok(res,{});
@@ -879,7 +882,7 @@ function roster(server){
   for(const [,p] of live) if(p.server===server && p.role==='student')
     out.push({ id:p.id, display:p.display, x:p.x, y:p.y, z:p.z,
                yaw:p.yaw, pit:p.pit,
-               char:p.char, fit:p.fit || '', act:p.act, ride:p.ride, at:p.at });
+               char:p.char, fit:p.fit || '', act:p.act, ride:p.ride, at:p.at, vc:p.vc||undefined });
   return out;
 }
 /* Where somebody is standing: the planet they are out on, or the room they
@@ -950,6 +953,42 @@ function arcDrop(p, ws){
   void ws;
 }
 
+/* ===================================================== open mics
+   VOICE IN THE ROOM. Everybody whose mic is on can be heard by whoever is
+   standing near them, and the nearer the louder (public/voice.js). Like a
+   phone call the sound goes browser to browser; this only says who has a
+   mic on (the `vc` flag in the roster) and passes the handshake between two
+   people in the same room. A teacher's mute takes somebody off the air:
+   everybody else is told to hang up on them, so it holds even if their own
+   browser ignores it. VOICE=off in the environment turns the lot off. */
+const voiceOn = () => String(process.env.VOICE||'').toLowerCase()!=='off';
+function voiceOff(p, why){
+  if(!p.vc) return;
+  p.vc=false;
+  if(p.server) broadcastRoom(p.server, { t:'vc', op:'gone', id:p.id });
+  if(why) send(p.id, { t:'vc', op:'denied', reason:why });
+}
+function voiceMsg(ws, p, m){
+  if(m.op==='on'){
+    if(!voiceOn()) return ws.send(JSON.stringify({ t:'vc', op:'denied', reason:'Voice is switched off here.' }));
+    if(p.mutedUntil && Date.now()<p.mutedUntil)
+      return ws.send(JSON.stringify({ t:'vc', op:'denied', reason:'Your teacher muted you.' }));
+    if(!p.server) return;
+    p.vc=true;
+    return;
+  }
+  if(m.op==='off'){ voiceOff(p); return; }
+  /* the handshake and the hang-up, to one person, in this room, with a mic on */
+  if(m.op==='sig' || m.op==='bye'){
+    if(!p.vc || !p.server) return;
+    if(m.op==='sig' && rateLimited('vcsig:'+p.id, 400, 10000)) return;
+    if(JSON.stringify(m.d||null).length > 16000) return;
+    const to=Number(m.to);
+    const raw=JSON.stringify({ t:'vc', op:m.op, from:p.id, d:m.d });
+    for(const [w,q] of live) if(q.id===to && q.server===p.server && q.vc && w.readyState===1) w.send(raw);
+  }
+}
+
 /* No cookie (a page on another address — see /api/ticket): the socket's
    first message must be {t:'hello', ticket}. Ten seconds to say it. */
 function ticketFrom(ws){
@@ -973,7 +1012,7 @@ wss.on('connection', async (ws, req)=>{
                 // 'nia' is the character everybody starts on, so a
                 // roster read before their first 'pos' shows what they wear
                 x:0, y:0, z:0, yaw:0, pit:0, char:'nia', act:null, ride:null,
-                at:null, went:null, objs:new Map(),
+                at:null, went:null, objs:new Map(), vc:false,
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
   ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role}, ice:iceServers() }));
 
@@ -1002,6 +1041,7 @@ wss.on('connection', async (ws, req)=>{
         broadcastRoom(p.server,{ t:'objs', from:p.id, full:true, set:[] }, ws);
       }
       if(p.server===want) return;
+      voiceOff(p);                 // a new room: the mic comes back on there
       lobby.cancel(p.id);          // you cannot wait in a Gym you have left
       arcDrop(p, ws);              // nor at a cabinet in a room you have left
       const was = p.server;
@@ -1024,6 +1064,7 @@ wss.on('connection', async (ws, req)=>{
       return;
     }
     if(m.t==='leave'){
+      voiceOff(p);
       const was = p.server;
       lobby.cancel(p.id);
       arcDrop(p, ws);
@@ -1220,6 +1261,7 @@ wss.on('connection', async (ws, req)=>{
       }
       return;
     }
+    if(m.t==='vc'){ voiceMsg(ws, p, m); return; }
     /* ------------------------------------------------- phone calls */
     if(m.t==='call'){
       if(m.op==='ring' && rateLimited('call:'+p.id, 6, 60000)){
@@ -1258,6 +1300,7 @@ wss.on('connection', async (ws, req)=>{
     lobby.cancel(p.id);
     arcDrop(p, ws);
     calls.gone(ws, p);
+    voiceOff(p);
     broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
     forgetIfEmpty(p.server);
   });

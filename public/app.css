@@ -2410,6 +2410,22 @@ button.cfit.plain{border:2px dashed var(--line);border-radius:999px;color:var(--
 #phone .ph-call{background:none;border:none;font-size:18px;cursor:pointer;padding:4px 6px;border-radius:10px}
 #phone .ph-call:hover{background:#1a1530}
 
+/* ------------------------------------------------- open mics (voice.js)
+   Beside the phone. The ring grows with your own voice so you can see the
+   mic is hearing you. */
+#voiceBtn{position:fixed;left:76px;bottom:18px;z-index:30;width:54px;height:54px;border-radius:16px;border:1px solid var(--line);
+  background:rgba(20,16,36,.92);color:#fff;font-size:22px;cursor:pointer;--lvl:0;
+  box-shadow:0 0 0 calc(var(--lvl) * 7px) rgba(62,207,142,.45)}
+#voiceBtn.hidden{display:none}
+#voiceBtn.live{border-color:#3ecf8e}
+#voiceBtn.off{opacity:.75}
+#voiceBtn.bad{border-color:var(--bad)}
+#voiceBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#voiceNear{position:fixed;left:140px;bottom:22px;z-index:30;display:flex;flex-wrap:wrap;gap:6px;max-width:calc(100vw - 160px);pointer-events:none}
+#voiceNear.hidden{display:none}
+#voiceNear span{background:rgba(20,16,36,.88);border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-size:13px;color:var(--muted)}
+#voiceNear span.talking{color:var(--text);border-color:#3ecf8e}
+
 /* ---------------------------------------------------------- a call (call.js)
    One strip at the top of the screen, there whether the phone is open or not. */
 #callBar{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:75;display:flex;gap:12px;align-items:center;

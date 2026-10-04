@@ -369,6 +369,9 @@ window.PLANET = (function(){
     const lo=lonDeg*Math.PI/180, la=latDeg*Math.PI/180;
     return V(Math.cos(la)*Math.sin(lo), Math.sin(la), Math.cos(la)*Math.cos(lo));
   };
+  /* Open mics (voice.js) hear by distance in metres, and out here a
+     position is a longitude and latitude on a ball this world's size. */
+  if(window.VOICE) VOICE.place(p => p.at===W.id ? dirOf(+p.x||0, +p.z||0).multiplyScalar(PR + (+p.y||0)) : null);
   /* A tangent frame at a direction. There is no continuous choice of "north"
      on a sphere, so the reference is picked to dodge the pole it would
      otherwise be undefined at. */

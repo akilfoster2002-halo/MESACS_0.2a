@@ -90,6 +90,8 @@ window.NET = (function(){
     call(msg){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify(Object.assign({}, msg, {t:'call'}))); return true; } return false; },
     set onCall(fn){ onCall=fn; },
     get ice(){ return ice; },
+    /* Open mics (voice.js): the same socket, a different conversation. */
+    voice(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({}, msg, {t:'vc'}))); },
     set onArc(fn){ onArc=fn; },
     get onArc(){ return onArc; },
     set onRoom(fn){ onRoom=fn; },
@@ -181,10 +183,13 @@ window.NET = (function(){
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
         if(m.t==='welcome'){ ice=m.ice||null; if(ticket&&want) ws.send(JSON.stringify({t:'join', server:want})); }
         if(m.t==='call'&&onCall) onCall(m);
+        if(m.t==='players'&&window.VOICE) VOICE.roster(m.players);
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
+        if(m.t==='vc'&&window.VOICE) VOICE.hear(m);
         if(m.t==='chat'&&onChat) onChat(m);
         if(m.t==='dm'&&window.PHONE) PHONE.buzz(m);
         if(m.t==='objs'&&handlers.objs) handlers.objs(m);
+        if(m.t==='room'&&window.VOICE) VOICE.joined(m.server);
         if(m.t==='room'&&onChat){
           if(handlers.clear) handlers.clear(true);   // room switch: start on a clean log
           (m.history||[]).forEach(h=>onChat({...h, from:h.display, history:true}));
@@ -227,6 +232,7 @@ window.NET = (function(){
         }
         if(m.t==='arc'&&onArc) onArc(m);
         if(m.t==='sys'&&onSys)    onSys(m.text);
+        if(m.t==='muted'&&m.until<=Date.now()&&window.VOICE) VOICE.retry();
         if(m.t==='muted'){ muted=m.until; if(onSys) onSys(m.until>Date.now()
             ? t('Your teacher muted the chat for you.') : t('You can chat again.')); }
         if(m.t==='clear'&&handlers.clear) handlers.clear();
@@ -235,6 +241,7 @@ window.NET = (function(){
     ws.onclose=ev=>{
       ws=null;
       if(onCall) onCall({ t:'call', op:'lost' });
+      if(window.VOICE) VOICE.lost();
       if(handlers && handlers.players) handlers.players([]);   // nobody is visible while we are away
       if(gone || !want) return;
       if(ev && ev.code===4001){                                // the server says we are not signed in

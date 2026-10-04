@@ -73,6 +73,8 @@ window.CHATROOM = (function(){
              y: Math.sin(la)*r - BALL,
              z: Math.cos(la)*Math.cos(lo)*r };
   }
+  // open mics (voice.js) measure in metres, so a chat room says how to read its own
+  if(window.VOICE) VOICE.place(p => p.at==='chatroom' ? fromWire(+p.x||0, +p.z||0, +p.y||0) : null);
 
   /* ---------------------------------------------------------- the catalog
      What a room may be made of, asked of the server once. The editor and the
