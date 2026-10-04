@@ -72,18 +72,42 @@ window.BOOTS = (function(){
     // …and IN TIME: SPACE pressed again as her feet touch is the next tier up, higher each time
     combo: [1, 1.22, 1.45, 1.72],   // vertical speed × this, tier by tier
     comboWindow: 0.3,        // s after touching down a press still counts as in time (and perfectLanding before it)
-    // THE LINE (technique 'grapple'): a rope to a building, and a pendulum on it
-    grappleRange: 90,        // m the line reaches
-    swingPush: 16,           // m/s² the keys pump the swing
-    reelTo: 0.8,             // the line takes itself in to this share of its length…
-    reelAuto: 24,            // …zipping her in at up to this many m/s (faster the further it has to go)
-    ropeClear: 1.2,          // m the bottom of the swing keeps off the street: a line too long for that is taken in
-    reelSpeed: 12,           // m/s SPACE hauls her up the line
-    ropeMin: 4,              // m: the shortest the line gets
-    swingDrag: 0.04,         // 1/s
-    swingMax: 50,            // m/s
-    releaseBoost: 1.12,      // letting go: speed × this…
-    releaseUp: 6,            // …and this much up
+    /* THE WEB (technique 'grapple'), the way Spider-Man swings. Not a rope you aim: hold R and it finds
+       a building ahead and to the side, high up (tsh.js). The swing is a pendulum with its thumb on the
+       scale: gravity is heavier on the line, so the dip comes quick; the line takes itself in until the
+       bottom of the arc clears the street; through the dip she is pushed along her line, so every swing
+       is faster than the one before; and the keys bend the swing round rather than push it. The RELEASE
+       is the move: let go on the upswing and she is thrown — and in the last stretch of it, as the line
+       comes past forty degrees and she is still rising, the web goes gold, and a release there is the
+       big one, with a flip. SPACE on the line jumps off it. At the top of any release she hangs for a
+       moment before she falls, and R in the air is the next web straight away. */
+    grappleRange: 95,        // m a web reaches
+    swingGravity: 1.45,      // gravity × this on the line
+    swingAssist: 11,         // m/s² along her line through the dip
+    swingTurn: 1.7,          // rad/s the keys bend the swing
+    swingStart: 14,          // m/s she is going at least, the moment a web catches
+    swingClear: 3,           // m the bottom of the arc keeps off the street
+    reelAuto: 30,            // m/s the line takes itself in
+    reelSpeed: 14,           // (old) m/s hauled up a line
+    ropeMin: 6,              // m: the shortest web
+    swingDrag: 0.02,         // 1/s
+    swingMax: 44,            // m/s
+    goldFrom: 0.42,          // past the hook by this share of the line, still rising: the gold window…
+    goldTo: 0.92,            // …to here
+    releaseBoost: 1.06,      // an ordinary release: speed × this…
+    releaseUp: 5,            // …and this much up
+    perfectBoost: 1.22,      // a release in the gold
+    perfectUp: 11,
+    webJumpUp: 14,           // SPACE on the line: off it, up…
+    webJumpFwd: 5,           // …and on
+    hangTime: 0.42,          // s of lighter gravity at the top of a release…
+    hangGravity: 0.45,       // …this much of it
+    // OFF THE WEB SHE FLIES: for a while after a release her speed holds her up — the faster, the more
+    flyTime: 1.8,            // s of flight after an ordinary release (a gold one and a web jump get more)
+    flyGravity: 0.4,         // gravity × this at the start of the flight, back to full by its end…
+    flyLift: 0.55,           // …and, falling, up to this much more taken off by her speed
+    flyLiftSpeed: 40,        // m/s at which the lift is full
+    reelTo: 0.8, ropeClear: 1.2,     // (the old line's, kept for its tests)
     // on the ground
     runSpeed: 9,             // m/s, walking pace in the boots
     sprintSpeed: 15,         // m/s with SHIFT
@@ -199,7 +223,7 @@ window.BOOTS = (function(){
     return Object.assign({ x:0, y:0, z:0, vx:0, vy:0, vz:0, ground:true, heading:0, state:'ground',
       coyote:0, jumpBuf:9, jumpHeld:false, cut:true, airT:0, diveT:0, swoop:null, wall:null, slideWall:null,
       dashT:0, dashCD:0, charges:TUNE.dashCharges, roll:0, sliding:false, flow:0, chain:0,
-      bound:null, plant:0, landT:9, hops:0, aimT:0, charge:null, combo:0, fromCharge:false, rope:null,
+      bound:null, plant:0, landT:9, hops:0, aimT:0, charge:null, combo:0, fromCharge:false, rope:null, hang:0, fly:0, flyMax:0,
       have:new Set(ALL), events:[], last:{}, gold:false }, o||{});
   }
   const hspeed = b => hyp(b.vx, b.vz);
@@ -291,7 +315,8 @@ window.BOOTS = (function(){
   /* ------------------------------------------------- the button decides */
   function decide(b, inp, wish, env){
     const fresh = b.jumpBuf === 0, buffered = b.jumpBuf <= TUNE.jumpBuffer;
-    if(b.swoop || b.rope) return;                       // on the line SPACE hauls her up it (airMove)
+    if(b.rope){ if(fresh){ webJump(b, wish); b.jumpBuf = 9; } return; }   // SPACE on the web: off it, up and on
+    if(b.swoop) return;
     // THE CHARGED JUMP: a press on the ground starts the crouch; letting go is the jump (step(), above)
     if(b.have.has('charge') && (b.ground || b.coyote > 0) && !b.charge && buffered && !(b.roll > TUNE.rollTime - 0.08)){
       const inTime = b.ground && b.fromCharge && b.landT <= TUNE.comboWindow;
@@ -636,15 +661,34 @@ window.BOOTS = (function(){
       if(k >= 1){ b.swoop = null; b.state = 'air'; b.diveT = 0; b.cut = true; b.airT = 0.2; }
       return;
     }
-    // ON THE LINE: gravity, the keys pumping the swing, and the line taking itself in; the rope itself is in sub()
+    // ON THE WEB: heavier gravity, the push through the dip, the keys bending her round, the line taking itself in; the web itself is in sub()
     if(b.rope){
       const r = b.rope;
-      b.vy -= TUNE.gravity*h;
-      if(wish){ b.vx += wish.x*TUNE.swingPush*h; b.vz += wish.z*TUNE.swingPush*h; }
-      const reel = Math.max(inp.jump ? TUNE.reelSpeed : 0, r.len > r.want ? Math.min(TUNE.reelAuto, 4 + (r.len - r.want)*3) : 0);
-      r.len = Math.max(TUNE.ropeMin, r.len - reel*h);
+      r.t = (r.t || 0) + h;
+      b.vy -= TUNE.gravity*TUNE.swingGravity*h;
+      let hs = hspeed(b);
+      const hx = hs > 0.5 ? b.vx/hs : 0, hz = hs > 0.5 ? b.vz/hs : 0;
+      // the dip: falling on the line, she is pushed along it
+      if(b.vy < 0 && hs > 0.5){ b.vx += hx*TUNE.swingAssist*h; b.vz += hz*TUNE.swingAssist*h; }
+      // the keys (camera-relative) bend the swing round, keeping its speed
+      if(wish && hs > 2){
+        const a0 = Math.atan2(b.vx, b.vz), a1 = Math.atan2(wish.x, wish.z), d = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0));
+        const turn = clamp(d, -TUNE.swingTurn*h, TUNE.swingTurn*h), a2 = a0 + turn; hs = hspeed(b);
+        b.vx = Math.sin(a2)*hs; b.vz = Math.cos(a2)*hs;
+        // and the swing turns with her: its pivot goes round her by the same angle
+        const ox = r.x - b.x, oz = r.z - b.z, c = Math.cos(turn), sn = Math.sin(turn);
+        r.x = b.x + ox*c + oz*sn; r.z = b.z - ox*sn + oz*c;
+        if(r.fx !== undefined){ const fx = r.fx, fz = r.fz; r.fx = fx*c + fz*sn; r.fz = -fx*sn + fz*c; }
+      }
+      r.len = Math.max(TUNE.ropeMin, r.len - (r.len > r.want ? TUNE.reelAuto*h : 0));
       const k = 1 - TUNE.swingDrag*h; b.vx *= k; b.vy *= k; b.vz *= k;
-      const s = speed(b); if(s > TUNE.swingMax){ const m = TUNE.swingMax/s; b.vx *= m; b.vy *= m; b.vz *= m; }
+      const sp = speed(b); if(sp > TUNE.swingMax){ const m = TUNE.swingMax/sp; b.vx *= m; b.vy *= m; b.vz *= m; }
+      // the gold: past the hook along her line, and still rising
+      // how far past the pivot she is, along the way the swing goes (not the way she happens to be moving)
+      const past = r.fx !== undefined ? ((b.x - r.x)*r.fx + (b.z - r.z)*r.fz)/r.len : hs > 1 ? ((b.x - r.x)*b.vx + (b.z - r.z)*b.vz)/hs/r.len : 0;
+      const gold = b.vy > 0 && past > TUNE.goldFrom && past < TUNE.goldTo;
+      if(gold && !r.gold) emit(b, 'webGold');
+      r.gold = gold; r.past = past;
       return;
     }
     // on a bound: the arc is the shoes' — gravity of their own, and the line held to the roof
@@ -680,6 +724,14 @@ window.BOOTS = (function(){
     // gravity, and what changes it
     let g = TUNE.gravity;
     if(b.state === 'dive') g *= TUNE.diveGravity;
+    else if(b.hang > 0){ b.hang -= h; if(Math.abs(b.vy) < 6) g *= TUNE.hangGravity; }        // the top of a release: she hangs there
+    if(b.fly > 0 && b.state !== 'dive'){                         // flying off the web: carried by her speed, and settling into the fall
+      b.fly -= h;
+      const k = clamp(b.fly/(b.flyMax || TUNE.flyTime), 0, 1);
+      let gk = lerp(1, TUNE.flyGravity, k);
+      if(b.vy < 0) gk *= 1 - TUNE.flyLift*clamp(hspeed(b)/TUNE.flyLiftSpeed, 0, 1)*k;
+      g *= gk;
+    }
     else if(b.vy > 0 && b.jumpHeld && !b.cut) g *= TUNE.jumpHoldGravity;
     if(b.dashT > 0){ b.dashT -= h; g *= 0.2; }
     if(b.slideWall){ g *= TUNE.wallSlideGravity; }
@@ -728,7 +780,11 @@ window.BOOTS = (function(){
   /* a wall, met at speed in the air, is something to kick off */
   function touchWall(b, hit, env){
     const n = hit.n, into = -(b.vx*n.x + b.vz*n.z);
-    if(b.rope){ const vn = b.vx*n.x + b.vz*n.z; if(vn < 0){ b.vx -= n.x*vn; b.vz -= n.z*vn; } return; }   // swung into a wall: she meets it
+    // swung into a wall: a glancing touch she slides along; a real hit lets go of the web, and she is on the wall (plant, kick off)
+    if(b.rope){
+      if(into < 6){ const vn = b.vx*n.x + b.vz*n.z; if(vn < 0){ b.vx -= n.x*vn; b.vz -= n.z*vn; } return; }
+      b.rope = null; b.state = 'air'; b.fromCharge = false; emit(b, 'ropeOff', { wall:true });
+    }
     if(b.bound && hit.s.y2 - b.y > 0.3){ b.bound = null; b.state = 'air'; }
     const tall = hit.s.y2 - b.y > 1.2;
     if(!b.ground && !b.wall && !b.swoop && tall && into >= TUNE.reboundMin && b.have.has('rebound')){
@@ -750,6 +806,7 @@ window.BOOTS = (function(){
   function land(b, floor, inp, wish, env){
     const impact = -b.vy, hs = hspeed(b), bounded = !!b.bound;
     if(b.rope){ b.rope = null; emit(b, 'ropeOff', { landed:true }); }
+    b.fly = 0;
     b.y = floor; b.vy = 0; b.ground = true; b.state = 'ground'; b.bound = null; b.landT = 0;
     b.charges = TUNE.dashCharges; b.wall = null; b.slideWall = null; b.diveT = 0;
     if(b.swoop){ b.swoop = null; b.flow *= 0.6; b.chain = 0; emit(b, 'swoopCrash', { impact }); }
@@ -778,6 +835,8 @@ window.BOOTS = (function(){
         if(!inp.jump) chargeJump(b, wish);
         return;
       }
+      // a long fall, slowly across the ground: the superhero landing, one knee and a fist down
+      if(impact > 24 && hs < 10 && window.AVATAR && AVATAR.can && AVATAR.can('hard_land')){ b.last.hardT = 1.3; b.vx *= 0.2; b.vz *= 0.2; b.roll = 0; emit(b, 'land', { impact, hero:true }); return; }
       if(impact > TUNE.rollImpact || (impact > 14 && hs > 16)){ b.roll = TUNE.rollTime; addFlow(b, 'roll'); emit(b, 'roll', { impact }); }
       else emit(b, 'land', { impact });
       return;
@@ -838,28 +897,61 @@ window.BOOTS = (function(){
   function grapple(a){
     if(!on || !B || !B.have.has('grapple') || !a) return false;
     const d = hyp(B.x - a.x, B.y + HAND - a.y, B.z - a.z);
-    if(d < 3 || d > TUNE.grappleRange) return false;
-    // as long as it can be and still swing her clear of the street at the bottom
-    const clear = a.y - HAND - TUNE.ropeClear;
-    B.rope = { x:a.x, y:a.y, z:a.z, len:d, want:clamp(Math.min(d*TUNE.reelTo, clear), TUNE.ropeMin, d) };
-    B.charge = null; B.bound = null; B.wall = null; B.slideWall = null; B.swoop = null; B.plant = 0;
-    // fired from her feet: a yank up the line, off the ground and into the swing
-    if(B.ground){ const k = 9/d; B.ground = false; B.vx += (a.x - B.x)*k; B.vz += (a.z - B.z)*k; B.vy = Math.max(B.vy, 8 + (a.y - B.y)*k); }
-    B.state = 'swing'; B.airT = 0; B.diveT = 0; B.cut = true;
+    if(d < 4 || d > TUNE.grappleRange) return false;
+    // the catch: whatever she was doing, she is now going along the swing, and at least this fast
+    let hs = hspeed(B);
+    const fx = a.x - B.x, fz = a.z - B.z, fl = hyp(fx, fz) || 1;
+    let dx = hs > 3 ? B.vx/hs : fx/fl, dz = hs > 3 ? B.vz/hs : fz/fl;
+    if(a.dir){ dx = a.dir.x; dz = a.dir.z; }                    // the way she means to go (the place says)
+    /* THE SWING IS ALONG THE STREET, NOT ROUND THE WALL. The web sticks to a wall off to her side; a
+       pendulum hung from that point swings her round it like a tetherball. So the swing hangs from a
+       point straight ahead of her on her line, at the web's height — the web is drawn to the wall, the
+       arc goes down the street. (wx, wy, wz) is where the web is stuck. */
+    const along = Math.max(8, fx*dx + fz*dz);
+    const px = B.x + dx*along, pz = B.z + dz*along;
+    const dl = hyp(B.x - px, B.y + HAND - a.y, B.z - pz);
+    // as long as it can be and still carry her clear of the street at the bottom of the arc
+    const clear = a.y - HAND - TUNE.swingClear;
+    B.rope = { x:px, y:a.y, z:pz, wx:a.x, wy:a.y, wz:a.z, fx:dx, fz:dz, len:dl, want:clamp(clear, TUNE.ropeMin, dl), t:0, gold:false, past:0 };
+    B.charge = null; B.bound = null; B.wall = null; B.slideWall = null; B.swoop = null; B.plant = 0; B.hang = 0;
+    if(hs < TUNE.swingStart){ B.vx = dx*TUNE.swingStart; B.vz = dz*TUNE.swingStart; }
+    if(B.ground){ B.ground = false; B.vy = Math.max(B.vy, 9); B.rope.fromGround = true; }   // off the street: a leap into the web
+    else if(B.vy > 6) B.vy = 6;
+    B.state = 'swing'; B.airT = 0; B.diveT = 0; B.cut = true; B.fly = 0;
     B.events = []; emit(B, 'rope', { len:d }); B.events.forEach(e=>react(e)); B.events = [];
     return true;
+  }
+  /* SPACE on the web: let go and spring off it — up, and on along her line */
+  function webJump(b, wish){
+    const r = b.rope; if(!r) return;
+    b.rope = null; b.state = 'air'; b.fromCharge = false; b.hang = TUNE.hangTime;
+    b.flyMax = b.fly = TUNE.flyTime*1.2;
+    const hs = hspeed(b) || 1;
+    b.vx += b.vx/hs*TUNE.webJumpFwd; b.vz += b.vz/hs*TUNE.webJumpFwd;
+    b.vy = Math.max(b.vy, 0) + TUNE.webJumpUp;
+    b.charges = TUNE.dashCharges; capSpeed(b); addFlow(b, 'pull');
+    emit(b, 'webJump', { speed:speed(b) });
   }
   /* letting go: everything the swing built up, and a little more */
   function release(){
     if(!B || !B.rope) return false;
-    B.rope = null; B.state = 'air'; B.fromCharge = false;
-    B.vx *= TUNE.releaseBoost; B.vz *= TUNE.releaseBoost; B.vy = B.vy*TUNE.releaseBoost + TUNE.releaseUp;
+    const r = B.rope, gold = r.gold, rising = B.vy > 0;
+    B.rope = null; B.state = 'air'; B.fromCharge = false; B.hang = TUNE.hangTime;
+    B.flyMax = B.fly = gold ? TUNE.flyTime*1.4 : rising ? TUNE.flyTime : TUNE.flyTime*0.5;
+    if(gold){                                                   // in the gold: thrown, with a flip
+      B.vx *= TUNE.perfectBoost; B.vz *= TUNE.perfectBoost; B.vy = B.vy*TUNE.perfectBoost + TUNE.perfectUp;
+      addFlow(B, 'pullPerfect');
+    } else if(rising){                                          // on the upswing: carried on
+      B.vx *= TUNE.releaseBoost; B.vz *= TUNE.releaseBoost; B.vy += TUNE.releaseUp;
+      addFlow(B, 'pull');
+    }                                                           // on the way down: she just lets go
     B.charges = TUNE.dashCharges; capSpeed(B);
-    addFlow(B, 'pull');
-    B.events = []; emit(B, 'ropeOff', { speed:speed(B) }); B.events.forEach(e=>react(e)); B.events = [];
+    B.last.releaseT = gold ? 0.95 : 0;
+    B.events = []; emit(B, gold ? 'releasePerfect' : 'ropeOff', { speed:speed(B), gold }); B.events.forEach(e=>react(e)); B.events = [];
     return true;
   }
-
+  /* a web that has been on long enough to be swung, for the place's ring and sounds */
+  const webGold = () => !!(B && B.rope && B.rope.gold);
   function moverStep(dt){
     if(!on || !B) return false;
     if(hooks.slow) dt *= hooks.slow();                // a moment the place wants in slow motion (the first fall)
@@ -889,29 +981,59 @@ window.BOOTS = (function(){
   }
 
   /* ------------------------------------------------------------ the body */
+  let swingQ = null;
   function animate(dt, inp){
     if(!window.AVATAR) return;
     const moving = B.ground && hspeed(B) > 0.6;
     let post = null;
-    if(B.rope) post = 'jump';                                   // on the line
+    const can = n => AVATAR.can && AVATAR.can(n);
+    let scrub = null;
+    if(B.rope){                                                  // on the web: the leap into it off the street, then the swing, posed by the arc
+      if(B.rope.fromGround && B.rope.t < 0.5 && can('web_start')) post = 'web_start';
+      else if(can('web_swing')){ post = 'web_swing'; scrub = clamp(((B.rope.past || 0) + 0.85)/1.75, 0, 1); }
+      else post = 'jump';
+    }
+    else if(B.last.releaseT > 0) post = can('web_flip') ? 'web_flip' : can('flip') ? 'flip' : 'jump';           // thrown off it in the gold
+    else if(B.last.hardT > 0) post = 'hard_land';
+    else if(B.fly > 0 && !B.ground && speed(B) > 12 && B.state !== 'dive') post = can('fly') ? 'fly' : 'jump';    // off the web: flying
     else if(B.bound) post = B.bound.perfect && B.airT < 0.55 && AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.roll > 0) post = AVATAR.can('roll') ? 'roll' : AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.swoop || (B.last.reboundT > 0)) post = AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.state === 'dive' || B.dashT > 0) post = AVATAR.can('fly') ? 'fly' : 'jump';
     else if(B.wall || B.slideWall) post = 'jump';
     if(B.last.reboundT > 0) B.last.reboundT -= dt;
+    if(B.last.releaseT > 0) B.last.releaseT -= dt;
+    if(B.last.hardT > 0) B.last.hardT -= dt;
     AVATAR.posture(post);
     AVATAR.gait(0, 1);
     AVATAR.update(dt, moving, hspeed(B) > TUNE.runSpeed + 1, B.ground);
+    if(scrub !== null){ const rig = AVATAR.model && AVATAR.model.userData.rig, c = rig && rig.clip && rig.clip(post);
+      if(c && rig.at(post, scrub*c.duration) && AVATAR.update) AVATAR.update(0, false, false, false); }
     AVATAR.posture(null);
     const bd = AVATAR.body; if(!bd) return;
     // she faces where she is going, not where the camera looks
     const face = B.wall ? Math.atan2(-B.wall.n.x, -B.wall.n.z) : hspeed(B) > 0.6 ? Math.atan2(B.vx, B.vz) : (B.faceY !== undefined ? B.faceY : G.yaw + Math.PI);
     B.faceY = face;
     // and leans into the dive
-    const pitch = B.state === 'dive' ? clamp(Math.atan2(-B.vy, hspeed(B) + 1)*0.9, 0, 1.3) : B.dashT > 0 ? 0.5 : B.bound && B.vy < 0 ? clamp(-B.vy*0.018, 0, 0.35) : 0;
+    const flying = B.fly > 0 && !B.ground && !B.rope && B.state !== 'dive' && B.last.releaseT <= 0 && speed(B) > 12;
+    const pitch = flying ? clamp(Math.atan2(-B.vy, hspeed(B) + 1)*0.85, -0.7, 1.0) : B.state === 'dive' ? clamp(Math.atan2(-B.vy, hspeed(B) + 1)*0.9, 0, 1.3) : B.dashT > 0 ? 0.5 : B.bound && B.vy < 0 ? clamp(-B.vy*0.018, 0, 0.35) : 0;
     bd.rotation.order = 'YXZ';
     bd.rotation.set(lerp(bd.rotation.x || 0, pitch, Math.min(1, dt*8)), face, 0);
+    /* ON THE WEB SHE HANGS FROM HER HAND: the body turned so its up is the web and its front is the way
+       she is going, and moved so the hand, not the feet, is where the web ends */
+    if(B.rope){
+      const r = B.rope, hx = B.x, hy = B.y + HAND, hz = B.z;
+      // half toward the swing's pivot, half toward where the web is stuck: she hangs off the web, and swings down the street
+      const ex = r.wx !== undefined ? r.wx : r.x, ez = r.wz !== undefined ? r.wz : r.z;
+      const up = new THREE.Vector3((r.x + ex)/2 - hx, r.y - hy, (r.z + ez)/2 - hz).normalize();
+      const fwd = new THREE.Vector3(B.vx, 0, B.vz); if(fwd.lengthSq() < 0.01) fwd.set(Math.sin(face), 0, Math.cos(face));
+      fwd.addScaledVector(up, -fwd.dot(up)).normalize();
+      const right = new THREE.Vector3().crossVectors(up, fwd).normalize();
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
+      swingQ = swingQ ? swingQ.slerp(q, Math.min(1, dt*14)) : q;
+      bd.quaternion.copy(swingQ);
+      bd.position.set(hx, hy, hz).addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(swingQ), -HAND);
+    } else swingQ = null;
   }
 
   /* ---------------------------------------------------------- the camera
@@ -923,7 +1045,7 @@ window.BOOTS = (function(){
     if(hooks.camera === false) return;
     const sp01 = clamp((speed(B) - 8)/42, 0, 1);
     if(yawSet !== null && Math.abs(G.yaw - yawSet) > 1e-4) mouseIdle = 0; else mouseIdle += dt;
-    if(!B.ground && hspeed(B) > 10 && mouseIdle > (B.bound ? 0.35 : 0.6) && !B.wall){
+    if(!B.ground && hspeed(B) > 10 && mouseIdle > (B.rope ? 0.2 : B.bound ? 0.35 : 0.6) && !B.wall){
       const want = Math.atan2(-B.vx, -B.vz), d = Math.atan2(Math.sin(want - G.yaw), Math.cos(want - G.yaw));
       G.yaw += d*Math.min(1, dt*TUNE.camFollow*(0.5 + sp01));
     }
@@ -936,6 +1058,7 @@ window.BOOTS = (function(){
     want = clearOf(head, want);
     const look = new THREE.Vector3(B.x + B.vx*0.16 + fx_*4, B.y + 1.4 + B.vy*0.1 + (B.state === 'dive' ? -2.5 : 0) + Math.sin(G.pitch||0)*4, B.z + B.vz*0.16 + fz_*4);
     if(B.bound) look.lerp(new THREE.Vector3(B.bound.x, B.bound.y + 1.2, B.bound.z), 0.28);
+    if(B.rope) look.lerp(new THREE.Vector3(B.rope.x, B.rope.y, B.rope.z), 0.1);
     if(!camP){ camP = want.clone(); camL = look.clone(); }
     const k = 1 - Math.exp(-dt*(B.ground ? 9 : 7));
     camP.lerp(want, k); camL.lerp(look, 1 - Math.exp(-dt*10));
@@ -971,6 +1094,11 @@ window.BOOTS = (function(){
     if(n === 'pull'){ sfx('jump'); punch = Math.max(punch, 0.4); }
     if(n === 'rebound' || n === 'reboundPerfect'){ sfx(n === 'reboundPerfect' ? 'perfect' : 'kick'); punch = n === 'reboundPerfect' ? 1 : 0.5; B.last.reboundT = 0.45; if(n === 'reboundPerfect') flashTrail(); }
     if(n === 'dash') sfx('dash');
+    if(n === 'rope'){ sfx('thwip'); punch = Math.max(punch, 0.25); }
+    if(n === 'webGold') sfx('gold');
+    if(n === 'releasePerfect'){ sfx('perfect'); sfx('whoosh'); punch = 1; flashTrail(); }
+    if(n === 'ropeOff' && !e.landed) sfx('whoosh', 0.5);
+    if(n === 'webJump'){ sfx('jump'); punch = Math.max(punch, 0.6); }
     if(n === 'land' || n === 'roll' || n === 'swoopCrash') sfx('land', clamp((e.impact||0)/40, 0.2, 1));
     if(n === 'landPerfect'){ sfx('perfect'); }
     if(WORDS[n]) say(WORDS[n]);
@@ -997,6 +1125,8 @@ window.BOOTS = (function(){
       if(kind === 'land'){ tone(110, 45, 0.2, 0.3*(vol||0.5)); sweep(800, 200, 0.15, 0.12*(vol||0.5)); }
       if(kind === 'perfect'){ tone(880, 1320, 0.28, 0.08, 'triangle'); tone(1320, 1760, 0.4, 0.05, 'sine'); sweep(400, 3000, 0.4, 0.2); }
       if(kind === 'gold'){ tone(1560, 1560, 0.06, 0.035, 'sine'); }
+      if(kind === 'thwip'){ sweep(5200, 1400, 0.09, 0.32, 3); sweep(2600, 700, 0.16, 0.14, 1.5); tone(240, 120, 0.06, 0.06, 'triangle'); }   // the web leaving the wrist
+      if(kind === 'whoosh'){ sweep(400, 1800, 0.45, 0.22*(vol||1), 0.7); }
       if(kind === 'boom'){ tone(70, 28, 0.9, 0.55); tone(140, 40, 0.5, 0.3, 'sawtooth'); sweep(200, 4000, 0.7, 0.35, 0.8); sweep(3000, 300, 1.2, 0.18); }
     }catch(e){}
   }
@@ -1133,7 +1263,7 @@ window.BOOTS = (function(){
     if(msgT > 0){ msgT -= 1/60; if(msgT <= 0) hudEl.querySelector('.msg').classList.remove('on'); }
   }
   // the words for the good ones
-  const WORDS = { pullPerfect:'PERFECT PULL', reboundPerfect:'PERFECT KICK', landPerfect:'CLEAN LANDING', boundPerfect:'PERFECT' };
+  const WORDS = { pullPerfect:'PERFECT PULL', reboundPerfect:'PERFECT KICK', landPerfect:'CLEAN LANDING', boundPerfect:'PERFECT', releasePerfect:'PERFECT RELEASE' };
 
   /* ------------------------------------------------------------ the debug */
   let dbgEl = null;
@@ -1193,6 +1323,6 @@ window.BOOTS = (function(){
   addEventListener('keydown', e=>{ if(on && e.code === 'Backquote'){ debug(); e.preventDefault(); } });
 
   return { TUNE, DEFAULTS, TECH, ALL, body, step, predict, pullQuality, timeToGround, wallAhead, findTarget, ignite, landIn,
-           attach, detach, sync, stop, teach, learn, fire, debug, say, show, WORDS, grapple, release, HAND, LEGACY,
+           attach, detach, sync, stop, teach, learn, fire, debug, say, show, WORDS, grapple, release, HAND, LEGACY, get webGold(){ return webGold(); },
            get active(){ return on; }, get B(){ return B; }, get env(){ return env; } };
 })();

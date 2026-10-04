@@ -497,6 +497,8 @@ window.AVATAR = (function(){
          and it has to know how long to hold before handing control back. */
       has(name){ return clips.some(c=>c.name===name); },
       clip(name){ return clips.find(c=>c.name===name) || null; },
+      /* the clip now playing held at a moment of it: the web swing is posed by where she is on the arc, not by the clock */
+      at(name, time){ if(curName!==name || !cur) return false; cur.timeScale=0; cur.time=Math.max(0, Math.min(time, cur.getClip().duration-0.001)); return true; },
       seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration/(speed[name]||1):0; },
       /* more clips, from another file on the same skeleton; `o.once` the ones that are moves, `o.speed` their rates */
       add(list, o){

@@ -1627,6 +1627,7 @@ window.TSH = (function(){
   }
   function bootsOn(){
     if(!window.BOOTS) return;
+    swingClips();
     // a night already past the lesson never meets the new moves in it: say so once
     if(S.step !== 'lesson' && S.flags && !S.flags.lineTip && !day()){ S.flags.lineTip = true;
       later(()=>{ if(on) note('👟 The shoes changed: hold SPACE and let go to jump — longer, higher; press it again as she lands to go higher still. 🪝 R (or the right mouse button) swings on a line.', 'big'); }, 2500); }
@@ -1662,7 +1663,7 @@ window.TSH = (function(){
      little higher, and higher again, for a wall to bite — the forgiving
      aim a swing needs, because a line to a point below you is no swing.
      The ring shows where it will go before you fire. */
-  const line = { mesh:null, ring:null, aim:null, aimT:0, held:false };
+  const line = { mesh:null, ring:null, aim:null, aimT:0, held:false, shot:1, next:0 };
   const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _r = new THREE.Vector3();
   function rayBox(ox, oy, oz, dx, dy, dz, s, max){
     let t0 = 0, t1 = max;
@@ -1698,40 +1699,85 @@ window.TSH = (function(){
     }
     return best;
   }
+  /* WHERE A WEB GOES, Spider-Man's way: you do not aim it. It goes ahead along the way she is heading —
+     where the camera looks, or, flying fast, where she is already going — up high, and to whichever
+     side has a wall: a few points ahead and above are tried, and from each a ray goes out left and
+     right to the nearest building. The best is far enough up for a real arc, far enough ahead to carry
+     her forward, near enough to the side to hug the street. The camera-aimed fan is the fallback. */
+  function webAnchor(){
+    if(!window.BOOTS || !BOOTS.B || !BOOTS.B.have.has('grapple')) return null;
+    const b = BOOTS.B, hy = b.y + BOOTS.HAND, range = BOOTS.TUNE.grappleRange;
+    G.camera.getWorldDirection(_d);
+    let fx = _d.x, fz = _d.z; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
+    const hs = Math.hypot(b.vx, b.vz);
+    if(!b.ground && hs > 12){ const vx = b.vx/hs, vz = b.vz/hs;            // flying: mostly where she is going, bent toward the camera
+      const k = Math.max(0, fx*vx + fz*vz) > 0.3 ? 0.35 : 0; fx = vx*(1 - k) + fx*k; fz = vz*(1 - k) + fz*k; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l; }
+    const px = -fz, pz = fx;                                                  // to her right
+    let best = null, bs = -Infinity;
+    for(const ahead of [18, 26, 34, 12]) for(const up of [16, 24, 32, 10]) for(const side of [1, -1]){
+      const ox = b.x + fx*ahead, oy = hy + up, oz = b.z + fz*ahead;
+      const h = lineCast(ox, oy, oz, px*side, 0, pz*side, 40); if(!h) continue;
+      const dist = Math.hypot(h.x - b.x, h.y - hy, h.z - b.z);
+      if(dist > range || dist < 8 || h.y - hy < 6) continue;
+      const score = -Math.abs(h.t - 10)*0.6 - Math.abs(up - 22)*0.25 - Math.abs(ahead - 24)*0.2;
+      if(score > bs){ bs = score; best = { x:h.x, y:h.y, z:h.z, dir:{ x:fx, z:fz } }; }
+    }
+    if(best) return best;
+    const a = lineAim(); if(a) a.dir = { x:fx, z:fz }; return a;
+  }
   function lineFire(){
     if(mode || inside || !window.BOOTS || !BOOTS.B || !BOOTS.active) return;
     if(!BOOTS.B.have.has('grapple')){ note('🪝 Not yet.', 'warn'); return; }
     line.held = true;
-    const a = lineAim();
-    if(!a){ note('🪝 Nothing to hook — aim at a building above you.', 'warn'); cue('fail'); return; }
-    if(BOOTS.grapple(a)) cue('pick');
+    const a = webAnchor();
+    if(!a){ note('🕸 Nothing to swing from here — get near the buildings.', 'warn'); cue('fail'); return; }
+    if(BOOTS.grapple(a)) line.shot = 0;
   }
   function lineLet(){ line.held = false; if(window.BOOTS && BOOTS.B && BOOTS.B.rope) BOOTS.release(); }
+  /* where her right hand is, so the web leaves from it */
+  let handBone = null, handOf = null;
+  function handPos(){
+    const m = window.AVATAR && AVATAR.model; if(!m) return null;
+    if(handOf !== m){ handOf = m; handBone = null; m.traverse(o=>{ if(!handBone && /RightHand$/.test(o.name || '')) handBone = o; }); }
+    return handBone ? handBone.getWorldPosition(new THREE.Vector3()) : null;
+  }
   function lineMesh(){
     if(line.mesh && line.mesh.parent) return;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color:0x9ff8ff, fog:false }));
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color:0xf4f8ff, fog:false }));
     m.userData.flat = true; m.frustumCulled = false; m.visible = false;
-    const r = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.8, 24), new THREE.MeshBasicMaterial({ color:0x9ff8ff, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthTest:false, fog:false }));
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.8, 24), new THREE.MeshBasicMaterial({ color:0xf4f8ff, transparent:true, opacity:0.6, side:THREE.DoubleSide, depthTest:false, fog:false }));
     r.userData.flat = true; r.renderOrder = 10; r.visible = false;
     root.add(m); root.add(r); line.mesh = m; line.ring = r;
     if(LOOK.hideInMirror) LOOK.hideInMirror.push(r);
   }
   function tickLine(dt){
     if(!window.BOOTS || !BOOTS.B){ return; }
+    swingOnBody();
     lineMesh();
     const b = BOOTS.B, rope = b.rope;
     // a line still held through a cutscene or a door is let go
     if(rope && (mode || inside)) BOOTS.release();
-    // the rope, hand to hook
+    // the web, from her right hand to the wall: it shoots out over a tenth of a second, and goes gold in the release window
     if(rope){
-      const hx = b.x, hy = b.y + BOOTS.HAND, hz = b.z, dx = rope.x - hx, dy = rope.y - hy, dz = rope.z - hz, len = Math.hypot(dx, dy, dz);
+      const hand = handPos();
+      const hx = hand ? hand.x : b.x, hy = hand ? hand.y : b.y + BOOTS.HAND, hz = hand ? hand.z : b.z;
+      line.shot = Math.min(1, (line.shot || 0) + dt*10);
+      const ex = rope.wx !== undefined ? rope.wx : rope.x, ey = rope.wy !== undefined ? rope.wy : rope.y, ez = rope.wz !== undefined ? rope.wz : rope.z;   // drawn to where it is stuck
+      const dx = (ex - hx)*line.shot, dy = (ey - hy)*line.shot, dz = (ez - hz)*line.shot, len = Math.max(0.01, Math.hypot(dx, dy, dz));
       line.mesh.visible = true; line.mesh.position.set(hx + dx/2, hy + dy/2, hz + dz/2); line.mesh.scale.set(1, len, 1);
       line.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx/len, dy/len, dz/len));
+      line.mesh.material.color.setHex(rope.gold ? 0xffd27a : 0xf4f8ff);
+      line.mesh.scale.x = line.mesh.scale.z = rope.gold ? 1.8 : 1;
     } else line.mesh.visible = false;
     // where it would go: looked for a few times a second, outside, when the line is free
     line.aimT -= dt;
-    if(line.aimT <= 0){ line.aimT = 0.12; line.aim = (!rope && !mode && !inside && b.have.has('grapple') && !day()) ? lineAim() : null; }
-    if(line.aim){ line.ring.visible = true; line.ring.position.set(line.aim.x, line.aim.y, line.aim.z); line.ring.lookAt(G.camera.position);
+    if(line.aimT <= 0){ line.aimT = 0.12; line.aim = (!rope && !mode && !inside && b.have.has('grapple') && !day()) ? webAnchor() : null; }
+    /* HOLD R AND IT KEEPS SWINGING: as an arc runs out — past the hook and over the top, or falling back —
+       she lets go by herself and the next web goes out. Letting go of R is the choice you time. */
+    if(line.held && rope && rope.t > 0.5 && (rope.past > 0.95 || (b.vy < 0.5 && rope.past > 0.45))){ BOOTS.release(); line.next = 0.05; }
+    // R still held after a release (or a jump off the web): the next web, as soon as there is one
+    if(line.held && !rope && !b.ground && !mode && !inside && (line.next -= dt) <= 0){ line.next = 0.18; const a = webAnchor(); if(a && BOOTS.grapple(a)) line.shot = 0; }
+    if(line.aim && false){ line.ring.visible = true; line.ring.position.set(line.aim.x, line.aim.y, line.aim.z); line.ring.lookAt(G.camera.position);
                   const k = 0.6 + 0.012*Math.hypot(line.aim.x - b.x, line.aim.z - b.z); line.ring.scale.set(k, k, k); }
     else line.ring.visible = false;
     // the meter: how high the next jump is charged, and the tier it is on
@@ -2837,6 +2883,24 @@ window.TSH = (function(){
         setObjective('Fight your way out.', [how]);
       },
       done:left=>fightOutro(left) };
+  }
+  /* HER WEB-SWING (Mixamo, glb files/cast/build-robin-swing.sh): the swing, its flip, the leap into it and the
+     superhero landing, on her own skeleton, loaded once when the shoes go on and added to her rig */
+  let swingClipsP = null;
+  function swingClips(){
+    if(!swingClipsP) swingClipsP = new Promise(ok=>{
+      if(!THREE.GLTFLoader) return ok(null);
+      const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.load('characters/swing/robin.glb?v=' + (window.ASSETV || '1'), g=>ok(g.animations), undefined, ()=>ok(null));
+    });
+    return swingClipsP.then(list=>{ swingList = list; swingOnBody(); return list; });
+  }
+  /* on whatever body she has NOW: the cast puts Robin's on after the shoes, and a new body has none of them */
+  let swingList = null;
+  function swingOnBody(){
+    const r = window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
+    if(swingList && r && r.add && !r.has('web_swing'))
+      r.add(swingList.filter(c=>c.name !== 'idle'), { once:['web_flip', 'web_start', 'hard_land'], speed:{ web_flip:1.35, web_start:1.3, hard_land:1.25 } });
   }
   /* her punches, kicks and dodges: a file of clips on her own skeleton, loaded once, added to her rig */
   let fightClipsP = null;

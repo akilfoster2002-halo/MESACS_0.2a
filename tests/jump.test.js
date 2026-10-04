@@ -85,3 +85,48 @@ test('the game teaches the charged jump and the line, not the bound', ()=>{
   assert.match(tsh, /id:'charge'/); assert.match(tsh, /id:'combo'/); assert.match(tsh, /id:'grapple'/);
   assert.ok(!/id:'bound'/.test(tsh), 'the lesson still teaches the bound');
 });
+
+test('a release in the gold throws her further than letting go on the way down', ()=>{
+  const B = boots();
+  const fly = (gold)=>{
+    const b = B.body({ y:10, ground:false, state:'swing', vx:0, vz:-22, vy: gold ? 8 : -6, airT:1 });
+    b.rope = { x:0, y:40, z:-10, len:30, want:30, t:1, gold, past: gold ? 0.6 : -0.2, fx:0, fz:-1 };
+    // release() works on the attached body; this is the same arithmetic, flown to the ground
+    const T = B.TUNE;
+    if(gold){ b.vx *= T.perfectBoost; b.vz *= T.perfectBoost; b.vy = b.vy*T.perfectBoost + T.perfectUp; }
+    b.rope = null; b.state = 'air'; b.hang = T.hangTime;
+    let t = 0; const z0 = b.z;
+    while(!b.ground && t < 10){ B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat); t += 1/60; }
+    return Math.abs(b.z - z0);
+  };
+  assert.ok(fly(true) > fly(false)*1.5, 'a gold release should carry much further');
+});
+
+test('the web swing is Spider-Man’s: found, not aimed; it chains while R is held; the clips are hers', ()=>{
+  const tsh = fs.readFileSync(path.join(__dirname, '..', 'public', 'tsh.js'), 'utf8');
+  assert.match(tsh, /function webAnchor\(\)/, 'the web is aimed again');
+  assert.match(tsh, /HOLD R AND IT KEEPS SWINGING/);
+  const boots_ = fs.readFileSync(path.join(__dirname, '..', 'public', 'boots.js'), 'utf8');
+  assert.match(boots_, /THE SWING IS ALONG THE STREET, NOT ROUND THE WALL/, 'a side wall swings her round it like a tetherball');
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/swing/robin.glb'));
+  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  const names = (json.animations || []).map(a=>a.name);
+  ['web_swing', 'web_flip', 'web_start', 'hard_land'].forEach(n=>assert.ok(names.includes(n), 'swing/robin.glb has no ' + n));
+  assert.ok(!json.meshes || !json.meshes.length, 'the swing file carries a body: it should be clips only');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
+  assert.match(css, /#tsh \.tsh-obj\{display:none !important\}/, 'the objective panel is back');
+});
+
+test('off the web she flies: her speed holds her up, so she carries far further than a plain fall', ()=>{
+  const B = boots();
+  const go = fly=>{
+    const b = B.body({ y:20, ground:false, state:'air', vx:0, vz:-35, vy:4, airT:1 });
+    if(fly){ b.fly = b.flyMax = B.TUNE.flyTime*1.4; }
+    let t = 0; const z0 = b.z;
+    while(!b.ground && t < 12){ B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat); t += 1/60; }
+    return { d:Math.abs(b.z - z0), t };
+  };
+  const plain = go(false), flown = go(true);
+  assert.ok(flown.t > plain.t*1.3, 'she should stay up much longer flying: ' + flown.t.toFixed(2) + ' s vs ' + plain.t.toFixed(2));
+  assert.ok(flown.d > plain.d*1.3, 'and carry much further along her line: ' + flown.d.toFixed(0) + ' m vs ' + plain.d.toFixed(0));
+});
