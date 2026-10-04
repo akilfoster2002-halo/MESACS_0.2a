@@ -130,3 +130,28 @@ test('off the web she flies: her speed holds her up, so she carries far further 
   assert.ok(flown.t > plain.t*1.3, 'she should stay up much longer flying: ' + flown.t.toFixed(2) + ' s vs ' + plain.t.toFixed(2));
   assert.ok(flown.d > plain.d*1.3, 'and carry much further along her line: ' + flown.d.toFixed(0) + ' m vs ' + plain.d.toFixed(0));
 });
+
+test('down from a height she somersaults, and rolls on forward even off a straight drop', ()=>{
+  const B = boots();
+  const b = B.body({ y:12, ground:false, state:'air', vx:0, vz:0, vy:0, airT:1, faceY:Math.PI });   // facing -z
+  const ev = []; let t = 0;
+  while(t < 3){ B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat).forEach(e=>ev.push(e)); t += 1/60; }
+  const r = ev.find(e=>e.name === 'roll');
+  assert.ok(r && r.somersault, 'a 12 m drop is not a somersault: ' + ev.map(e=>e.name).join(','));
+  assert.ok(Math.abs(b.z) > 2, 'the somersault did not carry her forward');
+  const low = B.body({ y:1.5, ground:false, state:'air', vy:0, airT:1 }); const ev2 = [];
+  for(let i=0;i<90;i++) B.step(low, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat).forEach(e=>ev2.push(e));
+  assert.ok(!ev2.some(e=>e.name === 'roll'), 'a hop off a kerb is not a somersault');
+});
+
+test('every move scores, the chain banks into XP that is kept, and the city has coins to collect', ()=>{
+  const sc = fs.readFileSync(path.join(__dirname, '..', 'public', 'tshscore.js'), 'utf8');
+  ['rope', 'releasePerfect', 'webJump', 'rebound', 'pull', 'dash', 'roll', 'coin', 'climb'].forEach(k=>assert.match(sc, new RegExp('\\b' + k + ':\\d+'), 'no points for ' + k));
+  assert.match(sc, /localStorage\.setItem\(k, String\(v\)\)/, 'XP is not kept');
+  assert.match(sc, /if\(n === 'swoopCrash'\) return lose\(\);/, 'a crash does not lose the chain');
+  assert.match(sc, /function scatter\(W\)/);
+  const tsh = fs.readFileSync(path.join(__dirname, '..', 'public', 'tsh.js'), 'utf8');
+  assert.match(tsh, /TSHSCORE\.attach\(W\.cityGroup, W/); assert.match(tsh, /TSHSCORE\.trick\(e, b\)/); assert.match(tsh, /TSHSCORE\.detach\(\)/);
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.ok(html.indexOf('tshscore.js') > html.indexOf('tshnyc.js'), 'tshscore.js must load after tshnyc.js');
+});

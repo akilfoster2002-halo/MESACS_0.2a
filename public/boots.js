@@ -188,6 +188,9 @@ window.BOOTS = (function(){
     dashKeep: 0.2,           // how much of her old direction survives
     // landing
     rollImpact: 24,          // m/s down that turns a landing into a roll
+    somersaultImpact: 15,    // m/s down (about 4 m of fall) that is a somersault, with the charged jump
+    somersaultTime: 1.0,     // s the somersault is on screen
+    somersaultPush: 7,       // m/s forward she rolls at least
     rollTime: 0.34,
     landKeep: 0.94,          // horizontal speed kept on touching down
     perfectLanding: 0.15,    // s before touchdown a press counts
@@ -318,8 +321,10 @@ window.BOOTS = (function(){
     if(b.rope){ if(fresh){ webJump(b, wish); b.jumpBuf = 9; } return; }   // SPACE on the web: off it, up and on
     if(b.swoop) return;
     // THE CHARGED JUMP: a press on the ground starts the crouch; letting go is the jump (step(), above)
-    if(b.have.has('charge') && (b.ground || b.coyote > 0) && !b.charge && buffered && !(b.roll > TUNE.rollTime - 0.08)){
+    if(b.have.has('charge') && (b.ground || b.coyote > 0) && !b.charge && buffered){
       const inTime = b.ground && b.fromCharge && b.landT <= TUNE.comboWindow;
+      if(b.roll > TUNE.rollTime - 0.08 && !inTime) return;      // the first instant of a roll is all knees — unless the jump is in time: it wins
+      if(inTime){ b.roll = 0; b.last.rollT = 0; }
       b.charge = { t:0, combo: inTime ? Math.min(b.combo + 1, TUNE.combo.length - 1) : 0 };
       b.jumpBuf = 9; emit(b, 'charge', { combo:b.charge.combo });
       return;
@@ -642,7 +647,8 @@ window.BOOTS = (function(){
       if(Math.abs(d) > 2.4 && hs < target*1.2) sp = Math.max(0, sp - TUNE.groundAccel*h*2);   // reversing: stop first
       b.vx = Math.sin(na)*sp; b.vz = Math.cos(na)*sp;
     } else {
-      const sp = Math.max(0, hs - (hs > TUNE.sprintSpeed ? TUNE.stopDecel*0.5 : TUNE.stopDecel)*h);
+      const brake = b.last.rollT > 0 ? 4 : (hs > TUNE.sprintSpeed ? TUNE.stopDecel*0.5 : TUNE.stopDecel);   // mid-somersault she rolls on
+      const sp = Math.max(0, hs - brake*h);
       if(hs > 1e-4){ b.vx *= sp/hs; b.vz *= sp/hs; }
     }
     b.vy = 0;
@@ -835,10 +841,15 @@ window.BOOTS = (function(){
         if(!inp.jump) chargeJump(b, wish);
         return;
       }
-      // a long fall, slowly across the ground: the superhero landing, one knee and a fist down
-      if(impact > 24 && hs < 10 && window.AVATAR && AVATAR.can && AVATAR.can('hard_land')){ b.last.hardT = 1.3; b.vx *= 0.2; b.vz *= 0.2; b.roll = 0; emit(b, 'land', { impact, hero:true }); return; }
-      if(impact > TUNE.rollImpact || (impact > 14 && hs > 16)){ b.roll = TUNE.rollTime; addFlow(b, 'roll'); emit(b, 'roll', { impact }); }
-      else emit(b, 'land', { impact });
+      /* DOWN FROM A HEIGHT: A SOMERSAULT. Anything more than a few metres is taken with a forward roll — the
+         whole of it, not the first knee of it — and she comes up running; if she came straight down, the roll
+         carries her a few steps forward anyway. */
+      if(impact > TUNE.somersaultImpact){
+        if(hs < TUNE.somersaultPush){ const f = b.faceY !== undefined ? b.faceY : (b.heading || 0), k = hs > 0.5 ? 1/hs : 0;
+          const dx = hs > 0.5 ? b.vx*k : Math.sin(f), dz = hs > 0.5 ? b.vz*k : Math.cos(f); b.vx = dx*TUNE.somersaultPush; b.vz = dz*TUNE.somersaultPush; }
+        b.roll = TUNE.rollTime; b.last.rollT = TUNE.somersaultTime; addFlow(b, 'roll'); emit(b, 'roll', { impact, somersault:true }); return;
+      }
+      emit(b, 'land', { impact });
       return;
     }
     if(b.jumpBuf <= TUNE.perfectLanding && b.have.has('jump')){
@@ -997,13 +1008,14 @@ window.BOOTS = (function(){
     else if(B.last.hardT > 0) post = 'hard_land';
     else if(B.fly > 0 && !B.ground && speed(B) > 12 && B.state !== 'dive') post = can('fly') ? 'fly' : 'jump';    // off the web: flying
     else if(B.bound) post = B.bound.perfect && B.airT < 0.55 && AVATAR.can('flip') ? 'flip' : 'jump';
-    else if(B.roll > 0) post = AVATAR.can('roll') ? 'roll' : AVATAR.can('flip') ? 'flip' : 'jump';
+    else if(B.roll > 0 || B.last.rollT > 0) post = AVATAR.can('roll') ? 'roll' : AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.swoop || (B.last.reboundT > 0)) post = AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.state === 'dive' || B.dashT > 0) post = AVATAR.can('fly') ? 'fly' : 'jump';
     else if(B.wall || B.slideWall) post = 'jump';
     if(B.last.reboundT > 0) B.last.reboundT -= dt;
     if(B.last.releaseT > 0) B.last.releaseT -= dt;
     if(B.last.hardT > 0) B.last.hardT -= dt;
+    if(B.last.rollT > 0) B.last.rollT -= dt;
     AVATAR.posture(post);
     AVATAR.gait(0, 1);
     AVATAR.update(dt, moving, hspeed(B) > TUNE.runSpeed + 1, B.ground);

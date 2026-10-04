@@ -60,7 +60,7 @@ window.TSHNYC = (function(){
   let group = null, mesh = null, land = null, water = null, waterMat = null, loading = null, lamps = null;
   /* WHAT STOPS HER: every box in a grid of GC-metre cells, and what is in the live lists now */
   const GC = 32, NEAR = 48, RADAR = 96;
-  let grid = null, boxes = [], live = { s:[], p:[] }, at = { x:1e9, z:1e9, t:0 }, radarList = [];
+  let grid = null, boxes = [], live = { s:[], p:[] }, at = { x:1e9, z:1e9, t:0 }, radarList = [], landRects = null;
 
   /* The capture's material. A plain MeshBasicMaterial underneath, so it
      goes through the same tone mapping and colour space as the rest of
@@ -184,6 +184,7 @@ window.TSHNYC = (function(){
       group.add(mesh);
       const road = W && W.M && W.M.road;
       if(road){ land = landMesh(d.rects, road, { x1:-131, x2:131, z1:-106, z2:106 }); group.add(land); if(window.TSHLOOK) TSHLOOK.hideInMirror.push(land); }
+      landRects = d.rects;
       if(sol) walkable(sol, W);
     }).catch(e=>console.warn('Manhattan did not load:', e));
     return group;
@@ -268,6 +269,17 @@ window.TSHNYC = (function(){
     }
     return hit ? { t:best, s:hit } : null;
   }
+  /* for whatever wants to put something in the city (tshscore.js: the coins): is this ground, and is it clear? */
+  function landAt(x, z){
+    if(!landRects) return false;
+    for(let i=0;i<landRects.length;i+=4) if(x >= landRects[i] && x <= landRects[i+1] && z >= landRects[i+2] && z <= landRects[i+3]) return true;
+    return false;
+  }
+  function solidAt(x, y, z, pad){
+    if(!grid) return false; pad = pad || 0;
+    const c = grid.get(Math.floor(x/GC) + ',' + Math.floor(z/GC)); if(!c) return false;
+    return c.some(b=>x > b.s.x1 - pad && x < b.s.x2 + pad && z > b.s.z1 - pad && z < b.s.z2 + pad && y < b.s.y2 + pad);
+  }
   function strip(arr){ if(!arr) return; let j = 0; for(let i=0;i<arr.length;i++) if(!arr[i].nyc) arr[j++] = arr[i]; arr.length = j; }
 
   function detach(){
@@ -291,6 +303,6 @@ window.TSHNYC = (function(){
   }
   function tick(t){ U.uTime.value = t; }
 
-  return { attach, detach, look, tick, near, raycast, get ready(){ return !!mesh; }, get walkable(){ return !!grid; }, get loading(){ return loading; },
+  return { attach, detach, look, tick, near, raycast, landAt, solidAt, get boxes(){ return boxes; }, get ready(){ return !!mesh; }, get walkable(){ return !!grid; }, get loading(){ return loading; },
            get radar(){ return radarList; }, get count(){ return boxes.length; }, _live:()=>live };
 })();

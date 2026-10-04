@@ -3073,3 +3073,31 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 /* the look-speed readout (- and =) */
 .look-toast{position:fixed;left:50%;bottom:18%;transform:translate(-50%,8px);z-index:90;padding:9px 16px;border-radius:12px;background:rgba(6,12,12,.86);border:1px solid rgba(56,255,208,.4);color:#e8fff8;font:700 13px var(--font-disp);letter-spacing:.12em;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .look-toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* --------------------------------------------- the score card (tshscore.js)
+   Top right under the clock: level, XP, coins; the chain under it while one is
+   going; and what it banked, in the middle of the screen for a moment. */
+#tshScore{position:fixed;inset:0;pointer-events:none;z-index:31;font-family:var(--font-disp, monospace)}
+#tshScore.hidden{display:none}
+#tshScore .sc-card{position:absolute;right:18px;top:116px;display:grid;grid-template-columns:auto 120px;gap:3px 10px;align-items:center;
+  background:rgba(4,16,15,.72);border:1px solid rgba(143,240,255,.25);border-radius:10px;padding:8px 12px;color:#dff}
+#tshScore .sc-lv{font-size:15px;letter-spacing:.08em;color:#ffd27a}
+#tshScore .sc-bar{height:7px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
+#tshScore .sc-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8ff0ff,#ffd27a);transition:width .4s}
+#tshScore .sc-xp{font-size:12px;color:#a8d8cc}
+#tshScore .sc-coin{font-size:13px;color:#ffd27a;text-align:right}
+#tshScore .sc-chain{position:absolute;right:18px;top:184px;min-width:190px;text-align:right;color:#fff;text-shadow:0 2px 8px #000}
+#tshScore .sc-chain.hidden{display:none}
+#tshScore .sc-head{display:flex;justify-content:flex-end;gap:10px;align-items:baseline}
+#tshScore .sc-mult{font-style:normal;color:#ffd27a;font-size:18px;font-weight:700}
+#tshScore .sc-pts{font-size:24px}
+#tshScore .sc-chain ul{list-style:none;margin:4px 0 0;padding:0;font-size:13px;letter-spacing:.06em}
+#tshScore .sc-chain small{color:#8ff0ff}
+#tshScore .sc-bank{position:absolute;left:50%;top:30%;transform:translate(-50%,0);text-align:center;color:#fff;text-shadow:0 3px 14px #000;opacity:0}
+#tshScore .sc-bank.on{animation:scBank 2.2s ease-out forwards}
+#tshScore .sc-bank.hidden{display:none}
+#tshScore .sc-bank b{display:block;font-size:34px;color:#8ff0ff;letter-spacing:.06em}
+#tshScore .sc-bank.big b{font-size:44px;color:#ffd27a}
+#tshScore .sc-bank.lost b{color:#ff6a5a}
+#tshScore .sc-bank small{font-size:14px;color:#cfe}
+@keyframes scBank{0%{opacity:0;transform:translate(-50%,14px)}12%{opacity:1;transform:translate(-50%,0)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-18px)}}

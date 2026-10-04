@@ -515,6 +515,7 @@ window.TSH = (function(){
     document.body.classList.remove('tsh-on');
     LOOK.dispose();
     if(window.TSHNYC) TSHNYC.detach();
+    if(window.TSHSCORE) TSHSCORE.detach();
     line.mesh = line.ring = line.aim = null; line.held = false; if(meterEl) meterEl.style.display = 'none';
     lights.forEach(l=>{ if(l.parent) l.parent.remove(l); }); lights.length = 0;
     if(root && root.parent) root.parent.remove(root);
@@ -539,6 +540,7 @@ window.TSH = (function(){
     G.vel.set(0,0,0); G.onGround = true;
     W = CITY.build(root);
     if(window.TSHNYC) TSHNYC.attach(W.cityGroup, W);            // Lower Manhattan, past the hoardings
+    if(window.TSHSCORE) TSHSCORE.attach(W.cityGroup, W, { audio:()=>audio() });   // the score card, and the coins
     W.school = window.TSHSCHOOL ? TSHSCHOOL.build(root, W) : null;     // Harbor Lane High, off the map like the flat (The Other Robin)
     W.solids.forEach(s=>G.solids.push(s));
     W.checkpoint.solids.forEach(s=>{ s.off = true; });        // switched on by the clock
@@ -1048,6 +1050,7 @@ window.TSH = (function(){
     if(window.AVATAR) AVATAR.posture(null);
     cuffGlow(false);
     if(y === null){
+      if(window.TSHSCORE) TSHSCORE.trick({ name:'climb' });
       const [x, z] = sc.land || scalePos(sc, -1.3);
       G.pos.set(x, sc.top + EYE_, z); G.vel.set(0, 0, 0); G.onGround = true;
       if(!S.flags.firstRoof){ S.flags.firstRoof = true; talk([['robin', 'Still holds.']]); note('🦎 Any wall, any roof. Up here nobody looks — and the roofs go round the checkpoint.', 'big'); }
@@ -1653,6 +1656,7 @@ window.TSH = (function(){
     if(b.flow >= 0.6) BOOTS.learn('chain');
     if(e.name === 'roll' && Math.hypot(b.vx, b.vz) > 18) BOOTS.learn('slide');
     lessonEvent(e, b);
+    if(window.TSHSCORE) TSHSCORE.trick(e, b);
   }
 
   /* ============================================================ THE LINE
@@ -1782,6 +1786,15 @@ window.TSH = (function(){
     else line.ring.visible = false;
     // the meter: how high the next jump is charged, and the tier it is on
     chargeMeter(b);
+  }
+  /* the score card and the coins: where she is (the shoes' body, or — on a wall — the climb's) */
+  function tickScore(dt){
+    if(!window.TSHSCORE) return;
+    const free = !inside && (mode === null || mode === 'scale');
+    TSHSCORE.show(free);
+    const b = window.BOOTS && BOOTS.B;
+    const at = { x:G.pos.x, y:G.pos.y - EYE_, z:G.pos.z, ground: mode === 'scale' ? false : (b ? b.ground : G.onGround), roll: b ? b.roll : 0, charge: b ? b.charge : null };
+    TSHSCORE.tick(dt, clock, at, free);
   }
   let meterEl = null;
   function chargeMeter(b){
@@ -2900,7 +2913,7 @@ window.TSH = (function(){
   function swingOnBody(){
     const r = window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
     if(swingList && r && r.add && !r.has('web_swing'))
-      r.add(swingList.filter(c=>c.name !== 'idle'), { once:['web_flip', 'web_start', 'hard_land'], speed:{ web_flip:1.35, web_start:1.3, hard_land:1.25 } });
+      r.add(swingList.filter(c=>c.name !== 'idle'), { once:['web_flip', 'web_start', 'hard_land'], speed:{ web_flip:1.35, web_start:1.3, hard_land:1.25, roll:1.4 } });   // the roll is the somersault: the whole of it in a second
   }
   /* her punches, kicks and dodges: a file of clips on her own skeleton, loaded once, added to her rig */
   let fightClipsP = null;
@@ -5415,6 +5428,8 @@ window.TSH = (function(){
     x.translate(-radarMap.mx(G.pos.x), -radarMap.mz(G.pos.z));
     x.drawImage(radarMap.c, 0, 0);
     const M = (px, pz) => [radarMap.mx(px), radarMap.mz(pz)];
+    // the coins near her, in gold
+    if(window.TSHSCORE) TSHSCORE.near(G.pos.x, G.pos.z, 90).forEach(c=>{ const [a, d] = M(c.x, c.z); x.fillStyle = '#ffc83a'; x.beginPath(); x.arc(a, d, 2.2/Z*0.5, 0, 7); x.fill(); });
     // Manhattan past the district: the blocks round her, as she walks
     if(window.TSHNYC) TSHNYC.radar.forEach(b=>{ const [a, c] = M(b.x1, b.z1), w_ = (b.x2-b.x1)*radarMap.S2, h_ = (b.z2-b.z1)*radarMap.S2;
       x.fillStyle = b.tag === 'kerb:nyc' ? '#1d4a6a' : b.y2 > 60 ? '#1c2a3a' : '#132220'; x.fillRect(a, c, w_, h_); });
@@ -5721,7 +5736,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLine(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLine(dt); tickScore(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
