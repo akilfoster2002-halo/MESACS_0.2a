@@ -17,6 +17,14 @@ function boots(){
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'boots.js'), 'utf8'), ctx, { filename:'boots.js' });
   return ctx.BOOTS;
 }
+/* THE SHOES AS THEY WERE — SPACE held flies her roof to roof (the bound), a press is the super jump. The
+   game teaches the charged jump and the line now (tests/jump.test.js); these keep the old moves honest
+   for anything that still gives them out. */
+function legacy(){
+  const B = boots(), raw = B.body;
+  B.body = o => raw(Object.assign({ have:new Set(B.LEGACY) }, o));
+  return B;
+}
 /* a street at 0, roofs as platforms, buildings as solid boxes */
 function world(buildings, o){
   const solids = [], plats = [], roofs = [];
@@ -46,7 +54,7 @@ function fly(B, b, env, secs, keys){
 const has = (log, name) => log.events.some(e=>e.name === name);
 
 test('the super jump launches her, and holding SPACE takes her higher', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const held = fly(B, B.body(), env, 3, t=>({ space:t < 1.5 }));
   const tap = fly(B, B.body(), env, 3, t=>({ space:t < 0.05 }));
   assert.ok(held.apex > 11 && held.apex < 18, 'a held super jump goes 11–18 m up, went ' + held.apex.toFixed(1));
@@ -54,7 +62,7 @@ test('the super jump launches her, and holding SPACE takes her higher', () => {
 });
 
 test('a sprinting jump clears a street and lands far beyond it', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const b = B.body();
   fly(B, b, env, 1.5, ()=>({ w:true, shift:true }));          // get up to speed, running north
   const x0 = b.z;
@@ -64,7 +72,7 @@ test('a sprinting jump clears a street and lands far beyond it', () => {
 });
 
 test('a dive is faster than a fall, and the air keeps her momentum', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const fall = B.body({ y:60, ground:false, state:'air', vx:0, vz:-15, airT:1 });
   const dive = B.body({ y:60, ground:false, state:'air', vx:0, vz:-15, airT:1 });
   fly(B, fall, env, 1.2, ()=>({}));
@@ -75,7 +83,7 @@ test('a dive is faster than a fall, and the air keeps her momentum', () => {
 });
 
 test('the pull-up turns a dive into a launch, and when you pull is what matters', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   // dive from 40 m towards the street and pull at three moments
   function pullAt(alt){
     const b = B.body({ y:40, ground:false, state:'air', vz:-12, airT:1 });
@@ -102,7 +110,7 @@ test('the pull-up turns a dive into a launch, and when you pull is what matters'
 });
 
 test('a wall met at speed is a launch pad: away from it, and up', () => {
-  const B = boots();
+  const B = legacy();
   const env = world([[-20, 20, -30, -25, 40]]);                  // a tall wall to the north (-z)
   function hit(pressDelay){
     const b = B.body({ y:8, z:-14, ground:false, state:'air', vz:-24, vy:2, airT:1 });
@@ -123,7 +131,7 @@ test('a wall met at speed is a launch pad: away from it, and up', () => {
 });
 
 test('the dash bends her line, keeps her speed, and comes back when she lands', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const b = B.body({ y:30, ground:false, state:'air', vz:-20, airT:1 });
   fly(B, b, env, 0.05, ()=>({ d:true, space:true }));
   assert.ok(b.vx > 12, 'dashed to the right: ' + b.vx.toFixed(1));
@@ -134,7 +142,7 @@ test('the dash bends her line, keeps her speed, and comes back when she lands', 
 });
 
 test('a landing keeps her running speed, a hard one is a roll, and a press before it is a clean landing', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const b = B.body({ y:12, ground:false, state:'air', vz:-20, vy:-10, airT:1 });
   const log = fly(B, b, env, 1.0, ()=>({ w:true }));
   assert.ok(log.landed >= 1);
@@ -150,7 +158,7 @@ test('a landing keeps her running speed, a hard one is a roll, and a press befor
 });
 
 test('flow builds with chained moves and drains on the street', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const b = B.body({ y:40, ground:false, state:'air', vz:-14, airT:1 });
   let pulls = 0;
   fly(B, b, env, 6, (t, bb)=>{ const go = bb.gold; if(go) pulls++; return { shift:!bb.swoop && bb.vy < 0, space:go }; });
@@ -162,7 +170,7 @@ test('flow builds with chained moves and drains on the street', () => {
 });
 
 test('done well, she stays in the air for a whole minute without touching the ground', () => {
-  const B = boots(), env = world();
+  const B = legacy(), env = world();
   const b = B.body({ y:30, ground:false, state:'air', vz:-16, airT:1 });
   const log = fly(B, b, env, 60, (t, bb)=>({ w:true, shift:!bb.swoop && bb.vy < 0, space:bb.gold }));
   assert.equal(log.landed, 0, 'a minute of dives and perfect pulls and not one landing');
@@ -171,15 +179,15 @@ test('done well, she stays in the air for a whole minute without touching the gr
 });
 
 test('techniques are learned: without the pull-up a dive just falls', () => {
-  const B = boots(), env = world();
-  const b = B.body({ y:40, ground:false, state:'air', vz:-12, airT:1, have:new Set(B.TECH.early) });
+  const B = legacy(), env = world();
+  const b = B.body({ y:40, ground:false, state:'air', vz:-12, airT:1, have:new Set(['bound','jump','steer','dive']) });
   const log = fly(B, b, env, 4, (t, bb)=>({ shift:true, space:bb.state === 'dive' && bb.y < 10 }));
   assert.ok(!has(log, 'pull') && !has(log, 'pullPerfect'), 'no pull-up before it is learned');
   assert.ok(log.landed >= 1);
 });
 
 test('holding SPACE, the shoes carry her roof to roof on their own', () => {
-  const B = boots(), env = world(row(5), { roofs:true });
+  const B = legacy(), env = world(row(5), { roofs:true });
   const b = B.body({ x:0, y:12, z:-6 });
   const log = fly(B, b, env, 7, ()=>({ space:true }));
   const bounds = log.events.filter(e=>e.name === 'bound'), lands = log.events.filter(e=>e.name === 'boundLand');
@@ -192,7 +200,7 @@ test('holding SPACE, the shoes carry her roof to roof on their own', () => {
 });
 
 test('she comes down on the ring: the arc is solved, not hoped for', () => {
-  const B = boots(), env = world(row(3), { roofs:true });
+  const B = legacy(), env = world(row(3), { roofs:true });
   const b = B.body({ x:0, y:12, z:-6 });
   let target = null, at = null;
   fly(B, b, env, 3, (t, bb)=>{ if(!target && bb.bound) target = Object.assign({}, bb.bound); if(target && !at && bb.ground && t > 0.3) at = [bb.x, bb.z]; return { space:t < 0.1 }; });
@@ -203,7 +211,7 @@ test('she comes down on the ring: the arc is solved, not hoped for', () => {
 test('where you point is where she goes — before she leaves, and on the way', () => {
   // one roof straight ahead (north), one to the right (east)
   const env = world([[-6, 6, -10, 2, 12], [-6, 6, -32, -20, 12], [16, 28, -12, 0, 12]], { roofs:true });
-  const ahead = boots(), right = boots();
+  const ahead = legacy(), right = legacy();
   const a = ahead.body({ x:0, y:12, z:-4 }), r = right.body({ x:0, y:12, z:-4 });
   const la = fly(ahead, a, env, 0.1, ()=>({ space:true }));
   const lr = fly(right, r, env, 0.1, ()=>({ space:true, d:true }));
@@ -211,14 +219,14 @@ test('where you point is where she goes — before she leaves, and on the way', 
   assert.equal(lr.events.find(e=>e.name === 'bound').roof, 'R2', 'D held: the roof to the right');
   // mid-air: launched north, then D — she bends to the roof on the right
   const env2 = world([[-6, 6, -10, 2, 12], [-6, 6, -40, -28, 12], [14, 30, -34, -22, 12]], { roofs:true });
-  const B = boots(), b = B.body({ x:0, y:12, z:-4 });
+  const B = legacy(), b = B.body({ x:0, y:12, z:-4 });
   const log = fly(B, b, env2, 3, (t)=>({ space:t < 0.1, d:t > 0.25 && t < 0.6 }));
   assert.ok(log.events.some(e=>e.name === 'boundTurn' && e.roof === 'R2'), 'the keys picked a new roof in the air');
   assert.ok(b.x > 14 && b.ground && b.y > 11, 'and she landed on it: ' + b.x.toFixed(1) + ', ' + b.y.toFixed(1));
 });
 
 test('a tap as her feet touch is a perfect bound: quicker, further, and the flow builds', () => {
-  const B = boots();
+  const B = legacy();
   function run(tap){
     const env = world(row(8), { roofs:true }), b = B.body({ x:0, y:12, z:-6 });
     let wasGold = false;
@@ -237,7 +245,7 @@ test('a tap as her feet touch is a perfect bound: quicker, further, and the flow
 });
 
 test('let go of SPACE and she lands and stays; from the street, holding it takes her back up', () => {
-  const B = boots(), env = world(row(4), { roofs:true });
+  const B = legacy(), env = world(row(4), { roofs:true });
   const b = B.body({ x:0, y:12, z:-6 });
   const log = fly(B, b, env, 4, (t)=>({ space:t < 0.2 }));
   assert.equal(log.events.filter(e=>e.name === 'bound').length, 1, 'one bound for one press');
@@ -249,7 +257,7 @@ test('let go of SPACE and she lands and stays; from the street, holding it takes
 });
 
 test('the first burn: falling, the shoes fire — straight up — and SPACE held catches the line to a roof', () => {
-  const B = boots(), env = world(row(3), { roofs:true });
+  const B = legacy(), env = world(row(3), { roofs:true });
   const b = B.body({ x:0, y:8, z:4, ground:false, state:'air', vy:-6, airT:0.5 });
   B.ignite(b, { yaw:0 });
   assert.equal(b.vy, B.TUNE.ignite);

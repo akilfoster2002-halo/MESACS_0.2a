@@ -515,6 +515,7 @@ window.TSH = (function(){
     document.body.classList.remove('tsh-on');
     LOOK.dispose();
     if(window.TSHNYC) TSHNYC.detach();
+    line.mesh = line.ring = line.aim = null; line.held = false; if(meterEl) meterEl.style.display = 'none';
     lights.forEach(l=>{ if(l.parent) l.parent.remove(l); }); lights.length = 0;
     if(root && root.parent) root.parent.remove(root);
     root = null; W = null; dyn.length = 0;
@@ -1532,11 +1533,10 @@ window.TSH = (function(){
      switched on at the end, for the roofs after the deal. */
   const LESSON = [
     { id:'fire',   title:'THE SHOES', how:'SPACE — fire them.' },
-    { id:'bound',  title:'HOLD SPACE', how:'Hold SPACE. The shoes pick the roof you are facing — the ring — and take you there.', teach:['bound','jump','steer'] },
-    { id:'chain',  title:'KEEP HOLDING', how:'Keep it held: every landing springs into the next. Three roofs in a row.' },
-    { id:'steer',  title:'POINT', how:'Look where you want to go — the mouse, or A and D, even in the air. North, over Neon Avenue.' },
-    { id:'rhythm', title:'THE RHYTHM', how:'Tap SPACE as her feet touch, when the ring goes gold. Perfect bounds go quicker and further. Two in a row.' },
-    { id:'alley',  title:'DRAGON ALLEY', how:'The buyer is in Dragon Alley. Let go of SPACE over it and drop in.' }
+    { id:'charge', title:'HOLD, THEN LET GO', how:'Hold SPACE — she crouches — and let go to jump. The longer you hold, the higher she goes.', teach:['charge','jump','steer'] },
+    { id:'combo',  title:'THE RHYTHM', how:'Press SPACE again just as her feet touch: every jump in time goes higher. Four in a row.' },
+    { id:'grapple',title:'THE LINE', how:'Aim at a building and hold R (or the right mouse button): she swings on a line. Let go to fly on.', teach:['grapple'] },
+    { id:'alley',  title:'DRAGON ALLEY', how:'The buyer is in Dragon Alley. Get there.' }
   ];
   const lesson = { i:0, perfect:0, lands:0, touched:false, goal:null };
   const lessonId = () => (LESSON[lesson.i] || {}).id;
@@ -1580,8 +1580,7 @@ window.TSH = (function(){
     S.boots = window.BOOTS && BOOTS.B ? [...BOOTS.B.have] : S.boots;
     mark('lesson');
     outcome('done');                              // → the deal
-    note(lesson.touched ? '👟 The shoes do more: SHIFT in the air dives · SPACE out of a dive pulls up · SPACE at a wall kicks off it.'
-                        : 'Not one foot on the street. 👟 And there is more: SHIFT dives · SPACE out of a dive pulls up · SPACE at a wall kicks off.', 'big');
+    note('👟 The shoes do more: SHIFT in the air dives · SPACE out of a dive pulls up · SPACE at a wall kicks off it · R swings.', 'big');
   }
   function lessonSkip(){ if(S.step !== 'lesson') return; if(lessonId() === 'fire') fireShoes(); else lessonNext(); }
   /* the nearest roof across Neon Avenue, for the POINT step's marker */
@@ -1594,14 +1593,14 @@ window.TSH = (function(){
   function lessonEvent(e, b){
     if(S.step !== 'lesson') return;
     const id = lessonId(); if(!id) return;
-    const landed = e.name === 'boundLand' || ((e.name === 'land' || e.name === 'roll') && b.fromBound);
-    if(id === 'bound' && landed && b.y > 3) return lessonNext();
-    if(id === 'chain' && e.name === 'boundLand' && e.hops >= 3) return lessonNext();
-    if(id === 'steer' && (landed || e.name === 'land' || e.name === 'roll') && b.y > 3 && b.z < -9) return lessonNext();
-    if(id === 'rhythm'){
-      if(e.name === 'boundPerfect' && ++lesson.perfect >= 2) return lessonNext();
-      if(e.name === 'boundLand' && !e.perfect && ++lesson.lands % 4 === 0) note('Watch the ring — the moment it goes gold, tap SPACE.', 'warn');
+    const jumped = e.name === 'jump' || e.name === 'jumpPerfect';
+    if(id === 'charge' && jumped && e.charge >= 0.6) return lessonNext();
+    if(id === 'charge' && jumped && e.charge < 0.3 && ++lesson.lands % 3 === 0) note('Hold SPACE longer before you let go — the longer, the higher.', 'warn');
+    if(id === 'combo'){
+      if(jumped && e.combo >= 3) return lessonNext();
+      if(e.name === 'land' && ++lesson.lands % 4 === 0) note('Press SPACE the moment her feet touch — a beat late and the rhythm starts again.', 'warn');
     }
+    if(id === 'grapple' && e.name === 'ropeOff' && !e.landed) return lessonNext();
   }
   function lessonTick(){
     if(S.step !== 'lesson' || !window.BOOTS || !BOOTS.B || mode) return;
@@ -1619,14 +1618,24 @@ window.TSH = (function(){
   /* ----------------------------------------------------------- the shoes
      On whenever she is outside and the night is hers to play; off in the
      flat (the ceiling is three metres up) and during films and scenes. */
+  /* what the shoes can do. A night saved before the jump changed has the bound in it: it is swapped for the
+     charged jump and the line, which are what the shoes do now. */
+  function shoesHave(){
+    let h = S.boots && S.boots.length ? S.boots.slice() : BOOTS.ALL.filter(t=>BOOTS.TECH.late.indexOf(t) < 0);
+    if(h.includes('bound')){ h = h.filter(t=>t !== 'bound'); ['charge', 'grapple'].forEach(t=>{ if(!h.includes(t)) h.push(t); }); S.boots = h; }
+    return h;
+  }
   function bootsOn(){
     if(!window.BOOTS) return;
+    // a night already past the lesson never meets the new moves in it: say so once
+    if(S.step !== 'lesson' && S.flags && !S.flags.lineTip && !day()){ S.flags.lineTip = true;
+      later(()=>{ if(on) note('👟 The shoes changed: hold SPACE and let go to jump — longer, higher; press it again as she lands to go higher still. 🪝 R (or the right mouse button) swings on a line.', 'big'); }, 2500); }
     /* the island, not the district: she can walk Manhattan now (tshnyc.js), and its harbour kerb is the real edge */
     const E = window.TSHNYC ? { x:1400, z:1400 } : CITY.EDGE;
     BOOTS.attach({
       env:{ solids:G.solids, ground:groundAt, bounds:{ x1:-E.x + 1.5, x2:E.x - 1.5, z1:-E.z + 1.5, z2:E.z - 1.5 },
             roofs:W.roofs.map(r=>({ id:r.id, x1:r.x1, x2:r.x2, z1:r.z1, z2:r.z2, top:r.h })) },
-      have:S.boots && S.boots.length ? S.boots : BOOTS.ALL.filter(t=>BOOTS.TECH.late.indexOf(t) < 0),
+      have:shoesHave(),
       hooks:{
         audio:()=>audio(),
         enabled:()=>!inside && mode !== 'fight',
@@ -1638,11 +1647,115 @@ window.TSH = (function(){
   }
   function bootEvent(e, b){
     // the shoes are illegal wearables: WFC that sees one used has something to say about it
-    if(['bound', 'boundPerfect', 'jump', 'jumpPerfect', 'rebound', 'reboundPerfect', 'pull', 'pullPerfect', 'dash'].includes(e.name)) gearSeen('boots');
+    if(['bound', 'boundPerfect', 'jump', 'jumpPerfect', 'rebound', 'reboundPerfect', 'pull', 'pullPerfect', 'dash', 'rope'].includes(e.name)) gearSeen('boots');
     // the late techniques are learned by doing
     if(b.flow >= 0.6) BOOTS.learn('chain');
     if(e.name === 'roll' && Math.hypot(b.vx, b.vz) > 18) BOOTS.learn('slide');
     lessonEvent(e, b);
+  }
+
+  /* ============================================================ THE LINE
+     R (or the right mouse button) held: a line from her hand to the building
+     you are aiming at, and she swings on it (boots.js has the pendulum). Let
+     go and she flies on with the speed the swing gave her. The hook goes
+     where the camera looks; if that is the street or the sky it looks a
+     little higher, and higher again, for a wall to bite — the forgiving
+     aim a swing needs, because a line to a point below you is no swing.
+     The ring shows where it will go before you fire. */
+  const line = { mesh:null, ring:null, aim:null, aimT:0, held:false };
+  const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _r = new THREE.Vector3();
+  function rayBox(ox, oy, oz, dx, dy, dz, s, max){
+    let t0 = 0, t1 = max;
+    for(const [o, d, a, b] of [[ox, dx, s.x1, s.x2], [oy, dy, s.y1 === undefined ? -1 : s.y1, s.y2], [oz, dz, s.z1, s.z2]]){
+      if(Math.abs(d) < 1e-9){ if(o < a || o > b) return null; continue; }
+      let ta = (a - o)/d, tb = (b - o)/d; if(ta > tb){ const q = ta; ta = tb; tb = q; }
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if(t0 > t1) return null;
+    }
+    return t0;
+  }
+  function lineCast(ox, oy, oz, dx, dy, dz, max){
+    let best = max, hit = null;
+    for(const s of G.solids){ if(s.off || s.nyc || s.y2 < 3) continue; const t = rayBox(ox, oy, oz, dx, dy, dz, s, best); if(t !== null && t > 0.5 && t < best){ best = t; hit = s; } }
+    if(window.TSHNYC && TSHNYC.raycast){ const h = TSHNYC.raycast(ox, oy, oz, dx, dy, dz, best, rayBox); if(h && h.t < best){ best = h.t; hit = h.s; } }
+    return hit ? { t:best, x:ox + dx*best, y:oy + dy*best, z:oz + dz*best } : null;
+  }
+  function lineAim(){
+    if(!window.BOOTS || !BOOTS.B || !BOOTS.B.have.has('grapple')) return null;
+    const b = BOOTS.B, range = BOOTS.TUNE.grappleRange, hy = b.y + BOOTS.HAND;
+    G.camera.getWorldPosition(_o); G.camera.getWorldDirection(_d);
+    const flat = new THREE.Vector3(_d.x, 0, _d.z).normalize(), up = new THREE.Vector3(0, 1, 0);
+    /* a fan of rays, from where the camera looks and up from it, a little either side: the best
+       hook is high, ahead, and at a good swinging distance — not the lamppost at her elbow */
+    let best = null, bs = -Infinity;
+    for(const yaw of [0, 0.22, -0.22]) for(const lift of [0, 0.25, 0.5, 0.75, 1.0]){
+      const v = flat.clone().applyAxisAngle(up, yaw), pitch = Math.max(Math.asin(clamp(_d.y, -1, 1)), -0.1) + lift;
+      v.multiplyScalar(Math.cos(pitch)); v.y = Math.sin(pitch);
+      const h = lineCast(_o.x, _o.y, _o.z, v.x, v.y, v.z, range + 12); if(!h) continue;
+      const above = h.y - hy, dist = Math.hypot(h.x - b.x, h.y - hy, h.z - b.z);
+      if(above < 5 || dist < 8 || dist > range) continue;
+      const score = Math.min(above, 40) - Math.abs(dist - 32)*0.35 - Math.abs(yaw)*12 - lift*4;
+      if(score > bs){ bs = score; best = h; }
+    }
+    return best;
+  }
+  function lineFire(){
+    if(mode || inside || !window.BOOTS || !BOOTS.B || !BOOTS.active) return;
+    if(!BOOTS.B.have.has('grapple')){ note('🪝 Not yet.', 'warn'); return; }
+    line.held = true;
+    const a = lineAim();
+    if(!a){ note('🪝 Nothing to hook — aim at a building above you.', 'warn'); cue('fail'); return; }
+    if(BOOTS.grapple(a)) cue('pick');
+  }
+  function lineLet(){ line.held = false; if(window.BOOTS && BOOTS.B && BOOTS.B.rope) BOOTS.release(); }
+  function lineMesh(){
+    if(line.mesh && line.mesh.parent) return;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color:0x9ff8ff, fog:false }));
+    m.userData.flat = true; m.frustumCulled = false; m.visible = false;
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.8, 24), new THREE.MeshBasicMaterial({ color:0x9ff8ff, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthTest:false, fog:false }));
+    r.userData.flat = true; r.renderOrder = 10; r.visible = false;
+    root.add(m); root.add(r); line.mesh = m; line.ring = r;
+    if(LOOK.hideInMirror) LOOK.hideInMirror.push(r);
+  }
+  function tickLine(dt){
+    if(!window.BOOTS || !BOOTS.B){ return; }
+    lineMesh();
+    const b = BOOTS.B, rope = b.rope;
+    // a line still held through a cutscene or a door is let go
+    if(rope && (mode || inside)) BOOTS.release();
+    // the rope, hand to hook
+    if(rope){
+      const hx = b.x, hy = b.y + BOOTS.HAND, hz = b.z, dx = rope.x - hx, dy = rope.y - hy, dz = rope.z - hz, len = Math.hypot(dx, dy, dz);
+      line.mesh.visible = true; line.mesh.position.set(hx + dx/2, hy + dy/2, hz + dz/2); line.mesh.scale.set(1, len, 1);
+      line.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx/len, dy/len, dz/len));
+    } else line.mesh.visible = false;
+    // where it would go: looked for a few times a second, outside, when the line is free
+    line.aimT -= dt;
+    if(line.aimT <= 0){ line.aimT = 0.12; line.aim = (!rope && !mode && !inside && b.have.has('grapple') && !day()) ? lineAim() : null; }
+    if(line.aim){ line.ring.visible = true; line.ring.position.set(line.aim.x, line.aim.y, line.aim.z); line.ring.lookAt(G.camera.position);
+                  const k = 0.6 + 0.012*Math.hypot(line.aim.x - b.x, line.aim.z - b.z); line.ring.scale.set(k, k, k); }
+    else line.ring.visible = false;
+    // the meter: how high the next jump is charged, and the tier it is on
+    chargeMeter(b);
+  }
+  let meterEl = null;
+  function chargeMeter(b){
+    if(!meterEl){
+      meterEl = document.createElement('div'); meterEl.id = 'tshCharge';
+      meterEl.innerHTML = '<i></i><b></b>';
+      Object.assign(meterEl.style, { position:'fixed', left:'50%', bottom:'150px', transform:'translateX(-50%)', width:'160px', height:'8px',
+        borderRadius:'4px', background:'rgba(10,30,28,.7)', border:'1px solid rgba(160,250,240,.5)', zIndex:40, display:'none', pointerEvents:'none' });
+      Object.assign(meterEl.querySelector('i').style, { display:'block', height:'100%', width:'0%', borderRadius:'4px', background:'#9ff8ff' });
+      Object.assign(meterEl.querySelector('b').style, { position:'absolute', left:'50%', top:'-26px', transform:'translateX(-50%)', color:'#ffd27a',
+        font:'700 16px ' + (window.uiFont ? uiFont() : 'monospace'), textShadow:'0 0 8px rgba(255,180,60,.7)', whiteSpace:'nowrap' });
+      document.body.appendChild(meterEl);
+    }
+    const c = b.charge;
+    if(!c || mode || inside){ meterEl.style.display = 'none'; return; }
+    const q = Math.min(1, c.t/BOOTS.TUNE.chargeTime);
+    meterEl.style.display = 'block';
+    meterEl.querySelector('i').style.width = (q*100).toFixed(0) + '%';
+    meterEl.querySelector('i').style.background = q >= 1 ? '#ffd27a' : '#9ff8ff';
+    meterEl.querySelector('b').textContent = c.combo ? ['', 'IN TIME ×2', 'IN TIME ×3', 'IN TIME ×4'][c.combo] : '';
   }
 
   /* ------------------------------------------------------------- hiding */
@@ -5126,6 +5239,10 @@ window.TSH = (function(){
       tk.addEventListener('click', e=>{ if(!cv) return; const b = e.target.closest('[data-i]'); if(b) convoPick(+b.dataset.i); else convoAdvance(); });
       tk.addEventListener('mouseover', e=>{ const b = e.target.closest('[data-i]'); if(b) convoSel(+b.dataset.i); });
       // and a click in the picture moves a scene on, as SPACE does
+      // the line: R or the right mouse button, held
+      addEventListener('keyup', e=>{ if(on && e.code === 'KeyR') lineLet(); });
+      addEventListener('mousedown', e=>{ if(on && e.button === 2 && !busy && !mode && (document.pointerLockElement || (e.target && e.target.id === 'view'))){ e.preventDefault(); lineFire(); } });
+      addEventListener('mouseup', e=>{ if(on && e.button === 2) lineLet(); });
       addEventListener('mousedown', e=>{
         if(!on || e.button !== 0 || busy) return;
         if(mode === 'cut') skipLine();
@@ -5540,7 +5657,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLine(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
@@ -5590,7 +5707,7 @@ window.TSH = (function(){
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
     if(mode === 'read'){ if(['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) readStop(); return true; }
     if(mode === 'wc' || mode === 'puzzle') return true;
-    if(day() && (['KeyF', 'KeyJ', 'KeyQ'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
+    if(day() && (['KeyF', 'KeyJ', 'KeyQ', 'KeyR'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
     if(mode === 'scale'){
@@ -5604,6 +5721,7 @@ window.TSH = (function(){
     if(c === 'KeyJ'){ jam(); return true; }
     if(c === 'KeyH'){ setShades(!me.shades); hud(); return true; }
     if(c === 'KeyQ'){ throwCan(); return true; }
+    if(c === 'KeyR'){ if(!e.repeat) lineFire(); return true; }
     if(c === 'KeyI'){ bag(); return true; }
     if(c === 'Tab'){ infoOpen = !infoOpen; el.querySelector('.tsh-obj').classList.toggle('closed', !infoOpen); el.querySelector('#tshTabTxt').textContent = infoOpen ? 'hide details' : 'details'; return true; }
     return false;

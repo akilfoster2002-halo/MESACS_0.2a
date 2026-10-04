@@ -64,6 +64,26 @@ window.BOOTS = (function(){
      Metres, seconds. Change these here, live in the debug panel, or from
      the console (BOOTS.TUNE.jumpUp = 24). */
   const TUNE = {
+    // THE CHARGED JUMP (technique 'charge'): hold SPACE on the ground and let go — the longer the hold, the higher
+    chargeTime: 0.75,        // s of holding to reach full height
+    jumpMin: 10,             // m/s up for a tap…
+    jumpMax: 22,             // …and for a full charge
+    chargeCrouch: 0.35,      // share of her run speed while she crouches to charge
+    // …and IN TIME: SPACE pressed again as her feet touch is the next tier up, higher each time
+    combo: [1, 1.22, 1.45, 1.72],   // vertical speed × this, tier by tier
+    comboWindow: 0.3,        // s after touching down a press still counts as in time (and perfectLanding before it)
+    // THE LINE (technique 'grapple'): a rope to a building, and a pendulum on it
+    grappleRange: 90,        // m the line reaches
+    swingPush: 16,           // m/s² the keys pump the swing
+    reelTo: 0.8,             // the line takes itself in to this share of its length…
+    reelAuto: 24,            // …zipping her in at up to this many m/s (faster the further it has to go)
+    ropeClear: 1.2,          // m the bottom of the swing keeps off the street: a line too long for that is taken in
+    reelSpeed: 12,           // m/s SPACE hauls her up the line
+    ropeMin: 4,              // m: the shortest the line gets
+    swingDrag: 0.04,         // 1/s
+    swingMax: 50,            // m/s
+    releaseBoost: 1.12,      // letting go: speed × this…
+    releaseUp: 6,            // …and this much up
     // on the ground
     runSpeed: 9,             // m/s, walking pace in the boots
     sprintSpeed: 15,         // m/s with SHIFT
@@ -162,10 +182,13 @@ window.BOOTS = (function(){
   };
   const DEFAULTS = JSON.parse(JSON.stringify(TUNE));
   const GAINS = { bound:0.05, boundPerfect:0.16, jump:0.04, pull:0.1, pullPerfect:0.2, rebound:0.1, reboundPerfect:0.18, dash:0.03, landPerfect:0.12, roll:0.02 };
-  const TECH = { early:['bound','jump','steer','dive'], mid:['pullup','rebound','dash'], late:['chain','slide'] };
+  /* 'bound' (SPACE held flies her roof to roof) is still here and still works for anybody given it, but it
+     is no longer taught: the shoes jump where you jump now — 'charge' — and swing on 'grapple'. */
+  const TECH = { early:['charge','jump','steer','dive','grapple'], mid:['pullup','rebound','dash'], late:['chain','slide'] };
   const ALL = TECH.early.concat(TECH.mid, TECH.late);
+  const LEGACY = ['bound','jump','steer','dive'].concat(TECH.mid, TECH.late);   // the shoes as they were: SPACE held flies roof to roof
 
-  const R = 0.42, TALL = 1.8;                              // her radius and height, metres
+  const R = 0.42, TALL = 1.8, HAND = 1.9;                  // her radius and height, and where her hand holds the line, metres
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, k) => a + (b-a)*k;
   const hyp = Math.hypot;
@@ -176,7 +199,7 @@ window.BOOTS = (function(){
     return Object.assign({ x:0, y:0, z:0, vx:0, vy:0, vz:0, ground:true, heading:0, state:'ground',
       coyote:0, jumpBuf:9, jumpHeld:false, cut:true, airT:0, diveT:0, swoop:null, wall:null, slideWall:null,
       dashT:0, dashCD:0, charges:TUNE.dashCharges, roll:0, sliding:false, flow:0, chain:0,
-      bound:null, plant:0, landT:9, hops:0, aimT:0,
+      bound:null, plant:0, landT:9, hops:0, aimT:0, charge:null, combo:0, fromCharge:false, rope:null,
       have:new Set(ALL), events:[], last:{}, gold:false }, o||{});
   }
   const hspeed = b => hyp(b.vx, b.vz);
@@ -239,6 +262,12 @@ window.BOOTS = (function(){
     const wish = wishDir(inp);
     if(b.ground){ b.landT += dt; if(b.landT > 0.4) b.hops = 0; }
     decide(b, inp, wish, env);
+    // the charge: crouched while SPACE is held, up on its release (or off an edge, inside the coyote time)
+    if(b.charge){
+      if(inp.jump && (b.ground || b.coyote > 0)) b.charge.t += dt;
+      else if(b.ground || b.coyote > 0) chargeJump(b, wish);
+      else b.charge = null;
+    }
     steerBound(b, inp, wish, dt, env);
     const n = Math.max(1, Math.min(10, Math.ceil(speed(b)*dt/0.4)));
     for(let i=0;i<n;i++) sub(b, inp, wish, dt/n, env);
@@ -262,7 +291,15 @@ window.BOOTS = (function(){
   /* ------------------------------------------------- the button decides */
   function decide(b, inp, wish, env){
     const fresh = b.jumpBuf === 0, buffered = b.jumpBuf <= TUNE.jumpBuffer;
-    if(b.swoop) return;
+    if(b.swoop || b.rope) return;                       // on the line SPACE hauls her up it (airMove)
+    // THE CHARGED JUMP: a press on the ground starts the crouch; letting go is the jump (step(), above)
+    if(b.have.has('charge') && (b.ground || b.coyote > 0) && !b.charge && buffered && !(b.roll > TUNE.rollTime - 0.08)){
+      const inTime = b.ground && b.fromCharge && b.landT <= TUNE.comboWindow;
+      b.charge = { t:0, combo: inTime ? Math.min(b.combo + 1, TUNE.combo.length - 1) : 0 };
+      b.jumpBuf = 9; emit(b, 'charge', { combo:b.charge.combo });
+      return;
+    }
+    if(b.charge) return;
     // the wall: SPACE while a foot is planted is the kick
     if(b.wall){
       // pressed in the first instant of the foot touching: perfect (pressed just before is handled where she touches)
@@ -294,6 +331,19 @@ window.BOOTS = (function(){
     if(b.have.has('dash') && b.charges > 0 && b.dashCD <= 0 && b.airT > 0.15) dash(b, wish);
   }
 
+  function chargeJump(b, wish){
+    const c = b.charge; b.charge = null;
+    const q = clamp(c.t/TUNE.chargeTime, 0, 1);
+    b.vy = lerp(TUNE.jumpMin, TUNE.jumpMax, q)*TUNE.combo[c.combo]*flowK(b, 'flowPower');
+    b.vx *= TUNE.jumpCarry; b.vz *= TUNE.jumpCarry;
+    if(wish){ b.vx += wish.x*TUNE.jumpFwd; b.vz += wish.z*TUNE.jumpFwd; }
+    b.ground = false; b.coyote = 0; b.cut = true; b.roll = 0; b.sliding = false; b.state = 'air'; b.airT = 0; b.diveT = 0;
+    b.slideWall = null; b.shiftLatch = true;
+    b.combo = c.combo; b.fromCharge = true;
+    addFlow(b, c.combo ? 'landPerfect' : 'jump');
+    b.last.jump = b.vy; b.last.charge = q;
+    emit(b, c.combo ? 'jumpPerfect' : 'jump', { vy:b.vy, charge:q, combo:c.combo });
+  }
   function superJump(b, wish, k, why){
     const p = flowK(b, 'flowPower')*k;
     b.vy = TUNE.jumpUp*p;
@@ -524,11 +574,21 @@ window.BOOTS = (function(){
       // a ceiling: something whose underside she rises into
       if(b.vy > 0){ for(const s of env.solids){ if(s.off || s.y1 === undefined || s.y1 < feet0 + TALL - 0.05 || s.y1 > b.y + TALL) continue;
         if(b.x + R > s.x1 && b.x - R < s.x2 && b.z + R > s.z1 && b.z - R < s.z2){ b.y = s.y1 - TALL; b.vy = 0; break; } } }
+      // THE LINE: she cannot be further from the hook than it is long — put her back on it, and take away the speed outward
+      if(b.rope){
+        const r = b.rope, dx = b.x - r.x, dy = b.y + HAND - r.y, dz = b.z - r.z, d = hyp(dx, dy, dz);
+        if(d > r.len){
+          const k = r.len/d, nx = dx/d, ny = dy/d, nz = dz/d;
+          moveAxis(b, 'x', r.x + dx*k - b.x, env); moveAxis(b, 'z', r.z + dz*k - b.z, env);
+          b.y = r.y + dy*k - HAND;
+          const vr = b.vx*nx + b.vy*ny + b.vz*nz; if(vr > 0){ b.vx -= vr*nx; b.vy -= vr*ny; b.vz -= vr*nz; }
+        }
+      }
       const floor = floorAt(env, b.x, b.z, feet0);
       if(b.y <= floor) land(b, floor, inp, wish, env);
     } else {
       const floor = floorAt(env, b.x, b.z, b.y);
-      if(floor < b.y - 0.6){ b.ground = false; b.state = 'air'; b.coyote = TUNE.coyote; b.vy = 0; b.airT = 0; b.cut = true; b.shiftLatch = !!inp.shift; }
+      if(floor < b.y - 0.6){ b.ground = false; b.state = 'air'; b.coyote = TUNE.coyote; b.vy = 0; b.airT = 0; b.cut = true; b.shiftLatch = !!inp.shift; b.fromCharge = false; }
       else b.y = floor > b.y ? lerp(b.y, floor, Math.min(1, h*16)) : floor;
     }
     // the edge of the world is a wall too
@@ -541,7 +601,7 @@ window.BOOTS = (function(){
     if(b.roll > 0) b.roll -= h;
     if(b.plant > 0) b.plant -= h;
     if(b.coyote > 0) b.coyote -= h;
-    const target = (inp.shift ? TUNE.sprintSpeed : TUNE.runSpeed)*flowK(b, 'flowSpeed');
+    const target = (inp.shift ? TUNE.sprintSpeed : TUNE.runSpeed)*flowK(b, 'flowSpeed')*(b.charge ? TUNE.chargeCrouch : 1);   // crouched to jump, she creeps
     const hs = hspeed(b);
     b.sliding = !!(b.sliding && inp.shift && hs > TUNE.runSpeed && b.have.has('slide'));
     if(wish){
@@ -574,6 +634,17 @@ window.BOOTS = (function(){
       const hs = lerp(s.h0, s.h1, e); b.vx = s.hx*hs; b.vz = s.hz*hs;
       capSpeed(b);
       if(k >= 1){ b.swoop = null; b.state = 'air'; b.diveT = 0; b.cut = true; b.airT = 0.2; }
+      return;
+    }
+    // ON THE LINE: gravity, the keys pumping the swing, and the line taking itself in; the rope itself is in sub()
+    if(b.rope){
+      const r = b.rope;
+      b.vy -= TUNE.gravity*h;
+      if(wish){ b.vx += wish.x*TUNE.swingPush*h; b.vz += wish.z*TUNE.swingPush*h; }
+      const reel = Math.max(inp.jump ? TUNE.reelSpeed : 0, r.len > r.want ? Math.min(TUNE.reelAuto, 4 + (r.len - r.want)*3) : 0);
+      r.len = Math.max(TUNE.ropeMin, r.len - reel*h);
+      const k = 1 - TUNE.swingDrag*h; b.vx *= k; b.vy *= k; b.vz *= k;
+      const s = speed(b); if(s > TUNE.swingMax){ const m = TUNE.swingMax/s; b.vx *= m; b.vy *= m; b.vz *= m; }
       return;
     }
     // on a bound: the arc is the shoes' — gravity of their own, and the line held to the roof
@@ -657,6 +728,7 @@ window.BOOTS = (function(){
   /* a wall, met at speed in the air, is something to kick off */
   function touchWall(b, hit, env){
     const n = hit.n, into = -(b.vx*n.x + b.vz*n.z);
+    if(b.rope){ const vn = b.vx*n.x + b.vz*n.z; if(vn < 0){ b.vx -= n.x*vn; b.vz -= n.z*vn; } return; }   // swung into a wall: she meets it
     if(b.bound && hit.s.y2 - b.y > 0.3){ b.bound = null; b.state = 'air'; }
     const tall = hit.s.y2 - b.y > 1.2;
     if(!b.ground && !b.wall && !b.swoop && tall && into >= TUNE.reboundMin && b.have.has('rebound')){
@@ -677,6 +749,7 @@ window.BOOTS = (function(){
 
   function land(b, floor, inp, wish, env){
     const impact = -b.vy, hs = hspeed(b), bounded = !!b.bound;
+    if(b.rope){ b.rope = null; emit(b, 'ropeOff', { landed:true }); }
     b.y = floor; b.vy = 0; b.ground = true; b.state = 'ground'; b.bound = null; b.landT = 0;
     b.charges = TUNE.dashCharges; b.wall = null; b.slideWall = null; b.diveT = 0;
     if(b.swoop){ b.swoop = null; b.flow *= 0.6; b.chain = 0; emit(b, 'swoopCrash', { impact }); }
@@ -694,6 +767,20 @@ window.BOOTS = (function(){
       if(inp.jump){ b.plant = TUNE.boundPlant; emit(b, 'boundLand', { perfect:false, hops:b.hops, impact }); return; }
       // let go: the bound's speed was the shoes'; she touches down at a run, not off the far side of the roof
       const k = Math.min(1, TUNE.runSpeed*1.3/Math.max(hs, 0.01)); b.vx *= k; b.vz *= k;
+    }
+    // CHARGED, IN TIME: SPACE pressed just before her feet touch is the next tier — a crouch if it is still held, a jump if it was a tap
+    if(b.have.has('charge')){
+      if(b.jumpBuf <= TUNE.perfectLanding){
+        b.jumpBuf = 9;
+        const tier = b.fromCharge ? Math.min(b.combo + 1, TUNE.combo.length - 1) : 0;
+        emit(b, 'landPerfect', { impact, combo:tier });
+        b.charge = { t:0, combo:tier };
+        if(!inp.jump) chargeJump(b, wish);
+        return;
+      }
+      if(impact > TUNE.rollImpact || (impact > 14 && hs > 16)){ b.roll = TUNE.rollTime; addFlow(b, 'roll'); emit(b, 'roll', { impact }); }
+      else emit(b, 'land', { impact });
+      return;
     }
     if(b.jumpBuf <= TUNE.perfectLanding && b.have.has('jump')){
       addFlow(b, 'landPerfect');
@@ -746,6 +833,32 @@ window.BOOTS = (function(){
   /* somebody moved her (a door, a cutscene): the body follows */
   function sync(){ if(!B) return; B.x = G.pos.x; B.z = G.pos.z; B.y = G.pos.y - 1.7; B.vx = B.vy = B.vz = 0; B.ground = true; B.state = 'ground'; B.wall = B.slideWall = B.swoop = null; camP = null; }
   function stop(){ if(B){ B.vx = B.vz = 0; if(B.vy > 0) B.vy = 0; } }
+  /* THE LINE. `a` is the point on a building it hooked (the place finds it: tsh.js aims it). The rope is as
+     long as the gap, and takes itself in a little; from the ground she is pulled off her feet. */
+  function grapple(a){
+    if(!on || !B || !B.have.has('grapple') || !a) return false;
+    const d = hyp(B.x - a.x, B.y + HAND - a.y, B.z - a.z);
+    if(d < 3 || d > TUNE.grappleRange) return false;
+    // as long as it can be and still swing her clear of the street at the bottom
+    const clear = a.y - HAND - TUNE.ropeClear;
+    B.rope = { x:a.x, y:a.y, z:a.z, len:d, want:clamp(Math.min(d*TUNE.reelTo, clear), TUNE.ropeMin, d) };
+    B.charge = null; B.bound = null; B.wall = null; B.slideWall = null; B.swoop = null; B.plant = 0;
+    // fired from her feet: a yank up the line, off the ground and into the swing
+    if(B.ground){ const k = 9/d; B.ground = false; B.vx += (a.x - B.x)*k; B.vz += (a.z - B.z)*k; B.vy = Math.max(B.vy, 8 + (a.y - B.y)*k); }
+    B.state = 'swing'; B.airT = 0; B.diveT = 0; B.cut = true;
+    B.events = []; emit(B, 'rope', { len:d }); B.events.forEach(e=>react(e)); B.events = [];
+    return true;
+  }
+  /* letting go: everything the swing built up, and a little more */
+  function release(){
+    if(!B || !B.rope) return false;
+    B.rope = null; B.state = 'air'; B.fromCharge = false;
+    B.vx *= TUNE.releaseBoost; B.vz *= TUNE.releaseBoost; B.vy = B.vy*TUNE.releaseBoost + TUNE.releaseUp;
+    B.charges = TUNE.dashCharges; capSpeed(B);
+    addFlow(B, 'pull');
+    B.events = []; emit(B, 'ropeOff', { speed:speed(B) }); B.events.forEach(e=>react(e)); B.events = [];
+    return true;
+  }
 
   function moverStep(dt){
     if(!on || !B) return false;
@@ -780,7 +893,8 @@ window.BOOTS = (function(){
     if(!window.AVATAR) return;
     const moving = B.ground && hspeed(B) > 0.6;
     let post = null;
-    if(B.bound) post = B.bound.perfect && B.airT < 0.55 && AVATAR.can('flip') ? 'flip' : 'jump';
+    if(B.rope) post = 'jump';                                   // on the line
+    else if(B.bound) post = B.bound.perfect && B.airT < 0.55 && AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.roll > 0) post = AVATAR.can('roll') ? 'roll' : AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.swoop || (B.last.reboundT > 0)) post = AVATAR.can('flip') ? 'flip' : 'jump';
     else if(B.state === 'dive' || B.dashT > 0) post = AVATAR.can('fly') ? 'fly' : 'jump';
@@ -1079,6 +1193,6 @@ window.BOOTS = (function(){
   addEventListener('keydown', e=>{ if(on && e.code === 'Backquote'){ debug(); e.preventDefault(); } });
 
   return { TUNE, DEFAULTS, TECH, ALL, body, step, predict, pullQuality, timeToGround, wallAhead, findTarget, ignite, landIn,
-           attach, detach, sync, stop, teach, learn, fire, debug, say, show, WORDS,
+           attach, detach, sync, stop, teach, learn, fire, debug, say, show, WORDS, grapple, release, HAND, LEGACY,
            get active(){ return on; }, get B(){ return B; }, get env(){ return env; } };
 })();

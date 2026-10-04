@@ -166,14 +166,15 @@ test('the things in her room are Higgsfield models, each standing in for the box
   assert.ok(roll.equals(floor), 'and the backpack on her back (the wardrobe\'s roll-top) is the one off her floor');
 });
 
-test('the first thing you play is the shoes: fire them, then hold SPACE and they do the rest', () => {
+test('the first thing you play is the shoes: fire them, then the charged jump, the rhythm and the line', () => {
   const t = read('public/tsh.js');
   const L = t.slice(t.indexOf('const LESSON = ['), t.indexOf('const lesson = {'));
-  ['THE SHOES', 'HOLD SPACE', 'KEEP HOLDING', 'POINT', 'THE RHYTHM', 'DRAGON ALLEY'].forEach((k, i, all) => {
+  ['THE SHOES', 'HOLD, THEN LET GO', 'THE RHYTHM', 'THE LINE', 'DRAGON ALLEY'].forEach((k, i, all) => {
     assert.ok(L.includes("title:'" + k + "'"), 'the lesson has ' + k);
     if(i) assert.ok(L.indexOf("title:'" + all[i - 1] + "'") < L.indexOf("title:'" + k + "'"), all[i - 1] + ' comes before ' + k);
   });
-  assert.ok(L.includes("teach:['bound','jump','steer']"), 'the bound is switched on when it is taught');
+  assert.ok(L.includes("teach:['charge','jump','steer']"), 'the charged jump is switched on when it is taught');
+  assert.ok(L.includes("teach:['grapple']"), 'and the line');
   has(t, /BOOTS\.TECH\.early\.concat\(BOOTS\.TECH\.mid\)\.forEach\(t=>BOOTS\.learn\(t\)\)/, 'and the rest of the moves at the end of it');
   has(t, /function lessonDone\(\)\{[\s\S]{0,400}outcome\('done'\)/, 'the lesson ends in the deal');
   has(t, /BOOTS\.attach\(/, 'TSH puts the boots on');

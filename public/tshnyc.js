@@ -252,6 +252,22 @@ window.TSHNYC = (function(){
     pick.forEach(b=>{ solids.push(b.s); live.s.push(b.s); if(b.p){ plats.push(b.p); live.p.push(b.p); } });
     radarList = [...wide].map(b=>b.s);
   }
+  /* THE LINE'S AIM (tsh.js): the nearest box a ray meets, walking the grid
+     cell by cell along it so only the boxes on its way are tried. */
+  function raycast(ox, oy, oz, dx, dy, dz, max, rayBox){
+    if(!grid) return null;
+    let best = max, hit = null; const seen = new Set();
+    for(let t = 0; t <= max + GC; t += GC*0.5){
+      const x = ox + dx*t, z = oz + dz*t;
+      for(const k of [Math.floor(x/GC) + ',' + Math.floor(z/GC)]){
+        const c = grid.get(k); if(!c) continue;
+        for(const b of c){ if(seen.has(b)) continue; seen.add(b); if(b.s.tag === 'kerb:nyc') continue;
+          const h = rayBox(ox, oy, oz, dx, dy, dz, b.s, best); if(h !== null && h > 0.5 && h < best){ best = h; hit = b.s; } }
+      }
+      if(hit && t > best + GC) break;
+    }
+    return hit ? { t:best, s:hit } : null;
+  }
   function strip(arr){ if(!arr) return; let j = 0; for(let i=0;i<arr.length;i++) if(!arr[i].nyc) arr[j++] = arr[i]; arr.length = j; }
 
   function detach(){
@@ -275,6 +291,6 @@ window.TSHNYC = (function(){
   }
   function tick(t){ U.uTime.value = t; }
 
-  return { attach, detach, look, tick, near, get ready(){ return !!mesh; }, get walkable(){ return !!grid; }, get loading(){ return loading; },
+  return { attach, detach, look, tick, near, raycast, get ready(){ return !!mesh; }, get walkable(){ return !!grid; }, get loading(){ return loading; },
            get radar(){ return radarList; }, get count(){ return boxes.length; }, _live:()=>live };
 })();
