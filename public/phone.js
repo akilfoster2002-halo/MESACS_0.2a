@@ -175,10 +175,14 @@ window.PHONE = (function(){
     screen='thread'; withUser=user;
     const sc=$('#phone .ph-screen');
     sc.innerHTML=`<div class="ph-head"><button type="button" class="ph-back">‹</button>
-      <b class="ph-name">@${esc(user)}</b></div><div class="ph-msgs"></div><div class="ph-err"></div>`;
+      <b class="ph-name">@${esc(user)}</b>
+      ${window.CALL ? `<button type="button" class="ph-call" title="${t('Call')}">📞</button>` : ''}</div>
+      <div class="ph-msgs"></div><div class="ph-err"></div>`;
     sc.querySelector('.ph-back').onclick=()=>list();
+    const callBtn=sc.querySelector('.ph-call');
+    if(callBtn) callBtn.onclick=()=>CALL.dial(user);
     compose(true, t('Text @{u}',{u:user}));
-    foot(t('Your teacher can see your messages.'));
+    foot(t('Your teacher can see your messages, and who you call.'));
     setTimeout(()=>$('#chatIn').focus(), 30);
     await loadThread(true);
     clearInterval(threadT);

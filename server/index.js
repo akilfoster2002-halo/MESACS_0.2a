@@ -465,6 +465,7 @@ app.post('/api/teacher/mute', async (req,res)=>{
   // a student whose client ignores it keeps talking
   for(const [,p] of live) if(p.id===Number(userId)) p.mutedUntil = until ? until.getTime() : 0;
   send(userId,{ t:'muted', until: until? until.getTime():0 });
+  if(until) calls.muted(Number(userId));
   ok(res,{});
 });
 
@@ -627,6 +628,12 @@ app.get('/api/teacher/texts', async (req,res)=>{
         ORDER BY m.id DESC LIMIT 200`);
     ok(res,{ texts:r.rows });
   }catch(e){ console.error(e); bad(res,500,'Could not load texts'); }
+});
+/* Calls: who rang whom, when, and for how long. Never what was said —
+   that went browser to browser and never came through here. */
+app.get('/api/teacher/calls', async (req,res)=>{
+  const t = await requireTeacher(req,res); if(!t) return;
+  ok(res,{ calls:calls.log() });
 });
 app.post('/api/teacher/texts/hide', async (req,res)=>{
   const t = await requireTeacher(req,res); if(!t) return;
@@ -812,6 +819,22 @@ const live = new Map();   // ws -> {id, display, server, role, x,z,yaw, mutedUnt
    time. It holds programs, not sockets, so a match is decided by what was
    submitted rather than by who is still connected to watch it. */
 const lobby = new mech.Lobby();
+/* Voice calls on the phone (server/calls.js): introduced here, then
+   browser to browser. */
+const calls = require('./calls').createCalls({
+  sockets: userId => [...live].filter(([w,p])=>p.id===userId && w.readyState===1).map(([w])=>w),
+  sendTo: (userId, obj) => send(userId, obj)
+});
+/* Where a call finds its way between two machines. STUN is enough on most
+   networks; a school that blocks everything but the web needs a TURN relay,
+   which is set in the environment (TURN_URLS, comma-separated, with
+   TURN_USERNAME and TURN_CREDENTIAL) because a relay costs money to run. */
+function iceServers(){
+  const list=[{ urls:['stun:stun.l.google.com:19302','stun:stun.cloudflare.com:3478'] }];
+  const turn=String(process.env.TURN_URLS||'').split(',').map(x=>x.trim()).filter(Boolean);
+  if(turn.length) list.push({ urls:turn, username:process.env.TURN_USERNAME||'', credential:process.env.TURN_CREDENTIAL||'' });
+  return list;
+}
 
 
 /* Chat is kept in memory and only while somebody is standing in the room.
@@ -943,16 +966,16 @@ function ticketFrom(ws){
 wss.on('connection', async (ws, req)=>{
   const s = auth.fromReq(req) || await ticketFrom(ws);
   if(!s){ ws.close(4001,'sign in first'); return; }
-  const r = await db.q('SELECT id,display,role,muted_until FROM users WHERE id=$1',[s.id]);
+  const r = await db.q('SELECT id,username,display,role,muted_until FROM users WHERE id=$1',[s.id]);
   const u = r.rows[0];
   if(!u){ ws.close(4001,'unknown user'); return; }
-  live.set(ws,{ id:u.id, display:u.display, server:null, role:u.role,
+  live.set(ws,{ id:u.id, username:u.username, display:u.display, server:null, role:u.role,
                 // 'nia' is the character everybody starts on, so a
                 // roster read before their first 'pos' shows what they wear
                 x:0, y:0, z:0, yaw:0, pit:0, char:'nia', act:null, ride:null,
                 at:null, went:null, objs:new Map(),
                 mutedUntil: u.muted_until? new Date(u.muted_until).getTime():0 });
-  ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role} }));
+  ws.send(JSON.stringify({ t:'welcome', you:{id:u.id,display:u.display,role:u.role}, ice:iceServers() }));
 
   ws.on('message', async raw=>{
     let m; try{ m=JSON.parse(raw); }catch(e){ return; }
@@ -1197,6 +1220,17 @@ wss.on('connection', async (ws, req)=>{
       }
       return;
     }
+    /* ------------------------------------------------- phone calls */
+    if(m.t==='call'){
+      if(m.op==='ring' && rateLimited('call:'+p.id, 6, 60000)){
+        ws.send(JSON.stringify({ t:'call', op:'fail', reason:'Slow down a little' })); return; }
+      if(m.op==='sig' && rateLimited('callsig:'+p.id, 200, 10000)) return;
+      calls.handle(ws, p, m, async name=>{
+        const who=name.toLowerCase().replace(/^@/,'');
+        return (await db.q('SELECT id,username,display FROM users WHERE username=$1',[who])).rows[0]||null;
+      });
+      return;
+    }
     if(m.t==='chat'){
       const text = String(m.text||'').slice(0,160).trim();
       if(!text) return;
@@ -1223,6 +1257,7 @@ wss.on('connection', async (ws, req)=>{
     if(!p) return;
     lobby.cancel(p.id);
     arcDrop(p, ws);
+    calls.gone(ws, p);
     broadcastRoom(p.server,{ t:'left', id:p.id, display:p.display });
     forgetIfEmpty(p.server);
   });

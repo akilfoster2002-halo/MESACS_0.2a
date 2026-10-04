@@ -2407,6 +2407,31 @@ button.cfit.plain{border:2px dashed var(--line);border-radius:999px;color:var(--
 #phoneToast small{color:var(--muted)}
 #phoneToast i{display:block;font-style:normal;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
 @keyframes phDrop{from{transform:translate(-50%,-20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+#phone .ph-call{background:none;border:none;font-size:18px;cursor:pointer;padding:4px 6px;border-radius:10px}
+#phone .ph-call:hover{background:#1a1530}
+
+/* ---------------------------------------------------------- a call (call.js)
+   One strip at the top of the screen, there whether the phone is open or not. */
+#callBar{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:75;display:flex;gap:12px;align-items:center;
+  width:min(380px,calc(100vw - 32px));background:rgba(20,16,36,.97);border:1px solid var(--line);border-radius:20px;
+  padding:10px 12px 10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45);animation:phDrop .3s ease-out}
+#callBar.hidden{display:none}
+#callBar[data-phase=incoming]{border-color:#3ecf8e}
+#callBar .cb-av{width:40px;height:40px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;
+  font-weight:700;flex:none}
+#callBar[data-phase=incoming] .cb-av,#callBar[data-phase=ringing] .cb-av{animation:phRing 1.6s ease-in-out infinite}
+#callBar .cb-mid{flex:1;min-width:0;display:flex;flex-direction:column}
+#callBar .cb-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#callBar .cb-name small{font-weight:400;color:var(--muted);font-size:12px}
+#callBar .cb-state{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+#callBar .cb-btns{display:flex;gap:8px}
+#callBar .cb-btns button{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;font-size:17px;color:#fff;background:#2a2342}
+#callBar .cb-btns button.hidden{display:none}
+#callBar .cb-yes{background:#2fae74 !important}
+#callBar .cb-no{background:#e0445e !important}
+#callBar .cb-mute.on{background:#6e6590}
+#callBar .cb-btns button:hover{filter:brightness(1.15)}
+#callBar .cb-btns button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 
 /* ---------------------------------------------------- a clear screen

@@ -57,6 +57,7 @@ async function refresh(){
   $('#log').innerHTML = d.messages.map(m=>line(m)).join('');
   $('#log').scrollTop=$('#log').scrollHeight;
   texts();
+  calls();
   arcade();
 }
 /* The phone's texts. Stored, unlike room chat, so this list is the whole
@@ -71,6 +72,19 @@ async function texts(){
         <button class="ghost" onclick="hideText(${m.id},${m.hidden?'false':'true'})">${m.hidden?'Unhide':'Hide'}</button></div>
     </div>`).join('') || '<p class="note">No texts yet.</p>';
 }
+/* Calls: kept in the server's memory only, and only who and how long —
+   the sound never went through it. */
+async function calls(){
+  let d; try{ d=await api('/teacher/calls'); }catch(e){ return; }
+  const how={ ended:'talked', dropped:'dropped', muted:'ended by mute', declined:'declined', missed:'not answered', cancelled:'hung up before answer' };
+  $('#calls').innerHTML = (d.calls||[]).map(c=>`
+    <div class="msg">
+      <div><b>${esc(c.fromDisplay)}</b> <span class="note">@${esc(c.from)}</span>
+        → <b>${esc(c.toDisplay)}</b> <span class="note">@${esc(c.to)}</span><br>
+        ${c.ended ? esc(how[c.how]||c.how) + (c.secs ? ' · '+Math.floor(c.secs/60)+'m '+(c.secs%60)+'s' : '') : (c.answered ? 'on the call now' : 'ringing')}</div>
+      <div><small>${new Date(c.at).toLocaleString()}</small></div>
+    </div>`).join('') || '<p class="note">No calls yet.</p>';
+}
 /* The arcade. A game is stored and shown to other children, so like the
    texts it needs a way off the shelf — hidden, never deleted. */
 async function arcade(){
@@ -83,7 +97,7 @@ async function arcade(){
 }
 window.hideGame=async(id,hidden)=>{ await api('/teacher/arcade/hide',{id,hidden}); arcade(); };
 window.hideText=async(id,hidden)=>{ await api('/teacher/texts/hide',{id,hidden}); texts(); };
-setInterval(()=>{ if(me && me.role==='teacher') texts(); }, 10000);
+setInterval(()=>{ if(me && me.role==='teacher'){ texts(); calls(); } }, 10000);
 function line(m){
   // the room is worth showing: one log now carries every server at once
   const where = m.server ? `<span class="code">${esc(m.server)}</span> ` : '';

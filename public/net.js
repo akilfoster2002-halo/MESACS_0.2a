@@ -3,7 +3,7 @@
    Guests can still play; they just get no multiplayer and no saved work.
    ===================================================================== */
 window.NET = (function(){
-  let me=null, ws=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null, onRoom=null, onArc=null;
+  let me=null, ws=null, ice=null, onCall=null, onPlayers=null, onChat=null, onSys=null, onMech=null, onMecha=null, onRoom=null, onArc=null;
   let muted=0;
   /* what we are meant to be connected to, so a dropped socket can put itself
      back. A deploy, a sleeping free-tier dyno or a flaky school wifi all end
@@ -84,6 +84,12 @@ window.NET = (function(){
     /* NEON's cabinets: queue, relay and cancel (server/index.js `t:'arc'`).
        The server pairs two players and passes what each says to the other. */
     arc(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({}, msg, {t:'arc'}))); },
+    /* Phone calls (call.js, server/calls.js): ringing, answering and the
+       handful of messages two browsers swap to find each other. The sound
+       itself never comes this way. */
+    call(msg){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify(Object.assign({}, msg, {t:'call'}))); return true; } return false; },
+    set onCall(fn){ onCall=fn; },
+    get ice(){ return ice; },
     set onArc(fn){ onArc=fn; },
     get onArc(){ return onArc; },
     set onRoom(fn){ onRoom=fn; },
@@ -173,7 +179,8 @@ window.NET = (function(){
     };
     ws.onmessage=e=>{
         let m; try{ m=JSON.parse(e.data); }catch(err){ return; }
-        if(m.t==='welcome'&&ticket&&want) ws.send(JSON.stringify({t:'join', server:want}));
+        if(m.t==='welcome'){ ice=m.ice||null; if(ticket&&want) ws.send(JSON.stringify({t:'join', server:want})); }
+        if(m.t==='call'&&onCall) onCall(m);
         if(m.t==='players'&&onPlayers) onPlayers(m.players.filter(p=>p.id!==me.id));
         if(m.t==='chat'&&onChat) onChat(m);
         if(m.t==='dm'&&window.PHONE) PHONE.buzz(m);
@@ -227,6 +234,7 @@ window.NET = (function(){
       };
     ws.onclose=ev=>{
       ws=null;
+      if(onCall) onCall({ t:'call', op:'lost' });
       if(handlers && handlers.players) handlers.players([]);   // nobody is visible while we are away
       if(gone || !want) return;
       if(ev && ev.code===4001){                                // the server says we are not signed in
