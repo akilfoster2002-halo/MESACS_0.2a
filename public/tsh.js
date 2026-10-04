@@ -3848,7 +3848,7 @@ window.TSH = (function(){
       { dur:2.6, fov:30, mood:'focused', cam:rel(A[0], A[1], faceA, 1.1, 0.25, 1.6), look:[A[0], 1.55, A[1]],
         enter:()=>{ stage('idle', A[0], 0, A[1], faceA); t.x = B[0]; t.z = B[1]; t.moving = false; t.yaw = faceB; } },
       // the rig: three rings turning, and in them, something violet that will not hold still
-      { dur:3.4, fov:40, cam:k=>[lerp(rig[0] + 0.3, rig[0] + 0.15, k), lerp(1.25, 1.5, k), lerp(rig[1] + 3.3, rig[1] + 2.3, k)], look:[rig[0], 1.55, rig[1]],
+      { dur:3.4, fov:48, cam:k=>[lerp(rig[0] + 0.6, rig[0] + 0.25, k), lerp(1.2, 1.6, k), lerp(rig[1] + 4.6, rig[1] + 3.3, k)], look:[rig[0], 1.6, rig[1]],
         beats:[[0.3, ()=>cue('rise')]] },
       // the monitors reading it
       { dur:2.4, fov:44, cam:[X(4.6), 1.8, -44.6], look:k=>[X(5.0 + k*2.6), 1.95, -47.7] },

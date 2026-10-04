@@ -425,11 +425,14 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(col/16.0, 1.0);
     }`;
   const COMP = `
-    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade;
-    uniform vec3 uLift, uGain, uFlashCol; varying vec2 vUv;
+    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic;
+    uniform vec3 uLift, uGain, uFlashCol; uniform vec2 uRes; varying vec2 vUv;
+    float lumOf(vec2 p){ vec3 c = texture2D(tScene, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
     void main(){
       vec2 uv = vUv, d = uv - 0.5; float r2 = dot(d, d);
-      vec3 col = vec3(texture2D(tScene, uv - d*uCA*r2).r, texture2D(tScene, uv).g, texture2D(tScene, uv + d*uCA*r2).b);
+      // the comic: the plates printed a little off register — red one way, blue the other, more towards the edges
+      vec2 mis = vec2(2.2, -1.4)/uRes*uComic*(1.0 + r2*6.0);
+      vec3 col = vec3(texture2D(tScene, uv - d*uCA*r2 + mis).r, texture2D(tScene, uv).g, texture2D(tScene, uv + d*uCA*r2 - mis).b);
       col += texture2D(tBloom, uv).rgb * uBloom;
       col = col*uGain + uLift;
       col *= 1.0 - uVig*r2*1.8;
@@ -437,6 +440,37 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(max(col, 0.0), 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
+      if(uComic > 0.001){
+        /* INTO THE SPIDER-VERSE. Ink where the picture changes (an edge filter on the scene's light),
+           Ben-Day dots where it is in half shadow, hatching where it is dark, the colour a little
+           posterised — printed, not rendered. */
+        vec3 c0 = gl_FragColor.rgb; vec2 px = 1.0/uRes;
+        float tl = lumOf(uv + px*vec2(-1.0, 1.0)), t_ = lumOf(uv + px*vec2(0.0, 1.0)), tr = lumOf(uv + px*vec2(1.0, 1.0));
+        float l_ = lumOf(uv + px*vec2(-1.0, 0.0)), r_ = lumOf(uv + px*vec2(1.0, 0.0));
+        float bl = lumOf(uv + px*vec2(-1.0, -1.0)), b_ = lumOf(uv + px*vec2(0.0, -1.0)), br = lumOf(uv + px*vec2(1.0, -1.0));
+        float gx = -tl - 2.0*l_ - bl + tr + 2.0*r_ + br, gy = -bl - 2.0*b_ - br + tl + 2.0*t_ + tr;
+        float edge = smoothstep(0.13, 0.3, length(vec2(gx, gy)));
+        float lum = dot(c0, vec3(0.299, 0.587, 0.114));
+        vec3 ink = vec3(0.05, 0.015, 0.1);
+        // halftone: a dot grid at 45 degrees, the dots bigger the darker it is
+        vec2 g = mat2(0.7071, -0.7071, 0.7071, 0.7071)*(gl_FragCoord.xy/5.5);
+        float dd = length(fract(g) - 0.5), rad = sqrt(clamp(1.0 - lum*1.7, 0.0, 1.0))*0.6;
+        float dots = 1.0 - smoothstep(rad - 0.07, rad + 0.07, dd);
+        vec3 c1 = mix(c0, c0*0.35 + ink*0.4, dots*smoothstep(0.62, 0.18, lum)*0.85);
+        // and in the brightest colour, magenta dots in it like a printed highlight
+        vec2 g2 = mat2(0.966, -0.259, 0.259, 0.966)*(gl_FragCoord.xy/4.0);
+        float hd = 1.0 - smoothstep(0.18, 0.26, length(fract(g2) - 0.5));
+        float sat = max(c0.r, max(c0.g, c0.b)) - min(c0.r, min(c0.g, c0.b));
+        c1 = mix(c1, c1*vec3(1.08, 0.82, 1.12), hd*smoothstep(0.55, 0.9, lum)*sat);
+        // hatching in the darks
+        float hatch = step(0.62, fract((gl_FragCoord.x + gl_FragCoord.y)/5.0));
+        c1 = mix(c1, ink, hatch*smoothstep(0.14, 0.03, lum)*0.75);
+        // posterise a little, push the colour
+        c1 = mix(c1, floor(c1*7.0 + 0.5)/7.0, 0.3);
+        float m = dot(c1, vec3(0.333)); c1 = mix(vec3(m), c1, 1.25);
+        c1 = mix(c1, ink, edge*0.92);
+        gl_FragColor.rgb = mix(c0, clamp(c1, 0.0, 1.0), uComic);
+      }
       float n = fract(sin(dot(uv*vec2(12.9898, 78.233) + uTime, vec2(1.0, 1.7)))*43758.5453);
       gl_FragColor.rgb += (n - 0.5)*uGrain;
       if(abs(uv.y - 0.5) > 0.5 - uLetter) gl_FragColor.rgb = vec3(0.0);
@@ -464,7 +498,7 @@ window.TSHLOOK = (function(){
     const comp = fsMat(COMP, { tScene:{value:null}, tBloom:{value:null}, uBloom:{value:0.9}, uTime:{value:0},
       uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
       uGain:{value:new THREE.Vector3(0.93, 1.03, 1.0)}, uFlash:{value:0}, uFlashCol:{value:new THREE.Vector3(1,1,1)},
-      uLetter:{value:0}, uFade:{value:0} }, { toneMapped:true });
+      uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)} }, { toneMapped:true });
     P = { w, h, scene, mips, refl, cam, quad, qs, down, up, comp, t:0 };
   }
   function freeP(){
@@ -567,7 +601,7 @@ window.TSHLOOK = (function(){
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1,
+  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0,
                 gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
   /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
   function setWet(k){ fx.wet = k; applyQuality(); }
@@ -607,6 +641,7 @@ window.TSHLOOK = (function(){
     c.uBloom.value = fx.bloom; c.uTime.value = (P.t%10); c.uGain.value.copy(fx.gain); c.uVig.value = fx.vig;
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);
     c.uLetter.value = fx.letter; c.uFade.value = fx.fade;
+    c.uComic.value = fx.comic; c.uRes.value.set(P.w, P.h);
     pass(P.comp, null);
   }
   function init(renderer){

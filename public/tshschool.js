@@ -102,29 +102,6 @@ window.TSHSCHOOL = (function(){
     return tex(c);
   }
 
-  /* the lab's whiteboard: her teacher's notes on the field */
-  function psiBoard(){
-    const c = cv(1024, 384), x = c.getContext('2d');
-    x.fillStyle = '#f6f7f5'; x.fillRect(0, 0, 1024, 384);
-    x.font = font(34, ''); x.fillStyle = '#4a2a8a'; x.fillText('Ψ — CONTAINMENT TRIALS', 40, 56);
-    x.font = font(24, ''); x.fillStyle = '#1a1a1a';
-    ['trial 41: field held 3.2 s', 'trial 42: 11.8 s (!!)', 'trial 43: prototype seized — again', 'output spikes when the field dips. WHY?'].forEach((l, i)=>x.fillText(l, 50, 110 + i*40));
-    x.fillStyle = '#b22'; x.fillText('DON\'T TOUCH THE RIG', 50, 290); x.fillStyle = '#1a3a8a'; x.fillText('Ψ(t) ≈ A·sin(ωt + φ) + ε(t)', 50, 340);
-    x.strokeStyle = '#6a3aaa'; x.lineWidth = 3; x.beginPath(); for(let i = 0; i < 360; i++){ const t = i/360; x.lineTo(600 + i, 200 - 90*Math.sin(t*20)*Math.exp(-t*1.5) - 30*Math.sin(t*61)); } x.stroke();
-    x.strokeStyle = '#999'; x.lineWidth = 1; x.beginPath(); x.moveTo(600, 200); x.lineTo(970, 200); x.stroke();
-    return tex(c);
-  }
-  function hazardTex(){
-    const c = cv(512, 64), x = c.getContext('2d'); x.fillStyle = '#e8c020'; x.fillRect(0, 0, 512, 64); x.fillStyle = '#16181a';
-    for(let i = -2; i < 20; i++){ x.beginPath(); x.moveTo(i*32, 64); x.lineTo(i*32 + 16, 64); x.lineTo(i*32 + 48, 0); x.lineTo(i*32 + 32, 0); x.closePath(); x.fill(); }
-    const t = tex(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(6, 1); return t;
-  }
-  function rackTex(){
-    const c = cv(128, 512), x = c.getContext('2d'); x.fillStyle = '#05070a'; x.fillRect(0, 0, 128, 512);
-    for(let r = 0; r < 24; r++){ x.fillStyle = '#12161c'; x.fillRect(6, 6 + r*21, 116, 17);
-      for(let k = 0; k < 6; k++){ const on = Math.random() < 0.6; x.fillStyle = on ? (Math.random() < 0.2 ? '#ffb030' : Math.random() < 0.5 ? '#38ffd0' : '#b48aff') : '#1a2026'; x.fillRect(80 + k*6, 12 + r*21, 4, 4); } }
-    return c;
-  }
   /* the monitors: the field's trace, its spectrum, and how unstable it is */
   function paintMonitors(c, t, sync){
     const x = c.getContext('2d'), W = c.width, H = c.height, w = W/3, h = H/2;
@@ -331,97 +308,35 @@ window.TSHSCHOOL = (function(){
     wall(X(-5), X(1), -34, -34 + T, RH); wall(X(3), X(11), -34, -34 + T, RH);
     box(white, X(2), (2.4 + RH)/2, -34 + T/2, 2, RH - 2.4, T); box(trimM, X(2), 2.42, -34 + T/2, 2.04, 0.06, T + 0.02);
     sign('ROOM 120 · ROBOTICS', X(2), 2.75, -33.62, 0, { w:1.0 });
-    for(let z = -46.5; z < -35; z += 2.6) plane(glowM(0xeaf2f8, 0.6), X(-4.98), 2.9, z, 2.0, 3.4, Math.PI/2);   // the windows
-    plane(std({ map:psiBoard(), roughness:0.25 }), X(-1.2), 1.8, -47.68, 5, 1.9, 0); box(trimM, X(-1.2), 0.82, -47.6, 5.2, 0.06, 0.18);
-    const legM = std({ color:0x3a3a40, roughness:0.4, metalness:0.6 }), steelD = std({ color:0x5a5f66, roughness:0.35, metalness:0.7 });
-    const copper = std({ color:0xb8692e, roughness:0.3, metalness:0.9 }), orange = std({ color:0xe8742a, roughness:0.45, metalness:0.3 });
+    const legM = std({ color:0x3a3a40, roughness:0.4, metalness:0.6 }), steelD = std({ color:0x2a2e36, roughness:0.35, metalness:0.75 });
+    const copper = std({ color:0xb8692e, roughness:0.3, metalness:0.9 });
     const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
-    const lab = { t:0, rings:[], arms:[], leds:[] };
-
-    // the monitors: one canvas, redrawn as the field moves, across six screens
-    const mon = cv(1024, 512), monT = tex(mon); lab.mon = { c:mon, t:monT, next:0 };
-    box(trimM, X(6.3), 1.95, -47.78, 4.3, 1.75, 0.1);
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 1.6), new THREE.MeshBasicMaterial({ map:monT, toneMapped:false })); screen.userData.flat = true; add(screen, X(6.3), 1.95, -47.72);
-    for(let k = 1; k < 3; k++) box(trimM, X(6.3) - 2.05 + k*4.1/3, 1.95, -47.71, 0.04, 1.62, 0.02);
-    box(trimM, X(6.3), 1.95, -47.71, 4.12, 0.04, 0.02);
-
-    // the containment rig
-    const RX = X(3), RZ = -42.4, FY = 1.55;
-    add(new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.65, 0.22, 40), steelD), RX, 0.11, RZ);
-    const haz = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.5, 48), std({ map:hazardTex(), roughness:0.6 })); haz.rotation.x = -Math.PI/2; add(haz, RX, 0.225, RZ);
-    for(let k = 0; k < 4; k++){ const a = Math.PI/4 + k*Math.PI/2, px = RX + Math.cos(a)*1.3, pz = RZ + Math.sin(a)*1.3;
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 2.6, 12), steelD), px, 1.52, pz);
-      for(let j = 0; j < 9; j++) add(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 6, 16), copper), px, 0.8 + j*0.09, pz).rotation.x = Math.PI/2;
-      const tip = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.75, 0.45, 1.6) })), px, 2.86, pz); lab.leds.push(tip); }
-    [[1.0, 0.035], [0.82, 0.03], [0.64, 0.026]].forEach(([r, w], i)=>{ const ring = add(new THREE.Mesh(new THREE.TorusGeometry(r, w, 10, 64), std({ color:0xd0d6dc, roughness:0.2, metalness:0.95 })), RX, FY, RZ);
-      ring.rotation.set(i*0.9, i*0.6, 0); lab.rings.push(ring); });
-    const add_ = (r, op) => new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.7, 0.35, 1.0), transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false }));
-    lab.core = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 14), new THREE.MeshBasicMaterial({ color:new THREE.Color(1.6, 1.2, 2.2) })), RX, FY, RZ);
-    lab.glow = [add(add_(0.24, 0.5), RX, FY, RZ), add(add_(0.42, 0.18), RX, FY, RZ), add(add_(0.7, 0.07), RX, FY, RZ)];
-    // motes, orbiting it
-    const NM = 90, mp = new Float32Array(NM*3); lab.motes = { n:NM, seed:Array.from({ length:NM }, ()=>[Math.random()*6.28, 0.18 + Math.random()*0.45, (Math.random() - 0.5)*2, 0.6 + Math.random()*1.6]) };
-    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(mp, 3));
-    lab.motes.pts = add(new THREE.Points(mg, new THREE.PointsMaterial({ color:0xc8a0ff, size:0.035, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false })), RX, FY, RZ);
-    lights.push({ x:RX, y:FY, z:RZ, col:new THREE.Color(0xa070ff), k:7, d:9 });
-    solid(RX - 1.7, RX + 1.7, RZ - 1.7, RZ + 1.7, 3.2);
-    // cables across the floor: to the monitors, to the racks, to the test stand
-    [[RX + 1.4, RZ - 0.6, X(6.3), -47.5], [RX + 1.5, RZ + 0.3, X(10.2), -45], [RX + 1.2, RZ + 0.9, X(6.2), -40.2]].forEach(([a, b, c, d])=>{
-      const len = Math.hypot(c - a, d - b), m = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, len, 6), trimM), (a + c)/2, 0.03, (b + d)/2);
-      m.lookAt(c, 0.03, d); m.rotateX(Math.PI/2); });
-    lab.at = [RX, FY, RZ];
+    // everything else in here — the field, the room, the equipment, the light — is tshlab.js
+    const RX = X(3), RZ = -42.4, FY = 1.55, TX = X(6.4), TZ = -40.0;
+    const lab = TSHLAB.build({ g, X, solid, lights, H:RH, rig:[RX, RZ], FY, stand:[TX, TZ], door:[X(2), -34] });
 
     // the prototype's test stand, and her stool in front of it
-    const TX = X(6.4), TZ = -40.0;
     box(steelD, TX, 0.74, TZ, 1.5, 0.05, 0.85); [[-0.68, -0.36], [0.68, -0.36], [-0.68, 0.36], [0.68, 0.36]].forEach(([a, b])=>box(legM, TX + a, 0.37, TZ + b, 0.05, 0.74, 0.05));
+    box(glowM(0x38ffd0, 2.2), TX, 0.765, TZ + 0.42, 1.5, 0.012, 0.012);
     solid(TX - 0.76, TX + 0.76, TZ - 0.44, TZ + 0.44, 0.8);
     // an emitter ring on the stand, so the field can be put on it
     const em = add(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.025, 8, 40), copper), TX + 0.05, 0.8, TZ - 0.05); em.rotation.x = Math.PI/2;
-    lab.beam = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.8, 0.5, 1.6), transparent:true, opacity:0.0, blending:THREE.AdditiveBlending, depthWrite:false })), 0, 0, 0);
+    add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.008, 6, 40), glowM(0xb070ff, 2.5)), TX + 0.05, 0.8, TZ - 0.05).rotation.x = Math.PI/2;
+    lab.beam = add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color:new THREE.Color(1.2, 0.6, 2.4), transparent:true, opacity:0.0, blending:THREE.AdditiveBlending, depthWrite:false })), 0, 0, 0);
     spots.seatDesk = [TX, TZ]; spots.seat = [TX, TZ + 0.62];
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16), steelD), TX, 0.47, TZ + 0.66); add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.45, 8), legM), TX, 0.23, TZ + 0.66);
 
     // her teacher's desk, by the monitors
-    box(std({ color:0xd8c8a8, roughness:0.5 }), X(9.4), 0.74, -45.6, 1.8, 0.05, 0.8, { shadow:true }); box(legM, X(9.4), 0.37, -45.9, 1.7, 0.74, 0.04);
+    box(std({ color:0x2a2e38, roughness:0.4, metalness:0.3 }), X(9.4), 0.74, -45.6, 1.8, 0.05, 0.8, { shadow:true }); box(legM, X(9.4), 0.37, -45.9, 1.7, 0.74, 0.04);
     solid(X(8.5), X(10.3), -46, -45.2, 0.82);
     spots.teacherDesk = [X(9.4), -44.8];
-
-    // the physics bench: a scope, a supply, a coil, canisters of something that glows
-    box(std({ color:0x5a5f66, roughness:0.4, metalness:0.6 }), X(10.2), 0.88, -40, 1.2, 0.06, 3.4); [-1.6, 1.6].forEach(dz=>box(legM, X(10.2), 0.44, -40 + dz, 1.1, 0.88, 0.06));
-    solid(X(9.5), X(11), -41.8, -38.2, 0.92);
-    box(std({ color:0x2a2e34, roughness:0.4 }), X(10.35), 1.08, -41.2, 0.5, 0.34, 0.4); lab.scope = plane(new THREE.MeshBasicMaterial({ map:monT, toneMapped:false }), X(10.09), 1.1, -41.2, 0.32, 0.22, -Math.PI/2);
-    box(std({ color:0xd8d8d0, roughness:0.5 }), X(10.35), 1.0, -40.4, 0.45, 0.2, 0.35);
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 14), copper), X(10.3), 1.16, -39.4); add(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.05, 10, 20), steel), X(10.3), 1.45, -39.4).rotation.x = Math.PI/2;
-    for(let k = 0; k < 4; k++){ const cx = X(10.05) + k*0.16;
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 14), glass), cx, 1.04, -38.6);
-      lab.leds.push(add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.2, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.6, 0.3, 1.2) })), cx, 1.04, -38.6)); }
     spots.bench = [X(9.0), -40]; spots.benchTop = [X(10.2), 0.91, -40];
     spots.room120Door = [X(2), -33.2]; spots.room120In = [X(2), -35.5];
-
-    // the server racks, blinking
-    const rackT = tex(rackTex());
-    for(let k = 0; k < 3; k++){ box(std({ color:0x15181c, roughness:0.4, metalness:0.5 }), X(10.45), 1.05, -47.2 + k*0.68, 0.9, 2.1, 0.62);
-      const f = plane(glowM(0xffffff, 1.0, rackT), X(9.99), 1.05, -47.2 + k*0.68, 0.58, 1.9, -Math.PI/2); lab.leds.push(f); }
-    solid(X(10), X(11), -47.6, -45.3, 2.2);
-
-    // two industrial arms on their pedestals
-    [[X(-2.6), -38.6, 0.4], [X(-2.6), -45.2, 2.2]].forEach(([ax, az, ph])=>{
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.5, 20), steelD), ax, 0.25, az);
-      const base = add(new THREE.Group(), ax, 0.5, az), b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.3, 16), orange); b1.position.y = 0.15; base.add(b1);
-      const sh = new THREE.Group(); sh.position.y = 0.36; base.add(sh);
-      const up = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.2), orange); up.position.y = 0.47; sh.add(up);
-      const el_ = new THREE.Group(); el_.position.y = 0.95; sh.add(el_);
-      const fo = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.16), orange); fo.position.y = 0.37; el_.add(fo);
-      const wr = new THREE.Group(); wr.position.y = 0.75; el_.add(wr);
-      wr.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 12), steelD));
-      [-1, 1].forEach(sd=>{ const f = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.05), steelD); f.position.set(sd*0.05, 0.12, 0); wr.add(f); });
-      [sh, el_].forEach(j=>j.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), steelD)));
-      lab.arms.push({ base, sh, el:el_, wr, ph });
-      solid(ax - 0.45, ax + 0.45, az - 0.45, az + 0.45, 2.4); });
-
-    [[-1, -44], [5, -44], [-1, -38.5], [5, -38.5]].forEach(([x, z])=>lamp(X(x), RH - 0.05, z, 4, 10));
-    // the prototype on its stand, and the old sensor puck on the bench
-    const robot = makeRobot(); robot.position.set(TX, 0.77, TZ - 0.05); robot.scale.setScalar(1.5); g.add(robot);
-    const gadget = makeGadget(); gadget.position.set(X(10.1), 0.95, -40.8); g.add(gadget);
+    // the prototype on its stand, its schematic over the hologram table; the old sensor puck on the bench
+    const robot = TSHLAB.robot(); robot.position.set(TX, 0.77, TZ - 0.05); robot.scale.setScalar(1.6); g.add(robot);
+    TSHLAB.holoOf(lab, robot);
+    lab.paint = paintMonitors;
+    const gadget = makeGadget(); gadget.position.set(X(10.05), 0.95, -40.25); g.add(gadget);
     S_lab = lab;
 
     out.solids.push(...solids); out.plats.push(...plats);
@@ -430,25 +345,8 @@ window.TSHSCHOOL = (function(){
     return S;
   }
   function signTex(text, o){ const t = { w:256, h:96 }; if(o && o.bg) t.bg = o.bg; if(o && o.ink) t.ink = o.ink; return sign_(text, t); }
-  /* THE ROBOT: a little two-legged thing with a camera head and an arm, made of boxes. Broken, it slumps;
-     fixed (robot.userData.on), it stands, looks about, and waves. */
-  function makeRobot(){
-    const r = new THREE.Group(), shell = std({ color:0xe8eaec, roughness:0.35, metalness:0.3 }), dark = std({ color:0x22262c, roughness:0.4, metalness:0.6 });
-    const eye = new THREE.MeshStandardMaterial({ color:0x111111, emissive:new THREE.Color(0.2, 0.9, 1.0), emissiveIntensity:0 });
-    const body = new THREE.Group(); r.add(body);
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.22, 0.18), shell); torso.position.y = 0.3; body.add(torso);
-    const head = new THREE.Group(); head.position.y = 0.46; body.add(head);
-    head.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.14), shell));
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16), eye); lens.rotation.x = Math.PI/2; lens.position.set(0, 0, 0.08); head.add(lens);
-    const legs = [-0.08, 0.08].map(x=>{ const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.05), dark); l.position.set(x, 0.1, 0); r.add(l); return l; });
-    const arm = new THREE.Group(); arm.position.set(0.16, 0.36, 0); body.add(arm);
-    const a = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.04), dark); a.position.y = -0.09; arm.add(a);
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.12), new THREE.MeshStandardMaterial({ color:0x0a0c10, emissive:new THREE.Color(1, 0.25, 0.15), emissiveIntensity:0.6 }));
-    panel.position.set(0, 0.3, 0.091); body.add(panel);
-    r.userData = { on:false, t:0, body, head, arm, eye, panel, legs };
-    body.rotation.x = 0.5; head.rotation.x = 0.4; arm.rotation.z = 0.2;        // broken: slumped forward
-    return r;
-  }
+  /* THE PROTOTYPE (tshlab.js builds it). Broken and in the field it fights itself; fixed (robot.userData.on), it
+     stands, looks about, and waves. Its actuator rings go from red to cyan as she fixes it. */
   function tickRobot(dt){
     if(!S) return;
     const u = S.robot.userData; u.t += dt;
@@ -457,7 +355,8 @@ window.TSHSCHOOL = (function(){
       // in the field, and not fixed: it fights itself — every joint jerking against the swing (less as she fixes it)
       if(u.field){ const k = Math.max(0, 1 - (u.fix || 0)/3), j = () => (Math.random() - 0.5)*k;
         u.body.rotation.x = 0.15 + j()*0.5; u.body.rotation.z = j()*0.4; u.head.rotation.set(j()*0.8, j()*1.2, 0); u.arm.rotation.z = 0.8 + j()*2.2;
-        u.eye.emissive.setRGB(1, 0.2, 0.2); u.eye.emissiveIntensity = Math.random() < 0.5 ? 2.5*k : 0.2; u.panel.material.emissive.setRGB(1, 0.25 + (u.fix || 0)*0.2, 0.15); }
+        u.eye.emissive.setRGB(1, 0.2, 0.2); u.eye.emissiveIntensity = Math.random() < 0.5 ? 2.5*k : 0.2; u.panel.material.emissive.setRGB(1, 0.25 + (u.fix || 0)*0.2, 0.15);
+        (u.rings || []).forEach(r=>{ r.material.emissive.setRGB(1, 0.2 + (u.fix || 0)*0.25, 0.2); r.material.emissiveIntensity = 1.5 + Math.random()*2.5*k; }); }
       return;
     }
     u.body.rotation.x += (0 - u.body.rotation.x)*Math.min(1, dt*4); u.body.rotation.z += (0 - u.body.rotation.z)*Math.min(1, dt*4);
@@ -466,24 +365,42 @@ window.TSHSCHOOL = (function(){
     u.arm.rotation.z = u.t < 4 ? 2.4 + Math.sin(u.t*9)*0.4 : 0.2 + Math.sin(u.t*2)*0.1;      // a wave, then rest
     u.eye.emissive.setRGB(0.2, 0.9, 1.0); u.eye.emissiveIntensity = 2.2 + Math.sin(u.t*4)*0.4;
     u.panel.material.emissive.setRGB(0.2, 1, 0.5);
+    (u.rings || []).forEach(r=>{ r.material.emissive.setRGB(0.2, 1, 1.1); r.material.emissiveIntensity = 2.2; });
   }
   /* THE LAB, alive: the rings turn, the field breathes and never quite holds still, the motes orbit it, the
      arms work, the monitors read it — and when the prototype is in it, a thread of it reaches the stand. */
   function tickLab(dt){
-    const L = S && S.lab; if(!L || !S.group.visible) return;
-    L.t += dt; const t = L.t, u = S.robot.userData;
-    L.rings.forEach((r, i)=>{ r.rotation.x += dt*(0.35 + i*0.22); r.rotation.y += dt*(0.5 - i*0.17); });
-    const pulse = 1 + 0.12*Math.sin(t*3.1) + 0.06*Math.sin(t*11.7) + (Math.random() < 0.02 ? 0.35 : 0);
-    L.core.scale.setScalar(pulse); L.glow.forEach((g, i)=>{ g.scale.setScalar(pulse*(1 + 0.08*Math.sin(t*2 + i))); g.material.opacity = [0.5, 0.18, 0.07][i]*(0.8 + 0.3*Math.sin(t*5 + i)); });
-    const P = L.motes.pts.geometry.attributes.position;
-    L.motes.seed.forEach(([a, r, h, sp], i)=>{ const q = a + t*sp; P.setXYZ(i, Math.cos(q)*r, h*0.25 + Math.sin(q*1.7)*0.06, Math.sin(q)*r); }); P.needsUpdate = true;
-    L.arms.forEach(A=>{ const q = t*0.5 + A.ph; A.base.rotation.y = Math.sin(q)*0.9; A.sh.rotation.z = -0.4 + Math.sin(q*1.3)*0.3; A.el.rotation.z = 1.1 + Math.sin(q*0.9)*0.4; A.wr.rotation.y = q*2; });
+    const L = S && S.lab;
+    if(!L || !S.group.visible){ labMood(0, dt); return; }
+    const u = S.robot.userData;
+    L.tick(dt, u);
     // the beam: from the field to the stand, while the prototype sits in it
     const b = L.beam, on = !!u.field;
-    b.material.opacity = on ? (u.on ? 0.35 : 0.2 + Math.random()*0.5) : 0;
-    if(on){ const a = new THREE.Vector3(...L.at), r = S.robot.position.clone(); r.y += 0.45; const m = a.clone().add(r).multiplyScalar(0.5);
+    b.material.opacity = on ? (u.on ? 0.55 : 0.25 + Math.random()*0.65) : 0;
+    if(on){ const a = new THREE.Vector3(...L.at), r = S.robot.position.clone(); r.y += 0.55; const m = a.clone().add(r).multiplyScalar(0.5);
       b.position.copy(m); b.scale.set(1, a.distanceTo(r), 1); b.lookAt(r); b.rotateX(Math.PI/2); }
-    if(t > L.mon.next){ L.mon.next = t + 0.1; paintMonitors(L.mon.c, t, !!u.on); L.mon.t.needsUpdate = true; }
+    // in here, the room is the field's: dark, violet, and drawn like a comic
+    const c = typeof G !== 'undefined' && G.camera && G.camera.position, X = S.X;
+    labMood(c && c.x > X(-5) && c.x < X(11) && c.z > -48 && c.z < -34 && c.y < ROOMS.room ? 1 : 0, dt);
+  }
+  /* THE LAB'S LIGHT. The rest of the school is daylight through glass; in Room 120 the sky light and the
+     sun go almost to nothing, what is left is violet, and the grade goes to the comic (TSHLOOK's ink,
+     halftone and misregistered colour). What the day had is put back, exactly, on the way out. */
+  let mood = 0, base = null;
+  const LABC = { amb:new THREE.Color(0x3a2a6a), sky:new THREE.Color(0x5a3ab0), ground:new THREE.Color(0x0a0612) };
+  function labMood(want, dt){
+    if(typeof G === 'undefined' || !G.amb || !window.TSHLOOK) return;
+    if(!base){ if(want === 0) return;
+      base = { env:G.scene.environmentIntensity === undefined ? 1 : G.scene.environmentIntensity, amb:G.amb.intensity, ambC:G.amb.color.clone(), hemi:G.hemi.intensity, sky:G.hemi.color.clone(), ground:G.hemi.groundColor.clone(), sun:G.sun ? G.sun.intensity : 0,
+               bloom:TSHLOOK.fx.bloom, vig:TSHLOOK.fx.vig, gain:TSHLOOK.fx.gain.clone() }; }
+    mood += (want - mood)*Math.min(1, dt*4); if(Math.abs(mood - want) < 0.003) mood = want;
+    const k = mood, B = base, l = (a, b_) => a + (b_ - a)*k;
+    G.scene.environmentIntensity = l(B.env, 0.2);               // the day's reflections are what washed it out
+    G.amb.intensity = l(B.amb, 0.12); G.amb.color.copy(B.ambC).lerp(LABC.amb, k);
+    G.hemi.intensity = l(B.hemi, 0.26); G.hemi.color.copy(B.sky).lerp(LABC.sky, k); G.hemi.groundColor.copy(B.ground).lerp(LABC.ground, k);
+    if(G.sun) G.sun.intensity = l(B.sun, 0.05);
+    const F = TSHLOOK.fx; F.comic = k; F.bloom = l(B.bloom, 1.15); F.vig = l(B.vig, 0.7); F.gain.copy(B.gain).lerp(new THREE.Vector3(1.08, 0.96, 1.12), k);
+    if(k === 0 && want === 0) base = null;                     // all of it back as it was
   }
   /* the second thing: a small sensor puck with a status light */
   function makeGadget(){

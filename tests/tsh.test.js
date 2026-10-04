@@ -679,7 +679,7 @@ test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fi
   has(t, /help:\s*\[\['teacher','Come on\. I need your help\.'\]/, 'not detention: her help');
   // the lab: not a normal school robotics room
   ['spots.room120Door', 'spots.room120In', 'spots.seat ', 'spots.teacherDesk'].forEach(b => assert.ok(sch.includes(b), 'the lab keeps ' + b));
-  ["psiBoard()", 'containment rig', 'lab.rings', 'lab.motes', 'lab.arms', 'paintMonitors(', "'ROOM 120 · ROBOTICS'"].forEach(b => assert.ok(sch.includes(b), 'the lab has ' + b));
+  ['TSHLAB.build(', 'TSHLAB.robot()', 'paintMonitors', "'ROOM 120 · ROBOTICS'"].forEach(b => assert.ok(sch.includes(b), 'the lab has ' + b));
   has(sch, /if\(u\.field\)\{ const k = Math\.max\(0, 1 - \(u\.fix \|\| 0\)\/3\)/, 'the prototype fights the field until she fixes it');
   const D = t.slice(t.indexOf('  function labScene('), t.indexOf('  /* at the stand: the puzzles'));
   ["talk('psi')", "talk('psi2')", "talk('spike')", "talk('what')", "talk('fighting')", "talk('fighting2')", "talk('keepYou')", 'benchPuzzles()', "caption('INT. ROBOTICS LAB — ROOM 120')"].forEach(b => assert.ok(D.includes(b), 'the lab has ' + b));
@@ -800,4 +800,20 @@ test('a touchpad can look about: more speed when one is found, two-finger swipes
   has(g, /e\.code==='Minus' \|\| e\.code==='Equal'/, '- and = set the speed, anywhere');
   has(g, /localStorage\.setItem\('koro\.look'/, 'kept between visits');
   has(t, /data-a="look"/, 'and TSH\'s pause menu has it');
+});
+
+test('the lab is drawn like Into the Spider-Verse: a Psi field with real depth to it, a room full of things, its own light, and a comic grade', () => {
+  const lab = read('public/tshlab.js'), sch = read('public/tshschool.js'), look = read('public/tshlook.js'), html = read('public/index.html');
+  assert.ok(html.indexOf('tshlab.js') > 0 && html.indexOf('tshlab.js') < html.indexOf('tshschool.js'), 'the lab loads before the school that builds it');
+  // the field: plasma with krackle in it, outlined, a lattice, shells, krackle dots, lightning, shockwaves, a burst, glass, beams
+  ['function coreMat(', 'Kirby', 'float blot', 'L.ink = ', 'L.lattice', 'L.shells', 'function krackleMat(', 'L.bolts', 'L.waves', 'L.burst', '{ hex:true, scan:true', 'function beamMat(', 'the focus ring'].forEach(b => assert.ok(lab.includes(b), 'the field has ' + b));
+  // the room
+  ['function floorTex(', 'TSHLOOK.wet(fm', 'function panelTex(', 'function blindsTex(', 'L.dust', 'cable trays', 'THE MONITOR WALL', 'THE RACKS', 'THE PHYSICS BENCH', 'Tesla coil', 'THE TOOL WALL', 'THE WINDOW BENCH', 'hologram', 'E-STOP', 'function whiteboard(', 'function poster('].forEach(b => assert.ok(lab.includes(b), 'the room has ' + b));
+  has(lab, /L\.light\.mul = 0\.75 \+ pulse\*0\.55;/, 'the field\'s light flickers with it');
+  has(lab, /new THREE\.CapsuleGeometry/, 'the prototype is not boxes any more');
+  // the light and the grade, only in here, and put back on the way out
+  has(sch, /function labMood\(want, dt\)/, 'the lab has its own light');
+  has(sch, /G\.scene\.environmentIntensity = l\(B\.env, 0\.2\);/, 'the day\'s reflections dimmed, or it washes out');
+  has(sch, /if\(k === 0 && want === 0\) base = null;/, 'the day put back');
+  ['uComic', 'off register', 'Ben-Day', 'hatching', 'posterised'].forEach(b => assert.ok(look.includes(b), 'the comic grade has ' + b));
 });
