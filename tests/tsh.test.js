@@ -111,12 +111,14 @@ test('every piece of the kit says what it does and what uses it', () => {
   assert.ok(A.CRIMES.gear, 'using the cuffs where WFC can see is a crime of its own');
 });
 
-test('the grip reaches a high roof but not the two towers', () => {
+test('the grip has no time limit, and SHIFT climbs faster', () => {
   const { GRIP } = rules();
-  const reach = GRIP.hold*GRIP.up;
-  assert.ok(reach >= 16 + 2, 'the ending wants a roof over 16 m: the cuffs have to be one way up');
-  assert.ok(reach < 26, 'if nothing is out of reach the grip is not a limit at all');
-  assert.ok(GRIP.regen > 1, 'the film comes back on the ground in a few seconds');
+  assert.strictEqual(GRIP.limit, false, 'the film runs out again — Manhattan\u2019s walls are far higher than it lasts');
+  assert.ok(GRIP.fast > 1.5, 'SHIFT does not climb noticeably faster');
+  const tsh = read('public/tsh.js');
+  assert.match(tsh, /const fast = \(k\.ShiftLeft \|\| k\.ShiftRight\) \? AI\.GRIP\.fast : 1;/);
+  assert.match(tsh, /if\(\/\^climb_\(up\|down\|top\|start\)\$\/\.test\(name\)\) inPlace\(name\);/, 'the climbing clips still carry their own rise and snap back');
+  assert.match(tsh, /sc\.land = landing\(sc\)/, 'the pull-up lands wherever it lands, inside whatever is on the roof');
 });
 
 test('the opening is a film: the call, her room, the kit, the note, the window — and then she is falling', () => {
@@ -194,7 +196,7 @@ test('Robin carries the wall-climbing clips, and the cuffs play them', () => {
   ['climb_up', 'climb_down', 'climb_start', 'climb_top'].forEach(n => assert.ok(names.includes(n), 'character-w.glb has no ' + n + ' — see glb files/README.md, Robin climbs walls'));
   ['idle', 'walk', 'sprint', 'jump', 'talk', 'talk2', 'walk_left', 'ride'].forEach(n => assert.ok(names.includes(n), 'merging the climbs dropped ' + n));
   const t = read('public/tsh.js');
-  has(t, /wallClip\(dt, 'climb_up', G_\.up\/G_\.clip\)/, 'the climb plays at the speed she climbs');
+  has(t, /wallClip\(dt, 'climb_up', G_\.up\/G_\.clip\*fast\)/, 'the climb plays at the speed she climbs');
   has(t, /wallClip\(dt, 'climb_top', 1\)/, 'the mantle is the braced hang');
   has(t, /wallClip\(dt, 'climb_start', 1\)/, 'the run-up is the sprint to the wall');
 });

@@ -312,14 +312,15 @@ window.TSHAI = (function(){
                does:'The buyer\'s. A shield in each, if the wearer knows how. ¥3,000 on delivery.' }
   };
   const KIT_ORDER = ['boots', 'cuffs', 'bangles', 'studs', 'rings'];
-  /* THE GRIP. Seconds of hold on a wall, how fast she goes up, down and
-     along it, how fast it comes back on the ground, and how fast she
-     slides when it gives out. A 15-second hold at 1.5 m/s is 22 metres:
-     every roof in the district but the two towers on the outer ring.
+  /* THE GRIP. How fast she goes up, down and along a wall, and how much
+     faster with SHIFT held (`fast`). There is NO TIME LIMIT any more: the
+     walls of Lower Manhattan run to two hundred metres, and a film that gave
+     out at twenty-two made every one of them a wall she could not climb.
+     `hold`, `regen` and `slide` are kept for the meter, which now stays full.
      `clip` is how far the climbing animation itself rises in a second
      (animations/WallStuff: 1.33 m a two-second loop); the clip plays at
      up/clip, so her hands keep pace with the wall going past. */
-  const GRIP = { hold:15, up:1.5, down:1.9, side:1.2, regen:2.5, slide:4.5, clip:0.67, leap:1.4 };
+  const GRIP = { hold:15, up:1.5, down:1.9, side:1.2, fast:2.4, regen:2.5, slide:4.5, clip:0.67, leap:1.4, limit:false };
 
   /* =========================================================== the trail
      Everything that could lead Maya to your door, and what she knows

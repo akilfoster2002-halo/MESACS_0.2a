@@ -80,9 +80,10 @@ window.TSHNYC = (function(){
           float upright = 1.0 - smoothstep(0.25, 0.55, abs(fn.y));
           // night: the photograph's colour, all but put out, and tinted by the haze
           float lum = dot(tex, vec3(0.299, 0.587, 0.114));
-          vec3 night = mix(vec3(lum), tex, 0.4) * vec3(0.5, 0.92, 0.88) * 0.3;
-          night *= 0.6 + 0.4*smoothstep(0.0, 160.0, vWp.y);            // the street floors are the darkest
+          vec3 night = mix(vec3(lum), tex, 0.4) * vec3(0.5, 0.92, 0.88) * 0.45;
+          night *= 0.75 + 0.25*smoothstep(0.0, 160.0, vWp.y);          // the street floors are a little darker
           night += vec3(0.004, 0.018, 0.016) * (1.0 - upright);         // roofs catch the sky
+          night += vec3(0.022, 0.05, 0.045) * upright * (0.6 + 0.4*tex.g); // the street's teal light, on walls the lamps cannot reach
           // the windows, in world metres, on every upright face
           vec2 t2 = normalize(vec2(-fn.z, fn.x) + 1e-5);
           float along = dot(vWp.xz, t2);

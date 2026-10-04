@@ -496,6 +496,7 @@ window.AVATAR = (function(){
       /* An emote can only be offered by a character who actually has one,
          and it has to know how long to hold before handing control back. */
       has(name){ return clips.some(c=>c.name===name); },
+      clip(name){ return clips.find(c=>c.name===name) || null; },
       seconds(name){ const c=clips.find(x=>x.name===name); return c?c.duration/(speed[name]||1):0; },
       /* more clips, from another file on the same skeleton; `o.once` the ones that are moves, `o.speed` their rates */
       add(list, o){

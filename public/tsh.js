@@ -685,10 +685,11 @@ window.TSH = (function(){
       Object.assign(LOOK.fx, { bloom:0.18, vig:0.28 }); LOOK.fx.gain.set(1.04, 1.0, 0.95); LOOK.setWet(0.18);
       if(W && W.sky && W.sky.material){ const m = W.sky.material; if(!m.userData.night) m.userData.night = m.map; m.map = daySky(); m.needsUpdate = true; }
     } else {
-      G.amb.color.setHex(0x1f5a50); G.amb.intensity = 0.42;
-      G.hemi.color.setHex(0x46b8a4); G.hemi.groundColor.setHex(0x0a1210); G.hemi.intensity = 0.85;
-      G.sun.color.setHex(0x7af0dc); G.sun.intensity = 0.7;
-      G.renderer.toneMappingExposure = 0.95;
+      // brighter than it was: the streets of Manhattan are wide and long, and too dark to find your way down
+      G.amb.color.setHex(0x2a6a5e); G.amb.intensity = 0.62;
+      G.hemi.color.setHex(0x52c4b0); G.hemi.groundColor.setHex(0x16241f); G.hemi.intensity = 1.15;
+      G.sun.color.setHex(0x7af0dc); G.sun.intensity = 0.9;
+      G.renderer.toneMappingExposure = 1.2;
       Object.assign(LOOK.fx, { bloom:0.75, vig:0.55 }); LOOK.fx.gain.set(0.93, 1.03, 1.0); LOOK.setWet(1);
       if(W && W.sky && W.sky.material && W.sky.material.userData.night){ const m = W.sky.material; m.map = m.userData.night; m.userData.night = null; m.needsUpdate = true; }
     }
@@ -907,9 +908,9 @@ window.TSH = (function(){
 
   /* --------------------------------------------------- the Gecko cuffs
      G, facing a building's wall and close to it: palms on the wall, and
-     up. W and S climb, A and D move along it, SPACE lets go. The film
-     holds for GRIP.hold seconds and gets them back on the ground; run out
-     and she slides down. At the top she pulls herself onto the roof.
+     up. W and S climb, A and D move along it, SHIFT does it all faster,
+     SPACE lets go. There is no time limit: she holds as long as you do.
+     At the top she pulls herself onto the roof.
      WFC who see it happen see illegal wearables in use, and anybody on
      the pavement with a phone sees something worth filming. */
   const grip = { left:AI.GRIP.hold, seenT:0, wallT:0, wall:null };
@@ -934,7 +935,7 @@ window.TSH = (function(){
     // sprinting at a wall, she leaps onto it from a few steps out
     const run = P().running, w = wallAt() || (run ? wallAt(4.5) : null);
     if(!w){ note('🦎 Face a building\'s wall, close up — or sprint at one — and G grips it.', 'warn'); return; }
-    if(grip.left < 1.5){ note('🦎 The film needs a rest — a few seconds on the ground.', 'warn'); cue('fail'); return; }
+    if(AI.GRIP.limit && grip.left < 1.5){ note('🦎 The film needs a rest — a few seconds on the ground.', 'warn'); cue('fail'); return; }
     const s = w.s, along = w.nx ? 'z' : 'x';
     const lo = (along === 'z' ? s.z1 : s.x1) + 0.4, hi = (along === 'z' ? s.z2 : s.x2) - 0.4;
     me.scale = { s, nx:w.nx, nz:w.nz, along, a:clamp(along === 'z' ? G.pos.z : G.pos.x, lo, hi), lo, hi, y:feet(), top:s.y2, mantle:null, leap:null };
@@ -950,12 +951,45 @@ window.TSH = (function(){
      baked into her model (character-x.glb). The clip plays at the speed
      she is moving — frozen when she hangs still — so her hands keep pace
      with the wall. A model from before the clips were baked walks up it. */
+  /* IN PLACE. The climbing clips were baked with the climb in them: over one
+     loop the hips rise a metre and more, and then the loop starts again and
+     they drop back to the bottom — while the wall moves her up as well. So
+     every cycle she lurched up and fell back, and the pull-up onto the roof
+     ended a metre high and dropped. The steady travel is taken out of the
+     hips (the bob of each reach stays), once per clip, and the code that
+     moves her does all the moving. */
+  function inPlace(name){
+    const r = AVATAR.model && AVATAR.model.userData && AVATAR.model.userData.rig, c = r && r.clip && r.clip(name);
+    if(!c || c.userData && c.userData.inPlace) return;
+    c.userData = Object.assign(c.userData || {}, { inPlace:true });
+    const t = c.tracks.find(t=>/Hips\.position$/.test(t.name)); if(!t || t.times.length < 2) return;
+    const v = t.values, n = t.times.length, T = t.times[n-1] - t.times[0] || 1;
+    for(const ax of [0, 1, 2]){ const d = v[(n-1)*3 + ax] - v[ax]; for(let i=0;i<n;i++) v[i*3 + ax] -= d*(t.times[i] - t.times[0])/T; }
+  }
   function wallClip(dt, name, speed){
     if(!window.AVATAR) return;
+    if(/^climb_(up|down|top|start)$/.test(name)) inPlace(name);        // every climbing clip: the code lifts her, the clip only moves her
     if(AVATAR.can && AVATAR.can(name)){ AVATAR.posture(name); AVATAR.update(dt*speed, false, false, true); return; }
     AVATAR.posture(speed ? null : 'jump'); AVATAR.gait(0, 1); AVATAR.update(dt, !!speed, false, true);
   }
   // where she is on the wall: `off` metres out from it (negative is onto the roof)
+  /* WHERE SHE COMES UP. A roof has things on it — a water tank, a vent, the
+     sign's frame — and the spot straight over the hands is often inside one.
+     Landing there, the shoes pushed her out of it in a single frame: a
+     three-metre jump sideways at the top of every such climb. So the
+     landing is chosen before she pulls herself up — straight in if it is
+     clear, else a little further in or along — and she is pulled to it. */
+  function landing(sc){
+    const top = sc.top, clear = (x, z) => !G.solids.some(o=>o !== sc.s && !o.off && o.y2 > top + 0.2 && o.y1 < top + 1.6 &&
+                                                          x > o.x1 - 0.45 && x < o.x2 + 0.45 && z > o.z1 - 0.45 && z < o.z2 + 0.45);
+    const rx = sc.nz, rz = -sc.nx;
+    for(const off of [-1.3, -2.1, -3.0, -4.0]) for(const side of [0, 0.9, -0.9, 1.8, -1.8, 2.8, -2.8]){
+      const [x, z] = scalePos(sc, off), px = x + rx*side, pz = z + rz*side;
+      if(px < sc.s.x1 || px > sc.s.x2 || pz < sc.s.z1 || pz > sc.s.z2) continue;   // still on this roof
+      if(clear(px, pz)) return [px, pz];
+    }
+    return null;
+  }
   function scalePos(sc, off){
     const s = sc.s;
     return [sc.along === 'x' ? sc.a : (sc.nx < 0 ? s.x1 - off : s.x2 + off),
@@ -975,7 +1009,7 @@ window.TSH = (function(){
     }
     if(sc.mantle){                                                 // the braced hang, pulled up into a crouch on the roof
       const m = sc.mantle; m.t += dt/1.13;                         // climb_top is 1.13 s
-      const q = Math.min(1, m.t), [ix, iz] = scalePos(sc, -0.9), up = Math.min(1, q/0.7), fwd = clamp((q - 0.45)/0.55, 0, 1);
+      const q = Math.min(1, m.t), [ix, iz] = sc.land || scalePos(sc, -0.9), up = Math.min(1, q/0.7), fwd = clamp((q - 0.45)/0.55, 0, 1);
       G.pos.set(lerp(m.x, ix, fwd), lerp(m.y, sc.top, up*(2 - up)) + EYE_, lerp(m.z, iz, fwd));
       wallClip(dt, 'climb_top', 1);
       if(typeof thirdPerson === 'function') thirdPerson();
@@ -983,24 +1017,25 @@ window.TSH = (function(){
       return;
     }
     const k = G.keys, up = k.KeyW || k.ArrowUp, dn = k.KeyS || k.ArrowDown, lf = k.KeyA || k.ArrowLeft, rt = k.KeyD || k.ArrowRight;
-    grip.left = Math.max(0, grip.left - dt);
+    if(AI.GRIP.limit) grip.left = Math.max(0, grip.left - dt);    // no time limit now: the meter stays full
     const slip = grip.left <= 0;
     if(slip && !sc.slipped){ sc.slipped = true; cue('fail'); note('🦎 The film gives out — sliding.', 'warn'); }
-    const vy = slip ? -AI.GRIP.slide : (up ? AI.GRIP.up : 0) - (dn ? AI.GRIP.down : 0);
+    const fast = (k.ShiftLeft || k.ShiftRight) ? AI.GRIP.fast : 1;        // SHIFT: hand over hand, quicker
+    const vy = slip ? -AI.GRIP.slide : ((up ? AI.GRIP.up : 0) - (dn ? AI.GRIP.down : 0))*fast;
     // along the wall, to her right as she faces it
-    const rx = sc.nz, rz = -sc.nx, side = slip ? 0 : ((rt ? 1 : 0) - (lf ? 1 : 0))*AI.GRIP.side*dt;
+    const rx = sc.nz, rz = -sc.nx, side = slip ? 0 : ((rt ? 1 : 0) - (lf ? 1 : 0))*AI.GRIP.side*fast*dt;
     sc.a = clamp(sc.a + side*(sc.along === 'x' ? rx : rz), sc.lo, sc.hi);
     sc.y += vy*dt;
     const [bx, bz] = scalePos(sc, 1.0), base = groundAt(bx, bz, sc.y + 0.6);
     if(sc.y <= base){ sc.y = base; if(dn || slip) return offWall(base); }
-    if(sc.y >= sc.top - 1.3 && up && !slip){ const [x, z] = scalePos(sc, 0.5); sc.mantle = { t:0, x, y:sc.y, z }; cue('step'); return; }
+    if(sc.y >= sc.top - 1.3 && up && !slip){ const [x, z] = scalePos(sc, 0.5); sc.land = landing(sc); sc.mantle = { t:0, x, y:sc.y, z }; cue('step'); return; }
     const [x, z] = scalePos(sc, 0.5);
     G.pos.set(x, sc.y + EYE_, z);
     G.yaw = Math.atan2(sc.nx, sc.nz);
     const G_ = AI.GRIP;
     if(slip) wallClip(dt, 'climb_down', 1.5);
-    else if(vy > 0) wallClip(dt, 'climb_up', G_.up/G_.clip);
-    else if(vy < 0) wallClip(dt, 'climb_down', G_.down/G_.clip);
+    else if(vy > 0) wallClip(dt, 'climb_up', G_.up/G_.clip*fast);
+    else if(vy < 0) wallClip(dt, 'climb_down', G_.down/G_.clip*fast);
     else wallClip(dt, 'climb_up', side ? 1.6 : 0);                 // along the wall; still, a held pose
     if(typeof thirdPerson === 'function') thirdPerson();
     grip.seenT -= dt; if(grip.seenT <= 0){ grip.seenT = 1; scaleSeen(); }
@@ -1012,7 +1047,7 @@ window.TSH = (function(){
     if(window.AVATAR) AVATAR.posture(null);
     cuffGlow(false);
     if(y === null){
-      const [x, z] = scalePos(sc, -1.3);
+      const [x, z] = sc.land || scalePos(sc, -1.3);
       G.pos.set(x, sc.top + EYE_, z); G.vel.set(0, 0, 0); G.onGround = true;
       if(!S.flags.firstRoof){ S.flags.firstRoof = true; talk([['robin', 'Still holds.']]); note('🦎 Any wall, any roof. Up here nobody looks — and the roofs go round the checkpoint.', 'big'); }
       return;
@@ -5155,7 +5190,7 @@ window.TSH = (function(){
     const cp = !busy && S.step === 'raid' && window.TSHCHASE && TSHCHASE.on ? TSHCHASE.prompt() : null;
     if(cp){ if(pr.innerHTML !== cp) pr.innerHTML = cp; pr.classList.remove('hidden'); }
     else if(n){ const v = typeof n.verb === 'function' ? n.verb() : n.verb; const h = `<kbd>E</kbd><span>${n.icon ? n.icon+' ' : ''}${esc(v)}</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
-    else if(mode === 'scale'){ const h = `<kbd>W</kbd><span>🦎 climb</span><kbd>S</kbd><span>down</span><kbd>Space</kbd><span>let go</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
+    else if(mode === 'scale'){ const h = `<kbd>W</kbd><span>🦎 climb</span><kbd>Shift</kbd><span>faster</span><kbd>S</kbd><span>down</span><kbd>Space</kbd><span>let go</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(!mode && !busy && grip.wall){
       const h = `<kbd>G</kbd><span>🦎 ${grip.leapTo ? 'Leap onto the wall' : 'Scale the wall'} · ${Math.round(grip.wall.s.y2 - feet())} m</span>`; if(pr.innerHTML !== h) pr.innerHTML = h; pr.classList.remove('hidden'); }
     else if(mode === 'hide'){ pr.innerHTML = '<kbd>E</kbd><span>Climb out</span>'; pr.classList.remove('hidden'); }
