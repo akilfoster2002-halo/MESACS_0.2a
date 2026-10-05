@@ -233,11 +233,57 @@ window.TSH = (function(){
     best:      [['teacher','You could be one of the best roboticists I\'ve ever taught.']],
     mom:       [['teacher','Your mom knows how talented you are.'], ['teacher','She\'d be proud to see what you\'re capable of.']],
     yeah:      [['robin','Yeah.']],
-    toClass:   [['robin','I should get to class.']]
+    toClass:   [['robin','I should get to class.']],
+    /* ---------------------------------------------------- AFTER SCHOOL: Theo */
+    whatBroke: [['robin','What did you break?'], ['theo','I didn\'t break anything.'], ['robin','You absolutely broke something.'],
+                ['theo','I prefer "created an opportunity for improvement."'], ['robin','That\'s the most engineer way possible to say "I broke something."']],
+    needHelp:  [['theo','Okay. I need your help.'], ['robin','That\'s why you texted me?'], ['theo','Among other things.']],
+    whatPause: [['robin','What?'], ['theo','Nothing.'], ['theo','The launcher isn\'t working.']],
+    motor:     [['robin','What motor are you using?'], ['robin','This.'], ['theo','What\'s wrong with it?'], ['robin','It\'s too weak.'], ['theo','I knew that.'],
+                ['robin','Then why did you use it?'], ['theo','I didn\'t have anything better.'], ['robin','You have three other motors.'],
+                ['theo','Those are for something else.'], ['robin','What?'], ['theo','I don\'t know yet.'], ['robin','That\'s what I thought.']],
+    tryIt:     [['robin','Okay. Try it.']],
+    clang:     [['theo','Don\'t laugh.'], ['robin','I\'m not.'], ['theo','You\'re literally laughing.'], ['robin','I\'m diagnosing.'],
+                ['theo','You\'re laughing while diagnosing.'], ['robin','Multitasking.']],
+    again:     [['robin','Wait.'], ['theo','What?'], ['robin','Do it again.'], ['theo','Why?'], ['robin','Just do it.']],
+    there:     [['robin','There.'], ['robin','It\'s pulling against itself.'], ['theo','What does that mean?']],
+    diagram:   [['robin','The motor is fine. The launch is fine.'], ['robin','But when the hook comes out, the whole housing shifts.'],
+                ['robin','So you lose your angle.'], ['theo','So how do we fix it?'], ['robin','We stabilize it.'], ['robin','Here.']],
+    yes:       [['robin','Yes!']],
+    obviously: [['robin','I mean...'], ['robin','Obviously.'], ['theo','You\'re such a nerd.'], ['robin','You called me.'], ['theo','I know.']],
+    whyCalled: [['theo','That\'s why I called you.'], ['robin','Because I\'m a nerd?'], ['theo','Because you\'re good at this.']],
+    oh:        [['robin','Oh.']],
+    forYou:    [['theo','You know what I was thinking?'], ['robin','That\'s usually dangerous.'], ['theo','You should build something for yourself.'],
+                ['robin','What do you mean?'], ['theo','You\'re always building stuff for other people.'], ['theo','Or helping me with my projects.'],
+                ['robin','They\'re not that bad.'], ['theo','You know what I mean.']],
+    different: [['theo','You\'re really good at this, Robin.'], ['robin','It\'s just engineering.'], ['theo','No.'], ['theo','You\'re different.']],
+    weird:     [['robin','That\'s a weird thing to say.'], ['theo','It\'s true.']],
+    comeOn:    [['robin','Come on.'], ['theo','Where?'], ['robin','You wanted your stupid machine fixed.'], ['robin','It\'s fixed.'], ['theo','Right.']],
+    thatGirl:  [['theo','Oh, speaking of building things...'], ['robin','What?'], ['theo','Have you heard about that girl?'], ['robin','What girl?'],
+                ['theo','The vigilante.'], ['robin','Oh.'], ['theo','You know who I\'m talking about.'], ['robin','Not really.'],
+                ['theo','She\'s been showing up all over the city.'], ['robin','Sounds like a lot of work.']],
+    shoes:     [['theo','Apparently she has these insane shoes.'], ['robin','Shoes?'], ['theo','Yeah.'], ['theo','Apparently they can launch her into the air.']],
+    dangerous: [['robin','That sounds dangerous.'], ['theo','It sounds awesome.'], ['robin','I guess.'], ['theo','Someone said she can bound across entire buildings.'],
+                ['robin','People exaggerate.'], ['theo','Maybe.'], ['theo','Still.'], ['theo','Whoever made those things is seriously talented.']],
+    yeahHer:   [['robin','Yeah.'], ['theo','You\'d probably like them.'], ['robin','Why?'], ['theo','Because they\'re basically engineering disguised as fashion.'],
+                ['robin','That\'s actually...'], ['robin','Never mind.'], ['theo','What?'], ['robin','Nothing.']],
+    smiling:   [['theo','You\'re smiling.'], ['robin','No, I\'m not.'], ['theo','You are.'], ['robin','It\'s sunny.']],
+    cloudy:    [['theo','It\'s really not.'], ['robin','You have homework.'], ['theo','That doesn\'t even make sense.'], ['robin','Sure it does.'],
+                ['theo','You\'re weird.'], ['robin','You like it.']],
+    imean:     [['robin','I mean...'], ['robin','You like weird engineering people.'], ['theo','Yeah.'], ['theo','I do.']],
+    momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
+    momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
+    momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
+    momPhone4: [['robin','Love you too.']],
+    walkYou:   [['theo','Everything okay?'], ['robin','Yeah.'], ['theo','Want me to walk you?'], ['robin','I\'ll survive.'], ['theo','I know.']],
+    textMe:    [['theo','Text me when you get home.'], ['robin','Why?'], ['theo','Because I said so.'], ['robin','That\'s not how that works.'], ['theo','Just do it.']],
+    weirdo:    [['robin','Weirdo.']],
+    robinQ:    [['momhome','Robin?'], ['robin','Yeah?'], ['momhome','Dinner.']],
+    coming:    [['robin','Coming.']]
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
-                momcall:['MOM','#9fd8ff'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
+                momcall:['MOM','#9fd8ff'], momhome:['MOM','#9fd8ff'], theo:['THEO','#a8f0b8'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -482,8 +528,9 @@ window.TSH = (function(){
       if(['sneak', 'detention', 'after'].includes(S.step) && W.school){ intoSchool();
         if(S.step === 'sneak'){ const ls = W.school.spots.lobbyStop; placePlayer(ls[0], ls[1] + 0.4, 0); later(()=>{ if(on && S.step === 'sneak') sneakBegin(); }, 400); }
         else later(()=>{ if(on) detention(); }, 400); }
-      // the afternoon, after: hers to walk about in
-      if(S.step === 'day'){ setObjective('', []); later(()=>{ if(on) headphones(true); }, 1500); }
+      // after school: Theo on the bench; the way home
+      if(S.step === 'courtyard' || S.step === 'day'){ if(S.step === 'day') S.step = 'courtyard'; later(()=>{ if(on) courtyardBegin(true); }, 400); }
+      if(S.step === 'gethome' || S.step === 'evening'){ if(S.step === 'evening') S.step = 'gethome'; later(()=>{ if(on) gethomeBegin(true); }, 400); }
       return;
     }
     if(S.step === 'wake'){ later(()=>{ if(on && S.step === 'wake') scene('wake', opening); }, 300); return; }
@@ -1240,11 +1287,11 @@ window.TSH = (function(){
   /* -------------------------------------------------------- the phone
      Her phone, big, in front of the black: who is calling, then the call. */
   let ringT = null;
-  function phoneBig(kind){
+  function phoneBig(kind, who){
     const p = el.querySelector('#tshPhoneBig'); if(!p) return;
     if(!kind){ p.classList.remove('on', 'buzz'); return; }
-    const lock = (inner) => `<div class="pb-screen"><div class="pb-top"><span>${kind === 'call' || kind === 'oncall' ? '22:15' : AI.clock(S.t)}</span><span>▮▮▮ 18%</span></div>${inner}</div>`;
-    if(kind === 'call') p.innerHTML = lock(`<div class="pb-caller"><small>incoming call</small><b>UNKNOWN</b><span>mobile</span></div><div class="pb-btns"><i class="no">✕</i><i class="yes">✆</i></div>`);
+    const lock = (inner) => `<div class="pb-screen"><div class="pb-top"><span>${day() ? dclock(S.dm || 15*60) : kind === 'call' || kind === 'oncall' ? '22:15' : AI.clock(S.t)}</span><span>▮▮▮ 18%</span></div>${inner}</div>`;
+    if(kind === 'call') p.innerHTML = lock(`<div class="pb-caller"><small>incoming call</small><b>${esc(who || 'UNKNOWN')}</b><span>mobile</span></div><div class="pb-btns"><i class="no">✕</i><i class="yes">✆</i></div>`);
     // after the fight in Dragon Alley: a text from a number she does not know, and her answer
     if(kind === 'text' || kind === 'reply') p.innerHTML = lock(`<div class="pb-note"><small>MESSAGES · NOW</small><b>Unknown number</b><p>${esc(LINES.fightText[0][1].replace(/^📱\s*/, ''))}</p></div>`
       + (kind === 'reply' ? `<div class="pb-note me"><p>${esc(LINES.fightOut5[0][1])}</p></div>` : ''));
@@ -1252,7 +1299,7 @@ window.TSH = (function(){
     if(kind === 'time' && !day()) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ 3%</span></div><div class="pb-caller"><small>${esc(AI.clock(S.t).replace(/^0/, ''))} AM</small><b>${esc(AI.clock(S.t).replace(/^0/, ''))}</b><span>⏰ School · 7:15 AM</span></div></div>`;
     // the morning after: how late she is
     if(kind === 'late' || (kind === 'time' && day())) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ ${kind === 'late' ? 2 : 1}%</span></div><div class="pb-caller"><small>${esc(dclock(S.dm))} AM</small><b>${esc(dclock(S.dm))}</b><span>${kind === 'late' ? '⏰ 7:15 AM · snoozed' : ''}</span><span>🏫 School · 8:00 AM</span></div></div>`;
-    if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>UNKNOWN</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
+    if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>${esc(who || 'UNKNOWN')}</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
     p.classList.add('on'); p.classList.toggle('buzz', kind === 'call');
   }
   function ringing(on_){
@@ -1631,7 +1678,7 @@ window.TSH = (function(){
   /* HER SECRET. From the scene with her teacher on, it is the school day and she is just Robin: the shoes are
      on her feet but their powers are not used — an ordinary walk and an ordinary jump — because the shoes are
      the part of her nobody at school can know about. */
-  function shoesHidden(){ return day() && (S.step === 'after' || S.step === 'day'); }
+  function shoesHidden(){ return day() && (S.step === 'after' || S.step === 'day' || S.step === 'courtyard' || (S.step === 'gethome' && !S.flags.shoesBack)); }
   function bootsOn(){
     if(!window.BOOTS) return;
     swingClips();
@@ -1938,7 +1985,8 @@ window.TSH = (function(){
     kai:    { walk:1.45, run:6.4, eye:{ range:22, fov:1.0, near:3.5, gain:1.4 } },
     maya:   { walk:1.1,  run:4.0, eye:{ range:14, fov:1.2, near:4.0, gain:1.2 } },
     vendor: { walk:1.1,  run:5.3, eye:{ range:10, fov:1.0, near:2.0, gain:0.6 } },
-    school: { walk:1.15, run:4.0, eye:{ range:9, fov:1.2, near:2.0, gain:0 } }     // the school's people (tshschool.js moves them; nobody there is looking for YU)
+    school: { walk:1.15, run:4.0, eye:{ range:9, fov:1.2, near:2.0, gain:0 } },    // the school's people (tshschool.js moves them; nobody there is looking for YU)
+    friend: { walk:1.2,  run:4.0, eye:{ range:0, fov:0, near:0, gain:0 } }           // Theo: the scene moves him
   };
   /* MAYA, as she dresses: her body is the base layer; each of these is its own garment and comes off */
   const MAYA_LOOK = { top:'red-turtleneck', bottom:'navy-trousers', shoes:'black-boots', outer:'lab-coat', face:'round-glasses' };
@@ -2076,7 +2124,7 @@ window.TSH = (function(){
     return 0;
   }
   function perceive(n, dt){
-    if((n.kind === 'civ' && !n.film) || n.kind === 'school') { n.sees = false; return; }
+    if((n.kind === 'civ' && !n.film) || n.kind === 'school' || n.kind === 'friend') { n.sees = false; return; }
     if(n.stun > 0 || n.climb){ n.sees = false; n.aware = Math.max(0, n.aware - 0.2*dt); return; }
     const p = P();
     if(me.hidden || mode === 'talk' || mode === 'fight' || mode === 'reel' || inside !== n.inApt){ n.sees = false; decay(n, dt); return; }
@@ -2317,6 +2365,7 @@ window.TSH = (function(){
     else if(n.kind === 'maya') tickMaya(n, dt);
     else if(n.kind === 'vendor') tickVendor(n, dt);
     else if(n.kind === 'school' && window.TSHSCHOOL) TSHSCHOOL.tickPerson(n, dt);
+    else if(n.kind === 'friend') tickFriend(n, dt);
     n.g.position.set(n.x, n.y, n.z); n.g.rotation.y = n.yaw;
     const far = Math.hypot(n.x - G.camera.position.x, n.z - G.camera.position.z);
     n.g.visible = !n.hidden && n.inApt === inside && far < 95;
@@ -2325,6 +2374,17 @@ window.TSH = (function(){
       AVATAR.animate(n.model, far < 60 ? dt : dt*3, clip);
       if(far < 25) npcFace(n, dt);
     }
+  }
+  /* A FRIEND (Theo): he sits, stands, walks with her and walks off, as the scene says — nothing of his own */
+  function tickFriend(n, dt){
+    if(n.go){ const g = n.go; g.t += dt; const k = Math.min(1, g.t/g.dur);
+      n.x = lerp(g.a[0], g.b[0], k); n.z = lerp(g.a[1], g.b[1], k);
+      if(g.back){ n.yaw = angTo(n.x, n.z, g.face[0], g.face[1]); n.clip = k < 1 ? 'walk_back' : 'idle'; }
+      else { n.yaw = angTo(g.a[0], g.a[1], g.b[0], g.b[1]); n.moving = k < 1; }
+      if(k >= 1) n.go = null; return; }
+    if(n.walking){ n.moving = true; return; }
+    if(n.faceTo) face(n, n.faceTo[0], n.faceTo[1], dt);
+    n.clip = n.pose || 'idle';
   }
   /* A FACE ON SOMEBODY ELSE (Maya's body has the shapes; glb files/face): she blinks, and while her line is up her
      mouth moves — as loud as her voice when it is recorded, a talker's rhythm when it is not */
@@ -2535,7 +2595,7 @@ window.TSH = (function(){
 
   /* ============================================================ populate
      Who is out tonight, and where — by the clock and by the beat. */
-  const CIV = ['nia','theo','zuri','walk-s','walk-t','walk-u','walk-v','walk-x'];
+  const CIV = ['nia','zuri','walk-s','walk-t','walk-u','walk-v','walk-x'];          // not theo: he is Theo (after school)
   function populate(){
     if(day()) return dayPopulate();
     clearNpcs();
@@ -2547,7 +2607,7 @@ window.TSH = (function(){
     spawnDrone([[-41.5, -47], [-41.5, -13], [-60, -8], [-60, -47]], { name:'dAlley', speed:3.4, hover:{ 1:6, 3:4 } });
     spawnDrone([[62, 30], [62, 70], [100, 48], [40, 48]], { name:'dHarbor', speed:3.6, hover:{ 0:4 } });
     // two officers walking beats
-    const o1 = spawn('wfc', 'theo', -60, -48, { state:'patrol', route:[[-60,-48],[60,-48],[60,-8],[-8,-8],[-8,-48]], name:'beatN' }); o1.base = 'patrol';
+    const o1 = spawn('wfc', 'walk-s', -60, -48, { state:'patrol', route:[[-60,-48],[60,-48],[60,-8],[-8,-8],[-8,-48]], name:'beatN' }); o1.base = 'patrol';
     const o2 = spawn('wfc', 'walk-s', 59, 48, { state:'patrol', route:[[59,48],[59,12],[92,48],[40,48],[20,48]], name:'beatS' }); o2.base = 'patrol';
     // people
     const spots = [[-80,8],[-70,-8],[-30,-8],[-10,8],[15,-8],[25,8],[48,-8],[70,8],[90,-8],[-8,-30],[8,30],[-8,60],[8,-60],[-30,48],[30,-48],[80,48],[-90,48],[-59,20]];
@@ -2673,6 +2733,8 @@ window.TSH = (function(){
       case 'commute': { const o = s.schoolOverlook; return [o[0], o[1], o[2] + 1.2, 'School'] ; }
       case 'school': { const d = s.schoolDoor; return [d[0], d[1], 2.6, 'Harbor Lane High']; }
       case 'sneak': { const r = W.school && W.school.spots.room114; return r ? [r[0], r[1], 2.4, 'Room 114'] : null; }
+      case 'courtyard': return aftWatch === 'bench' ? [BENCH.x, BENCH.z, 2.2, 'Theo'] : null;
+      case 'gethome': return [73, 34, 14, 'Home'];
     }
     return null;
   }
@@ -3178,7 +3240,7 @@ window.TSH = (function(){
     dr.pin = [B[0] + Math.sin(ry)*2.6, B[1] + Math.cos(ry)*2.6]; dr.yT = 20; dr.state = 'patrol';
     // the squad, in the vans until they get out
     const RING = [[-49.0, -4.6], [-48.0, -8.8], [-51.5, -6.6], [-46.5, -2.6]];
-    const cops = RING.map((r, i)=>{ const v = VW; const n = spawn('wfc', ['walk-t', 'theo', 'walk-x', 'nia'][i], v[0], v[1] - 1.6, { name:'raid' + i, state:'cut' });
+    const cops = RING.map((r, i)=>{ const v = VW; const n = spawn('wfc', ['walk-t', 'walk-s', 'walk-x', 'nia'][i], v[0], v[1] - 1.6, { name:'raid' + i, state:'cut' });
       n.hidden = true; n.home = v.slice(); n.base = 'search'; return n; });
     const out_ = k => cops.forEach((n, i)=>{ const v = VW; n.hidden = false; n.x = lerp(v[0], RING[i][0], k); n.z = lerp(v[1] - 1.6, RING[i][1], k); n.yaw = Math.atan2(B[0] - n.x, B[1] - n.z); n.cutClip = k < 1 ? 'sprint' : 'idle'; });
     const head = (x, z, y) => [x, y || 1.55, z];
@@ -4105,7 +4167,7 @@ window.TSH = (function(){
     // everybody else getting out
     [[1.5, -1.2], [-2.4, -2.0], [3.2, -3.4], [-4.5, -3.6], [2.0, -5.2], [-1.0, -6.0], [5.0, -2.2]].forEach(([a, b], i)=>{
       if(find('out' + i)) return;
-      const c = spawn('civ', ['walk-s', 'walk-t', 'walk-u', 'walk-v', 'walk-x', 'theo', 'zuri'][i], d[0] + a, d[1] + b, { name:'out' + i, state:'stand', phone:i % 2 === 0 });
+      const c = spawn('civ', ['walk-s', 'walk-t', 'walk-u', 'walk-v', 'walk-x', 'nia', 'zuri'][i], d[0] + a, d[1] + b, { name:'out' + i, state:'stand', phone:i % 2 === 0 });
       c.faceTo = [d[0] + a + (i % 2 ? 1 : -1), d[1] + b - 1]; });
     const shots = [
       // through the doors, into the sun
@@ -4130,10 +4192,367 @@ window.TSH = (function(){
       placePlayer(far[0], far[1], -Math.PI/2);
       if(S.step === 'after') outcome('out');
       setObjective('', []);
-      note('The rest of the day is hers.');
-      headphones(true);
       checkpoint(); lockPointer($('#view'));
+      courtyardBegin(false);
     }, { ownClock:true });
+  }
+
+  /* =================================================== AFTER SCHOOL: THEO
+     The bell; "you coming?"; Theo on a bench outside the school with a launcher that will not launch.
+     She fixes it (the bench: the right motor, then the stabilizer), he says something she does not know
+     what to do with, he tells her about the girl with the shoes, her mother calls — and she goes home
+     the long way, over the roofs, once nobody from school can see. Then in at her window, and dinner,
+     and on the bench, the sketch of a pair of shoes. */
+  const BENCH = { x:-40.6, z:50.65 };                         // in front of the school, on Harbor Lane, facing north
+  const THEO_SEAT = [BENCH.x + 0.65, BENCH.z + 0.1], ROBIN_SEAT = [BENCH.x - 0.55, BENCH.z + 0.1], FRONT = [BENCH.x - 0.5, BENCH.z - 1.4];
+  const MUZZLE = [BENCH.x - 0.05, 0.62, BENCH.z - 0.32], TARGET = [BENCH.x - 0.05, 1.55, 44.08], CAN = [BENCH.x + 2.1, 44.9];
+  let aft = null;                                              // the props: bench, launcher, hook, can, target, paper
+  function afterProps(){
+    if(aft && aft.g.parent === W.cityGroup) return aft;
+    const g = new THREE.Group(); g.name = 'afterSchool'; W.cityGroup.add(g);
+    const M_ = CITY.M, wood = new THREE.MeshStandardMaterial({ color:0x6b4a2e, roughness:0.8 }), steel = M_.darkMetal;
+    const box = (m, x, y, z, w, h, d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
+    // the bench: slats, a back, iron ends
+    for(let k = 0; k < 3; k++) box(wood, BENCH.x, 0.46, BENCH.z - 0.16 + k*0.16, 2.4, 0.05, 0.13);
+    for(let k = 0; k < 2; k++) box(wood, BENCH.x, 0.72 + k*0.17, BENCH.z + 0.24, 2.4, 0.11, 0.04);
+    [-1.1, 1.1].forEach(dx=>{ box(steel, BENCH.x + dx, 0.23, BENCH.z, 0.06, 0.46, 0.5); box(steel, BENCH.x + dx, 0.66, BENCH.z + 0.24, 0.06, 0.5, 0.05); });
+    // the mess: tools, boards, wires, a bag with three motors in it
+    const board = new THREE.MeshStandardMaterial({ color:0x1d6a3a, roughness:0.6 }), tool = new THREE.MeshStandardMaterial({ color:0xc8c8c4, roughness:0.4, metalness:0.7 }), red = new THREE.MeshStandardMaterial({ color:0xb02a2a, roughness:0.5 });
+    box(board, BENCH.x + 1.0, 0.5, BENCH.z - 0.05, 0.22, 0.02, 0.16); box(board, BENCH.x - 0.95, 0.5, BENCH.z + 0.05, 0.18, 0.02, 0.14);
+    box(tool, BENCH.x + 0.9, 0.5, BENCH.z + 0.12, 0.2, 0.025, 0.03); box(red, BENCH.x + 0.95, 0.5, BENCH.z + 0.18, 0.08, 0.03, 0.03);
+    box(new THREE.MeshStandardMaterial({ color:0x2a3a4a, roughness:0.9 }), BENCH.x + 1.45, 0.17, BENCH.z - 0.2, 0.42, 0.34, 0.26);   // his bag
+    [[0xff4a3a, 0.4], [0x3ab0ff, 0.2], [0xffd24a, 0.6]].forEach(([c, dz], i)=>{ const w = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.7, 4), new THREE.MeshStandardMaterial({ color:c }));
+      w.rotation.z = Math.PI/2; w.rotation.y = 0.3 + i*0.4; w.position.set(BENCH.x + 0.4, 0.5, BENCH.z - 0.1 + dz*0.2); g.add(w); });
+    // the launcher: a housing, a barrel, a hook in it
+    const L_ = new THREE.Group(); L_.position.set(MUZZLE[0], 0.5, BENCH.z - 0.02); g.add(L_);
+    const hous = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.26), new THREE.MeshStandardMaterial({ color:0xd8d4c8, roughness:0.5 })); hous.position.y = 0.08; L_.add(hous);
+    const brl = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.26, 10), steel); brl.rotation.x = Math.PI/2; brl.position.set(0, 0.11, -0.2); L_.add(brl);
+    const stab = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.32), new THREE.MeshStandardMaterial({ color:0x38ffd0, emissive:0x0a3a30, roughness:0.4 })); stab.position.y = 0.0; stab.visible = false; L_.add(stab);
+    // the hook and its line, which fly
+    const hook = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 8), tool); hook.rotation.x = -Math.PI/2; hook.visible = false; g.add(hook);
+    const line = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1, 4), new THREE.MeshBasicMaterial({ color:0xeeeeee })); line.visible = false; g.add(line);
+    // the trash can it hits, and the target it is meant to
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.85, 14), new THREE.MeshStandardMaterial({ color:0x3a4a44, roughness:0.6, metalness:0.5 })); can.position.set(CAN[0], 0.43, CAN[1]); can.castShadow = true; g.add(can);
+    const tc = document.createElement('canvas'); tc.width = tc.height = 256; const tx = tc.getContext('2d');
+    ['#e8e2d4', '#c83a3a', '#e8e2d4', '#c83a3a', '#e8e2d4'].forEach((c, i)=>{ tx.fillStyle = c; tx.beginPath(); tx.arc(128, 128, 124 - i*24, 0, 7); tx.fill(); });
+    const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace;
+    const target = new THREE.Mesh(new THREE.CircleGeometry(0.42, 32), new THREE.MeshStandardMaterial({ map:tt, roughness:0.8 })); target.position.set(TARGET[0], TARGET[1], TARGET[2] + 0.01); g.add(target);
+    // her diagram, when she draws it
+    const pc = document.createElement('canvas'); pc.width = 512; pc.height = 384; const px = pc.getContext('2d');
+    px.fillStyle = '#f2efe6'; px.fillRect(0, 0, 512, 384); px.strokeStyle = '#2a2a34'; px.lineWidth = 4;
+    px.strokeRect(120, 150, 170, 80); px.strokeRect(290, 172, 120, 36); px.beginPath(); px.moveTo(410, 190); px.lineTo(470, 190); px.stroke();
+    px.setLineDash([10, 8]); px.strokeRect(108, 162, 170, 80); px.beginPath(); px.moveTo(410, 190); px.lineTo(470, 230); px.stroke(); px.setLineDash([]);
+    px.fillStyle = '#c82a2a'; px.font = '28px "Bradley Hand", "Marker Felt", cursive'; px.fillText('shifts →  angle off', 150, 300); px.fillText('STABILIZE', 180, 100);
+    const pt = new THREE.CanvasTexture(pc); pt.colorSpace = THREE.SRGBColorSpace;
+    const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.24), new THREE.MeshStandardMaterial({ map:pt, roughness:0.9 })); paper.rotation.x = -Math.PI/2; paper.position.set(BENCH.x - 0.15, 0.495, BENCH.z + 0.02); paper.visible = false; g.add(paper);
+    TSHLOOK.hideInMirror.push(line, hook);
+    aft = { g, L:L_, stab, hook, line, can, target, paper };
+    return aft;
+  }
+  /* the hook leaves the barrel and flies to `to` along a bend (`bend`: how far it swings off to the side), over `dur` seconds */
+  function fireHook(to, bend, dur, hit){
+    const a = afterProps(), from = MUZZLE.slice(), t0 = { t:0 };
+    a.hook.visible = a.line.visible = true; cue('launch');
+    return (dt)=>{
+      t0.t += dt; const k = Math.min(1, t0.t/dur), e = k*(2 - k);
+      const x = lerp(from[0], to[0], e) + Math.sin(k*Math.PI)*bend, y = lerp(from[1], to[1], e) + Math.sin(k*Math.PI)*0.35, z = lerp(from[2], to[2], e);
+      a.hook.position.set(x, y, z);
+      const dx = x - from[0], dy = y - from[1], dz = z - from[2], len = Math.max(0.01, Math.hypot(dx, dy, dz));
+      a.line.position.set(from[0] + dx/2, from[1] + dy/2, from[2] + dz/2); a.line.scale.set(1, len, 1);
+      a.line.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx/len, dy/len, dz/len));
+      a.hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx/len, dy/len, dz/len));
+      if(k >= 1 && !t0.hit){ t0.hit = true; if(hit) hit(); }
+    };
+  }
+  function hookAway(){ if(aft){ aft.hook.visible = aft.line.visible = false; } }
+  /* her phone, big, with a thread on it: [[who, text], …] — 'me' is Robin */
+  function phoneThread(name, msgs){
+    const p = el.querySelector('#tshPhoneBig'); if(!p) return;
+    if(!msgs){ p.classList.remove('on', 'buzz'); return; }
+    p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span>${esc(dclock(S.dm || 15*60))}</span><span>▮▮▮ 61%</span></div>` +
+      msgs.map(([w, t])=>w === 'me' ? `<div class="pb-note me"><p>${esc(t)}</p></div>` : `<div class="pb-note"><small>MESSAGES · NOW</small><b>${esc(name)}</b><p>${esc(t)}</p></div>`).join('') + '</div>';
+    p.classList.add('on'); p.classList.remove('buzz');
+  }
+  function theoNpc(){ return find('theo'); }
+  /* the end of a scene, played or skipped: nothing of it hangs about — lines still queued, the phone, the hook */
+  const aftDone = fn => skipped => { flushTalk(); phoneBig(null); hookAway(); fn(skipped); };
+  /* the courtyard: the crowd, Theo on the bench, and the text */
+  function courtyardBegin(resume){
+    afterProps();
+    S.dm = Math.max(S.dm || 0, 15*60 + 22);
+    if(!theoNpc()){ const t = spawn('friend', 'theo', THEO_SEAT[0], THEO_SEAT[1], { name:'theo', y:0, yaw:Math.PI }); t.pose = 'ride'; }
+    if(resume){ const d = W.spots.schoolDoor; placePlayer(d[0] - 7, d[1] - 4.6, -Math.PI/2); }
+    headphones(false);
+    later(()=>{ if(!on || S.step !== 'courtyard') return; cue('ring'); phoneThread('Theo', [['theo', 'you coming?']]);
+      later(()=>{ if(!on) return; phoneThread('Theo', [['theo', 'you coming?'], ['me', 'yeah']]); cue('ui');
+        later(()=>{ phoneThread(null); if(on && S.step === 'courtyard') note('Theo is on the bench across the courtyard.'); }, 1800); }, 1600); }, resume ? 600 : 1200);
+    aftWatch = 'bench';
+  }
+  let aftWatch = null, aftT = 0;
+  /* the chapter's own triggers, every frame */
+  function tickAfter(dt){
+    if(!aftWatch || mode || !on) return;
+    const p = P();
+    if(aftWatch === 'bench' && S.step === 'courtyard' && Math.hypot(p.x - FRONT[0], p.z - FRONT[1]) < 2.4){ aftWatch = null; benchScene(); return; }
+    if(aftWatch === 'away' && S.step === 'gethome'){
+      aftT += dt;
+      // out of sight of the school, she looks up at the roofs
+      if(aftT > 4 && Math.hypot(p.x - BENCH.x, p.z - BENCH.z) > 14){ aftWatch = null; shoesBackScene(); }
+      return;
+    }
+    if(aftWatch === 'home' && S.step === 'gethome'){
+      aftT += dt;
+      const b = window.BOOTS && BOOTS.B, roof = b && b.ground && b.y > 3;
+      if(roof && aftT > 7 && !S.flags.yesDad){ S.flags.yesDad = true; mark('yesdad'); textDad(); }
+      // her own roof: one last jump, to the fire escape, and in at the window
+      if(b && b.ground && p.x > 62 && p.x < 84 && p.z > 24 && p.z < 44 && b.y > 10.5){ aftWatch = null; homeRoof(); }
+    }
+  }
+  function textDad(){
+    cue('ring');
+    phoneThread('Theo', [['theo', 'you better text me']]);
+    later(()=>{ phoneThread('Theo', [['theo', 'you better text me'], ['me', 'yes dad']]); cue('ui'); }, 1500);
+    later(()=>{ phoneThread('Theo', [['theo', 'you better text me'], ['me', 'yes dad'], ['theo', 'that\'s not funny']]); cue('ring'); }, 2900);
+    later(()=>phoneThread(null), 5200);
+  }
+  const two = (yaw) => freeCam([BENCH.x, BENCH.z - 0.2], Math.PI + (yaw || 0), 3.0, 1.2);
+  function theoSay(){ const t = theoNpc(); return t ? [t.x, 1.25, t.z] : [THEO_SEAT[0], 1.25, THEO_SEAT[1]]; }
+  /* she walks over; "What did you break?" — up to "That's what I thought." */
+  function benchScene(){
+    mark('theo');
+    const a = afterProps(), t = theoNpc(), p = P(), from = [p.x, p.z];
+    const seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
+    const benchLook = [BENCH.x, 0.9, BENCH.z];
+    const front = [BENCH.x, 1.3, BENCH.z - 3.2], hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
+    const shots = [
+      { dur:2.6, fov:44, cam:[FRONT[0] + 2.4, 1.6, FRONT[1] - 2.2], look:benchLook, enter:()=>{ if(t){ t.faceTo = null; } },
+        tick:(dt, tt, k)=>walkStage(from, FRONT, k) },
+      { dur:linesLen('whatBroke') + 0.4, fov:40, mood:'smug', cam:front, look:benchLook, enter:()=>{ stage('idle', FRONT[0], 0, FRONT[1], 0.1); talk('whatBroke'); } },
+      { dur:1.6, fov:30, mood:'grin', cam:rel(FRONT[0], FRONT[1], Math.PI, -1.0, 0.2, 1.55), look:[FRONT[0], 1.5, FRONT[1]] },
+      // she drops her backpack and sits; he pushes the machine toward her
+      { dur:linesLen('needHelp') + 1.0, fov:40, cam:front, look:benchLook, enter:()=>{ cue('zip'); seatR(); talk('needHelp'); },
+        tick:(dt, tt)=>{ if(a.L) a.L.position.x = lerp(MUZZLE[0], MUZZLE[0] - 0.3, Math.min(1, tt/1.2)); } },
+      { dur:linesLen('whatPause') + 0.8, fov:30, mood:'skeptical', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('whatPause') },
+      // she picks it up; she is interested
+      { dur:linesLen('motor') + 0.6, fov:36, mood:'focused', cam:two(0.25), look:benchLook, enter:()=>talk('motor') }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; seatR(); launcherBench(1); }), { ownClock:true });
+  }
+  function launcherBench(phase){
+    mode = 'puzzle'; G.running = false;
+    if(document.pointerLockElement) document.exitPointerLock();
+    TSHPUZZLE.open('launcher', { phase }, ()=>{ mode = null; G.running = true; phase === 1 ? testOne() : testThree(); });
+  }
+  /* "Okay. Try it." — and the hook goes straight into a trash can. CLANG. Then: "Do it again." It veers left. */
+  function testOne(){
+    mark('launcher');
+    const a = afterProps(), t = theoNpc(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
+    let fly = null;
+    const wide = [BENCH.x + 3.2, 1.7, BENCH.z - 2.4], hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15);
+    const shots = [
+      { dur:linesLen('tryIt') + 0.4, fov:34, cam:two(0.2), look:benchLook, enter:()=>{ seatR(); talk('tryIt'); } },
+      // he switches it on; the motor spins; it fires — into the trash can
+      { dur:2.2, fov:50, cam:wide, look:[BENCH.x + 1, 0.7, (BENCH.z + CAN[1])/2], enter:()=>{ cue('zip'); fly = fireHook([CAN[0], 0.75, CAN[1]], 1.2, 0.55, ()=>cue('clang')); },
+        tick:dt=>{ if(fly) fly(dt); } },
+      { dur:1.6, fov:30, cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>hookAway() },        // silence
+      { dur:linesLen('clang') + 0.5, fov:36, mood:'grin', cam:two(-0.2), look:benchLook, enter:()=>talk('clang') },
+      // she picks it up; the smile goes; she is studying it now
+      { dur:linesLen('again') + 0.4, fov:30, mood:'focused', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('again') },
+      // again: and it veers sharply left
+      { dur:2.0, fov:50, cam:wide, look:[BENCH.x - 1.5, 0.8, (BENCH.z + 45)/2], enter:()=>{ cue('zip'); fly = fireHook([BENCH.x - 4.8, 0.9, 45.2], -2.2, 0.6, ()=>cue('skid')); },
+        tick:dt=>{ if(fly) fly(dt); } },
+      { dur:linesLen('there') + 0.4, fov:34, mood:'focused', cam:two(0.2), look:benchLook, enter:()=>{ hookAway(); talk('there'); } },
+      // she draws it
+      { dur:linesLen('diagram') + 0.5, fov:30, cam:[BENCH.x - 0.15, 1.35, BENCH.z - 0.45], look:[BENCH.x - 0.15, 0.5, BENCH.z + 0.02], enter:()=>{ a.paper.visible = true; talk('diagram'); } }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; seatR(); launcherBench(2); }), { ownClock:true });
+  }
+  /* stabilized: THUNK. "Yes!" — "Obviously." — "Because you're good at this." "Oh." */
+  function testThree(){
+    const a = afterProps(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
+    let fly = null;
+    const hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
+    a.stab.visible = true;
+    const shots = [
+      { dur:2.0, fov:46, cam:[BENCH.x - 2.4, 1.4, BENCH.z - 1.6], look:[TARGET[0], 1.2, (BENCH.z + TARGET[2])/2], enter:()=>{ seatR(); cue('zip'); fly = fireHook(TARGET, 0, 0.45, ()=>cue('punch')); },
+        tick:dt=>{ if(fly) fly(dt); } },
+      { dur:1.0, fov:24, cam:[TARGET[0] + 0.9, 1.6, TARGET[2] + 1.6], look:TARGET },
+      { dur:linesLen('yes') + 0.4, fov:30, mood:'grin', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>{ cue('win'); talk('yes'); } },
+      // she catches herself; tries to act casual
+      { dur:linesLen('obviously') + 0.4, fov:36, mood:'smug', cam:two(-0.15), look:benchLook, enter:()=>talk('obviously') },
+      { dur:linesLen('whyCalled') + 0.4, fov:30, cam:his, look:theoSay(), enter:()=>talk('whyCalled') },
+      // caught off guard. A small smile.
+      { dur:linesLen('oh') + 1.6, fov:28, mood:'soft', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('oh') },
+      { dur:1.6, fov:40, cam:two(0.3), look:benchLook, enter:()=>{ cue('zip'); hookAway(); a.paper.visible = false; } }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; seatR(); benchTalk(); }), { ownClock:true });
+  }
+  /* on the bench: "You should build something for yourself." … "You're different." — then "Come on." */
+  function benchTalk(){
+    mark('different');
+    const t = theoNpc(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
+    const hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
+    const up = [ROBIN_SEAT[0], BENCH.z - 0.8];
+    const shots = [
+      { dur:linesLen('forYou') + 0.5, fov:38, cam:two(0), look:benchLook, enter:()=>{ seatR(); talk('forYou'); } },
+      { dur:linesLen('different') + 0.5, fov:30, cam:his, look:theoSay(), enter:()=>talk('different') },
+      // she doesn't know how to respond. She looks away.
+      { dur:2.0, fov:28, mood:'sad', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], tick:(dt, tt)=>stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI + 0.5*Math.min(1, tt/0.8)) },
+      { dur:linesLen('weird') + 0.4, fov:36, mood:'skeptical', cam:two(0.2), look:benchLook, enter:()=>talk('weird') },
+      // she stands. "Come on."
+      { dur:linesLen('comeOn') + 0.6, fov:40, cam:[BENCH.x + 0.5, 1.5, BENCH.z - 3.4], look:[BENCH.x, 1.1, BENCH.z],
+        enter:()=>{ stage('idle', up[0], 0, up[1], Math.PI); talk('comeOn'); if(t){ t.pose = null; t.x = THEO_SEAT[0]; t.z = BENCH.z - 0.7; t.yaw = Math.PI; } } }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; walkTalk(); }), { ownClock:true });
+  }
+  /* across the courtyard: "Have you heard about that girl?" … the shoes … "You like it." */
+  function walkTalk(){
+    mark('vigilante');
+    const t = theoNpc(), A = [ROBIN_SEAT[0], BENCH.z - 0.8], Bp = [BENCH.x + 22, 48.4];      // east along Harbor Lane, toward home
+    const at = k => [lerp(A[0], Bp[0], k), lerp(A[1], Bp[1], k)];
+    const total = ['thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean'].reduce((n, k)=>n + linesLen(k) + 0.4, 0) + 2.5;
+    let wt = 0;
+    const walk = (dt)=>{ wt += dt; const k = Math.min(1, wt/total), r = at(k);
+      walkStage(at(Math.max(0, k - 0.002)), r, 1);
+      if(t){ t.go = null; t.x = r[0] + 0.1; t.z = r[1] - 0.9; t.yaw = Math.PI/2; t.walking = k < 1; } };   // on the street side of her, clear of the bench
+    const side = (k, d) => { const r = at(Math.min(1, k)); return [r[0] + 1.6, 1.5, r[1] - (d || 3.0)]; };
+    const look = () => { const r = at(Math.min(1, wt/total)); return [r[0] + 0.6, 1.3, r[1] + 0.4]; };
+    const shots = [
+      { dur:linesLen('thatGirl') + 0.4, fov:44, cam:()=>side(wt/total + 0.05), look, enter:()=>talk('thatGirl'), tick:walk },
+      // "Shoes?" — half a second
+      { dur:linesLen('shoes') + 0.5, fov:32, mood:'skeptical', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.55, r[1]]; }, enter:()=>talk('shoes'), tick:walk },
+      // she tries very hard not to smile
+      { dur:linesLen('dangerous') + 0.4, fov:40, mood:'smug', cam:()=>side(wt/total + 0.05), look, enter:()=>talk('dangerous'), tick:walk },
+      { dur:linesLen('yeahHer') + 0.4, fov:34, mood:'grin', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.55, r[1]]; }, enter:()=>talk('yeahHer'), tick:walk },
+      { dur:linesLen('smiling') + 0.3, fov:40, mood:'grin', cam:()=>side(wt/total + 0.05), look, enter:()=>talk('smiling'), tick:walk },
+      // he looks up at the sky
+      { dur:linesLen('cloudy') + 0.4, fov:44, cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 0.4, 1.3, r[1] + 1.6]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 6, 30, r[1] - 20]; }, enter:()=>talk('cloudy'), tick:walk },
+      // "I mean..." — and for once she has nothing
+      { dur:linesLen('imean') + 1.6, fov:30, mood:'soft', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.5, r[1]]; }, enter:()=>talk('imean'), tick:walk }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; momCall(at(1)); }), { ownClock:true });
+  }
+  /* her phone: MOM. Straight home before dinner. Theo walks off backwards. "Weirdo." */
+  function momCall(at){
+    mark('momphone');
+    const t = theoNpc(), me_ = [at[0], at[1]], him = [at[0] + 0.1, at[1] - 0.9], away = [at[0] - 7, at[1] - 1.6];
+    const hers = [me_[0] + 1.3, 1.6, me_[1] - 0.9], herL = [me_[0], 1.55, me_[1]];
+    const shots = [
+      { dur:1.6, fov:30, cam:hers, look:herL, enter:()=>{ stage('idle', me_[0], 0, me_[1], Math.PI/2 + 0.6); if(t){ t.x = him[0]; t.z = him[1]; t.walking = false; t.faceTo = me_; } cue('ring'); phoneBig('call', 'MOM'); } },
+      { dur:linesLen('momPhone') + 0.4, fov:30, mood:'sad', cam:hers, look:herL, enter:()=>{ phoneBig('oncall', 'MOM'); stage('text', me_[0], 0, me_[1], Math.PI/2 + 0.6); talk('momPhone'); } },
+      // she looks at Theo
+      { dur:linesLen('momPhone2') + 0.4, fov:36, cam:[me_[0] + 2.4, 1.5, me_[1] + 1.2], look:[me_[0], 1.4, me_[1] - 0.45], enter:()=>talk('momPhone2') },
+      { dur:linesLen('momPhone3') + 0.6, fov:30, mood:'sad', cam:hers, look:herL, enter:()=>talk('momPhone3') },
+      { dur:linesLen('momPhone4') + 0.8, fov:28, mood:'soft', cam:hers, look:herL, enter:()=>talk('momPhone4') },
+      { dur:linesLen('walkYou') + 0.4, fov:36, cam:[me_[0] + 2.4, 1.5, me_[1] + 1.2], look:[me_[0], 1.4, me_[1] - 0.45], enter:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], Math.PI - 0.2); talk('walkYou'); } },
+      // he starts walking backward
+      { dur:linesLen('textMe') + 1.2, fov:40, cam:[me_[0] + 1.6, 1.6, me_[1] - 3.2], look:[me_[0] - 2, 1.3, me_[1] + 1],
+        enter:()=>{ talk('textMe'); if(t){ t.go = { a:him, b:away, t:0, dur:linesLen('textMe') + 1.2, back:true, face:me_ }; } } },
+      // she watches him for a moment. She smiles.
+      { dur:linesLen('weirdo') + 1.4, fov:28, mood:'soft', cam:hers, look:herL, enter:()=>talk('weirdo') },
+      // she turns toward home
+      { dur:1.6, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>stage('idle', me_[0], 0, me_[1], Math.PI/2) }
+    ];
+    playReel(shots, aftDone(()=>{
+      reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
+      const n = theoNpc(); if(n) despawn(n);
+      placePlayer(me_[0], me_[1], -Math.PI/2);
+      outcome('fixed'); checkpoint();
+      gethomeBegin(false);
+    }), { ownClock:true });
+  }
+  /* GET HOME. An ordinary walk, until she is out of sight of the school. */
+  function gethomeBegin(resume){
+    if(resume){ placePlayer(BENCH.x + 22, 48.4, -Math.PI/2); }
+    aftT = 0;
+    if(S.flags.shoesBack){ aftWatch = 'home'; return; }
+    aftWatch = 'away';
+    note('Get home.');
+  }
+  /* she looks at the buildings; at the street; at the roofs. A small smile. Steps back. Runs. BOOM. */
+  function shoesBackScene(){
+    mark('shoesback');
+    const p = P(), at = [p.x, p.z], yaw = G.yaw + Math.PI, back = [at[0] - Math.sin(yaw)*2, at[1] - Math.cos(yaw)*2];
+    const face = angTo(at[0], at[1], 73, 34);
+    const shots = [
+      { dur:1.8, fov:40, cam:rel(at[0], at[1], face, 2.4, 0.6, 1.6), look:[at[0], 1.5, at[1]], enter:()=>stage('idle', at[0], 0, at[1], face + 0.9) },
+      { dur:1.4, fov:40, cam:rel(at[0], at[1], face, 2.4, 0.6, 1.6), look:[at[0], 1.5, at[1]], enter:()=>stage('idle', at[0], 0, at[1], face - 0.2) },
+      // up at the roofs
+      { dur:2.0, fov:50, cam:rel(at[0], at[1], face, -0.6, 0.3, 1.2), look:[at[0] + Math.sin(face)*14, 18, at[1] + Math.cos(face)*14], enter:()=>stage('idle', at[0], 0, at[1], face) },
+      { dur:1.6, fov:28, mood:'grin', cam:rel(at[0], at[1], face, 1.0, 0.2, 1.58), look:[at[0], 1.55, at[1]] },
+      // a few steps back
+      { dur:1.2, fov:44, cam:rel(at[0], at[1], face, 4.5, 1.2, 1.4), look:[at[0], 1.0, at[1]],
+        tick:(dt, tt, k)=>{ const r = [lerp(at[0], at[0] - Math.sin(face)*2, k), lerp(at[1], at[1] - Math.cos(face)*2, k)]; stage('walk', r[0], 0, r[1], face); } }
+    ];
+    playReel(shots, aftDone(()=>{
+      reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
+      placePlayer(at[0] - Math.sin(face)*2, at[1] - Math.cos(face)*2, face + Math.PI);
+      S.flags.shoesBack = true; save();
+      G.yaw = face + Math.PI;
+      // the shoes, again: BOOM
+      later(()=>{ if(!on) return; if(window.BOOTS && BOOTS.B){ BOOTS.sync(); BOOTS.B.vx = Math.sin(face)*9; BOOTS.B.vz = Math.cos(face)*9; BOOTS.fire(); } note('🏠 Home — over the roofs, however you like.', 'big'); aftWatch = 'home'; aftT = 0; }, 150);
+    }), { ownClock:true });
+  }
+  /* her own roof. Her window. One final jump. */
+  function homeRoof(){
+    outcome('home');
+    const w = W.spots.homeWindow, edge = [63.2, 34], land = [w[0], w[1]];
+    const shots = [
+      { dur:1.8, fov:40, cam:[edge[0] + 2.6, 13.6, edge[1] + 2.0], look:[land[0], 8.5, land[1]], enter:()=>stage('idle', edge[0], 12, edge[1], -Math.PI/2) },
+      { dur:1.0, fov:46, cam:[edge[0] + 1.2, 12.8, edge[1] + 4.6], look:[edge[0] - 1, 10, edge[1]],
+        tick:(dt, tt, k)=>{ const x = lerp(edge[0], land[0], k), y = 12 + Math.sin(k*Math.PI)*1.6 - 4*k*k; stage('jump', x, Math.max(8, y), lerp(edge[1], land[1], k), -Math.PI/2); },
+        beats:[[0.85, ()=>cue('step')]] },
+      { dur:1.4, fov:40, cam:[land[0] + 2.4, 9.4, land[1] + 1.6], look:[land[0] - 0.4, 9.0, land[1]], enter:()=>{ stage('idle', land[0], 8, land[1], -Math.PI/2); cue('door'); } }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null); bedroom(); }), { ownClock:true });
+  }
+  /* INT. ROBIN'S BEDROOM. home. — Dinner. — and the sketch on the bench. */
+  function bedroom(){
+    mark('bedroom');
+    fade(()=>{
+      inside = true; W.cityGroup.visible = false; W.aptGroup.visible = true;
+      G.ceiling = ()=>W.apt.h; G.scene.fog.density = 0.004; G.scene.background = new THREE.Color(0x020404); muffle(true);
+      W.aptGroup.traverse(o=>{ if(o.userData.boot || o.userData.pack) o.visible = false; });
+      apt.lamp = true; aptLights();
+      const R = W.room, s = W.spots, win = [s.aptWindow[0] + 0.6, s.aptWindow[1]], bn = R.bench.at, dr = R.door.at;
+      const benchSpot = [bn[0], bn[2] + 0.6];
+      // on the bench: an unfinished gadget, and beside it a sketch — a pair of shoes
+      if(!aft || !aft.sketch){ const sk = window.TSHROOM && TSHROOM.sketch ? TSHROOM.sketch('boots') : null;
+        const g2 = new THREE.Group(); W.aptGroup.add(g2);
+        if(sk){ const t2 = new THREE.CanvasTexture(sk.image || sk); t2.colorSpace = THREE.SRGBColorSpace;
+          const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), new THREE.MeshStandardMaterial({ map:t2, roughness:0.9 })); pm.rotation.x = -Math.PI/2; pm.rotation.z = 0.25; pm.position.set(bn[0] + 0.25, bn[1] + 0.006, bn[2] + 0.05); g2.add(pm); }
+        const gd = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.1), new THREE.MeshStandardMaterial({ color:0x444a50, roughness:0.4, metalness:0.6 })); gd.position.set(bn[0] - 0.12, bn[1] + 0.03, bn[2] + 0.08); g2.add(gd);
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 6), new THREE.MeshBasicMaterial({ color:new THREE.Color(0.2, 1.6, 1.2) })); led.position.set(bn[0] - 0.08, bn[1] + 0.065, bn[2] + 0.08); g2.add(led);
+        if(aft) aft.sketch = g2; }
+      placePlayer(win[0], win[1], -Math.PI/2);
+      const shots = [
+        // she lands quietly; in at the window; the backpack drops
+        { dur:2.4, fov:46, inside:true, cam:[win[0] + 2.2, 1.7, win[1] + 1.4], look:[win[0], 1.0, win[1]], enter:()=>{ caption('INT. ROBIN\'S BEDROOM'); stage('idle', win[0], 0, win[1], Math.PI/2); }, beats:[[1.4, ()=>cue('zip')]] },
+        // exactly as messy as it was this morning
+        { dur:3.0, fov:52, inside:true, cam:[win[0] + 0.4, 1.6, win[1]], look:k=>[lerp(bn[0] - 2, bn[0] + 1, k), 1.1, bn[2]] },
+        // to the bench
+        { dur:2.2, fov:44, inside:true, cam:[benchSpot[0] + 1.6, 1.6, benchSpot[1] + 1.4], look:[bn[0], 1.0, bn[2]], tick:(dt, tt, k)=>walkStage(win, benchSpot, k) },
+        // she picks one up; turns it over; a small smile
+        { dur:2.4, fov:30, mood:'soft', inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.25, benchSpot[1]], enter:()=>stage('text', benchSpot[0], 0, benchSpot[1], Math.PI) },
+        // her phone: home?  home.
+        { dur:3.2, fov:30, inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.25, benchSpot[1]],
+          enter:()=>{ cue('ring'); phoneThread('Theo', [['theo', 'home?']]); }, beats:[[1.5, ()=>{ phoneThread('Theo', [['theo', 'home?'], ['me', 'home.']]); cue('ui'); }]] },
+        // "Robin?" "Yeah?" "Dinner." … "Coming."
+        { dur:linesLen('robinQ') + 0.6, fov:40, inside:true, cam:[benchSpot[0] + 1.4, 1.6, benchSpot[1] + 1.8], look:[benchSpot[0], 1.3, benchSpot[1]], enter:()=>{ phoneThread(null); stage('idle', benchSpot[0], 0, benchSpot[1], Math.PI*0.7); talk('robinQ'); } },
+        { dur:linesLen('coming') + 0.8, fov:30, mood:'soft', inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.4, benchSpot[1]], enter:()=>talk('coming') },
+        // she leaves. The camera stays behind.
+        { dur:2.6, fov:40, inside:true, cam:[bn[0] + 0.6, 1.4, bn[2] + 1.4], look:[bn[0], 0.95, bn[2]], tick:(dt, tt, k)=>walkStage(benchSpot, [dr[0], dr[2] - 0.6], k), beats:[[2.3, ()=>cue('door')]] },
+        // the unfinished gadget; beside it, a sketch: a pair of shoes
+        { dur:4.2, fov:26, inside:true, cam:[bn[0] + 0.15, bn[1] + 0.55, bn[2] + 0.45], look:[bn[0] + 0.1, bn[1], bn[2] + 0.06], enter:()=>{ staged = null; if(AVATAR.body) AVATAR.body.visible = false; } }
+      ];
+      playReel(shots, aftDone(()=>{
+        reel = null;
+        black(true);
+        const b = el.querySelector('.tsh-black'); if(b) b.innerHTML = '<div class="tsh-tbc"><small>THE OTHER ROBIN</small><b>TO BE CONTINUED</b></div>';
+        S.flags.dayDone = true; save();
+        later(()=>{ if(!on) return; black(false); if(b) b.innerHTML = ''; leave(); }, 5200);
+      }), { ownClock:true });
+    });
   }
 
   function dayPopulate(){
@@ -4665,7 +5084,7 @@ window.TSH = (function(){
   function onHeat(h, was){
     // reinforcements from the post at three stars
     if(h >= AI.HEAT.reinforce && was < AI.HEAT.reinforce && !inside){
-      [0, 1].forEach(i=>{ const o = spawn('wfc', ['walk-x','theo'][i], 22 + i*2, -46, { name:'rf'+i, state:'search' }); o.searchT = 30; o.lastSeen = lastKnown ? [lastKnown[0], lastKnown[1], 0, clock] : null; o.home = [22, -48]; o.leaving = true; o.base = 'return'; });
+      [0, 1].forEach(i=>{ const o = spawn('wfc', ['walk-x','walk-s'][i], 22 + i*2, -46, { name:'rf'+i, state:'search' }); o.searchT = 30; o.lastSeen = lastKnown ? [lastKnown[0], lastKnown[1], 0, clock] : null; o.home = [22, -48]; o.leaving = true; o.base = 'return'; });
       note('📻 WFC: reinforcements are out of the post.');
     }
     if(h >= AI.HEAT.billboards && was < AI.HEAT.billboards) screensMode('alert', 9999);
@@ -4755,6 +5174,67 @@ window.TSH = (function(){
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
+    "What girl?":'deadpan',
+    "What did you break?":'smug',
+    "You absolutely broke something.":'grin',
+    "That's the most engineer way possible to say \"I broke something.\"":'grin',
+    "That's why you texted me?":'skeptical',
+    "What?":'skeptical',
+    "What motor are you using?":'focused',
+    "This.":'focused',
+    "It's too weak.":'deadpan',
+    "Then why did you use it?":'skeptical',
+    "You have three other motors.":'sarcastic',
+    "That's what I thought.":'smug',
+    "Okay. Try it.":'determined',
+    "I'm not.":'grin',
+    "I'm diagnosing.":'grin',
+    "Multitasking.":'smug',
+    "Wait.":'focused',
+    "Do it again.":'focused',
+    "Just do it.":'determined',
+    "There.":'focused',
+    "It's pulling against itself.":'focused',
+    "The motor is fine. The launch is fine.":'focused',
+    "But when the hook comes out, the whole housing shifts.":'focused',
+    "So you lose your angle.":'focused',
+    "We stabilize it.":'determined',
+    "Here.":'determined',
+    "Yes!":'happy',
+    "I mean...":'sheepish',
+    "You called me.":'sarcastic',
+    "Because I'm a nerd?":'skeptical',
+    "That's usually dangerous.":'sarcastic',
+    "What do you mean?":'skeptical',
+    "They're not that bad.":'sheepish',
+    "It's just engineering.":'sheepish',
+    "That's a weird thing to say.":'nervous',
+    "Come on.":'determined',
+    "You wanted your stupid machine fixed.":'sarcastic',
+    "It's fixed.":'smug',
+    "Not really.":'deadpan',
+    "Sounds like a lot of work.":'deadpan',
+    "Shoes?":'surprised',
+    "That sounds dangerous.":'deadpan',
+    "I guess.":'deadpan',
+    "People exaggerate.":'sheepish',
+    "Why?":'skeptical',
+    "That's actually...":'happy',
+    "Never mind.":'sheepish',
+    "Nothing.":'sheepish',
+    "No, I'm not.":'sheepish',
+    "It's sunny.":'grin',
+    "You have homework.":'grin',
+    "Sure it does.":'smug',
+    "You like it.":'smug',
+    "You like weird engineering people.":'nervous',
+    "I'm on my way home.":'tired',
+    "Yeah. Okay.":'tired',
+    "Love you too.":'soft',
+    "I'll survive.":'grin',
+    "That's not how that works.":'sarcastic',
+    "Weirdo.":'soft',
+    "Coming.":'soft',
     "Let's go.":'determined', 'Hi, Mom.':'sarcastic', 'Oh you prick.':'angry', 'Who are you?':'surprised', 'Do not call me that.':'annoyed',
     'What do you want?':'skeptical', "Didn't know chances like that would turn up unannounced in the middle of the night. Not interested, no thanks.":'deadpan',
     "Okay, first, you're not me. Second, you and me, we're very different. I don't break into other people's home and threaten them.":'annoyed',
@@ -4868,7 +5348,7 @@ window.TSH = (function(){
   function skipLine(){ const q = talkQ[0]; if(q){ q.t = 0; q.go = true; } }
   function speakerNpc(who){
     if((who === 'guard' || who === 'teacher') && W.school){ const n = who === 'guard' ? W.school.guard : W.school.teacher; return n && !n.gone ? n : null; }
-    const k = who === 'kai' ? (inside ? apt.kai : find('kai') || find('kaiRoof')) : who === 'maya' ? (inside ? apt.maya : find('maya')) : null;
+    const k = who === 'kai' ? (inside ? apt.kai : find('kai') || find('kaiRoof')) : who === 'maya' ? (inside ? apt.maya : find('maya')) : who === 'theo' ? find('theo') : null;
     return k && !k.gone ? k : null;
   }
   function tickTalk(dt){
@@ -4883,7 +5363,7 @@ window.TSH = (function(){
     q.t = dur ? Math.max(1.4, dur + 0.45) : Math.max(1.8, 1.0 + text.length*0.052);
     subtitle(who, text, q.paced);
     voice(who, text);
-    [find('kai'), find('maya'), apt.kai, apt.maya, find('kaiRoof')].forEach(n=>{ if(n) n.talking = false; });
+    [find('kai'), find('maya'), apt.kai, apt.maya, find('kaiRoof'), find('theo')].forEach(n=>{ if(n) n.talking = false; });
     const n = speakerNpc(who); if(n) n.talking = true;
     if(window.TSHFIGHT && TSHFIGHT.ready) TSHFIGHT.talker(who);        // the buyer and his crew talk with their faces too
     if(cut && cut.shot && cut.shot.onLine) cut.shot.onLine(q.i, who, text);
@@ -5618,7 +6098,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLeap(dt); tickScore(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLeap(dt); tickScore(dt); tickAfter(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();

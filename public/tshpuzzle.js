@@ -411,6 +411,67 @@ window.TSHPUZZLE = (function(){
     P.solve = ()=>{ L.keys.forEach(k=>{ v[k] = L.target[k]; }); paint(); };
   }
 
+  /* ======================================================== LAUNCHER
+     Theo's launcher, on the bench after school. Inspect the parts — Robin says
+     what she thinks of each — and fit the right one. Phase 1: the motor in it is
+     too weak; the strong one is in his bag. Phase 2: the hook flies, but the
+     housing shifts as it fires and throws the angle: the stabilizer holds it. */
+  const PARTS = {
+    weak:  { name:'MOTOR', what:'the one in it now · 3 V hobby motor', see:'Nope. Too weak.', fit:{ 1:'Nope. Too weak.', 2:'Already swapped it out.' } },
+    strong:{ name:'MOTOR', what:'from Theo\'s bag · 12 V, high torque', see:'Now that\'s a motor.', fit:{ 1:true, 2:'That\'s in. The motor\'s fine now.' } },
+    reg:   { name:'POWER REGULATOR', what:'between the battery and the motor', see:'This might work.', fit:{ 1:'It\'s already doing its job.', 2:'It\'s not the power.' } },
+    launch:{ name:'LAUNCHER', what:'the spring and the hook', see:'The launch mechanism\'s fine.', fit:{ 1:'That\'s not the problem.', 2:'The launch is fine. It\'s what happens after.' } },
+    stab:  { name:'STABILIZER', what:'a bracket and a counterweight', see:{ 1:'You don\'t need this yet.', 2:'This\'ll hold the housing still.' }, fit:{ 1:'You don\'t need this yet.', 2:true } }
+  };
+  function launcher(o, done){
+    const phase = o.phase || 1;
+    const ui = panel(phase === 1 ? 'BUILD THE LAUNCHER' : 'STABILIZE IT',
+      phase === 1 ? 'Look the parts over. Fit the one that will make it fire.' : 'When the hook comes out, the whole housing shifts. Fit what holds it still.');
+    const fitted = { motor: phase === 1 ? 'weak' : 'strong', stab:false };
+    let won = 0;
+    const say = t => { ui.msg.innerHTML = '<b style="color:#ffd9a8">ROBIN</b> ' + t; ui.msg.className = 'tsh-puz-msg'; };
+    function paint(){
+      ui.side.innerHTML = '<div class="tsh-puz-parts">' + Object.keys(PARTS).filter(k=>!(phase === 2 && k === 'weak')).map(k=>{ const pt = PARTS[k];
+        const on = (k === fitted.motor) || (k === 'stab' && fitted.stab) || k === 'reg' || k === 'launch';
+        return `<div class="tsh-puz-part${on ? ' in' : ''}"><b>${pt.name}</b><small>${pt.what}${on ? ' · <em>fitted</em>' : ''}</small>
+          <button data-k="${k}" data-a="see">Inspect</button><button data-k="${k}" data-a="fit"${on ? ' disabled' : ''}>Fit</button></div>`; }).join('') + '</div>';
+      ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
+        if(won) return;
+        const pt = PARTS[b.dataset.k];
+        if(b.dataset.a === 'see'){ say(typeof pt.see === 'string' ? pt.see : pt.see[phase]); window.TSH && TSH._cue && TSH._cue('ui'); return; }
+        const r = pt.fit[phase];
+        if(r !== true){ say(r); window.TSH && TSH._cue && TSH._cue('fail'); return; }
+        if(b.dataset.k === 'strong') fitted.motor = 'strong'; else fitted.stab = true;
+        won = performance.now(); say(phase === 1 ? 'Okay. Try it.' : 'Here.'); window.TSH && TSH._cue && TSH._cue('win'); paint();
+      });
+    }
+    paint();
+    function draw(t){
+      const x = ui.x; x.clearRect(0, 0, 640, 520);
+      // the launcher, drawn as a schematic: housing, barrel, hook; the motor; the regulator; where a stabilizer goes
+      const wob = phase === 2 && !fitted.stab ? Math.sin(t/180)*8 : 0;
+      x.save(); x.translate(320 + wob, 250); x.rotate(wob*0.006);
+      x.strokeStyle = TEAL; x.lineWidth = 3; x.fillStyle = 'rgba(56,255,208,0.06)';
+      x.fillRect(-170, -60, 240, 120); x.strokeRect(-170, -60, 240, 120);                       // housing
+      x.strokeRect(70, -22, 150, 44);                                                          // barrel
+      x.beginPath(); x.moveTo(220, 0); x.lineTo(250, -18); x.moveTo(220, 0); x.lineTo(250, 18); x.moveTo(205, 0); x.lineTo(250, 0); x.stroke();   // hook
+      const mo = fitted.motor === 'strong';
+      x.strokeStyle = mo ? TEAL : PINK; x.beginPath(); x.arc(-110, 0, mo ? 34 : 22, 0, 7); x.stroke();      // motor
+      x.font = font(13); x.fillStyle = mo ? TEAL : PINK; x.textAlign = 'center'; x.fillText(mo ? 'MOTOR 12V' : 'MOTOR 3V', -110, -42);
+      x.strokeStyle = TEAL; x.strokeRect(-40, -38, 70, 32); x.fillStyle = INK; x.fillText('REG', -5, -16);    // regulator
+      x.strokeStyle = fitted.stab ? TEAL : (phase === 2 ? PINK : DIM); x.setLineDash(fitted.stab ? [] : [6, 6]);
+      x.strokeRect(-150, 64, 200, 26); x.setLineDash([]);                                      // the stabilizer's place, under the housing
+      x.fillStyle = fitted.stab ? TEAL : (phase === 2 ? PINK : '#5a7a74'); x.fillText(fitted.stab ? 'STABILIZER' : 'stabilizer (empty)', -50, 82);
+      x.restore();
+      if(phase === 2 && !fitted.stab){ x.strokeStyle = PINK; x.lineWidth = 2; x.setLineDash([4, 6]); x.beginPath(); x.moveTo(470, 250); x.lineTo(600, 200); x.stroke(); x.setLineDash([]);
+        x.fillStyle = PINK; x.font = font(13); x.textAlign = 'left'; x.fillText('the angle it fires at', 470, 186); x.fillText('(it moves every shot)', 470, 204); }
+      if(won && performance.now() - won > 1300){ close(); done && done(); return false; }
+      return true;
+    }
+    run(ui, draw);
+    P.solve = ()=>{ if(phase === 1) fitted.motor = 'strong'; else fitted.stab = true; won = performance.now(); paint(); };
+  }
+
   function run(ui, draw){
     const t0 = performance.now();
     P = { ui, raf:0 };
@@ -419,7 +480,7 @@ window.TSHPUZZLE = (function(){
   }
   function open(kind, o, done){
     close();
-    ({ route, signal, gears, diagnose, freq })[kind](o || {}, done);
+    ({ route, signal, gears, diagnose, freq, launcher })[kind](o || {}, done);
   }
-  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave };
+  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave, PARTS };
 })();

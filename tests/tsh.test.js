@@ -693,7 +693,7 @@ test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fi
   has(t, /mom:\s*\[\['teacher','Your mom knows how talented you are\.'\], \['teacher','She\\'d be proud to see what you\\'re capable of\.'\]\]/, 'simple, not dramatic');
   hasNot(t, /talk\('detained'\)|TSHPUZZLE\.open\('diagnose'/, 'no detention, no second device');
   const O = t.slice(t.indexOf('  function outsideScene('), t.indexOf('  function dayPopulate('));
-  ['headphones(true)', '3:20 PM', 'The rest of the day is hers.'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
+  ['headphones(true)', '3:20 PM', 'courtyardBegin(false)'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
 });
 
 test('the face shapes really move: Robin\'s and Maya\'s are not empty (a sparse export once wrote them as zeros)', () => {
@@ -822,6 +822,31 @@ test('the lab is drawn like Into the Spider-Verse: a Psi field with real depth t
 
 test('after the scene with her teacher the shoes are a secret: their powers are off for the rest of the school day', () => {
   const t = read('public/tsh.js');
-  has(t, /function shoesHidden\(\)\{ return day\(\) && \(S\.step === 'after' \|\| S\.step === 'day'\); \}/);
+  has(t, /function shoesHidden\(\)\{ return day\(\) && \(S\.step === 'after' \|\| S\.step === 'day' \|\| S\.step === 'courtyard' \|\| \(S\.step === 'gethome' && !S\.flags\.shoesBack\)\); \}/, 'hidden through the teacher, the courtyard and Theo, until she is out of sight of the school');
   has(t, /enabled:\(\)=>!inside && mode !== 'fight' && !shoesHidden\(\),/, 'the shoes still work at school after the teacher scene');
+});
+
+test('after school: Theo, the launcher, the girl with the shoes, Mom, the way home over the roofs, and the sketch on the bench', () => {
+  const t = read('public/tsh.js'), ai = read('public/tshai.js'), pz = read('public/tshpuzzle.js');
+  // the story: after the teacher, the courtyard; fixed, the way home; home, the evening
+  has(ai, /after:\s*\{ goal:'', to:\{ out:'courtyard' \} \}/); has(ai, /courtyard:\{ goal:'Theo is waiting on the bench\.', to:\{ fixed:'gethome' \} \}/);
+  has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
+  // every scene in the script, in order
+  ['whatBroke', 'needHelp', 'whatPause', 'motor', 'tryIt', 'clang', 'again', 'there', 'diagram', 'yes', 'obviously', 'whyCalled', 'oh',
+   'forYou', 'different', 'weird', 'comeOn', 'thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean',
+   'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming'].forEach(k => assert.ok(t.includes("talk('" + k + "')"), 'the chapter says ' + k));
+  has(t, /whatBroke: \[\['robin','What did you break\?'\], \['theo','I didn\\'t break anything\.'\]/, 'his name is Theo');
+  // the bench: the motor, then the stabilizer
+  has(t, /TSHPUZZLE\.open\('launcher', \{ phase \}/); assert.ok(/launcher\(o, done\)/.test(pz), 'the launcher bench');
+  has(pz, /weak:\s*\{ name:'MOTOR'[\s\S]{0,120}see:'Nope\. Too weak\.'/); has(pz, /reg:\s*\{ name:'POWER REGULATOR'[\s\S]{0,80}see:'This might work\.'/);
+  has(pz, /stab:\s*\{ name:'STABILIZER'[\s\S]{0,80}see:\{ 1:'You don\\'t need this yet\.'/);
+  // texts, not lines: you coming? / yeah — you better text me / yes dad / that's not funny — home? / home.
+  ["'you coming?'", "'yeah'", "'you better text me'", "'yes dad'", "'that\\'s not funny'", "'home?'", "'home.'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
+  // the shoes come back when nobody from school can see: she looks at the roofs, and BOOM
+  has(t, /S\.flags\.shoesBack = true;[\s\S]{0,400}BOOTS\.fire\(\)/);
+  // home: the window, dinner, the sketch, TO BE CONTINUED
+  has(t, /TSHROOM\.sketch\('boots'\)/); has(t, /TO BE CONTINUED/);
+  // he is Theo: nobody else in the city wears him
+  assert.ok(!/CIV = \[[^\]]*'theo'/.test(t), 'Theo is a passer-by too');
+  assert.ok(!/spawn\('wfc', 'theo'/.test(t) && !/'theo', 'walk-u'\]/.test(read('public/tshchase.js')), 'Theo is a WFC officer');
 });

@@ -3008,6 +3008,14 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 .tsh-puz-dial.ok{border-color:rgba(56,255,208,.6);background:rgba(56,255,208,.08)}
 .tsh-puz-dial.ok i{color:#38ffd0}
 .tsh-puz-dial.ok input[type=range]{accent-color:#38ffd0}
+.tsh-puz-parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin-top:10px}
+.tsh-puz-part{display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,63,208,.35);background:rgba(255,63,208,.06)}
+.tsh-puz-part.in{border-color:rgba(56,255,208,.45);background:rgba(56,255,208,.06)}
+.tsh-puz-part b{font:800 13px var(--font-disp);letter-spacing:.1em;color:#e8fff8}
+.tsh-puz-part small{grid-column:1 / -1;font-size:12px;color:#a8d8cc}
+.tsh-puz-part small em{color:#38ffd0;font-style:normal}
+.tsh-puz-part button{padding:6px 10px;border-radius:9px;border:1px solid rgba(56,255,208,.4);background:rgba(56,255,208,.08);color:#38ffd0;font:700 12px var(--font-disp);cursor:pointer}
+.tsh-puz-part button:disabled{opacity:.35;cursor:default}
 /* TSH: the mute button (M), there through films, fights and puzzles */
 #tsh .tsh-mute{position:absolute;top:14px;right:170px;z-index:70;width:42px;height:42px;border-radius:50%;border:1px solid rgba(56,255,208,.4);background:rgba(3,12,11,.7);color:#e6fff8;font-size:19px;line-height:1;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 #tsh .tsh-mute:hover{border-color:#38ffd0;box-shadow:0 0 12px rgba(56,255,208,.4)}
@@ -3108,3 +3116,8 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tshScore .sc-bank.lost b{color:#ff6a5a}
 #tshScore .sc-bank small{font-size:14px;color:#cfe}
 @keyframes scBank{0%{opacity:0;transform:translate(-50%,14px)}12%{opacity:1;transform:translate(-50%,0)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-18px)}}
+
+/* the end of the day: TO BE CONTINUED */
+#tsh .tsh-tbc{text-align:center;color:#fff;font-family:var(--font-disp, monospace);letter-spacing:.2em;animation:scBank 5s ease-out forwards}
+#tsh .tsh-tbc small{display:block;color:#ffd9a8;font-size:14px;margin-bottom:10px}
+#tsh .tsh-tbc b{font-size:34px}

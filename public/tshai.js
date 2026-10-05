@@ -225,7 +225,12 @@ window.TSHAI = (function(){
     school:  { goal:'Get into school.', to:{ spotted:'sneak' } },
     sneak:   { goal:'Get to class without your teacher seeing you.', to:{ caught:'detention' } },
     detention:{ goal:'', to:{ fixed:'after' } },
-    after:   { goal:'', to:{ out:'day' } },
+    after:   { goal:'', to:{ out:'courtyard' } },
+    /* AFTER SCHOOL: Theo on the bench with a launcher that will not launch; the walk across the courtyard,
+       the girl with the shoes he has heard about, her mother on the phone — and the way home, over the roofs. */
+    courtyard:{ goal:'Theo is waiting on the bench.', to:{ fixed:'gethome' } },
+    gethome: { goal:'Get home.', to:{ home:'evening' } },
+    evening: { goal:'', to:{} },
     day:     { goal:'', to:{} }
   };
   function next(step, outcome){
@@ -237,7 +242,8 @@ window.TSHAI = (function(){
      old deal with Kai's dead drop; a night saved in one is back at the deal.) */
   const CHECKPOINT = { intro:'wake', wake:'wake', lesson:'lesson', deal:'deal', drop:'deal', robbed:'deal', raid:'raid', night:'raid', news:'news', home:'home', apt:'apt', escape:'apt',
                        chair:'apt', escape2:'apt', out:'out', end:'end',
-                       morning:'morning', commute:'commute', school:'school', sneak:'sneak', detention:'detention', after:'detention', day:'day' };
+                       morning:'morning', commute:'commute', school:'school', sneak:'sneak', detention:'detention', after:'detention',
+                       courtyard:'courtyard', gethome:'gethome', evening:'gethome', day:'courtyard' };
 
   /* ======================================================= the storyboard
      THE NIGHT, SCENE BY SCENE. Every line anybody speaks belongs to one
@@ -276,7 +282,16 @@ window.TSHAI = (function(){
     { id:'psi',       beat:'detention', on:'the robotics lab: Psi Energy, and the prototype that fights it', after:['assignment'] },
     { id:'repair',    beat:'detention', on:'the prototype runs in the field',                 after:['psi'] },
     { id:'mother',    beat:'after',   on:'brilliant, and starting to disappear',             after:['repair'] },
-    { id:'outside',   beat:'after',   on:'out through the school doors, into the sun',       after:['mother'] }
+    { id:'outside',   beat:'after',   on:'out through the school doors, into the sun',       after:['mother'] },
+    /* AFTER SCHOOL */
+    { id:'theo',      beat:'courtyard', on:'the bell; "you coming?"; Theo on the bench with a broken launcher', after:['outside'] },
+    { id:'launcher',  beat:'courtyard', on:'the right motor, the trash can, the stabiliser — THUNK',            after:['theo'] },
+    { id:'different', beat:'courtyard', on:'on the bench: "You should build something for yourself."',         after:['launcher'] },
+    { id:'vigilante', beat:'courtyard', on:'across the courtyard: the girl with the shoes',                    after:['different'] },
+    { id:'momphone',  beat:'courtyard', on:'her mother: straight home before dinner',                          after:['vigilante'] },
+    { id:'shoesback', beat:'gethome',   on:'out of sight of the school: she looks at the roofs, and runs',     after:['momphone'] },
+    { id:'yesdad',    beat:'gethome',   on:'on a roof on the way home: "you better text me"',                  after:['shoesback'] },
+    { id:'bedroom',   beat:'evening',   on:'in at her window; home.; dinner; the sketch on the bench',         after:['shoesback'] }
   ];
   /* may scene `id` play now, given the scenes that have? */
   function ready(seen, id){

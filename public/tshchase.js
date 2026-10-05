@@ -289,7 +289,7 @@ window.TSHCHASE = (function(){
     if(st.cop && !st.cop.gone) return;
     const r = ROUTE.roofEast;
     // out of the stairwell in the far corner, and round the box, east of the gate
-    const o = C.spawn('wfc', 'theo', 55, -40, { y:r.h, name:'roofCop', state:'patrol', route:[[55.4, -30], [55.4, -13.4], [50.6, -13.4], [50.6, -22.4], [55.4, -22.4], [55.4, -40]] });
+    const o = C.spawn('wfc', 'walk-s', 55, -40, { y:r.h, name:'roofCop', state:'patrol', route:[[55.4, -30], [55.4, -13.4], [50.6, -13.4], [50.6, -22.4], [55.4, -22.4], [55.4, -40]] });
     o.base = 'patrol'; o.home = [55, -40];
     // a searcher with a torch: slower to be sure of what he saw than the ones in the street
     o.def = Object.assign({}, o.def, { eye:{ range:15, fov:0.85, near:2.2, gain:0.75 } });
@@ -349,7 +349,7 @@ window.TSHCHASE = (function(){
         if(wfcBarrier) C.tween(0.35, k=>{ wfcBarrier.g.position.y = 5*(1 - k*k); });
         C.talk('raidWall');
         // and they come in behind her
-        [0, 1].forEach(i=>{ const n = C.spawn('wfc', ['theo', 'walk-u'][i], -22.5 + (i - 0.5)*1.2, -9 + i, { name:'gapCop' + i, state:'pursue' }); n.aware = 1.1; n.band = 'alert'; n.lastSeen = [p.x, p.z, p.y, C.clock()]; n.base = 'search'; n.home = [-22.5, -6]; });
+        [0, 1].forEach(i=>{ const n = C.spawn('wfc', ['walk-s', 'walk-u'][i], -22.5 + (i - 0.5)*1.2, -9 + i, { name:'gapCop' + i, state:'pursue' }); n.aware = 1.1; n.band = 'alert'; n.lastSeen = [p.x, p.z, p.y, C.clock()]; n.base = 'search'; n.home = [-22.5, -6]; });
       }
       if(mode() === 'scale' && !st.flags.onWall){ st.flags.onWall = true; C.later(()=>{ if(on && !fighting()) C.talk('raidOnWall'); }, 1400); }
       if(p.y > 10 && onRoof(p, 'B5', 'B4')){ C.talk('raidRoof'); next(); }

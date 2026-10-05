@@ -418,7 +418,7 @@ window.TSHSCHOOL = (function(){
      Spawned through tsh.js (so they are drawn, animated, and have faces like
      everybody else in TSH), as kind 'school': tsh.js's NPC loop hands each one
      back here (tickPerson) to be moved. */
-  const STUDENTS = ['walk-s', 'walk-t', 'walk-u', 'walk-v', 'walk-x', 'theo', 'nia', 'zuri'];
+  const STUDENTS = ['walk-s', 'walk-t', 'walk-u', 'walk-v', 'walk-x', 'nia', 'zuri'];        // not theo: he is Theo
   function populate(spawn){
     if(!S) return;
     const X = S.X, P = S.people; P.length = 0;
