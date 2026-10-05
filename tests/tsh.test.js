@@ -819,3 +819,9 @@ test('the lab is drawn like Into the Spider-Verse: a Psi field with real depth t
   has(sch, /if\(k === 0 && want === 0\) base = null;/, 'the day put back');
   ['uComic', 'off register', 'Ben-Day', 'hatching', 'posterised'].forEach(b => assert.ok(look.includes(b), 'the comic grade has ' + b));
 });
+
+test('after the scene with her teacher the shoes are a secret: their powers are off for the rest of the school day', () => {
+  const t = read('public/tsh.js');
+  has(t, /function shoesHidden\(\)\{ return day\(\) && \(S\.step === 'after' \|\| S\.step === 'day'\); \}/);
+  has(t, /enabled:\(\)=>!inside && mode !== 'fight' && !shoesHidden\(\),/, 'the shoes still work at school after the teacher scene');
+});

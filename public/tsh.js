@@ -1628,6 +1628,10 @@ window.TSH = (function(){
     if(h.includes('bound') || h.includes('grapple')){ h = h.filter(t=>t !== 'bound' && t !== 'grapple'); if(!h.includes('charge')) h.push('charge'); S.boots = h; }
     return h;
   }
+  /* HER SECRET. From the scene with her teacher on, it is the school day and she is just Robin: the shoes are
+     on her feet but their powers are not used — an ordinary walk and an ordinary jump — because the shoes are
+     the part of her nobody at school can know about. */
+  function shoesHidden(){ return day() && (S.step === 'after' || S.step === 'day'); }
   function bootsOn(){
     if(!window.BOOTS) return;
     swingClips();
@@ -1642,7 +1646,7 @@ window.TSH = (function(){
       have:shoesHave(),
       hooks:{
         audio:()=>audio(),
-        enabled:()=>!inside && mode !== 'fight',
+        enabled:()=>!inside && mode !== 'fight' && !shoesHidden(),
         slow:()=>slowFall(),
         event:(e, b)=>bootEvent(e, b),
         learned:t=>{ S.boots = [...BOOTS.B.have]; save(); if(BOOTS.TECH.late.includes(t)) note('★ New technique: ' + ({ chain:'CHAIN — every kick and pull in a row hits harder', slide:'SLIDE — hold SHIFT into a fast landing and keep the speed' })[t], 'big'); }
