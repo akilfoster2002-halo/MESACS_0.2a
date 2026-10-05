@@ -402,6 +402,8 @@ window.TSHSCHOOL = (function(){
     const F = TSHLOOK.fx; F.comic = k; F.bloom = l(B.bloom, 1.15); F.vig = l(B.vig, 0.7); F.gain.copy(B.gain).lerp(new THREE.Vector3(1.08, 0.96, 1.12), k);
     if(k === 0 && want === 0) base = null;                     // all of it back as it was
   }
+  /* leaving the school with the lab's light still on (the talk is in the lab; the next shot is the street): put the day back at once */
+  function labOff(){ labMood(0, 10); }
   /* the second thing: a small sensor puck with a status light */
   function makeGadget(){
     const d = new THREE.Group();
@@ -548,6 +550,6 @@ window.TSHSCHOOL = (function(){
   function bathroom(){ if(!sn || sn.hidden) return false; sn.hidden = { t:4.5 }; return true; }
   function meter(){ return sn ? sn.meter : 0; }
 
-  return { build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot, tickLab, 
+  return { labOff, build, populate, tickPerson, tickSneak, sneakStart, sneakStop, board, bathroom, meter, tickRobot, tickLab, 
            get S(){ return S; }, get on(){ return !!sn && !sn.done; }, get hiding(){ return !!(sn && sn.hidden); }, get reading(){ return !!(sn && sn.board); }, SX, H };
 })();

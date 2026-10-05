@@ -828,18 +828,22 @@ test('after the scene with her teacher the shoes are a secret: their powers are 
 
 test('after school: Theo, the launcher, the girl with the shoes, Mom, the way home over the roofs, and the sketch on the bench', () => {
   const t = read('public/tsh.js'), ai = read('public/tshai.js'), pz = read('public/tshpuzzle.js');
+  const ch = t.slice(t.indexOf('AFTER SCHOOL: THEO'), t.indexOf('function dayPopulate'));
   // the story: after the teacher, the courtyard; fixed, the way home; home, the evening
   has(ai, /after:\s*\{ goal:'', to:\{ out:'courtyard' \} \}/); has(ai, /courtyard:\{ goal:'Theo is waiting on the bench\.', to:\{ fixed:'gethome' \} \}/);
   has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
   // every scene in the script, in order
   ['whatBroke', 'needHelp', 'whatPause', 'motor', 'tryIt', 'clang', 'again', 'there', 'diagram', 'yes', 'obviously', 'whyCalled', 'oh',
    'forYou', 'different', 'weird', 'comeOn', 'thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean',
-   'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming'].forEach(k => assert.ok(t.includes("talk('" + k + "')"), 'the chapter says ' + k));
+   'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming'].forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
+  // a new angle for every line, and the walk with Theo is yours to walk
+  has(ch, /function lineShots\(keys, A, o\)/); has(ch, /A\.device = /); has(ch, /A\.bag = /); has(ch, /fireHold\(A\)/);
+  has(ch, /const WALK_TALK = \['forYou'[^\]]*'imean'\]/); has(ch, /aftWatch = 'walk'/);
   has(t, /whatBroke: \[\['robin','What did you break\?'\], \['theo','I didn\\'t break anything\.'\]/, 'his name is Theo');
-  // the bench: the motor, then the stabilizer
-  has(t, /TSHPUZZLE\.open\('launcher', \{ phase \}/); assert.ok(/launcher\(o, done\)/.test(pz), 'the launcher bench');
-  has(pz, /weak:\s*\{ name:'MOTOR'[\s\S]{0,120}see:'Nope\. Too weak\.'/); has(pz, /reg:\s*\{ name:'POWER REGULATOR'[\s\S]{0,80}see:'This might work\.'/);
-  has(pz, /stab:\s*\{ name:'STABILIZER'[\s\S]{0,80}see:\{ 1:'You don\\'t need this yet\.'/);
+  // the bench is puzzles: pick the motor, wire it in, balance the stabilizer
+  has(ch, /benchPuzzle\('motor'/); has(ch, /benchPuzzle\('route', \{ levels:1, title:'WIRE IT IN'/); has(ch, /benchPuzzle\('balance'/);
+  assert.ok(/function motor\(o, done\)/.test(pz) && /function balance\(o, done\)/.test(pz), 'the motor and balance puzzles');
+  has(pz, /open\(kind, o, done\)[\s\S]{0,200}motor, balance/);
   // texts, not lines: you coming? / yeah — you better text me / yes dad / that's not funny — home? / home.
   ["'you coming?'", "'yeah'", "'you better text me'", "'yes dad'", "'that\\'s not funny'", "'home?'", "'home.'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
   // the shoes come back when nobody from school can see: she looks at the roofs, and BOOM

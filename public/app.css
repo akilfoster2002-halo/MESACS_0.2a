@@ -3016,6 +3016,13 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 .tsh-puz-part small em{color:#38ffd0;font-style:normal}
 .tsh-puz-part button{padding:6px 10px;border-radius:9px;border:1px solid rgba(56,255,208,.4);background:rgba(56,255,208,.08);color:#38ffd0;font:700 12px var(--font-disp);cursor:pointer}
 .tsh-puz-part button:disabled{opacity:.35;cursor:default}
+.tsh-puz-motor{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:12px;border:1px solid rgba(56,255,208,.3);background:rgba(56,255,208,.05);color:#e8fff8;cursor:pointer;text-align:left}
+.tsh-puz-motor:hover{background:rgba(56,255,208,.12)}
+.tsh-puz-motor.in{border-color:#38ffd0;box-shadow:0 0 0 2px rgba(56,255,208,.35)}
+.tsh-puz-motor b{font:800 13px var(--font-disp);letter-spacing:.08em}
+.tsh-puz-motor small{font-size:12px;color:#a8d8cc}
+.tsh-puz-motor .bar{display:block;width:100%;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.tsh-puz-motor .bar i{display:block;height:100%;background:#ff9be8}
 /* TSH: the mute button (M), there through films, fights and puzzles */
 #tsh .tsh-mute{position:absolute;top:14px;right:170px;z-index:70;width:42px;height:42px;border-radius:50%;border:1px solid rgba(56,255,208,.4);background:rgba(3,12,11,.7);color:#e6fff8;font-size:19px;line-height:1;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 #tsh .tsh-mute:hover{border-color:#38ffd0;box-shadow:0 0 12px rgba(56,255,208,.4)}
@@ -3121,3 +3128,10 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-tbc{text-align:center;color:#fff;font-family:var(--font-disp, monospace);letter-spacing:.2em;animation:scBank 5s ease-out forwards}
 #tsh .tsh-tbc small{display:block;color:#ffd9a8;font-size:14px;margin-bottom:10px}
 #tsh .tsh-tbc b{font-size:34px}
+/* the launcher at the bench: SPACE fires it */
+#tsh .tsh-fire{position:absolute;left:50%;bottom:20%;transform:translateX(-50%) scale(.9);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+  font:700 18px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:rgba(10,14,20,.72);border:1px solid rgba(56,255,208,.6);border-radius:999px;padding:14px 24px;cursor:pointer;
+  box-shadow:0 0 24px rgba(56,255,208,.35);animation:tshFirePulse 1.2s ease-in-out infinite}
+#tsh .tsh-fire.on{opacity:1;pointer-events:auto;transform:translateX(-50%) scale(1)}
+#tsh .tsh-fire kbd{font:inherit;background:#38ffd0;color:#06231c;border-radius:6px;padding:4px 8px;margin-right:10px}
+@keyframes tshFirePulse{50%{box-shadow:0 0 40px rgba(56,255,208,.65)}}

@@ -16,6 +16,8 @@
               motor, the sensor, the log — and say what is actually wrong.
      FREQ     the Psi field's wave and the robot's, held still: match its
               speed (count the humps), then its timing (line the peaks up).
+     MOTOR    Theo's launcher: the motor whose force reaches the line.
+     BALANCE  slide a counterweight until the launcher sits level and aims true.
    With { psi:true }, ROUTE carries the field's energy to the robot's core
    and GEARS are its actuators, lined up to move with the field.
 
@@ -118,8 +120,9 @@ window.TSHPUZZLE = (function(){
     return { on, loose, done:reach && on.size === L.n*L.n && !loose.size };
   }
   function route(o, done){
-    const psi = !!o.psi, SRC = psi ? 'FIELD' : 'CELL', DST = psi ? 'CORE' : 'CPU';
-    const ui = psi ? panel('ROUTE THE PSI ENERGY', 'Tap a conduit to turn it. Carry the field\'s energy to the robot\'s core — and nowhere else.')
+    const psi = !!o.psi, SRC = o.src || (psi ? 'FIELD' : 'CELL'), DST = o.dst || (psi ? 'CORE' : 'CPU');
+    const ui = o.title ? panel(o.title, o.sub || '')
+             : psi ? panel('ROUTE THE PSI ENERGY', 'Tap a conduit to turn it. Carry the field\'s energy to the robot\'s core — and nowhere else.')
                    : panel('ROUTE THE POWER', 'Click a tile to turn it. Get power from the cell to the processor.');
     // a single route to warm up; then the network, twice, bigger
     const BOARDS = [[4, 'route'], [5, 'net'], [6, 'net']].slice(0, o.levels || 3), sizes = BOARDS;
@@ -411,65 +414,95 @@ window.TSHPUZZLE = (function(){
     P.solve = ()=>{ L.keys.forEach(k=>{ v[k] = L.target[k]; }); paint(); };
   }
 
-  /* ======================================================== LAUNCHER
-     Theo's launcher, on the bench after school. Inspect the parts — Robin says
-     what she thinks of each — and fit the right one. Phase 1: the motor in it is
-     too weak; the strong one is in his bag. Phase 2: the hook flies, but the
-     housing shifts as it fires and throws the angle: the stabilizer holds it. */
-  const PARTS = {
-    weak:  { name:'MOTOR', what:'the one in it now · 3 V hobby motor', see:'Nope. Too weak.', fit:{ 1:'Nope. Too weak.', 2:'Already swapped it out.' } },
-    strong:{ name:'MOTOR', what:'from Theo\'s bag · 12 V, high torque', see:'Now that\'s a motor.', fit:{ 1:true, 2:'That\'s in. The motor\'s fine now.' } },
-    reg:   { name:'POWER REGULATOR', what:'between the battery and the motor', see:'This might work.', fit:{ 1:'It\'s already doing its job.', 2:'It\'s not the power.' } },
-    launch:{ name:'LAUNCHER', what:'the spring and the hook', see:'The launch mechanism\'s fine.', fit:{ 1:'That\'s not the problem.', 2:'The launch is fine. It\'s what happens after.' } },
-    stab:  { name:'STABILIZER', what:'a bracket and a counterweight', see:{ 1:'You don\'t need this yet.', 2:'This\'ll hold the housing still.' }, fit:{ 1:'You don\'t need this yet.', 2:true } }
-  };
-  function launcher(o, done){
-    const phase = o.phase || 1;
-    const ui = panel(phase === 1 ? 'BUILD THE LAUNCHER' : 'STABILIZE IT',
-      phase === 1 ? 'Look the parts over. Fit the one that will make it fire.' : 'When the hook comes out, the whole housing shifts. Fit what holds it still.');
-    const fitted = { motor: phase === 1 ? 'weak' : 'strong', stab:false };
-    let won = 0;
-    const say = t => { ui.msg.innerHTML = '<b style="color:#ffd9a8">ROBIN</b> ' + t; ui.msg.className = 'tsh-puz-msg'; };
+  /* ===================================================== PICK THE MOTOR
+     Theo's launcher needs so much force to throw its hook. Each motor shows
+     how much it gives, as a bar; the launcher shows the line it has to
+     reach. Click a motor: it goes in and the launcher's bar fills to what
+     it gives. Short of the line, the hook flops out; well past it, the
+     housing would tear itself apart. Reach the line: that is the one. */
+  const MOTORS = [
+    { id:'hobby', name:'3 V HOBBY MOTOR', note:'the one in it now', force:3, say:'Nope. Too weak.' },
+    { id:'fan',   name:'6 V FAN MOTOR',   note:'from Theo\'s bag', force:5, say:'Better. Still not enough.' },
+    { id:'drive', name:'12 V DRIVE MOTOR', note:'from Theo\'s bag', force:8, say:'That one.' },
+    { id:'drill', name:'24 V DRILL MOTOR', note:'from Theo\'s bag', force:12, say:'That would rip the housing apart.' }
+  ], NEED = 8, FMAXV = 12;
+  function motor(o, done){
+    const ui = panel('PICK THE MOTOR', 'The launcher needs enough force to throw the hook (the line). Click a motor to try it.');
+    let pick = MOTORS[0], won = 0, fillNow = pick.force;
+    const say = (t, bad) => { ui.msg.innerHTML = '<b style="color:#ffd9a8">ROBIN</b> ' + t; ui.msg.className = 'tsh-puz-msg' + (bad ? ' bad' : ''); };
     function paint(){
-      ui.side.innerHTML = '<div class="tsh-puz-parts">' + Object.keys(PARTS).filter(k=>!(phase === 2 && k === 'weak')).map(k=>{ const pt = PARTS[k];
-        const on = (k === fitted.motor) || (k === 'stab' && fitted.stab) || k === 'reg' || k === 'launch';
-        return `<div class="tsh-puz-part${on ? ' in' : ''}"><b>${pt.name}</b><small>${pt.what}${on ? ' · <em>fitted</em>' : ''}</small>
-          <button data-k="${k}" data-a="see">Inspect</button><button data-k="${k}" data-a="fit"${on ? ' disabled' : ''}>Fit</button></div>`; }).join('') + '</div>';
-      ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{
-        if(won) return;
-        const pt = PARTS[b.dataset.k];
-        if(b.dataset.a === 'see'){ say(typeof pt.see === 'string' ? pt.see : pt.see[phase]); window.TSH && TSH._cue && TSH._cue('ui'); return; }
-        const r = pt.fit[phase];
-        if(r !== true){ say(r); window.TSH && TSH._cue && TSH._cue('fail'); return; }
-        if(b.dataset.k === 'strong') fitted.motor = 'strong'; else fitted.stab = true;
-        won = performance.now(); say(phase === 1 ? 'Okay. Try it.' : 'Here.'); window.TSH && TSH._cue && TSH._cue('win'); paint();
-      });
+      ui.side.innerHTML = '<div class="tsh-puz-parts">' + MOTORS.map(m=>`<button class="tsh-puz-motor${m === pick ? ' in' : ''}" data-m="${m.id}">
+        <b>${m.name}</b><small>${m.note}</small><span class="bar"><i style="width:${m.force/FMAXV*100}%"></i></span></button>`).join('') + '</div>';
+      ui.side.querySelectorAll('[data-m]').forEach(b=>b.onclick = ()=>{ if(won) return; pick = MOTORS.find(m=>m.id === b.dataset.m);
+        window.TSH && TSH._cue && TSH._cue(pick.force === NEED ? 'win' : 'ui'); say(pick.say, pick.force !== NEED);
+        if(pick.force === NEED) won = performance.now(); paint(); });
     }
-    paint();
+    paint(); say('It\'s too weak. Find one that reaches the line.', false);
     function draw(t){
       const x = ui.x; x.clearRect(0, 0, 640, 520);
-      // the launcher, drawn as a schematic: housing, barrel, hook; the motor; the regulator; where a stabilizer goes
-      const wob = phase === 2 && !fitted.stab ? Math.sin(t/180)*8 : 0;
-      x.save(); x.translate(320 + wob, 250); x.rotate(wob*0.006);
-      x.strokeStyle = TEAL; x.lineWidth = 3; x.fillStyle = 'rgba(56,255,208,0.06)';
-      x.fillRect(-170, -60, 240, 120); x.strokeRect(-170, -60, 240, 120);                       // housing
-      x.strokeRect(70, -22, 150, 44);                                                          // barrel
-      x.beginPath(); x.moveTo(220, 0); x.lineTo(250, -18); x.moveTo(220, 0); x.lineTo(250, 18); x.moveTo(205, 0); x.lineTo(250, 0); x.stroke();   // hook
-      const mo = fitted.motor === 'strong';
-      x.strokeStyle = mo ? TEAL : PINK; x.beginPath(); x.arc(-110, 0, mo ? 34 : 22, 0, 7); x.stroke();      // motor
-      x.font = font(13); x.fillStyle = mo ? TEAL : PINK; x.textAlign = 'center'; x.fillText(mo ? 'MOTOR 12V' : 'MOTOR 3V', -110, -42);
-      x.strokeStyle = TEAL; x.strokeRect(-40, -38, 70, 32); x.fillStyle = INK; x.fillText('REG', -5, -16);    // regulator
-      x.strokeStyle = fitted.stab ? TEAL : (phase === 2 ? PINK : DIM); x.setLineDash(fitted.stab ? [] : [6, 6]);
-      x.strokeRect(-150, 64, 200, 26); x.setLineDash([]);                                      // the stabilizer's place, under the housing
-      x.fillStyle = fitted.stab ? TEAL : (phase === 2 ? PINK : '#5a7a74'); x.fillText(fitted.stab ? 'STABILIZER' : 'stabilizer (empty)', -50, 82);
-      x.restore();
-      if(phase === 2 && !fitted.stab){ x.strokeStyle = PINK; x.lineWidth = 2; x.setLineDash([4, 6]); x.beginPath(); x.moveTo(470, 250); x.lineTo(600, 200); x.stroke(); x.setLineDash([]);
-        x.fillStyle = PINK; x.font = font(13); x.textAlign = 'left'; x.fillText('the angle it fires at', 470, 186); x.fillText('(it moves every shot)', 470, 204); }
+      fillNow += (pick.force - fillNow)*0.12;
+      // the launcher, big, with its force bar
+      x.strokeStyle = TEAL; x.lineWidth = 3; x.strokeRect(120, 150, 260, 130); x.strokeRect(380, 190, 150, 50);
+      x.beginPath(); x.moveTo(530, 215); x.lineTo(565, 195); x.moveTo(530, 215); x.lineTo(565, 235); x.stroke();
+      const ok = Math.abs(fillNow - NEED) < 0.15 && pick.force === NEED, over = pick.force > NEED;
+      x.strokeStyle = ok ? TEAL : over ? '#ff8a3a' : PINK; x.beginPath(); x.arc(190, 215, 22 + pick.force*2.4, 0, 7); x.stroke();   // the motor, as big as it is strong
+      x.fillStyle = INK; x.font = font(14); x.textAlign = 'center'; x.fillText(pick.name, 190, 300 + 22);
+      // the bar: what it gives, and the line it has to reach
+      const bx = 120, by = 380, bw = 410, bh = 30;
+      x.strokeStyle = DIM; x.lineWidth = 2; x.strokeRect(bx, by, bw, bh);
+      x.fillStyle = ok ? TEAL : over ? '#ff8a3a' : PINK; x.fillRect(bx + 2, by + 2, (bw - 4)*Math.min(1, fillNow/FMAXV), bh - 4);
+      const lx = bx + bw*NEED/FMAXV; x.strokeStyle = '#ffffff'; x.lineWidth = 3; x.beginPath(); x.moveTo(lx, by - 12); x.lineTo(lx, by + bh + 12); x.stroke();
+      x.fillStyle = INK; x.font = font(13); x.fillText('FORCE NEEDED', lx, by - 18); x.textAlign = 'left'; x.fillText('LAUNCH FORCE', bx, by + bh + 26);
+      // the hook, and how far it would get
+      const reach = 565 + Math.min(1, fillNow/NEED)*40 - (over ? Math.sin(t/60)*3 : 0);
+      x.fillStyle = ok ? TEAL : PINK; x.beginPath(); x.arc(reach, 215, 6, 0, 7); x.fill();
       if(won && performance.now() - won > 1300){ close(); done && done(); return false; }
       return true;
     }
     run(ui, draw);
-    P.solve = ()=>{ if(phase === 1) fitted.motor = 'strong'; else fitted.stab = true; won = performance.now(); paint(); };
+    P.solve = ()=>{ pick = MOTORS[2]; won = performance.now(); paint(); };
+  }
+  /* ======================================================== BALANCE IT
+     The housing shifts when the hook comes out, so the shot goes off to the
+     left. The launcher sits on a pivot here, leaning; its aim is drawn as a
+     line to the target. Slide the counterweight along the bar until it sits
+     level — the aim swings onto the target — and hold it there. */
+  function balance(o, done){
+    const ui = panel('BALANCE IT', 'The housing tips when it fires, so the hook goes left. Slide the counterweight until the launcher sits level and its aim hits the target.');
+    const GOAL = 0.62; let w = 0.15, tilt = 0.4, held = 0, won = 0, last = 0;
+    ui.side.innerHTML = `<div class="tsh-puz-dials"><div class="tsh-puz-dial"><small>COUNTERWEIGHT<em>slide it along the bar</em></small>
+      <button data-d="-1">◀</button><input type="range" min="0" max="1" step="0.01" value="${w}"><button data-d="1">▶</button></div></div>`;
+    const r = ui.side.querySelector('input');
+    r.oninput = ()=>{ w = +r.value; }; r.onkeydown = e=>e.stopPropagation();
+    ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ w = Math.max(0, Math.min(1, w + (+b.dataset.d)*0.03)); r.value = w; window.TSH && TSH._cue && TSH._cue('ui'); });
+    function draw(t){
+      const x = ui.x, dt = Math.min(0.05, (t - last)/1000); last = t; x.clearRect(0, 0, 640, 520);
+      const want = (GOAL - w)*1.6;                                        // too little weight: it tips left; too much: right
+      tilt += (want - tilt)*Math.min(1, dt*5);
+      const lvl = Math.abs(tilt) < 0.035;
+      held = lvl ? held + dt : 0;
+      // the target, far right; the aim line from the barrel
+      x.fillStyle = '#e8e2d4'; x.beginPath(); x.arc(600, 289, 30, 0, 7); x.fill(); x.fillStyle = '#c83a3a'; x.beginPath(); x.arc(600, 289, 19, 0, 7); x.fill(); x.fillStyle = '#e8e2d4'; x.beginPath(); x.arc(600, 289, 8, 0, 7); x.fill();
+      x.save(); x.translate(250, 300); x.rotate(-tilt);
+      // the bar with the counterweight on it, the housing, the barrel
+      x.strokeStyle = '#5a7a74'; x.lineWidth = 6; x.beginPath(); x.moveTo(-170, 40); x.lineTo(170, 40); x.stroke();
+      x.fillStyle = lvl ? TEAL : PINK; x.fillRect(-170 + w*340 - 16, 22, 32, 36);
+      x.strokeStyle = TEAL; x.lineWidth = 3; x.strokeRect(-90, -50, 140, 80); x.strokeRect(50, -28, 110, 34);
+      // the aim
+      x.setLineDash([10, 8]); x.strokeStyle = lvl ? TEAL : PINK; x.lineWidth = 2; x.beginPath(); x.moveTo(160, -11); x.lineTo(330, -11); x.stroke(); x.setLineDash([]);
+      x.restore();
+      // the pivot
+      x.fillStyle = '#9fb4c0'; x.beginPath(); x.moveTo(250, 340); x.lineTo(232, 380); x.lineTo(268, 380); x.closePath(); x.fill();
+      // the level
+      x.strokeStyle = DIM; x.lineWidth = 2; x.strokeRect(220, 440, 200, 26); x.beginPath(); x.moveTo(320, 436); x.lineTo(320, 470); x.stroke();
+      x.fillStyle = lvl ? TEAL : PINK; x.beginPath(); x.arc(320 + Math.max(-90, Math.min(90, -tilt*260)), 453, 10, 0, 7); x.fill();
+      x.fillStyle = INK; x.font = font(13); x.textAlign = 'center'; x.fillText(lvl ? 'LEVEL — hold it there' : tilt > 0 ? 'tipping LEFT — slide the weight right ▶' : 'tipping RIGHT — slide it back left ◀', 320, 500);
+      if(held > 0.8 && !won){ won = performance.now(); ui.msg.innerHTML = '<b style="color:#ffd9a8">ROBIN</b> Here.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(won && performance.now() - won > 1100){ close(); done && done(); return false; }
+      return true;
+    }
+    run(ui, draw);
+    P.solve = ()=>{ w = GOAL; r.value = w; tilt = 0; held = 1; };
   }
 
   function run(ui, draw){
@@ -480,7 +513,7 @@ window.TSHPUZZLE = (function(){
   }
   function open(kind, o, done){
     close();
-    ({ route, signal, gears, diagnose, freq, launcher })[kind](o || {}, done);
+    ({ route, signal, gears, diagnose, freq, motor, balance })[kind](o || {}, done);
   }
-  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave, PARTS };
+  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave, MOTORS };
 })();

@@ -2733,7 +2733,7 @@ window.TSH = (function(){
       case 'commute': { const o = s.schoolOverlook; return [o[0], o[1], o[2] + 1.2, 'School'] ; }
       case 'school': { const d = s.schoolDoor; return [d[0], d[1], 2.6, 'Harbor Lane High']; }
       case 'sneak': { const r = W.school && W.school.spots.room114; return r ? [r[0], r[1], 2.4, 'Room 114'] : null; }
-      case 'courtyard': return aftWatch === 'bench' ? [BENCH.x, BENCH.z, 2.2, 'Theo'] : null;
+      case 'courtyard': { if(aftWatch === 'bench') return [BENCH.x, BENCH.z, 2.2, 'Theo']; const th = aftWatch === 'walk' && theoNpc(); return th ? [th.x, th.z, 2.0, 'Theo'] : null; }
       case 'gethome': return [73, 34, 14, 'Home'];
     }
     return null;
@@ -4156,6 +4156,7 @@ window.TSH = (function(){
     phones = g;
   }
   function leaveSchool(){
+    if(window.TSHSCHOOL && TSHSCHOOL.labOff) TSHSCHOOL.labOff();      // the lab's violet dark does not follow her out into the afternoon
     inSchool = false; inside = false; showInside(false); outsideLook(); el.classList.remove('school');
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop();
   }
@@ -4251,7 +4252,7 @@ window.TSH = (function(){
   }
   /* the hook leaves the barrel and flies to `to` along a bend (`bend`: how far it swings off to the side), over `dur` seconds */
   function fireHook(to, bend, dur, hit){
-    const a = afterProps(), from = MUZZLE.slice(), t0 = { t:0 };
+    const a = afterProps(), from = [a.L.position.x, MUZZLE[1], MUZZLE[2]], t0 = { t:0 };
     a.hook.visible = a.line.visible = true; cue('launch');
     return (dt)=>{
       t0.t += dt; const k = Math.min(1, t0.t/dur), e = k*(2 - k);
@@ -4275,7 +4276,7 @@ window.TSH = (function(){
   }
   function theoNpc(){ return find('theo'); }
   /* the end of a scene, played or skipped: nothing of it hangs about — lines still queued, the phone, the hook */
-  const aftDone = fn => skipped => { flushTalk(); phoneBig(null); hookAway(); fn(skipped); };
+  const aftDone = fn => skipped => { flushTalk(); phoneBig(null); hookAway(); firePrompt(false); fn(skipped); };
   /* the courtyard: the crowd, Theo on the bench, and the text */
   function courtyardBegin(resume){
     afterProps();
@@ -4293,6 +4294,7 @@ window.TSH = (function(){
   function tickAfter(dt){
     if(!aftWatch || mode || !on) return;
     const p = P();
+    if(aftWatch === 'walk' && S.step === 'courtyard'){ tickWalk(dt); return; }
     if(aftWatch === 'bench' && S.step === 'courtyard' && Math.hypot(p.x - FRONT[0], p.z - FRONT[1]) < 2.4){ aftWatch = null; benchScene(); return; }
     if(aftWatch === 'away' && S.step === 'gethome'){
       aftT += dt;
@@ -4315,143 +4317,193 @@ window.TSH = (function(){
     later(()=>{ phoneThread('Theo', [['theo', 'you better text me'], ['me', 'yes dad'], ['theo', 'that\'s not funny']]); cue('ring'); }, 2900);
     later(()=>phoneThread(null), 5200);
   }
-  const two = (yaw) => freeCam([BENCH.x, BENCH.z - 0.2], Math.PI + (yaw || 0), 3.0, 1.2);
   function theoSay(){ const t = theoNpc(); return t ? [t.x, 1.25, t.z] : [THEO_SEAT[0], 1.25, THEO_SEAT[1]]; }
-  /* she walks over; "What did you break?" — up to "That's what I thought." */
-  function benchScene(){
-    mark('theo');
-    const a = afterProps(), t = theoNpc(), p = P(), from = [p.x, p.z];
-    const seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
-    const benchLook = [BENCH.x, 0.9, BENCH.z];
-    const front = [BENCH.x, 1.3, BENCH.z - 3.2], hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
-    const shots = [
-      { dur:2.6, fov:44, cam:[FRONT[0] + 2.4, 1.6, FRONT[1] - 2.2], look:benchLook, enter:()=>{ if(t){ t.faceTo = null; } },
-        tick:(dt, tt, k)=>walkStage(from, FRONT, k) },
-      { dur:linesLen('whatBroke') + 0.4, fov:40, mood:'smug', cam:front, look:benchLook, enter:()=>{ stage('idle', FRONT[0], 0, FRONT[1], 0.1); talk('whatBroke'); } },
-      { dur:1.6, fov:30, mood:'grin', cam:rel(FRONT[0], FRONT[1], Math.PI, -1.0, 0.2, 1.55), look:[FRONT[0], 1.5, FRONT[1]] },
-      // she drops her backpack and sits; he pushes the machine toward her
-      { dur:linesLen('needHelp') + 1.0, fov:40, cam:front, look:benchLook, enter:()=>{ cue('zip'); seatR(); talk('needHelp'); },
-        tick:(dt, tt)=>{ if(a.L) a.L.position.x = lerp(MUZZLE[0], MUZZLE[0] - 0.3, Math.min(1, tt/1.2)); } },
-      { dur:linesLen('whatPause') + 0.8, fov:30, mood:'skeptical', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('whatPause') },
-      // she picks it up; she is interested
-      { dur:linesLen('motor') + 0.6, fov:36, mood:'focused', cam:two(0.25), look:benchLook, enter:()=>talk('motor') }
-    ];
-    playReel(shots, aftDone(()=>{ reel = null; seatR(); launcherBench(1); }), { ownClock:true });
+  /* A NEW ANGLE FOR EVERY LINE. Two people, where they face, and which side the camera can stand on: close on
+     her, close on him, over his shoulder, over hers, low, high, both of them side-on, from behind — and the
+     thing they are talking about, when they are talking about a thing. */
+  const lineLen = (w, x) => { const d = vlen(w, x); return d ? Math.max(1.4, d + 0.45) : Math.max(1.8, 1.0 + x.length*0.052); };
+  function pairAngles(R, T, fR, fT, n, h){
+    const M = [(R[0] + T[0])/2, (R[1] + T[1])/2], len = Math.hypot(T[0] - R[0], T[1] - R[1]) || 1, u = [(T[0] - R[0])/len, (T[1] - R[1])/len];
+    const P_ = (b, ...a) => { const p = [b[0], b[1]]; a.forEach(([v, k])=>{ p[0] += v[0]*k; p[1] += v[1]*k; }); return p; };
+    const at = (p, y) => [p[0], y, p[1]], rh = [R[0], h, R[1]], th = [T[0], h, T[1]], mid = [M[0], h - 0.15, M[1]];
+    return {
+      her:      { cam:at(P_(R, [fR, 0.8], [n, 0.7], [u, 0.25]), h + 0.06), look:rh, fov:28 },
+      him:      { cam:at(P_(T, [fT, 0.8], [n, 0.7], [u, -0.25]), h + 0.06), look:th, fov:28 },
+      overHim:  { cam:at(P_(T, [u, 0.65], [n, 0.55]), h + 0.15), look:rh, fov:34 },
+      overHer:  { cam:at(P_(R, [u, -0.65], [n, 0.55]), h + 0.15), look:th, fov:34 },
+      two:      { cam:at(P_(M, [n, 2.4]), h + 0.1), look:mid, fov:38 },
+      wide:     { cam:at(P_(M, [n, 3.4], [u, 2.0]), h + 0.8), look:mid, fov:46 },
+      low:      { cam:at(P_(M, [n, 1.5], [u, -0.3]), 0.35), look:[M[0], h, M[1]], fov:46 },
+      high:     { cam:at(P_(M, [n, 2.0], [u, -1.0]), h + 3.1), look:mid, fov:40 },
+      profileL: { cam:at(P_(M, [u, -3.0], [n, 0.4]), h - 0.05), look:mid, fov:32 },
+      profileR: { cam:at(P_(M, [u, 3.0], [n, 0.4]), h - 0.05), look:mid, fov:32 },
+      behind:   { cam:at(P_(M, [n, -1.5], [u, -0.6]), h + 0.45), look:[M[0] + n[0]*2, h - 0.3, M[1] + n[1]*2], fov:44 }
+    };
   }
-  function launcherBench(phase){
+  /* one shot a line. `ins`: [[/text/, angle, also()], …] cuts to that angle (an insert of the thing) on the line that matches */
+  function lineShots(keys, A, o){
+    o = o || {};
+    const pool = { robin:['her', 'overHim', 'low', 'profileL', 'her', 'high', 'two'], theo:['him', 'overHer', 'profileR', 'wide', 'him', 'behind', 'two'] }, ix = { robin:0, theo:0 };
+    let prev = null; const out = [];
+    [].concat(keys).forEach(key=>(LINES[key] || []).forEach(([w, x])=>{
+      let name = null, also = null;
+      for(const [re, nm, fn] of (o.ins || [])) if(re.test(x)){ name = nm; also = fn; break; }
+      if(!name || !A[name]){ const side = w === 'theo' ? 'theo' : 'robin', p = pool[side];
+        for(let j = 0; j < p.length; j++){ name = p[ix[side]++ % p.length]; if(name !== prev && A[name]) break; } }
+      prev = name;
+      const a = A[name];
+      out.push({ dur:lineLen(w, x) + 0.12, fov:a.fov, cam:a.cam, look:a.look, tick:o.tick,
+        enter:()=>{ if(o.each) o.each(); if(also) also(); talk([[w, x]]); } });
+    }));
+    return out;
+  }
+  /* the bench: both of them seated, facing the street (north) */
+  function benchAngles(){
+    const a = afterProps(), lx = () => a.L.position.x;
+    const A = pairAngles(ROBIN_SEAT, THEO_SEAT, [0, -1], [0, -1], [0, -1], 1.08);
+    // the things they talk about
+    A.device = { cam:k=>[lx() + 0.3 - k*0.06, 0.98, BENCH.z - 0.8], look:()=>[lx(), 0.6, BENCH.z - 0.08], fov:30 };
+    A.deviceTop = { cam:k=>[lx() + 0.12, 1.3 - k*0.05, BENCH.z - 0.5], look:()=>[lx(), 0.55, BENCH.z - 0.06], fov:32 };
+    A.bag = { cam:k=>[BENCH.x + 1.15 + k*0.05, 0.62, BENCH.z - 0.95], look:[BENCH.x + 1.45, 0.2, BENCH.z - 0.2], fov:32 };
+    A.paper = { cam:k=>[BENCH.x - 0.15, 1.15 - k*0.08, BENCH.z - 0.32], look:[BENCH.x - 0.15, 0.5, BENCH.z + 0.02], fov:30 };
+    A.can = { cam:[CAN[0] - 1.2, 0.9, CAN[1] + 1.4], look:[CAN[0], 0.55, CAN[1]], fov:30 };
+    A.target = { cam:[TARGET[0] + 0.9, 1.6, TARGET[2] + 1.6], look:TARGET, fov:24 };
+    return A;
+  }
+  /* SPACE fires it: the film holds on the launcher until you do */
+  function firePrompt(v){
+    let p = el.querySelector('#tshFire');
+    if(!p){ p = document.createElement('button'); p.id = 'tshFire'; p.className = 'tsh-fire'; p.innerHTML = '<kbd>SPACE</kbd> fire it';
+      p.onclick = e=>{ e.preventDefault(); if(reel && reel.wait) reel.wait(); }; el.appendChild(p); }
+    p.classList.toggle('on', !!v);
+  }
+  function fireHold(A){
+    const s = { dur:9999, fov:A.device.fov, cam:A.device.cam, look:A.device.look, ease:false,
+      enter:()=>{ const r = reel; firePrompt(true); r.wait = ()=>{ firePrompt(false); r.wait = null; s.dur = r.t + 0.05; }; } };
+    return s;
+  }
+  const seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
+  /* her turn at the bench: a puzzle, then on */
+  function benchPuzzle(kind, opts, next){
     mode = 'puzzle'; G.running = false;
     if(document.pointerLockElement) document.exitPointerLock();
-    TSHPUZZLE.open('launcher', { phase }, ()=>{ mode = null; G.running = true; phase === 1 ? testOne() : testThree(); });
+    TSHPUZZLE.open(kind, opts, ()=>{ mode = null; G.running = true; next(); });
   }
-  /* "Okay. Try it." — and the hook goes straight into a trash can. CLANG. Then: "Do it again." It veers left. */
+  /* she walks over; "What did you break?" — she sits; "What motor are you using?" — the motor, close: too weak */
+  function benchScene(){
+    mark('theo');
+    const a = afterProps(), t = theoNpc(), p = P(), from = [p.x, p.z], A = benchAngles();
+    if(t) t.faceTo = null;
+    const shots = [
+      { dur:2.4, fov:44, cam:[FRONT[0] + 2.4, 1.6, FRONT[1] - 2.2], look:[BENCH.x, 0.9, BENCH.z], tick:(dt, tt, k)=>walkStage(from, FRONT, k) },
+      // she drops her backpack and sits
+      { dur:1.1, fov:A.high.fov, cam:A.high.cam, look:A.high.look, enter:()=>{ cue('zip'); seatR(); } },
+      ...lineShots(['whatBroke', 'needHelp', 'whatPause'], A, { each:seatR, ins:[[/launcher isn't working/, 'device', ()=>{ a.L.position.x = MUZZLE[0] - 0.12; }]] }),
+      ...lineShots(['motor'], A, { each:seatR, ins:[[/motor are you using/, 'device'], [/^This\.$/, 'deviceTop'], [/too weak/, 'device']] }).slice(0, 4)
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; seatR(); a.L.position.x = MUZZLE[0] - 0.12;
+      benchPuzzle('motor', {}, motorAfter); }), { ownClock:true });
+  }
+  /* "You have three other motors." "Those are for something else." — then wire the new one in */
+  function motorAfter(){
+    const A = benchAngles();
+    const shots = lineShots(['motor'], A, { each:seatR, ins:[[/three other motors/, 'bag'], [/for something else/, 'bag'], [/I knew that/, 'him']] }).slice(4);
+    playReel(shots, aftDone(()=>{ reel = null; seatR();
+      benchPuzzle('route', { levels:1, title:'WIRE IT IN', sub:'Turn the pieces until power runs from the battery to the new motor.', src:'BATTERY', dst:'MOTOR' }, testOne); }), { ownClock:true });
+  }
+  /* "Okay. Try it." — you fire, and the hook goes straight into a trash can. CLANG. "Do it again." It veers left. */
   function testOne(){
     mark('launcher');
-    const a = afterProps(), t = theoNpc(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
-    let fly = null;
-    const wide = [BENCH.x + 3.2, 1.7, BENCH.z - 2.4], hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15);
+    const a = afterProps(), A = benchAngles();
+    let fly = null; const flying = dt=>{ if(fly) fly(dt); };
+    const wob = { t:0 }, canWobble = (dt)=>{ wob.t += dt; a.can.rotation.z = Math.sin(wob.t*30)*0.12*Math.max(0, 1 - wob.t*1.6); };
     const shots = [
-      { dur:linesLen('tryIt') + 0.4, fov:34, cam:two(0.2), look:benchLook, enter:()=>{ seatR(); talk('tryIt'); } },
-      // he switches it on; the motor spins; it fires — into the trash can
-      { dur:2.2, fov:50, cam:wide, look:[BENCH.x + 1, 0.7, (BENCH.z + CAN[1])/2], enter:()=>{ cue('zip'); fly = fireHook([CAN[0], 0.75, CAN[1]], 1.2, 0.55, ()=>cue('clang')); },
-        tick:dt=>{ if(fly) fly(dt); } },
-      { dur:1.6, fov:30, cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>hookAway() },        // silence
-      { dur:linesLen('clang') + 0.5, fov:36, mood:'grin', cam:two(-0.2), look:benchLook, enter:()=>talk('clang') },
-      // she picks it up; the smile goes; she is studying it now
-      { dur:linesLen('again') + 0.4, fov:30, mood:'focused', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('again') },
+      ...lineShots(['tryIt'], A, { each:seatR }),
+      fireHold(A),
+      // the motor spins; it fires — sideways — into the trash can
+      { dur:0.5, fov:30, cam:A.device.cam, look:A.device.look, enter:()=>{ cue('zip'); fly = fireHook([CAN[0], 0.75, CAN[1]], 1.2, 0.55, ()=>{ cue('clang'); wob.t = 0; }); }, tick:flying },
+      { dur:0.6, fov:50, cam:[BENCH.x + 3.2, 1.7, BENCH.z - 2.4], look:[BENCH.x + 1, 0.7, (BENCH.z + CAN[1])/2], tick:flying },
+      { dur:1.4, fov:A.can.fov, cam:A.can.cam, look:A.can.look, tick:(dt)=>{ flying(dt); canWobble(dt); } },
+      { dur:1.2, fov:A.her.fov, cam:A.her.cam, look:A.her.look, enter:()=>hookAway() },        // silence
+      ...lineShots(['clang', 'again'], A, { each:seatR }),
+      fireHold(A),
       // again: and it veers sharply left
-      { dur:2.0, fov:50, cam:wide, look:[BENCH.x - 1.5, 0.8, (BENCH.z + 45)/2], enter:()=>{ cue('zip'); fly = fireHook([BENCH.x - 4.8, 0.9, 45.2], -2.2, 0.6, ()=>cue('skid')); },
-        tick:dt=>{ if(fly) fly(dt); } },
-      { dur:linesLen('there') + 0.4, fov:34, mood:'focused', cam:two(0.2), look:benchLook, enter:()=>{ hookAway(); talk('there'); } },
-      // she draws it
-      { dur:linesLen('diagram') + 0.5, fov:30, cam:[BENCH.x - 0.15, 1.35, BENCH.z - 0.45], look:[BENCH.x - 0.15, 0.5, BENCH.z + 0.02], enter:()=>{ a.paper.visible = true; talk('diagram'); } }
+      { dur:0.45, fov:30, cam:A.deviceTop.cam, look:A.deviceTop.look, enter:()=>{ cue('zip'); fly = fireHook([BENCH.x - 4.8, 0.9, 45.2], -2.2, 0.6, ()=>cue('skid')); }, tick:flying },
+      { dur:1.5, fov:50, cam:[BENCH.x - 2.4, 1.3, BENCH.z - 0.8], look:[BENCH.x - 3.0, 0.8, 46.5], tick:flying },
+      ...lineShots(['there', 'diagram'], A, { each:()=>{ seatR(); hookAway(); },
+        ins:[[/pulling against itself/, 'device'], [/motor is fine/, 'device'], [/housing shifts/, 'deviceTop'], [/lose your angle/, 'paper', ()=>{ a.paper.visible = true; }], [/^Here\.$/, 'paper', ()=>{ a.paper.visible = true; }]] })
     ];
-    playReel(shots, aftDone(()=>{ reel = null; seatR(); launcherBench(2); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; seatR(); a.paper.visible = true; benchPuzzle('balance', {}, testThree); }), { ownClock:true });
   }
-  /* stabilized: THUNK. "Yes!" — "Obviously." — "Because you're good at this." "Oh." */
+  /* stabilized: you fire, THUNK. "Yes!" — "Obviously." — "Because you're good at this." "Oh." — "Come on." */
   function testThree(){
-    const a = afterProps(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
-    let fly = null;
-    const hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
+    const a = afterProps(), A = benchAngles(), t = theoNpc();
+    let fly = null; const flying = dt=>{ if(fly) fly(dt); };
     a.stab.visible = true;
-    const shots = [
-      { dur:2.0, fov:46, cam:[BENCH.x - 2.4, 1.4, BENCH.z - 1.6], look:[TARGET[0], 1.2, (BENCH.z + TARGET[2])/2], enter:()=>{ seatR(); cue('zip'); fly = fireHook(TARGET, 0, 0.45, ()=>cue('punch')); },
-        tick:dt=>{ if(fly) fly(dt); } },
-      { dur:1.0, fov:24, cam:[TARGET[0] + 0.9, 1.6, TARGET[2] + 1.6], look:TARGET },
-      { dur:linesLen('yes') + 0.4, fov:30, mood:'grin', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>{ cue('win'); talk('yes'); } },
-      // she catches herself; tries to act casual
-      { dur:linesLen('obviously') + 0.4, fov:36, mood:'smug', cam:two(-0.15), look:benchLook, enter:()=>talk('obviously') },
-      { dur:linesLen('whyCalled') + 0.4, fov:30, cam:his, look:theoSay(), enter:()=>talk('whyCalled') },
-      // caught off guard. A small smile.
-      { dur:linesLen('oh') + 1.6, fov:28, mood:'soft', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], enter:()=>talk('oh') },
-      { dur:1.6, fov:40, cam:two(0.3), look:benchLook, enter:()=>{ cue('zip'); hookAway(); a.paper.visible = false; } }
-    ];
-    playReel(shots, aftDone(()=>{ reel = null; seatR(); benchTalk(); }), { ownClock:true });
-  }
-  /* on the bench: "You should build something for yourself." … "You're different." — then "Come on." */
-  function benchTalk(){
-    mark('different');
-    const t = theoNpc(), benchLook = [BENCH.x, 0.9, BENCH.z], seatR = () => stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI);
-    const hers = rel(ROBIN_SEAT[0], ROBIN_SEAT[1], Math.PI, 1.0, 0.25, 1.15), his = rel(THEO_SEAT[0], THEO_SEAT[1], Math.PI, 1.0, -0.25, 1.15);
     const up = [ROBIN_SEAT[0], BENCH.z - 0.8];
     const shots = [
-      { dur:linesLen('forYou') + 0.5, fov:38, cam:two(0), look:benchLook, enter:()=>{ seatR(); talk('forYou'); } },
-      { dur:linesLen('different') + 0.5, fov:30, cam:his, look:theoSay(), enter:()=>talk('different') },
-      // she doesn't know how to respond. She looks away.
-      { dur:2.0, fov:28, mood:'sad', cam:hers, look:[ROBIN_SEAT[0], 1.05, ROBIN_SEAT[1]], tick:(dt, tt)=>stage('ride', ROBIN_SEAT[0], 0, ROBIN_SEAT[1], Math.PI + 0.5*Math.min(1, tt/0.8)) },
-      { dur:linesLen('weird') + 0.4, fov:36, mood:'skeptical', cam:two(0.2), look:benchLook, enter:()=>talk('weird') },
+      fireHold(A),
+      { dur:0.45, fov:30, cam:A.device.cam, look:A.device.look, enter:()=>{ seatR(); cue('zip'); fly = fireHook(TARGET, 0, 0.45, ()=>cue('punch')); }, tick:flying },
+      { dur:0.7, fov:46, cam:[BENCH.x - 2.4, 1.4, BENCH.z - 1.6], look:[TARGET[0], 1.2, (BENCH.z + TARGET[2])/2], tick:flying },
+      { dur:1.0, fov:A.target.fov, cam:A.target.cam, look:A.target.look, tick:flying },
+      ...lineShots(['yes', 'obviously', 'whyCalled', 'oh'], A, { each:seatR, ins:[[/^Yes!$/, 'low', ()=>cue('win')]] }),
+      { dur:0.9, fov:A.wide.fov, cam:A.wide.cam, look:A.wide.look, enter:()=>{ cue('zip'); hookAway(); a.paper.visible = false; } },
       // she stands. "Come on."
-      { dur:linesLen('comeOn') + 0.6, fov:40, cam:[BENCH.x + 0.5, 1.5, BENCH.z - 3.4], look:[BENCH.x, 1.1, BENCH.z],
-        enter:()=>{ stage('idle', up[0], 0, up[1], Math.PI); talk('comeOn'); if(t){ t.pose = null; t.x = THEO_SEAT[0]; t.z = BENCH.z - 0.7; t.yaw = Math.PI; } } }
+      ...lineShots(['comeOn'], A, { each:()=>{ stage('idle', up[0], 0, up[1], Math.PI); if(t){ t.pose = null; t.x = THEO_SEAT[0]; t.z = BENCH.z - 0.7; t.yaw = Math.PI; } } })
     ];
-    playReel(shots, aftDone(()=>{ reel = null; walkTalk(); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
+      walkTalk(); }), { ownClock:true });
   }
-  /* across the courtyard: "Have you heard about that girl?" … the shoes … "You like it." */
+  /* WALK AND TALK. Yours to walk: east along Harbor Lane with Theo, who keeps to your pace — and the
+     conversation keeps to his: it goes on while you are beside him, and waits for you when you are not. */
+  const WALK_A = [BENCH.x + 0.4, 48.4], WALK_B = [26, 48.4];
+  const WALK_TALK = ['forYou', 'different', 'weird', 'thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean'];
+  let walk = null;
   function walkTalk(){
-    mark('vigilante');
-    const t = theoNpc(), A = [ROBIN_SEAT[0], BENCH.z - 0.8], Bp = [BENCH.x + 22, 48.4];      // east along Harbor Lane, toward home
-    const at = k => [lerp(A[0], Bp[0], k), lerp(A[1], Bp[1], k)];
-    const total = ['thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean'].reduce((n, k)=>n + linesLen(k) + 0.4, 0) + 2.5;
-    let wt = 0;
-    const walk = (dt)=>{ wt += dt; const k = Math.min(1, wt/total), r = at(k);
-      walkStage(at(Math.max(0, k - 0.002)), r, 1);
-      if(t){ t.go = null; t.x = r[0] + 0.1; t.z = r[1] - 0.9; t.yaw = Math.PI/2; t.walking = k < 1; } };   // on the street side of her, clear of the bench
-    const side = (k, d) => { const r = at(Math.min(1, k)); return [r[0] + 1.6, 1.5, r[1] - (d || 3.0)]; };
-    const look = () => { const r = at(Math.min(1, wt/total)); return [r[0] + 0.6, 1.3, r[1] + 0.4]; };
-    const shots = [
-      { dur:linesLen('thatGirl') + 0.4, fov:44, cam:()=>side(wt/total + 0.05), look, enter:()=>talk('thatGirl'), tick:walk },
-      // "Shoes?" — half a second
-      { dur:linesLen('shoes') + 0.5, fov:32, mood:'skeptical', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.55, r[1]]; }, enter:()=>talk('shoes'), tick:walk },
-      // she tries very hard not to smile
-      { dur:linesLen('dangerous') + 0.4, fov:40, mood:'smug', cam:()=>side(wt/total + 0.05), look, enter:()=>talk('dangerous'), tick:walk },
-      { dur:linesLen('yeahHer') + 0.4, fov:34, mood:'grin', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.55, r[1]]; }, enter:()=>talk('yeahHer'), tick:walk },
-      { dur:linesLen('smiling') + 0.3, fov:40, mood:'grin', cam:()=>side(wt/total + 0.05), look, enter:()=>talk('smiling'), tick:walk },
-      // he looks up at the sky
-      { dur:linesLen('cloudy') + 0.4, fov:44, cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 0.4, 1.3, r[1] + 1.6]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 6, 30, r[1] - 20]; }, enter:()=>talk('cloudy'), tick:walk },
-      // "I mean..." — and for once she has nothing
-      { dur:linesLen('imean') + 1.6, fov:30, mood:'soft', cam:()=>{ const r = at(Math.min(1, wt/total)); return [r[0] + 1.3, 1.6, r[1] - 0.9]; }, look:()=>{ const r = at(Math.min(1, wt/total)); return [r[0], 1.5, r[1]]; }, enter:()=>talk('imean'), tick:walk }
-    ];
-    playReel(shots, aftDone(()=>{ reel = null; momCall(at(1)); }), { ownClock:true });
+    mark('different');
+    const t = theoNpc(), up = [ROBIN_SEAT[0], BENCH.z - 1.0];
+    placePlayer(up[0], up[1], -Math.PI/2);
+    if(t){ t.go = null; t.pose = null; t.faceTo = null; t.x = WALK_A[0]; t.z = WALK_A[1]; t.yaw = Math.PI/2; }
+    walk = { i:0, talking:false, d:0, far:0 };
+    aftWatch = 'walk';
+    checkpoint(); lockPointer($('#view'));
+    note('Walk with Theo.');
+  }
+  function tickWalk(dt){
+    const t = theoNpc(), w = walk; if(!t || !w) return;
+    const p = P(), near = Math.hypot(p.x - t.x, p.z - t.z) < 4.5, len = WALK_B[0] - WALK_A[0];
+    // he walks while you are with him (a little ahead of you), and waits when you are not
+    const lead = (p.x - WALK_A[0]) + 1.2, go = near && w.d < len && w.d < lead + 1.5;
+    if(go){ w.d = Math.min(len, w.d + dt*1.35); }
+    t.go = null; t.x = WALK_A[0] + w.d; t.z = WALK_A[1] - 0.2; t.walking = go; t.faceTo = go ? null : [p.x, p.z];
+    if(go) t.yaw = Math.PI/2;
+    if(!near){ w.far += dt; if(w.far > 6){ w.far = 0; note('Theo is waiting for you.'); } } else w.far = 0;
+    // the next part of the conversation, when the last one is over and she is beside him
+    if(!w.talking && near && w.i < WALK_TALK.length){
+      const key = WALK_TALK[w.i++]; w.talking = true;
+      if(key === 'thatGirl') mark('vigilante');
+      talk(key, ()=>{ w.talking = false; });
+    }
+    if(!w.talking && w.i >= WALK_TALK.length && near){ aftWatch = null; walk = null; momCall([p.x, p.z]); }
   }
   /* her phone: MOM. Straight home before dinner. Theo walks off backwards. "Weirdo." */
   function momCall(at){
     mark('momphone');
-    const t = theoNpc(), me_ = [at[0], at[1]], him = [at[0] + 0.1, at[1] - 0.9], away = [at[0] - 7, at[1] - 1.6];
-    const hers = [me_[0] + 1.3, 1.6, me_[1] - 0.9], herL = [me_[0], 1.55, me_[1]];
+    const t = theoNpc(), me_ = [at[0], 48.9], him = [at[0] + 1.0, 48.1], away = [at[0] - 7, 47.0];
+    const A = pairAngles(me_, him, [0.78, -0.62], [-0.78, 0.62], [-0.62, -0.78], 1.52);
+    const phoneUp = () => stage('text', me_[0], 0, me_[1], Math.PI/2 + 0.6);
+    A.phone = { cam:[me_[0] + 0.55, 1.42, me_[1] - 0.35], look:[me_[0] + 0.1, 1.3, me_[1] - 0.05], fov:26 };
     const shots = [
-      { dur:1.6, fov:30, cam:hers, look:herL, enter:()=>{ stage('idle', me_[0], 0, me_[1], Math.PI/2 + 0.6); if(t){ t.x = him[0]; t.z = him[1]; t.walking = false; t.faceTo = me_; } cue('ring'); phoneBig('call', 'MOM'); } },
-      { dur:linesLen('momPhone') + 0.4, fov:30, mood:'sad', cam:hers, look:herL, enter:()=>{ phoneBig('oncall', 'MOM'); stage('text', me_[0], 0, me_[1], Math.PI/2 + 0.6); talk('momPhone'); } },
-      // she looks at Theo
-      { dur:linesLen('momPhone2') + 0.4, fov:36, cam:[me_[0] + 2.4, 1.5, me_[1] + 1.2], look:[me_[0], 1.4, me_[1] - 0.45], enter:()=>talk('momPhone2') },
-      { dur:linesLen('momPhone3') + 0.6, fov:30, mood:'sad', cam:hers, look:herL, enter:()=>talk('momPhone3') },
-      { dur:linesLen('momPhone4') + 0.8, fov:28, mood:'soft', cam:hers, look:herL, enter:()=>talk('momPhone4') },
-      { dur:linesLen('walkYou') + 0.4, fov:36, cam:[me_[0] + 2.4, 1.5, me_[1] + 1.2], look:[me_[0], 1.4, me_[1] - 0.45], enter:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], Math.PI - 0.2); talk('walkYou'); } },
+      { dur:1.6, fov:A.phone.fov, cam:A.phone.cam, look:A.phone.look,
+        enter:()=>{ stage('idle', me_[0], 0, me_[1], Math.PI/2 + 0.6); if(t){ t.walking = false; t.go = null; t.x = him[0]; t.z = him[1]; t.faceTo = me_; } cue('ring'); phoneBig('call', 'MOM'); } },
+      ...lineShots(['momPhone', 'momPhone2', 'momPhone3', 'momPhone4'], A, { each:()=>{ phoneUp(); phoneBig('oncall', 'MOM'); }, ins:[[/Where are you/, 'phone'], [/before dinner/, 'phone'], [/^Love you\.$/, 'her']] }),
+      ...lineShots(['walkYou'], A, { each:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], angTo(me_[0], me_[1], him[0], him[1])); } }),
       // he starts walking backward
-      { dur:linesLen('textMe') + 1.2, fov:40, cam:[me_[0] + 1.6, 1.6, me_[1] - 3.2], look:[me_[0] - 2, 1.3, me_[1] + 1],
-        enter:()=>{ talk('textMe'); if(t){ t.go = { a:him, b:away, t:0, dur:linesLen('textMe') + 1.2, back:true, face:me_ }; } } },
+      { dur:linesLen('textMe') + 0.8, fov:40, cam:[me_[0] + 1.6, 1.6, me_[1] - 3.2], look:[me_[0] - 2, 1.3, me_[1] + 0.5],
+        enter:()=>{ talk('textMe'); if(t){ t.go = { a:him, b:away, t:0, dur:linesLen('textMe') + 0.8, back:true, face:me_ }; } } },
       // she watches him for a moment. She smiles.
-      { dur:linesLen('weirdo') + 1.4, fov:28, mood:'soft', cam:hers, look:herL, enter:()=>talk('weirdo') },
-      // she turns toward home
-      { dur:1.6, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>stage('idle', me_[0], 0, me_[1], Math.PI/2) }
+      ...lineShots(['weirdo'], A, { ins:[[/Weirdo/, 'her']] }),
+      { dur:1.4, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>stage('idle', me_[0], 0, me_[1], Math.PI/2) }
     ];
     playReel(shots, aftDone(()=>{
       reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
@@ -4463,7 +4515,7 @@ window.TSH = (function(){
   }
   /* GET HOME. An ordinary walk, until she is out of sight of the school. */
   function gethomeBegin(resume){
-    if(resume){ placePlayer(BENCH.x + 22, 48.4, -Math.PI/2); }
+    if(resume){ placePlayer(WALK_B[0], 48.9, -Math.PI/2); }
     aftT = 0;
     if(S.flags.shoesBack){ aftWatch = 'home'; return; }
     aftWatch = 'away';
@@ -6129,6 +6181,7 @@ window.TSH = (function(){
     if(c === 'KeyM' && !e.repeat && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))){ setMute(!muted); return true; }   // in a film, a fight, a puzzle: anywhere
     if(c === 'KeyB' || c === 'KeyC' || c === 'KeyT') return true;       // no costume changes, rooms or chat mid-heist
     if(busy === 'panel'){ if(c === 'Escape' || c === 'KeyI' || c === 'KeyP'){ const k = el.querySelector('#tshPanel').dataset.kind; if(k !== 'results') closePanel(); } return true; }
+    if(mode === 'reel' && reel && reel.wait && (c === 'Space' || c === 'KeyE' || c === 'KeyF') && !e.repeat){ reel.wait(); return true; }
     if(mode === 'reel'){ if((c === 'Enter' || c === 'NumpadEnter' || c === 'Escape') && !e.repeat) skipReel(); return true; }
     if(mode === 'talk') return convoKey(e);
     if(!mode && S.step === 'lesson' && (c === 'Enter' || c === 'NumpadEnter') && !e.repeat){ lessonSkip(); return true; }
