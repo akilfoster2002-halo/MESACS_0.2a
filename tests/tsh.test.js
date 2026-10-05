@@ -673,7 +673,7 @@ test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fi
   const STEP = { f:0.5, p:30, f2:0.5 }, MIN = { f:0.5, p:0, f2:0.5 }, MAX = { f:6, p:330, f2:8 };
   P.FREQS.forEach((L, k)=>{ assert.ok(L.keys.some(q=>L.start[q] !== L.target[q]), 'stage ' + k + ' starts out of tune');
     L.keys.forEach(q=>{ const v = L.target[q]; assert.ok(v >= MIN[q] && v <= MAX[q] && Math.abs((v - MIN[q])/STEP[q] - Math.round((v - MIN[q])/STEP[q])) < 1e-9, 'stage ' + k + ': ' + q + ' can be dialled'); }); });
-  assert.ok(P.FREQS[2].keys.length === 3, 'the last stage has the field\'s second voice in it');
+  assert.ok(P.FREQS.length === 2 && P.FREQS[1].keys.join() === 'f,p', 'the field is matched in two plain stages: speed, then timing');
   // the catch, in the hall: "I was here yesterday." — and instead of detention, "Come on. I need your help."
   const C = t.slice(t.indexOf('  function caughtScene('), t.indexOf('  /* a camera to one side of two people:'));
   ["talk('caught')", "talk('caught2')", "talk('caught3')", "talk('assign')", "talk('frustrate')", "talk('help')", "mood:'soft'", 'detention()'].forEach(b => assert.ok(C.includes(b), 'the catch has ' + b));
@@ -685,7 +685,7 @@ test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fi
   has(sch, /if\(u\.field\)\{ const k = Math\.max\(0, 1 - \(u\.fix \|\| 0\)\/3\)/, 'the prototype fights the field until she fixes it');
   const D = t.slice(t.indexOf('  function labScene('), t.indexOf('  /* at the stand: the puzzles'));
   ["talk('psi')", "talk('psi2')", "talk('spike')", "talk('what')", "talk('fighting')", "talk('fighting2')", "talk('keepYou')", 'benchPuzzles()', "caption('INT. ROBOTICS LAB — ROOM 120')"].forEach(b => assert.ok(D.includes(b), 'the lab has ' + b));
-  has(t, /TSHPUZZLE\.open\('route', \{ levels:3, psi:true \}[\s\S]{0,80}TSHPUZZLE\.open\('freq', \{ levels:3 \}[\s\S]{0,80}TSHPUZZLE\.open\('gears', \{ levels:2, psi:true \}/, 'route the energy, match the frequency, stabilise the actuators');
+  has(t, /TSHPUZZLE\.open\('route', \{ levels:3, psi:true \}[\s\S]{0,80}TSHPUZZLE\.open\('freq', \{ levels:2 \}[\s\S]{0,80}TSHPUZZLE\.open\('gears', \{ levels:2, psi:true \}/, 'route the energy, match the frequency, stabilise the actuators');
   const R = t.slice(t.indexOf('  function robotLives('), t.indexOf('  function talkScene('));
   ["talk('didIt')", "talk('most')", "talk('laugh')", "outcome('fixed')"].forEach(b => assert.ok(R.includes(b), 'it runs, then ' + b));
   const T = t.slice(t.indexOf('  function talkScene('), t.indexOf('  let phones = null;'));

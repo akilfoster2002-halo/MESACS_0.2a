@@ -4000,7 +4000,7 @@ window.TSH = (function(){
     benchMode(true); R.userData.field = true;
     setObjective('Stop the prototype fighting the field.', ['Route the Psi energy.', 'Match its frequency.', 'Stabilise the actuators.']);
     TSHPUZZLE.open('route', { levels:3, psi:true }, ()=>{ step();
-      TSHPUZZLE.open('freq', { levels:3 }, ()=>{ step();
+      TSHPUZZLE.open('freq', { levels:2 }, ()=>{ step();
         TSHPUZZLE.open('gears', { levels:2, psi:true }, ()=>{ step(); benchMode(false); robotLives(); }); }); });
   }
   /* it runs, in the field. "You did it." "Obviously." "You know, most people wait until I finish explaining

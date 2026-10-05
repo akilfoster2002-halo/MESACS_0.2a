@@ -14,8 +14,8 @@
               notch up and the drive runs, centre to rim.
      DIAGNOSE the second thing: examine it — the light, the battery, the
               motor, the sensor, the log — and say what is actually wrong.
-     FREQ     the Psi field's oscillation, live: tune the robot to it —
-              frequency, then phase, then a second harmonic — until it locks.
+     FREQ     the Psi field's wave and the robot's, held still: match its
+              speed (count the humps), then its timing (line the peaks up).
    With { psi:true }, ROUTE carries the field's energy to the robot's core
    and GEARS are its actuators, lined up to move with the field.
 
@@ -330,50 +330,81 @@ window.TSHPUZZLE = (function(){
   }
 
   /* ============================================================ FREQ
-     The Psi field's oscillation, drawn live; the robot's, drawn over it.
-     Tune the robot's frequency (then its phase, then a second harmonic) —
-     tap the arrows — until the two are one line and it locks. Every value
-     moves in steps, so every level has an exact answer. */
+     The Psi field's oscillation and the robot's, drawn together and held
+     still so they can be compared. Make the robot's wave the field's: first
+     its SPEED (count the humps — the crests are marked, and counted), then
+     its TIMING (slide the crests onto the field's). The gap between the two
+     is shaded, and shrinks as they come together; each control says when it
+     is right, and which way to go when it is not; and one step from right,
+     a control snaps onto it. Every value moves in steps, so every stage has
+     an exact answer. */
   const FREQS = [
-    { keys:['f'],                 target:{ f:3, p:0, f2:0, p2:0 }, start:{ f:1.5, p:0, f2:0, p2:0 } },
-    { keys:['f', 'p'],            target:{ f:2.5, p:90, f2:0, p2:0 }, start:{ f:4.5, p:270, f2:0, p2:0 } },
-    { keys:['f', 'p', 'f2'],      target:{ f:2, p:60, f2:5, p2:0 }, start:{ f:3.5, p:180, f2:2, p2:0 } }
+    { keys:['f'],      target:{ f:3, p:0, f2:0, p2:0 },   start:{ f:1.5, p:0, f2:0, p2:0 } },
+    { keys:['f', 'p'], target:{ f:2.5, p:90, f2:0, p2:0 }, start:{ f:4, p:270, f2:0, p2:0 } }
   ];
   const FSTEP = { f:0.5, p:30, f2:0.5 }, FMIN = { f:0.5, p:0, f2:0.5 }, FMAX = { f:6, p:330, f2:8 };
-  const FNAME = { f:'FREQUENCY', p:'PHASE', f2:'HARMONIC' }, FUNIT = { f:' Hz', p:'°', f2:' Hz' };
-  function wave(v, x, t){ const a = 2*Math.PI*(v.f*x + v.p/360) + t; let y = Math.sin(a); if(v.f2) y = y*0.7 + 0.45*Math.sin(2*Math.PI*v.f2*x + t*1.6); return y; }
+  const FNAME = { f:'SPEED', p:'TIMING', f2:'RIPPLE' }, FWHAT = { f:'how many waves', p:'slide the peaks', f2:'the second voice' };
+  const fval = (k, n) => k === 'f' ? n + (n === 1 ? ' wave' : ' waves') : k === 'p' ? (n ? '→ ' + n + '°' : '0°') : n + '';
+  // TIMING up slides the peaks right, as ▶ says
+  function wave(v, x, t){ const a = 2*Math.PI*(v.f*x - v.p/360) + t; let y = Math.sin(a); if(v.f2) y = y*0.7 + 0.45*Math.sin(2*Math.PI*v.f2*x + t*1.6); return y; }
   function freq(o, done){
-    const ui = panel('MATCH THE FREQUENCY', 'The Psi field oscillates. Tap the arrows to tune the robot to it, until the two waves are one.');
-    const LV = FREQS.slice(0, o.levels || 3);
+    const ui = panel('MATCH THE FIELD', 'Make the robot\'s wave (pink) the same as the field\'s (violet). Count the humps first.');
+    const LV = FREQS.slice(0, o.levels || FREQS.length);
     let lv = 0, L, v, solved = 0, held = 0, last = 0;
     const load = () => { L = LV[lv]; v = Object.assign({}, L.start); paint(); };
-    const err = () => L.keys.reduce((e, k)=>e + Math.abs(v[k] - L.target[k])/(k === 'p' ? 180 : 2), 0);
+    const err = () => L.keys.reduce((e, k)=>e + Math.abs(pd(k, v[k], L.target[k]))/(k === 'p' ? 180 : 2), 0);
+    const pd = (k, a, b) => k === 'p' ? ((a - b + 540) % 360) - 180 : a - b;      // the phase goes round
     const match = () => L.keys.every(k=>v[k] === L.target[k]);
+    const hint = k => { const d = pd(k, v[k], L.target[k]); if(!d) return '✓ right';
+      return k === 'f' ? (d < 0 ? 'more waves' : 'fewer waves') : (d < 0 ? 'slide them right' : 'slide them left'); };
+    function set(k, n){
+      if(k === 'p') n = (n + 360) % 360; else n = Math.max(FMIN[k], Math.min(FMAX[k], n));
+      n = Math.round(n/FSTEP[k])*FSTEP[k];
+      // one step from right: it snaps on
+      if(Math.abs(pd(k, n, L.target[k])) <= FSTEP[k] + 1e-9 && n !== L.target[k]) n = L.target[k];
+      v[k] = n; window.TSH && TSH._cue && TSH._cue('ui'); paint();
+    }
     function paint(){
-      ui.side.innerHTML = '<div class="tsh-puz-dials">' + L.keys.map(k=>`<div class="tsh-puz-dial"><small>${FNAME[k]}</small><button data-k="${k}" data-d="-1">◀</button><b>${v[k]}${FUNIT[k]}</b><button data-k="${k}" data-d="1">▶</button></div>`).join('') + '</div>';
-      ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ if(solved) return; const k = b.dataset.k, d = +b.dataset.d;
-        let n = v[k] + d*FSTEP[k]; if(k === 'p') n = (n + 360) % 360; else n = Math.max(FMIN[k], Math.min(FMAX[k], n));
-        v[k] = Math.round(n*2)/2; window.TSH && TSH._cue && TSH._cue('ui'); paint(); });
+      ui.side.innerHTML = '<div class="tsh-puz-dials">' + L.keys.map(k=>{ const ok = v[k] === L.target[k];
+        return `<div class="tsh-puz-dial${ok ? ' ok' : ''}"><small>${FNAME[k]}<em>${FWHAT[k]}</em></small>
+          <button data-k="${k}" data-d="-1">◀</button>
+          <input type="range" data-k="${k}" min="${FMIN[k]}" max="${FMAX[k]}" step="${FSTEP[k]}" value="${v[k]}">
+          <button data-k="${k}" data-d="1">▶</button>
+          <b>${fval(k, v[k])}</b><i>${hint(k)}</i></div>`; }).join('') + '</div>';
+      ui.side.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ if(!solved) set(b.dataset.k, v[b.dataset.k] + (+b.dataset.d)*FSTEP[b.dataset.k]); });
+      ui.side.querySelectorAll('input').forEach(r=>{ r.oninput = ()=>{ if(!solved) set(r.dataset.k, +r.value); }; r.onkeydown = e=>e.stopPropagation(); });
     }
     load();
     function draw(t){
       const x = ui.x, dt = Math.min(0.05, (t - last)/1000); last = t; x.clearRect(0, 0, 640, 520);
-      const T = t/1000*1.4, ox = 30, w = 580, cy = 250, amp = 120, e = err(), m = match();
+      const ox = 30, w = 580, cy = 250, amp = 120, e = err(), m = match(), shimmer = 0.85 + 0.15*Math.sin(t/300);
       // the grid
       x.strokeStyle = 'rgba(56,255,208,0.07)'; x.lineWidth = 1;
       for(let k = 0; k <= 10; k++){ x.beginPath(); x.moveTo(ox + k*w/10, cy - 160); x.lineTo(ox + k*w/10, cy + 160); x.stroke(); }
       for(let k = -4; k <= 4; k++){ x.beginPath(); x.moveTo(ox, cy + k*40); x.lineTo(ox + w, cy + k*40); x.stroke(); }
-      const line = (vv, col, wd, glow) => { const pts = []; for(let i = 0; i <= 160; i++){ const u = i/160; pts.push([ox + u*w, cy - wave(vv, u, T)*amp]); } glowLine(x, pts, col, wd, glow); };
-      line(L.target, '#b48aff', 7, 18);                                      // the field
-      line(v, m ? TEAL : PINK, 3, m ? 14 : 6);                               // the robot
-      x.font = font(13); x.textAlign = 'left'; x.fillStyle = '#b48aff'; x.fillText('Ψ FIELD', ox, 40); x.fillStyle = m ? TEAL : PINK; x.fillText('ROBOT', ox + 90, 40);
+      const ys = vv => { const a = []; for(let i = 0; i <= 200; i++) a.push(cy - wave(vv, i/200, 0)*amp); return a; };
+      const yt = ys(L.target), yr = ys(v);
+      // the gap between them, shaded: it shrinks as they come together
+      if(!m){ x.fillStyle = 'rgba(255,63,208,0.16)'; x.beginPath();
+        for(let i = 0; i <= 200; i++){ const px = ox + i/200*w; i ? x.lineTo(px, yt[i]) : x.moveTo(px, yt[i]); }
+        for(let i = 200; i >= 0; i--) x.lineTo(ox + i/200*w, yr[i]);
+        x.closePath(); x.fill(); }
+      const pts = a => a.map((y, i)=>[ox + i/200*w, y]);
+      x.globalAlpha = shimmer; glowLine(x, pts(yt), '#b48aff', 7, 18); x.globalAlpha = 1;   // the field
+      glowLine(x, pts(yr), m ? TEAL : PINK, 3, m ? 14 : 6);                                  // the robot
+      // the crests, marked: count the humps, line the peaks up
+      const crests = (a, col, r) => { x.fillStyle = col; for(let i = 1; i < 200; i++) if(a[i] < a[i-1] && a[i] <= a[i+1] && a[i] < cy - amp*0.6){ x.beginPath(); x.arc(ox + i/200*w, a[i], r, 0, 7); x.fill(); } };
+      crests(yt, '#b48aff', 7); crests(yr, m ? TEAL : PINK, 4.5);
+      x.font = font(13); x.textAlign = 'left';
+      x.fillStyle = '#b48aff'; x.fillText('Ψ FIELD · ' + fval('f', L.target.f), ox, 40);
+      x.fillStyle = m ? TEAL : PINK; x.fillText('ROBOT · ' + fval('f', v.f), ox + 190, 40);
       const sync = Math.max(0, Math.round(100 - e*55));
       x.textAlign = 'right'; x.fillStyle = m ? TEAL : INK; x.fillText('SYNC ' + (m ? 100 : Math.min(99, sync)) + '%', ox + w, 40);
       held = m ? held + dt : 0;
       ui.lv.textContent = 'STAGE ' + (lv + 1) + ' / ' + LV.length;
-      if(held > 0.6 && !solved){ solved = t; ui.msg.textContent = 'Locked to the field.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(held > 0.5 && !solved){ solved = t; ui.msg.textContent = 'Locked to the field.'; window.TSH && TSH._cue && TSH._cue('win'); }
       if(solved && t - solved > 1200){ solved = 0; held = 0; lv++; if(lv >= LV.length){ close(); done && done(); return false; } load();
-        ui.msg.textContent = lv === 1 ? 'Same frequency isn\'t enough: it has to swing at the same moment. Phase.' : 'The field has a second voice in it. Find both.'; }
+        ui.msg.textContent = 'This time the field is out of step too. Match the SPEED, then slide the peaks onto the field\'s with TIMING.'; }
       return true;
     }
     run(ui, draw);
