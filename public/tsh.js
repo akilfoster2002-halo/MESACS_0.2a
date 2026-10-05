@@ -516,7 +516,7 @@ window.TSH = (function(){
     LOOK.dispose();
     if(window.TSHNYC) TSHNYC.detach();
     if(window.TSHSCORE) TSHSCORE.detach();
-    line.mesh = line.ring = line.aim = null; line.held = false; if(meterEl) meterEl.style.display = 'none';
+    if(meterEl) meterEl.style.display = 'none';
     lights.forEach(l=>{ if(l.parent) l.parent.remove(l); }); lights.length = 0;
     if(root && root.parent) root.parent.remove(root);
     root = null; W = null; dyn.length = 0;
@@ -1538,7 +1538,7 @@ window.TSH = (function(){
     { id:'fire',   title:'THE SHOES', how:'SPACE — fire them.' },
     { id:'charge', title:'HOLD, THEN LET GO', how:'Hold SPACE — she crouches — and let go to jump. The longer you hold, the higher she goes.', teach:['charge','jump','steer'] },
     { id:'combo',  title:'THE RHYTHM', how:'Press SPACE again just as her feet touch: every jump in time goes higher. Four in a row.' },
-    { id:'grapple',title:'THE LINE', how:'Aim at a building and hold R (or the right mouse button): she swings on a line. Let go to fly on.', teach:['grapple'] },
+    { id:'leap',   title:'ROOF TO ROOF', how:'Hold SPACE, run at the edge with W, and let go: she leaps and soars. Land on another roof.' },
     { id:'alley',  title:'DRAGON ALLEY', how:'The buyer is in Dragon Alley. Get there.' }
   ];
   const lesson = { i:0, perfect:0, lands:0, touched:false, goal:null };
@@ -1583,7 +1583,7 @@ window.TSH = (function(){
     S.boots = window.BOOTS && BOOTS.B ? [...BOOTS.B.have] : S.boots;
     mark('lesson');
     outcome('done');                              // → the deal
-    note('👟 The shoes do more: SHIFT in the air dives · SPACE out of a dive pulls up · SPACE at a wall kicks off it · R swings.', 'big');
+    note('👟 The shoes do more: SHIFT in the air dives · SPACE out of a dive pulls up · SPACE at a wall kicks off it.', 'big');
   }
   function lessonSkip(){ if(S.step !== 'lesson') return; if(lessonId() === 'fire') fireShoes(); else lessonNext(); }
   /* the nearest roof across Neon Avenue, for the POINT step's marker */
@@ -1603,7 +1603,7 @@ window.TSH = (function(){
       if(jumped && e.combo >= 3) return lessonNext();
       if(e.name === 'land' && ++lesson.lands % 4 === 0) note('Press SPACE the moment her feet touch — a beat late and the rhythm starts again.', 'warn');
     }
-    if(id === 'grapple' && e.name === 'ropeOff' && !e.landed) return lessonNext();
+    if(id === 'leap' && (e.name === 'land' || e.name === 'roll' || e.name === 'landPerfect') && b.y > 3 && b.fromCharge) return lessonNext();
   }
   function lessonTick(){
     if(S.step !== 'lesson' || !window.BOOTS || !BOOTS.B || mode) return;
@@ -1625,15 +1625,15 @@ window.TSH = (function(){
      charged jump and the line, which are what the shoes do now. */
   function shoesHave(){
     let h = S.boots && S.boots.length ? S.boots.slice() : BOOTS.ALL.filter(t=>BOOTS.TECH.late.indexOf(t) < 0);
-    if(h.includes('bound')){ h = h.filter(t=>t !== 'bound'); ['charge', 'grapple'].forEach(t=>{ if(!h.includes(t)) h.push(t); }); S.boots = h; }
+    if(h.includes('bound') || h.includes('grapple')){ h = h.filter(t=>t !== 'bound' && t !== 'grapple'); if(!h.includes('charge')) h.push('charge'); S.boots = h; }
     return h;
   }
   function bootsOn(){
     if(!window.BOOTS) return;
     swingClips();
     // a night already past the lesson never meets the new moves in it: say so once
-    if(S.step !== 'lesson' && S.flags && !S.flags.lineTip && !day()){ S.flags.lineTip = true;
-      later(()=>{ if(on) note('👟 The shoes changed: hold SPACE and let go to jump — longer, higher; press it again as she lands to go higher still. 🪝 R (or the right mouse button) swings on a line.', 'big'); }, 2500); }
+    if(S.step !== 'lesson' && S.flags && !S.flags.leapTip && !day()){ S.flags.leapTip = true;
+      later(()=>{ if(on) note('👟 Hold SPACE and let go to jump — the longer, the higher; with W held she leaps and soars, roof to roof. Press SPACE again as she lands to go higher still.', 'big'); }, 2500); }
     /* the island, not the district: she can walk Manhattan now (tshnyc.js), and its harbour kerb is the real edge */
     const E = window.TSHNYC ? { x:1400, z:1400 } : CITY.EDGE;
     BOOTS.attach({
@@ -1651,7 +1651,7 @@ window.TSH = (function(){
   }
   function bootEvent(e, b){
     // the shoes are illegal wearables: WFC that sees one used has something to say about it
-    if(['bound', 'boundPerfect', 'jump', 'jumpPerfect', 'rebound', 'reboundPerfect', 'pull', 'pullPerfect', 'dash', 'rope'].includes(e.name)) gearSeen('boots');
+    if(['bound', 'boundPerfect', 'jump', 'jumpPerfect', 'rebound', 'reboundPerfect', 'pull', 'pullPerfect', 'dash'].includes(e.name)) gearSeen('boots');
     // the late techniques are learned by doing
     if(b.flow >= 0.6) BOOTS.learn('chain');
     if(e.name === 'roll' && Math.hypot(b.vx, b.vz) > 18) BOOTS.learn('slide');
@@ -1659,135 +1659,14 @@ window.TSH = (function(){
     if(window.TSHSCORE) TSHSCORE.trick(e, b);
   }
 
-  /* ============================================================ THE LINE
-     R (or the right mouse button) held: a line from her hand to the building
-     you are aiming at, and she swings on it (boots.js has the pendulum). Let
-     go and she flies on with the speed the swing gave her. The hook goes
-     where the camera looks; if that is the street or the sky it looks a
-     little higher, and higher again, for a wall to bite — the forgiving
-     aim a swing needs, because a line to a point below you is no swing.
-     The ring shows where it will go before you fire. */
-  const line = { mesh:null, ring:null, aim:null, aimT:0, held:false, shot:1, next:0 };
-  const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _r = new THREE.Vector3();
-  function rayBox(ox, oy, oz, dx, dy, dz, s, max){
-    let t0 = 0, t1 = max;
-    for(const [o, d, a, b] of [[ox, dx, s.x1, s.x2], [oy, dy, s.y1 === undefined ? -1 : s.y1, s.y2], [oz, dz, s.z1, s.z2]]){
-      if(Math.abs(d) < 1e-9){ if(o < a || o > b) return null; continue; }
-      let ta = (a - o)/d, tb = (b - o)/d; if(ta > tb){ const q = ta; ta = tb; tb = q; }
-      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if(t0 > t1) return null;
-    }
-    return t0;
-  }
-  function lineCast(ox, oy, oz, dx, dy, dz, max){
-    let best = max, hit = null;
-    for(const s of G.solids){ if(s.off || s.nyc || s.y2 < 3) continue; const t = rayBox(ox, oy, oz, dx, dy, dz, s, best); if(t !== null && t > 0.5 && t < best){ best = t; hit = s; } }
-    if(window.TSHNYC && TSHNYC.raycast){ const h = TSHNYC.raycast(ox, oy, oz, dx, dy, dz, best, rayBox); if(h && h.t < best){ best = h.t; hit = h.s; } }
-    return hit ? { t:best, x:ox + dx*best, y:oy + dy*best, z:oz + dz*best } : null;
-  }
-  function lineAim(){
-    if(!window.BOOTS || !BOOTS.B || !BOOTS.B.have.has('grapple')) return null;
-    const b = BOOTS.B, range = BOOTS.TUNE.grappleRange, hy = b.y + BOOTS.HAND;
-    G.camera.getWorldPosition(_o); G.camera.getWorldDirection(_d);
-    const flat = new THREE.Vector3(_d.x, 0, _d.z).normalize(), up = new THREE.Vector3(0, 1, 0);
-    /* a fan of rays, from where the camera looks and up from it, a little either side: the best
-       hook is high, ahead, and at a good swinging distance — not the lamppost at her elbow */
-    let best = null, bs = -Infinity;
-    for(const yaw of [0, 0.22, -0.22]) for(const lift of [0, 0.25, 0.5, 0.75, 1.0]){
-      const v = flat.clone().applyAxisAngle(up, yaw), pitch = Math.max(Math.asin(clamp(_d.y, -1, 1)), -0.1) + lift;
-      v.multiplyScalar(Math.cos(pitch)); v.y = Math.sin(pitch);
-      const h = lineCast(_o.x, _o.y, _o.z, v.x, v.y, v.z, range + 12); if(!h) continue;
-      const above = h.y - hy, dist = Math.hypot(h.x - b.x, h.y - hy, h.z - b.z);
-      if(above < 5 || dist < 8 || dist > range) continue;
-      const score = Math.min(above, 40) - Math.abs(dist - 32)*0.35 - Math.abs(yaw)*12 - lift*4;
-      if(score > bs){ bs = score; best = h; }
-    }
-    return best;
-  }
-  /* WHERE A WEB GOES: TO THE SIDE OF THE STREET, NEVER BEHIND HER. Spider-Man's way — you do not aim it. A few
-     points up and ahead of her are tried, and from each a ray goes out to the left and right (angled a little
-     forward) to the nearest building: the web sticks to the wall beside the street ahead. Whatever it finds
-     has to be well IN FRONT of her — ahead of where you are looking AND ahead of where she is going — or it
-     is thrown away. With no wall ahead to stick to, it still goes forward and up. */
-  function webAnchor(){
-    if(!window.BOOTS || !BOOTS.B || !BOOTS.B.have.has('grapple')) return null;
-    const b = BOOTS.B, hy = b.y + BOOTS.HAND, range = BOOTS.TUNE.grappleRange;
-    G.camera.getWorldDirection(_d);
-    let fx = _d.x, fz = _d.z; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
-    const hs = Math.hypot(b.vx, b.vz), mvx = hs > 3 ? b.vx/hs : fx, mvz = hs > 3 ? b.vz/hs : fz;
-    const px = -fz, pz = fx;                                                  // to her right
-    const AHEAD = 8;
-    let best = null, bs = -Infinity;
-    for(const ahead of [18, 26, 34, 12]) for(const up of [16, 24, 32, 10]) for(const side of [1, -1]) for(const fwd of [0.35, 0]){
-      const ox = b.x + fx*ahead, oy = hy + up, oz = b.z + fz*ahead;
-      let rx = px*side + fx*fwd, rz = pz*side + fz*fwd; const rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
-      const h = lineCast(ox, oy, oz, rx, 0, rz, 40); if(!h) continue;
-      const alongLook = (h.x - b.x)*fx + (h.z - b.z)*fz, alongMove = (h.x - b.x)*mvx + (h.z - b.z)*mvz;
-      if(alongLook < AHEAD || alongMove < AHEAD) continue;                    // never behind her
-      const dist = Math.hypot(h.x - b.x, h.y - hy, h.z - b.z);
-      if(dist > range || dist < 8 || h.y - hy < 6) continue;
-      const score = -Math.abs(h.t - 10)*0.6 - Math.abs(up - 22)*0.25 - Math.abs(ahead - 24)*0.2 + fwd*2;
-      if(score > bs){ bs = score; best = { x:h.x, y:h.y, z:h.z, dir:{ x:fx, z:fz } }; }
-    }
-    if(best) return best;
-    return { x:b.x + fx*26, y:hy + 24, z:b.z + fz*26, dir:{ x:fx, z:fz }, open:true };   // no wall ahead: forward and up all the same
-  }
-  function lineFire(){
-    if(mode || inside || !window.BOOTS || !BOOTS.B || !BOOTS.active) return;
-    if(!BOOTS.B.have.has('grapple')){ note('🪝 Not yet.', 'warn'); return; }
-    line.held = true;
-    const a = webAnchor();
-    if(!a){ cue('fail'); return; }
-    if(BOOTS.grapple(a)) line.shot = 0;
-  }
-  function lineLet(){ line.held = false; if(window.BOOTS && BOOTS.B && BOOTS.B.rope) BOOTS.release(); }
-  /* where her right hand is, so the web leaves from it */
-  let handBone = null, handOf = null;
-  function handPos(){
-    const m = window.AVATAR && AVATAR.model; if(!m) return null;
-    if(handOf !== m){ handOf = m; handBone = null; m.traverse(o=>{ if(!handBone && /RightHand$/.test(o.name || '')) handBone = o; }); }
-    return handBone ? handBone.getWorldPosition(new THREE.Vector3()) : null;
-  }
-  function lineMesh(){
-    if(line.mesh && line.mesh.parent) return;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color:0xf4f8ff, fog:false }));
-    m.userData.flat = true; m.frustumCulled = false; m.visible = false;
-    const r = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.8, 24), new THREE.MeshBasicMaterial({ color:0xf4f8ff, transparent:true, opacity:0.6, side:THREE.DoubleSide, depthTest:false, fog:false }));
-    r.userData.flat = true; r.renderOrder = 10; r.visible = false;
-    root.add(m); root.add(r); line.mesh = m; line.ring = r;
-    if(LOOK.hideInMirror) LOOK.hideInMirror.push(r);
-  }
-  function tickLine(dt){
-    if(!window.BOOTS || !BOOTS.B){ return; }
+  /* ========================================================== THE LEAP
+     No web: the shoes jump, and a big jump is a leap — she soars off it,
+     building to building (boots.js). What the place adds is the meter: how
+     high the next jump is charged, and which tier of the rhythm it is on. */
+  function tickLeap(dt){
+    if(!window.BOOTS || !BOOTS.B) return;
     swingOnBody();
-    lineMesh();
-    const b = BOOTS.B, rope = b.rope;
-    // a line still held through a cutscene or a door is let go
-    if(rope && (mode || inside)) BOOTS.release();
-    // the web, from her right hand to the wall: it shoots out over a tenth of a second, and goes gold in the release window
-    if(rope){
-      const hand = handPos();
-      const hx = hand ? hand.x : b.x, hy = hand ? hand.y : b.y + BOOTS.HAND, hz = hand ? hand.z : b.z;
-      line.shot = Math.min(1, (line.shot || 0) + dt*10);
-      const ex = rope.wx !== undefined ? rope.wx : rope.x, ey = rope.wy !== undefined ? rope.wy : rope.y, ez = rope.wz !== undefined ? rope.wz : rope.z;   // drawn to where it is stuck
-      const dx = (ex - hx)*line.shot, dy = (ey - hy)*line.shot, dz = (ez - hz)*line.shot, len = Math.max(0.01, Math.hypot(dx, dy, dz));
-      line.mesh.visible = true; line.mesh.position.set(hx + dx/2, hy + dy/2, hz + dz/2); line.mesh.scale.set(1, len, 1);
-      line.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx/len, dy/len, dz/len));
-      line.mesh.material.color.setHex(rope.gold ? 0xffd27a : 0xf4f8ff);
-      line.mesh.scale.x = line.mesh.scale.z = rope.gold ? 1.8 : 1;
-    } else line.mesh.visible = false;
-    // where it would go: looked for a few times a second, outside, when the line is free
-    line.aimT -= dt;
-    if(line.aimT <= 0){ line.aimT = 0.12; line.aim = (!rope && !mode && !inside && b.have.has('grapple') && !day()) ? webAnchor() : null; }
-    /* HOLD R AND IT KEEPS SWINGING: as an arc runs out — past the hook and over the top, or falling back —
-       she lets go by herself and the next web goes out. Letting go of R is the choice you time. */
-    if(line.held && rope && rope.t > 0.5 && (rope.past > 0.95 || (b.vy < 0.5 && rope.past > 0.45))){ BOOTS.release(); line.next = 0.05; }
-    // R still held after a release (or a jump off the web): the next web, as soon as there is one
-    if(line.held && !rope && !b.ground && !mode && !inside && (line.next -= dt) <= 0){ line.next = 0.18; const a = webAnchor(); if(a && BOOTS.grapple(a)) line.shot = 0; }
-    if(line.aim && false){ line.ring.visible = true; line.ring.position.set(line.aim.x, line.aim.y, line.aim.z); line.ring.lookAt(G.camera.position);
-                  const k = 0.6 + 0.012*Math.hypot(line.aim.x - b.x, line.aim.z - b.z); line.ring.scale.set(k, k, k); }
-    else line.ring.visible = false;
-    // the meter: how high the next jump is charged, and the tier it is on
-    chargeMeter(b);
+    chargeMeter(BOOTS.B);
   }
   /* the score card and the coins: where she is (the shoes' body, or — on a wall — the climb's) */
   function tickScore(dt){
@@ -2899,8 +2778,9 @@ window.TSH = (function(){
       },
       done:left=>fightOutro(left) };
   }
-  /* HER WEB-SWING (Mixamo, glb files/cast/build-robin-swing.sh): the swing, its flip, the leap into it and the
-     superhero landing, on her own skeleton, loaded once when the shoes go on and added to her rig */
+  /* HER LEAPS (Mixamo, glb files/cast/build-robin-swing.sh): the dive off an edge for a full running leap, and
+     the flip high in the rhythm, on her own skeleton, loaded once when the shoes go on and added to her rig.
+     (The file was cut for the web-swing, which is gone; its swing clips are not played.) */
   let swingClipsP = null;
   function swingClips(){
     if(!swingClipsP) swingClipsP = new Promise(ok=>{
@@ -5318,10 +5198,6 @@ window.TSH = (function(){
       tk.addEventListener('click', e=>{ if(!cv) return; const b = e.target.closest('[data-i]'); if(b) convoPick(+b.dataset.i); else convoAdvance(); });
       tk.addEventListener('mouseover', e=>{ const b = e.target.closest('[data-i]'); if(b) convoSel(+b.dataset.i); });
       // and a click in the picture moves a scene on, as SPACE does
-      // the line: R or the right mouse button, held
-      addEventListener('keyup', e=>{ if(on && e.code === 'KeyR') lineLet(); });
-      addEventListener('mousedown', e=>{ if(on && e.button === 2 && !busy && !mode && (document.pointerLockElement || (e.target && e.target.id === 'view'))){ e.preventDefault(); lineFire(); } });
-      addEventListener('mouseup', e=>{ if(on && e.button === 2) lineLet(); });
       addEventListener('mousedown', e=>{
         if(!on || e.button !== 0 || busy) return;
         if(mode === 'cut') skipLine();
@@ -5738,7 +5614,7 @@ window.TSH = (function(){
     tickTrucks(dt);
     if(mode !== 'end'){ tickEvents(dt); tickHeat(dt); tickQuest(dt); }
     if(mode === null && G.onGround) grip.left = Math.min(AI.GRIP.hold, grip.left + dt*AI.GRIP.regen);   // the film recovers on the ground
-    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLine(dt); tickScore(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
+    tickGadgets(dt); tickLights(dt); tickMotion(dt); tickSteam(dt); tickRain(dt); tickGlint(dt); tickLeap(dt); tickScore(dt); if(window.TSHNYC){ TSHNYC.tick(clock); if(!inside) TSHNYC.near(G.pos.x, G.pos.z, G.solids, W.plats, clock); } tickScreens(dt); tickZones(dt);
     W.anims.forEach(f=>f(clock));
     if(W.sky) W.sky.visible = !inside;
     tickTalk(dt); tickHud(dt); tickMarks(dt); radar();
@@ -5788,7 +5664,7 @@ window.TSH = (function(){
     if(mode === 'hide'){ if(c === 'KeyE') unhide(); return c === 'KeyE'; }
     if(mode === 'read'){ if(['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) readStop(); return true; }
     if(mode === 'wc' || mode === 'puzzle') return true;
-    if(day() && (['KeyF', 'KeyJ', 'KeyQ', 'KeyR'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
+    if(day() && (['KeyF', 'KeyJ', 'KeyQ'].includes(c) || (c === 'KeyG' && inSchool))) return true;   // a school day: the kit stays in the bag
     if(mode === 'ride'){ if(c === 'KeyE') unride(); return c === 'KeyE' || c === 'Space'; }
     if(mode === 'climb') return c === 'KeyE';
     if(mode === 'scale'){
@@ -5802,7 +5678,6 @@ window.TSH = (function(){
     if(c === 'KeyJ'){ jam(); return true; }
     if(c === 'KeyH'){ setShades(!me.shades); hud(); return true; }
     if(c === 'KeyQ'){ throwCan(); return true; }
-    if(c === 'KeyR'){ if(!e.repeat) lineFire(); return true; }
     if(c === 'KeyI'){ bag(); return true; }
     if(c === 'Tab'){ infoOpen = !infoOpen; el.querySelector('.tsh-obj').classList.toggle('closed', !infoOpen); el.querySelector('#tshTabTxt').textContent = infoOpen ? 'hide details' : 'details'; return true; }
     return false;

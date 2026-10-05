@@ -2,8 +2,8 @@
    TSH — THE SCORE. Everything Robin does on the shoes and the web is worth
    something, and the city is scattered with coins.
 
-   THE CHAIN. A move starts it — a web, a release, a jump in time, a wall
-   kick, a somersault off a roof — and every move after it, while she keeps
+   THE CHAIN. A move starts it — a leap, a jump in time, a wall kick, a
+   somersault off a roof — and every move after it, while she keeps
    off her feet, adds its points. The more DIFFERENT moves in it, the higher
    the multiplier (×1, and a quarter more for each new kind, up to ×5), and
    every second in the air is worth something too. Stand still on the
@@ -21,12 +21,12 @@
    ===================================================================== */
 window.TSHSCORE = (function(){
   const POINTS = {
-    rope:25, ropeOff:60, releasePerfect:250, webJump:80,
+    leap:60, roof:80,
     jump:20, rebound:100, reboundPerfect:220, pull:100, pullPerfect:250, dash:30,
     roll:120, landPerfect:80, coin:50, climb:80
   };
   const LABEL = {
-    rope:'WEB', ropeOff:'RELEASE', releasePerfect:'PERFECT RELEASE', webJump:'WEB JUMP',
+    leap:'LEAP', roof:'ROOF TO ROOF',
     jump:'JUMP', rebound:'WALL KICK', reboundPerfect:'PERFECT KICK', pull:'PULL-UP', pullPerfect:'PERFECT PULL',
     dash:'DASH', roll:'SOMERSAULT', landPerfect:'CLEAN LANDING', coin:'COIN', climb:'WALL CLIMB'
   };
@@ -111,8 +111,14 @@ window.TSHSCORE = (function(){
     if(!on) return;
     let n = e.name, pts = POINTS[n], label = LABEL[n];
     if(n === 'swoopCrash') return lose();
-    if(n === 'jumpPerfect' || n === 'jump'){ n = 'jump'; const c = e.combo || 0; pts = POINTS.jump + c*60; label = c ? 'IN TIME ×' + (c + 1) : 'JUMP'; if(!c && !chain) return; }
-    if(n === 'ropeOff' && (e.landed || e.wall)) return;
+    if(n === 'jumpPerfect' || n === 'jump'){
+      const c = e.combo || 0;
+      if(c){ n = 'jump'; pts = POINTS.jump + c*60; label = 'IN TIME ×' + (c + 1); }
+      else if(e.leap){ n = 'leap'; pts = POINTS.leap + Math.round((e.charge || 0)*60); label = 'LEAP'; }
+      else { n = 'jump'; if(!chain) return; }
+    }
+    // a leap that comes down on a roof: building to building
+    if((n === 'land' || n === 'roll' || n === 'landPerfect') && b && b.y > 3 && chain && chain.kinds.has('leap')) add('roof', LABEL.roof, POINTS.roof);
     if(n === 'roll' && (e.impact || 0) < 15) return;
     if(pts === undefined) return;
     add(n, label, pts);

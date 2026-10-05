@@ -60,64 +60,33 @@ test('jumps in time go higher and higher; a missed beat starts again', ()=>{
   assert.strictEqual(tiers[4], 0, 'after a missed beat the next jump is back to the first tier, got ' + tiers);
 });
 
-test('the line holds her on a pendulum, and she swings through and up the far side', ()=>{
+test('the game teaches the charged jump and the leap; the web is gone', ()=>{
   const B = boots();
-  const anchor = { x:0, y:40, z:0 };
-  // hanging 20 m out from under the hook, at its height minus 20: let go of her and she swings
-  const b = B.body({ x:0, y:40 - 20 - B.HAND, z:20, ground:false, state:'swing', vy:0, airT:1 });
-  b.rope = { x:anchor.x, y:anchor.y, z:anchor.z, len:Math.hypot(20, 20), want:Math.hypot(20, 20) };
-  let worst = 0, minZ = Infinity, fastest = 0;
-  for(let i=0;i<240;i++){
-    B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat);
-    const d = Math.hypot(b.x - anchor.x, b.y + B.HAND - anchor.y, b.z - anchor.z);
-    worst = Math.max(worst, d - b.rope.len); minZ = Math.min(minZ, b.z); fastest = Math.max(fastest, Math.hypot(b.vx, b.vy, b.vz));
+  assert.ok(B.TECH.early.includes('charge'));
+  assert.ok(!B.ALL.includes('bound') && !B.ALL.includes('grapple'), 'the bound or the web is still handed out');
+  assert.ok(typeof B.grapple === 'undefined', 'the web is still in the shoes');
+  const tsh = fs.readFileSync(path.join(__dirname, '..', 'public', 'tsh.js'), 'utf8');
+  assert.match(tsh, /id:'charge'/); assert.match(tsh, /id:'combo'/); assert.match(tsh, /id:'leap'/);
+  assert.ok(!/id:'bound'/.test(tsh) && !/id:'grapple'/.test(tsh), 'the lesson still teaches the bound or the web');
+  assert.ok(!/KeyR/.test(tsh), 'R still does something');
+});
+
+test('a running leap off a roof crosses a street and lands on the next one', ()=>{
+  const B = boots();
+  // two 15 m roofs with a 16 m street between them, running north (-z)
+  const plats = [{ x1:-10, x2:10, z1:-20, z2:0, top:15 }, { x1:-10, x2:10, z1:-70, z2:-36, top:15 }];
+  const env = { solids:[], ground:(x, z, feet)=>{ let best = 0; for(const p of plats) if(x >= p.x1 && x <= p.x2 && z >= p.z1 && z <= p.z2 && p.top <= feet + 0.7 && p.top > best) best = p.top; return best; } };
+  const b = B.body({ x:0, y:15, z:-2 });
+  let held = false, t = 0;
+  for(; t < 4; t += 1/60){
+    const space = t > 0.4 && t < 1.2;                       // run, then charge 0.8 s, let go
+    B.step(b, { z:1, x:0, yaw:0, jump:space, jumpEdge:space && !held, shift:true }, 1/60, env); held = space;
+    if(t > 1.3 && b.ground) break;
   }
-  assert.ok(worst < 0.05, 'she drifted off the end of the line by ' + worst.toFixed(2) + ' m');
-  assert.ok(minZ < -10, 'she did not swing through to the other side (got to z ' + minZ.toFixed(1) + ')');
-  assert.ok(fastest > 15, 'the bottom of the swing is fast, got ' + fastest.toFixed(1) + ' m/s');
+  assert.ok(b.ground && b.y > 14 && b.z < -36, 'she did not make the far roof: z ' + b.z.toFixed(1) + ', y ' + b.y.toFixed(1));
 });
 
-test('the game teaches the charged jump and the line, not the bound', ()=>{
-  const B = boots();
-  assert.ok(B.TECH.early.includes('charge') && B.TECH.early.includes('grapple'));
-  assert.ok(!B.ALL.includes('bound'), 'the bound is still handed out');
-  const tsh = fs.readFileSync(path.join(__dirname, '..', 'public', 'tsh.js'), 'utf8');
-  assert.match(tsh, /id:'charge'/); assert.match(tsh, /id:'combo'/); assert.match(tsh, /id:'grapple'/);
-  assert.ok(!/id:'bound'/.test(tsh), 'the lesson still teaches the bound');
-});
-
-test('a release in the gold throws her further than letting go on the way down', ()=>{
-  const B = boots();
-  const fly = (gold)=>{
-    const b = B.body({ y:10, ground:false, state:'swing', vx:0, vz:-22, vy: gold ? 8 : -6, airT:1 });
-    b.rope = { x:0, y:40, z:-10, len:30, want:30, t:1, gold, past: gold ? 0.6 : -0.2, fx:0, fz:-1 };
-    // release() works on the attached body; this is the same arithmetic, flown to the ground
-    const T = B.TUNE;
-    if(gold){ b.vx *= T.perfectBoost; b.vz *= T.perfectBoost; b.vy = b.vy*T.perfectBoost + T.perfectUp; }
-    b.rope = null; b.state = 'air'; b.hang = T.hangTime;
-    let t = 0; const z0 = b.z;
-    while(!b.ground && t < 10){ B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat); t += 1/60; }
-    return Math.abs(b.z - z0);
-  };
-  assert.ok(fly(true) > fly(false)*1.5, 'a gold release should carry much further');
-});
-
-test('the web swing is Spider-Man’s: found, not aimed; it chains while R is held; the clips are hers', ()=>{
-  const tsh = fs.readFileSync(path.join(__dirname, '..', 'public', 'tsh.js'), 'utf8');
-  assert.match(tsh, /function webAnchor\(\)/, 'the web is aimed again');
-  assert.match(tsh, /HOLD R AND IT KEEPS SWINGING/);
-  const boots_ = fs.readFileSync(path.join(__dirname, '..', 'public', 'boots.js'), 'utf8');
-  assert.match(boots_, /THE SWING IS ALONG THE STREET, NOT ROUND THE WALL/, 'a side wall swings her round it like a tetherball');
-  const b = fs.readFileSync(path.join(__dirname, '..', 'public/characters/swing/robin.glb'));
-  const json = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
-  const names = (json.animations || []).map(a=>a.name);
-  ['web_swing', 'web_flip', 'web_start', 'hard_land'].forEach(n=>assert.ok(names.includes(n), 'swing/robin.glb has no ' + n));
-  assert.ok(!json.meshes || !json.meshes.length, 'the swing file carries a body: it should be clips only');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
-  assert.match(css, /#tsh \.tsh-obj\{display:none !important\}/, 'the objective panel is back');
-});
-
-test('off the web she flies: her speed holds her up, so she carries far further than a plain fall', ()=>{
+test('off a leap she soars: her speed holds her up, so she carries far further than a plain fall', ()=>{
   const B = boots();
   const go = fly=>{
     const b = B.body({ y:20, ground:false, state:'air', vx:0, vz:-35, vy:4, airT:1 });
@@ -146,7 +115,7 @@ test('down from a height she somersaults, and rolls on forward even off a straig
 
 test('every move scores, the chain banks into XP that is kept, and the city has coins to collect', ()=>{
   const sc = fs.readFileSync(path.join(__dirname, '..', 'public', 'tshscore.js'), 'utf8');
-  ['rope', 'releasePerfect', 'webJump', 'rebound', 'pull', 'dash', 'roll', 'coin', 'climb'].forEach(k=>assert.match(sc, new RegExp('\\b' + k + ':\\d+'), 'no points for ' + k));
+  ['leap', 'roof', 'rebound', 'pull', 'dash', 'roll', 'coin', 'climb'].forEach(k=>assert.match(sc, new RegExp('\\b' + k + ':\\d+'), 'no points for ' + k));
   assert.match(sc, /localStorage\.setItem\(k, String\(v\)\)/, 'XP is not kept');
   assert.match(sc, /if\(n === 'swoopCrash'\) return lose\(\);/, 'a crash does not lose the chain');
   assert.match(sc, /function scatter\(W\)/);
