@@ -84,6 +84,7 @@ test('a running leap off a roof crosses a street and lands on the next one', ()=
     if(t > 1.3 && b.ground) break;
   }
   assert.ok(b.ground && b.y > 14 && b.z < -36, 'she did not make the far roof: z ' + b.z.toFixed(1) + ', y ' + b.y.toFixed(1));
+  assert.ok(b.z > -60, 'the jump threw her too far to be in control of: z ' + b.z.toFixed(1));
 });
 
 test('off a leap she soars: her speed holds her up, so she carries far further than a plain fall', ()=>{
@@ -92,7 +93,7 @@ test('off a leap she soars: her speed holds her up, so she carries far further t
     const b = B.body({ y:20, ground:false, state:'air', vx:0, vz:-35, vy:4, airT:1 });
     if(fly){ b.fly = b.flyMax = B.TUNE.flyTime*1.4; }
     let t = 0; const z0 = b.z;
-    while(!b.ground && t < 12){ B.step(b, { z:0, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat); t += 1/60; }
+    while(!b.ground && t < 12){ B.step(b, { z:1, x:0, yaw:0, jump:false, jumpEdge:false, shift:false }, 1/60, flat); t += 1/60; }
     return { d:Math.abs(b.z - z0), t };
   };
   const plain = go(false), flown = go(true);
@@ -123,4 +124,19 @@ test('every move scores, the chain banks into XP that is kept, and the city has 
   assert.match(tsh, /TSHSCORE\.attach\(W\.cityGroup, W/); assert.match(tsh, /TSHSCORE\.trick\(e, b\)/); assert.match(tsh, /TSHSCORE\.detach\(\)/);
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   assert.ok(html.indexOf('tshscore.js') > html.indexOf('tshnyc.js'), 'tshscore.js must load after tshnyc.js');
+});
+
+test('the jump is UP: the keys lean it, they do not throw it, and with no keys her drift settles', ()=>{
+  const B = boots();
+  const jump = keys=>{
+    const b = B.body({ x:0, y:0, z:0 }); let held = false, top = 0, t = 0, left = false;
+    for(; t < 4; t += 1/60){ const space = t > 0.1 && t < 0.9;
+      B.step(b, { z:keys ? 1 : 0, x:0, yaw:0, jump:space, jumpEdge:space && !held, shift:false }, 1/60, flat); held = space;
+      if(!b.ground) left = true; top = Math.max(top, b.y); if(left && b.ground) break; }
+    return { up:top, along:Math.abs(b.z) };
+  };
+  const still = jump(false), lean = jump(true);
+  assert.ok(lean.up > 8, 'a full jump goes up: ' + lean.up.toFixed(1));
+  assert.ok(lean.along < lean.up*2.5, 'a standing jump with W is thrown forward too hard: ' + lean.along.toFixed(1) + ' m along, ' + lean.up.toFixed(1) + ' up');
+  assert.ok(still.along < 1, 'with no keys she drifts: ' + still.along.toFixed(2));
 });

@@ -75,17 +75,23 @@ window.BOOTS = (function(){
     /* THE LEAP. With W held, a charged jump goes forward as well as up — further the longer the hold and the
        higher the tier of the rhythm — and off a big one she SOARS: her speed holds her up, so a leap off one
        roof carries her across the street to the next. The keys steer her in the air; SHIFT dives out of it. */
-    leapMin: 5,              // m/s forward for a tap…
-    leapMax: 12,             // …and for a full charge (a full running leap: about 43 m and 9 m up)
-    leapTier: 0.18,          // and this much more for each tier of the rhythm
-    leapUp: 0.8,             // a leap goes this much of a jump's height
+    leapMin: 1.5,            // m/s forward for a tap…
+    leapMax: 4,              // …and for a full charge: a nudge — the jump is UP, and the keys only lean it
+    leapTier: 0.15,          // and this much more for each tier of the rhythm
+    leapUp: 1,               // a leap goes this much of a jump's height (all of it)
+    chargeCarry: 0.75,       // share of her run carried into a charged jump
+    // IN THE AIR, the charged jump's own handling: the keys lean her, they do not throw her
+    jAirAccel: 9,            // m/s² the keys push
+    jAirMax: 11,             // m/s the keys can push her to (her own momentum can be more)
+    jAirTurn: 2.2,           // rad/s the keys bend her line
+    jAirSettle: 1.1,         // 1/s her drift dies away with no keys held — she stays where you put her
     soarFrom: 0.35,          // a charge at least this full (or any jump in time) is a leap she soars off
-    soarTime: 1.4,           // s she soars off a full leap (a tap of one, about half)
+    soarTime: 1.0,           // s she soars off a full leap (a tap of one, about half)
     hangTime: 0.42,          // s of lighter gravity at the top of a leap…
     hangGravity: 0.45,       // …this much of it
     flyTime: 1.8,            // (the soar's own clock is set by the leap)
     flyGravity: 0.4,         // gravity × this at the start of the soar, back to full by its end…
-    flyLift: 0.55,           // …and, falling, up to this much more taken off by her speed
+    flyLift: 0.35,           // …and, falling, up to this much more taken off by her speed
     flyLiftSpeed: 30,        // m/s at which the lift is full
     // on the ground
     runSpeed: 9,             // m/s, walking pace in the boots
@@ -343,7 +349,7 @@ window.BOOTS = (function(){
     const c = b.charge; b.charge = null;
     const q = clamp(c.t/TUNE.chargeTime, 0, 1);
     b.vy = lerp(TUNE.jumpMin, TUNE.jumpMax, q)*TUNE.combo[c.combo]*flowK(b, 'flowPower');
-    b.vx *= TUNE.jumpCarry; b.vz *= TUNE.jumpCarry;
+    b.vx *= TUNE.chargeCarry; b.vz *= TUNE.chargeCarry;
     // THE LEAP: with the keys held she goes that way too, harder the fuller the charge and the higher the tier
     if(wish){ const f = lerp(TUNE.leapMin, TUNE.leapMax, q)*(1 + TUNE.leapTier*c.combo); b.vx += wish.x*f; b.vz += wish.z*f; }
     // …and off a real one she soars
@@ -694,19 +700,21 @@ window.BOOTS = (function(){
     let hx = hs > 0.3 ? b.vx/hs : -Math.sin(b.heading), hz = hs > 0.3 ? b.vz/hs : -Math.cos(b.heading);
     if(b.state === 'dive'){ hs = Math.min(TUNE.maxDive, hs + TUNE.diveFwd*h); }
     // the keys: bend the line, push along it, hold back to brake
+    const gentle = b.have.has('charge') && b.state !== 'dive';
     if(wish && b.have.has('steer')){
       const ctl = flowK(b, 'flowControl');
       if(wish.back){ hs = Math.max(0, hs - TUNE.airBrake*h); }
       else {
         const a = Math.atan2(hx, hz), w = Math.atan2(wish.x, wish.z);
         const d = Math.atan2(Math.sin(w - a), Math.cos(w - a));
-        const turn = (b.state === 'dive' ? TUNE.diveTurn : TUNE.airTurn)*ctl*h*(hs < 6 ? 3 : 1);
+        const turn = (b.state === 'dive' ? TUNE.diveTurn : gentle ? TUNE.jAirTurn : TUNE.airTurn)*ctl*h*(hs < 6 ? 3 : 1);
         const na = a + clamp(d, -turn, turn); hx = Math.sin(na); hz = Math.cos(na);
-        const cap = TUNE.maxAirSpeed*flowK(b, 'flowSpeed');
-        if(hs < cap) hs = Math.min(cap, hs + TUNE.airAccel*ctl*h*Math.max(0, Math.cos(d)));
+        const cap = (gentle ? TUNE.jAirMax : TUNE.maxAirSpeed)*flowK(b, 'flowSpeed');
+        if(hs < cap) hs = Math.min(cap, hs + (gentle ? TUNE.jAirAccel : TUNE.airAccel)*ctl*h*Math.max(0, Math.cos(d)));
       }
     }
     hs *= Math.exp(-TUNE.airDrag*h);
+    if(gentle && !wish && !b.wall && !b.swoop) hs *= Math.exp(-TUNE.jAirSettle*h);     // no keys: her drift settles
     hs = Math.min(hs, TUNE.maxSpeed);
     b.vx = hx*hs; b.vz = hz*hs;
     capSpeed(b);
