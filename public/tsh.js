@@ -1703,38 +1703,40 @@ window.TSH = (function(){
     }
     return best;
   }
-  /* WHERE A WEB GOES, Spider-Man's way: you do not aim it. It goes ahead along the way she is heading —
-     where the camera looks, or, flying fast, where she is already going — up high, and to whichever
-     side has a wall: a few points ahead and above are tried, and from each a ray goes out left and
-     right to the nearest building. The best is far enough up for a real arc, far enough ahead to carry
-     her forward, near enough to the side to hug the street. The camera-aimed fan is the fallback. */
+  /* WHERE A WEB GOES: TO THE SIDE OF THE STREET, NEVER BEHIND HER. Spider-Man's way — you do not aim it. A few
+     points up and ahead of her are tried, and from each a ray goes out to the left and right (angled a little
+     forward) to the nearest building: the web sticks to the wall beside the street ahead. Whatever it finds
+     has to be well IN FRONT of her — ahead of where you are looking AND ahead of where she is going — or it
+     is thrown away. With no wall ahead to stick to, it still goes forward and up. */
   function webAnchor(){
     if(!window.BOOTS || !BOOTS.B || !BOOTS.B.have.has('grapple')) return null;
     const b = BOOTS.B, hy = b.y + BOOTS.HAND, range = BOOTS.TUNE.grappleRange;
     G.camera.getWorldDirection(_d);
     let fx = _d.x, fz = _d.z; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
-    const hs = Math.hypot(b.vx, b.vz);
-    if(!b.ground && hs > 12){ const vx = b.vx/hs, vz = b.vz/hs;            // flying: mostly where she is going, bent toward the camera
-      const k = Math.max(0, fx*vx + fz*vz) > 0.3 ? 0.35 : 0; fx = vx*(1 - k) + fx*k; fz = vz*(1 - k) + fz*k; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l; }
+    const hs = Math.hypot(b.vx, b.vz), mvx = hs > 3 ? b.vx/hs : fx, mvz = hs > 3 ? b.vz/hs : fz;
     const px = -fz, pz = fx;                                                  // to her right
+    const AHEAD = 8;
     let best = null, bs = -Infinity;
-    for(const ahead of [18, 26, 34, 12]) for(const up of [16, 24, 32, 10]) for(const side of [1, -1]){
+    for(const ahead of [18, 26, 34, 12]) for(const up of [16, 24, 32, 10]) for(const side of [1, -1]) for(const fwd of [0.35, 0]){
       const ox = b.x + fx*ahead, oy = hy + up, oz = b.z + fz*ahead;
-      const h = lineCast(ox, oy, oz, px*side, 0, pz*side, 40); if(!h) continue;
+      let rx = px*side + fx*fwd, rz = pz*side + fz*fwd; const rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
+      const h = lineCast(ox, oy, oz, rx, 0, rz, 40); if(!h) continue;
+      const alongLook = (h.x - b.x)*fx + (h.z - b.z)*fz, alongMove = (h.x - b.x)*mvx + (h.z - b.z)*mvz;
+      if(alongLook < AHEAD || alongMove < AHEAD) continue;                    // never behind her
       const dist = Math.hypot(h.x - b.x, h.y - hy, h.z - b.z);
       if(dist > range || dist < 8 || h.y - hy < 6) continue;
-      const score = -Math.abs(h.t - 10)*0.6 - Math.abs(up - 22)*0.25 - Math.abs(ahead - 24)*0.2;
+      const score = -Math.abs(h.t - 10)*0.6 - Math.abs(up - 22)*0.25 - Math.abs(ahead - 24)*0.2 + fwd*2;
       if(score > bs){ bs = score; best = { x:h.x, y:h.y, z:h.z, dir:{ x:fx, z:fz } }; }
     }
     if(best) return best;
-    const a = lineAim(); if(a) a.dir = { x:fx, z:fz }; return a;
+    return { x:b.x + fx*26, y:hy + 24, z:b.z + fz*26, dir:{ x:fx, z:fz }, open:true };   // no wall ahead: forward and up all the same
   }
   function lineFire(){
     if(mode || inside || !window.BOOTS || !BOOTS.B || !BOOTS.active) return;
     if(!BOOTS.B.have.has('grapple')){ note('🪝 Not yet.', 'warn'); return; }
     line.held = true;
     const a = webAnchor();
-    if(!a){ note('🕸 Nothing to swing from here — get near the buildings.', 'warn'); cue('fail'); return; }
+    if(!a){ cue('fail'); return; }
     if(BOOTS.grapple(a)) line.shot = 0;
   }
   function lineLet(){ line.held = false; if(window.BOOTS && BOOTS.B && BOOTS.B.rope) BOOTS.release(); }
