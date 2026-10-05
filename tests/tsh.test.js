@@ -394,7 +394,7 @@ test('out of the way: SPACE, and she picks the move — a backflip, a cartwheel,
 test('the fight is over when the last of them is down, whatever the lessons were doing', () => {
   const src = read('public/tshfight.js'), F = fight();
   assert.equal(F.STEPS.find(x=>x.id === 'free').done(), false, 'the free fight has no end of its own');
-  has(src, /if\(dir\.free && !dir\.ending && s\.id !== 'regret' && s\.id !== 'last' && !E\.some\(e=>e\.kind !== 'buyer' && e\.hp > 0\)\)\{/, 'the last one down ends it, from any step');
+  has(src, /if\(dir\.free && !dir\.ending && s\.id !== 'regret' && s\.id !== 'last' && !E\.some\(e=>e\.kind !== 'buyer' && !e\.bystander && e\.hp > 0\)\)\{/, 'the last one down ends it, from any step (one standing out of it does not count)');
   has(src, /if\(dir\.freeze\) unfreeze\(\);/, 'a lesson frozen on nobody is let go');
   has(src, /const when = e => e\.state === 'down' \? Infinity/, 'the one who gets back up is the last one she put down');
   has(src, /ctx\.say\('fightGreat', fin\); ctx\.later\(fin, 1300\);/, 'and the film after it starts on a clock, not on a voice that may never finish');
@@ -630,7 +630,7 @@ test('The Other Robin: the morning after — late, over the roofs in daylight, t
 test('The Other Robin: Harbor Lane High — the guard, her teacher across the lobby, and a sneak that ends in "Robin."', () => {
   const t = read('public/tsh.js'), sc = read('public/tshschool.js'), i = read('public/index.html'), w = read('public/wardrobe.js');
   assert.ok(i.indexOf('tshschool.js') > 0 && i.indexOf('tshschool.js') < i.indexOf('src="tsh.js'), 'the school loads before TSH');
-  has(t, /W\.school = window\.TSHSCHOOL \? TSHSCHOOL\.build\(root, W\) : null;[\s\S]{0,120}W\.solids\.forEach/, 'built with the district, its walls solid');
+  has(t, /W\.school = window\.TSHSCHOOL \? TSHSCHOOL\.build\(root, W\) : null;[\s\S]{0,260}W\.solids\.forEach/, 'built with the district, its walls solid');
   has(sc, /const SX = 400/, 'off the map, like the flat');
   // the lobby: the guard, the teacher, "...Nope."
   const L = t.slice(t.indexOf('  function lobbyScene('), t.indexOf('  function sneakBegin('));
@@ -826,31 +826,40 @@ test('after the scene with her teacher the shoes are a secret: their powers are 
   has(t, /enabled:\(\)=>!inside && mode !== 'fight' && !shoesHidden\(\),/, 'the shoes still work at school after the teacher scene');
 });
 
-test('after school: Theo, the launcher, the girl with the shoes, Mom, the way home over the roofs, and the sketch on the bench', () => {
-  const t = read('public/tsh.js'), ai = read('public/tshai.js'), pz = read('public/tshpuzzle.js');
-  const ch = t.slice(t.indexOf('AFTER SCHOOL: THEO'), t.indexOf('function dayPopulate'));
-  // the story: after the teacher, the courtyard; fixed, the way home; home, the evening
-  has(ai, /after:\s*\{ goal:'', to:\{ out:'courtyard' \} \}/); has(ai, /courtyard:\{ goal:'Theo is waiting on the bench\.', to:\{ fixed:'gethome' \} \}/);
+test('after school: Canon and the closed station — the gates, the Psi, Maya and Kai, the fight, Alpha, Mom, the way home and the sketch', () => {
+  const t = read('public/tsh.js'), ai = read('public/tshai.js'), pz = read('public/tshpuzzle.js'), sub = read('public/tshsubway.js'), al = read('public/tshalpha.js'), fi = read('public/tshfight.js');
+  const ch = t.slice(t.indexOf('AFTER SCHOOL: CANON'), t.indexOf('function dayPopulate'));
+  // the story: after the teacher, the station; up again, the way home; home, the evening
+  has(ai, /after:\s*\{ goal:'', to:\{ out:'courtyard' \} \}/); has(ai, /courtyard:\{ goal:'Canon is waiting at the old station\.', to:\{ fixed:'gethome' \} \}/);
   has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
   // every scene in the script, in order
-  ['whatBroke', 'needHelp', 'whatPause', 'motor', 'tryIt', 'clang', 'again', 'there', 'diagram', 'yes', 'obviously', 'whyCalled', 'oh',
-   'forYou', 'different', 'weird', 'comeOn', 'thatGirl', 'shoes', 'dangerous', 'yeahHer', 'smiling', 'cloudy', 'imean',
-   'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming'].forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
-  // a new angle for every line, and the walk with Theo is yours to walk
-  has(ch, /function lineShots\(keys, A, o\)/); has(ch, /A\.device = /); has(ch, /A\.bag = /); has(ch, /fireHold\(A\)/);
-  has(ch, /const WALK_TALK = \['forYou'[^\]]*'imean'\]/); has(ch, /aftWatch = 'walk'/);
-  has(t, /whatBroke: \[\['robin','What did you break\?'\], \['theo','I didn\\'t break anything\.'\]/, 'his name is Theo');
-  // the bench is puzzles: pick the motor, wire it in, balance the stabilizer
-  has(ch, /benchPuzzle\('motor'/); has(ch, /benchPuzzle\('route', \{ levels:1, title:'WIRE IT IN'/); has(ch, /benchPuzzle\('balance'/);
-  assert.ok(/function motor\(o, done\)/.test(pz) && /function balance\(o, done\)/.test(pz), 'the motor and balance puzzles');
-  has(pz, /open\(kind, o, done\)[\s\S]{0,200}motor, balance/);
-  // texts, not lines: you coming? / yeah — you better text me / yes dad / that's not funny — home? / home.
-  ["'you coming?'", "'yeah'", "'you better text me'", "'yes dad'", "'that\\'s not funny'", "'home?'", "'home.'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
-  // the shoes come back when nobody from school can see: she looks at the roofs, and BOOM
+  ['canonHi', 'canonIn', 'canonDark', 'canonLit', 'walkA', 'walkB', 'canonSwitch', 'canonGizmo', 'canonPsi', 'canonTuned', 'canonBoost', 'canonHand', 'canonQuiet', 'canonDoor',
+   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonDown', 'mayaIn', 'mayaGlitch', 'canonUp', 'upTop', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming']
+    .forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
+  has(t, /canonHi:\s*\[\['canon','You came\.'\]/, 'his name is Canon'); has(t, /canon:\['CANON',/);
+  assert.ok(!/AFTER SCHOOL: THEO|launcherBench|afterProps/.test(t), 'the bench and the launcher are gone');
+  // the station: built off the map, its gates solids that open
+  has(t, /W\.sub = window\.TSHSUB \? TSHSUB\.build\(root, W\) : null;/); has(sub, /const UX = 520;/);
+  ['shutter', 'barrier', 'door'].forEach(g => has(sub, new RegExp("which === '" + g + "'")));
+  // every way on is something she works out: the power, the switch, the hatch (with him), the door
+  has(ch, /puzzleThen\('route', \{ levels:1, title:'RESTORE THE POWER'/); has(ch, /puzzleThen\('gears', \{ levels:1, title:'THROW THE SWITCH'/);
+  has(ch, /'Boost up to the hatch'/); has(ch, /puzzleThen\('diagnose', \{ case:DOOR_CASE \}/);
+  assert.ok(/o\.case \|\| CASE0/.test(pz) && /o\.title \|\| 'MATCH THE FIELD'/.test(pz), 'the puzzles take their own words');
+  // the gizmo hears the Psi in the wall, and she tunes it the way she learned in the lab
+  has(ch, /puzzleThen\('freq', \{ levels:2, title:'TUNE IT TO THE FIELD'/); has(t, /the field in the lab/);
+  // a new angle for every line, faces close, his face too
+  has(ch, /function lineShots\(keys, A, o\)/); has(ch, /function facing\(R, ry, gap, h\)/); has(ch, /herTight:/); has(ch, /CANON_FEEL = \{/);
+  // Maya and Kai: the WFC, YU; Canon down first, then she fights — Kai, then Maya — and Alpha comes up out of Maya
+  has(t, /They lock up kids for wearing the wrong shoes/); has(t, /What do you think of YU\?/);
+  assert.ok(ch.indexOf('function canonKO') < ch.indexOf('function fightOne') && ch.indexOf('function fightOne') < ch.indexOf('function fightTwo'), 'Canon goes down, then the fights');
+  has(fi, /bystander:!!o\.bystander/, 'Maya stands out of the fight with Kai');
+  has(ch, /TSHALPHA\.apply\(maya\.model\)/); has(al, /vec3\(0\.012, 0\.012, 0\.018\)/, 'black'); has(al, /uGlitch/, 'and glitching');
+  // texts, not lines: you coming? / where? — you better text me / yes dad / that's not funny — home? / home.
+  ["'you coming?'", "'where?'", "'you better text me'", "'yes dad'", "'that\\'s not funny'", "'home?'", "'home.'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
+  // the shoes come back when nobody can see: she looks at the roofs, and BOOM
   has(t, /S\.flags\.shoesBack = true;[\s\S]{0,400}BOOTS\.fire\(\)/);
   // home: the window, dinner, the sketch, TO BE CONTINUED
   has(t, /TSHROOM\.sketch\('boots'\)/); has(t, /TO BE CONTINUED/);
-  // he is Theo: nobody else in the city wears him
-  assert.ok(!/CIV = \[[^\]]*'theo'/.test(t), 'Theo is a passer-by too');
-  assert.ok(!/spawn\('wfc', 'theo'/.test(t) && !/'theo', 'walk-u'\]/.test(read('public/tshchase.js')), 'Theo is a WFC officer');
+  // nobody else in the city wears his body
+  assert.ok(!/CIV = \[[^\]]*'theo'/.test(t), 'Canon is a passer-by too');
 });

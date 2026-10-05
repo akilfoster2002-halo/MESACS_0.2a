@@ -249,7 +249,7 @@ window.TSHPUZZLE = (function(){
      drive runs straight out from the hub to the rim. */
   function gears(o, done){
     const psi = !!o.psi;
-    const ui = psi ? panel('STABILISE THE ACTUATORS', 'Tap a ring to turn it (right-click or shift: the other way). Each actuator drags the one inside it. Line every one up with the field\'s swing, so none of them fights it.')
+    const ui = o.title ? panel(o.title, o.sub || '') : psi ? panel('STABILISE THE ACTUATORS', 'Tap a ring to turn it (right-click or shift: the other way). Each actuator drags the one inside it. Line every one up with the field\'s swing, so none of them fights it.')
                    : panel('ALIGN THE DRIVE', 'Click a ring to turn it (right-click: the other way). Each ring drags the one inside it. Line every notch up with the shaft.');
     const LV = [{ n:3, seed:5 }, { n:4, seed:9 }].slice(0, o.levels || 2), STEPS = 8;
     let lv = 0, R, ang, solved = 0;
@@ -284,7 +284,7 @@ window.TSHPUZZLE = (function(){
       const all = aligned.every(Boolean);
       if(all){ glowLine(x, [[cx, cy], [cx, cy - rad(n - 1) - 40]], TEAL, 8, 18); x.fillStyle = TEAL; x.beginPath(); x.arc(cx, cy, 12, 0, 7); x.fill(); }
       ui.lv.textContent = (psi ? 'JOINT ' : 'DRIVE ') + (lv + 1) + ' / ' + LV.length + ' · ' + aligned.filter(Boolean).length + ' / ' + n + (psi ? ' with the field' : ' aligned');
-      if(all && !solved){ solved = t; ui.msg.textContent = psi ? 'It moves with the field now, not against it.' : 'The drive runs.'; window.TSH && TSH._cue && TSH._cue('win'); }
+      if(all && !solved){ solved = t; ui.msg.textContent = o.win || (psi ? 'It moves with the field now, not against it.' : 'The drive runs.'); window.TSH && TSH._cue && TSH._cue('win'); }
       if(solved && t - solved > 1200){ solved = 0; lv++; if(lv >= LV.length){ close(); done && done(); return false; } load(); ui.msg.textContent = psi ? 'The legs: four actuators.' : 'The leg joint: four rings.'; }
       return true;
     }
@@ -298,7 +298,7 @@ window.TSHPUZZLE = (function(){
   /* ========================================================== DIAGNOSE
      The second thing: it will not turn on. Look at it, piece by piece, and
      name what is wrong. A wrong answer is told why it is wrong. */
-  const CASE = {
+  const CASE0 = {
     checks:[
       ['light', 'Status light', 'Blinking red, steady: two short, one long. Something is getting power.'],
       ['battery', 'Battery', '3.9 V under load. Fine.'],
@@ -312,7 +312,8 @@ window.TSHPUZZLE = (function(){
       ['blockage', 'Mechanical blockage', 'The motor spins clean on the bench.']]
   };
   function diagnose(o, done){
-    const ui = panel('WHAT IS ACTUALLY WRONG', 'It will not start. Examine it, then say what is wrong with it.');
+    const CASE = o.case || CASE0;
+    const ui = panel(CASE.title || 'WHAT IS ACTUALLY WRONG', CASE.sub || 'It will not start. Examine it, then say what is wrong with it.');
     ui.c.style.display = 'none';
     const seen = new Set();
     function paint(){
@@ -322,7 +323,7 @@ window.TSHPUZZLE = (function(){
       ui.side.querySelectorAll('[data-a]').forEach(b=>b.onclick = ()=>{
         const c = CASE.causes.find(x=>x[0] === b.dataset.a);
         if(c[2]){ ui.msg.textContent = 'No. ' + c[2]; ui.msg.className = 'tsh-puz-msg bad'; window.TSH && TSH._cue && TSH._cue('fail'); return; }
-        ui.msg.textContent = 'The sensor. Its connector has backed out of the socket: pushed home, the feed comes alive.'; ui.msg.className = 'tsh-puz-msg';
+        ui.msg.textContent = CASE.ok || 'The sensor. Its connector has backed out of the socket: pushed home, the feed comes alive.'; ui.msg.className = 'tsh-puz-msg';
         window.TSH && TSH._cue && TSH._cue('win');
         ui.side.querySelectorAll('button').forEach(x=>x.disabled = true);
         setTimeout(()=>{ close(); done && done(); }, 1800);
@@ -351,7 +352,7 @@ window.TSHPUZZLE = (function(){
   // TIMING up slides the peaks right, as ▶ says
   function wave(v, x, t){ const a = 2*Math.PI*(v.f*x - v.p/360) + t; let y = Math.sin(a); if(v.f2) y = y*0.7 + 0.45*Math.sin(2*Math.PI*v.f2*x + t*1.6); return y; }
   function freq(o, done){
-    const ui = panel('MATCH THE FIELD', 'Make the robot\'s wave (pink) the same as the field\'s (violet). Count the humps first.');
+    const ui = panel(o.title || 'MATCH THE FIELD', o.sub || 'Make the robot\'s wave (pink) the same as the field\'s (violet). Count the humps first.');
     const LV = FREQS.slice(0, o.levels || FREQS.length);
     let lv = 0, L, v, solved = 0, held = 0, last = 0;
     const load = () => { L = LV[lv]; v = Object.assign({}, L.start); paint(); };
@@ -515,5 +516,5 @@ window.TSHPUZZLE = (function(){
     close();
     ({ route, signal, gears, diagnose, freq, motor, balance })[kind](o || {}, done);
   }
-  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE, FREQS, _wave:wave, MOTORS };
+  return { open, close, get on(){ return !!P; }, solve(){ if(P && P.solve) P.solve(); }, _route:routeLevel, _net:netLevel, _powered:powered, _solPath:solPath, SIGNALS, CASE:CASE0, FREQS, _wave:wave, MOTORS };
 })();

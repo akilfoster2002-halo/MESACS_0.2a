@@ -3128,10 +3128,3 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-tbc{text-align:center;color:#fff;font-family:var(--font-disp, monospace);letter-spacing:.2em;animation:scBank 5s ease-out forwards}
 #tsh .tsh-tbc small{display:block;color:#ffd9a8;font-size:14px;margin-bottom:10px}
 #tsh .tsh-tbc b{font-size:34px}
-/* the launcher at the bench: SPACE fires it */
-#tsh .tsh-fire{position:absolute;left:50%;bottom:20%;transform:translateX(-50%) scale(.9);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
-  font:700 18px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:rgba(10,14,20,.72);border:1px solid rgba(56,255,208,.6);border-radius:999px;padding:14px 24px;cursor:pointer;
-  box-shadow:0 0 24px rgba(56,255,208,.35);animation:tshFirePulse 1.2s ease-in-out infinite}
-#tsh .tsh-fire.on{opacity:1;pointer-events:auto;transform:translateX(-50%) scale(1)}
-#tsh .tsh-fire kbd{font:inherit;background:#38ffd0;color:#06231c;border-radius:6px;padding:4px 8px;margin-right:10px}
-@keyframes tshFirePulse{50%{box-shadow:0 0 40px rgba(56,255,208,.65)}}

@@ -226,9 +226,9 @@ window.TSHAI = (function(){
     sneak:   { goal:'Get to class without your teacher seeing you.', to:{ caught:'detention' } },
     detention:{ goal:'', to:{ fixed:'after' } },
     after:   { goal:'', to:{ out:'courtyard' } },
-    /* AFTER SCHOOL: Theo on the bench with a launcher that will not launch; the walk across the courtyard,
-       the girl with the shoes he has heard about, her mother on the phone — and the way home, over the roofs. */
-    courtyard:{ goal:'Theo is waiting on the bench.', to:{ fixed:'gethome' } },
+    /* AFTER SCHOOL: Canon, and the closed station under Harbor Lane — the tunnels, the Psi in the wall, Maya and
+       Kai, the fight, the black that comes up out of Maya; her mother on the phone — and the way home, over the roofs. */
+    courtyard:{ goal:'Canon is waiting at the old station.', to:{ fixed:'gethome' } },
     gethome: { goal:'Get home.', to:{ home:'evening' } },
     evening: { goal:'', to:{} },
     day:     { goal:'', to:{} }
@@ -284,11 +284,12 @@ window.TSHAI = (function(){
     { id:'mother',    beat:'after',   on:'brilliant, and starting to disappear',             after:['repair'] },
     { id:'outside',   beat:'after',   on:'out through the school doors, into the sun',       after:['mother'] },
     /* AFTER SCHOOL */
-    { id:'theo',      beat:'courtyard', on:'the bell; "you coming?"; Theo on the bench with a broken launcher', after:['outside'] },
-    { id:'launcher',  beat:'courtyard', on:'the right motor, the trash can, the stabiliser — THUNK',            after:['theo'] },
-    { id:'different', beat:'courtyard', on:'on the bench: "You should build something for yourself."',         after:['launcher'] },
-    { id:'vigilante', beat:'courtyard', on:'across the courtyard: the girl with the shoes',                    after:['different'] },
-    { id:'momphone',  beat:'courtyard', on:'her mother: straight home before dinner',                          after:['vigilante'] },
+    { id:'canon',     beat:'courtyard', on:'the bell; "you coming?"; Canon at the boarded stair of Harbor Lane Station',    after:['outside'] },
+    { id:'gizmo',     beat:'courtyard', on:'the dark station: the power, the switch; in the tunnel his gizmo hums, and she tunes it to the Psi', after:['canon'] },
+    { id:'quiet',     beat:'courtyard', on:'the hatch, his hand; in the passage: "I like this. Down here. With you."',   after:['gizmo'] },
+    { id:'mayakai',   beat:'courtyard', on:'the old platform: Maya and Kai; the WFC; YU; Kai puts Canon down, and she fights', after:['quiet'] },
+    { id:'alpha',     beat:'courtyard', on:'the gizmo sings at Maya, and the black comes up out of her; they run',      after:['mayakai'] },
+    { id:'momphone',  beat:'courtyard', on:'up on the street; her mother: straight home before dinner',                 after:['alpha'] },
     { id:'shoesback', beat:'gethome',   on:'out of sight of the school: she looks at the roofs, and runs',     after:['momphone'] },
     { id:'yesdad',    beat:'gethome',   on:'on a roof on the way home: "you better text me"',                  after:['shoesback'] },
     { id:'bedroom',   beat:'evening',   on:'in at her window; home.; dinner; the sketch on the bench',         after:['shoesback'] }

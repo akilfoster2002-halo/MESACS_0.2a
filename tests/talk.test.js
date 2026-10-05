@@ -65,6 +65,7 @@ test('no character carries a mesh it no longer uses', ()=>{
     for(const m of (J.meshes||[])) for(const pr of m.primitives){
       for(const k in pr.attributes) reach.add(pr.attributes[k]);
       if(pr.indices!==undefined) reach.add(pr.indices);
+      for(const tg of (pr.targets||[])) for(const k in tg) reach.add(tg[k]);     // a face's shapes (glb files/face)
     }
     for(const s of (J.skins||[])) if(s.inverseBindMatrices!==undefined) reach.add(s.inverseBindMatrices);
     for(const a of (J.animations||[])) for(const sm of a.samplers){ reach.add(sm.input); reach.add(sm.output); }

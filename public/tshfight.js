@@ -104,7 +104,7 @@ window.TSHFIGHT = (function(){
     const K = KIND[kind];
     const e = { id:nextId++, kind, K, hp:o.hp || K.hp, max:o.hp || K.hp, x, z, y:FLOOR, vx:0, vy:0, vz:0, yaw:o.yaw === undefined ? 0 : o.yaw,
                 state:o.state || 'idle', t:0, model:null, rig:null, g:new THREE.Group(), weapon:!!o.weapon, grabber:!!o.grabber, cool:rnd(1.2, 2.6),
-                clip:null, tell:null, pipe:null, active:!!o.active, tag:o.tag || null, wantRing:rnd(2.5, 3.4), side:Math.random() < 0.5 ? -1 : 1 };
+                clip:null, tell:null, pipe:null, active:!!o.active, tag:o.tag || null, bystander:!!o.bystander, home:o.home || null, wantRing:rnd(2.5, 3.4), side:Math.random() < 0.5 ? -1 : 1 };
     ctx.group.add(e.g); e.g.position.set(x, FLOOR, z);
     if(o.hidden) e.g.visible = false;
     if(window.AVATAR) AVATAR.load(K.char).then(m=>{
@@ -175,6 +175,7 @@ window.TSHFIGHT = (function(){
      mark until somebody is plainly a better pick, so it does not flicker between two standing side by side */
   function aimScore(e, a){
     if(dir && !dir.free && !e.active) return Infinity;      // while she learns, only the ones the lesson sends at her
+    if(e.bystander) return Infinity;                          // one standing out of it is not hit
     const p = P(), d = Math.hypot(e.x - p.x, e.z - p.z); if(d > AIM_RANGE) return Infinity;
     const off = Math.abs(angDiff(angTo(p.x, p.z, e.x, e.z), a));
     if(off > (d < 2.2 ? Math.PI : 1.05)) return Infinity;           // right next to her, anyone will do
@@ -837,7 +838,7 @@ window.TSHFIGHT = (function(){
      over when the last of them is down, with a beat to see it */
   const BRAWL = [
     { id:'free', title:'', how:'',
-      enter(){ dir.free = true; dir.showKeys = true; E.forEach((e, i)=>{ e.active = true; e.state = 'approach'; e.t = 0; e.cool = 0.8 + i*0.7; }); },
+      enter(){ dir.free = true; dir.showKeys = true; E.filter(e=>!e.bystander && e.hp > 0).forEach((e, i)=>{ e.active = true; e.state = 'approach'; e.t = 0; e.cool = 0.8 + i*0.7; }); },
       done:()=>false },
     { id:'last', title:'', how:'',
       enter(){ dir.hold = true; ctx.later(()=>{ if(on && !dir.finished){ dir.finished = true; finish(); } }, 1400); },
@@ -896,7 +897,7 @@ window.TSHFIGHT = (function(){
     const ST = dir.steps, s = ST[dir.i];
     // THE END OF IT: once the second wave is in, the fight is over when the last of them is down for good —
     // whatever lesson is still up (a prompt nobody is left to try it on is dropped, frozen or not)
-    if(dir.free && !dir.ending && s.id !== 'regret' && s.id !== 'last' && !E.some(e=>e.kind !== 'buyer' && e.hp > 0)){
+    if(dir.free && !dir.ending && s.id !== 'regret' && s.id !== 'last' && !E.some(e=>e.kind !== 'buyer' && !e.bystander && e.hp > 0)){
       dir.ending = true; dir.pending = null; if(dir.freeze) unfreeze(); R.forceTarget = null;
       ctx.cue('win'); const r = ST.findIndex(x=>x.id === 'regret'); stepTo(r >= 0 ? r : ST.findIndex(x=>x.id === 'last')); return;
     }
@@ -980,7 +981,7 @@ window.TSHFIGHT = (function(){
     resetRobin();
     dir = { i:0, t:0, free:false, showKeys:false, steps:ctx.script === 'brawl' ? BRAWL : STEPS };
     overlay().classList.add('on');
-    E.forEach(e=>{ e.g.visible = true; if(e.kind !== 'buyer'){ e.state = 'circle'; e.t = 0; e.active = false; } });
+    E.forEach(e=>{ e.g.visible = true; if(e.kind !== 'buyer' && !e.bystander && e.hp > 0){ e.state = 'circle'; e.t = 0; e.active = false; } });   // a bystander watches; the one already down stays down
     G.timeScale = 1; ramp.to = 1;
     listen(true);
     stepTo(0);
