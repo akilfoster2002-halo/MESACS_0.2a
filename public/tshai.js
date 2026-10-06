@@ -289,7 +289,8 @@ window.TSHAI = (function(){
     { id:'quiet',     beat:'courtyard', on:'the hatch, his hand; in the passage: "I like this. Down here. With you."',   after:['gizmo'] },
     { id:'mayakai',   beat:'courtyard', on:'the old platform: Maya and Kai, trespassing too; the WFC; YU; Canon stands in front of her, Kai puts him down, and she fights', after:['quiet'] },
     { id:'alpha',     beat:'courtyard', on:'Maya and her arms; the gizmo screams; the black comes up out of her and keeps coming; it takes Canon; Robin runs', after:['mayakai'] },
-    { id:'momphone',  beat:'courtyard', on:'up on the street, alone; Canon does not answer; her mother: straight home before dinner', after:['alpha'] },
+    { id:'chase',     beat:'courtyard', on:'up the ladder: it comes up out of the street after her; the shoes go on; over the roofs, until it loses her', after:['alpha'] },
+    { id:'momphone',  beat:'courtyard', on:'on a roof, alone; Canon does not answer; her mother: straight home before dinner', after:['chase'] },
     { id:'shoesback', beat:'gethome',   on:'out of sight of the school: she looks at the roofs, and runs',     after:['momphone'] },
     { id:'yesdad',    beat:'gethome',   on:'on a roof on the way home: "you better text me"',                  after:['shoesback'] },
     { id:'bedroom',   beat:'evening',   on:'in at her window; home.; dinner; the sketch on the bench',         after:['shoesback'] }

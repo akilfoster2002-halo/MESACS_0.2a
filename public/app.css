@@ -3128,3 +3128,9 @@ body.tsh-on #crosshair,body.tsh-on #focus,body.tsh-on #phoneBtn,body.tsh-on #pho
 #tsh .tsh-tbc{text-align:center;color:#fff;font-family:var(--font-disp, monospace);letter-spacing:.2em;animation:scBank 5s ease-out forwards}
 #tsh .tsh-tbc small{display:block;color:#ffd9a8;font-size:14px;margin-bottom:10px}
 #tsh .tsh-tbc b{font-size:34px}
+/* the chase: how close she is to losing it */
+#tsh .tsh-lose{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;
+  font:700 12px/1 system-ui,sans-serif;letter-spacing:.25em;color:#fff;text-shadow:0 0 8px #000}
+#tsh .tsh-lose.on{opacity:1}
+#tsh .tsh-lose div{width:min(320px,60vw);height:8px;margin-top:6px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+#tsh .tsh-lose i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff2aa8,#22e8ff);transition:width .15s}

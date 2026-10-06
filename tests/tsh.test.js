@@ -822,7 +822,7 @@ test('the lab is drawn like Into the Spider-Verse: a Psi field with real depth t
 
 test('after the scene with her teacher the shoes are a secret: their powers are off for the rest of the school day', () => {
   const t = read('public/tsh.js');
-  has(t, /function shoesHidden\(\)\{ return day\(\) && \(S\.step === 'after' \|\| S\.step === 'day' \|\| S\.step === 'courtyard' \|\| \(S\.step === 'gethome' && !S\.flags\.shoesBack\)\); \}/, 'hidden through the teacher, the courtyard and Theo, until she is out of sight of the school');
+  has(t, /function shoesHidden\(\)\{ if\(S\.flags && S\.flags\.chase\) return false;[^\n]*\n\s*return day\(\) && \(S\.step === 'after' \|\| S\.step === 'day' \|\| S\.step === 'courtyard' \|\| \(S\.step === 'gethome' && !S\.flags\.shoesBack\)\); \}/, 'hidden through the teacher and the station, until the monster comes after her (or she is out of sight)');
   has(t, /enabled:\(\)=>!inside && mode !== 'fight' && !shoesHidden\(\),/, 'the shoes still work at school after the teacher scene');
 });
 
@@ -834,7 +834,7 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
   // every scene in the script, in order
   ['canonHi', 'canonIn', 'canonDark', 'canonLit', 'walkA', 'walkB', 'canonSwitch', 'canonGizmo', 'canonPsi', 'canonTuned', 'canonBoost', 'canonHand', 'canonQuiet', 'canonDoor',
-   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonGuard', 'canonDown', 'mayaIn', 'mayaGlitch', 'monsterKai', 'canonGone', 'robinAlone', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'robinQ', 'coming']
+   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonGuard', 'canonDown', 'mayaIn', 'mayaGlitch', 'monsterKai', 'canonGone', 'chaseStart', 'chaseLost', 'robinAlone', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'robinQ', 'coming']
     .forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
   has(t, /canonHi:\s*\[\['canon','You came\.'\]/, 'his name is Canon'); has(t, /canon:\['CANON',/);
   assert.ok(!/AFTER SCHOOL: THEO|launcherBench|afterProps/.test(t), 'the bench and the launcher are gone');
@@ -855,7 +855,10 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   assert.ok(!/We've met\. She makes lovely things/.test(t), 'Maya and Robin do not know each other');
   has(ch, /TENTACLES\.make\(W\.sub\.group/); has(ch, /mOc\.burst\(k, null, \{ world:tgt/, 'her arms claw at Robin in the fight');
   has(ch, /TSHMONSTER\.make\(W\.sub\.group/); has(al, /window\.TSHMONSTER = \{ make:monster \}/); has(ch, /c\.g\.scale\.setScalar\(Math\.max\(0\.02, 1 - k\*k\)\)/, 'Canon goes into it');
-  has(ch, /function haywire\(k\)/); has(read('public/tshlook.js'), /uGlitch/, 'the picture tears'); has(read('public/tshlook.js'), /uHue/, 'and the colour goes round');
+  has(ch, /function haywire\(k\)/);
+  // up the ladder, it comes up out of the street after her: the shoes go on, and it is a chase across the city until it loses her
+  has(ch, /TSHMONSTER\.make\(W\.cityGroup/); has(ch, /S\.flags\.shoesBack = true; S\.flags\.chase = true;/); has(t, /function shoesHidden\(\)\{ if\(S\.flags && S\.flags\.chase\) return false;/);
+  has(ch, /function tickChase\(dt\)/); has(ch, /if\(c\.meter >= 1 \|\| c\.t > 150\)\{ aftWatch = null; loseBar\(null\); lostScene\(\); \}/); has(read('public/tshlook.js'), /uGlitch/, 'the picture tears'); has(read('public/tshlook.js'), /uHue/, 'and the colour goes round');
   assert.ok(ch.indexOf('function canonKO') < ch.indexOf('function fightOne') && ch.indexOf('function fightOne') < ch.indexOf('function fightTwo'), 'Canon goes down, then the fights');
   has(fi, /bystander:!!o\.bystander/, 'Maya stands out of the fight with Kai');
   has(ch, /TSHALPHA\.apply\(maya\.model\)/); has(al, /vec3\(0\.012, 0\.012, 0\.018\)/, 'black'); has(al, /uGlitch/, 'and glitching');

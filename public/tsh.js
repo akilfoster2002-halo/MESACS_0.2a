@@ -268,7 +268,9 @@ window.TSH = (function(){
     mayaGlitch:[['maya','What is that? Turn it off.'], ['robin','I can\'t!'], ['maya','Turn. It. OFF.'], ['kai','Maya?'], ['maya','Get... away...']],
     monsterKai:[['kai','No. No, no, no.'], ['kai','Maya, stop!']],
     canonGone: [['robin','CANON!']],
-    robinAlone:[['robin','Canon...'], ['robin','Okay. Okay. Think.']],
+    robinAlone:[['robin','Canon...'], ['robin','Think, Robin. Think.']],
+    chaseStart:[['robin','No. No, no, no.'], ['robin','Okay. Okay. Secret\'s out.']],
+    chaseLost: [['robin','...Where did it go?']],
     momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
     momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
     momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
@@ -547,7 +549,7 @@ window.TSH = (function(){
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     if(inSub){ inSub = false; subLook(false); if(W && W.sub) W.sub.group.visible = false; } tunCrew = false; alphaFx = null; aftWatch = null; if(gizmo && gizmo.parent) gizmo.parent.remove(gizmo); gizmo = null;
-    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0); windOff(); dutch = 0;
+    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0); windOff(); dutch = 0; storm(0); hunt = null; if(el){ const lb = el.querySelector('#tshLose'); if(lb) lb.classList.remove('on'); }
     if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
@@ -1676,7 +1678,8 @@ window.TSH = (function(){
   /* HER SECRET. From the scene with her teacher on, it is the school day and she is just Robin: the shoes are
      on her feet but their powers are not used — an ordinary walk and an ordinary jump — because the shoes are
      the part of her nobody at school can know about. */
-  function shoesHidden(){ return day() && (S.step === 'after' || S.step === 'day' || S.step === 'courtyard' || (S.step === 'gethome' && !S.flags.shoesBack)); }
+  function shoesHidden(){ if(S.flags && S.flags.chase) return false;          // the monster: the secret is out
+    return day() && (S.step === 'after' || S.step === 'day' || S.step === 'courtyard' || (S.step === 'gethome' && !S.flags.shoesBack)); }
   function bootsOn(){
     if(!window.BOOTS) return;
     swingClips();
@@ -4364,6 +4367,7 @@ window.TSH = (function(){
     S.dm = Math.max(S.dm || 0, 15*60 + 22);
     headphones(false);
     const stage_ = S.flags.tun || 0;
+    if(resume && stage_ >= 7){ return streetScene(); }                 // the chase: from the top of the ladder
     if(resume && stage_ >= 1){ return tunnelsResume(stage_); }
     if(!canonNpc()){ const c = spawn('friend', 'theo', ENTRY[0] + 1.6, ENTRY[1] + 2.2, { name:'canon', yaw:-Math.PI/2 }); c.faceTo = null; }
     if(resume){ const d = W.spots.schoolDoor; placePlayer(d[0] - 7, d[1] - 4.6, -Math.PI/2); }
@@ -4386,6 +4390,7 @@ window.TSH = (function(){
     if(aftWatch === 'entry' && S.step === 'courtyard' && Math.hypot(p.x - ENTRY[0], p.z - ENTRY[1]) < 3.4){ aftWatch = null; entryScene(); return; }
     if(aftWatch === 'tun'){ tickTunnels(dt); return; }
     if(aftWatch === 'escape'){ tickEscape(dt); return; }
+    if(aftWatch === 'chase'){ tickChase(dt); return; }
     if(aftWatch === 'away' && S.step === 'gethome'){
       aftT += dt;
       // out of sight of anybody, she looks up at the roofs
@@ -4857,6 +4862,7 @@ window.TSH = (function(){
       const mk = () => ({ p:new THREE.Vector3(), v:new THREE.Vector3(), r:new THREE.Euler(Math.random()*6, Math.random()*6, 0), s:2 + Math.random()*6, life:0 });
       wind = { k:0, lines, deb, S:Array.from({ length:N }, mk), D:Array.from({ length:ND }, mk), hue:Array.from({ length:N }, ()=>Math.random()) };
     }
+    const par = inSub ? W.sub.group : W.cityGroup; if(wind.lines.parent !== par){ par.add(wind.lines); par.add(wind.deb); }
     wind.k = k;
   }
   function windOff(){ if(!wind) return; [wind.lines, wind.deb].forEach(o=>{ if(o.parent) o.parent.remove(o); o.geometry.dispose(); }); wind = null; }
@@ -4866,7 +4872,7 @@ window.TSH = (function(){
     const to = mon && mon.grow > 0.3 ? mon.mouth : m ? new THREE.Vector3(m.x, 1.3, m.z) : null; if(!to) return;
     const up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), sw = new THREE.Vector3();
     const reset = q => { const a = Math.random()*Math.PI*2, r = 1.5 + Math.random()*9;
-      q.p.set(cam.x + Math.cos(a)*r, 0.1 + Math.random()*4.2, cam.z + Math.sin(a)*r); q.v.set(0, 0, 0); q.life = 1.5 + Math.random()*2.5; };
+      q.p.set(cam.x + Math.cos(a)*r, Math.max(0.1, cam.y - 3 + Math.random()*5.5), cam.z + Math.sin(a)*r); q.v.set(0, 0, 0); q.life = 1.5 + Math.random()*2.5; };
     const step = (q, pull) => {
       q.life -= dt; d.subVectors(to, q.p); const dist = d.length();
       if(q.life <= 0 || dist < 0.9 || dist > 22) return reset(q);
@@ -5074,47 +5080,177 @@ window.TSH = (function(){
       { dur:1.3, fov:50, cam:[L[0] - 0.6, 2.6, L[1] + 0.4], look:()=>mon ? [mon.mouth.x, 2.2, mon.mouth.z] : [L[0], 1.3, L[1] + 4], enter:()=>{ if(mon) mon.reach(new THREE.Vector3(L[0], 2.2, L[1]), 1.2); roar(); } }
     ];
     playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
-      fade(()=>{ tunnelsGone(); outOfSub(); upTop(); }); }), { ownClock:true });
+      fade(()=>{ tunnelsGone(); outOfSub(); streetScene(); }); }), { ownClock:true });
   }
   function tunnelsGone(){
     if(alphaFx){ alphaFx.remove(); alphaFx = null; } if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; }
     haywire(0); windOff(); dutch = 0; if(gizmo) gizmo.visible = false;
     if(W && W.sub) W.sub.lights.forEach(l=>{ if(l.mul0 !== undefined){ l.mul = l.mul0; delete l.mul0; } });
   }
-  /* the street, in the afternoon light. On her own. */
-  function upTop(){
+  /* ============================================================ THE CHASE
+     She comes up the ladder into the afternoon, and for a second it is over. Then the street shakes, the boarded
+     stair of the old station blows open, and it comes up out of the ground after her — bigger in the daylight than
+     it was in the dark. The sky goes the colour of a bruise. There is one way to outrun something like that, and it
+     is the secret she has kept all day: the shoes. BOOM — and it is a chase across the city: it pounds after her
+     down the streets, lunges, leaps whole blocks and slams down, reaches up onto the roofs for her. Keep away from
+     it long enough and it loses her; it sinks back into the street the way it came. */
+  let hunt = null, stormWas = null;
+  function storm(k){
+    if(k > 0){
+      if(!stormWas) stormWas = { amb:G.amb.intensity, hemi:G.hemi.intensity, sun:G.sun ? G.sun.intensity : 0, fog:G.scene.fog.color.clone(), fd:G.scene.fog.density };
+      const w = stormWas; G.amb.intensity = w.amb*(1 - 0.65*k); G.hemi.intensity = w.hemi*(1 - 0.7*k); if(G.sun) G.sun.intensity = w.sun*(1 - 0.75*k);
+      G.scene.fog.color.copy(w.fog).lerp(new THREE.Color(0x2a1838), k); G.scene.fog.density = w.fd + 0.006*k; G.scene.background = G.scene.fog.color.clone(); return; }
+    if(!stormWas) return;
+    G.amb.intensity = stormWas.amb; G.hemi.intensity = stormWas.hemi; if(G.sun) G.sun.intensity = stormWas.sun;
+    G.scene.fog.color.copy(stormWas.fog); G.scene.fog.density = stormWas.fd; G.scene.background = stormWas.fog.clone(); stormWas = null;
+  }
+  function loseBar(v){
+    let b = el.querySelector('#tshLose');
+    if(!b){ b = document.createElement('div'); b.id = 'tshLose'; b.className = 'tsh-lose'; b.innerHTML = '<small>LOSE IT</small><div><i></i></div><em></em>'; el.appendChild(b); }
+    if(v === null){ b.classList.remove('on'); return; }
+    b.classList.add('on'); b.querySelector('i').style.width = Math.round(v*100) + '%';
+  }
+  /* up the ladder, into the light — and it comes up out of the ground after her */
+  function streetScene(){
     flushTalk();
     S.dm = Math.max(S.dm || 0, 16*60 + 40);
     const c0 = canonNpc(); if(c0) despawn(c0);
-    const at = [EXIT[0] - 0.8, EXIT[1] + 0.6], F = facing(at, Math.PI/2, 1.0, 1.62), A = F.A;
-    const alone = () => stage('idle', at[0], 0, at[1], F.ry);
+    stationProps();
+    S.flags.tun = 7; checkpoint();                           // picked up here: on Harbor Lane, the shoes about to go on
+    const at = [EXIT[0] - 0.8, EXIT[1] + 0.6], ry = angTo(at[0], at[1], ENTRY[0], ENTRY[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
+    const F = facing(at, ry, 1.0, 1.62), A = F.A;
+    if(mon) mon.dispose();
+    mon = TSHMONSTER.make(W.cityGroup, [ENTRY[0], 0, ENTRY[1] - 1.5], angTo(ENTRY[0], ENTRY[1], at[0], at[1])); mon.root.scale.setScalar(1.6); mon.grow = 0; mon.pull = 0.4;
+    mon.onSlam = p=>{ const d = Math.hypot(p.x - G.pos.x, p.z - G.pos.z); shake(Math.max(0.15, 0.7 - d*0.012), 1.0); cue('clang'); };
+    const stand = () => stage('idle', at[0], 0, at[1], ry);
+    const E = [ENTRY[0], ENTRY[1]], eye = () => [mon.eyeAt.x, mon.eyeAt.y, mon.eyeAt.z];
+    const C = {
+      her:     { cam:F.A.herTight.cam, look:F.A.herTight.look, fov:26 },
+      herSide: { cam:A.profileL.cam, look:A.two.look, fov:32 },
+      street:  { cam:[at[0] - dir[0]*5 + side[0]*3, 1.4, at[1] - dir[1]*5 + side[1]*3], look:[E[0], 2, E[1]], fov:50 },
+      low:     { cam:[at[0] + dir[0]*3 - side[0]*1.5, 0.25, at[1] + dir[1]*3 - side[1]*1.5], look:[E[0], 1, E[1]], fov:58 },
+      stair:   { cam:[E[0] + side[0]*6 - dir[0]*4, 1.2, E[1] + side[1]*6 - dir[1]*4], look:[E[0], 0.5, E[1]], fov:44 },
+      rise:    { cam:[E[0] - dir[0]*14 + side[0]*4, 0.4, E[1] - dir[1]*14 + side[1]*4], look:()=>[E[0], 1 + mon.grow*9, E[1]], fov:66 },
+      high:    { cam:[at[0] - dir[0]*6, 14, at[1] - dir[1]*6], look:[(at[0] + E[0])/2, 0, (at[1] + E[1])/2], fov:60 },
+      eye:     { cam:[at[0] - dir[0]*0.6 + side[0]*0.4, 1.7, at[1] - dir[1]*0.6 + side[1]*0.4], look:eye, fov:16 },
+      feet:    { cam:[at[0] + dir[0]*0.9 + side[0]*0.5, 0.35, at[1] + dir[1]*0.9 + side[1]*0.5], look:[at[0], 0.12, at[1]], fov:30 },
+      feetLow: { cam:[at[0] - side[0]*0.9, 0.12, at[1] - side[1]*0.9], look:[at[0], 0.15, at[1]], fov:40 }
+    };
+    const glow = () => { LOOK.fx.flash = 0.35; LOOK.fx.flashCol.set(0.4, 1, 0.9); };
+    const shots = [
+      // up out of the ground into the afternoon. Breathing. For a second, it is over.
+      ...cuts(2.6, [C.herSide, C.her, C.street], { start:()=>{ stand(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); }, mood:'sad' }),
+      // the street shakes
+      ...cuts(1.8, [C.low, C.stair, C.her], { start:()=>{ roar(); shake(0.35, 1.8); storm(0.3); }, mood:'shocked' }),
+      // and it comes up out of the station, after her
+      ...cuts(3.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street],
+        { start:()=>{ roar(); haywire(0.55); windOn(0.6); stn.visible = false; shake(0.8, 1.2); LOOK.fx.flash = 0.6; },
+          tick:(dt, t, k)=>{ stand(); mon.grow = Math.min(1, k*1.15); storm(0.3 + k*0.7); if(Math.random() < dt*2) shake(0.5, 0.6); } }),
+      // its eye finds her
+      ...cuts(1.4, [C.eye, C.her], { start:()=>roar(), mood:'shocked' }),
+      // "No. No, no, no." — "Okay. Okay. Secret's out."
+      ...cuts(linesLen('chaseStart') + 0.3, [C.her, C.feet, C.herSide, C.feetLow, C.her], { start:()=>talk('chaseStart'), tick:()=>stand() }),
+      // the shoes wake up
+      ...cuts(1.4, [C.feetLow, C.feet, C.low], { start:()=>{ shoesOn(); glow(); cue('launch'); }, mood:'determined' })
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; staged = null; dutch = 0; if(window.AVATAR) AVATAR.posture(null);
+      S.flags.shoesBack = true; S.flags.chase = true; save();
+      const away = ry + Math.PI;
+      placePlayer(at[0], at[1], ry);                           // facing away from it
+      later(()=>{ if(!on) return; if(window.BOOTS && BOOTS.B){ BOOTS.sync(); BOOTS.B.vx = Math.sin(away)*9; BOOTS.B.vz = Math.cos(away)*9; BOOTS.fire(); }
+        note('RUN — over the roofs. Lose it.', 'big'); }, 150);
+      hunt = { t:0, meter:0, lunge:0, lungeT:3, leap:null, hitT:0, reachT:1, stepT:0 };
+      aftWatch = 'chase'; loseBar(0); lockPointer($('#view')); }), { ownClock:true });
+  }
+  function tickChase(dt){
+    const c = hunt; if(!c || !mon) return;
+    c.t += dt; c.hitT -= dt;
+    const p = P(), r = mon.root, d = Math.hypot(p.x - r.position.x, p.z - r.position.z), a = angTo(r.position.x, r.position.z, p.x, p.z);
+    r.rotation.y += Math.atan2(Math.sin(a - r.rotation.y), Math.cos(a - r.rotation.y))*Math.min(1, dt*3);
+    if(c.leap){
+      // over a whole block, and down
+      const L = c.leap; L.t += dt; const k = Math.min(1, L.t/L.dur);
+      r.position.x = lerp(L.from[0], L.to[0], k); r.position.z = lerp(L.from[1], L.to[1], k); r.position.y = Math.sin(k*Math.PI)*14;
+      if(k >= 1){ c.leap = null; r.position.y = 0; const dd = Math.hypot(p.x - r.position.x, p.z - r.position.z); shake(Math.max(0.2, 0.9 - dd*0.012), 1.2); cue('clang'); roar(); LOOK.fx.flash = 0.25; }
+    } else {
+      // it pounds after her — and now and then lunges
+      c.lungeT -= dt; if(c.lungeT <= 0 && d < 26){ c.lunge = 0.9; c.lungeT = 3.5 + Math.random()*2.5; roar(); }
+      if(c.lunge > 0) c.lunge -= dt;
+      const sp = c.lunge > 0 ? 13 : 6.8;                       // slower than the shoes — it can be outrun, if you keep going
+      if(d > 5){ r.position.x += Math.sin(a)*sp*dt; r.position.z += Math.cos(a)*sp*dt; }
+      c.leapT = (c.leapT || 4) - dt;
+      if(d > 60 && c.leapT <= 0){ c.leapT = 7 + Math.random()*3; const to = [p.x - Math.sin(a)*34, p.z - Math.cos(a)*34]; c.leap = { from:[r.position.x, r.position.z], to, t:0, dur:1.5 }; roar(); }   // a whole block — and down, still short of her
+      c.stepT -= dt; if(c.stepT <= 0){ c.stepT = c.lunge > 0 ? 0.3 : 0.55; if(d < 60) shake(Math.max(0.05, 0.3 - d*0.005), 0.5); }
+    }
+    // up onto the roofs after her, with its arms
+    c.reachT -= dt; if(c.reachT <= 0 && d < 22){ c.reachT = 0.9 + Math.random()*0.7; mon.reach(new THREE.Vector3(p.x, p.y + 1, p.z), 0.8); cue('zip'); }
+    // it has her: thrown
+    if(d < 7.5 && p.y < 9 && c.hitT <= 0){ c.hitT = 1.4; shake(0.7, 0.6); cue('punch'); LOOK.fx.flash = 0.45; LOOK.fx.flashCol.set(1, 0.3, 0.4); c.meter = Math.max(0, c.meter - 0.25);
+      if(window.BOOTS && BOOTS.B){ BOOTS.B.vx = Math.sin(a)*15; BOOTS.B.vz = Math.cos(a)*15; BOOTS.B.vy = 9; BOOTS.B.ground = false; BOOTS.B.state = 'air'; }
+      else { G.pos.x += Math.sin(a)*4; G.pos.z += Math.cos(a)*4; }
+      note('It has you — MOVE!', 'bad'); }
+    // the further she gets, the calmer the world; keep far enough for long enough and it loses her
+    if(hay) hay.k = 0.25 + 0.5*Math.max(0, 1 - d/70);
+    if(d > 42) c.meter = Math.min(1, c.meter + dt/5); else if(d < 24) c.meter = Math.max(0, c.meter - dt/14);
+    loseBar(c.meter);
+    if(c.meter >= 1 || c.t > 150){ aftWatch = null; loseBar(null); lostScene(); }
+  }
+  /* it has lost her: it stands in the street, its head turning — and goes back down into the ground */
+  function lostScene(){
+    flushTalk(); mark('chase');
+    const p = P(), at = [p.x, p.z], y0 = p.y, r = mon.root, M_ = [r.position.x, r.position.z];
+    const ry = angTo(at[0], at[1], M_[0], M_[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
+    const C = {
+      far:   { cam:[at[0] - dir[0]*1.2 + side[0]*0.6, y0 + 1.8, at[1] - dir[1]*1.2 + side[1]*0.6], look:[M_[0], 4, M_[1]], fov:30 },
+      it:    { cam:[M_[0] + side[0]*16, 3, M_[1] + side[1]*16], look:[M_[0], 4, M_[1]], fov:44 },
+      under: { cam:[M_[0] - dir[0]*10, 0.4, M_[1] - dir[1]*10], look:()=>[M_[0], 2 + r.position.y, M_[1]], fov:58 },
+      her:   { cam:[at[0] + dir[0]*0.8 + side[0]*0.3, y0 + 1.66, at[1] + dir[1]*0.8 + side[1]*0.3], look:[at[0], y0 + 1.6, at[1]], fov:26 }
+    };
+    const shots = [
+      // where is she? Its head turns. It roars.
+      ...cuts(2.4, [C.it, C.far, C.it], { start:()=>{ roar(); stage('idle', at[0], y0, at[1], ry); }, tick:(dt, t)=>{ r.rotation.y += Math.sin(t*2.2)*dt*1.4; } }),
+      // and down: back into the street, the way it came
+      ...cuts(3.0, [C.under, C.it, C.far, C.under], { start:()=>{ shake(0.5, 2.5); cue('clang'); },
+        tick:(dt, t, k)=>{ r.position.y = -k*k*14; if(hay) hay.k = 0.6*(1 - k); storm(1 - k*0.8); if(wind) wind.k = 0.6*(1 - k); } }),
+      // "...Where did it go?"
+      { dur:linesLen('chaseLost') + 0.8, fov:C.her.fov, cam:C.her.cam, look:C.her.look, mood:'shocked', enter:()=>{ dutch = 0; talk('chaseLost'); stage('idle', at[0], y0, at[1], ry); } }
+    ];
+    playReel(shots, aftDone(()=>{ reel = null; dutch = 0;
+      if(mon){ mon.dispose(); mon = null; } haywire(0); windOff(); storm(0); hunt = null; stn.visible = true;
+      S.flags.tun = 0; save();
+      aloneOnTheRoof(at, y0); }), { ownClock:true });
+  }
+  /* on her own. Canon does not answer. And then her mother calls. */
+  function aloneOnTheRoof(at, y0){
+    flushTalk();
+    const F = facing(at, Math.PI/2, 1.0, y0 + 1.62), A = F.A;
+    const alone = () => stage('idle', at[0], y0, at[1], F.ry);
     const texts = n => phoneThread('Canon', [['me', 'canon'], ['me', 'canon answer me'], ['me', 'please']].slice(0, n).concat(n >= 3 ? [['me', 'Delivered']] : []));
     const shots = [
-      { dur:2.4, fov:44, cam:[EXIT[0] + 3.4, 0.5, EXIT[1] - 2.6], look:[EXIT[0], 1.0, EXIT[1]], enter:()=>{ alone(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); } },
+      { dur:2.4, fov:52, cam:[at[0] - 4, y0 + 3, at[1] + 3], look:[at[0], y0 + 1, at[1]], enter:alone },
       ...lineShots(['robinAlone'], A, { each:alone, mood:'sad', pools:{ robin:['herTight', 'high', 'profileL'] } }),
-      // her phone: Canon. Nothing comes back.
-      { dur:4.0, fov:30, mood:'sad', cam:A.herTight.cam, look:A.herTight.look, enter:()=>{ stage('text', at[0], 0, at[1], F.ry); texts(1); cue('ui'); },
+      { dur:4.0, fov:30, mood:'sad', cam:A.herTight.cam, look:A.herTight.look, enter:()=>{ stage('text', at[0], y0, at[1], F.ry); texts(1); cue('ui'); },
         beats:[[1.2, ()=>{ texts(2); cue('ui'); }], [2.4, ()=>{ texts(3); cue('ui'); }]] }
     ];
-    playReel(shots, aftDone(()=>{ reel = null; phoneThread(null); alone(); momCall(at, F); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; phoneThread(null); alone(); momCall(at, F, y0); }), { ownClock:true });
   }
   /* her phone: MOM. Straight home before dinner. */
-  function momCall(at, F){
-    mark('momphone');
+  function momCall(at, F, y0){
+    mark('momphone'); y0 = y0 || 0;
     const me_ = at, A = Object.assign({}, F.A);
-    const phoneUp = () => stage('text', me_[0], 0, me_[1], F.ry + 0.4);
+    const phoneUp = () => stage('text', me_[0], y0, me_[1], F.ry + 0.4);
     // the phone: from in front of her, low, her face over the phone in her hand
     const fr = [Math.sin(F.ry + 0.4), Math.cos(F.ry + 0.4)];
-    A.phone = { cam:[me_[0] + fr[0]*0.75 + fr[1]*0.45, 1.3, me_[1] + fr[1]*0.75 - fr[0]*0.45], look:[me_[0] + fr[0]*0.2, 1.32, me_[1] + fr[1]*0.2], fov:34 };
+    A.phone = { cam:[me_[0] + fr[0]*0.75 + fr[1]*0.45, y0 + 1.3, me_[1] + fr[1]*0.75 - fr[0]*0.45], look:[me_[0] + fr[0]*0.2, y0 + 1.32, me_[1] + fr[1]*0.2], fov:34 };
     const shots = [
-      { dur:1.6, fov:A.phone.fov, cam:A.phone.cam, look:A.phone.look, enter:()=>{ stage('idle', me_[0], 0, me_[1], F.ry); cue('ring'); phoneBig('call', 'MOM'); } },
+      { dur:1.6, fov:A.phone.fov, cam:A.phone.cam, look:A.phone.look, enter:()=>{ stage('idle', me_[0], y0, me_[1], F.ry); cue('ring'); phoneBig('call', 'MOM'); } },
       ...lineShots(['momPhone', 'momPhone2', 'momPhone3', 'momPhone4'], A, { each:()=>{ phoneUp(); phoneBig('oncall', 'MOM'); }, mood:'sad',
         pools:{ robin:['herTight', 'profileL', 'high', 'phone'], momcall:['phone', 'profileL', 'phone', 'low'] } }),
-      { dur:2.0, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], Math.PI/2); } }
+      { dur:2.0, fov:44, cam:[me_[0] - 2.2, y0 + 1.7, me_[1] - 2.6], look:[me_[0] + 4, y0 + 1.4, me_[1]], enter:()=>{ phoneBig(null); stage('idle', me_[0], y0, me_[1], Math.PI/2); } }
     ];
     playReel(shots, aftDone(()=>{
       reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
-      placePlayer(me_[0], me_[1], -Math.PI/2);
+      placePlayer(me_[0], me_[1], -Math.PI/2, y0 + EYE_);
       S.flags.tun = 0; S.flags.canonTaken = true; outcome('fixed'); checkpoint();
       gethomeBegin(false);
     }), { ownClock:true });
@@ -5833,6 +5969,10 @@ window.TSH = (function(){
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
+    "Think, Robin. Think.":'nervous',
+    "No. No, no, no.":'shocked',
+    "Okay. Okay. Secret's out.":'determined',
+    "...Where did it go?":'nervous',
     "Canon, don't\u2014":'nervous',
     "I can't!":'shocked',
     "CANON!":'shocked',
@@ -6607,7 +6747,7 @@ window.TSH = (function(){
     const a = W.zones.alley, y = feet();
     const z = inSub ? 'INT. HARBOR LANE STATION — CLOSED' : inSchool ? 'INT. HARBOR LANE HIGH — NIGHT' : inside ? 'INT. ROBIN\'S ROOM — NIGHT' : y > 5 ? 'EXT. ROOFTOP — NIGHT' : S.step === 'raid' && !inAlley() ? 'EXT. NEON AVENUE — NIGHT'
       : (G.pos.x > a.x1 && G.pos.x < a.x2 && G.pos.z > a.z1 && G.pos.z < a.z2) ? 'EXT. ALLEY — NIGHT' : 'EXT. STREET — NIGHT';
-    caption(day() ? z.replace('NIGHT', 'MORNING') : z);
+    caption(day() ? z.replace('NIGHT', (S.dm || 0) >= 12*60 ? 'AFTERNOON' : 'MORNING') : z);
   }
   /* ROBIN RYU, after KILL BILL's title: black capitals on a yellow band, a slash through them (app.css .rr-mark).
      The card animates in (the band, the letters slamming down, the slash and the cut) and out (the halves flying
