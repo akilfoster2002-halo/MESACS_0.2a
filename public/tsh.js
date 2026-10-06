@@ -1713,6 +1713,10 @@ window.TSH = (function(){
         audio:()=>audio(),
         enabled:()=>!inside && mode !== 'fight' && !shoesHidden(),
         slow:()=>slowFall(),
+        // IN THE CHASE THE SHOES GO OFF LIKE THE FIRST TIME: SPACE on the ground is the launch from the window —
+        // BOOM, straight up past the roofs — not the crouch and let go. (In the air SPACE is what it always is.)
+        input:inp=>{ if(aftWatch !== 'chase' || !BOOTS.B || !BOOTS.B.ground) return;
+          const go = inp.jumpEdge; inp.jump = false; inp.jumpEdge = false; if(go){ BOOTS.fire(); cue('launch'); LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.45); } },
         event:(e, b)=>bootEvent(e, b),
         learned:t=>{ S.boots = [...BOOTS.B.have]; save(); if(BOOTS.TECH.late.includes(t)) note('★ New technique: ' + ({ chain:'CHAIN — every kick and pull in a row hits harder', slide:'SLIDE — hold SHIFT into a fast landing and keep the speed' })[t], 'big'); }
       }
