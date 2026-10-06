@@ -28,15 +28,20 @@ function noseOf(P, H){
 }
 const P = points(bodyPath), H = height(P);
 const refP = refBody ? points(refBody) : null, refH = refP ? height(refP) : null;
-const nose = noseOf(P, H);
+const nose = noseOf(P, H).slice();
+// on his middle line: the nose found a centimetre off it shifts the whole face sideways (Canon: glasses, a cartoon nose)
+{ const head = P.filter(p=>p[1] > H[1] - (H[1] - H[0])*0.22); nose[0] = head.reduce((s, p)=>s + p[0], 0)/head.length; }
 const k = refH ? (H[1] - H[0])/(refH[1] - refH[0]) : 1;
 const out = {};
 for(const name in REF){
   const r = REF[name], x = nose[0] + (r[0] - REF.noseTip[0])*k, y = nose[1] + (r[1] - REF.noseTip[1])*k;
   // the front-most skin within 4 mm of (x, y), in front of the middle of his head
   let z = null, rad = 0.004;
-  while(z === null && rad < 0.03){ P.forEach(p=>{ if(Math.hypot(p[0] - x, p[1] - y) < rad && p[2] > nose[2] - 0.06 && (z === null || p[2] > z)) z = p[2]; }); rad *= 1.6; }
+  // the eyes and brows are behind the tip of the nose: anything in front of them there is glasses, not skin
+  const zMax = /^(eye|brow)/.test(name) ? nose[2] - 0.015 : Infinity;
+  while(z === null && rad < 0.03){ P.forEach(p=>{ if(Math.hypot(p[0] - x, p[1] - y) < rad && p[2] > nose[2] - 0.06 && p[2] < zMax && (z === null || p[2] > z)) z = p[2]; }); rad *= 1.6; }
   out[name] = [+x.toFixed(4), +y.toFixed(4), +(z === null ? nose[2] + (r[2] - REF.noseTip[2])*k : z).toFixed(4)];
 }
+out.noseTip = nose.map(v=>+v.toFixed(4));                   // the tip is the point the nose was found at
 fs.writeFileSync(outPath, JSON.stringify(out));
 console.log('nose', nose.map(v=>+v.toFixed(4)), 'height', (H[1] - H[0]).toFixed(3), 'scale', k.toFixed(3), '→', outPath);

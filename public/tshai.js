@@ -287,9 +287,9 @@ window.TSHAI = (function(){
     { id:'canon',     beat:'courtyard', on:'the bell; "you coming?"; Canon at the boarded stair of Harbor Lane Station',    after:['outside'] },
     { id:'gizmo',     beat:'courtyard', on:'the dark station: the power, the switch; in the tunnel his gizmo hums, and she tunes it to the Psi', after:['canon'] },
     { id:'quiet',     beat:'courtyard', on:'the hatch, his hand; in the passage: "I like this. Down here. With you."',   after:['gizmo'] },
-    { id:'mayakai',   beat:'courtyard', on:'the old platform: Maya and Kai; the WFC; YU; Kai puts Canon down, and she fights', after:['quiet'] },
-    { id:'alpha',     beat:'courtyard', on:'the gizmo sings at Maya, and the black comes up out of her; they run',      after:['mayakai'] },
-    { id:'momphone',  beat:'courtyard', on:'up on the street; her mother: straight home before dinner',                 after:['alpha'] },
+    { id:'mayakai',   beat:'courtyard', on:'the old platform: Maya and Kai, trespassing too; the WFC; YU; Canon stands in front of her, Kai puts him down, and she fights', after:['quiet'] },
+    { id:'alpha',     beat:'courtyard', on:'Maya and her arms; the gizmo screams; the black comes up out of her and keeps coming; it takes Canon; Robin runs', after:['mayakai'] },
+    { id:'momphone',  beat:'courtyard', on:'up on the street, alone; Canon does not answer; her mother: straight home before dinner', after:['alpha'] },
     { id:'shoesback', beat:'gethome',   on:'out of sight of the school: she looks at the roofs, and runs',     after:['momphone'] },
     { id:'yesdad',    beat:'gethome',   on:'on a roof on the way home: "you better text me"',                  after:['shoesback'] },
     { id:'bedroom',   beat:'evening',   on:'in at her window; home.; dinner; the sketch on the bench',         after:['shoesback'] }

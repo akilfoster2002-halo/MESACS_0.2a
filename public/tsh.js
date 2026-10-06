@@ -256,26 +256,23 @@ window.TSH = (function(){
     canonQuiet:[['canon','Can I tell you something?'], ['robin','You\'re going to anyway.'], ['canon','I like this.'], ['robin','The tunnel?'], ['canon','Down here. With you.'],
                 ['robin','...It\'s a tunnel, Canon.'], ['canon','It\'s a nice tunnel.'], ['robin','It\'s an okay tunnel.']],
     canonDoor: [['canon','"No admittance. WFC."'], ['robin','Since when does the WFC own a dead station?'], ['canon','Since when does the WFC ask?']],
-    meetMaya:  [['maya','Well. Robin.'], ['robin','Maya.'], ['canon','You know her?'], ['maya','We\'ve met. She makes lovely things.']],
-    meetKai:   [['kai','This is a WFC sealed station. You\'re trespassing.'], ['canon','So are you.'], ['kai','We\'ve got permission.'],
-                ['canon','From the WFC? They don\'t give anybody permission. They just take.']],
-    meetWfc:   [['maya','You don\'t like the WFC.'], ['canon','Nobody down here likes the WFC. They lock up kids for wearing the wrong shoes.'], ['kai','Then you\'d love YU.'],
-                ['canon','YU\'s the only one in this city doing anything.']],
-    meetYu:    [['maya','And you, Robin? What do you think of YU?'], ['robin','I think people exaggerate.'], ['maya','Do they.'], ['kai','The WFC pays ten thousand for a name.'],
-                ['canon','Then they can keep looking.'], ['kai','Maybe I\'ll start with you.']],
+    meetMaya:  [['maya','Well. Look at this.'], ['canon','Who are you?'], ['maya','Nobody. Same as you.'], ['kai','Two kids in a dead station. Cute.']],
+    meetKai:   [['canon','This place is closed.'], ['kai','So why are you in it?'], ['canon','Why are you?'], ['maya','Same reason as everybody down here. Nobody looks.']],
+    meetWfc:   [['canon','You\'re not WFC.'], ['kai','Do we look WFC?'], ['maya','The WFC sealed this station and forgot about it. That\'s what they do.'],
+                ['canon','Yeah. Nobody down here likes the WFC.'], ['kai','Finally. Somebody gets it.']],
+    meetYu:    [['maya','They\'re scared of one girl in a pair of shoes. YU.'], ['robin','People exaggerate.'], ['maya','Do they?'],
+                ['maya','What\'s that in your pocket? It\'s singing.'], ['robin','Nothing.'], ['kai','Hand it over.']],
+    canonGuard:[['canon','Robin. Get behind me.'], ['robin','Canon, don\'t—'], ['canon','I said get behind me.'], ['kai','Brave.'], ['kai','Stupid. But brave.']],
     canonDown: [['robin','Canon!']],
-    mayaIn:    [['maya','You fight like somebody I\'ve been looking for.'], ['robin','I took a lot of self-defence classes.'], ['maya','Show me.']],
-    mayaGlitch:[['maya','What is that? Turn it off.'], ['robin','What\'s happening to you?'], ['maya','Turn. It. OFF.'], ['kai','Maya?'], ['maya','Get... away...']],
-    canonUp:   [['robin','Canon. Canon, get up.'], ['canon','Did I win?'], ['robin','No. Run.']],
-    upTop:     [['canon','What was that?'], ['robin','I don\'t know.'], ['canon','Her arms, Robin. Her arms.'], ['robin','I know.'], ['canon','And you. You fought like...'],
-                ['robin','Like somebody who took a lot of self-defence classes.'], ['canon','Robin.']],
+    mayaIn:    [['maya','You don\'t fight like a kid.'], ['robin','I took a lot of self-defence classes.'], ['maya','Mm. So did I.']],
+    mayaGlitch:[['maya','What is that? Turn it off.'], ['robin','I can\'t!'], ['maya','Turn. It. OFF.'], ['kai','Maya?'], ['maya','Get... away...']],
+    monsterKai:[['kai','No. No, no, no.'], ['kai','Maya, stop!']],
+    canonGone: [['robin','CANON!']],
+    robinAlone:[['robin','Canon...'], ['robin','Okay. Okay. Think.']],
     momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
     momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
     momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
     momPhone4: [['robin','Love you too.']],
-    walkYou:   [['canon','Everything okay?'], ['robin','Yeah.'], ['canon','Want me to walk you?'], ['robin','You just got knocked out.'], ['canon','Barely.']],
-    textMe:    [['canon','Text me when you get home.'], ['robin','That\'s my line.'], ['canon','Just do it.']],
-    weirdo:    [['robin','Weirdo.']],
     robinQ:    [['momhome','Robin?'], ['robin','Yeah?'], ['momhome','Dinner.']],
     coming:    [['robin','Coming.']]
   };
@@ -550,6 +547,7 @@ window.TSH = (function(){
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     if(inSub){ inSub = false; subLook(false); if(W && W.sub) W.sub.group.visible = false; } tunCrew = false; alphaFx = null; aftWatch = null; if(gizmo && gizmo.parent) gizmo.parent.remove(gizmo); gizmo = null;
+    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0);
     if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
@@ -4288,6 +4286,8 @@ window.TSH = (function(){
   }
   // what Canon's face does on his lines
   const CANON_FEEL = {
+    'Who are you?':'skeptical', 'This place is closed.':'nervous', 'Why are you?':'skeptical', 'You\'re not WFC.':'surprised',
+    'Yeah. Nobody down here likes the WFC.':'annoyed', 'Robin. Get behind me.':'determined', 'I said get behind me.':'angry',
     'You came.':'happy', 'It\'s always good.':'smug', 'It\'s sometimes good.':'sheepish', 'Because nobody else does.':'grin',
     'Power\'s dead. The whole line.':'deadpan', 'Okay. That was cool.':'happy', 'A cool breaker.':'grin', 'So, a robot.':'smug', 'And you fixed it.':'happy',
     'You talk about machines like they\'re people.':'soft', 'Than people?':'skeptical', 'I\'ll take that as a compliment.':'grin',
@@ -4377,6 +4377,8 @@ window.TSH = (function(){
   function tickAfter(dt){
     if(W && W.sub) W.sub.tick(dt);
     if(alphaFx) alphaFx.tick(dt);
+    if(mon) mon.tick(dt);
+    tickMayaArms(dt); tickHaywire(dt);
     if(!aftWatch || !on) return;
     if(aftWatch === 'fight2' && mode === 'fight'){ const m = crewTag('maya'); if(m && m.hp <= m.max*0.5){ aftWatch = null; alphaScene(); } return; }
     if(mode) return;
@@ -4398,12 +4400,12 @@ window.TSH = (function(){
       if(b && b.ground && p.x > 62 && p.x < 84 && p.z > 24 && p.z < 44 && b.y > 10.5){ aftWatch = null; homeRoof(); }
     }
   }
+  /* on the roofs: she tries him again. Delivered. Nothing. */
   function textDad(){
-    cue('ring');
-    phoneThread('Canon', [['canon', 'you better text me']]);
-    later(()=>{ phoneThread('Canon', [['canon', 'you better text me'], ['me', 'yes dad']]); cue('ui'); }, 1500);
-    later(()=>{ phoneThread('Canon', [['canon', 'you better text me'], ['me', 'yes dad'], ['canon', 'that\'s not funny']]); cue('ring'); }, 2900);
-    later(()=>phoneThread(null), 5200);
+    cue('ui');
+    phoneThread('Canon', [['me', 'canon please']]);
+    later(()=>{ phoneThread('Canon', [['me', 'canon please'], ['me', 'Delivered']]); }, 1500);
+    later(()=>phoneThread(null), 4200);
   }
   /* "You came." — the loose board — and down */
   function entryScene(){
@@ -4638,7 +4640,11 @@ window.TSH = (function(){
   }
 
   /* -------------------------------------------------------- MAYA AND KAI
-     Out of the train's open door. The WFC; YU — and Maya watching Robin's face the whole time. */
+     Out of the train's open door: two people who have no business down here either — and no love for the WFC.
+     The gizmo in Robin's pocket starts to sing as Maya gets close. Kai wants it. Canon puts himself in front of
+     Robin (he has no idea she can fight), and Kai puts him on the floor. So she fights: Kai, then Maya — Maya with
+     her arms out of her back, clawing at her. And the gizmo screams, and what is in Maya comes up out of her, and
+     does not stop: it is the size of the platform, and it has a hole in it, and Canon goes into it. Robin runs. */
   const crewTag = t => window.TSHFIGHT && TSHFIGHT.ready ? TSHFIGHT.crew().find(e=>e.tag === t) : null;
   let tunCtx = null;
   function tunFightCtx(done){
@@ -4668,7 +4674,6 @@ window.TSH = (function(){
     const sp = TS(), c = canonNpc(), kai = crewTag('kai'), maya = crewTag('maya');
     const R = sp.meetR, C = sp.canon, M = sp.maya, K = sp.kai;
     const ryR = angTo(R[0], R[1], M[0], M[1]);
-    const head = (x, z, y) => [x, y || 1.55, z];
     // the angles: her and Maya face to face; Canon and Kai; and the room
     const RM = pairAngles(R, M, [Math.sin(ryR), Math.cos(ryR)], [-Math.sin(ryR), -Math.cos(ryR)], [Math.cos(ryR), -Math.sin(ryR)], 1.62);
     const CK = pairAngles(C, K, [0, -1], [0, 1], [1, 0], 1.62);
@@ -4676,10 +4681,12 @@ window.TSH = (function(){
       canon:   { cam:CK.her.cam, look:CK.her.look, fov:28 }, kai:{ cam:CK.him.cam, look:CK.him.look, fov:28 },
       overKai: { cam:CK.overHim.cam, look:CK.overHim.look, fov:32 }, overCanon:{ cam:CK.overHer.cam, look:CK.overHer.look, fov:32 },
       room:    { cam:[TX(-7.4), 2.6, -95], look:[TX(-0.5), 1.2, -104], fov:46 },
-      mayaWatch:{ cam:RM.him.cam, look:RM.him.look, fov:22 }
+      mayaWatch:{ cam:RM.him.cam, look:RM.him.look, fov:22 },
+      gizmo:   { cam:[R[0] + 0.5, 1.2, R[1] - 0.35], look:[R[0] + 0.1, 0.95, R[1] - 0.1], fov:30 }
     });
     const place = () => { stage('idle', R[0], 0, R[1], ryR); if(c){ c.follow = false; c.walking = false; c.x = C[0]; c.z = C[1]; c.faceTo = K; }
       if(kai){ kai.g.visible = true; kai.x = K[0]; kai.z = K[1]; crewFace(kai, C[0], C[1], 'idle'); } if(maya){ maya.g.visible = true; maya.x = M[0]; maya.z = M[1]; crewFace(maya, R[0], R[1], 'idle'); } };
+    const sing = () => { const g = gizmoProp(); if(g.parent !== W.sub.group) W.sub.group.add(g); g.visible = true; g.position.set(R[0] + 0.12, 0.98, R[1] - 0.12); g.rotation.set(-0.3, ryR, 0); g.userData.scr.material.color.setRGB(0.6 + Math.random()*0.6, 0.25, 1.6); };
     const pools = { robin:['her', 'herTight', 'overHim', 'low'], maya:['him', 'himTight', 'overHer', 'mayaWatch'], canon:['canon', 'overKai', 'room'], kai:['kai', 'overCanon', 'room'] };
     const shots = [
       // footsteps; the train's door
@@ -4687,28 +4694,38 @@ window.TSH = (function(){
       { dur:2.6, fov:34, cam:[sp.trainDoor[0] - 3.0, 1.3, sp.trainDoor[1] + 1.4], look:[sp.trainDoor[0], 1.4, sp.trainDoor[1]],
         tick:(dt, t, k)=>{ crewWalk(maya, sp.trainDoor, M, Math.min(1, k*1.1)); if(k > 0.4) crewWalk(kai, sp.trainDoor, K, Math.min(1, (k - 0.4)*1.8)); } },
       ...lineShots(['meetMaya', 'meetKai', 'meetWfc', 'meetYu'], A, { each:place, pools,
-        ins:[[/^Maya\.$/, 'herTight'], [/lovely things/, 'mayaWatch'], [/What do you think of YU/, 'mayaWatch'], [/people exaggerate/, 'herTight'], [/^Do they\.$/, 'mayaWatch'], [/start with you/, 'kai']] })
+        ins:[[/Nobody\. Same as you/, 'mayaWatch'], [/one girl in a pair of shoes/, 'mayaWatch'], [/People exaggerate/, 'herTight'], [/^Do they\?$/, 'mayaWatch'], [/It's singing/, 'gizmo', sing], [/^Nothing\.$/, 'herTight'], [/Hand it over/, 'kai']] })
     ];
-    playReel(shots, aftDone(()=>{ reel = null; place(); canonKO(); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; place(); if(gizmo) gizmo.visible = false; canonKO(); }), { ownClock:true });
   }
-  /* Kai puts Canon on the floor */
+  /* Canon steps in front of her — he has no idea she can fight — and Kai puts him on the floor */
   function canonKO(){
     flushTalk();
-    const sp = TS(), c = canonNpc(), kai = crewTag('kai'), maya = crewTag('maya'), R = sp.meetR, C = sp.canon, K = sp.kai;
+    const sp = TS(), c = canonNpc(), kai = crewTag('kai'), R = sp.meetR, K = sp.kai;
     const ryR = angTo(R[0], R[1], K[0], K[1]);
+    // between them: a step in front of her, toward Kai
+    const C = [R[0] + Math.sin(ryR)*0.9, R[1] + Math.cos(ryR)*0.9], Kc = [C[0] + Math.sin(ryR)*1.2, C[1] + Math.cos(ryR)*1.2];
+    const ryC = angTo(C[0], C[1], K[0], K[1]);
+    const CK = pairAngles(C, Kc, [Math.sin(ryC), Math.cos(ryC)], [-Math.sin(ryC), -Math.cos(ryC)], [Math.cos(ryC), -Math.sin(ryC)], 1.62);
+    const A = Object.assign({}, CK, { past:{ cam:[R[0] - Math.sin(ryR)*0.6 + Math.cos(ryR)*0.35, 1.7, R[1] - Math.cos(ryR)*0.6 - Math.sin(ryR)*0.35], look:[Kc[0], 1.45, Kc[1]], fov:34 } });
+    const guard = () => { stage('idle', R[0], 0, R[1], ryR); if(c){ c.follow = false; c.walking = false; c.x = C[0]; c.z = C[1]; c.faceTo = null; c.yaw = ryC; c.pose = 'fight'; c.feel = FEELS.determined; }
+      if(kai){ kai.x = Kc[0]; kai.z = Kc[1]; crewFace(kai, C[0], C[1], 'idle'); } };
     const shots = [
-      // he goes at Canon — the swing
-      { dur:0.9, fov:34, cam:[C[0] - 1.6, 1.4, C[1] - 1.8], look:[(C[0] + K[0])/2, 1.3, (C[1] + K[1])/2],
-        enter:()=>{ if(kai){ crewFace(kai, C[0], C[1]); kai.x = C[0] + 0.2; kai.z = C[1] - 1.0; TSHFIGHT.play(kai, 'hook'); } }, beats:[[0.45, ()=>{ cue('punch'); shake(0.4); }]] },
+      // he steps across her, arms out
+      { dur:1.4, fov:40, cam:A.past.cam, look:A.past.look, tick:(dt, t, k)=>{ if(c){ c.follow = false; c.x = lerp(sp.canon[0], C[0], Math.min(1, k*1.6)); c.z = lerp(sp.canon[1], C[1], Math.min(1, k*1.6)); c.yaw = ryC; c.pose = 'fight'; } if(kai){ kai.x = lerp(K[0], Kc[0], k); kai.z = lerp(K[1], Kc[1], k); crewFace(kai, C[0], C[1], 'walk'); } } },
+      ...lineShots(['canonGuard'], A, { each:guard, pools:{ canon:['her', 'herTight', 'past'], robin:['past', 'overHer'], kai:['him', 'himTight', 'overHer'] } }),
+      // the swing
+      { dur:0.9, fov:34, cam:A.profileL.cam, look:A.two.look,
+        enter:()=>{ guard(); if(kai){ TSHFIGHT.play(kai, 'hook'); } }, beats:[[0.45, ()=>{ cue('punch'); shake(0.4); LOOK.fx.flash = 0.25; }]] },
       // and down
-      { dur:1.6, fov:40, cam:[C[0] + 2.0, 0.6, C[1] + 1.2], look:[C[0], 0.5, C[1] + 0.4], enter:()=>{ if(c){ c.feel = FEELS.pain; c.faceTo = null; c.pose = 'ko'; } } },
+      { dur:1.6, fov:40, cam:[C[0] + 2.0, 0.6, C[1] + 1.2], look:[C[0], 0.5, C[1]], enter:()=>{ if(c){ c.feel = FEELS.pain; c.faceTo = null; c.pose = 'ko'; } } },
       // her
-      { dur:linesLen('canonDown') + 0.6, fov:26, mood:'shocked', cam:rel(R[0], R[1], ryR + 0.6, 0.85, 0.2, 1.55), look:[R[0], 1.55, R[1]], enter:()=>{ stage('idle', R[0], 0, R[1], angTo(R[0], R[1], C[0], C[1])); talk('canonDown'); } },
+      { dur:linesLen('canonDown') + 0.6, fov:26, mood:'shocked', cam:rel(R[0], R[1], ryR + 0.6, 0.85, 0.2, 1.62), look:[R[0], 1.6, R[1]], enter:()=>{ stage('idle', R[0], 0, R[1], ryR); talk('canonDown'); } },
       // her face changes
-      { dur:1.6, fov:22, mood:'angry', cam:rel(R[0], R[1], ryR, 0.7, 0.0, 1.55), look:[R[0], 1.55, R[1]], enter:()=>stage('idle', R[0], 0, R[1], ryR) },
-      { dur:1.2, fov:46, cam:[R[0] - 3.4, 1.2, R[1] + 2.8], look:[K[0], 1.2, K[1]], enter:()=>{ if(kai){ crewFace(kai, R[0], R[1], 'fight'); } } }
+      { dur:1.6, fov:22, mood:'angry', cam:rel(R[0], R[1], ryR, 0.7, 0.0, 1.62), look:[R[0], 1.6, R[1]], enter:()=>stage('idle', R[0], 0, R[1], ryR) },
+      { dur:1.2, fov:46, cam:[R[0] - 3.4, 1.2, R[1] + 2.8], look:[Kc[0], 1.2, Kc[1]], enter:()=>{ if(kai){ crewFace(kai, R[0], R[1], 'fight'); } } }
     ];
-    playReel(shots, aftDone(()=>{ reel = null; const n = canonNpc(); if(n){ n.pose = 'ko'; n.follow = false; } fightOne(); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; const n = canonNpc(); if(n){ n.x = C[0]; n.z = C[1]; n.pose = 'ko'; n.follow = false; } fightOne(R, ryR); }), { ownClock:true });
   }
   function tunFightBegin(R, ry){
     staged = null; flushTalk();
@@ -4719,103 +4736,207 @@ window.TSH = (function(){
     TSHFIGHT.start(tunCtx);
     lockPointer($('#view'));
   }
-  function fightOne(){
-    const sp = TS();
+  function fightOne(R, ry){
     const maya = crewTag('maya'); if(maya){ maya.bystander = true; maya.state = 'watch'; maya.home = [TX(1.6), -116]; }
     tunCtx.done = ()=>kaiDown();
-    tunFightBegin(sp.meetR, angTo(sp.meetR[0], sp.meetR[1], sp.kai[0], sp.kai[1]));
+    tunFightBegin(R, ry);
     note('Kai.', 'big');
   }
   function tunFightEnd(){ mode = null; G.running = true; el.classList.remove('fighting'); cuffGlow(false); if(window.AVATAR) AVATAR.posture(null); if(window.BOOTS && BOOTS.B) BOOTS.sync(); }
-  /* Kai down. Maya, walking in, taking her glasses off. */
+
+  /* MAYA'S ARMS (tentacles.js): four of them out of her back. In the fight she claws at Robin with them. */
+  let mOc = null, mStab = 2;
+  function mayaArms(){
+    const maya = crewTag('maya'); if(!maya || !window.TENTACLES) return null; if(mOc) return mOc;
+    mOc = TENTACLES.make(W.sub.group, { floor:0, at:[maya.x, 0, maya.z], yaw:maya.yaw, lift:0.95 });
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+    mOc.socket(()=>{ const m = crewTag('maya'), b = m && m.model && boneOf(m.model, /Spine2$/); if(!b) return null;
+      const p = new THREE.Vector3(); b.getWorldPosition(p); q.setFromAxisAngle(up, m.yaw); return new THREE.Matrix4().compose(p, q, one); });
+    mOc.hide();
+    return mOc;
+  }
+  function tickMayaArms(dt){
+    if(!mOc) return;
+    const maya = crewTag('maya'); if(!maya || !maya.g.visible){ mOc.root.visible = false; return; }
+    mOc.root.visible = true; mOc.to(maya.x, maya.z, 9); mOc.update(dt);
+    // in the fight: a claw at her, now and then — move, or it lands
+    if(mode === 'fight' && aftWatch === 'fight2'){
+      mStab -= dt;
+      if(mStab <= 0){ mStab = 1.3 + Math.random()*1.3; const p = P(), tgt = [p.x, 1.25, p.z], k = Math.random() < 0.5 ? 0 : 1;
+        mOc.burst(k, null, { world:tgt, hold:0.45 }); cue('zip');
+        later(()=>{ const q = P(), m = crewTag('maya'); if(!m || mode !== 'fight' || Math.hypot(q.x - tgt[0], q.z - tgt[2]) > 0.9) return;
+          shake(0.35); cue('punch'); LOOK.fx.flash = 0.3; LOOK.fx.flashCol.set(1, 0.25, 0.3);
+          const a = angTo(m.x, m.z, q.x, q.z); G.pos.x += Math.sin(a)*0.9; G.pos.z += Math.cos(a)*0.9; }, 230); }
+    }
+  }
+  /* Kai down. Maya, walking in — and her arms come out */
   function kaiDown(){
     flushTalk();
     tunFightEnd();
     const maya = crewTag('maya'), p = P(), R = [p.x, p.z];
     const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]);
-    const to = [R[0] + Math.sin(ry)*2.2, R[1] + Math.cos(ry)*2.2];
+    const to = [R[0] + Math.sin(ry)*2.4, R[1] + Math.cos(ry)*2.4];
     const F = pairAngles(R, to, [Math.sin(ry), Math.cos(ry)], [-Math.sin(ry), -Math.cos(ry)], [Math.cos(ry), -Math.sin(ry)], 1.62);
+    F.arms = { cam:[to[0] - Math.sin(ry)*2.6 + Math.cos(ry)*1.6, 0.9, to[1] - Math.cos(ry)*2.6 - Math.sin(ry)*1.6], look:[to[0], 1.6, to[1]], fov:44 };
+    const at = (x, y, z) => [to[0] + x, y, to[1] + z];
     const shots = [
       { dur:2.2, fov:36, cam:F.overHer.cam, look:()=>maya ? [maya.x, 1.5, maya.z] : F.overHer.look, enter:()=>stage('fight', R[0], 0, R[1], ry),
         tick:(dt, t, k)=>crewWalk(maya, M, to, Math.min(1, k)) },
-      ...lineShots(['mayaIn'], F, { each:()=>{ stage('fight', R[0], 0, R[1], ry); if(maya){ maya.x = to[0]; maya.z = to[1]; crewFace(maya, R[0], R[1], 'fight'); } }, pools:{ robin:['herTight', 'overHim', 'low'], maya:['himTight', 'overHer', 'him'] } })
+      ...lineShots(['mayaIn'], F, { each:()=>{ stage('fight', R[0], 0, R[1], ry); if(maya){ maya.x = to[0]; maya.z = to[1]; crewFace(maya, R[0], R[1], 'fight'); } }, pools:{ robin:['herTight', 'overHim', 'low'], maya:['himTight', 'overHer', 'him'] } }),
+      // out of her back: one, two — then all four, spread wide
+      { dur:2.8, fov:F.arms.fov, cam:F.arms.cam, look:F.arms.look, enter:()=>{ const oc = mayaArms(); cue('clang');
+          if(oc){ oc.burst(0, null, { world:at(-1.4, 2.6, 0.3), hold:2.4 }); oc.burst(1, null, { world:at(1.4, 2.7, 0.3), hold:2.4, wait:0.35 });
+            oc.burst(2, null, { world:at(-1.5, 0, 0.8), hold:2.0, wait:0.7, floor:true }); oc.burst(3, null, { world:at(1.5, 0, 0.8), hold:2.0, wait:0.9, floor:true }); } },
+        beats:[[0.4, ()=>{ shake(0.2); cue('zip'); }], [0.8, ()=>cue('zip')], [1.2, ()=>{ shake(0.3); cue('clang'); }]] },
+      { dur:1.4, fov:24, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>stage('fight', R[0], 0, R[1], ry) }
     ];
-    playReel(shots, aftDone(()=>{ reel = null; fightTwo(R, ry); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; mayaArms(); fightTwo(R, ry); }), { ownClock:true });
   }
   function fightTwo(R, ry){
     const maya = crewTag('maya'); if(maya){ maya.bystander = false; maya.hp = maya.max; maya.state = 'circle'; }
     tunCtx.done = ()=>{ tunFightEnd(); alphaScene(); };          // (she is never put down: the gizmo gets there first)
+    mStab = 2.2;
     tunFightBegin(R, ry);
     aftWatch = 'fight2';
-    note('Maya.', 'big');
+    note('Maya — and her arms. Keep moving.', 'big');
   }
-  /* THE GIZMO SINGS. Something in Maya answers it — and comes up out of her. */
+
+  /* -------------------------------------------------------------- HAYWIRE
+     From the moment the gizmo screams, the station comes apart: it shakes; the picture tears into bands and
+     slips its colour plates; the colour itself goes round the wheel; the lights flash every colour there is; and
+     it is all printed — ink at the edges, dots in the shadows. Into the Spider-Verse, falling apart. */
+  let hay = null;
+  const hueC = new THREE.Color(), hueVec = (h, s, l) => { hueC.setHSL(h, s, l); return new THREE.Vector3(hueC.r, hueC.g, hueC.b); };
+  function haywire(k){
+    if(k > 0){ hay = hay || { t:0, sh:0 }; hay.k = k; return; }
+    hay = null;
+    const fx = LOOK.fx; fx.comic = 0; fx.glitch = 0; fx.hue = 0; fx.ca = 0; fx.flash = 0; fx.flashCol.set(1, 1, 1);
+    if(W && W.sub){ W.sub.group.position.set(0, 0, 0); W.sub.lights.forEach(l=>{ if(l.col0){ l.col.copy(l.col0); delete l.col0; } }); }
+  }
+  function tickHaywire(dt){
+    if(!hay) return;
+    hay.t += dt; const k = hay.k, fx = LOOK.fx;
+    fx.comic = Math.min(1, 0.4 + k*0.8);
+    fx.glitch = k*(0.18 + (Math.random() < 0.1 ? 0.8 : 0));
+    fx.ca = k*0.03*(1.2 + Math.sin(hay.t*13));
+    fx.hue = k*(Math.sin(hay.t*0.9)*1.1 + (Math.random() < 0.05 ? (Math.random() - 0.5)*5 : 0));
+    if(Math.random() < 0.06*k){ fx.flash = 0.3*k; fx.flashCol.copy(hueVec(Math.random(), 1, 0.6)); }
+    if(W && W.sub){ const s = 0.06*k; W.sub.group.position.set((Math.random() - 0.5)*s, (Math.random() - 0.5)*s*0.5, (Math.random() - 0.5)*s);
+      W.sub.lights.forEach(l=>{ if(Math.random() < 0.04*k){ if(!l.col0) l.col0 = l.col.clone(); l.col.setHSL(Math.random(), 1, 0.55); } }); }
+    hay.sh -= dt; if(hay.sh <= 0){ hay.sh = 0.25 + Math.random()*0.5; shake(0.12 + 0.25*k*Math.random()); }
+  }
+
+  /* THE GIZMO SCREAMS. Something in Maya answers it — and comes up out of her. */
+  let mon = null;
+  function hum(secs){ const a = audio(); if(!a) return; try{ const t = a.currentTime, o = a.createOscillator(), o2 = a.createOscillator(), gn = a.createGain(); o.type = 'sawtooth'; o2.type = 'square';
+    o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(2400, t + 2.5); o2.frequency.setValueAtTime(181, t); o2.frequency.exponentialRampToValueAtTime(1210, t + 2.5);
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.05, t + 0.6); gn.gain.exponentialRampToValueAtTime(0.0001, t + (secs || 4.5));
+    o.connect(gn); o2.connect(gn); gn.connect(a.destination); o.start(t); o2.start(t); o.stop(t + (secs || 4.5) + 0.1); o2.stop(t + (secs || 4.5) + 0.1); }catch(e){} }
+  function roar(){ const a = audio(); if(!a) return; try{ const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate*3, a.sampleRate), d = b.getChannelData(0);
+    for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/d.length, 1.5);
+    const f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(90, t + 2.8);
+    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 3); n.buffer = b; n.connect(f); f.connect(g); g.connect(a.destination); n.start(t); }catch(e){} }
   function alphaScene(){
     flushTalk();
     if(TSHFIGHT.on) TSHFIGHT.stop();
     tunFightEnd(); mark('alpha');
-    const maya = crewTag('maya'), kai = crewTag('kai'), p = P(), R = [p.x, p.z];
+    const maya = crewTag('maya'), p = P(), R = [p.x, p.z];
     const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]);
-    const back = [R[0] - Math.sin(ry)*1.2, R[1] - Math.cos(ry)*1.2];
     const F = pairAngles(R, M, [Math.sin(ry), Math.cos(ry)], [-Math.sin(ry), -Math.cos(ry)], [Math.cos(ry), -Math.sin(ry)], 1.62);
     const mh = () => maya ? [maya.x, 1.5, maya.z] : [M[0], 1.5, M[1]];
     let tw = 0;
-    const twitch = (dt, amt) => { tw -= dt; if(tw <= 0 && maya){ tw = 0.12 + Math.random()*0.4*(1.2 - amt); TSHFIGHT.play(maya, Math.random() < 0.5 ? 'hit' : 'stagger'); maya.yaw += (Math.random() - 0.5)*0.6*amt; } };
+    const twitch = (dt, amt) => { tw -= dt; if(tw <= 0 && maya){ tw = 0.1 + Math.random()*0.35*(1.2 - amt); TSHFIGHT.play(maya, Math.random() < 0.5 ? 'hit' : 'stagger'); maya.yaw += (Math.random() - 0.5)*0.7*amt;
+      if(mOc && Math.random() < amt*0.7){ const a = Math.random()*7; mOc.burst(Math.floor(Math.random()*4), null, { world:[maya.x + Math.sin(a)*2.2, 0.4 + Math.random()*2.6, maya.z + Math.cos(a)*2.2], hold:0.35 }); } } };
     const grow = (k, g) => { if(!alphaFx && maya && maya.model && window.TSHALPHA) alphaFx = TSHALPHA.apply(maya.model); if(alphaFx){ alphaFx.cover = Math.max(alphaFx.cover, k); alphaFx.glitch = g; } };
-    const hum = () => { const a = audio(); if(!a) return; try{ const t = a.currentTime, o = a.createOscillator(), o2 = a.createOscillator(), gn = a.createGain(); o.type = 'sawtooth'; o2.type = 'square';
-      o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(2400, t + 2.5); o2.frequency.setValueAtTime(181, t); o2.frequency.exponentialRampToValueAtTime(1210, t + 2.5);
-      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.05, t + 0.6); gn.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
-      o.connect(gn); o2.connect(gn); gn.connect(a.destination); o.start(t); o2.start(t); o.stop(t + 4.6); o2.stop(t + 4.6); }catch(e){} };
     const pocket = () => { const g = gizmoProp(); if(g.parent !== W.sub.group) W.sub.group.add(g); g.visible = true; g.position.set(R[0] + Math.sin(ry)*0.25 + Math.cos(ry)*0.12, 1.0, R[1] + Math.cos(ry)*0.25 - Math.sin(ry)*0.12); g.rotation.set(-0.2, ry, 0); };
     const shots = [
       // the gizmo, out of her pocket on its own, screaming violet
       { dur:1.6, fov:28, cam:()=>{ const g = gizmoProp(); return [g.position.x + 0.42, g.position.y + 0.16, g.position.z + 0.3]; }, look:()=>{ const g = gizmoProp(); return [g.position.x, g.position.y, g.position.z]; },
-        enter:()=>{ stage('fight', R[0], 0, R[1], ry); pocket(); hum(); LOOK.fx.flash = 0.4; },
+        enter:()=>{ stage('fight', R[0], 0, R[1], ry); pocket(); hum(); LOOK.fx.flash = 0.4; haywire(0.25); },
         tick:()=>{ const g = gizmoProp(); g.userData.scr.material.color.setRGB(0.4 + Math.random(), 0.2, 1 + Math.random()*1.5); } },
-      // Maya stops. Twitches.
-      { dur:2.0, fov:30, cam:F.overHer.cam, look:mh, tick:(dt, t, k)=>{ twitch(dt, 0.4); grow(k*0.25, 0.3 + k*0.4); } },
-      ...lineShots(['mayaGlitch'], F, { each:()=>stage('fight', R[0], 0, R[1], ry), tick:(dt, t)=>{ twitch(dt, 0.8); grow(Math.min(1, (alphaFx ? alphaFx.cover : 0) + dt*0.08), 0.8); },
-        pools:{ robin:['herTight', 'her'], maya:['himTight', 'him', 'low', 'overHer'], kai:['wide'] } }),
-      // it takes all of her
-      { dur:3.0, fov:40, cam:[[F.low.cam[0], 0.4, F.low.cam[2]], [F.low.cam[0], 0.5, F.low.cam[2]]], look:mh, tick:(dt, t, k)=>{ twitch(dt, 1); grow(0.55 + k*0.45, 1); }, beats:[[0.5, ()=>{ shake(0.5); cue('clang'); }]] },
-      // the white eye opens
-      { dur:2.0, fov:20, cam:()=>{ const m = mh(); return [m[0] + Math.sin(ry + Math.PI)*0.9, 1.6, m[2] + Math.cos(ry + Math.PI)*0.9]; }, look:()=>{ const m = mh(); return [m[0], 1.58, m[2]]; },
-        tick:(dt)=>{ grow(1, 0.5); if(maya){ crewFace(maya, R[0], R[1]); TSHFIGHT.play(maya, 'fight'); } } },
-      // Kai backs away from her too
-      { dur:1.8, fov:44, cam:[R[0] - 3.2, 1.4, R[1] + 3.0], look:mh, enter:()=>{ if(kai){ kai.hp = 1; kai.state = 'idle'; TSHFIGHT.play(kai, 'walk_back'); } }, tick:(dt)=>{ if(kai){ kai.x += Math.sin(kai.yaw + Math.PI)*dt*1.2; kai.z += Math.cos(kai.yaw + Math.PI)*dt*1.2; } } }
+      // Maya stops. Twitches. Her arms thrash.
+      { dur:2.0, fov:30, cam:F.overHer.cam, look:mh, tick:(dt, t, k)=>{ twitch(dt, 0.5); grow(k*0.3, 0.3 + k*0.4); } },
+      ...lineShots(['mayaGlitch'], F, { each:()=>stage('fight', R[0], 0, R[1], ry), tick:(dt)=>{ twitch(dt, 0.8); grow(Math.min(0.75, (alphaFx ? alphaFx.cover : 0) + dt*0.08), 0.8); if(hay) hay.k = Math.min(0.55, hay.k + dt*0.05); },
+        pools:{ robin:['herTight', 'her'], maya:['himTight', 'him', 'low', 'overHer'], kai:['wide'] } })
     ];
-    playReel(shots, aftDone(()=>{ reel = null; if(gizmo) gizmo.visible = false; if(alphaFx){ alphaFx.cover = 1; alphaFx.glitch = 0.6; } canonUp(); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; if(gizmo) gizmo.visible = false; monsterScene(R, ry); }), { ownClock:true });
   }
-  /* "Canon. Canon, get up." — and run */
-  function canonUp(){
+  /* IT DOES NOT STOP. The black comes up out of her and keeps coming, until it is the size of the platform. Kai
+     runs. The hole in it opens, and pulls, and Canon — on the floor where Kai put him — goes across the floor and
+     up and into it. And Robin runs. */
+  function monsterScene(R0, ry){
     flushTalk();
-    const sp = TS(), c = canonNpc(), C = sp.canon, at = [C[0] - 0.7, C[1] - 0.2], ry = angTo(at[0], at[1], C[0], C[1]);
-    const A = pairAngles(at, C, [Math.sin(ry), Math.cos(ry)], [-Math.sin(ry), -Math.cos(ry)], [Math.cos(ry), -Math.sin(ry)], 1.62);
-    // him on the floor, from down by him; her, from where he lies
-    A.floor = { cam:[C[0] + 1.1, 0.45, C[1] + 0.9], look:[C[0], 0.35, C[1]], fov:34 };
-    A.fromFloor = { cam:[C[0] + 0.3, 0.5, C[1] + 0.2], look:[at[0], 1.6, at[1]], fov:36 };
+    const maya = crewTag('maya'), kai = crewTag('kai'), c = canonNpc();
+    const M0 = maya ? [maya.x, maya.z] : TS().maya, dir = [Math.sin(ry), Math.cos(ry)];
+    // it is bigger than the space between them: it swells up behind where she stood, and Robin stumbles back from it
+    const M = [M0[0] + dir[0]*2.6, M0[1] + dir[1]*2.6], R = [R0[0] - dir[0]*1.6, R0[1] - dir[1]*1.6], myaw = angTo(M[0], M[1], R[0], R[1]);
+    const F = pairAngles(R, [R[0] + dir[0], R[1] + dir[1]], dir, [-dir[0], -dir[1]], [dir[1], -dir[0]], 1.62);
+    if(mon) mon.dispose();
+    mon = TSHMONSTER.make(W.sub.group, [M[0], 0, M[1]], myaw); mon.grow = 0.02; mon.pull = 0.3;
+    const C = c ? [c.x, c.z] : TS().canon, cy0 = 0;
+    const eyeW = () => { const v = new THREE.Vector3(0.5, 4.5, 0.75); return mon.root.localToWorld(v.multiplyScalar(Math.max(0.05, mon.grow))); };
+    const side = [Math.cos(ry), -Math.sin(ry)];
+    const low = [R[0] - dir[0]*2.4 + side[0]*2.6, 0.35, R[1] - dir[1]*2.4 + side[1]*2.6];
+    let suck = 0;
     const shots = [
-      ...lineShots(['canonUp'], A, { each:()=>stage('idle', at[0], 0, at[1], ry), ins:[[/get up/, 'fromFloor'], [/Did I win/, 'floor', ()=>{ if(c) c.pose = 'getup'; }], [/Run\./, 'wide']] })
+      // it comes out of her
+      { dur:3.4, fov:62, cam:[[low[0], 0.35, low[2]], [low[0] - dir[0]*1.2, 0.5, low[2] - dir[1]*1.2]], look:k=>[lerp(M0[0], M[0], k), 1.2 + k*2.6, lerp(M0[1], M[1], k)],
+        enter:()=>{ roar(); haywire(0.6); cue('clang'); if(maya) TSHFIGHT.play(maya, 'stagger'); stage('idle', R[0], 0, R[1], ry); },
+        tick:(dt, t, k)=>{ mon.grow = Math.min(1, 0.02 + k*1.05); if(alphaFx) alphaFx.cover = 1; if(maya && maya.g.visible){ maya.x = lerp(M0[0], M[0], k*0.6); maya.z = lerp(M0[1], M[1], k*0.6); maya.y = k*1.6; }
+          if(mon.grow > 0.35 && maya){ maya.g.visible = false; if(mOc){ mOc.dispose(); mOc = null; } } if(hay) hay.k = 0.6 + k*0.3; },
+        beats:[[0.3, ()=>shake(0.6)], [1.4, ()=>{ shake(0.8); cue('punch'); }], [2.6, ()=>shake(0.6)]] },
+      // the eye opens — over her shoulder, a long lens up at it
+      { dur:2.0, fov:18, cam:[R[0] - dir[0]*0.7 + side[0]*0.45, 1.75, R[1] - dir[1]*0.7 + side[1]*0.45], look:()=>{ const e = eyeW(); return [e.x, e.y, e.z]; },
+        enter:()=>{ mon.grow = 1; LOOK.fx.flash = 0.5; LOOK.fx.flashCol.set(1, 1, 1); stage('idle', R[0], 0, R[1], ry); } },
+      // all of it: the size of the platform, its arms out across the station
+      { dur:2.2, fov:62, cam:[[ (R[0] + M[0])/2 + side[0]*6.5, 1.2, (R[1] + M[1])/2 + side[1]*6.5 ], [ (R[0] + M[0])/2 + side[0]*6.0, 1.6, (R[1] + M[1])/2 + side[1]*6.0 ]],
+        look:[(R[0] + M[0]*2)/3, 2.4, (R[1] + M[1]*2)/3], enter:()=>{ roar(); shake(0.5); [0, 1, 2].forEach(i=>later(()=>{ if(mon) mon.reach(new THREE.Vector3(R[0] + (Math.random() - 0.5)*6, 0.5 + Math.random()*3, R[1] + (Math.random() - 0.5)*6), 1.0); }, i*300)); } },
+      // Kai: up off the floor, and backing away from her
+      { dur:linesLen('monsterKai') + 0.8, fov:30, cam:()=>kai ? [kai.x + Math.sin(myaw + 0.6)*1.4, 1.65, kai.z + Math.cos(myaw + 0.6)*1.4] : [R[0], 1.6, R[1]], look:()=>kai ? [kai.x, 1.55, kai.z] : [M[0], 2, M[1]],
+        enter:()=>{ if(kai){ kai.hp = 1; kai.state = 'idle'; TSHFIGHT.play(kai, 'getup'); } talk('monsterKai'); later(()=>{ if(kai) TSHFIGHT.play(kai, 'walk_back'); }, 900); },
+        tick:(dt, t)=>{ if(kai && t > 0.9){ const a = angTo(M[0], M[1], kai.x, kai.z); kai.x += Math.sin(a)*dt*1.4; kai.z += Math.cos(a)*dt*1.4; kai.yaw = a + Math.PI; } } },
+      // and he runs — into the dark of the tunnel
+      { dur:1.4, fov:44, cam:[R[0] + side[0]*3, 1.4, R[1] + side[1]*3], look:()=>kai ? [kai.x, 1.2, kai.z] : [M[0], 1, M[1]],
+        enter:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6; } } },       // back the way they came: north, to the passage
+      // the hole opens. It pulls.
+      { dur:2.2, fov:40, cam:()=>{ const m = mon.mouth; return [m.x + Math.sin(myaw)*6 + side[0]*1.5, 1.8, m.z + Math.cos(myaw)*6 + side[1]*1.5]; }, look:()=>[mon.mouth.x, mon.mouth.y, mon.mouth.z],
+        enter:()=>{ mon.pull = 1; roar(); }, tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.7; } },
+      // Canon, across the floor toward it
+      { dur:2.0, fov:36, cam:[C[0] + side[0]*2.2 - Math.sin(ry)*1.2, 0.6, C[1] + side[1]*2.2 - Math.cos(ry)*1.2], look:()=>c ? [c.x, 0.4, c.z] : [C[0], 0.4, C[1]],
+        enter:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } }, tick:(dt, t, k)=>{ suck = k*0.35; if(c){ const m = mon.mouth; c.x = lerp(C[0], m.x, suck*suck); c.z = lerp(C[1], m.z, suck*suck); } } },
+      // "CANON!"
+      { dur:linesLen('canonGone') + 0.4, fov:24, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ stage('idle', R[0], 0, R[1], angTo(R[0], R[1], C[0], C[1])); talk('canonGone'); } },
+      // up, round, and in
+      { dur:2.4, fov:46, cam:()=>{ const m = mon.mouth; return [m.x + Math.sin(myaw)*7 - side[0]*2, 2.2, m.z + Math.cos(myaw)*7 - side[1]*2]; }, look:()=>[mon.mouth.x, mon.mouth.y - 0.6, mon.mouth.z],
+        enter:()=>{ if(c) c.pose = 'fall'; },
+        tick:(dt, t, k)=>{ if(!c) return; const m = mon.mouth, e = 0.35 + k*0.65, r = (1 - k)*1.2, a = k*14;
+          c.x = lerp(C[0], m.x, e*e) + Math.cos(a)*r; c.z = lerp(C[1], m.z, e*e) + Math.sin(a)*r; c.y = lerp(cy0, m.y - 0.6, k); c.yaw += dt*9;
+          c.g.scale.setScalar(Math.max(0.02, 1 - k*k)); if(k > 0.97 && !c.hidden){ c.hidden = true; LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); shake(0.8); cue('clang'); } } },
+      // gone. Her face.
+      { dur:2.2, fov:22, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ if(hay) hay.k = 1; } },
+      // and she runs
+      { dur:1.4, fov:52, cam:[R[0] - Math.sin(ry)*3.2, 1.1, R[1] - Math.cos(ry)*3.2], look:[R[0], 1.2, R[1]], tick:(dt, t, k)=>stage('sprint', R[0] - Math.sin(ry)*k*2.2, 0, R[1] - Math.cos(ry)*k*2.2, ry + Math.PI) }
     ];
     playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
-      const n = canonNpc(); if(n){ n.pose = null; n.follow = true; }
-      placePlayer(at[0], at[1], 0);
-      esc_ = { t:0, caught:0 }; aftWatch = 'escape';
-      note('RUN — to the ladder at the end of the platform.', 'big'); lockPointer($('#view')); }), { ownClock:true });
+      const n = canonNpc(); if(n) n.hidden = true;
+      const k_ = crewTag('kai'); if(k_) k_.g.visible = false;
+      if(mon){ mon.grow = 1; mon.pull = 1.2; }
+      placePlayer(R[0] - Math.sin(ry)*2.2, R[1] - Math.cos(ry)*2.2, ry);
+      esc_ = { t:0, caught:0, reach:1 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
+      note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); }), { ownClock:true });
   }
-  /* she comes after them: in jerks, glitching a metre at a time */
+  /* it comes after her: slow, enormous, reaching */
   let esc_ = null;
   function tickEscape(dt){
-    canonFollow(dt, 1.4);
-    const sp = TS(), p = P(), maya = crewTag('maya');
+    const sp = TS(), p = P();
     esc_.t += dt;
-    if(maya){
-      const d = Math.hypot(p.x - maya.x, p.z - maya.z), a = angTo(maya.x, maya.z, p.x, p.z);
-      maya.yaw = a;
-      if(esc_.t > 1.5){ const sp_ = Math.random() < 0.06 ? 14 : 2.6; maya.x += Math.sin(a)*sp_*dt; maya.z += Math.cos(a)*sp_*dt; TSHFIGHT.play(maya, Math.random() < 0.08 ? 'stagger' : 'walk'); }
-      if(d < 1.1){ esc_.caught++; shake(0.5); cue('punch'); LOOK.fx.flash = 0.5;
-        // a hit, and she is thrown on — and Maya stutters back
-        maya.x -= Math.sin(a)*4; maya.z -= Math.cos(a)*4; note('Keep going!', 'bad'); }
+    if(mon){
+      const r = mon.root, d = Math.hypot(p.x - r.position.x, p.z - r.position.z), a = angTo(r.position.x, r.position.z, p.x, p.z);
+      r.rotation.y = a;
+      if(d > 4.5 && r.position.z > -124){ r.position.x += Math.sin(a)*dt*2.4; r.position.z += Math.cos(a)*dt*2.4; }
+      esc_.reach -= dt; if(esc_.reach <= 0){ esc_.reach = 0.9 + Math.random()*0.8; mon.reach(new THREE.Vector3(p.x, 1.0, p.z), 0.7); cue('zip'); }
+      if(d < 5.2){ esc_.caught++; shake(0.5); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
+        G.pos.x += Math.sin(a)*2.2; G.pos.z += Math.cos(a)*2.2; note('Keep going!', 'bad'); }
     }
     if(Math.hypot(p.x - sp.ladder[0], p.z - sp.ladder[1]) < 1.6){ aftWatch = null; climbOut(); }
   }
@@ -4824,52 +4945,50 @@ window.TSH = (function(){
     const sp = TS(), L = sp.ladder;
     const shots = [
       { dur:1.6, fov:40, cam:[L[0] + 1.6, 1.4, L[1] + 2.6], look:[L[0], 1.8, L[1] - 0.6], tick:(dt, t, k)=>stage('jump', L[0], k*2.2, L[1] - 0.3, Math.PI), beats:[[0.2, ()=>cue('step')], [0.8, ()=>cue('step')]] },
-      { dur:1.0, fov:36, cam:[L[0] - 1.2, 1.2, L[1] + 3.8], look:[L[0], 1.3, L[1] + 2.0], enter:()=>{ const m = crewTag('maya'); if(m){ m.x = L[0] + 0.6; m.z = L[1] + 3.2; crewFace(m, L[0], L[1], 'fight'); } } }
+      { dur:1.3, fov:50, cam:[L[0] - 0.6, 2.6, L[1] + 0.4], look:()=>mon ? [mon.mouth.x, 2.2, mon.mouth.z] : [L[0], 1.3, L[1] + 4], enter:()=>{ if(mon) mon.reach(new THREE.Vector3(L[0], 2.2, L[1]), 1.2); roar(); } }
     ];
     playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
-      fade(()=>{ if(alphaFx){ alphaFx.remove(); alphaFx = null; } outOfSub(); upTop(); }); }), { ownClock:true });
+      fade(()=>{ tunnelsGone(); outOfSub(); upTop(); }); }), { ownClock:true });
   }
-  /* the street, in the afternoon light, out of breath */
+  function tunnelsGone(){
+    if(alphaFx){ alphaFx.remove(); alphaFx = null; } if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; }
+    haywire(0); if(gizmo) gizmo.visible = false;
+  }
+  /* the street, in the afternoon light. On her own. */
   function upTop(){
     flushTalk();
     S.dm = Math.max(S.dm || 0, 16*60 + 40);
     const c0 = canonNpc(); if(c0) despawn(c0);
-    const at = [EXIT[0] - 0.8, EXIT[1] + 0.6], F = facing(at, Math.PI/2, 0.85, 1.62), A = F.A;
-    const c = spawn('friend', 'theo', F.T[0], F.T[1], { name:'canon', yaw:-Math.PI/2 }); c.faceTo = at;
-    const place = () => { stage('idle', at[0], 0, at[1], F.ry); const n = canonNpc(); if(n){ n.x = F.T[0]; n.z = F.T[1]; n.faceTo = at; } };
+    const at = [EXIT[0] - 0.8, EXIT[1] + 0.6], F = facing(at, Math.PI/2, 1.0, 1.62), A = F.A;
+    const alone = () => stage('idle', at[0], 0, at[1], F.ry);
+    const texts = n => phoneThread('Canon', [['me', 'canon'], ['me', 'canon answer me'], ['me', 'please']].slice(0, n).concat(n >= 3 ? [['me', 'Delivered']] : []));
     const shots = [
-      { dur:2.2, fov:44, cam:[EXIT[0] + 3.4, 0.5, EXIT[1] - 2.6], look:[EXIT[0], 1.0, EXIT[1]], enter:()=>{ place(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); } },
-      ...lineShots(['upTop'], A, { each:place, pools:{ robin:['herTight', 'her', 'overHim', 'low'], canon:['himTight', 'him', 'overHer', 'profileR'] } })
+      { dur:2.4, fov:44, cam:[EXIT[0] + 3.4, 0.5, EXIT[1] - 2.6], look:[EXIT[0], 1.0, EXIT[1]], enter:()=>{ alone(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); } },
+      ...lineShots(['robinAlone'], A, { each:alone, mood:'sad', pools:{ robin:['herTight', 'high', 'profileL'] } }),
+      // her phone: Canon. Nothing comes back.
+      { dur:4.0, fov:30, mood:'sad', cam:A.herTight.cam, look:A.herTight.look, enter:()=>{ stage('text', at[0], 0, at[1], F.ry); texts(1); cue('ui'); },
+        beats:[[1.2, ()=>{ texts(2); cue('ui'); }], [2.4, ()=>{ texts(3); cue('ui'); }]] }
     ];
-    playReel(shots, aftDone(()=>{ reel = null; place(); momCall(at, F); }), { ownClock:true });
+    playReel(shots, aftDone(()=>{ reel = null; phoneThread(null); alone(); momCall(at, F); }), { ownClock:true });
   }
-  /* her phone: MOM. Straight home before dinner. Canon walks off backwards. "Weirdo." */
+  /* her phone: MOM. Straight home before dinner. */
   function momCall(at, F){
     mark('momphone');
-    const t = canonNpc(), me_ = at, him = F.T, away = [him[0] - 7, him[1] - 1.6];
-    const A = Object.assign({}, F.A);
+    const me_ = at, A = Object.assign({}, F.A);
     const phoneUp = () => stage('text', me_[0], 0, me_[1], F.ry + 0.4);
     // the phone: from in front of her, low, her face over the phone in her hand
     const fr = [Math.sin(F.ry + 0.4), Math.cos(F.ry + 0.4)];
     A.phone = { cam:[me_[0] + fr[0]*0.75 + fr[1]*0.45, 1.3, me_[1] + fr[1]*0.75 - fr[0]*0.45], look:[me_[0] + fr[0]*0.2, 1.32, me_[1] + fr[1]*0.2], fov:34 };
     const shots = [
-      { dur:1.6, fov:A.phone.fov, cam:A.phone.cam, look:A.phone.look,
-        enter:()=>{ stage('idle', me_[0], 0, me_[1], F.ry); if(t){ t.walking = false; t.go = null; t.x = him[0]; t.z = him[1]; t.faceTo = me_; } cue('ring'); phoneBig('call', 'MOM'); } },
-      ...lineShots(['momPhone', 'momPhone2', 'momPhone3', 'momPhone4'], A, { each:()=>{ phoneUp(); phoneBig('oncall', 'MOM'); },
-        pools:{ robin:['profileL', 'two', 'overHim', 'wide'], momcall:['phone', 'him', 'phone', 'overHer'] } }),
-      ...lineShots(['walkYou', 'textMe'], A, { each:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], F.ry); } }),
-      // he walks off backwards
-      { dur:2.4, fov:40, cam:[me_[0] + 1.6, 1.6, me_[1] - 3.2], look:[me_[0] - 2, 1.3, me_[1] + 0.5],
-        enter:()=>{ if(t){ t.go = { a:him, b:away, t:0, dur:2.4, back:true, face:me_ }; } } },
-      // she watches him for a moment. She smiles.
-      ...lineShots(['weirdo'], A, { ins:[[/Weirdo/, 'her']], mood:'soft' }),
-      { dur:1.4, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>stage('idle', me_[0], 0, me_[1], Math.PI/2) }
+      { dur:1.6, fov:A.phone.fov, cam:A.phone.cam, look:A.phone.look, enter:()=>{ stage('idle', me_[0], 0, me_[1], F.ry); cue('ring'); phoneBig('call', 'MOM'); } },
+      ...lineShots(['momPhone', 'momPhone2', 'momPhone3', 'momPhone4'], A, { each:()=>{ phoneUp(); phoneBig('oncall', 'MOM'); }, mood:'sad',
+        pools:{ robin:['herTight', 'profileL', 'high', 'phone'], momcall:['phone', 'profileL', 'phone', 'low'] } }),
+      { dur:2.0, fov:44, cam:[me_[0] - 2.2, 1.7, me_[1] - 2.6], look:[me_[0] + 4, 1.4, me_[1]], enter:()=>{ phoneBig(null); stage('idle', me_[0], 0, me_[1], Math.PI/2); } }
     ];
     playReel(shots, aftDone(()=>{
       reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
-      const n = canonNpc(); if(n) despawn(n);
       placePlayer(me_[0], me_[1], -Math.PI/2);
-      S.flags.tun = 0; outcome('fixed'); checkpoint();
+      S.flags.tun = 0; S.flags.canonTaken = true; outcome('fixed'); checkpoint();
       gethomeBegin(false);
     }), { ownClock:true });
   }
@@ -4891,7 +5010,7 @@ window.TSH = (function(){
       { dur:1.4, fov:40, cam:rel(at[0], at[1], face, 2.4, 0.6, 1.6), look:[at[0], 1.5, at[1]], enter:()=>stage('idle', at[0], 0, at[1], face - 0.2) },
       // up at the roofs
       { dur:2.0, fov:50, cam:rel(at[0], at[1], face, -0.6, 0.3, 1.2), look:[at[0] + Math.sin(face)*14, 18, at[1] + Math.cos(face)*14], enter:()=>stage('idle', at[0], 0, at[1], face) },
-      { dur:1.6, fov:28, mood:'grin', cam:rel(at[0], at[1], face, 1.0, 0.2, 1.58), look:[at[0], 1.55, at[1]] },
+      { dur:1.6, fov:28, mood:'determined', cam:rel(at[0], at[1], face, 1.0, 0.2, 1.58), look:[at[0], 1.55, at[1]] },
       // a few steps back
       { dur:1.2, fov:44, cam:rel(at[0], at[1], face, 4.5, 1.2, 1.4), look:[at[0], 1.0, at[1]],
         tick:(dt, tt, k)=>{ const r = [lerp(at[0], at[0] - Math.sin(face)*2, k), lerp(at[1], at[1] - Math.cos(face)*2, k)]; stage('walk', r[0], 0, r[1], face); } }
@@ -4945,11 +5064,11 @@ window.TSH = (function(){
         { dur:3.0, fov:52, inside:true, cam:[win[0] + 0.4, 1.6, win[1]], look:k=>[lerp(bn[0] - 2, bn[0] + 1, k), 1.1, bn[2]] },
         // to the bench
         { dur:2.2, fov:44, inside:true, cam:[benchSpot[0] + 1.6, 1.6, benchSpot[1] + 1.4], look:[bn[0], 1.0, bn[2]], tick:(dt, tt, k)=>walkStage(win, benchSpot, k) },
-        // she picks one up; turns it over; a small smile
-        { dur:2.4, fov:30, mood:'soft', inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.25, benchSpot[1]], enter:()=>stage('text', benchSpot[0], 0, benchSpot[1], Math.PI) },
-        // her phone: home?  home.
+        // she picks one up; turns it over. She is thinking about Canon
+        { dur:2.4, fov:30, mood:'sad', inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.25, benchSpot[1]], enter:()=>stage('text', benchSpot[0], 0, benchSpot[1], Math.PI) },
+        // her phone: to Canon — i'm home. Delivered. Nothing.
         { dur:3.2, fov:30, inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.25, benchSpot[1]],
-          enter:()=>{ cue('ring'); phoneThread('Canon', [['canon', 'home?']]); }, beats:[[1.5, ()=>{ phoneThread('Canon', [['canon', 'home?'], ['me', 'home.']]); cue('ui'); }]] },
+          enter:()=>{ cue('ui'); phoneThread('Canon', [['me', 'i\'m home']]); }, beats:[[1.5, ()=>{ phoneThread('Canon', [['me', 'i\'m home'], ['me', 'Delivered']]); cue('ui'); }]] },
         // "Robin?" "Yeah?" "Dinner." … "Coming."
         { dur:linesLen('robinQ') + 0.6, fov:40, inside:true, cam:[benchSpot[0] + 1.4, 1.6, benchSpot[1] + 1.8], look:[benchSpot[0], 1.3, benchSpot[1]], enter:()=>{ phoneThread(null); stage('idle', benchSpot[0], 0, benchSpot[1], Math.PI*0.7); talk('robinQ'); } },
         { dur:linesLen('coming') + 0.8, fov:30, mood:'soft', inside:true, cam:rel(benchSpot[0], benchSpot[1], Math.PI, 0.9, 0.3, 1.5), look:[benchSpot[0], 1.4, benchSpot[1]], enter:()=>talk('coming') },
@@ -5587,6 +5706,11 @@ window.TSH = (function(){
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
+    "Canon, don't\u2014":'nervous',
+    "I can't!":'shocked',
+    "CANON!":'shocked',
+    "Canon...":'sad',
+    "Okay. Okay. Think.":'nervous',
     "You said \"trust me.\" That's never good.":'sarcastic',
     "It's never good, Canon.":'grin',
     "And we're going in because...":'skeptical',

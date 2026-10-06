@@ -425,16 +425,28 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(col/16.0, 1.0);
     }`;
   const COMP = `
-    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic;
+    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue;
     uniform vec3 uLift, uGain, uFlashCol; uniform vec2 uRes; varying vec2 vUv;
     float lumOf(vec2 p){ vec3 c = texture2D(tScene, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
     void main(){
       vec2 uv = vUv, d = uv - 0.5; float r2 = dot(d, d);
+      // HAYWIRE: the picture tears — bands of it shoved sideways, a frame at a time — and the plates slip further
+      if(uGlitch > 0.001){
+        float fr = floor(uTime*14.0), band = floor(uv.y*(10.0 + 30.0*fract(fr*0.37)));
+        float h1 = fract(sin(band*12.9898 + fr*78.233)*43758.5453), h2 = fract(sin(band*39.346 + fr*11.135)*24634.6345);
+        if(h1 > 1.0 - uGlitch*0.45) uv.x += (h2 - 0.5)*0.18*uGlitch;
+        float bl = fract(sin(floor(uv.x*8.0)*7.13 + floor(uv.y*6.0)*3.7 + fr)*9137.13);
+        if(bl > 1.0 - uGlitch*0.12) uv = floor(uv*vec2(40.0, 24.0))/vec2(40.0, 24.0);
+      }
       // the comic: the plates printed a little off register — red one way, blue the other, more towards the edges
-      vec2 mis = vec2(2.2, -1.4)/uRes*uComic*(1.0 + r2*6.0);
+      vec2 mis = vec2(2.2, -1.4)/uRes*(uComic + uGlitch*9.0*(0.6 + 0.4*sin(uTime*23.0)))*(1.0 + r2*6.0);
       vec3 col = vec3(texture2D(tScene, uv - d*uCA*r2 + mis).r, texture2D(tScene, uv).g, texture2D(tScene, uv + d*uCA*r2 - mis).b);
       col += texture2D(tBloom, uv).rgb * uBloom;
       col = col*uGain + uLift;
+      if(abs(uHue) > 0.001){                       // the whole picture's colour turned round the wheel
+        const vec3 k = vec3(0.57735); float cs = cos(uHue), sn = sin(uHue);
+        col = col*cs + cross(k, col)*sn + k*dot(k, col)*(1.0 - cs);
+      }
       col *= 1.0 - uVig*r2*1.8;
       col += uFlashCol*uFlash;
       gl_FragColor = vec4(max(col, 0.0), 1.0);
@@ -496,7 +508,7 @@ window.TSHLOOK = (function(){
     const up = fsMat(UP, { tSrc:{value:null}, uTexel:{value:new THREE.Vector2()}, uRadius:{value:1} },
                      { blending:THREE.AdditiveBlending, transparent:true });
     const comp = fsMat(COMP, { tScene:{value:null}, tBloom:{value:null}, uBloom:{value:0.9}, uTime:{value:0},
-      uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
+      uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uGlitch:{value:0}, uHue:{value:0}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
       uGain:{value:new THREE.Vector3(0.93, 1.03, 1.0)}, uFlash:{value:0}, uFlashCol:{value:new THREE.Vector3(1,1,1)},
       uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)} }, { toneMapped:true });
     P = { w, h, scene, mips, refl, cam, quad, qs, down, up, comp, t:0 };
@@ -601,7 +613,7 @@ window.TSHLOOK = (function(){
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0,
+  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0,
                 gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
   /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
   function setWet(k){ fx.wet = k; applyQuality(); }
@@ -642,6 +654,7 @@ window.TSHLOOK = (function(){
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);
     c.uLetter.value = fx.letter; c.uFade.value = fx.fade;
     c.uComic.value = fx.comic; c.uRes.value.set(P.w, P.h);
+    c.uGlitch.value = fx.glitch || 0; c.uHue.value = fx.hue || 0; c.uCA.value = 0.012 + (fx.ca || 0);
     pass(P.comp, null);
   }
   function init(renderer){

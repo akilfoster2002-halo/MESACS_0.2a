@@ -139,13 +139,25 @@ const jawD = P.map(()=>[0, 0, 0]);
 const blink = P.map(()=>[0, 0, 0]);
 [['eyeR', 'eyeRout', 'eyeRin'], ['eyeL', 'eyeLout', 'eyeLin']].forEach(([c, o, i_])=>{
   const C = HERS[c], half = Math.abs(HERS[o][0] - HERS[i_][0])/2 + 0.004, xc = (HERS[o][0] + HERS[i_][0])/2;
-  const low = C[1] - 0.0035, up = C[1] + 0.0045, top = up + 0.007;
-  P.forEach((q, vi)=>{ if(q[2] < C[2] - 0.02) return;
+  // a painted eye is a thin band; a modelled cartoon eye (Canon's) is told how tall it is (landmarks.eyeHalf)
+  const eh = HERS.eyeHalf || 0.004, low = C[1] - (HERS.eyeHalf ? eh*0.9 : 0.0035), up = C[1] + (HERS.eyeHalf ? eh : 0.0045), top = up + 0.007;
+  P.forEach((q, vi)=>{ if(q[2] < C[2] - 0.02 || q[2] > C[2] + 0.008) return;     // not what is behind the eye, nor in front of it (glasses)
     const fx = 1 - smooth(0.7, 1, Math.abs(q[0] - xc)/half); if(fx <= 0 || q[1] < low || q[1] > top) return;
     const y = q[1], target = low + (y - low)*0.12, closeTo = y <= up ? target : y + (target - y)*(1 - smooth(up, top, y));
     blink[vi][1] += (closeTo - y)*fx; });
 });
 const names = ['jawOpen'].concat(SHAPES.map(s=>s.name), ['blink']), all = [jawD].concat(deltas, [blink]);
+/* WHAT THE FACE DOES NOT MOVE: glasses (landmarks.freeze: [[y0, y1, z], …] — everything between those heights in
+   front of that depth). A brow going up drags a frame along with it otherwise, and the eyes look as if they bulge. */
+(HERS.freeze || []).forEach(([y0, y1, z])=>P.forEach((p, vi)=>{ if(p[1] >= y0 && p[1] <= y1 && p[2] > z) all.forEach(d=>{ d[vi] = [0, 0, 0]; }); }));
+// or a whole piece of the mesh (landmarks.freezeAt: a point on it — the bridge of his glasses), found by what is joined to what
+if(HERS.freezeAt){
+  const idx = io.acc(g, prim.indices).map(r=>r[0]), par = P.map((_, i)=>i), root = i=>{ while(par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; };
+  for(let i = 0; i < idx.length; i += 3){ const a = root(idx[i]), b = root(idx[i + 1]), c = root(idx[i + 2]); par[b] = a; par[root(c)] = a; }
+  HERS.freezeAt.forEach(q=>{ let bi = 0, bd = 1e9; P.forEach((p, i)=>{ const d = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); if(d < bd){ bd = d; bi = i; } });
+    const r = root(bi); let n = 0; P.forEach((p, vi)=>{ if(root(vi) === r){ n++; all.forEach(d=>{ d[vi] = [0, 0, 0]; }); } });
+    console.log('frozen: the piece at', q, '—', n, 'vertices'); });
+}
 prim.targets = all.map(d=>({ POSITION:io.addAccessor(g, d, 'VEC3', true) }));
 J.meshes[0].weights = names.map(()=>0);
 J.meshes[0].extras = Object.assign({}, J.meshes[0].extras, { targetNames:names });

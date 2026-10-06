@@ -834,7 +834,7 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
   // every scene in the script, in order
   ['canonHi', 'canonIn', 'canonDark', 'canonLit', 'walkA', 'walkB', 'canonSwitch', 'canonGizmo', 'canonPsi', 'canonTuned', 'canonBoost', 'canonHand', 'canonQuiet', 'canonDoor',
-   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonDown', 'mayaIn', 'mayaGlitch', 'canonUp', 'upTop', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'walkYou', 'textMe', 'weirdo', 'robinQ', 'coming']
+   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonGuard', 'canonDown', 'mayaIn', 'mayaGlitch', 'monsterKai', 'canonGone', 'robinAlone', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'robinQ', 'coming']
     .forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
   has(t, /canonHi:\s*\[\['canon','You came\.'\]/, 'his name is Canon'); has(t, /canon:\['CANON',/);
   assert.ok(!/AFTER SCHOOL: THEO|launcherBench|afterProps/.test(t), 'the bench and the launcher are gone');
@@ -849,13 +849,18 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(ch, /puzzleThen\('freq', \{ levels:2, title:'TUNE IT TO THE FIELD'/); has(t, /the field in the lab/);
   // a new angle for every line, faces close, his face too
   has(ch, /function lineShots\(keys, A, o\)/); has(ch, /function facing\(R, ry, gap, h\)/); has(ch, /herTight:/); has(ch, /CANON_FEEL = \{/);
-  // Maya and Kai: the WFC, YU; Canon down first, then she fights — Kai, then Maya — and Alpha comes up out of Maya
-  has(t, /They lock up kids for wearing the wrong shoes/); has(t, /What do you think of YU\?/);
+  // Maya and Kai: strangers, trespassing too, no friends of the WFC; YU. Canon stands in front of her, Kai puts him down,
+  // then she fights — Kai, then Maya with her arms out — and Maya becomes the thing that takes Canon
+  has(t, /The WFC sealed this station and forgot about it/); has(t, /one girl in a pair of shoes\. YU\./); has(t, /Robin\. Get behind me\./);
+  assert.ok(!/We've met\. She makes lovely things/.test(t), 'Maya and Robin do not know each other');
+  has(ch, /TENTACLES\.make\(W\.sub\.group/); has(ch, /mOc\.burst\(k, null, \{ world:tgt/, 'her arms claw at Robin in the fight');
+  has(ch, /TSHMONSTER\.make\(W\.sub\.group/); has(al, /window\.TSHMONSTER = \{ make:monster \}/); has(ch, /c\.g\.scale\.setScalar\(Math\.max\(0\.02, 1 - k\*k\)\)/, 'Canon goes into it');
+  has(ch, /function haywire\(k\)/); has(read('public/tshlook.js'), /uGlitch/, 'the picture tears'); has(read('public/tshlook.js'), /uHue/, 'and the colour goes round');
   assert.ok(ch.indexOf('function canonKO') < ch.indexOf('function fightOne') && ch.indexOf('function fightOne') < ch.indexOf('function fightTwo'), 'Canon goes down, then the fights');
   has(fi, /bystander:!!o\.bystander/, 'Maya stands out of the fight with Kai');
   has(ch, /TSHALPHA\.apply\(maya\.model\)/); has(al, /vec3\(0\.012, 0\.012, 0\.018\)/, 'black'); has(al, /uGlitch/, 'and glitching');
   // texts, not lines: you coming? / where? — you better text me / yes dad / that's not funny — home? / home.
-  ["'you coming?'", "'where?'", "'you better text me'", "'yes dad'", "'that\\'s not funny'", "'home?'", "'home.'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
+  ["'you coming?'", "'where?'", "'canon answer me'", "'canon please'", "'i\\'m home'", "'Delivered'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
   // the shoes come back when nobody can see: she looks at the roofs, and BOOM
   has(t, /S\.flags\.shoesBack = true;[\s\S]{0,400}BOOTS\.fire\(\)/);
   // home: the window, dinner, the sketch, TO BE CONTINUED
