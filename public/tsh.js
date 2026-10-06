@@ -1600,9 +1600,10 @@ window.TSH = (function(){
      switched on at the end, for the roofs after the deal. */
   const LESSON = [
     { id:'fire',   title:'THE SHOES', how:'SPACE — fire them.' },
-    { id:'charge', title:'HOLD, THEN LET GO', how:'Hold SPACE — she crouches — and let go to jump. The longer you hold, the higher she goes.', teach:['charge','jump','steer'] },
-    { id:'combo',  title:'THE RHYTHM', how:'Press SPACE again just as her feet touch: every jump in time goes higher. Four in a row.' },
-    { id:'leap',   title:'ROOF TO ROOF', how:'Hold SPACE, run at the edge with W, and let go: she leaps and soars. Land on another roof.' },
+    { id:'bound',  title:'HOLD SPACE', how:'Hold SPACE. The shoes pick the roof you are facing — the ring — and take you there.', teach:['bound','jump','steer'] },
+    { id:'chain',  title:'KEEP HOLDING', how:'Keep it held: every landing springs into the next. Three roofs in a row.' },
+    { id:'steer',  title:'POINT', how:'Look where you want to go — the mouse, or A and D, even in the air. North, over Neon Avenue.' },
+    { id:'rhythm', title:'THE RHYTHM', how:'Tap SPACE as her feet touch, when the ring goes gold. Perfect bounds go quicker and further. Two in a row.' },
     { id:'alley',  title:'DRAGON ALLEY', how:'The buyer is in Dragon Alley. Get there.' }
   ];
   const lesson = { i:0, perfect:0, lands:0, touched:false, goal:null };
@@ -1660,14 +1661,14 @@ window.TSH = (function(){
   function lessonEvent(e, b){
     if(S.step !== 'lesson') return;
     const id = lessonId(); if(!id) return;
-    const jumped = e.name === 'jump' || e.name === 'jumpPerfect';
-    if(id === 'charge' && jumped && e.charge >= 0.6) return lessonNext();
-    if(id === 'charge' && jumped && e.charge < 0.3 && ++lesson.lands % 3 === 0) note('Hold SPACE longer before you let go — the longer, the higher.', 'warn');
-    if(id === 'combo'){
-      if(jumped && e.combo >= 3) return lessonNext();
-      if(e.name === 'land' && ++lesson.lands % 4 === 0) note('Press SPACE the moment her feet touch — a beat late and the rhythm starts again.', 'warn');
+    const landed = e.name === 'boundLand' || ((e.name === 'land' || e.name === 'roll') && b.fromBound);
+    if(id === 'bound' && landed && b.y > 3) return lessonNext();
+    if(id === 'chain' && e.name === 'boundLand' && e.hops >= 3) return lessonNext();
+    if(id === 'steer' && (landed || e.name === 'land' || e.name === 'roll') && b.y > 3 && b.z < -9) return lessonNext();
+    if(id === 'rhythm'){
+      if(e.name === 'boundPerfect' && ++lesson.perfect >= 2) return lessonNext();
+      if(e.name === 'boundLand' && !e.perfect && ++lesson.lands % 4 === 0) note('Watch the ring — the moment it goes gold, tap SPACE.', 'warn');
     }
-    if(id === 'leap' && (e.name === 'land' || e.name === 'roll' || e.name === 'landPerfect') && b.y > 3 && b.fromCharge) return lessonNext();
   }
   function lessonTick(){
     if(S.step !== 'lesson' || !window.BOOTS || !BOOTS.B || mode) return;
@@ -1685,11 +1686,11 @@ window.TSH = (function(){
   /* ----------------------------------------------------------- the shoes
      On whenever she is outside and the night is hers to play; off in the
      flat (the ceiling is three metres up) and during films and scenes. */
-  /* what the shoes can do. A night saved before the jump changed has the bound in it: it is swapped for the
-     charged jump and the line, which are what the shoes do now. */
+  /* what the shoes can do: the roof-to-roof bound (hold SPACE — the ring picks the roof you face — and they take
+     you there). A night saved with the hold-and-release jump (or the line) in it gets the bound back. */
   function shoesHave(){
     let h = S.boots && S.boots.length ? S.boots.slice() : BOOTS.ALL.filter(t=>BOOTS.TECH.late.indexOf(t) < 0);
-    if(h.includes('bound') || h.includes('grapple')){ h = h.filter(t=>t !== 'bound' && t !== 'grapple'); if(!h.includes('charge')) h.push('charge'); S.boots = h; }
+    if(h.includes('charge') || h.includes('grapple') || !h.includes('bound')){ h = h.filter(t=>t !== 'charge' && t !== 'grapple'); if(!h.includes('bound')) h.unshift('bound'); S.boots = h; }
     return h;
   }
   /* HER SECRET. From the scene with her teacher on, it is the school day and she is just Robin: the shoes are
@@ -1713,10 +1714,6 @@ window.TSH = (function(){
         audio:()=>audio(),
         enabled:()=>!inside && mode !== 'fight' && !shoesHidden(),
         slow:()=>slowFall(),
-        // IN THE CHASE THE SHOES GO OFF LIKE THE FIRST TIME: SPACE on the ground is the launch from the window —
-        // BOOM, straight up past the roofs — not the crouch and let go. (In the air SPACE is what it always is.)
-        input:inp=>{ if(aftWatch !== 'chase' || !BOOTS.B || !BOOTS.B.ground) return;
-          const go = inp.jumpEdge; inp.jump = false; inp.jumpEdge = false; if(go){ BOOTS.fire(); cue('launch'); LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.45); } },
         event:(e, b)=>bootEvent(e, b),
         learned:t=>{ S.boots = [...BOOTS.B.have]; save(); if(BOOTS.TECH.late.includes(t)) note('★ New technique: ' + ({ chain:'CHAIN — every kick and pull in a row hits harder', slide:'SLIDE — hold SHIFT into a fast landing and keep the speed' })[t], 'big'); }
       }

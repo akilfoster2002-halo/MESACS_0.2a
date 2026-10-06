@@ -194,9 +194,9 @@ window.BOOTS = (function(){
   };
   const DEFAULTS = JSON.parse(JSON.stringify(TUNE));
   const GAINS = { bound:0.05, boundPerfect:0.16, jump:0.04, pull:0.1, pullPerfect:0.2, rebound:0.1, reboundPerfect:0.18, dash:0.03, landPerfect:0.12, roll:0.02 };
-  /* 'bound' (SPACE held flies her roof to roof) is still here and still works for anybody given it, but it
-     is no longer taught: the shoes jump where you jump now — 'charge' — and soar off the big ones. */
-  const TECH = { early:['charge','jump','steer','dive'], mid:['pullup','rebound','dash'], late:['chain','slide'] };
+  /* the shoes are 'bound' again — SPACE held flies her roof to roof, to the roof the ring is on. 'charge'
+     (hold, crouch, let go) is still here for anybody given it, but nothing teaches it. */
+  const TECH = { early:['bound','jump','steer','dive'], mid:['pullup','rebound','dash'], late:['chain','slide'] };
   const ALL = TECH.early.concat(TECH.mid, TECH.late);
   const LEGACY = ['bound','jump','steer','dive'].concat(TECH.mid, TECH.late);   // the shoes as they were: SPACE held flies roof to roof
 
