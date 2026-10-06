@@ -1364,6 +1364,7 @@ function moveAxis(axis,d){
   const p=G.pos.clone(); p[axis]+=d;
   const feet=G.pos.y-EYE;
   for(const s of G.solids){
+    if(s.off) continue;                                   // a gate that has opened (TSH's station barrier, its doors)
     if(s.y1!==undefined && (feet+2.2 < s.y1 || feet > s.y2-0.6)) continue;
     if(p.x+PLAYER_R>s.x1 && p.x-PLAYER_R<s.x2 && p.z+PLAYER_R>s.z1 && p.z-PLAYER_R<s.z2) return;
   }
