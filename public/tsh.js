@@ -1153,6 +1153,22 @@ window.TSH = (function(){
      It is a FILM, not a cutscene: no line waits for SPACE, the shots run
      on their own, and ENTER skips to the jump. */
   let reel = null;
+  /* FILMED SHOTS: a clip played full frame over the world, as one shot of a reel (tsh/film). The world keeps
+     ticking underneath — the score, the shake, the wind — so the cut back in lands where the film left it. */
+  let filmV = null;
+  function filmLoad(src){
+    if(!el) return null;
+    if(!filmV){ filmV = document.createElement('video'); filmV.className = 'tsh-film'; filmV.muted = true; filmV.playsInline = true; filmV.preload = 'auto'; el.prepend(filmV); }
+    if(!filmV.src.endsWith(src)){ filmV.src = src; filmV.load(); }
+    return filmV;
+  }
+  function filmOff(){ if(filmV){ filmV.classList.remove('on'); try{ filmV.pause(); }catch(e){} } }
+  /* a shot that is the clip: it lasts as long as the clip does */
+  function filmShot(src, dur, o){
+    o = o || {};
+    return Object.assign({ dur, fov:50, cam:o.cam || [0, 0, 0], look:o.look || [0, 0, -1], film:true,
+      enter:()=>{ const v = filmLoad(src); if(!v) return; try{ v.currentTime = 0; }catch(e){} v.classList.add('on'); const pr = v.play(); if(pr && pr.catch) pr.catch(()=>{}); if(o.enter) o.enter(); } }, o.tick ? { tick:o.tick } : {});
+  }
   function playReel(shots, done, o){
     if(mode === 'ride') unride(); if(mode === 'hide') unhide();
     mode = 'reel'; G.running = false;
@@ -1170,6 +1186,7 @@ window.TSH = (function(){
     const s = f.shot = f.shots[f.i]; f.t = over; f.fired = new Set();
     if(s.inside !== undefined) showInside(s.inside);
     el.classList.toggle('bino', !!s.bino);
+    if(!s.film) filmOff();
     if(s.enter) s.enter();
     if(staged) applyStage();
     lips.mood = s.mood || null; if(lips.moodOn){ lips.feelT = 0; lips.moodOn = false; }   // a new shot, a new mood (or none)
@@ -1222,7 +1239,7 @@ window.TSH = (function(){
   }
   function reelEnd(skipped){
     const f = reel; if(!f) return;
-    lips.mood = null;
+    lips.mood = null; filmOff();
     reel = null; score.clockAt = undefined;
     el.classList.remove('cine', 'bino');
     G.camera.fov = 70; G.camera.updateProjectionMatrix();
@@ -4690,7 +4707,7 @@ window.TSH = (function(){
     });
   }
   function meetFilm(){
-    flushTalk();
+    flushTalk(); filmLoad('tsh/film/pull.mp4');                // the monster's filmed shot, loading while they talk
     const sp = TS(), c = canonNpc(), kai = crewTag('kai'), maya = crewTag('maya');
     const R = sp.meetR, C = sp.canon, M = sp.maya, K = sp.kai;
     const ryR = angTo(R[0], R[1], M[0], M[1]);
@@ -5047,7 +5064,9 @@ window.TSH = (function(){
       // and he runs — back the way they came, north, into the dark
       ...cuts(1.2, [CAM.kaiWide, CAM.kai], { start:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6.5; } } }),
       // the hole opens. It pulls. The wind goes in.
-      ...cuts(2.0, [CAM.mouth, CAM.floor, CAM.mouthX, CAM.her], { start:()=>{ mon.pull = 1; roar(); }, tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.8; if(wind) wind.k = 0.7 + k*0.5; } }),
+      // the hole opens. It pulls. The wind goes in — and she is nearly in with it (filmed: tsh/film/pull.mp4)
+      filmShot('tsh/film/pull.mp4', 5.85, { cam:CAM.floor.cam, look:CAM.floor.look, enter:()=>{ mon.pull = 1; roar(); dutch = 0; shake(0.3, 5.5); },
+        tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.8; if(wind) wind.k = 0.7 + k*0.5; } }),
       // Canon, across the floor toward it
       ...cuts(2.2, [CAM.canon, CAM.canonTop, CAM.mouthX, CAM.canonX], { start:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } },
         tick:(dt, t, k)=>{ if(c){ const m = mon.mouth, s = k*0.35; c.x = lerp(C0[0], m.x, s*s); c.z = lerp(C0[1], m.z, s*s); } } }),
