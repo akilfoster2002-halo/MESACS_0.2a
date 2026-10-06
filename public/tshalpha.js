@@ -209,7 +209,7 @@ window.TSHALPHA = (function(){
         halo.material.opacity = 0.75 + 0.25*Math.sin(M.t*7);
         smallEyes.forEach(se=>{ const o = Math.max(0, Math.sin(M.t*0.8 + se.userData.ph)); se.scale.set(1, 0.15 + o*0.85, 1); });
         rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
-        spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e; spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
+        spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
         strobe.intensity = Math.random() < 0.02*M.pull ? 240*e : strobe.intensity*0.8;
         vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull;
         for(let i = 0; i < NP; i++){ const s = pst[i]; s.a += dt*(1.5 + 6/s.r)*M.pull; s.r -= dt*(1.2 + 5/s.r)*M.pull; s.z -= dt*1.2*M.pull;

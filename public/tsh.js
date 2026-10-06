@@ -4259,20 +4259,34 @@ window.TSH = (function(){
       if(G.solids.some(q=>!q.off && x > q.x1 - 0.2 && x < q.x2 + 0.2 && z > q.z1 - 0.2 && z < q.z2 + 0.2 && y > (q.y1 === undefined ? -1 : q.y1) && y < (q.y2 === undefined ? 60 : q.y2))) return s; }
     return 6;
   }
-  function pairAngles(R, T, fR, fT, n, h){
+  /* how high a face is: the head bone, where there is one (Maya and Canon stand shorter than she does) */
+  function headH(m, fb){
+    const b = m && boneOf(m, /Head$/); if(!b) return fb;
+    const p = new THREE.Vector3(); m.updateMatrixWorld(true); b.getWorldPosition(p); const y = p.y + 0.08;
+    return y > 0.9 && y < 2.1 ? y : fb;
+  }
+  /* a shot that keeps on someone's face while they move: crouching into a guard, swaying — the head, every frame */
+  function onFace(a, who, fb){
+    const m = () => typeof who === 'function' ? who() : who;
+    const h0 = a.look[1], dy = a.cam[1] - h0, h = () => headH(m(), h0);
+    return { cam:()=>[a.cam[0], h() + dy, a.cam[2]], look:()=>[a.look[0], h(), a.look[2]], fov:a.fov };
+  }
+  /* `h` is one height for both, or [hers, theirs] */
+  function pairAngles(R, T, fR, fT, n, h_){
+    const hR = Array.isArray(h_) ? h_[0] : h_, hT = Array.isArray(h_) ? h_[1] : h_, h = (hR + hT)/2;
     const M = [(R[0] + T[0])/2, (R[1] + T[1])/2], len = Math.hypot(T[0] - R[0], T[1] - R[1]) || 1, u = [(T[0] - R[0])/len, (T[1] - R[1])/len];
     // the camera goes on the open side of them, and never further out than the room goes
     let room = roomAlong(M, n, h), back = roomAlong(M, [-n[0], -n[1]], h);
     if(back > room + 0.5){ n = [-n[0], -n[1]]; const r_ = room; room = back; back = r_; }
     const P_ = (b, ...a) => { const p = [b[0], b[1]]; a.forEach(([v, k])=>{ if(v === n) k = k > 0 ? Math.min(k, room - 0.35) : -Math.min(-k, back - 0.35); p[0] += v[0]*k; p[1] += v[1]*k; }); return p; };
-    const at = (p, y) => [p[0], y, p[1]], rh = [R[0], h, R[1]], th = [T[0], h, T[1]], mid = [M[0], h - 0.15, M[1]];
+    const at = (p, y) => [p[0], y, p[1]], rh = [R[0], hR, R[1]], th = [T[0], hT, T[1]], mid = [M[0], h - 0.15, M[1]];
     return {
-      her:      { cam:at(P_(R, [fR, 0.8], [n, 0.7], [u, 0.25]), h + 0.06), look:rh, fov:28 },
-      him:      { cam:at(P_(T, [fT, 0.8], [n, 0.7], [u, -0.25]), h + 0.06), look:th, fov:28 },
-      herTight: { cam:at(P_(R, [fR, 0.7], [n, 0.4]), h + 0.02), look:rh, fov:24 },
-      himTight: { cam:at(P_(T, [fT, 0.7], [n, 0.4]), h + 0.02), look:th, fov:24 },
-      overHim:  { cam:at(P_(T, [u, 0.6], [n, 0.45]), h + 0.12), look:rh, fov:32 },
-      overHer:  { cam:at(P_(R, [u, -0.6], [n, 0.45]), h + 0.12), look:th, fov:32 },
+      her:      { cam:at(P_(R, [fR, 0.8], [n, 0.7], [u, 0.25]), hR + 0.06), look:rh, fov:28 },
+      him:      { cam:at(P_(T, [fT, 0.8], [n, 0.7], [u, -0.25]), hT + 0.06), look:th, fov:28 },
+      herTight: { cam:at(P_(R, [fR, 0.7], [n, 0.4]), hR + 0.02), look:rh, fov:24 },
+      himTight: { cam:at(P_(T, [fT, 0.7], [n, 0.4]), hT + 0.02), look:th, fov:24 },
+      overHim:  { cam:at(P_(T, [u, 0.6], [n, 0.45]), Math.max(hT, hR) + 0.12), look:rh, fov:32 },
+      overHer:  { cam:at(P_(R, [u, -0.6], [n, 0.45]), Math.max(hT, hR) + 0.12), look:th, fov:32 },
       two:      { cam:at(P_(M, [n, 2.4]), h - 0.05), look:mid, fov:36 },
       wide:     { cam:at(P_(M, [n, 4.2], [u, 2.0]), h + 0.9), look:mid, fov:46 },
       low:      { cam:at(P_(M, [n, 1.6], [u, -0.4]), 0.4), look:[M[0], h, M[1]], fov:44 },
@@ -4681,13 +4695,15 @@ window.TSH = (function(){
     const R = sp.meetR, C = sp.canon, M = sp.maya, K = sp.kai;
     const ryR = angTo(R[0], R[1], M[0], M[1]);
     // the angles: her and Maya face to face; Canon and Kai; and the room
-    const RM = pairAngles(R, M, [Math.sin(ryR), Math.cos(ryR)], [-Math.sin(ryR), -Math.cos(ryR)], [Math.cos(ryR), -Math.sin(ryR)], 1.62);
-    const CK = pairAngles(C, K, [0, -1], [0, 1], [1, 0], 1.62);
+    const hMaya = headH(maya && maya.model, 1.55), hKai = headH(kai && kai.model, 1.7), hCanon = headH(c && c.model, 1.5);
+    const RM = pairAngles(R, M, [Math.sin(ryR), Math.cos(ryR)], [-Math.sin(ryR), -Math.cos(ryR)], [Math.cos(ryR), -Math.sin(ryR)], [1.62, hMaya]);
+    const CK = pairAngles(C, K, [0, -1], [0, 1], [1, 0], [hCanon, hKai]);
     const A = Object.assign({}, RM, {
       canon:   { cam:CK.her.cam, look:CK.her.look, fov:28 }, kai:{ cam:CK.him.cam, look:CK.him.look, fov:28 },
       overKai: { cam:CK.overHim.cam, look:CK.overHim.look, fov:32 }, overCanon:{ cam:CK.overHer.cam, look:CK.overHer.look, fov:32 },
       room:    { cam:[TX(-7.4), 2.6, -95], look:[TX(-0.5), 1.2, -104], fov:46 },
-      mayaWatch:{ cam:RM.him.cam, look:RM.him.look, fov:22 },
+      him:     onFace(RM.him, ()=>maya && maya.model), himTight:onFace(RM.himTight, ()=>maya && maya.model),
+      mayaWatch:onFace({ cam:RM.him.cam, look:RM.him.look, fov:22 }, ()=>maya && maya.model),
       gizmo:   { cam:[R[0] + 0.5, 1.2, R[1] - 0.35], look:[R[0] + 0.1, 0.95, R[1] - 0.1], fov:30 }
     });
     const place = () => { stage('idle', R[0], 0, R[1], ryR); if(c){ c.follow = false; c.walking = false; c.x = C[0]; c.z = C[1]; c.faceTo = K; }
@@ -4700,7 +4716,7 @@ window.TSH = (function(){
       { dur:2.6, fov:34, cam:[sp.trainDoor[0] - 3.0, 1.3, sp.trainDoor[1] + 1.4], look:[sp.trainDoor[0], 1.4, sp.trainDoor[1]],
         tick:(dt, t, k)=>{ crewWalk(maya, sp.trainDoor, M, Math.min(1, k*1.1)); if(k > 0.4) crewWalk(kai, sp.trainDoor, K, Math.min(1, (k - 0.4)*1.8)); } },
       ...lineShots(['meetMaya', 'meetKai', 'meetWfc', 'meetYu'], A, { each:place, pools,
-        ins:[[/Nobody\. Same as you/, 'mayaWatch'], [/one girl in a pair of shoes/, 'mayaWatch'], [/People exaggerate/, 'herTight'], [/^Do they\?$/, 'mayaWatch'], [/It's singing/, 'gizmo', sing], [/^Nothing\.$/, 'herTight'], [/Hand it over/, 'kai']] })
+        ins:[[/Nobody\. Same as you/, 'mayaWatch'], [/one girl in a pair of shoes/, 'mayaWatch'], [/People exaggerate/, 'herTight'], [/^Do they\?$/, 'mayaWatch'], [/It's singing/, 'gizmo', sing], [/^Nothing\.$/, 'her'], [/Hand it over/, 'kai']] })
     ];
     playReel(shots, aftDone(()=>{ reel = null; place(); if(gizmo) gizmo.visible = false; canonKO(); }), { ownClock:true });
   }
@@ -4712,14 +4728,14 @@ window.TSH = (function(){
     // between them: a step in front of her, toward Kai
     const C = [R[0] + Math.sin(ryR)*0.9, R[1] + Math.cos(ryR)*0.9], Kc = [C[0] + Math.sin(ryR)*1.2, C[1] + Math.cos(ryR)*1.2];
     const ryC = angTo(C[0], C[1], K[0], K[1]);
-    const CK = pairAngles(C, Kc, [Math.sin(ryC), Math.cos(ryC)], [-Math.sin(ryC), -Math.cos(ryC)], [Math.cos(ryC), -Math.sin(ryC)], 1.62);
-    const A = Object.assign({}, CK, { past:{ cam:[R[0] - Math.sin(ryR)*0.6 + Math.cos(ryR)*0.35, 1.7, R[1] - Math.cos(ryR)*0.6 - Math.sin(ryR)*0.35], look:[Kc[0], 1.45, Kc[1]], fov:34 } });
+    const CK = pairAngles(C, Kc, [Math.sin(ryC), Math.cos(ryC)], [-Math.sin(ryC), -Math.cos(ryC)], [Math.cos(ryC), -Math.sin(ryC)], [headH(c && c.model, 1.5), headH(kai && kai.model, 1.7)]);
+    const A = Object.assign({}, CK, { her:onFace(CK.her, ()=>c && c.model), herTight:onFace(CK.herTight, ()=>c && c.model), past:{ cam:[R[0] - Math.sin(ryR)*0.6 + Math.cos(ryR)*0.35, 1.7, R[1] - Math.cos(ryR)*0.6 - Math.sin(ryR)*0.35], look:[Kc[0], 1.45, Kc[1]], fov:34 } });
     const guard = () => { stage('idle', R[0], 0, R[1], ryR); if(c){ c.follow = false; c.walking = false; c.x = C[0]; c.z = C[1]; c.faceTo = null; c.yaw = ryC; c.pose = 'fight'; c.feel = FEELS.determined; }
       if(kai){ kai.x = Kc[0]; kai.z = Kc[1]; crewFace(kai, C[0], C[1], 'idle'); } };
     const shots = [
       // he steps across her, arms out
       { dur:1.4, fov:40, cam:A.past.cam, look:A.past.look, tick:(dt, t, k)=>{ if(c){ c.follow = false; c.x = lerp(sp.canon[0], C[0], Math.min(1, k*1.6)); c.z = lerp(sp.canon[1], C[1], Math.min(1, k*1.6)); c.yaw = ryC; c.pose = 'fight'; } if(kai){ kai.x = lerp(K[0], Kc[0], k); kai.z = lerp(K[1], Kc[1], k); crewFace(kai, C[0], C[1], 'walk'); } } },
-      ...lineShots(['canonGuard'], A, { each:guard, pools:{ canon:['her', 'herTight', 'past'], robin:['past', 'overHer'], kai:['him', 'himTight', 'overHer'] } }),
+      ...lineShots(['canonGuard'], A, { each:guard, pools:{ canon:['her', 'herTight'], robin:['past', 'overHer'], kai:['him', 'himTight', 'overHer'] } }),
       // the swing
       { dur:0.9, fov:34, cam:A.profileL.cam, look:A.two.look,
         enter:()=>{ guard(); if(kai){ TSHFIGHT.play(kai, 'hook'); } }, beats:[[0.45, ()=>{ cue('punch'); shake(0.4, 0.4); LOOK.fx.flash = 0.25; }]] },
@@ -4906,7 +4922,7 @@ window.TSH = (function(){
       const roll = (Math.random() - 0.5)*0.36, drift = [(Math.random() - 0.5)*1.3, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*1.3], f0 = c.fov || 40;
       out.push({ dur:d, fov:f0, fov2:f0*(0.76 + Math.random()*0.14), mood:c.mood || o.mood, ease:false,
         cam:k=>{ const p = at(c.cam); return [p[0] + drift[0]*k, p[1] + drift[1]*k, p[2] + drift[2]*k]; }, look:()=>at(c.look),
-        enter:()=>{ dutch = roll; shake(0.12 + Math.random()*0.16, 0.6); if(first){ clk.t = 0; if(o.start) o.start(); } if(c.enter) c.enter(); },
+        enter:()=>{ dutch = roll; shake(0.12 + Math.random()*0.16, 0.6); if(first){ clk.t = 0; if(o.start) o.start(); } if(mon) mon.key = c.key === undefined ? 1 : c.key; if(c.enter) c.enter(); },
         tick:(dt)=>{ clk.t += dt; if(o.tick) o.tick(dt, clk.t, Math.min(1, clk.t/dur)); } });
       t += d;
     }
@@ -4988,9 +5004,9 @@ window.TSH = (function(){
     const CAM = {
       lowUp:   { cam:[R[0] - dir[0]*2.4 + side[0]*2.6, 0.35, R[1] - dir[1]*2.4 + side[1]*2.6], look:()=>[M[0], 1.0 + mon.grow*3.2, M[1]], fov:64 },
       lowUp2:  { cam:[R[0] - dir[0]*1.2 - side[0]*2.4, 0.3, R[1] - dir[1]*1.2 - side[1]*2.4], look:()=>[M[0], 0.8 + mon.grow*3.4, M[1]], fov:70 },
-      her:     { cam:F.herTight.cam, look:F.herTight.look, fov:24, mood:'shocked' },
-      herWide: { cam:F.her.cam, look:F.her.look, fov:32, mood:'shocked' },
-      herSide: { cam:F.profileL.cam, look:F.two.look, fov:30, mood:'shocked' },
+      her:     { cam:F.herTight.cam, look:F.herTight.look, fov:24, mood:'shocked', key:0.12 },
+      herWide: { cam:F.her.cam, look:F.her.look, fov:32, mood:'shocked', key:0.2 },
+      herSide: { cam:F.profileL.cam, look:F.two.look, fov:30, mood:'shocked', key:0.25 },
       high:    { cam:[R[0] - dir[0]*3 + side[0]*1.2, 4.7, R[1] - dir[1]*3 + side[1]*1.2], look:[M[0], 1.6, M[1]], fov:56 },
       side:    { cam:[mid[0] + side[0]*6.4, 1.3, mid[1] + side[1]*6.4], look:[(R[0] + M[0]*2)/3, 2.3, (R[1] + M[1]*2)/3], fov:62 },
       sideB:   { cam:[mid[0] - side[0]*5.8, 2.2, mid[1] - side[1]*5.8], look:[(R[0] + M[0]*2)/3, 2.0, (R[1] + M[1]*2)/3], fov:60 },
@@ -5053,8 +5069,9 @@ window.TSH = (function(){
       const k_ = crewTag('kai'); if(k_) k_.g.visible = false;
       if(mon){ mon.grow = 1; mon.pull = 1.2; }
       const r = [R[0] - dir[0]*3.2, R[1] - dir[1]*3.2];
-      placePlayer(r[0], r[1], ry);
-      esc_ = { t:0, caught:0, reach:1 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
+      placePlayer(r[0], r[1], ry, EYE_);                         // on the platform floor — not dropped from above the station's roof
+      for(let i = 0; i < 40; i++) schoolCam(1/30);               // and the camera already behind her, under the ceiling, before the first frame
+      esc_ = { t:0, caught:0, reach:1, hitT:0 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
       note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); }), { ownClock:true });
   }
   /* it comes after her: slow, enormous, reaching */
@@ -5067,8 +5084,9 @@ window.TSH = (function(){
       r.rotation.y = a;
       if(d > 4.5 && r.position.z > -124){ r.position.x += Math.sin(a)*dt*2.4; r.position.z += Math.cos(a)*dt*2.4; }
       esc_.reach -= dt; if(esc_.reach <= 0){ esc_.reach = 0.9 + Math.random()*0.8; mon.reach(new THREE.Vector3(p.x, 1.0, p.z), 0.7); cue('zip'); }
-      if(d < 5.2){ esc_.caught++; shake(0.5, 0.4); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
-        G.pos.x += Math.sin(a)*2.2; G.pos.z += Math.cos(a)*2.2; note('Keep going!', 'bad'); }
+      esc_.hitT = Math.max(0, (esc_.hitT || 0) - dt);
+      if(d < 5.2 && !esc_.hitT){ esc_.caught++; esc_.hitT = 1.2; shake(0.5, 0.4); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
+        const push = 6.4 - d; G.pos.x += Math.sin(a)*push; G.pos.z += Math.cos(a)*push; note('Keep going!', 'bad'); }   // once, and clear of it
     }
     if(Math.hypot(p.x - sp.ladder[0], p.z - sp.ladder[1]) < 1.6){ aftWatch = null; climbOut(); }
   }
