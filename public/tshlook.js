@@ -425,7 +425,7 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(col/16.0, 1.0);
     }`;
   const COMP = `
-    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue;
+    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue, uContrast;
     uniform vec3 uLift, uGain, uFlashCol; uniform vec2 uRes; varying vec2 vUv;
     float lumOf(vec2 p){ vec3 c = texture2D(tScene, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
     void main(){
@@ -452,6 +452,8 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(max(col, 0.0), 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
+      // high contrast: the blacks crushed, the lights pushed, an S through the middle
+      if(uContrast > 0.001){ vec3 cc = gl_FragColor.rgb; gl_FragColor.rgb = mix(cc, smoothstep(0.07, 0.82, cc)*1.08, uContrast); }
       if(uComic > 0.001){
         /* INTO THE SPIDER-VERSE. Ink where the picture changes (an edge filter on the scene's light),
            Ben-Day dots where it is in half shadow, hatching where it is dark, the colour a little
@@ -508,7 +510,7 @@ window.TSHLOOK = (function(){
     const up = fsMat(UP, { tSrc:{value:null}, uTexel:{value:new THREE.Vector2()}, uRadius:{value:1} },
                      { blending:THREE.AdditiveBlending, transparent:true });
     const comp = fsMat(COMP, { tScene:{value:null}, tBloom:{value:null}, uBloom:{value:0.9}, uTime:{value:0},
-      uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uGlitch:{value:0}, uHue:{value:0}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
+      uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uGlitch:{value:0}, uHue:{value:0}, uContrast:{value:0}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
       uGain:{value:new THREE.Vector3(0.93, 1.03, 1.0)}, uFlash:{value:0}, uFlashCol:{value:new THREE.Vector3(1,1,1)},
       uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)} }, { toneMapped:true });
     P = { w, h, scene, mips, refl, cam, quad, qs, down, up, comp, t:0 };
@@ -613,7 +615,7 @@ window.TSHLOOK = (function(){
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0,
+  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0, contrast:0,
                 gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
   /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
   function setWet(k){ fx.wet = k; applyQuality(); }
@@ -654,7 +656,7 @@ window.TSHLOOK = (function(){
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);
     c.uLetter.value = fx.letter; c.uFade.value = fx.fade;
     c.uComic.value = fx.comic; c.uRes.value.set(P.w, P.h);
-    c.uGlitch.value = fx.glitch || 0; c.uHue.value = fx.hue || 0; c.uCA.value = 0.012 + (fx.ca || 0);
+    c.uGlitch.value = fx.glitch || 0; c.uContrast.value = fx.contrast || 0; c.uHue.value = fx.hue || 0; c.uCA.value = 0.012 + (fx.ca || 0);
     pass(P.comp, null);
   }
   function init(renderer){

@@ -4431,7 +4431,8 @@ window.TSH = (function(){
   function canonDown(){                                  // Canon, inside, following her
     let c = canonNpc(); if(c) despawn(c);
     c = spawn('friend', 'theo', TX(0.8), 8.4, { name:'canon', group:W.sub.group, yaw:Math.PI }); c.follow = true;
-    fightClips().then(list=>{ const n = canonNpc(); if(n && n.model) borrowFight(n.model, list); else later(()=>{ const n2 = canonNpc(); if(n2 && n2.model) borrowFight(n2.model, list); }, 1500); });
+    // his body loads when it loads: keep at it until he has the moves (the fall, the floor) the scenes put him in
+    fightClips().then(list=>{ let n_ = 0; const go = () => { const n = canonNpc(); if(n && n.model){ borrowFight(n.model, list); return; } if(++n_ < 40) later(go, 400); }; go(); });
     return c;
   }
   function tunnelsBegin(){
@@ -4810,20 +4811,24 @@ window.TSH = (function(){
   function haywire(k){
     if(k > 0){ hay = hay || { t:0, sh:0 }; hay.k = k; return; }
     hay = null;
-    const fx = LOOK.fx; fx.comic = 0; fx.glitch = 0; fx.hue = 0; fx.ca = 0; fx.flash = 0; fx.flashCol.set(1, 1, 1);
+    const fx = LOOK.fx; fx.comic = 0; fx.glitch = 0; fx.hue = 0; fx.ca = 0; fx.flash = 0; fx.flashCol.set(1, 1, 1); fx.contrast = 0; fx.vig = 0.55;
+    if(subWas && inSub){ G.amb.intensity = subWas.amb*0.3; G.hemi.intensity = subWas.hemi*0.25; }
     if(W && W.sub){ W.sub.group.position.set(0, 0, 0); W.sub.lights.forEach(l=>{ if(l.col0){ l.col.copy(l.col0); delete l.col0; } }); }
   }
   function tickHaywire(dt){
     if(!hay) return;
     hay.t += dt; const k = hay.k, fx = LOOK.fx;
+    // HARD LIGHT: the soft fill of the station goes out, the blacks crush, the frame darkens at its edges
+    fx.contrast = Math.min(1, 0.45 + k*0.6); fx.vig = 0.55 + k*0.75;
+    if(subWas && inSub){ G.amb.intensity = subWas.amb*0.3*(1 - 0.9*k); G.hemi.intensity = subWas.hemi*0.25*(1 - 0.9*k); }
     fx.comic = Math.min(1, 0.4 + k*0.8);
-    fx.glitch = k*(0.18 + (Math.random() < 0.1 ? 0.8 : 0));
+    fx.glitch = k*(0.04 + (Math.random() < 0.025 ? 0.45 : 0));
     fx.ca = k*0.03*(1.2 + Math.sin(hay.t*13));
-    fx.hue = k*(Math.sin(hay.t*0.9)*1.1 + (Math.random() < 0.05 ? (Math.random() - 0.5)*5 : 0));
+    fx.hue = k*Math.sin(hay.t*0.6)*1.0;                              // the colour turns, slowly, all the way round and back
     if(Math.random() < 0.06*k){ fx.flash = 0.3*k; fx.flashCol.copy(hueVec(Math.random(), 1, 0.6)); }
     if(W && W.sub){ const s = 0.06*k; W.sub.group.position.set((Math.random() - 0.5)*s, (Math.random() - 0.5)*s*0.5, (Math.random() - 0.5)*s);
       W.sub.lights.forEach(l=>{ if(Math.random() < 0.04*k){ if(!l.col0) l.col0 = l.col.clone(); l.col.setHSL(Math.random(), 1, 0.55); } }); }
-    hay.sh -= dt; if(hay.sh <= 0){ hay.sh = 0.25 + Math.random()*0.5; shake(0.12 + 0.25*k*Math.random(), 0.3); }
+    hay.sh -= dt; if(hay.sh <= 0){ hay.sh = 0.7 + Math.random()*0.9; shake(0.1 + 0.18*k*Math.random(), 0.9); }   // long rumbles, not taps
   }
 
   /* THE GIZMO SCREAMS. Something in Maya answers it — and comes up out of her. */
@@ -4886,7 +4891,7 @@ window.TSH = (function(){
      A beat of `dur` seconds cut into pieces a third to four fifths of a second long, each from the next of `cams`:
      every one pushing in, drifting like a hand-held camera, tilted off the level — and kicking the lens as it lands.
      `o.tick(dt, t, k)` runs on the beat's own clock across all its cuts; `o.start()` once, at its top. */
-  let dutch = 0;
+  let dutch = 0, lensRoll = 0;
   function cuts(dur, cams, o){
     o = o || {}; const out = [], clk = { t:0 }; let t = 0, i = 0;
     const at = v => typeof v === 'function' ? v() : v;
@@ -4895,7 +4900,7 @@ window.TSH = (function(){
       const roll = (Math.random() - 0.5)*0.36, drift = [(Math.random() - 0.5)*1.3, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*1.3], f0 = c.fov || 40;
       out.push({ dur:d, fov:f0, fov2:f0*(0.76 + Math.random()*0.14), mood:c.mood || o.mood, ease:false,
         cam:k=>{ const p = at(c.cam); return [p[0] + drift[0]*k, p[1] + drift[1]*k, p[2] + drift[2]*k]; }, look:()=>at(c.look),
-        enter:()=>{ dutch = roll; shake(0.16 + Math.random()*0.26, 0.28); if(first){ clk.t = 0; if(o.start) o.start(); } if(c.enter) c.enter(); },
+        enter:()=>{ dutch = roll; shake(0.12 + Math.random()*0.16, 0.6); if(first){ clk.t = 0; if(o.start) o.start(); } if(c.enter) c.enter(); },
         tick:(dt)=>{ clk.t += dt; if(o.tick) o.tick(dt, clk.t, Math.min(1, clk.t/dur)); } });
       t += d;
     }
@@ -4904,8 +4909,13 @@ window.TSH = (function(){
   /* the lens, tilted and shaking, for as long as the film is in it (after the shot has put it where it looks) */
   function tickLens(dt){
     if(mode !== 'reel' || !reel){ dutch = 0; return; }
-    if(hay){ const j = 0.035*hay.k; G.camera.position.x += (Math.random() - 0.5)*j; G.camera.position.y += (Math.random() - 0.5)*j; G.camera.position.z += (Math.random() - 0.5)*j; }
-    if(dutch || hay) G.camera.rotateZ(dutch + (hay ? Math.sin(clock*8)*0.015*hay.k : 0));
+    // hand-held: slow drifting waves, a little quicker the worse it gets — never a jump
+    if(hay){ const j = 0.05*hay.k, c = clock;
+      G.camera.position.x += (Math.sin(c*1.7) + 0.6*Math.sin(c*3.9 + 1.1) + 0.3*Math.sin(c*7.3 + 2.0))*j;
+      G.camera.position.y += (Math.sin(c*2.3 + 0.7) + 0.6*Math.sin(c*4.7 + 2.4) + 0.3*Math.sin(c*8.1))*j*0.6;
+      G.camera.position.z += (Math.sin(c*1.9 + 3.1) + 0.6*Math.sin(c*4.1 + 0.3))*j; }
+    lensRoll += (dutch - lensRoll)*Math.min(1, dt*10);                  // the tilt eases in at the cut, it does not snap
+    if(lensRoll || hay) G.camera.rotateZ(lensRoll + (hay ? (Math.sin(clock*1.3)*0.03 + Math.sin(clock*2.9 + 1)*0.015)*hay.k : 0));
   }
 
   /* THE GIZMO SCREAMS. Something in Maya answers it — and comes up out of her. Fast now: cut, cut, cut. */
@@ -4958,10 +4968,11 @@ window.TSH = (function(){
     const F = pairAngles(R, [R[0] + dir[0], R[1] + dir[1]], dir, [-dir[0], -dir[1]], side, 1.62);
     if(mon) mon.dispose();
     mon = TSHMONSTER.make(W.sub.group, [M[0], 0, M[1]], myaw); mon.grow = 0.02; mon.pull = 0.3;
-    // the station's own lamps go down: its light is the light now
-    W.sub.lights.forEach(l=>{ if(l.mul0 === undefined) l.mul0 = l.mul; l.mul = (l.mul || 0)*0.3; });
+    mon.onSlam = ()=>{ shake(0.55, 1.1); cue('clang'); };                // its hand comes down on the platform
+    // the station's own lamps go down to nothing: its light is the only light now
+    W.sub.lights.forEach(l=>{ if(l.mul0 === undefined) l.mul0 = l.mul; l.mul = (l.mul || 0)*0.08; });
     const C0 = c ? [c.x, c.z] : TS().canon;
-    const eyeW = () => { const v = new THREE.Vector3(0.5, 4.5, 0.75); const w = mon.root.localToWorld(v.multiplyScalar(Math.max(0.05, mon.grow))); return [w.x, w.y, w.z]; };
+    const eyeW = () => [mon.eyeAt.x, mon.eyeAt.y, mon.eyeAt.z];
     const mouth = () => [mon.mouth.x, mon.mouth.y, mon.mouth.z];
     const mid = [(R[0] + M[0])/2, (R[1] + M[1])/2];
     const cp = () => c ? [c.x, (c.y || 0) + 0.4, c.z] : [C0[0], 0.4, C0[1]];
@@ -6813,9 +6824,10 @@ window.TSH = (function(){
     let off = null;
     if(shk.len > 0){
       const real = (dt || 0.016)/Math.max(0.01, G.timeScale === undefined ? 1 : G.timeScale);
-      shk.t += real; const k = Math.max(0, 1 - shk.t/shk.len), a = shk.amp*k*k*0.32;
+      shk.t += real; const k = Math.max(0, 1 - shk.t/shk.len), a = shk.amp*k*k*0.32, s = shk.t;
       if(k <= 0) shk.len = 0;
-      else { off = V((Math.random()*2 - 1)*a, (Math.random()*2 - 1)*a*0.7, (Math.random()*2 - 1)*a); G.camera.position.add(off); }
+      // a tremble, not a stutter: a few smooth waves at different speeds, dying away together
+      else { off = V((Math.sin(s*31) + 0.5*Math.sin(s*53 + 1.3))*a*0.7, (Math.sin(s*27 + 2.1) + 0.5*Math.sin(s*47 + 0.4))*a*0.5, (Math.sin(s*23 + 4.2) + 0.5*Math.sin(s*41 + 2.7))*a*0.7); G.camera.position.add(off); }
     }
     LOOK.render(G.scene, G.camera, dt);
     if(off) G.camera.position.sub(off);
