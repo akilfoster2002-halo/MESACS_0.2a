@@ -547,7 +547,7 @@ window.TSH = (function(){
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     if(inSub){ inSub = false; subLook(false); if(W && W.sub) W.sub.group.visible = false; } tunCrew = false; alphaFx = null; aftWatch = null; if(gizmo && gizmo.parent) gizmo.parent.remove(gizmo); gizmo = null;
-    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0);
+    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0); windOff(); dutch = 0;
     if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
@@ -4378,7 +4378,7 @@ window.TSH = (function(){
     if(W && W.sub) W.sub.tick(dt);
     if(alphaFx) alphaFx.tick(dt);
     if(mon) mon.tick(dt);
-    tickMayaArms(dt); tickHaywire(dt);
+    tickMayaArms(dt); tickHaywire(dt); tickWind(dt); tickLens(dt);
     if(!aftWatch || !on) return;
     if(aftWatch === 'fight2' && mode === 'fight'){ const m = crewTag('maya'); if(m && m.hp <= m.max*0.5){ aftWatch = null; alphaScene(); } return; }
     if(mode) return;
@@ -4716,7 +4716,7 @@ window.TSH = (function(){
       ...lineShots(['canonGuard'], A, { each:guard, pools:{ canon:['her', 'herTight', 'past'], robin:['past', 'overHer'], kai:['him', 'himTight', 'overHer'] } }),
       // the swing
       { dur:0.9, fov:34, cam:A.profileL.cam, look:A.two.look,
-        enter:()=>{ guard(); if(kai){ TSHFIGHT.play(kai, 'hook'); } }, beats:[[0.45, ()=>{ cue('punch'); shake(0.4); LOOK.fx.flash = 0.25; }]] },
+        enter:()=>{ guard(); if(kai){ TSHFIGHT.play(kai, 'hook'); } }, beats:[[0.45, ()=>{ cue('punch'); shake(0.4, 0.4); LOOK.fx.flash = 0.25; }]] },
       // and down
       { dur:1.6, fov:40, cam:[C[0] + 2.0, 0.6, C[1] + 1.2], look:[C[0], 0.5, C[1]], enter:()=>{ if(c){ c.feel = FEELS.pain; c.faceTo = null; c.pose = 'ko'; } } },
       // her
@@ -4765,7 +4765,7 @@ window.TSH = (function(){
       if(mStab <= 0){ mStab = 1.3 + Math.random()*1.3; const p = P(), tgt = [p.x, 1.25, p.z], k = Math.random() < 0.5 ? 0 : 1;
         mOc.burst(k, null, { world:tgt, hold:0.45 }); cue('zip');
         later(()=>{ const q = P(), m = crewTag('maya'); if(!m || mode !== 'fight' || Math.hypot(q.x - tgt[0], q.z - tgt[2]) > 0.9) return;
-          shake(0.35); cue('punch'); LOOK.fx.flash = 0.3; LOOK.fx.flashCol.set(1, 0.25, 0.3);
+          shake(0.35, 0.4); cue('punch'); LOOK.fx.flash = 0.3; LOOK.fx.flashCol.set(1, 0.25, 0.3);
           const a = angTo(m.x, m.z, q.x, q.z); G.pos.x += Math.sin(a)*0.9; G.pos.z += Math.cos(a)*0.9; }, 230); }
     }
   }
@@ -4787,7 +4787,7 @@ window.TSH = (function(){
       { dur:2.8, fov:F.arms.fov, cam:F.arms.cam, look:F.arms.look, enter:()=>{ const oc = mayaArms(); cue('clang');
           if(oc){ oc.burst(0, null, { world:at(-1.4, 2.6, 0.3), hold:2.4 }); oc.burst(1, null, { world:at(1.4, 2.7, 0.3), hold:2.4, wait:0.35 });
             oc.burst(2, null, { world:at(-1.5, 0, 0.8), hold:2.0, wait:0.7, floor:true }); oc.burst(3, null, { world:at(1.5, 0, 0.8), hold:2.0, wait:0.9, floor:true }); } },
-        beats:[[0.4, ()=>{ shake(0.2); cue('zip'); }], [0.8, ()=>cue('zip')], [1.2, ()=>{ shake(0.3); cue('clang'); }]] },
+        beats:[[0.4, ()=>{ shake(0.2, 0.4); cue('zip'); }], [0.8, ()=>cue('zip')], [1.2, ()=>{ shake(0.3, 0.4); cue('clang'); }]] },
       { dur:1.4, fov:24, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>stage('fight', R[0], 0, R[1], ry) }
     ];
     playReel(shots, aftDone(()=>{ reel = null; mayaArms(); fightTwo(R, ry); }), { ownClock:true });
@@ -4823,7 +4823,7 @@ window.TSH = (function(){
     if(Math.random() < 0.06*k){ fx.flash = 0.3*k; fx.flashCol.copy(hueVec(Math.random(), 1, 0.6)); }
     if(W && W.sub){ const s = 0.06*k; W.sub.group.position.set((Math.random() - 0.5)*s, (Math.random() - 0.5)*s*0.5, (Math.random() - 0.5)*s);
       W.sub.lights.forEach(l=>{ if(Math.random() < 0.04*k){ if(!l.col0) l.col0 = l.col.clone(); l.col.setHSL(Math.random(), 1, 0.55); } }); }
-    hay.sh -= dt; if(hay.sh <= 0){ hay.sh = 0.25 + Math.random()*0.5; shake(0.12 + 0.25*k*Math.random()); }
+    hay.sh -= dt; if(hay.sh <= 0){ hay.sh = 0.25 + Math.random()*0.5; shake(0.12 + 0.25*k*Math.random(), 0.3); }
   }
 
   /* THE GIZMO SCREAMS. Something in Maya answers it — and comes up out of her. */
@@ -4836,28 +4836,113 @@ window.TSH = (function(){
     for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/d.length, 1.5);
     const f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(90, t + 2.8);
     g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 3); n.buffer = b; n.connect(f); f.connect(g); g.connect(a.destination); n.start(t); }catch(e){} }
+  /* --------------------------------------------------------------- THE WIND
+     Everything loose in the station going one way: streaks of dust and grit, and scraps — paper, ticket stubs,
+     flakes of tile — tumbling, all of it pulled at Maya and then into the hole in what she has become, swirling
+     round as it goes. Spawned round the lens, so whichever way the film is looking there is wind across it. */
+  let wind = null;
+  function windOn(k){
+    if(!wind){
+      const N = 520, g = new THREE.BufferGeometry(), pos = new Float32Array(N*6), col = new Float32Array(N*6);
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
+      lines.frustumCulled = false; W.sub.group.add(lines);
+      const ND = 160, deb = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.11, 0.075), new THREE.MeshStandardMaterial({ color:0xd8d2c4, roughness:0.8, side:THREE.DoubleSide }), ND);
+      deb.frustumCulled = false; deb.castShadow = true; W.sub.group.add(deb);
+      const mk = () => ({ p:new THREE.Vector3(), v:new THREE.Vector3(), r:new THREE.Euler(Math.random()*6, Math.random()*6, 0), s:2 + Math.random()*6, life:0 });
+      wind = { k:0, lines, deb, S:Array.from({ length:N }, mk), D:Array.from({ length:ND }, mk), hue:Array.from({ length:N }, ()=>Math.random()) };
+    }
+    wind.k = k;
+  }
+  function windOff(){ if(!wind) return; [wind.lines, wind.deb].forEach(o=>{ if(o.parent) o.parent.remove(o); o.geometry.dispose(); }); wind = null; }
+  function tickWind(dt){
+    if(!wind) return;
+    const k = wind.k, cam = G.camera.position, m = crewTag('maya');
+    const to = mon && mon.grow > 0.3 ? mon.mouth : m ? new THREE.Vector3(m.x, 1.3, m.z) : null; if(!to) return;
+    const up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), sw = new THREE.Vector3();
+    const reset = q => { const a = Math.random()*Math.PI*2, r = 1.5 + Math.random()*9;
+      q.p.set(cam.x + Math.cos(a)*r, 0.1 + Math.random()*4.2, cam.z + Math.sin(a)*r); q.v.set(0, 0, 0); q.life = 1.5 + Math.random()*2.5; };
+    const step = (q, pull) => {
+      q.life -= dt; d.subVectors(to, q.p); const dist = d.length();
+      if(q.life <= 0 || dist < 0.9 || dist > 22) return reset(q);
+      d.multiplyScalar(1/dist); sw.crossVectors(d, up);
+      q.v.addScaledVector(d, dt*k*pull*(10 + 60/(dist + 1))).addScaledVector(sw, dt*k*14).add(new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5)*0.6, (Math.random() - 0.5)).multiplyScalar(dt*k*14));
+      q.v.multiplyScalar(0.985); if(q.v.length() > 30) q.v.setLength(30);
+      q.p.addScaledVector(q.v, dt);
+    };
+    const pos = wind.lines.geometry.attributes.position.array, col = wind.lines.geometry.attributes.color.array, c = new THREE.Color();
+    wind.S.forEach((q, i)=>{ step(q, 1);
+      const len = 0.03 + Math.min(0.09, q.v.length()*0.006);
+      pos.set([q.p.x, q.p.y, q.p.z, q.p.x - q.v.x*len, q.p.y - q.v.y*len, q.p.z - q.v.z*len], i*6);
+      c.setHSL((wind.hue[i] + clock*0.05) % 1, hay ? 0.9 : 0.1, 0.55 + 0.35*Math.random()); const a = Math.min(1, k*1.4);
+      col.set([c.r*a, c.g*a, c.b*a, 0, 0, 0], i*6); });
+    wind.lines.geometry.attributes.position.needsUpdate = true; wind.lines.geometry.attributes.color.needsUpdate = true;
+    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), S1 = new THREE.Vector3(1, 1, 1);
+    wind.D.forEach((q, i)=>{ step(q, 0.7); q.r.x += dt*q.s; q.r.y += dt*q.s*0.7; Q.setFromEuler(q.r); M4.compose(q.p, Q, S1); wind.deb.setMatrixAt(i, M4); });
+    wind.deb.instanceMatrix.needsUpdate = true;
+  }
+
+  /* --------------------------------------------------------- RAPID CUTS
+     A beat of `dur` seconds cut into pieces a third to four fifths of a second long, each from the next of `cams`:
+     every one pushing in, drifting like a hand-held camera, tilted off the level — and kicking the lens as it lands.
+     `o.tick(dt, t, k)` runs on the beat's own clock across all its cuts; `o.start()` once, at its top. */
+  let dutch = 0;
+  function cuts(dur, cams, o){
+    o = o || {}; const out = [], clk = { t:0 }; let t = 0, i = 0;
+    const at = v => typeof v === 'function' ? v() : v;
+    while(t < dur - 0.05){
+      const d = Math.min(dur - t, 0.34 + Math.random()*0.44), c = cams[i % cams.length], first = i === 0; i++;
+      const roll = (Math.random() - 0.5)*0.36, drift = [(Math.random() - 0.5)*1.3, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*1.3], f0 = c.fov || 40;
+      out.push({ dur:d, fov:f0, fov2:f0*(0.76 + Math.random()*0.14), mood:c.mood || o.mood, ease:false,
+        cam:k=>{ const p = at(c.cam); return [p[0] + drift[0]*k, p[1] + drift[1]*k, p[2] + drift[2]*k]; }, look:()=>at(c.look),
+        enter:()=>{ dutch = roll; shake(0.16 + Math.random()*0.26, 0.28); if(first){ clk.t = 0; if(o.start) o.start(); } if(c.enter) c.enter(); },
+        tick:(dt)=>{ clk.t += dt; if(o.tick) o.tick(dt, clk.t, Math.min(1, clk.t/dur)); } });
+      t += d;
+    }
+    return out;
+  }
+  /* the lens, tilted and shaking, for as long as the film is in it (after the shot has put it where it looks) */
+  function tickLens(dt){
+    if(mode !== 'reel' || !reel){ dutch = 0; return; }
+    if(hay){ const j = 0.035*hay.k; G.camera.position.x += (Math.random() - 0.5)*j; G.camera.position.y += (Math.random() - 0.5)*j; G.camera.position.z += (Math.random() - 0.5)*j; }
+    if(dutch || hay) G.camera.rotateZ(dutch + (hay ? Math.sin(clock*8)*0.015*hay.k : 0));
+  }
+
+  /* THE GIZMO SCREAMS. Something in Maya answers it — and comes up out of her. Fast now: cut, cut, cut. */
   function alphaScene(){
     flushTalk();
     if(TSHFIGHT.on) TSHFIGHT.stop();
     tunFightEnd(); mark('alpha');
     const maya = crewTag('maya'), p = P(), R = [p.x, p.z];
-    const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]);
-    const F = pairAngles(R, M, [Math.sin(ry), Math.cos(ry)], [-Math.sin(ry), -Math.cos(ry)], [Math.cos(ry), -Math.sin(ry)], 1.62);
-    const mh = () => maya ? [maya.x, 1.5, maya.z] : [M[0], 1.5, M[1]];
+    const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
+    const F = pairAngles(R, M, dir, [-dir[0], -dir[1]], side, 1.62);
+    const mh = () => maya ? [maya.x, 1.45, maya.z] : [M[0], 1.45, M[1]];
     let tw = 0;
     const twitch = (dt, amt) => { tw -= dt; if(tw <= 0 && maya){ tw = 0.1 + Math.random()*0.35*(1.2 - amt); TSHFIGHT.play(maya, Math.random() < 0.5 ? 'hit' : 'stagger'); maya.yaw += (Math.random() - 0.5)*0.7*amt;
       if(mOc && Math.random() < amt*0.7){ const a = Math.random()*7; mOc.burst(Math.floor(Math.random()*4), null, { world:[maya.x + Math.sin(a)*2.2, 0.4 + Math.random()*2.6, maya.z + Math.cos(a)*2.2], hold:0.35 }); } } };
     const grow = (k, g) => { if(!alphaFx && maya && maya.model && window.TSHALPHA) alphaFx = TSHALPHA.apply(maya.model); if(alphaFx){ alphaFx.cover = Math.max(alphaFx.cover, k); alphaFx.glitch = g; } };
-    const pocket = () => { const g = gizmoProp(); if(g.parent !== W.sub.group) W.sub.group.add(g); g.visible = true; g.position.set(R[0] + Math.sin(ry)*0.25 + Math.cos(ry)*0.12, 1.0, R[1] + Math.cos(ry)*0.25 - Math.sin(ry)*0.12); g.rotation.set(-0.2, ry, 0); };
+    const pocket = () => { const g = gizmoProp(); if(g.parent !== W.sub.group) W.sub.group.add(g); g.visible = true; g.position.set(R[0] + dir[0]*0.25 + side[0]*0.12, 1.0, R[1] + dir[1]*0.25 + side[1]*0.12); g.rotation.set(-0.2, ry, 0); };
+    const gz = () => { const g = gizmoProp(); return [g.position.x, g.position.y, g.position.z]; };
+    const C = {
+      gizmo:   { cam:()=>{ const g = gz(); return [g[0] + side[0]*0.35 - dir[0]*0.2, g[1] + 0.12, g[2] + side[1]*0.35 - dir[1]*0.2]; }, look:gz, fov:30 },
+      gizmoX:  { cam:()=>{ const g = gz(); return [g[0] - side[0]*0.25 + dir[0]*0.25, g[1] + 0.05, g[2] - side[1]*0.25 + dir[1]*0.25]; }, look:gz, fov:22 },
+      her:     { cam:F.herTight.cam, look:F.herTight.look, fov:26, mood:'shocked' },
+      herSide: { cam:F.profileL.cam, look:F.two.look, fov:34, mood:'shocked' },
+      maya:    { cam:F.himTight.cam, look:mh, fov:28 },
+      mayaLow: { cam:[M[0] - dir[0]*1.6 + side[0]*1.2, 0.4, M[1] - dir[1]*1.6 + side[1]*1.2], look:mh, fov:46 },
+      overHer: { cam:F.overHer.cam, look:mh, fov:34 },
+      high:    { cam:[R[0] - dir[0]*1.5 - side[0]*1.5, 3.9, R[1] - dir[1]*1.5 - side[1]*1.5], look:[M[0], 1.0, M[1]], fov:50 },
+      wide:    { cam:[(R[0] + M[0])/2 + side[0]*5, 1.4, (R[1] + M[1])/2 + side[1]*5], look:[(R[0] + M[0])/2, 1.2, (R[1] + M[1])/2], fov:56 }
+    };
     const shots = [
       // the gizmo, out of her pocket on its own, screaming violet
-      { dur:1.6, fov:28, cam:()=>{ const g = gizmoProp(); return [g.position.x + 0.42, g.position.y + 0.16, g.position.z + 0.3]; }, look:()=>{ const g = gizmoProp(); return [g.position.x, g.position.y, g.position.z]; },
-        enter:()=>{ stage('fight', R[0], 0, R[1], ry); pocket(); hum(); LOOK.fx.flash = 0.4; haywire(0.25); },
-        tick:()=>{ const g = gizmoProp(); g.userData.scr.material.color.setRGB(0.4 + Math.random(), 0.2, 1 + Math.random()*1.5); } },
+      ...cuts(1.8, [C.gizmo, C.her, C.gizmoX, C.maya], { start:()=>{ stage('fight', R[0], 0, R[1], ry); pocket(); hum(); LOOK.fx.flash = 0.4; haywire(0.3); windOn(0.25); },
+        tick:()=>{ const g = gizmoProp(); g.userData.scr.material.color.setRGB(0.4 + Math.random(), 0.2, 1 + Math.random()*1.5); } }),
       // Maya stops. Twitches. Her arms thrash.
-      { dur:2.0, fov:30, cam:F.overHer.cam, look:mh, tick:(dt, t, k)=>{ twitch(dt, 0.5); grow(k*0.3, 0.3 + k*0.4); } },
-      ...lineShots(['mayaGlitch'], F, { each:()=>stage('fight', R[0], 0, R[1], ry), tick:(dt)=>{ twitch(dt, 0.8); grow(Math.min(0.75, (alphaFx ? alphaFx.cover : 0) + dt*0.08), 0.8); if(hay) hay.k = Math.min(0.55, hay.k + dt*0.05); },
-        pools:{ robin:['herTight', 'her'], maya:['himTight', 'him', 'low', 'overHer'], kai:['wide'] } })
+      ...cuts(2.2, [C.overHer, C.mayaLow, C.her, C.maya, C.high], { tick:(dt, t, k)=>{ twitch(dt, 0.5); grow(k*0.3, 0.3 + k*0.4); if(wind) wind.k = 0.25 + k*0.3; } }),
+      // "What is that? Turn it off." "I can't!" "Turn. It. OFF." "Maya?" "Get... away..."
+      ...cuts(linesLen('mayaGlitch') + 0.3, [C.maya, C.her, C.mayaLow, C.wide, C.maya, C.herSide, C.overHer, C.high],
+        { start:()=>talk('mayaGlitch'), tick:(dt, t, k)=>{ stage('fight', R[0], 0, R[1], ry); twitch(dt, 0.8); grow(Math.min(0.8, 0.3 + k*0.5), 0.8); if(hay) hay.k = 0.3 + k*0.3; if(wind) wind.k = 0.5 + k*0.3; } })
     ];
     playReel(shots, aftDone(()=>{ reel = null; if(gizmo) gizmo.visible = false; monsterScene(R, ry); }), { ownClock:true });
   }
@@ -4867,61 +4952,91 @@ window.TSH = (function(){
   function monsterScene(R0, ry){
     flushTalk();
     const maya = crewTag('maya'), kai = crewTag('kai'), c = canonNpc();
-    const M0 = maya ? [maya.x, maya.z] : TS().maya, dir = [Math.sin(ry), Math.cos(ry)];
+    const M0 = maya ? [maya.x, maya.z] : TS().maya, dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
     // it is bigger than the space between them: it swells up behind where she stood, and Robin stumbles back from it
     const M = [M0[0] + dir[0]*2.6, M0[1] + dir[1]*2.6], R = [R0[0] - dir[0]*1.6, R0[1] - dir[1]*1.6], myaw = angTo(M[0], M[1], R[0], R[1]);
-    const F = pairAngles(R, [R[0] + dir[0], R[1] + dir[1]], dir, [-dir[0], -dir[1]], [dir[1], -dir[0]], 1.62);
+    const F = pairAngles(R, [R[0] + dir[0], R[1] + dir[1]], dir, [-dir[0], -dir[1]], side, 1.62);
     if(mon) mon.dispose();
     mon = TSHMONSTER.make(W.sub.group, [M[0], 0, M[1]], myaw); mon.grow = 0.02; mon.pull = 0.3;
-    const C = c ? [c.x, c.z] : TS().canon, cy0 = 0;
-    const eyeW = () => { const v = new THREE.Vector3(0.5, 4.5, 0.75); return mon.root.localToWorld(v.multiplyScalar(Math.max(0.05, mon.grow))); };
-    const side = [Math.cos(ry), -Math.sin(ry)];
-    const low = [R[0] - dir[0]*2.4 + side[0]*2.6, 0.35, R[1] - dir[1]*2.4 + side[1]*2.6];
-    let suck = 0;
+    // the station's own lamps go down: its light is the light now
+    W.sub.lights.forEach(l=>{ if(l.mul0 === undefined) l.mul0 = l.mul; l.mul = (l.mul || 0)*0.3; });
+    const C0 = c ? [c.x, c.z] : TS().canon;
+    const eyeW = () => { const v = new THREE.Vector3(0.5, 4.5, 0.75); const w = mon.root.localToWorld(v.multiplyScalar(Math.max(0.05, mon.grow))); return [w.x, w.y, w.z]; };
+    const mouth = () => [mon.mouth.x, mon.mouth.y, mon.mouth.z];
+    const mid = [(R[0] + M[0])/2, (R[1] + M[1])/2];
+    const cp = () => c ? [c.x, (c.y || 0) + 0.4, c.z] : [C0[0], 0.4, C0[1]];
+    const kp = y => kai ? [kai.x, y, kai.z] : [M[0], y, M[1]];
+    let runK = 0;
+    const Rrun = () => [R[0] - dir[0]*runK*3.2, R[1] - dir[1]*runK*3.2];
+    const CAM = {
+      lowUp:   { cam:[R[0] - dir[0]*2.4 + side[0]*2.6, 0.35, R[1] - dir[1]*2.4 + side[1]*2.6], look:()=>[M[0], 1.0 + mon.grow*3.2, M[1]], fov:64 },
+      lowUp2:  { cam:[R[0] - dir[0]*1.2 - side[0]*2.4, 0.3, R[1] - dir[1]*1.2 - side[1]*2.4], look:()=>[M[0], 0.8 + mon.grow*3.4, M[1]], fov:70 },
+      her:     { cam:F.herTight.cam, look:F.herTight.look, fov:24, mood:'shocked' },
+      herWide: { cam:F.her.cam, look:F.her.look, fov:32, mood:'shocked' },
+      herSide: { cam:F.profileL.cam, look:F.two.look, fov:30, mood:'shocked' },
+      high:    { cam:[R[0] - dir[0]*3 + side[0]*1.2, 4.7, R[1] - dir[1]*3 + side[1]*1.2], look:[M[0], 1.6, M[1]], fov:56 },
+      side:    { cam:[mid[0] + side[0]*6.4, 1.3, mid[1] + side[1]*6.4], look:[(R[0] + M[0]*2)/3, 2.3, (R[1] + M[1]*2)/3], fov:62 },
+      sideB:   { cam:[mid[0] - side[0]*5.8, 2.2, mid[1] - side[1]*5.8], look:[(R[0] + M[0]*2)/3, 2.0, (R[1] + M[1]*2)/3], fov:60 },
+      behind:  { cam:[R[0] - dir[0]*4.2 + side[0]*0.8, 1.7, R[1] - dir[1]*4.2 + side[1]*0.8], look:[M[0], 2.6, M[1]], fov:62 },
+      rising:  { cam:[M0[0] - dir[0]*2.2 + side[0]*1.8, 1.1, M0[1] - dir[1]*2.2 + side[1]*1.8], look:()=>maya && maya.g.visible ? [maya.x, 1.4 + (maya.y || 0), maya.z] : [M[0], 2.4, M[1]], fov:40 },
+      eye:     { cam:[R[0] - dir[0]*0.7 + side[0]*0.45, 1.75, R[1] - dir[1]*0.7 + side[1]*0.45], look:eyeW, fov:18 },
+      eyeX:    { cam:[R[0] - dir[0]*0.4 - side[0]*0.3, 1.6, R[1] - dir[1]*0.4 - side[1]*0.3], look:eyeW, fov:8 },
+      mouth:   { cam:()=>{ const m = mouth(); return [m[0] - dir[0]*6 + side[0]*1.5, 1.8, m[2] - dir[1]*6 + side[1]*1.5]; }, look:mouth, fov:46 },
+      mouthX:  { cam:()=>{ const m = mouth(); return [m[0] - dir[0]*3.2 - side[0]*0.8, m[1] - 0.3, m[2] - dir[1]*3.2 - side[1]*0.8]; }, look:mouth, fov:34 },
+      floor:   { cam:[R[0] - dir[0]*0.5 + side[0]*1.4, 0.18, R[1] - dir[1]*0.5 + side[1]*1.4], look:()=>{ const m = mouth(); return [m[0], 0.5, m[2]]; }, fov:60 },
+      kai:     { cam:()=>{ const k = kp(1.6); return [k[0] - dir[0]*1.5 + side[0]*0.7, 1.62, k[2] - dir[1]*1.5 + side[1]*0.7]; }, look:()=>kp(1.55), fov:28 },
+      kaiWide: { cam:()=>{ const k = kp(1.6); return [k[0] + side[0]*3.6, 1.3, k[2] + side[1]*3.6]; }, look:()=>kp(1.2), fov:50 },
+      overKai: { cam:()=>{ const k = kp(1.6); return [k[0] - dir[0]*1.1 - side[0]*0.5, 1.8, k[2] - dir[1]*1.1 - side[1]*0.5]; }, look:[M[0], 2.8, M[1]], fov:52 },
+      canon:   { cam:()=>{ const q = cp(); return [q[0] + side[0]*1.6, 0.5, q[2] + side[1]*1.6]; }, look:cp, fov:40 },
+      canonTop:{ cam:()=>{ const q = cp(); return [q[0] - dir[0]*0.5, q[1] + 2.4, q[2] - dir[1]*0.5]; }, look:cp, fov:44 },
+      canonX:  { cam:()=>{ const q = cp(); return [q[0] - dir[0]*1.8 + side[0]*0.6, q[1] + 0.5, q[2] - dir[1]*1.8 + side[1]*0.6]; }, look:cp, fov:30 },
+      run:     { cam:()=>{ const r = Rrun(); return [r[0] - dir[0]*2.2 + side[0]*0.5, 1.4, r[1] - dir[1]*2.2 + side[1]*0.5]; }, look:()=>{ const r = Rrun(); return [r[0], 1.1, r[1]]; }, fov:58 },
+      runLow:  { cam:()=>{ const r = Rrun(); return [r[0] - dir[0]*1.2 - side[0]*1.4, 0.3, r[1] - dir[1]*1.2 - side[1]*1.4]; }, look:()=>{ const r = Rrun(); return [r[0] + dir[0]*3, 1.6, r[1] + dir[1]*3]; }, fov:72 },
+      runFront:{ cam:()=>{ const r = Rrun(); return [r[0] - dir[0]*3.5, 1.2, r[1] - dir[1]*3.5]; }, look:()=>{ const r = Rrun(); return [r[0], 1.3, r[1]]; }, fov:44, mood:'shocked' }
+    };
+    const standR = () => stage('idle', R[0], 0, R[1], ry);
+    let canonFrom = null, canonIn = false;
     const shots = [
       // it comes out of her
-      { dur:3.4, fov:62, cam:[[low[0], 0.35, low[2]], [low[0] - dir[0]*1.2, 0.5, low[2] - dir[1]*1.2]], look:k=>[lerp(M0[0], M[0], k), 1.2 + k*2.6, lerp(M0[1], M[1], k)],
-        enter:()=>{ roar(); haywire(0.6); cue('clang'); if(maya) TSHFIGHT.play(maya, 'stagger'); stage('idle', R[0], 0, R[1], ry); },
-        tick:(dt, t, k)=>{ mon.grow = Math.min(1, 0.02 + k*1.05); if(alphaFx) alphaFx.cover = 1; if(maya && maya.g.visible){ maya.x = lerp(M0[0], M[0], k*0.6); maya.z = lerp(M0[1], M[1], k*0.6); maya.y = k*1.6; }
-          if(mon.grow > 0.35 && maya){ maya.g.visible = false; if(mOc){ mOc.dispose(); mOc = null; } } if(hay) hay.k = 0.6 + k*0.3; },
-        beats:[[0.3, ()=>shake(0.6)], [1.4, ()=>{ shake(0.8); cue('punch'); }], [2.6, ()=>shake(0.6)]] },
-      // the eye opens — over her shoulder, a long lens up at it
-      { dur:2.0, fov:18, cam:[R[0] - dir[0]*0.7 + side[0]*0.45, 1.75, R[1] - dir[1]*0.7 + side[1]*0.45], look:()=>{ const e = eyeW(); return [e.x, e.y, e.z]; },
-        enter:()=>{ mon.grow = 1; LOOK.fx.flash = 0.5; LOOK.fx.flashCol.set(1, 1, 1); stage('idle', R[0], 0, R[1], ry); } },
-      // all of it: the size of the platform, its arms out across the station
-      { dur:2.2, fov:62, cam:[[ (R[0] + M[0])/2 + side[0]*6.5, 1.2, (R[1] + M[1])/2 + side[1]*6.5 ], [ (R[0] + M[0])/2 + side[0]*6.0, 1.6, (R[1] + M[1])/2 + side[1]*6.0 ]],
-        look:[(R[0] + M[0]*2)/3, 2.4, (R[1] + M[1]*2)/3], enter:()=>{ roar(); shake(0.5); [0, 1, 2].forEach(i=>later(()=>{ if(mon) mon.reach(new THREE.Vector3(R[0] + (Math.random() - 0.5)*6, 0.5 + Math.random()*3, R[1] + (Math.random() - 0.5)*6), 1.0); }, i*300)); } },
-      // Kai: up off the floor, and backing away from her
-      { dur:linesLen('monsterKai') + 0.8, fov:30, cam:()=>kai ? [kai.x + Math.sin(myaw + 0.6)*1.4, 1.65, kai.z + Math.cos(myaw + 0.6)*1.4] : [R[0], 1.6, R[1]], look:()=>kai ? [kai.x, 1.55, kai.z] : [M[0], 2, M[1]],
-        enter:()=>{ if(kai){ kai.hp = 1; kai.state = 'idle'; TSHFIGHT.play(kai, 'getup'); } talk('monsterKai'); later(()=>{ if(kai) TSHFIGHT.play(kai, 'walk_back'); }, 900); },
-        tick:(dt, t)=>{ if(kai && t > 0.9){ const a = angTo(M[0], M[1], kai.x, kai.z); kai.x += Math.sin(a)*dt*1.4; kai.z += Math.cos(a)*dt*1.4; kai.yaw = a + Math.PI; } } },
-      // and he runs — into the dark of the tunnel
-      { dur:1.4, fov:44, cam:[R[0] + side[0]*3, 1.4, R[1] + side[1]*3], look:()=>kai ? [kai.x, 1.2, kai.z] : [M[0], 1, M[1]],
-        enter:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6; } } },       // back the way they came: north, to the passage
-      // the hole opens. It pulls.
-      { dur:2.2, fov:40, cam:()=>{ const m = mon.mouth; return [m.x + Math.sin(myaw)*6 + side[0]*1.5, 1.8, m.z + Math.cos(myaw)*6 + side[1]*1.5]; }, look:()=>[mon.mouth.x, mon.mouth.y, mon.mouth.z],
-        enter:()=>{ mon.pull = 1; roar(); }, tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.7; } },
+      ...cuts(3.8, [CAM.rising, CAM.her, CAM.lowUp, CAM.high, CAM.lowUp2, CAM.herWide, CAM.side, CAM.lowUp],
+        { start:()=>{ roar(); haywire(0.6); cue('clang'); if(maya) TSHFIGHT.play(maya, 'stagger'); standR(); if(wind) wind.k = 0.7; },
+          tick:(dt, t, k)=>{ standR(); mon.grow = Math.min(1, 0.02 + k*1.05); if(alphaFx) alphaFx.cover = 1;
+            if(maya && maya.g.visible){ maya.x = lerp(M0[0], M[0], k*0.6); maya.z = lerp(M0[1], M[1], k*0.6); maya.y = k*1.6; }
+            if(mon.grow > 0.35 && maya){ maya.g.visible = false; if(mOc){ mOc.dispose(); mOc = null; } } if(hay) hay.k = 0.6 + k*0.3; if(Math.random() < dt*3) shake(0.5, 0.3); } }),
+      // the eye opens
+      ...cuts(1.6, [CAM.eye, CAM.her, CAM.eyeX], { start:()=>{ mon.grow = 1; LOOK.fx.flash = 0.5; LOOK.fx.flashCol.set(1, 1, 1); roar(); } }),
+      // all of it, its arms out across the station
+      ...cuts(1.8, [CAM.side, CAM.behind, CAM.lowUp2, CAM.sideB], { start:()=>{ shake(0.6, 0.5); [0, 1, 2, 3].forEach(i=>later(()=>{ if(mon) mon.reach(new THREE.Vector3(R[0] + (Math.random() - 0.5)*6, 0.5 + Math.random()*3, R[1] + (Math.random() - 0.5)*6), 0.9); }, i*220)); } }),
+      // Kai: up off the floor, backing away from her — "No. No, no, no." "Maya, stop!"
+      ...cuts(linesLen('monsterKai') + 0.6, [CAM.kai, CAM.overKai, CAM.kaiWide, CAM.kai, CAM.her],
+        { start:()=>{ if(kai){ kai.hp = 1; kai.state = 'idle'; TSHFIGHT.play(kai, 'getup'); } talk('monsterKai'); later(()=>{ if(kai) TSHFIGHT.play(kai, 'walk_back'); }, 800); },
+          tick:(dt, t)=>{ if(kai && t > 0.8){ const a = angTo(M[0], M[1], kai.x, kai.z); kai.x += Math.sin(a)*dt*1.4; kai.z += Math.cos(a)*dt*1.4; kai.yaw = a + Math.PI; } } }),
+      // and he runs — back the way they came, north, into the dark
+      ...cuts(1.2, [CAM.kaiWide, CAM.kai], { start:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6.5; } } }),
+      // the hole opens. It pulls. The wind goes in.
+      ...cuts(2.0, [CAM.mouth, CAM.floor, CAM.mouthX, CAM.her], { start:()=>{ mon.pull = 1; roar(); }, tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.8; if(wind) wind.k = 0.7 + k*0.5; } }),
       // Canon, across the floor toward it
-      { dur:2.0, fov:36, cam:[C[0] + side[0]*2.2 - Math.sin(ry)*1.2, 0.6, C[1] + side[1]*2.2 - Math.cos(ry)*1.2], look:()=>c ? [c.x, 0.4, c.z] : [C[0], 0.4, C[1]],
-        enter:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } }, tick:(dt, t, k)=>{ suck = k*0.35; if(c){ const m = mon.mouth; c.x = lerp(C[0], m.x, suck*suck); c.z = lerp(C[1], m.z, suck*suck); } } },
+      ...cuts(2.2, [CAM.canon, CAM.canonTop, CAM.mouthX, CAM.canonX], { start:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } },
+        tick:(dt, t, k)=>{ if(c){ const m = mon.mouth, s = k*0.35; c.x = lerp(C0[0], m.x, s*s); c.z = lerp(C0[1], m.z, s*s); } } }),
       // "CANON!"
-      { dur:linesLen('canonGone') + 0.4, fov:24, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ stage('idle', R[0], 0, R[1], angTo(R[0], R[1], C[0], C[1])); talk('canonGone'); } },
+      ...cuts(linesLen('canonGone') + 0.5, [CAM.her, CAM.herSide, CAM.her], { start:()=>{ stage('idle', R[0], 0, R[1], angTo(R[0], R[1], C0[0], C0[1])); talk('canonGone'); } }),
       // up, round, and in
-      { dur:2.4, fov:46, cam:()=>{ const m = mon.mouth; return [m.x + Math.sin(myaw)*7 - side[0]*2, 2.2, m.z + Math.cos(myaw)*7 - side[1]*2]; }, look:()=>[mon.mouth.x, mon.mouth.y - 0.6, mon.mouth.z],
-        enter:()=>{ if(c) c.pose = 'fall'; },
-        tick:(dt, t, k)=>{ if(!c) return; const m = mon.mouth, e = 0.35 + k*0.65, r = (1 - k)*1.2, a = k*14;
-          c.x = lerp(C[0], m.x, e*e) + Math.cos(a)*r; c.z = lerp(C[1], m.z, e*e) + Math.sin(a)*r; c.y = lerp(cy0, m.y - 0.6, k); c.yaw += dt*9;
-          c.g.scale.setScalar(Math.max(0.02, 1 - k*k)); if(k > 0.97 && !c.hidden){ c.hidden = true; LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); shake(0.8); cue('clang'); } } },
+      ...cuts(2.6, [CAM.mouth, CAM.canonX, CAM.mouthX, CAM.her, CAM.mouth, CAM.canonX], { start:()=>{ if(c){ c.pose = 'fall'; canonFrom = [c.x, c.z]; } },
+        tick:(dt, t, k)=>{ if(!c || canonIn) return; const m = mon.mouth, f = canonFrom || C0, r = (1 - k)*1.2, a = k*14;
+          c.x = lerp(f[0], m.x, k*k) + Math.cos(a)*r; c.z = lerp(f[1], m.z, k*k) + Math.sin(a)*r; c.y = lerp(0, m.y - 0.6, k); c.yaw += dt*9;
+          c.g.scale.setScalar(Math.max(0.02, 1 - k*k));
+          if(k > 0.97){ canonIn = true; c.hidden = true; LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); shake(0.9, 0.6); cue('clang'); } } }),
       // gone. Her face.
-      { dur:2.2, fov:22, mood:'shocked', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ if(hay) hay.k = 1; } },
+      ...cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], { start:()=>{ if(hay) hay.k = 1; if(wind) wind.k = 1.2; } }),
       // and she runs
-      { dur:1.4, fov:52, cam:[R[0] - Math.sin(ry)*3.2, 1.1, R[1] - Math.cos(ry)*3.2], look:[R[0], 1.2, R[1]], tick:(dt, t, k)=>stage('sprint', R[0] - Math.sin(ry)*k*2.2, 0, R[1] - Math.cos(ry)*k*2.2, ry + Math.PI) }
+      ...cuts(1.8, [CAM.run, CAM.runLow, CAM.runFront, CAM.run], { tick:(dt, t, k)=>{ runK = k; const r = Rrun(); stage('sprint', r[0], 0, r[1], ry + Math.PI); } })
     ];
-    playReel(shots, aftDone(()=>{ reel = null; staged = null; if(window.AVATAR) AVATAR.posture(null);
+    playReel(shots, aftDone(()=>{ reel = null; staged = null; dutch = 0; if(window.AVATAR) AVATAR.posture(null);
       const n = canonNpc(); if(n) n.hidden = true;
       const k_ = crewTag('kai'); if(k_) k_.g.visible = false;
       if(mon){ mon.grow = 1; mon.pull = 1.2; }
-      placePlayer(R[0] - Math.sin(ry)*2.2, R[1] - Math.cos(ry)*2.2, ry);
+      const r = [R[0] - dir[0]*3.2, R[1] - dir[1]*3.2];
+      placePlayer(r[0], r[1], ry);
       esc_ = { t:0, caught:0, reach:1 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
       note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); }), { ownClock:true });
   }
@@ -4935,7 +5050,7 @@ window.TSH = (function(){
       r.rotation.y = a;
       if(d > 4.5 && r.position.z > -124){ r.position.x += Math.sin(a)*dt*2.4; r.position.z += Math.cos(a)*dt*2.4; }
       esc_.reach -= dt; if(esc_.reach <= 0){ esc_.reach = 0.9 + Math.random()*0.8; mon.reach(new THREE.Vector3(p.x, 1.0, p.z), 0.7); cue('zip'); }
-      if(d < 5.2){ esc_.caught++; shake(0.5); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
+      if(d < 5.2){ esc_.caught++; shake(0.5, 0.4); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
         G.pos.x += Math.sin(a)*2.2; G.pos.z += Math.cos(a)*2.2; note('Keep going!', 'bad'); }
     }
     if(Math.hypot(p.x - sp.ladder[0], p.z - sp.ladder[1]) < 1.6){ aftWatch = null; climbOut(); }
@@ -4952,7 +5067,8 @@ window.TSH = (function(){
   }
   function tunnelsGone(){
     if(alphaFx){ alphaFx.remove(); alphaFx = null; } if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; }
-    haywire(0); if(gizmo) gizmo.visible = false;
+    haywire(0); windOff(); dutch = 0; if(gizmo) gizmo.visible = false;
+    if(W && W.sub) W.sub.lights.forEach(l=>{ if(l.mul0 !== undefined){ l.mul = l.mul0; delete l.mul0; } });
   }
   /* the street, in the afternoon light. On her own. */
   function upTop(){

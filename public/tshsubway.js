@@ -67,7 +67,9 @@ window.TSHSUB = (function(){
     const solids = [], lights = [], spots = {}, fixtures = [];
     const tex = tileTex(), conc = concTex();
     const tileM = (w, h) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(w/2, h/1); return std({ map:t, roughness:0.35, metalness:0.05 }); };
-    const floorM = (w, d) => { const t = conc.clone(); t.needsUpdate = true; t.repeat.set(w/3, d/3); return std({ map:t, roughness:0.18, metalness:0.1, color:0x9a9a98 }); };
+    // the floors are wet: seepage, puddles — they mirror the lamps, and whatever comes up out of the dark (TSHLOOK's reflection pass)
+    const floorM = (w, d) => { const t = conc.clone(); t.needsUpdate = true; t.repeat.set(w/3, d/3);
+      const m = std({ map:t, roughness:0.1, metalness:0.15, color:0x8a8c8c }); if(window.TSHLOOK && TSHLOOK.wet) TSHLOOK.wet(m, 0.95); return m; };
     const dark = std({ color:0x1a1c1e, roughness:0.8 }), ceilM = std({ color:0x2a2c2a, roughness:0.9 }), green = std({ color:0x2f5a44, roughness:0.5, metalness:0.5 });
     const steel = std({ color:0x8a8e92, roughness:0.35, metalness:0.9 }), rust = std({ color:0x5a3a28, roughness:0.85, metalness:0.3 }), black = std({ color:0x0c0d0e, roughness:0.7 });
     const box = (m, x, y, z, w, h, d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.receiveShadow = true; g.add(b); return b; };

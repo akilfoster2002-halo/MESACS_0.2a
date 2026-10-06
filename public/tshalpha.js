@@ -114,7 +114,13 @@ window.TSHALPHA = (function(){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
     const body = new THREE.Group(); root.add(body);
     // lit from both sides in the colours it is full of, so its shape shows against the dark: magenta one side, cyan the other
-    [[0xff2aa8, -4, 3.2, 3.2], [0x22e8ff, 4, 2.6, 2.6], [0xb06aff, 0, 6, -2]].forEach(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 9, 16, 1.6); l.position.set(x, y, z); body.add(l); });
+    const rims = [[0xff2aa8, -4, 3.2, 3.2], [0x22e8ff, 4, 2.6, 2.6], [0xb06aff, 0, 6, -2]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
+    // out of its mouth, at whoever is in front of it: a hard light that throws their shadows long across the wet floor behind them
+    const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.75, 0.45, 1.2); spot.position.set(0, 2.3, 2.4); spot.castShadow = true;
+    spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0004; spot.shadow.camera.near = 0.5; spot.shadow.camera.far = 40;
+    const aim = new THREE.Object3D(); aim.position.set(0, 0.6, 12); body.add(aim); spot.target = aim; body.add(spot);
+    // and now and then, from inside it, a strobe: everything white for a frame
+    const strobe = new THREE.PointLight(0xffffff, 0, 30, 1.2); strobe.position.set(0, 3, 3.5); body.add(strobe);
     const U = { uT:{ value:0 }, uAmp:{ value:0.45 } };
     const skin = new THREE.MeshStandardMaterial({ color:0x030305, roughness:0.07, metalness:0.4 });
     skin.onBeforeCompile = sh=>{ Object.assign(sh.uniforms, U);
@@ -125,7 +131,7 @@ window.TSHALPHA = (function(){
     skin.customProgramCacheKey = () => 'tshmonster';
     // the mass: a heaving body, shoulders, a hunch
     const lobes = [[0, 2.5, 0, 2.5, 2.8, 2.2], [-1.9, 3.3, -0.3, 1.5, 1.6, 1.4], [1.9, 3.1, -0.2, 1.6, 1.5, 1.4], [0, 4.3, -0.6, 1.4, 1.2, 1.3], [0, 0.9, 0.2, 2.6, 1.0, 2.2]];
-    lobes.forEach(([x, y, z, sx, sy, sz])=>{ const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 5), skin); m.position.set(x, y, z); m.scale.set(sx, sy, sz); body.add(m); });
+    lobes.forEach(([x, y, z, sx, sy, sz])=>{ const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 5), skin); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; body.add(m); });
     // the pale lights in it
     const NN = 70, nodes = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 8, 6), new THREE.MeshBasicMaterial({ color:new THREE.Color(2.4, 2.5, 2.7) }), NN);
     const nodeAt = [], M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V1 = new THREE.Vector3(), S1 = new THREE.Vector3();
@@ -158,7 +164,7 @@ window.TSHALPHA = (function(){
     const NT = 10, SEGS = 18, tend = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), skin, NT*SEGS);
     const T = []; for(let i = 0; i < NT; i++){ const a = (i/NT)*Math.PI*2 + Math.random()*0.4;
       T.push({ base:new THREE.Vector3(Math.sin(a)*1.8, 1.2 + Math.random()*2.6, Math.cos(a)*1.6), dir:new THREE.Vector3(Math.sin(a), 0.15 + Math.random()*0.5 - 0.2, Math.cos(a)).normalize(), len:4 + Math.random()*4, ph:Math.random()*7, reach:null, rk:0 }); }
-    body.add(tend);
+    tend.castShadow = true; body.add(tend);
     const M = { root, grow:0, pull:1, t:0, mouth:new THREE.Vector3(),
       /* a tendril (the nearest free one) out to a point in the world, for a moment */
       reach(at, secs){ const w = root.worldToLocal(at.clone()); let best = null, bd = 1e9;
@@ -171,6 +177,10 @@ window.TSHALPHA = (function(){
         U.uAmp.value = 0.35 + 0.25*Math.sin(M.t*0.7) + (Math.random() < 0.05 ? 0.4 : 0);
         nodeAt.forEach((n, i)=>{ const k = Math.max(0, Math.sin(M.t*n.s*2 + n.ph)); S1.setScalar(0.3 + k*1.4); M4.compose(n.p, Q, S1); nodes.setMatrixAt(i, M4); }); nodes.instanceMatrix.needsUpdate = true;
         halo.material.opacity = 0.7 + 0.3*Math.sin(M.t*11);
+        // the light in it: the rims breathe in colour, the mouth's light flickers with what it is eating, and the strobe
+        rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
+        spot.intensity = (90 + 80*Math.random()*M.pull)*e; spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
+        strobe.intensity = Math.random() < 0.035*M.pull ? 260*e : strobe.intensity*0.6;
         vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull;
         // the bits, spiralling in
         for(let i = 0; i < NP; i++){ const s = pst[i]; s.a += dt*(1.5 + 6/s.r)*M.pull; s.r -= dt*(1.2 + 5/s.r)*M.pull; s.z -= dt*1.2*M.pull;
