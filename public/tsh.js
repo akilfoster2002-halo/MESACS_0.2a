@@ -7236,6 +7236,6 @@ window.TSH = (function(){
                   homeDoor, aptExit, title, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, caughtScene, detention, labScene, robotLives, talkScene, benchPuzzles, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
-                  raidIntro, raidGo, raidHome, raidFight, nightScene, alphaScene, get chase(){ return window.TSHCHASE; },
+                  raidIntro, raidGo, raidHome, raidFight, nightScene, alphaScene, meetScene, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();
