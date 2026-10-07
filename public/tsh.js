@@ -5110,9 +5110,26 @@ window.TSH = (function(){
       ...cuts(1.2, [CAM.kaiWide, CAM.kai], { start:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6.5; } } }),
       // the hole opens. It pulls. The wind goes in.
       // the hole opens. It pulls. The wind goes in — and she is nearly in with it (filmed: tsh/film/pull.mp4)
-      // all of it, rearing up over her — and it roars, down at her, its jaws wide and the hole in them pulling
-      ...cuts(5.6, [CAM.revealWide, CAM.revealOver, CAM.revealUp, CAM.revealWide, CAM.mouthX, CAM.revealOver, CAM.revealUp, CAM.her],
-        { start:()=>{ mon.pull = 0.6; roar(); shake(0.5, 5.5); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*1.6; if(wind) wind.k = 0.7 + k*0.5; standR(); } }),
+      /* THE REVEAL. (1) The framing of the filmed shot it replaces: low, behind her and to her left — her small in the
+         left of the frame, all of it filling the right — as it rears up and roars down at her, pushing in. */
+      { dur:2.0, fov:52, fov2:46, ease:false,
+        cam:k=>[R[0] - dir[0]*(1.5 - k*0.4) - side[0]*1.1, 0.6 + k*0.1, R[1] - dir[1]*(1.5 - k*0.4) - side[1]*1.1],
+        look:()=>[R[0]*0.2 + M[0]*0.8 + side[0]*0.9, 2.9, R[1]*0.2 + M[1]*0.8 + side[1]*0.9],
+        enter:()=>{ dutch = -0.06; mon.pull = 0.6; roar(); shake(0.45, 2.0); standR(); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*0.5; standR(); if(wind) wind.k = 0.8; } },
+      /* (2) All the way round it: the whole of it, its blades, its swarm, the hole in its jaws pulling */
+      { dur:3.2, fov:58, ease:false,
+        cam:k=>{ const a0 = Math.atan2(dir[0], dir[1]) + Math.PI, a = a0 + k*Math.PI*2, rr = 6.2 - Math.sin(k*Math.PI)*0.8;
+          return [M[0] + Math.sin(a)*rr, 1.2 + k*1.6, M[1] + Math.cos(a)*rr]; },
+        look:()=>[M[0], 2.5, M[1]],
+        enter:()=>{ dutch = 0; shake(0.2, 3.2); }, tick:(dt, t, k)=>{ mon.pull = 1.1 + k*0.8; standR(); if(wind) wind.k = 0.9 + k*0.3; } },
+      /* (3) Her, looking at it: a dolly zoom — the camera falls back from her as the lens closes in, so her face holds
+         its size and the station behind her stretches away */
+      { dur:2.4, fov:53, ease:false, mood:'shocked',
+        cam:k=>{ const d = 0.7 + k*2.5;                                   // her face — half a metre across — held the same size however far back it is
+          G.camera.fov = 2*Math.atan(0.27/d)*180/Math.PI; G.camera.updateProjectionMatrix();
+          return [R[0] + dir[0]*d, 1.6, R[1] + dir[1]*d]; },
+        look:[R[0], 1.6, R[1]],
+        enter:()=>{ dutch = 0; standR(); }, tick:(dt, t, k)=>{ mon.pull = 1.9; standR(); if(wind) wind.k = 1.1; } },
       // Canon, across the floor toward it
       ...cuts(2.2, [CAM.canon, CAM.canonTop, CAM.mouthX, CAM.canonX], { start:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } },
         tick:(dt, t, k)=>{ if(c){ const m = mon.mouth, s = k*0.35; c.x = lerp(C0[0], m.x, s*s); c.z = lerp(C0[1], m.z, s*s); } } }),
