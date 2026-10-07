@@ -336,12 +336,58 @@ window.TSHALPHA = (function(){
           // where it will come down: its place under the body, a step further on the way the body is going
           const land = W_.copy(home).addScaledVector(VEL, L.swDur*0.9); land.y = floor;
           T_.copy(L.from).lerp(land, k*k*(3 - 2*k)); T_.y = floor + Math.sin(k*Math.PI)*(0.35 + Math.min(0.5, VEL.length()*0.08));
-          if(k >= 1 && (!wantsUp || L.swT > L.swDur*1.6)){ L.planted = true; L.lock = land.clone(); push = Math.min(1.4, push + 0.55); dip = Math.min(0.12, dip + 0.07); if(M.onStep) M.onStep(L.lock); }
+          if(k >= 1 && (!wantsUp || L.swT > L.swDur*1.6)){ L.planted = true; L.lock = land.clone(); push = Math.min(1.4, push + 0.55); dip = Math.min(0.12, dip + 0.07); blight(L.lock); if(M.onStep) M.onStep(L.lock); }
         }
         solve(L, T_);
       });
       M.push = push;
     }
+    /* THE BLIGHT: where it puts a foot down, the floor goes the way it is — a wet black blot spreading out from the
+       footprint, veins of black creeping on past it, colour tearing through it and pale lights opening in it, now and
+       then a scribble scrawled on it. It lingers half a minute and fades. (On the floor of whatever it is in.) */
+    const BLIGHT = [], NB = 48;
+    const blightMat = () => new THREE.ShaderMaterial({ transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2,
+      uniforms:{ uT:U.uT, uAge:{ value:99 }, uSeed:{ value:Math.random()*50 }, uLife:{ value:30 } },
+      vertexShader:'varying vec2 vU; void main(){ vU = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }',
+      fragmentShader:`varying vec2 vU; uniform float uT, uAge, uSeed, uLife;` + NOISE + `
+        void main(){
+          vec2 p = vU*2.0 - 1.0; float r = length(p), a = atan(p.y, p.x);
+          float grow = 1.0 - exp(-uAge*1.6);                                   // it spreads fast, then creeps
+          float fade = 1.0 - smoothstep(uLife*0.6, uLife, uAge);
+          float n = aNoise(vec3(p*3.0, uSeed)) + 0.5*aNoise(vec3(p*7.0, uSeed + 3.0));
+          float blot = 1.0 - smoothstep(0.38*grow, 0.38*grow + 0.05, r + (n - 0.75)*0.45);
+          float vein = (1.0 - smoothstep(0.0, 0.05 + 0.03*(1.0 - r), abs(sin(a*6.0 + n*5.0 + uSeed)) - 0.0))
+                       *(1.0 - smoothstep(0.95*grow, 1.0*grow, r))*step(0.3, r);
+          float ink = max(blot, vein*0.85);
+          vec3 c = vec3(0.004, 0.004, 0.008);
+          // the colour tearing through it, and its pale lights
+          float st = smoothstep(0.8, 0.9, aNoise(vec3(p.x*30.0, p.y*2.0 - uT*0.8, uSeed) + floor(uT*7.0)*3.1));
+          float which = aHash(floor(vec3(p.x*30.0, uT*3.0, uSeed)));
+          c += (which < 0.4 ? vec3(2.2, 0.15, 1.4) : which < 0.75 ? vec3(0.1, 1.8, 2.2) : vec3(2.4, 0.8, 0.1))*st*blot;
+          vec2 cell = floor(p*9.0); float h = aHash(vec3(cell, uSeed)); vec2 f = fract(p*9.0) - 0.5;
+          c += vec3(2.4, 2.5, 2.7)*(1.0 - smoothstep(0.06, 0.14, length(f)))*step(0.86, h)*max(0.0, sin(uT*(0.6 + h*1.4) + h*40.0))*blot;
+          // a wet sheen at its edge
+          c += vec3(0.08, 0.05, 0.12)*(smoothstep(0.42*grow - 0.08, 0.42*grow, r + (n - 0.75)*0.35)*blot);
+          gl_FragColor = vec4(c, ink*fade*0.95);
+        }` });
+    const floorGroup = () => root.parent || group;
+    for(let i = 0; i < NB; i++){ const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), blightMat()); m.rotation.x = -Math.PI/2; m.visible = false; m.renderOrder = 2;
+      const sc_ = new THREE.Sprite(new THREE.SpriteMaterial({ map:null, color:new THREE.Color(1.4, 1.4, 1.5), transparent:true, depthWrite:false })); sc_.visible = false;
+      BLIGHT.push({ m, sc:sc_, age:99 }); }
+    let bi = 0;
+    function blight(at_){
+      const g_ = floorGroup(); const b = BLIGHT[bi++ % NB];
+      if(b.m.parent !== g_){ g_.add(b.m); g_.add(b.sc); }
+      const local = g_.worldToLocal(at_.clone());
+      const sz = 3.2 + Math.random()*2.6;
+      b.m.position.set(local.x, local.y + 0.02, local.z); b.m.scale.set(sz, sz, 1); b.m.rotation.z = Math.random()*Math.PI*2; b.m.visible = true;
+      b.m.material.uniforms.uAge.value = 0; b.m.material.uniforms.uSeed.value = Math.random()*50; b.age = 0;
+      // now and then a scribble scrawled on it, standing just off the floor
+      b.sc.visible = Math.random() < 0.3; if(b.sc.visible){ b.sc.material.map = scr[(Math.random()*scr.length)|0]; b.sc.position.set(local.x, local.y + 0.35, local.z); b.sc.scale.setScalar(0.6 + Math.random()*0.5); b.sc.material.opacity = 1; }
+    }
+    function tickBlight(dt){ BLIGHT.forEach(b=>{ if(!b.m.visible) return; b.age += dt; b.m.material.uniforms.uAge.value = b.age;
+      if(b.sc.visible){ b.sc.material.opacity = Math.max(0, 1 - b.age/12); b.sc.material.rotation += dt*0.3; if(b.sc.material.opacity <= 0) b.sc.visible = false; }
+      if(b.age > 30){ b.m.visible = false; b.sc.visible = false; } }); }
     const M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
       act(name){ if(!R.ready) return; const clip = { roar:'roar', bite:'bite', tail:'attack_tail' }[name]; if(!clip) return;
         R.act = name; R.actT = 0; R.bit = false; R.txNow = play(R.txMix, R.ta, R.txNow, clip, 0.15, true);
@@ -397,6 +443,7 @@ window.TSHALPHA = (function(){
           bodyScr.forEach(sp=>{ anchorAt(sp.userData.bone, sp.position); sp.position.add(sp.userData.off); });
           scribs.concat(bodyScr).forEach((sp, i)=>{ sp.userData.k += dt*9; sp.material.map = scr[(sp.userData.k|0) % scr.length]; sp.material.rotation = Math.sin(M.t*0.5 + i)*0.4; });
         }
+        tickBlight(dt);
         U.uAmp.value = 0.045 + 0.025*Math.sin(M.t*0.7) + M.pull*0.02;
         halo.material.opacity = 0.35 + 0.15*Math.sin(M.t*7);
         rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
@@ -410,7 +457,7 @@ window.TSHALPHA = (function(){
         pg.attributes.position.needsUpdate = true;
         vortex.getWorldPosition(M.mouth); eye.getWorldPosition(M.eyeAt);
       },
-      dispose(){ if(root.parent) root.parent.remove(root); }
+      dispose(){ BLIGHT.forEach(b=>{ if(b.m.parent) b.m.parent.remove(b.m); if(b.sc.parent) b.sc.parent.remove(b.sc); }); if(root.parent) root.parent.remove(root); }
     };
     return M;
   }
