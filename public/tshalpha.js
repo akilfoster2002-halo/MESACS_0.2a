@@ -152,10 +152,14 @@ window.TSHALPHA = (function(){
     ['Chest',      'tx', 'bn_Spine26',   1.1],
     ['Neck',       'tx', 'bn_Neck18',    1.2],
     ['Head',       'tx', 'bn_Head10',    1.3],
-    ['UpperArm.L', 'sp', 'Bone002_L003', 1.5], ['Forearm.L', 'sp', 'Bone002_L005', 1.5],
-    ['UpperArm.R', 'sp', 'Bone002_R003', 1.5], ['Forearm.R', 'sp', 'Bone002_R005', 1.5],
-    ['Thigh.L',    'sp', 'Bone_L003',    1.5], ['Shin.L',     'sp', 'Bone_L004',    1.5], ['Foot.L',    'sp', 'Bone_L005',    1.2],
-    ['Thigh.R',    'sp', 'Bone_R003',    1.5], ['Shin.R',     'sp', 'Bone_R004',    1.5], ['Foot.R',    'sp', 'Bone_R005',    1.2]
+  ];
+  /* THE STEPS: where the spider's feet go — up, forward, down — scaled to the goose, are where its blade tips and its
+     knees go; the goose's joints bend to reach them. [goose chain (root first), the point it reaches with, spider foot] */
+  const LIMBS = [
+    { chain:['UpperArm.L', 'Forearm.L'], tip:[1.41, 0.0, 1.01],  foot:'Bone002_L006' },
+    { chain:['UpperArm.R', 'Forearm.R'], tip:[-1.41, 0.0, 1.01], foot:'Bone002_R006' },
+    { chain:['Thigh.L'],                 tip:null,                foot:'Bone_L006', end:'Shin.L' },
+    { chain:['Thigh.R'],                 tip:null,                foot:'Bone_R006', end:'Shin.R' }
   ];
   function monster(group, at, yaw){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
@@ -209,13 +213,20 @@ window.TSHALPHA = (function(){
       // the reference: each animal at the first frame of its idle, the goose at rest
       R.spNow = play(R.spMix, R.sa, null, 'walk'); R.txNow = play(R.txMix, R.ta, null, 'idle');
       R.spMix.update(0); R.txMix.update(0); root.updateMatrixWorld(true); root.getWorldQuaternion(rootQ);
-      MAP.forEach(([g, w, s_])=>{ const src = (w === 'sp' ? R.sb : R.tb)[s_], dst = R.gb[g]; if(!src || !dst) return;
+      MAP.forEach(([g, w, s_])=>{ const src = (w === 'sp' ? R.sb : R.tb)[s_], dst = R.gb[g.replace('.', '')]; if(!src || !dst) return;
         R.ref[g] = { src, dst, s:rel(src, new THREE.Quaternion()), d:rel(dst, new THREE.Quaternion()), rest:dst.quaternion.clone() }; });
+      // each limb: the point it reaches with (a blade tip, or the knee), its resting place, and its spider foot's resting place
+      R.limbs = LIMBS.map(L=>{ const chain = L.chain.map(n=>R.gb[n.replace('.', '')]), foot = R.sb[L.foot]; if(chain.some(b=>!b) || !foot) return null;
+        let eff; if(L.tip){ eff = new THREE.Object3D(); const last = chain[chain.length - 1]; last.add(eff); eff.position.copy(last.worldToLocal(body.localToWorld(new THREE.Vector3(...L.tip)))); }
+        else eff = R.gb[L.end.replace('.', '')];
+        const rest = new THREE.Vector3(); eff.getWorldPosition(rest); body.worldToLocal(rest);
+        const f0 = new THREE.Vector3(); foot.getWorldPosition(f0); body.worldToLocal(f0);
+        return { chain, eff, foot, rest, f0, rq:chain.map(b=>b.quaternion.clone()) }; }).filter(Boolean);
       R.spNow = play(R.spMix, R.sa, R.spNow, 'walk tight');
       R.txMix.addEventListener('finished', ()=>{ R.act = null; R.txNow = play(R.txMix, R.ta, R.txNow, 'idle', 0.35); });
       R.ready = true;
     });
-    const G_ = name => R.gb[name];
+    const G_ = name => R.gb[name.replace('.', '')];        // the loader takes the dots out of bone names (UpperArm.L is UpperArmL)
     /* ITS FACE: a white light where the eyes should be, scribbled over; the hole when it pulls */
     const head = new THREE.Group(); head.position.set(0, 4.7, 0.25); body.add(head);
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0, 0.12, 0.3); head.add(eye);
@@ -284,6 +295,26 @@ window.TSHALPHA = (function(){
         r.dst.quaternion.copy(Q2.invert().multiply(Q));
         r.dst.updateMatrixWorld(true); });
     }
+    /* the steps: each limb's target is its resting place moved as its spider foot has moved (scaled up to the goose);
+       then the joints, tip-ward first, each turned to bring the reaching point onto the target (a few passes) */
+    const STRIDE = 2.0, T_ = new THREE.Vector3(), E_ = new THREE.Vector3(), J_ = new THREE.Vector3(), A_ = new THREE.Vector3(), B_ = new THREE.Vector3(), PQ = new THREE.Quaternion(), BQ = new THREE.Quaternion();
+    function steps(){
+      if(!R.limbs) return;
+      R.limbs.forEach(L=>{
+        L.foot.getWorldPosition(T_); body.worldToLocal(T_);
+        T_.sub(L.f0).multiplyScalar(STRIDE); T_.y = Math.max(-0.05, T_.y*0.9); T_.add(L.rest);       // up and forward as the spider's foot goes
+        body.localToWorld(T_);
+        L.chain.forEach((b, i)=>b.quaternion.copy(L.rq[i]));
+        L.chain[0].updateMatrixWorld(true);
+        for(let it = 0; it < 6; it++) for(let i = L.chain.length - 1; i >= 0; i--){
+          const b = L.chain[i]; b.getWorldPosition(J_); L.eff.getWorldPosition(E_);
+          A_.subVectors(E_, J_); B_.subVectors(T_, J_); if(A_.lengthSq() < 1e-6 || B_.lengthSq() < 1e-6) continue;
+          PQ.setFromUnitVectors(A_.normalize(), B_.normalize());
+          b.getWorldQuaternion(BQ); BQ.premultiply(PQ);                                            // the joint, turned in the world
+          b.parent.getWorldQuaternion(PQ); b.quaternion.copy(PQ.invert().multiply(BQ));            // back into its parent
+          b.updateMatrixWorld(true); }
+      });
+    }
     const M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
       act(name){ if(!R.ready) return; const clip = { roar:'roar', bite:'bite', tail:'attack_tail' }[name]; if(!clip) return;
         R.act = name; R.actT = 0; R.bit = false; R.txNow = play(R.txMix, R.ta, R.txNow, clip, 0.15, true);
@@ -300,7 +331,7 @@ window.TSHALPHA = (function(){
           if(R.sa[want] && R.spNow !== R.sa[want] && R.spNow !== R.sa.attack) R.spNow = play(R.spMix, R.sa, R.spNow, want, 0.3);
           if(R.spNow && R.spNow !== R.sa.attack) R.spNow.timeScale = speed > 0.6 ? Math.min(2.2, 0.6 + speed*0.25) : 0.5 + M.pull*0.4;
           R.spMix.update(dt); R.txMix.update(dt*(R.act ? 1.2 : 1));
-          drive();
+          drive(); steps();
           // the tyrannosaur's neck set on the goose's: the head goes where the goose's head was
           const gh = G_('Head'), tn = R.tb.bn_Neck29;
           if(gh && tn){ gh.getWorldPosition(V1); tn.getWorldPosition(V2); body.worldToLocal(V1); body.worldToLocal(V2); R.tx.position.add(V1.sub(V2)); R.tx.updateMatrixWorld(true);
