@@ -551,7 +551,7 @@ window.TSH = (function(){
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     if(inSub){ inSub = false; subLook(false); if(W && W.sub) W.sub.group.visible = false; } tunCrew = false; alphaFx = null; aftWatch = null; if(gizmo && gizmo.parent) gizmo.parent.remove(gizmo); gizmo = null;
-    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } haywire(0); windOff(); dutch = 0; storm(0); hunt = null; if(el){ const lb = el.querySelector('#tshLose'); if(lb) lb.classList.remove('on'); }
+    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } fmStop(); haywire(0); windOff(); dutch = 0; storm(0); hunt = null; if(el){ const lb = el.querySelector('#tshLose'); if(lb) lb.classList.remove('on'); }
     if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
@@ -1377,6 +1377,32 @@ window.TSH = (function(){
     score.gain.gain.setTargetAtTime(v, AC.currentTime, Math.max(0.01, (secs || 0.5)/3));
     score.lp.frequency.setTargetAtTime(muffled ? 650 : 18000, AC.currentTime, Math.max(0.01, (secs || 0.5)/3));
   }
+  /* MONSTER FIGHT (music/sound effects/monster fight.mp3, 80.75 bpm), under the whole of the monster, laid so its
+     three drops fall on the three worst moments:
+       0:17.4  the first drop — as it comes up out of Maya (the quiet before it is the gizmo and her twitching);
+       2:05.4  the second — as the fight is hers (it builds under "Give him back"); four bars of it loop while she fights;
+       2:22    the breakdown, as it swats her across the platform and she gets up — and
+       2:30.5  the biggest drop, as she runs; the rest of the song is the ladder and the street. */
+  const FIGHTM = { url:'tsh/music/monster.mp3', drop1:17.4, drop2:125.44, bar:60/80.75*4, drop3:150.5, end:208.5 };
+  const fm = { buf:null, loading:null, n:null, gain:null };
+  function fmLoad(){ const a = audio(); if(!a) return Promise.resolve(null); if(fm.buf) return Promise.resolve(fm.buf);
+    if(!fm.loading) fm.loading = fetch(FIGHTM.url + '?v=' + (window.ASSETV || '1')).then(r=>r.ok ? r.arrayBuffer() : null)
+      .then(b=>b ? new Promise((ok, no)=>a.decodeAudioData(b, ok, no)) : null).then(b=>{ fm.buf = b; return b; }).catch(()=>null);
+    return fm.loading; }
+  /* the song, so that song time `song` is heard `inSec` from now (crossfading out of wherever it was); a loop span if asked */
+  function fmAim(song, inSec, loop){
+    const a = audio(); if(!a) return; if(a.state === 'suspended') a.resume();
+    fmLoad().then(buf=>{ if(!buf || !on) return;
+      if(!fm.gain){ fm.gain = a.createGain(); fm.gain.gain.value = 0.85; fm.gain.connect(a.destination); }
+      const at = Math.max(0, song - (inSec || 0)), t = a.currentTime + 0.03;
+      if(fm.n){ const is = fm.n.s0 + (a.currentTime - fm.n.t0); if(!loop && !fm.n.loop && Math.abs(is - at) < 0.25) return; fmFade(fm.n, 0.35); }
+      const src = a.createBufferSource(), g = a.createGain(); src.buffer = buf; src.connect(g); g.connect(fm.gain);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 0.12);
+      if(loop){ src.loop = true; src.loopStart = loop[0]; src.loopEnd = loop[1]; }
+      src.start(t, at); fm.n = { src, g, t0:t, s0:at, loop:!!loop }; });
+  }
+  function fmFade(n, secs){ if(!n || !AC) return; const t = AC.currentTime; try{ n.g.gain.cancelScheduledValues(t); n.g.gain.setValueAtTime(n.g.gain.value, t); n.g.gain.linearRampToValueAtTime(0, t + secs); n.src.stop(t + secs + 0.05); }catch(e){} }
+  function fmStop(secs){ fmFade(fm.n, secs || 0.5); fm.n = null; }
   /* where the song should be, at this moment of the film: the first hit on the lamp */
   const filmNow = () => reel ? reel.base + reel.t : 0;
   const songAt = ft => SONG.hit + (ft - score.lights);
@@ -5005,7 +5031,7 @@ window.TSH = (function(){
   function alphaScene(){
     flushTalk();
     if(TSHFIGHT.on) TSHFIGHT.stop();
-    tunFightEnd(); mark('alpha'); cue('glitch');
+    tunFightEnd(); mark('alpha'); cue('glitch'); fmAim(FIGHTM.drop1, 4.0 + linesLen('mayaGlitch') + 0.3);
     const maya = crewTag('maya'), p = P(), R = [p.x, p.z];
     const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
     const F = pairAngles(R, M, dir, [-dir[0], -dir[1]], side, 1.62);
@@ -5097,7 +5123,7 @@ window.TSH = (function(){
     const shots = [
       // it comes out of her
       ...cuts(3.8, [CAM.rising, CAM.her, CAM.lowUp, CAM.high, CAM.lowUp2, CAM.herWide, CAM.side, CAM.lowUp],
-        { start:()=>{ roar(); haywire(0.6); cue('clang'); if(maya) TSHFIGHT.play(maya, 'stagger'); standR(); if(wind) wind.k = 0.7; },
+        { start:()=>{ fmAim(FIGHTM.drop1, 0); roar(); haywire(0.6); cue('clang'); if(maya) TSHFIGHT.play(maya, 'stagger'); standR(); if(wind) wind.k = 0.7; },
           tick:(dt, t, k)=>{ standR(); mon.grow = Math.min(1, 0.02 + k*1.05); if(alphaFx) alphaFx.cover = 1;
             if(maya && maya.g.visible){ maya.x = lerp(M0[0], M[0], k*0.6); maya.z = lerp(M0[1], M[1], k*0.6); maya.y = k*1.6; }
             if(mon.grow > 0.35 && maya){ maya.g.visible = false; if(mOc){ mOc.dispose(); mOc = null; } } if(hay) hay.k = 0.6 + k*0.3; if(Math.random() < dt*3) shake(0.5, 0.3); } }),
@@ -5145,7 +5171,7 @@ window.TSH = (function(){
           c.g.scale.setScalar(Math.max(0.02, 1 - k*k));
           if(k > 0.97){ canonIn = true; c.hidden = true; LOOK.fx.flash = 0.45; LOOK.fx.flashCol.set(1, 1, 1); shake(0.9, 0.6); cue('clang'); } } }),
       // gone. Her face.
-      ...cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], { start:()=>{ if(hay) hay.k = 1; if(wind) wind.k = 1.2; } }),
+      ...cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], { start:()=>{ if(hay) hay.k = 1; if(wind) wind.k = 1.2; fmAim(FIGHTM.drop2, 2.0 + 1.6 + 1.4 + 1.2 + linesLen('robinFight') + 0.4); } }),
       // her face goes hard. Out of the pack: the jacket, the gloves — each waking up as it goes on. "Give him back."
       { dur:1.6, fov:30, mood:'angry', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ standR(); if(hay) hay.k = 0.7; } },
       { dur:1.4, fov:42, cam:[R[0] - dir[0]*1.6 + side[0]*1.2, 1.3, R[1] - dir[1]*1.6 + side[1]*1.2], look:[R[0], 1.2, R[1]],
@@ -5190,6 +5216,7 @@ window.TSH = (function(){
     window.addEventListener('mousedown', b.onDown);
     brawlHud('');
     talk('robinPunch');
+    fmAim(FIGHTM.drop2, 0, [FIGHTM.drop2, FIGHTM.drop2 + FIGHTM.bar*4]);
   }
   function brawlHud(msg){ const b = BRAWL.s; if(!b) return;
     brawlUI((msg ? '<div>' + msg + '</div>' : '') + '<div style="font-size:18px;opacity:.85">' + '♥'.repeat(Math.max(0, b.hp)) + '<span style="opacity:.25">' + '♥'.repeat(3 - Math.max(0, b.hp)) + '</span> &nbsp; ' + '✊'.repeat(b.hits) + '</div>'); }
@@ -5231,6 +5258,7 @@ window.TSH = (function(){
     // it has had enough of her
     if((b.hits >= 2 || b.hp <= 0 || b.all > 35) && (b.st === 'wait' || b.st === 'landed' && b.t > 0.6)){
       window.removeEventListener('mousedown', b.onDown); brawlUI(''); aftWatch = null; BRAWL.s = null; if(window.AVATAR) AVATAR.posture(null);
+      fmAim(FIGHTM.drop3, 2.3, [FIGHTM.drop3, FIGHTM.end]);
       const done_ = b.done; done_(); }
   }
   /* it comes after her: slow, enormous, reaching */
@@ -5260,7 +5288,7 @@ window.TSH = (function(){
       fade(()=>{ tunnelsGone(); outOfSub(); streetScene(); }); }), { ownClock:true });
   }
   function tunnelsGone(){
-    if(alphaFx){ alphaFx.remove(); alphaFx = null; } if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; }
+    if(alphaFx){ alphaFx.remove(); alphaFx = null; } if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } fmStop(1.5);
     haywire(0); windOff(); dutch = 0; if(gizmo) gizmo.visible = false;
     if(W && W.sub) W.sub.lights.forEach(l=>{ if(l.mul0 !== undefined){ l.mul = l.mul0; delete l.mul0; } });
   }
@@ -5393,7 +5421,7 @@ window.TSH = (function(){
       { dur:linesLen('chaseLost') + 0.8, fov:C.her.fov, cam:C.her.cam, look:C.her.look, mood:'shocked', enter:()=>{ dutch = 0; talk('chaseLost'); stage('idle', at[0], y0, at[1], ry); } }
     ];
     playReel(shots, aftDone(()=>{ reel = null; dutch = 0;
-      if(mon){ mon.dispose(); mon = null; } haywire(0); windOff(); storm(0); hunt = null; stn.visible = true;
+      if(mon){ mon.dispose(); mon = null; } fmStop(3); haywire(0); windOff(); storm(0); hunt = null; stn.visible = true;
       S.flags.tun = 0; save();
       aloneOnTheRoof(at, y0); }), { ownClock:true });
   }
