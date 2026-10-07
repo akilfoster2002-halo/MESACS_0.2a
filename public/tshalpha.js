@@ -122,34 +122,46 @@ window.TSHALPHA = (function(){
 
        const m = TSHMONSTER.make(group, [x, 0, z], yaw);  m.grow = 0..1;  m.tick(dt);  m.mouth (world point);  m.reach(at)
      ===================================================================== */
-  /* THE BODY IT COMES UP IN: two animals' worth of rig under Alpha's black. A spider underneath — it is the legs,
-     it crawls (tsh/monster/spider.glb: walk, run, attack) — and the front of a tyrannosaur on top of it — the jaws,
-     the neck, the tail (tsh/monster/trex.glb: idle, bite, roar, attack_tail), its own legs folded away into the
-     spider. Loaded once; each monster gets its own copy of both, and its own mixers. */
+  /* THE BODY IT COMES UP IN: the goose (tsh/monster/goose.glb, rigged from animations/mia/goose) — and nothing of
+     its movement is its own. Two other animals move it from inside. A spider (tsh/monster/spider.glb: walk, run,
+     attack) crawls, and its legs work the goose's blade arms and kneeling legs; a tyrannosaur (tsh/monster/trex.glb:
+     idle, bite, roar, attack_tail) works its spine, neck and head. Neither is drawn: each plays out of sight, and
+     every frame each goose bone turns (in the monster's own frame) by as much as its bone has turned since the
+     first frame of its idle — so the goose crawls like the one and bites like the other, from its own kneel. */
   const loads = {};
   function glb(name){
     if(loads[name]) return loads[name];
     return loads[name] = new Promise(ok=>{
       if(!THREE.GLTFLoader) return ok(null);
       const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
-      L.load('tsh/monster/' + name + '.glb?v=2', g=>ok(g), undefined, ()=>ok(null));
+      L.load('tsh/monster/' + name + '.glb?v=3', g=>ok(g), undefined, ()=>ok(null));
     });
   }
-  const preload = () => Promise.all([glb('spider'), glb('trex')]);
+  const preload = () => Promise.all([glb('goose'), glb('spider'), glb('trex')]);
   function cloneSkinned(src){
     if(THREE.SkeletonUtils && THREE.SkeletonUtils.clone) return THREE.SkeletonUtils.clone(src);
     const map = new Map(), copy = src.clone(true);
     const a = [], b = []; src.traverse(o=>a.push(o)); copy.traverse(o=>b.push(o)); a.forEach((o, i)=>map.set(o, b[i]));
-    b.forEach((o, i)=>{ if(o.isSkinnedMesh){ const so = a[i]; o.bind(new THREE.Skeleton(so.skeleton.bones.map(bn=>map.get(bn)), so.skeleton.boneInverses), so.bindMatrix); } });
+    b.forEach((o, i)=>{ if(o.isSkinnedMesh){ o.bind(new THREE.Skeleton(a[i].skeleton.bones.map(bn=>map.get(bn)), a[i].skeleton.boneInverses), a[i].bindMatrix); } });
     return copy;
   }
-  /* how big each is, and where the tyrannosaur sits on the spider (metres, the monster's own frame: +z is its front) */
-  const SPIDER = { scale:2.1, yaw:Math.PI }, TREX = { scale:0.62, yaw:0, at:[0, 0.35, -0.4] };
+  /* goose bone ← [rig, its bone, how much of its turn]; parents before children. (The loader takes the dots out.) */
+  const MAP = [
+    ['Hips',       'sp', 'Bone004',      0.6],
+    ['Spine',      'tx', 'bn_Spine15',   1.0],
+    ['Chest',      'tx', 'bn_Spine26',   1.1],
+    ['Neck',       'tx', 'bn_Neck18',    1.2],
+    ['Head',       'tx', 'bn_Head10',    1.3],
+    ['Shoulder.L', 'sp', 'Bone002_L002', 0.8], ['UpperArm.L', 'sp', 'Bone002_L003', 1.2], ['Forearm.L', 'sp', 'Bone002_L005', 1.2],
+    ['Shoulder.R', 'sp', 'Bone002_R002', 0.8], ['UpperArm.R', 'sp', 'Bone002_R003', 1.2], ['Forearm.R', 'sp', 'Bone002_R005', 1.2],
+    ['Thigh.L',    'sp', 'Bone_L003',    1.0], ['Shin.L',     'sp', 'Bone_L004',    1.0], ['Foot.L',    'sp', 'Bone_L005',    1.0],
+    ['Thigh.R',    'sp', 'Bone_R003',    1.0], ['Shin.R',     'sp', 'Bone_R004',    1.0], ['Foot.R',    'sp', 'Bone_R005',    1.0]
+  ];
   function monster(group, at, yaw){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
     const body = new THREE.Group(); root.add(body);
     const U = { uT:{ value:0 }, uAmp:{ value:0.05 } };
-    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), Zv = new THREE.Vector3(0, 0, 1);
+    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), Q2 = new THREE.Quaternion(), Q3 = new THREE.Quaternion(), QI = new THREE.Quaternion(), V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1);
     /* ITS SKIN: Alpha's black — glossy, wet, alive: the surface crawls, pale lights open and shut in it, and torn
        streaks of colour flicker down it */
     const skin = new THREE.MeshStandardMaterial({ color:0x030305, roughness:0.07, metalness:0.4 });
@@ -171,44 +183,50 @@ window.TSHALPHA = (function(){
             float which = aHash(floor(vec3(vSP.x*38.0, uT*3.0, vSP.z*38.0)));
             totalEmissiveRadiance += (which < 0.4 ? vec3(2.2, 0.15, 1.4) : which < 0.75 ? vec3(0.1, 1.8, 2.2) : vec3(2.4, 0.8, 0.1))*st;
           }`); };
-    skin.customProgramCacheKey = () => 'tshchimera';
+    skin.customProgramCacheKey = () => 'tshgoose2';
     /* THE RIGS */
-    const R = { ready:false, sp:null, tx:null, spMix:null, txMix:null, sa:{}, ta:{}, spNow:null, txNow:null, bones:{}, txLegs:[], act:null, actT:0, bit:false };
+    const R = { ready:false, gb:{}, sb:{}, tb:{}, spMix:null, txMix:null, sa:{}, ta:{}, spNow:null, txNow:null, act:null, actT:0, bit:false, ref:{} };
     const play = (mix, acts, now, name, fade, once) => { const n = acts[name]; if(!n) return now; if(now === n && !once) return now;
       n.reset(); n.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat); n.clampWhenFinished = !!once; n.enabled = true; n.setEffectiveWeight(1); n.play();
       if(now && now !== n) now.crossFadeTo(n, fade || 0.25, false); return n; };
-    preload().then(([sg, tg])=>{
-      if(!sg || !tg || !root.parent) return;
+    const rootQ = new THREE.Quaternion();
+    const rel = (o, out) => { o.getWorldQuaternion(out); return out.premultiply(Q3.copy(rootQ).invert()); };   // a bone's turn in the monster's own frame
+    preload().then(([gg, sg, tg])=>{
+      if(!gg || !sg || !tg || !root.parent) return;
+      const go = cloneSkinned(gg.scene); body.add(go);
+      go.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } if(o.isBone) R.gb[o.name] = o; });
+      // the two that move it: in the monster's frame, facing the way it faces, never drawn
       const sp = cloneSkinned(sg.scene), tx = cloneSkinned(tg.scene);
-      sp.scale.setScalar(SPIDER.scale); sp.rotation.y = SPIDER.yaw; body.add(sp);
-      tx.scale.setScalar(TREX.scale); tx.rotation.y = TREX.yaw; tx.position.set(...TREX.at); body.add(tx);
-      [sp, tx].forEach(g=>g.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
-        if(o.isBone) R.bones[o.name] = o; }));
-      R.txLegs = ['bn_LeftUpLeg.45', 'bn_RightUpLeg.56'].map(n=>R.bones[n.replace('.', '')]).filter(Boolean);
+      [sp, tx].forEach(g=>{ g.traverse(o=>{ if(o.isMesh) o.visible = false; }); body.add(g); });
+      sp.traverse(o=>{ if(o.isBone) R.sb[o.name] = o; }); tx.traverse(o=>{ if(o.isBone) R.tb[o.name] = o; });
       R.spMix = new THREE.AnimationMixer(sp); R.txMix = new THREE.AnimationMixer(tx);
       sg.animations.forEach(c=>{ R.sa[c.name.replace(/^.*\|/, '')] = R.spMix.clipAction(c); });
       tg.animations.forEach(c=>{ R.ta[c.name] = R.txMix.clipAction(c); });
-      R.spNow = play(R.spMix, R.sa, null, 'walk tight'); R.txNow = play(R.txMix, R.ta, null, 'idle');
+      // the reference: each animal at the first frame of its idle, the goose at rest
+      R.spNow = play(R.spMix, R.sa, null, 'walk'); R.txNow = play(R.txMix, R.ta, null, 'idle');
+      R.spMix.update(0); R.txMix.update(0); root.updateMatrixWorld(true); root.getWorldQuaternion(rootQ);
+      MAP.forEach(([g, w, s_])=>{ const src = (w === 'sp' ? R.sb : R.tb)[s_], dst = R.gb[g]; if(!src || !dst) return;
+        R.ref[g] = { src, dst, s:rel(src, new THREE.Quaternion()), d:rel(dst, new THREE.Quaternion()), rest:dst.quaternion.clone() }; });
+      R.spNow = play(R.spMix, R.sa, R.spNow, 'walk tight');
       R.txMix.addEventListener('finished', ()=>{ R.act = null; R.txNow = play(R.txMix, R.ta, R.txNow, 'idle', 0.35); });
-      R.sp = sp; R.tx = tx; R.ready = true;
+      R.ready = true;
     });
-    const B = name => R.bones[name.replace('.', '')];      // the loader takes the dots out of bone names
-    /* ITS FACE: a white light where the eyes should be, scribbled over; the hole in its jaws when it pulls */
-    const head = new THREE.Group(); head.position.set(0, 3.6, 2.2); body.add(head);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0, 0.25, 0.2); head.add(eye);
+    const G_ = name => R.gb[name];
+    /* ITS FACE: a white light where the eyes should be, scribbled over; the hole when it pulls */
+    const head = new THREE.Group(); head.position.set(0, 4.7, 0.25); body.add(head);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0, 0.12, 0.3); head.add(eye);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), color:0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); halo.scale.setScalar(0.9); eye.add(halo);
     const scr = [0, 1, 2, 3, 4].map(()=>scribbleTex());
     const scribble = (parent, sz) => { const m = new THREE.SpriteMaterial({ map:scr[0], color:new THREE.Color(1.6, 1.6, 1.7), transparent:true, depthWrite:false });
       const sp = new THREE.Sprite(m); sp.scale.setScalar(sz); sp.userData.k = Math.random()*5; parent.add(sp); return sp; };
-    const scribs = [scribble(head, 1.3)]; scribs[0].position.set(0, 0.3, 0.25);
-    const bodyScr = [['bn_LeftChest.43', 0.9], ['bn_RightChest.44', 0.9], ['bn_Spine1.5', 0.8]].map(([bn, sz])=>{ const s_ = scribble(body, sz); s_.userData.bone = bn; return s_; });
-    // lit in the colours it is full of, from both sides
+    const scribs = [scribble(head, 0.9)]; scribs[0].position.set(0, 0.1, 0.36);
+    const bodyScr = [['Chest', 0.6, [-0.24, 0, 0.42]], ['Chest', 0.6, [0.26, 0.02, 0.42]], ['Spine', 0.5, [0.05, -0.2, 0.3]]].map(([bn, sz, off])=>{ const s_ = scribble(body, sz); s_.userData.bone = bn; s_.userData.off = new THREE.Vector3(...off); return s_; });
     const rims = [[0xff2aa8, -4.5, 3.6, 3.4], [0x22e8ff, 4.5, 3.0, 2.8], [0xb06aff, 0, 7, -2.5]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
-    const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, 0.2, 0.4); spot.castShadow = true;
+    const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, 0.0, 0.45); spot.castShadow = true;
     spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0004; spot.shadow.camera.near = 0.5; spot.shadow.camera.far = 40;
     const aim = new THREE.Object3D(); aim.position.set(0, -4.2, 11); head.add(aim); spot.target = aim; head.add(spot);
     const strobe = new THREE.PointLight(0xffffff, 0, 30, 1.2); strobe.position.set(0, 0, 0.4); head.add(strobe);
-    const vortex = new THREE.Group(); vortex.position.set(0, -0.1, 0.5); vortex.scale.setScalar(0.5); head.add(vortex);
+    const vortex = new THREE.Group(); vortex.position.set(0, -0.2, 0.42); vortex.scale.setScalar(0.42); head.add(vortex);
     const swirl = new THREE.ShaderMaterial({ uniforms:{ uT:U.uT, uPull:{ value:1 } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
       vertexShader:'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }',
       fragmentShader:`varying vec2 vP; uniform float uT, uPull;
@@ -224,56 +242,65 @@ window.TSHALPHA = (function(){
     for(let i = 0; i < NP; i++){ pst.push({ r:1 + Math.random()*9, a:Math.random()*7, z:Math.random()*8 }); const c = new THREE.Color().setHSL(Math.random(), 1, 0.6); pc[i*3] = c.r*2; pc[i*3 + 1] = c.g*2; pc[i*3 + 2] = c.b*2; }
     pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size:0.09, vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); vortex.add(pts);
-    /* THE LINES, AS STATIC: strands of black thrown off it — but not held. They start a hand's width off the body,
-       break into pieces that wink in and out, jitter like a bad signal, and now and then the whole strand jumps */
-    const ANCH = ['bn_Spine2.6', 'bn_Spine1.5', 'bn_Neck1.8', 'bn_Head.10', 'bn_Tail02.68', 'bn_Tail04.70', 'bn_Tail06.72', 'bn_LeftArm.28', 'bn_RightArm.36', 'bn_LeftChest.43', 'bn_RightChest.44', 'bn_Spine.4'];
-    const NL = 150, NPt = 20, strands = [];
+    /* THE LINES, AS STATIC: strands of black thrown off it but not held — they start off the body, wink in and out in
+       pieces, jitter, jump. Mostly off its back, its head and its limbs, so its front stays readable */
+    const ANCH = ['Head', 'Neck', 'Chest', 'Hips', 'Forearm.L', 'Forearm.R', 'UpperArm.L', 'UpperArm.R', 'Shin.L', 'Shin.R', 'Foot.L', 'Foot.R', 'Spine'];
+    const NL = 130, NPt = 20, strands = [];
     const ink = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color:0x010102 }), NL*NPt);
     ink.frustumCulled = false; ink.count = 0; body.add(ink);
     for(let i = 0; i < NL; i++){ const th = Math.random()*Math.PI*2, ph = (Math.random() - 0.3)*Math.PI*0.9;
-      strands.push({ th:0.012 + Math.random()*0.035, bone:ANCH[i % ANCH.length], dir:new THREE.Vector3(Math.cos(th)*Math.cos(ph), Math.sin(ph) + 0.25, Math.sin(th)*Math.cos(ph)).normalize(),
-        len:2 + Math.random()*7, curl:2 + Math.random()*6, w:0.15 + Math.random()*0.6, sp:0.6 + Math.random()*2.2, ph:Math.random()*20, gap:0.15 + Math.random()*0.5, jump:new THREE.Vector3() }); }
+      const d = new THREE.Vector3(Math.cos(th)*Math.cos(ph), Math.sin(ph) + 0.25, Math.sin(th)*Math.cos(ph)); if(d.z > 0.3) d.z *= -0.6;    // not across its front
+      strands.push({ th:0.012 + Math.random()*0.03, bone:ANCH[i % ANCH.length], dir:d.normalize(),
+        len:2 + Math.random()*6, curl:2 + Math.random()*6, w:0.15 + Math.random()*0.6, sp:0.6 + Math.random()*2.2, ph:Math.random()*20, gap:0.2 + Math.random()*0.5, jump:new THREE.Vector3() }); }
     const UPv = new THREE.Vector3(0, 1, 0), SEG = new THREE.Vector3(), MID = new THREE.Vector3(), P0 = new THREE.Vector3(), AV = new THREE.Vector3(), PV = new THREE.Vector3(), SA = new THREE.Vector3(), SB = new THREE.Vector3();
-    /* THE SWARM: a thick churn of darkness around all of it — black flakes by the thousand, and dark smoke — boiling
-       round its spine and its head and its legs, so the shape of it is never quite clean */
-    const NF = 2600, flakes = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color:0x000000 }), NF);
+    /* THE SWARM: black flakes boiling off its limbs, its head and its back — thin round its middle, so the shape of
+       it shows — and a little dark smoke trailing off its edges */
+    const FANCH = ['Forearm.L', 'Forearm.R', 'UpperArm.L', 'UpperArm.R', 'Shin.L', 'Shin.R', 'Foot.L', 'Foot.R', 'Head', 'Neck', 'Hips', 'Chest'];
+    const NF = 1500, flakes = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color:0x000000 }), NF);
     flakes.frustumCulled = false; body.add(flakes);
-    const FL = []; const FANCH = ['bn_Spine2.6', 'bn_Spine1.5', 'bn_Spine.4', 'bn_Neck1.8', 'bn_Head.10', 'bn_Tail02.68', 'bn_Tail05.71', 'bn_LeftChest.43', 'bn_RightChest.44', null, null, null];
-    for(let i = 0; i < NF; i++) FL.push({ bone:FANCH[i % FANCH.length], r:0.15 + Math.pow(Math.random(), 2.2)*1.9, a:Math.random()*7, b:Math.random()*7, sp:(0.4 + Math.random()*1.6)*(Math.random() < 0.5 ? -1 : 1), s:0.02 + Math.random()*0.07, y:(Math.random() - 0.5)*2 });
+    const FL = []; for(let i = 0; i < NF; i++){ const bn = FANCH[i % FANCH.length], torso = bn === 'Chest' || bn === 'Hips';
+      FL.push({ bone:bn, r:(torso ? 0.5 : 0.12) + Math.pow(Math.random(), 2.2)*(torso ? 0.9 : 1.1), a:Math.random()*7, b:Math.random()*7, sp:(0.4 + Math.random()*1.6)*(Math.random() < 0.5 ? -1 : 1), s:0.015 + Math.random()*0.05, y:(Math.random() - 0.5)*1.2, back:torso }); }
     const smokeTex = (()=>{ const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
       g.addColorStop(0, 'rgba(0,0,0,0.85)'); g.addColorStop(0.6, 'rgba(0,0,0,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-    const NS = 55, smoke = [];
-    for(let i = 0; i < NS; i++){ const sm = new THREE.Sprite(new THREE.SpriteMaterial({ map:smokeTex, transparent:true, depthWrite:false, opacity:0.32 }));
-      sm.userData = { bone:FANCH[i % FANCH.length], a:Math.random()*7, r:0.3 + Math.random()*1.0, sp:0.2 + Math.random()*0.6, y:(Math.random() - 0.5)*1.2, s:0.9 + Math.random()*1.5 }; body.add(sm); smoke.push(sm); }
-    const anchorAt = (name, out) => { const b = name && B(name); if(b){ b.getWorldPosition(out); body.worldToLocal(out); } else out.set(0, 1.6, 0); return out; };
+    const smoke = []; ['Forearm.L', 'Forearm.R', 'Shin.L', 'Shin.R', 'Head', 'Hips'].forEach(bn=>{ for(let i = 0; i < 5; i++){
+      const sm = new THREE.Sprite(new THREE.SpriteMaterial({ map:smokeTex, transparent:true, depthWrite:false, opacity:0.22 }));
+      sm.userData = { bone:bn, a:Math.random()*7, r:0.3 + Math.random()*0.7, sp:0.2 + Math.random()*0.6, y:(Math.random() - 0.3)*0.8, s:0.7 + Math.random()*1.0 }; body.add(sm); smoke.push(sm); } });
+    const anchorAt = (name, out) => { const b = name && G_(name); if(b){ b.getWorldPosition(out); body.worldToLocal(out); } else out.set(0, 2.5, 0); return out; };
     const lastPos = new THREE.Vector3(at[0], 0, at[2]); let speed = 0;
+    /* the retarget: parents first, each goose bone set so that in the monster's frame it has turned as its source has */
+    function drive(){
+      root.updateMatrixWorld(true); root.getWorldQuaternion(rootQ);
+      MAP.forEach(([g, w, s_, k])=>{ const r = R.ref[g]; if(!r) return;
+        rel(r.src, Q);                                    // the source now
+        Q.multiply(Q2.copy(r.s).invert());                // its turn since the reference
+        if(k !== 1){ Q2.copy(QI).slerp(Q, Math.min(1, k)); if(k > 1) Q2.multiply(Q3.copy(QI).slerp(Q, k - 1)); Q.copy(Q2); }
+        Q.multiply(r.d);                                  // onto the goose bone's own resting turn
+        const par = r.dst.parent; rel(par, Q2);           // and into its parent's frame
+        r.dst.quaternion.copy(Q2.invert().multiply(Q));
+        r.dst.updateMatrixWorld(true); });
+    }
     const M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
-      /* the big moves: 'roar', 'bite', 'tail' — the tyrannosaur does it, the spider rears with it */
       act(name){ if(!R.ready) return; const clip = { roar:'roar', bite:'bite', tail:'attack_tail' }[name]; if(!clip) return;
         R.act = name; R.actT = 0; R.bit = false; R.txNow = play(R.txMix, R.ta, R.txNow, clip, 0.15, true);
-        if(name !== 'roar'){ const a = R.sa.attack; if(a){ a.reset(); a.setLoop(THREE.LoopOnce); a.clampWhenFinished = false; a.setEffectiveWeight(1); a.play(); if(R.spNow) R.spNow.crossFadeTo(a, 0.12, false);
-          setTimeout(()=>{ if(R.spNow){ R.spNow.reset(); R.spNow.play(); a.crossFadeTo(R.spNow, 0.3, false); } }, 1100); } } },
-      /* at a point in the world: it lunges and bites at it (or swings its tail, if it is behind) */
+        if(name !== 'roar'){ const a = R.sa.attack; if(a){ const was = R.spNow; R.spNow = play(R.spMix, R.sa, R.spNow, 'attack', 0.12, true);
+          setTimeout(()=>{ if(R.spNow === a && was){ R.spNow = play(R.spMix, R.sa, a, was === a ? 'walk tight' : (was.getClip().name.replace(/^.*\|/, '')), 0.3); } }, 1100); } } },
       reach(at_){ const w = root.worldToLocal(at_.clone()); M.act(w.z < -1 ? 'tail' : 'bite'); },
       tick(dt){
         M.t += dt; U.uT.value = M.t;
         const g = M.grow, e = g*g*(3 - 2*g);
         body.scale.setScalar(Math.max(0.001, e));
-        // how fast it is going: the spider walks, or runs, or crawls in place
         V1.copy(root.position); speed += ((V1.distanceTo(lastPos)/Math.max(dt, 1e-3)) - speed)*Math.min(1, dt*6); lastPos.copy(V1);
         if(R.ready){
           const want = speed > 4.5 ? 'run' : speed > 0.6 ? 'large walk' : 'walk tight';
           if(R.sa[want] && R.spNow !== R.sa[want] && R.spNow !== R.sa.attack) R.spNow = play(R.spMix, R.sa, R.spNow, want, 0.3);
-          if(R.spNow) R.spNow.timeScale = speed > 0.6 ? Math.min(2.2, 0.6 + speed*0.25) : 0.35 + M.pull*0.4;
-          R.spMix.update(dt); R.txMix.update(dt*(R.act ? 1.15 : 1));
-          R.txLegs.forEach(b=>b.scale.setScalar(0.001));
-          // the bite lands: shake, and whoever is listening hears it hit
-          if(R.act === 'bite' || R.act === 'tail'){ R.actT += dt; if(!R.bit && R.actT > (R.act === 'bite' ? 0.55 : 0.7)){ R.bit = true; if(M.onSlam) M.onSlam(root.localToWorld(V2.set(0, 0, 3))); } }
+          if(R.spNow && R.spNow !== R.sa.attack) R.spNow.timeScale = speed > 0.6 ? Math.min(2.2, 0.6 + speed*0.25) : 0.5 + M.pull*0.4;
+          R.spMix.update(dt); R.txMix.update(dt*(R.act ? 1.2 : 1));
+          drive();
+          if(R.act === 'bite' || R.act === 'tail'){ R.actT += dt; if(!R.bit && R.actT > (R.act === 'bite' ? 0.55 : 0.7)){ R.bit = true; if(M.onSlam) M.onSlam(root.localToWorld(V2.set(0, 0, 2))); } }
           // it jerks: a bone snaps somewhere else for a frame
-          if(Math.random() < 0.08){ const ks = Object.keys(R.bones), b = R.bones[ks[(Math.random()*ks.length)|0]];
-            if(b && b.scale.x > 0.01) b.quaternion.multiply(Q.setFromEuler(new THREE.Euler((Math.random() - 0.5)*0.6, (Math.random() - 0.5)*0.6, (Math.random() - 0.5)*0.6))); }
-          // the face rides its head
-          const hb = B('bn_Head.10'); if(hb){ hb.getWorldPosition(V1); body.worldToLocal(V1); head.position.copy(V1).add(V2.set(0, 0.25, 0.45)); }
+          if(Math.random() < 0.07){ const ks = Object.keys(R.gb), b = R.gb[ks[(Math.random()*ks.length)|0]];
+            if(b) b.quaternion.multiply(Q.setFromEuler(new THREE.Euler((Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5))); }
+          const hb = G_('Head'); if(hb){ hb.getWorldPosition(V1); body.worldToLocal(V1); head.position.copy(V1).add(V2.set(0, 0.22, 0.05)); }
           // the static
           let si = 0;
           strands.forEach(st=>{ anchorAt(st.bone, AV);
@@ -288,17 +315,16 @@ window.TSHALPHA = (function(){
                 M4.compose(MID, Q, S1.set(w, len, w)); ink.setMatrixAt(si++, M4); }
               P0.copy(PV); } });
           ink.count = si; ink.instanceMatrix.needsUpdate = true;
-          // the swarm
           FL.forEach((f, i)=>{ anchorAt(f.bone, AV); f.a += dt*f.sp*(1 + M.pull); f.b += dt*f.sp*0.7;
             const r = f.r*(1 + 0.25*Math.sin(M.t*2 + i));
-            V1.set(AV.x + Math.cos(f.a)*Math.cos(f.b)*r, AV.y + f.y*0.6 + Math.sin(f.b)*r*0.6, AV.z + Math.sin(f.a)*Math.cos(f.b)*r);
+            V1.set(AV.x + Math.cos(f.a)*Math.cos(f.b)*r, AV.y + f.y*0.5 + Math.sin(f.b)*r*0.6, AV.z + Math.sin(f.a)*Math.cos(f.b)*r);
+            if(f.back && V1.z > AV.z) V1.z = AV.z - (V1.z - AV.z);     // round its middle, only behind it
             Q.setFromEuler(new THREE.Euler(f.a*3, f.b*2, 0)); const sc = f.s*(Math.random() < 0.04 ? 2.5 : 1);
             M4.compose(V1, Q, S1.set(sc, sc*1.6, sc)); flakes.setMatrixAt(i, M4); });
           flakes.instanceMatrix.needsUpdate = true;
           smoke.forEach(sm=>{ const d = sm.userData; anchorAt(d.bone, AV); d.a += dt*d.sp;
-            sm.position.set(AV.x + Math.cos(d.a)*d.r, AV.y + d.y + Math.sin(M.t*0.7 + d.a)*0.3, AV.z + Math.sin(d.a)*d.r); sm.scale.setScalar(d.s*(0.9 + 0.2*Math.sin(M.t + d.a))); });
-          // the scribbles boil
-          bodyScr.forEach(sp=>anchorAt(sp.userData.bone, sp.position));
+            sm.position.set(AV.x + Math.cos(d.a)*d.r, AV.y + d.y + Math.sin(M.t*0.7 + d.a)*0.3, AV.z - Math.abs(Math.sin(d.a))*d.r); sm.scale.setScalar(d.s*(0.9 + 0.2*Math.sin(M.t + d.a))); });
+          bodyScr.forEach(sp=>{ anchorAt(sp.userData.bone, sp.position); sp.position.add(sp.userData.off); });
           scribs.concat(bodyScr).forEach((sp, i)=>{ sp.userData.k += dt*9; sp.material.map = scr[(sp.userData.k|0) % scr.length]; sp.material.rotation = Math.sin(M.t*0.5 + i)*0.4; });
         }
         U.uAmp.value = 0.045 + 0.025*Math.sin(M.t*0.7) + M.pull*0.02;
