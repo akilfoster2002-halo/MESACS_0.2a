@@ -1379,7 +1379,8 @@ window.TSH = (function(){
   }
   /* MONSTER FIGHT (music/sound effects/monster fight.mp3, 80.75 bpm), under the whole of the monster, laid so its
      three drops fall on the three worst moments:
-       0:17.4  the first drop — as it comes up out of Maya (the quiet before it is the gizmo and her twitching);
+       0:00    in as Canon steps in front of her; its low opening (three bars of it, round and round) under both fights;
+       0:17.4  the first drop — as it comes up out of Maya (the build before it is the gizmo and her twitching);
        2:05.4  the second — as the fight is hers (it builds under "Give him back"); four bars of it loop while she fights;
        2:22    the breakdown, as it swats her across the platform and she gets up — and
        2:30.5  the biggest drop, as she runs; the rest of the song is the ladder and the street. */
@@ -4812,6 +4813,7 @@ window.TSH = (function(){
     flushTalk();
     const sp = TS(), c = canonNpc(), kai = crewTag('kai'), R = sp.meetR, K = sp.kai;
     const ryR = angTo(R[0], R[1], K[0], K[1]);
+    fmAim(0, 0, [6.9, 6.9 + FIGHTM.bar*3]);                 // the song comes in as Canon steps up, and its low opening waits under both fights
     // between them: a step in front of her, toward Kai
     const C = [R[0] + Math.sin(ryR)*0.9, R[1] + Math.cos(ryR)*0.9], Kc = [C[0] + Math.sin(ryR)*1.2, C[1] + Math.cos(ryR)*1.2];
     const ryC = angTo(C[0], C[1], K[0], K[1]);
