@@ -4904,7 +4904,8 @@ window.TSH = (function(){
     fx.contrast = Math.min(1, 0.45 + k*0.6); fx.vig = 0.55 + k*0.75;
     if(subWas && inSub){ G.amb.intensity = subWas.amb*0.3*(1 - 0.9*k); G.hemi.intensity = subWas.hemi*0.25*(1 - 0.9*k); }
     fx.comic = Math.min(1, 0.4 + k*0.8);
-    fx.glitch = k*(0.04 + (Math.random() < 0.025 ? 0.45 : 0));
+    const tear = Math.random() < 0.025; fx.glitch = k*(0.04 + (tear ? 0.45 : 0));
+    hay.gT = (hay.gT || 0) - dt; if(tear && k > 0.3 && hay.gT <= 0){ hay.gT = 1.5; cue('glitch'); }
     fx.ca = k*0.03*(1.2 + Math.sin(hay.t*13));
     fx.hue = k*Math.sin(hay.t*0.6)*1.0;                              // the colour turns, slowly, all the way round and back
     if(Math.random() < 0.06*k){ fx.flash = 0.3*k; fx.flashCol.copy(hueVec(Math.random(), 1, 0.6)); }
@@ -5005,7 +5006,7 @@ window.TSH = (function(){
   function alphaScene(){
     flushTalk();
     if(TSHFIGHT.on) TSHFIGHT.stop();
-    tunFightEnd(); mark('alpha');
+    tunFightEnd(); mark('alpha'); cue('glitch');
     const maya = crewTag('maya'), p = P(), R = [p.x, p.z];
     const M = maya ? [maya.x, maya.z] : TS().maya, ry = angTo(R[0], R[1], M[0], M[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
     const F = pairAngles(R, M, dir, [-dir[0], -dir[1]], side, 1.62);
@@ -5118,7 +5119,7 @@ window.TSH = (function(){
       { dur:2.0, fov:52, fov2:46, ease:false,
         cam:k=>[R[0] - dir[0]*(1.5 - k*0.4) - side[0]*1.1, 0.6 + k*0.1, R[1] - dir[1]*(1.5 - k*0.4) - side[1]*1.1],
         look:()=>[R[0]*0.2 + M[0]*0.8 + side[0]*0.9, 3.6, R[1]*0.2 + M[1]*0.8 + side[1]*0.9],
-        enter:()=>{ dutch = -0.06; mon.pull = 0.6; roar(); shake(0.45, 2.0); standR(); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*0.5; standR(); if(wind) wind.k = 0.8; } },
+        enter:()=>{ dutch = -0.06; mon.pull = 0.6; roar(); cue('glitch'); shake(0.45, 2.0); standR(); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*0.5; standR(); if(wind) wind.k = 0.8; } },
       /* (2) All the way round it: the whole of it, its blades, its swarm, the hole in its jaws pulling */
       { dur:3.2, fov:58, ease:false,
         cam:k=>{ const a0 = Math.atan2(dir[0], dir[1]) + Math.PI, a = a0 + k*Math.PI*2, rr = 7.8 - Math.sin(k*Math.PI)*0.9;

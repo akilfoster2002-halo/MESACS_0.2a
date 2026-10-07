@@ -23,6 +23,7 @@ window.TSHSFX = {
     fail: ['fail-0.mp3', 'fail-1.mp3', 'fail-2.mp3'],
     flash: ['flash-0.mp3', 'flash-1.mp3', 'flash-2.mp3'],
     gear: ['gear-0.mp3', 'gear-1.mp3', 'gear-2.mp3'],
+    glitch: ['glitch-0.mp3', 'glitch-1.mp3'],
     grab: ['grab-0.mp3', 'grab-1.mp3', 'grab-2.mp3'],
     hangup: ['hangup-0.mp3', 'hangup-1.mp3'],
     hurt: ['hurt-0.mp3', 'hurt-1.mp3', 'hurt-2.mp3', 'hurt-3.mp3'],
@@ -35,5 +36,5 @@ window.TSHSFX = {
     ui: ['ui-0.mp3', 'ui-1.mp3', 'ui-2.mp3'],
     win: ['win-0.mp3', 'win-1.mp3', 'win-2.mp3']
   },
-  vol: { blast:0.9, boom:1.0, clang:0.7, door:0.6, fail:0.5, flash:0.6, gear:0.5, grab:0.5, hangup:0.5, hurt:0.9, kick:0.8, launch:0.6, lock:0.35, pick:0.5, punch:0.9, step:0.35, ui:0.4, win:0.5 }
+  vol: { blast:0.9, boom:1.0, clang:0.7, door:0.6, fail:0.5, flash:0.6, gear:0.5, glitch:0.7, grab:0.5, hangup:0.5, hurt:0.9, kick:0.8, launch:0.6, lock:0.35, pick:0.5, punch:0.9, step:0.35, ui:0.4, win:0.5 }
 };
