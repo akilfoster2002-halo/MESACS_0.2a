@@ -137,7 +137,7 @@ window.TSHALPHA = (function(){
       L.load('tsh/monster/' + name + '.glb?v=3', g=>ok(g), undefined, ()=>ok(null));
     });
   }
-  const preload = () => Promise.all([glb('goose'), glb('spider'), glb('trex')]);
+  const preload = () => Promise.all([glb('goose'), glb('spider'), glb('trexhead')]);
   function cloneSkinned(src){
     if(THREE.SkeletonUtils && THREE.SkeletonUtils.clone) return THREE.SkeletonUtils.clone(src);
     const map = new Map(), copy = src.clone(true);
@@ -197,7 +197,10 @@ window.TSHALPHA = (function(){
       go.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } if(o.isBone) R.gb[o.name] = o; });
       // the two that move it: in the monster's frame, facing the way it faces, never drawn
       const sp = cloneSkinned(sg.scene), tx = cloneSkinned(tg.scene);
-      [sp, tx].forEach(g=>{ g.traverse(o=>{ if(o.isMesh) o.visible = false; }); body.add(g); });
+      sp.traverse(o=>{ if(o.isMesh) o.visible = false; }); body.add(sp);
+      // the tyrannosaur's head (tsh/monster/trexhead.glb: only its head is left of its mesh) IS drawn — on the goose's neck
+      tx.scale.setScalar(0.45); body.add(tx); R.tx = tx;
+      tx.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.frustumCulled = false; } });
       sp.traverse(o=>{ if(o.isBone) R.sb[o.name] = o; }); tx.traverse(o=>{ if(o.isBone) R.tb[o.name] = o; });
       R.spMix = new THREE.AnimationMixer(sp); R.txMix = new THREE.AnimationMixer(tx);
       sg.animations.forEach(c=>{ R.sa[c.name.replace(/^.*\|/, '')] = R.spMix.clipAction(c); });
@@ -219,7 +222,8 @@ window.TSHALPHA = (function(){
     const scr = [0, 1, 2, 3, 4].map(()=>scribbleTex());
     const scribble = (parent, sz) => { const m = new THREE.SpriteMaterial({ map:scr[0], color:new THREE.Color(1.6, 1.6, 1.7), transparent:true, depthWrite:false });
       const sp = new THREE.Sprite(m); sp.scale.setScalar(sz); sp.userData.k = Math.random()*5; parent.add(sp); return sp; };
-    const scribs = [scribble(head, 0.9)]; scribs[0].position.set(0, 0.1, 0.36);
+    const scribs = [];
+    eye.visible = false;
     const bodyScr = [['Chest', 0.6, [-0.24, 0, 0.42]], ['Chest', 0.6, [0.26, 0.02, 0.42]], ['Spine', 0.5, [0.05, -0.2, 0.3]]].map(([bn, sz, off])=>{ const s_ = scribble(body, sz); s_.userData.bone = bn; s_.userData.off = new THREE.Vector3(...off); return s_; });
     const rims = [[0xff2aa8, -4.5, 3.6, 3.4], [0x22e8ff, 4.5, 3.0, 2.8], [0xb06aff, 0, 7, -2.5]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
     const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, 0.0, 0.45); spot.castShadow = true;
@@ -245,7 +249,7 @@ window.TSHALPHA = (function(){
     /* THE LINES, AS STATIC: strands of black thrown off it but not held — they start off the body, wink in and out in
        pieces, jitter, jump. Mostly off its back, its head and its limbs, so its front stays readable */
     const ANCH = ['Head', 'Neck', 'Chest', 'Hips', 'Forearm.L', 'Forearm.R', 'UpperArm.L', 'UpperArm.R', 'Shin.L', 'Shin.R', 'Foot.L', 'Foot.R', 'Spine'];
-    const NL = 130, NPt = 20, strands = [];
+    const NL = 0, NPt = 20, strands = [];                     // (the strands are off for now)
     const ink = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color:0x010102 }), NL*NPt);
     ink.frustumCulled = false; ink.count = 0; body.add(ink);
     for(let i = 0; i < NL; i++){ const th = Math.random()*Math.PI*2, ph = (Math.random() - 0.3)*Math.PI*0.9;
@@ -296,11 +300,17 @@ window.TSHALPHA = (function(){
           if(R.spNow && R.spNow !== R.sa.attack) R.spNow.timeScale = speed > 0.6 ? Math.min(2.2, 0.6 + speed*0.25) : 0.5 + M.pull*0.4;
           R.spMix.update(dt); R.txMix.update(dt*(R.act ? 1.2 : 1));
           drive();
+          // the tyrannosaur's neck set on the goose's: the head goes where the goose's head was
+          const gh = G_('Head'), tn = R.tb.bn_Neck29;
+          if(gh && tn){ gh.getWorldPosition(V1); tn.getWorldPosition(V2); body.worldToLocal(V1); body.worldToLocal(V2); R.tx.position.add(V1.sub(V2)); R.tx.updateMatrixWorld(true);
+            gh.scale.setScalar(0.001); }
           if(R.act === 'bite' || R.act === 'tail'){ R.actT += dt; if(!R.bit && R.actT > (R.act === 'bite' ? 0.55 : 0.7)){ R.bit = true; if(M.onSlam) M.onSlam(root.localToWorld(V2.set(0, 0, 2))); } }
           // it jerks: a bone snaps somewhere else for a frame
           if(Math.random() < 0.07){ const ks = Object.keys(R.gb), b = R.gb[ks[(Math.random()*ks.length)|0]];
             if(b) b.quaternion.multiply(Q.setFromEuler(new THREE.Euler((Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5))); }
-          const hb = G_('Head'); if(hb){ hb.getWorldPosition(V1); body.worldToLocal(V1); head.position.copy(V1).add(V2.set(0, 0.22, 0.05)); }
+          // the face and the hole ride the dinosaur's head: between its skull and its jaw, out at its teeth
+          const th = R.tb.bn_Head10, tj = R.tb.bn_Jaw11;
+          if(th && tj){ th.getWorldPosition(V1); tj.getWorldPosition(V2); body.worldToLocal(V1); body.worldToLocal(V2); head.position.copy(V1).lerp(V2, 0.5).add(V2.set(0, 0, 0.55)); }
           // the static
           let si = 0;
           strands.forEach(st=>{ anchorAt(st.bone, AV);
