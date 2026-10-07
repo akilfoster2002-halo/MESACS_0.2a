@@ -4709,6 +4709,7 @@ window.TSH = (function(){
   }
   function meetFilm(){
     flushTalk(); filmLoad('tsh/film/pull.mp4');                // the monster's filmed shot, loading while they talk
+    if(window.TSHMONSTER && TSHMONSTER.preload) TSHMONSTER.preload();   // and its body
     const sp = TS(), c = canonNpc(), kai = crewTag('kai'), maya = crewTag('maya');
     const R = sp.meetR, C = sp.canon, M = sp.maya, K = sp.kai;
     const ryR = angTo(R[0], R[1], M[0], M[1]);

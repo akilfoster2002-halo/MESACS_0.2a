@@ -110,62 +110,77 @@ window.TSHALPHA = (function(){
 
        const m = TSHMONSTER.make(group, [x, 0, z], yaw);  m.grow = 0..1;  m.tick(dt);  m.mouth (world point);  m.reach(at)
      ===================================================================== */
+  /* THE BODY IT COMES UP IN: the goose (tsh/monster/goose.glb, rigged from animations/mia/goose) — pale, starved,
+     kneeling, with arms that end in long red blades and shins that do too. Loaded once; each monster gets a copy. */
+  let gooseP = null;
+  function goose(){
+    if(gooseP) return gooseP;
+    gooseP = new Promise(ok=>{
+      if(!THREE.GLTFLoader) return ok(null);
+      const L = new THREE.GLTFLoader(); if(window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.load('tsh/monster/goose.glb?v=1', g=>ok(g.scene), undefined, ()=>ok(null));
+    });
+    return gooseP;
+  }
+  function cloneSkinned(src){
+    if(THREE.SkeletonUtils && THREE.SkeletonUtils.clone) return THREE.SkeletonUtils.clone(src);
+    // the scene graph, then each skinned mesh bound to the copy's own bones
+    const map = new Map(), copy = src.clone(true);
+    const a = [], b = []; src.traverse(o=>a.push(o)); copy.traverse(o=>b.push(o)); a.forEach((o, i)=>map.set(o, b[i]));
+    b.forEach((o, i)=>{ if(o.isSkinnedMesh){ const so = a[i]; const bones = so.skeleton.bones.map(bn=>map.get(bn));
+      o.bind(new THREE.Skeleton(bones, so.skeleton.boneInverses), so.bindMatrix); } });
+    return copy;
+  }
   function monster(group, at, yaw){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
     const body = new THREE.Group(); root.add(body);
-    const U = { uT:{ value:0 }, uAmp:{ value:0.3 } };
+    const U = { uT:{ value:0 } };
+    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V1 = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), X = new THREE.Vector3(1, 0, 0), Zv = new THREE.Vector3(0, 0, 1);
+    /* ITS BODY: the goose, kneeling over the platform, its blades on the floor in front of it. Its bones are moved
+       here: it breathes through its spine, its head hunts, and a blade comes up — and slams down */
+    /* ITS SKIN: the goose is only the shape. What covers it is Alpha's black — glossy, wet, alive: the surface
+       crawls (pushed in and out along itself by moving noise) and pale lights open and close in it like eyes */
     const skin = new THREE.MeshStandardMaterial({ color:0x030305, roughness:0.07, metalness:0.4 });
     skin.onBeforeCompile = sh=>{ Object.assign(sh.uniforms, U);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uT; uniform float uAmp;' + NOISE)
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uT; uniform float uAmp;\nvarying vec3 vSP;' + NOISE)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
-          float nn = aNoise(position*1.7 + vec3(0.0, uT*1.1, uT*0.5)) + 0.6*aNoise(position*3.6 - vec3(uT*1.6));
-          transformed += normal*(nn - 0.8)*uAmp;`); };
-    skin.customProgramCacheKey = () => 'tshmonster';
-    const blob = (parent, x, y, z, sx, sy, sz, rx) => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 5), skin); m.position.set(x, y, z); m.scale.set(sx, sy, sz); if(rx) m.rotation.x = rx; m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-    /* ITS BODY: hunched over the platform — hips sunk in the dark, a great chest leaning out toward you, shoulders,
-       a thick neck reaching forward to the head */
-    const lobes = [[0, 1.3, -0.9, 2.0, 1.5, 1.7], [0, 2.5, -0.4, 2.2, 1.6, 1.8], [0, 3.6, 0.3, 2.5, 1.5, 1.9, 0.35], [-2.0, 4.0, 0.2, 1.2, 1.0, 1.1], [2.0, 4.0, 0.2, 1.2, 1.0, 1.1], [0, 4.35, 1.2, 0.9, 0.85, 1.1, 0.5]];
-    lobes.forEach(l=>blob(body, ...l));
-    /* ITS HEAD: long, like a skull pushed forward, a white light for a face (Alpha's), more eyes opening down its
-       sides, and a jaw that drops open on rows of teeth */
-    const head = new THREE.Group(); head.position.set(0, 4.5, 2.0); body.add(head);
-    blob(head, 0, 0.15, 0, 1.0, 0.85, 1.45);
-    blob(head, 0, 0.55, 0.35, 0.95, 0.35, 1.0);                                   // the brow
-    const jaw = new THREE.Group(); jaw.position.set(0, -0.2, -0.7); head.add(jaw);
-    blob(jaw, 0, -0.25, 0.85, 0.85, 0.35, 1.25);
-    const toothM = new THREE.MeshStandardMaterial({ color:0xe9e3d2, roughness:0.35, emissive:0x2a2420 });
-    const NTH = 18, upper = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.32, 6), toothM, NTH), lower = new THREE.InstancedMesh(new THREE.ConeGeometry(0.055, 0.26, 6), toothM, NTH);
-    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V1 = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), E = new THREE.Euler();
-    for(let i = 0; i < NTH; i++){ const a = (i/(NTH - 1) - 0.5)*Math.PI*0.95;
-      E.set(Math.PI, 0, 0); Q.setFromEuler(E); M4.compose(V1.set(Math.sin(a)*0.78, -0.42, 0.55 + Math.cos(a)*0.85), Q, S1); upper.setMatrixAt(i, M4);
-      E.set(0, 0, 0); Q.setFromEuler(E); M4.compose(V1.set(Math.sin(a)*0.7, -0.05, 0.85 + Math.cos(a)*0.75), Q, S1); lower.setMatrixAt(i, M4); }
-    head.add(upper); jaw.add(lower);
-    const throat = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 12), new THREE.MeshBasicMaterial({ color:0x000000 })); throat.position.set(0, -0.35, 0.55); head.add(throat);
-    // the face: one white light, and smaller eyes opening down the sides of its head
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0.32, 0.42, 1.3); head.add(eye);
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), color:0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); halo.scale.setScalar(3.2); eye.add(halo);
-    const smallEyes = [[-0.42, 0.3, 1.1], [0.62, 0.15, 0.9], [-0.66, 0.05, 0.75], [0.7, 0.42, 0.5], [-0.7, 0.45, 0.45]].map(([x, y, z], i)=>{
-      const e = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(3, 3, 3.3) })); e.position.set(x, y, z); e.userData.ph = i*1.7; head.add(e); return e; });
-    /* ITS ARMS: two of them, too long, from its shoulders down to the platform in front of it — claws spread on the
-       floor — and now and then one comes up and slams down */
-    const NS = 18, armM = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 10), skin, NS*2); armM.castShadow = true; body.add(armM);
-    const clawM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.09, 0.7, 6), toothM, 8); clawM.castShadow = true; body.add(clawM);
-    const arms = [-1, 1].map((s, i)=>({ s, sh:new THREE.Vector3(s*2.3, 3.9, 0.4), rest:new THREE.Vector3(s*2.6, 0.2, 3.3), hand:new THREE.Vector3(s*2.6, 0.2, 3.3), t:i*1.3 + 0.8, lift:0, slam:0, reach:null, rk:0 }));
-    // the pale lights in it
-    const NN = 80, nodes = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 8, 6), new THREE.MeshBasicMaterial({ color:new THREE.Color(2.4, 2.5, 2.7) }), NN);
-    const nodeAt = [];
-    for(let i = 0; i < NN; i++){ const L = lobes[i % lobes.length], d = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.3, Math.random()*0.8 + 0.2).normalize();
-      nodeAt.push({ p:new THREE.Vector3(L[0] + d.x*L[3]*0.92, L[1] + d.y*L[4]*0.92, L[2] + d.z*L[5]*0.92), ph:Math.random()*7, s:0.6 + Math.random()*1.2 }); }
-    body.add(nodes);
+          vSP = position;
+          float nn = aNoise(position*4.0 + vec3(0.0, uT*1.1, uT*0.5)) + 0.6*aNoise(position*8.5 - vec3(uT*1.6));
+          transformed += normal*(nn - 0.8)*uAmp;`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uT;\nvarying vec3 vSP;' + NOISE)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          {  // the pale lights: small, scattered, each opening and shutting on its own time
+            vec3 cell = floor(vSP*5.0); float h = aHash(cell + 7.1);
+            vec3 f = fract(vSP*5.0) - 0.5; float d = length(f);
+            float open = max(0.0, sin(uT*(0.6 + h*1.4) + h*40.0));
+            float dot_ = (1.0 - smoothstep(0.05, 0.12 + 0.04*open, d))*step(0.82, h)*open;
+            totalEmissiveRadiance += vec3(2.4, 2.5, 2.7)*dot_;
+          }`); };
+    skin.customProgramCacheKey = () => 'tshgoose';
+    U.uAmp = { value:0.05 };
+    const rig = { ready:false, bones:{}, rest:{} };
+    goose().then(src=>{
+      if(!src || !root.parent) return;
+      const g = cloneSkinned(src); body.add(g);
+      g.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; o.material = skin; }
+        if(o.isBone){ rig.bones[o.name] = o; rig.rest[o.name] = o.quaternion.clone(); } });
+      rig.ready = true;
+    });
+    const pose = (name, ax, ang) => { const b = rig.bones[name]; if(!b) return; b.quaternion.copy(rig.rest[name]).multiply(Q.setFromAxisAngle(ax, ang)); };
+    /* ITS FACE: no features at all — just one white light where they should be (Alpha's), and below it, when it
+       pulls, the hole */
+    const head = new THREE.Group(); head.position.set(0, 4.7, 0.25); body.add(head);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0.0, 0.12, 0.3); head.add(eye);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), color:0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); halo.scale.setScalar(1.8); eye.add(halo);
     // lit in the colours it is full of, from both sides, so its shape shows against the dark: and nothing else in the station
     const rims = [[0xff2aa8, -4.5, 3.6, 3.4], [0x22e8ff, 4.5, 3.0, 2.8], [0xb06aff, 0, 7, -2.5]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
-    // out of its mouth, at whoever is in front of it: a hard light that throws their shadows long across the wet floor
-    const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, -0.3, 1.4); spot.castShadow = true;
+    // out of its face, at whoever is in front of it: a hard light that throws their shadows long across the wet floor
+    const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, 0.0, 0.45); spot.castShadow = true;
     spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0004; spot.shadow.camera.near = 0.5; spot.shadow.camera.far = 40;
     const aim = new THREE.Object3D(); aim.position.set(0, -4.2, 11); head.add(aim); spot.target = aim; head.add(spot);
-    const strobe = new THREE.PointLight(0xffffff, 0, 30, 1.2); strobe.position.set(0, -0.2, 1.2); head.add(strobe);
-    // in its throat, the hole — the colours of everything it is eating, wound round it, turning
-    const vortex = new THREE.Group(); vortex.position.set(0, -0.35, 1.05); head.add(vortex);
+    const strobe = new THREE.PointLight(0xffffff, 0, 30, 1.2); strobe.position.set(0, 0, 0.4); head.add(strobe);
+    // where its mouth would be, the hole — the colours of everything it is eating, wound round it, turning
+    const vortex = new THREE.Group(); vortex.position.set(0, -0.2, 0.42); vortex.scale.setScalar(0.42); head.add(vortex);
     const swirl = new THREE.ShaderMaterial({ uniforms:{ uT:U.uT, uPull:{ value:1 } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
       vertexShader:'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }',
       fragmentShader:`varying vec2 vP; uniform float uT, uPull;
@@ -175,83 +190,70 @@ window.TSHALPHA = (function(){
           float band = smoothstep(0.95, 1.25, r)*(1.0 - smoothstep(2.0, 2.9, r));
           vec3 c = hue(a/6.2831 + r*0.25 - uT*0.3)*pow(arms, 2.0)*band*2.2;
           c += vec3(1.6, 1.5, 1.8)*(smoothstep(0.92, 1.0, r) - smoothstep(1.0, 1.1, r));
-          gl_FragColor = vec4(c, max(max(c.r, c.g), c.b)); }` });
+          gl_FragColor = vec4(c, max(max(c.r, c.g), c.b)*min(1.0, uPull)); }` });
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.38, 1.2, 96, 3), swirl); vortex.add(ring);
     // what it is pulling in: bright bits, spiralling down into its mouth
     const NP = 700, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP*3), pc = new Float32Array(NP*3), pst = [];
     for(let i = 0; i < NP; i++){ pst.push({ r:1 + Math.random()*9, a:Math.random()*7, z:Math.random()*8 }); const c = new THREE.Color().setHSL(Math.random(), 1, 0.6); pc[i*3] = c.r*2; pc[i*3 + 1] = c.g*2; pc[i*3 + 2] = c.b*2; }
     pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size:0.09, vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); vortex.add(pts);
-    // tendrils off its back, whipping out across the station
-    const NT = 8, SEGS = 18, tend = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), skin, NT*SEGS);
-    const T = []; for(let i = 0; i < NT; i++){ const a = Math.PI + (i/(NT - 1) - 0.5)*Math.PI*1.4;
-      T.push({ base:new THREE.Vector3(Math.sin(a)*1.4, 2.6 + Math.random()*1.6, -0.6 + Math.cos(a)*0.8), dir:new THREE.Vector3(Math.sin(a), 0.35 + Math.random()*0.4, Math.cos(a)*0.6 + 0.3).normalize(), len:4 + Math.random()*4, ph:Math.random()*7, reach:null, rk:0 }); }
-    tend.castShadow = true; body.add(tend);
-    const bez = (a, c, b, s, out) => out.set(0, 0, 0).addScaledVector(a, (1 - s)*(1 - s)).addScaledVector(c, 2*(1 - s)*s).addScaledVector(b, s*s);
-    const C1 = new THREE.Vector3(), M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
-      /* a tendril (the nearest free one) — or, close enough in front of it, a claw — out to a point in the world */
+    /* ITS ARMS: the blades rest on the floor in front of it; now and then one comes up and slams down, and a reach
+       (at Robin, at Canon) lifts the nearer one at them and holds it there */
+    const arms = [-1, 1].map((s, i)=>({ s, side: s > 0 ? 'L' : 'R', tip:new THREE.Vector3(s*1.41, 0, 1.01), t:i*1.3 + 0.8, lift:0, slammed:false, reach:null, rk:0, hold:0 }));
+    const M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
+      /* the nearer blade, up at a point in the world */
       reach(at, secs){ const w = root.worldToLocal(at.clone());
-        const arm = w.z > 0 ? arms.find(a=>!a.reach && Math.sign(w.x || 1) === a.s) : null;
-        if(arm && Math.random() < 0.6){ arm.reach = w; arm.rk = 0; arm.hold = secs || 1.0; return; }
-        let best = null, bd = 1e9; T.forEach(tt=>{ if(tt.reach) return; const d = tt.base.distanceTo(w); if(d < bd){ bd = d; best = tt; } });
-        if(best){ best.reach = w; best.rk = 0; best.hold = secs || 1.2; } },
+        const arm = arms.find(a=>!a.reach && Math.sign(w.x || 1) === a.s) || arms.find(a=>!a.reach); if(!arm) return;
+        arm.reach = w; arm.rk = 0; arm.hold = secs || 1.0; },
       tick(dt){
         M.t += dt; U.uT.value = M.t;
         const g = M.grow, e = g*g*(3 - 2*g);
         body.scale.setScalar(Math.max(0.001, e));
-        // it breathes: the whole body rising and sinking, the head swaying, the jaw working
-        body.position.y = Math.sin(M.t*1.1)*0.14*e;
-        head.rotation.set(-0.15 + Math.sin(M.t*0.9)*0.06, Math.sin(M.t*0.6)*0.18, Math.sin(M.t*0.7)*0.05);
-        const want = Math.min(1, 0.12 + M.pull*0.45 + Math.max(0, Math.sin(M.t*2.3))*0.15); M.jaw += (want - M.jaw)*Math.min(1, dt*4);
-        jaw.rotation.x = M.jaw*0.95;
-        U.uAmp.value = 0.22 + 0.12*Math.sin(M.t*0.7);
-        nodeAt.forEach((n, i)=>{ const k = Math.max(0, Math.sin(M.t*n.s*2 + n.ph)); S1.setScalar(0.3 + k*1.4); M4.compose(n.p, Q.identity(), S1); nodes.setMatrixAt(i, M4); }); nodes.instanceMatrix.needsUpdate = true;
+        body.position.y = Math.sin(M.t*1.1)*0.08*e;
+        if(rig.ready){
+          // it breathes: the spine rolling, the chest heaving; the head hunting side to side, pushed forward as it pulls
+          const br = Math.sin(M.t*1.1);
+          pose('Spine', X, br*0.05); pose('Chest', X, br*0.07 - M.pull*0.05);
+          const hb = rig.bones.Head; if(hb){ hb.quaternion.copy(rig.rest.Head).multiply(Q.setFromEuler(new THREE.Euler(Math.sin(M.t*0.9)*0.12 - M.pull*0.15, 0, Math.sin(M.t*0.6)*0.35))); }
+          pose('Neck', X, -0.1 - M.pull*0.12);
+          arms.forEach(a=>{
+            a.t -= dt;
+            if(a.t <= 0 && !a.lift && !a.reach){ a.lift = 0.001; a.t = 2.2 + Math.random()*1.8; }
+            let up = 0;
+            if(a.lift){ a.lift += dt; const u = a.lift;
+              up = u < 0.55 ? Math.sin(u/0.55*Math.PI/2) : u < 0.75 ? Math.cos((u - 0.55)/0.2*Math.PI/2) : 0;
+              if(u >= 0.75 && !a.slammed){ a.slammed = true; if(M.onSlam) M.onSlam(root.localToWorld(a.tip.clone())); }
+              if(u > 1.0){ a.lift = 0; a.slammed = false; } }
+            if(a.reach){ a.rk = Math.min(1, a.rk + dt*4); a.hold -= dt; if(a.hold <= 0){ a.rk -= dt*8; if(a.rk <= 0){ a.reach = null; a.rk = 0; } } }
+            // a reach: as high as the point is, out to it
+            const rUp = a.reach ? Math.min(1.2, 0.35 + Math.max(0, a.reach.y)/4) : 0, rOut = a.reach ? Math.atan2(a.reach.x - a.s*1.4, Math.max(1, a.reach.z))*0.6 : 0;
+            const lift = Math.max(up, a.rk*rUp);
+            pose('UpperArm.' + a.side, X, -lift*1.25);
+            const ub = rig.bones['UpperArm.' + a.side]; if(ub && a.rk) ub.quaternion.multiply(Q.setFromAxisAngle(Zv, rOut*a.rk));
+            pose('Forearm.' + a.side, X, -lift*0.7);
+            pose('Shoulder.' + a.side, Zv, a.s*lift*0.15);
+          });
+        }
+        U.uAmp.value = 0.045 + 0.025*Math.sin(M.t*0.7) + M.pull*0.02;
         halo.material.opacity = 0.75 + 0.25*Math.sin(M.t*7);
-        smallEyes.forEach(se=>{ const o = Math.max(0, Math.sin(M.t*0.8 + se.userData.ph)); se.scale.set(1, 0.15 + o*0.85, 1); });
         rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
-        spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
+        spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down
+        spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
         strobe.intensity = Math.random() < 0.02*M.pull ? 240*e : strobe.intensity*0.8;
-        vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull;
+        vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull; pts.material.opacity = Math.min(1, M.pull*1.5); pts.visible = M.pull > 0.02;
         for(let i = 0; i < NP; i++){ const s = pst[i]; s.a += dt*(1.5 + 6/s.r)*M.pull; s.r -= dt*(1.2 + 5/s.r)*M.pull; s.z -= dt*1.2*M.pull;
           if(s.r < 0.4 || s.z < 0){ s.r = 4 + Math.random()*8; s.z = 1 + Math.random()*8; }
           pp[i*3] = Math.cos(s.a)*s.r; pp[i*3 + 1] = Math.sin(s.a)*s.r; pp[i*3 + 2] = s.z*Math.min(1, s.r/3); }
         pg.attributes.position.needsUpdate = true;
-        // the arms: planted, until one comes up — and slams down
-        let k = 0;
-        arms.forEach((a, ai)=>{
-          a.t -= dt;
-          if(a.t <= 0 && !a.lift && !a.reach){ a.lift = 0.001; a.t = 2.2 + Math.random()*1.8; }
-          if(a.lift){ a.lift += dt; const u = a.lift;
-            const up = u < 0.55 ? Math.sin(u/0.55*Math.PI/2) : u < 0.75 ? Math.cos((u - 0.55)/0.2*Math.PI/2) : 0;
-            a.hand.copy(a.rest).add(V1.set(0, up*3.0, -up*0.8));
-            if(u >= 0.75 && !a.slammed){ a.slammed = true; if(M.onSlam) M.onSlam(root.localToWorld(a.rest.clone())); }
-            if(u > 1.0){ a.lift = 0; a.slammed = false; } }
-          else a.hand.lerp(a.rest, Math.min(1, dt*6));
-          if(a.reach){ a.rk = Math.min(1, a.rk + dt*4); a.hold -= dt; if(a.hold <= 0){ a.rk -= dt*8; if(a.rk <= 0){ a.reach = null; a.rk = 0; } } }
-          const hand = a.reach ? a.hand.clone().lerp(a.reach, a.rk) : a.hand;
-          C1.set(a.s*3.6, 3.7 + Math.sin(M.t*1.2 + ai)*0.2, 1.2);
-          for(let j = 0; j < NS; j++){ const s = j/(NS - 1); bez(a.sh, C1, hand, s, V1); S1.setScalar(0.5*(1 - s) + 0.2); M4.compose(V1, Q.identity(), S1); armM.setMatrixAt(ai*NS + j, M4); }
-          // the claws, spread on the floor
-          for(let c = 0; c < 4; c++){ const sp = (c - 1.5)*0.32; E.set(Math.PI/2 + 0.35, sp, 0); Q.setFromEuler(E);
-            M4.compose(V1.copy(hand).add(new THREE.Vector3(Math.sin(sp)*0.35, 0.05, Math.cos(sp)*0.35)), Q, S1.set(1, 1, 1)); clawM.setMatrixAt(ai*4 + c, M4); }
-        });
-        armM.instanceMatrix.needsUpdate = true; clawM.instanceMatrix.needsUpdate = true;
-        // the tendrils
-        T.forEach((tt)=>{
-          if(tt.reach){ tt.rk = Math.min(1, tt.rk + dt*3); tt.hold -= dt; if(tt.hold <= 0){ tt.rk -= dt*6; if(tt.rk <= 0){ tt.reach = null; tt.rk = 0; } } }
-          const tip = tt.base.clone().addScaledVector(tt.dir, tt.len*(0.75 + 0.25*Math.sin(M.t*0.9 + tt.ph)));
-          if(tt.reach) tip.lerp(tt.reach, tt.rk);
-          const side = new THREE.Vector3(0, 1, 0).cross(tt.dir).normalize();
-          for(let j = 0; j < SEGS; j++){ const s = j/(SEGS - 1);
-            V1.copy(tt.base).lerp(tip, s).addScaledVector(side, Math.sin(s*6 - M.t*3.4 + tt.ph)*0.7*s*(1 - tt.rk*0.7)).add(new THREE.Vector3(0, Math.sin(s*Math.PI)*0.6 + Math.cos(s*5 - M.t*2.6 + tt.ph)*0.4*s, 0));
-            S1.setScalar(0.36*(1 - s) + 0.06); M4.compose(V1, Q.identity(), S1); tend.setMatrixAt(k++, M4); } });
-        tend.instanceMatrix.needsUpdate = true;
+        // the face rides its head
+        const hb = rig.bones.Head;
+        if(hb){ hb.getWorldPosition(V1); body.worldToLocal(V1); head.position.lerp(V1.add(new THREE.Vector3(0, 0.22, -0.02)), 1); hb.getWorldQuaternion(Q); }
         vortex.getWorldPosition(M.mouth); eye.getWorldPosition(M.eyeAt);
       },
       dispose(){ if(root.parent) root.parent.remove(root); }
     };
     return M;
   }
-  window.TSHMONSTER = { make:monster };
+  window.TSHMONSTER = { make:monster, preload:goose };
   return { apply };
 })();
