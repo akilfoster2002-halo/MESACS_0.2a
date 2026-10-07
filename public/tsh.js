@@ -5199,7 +5199,10 @@ window.TSH = (function(){
     const p = P(), r = mon.root, dx = p.x - r.position.x, dz = p.z - r.position.z, d = Math.hypot(dx, dz), a = Math.atan2(dx, dz);
     // it keeps its jaws on her, and comes after her if she backs off
     let da = a - r.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); r.rotation.y += da*Math.min(1, dt*(b.st === 'tele' ? 1.2 : 3));
-    if(d > 7 && b.st === 'wait'){ r.position.x += Math.sin(a)*dt*2.2; r.position.z += Math.cos(a)*dt*2.2; }
+    // it never stops coming: stalking in between, lunging with the bite, and walking her into the wall if she lets it
+    const adv = b.st === 'wait' ? (d > 7 ? 2.6 : d > 3.2 ? 1.5 : 0) : b.st === 'tele' && b.t > 0.4 && b.t < 0.7 && d > 2.5 ? 7 : b.st === 'open' && d > 4 ? 0.6 : 0;
+    if(adv){ r.position.x += Math.sin(r.rotation.y)*dt*adv; r.position.z += Math.cos(r.rotation.y)*dt*adv; }
+    if(d < 2.6 && !b.dash && b.st !== 'hurt'){ const k = (2.6 - d)*dt*6/Math.max(d, 0.3); moveAxis('x', dx*k); moveAxis('z', dz*k); }
     // SPACE: thrown aside, the way she is moving (or to her right)
     const sp = !!G.keys.Space, space = sp && !b.lastSpace; b.lastSpace = sp;
     if(space && !b.dash){ const k = G.keys, mx = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0), mz = (k.KeyS ? 1 : 0) - (k.KeyW ? 1 : 0);
