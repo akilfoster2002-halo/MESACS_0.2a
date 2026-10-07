@@ -239,6 +239,8 @@ window.TSHALPHA = (function(){
     eye.visible = false;
     const bodyScr = [['Chest', 0.6, [-0.24, 0, 0.42]], ['Chest', 0.6, [0.26, 0.02, 0.42]], ['Spine', 0.5, [0.05, -0.2, 0.3]]].map(([bn, sz, off])=>{ const s_ = scribble(body, sz); s_.userData.bone = bn; s_.userData.off = new THREE.Vector3(...off); return s_; });
     const rims = [[0xff2aa8, -4.5, 3.6, 3.4], [0x22e8ff, 4.5, 3.0, 2.8], [0xb06aff, 0, 7, -2.5]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
+    // a cold light on its front, so the dark it brings with it never swallows its shape
+    const fill = new THREE.PointLight(0xa9a2ff, 26, 16, 1.3); fill.position.set(0, 3.2, 4.5); body.add(fill);
     const spot = new THREE.SpotLight(0xffe8ff, 140, 40, 0.8, 0.45, 1.2); spot.position.set(0, 0.0, 0.45); spot.castShadow = true;
     spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0004; spot.shadow.camera.near = 0.5; spot.shadow.camera.far = 40;
     const aim = new THREE.Object3D(); aim.position.set(0, -4.2, 11); head.add(aim); spot.target = aim; head.add(spot);
@@ -446,10 +448,10 @@ window.TSHALPHA = (function(){
         tickBlight(dt);
         U.uAmp.value = 0.045 + 0.025*Math.sin(M.t*0.7) + M.pull*0.02;
         halo.material.opacity = 0.35 + 0.15*Math.sin(M.t*7);
-        rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
+        fill.intensity = 26*e; rims.forEach((l, i)=>{ l.intensity = (26 + 14*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
         spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down
         spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
-        strobe.intensity = Math.random() < 0.02*M.pull ? 240*e : strobe.intensity*0.8;
+        strobe.intensity = Math.random() < 0.02*M.pull ? 110*e : strobe.intensity*0.8;
         vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull; pts.material.opacity = Math.min(1, M.pull*1.5); pts.visible = M.pull > 0.02;
         for(let i = 0; i < NP; i++){ const s_ = pst[i]; s_.a += dt*(1.5 + 6/s_.r)*M.pull; s_.r -= dt*(1.2 + 5/s_.r)*M.pull; s_.z -= dt*1.2*M.pull;
           if(s_.r < 0.4 || s_.z < 0){ s_.r = 4 + Math.random()*8; s_.z = 1 + Math.random()*8; }

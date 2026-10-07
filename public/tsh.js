@@ -4364,12 +4364,51 @@ window.TSH = (function(){
      on the same skeleton, the hips' travel scaled to their height */
   function borrowFight(m, list){
     const r = m && m.userData.rig; if(!list || !r || !r.add || r.has('jab')) return;
-    const hy = c => { const tr = c && c.tracks.find(t=>/Hips\.position$/.test(t.name)); return tr ? tr.values[1] : 0; };
-    const mine = hy(r.clip('idle')), hers = hy(AVATAR.model && AVATAR.model.userData.rig && AVATAR.model.userData.rig.clip('idle'));
-    const k = mine && hers ? mine/hers : 1;
-    r.add(list.map(c=>{ const c2 = c.clone(); c2.tracks.forEach(t=>{ if(/Hips\.position$/.test(t.name)) for(let i = 0; i < t.values.length; i++) t.values[i] *= k; }); return c2; }),
-      { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin'] });
+    const srcIdle = AVATAR.model && AVATAR.model.userData.rig && AVATAR.model.userData.rig.clip('idle'), dstIdle = r.clip('idle');
+    let out = null;
+    try{ if(srcIdle && dstIdle) out = retargetClips(AVATAR.model, m, list, srcIdle, dstIdle); }catch(e){ out = null; }
+    r.add(out || list, { once:['jab', 'cross', 'hook', 'kick', 'knee', 'elbow', 'power', 'dodge', 'block', 'hit', 'stagger', 'fall', 'getup', 'ko', 'flykick', 'sweep', 'spin'] });
   }
+  /* HER MOVES ON SOMEBODY ELSE'S BONES. Kai's skeleton (and Maya's, and Canon's) has her bones' names but not their
+     resting turns — his hips sit 117° round from hers — so her clips, which set each bone's turn outright, twisted him.
+     So each clip is played once on a copy of her, out of sight, and for every bone, every frame, how far it has turned
+     from her idle (in the body's own frame) is how far his turns from his idle; his hips travel as hers do, scaled
+     to his height. The result is baked into clips of his own. */
+  function retargetClips(srcModel, dstModel, clips, srcIdle, dstIdle){
+    const S = srcModel.clone(true), D = dstModel.clone(true);
+    [S, D].forEach(o=>{ o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1); });
+    const bones = o => { const b = {}; o.traverse(x=>{ if(x.isBone) b[x.name] = x; }); return b; };
+    const sb = bones(S), db = bones(D);
+    const depth = x => { let n = 0; while(x.parent){ n++; x = x.parent; } return n; };
+    const names = Object.keys(db).filter(n=>sb[n]).sort((a, b)=>depth(db[a]) - depth(db[b]));
+    const hips = names[0];
+    const sMix = new THREE.AnimationMixer(S), dMix = new THREE.AnimationMixer(D);
+    const pose = (mix, root, clip, t) => { mix.stopAllAction(); const a = mix.clipAction(clip); a.reset(); a.play(); mix.setTime(t); root.updateMatrixWorld(true); };
+    const wq = x => x.getWorldQuaternion(new THREE.Quaternion()), wp = x => x.getWorldPosition(new THREE.Vector3());
+    pose(sMix, S, srcIdle, 0); const sRef = {}; names.forEach(n=>sRef[n] = wq(sb[n])); const sHip = wp(sb[hips]);
+    pose(dMix, D, dstIdle, 0); const dRef = {}; names.forEach(n=>dRef[n] = wq(db[n])); const dHip = wp(db[hips]);
+    const par = {}; names.forEach(n=>{ const p_ = db[n].parent; par[n] = p_ && p_.isBone && names.includes(p_.name) ? p_.name : null; });
+    const hipParent = db[hips].parent; const hipParentWQ = hipParent ? wq(hipParent) : new THREE.Quaternion(), hipParentInv = hipParent ? hipParent.matrixWorld.clone().invert() : new THREE.Matrix4();
+    const outerQ = {}; names.forEach(n=>{ if(!par[n]){ const p_ = db[n].parent; outerQ[n] = p_ ? wq(p_) : new THREE.Quaternion(); } });
+    const k = sHip.y > 0.01 ? dHip.y/sHip.y : 1;
+    const Qa = new THREE.Quaternion(), Qb = new THREE.Quaternion();
+    return clips.map(c=>{
+      const FPS = 30, n = Math.max(2, Math.ceil(c.duration*FPS) + 1), times = new Float32Array(n);
+      const qv = {}; names.forEach(nm=>qv[nm] = new Float32Array(n*4)); const pv = new Float32Array(n*3);
+      for(let i = 0; i < n; i++){
+        const t = Math.min(c.duration, i/FPS); times[i] = t;
+        pose(sMix, S, c, t);
+        const W = {};
+        names.forEach(nm=>{ Qa.copy(wq(sb[nm])).multiply(Qb.copy(sRef[nm]).invert()); W[nm] = Qa.clone().multiply(dRef[nm]); });   // his, turned as hers turned
+        names.forEach(nm=>{ const pq = par[nm] ? W[par[nm]] : outerQ[nm]; const loc = pq.clone().invert().multiply(W[nm]); loc.toArray(qv[nm], i*4); });
+        const hp = wp(sb[hips]).sub(sHip).multiplyScalar(k).add(dHip).applyMatrix4(hipParentInv); hp.toArray(pv, i*3);
+      }
+      const tracks = names.map(nm=>new THREE.QuaternionKeyframeTrack(nm + '.quaternion', times, qv[nm]));
+      tracks.push(new THREE.VectorKeyframeTrack(hips + '.position', times, pv));
+      return new THREE.AnimationClip(c.name, c.duration, tracks);
+    });
+  }
+
 
   /* ---------------------------------------------------------- the tunnels' light: down here the day goes */
   let subWas = null, inSub = false;
@@ -4708,7 +4747,7 @@ window.TSH = (function(){
     });
   }
   function meetFilm(){
-    flushTalk(); filmLoad('tsh/film/pull.mp4');                // the monster's filmed shot, loading while they talk
+    flushTalk();
     if(window.TSHMONSTER && TSHMONSTER.preload) TSHMONSTER.preload();   // and its body
     const sp = TS(), c = canonNpc(), kai = crewTag('kai'), maya = crewTag('maya');
     const R = sp.meetR, C = sp.canon, M = sp.maya, K = sp.kai;
@@ -5021,6 +5060,10 @@ window.TSH = (function(){
     let runK = 0;
     const Rrun = () => [R[0] - dir[0]*runK*3.2, R[1] - dir[1]*runK*3.2];
     const CAM = {
+      // the reveal: the whole of it from down by the floor, over her shoulder up at its head, and from her feet straight up
+      revealWide:{ cam:[R[0] - dir[0]*3.6 + side[0]*2.4, 0.35, R[1] - dir[1]*3.6 + side[1]*2.4], look:()=>[M[0], 2.5, M[1]], fov:74 },
+      revealOver:{ cam:[R[0] - dir[0]*1.0 + side[0]*0.5, 1.45, R[1] - dir[1]*1.0 + side[1]*0.5], look:eyeW, fov:52 },
+      revealUp:  { cam:[R[0] + dir[0]*0.4 - side[0]*0.3, 0.22, R[1] + dir[1]*0.4 - side[1]*0.3], look:eyeW, fov:78 },
       lowUp:   { cam:[R[0] - dir[0]*2.4 + side[0]*2.6, 0.35, R[1] - dir[1]*2.4 + side[1]*2.6], look:()=>[M[0], 1.0 + mon.grow*3.2, M[1]], fov:64 },
       lowUp2:  { cam:[R[0] - dir[0]*1.2 - side[0]*2.4, 0.3, R[1] - dir[1]*1.2 - side[1]*2.4], look:()=>[M[0], 0.8 + mon.grow*3.4, M[1]], fov:70 },
       her:     { cam:F.herTight.cam, look:F.herTight.look, fov:24, mood:'shocked', key:0.12 },
@@ -5056,7 +5099,7 @@ window.TSH = (function(){
             if(maya && maya.g.visible){ maya.x = lerp(M0[0], M[0], k*0.6); maya.z = lerp(M0[1], M[1], k*0.6); maya.y = k*1.6; }
             if(mon.grow > 0.35 && maya){ maya.g.visible = false; if(mOc){ mOc.dispose(); mOc = null; } } if(hay) hay.k = 0.6 + k*0.3; if(Math.random() < dt*3) shake(0.5, 0.3); } }),
       // the eye opens
-      ...cuts(1.6, [CAM.eye, CAM.her, CAM.eyeX], { start:()=>{ mon.grow = 1; LOOK.fx.flash = 0.5; LOOK.fx.flashCol.set(1, 1, 1); roar(); } }),
+      ...cuts(1.6, [CAM.eye, CAM.her, CAM.eyeX], { start:()=>{ mon.grow = 1; LOOK.fx.flash = 0.28; LOOK.fx.flashCol.set(1, 1, 1); roar(); } }),
       // all of it, its arms out across the station
       ...cuts(1.8, [CAM.side, CAM.behind, CAM.lowUp2, CAM.sideB], { start:()=>{ shake(0.6, 0.5); [0, 1, 2, 3].forEach(i=>later(()=>{ if(mon) mon.reach(new THREE.Vector3(R[0] + (Math.random() - 0.5)*6, 0.5 + Math.random()*3, R[1] + (Math.random() - 0.5)*6), 0.9); }, i*220)); } }),
       // Kai: up off the floor, backing away from her — "No. No, no, no." "Maya, stop!"
@@ -5067,8 +5110,9 @@ window.TSH = (function(){
       ...cuts(1.2, [CAM.kaiWide, CAM.kai], { start:()=>{ if(kai){ kai.yaw = 0; TSHFIGHT.play(kai, 'sprint'); } }, tick:(dt)=>{ if(kai){ kai.yaw = 0; kai.z += dt*6.5; } } }),
       // the hole opens. It pulls. The wind goes in.
       // the hole opens. It pulls. The wind goes in — and she is nearly in with it (filmed: tsh/film/pull.mp4)
-      filmShot('tsh/film/pull.mp4', 5.85, { cam:CAM.floor.cam, look:CAM.floor.look, enter:()=>{ mon.pull = 1; roar(); dutch = 0; shake(0.3, 5.5); },
-        tick:(dt, t, k)=>{ mon.pull = 0.3 + k*1.8; if(wind) wind.k = 0.7 + k*0.5; } }),
+      // all of it, rearing up over her — and it roars, down at her, its jaws wide and the hole in them pulling
+      ...cuts(5.6, [CAM.revealWide, CAM.revealOver, CAM.revealUp, CAM.revealWide, CAM.mouthX, CAM.revealOver, CAM.revealUp, CAM.her],
+        { start:()=>{ mon.pull = 0.6; roar(); shake(0.5, 5.5); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*1.6; if(wind) wind.k = 0.7 + k*0.5; standR(); } }),
       // Canon, across the floor toward it
       ...cuts(2.2, [CAM.canon, CAM.canonTop, CAM.mouthX, CAM.canonX], { start:()=>{ if(c){ c.pose = 'ko'; c.follow = false; } },
         tick:(dt, t, k)=>{ if(c){ const m = mon.mouth, s = k*0.35; c.x = lerp(C0[0], m.x, s*s); c.z = lerp(C0[1], m.z, s*s); } } }),
@@ -5079,7 +5123,7 @@ window.TSH = (function(){
         tick:(dt, t, k)=>{ if(!c || canonIn) return; const m = mon.mouth, f = canonFrom || C0, r = (1 - k)*1.2, a = k*14;
           c.x = lerp(f[0], m.x, k*k) + Math.cos(a)*r; c.z = lerp(f[1], m.z, k*k) + Math.sin(a)*r; c.y = lerp(0, m.y - 0.6, k); c.yaw += dt*9;
           c.g.scale.setScalar(Math.max(0.02, 1 - k*k));
-          if(k > 0.97){ canonIn = true; c.hidden = true; LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); shake(0.9, 0.6); cue('clang'); } } }),
+          if(k > 0.97){ canonIn = true; c.hidden = true; LOOK.fx.flash = 0.45; LOOK.fx.flashCol.set(1, 1, 1); shake(0.9, 0.6); cue('clang'); } } }),
       // gone. Her face.
       ...cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], { start:()=>{ if(hay) hay.k = 1; if(wind) wind.k = 1.2; } }),
       // and she runs
