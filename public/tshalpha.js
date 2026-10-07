@@ -147,15 +147,13 @@ window.TSHALPHA = (function(){
   }
   /* goose bone ← [rig, its bone, how much of its turn]; parents before children. (The loader takes the dots out.) */
   const MAP = [
-    ['Hips',       'sp', 'Bone004',      0.6],
+    ['Hips',       'sp', 'Bone004',      0.5],
     ['Spine',      'tx', 'bn_Spine15',   1.0],
     ['Chest',      'tx', 'bn_Spine26',   1.1],
     ['Neck',       'tx', 'bn_Neck18',    1.2],
     ['Head',       'tx', 'bn_Head10',    1.3],
-    ['Shoulder.L', 'sp', 'Bone002_L002', 0.8], ['UpperArm.L', 'sp', 'Bone002_L003', 1.2], ['Forearm.L', 'sp', 'Bone002_L005', 1.2],
-    ['Shoulder.R', 'sp', 'Bone002_R002', 0.8], ['UpperArm.R', 'sp', 'Bone002_R003', 1.2], ['Forearm.R', 'sp', 'Bone002_R005', 1.2],
-    ['Thigh.L',    'sp', 'Bone_L003',    1.0], ['Shin.L',     'sp', 'Bone_L004',    1.0], ['Foot.L',    'sp', 'Bone_L005',    1.0],
-    ['Thigh.R',    'sp', 'Bone_R003',    1.0], ['Shin.R',     'sp', 'Bone_R004',    1.0], ['Foot.R',    'sp', 'Bone_R005',    1.0]
+    ['Shoulder.L', 'tx', 'bn_LeftShoulder27', 1.2], ['UpperArm.L', 'tx', 'bn_LeftArm28', 1.6], ['Forearm.L', 'tx', 'bn_LeftForeArm29', 1.6],
+    ['Shoulder.R', 'tx', 'bn_RightShoulder35', 1.2], ['UpperArm.R', 'tx', 'bn_RightArm36', 1.6], ['Forearm.R', 'tx', 'bn_RightForeArm37', 1.6]
   ];
   function monster(group, at, yaw){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
@@ -182,8 +180,12 @@ window.TSHALPHA = (function(){
             float st = smoothstep(0.78, 0.88, sn)*1.6;
             float which = aHash(floor(vec3(vSP.x*38.0, uT*3.0, vSP.z*38.0)));
             totalEmissiveRadiance += (which < 0.4 ? vec3(2.2, 0.15, 1.4) : which < 0.75 ? vec3(0.1, 1.8, 2.2) : vec3(2.4, 0.8, 0.1))*st;
+            // it glows: an edge of light all round it, its colour turning from magenta to violet to cyan, breathing
+            float fr = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 4.0);
+            vec3 gc = mix(vec3(1.0, 0.1, 0.8), vec3(0.15, 0.9, 1.0), 0.5 + 0.5*sin(uT*0.7 + vSP.y*1.5));
+            totalEmissiveRadiance += gc*fr*(0.75 + 0.3*sin(uT*2.3));
           }`); };
-    skin.customProgramCacheKey = () => 'tshgoose2';
+    skin.customProgramCacheKey = () => 'tshgoose3';
     /* THE RIGS */
     const R = { ready:false, gb:{}, sb:{}, tb:{}, spMix:null, txMix:null, sa:{}, ta:{}, spNow:null, txNow:null, act:null, actT:0, bit:false, ref:{} };
     const play = (mix, acts, now, name, fade, once) => { const n = acts[name]; if(!n) return now; if(now === n && !once) return now;
@@ -194,12 +196,15 @@ window.TSHALPHA = (function(){
     preload().then(([gg, sg, tg])=>{
       if(!gg || !sg || !tg || !root.parent) return;
       const go = cloneSkinned(gg.scene); body.add(go);
+      go.position.set(0, -0.95, 1.4);                     // its hips sunk into the spider's back
       go.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } if(o.isBone) R.gb[o.name] = o; });
       // the two that move it: in the monster's frame, facing the way it faces, never drawn
       const sp = cloneSkinned(sg.scene), tx = cloneSkinned(tg.scene);
-      sp.traverse(o=>{ if(o.isMesh) o.visible = false; }); body.add(sp);
+      // the spider IS drawn: its body and its eight legs are the monster's lower half, and it walks
+      sp.scale.setScalar(2.6); body.add(sp);
+      sp.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
       // the tyrannosaur's head (tsh/monster/trexhead.glb: only its head is left of its mesh) IS drawn — on the goose's neck
-      tx.scale.setScalar(0.45); body.add(tx); R.tx = tx;
+      tx.scale.setScalar(0.6); body.add(tx); R.tx = tx;
       tx.traverse(o=>{ if(o.isMesh){ o.material = skin; o.castShadow = true; o.frustumCulled = false; } });
       sp.traverse(o=>{ if(o.isBone) R.sb[o.name] = o; }); tx.traverse(o=>{ if(o.isBone) R.tb[o.name] = o; });
       R.spMix = new THREE.AnimationMixer(sp); R.txMix = new THREE.AnimationMixer(tx);
@@ -304,6 +309,7 @@ window.TSHALPHA = (function(){
           const gh = G_('Head'), tn = R.tb.bn_Neck29;
           if(gh && tn){ gh.getWorldPosition(V1); tn.getWorldPosition(V2); body.worldToLocal(V1); body.worldToLocal(V2); R.tx.position.add(V1.sub(V2)); R.tx.updateMatrixWorld(true);
             gh.scale.setScalar(0.001); }
+          ['Thigh.L', 'Thigh.R'].forEach(n=>{ const b = G_(n); if(b) b.scale.setScalar(0.001); });   // the goose's own legs folded away into the spider
           if(R.act === 'bite' || R.act === 'tail'){ R.actT += dt; if(!R.bit && R.actT > (R.act === 'bite' ? 0.55 : 0.7)){ R.bit = true; if(M.onSlam) M.onSlam(root.localToWorld(V2.set(0, 0, 2))); } }
           // it jerks: a bone snaps somewhere else for a frame
           if(Math.random() < 0.07){ const ks = Object.keys(R.gb), b = R.gb[ks[(Math.random()*ks.length)|0]];
