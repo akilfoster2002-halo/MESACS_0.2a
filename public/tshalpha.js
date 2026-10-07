@@ -96,6 +96,18 @@ window.TSHALPHA = (function(){
       : /Spine1/.test(n) ? 0.4 : /Spine/.test(n) ? 0.34 : /Hips/.test(n) ? 0.3 : /UpLeg/.test(n) ? 0.26 : /Leg/.test(n) ? 0.2 : /Foot|Toe/.test(n) ? 0.16 : /Neck/.test(n) ? 0.12 : 0.03;
   }
   let halo_ = null;
+  /* white loops scrawled on a clear page: a scribbled eye */
+  function scribbleTex(){
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.strokeStyle = '#fff'; x.lineCap = 'round';
+    for(let i = 0; i < 16; i++){ x.lineWidth = 1.5 + Math.random()*3.5; x.globalAlpha = 0.6 + Math.random()*0.4; x.beginPath();
+      const cx = 128 + (Math.random() - 0.5)*30, cy = 128 + (Math.random() - 0.5)*30, rx = 30 + Math.random()*80, ry = 30 + Math.random()*80, a0 = Math.random()*7, turns = 1 + Math.random()*1.5;
+      for(let k = 0; k <= 60; k++){ const a = a0 + k/60*turns*6.283, j = 1 + (Math.random() - 0.5)*0.12; const px = cx + Math.cos(a)*rx*j, py = cy + Math.sin(a)*ry*j; k ? x.lineTo(px, py) : x.moveTo(px, py); }
+      x.stroke(); }
+    // a few strokes dragged out of it
+    for(let i = 0; i < 5; i++){ x.lineWidth = 1 + Math.random()*2; x.beginPath(); x.moveTo(128, 128); x.lineTo(128 + (Math.random() - 0.5)*250, 128 + Math.random()*128); x.stroke(); }
+    const t = new THREE.CanvasTexture(c); return t;
+  }
   function haloTex(){
     if(halo_) return halo_;
     const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
@@ -155,6 +167,12 @@ window.TSHALPHA = (function(){
             float open = max(0.0, sin(uT*(0.6 + h*1.4) + h*40.0));
             float dot_ = (1.0 - smoothstep(0.05, 0.12 + 0.04*open, d))*step(0.82, h)*open;
             totalEmissiveRadiance += vec3(2.4, 2.5, 2.7)*dot_;
+            // and torn streaks of colour down it — magenta, cyan, orange — flickering, never where they were
+            float sn = aNoise(vec3(vSP.x*38.0, vSP.y*1.6 - uT*0.9, vSP.z*38.0) + floor(uT*7.0)*3.1);
+            float st = smoothstep(0.78, 0.88, sn)*1.6;
+            float which = aHash(floor(vec3(vSP.x*38.0, uT*3.0, vSP.z*38.0)));
+            vec3 sc = which < 0.4 ? vec3(2.2, 0.15, 1.4) : which < 0.75 ? vec3(0.1, 1.8, 2.2) : vec3(2.4, 0.8, 0.1);
+            totalEmissiveRadiance += sc*st;
           }`); };
     skin.customProgramCacheKey = () => 'tshgoose';
     U.uAmp = { value:0.05 };
@@ -171,7 +189,14 @@ window.TSHALPHA = (function(){
        pulls, the hole */
     const head = new THREE.Group(); head.position.set(0, 4.7, 0.25); body.add(head);
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(4, 4, 4.4) })); eye.position.set(0.0, 0.12, 0.3); head.add(eye);
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), color:0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); halo.scale.setScalar(1.8); eye.add(halo);
+    /* THE SCRIBBLES: where a face should be, and on its chest and its belly — white loops scrawled over and over,
+       redrawn a few times a second so they boil like something drawn by a hand that will not stop */
+    const scr = [0, 1, 2, 3, 4].map(()=>scribbleTex());
+    const scribble = (parent, x, y, z, sz) => { const m = new THREE.SpriteMaterial({ map:scr[0], color:new THREE.Color(1.6, 1.6, 1.7), transparent:true, depthWrite:false });
+      const sp = new THREE.Sprite(m); sp.position.set(x, y, z); sp.scale.setScalar(sz); sp.userData.k = Math.random()*5; parent.add(sp); return sp; };
+    const scribs = [scribble(head, 0, 0.1, 0.36, 1.05)];
+    const torsoScr = [[-0.24, 0, 0.42], [0.26, 0.02, 0.42], [0.05, -0.75, 0.3]];
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), color:0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); halo.scale.setScalar(0.9); eye.add(halo);
     // lit in the colours it is full of, from both sides, so its shape shows against the dark: and nothing else in the station
     const rims = [[0xff2aa8, -4.5, 3.6, 3.4], [0x22e8ff, 4.5, 3.0, 2.8], [0xb06aff, 0, 7, -2.5]].map(([c, x, y, z])=>{ const l = new THREE.PointLight(c, 18, 18, 1.4); l.position.set(x, y, z); body.add(l); return l; });
     // out of its face, at whoever is in front of it: a hard light that throws their shadows long across the wet floor
@@ -199,6 +224,19 @@ window.TSHALPHA = (function(){
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size:0.09, vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false })); vortex.add(pts);
     /* ITS ARMS: the blades rest on the floor in front of it; now and then one comes up and slams down, and a reach
        (at Robin, at Canon) lifts the nearer one at them and holds it there */
+    /* THE LINES: black strands thrown out of it in every direction — out of its back, its arms, its head — curling,
+       tangling, whipping, like the drawing is coming apart */
+    const NL = 110, NPt = 22, strands = [];
+    const ink = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color:0x010102 }), NL*(NPt - 1));
+    ink.frustumCulled = false; ink.count = 0; body.add(ink);
+    const UPv = new THREE.Vector3(0, 1, 0), SEG = new THREE.Vector3(), MID = new THREE.Vector3(), P0 = new THREE.Vector3();
+    const ANCH = ['Chest', 'Chest', 'Spine', 'Spine', 'Head', 'Neck', 'UpperArm.L', 'UpperArm.R', 'Forearm.L', 'Forearm.R', 'Hips', 'Thigh.L', 'Thigh.R'];
+    for(let i = 0; i < NL; i++){
+      const th = Math.random()*Math.PI*2, ph = (Math.random() - 0.3)*Math.PI*0.9;
+      strands.push({ th:0.012 + Math.random()*0.03, bone:ANCH[i % ANCH.length], dir:new THREE.Vector3(Math.cos(th)*Math.cos(ph), Math.sin(ph) + 0.25, Math.sin(th)*Math.cos(ph)).normalize(),
+        len:2 + Math.random()*7, curl:2 + Math.random()*6, w:0.15 + Math.random()*0.6, sp:0.6 + Math.random()*2.2, ph:Math.random()*20 });
+    }
+    const AV = new THREE.Vector3(), PV = new THREE.Vector3(), SA = new THREE.Vector3(), SB = new THREE.Vector3();
     const arms = [-1, 1].map((s, i)=>({ s, side: s > 0 ? 'L' : 'R', tip:new THREE.Vector3(s*1.41, 0, 1.01), t:i*1.3 + 0.8, lift:0, slammed:false, reach:null, rk:0, hold:0 }));
     const M = { root, grow:0, pull:1, jaw:0, t:0, mouth:new THREE.Vector3(), eyeAt:new THREE.Vector3(), onSlam:null,
       /* the nearer blade, up at a point in the world */
@@ -211,6 +249,7 @@ window.TSHALPHA = (function(){
         body.scale.setScalar(Math.max(0.001, e));
         body.position.y = Math.sin(M.t*1.1)*0.08*e;
         if(rig.ready){
+          for(const n in rig.bones) rig.bones[n].quaternion.copy(rig.rest[n]);     // every frame from rest, so a jerk never sticks
           // it breathes: the spine rolling, the chest heaving; the head hunting side to side, pushed forward as it pulls
           const br = Math.sin(M.t*1.1);
           pose('Spine', X, br*0.05); pose('Chest', X, br*0.07 - M.pull*0.05);
@@ -235,7 +274,7 @@ window.TSHALPHA = (function(){
           });
         }
         U.uAmp.value = 0.045 + 0.025*Math.sin(M.t*0.7) + M.pull*0.02;
-        halo.material.opacity = 0.75 + 0.25*Math.sin(M.t*7);
+        halo.material.opacity = 0.35 + 0.15*Math.sin(M.t*7);
         rims.forEach((l, i)=>{ l.intensity = (14 + 10*Math.sin(M.t*(2.1 + i) + i*2))*e; l.color.setHSL((M.t*0.11 + i*0.33) % 1, 1, 0.55); });
         spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down
         spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
@@ -245,6 +284,32 @@ window.TSHALPHA = (function(){
           if(s.r < 0.4 || s.z < 0){ s.r = 4 + Math.random()*8; s.z = 1 + Math.random()*8; }
           pp[i*3] = Math.cos(s.a)*s.r; pp[i*3 + 1] = Math.sin(s.a)*s.r; pp[i*3 + 2] = s.z*Math.min(1, s.r/3); }
         pg.attributes.position.needsUpdate = true;
+        // it jerks: now and then a bone snaps somewhere else for a frame, and the whole of it skips
+        if(rig.ready && Math.random() < 0.07){ const names = Object.keys(rig.bones), b = rig.bones[names[(Math.random()*names.length)|0]];
+          if(b) b.quaternion.multiply(Q.setFromEuler(new THREE.Euler((Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5, (Math.random() - 0.5)*0.5))); }
+        body.position.x = Math.random() < 0.05 ? (Math.random() - 0.5)*0.12 : body.position.x*0.6;
+        // the lines
+        if(rig.ready){
+          let si = 0;
+          strands.forEach(st=>{ const b = rig.bones[st.bone]; if(!b) return;
+            b.getWorldPosition(AV); body.worldToLocal(AV);
+            const t = M.t*st.sp + st.ph, L = st.len*(0.75 + 0.25*Math.sin(t*0.7))*(1 + M.pull*0.3);
+            SA.set(-st.dir.z, 0, st.dir.x).normalize(); SB.crossVectors(st.dir, SA);
+            for(let j = 0; j < NPt; j++){ const u = j/(NPt - 1), r = st.w*u*(1 + Math.sin(t*1.3 + u*4));
+              const c = u*st.curl*6.283 + t*2.0;
+              PV.copy(AV).addScaledVector(st.dir, u*L).addScaledVector(SA, Math.cos(c)*r).addScaledVector(SB, Math.sin(c)*r*0.8);
+              PV.y -= u*u*0.6;                                  // the long ones droop
+              if(j){ SEG.subVectors(PV, P0); const len = SEG.length(); MID.addVectors(PV, P0).multiplyScalar(0.5);
+                Q.setFromUnitVectors(UPv, SEG.multiplyScalar(1/Math.max(len, 1e-4))); const w = st.th*(1 - u*0.7);
+                M4.compose(MID, Q, S1.set(w, len, w)); ink.setMatrixAt(si++, M4); }
+              P0.copy(PV); } });
+          ink.count = si; ink.instanceMatrix.needsUpdate = true;
+          // the scribbles on its body ride the chest and the belly
+          if(scribs.length === 1){ const ch = rig.bones.Chest, sp = rig.bones.Spine;
+            torsoScr.forEach(([x, y, z], i)=>{ const s_ = scribble(body, 0, 0, 0, i === 2 ? 0.75 : 0.9); s_.userData.at = [x, y, z]; s_.userData.bone = i === 2 ? 'Spine' : 'Chest'; scribs.push(s_); }); }
+          scribs.forEach((sp, i)=>{ if(i){ const b = rig.bones[sp.userData.bone]; b.getWorldPosition(V1); body.worldToLocal(V1); sp.position.copy(V1).add(SA.set(...sp.userData.at)); }
+            sp.userData.k += dt*9; sp.material.map = scr[(sp.userData.k|0) % scr.length]; sp.material.rotation = Math.sin(M.t*0.5 + i)*0.4; });
+        }
         // the face rides its head
         const hb = rig.bones.Head;
         if(hb){ hb.getWorldPosition(V1); body.worldToLocal(V1); head.position.lerp(V1.add(new THREE.Vector3(0, 0.22, -0.02)), 1); hb.getWorldQuaternion(Q); }
