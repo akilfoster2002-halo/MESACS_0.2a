@@ -18,7 +18,7 @@
      tunnel             x ±2.5   z -32 … -72   the Psi crack at z -46; the wall at z -72, a hatch high in it
      passage            x ±2     z -72 … -88   the security door at z -88
      platform B         x -9…3   z -88 … -128  tracks x 3…9, the train on them
-     exit corridor      x -9…-5  z -128 … -146 the ladder at z -145
+     exit corridor      x -9…-5  z -128 … -137 the ladder at z -136
    ===================================================================== */
 window.TSHSUB = (function(){
   const UX = 520;
@@ -193,14 +193,18 @@ window.TSHSUB = (function(){
     spots.trainDoor = [X(3.3), -104];
     spots.arena = { x1:X(-8.5), x2:X(2.6), z1:-126, z2:-90 };
     spots.meetR = [X(-2.6), -100]; spots.canon = [X(-1.6), -99.2]; spots.maya = [X(0.6), -105]; spots.kai = [X(-2.4), -106.5];
-    // the way out: the corridor at the far end, and the ladder up
-    floor(-9, -5, -146, -128); ceil(-9, -5, -146, -128, 3.0);
-    wall(-9.3, -9, -146, -128, 3.2); wall(-5, -4.7, -146, -128.3, 3.2); wall(-9.3, -4.7, -146.3, -146, 3.2);
-    lamp(-7, 2.8, -136, 0xff4a2a, 0.9, 8, true);
-    for(let y = 0.3; y < 3.0; y += 0.3) box(steel, X(-7), y, -145.85, 0.7, 0.04, 0.04);
-    [-7.35, -6.65].forEach(x=>box(steel, X(x), 1.5, -145.85, 0.05, 3.0, 0.05));
-    box(glowM(0xfff0d0, 1.5), X(-7), 3.01, -145.5, 0.8, 0.02, 0.8);                                    // daylight through the manhole
-    spots.ladder = [X(-7), -144.6];
+    // the way out: a short corridor at the far end, lit, a green EXIT over it, and the ladder up into daylight
+    floor(-9, -5, -137, -128); ceil(-9, -5, -137, -128, 3.0);
+    wall(-9.3, -9, -137, -128, 3.2); wall(-5, -4.7, -137, -128.3, 3.2); wall(-9.3, -4.7, -137.3, -137, 3.2);
+    lamp(-7, 2.8, -132, 0x6aff9a, 2.6, 14, true);
+    { const s = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.7), new THREE.MeshBasicMaterial({ map:signTex('EXIT ▸ LADDER', '#0a5a2a', '#eafff0') })); s.position.set(X(-7), 2.75, -127.8); g.add(s);
+      const gl = new THREE.PointLight(0x5aff8a, 6, 12); gl.position.set(X(-7), 2.6, -126.8); g.add(gl); }
+    for(let y = 0.3; y < 3.0; y += 0.3) box(steel, X(-7), y, -136.85, 0.7, 0.04, 0.04);
+    [-7.35, -6.65].forEach(x=>box(steel, X(x), 1.5, -136.85, 0.05, 3.0, 0.05));
+    box(glowM(0xfff0d0, 2.5), X(-7), 3.01, -136.5, 0.8, 0.02, 0.8);                                    // daylight through the manhole
+    { const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.9, 3, 16, 1, true), new THREE.MeshBasicMaterial({ color:0xfff4d8, transparent:true, opacity:0.12, depthWrite:false, side:THREE.DoubleSide }));
+      shaft.position.set(X(-7), 1.5, -136.4); g.add(shaft); }
+    spots.ladder = [X(-7), -135.6];
 
     out.solids.push(...solids);
     const ceilingAt = (x, z) => z > 2 ? 3.4 : z > -32 ? 4.2 : z > -72 ? 4.5 : z > -88 ? 3.2 : z > -128 ? 8.5 : 3.0;

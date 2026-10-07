@@ -834,7 +834,7 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(ai, /gethome: \{ goal:'Get home\.', to:\{ home:'evening' \} \}/);
   // every scene in the script, in order
   ['canonHi', 'canonIn', 'canonDark', 'canonLit', 'walkA', 'walkB', 'canonSwitch', 'canonGizmo', 'canonPsi', 'canonTuned', 'canonBoost', 'canonHand', 'canonQuiet', 'canonDoor',
-   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonGuard', 'canonDown', 'mayaIn', 'mayaGlitch', 'monsterKai', 'canonGone', 'chaseStart', 'chaseLost', 'robinAlone', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'robinQ', 'coming']
+   'meetMaya', 'meetKai', 'meetWfc', 'meetYu', 'canonGuard', 'canonDown', 'mayaIn', 'mayaGlitch', 'monsterKai', 'canonGone', 'chaseStart', 'chaseLost', 'robinAlone', 'momPhone', 'momPhone2', 'momPhone3', 'momPhone4', 'wfcFreeze', 'wfcCanon', 'hideCry', 'hideCry2', 'aptPhone', 'reveal1', 'reveal2', 'reveal3', 'reveal4']
     .forEach(k => assert.ok(ch.includes("'" + k + "'"), 'the chapter says ' + k));
   has(t, /canonHi:\s*\[\['canon','You came\.'\]/, 'his name is Canon'); has(t, /canon:\['CANON',/);
   assert.ok(!/AFTER SCHOOL: THEO|launcherBench|afterProps/.test(t), 'the bench and the launcher are gone');
@@ -863,11 +863,13 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(fi, /bystander:!!o\.bystander/, 'Maya stands out of the fight with Kai');
   has(ch, /TSHALPHA\.apply\(maya\.model\)/); has(al, /vec3\(0\.012, 0\.012, 0\.018\)/, 'black'); has(al, /uGlitch/, 'and glitching');
   // texts, not lines: you coming? / where? — you better text me / yes dad / that's not funny — home? / home.
-  ["'you coming?'", "'where?'", "'canon answer me'", "'canon please'", "'i\\'m home'", "'Delivered'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
+  ["'you coming?'", "'where?'", "'canon answer me'", "'canon please'", "'Delivered'"].forEach(m => assert.ok(t.includes(m), 'the texts have ' + m));
   // the shoes come back when nobody can see: she looks at the roofs, and BOOM
   has(t, /S\.flags\.shoesBack = true;[\s\S]{0,400}BOOTS\.fire\(\)/);
-  // home: the window, dinner, the sketch, TO BE CONTINUED
-  has(t, /TSHROOM\.sketch\('boots'\)/); has(t, /TO BE CONTINUED/);
+  // the city answers it: the sky black, sirens, the alert; WFC decide she is with it; she hides and calls him; and home
+  has(ch, /function chaosOn\(at\)/); has(ch, /EMERGENCY ALERT/); has(ch, /wfcStandoff\(at, y0\)/); has(ch, /function hideScene\(\)/); has(ch, /phoneBig\('calling', 'CANON'\)/);
+  // home: the gadgets come off, the water runs, a badge on her bench — and the Director is her mother. THE END
+  has(t, /TSHROOM\.sketch\('boots'\)/); has(t, /function aptEnding\(/); has(t, /WFC[\s\S]{0,80}DIRECTOR/); has(t, /<small>ROBIN RYU<\/small><b>THE END<\/b>/);
   // nobody else in the city wears his body
   assert.ok(!/CIV = \[[^\]]*'theo'/.test(t), 'Canon is a passer-by too');
 });
