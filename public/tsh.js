@@ -269,6 +269,7 @@ window.TSH = (function(){
     monsterKai:[['kai','No. No, no, no.'], ['kai','Maya, stop!']],
     robinFight:[['robin','Give him back.']],
     robinPunch:[['robin','I said GIVE HIM BACK!']],
+    robinGo:[['robin','Get out of here, Robin. Get out. Go. GO.']],
     canonGone: [['robin','CANON!']],
     robinAlone:[['robin','Canon...'], ['robin','Think, Robin. Think.']],
     chaseStart:[['robin','No. No, no, no.'], ['robin','Okay. Okay. Secret\'s out.']],
@@ -5190,6 +5191,9 @@ window.TSH = (function(){
         enter:()=>{ if(mon){ mon.act('tail'); mon.root.position.set(M[0], 0, M[1]); mon.root.rotation.y = myaw; } }, tick:(dt, t, k)=>{ const r = [R[0] - dir[0]*k*3, R[1] - dir[1]*k*3]; stage(k < 0.5 ? 'hit' : 'fall', r[0], Math.sin(k*Math.PI)*0.8, r[1], ry); } },
       { dur:1.2, fov:40, cam:[R[0] - dir[0]*3 - side[0]*1.5, 0.5, R[1] - dir[1]*3 - side[1]*1.5], look:[R[0] - dir[0]*3, 0.6, R[1] - dir[1]*3],
         enter:()=>{ stage('getup', R[0] - dir[0]*3, 0, R[1] - dir[1]*3, ry); shake(0.4, 0.5); } },
+      // on her knees, its shadow over her — to herself: get out of here
+      { dur:linesLen('robinGo') + 0.2, fov:24, mood:'nervous', cam:[R[0] - dir[0]*3 + side[0]*0.45 + dir[0]*0.6, 1.1, R[1] - dir[1]*3 + side[1]*0.45 + dir[1]*0.6], look:[R[0] - dir[0]*3, 1.05, R[1] - dir[1]*3],
+        enter:()=>{ stage('kneel', R[0] - dir[0]*3, 0, R[1] - dir[1]*3, ry); talk('robinGo'); } },
       ...cuts(1.8, [CAM.run, CAM.runLow, CAM.runFront, CAM.run], { tick:(dt, t, k)=>{ runK = 1 + k*0.4; const r = Rrun(); stage('sprint', r[0], 0, r[1], ry + Math.PI); } })
     ];
     const toEscape = aftDone(()=>{ reel = null; staged = null; dutch = 0; if(window.AVATAR) AVATAR.posture(null);
@@ -5201,7 +5205,7 @@ window.TSH = (function(){
       for(let i = 0; i < 40; i++) schoolCam(1/30);               // and the camera already behind her, under the ceiling, before the first frame
       esc_ = { t:0, caught:0, reach:1, hitT:0 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
       note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); });
-    playReel(shots, aftDone(()=>fightClips().then(()=>brawl(M, ry, dir, side, ()=>fightClips().then(()=>duel(()=>{ fmAim(FIGHTM.drop3, 2.3, [FIGHTM.drop3, FIGHTM.end]); playReel(runShots, toEscape, { ownClock:true }); }))))), { ownClock:true });   // (her moves put back on her: the jacket and gloves are a new body)
+    playReel(shots, aftDone(()=>fightClips().then(()=>brawl(M, ry, dir, side, ()=>fightClips().then(()=>duel(()=>{ fmAim(FIGHTM.drop3, 2.3 + linesLen('robinGo') + 0.2, [FIGHTM.drop3, FIGHTM.end]); playReel(runShots, toEscape, { ownClock:true }); }))))), { ownClock:true });   // (her moves put back on her: the jacket and gloves are a new body)
   }
   /* SHE FIGHTS IT FOR HIM — on her own feet: you move her (WASD), it turns to keep its jaws on her. It rears back
      before it bites (DODGE!): be out of its reach when the jaws come down — move, or SPACE throws her aside. A bite
@@ -6342,7 +6346,7 @@ window.TSH = (function(){
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
-    'Give him back.':'angry', 'I said GIVE HIM BACK!':'angry',
+    'Give him back.':'angry', 'I said GIVE HIM BACK!':'angry', 'Get out of here, Robin. Get out. Go. GO.':'nervous',
     "Think, Robin. Think.":'nervous',
     "No. No, no, no.":'shocked',
     "Okay. Okay. Secret's out.":'determined',
