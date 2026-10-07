@@ -161,6 +161,7 @@ window.TSHALPHA = (function(){
     { chain:['Thigh.L', 'Shin.L', 'Foot.L'], tip:[1.19, 0.0, -2.93],  foot:'Bone_L006' },
     { chain:['Thigh.R', 'Shin.R', 'Foot.R'], tip:[-1.19, 0.0, -2.93], foot:'Bone_R006' }
   ];
+  const SIZE = 1.35;                                     // how much bigger than the goose it is
   function monster(group, at, yaw){
     const root = new THREE.Group(); root.position.set(at[0], 0, at[2]); root.rotation.y = yaw || 0; group.add(root);
     const body = new THREE.Group(); root.add(body);
@@ -256,7 +257,7 @@ window.TSHALPHA = (function(){
           vec3 c = hue(a/6.2831 + r*0.25 - uT*0.3)*pow(arms, 2.0)*band*2.2;
           c += vec3(1.6, 1.5, 1.8)*(smoothstep(0.92, 1.0, r) - smoothstep(1.0, 1.1, r));
           gl_FragColor = vec4(c, max(max(c.r, c.g), c.b)*min(1.0, uPull)); }` });
-    vortex.add(new THREE.Mesh(new THREE.RingGeometry(0.38, 1.2, 96, 3), swirl));
+    // (the colourful swirl in its mouth is gone: the point stays, for whatever is pulled toward its jaws)
     const NP = 700, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP*3), pc = new Float32Array(NP*3), pst = [];
     for(let i = 0; i < NP; i++){ pst.push({ r:1 + Math.random()*9, a:Math.random()*7, z:Math.random()*8 }); const c = new THREE.Color().setHSL(Math.random(), 1, 0.6); pc[i*3] = c.r*2; pc[i*3 + 1] = c.g*2; pc[i*3 + 2] = c.b*2; }
     pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.BufferAttribute(pc, 3));
@@ -399,7 +400,7 @@ window.TSHALPHA = (function(){
       tick(dt){
         M.t += dt; U.uT.value = M.t;
         const g = M.grow, e = g*g*(3 - 2*g);
-        body.scale.setScalar(Math.max(0.001, e));
+        body.scale.setScalar(Math.max(0.001, e)*SIZE);
         V1.copy(root.position); speed += ((V1.distanceTo(lastPos)/Math.max(dt, 1e-3)) - speed)*Math.min(1, dt*6); lastPos.copy(V1);
         if(R.ready){
           const want = speed > 4.5 ? 'run' : speed > 0.6 ? 'large walk' : 'walk tight';
@@ -452,7 +453,7 @@ window.TSHALPHA = (function(){
         spot.intensity = (90 + 60*Math.random()*M.pull*0.5)*e*(M.key === undefined ? 1 : M.key);   // M.key: a close-up can take the hard front light down
         spot.color.setHSL((0.85 + Math.sin(M.t*3)*0.1 + 1) % 1, 0.6, 0.7);
         strobe.intensity = Math.random() < 0.02*M.pull ? 110*e : strobe.intensity*0.8;
-        vortex.rotation.z -= dt*1.6*M.pull; swirl.uniforms.uPull.value = M.pull; pts.material.opacity = Math.min(1, M.pull*1.5); pts.visible = M.pull > 0.02;
+        pts.visible = false;
         for(let i = 0; i < NP; i++){ const s_ = pst[i]; s_.a += dt*(1.5 + 6/s_.r)*M.pull; s_.r -= dt*(1.2 + 5/s_.r)*M.pull; s_.z -= dt*1.2*M.pull;
           if(s_.r < 0.4 || s_.z < 0){ s_.r = 4 + Math.random()*8; s_.z = 1 + Math.random()*8; }
           pp[i*3] = Math.cos(s_.a)*s_.r; pp[i*3 + 1] = Math.sin(s_.a)*s_.r; pp[i*3 + 2] = s_.z*Math.min(1, s_.r/3); }

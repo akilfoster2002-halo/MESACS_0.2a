@@ -5114,13 +5114,13 @@ window.TSH = (function(){
          left of the frame, all of it filling the right — as it rears up and roars down at her, pushing in. */
       { dur:2.0, fov:52, fov2:46, ease:false,
         cam:k=>[R[0] - dir[0]*(1.5 - k*0.4) - side[0]*1.1, 0.6 + k*0.1, R[1] - dir[1]*(1.5 - k*0.4) - side[1]*1.1],
-        look:()=>[R[0]*0.2 + M[0]*0.8 + side[0]*0.9, 2.9, R[1]*0.2 + M[1]*0.8 + side[1]*0.9],
+        look:()=>[R[0]*0.2 + M[0]*0.8 + side[0]*0.9, 3.6, R[1]*0.2 + M[1]*0.8 + side[1]*0.9],
         enter:()=>{ dutch = -0.06; mon.pull = 0.6; roar(); shake(0.45, 2.0); standR(); }, tick:(dt, t, k)=>{ mon.pull = 0.6 + k*0.5; standR(); if(wind) wind.k = 0.8; } },
       /* (2) All the way round it: the whole of it, its blades, its swarm, the hole in its jaws pulling */
       { dur:3.2, fov:58, ease:false,
-        cam:k=>{ const a0 = Math.atan2(dir[0], dir[1]) + Math.PI, a = a0 + k*Math.PI*2, rr = 6.2 - Math.sin(k*Math.PI)*0.8;
-          return [M[0] + Math.sin(a)*rr, 1.2 + k*1.6, M[1] + Math.cos(a)*rr]; },
-        look:()=>[M[0], 2.5, M[1]],
+        cam:k=>{ const a0 = Math.atan2(dir[0], dir[1]) + Math.PI, a = a0 + k*Math.PI*2, rr = 7.8 - Math.sin(k*Math.PI)*0.9;
+          return [M[0] + Math.sin(a)*rr, 1.3 + k*2.2, M[1] + Math.cos(a)*rr]; },
+        look:()=>[M[0], 3.2, M[1]],
         enter:()=>{ dutch = 0; shake(0.2, 3.2); }, tick:(dt, t, k)=>{ mon.pull = 1.1 + k*0.8; standR(); if(wind) wind.k = 0.9 + k*0.3; } },
       /* (3) Her, looking at it: a dolly zoom — the camera falls back from her as the lens closes in, so her face holds
          its size and the station behind her stretches away */
