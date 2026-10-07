@@ -854,7 +854,7 @@ test('after school: Canon and the closed station — the gates, the Psi, Maya an
   has(t, /The WFC sealed this station and forgot about it/); has(t, /one girl in a pair of shoes\. YU\./); has(t, /Robin\. Get behind me\./);
   assert.ok(!/We've met\. She makes lovely things/.test(t), 'Maya and Robin do not know each other');
   has(ch, /TENTACLES\.make\(W\.sub\.group/); has(ch, /mOc\.burst\(k, null, \{ world:tgt/, 'her arms claw at Robin in the fight');
-  has(ch, /TSHMONSTER\.make\(W\.sub\.group/); has(al, /window\.TSHMONSTER = \{ make:monster \}/); has(ch, /c\.g\.scale\.setScalar\(Math\.max\(0\.02, 1 - k\*k\)\)/, 'Canon goes into it');
+  has(ch, /TSHMONSTER\.make\(W\.sub\.group/); has(al, /window\.TSHMONSTER = \{ make:monster, preload:goose \}/); has(ch, /c\.g\.scale\.setScalar\(Math\.max\(0\.02, 1 - k\*k\)\)/, 'Canon goes into it');
   has(ch, /function haywire\(k\)/);
   // up the ladder, it comes up out of the street after her: the shoes go on, and it is a chase across the city until it loses her
   has(ch, /TSHMONSTER\.make\(W\.cityGroup/); has(ch, /S\.flags\.shoesBack = true; S\.flags\.chase = true;/); has(t, /function shoesHidden\(\)\{ if\(S\.flags && S\.flags\.chase\) return false;/);
