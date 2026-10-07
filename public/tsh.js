@@ -5201,7 +5201,7 @@ window.TSH = (function(){
       for(let i = 0; i < 40; i++) schoolCam(1/30);               // and the camera already behind her, under the ceiling, before the first frame
       esc_ = { t:0, caught:0, reach:1, hitT:0 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
       note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); });
-    playReel(shots, aftDone(()=>brawl(M, ry, dir, side, ()=>duel(()=>{ fmAim(FIGHTM.drop3, 2.3, [FIGHTM.drop3, FIGHTM.end]); playReel(runShots, toEscape, { ownClock:true }); }))), { ownClock:true });
+    playReel(shots, aftDone(()=>fightClips().then(()=>brawl(M, ry, dir, side, ()=>fightClips().then(()=>duel(()=>{ fmAim(FIGHTM.drop3, 2.3, [FIGHTM.drop3, FIGHTM.end]); playReel(runShots, toEscape, { ownClock:true }); }))))), { ownClock:true });   // (her moves put back on her: the jacket and gloves are a new body)
   }
   /* SHE FIGHTS IT FOR HIM — on her own feet: you move her (WASD), it turns to keep its jaws on her. It rears back
      before it bites (DODGE!): be out of its reach when the jaws come down — move, or SPACE throws her aside. A bite
@@ -5264,12 +5264,16 @@ window.TSH = (function(){
     // A SPEED RAMP: full speed in, down to `lo` around `mid` of the shot, and back up — the world and the song with it
     const ramp = (lo, mid, w) => k => ts(1 - (1 - lo)*Math.exp(-Math.pow((k - mid)/(w || 0.16), 2)));
     // a shot: its own tick, plus her, it, and the ramp
-    const S = (o) => { const t0 = o.tick; o.tick = (dt, t, k) => { if(o.ramp) o.ramp(k); if(o.mon) o.mon(k); if(t0) t0(dt, t, k); }; const e0 = o.enter; o.enter = () => { if(e0) e0(); if(o.mon) o.mon(0); if(!o.ramp) ts(1); }; return o; };
+    // (a move — `clip` — is started fresh as the shot starts and stretched to last exactly the shot: never over early, leaving her standing in the air)
+    const rigR = () => window.AVATAR && AVATAR.model && AVATAR.model.userData.rig;
+    const S = (o) => { const t0 = o.tick; o.tick = (dt, t, k) => { if(o.ramp) o.ramp(k); if(o.mon) o.mon(k); if(t0) t0(dt, t, k); };
+      const e0 = o.enter; o.enter = () => { if(e0) e0(); if(o.mon) o.mon(0); if(!o.ramp) ts(1);
+        const r_ = rigR(); if(o.clip && r_ && r_.restart){ r_.restart(o.clip, 0.05); const len = r_.seconds ? r_.seconds(o.clip) : 0; if(len) o.anim = len/(o.dur*(o.fill || 0.95)); } }; return o; };
     let won = 0, combo = 0;
     // a mash: the world nearly stopped (it still moving, slowly, at her); SPACE fills the bar, it drains; full in time and she wins it
     const mash = (label, secs, cam, look, fov, hold) => {
       const m = { k:0, left:secs, done:false };
-      return { dur:999, fov, cam, look, ease:false,
+      return { dur:999, fov, cam, look, ease:false, anim:0.25,
         enter:()=>{ ts(0.18); hold(0); cue('glitch'); mashUI(true, 0, label, secs); m.onKey = e => { if(e.code === 'Space'){ e.preventDefault(); if(!m.done){ m.k = Math.min(1, m.k + 0.085); shake(0.12, 0.08); } } };
           window.addEventListener('keydown', m.onKey); },
         tick:(dt)=>{ const real = dt/Math.max(0.05, G.timeScale || 1); m.T = (m.T || 0) + real; hold(Math.min(1, m.T/secs)); if(m.done) return;
@@ -5290,11 +5294,11 @@ window.TSH = (function(){
       S({ dur:1.3, fov:72, ease:false, cam:k=>{ const q = at(-1.2 + k*3.4, 0.6); return [q[0], 0.3, q[1]]; }, look:()=>hb(1.0),
         mon:mgo(0, 2.6), enter:()=>{ if(mon) mon.act('roar'); cue('growl'); }, tick:(dt, t, k)=>{ const q = at(k*3.4); put('sprint', q[0], 0, q[1]); } }),
       // its jaws come sideways at her — she cartwheels under them, the world slowing to a crawl as the teeth go over her
-      S({ dur:1.5, fov:46, ease:false, cam:k=>{ const q = at(3.6, -4.6 + k*1.0); return [q[0], 0.9, q[1]]; }, look:()=>hb(0.9), ramp:ramp(0.12, 0.45, 0.18),
+      S({ dur:1.5, fov:46, ease:false, clip:'cartL', cam:k=>{ const q = at(3.6, -4.6 + k*1.0); return [q[0], 0.9, q[1]]; }, look:()=>hb(0.9), ramp:ramp(0.12, 0.45, 0.18),
         mon:mgo(2.6, 3.4, 0, -0.6, k=>toHer - 0.5*Math.sin(Math.PI*k)), enter:()=>{ if(mon) mon.act('bite'); cue('zip'); },
         tick:(dt, t, k)=>{ const a = at(3.4), b = at(3.9, 1.8); put('cartL', lerp(a[0], b[0], k), 0, lerp(a[1], b[1], k)); } }),
       // up — the flying kick into the side of its jaw, the camera wheeling under her, time stopping on the hit and snapping back
-      S({ dur:1.6, fov:58, ease:false, ramp:ramp(0.08, 0.6, 0.1),
+      S({ dur:1.6, fov:58, ease:false, clip:'flykick', ramp:ramp(0.08, 0.6, 0.1),
         cam:k=>{ const a = ry + Math.PI*0.5 + k*1.7, c = hb(0); return [c[0] + Math.sin(a)*3.4, 0.4 + k*1.4, c[2] + Math.cos(a)*3.4]; }, look:()=>hb(1.0),
         mon:mgo(3.4, 2.4, -0.6, 0, k=>toHer + (k > 0.6 ? 0.7*Math.sin(Math.PI*(k - 0.6)/0.4) : 0)), enter:()=>cue('kick'),
         tick:(dt, t, k)=>{ const a = at(3.9, 1.8), b = at(d0 - 2.4 - 1.6, 0.6); const q = arc(a, b, k, Math.min(3.2, H()*0.6)); put('flykick', q[0], q[1], q[2]); },
@@ -5303,7 +5307,7 @@ window.TSH = (function(){
     shots.push(...branch(
       mash('HOLD ITS JAWS OPEN', 4.2, ()=>{ const q = at(d0 - 6.4, -1.8); return [q[0], 0.5, q[1]]; }, ()=>[her[0], 2.0, her[2]], 46,
         k=>{ mset(2.4 + k*0.6, 0); const q = at(d0 - 2.4 - 2.2 - k*0.6, 0.2); put('block', q[0], 0, q[1]); }),
-      [ S({ dur:0.8, fov:30, cam:()=>{ const q = at(d0 - 6.2, 0.9); return [q[0], 0.7, q[1]]; }, look:()=>hb(1.4), ramp:ramp(0.1, 0.45, 0.1),
+      [ S({ dur:0.8, fov:30, clip:'power', cam:()=>{ const q = at(d0 - 6.2, 0.9); return [q[0], 0.7, q[1]]; }, look:()=>hb(1.4), ramp:ramp(0.1, 0.45, 0.1),
           mon:mgo(3.0, 1.6), enter:()=>{ const q = at(d0 - 5.2, 0.2); put('power', q[0], 0, q[1]); cue('kick'); }, beats:[[0.36, ()=>hit(true)]] }),
         S({ dur:1.2, fov:66, cam:()=>{ const q = at(d0 - 9.5, 3.8); return [q[0], 0.5, q[1]]; }, look:()=>mb(H()*0.8),
           mon:mgo(1.6, 0, 0, 0, k=>toHer + Math.sin(k*9)*0.12), enter:()=>{ if(mon) mon.act('roar'); roar(); shake(0.6, 1); } }) ],
@@ -5315,31 +5319,31 @@ window.TSH = (function(){
     shots.push(
       S({ dur:1.1, fov:70, ease:false, cam:k=>{ const q = at(d0 - 11 + k*2.6, -0.7); return [q[0], 0.35, q[1]]; }, look:()=>hb(1.0),
         mon:mgo(0, 3.5), enter:()=>{ cue('growl'); if(mon) mon.act('bite'); }, tick:(dt, t, k)=>{ const q = at(lerp(d0 - 9.5, d0 - 6.2, k)); put('sprint', q[0], 0, q[1]); } }),
-      S({ dur:2.2, fov:84, ease:false, ramp:ramp(0.15, 0.5, 0.2),
+      S({ dur:2.2, fov:84, ease:false, clip:'evroll', ramp:ramp(0.15, 0.5, 0.2),
         cam:k=>{ const q = at(lerp(d0 - 6.8, d0 + 1.2, k), 0.35); return [q[0], 0.18, q[1]]; }, look:k=>{ const q = at(lerp(d0 - 4.2, d0 + 3.5, k)); return [q[0], 0.9 + Math.sin(Math.PI*k)*0.6, q[1]]; },
         mon:mgo(3.5, 4.5), enter:()=>{ cue('zip'); shake(0.4, 1.2); },
         tick:(dt, t, k)=>{ const q = at(lerp(d0 - 6.2, d0 + 1.0, k)); put('evroll', q[0], 0, q[1]); } }),
-      S({ dur:1.4, fov:50, ease:false, ramp:ramp(0.25, 0.55, 0.15),
+      S({ dur:1.4, fov:50, ease:false, clip:'bflip', ramp:ramp(0.25, 0.55, 0.15),
         cam:k=>{ const q = at(d0 + 4.5, 2.8 - k*1.4); return [q[0], 1.0 + k, q[1]]; }, look:()=>hb(1.0),
         mon:mgo(4.5, 4.0, 0, 0, k=>toHer + Math.PI*Math.min(1, k*1.3)), enter:()=>cue('kick'),
         tick:(dt, t, k)=>{ const a = at(d0 + 1.0), b = at(d0 + 2.4), q = arc(a, b, k, 1.4); put('bflip', q[0], q[1], q[2], ry + Math.PI); } }),
-      // up its back as it turns, and off the top of its head — the camera straight down past her — the spin kick into its eye
-      S({ dur:1.3, fov:44, cam:k=>{ const q = at(d0 + 4.8, -2.6); return [q[0], 1.3 + k*2, q[1]]; }, look:()=>hb(0.8),
-        mon:mgo(4.0, 4.0, 0, 0, k=>toHer + Math.PI - Math.PI*k), enter:()=>cue('step'),
-        tick:(dt, t, k)=>{ const a = at(d0 + 2.4), e = eye(); put(k < 0.4 ? 'sprint' : 'wallkick', lerp(a[0], e[0] + dir[0]*0.6, k), Math.max(0, k - 0.3)/0.7*H()*0.85, lerp(a[1], e[2] + dir[1]*0.6, k), ry + Math.PI); } }),
-      S({ dur:1.9, fov:62, ease:false, ramp:ramp(0.07, 0.68, 0.12),
-        cam:k=>{ const c = hb(0); return [c[0] - dir[0]*0.6 + Math.sin(k*2)*0.9, c[1] + 3.6, c[2] - dir[1]*0.6 + Math.cos(k*2)*0.9]; }, look:()=>hb(-1.0),
-        mon:mgo(4.0, 3.2), enter:()=>{ cue('kick'); },
-        tick:(dt, t, k)=>{ const e = eye(), q = [lerp(her[0], e[0] - dir[0]*0.9, k*0.3), H()*0.85 + Math.sin(Math.PI*k)*1.4 - k*0.6, lerp(her[2], e[2] - dir[1]*0.9, k*0.3)]; her = q; stage('spin', q[0], Math.max(0, q[1]), q[2], ry); },
-        beats:[[1.3, ()=>hit(true)]] })
+      // at it from behind as it turns — and up, over the top of its head, the spin kick into its eye on the way over, down in front of it
+      S({ dur:0.9, fov:48, cam:k=>{ const q = at(d0 + 5.2, -2.6); return [q[0], 1.0, q[1]]; }, look:()=>hb(1.0),
+        mon:mgo(4.0, 4.0, 0, 0, k=>toHer + Math.PI - Math.PI*0.7*k), enter:()=>cue('step'),
+        tick:(dt, t, k)=>{ const a = at(d0 + 2.4), b = at(d0 + 1.0); put('sprint', lerp(a[0], b[0], k), 0, lerp(a[1], b[1], k), ry + Math.PI); } }),
+      S({ dur:2.0, fov:62, ease:false, clip:'spin', ramp:ramp(0.07, 0.5, 0.12),
+        cam:k=>{ const q = mpos(); return [q[0] + side[0]*5.5 - dir[0]*1.0, 1.4 + k*1.2, q[1] + side[1]*5.5 - dir[1]*1.0]; }, look:()=>hb(0.6),
+        mon:mgo(4.0, 3.2, 0, 0, k=>toHer + Math.PI*0.3*(1 - k)), enter:()=>{ cue('launch'); },
+        tick:(dt, t, k)=>{ const a = at(d0 + 1.0), b = at(d0 - 6.5), q = arc(a, b, k, H() + 0.8); put('spin', q[0], Math.max(0, q[1]), q[2], ry + Math.PI*(1 - k)); },
+        beats:[[1.0, ()=>hit(true)]] })
     );
+    // it comes down on her as she lands — she is on her back, its jaws on her, holding them off with her feet
     shots.push(...branch(
-      mash('ITS TAIL HAS YOU — BREAK FREE', 4.0, ()=>{ const q = mpos(); return [q[0] - dir[0]*6 + side[0]*3.4, 2.4, q[1] - dir[1]*6 + side[1]*3.4]; }, ()=>[her[0], her[1] + 1, her[2]], 42,
-        k=>{ mset(3.2, 0, toHer + Math.sin(k*20)*0.15); const e = eye(); put('hit', e[0] - dir[0]*2.2 + side[0]*1.2, Math.max(1, H()*0.55 + Math.sin(k*16)*0.2), e[2] - dir[1]*2.2 + side[1]*1.2); }),
-      [ S({ dur:1.4, fov:50, ramp:ramp(0.3, 0.3, 0.12), cam:()=>{ const q = at(d0 - 8.5, -3); return [q[0], 1.2, q[1]]; }, look:()=>hb(0.8), mon:mgo(3.2, 1.0),
-          enter:()=>{ cue('kick'); hit(false); }, tick:(dt, t, k)=>{ const b = at(d0 - 7.5, 0.5); her = [lerp(her[0], b[0], k), Math.max(0, lerp(her[1], 0, k) + Math.sin(Math.PI*k)), lerp(her[2], b[1], k)]; stage('evflip', her[0], her[1], her[2], ry); } }) ],
-      [ S({ dur:1.2, fov:56, cam:()=>{ const q = at(d0 - 9, 3); return [q[0], 1.0, q[1]]; }, look:()=>hb(0.5), mon:mgo(3.2, 1.0),
-          enter:()=>{ slam(); }, tick:(dt, t, k)=>{ const b = at(d0 - 7.5, 0.5); her = [lerp(her[0], b[0], k), Math.max(0, (1 - k)*her[1]), lerp(her[2], b[1], k)]; stage(k < 0.7 ? 'hit' : 'fall', her[0], her[1], her[2], ry); } }) ]));
+      mash('IT HAS YOU PINNED — BREAK FREE', 4.0, ()=>{ const q = at(d0 - 6.5, 3.6); return [q[0], 0.7, q[1]]; }, ()=>[her[0], 0.9, her[2]], 44,
+        k=>{ mset(3.2 + k*0.6, 0, toHer + Math.sin(k*20)*0.08); const q = at(d0 - 6.5); put('ko', q[0], 0, q[1], ry + Math.PI); if(Math.random() < 0.1) shake(0.2, 0.15); }),
+      [ S({ dur:1.3, fov:50, clip:'evflip', ramp:ramp(0.3, 0.35, 0.12), cam:()=>{ const q = at(d0 - 9.5, -3); return [q[0], 1.2, q[1]]; }, look:()=>hb(0.8), mon:mgo(3.8, 1.0),
+          enter:()=>{ cue('kick'); hit(false); }, tick:(dt, t, k)=>{ const a = at(d0 - 6.5), b = at(d0 - 8.0, 0.5), q = arc(a, b, k, 1.3); put('evflip', q[0], q[1], q[2]); } }) ],
+      [ ...thrown(d0 - 6.5, d0 - 8.0, d0 - 9.5), S({ dur:0.5, fov:50, cam:()=>{ const q = at(d0 - 10, 2); return [q[0], 1.0, q[1]]; }, look:()=>mb(H()*0.7), mon:mgo(3.8, 1.0) }) ]));
 
     /* THREE. It comes at her, slow, and roars into her face from a metre off; the wind of it pushing her back — she leans into it */
     shots.push(
@@ -5359,24 +5363,27 @@ window.TSH = (function(){
 
     /* FOUR. Everything she has. They run at each other; she plants a foot on its knee and goes up higher than she has
        ever gone — the world slowing, the station turning under her — and comes down fist first at its eye */
-    const four = mash('PUNCH THROUGH', 4.2, ()=>{ const e = eye(); return [e[0] - dir[0]*3.4 + side[0]*1.4, e[1] + 0.6, e[2] - dir[1]*3.4 + side[1]*1.4]; }, eye, 30,
-      k=>{ mset(2.6 - k*0.4, 0); const e = eye(); put('power', e[0] - dir[0]*1.3, Math.max(0.5, e[1] - 1.2), e[2] - dir[1]*1.3); LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.08); LOOK.fx.flashCol.set(0.7, 0.5, 1); });
+    // down in front of it — and its jaws come down at her, and she braces her fists against them
+    const four = mash('PUNCH THROUGH', 4.2, ()=>{ const q = at(d0 - 7.6, -2.2); return [q[0], 0.4, q[1]]; }, ()=>[her[0], 2.2, her[2]], 44,
+      k=>{ mset(2.6 + k*0.5, 0); const q = at(d0 - 4.6, 1.4); put('block', q[0], 0, q[1]); LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.08); LOOK.fx.flashCol.set(0.7, 0.5, 1); });
     shots.push(
       S({ dur:1.3, fov:74, ease:false, cam:k=>{ const q = at(lerp(d0 - 12, d0 - 8, k), -0.8); return [q[0], 0.3, q[1]]; }, look:()=>hb(1.2),
         mon:mgo(0.8, 2.6), enter:()=>{ cuffGlow(true); cue('gear'); cue('growl'); }, tick:(dt, t, k)=>{ const q = at(lerp(d0 - 11, d0 - 5.2, k)); put('sprint', q[0], 0, q[1]); } }),
-      S({ dur:2.8, fov:60, ease:false, ramp:ramp(0.1, 0.55, 0.22),
+      S({ dur:2.4, fov:60, ease:false, clip:'bflip', ramp:ramp(0.14, 0.5, 0.12),
         cam:k=>{ const c = hb(0), a = ry + Math.PI + k*Math.PI*1.4; return [c[0] + Math.sin(a)*4.2, Math.max(0.4, c[1] + 0.4 - k*0.6), c[2] + Math.cos(a)*4.2]; }, look:()=>hb(1.0),
         mon:mgo(2.6, 2.6, 0, 0, k=>toHer + Math.sin(k*3)*0.2), enter:()=>cue('launch'),
-        tick:(dt, t, k)=>{ const a = at(d0 - 5.2), e = eye(), top = H() + 2.6, q = [lerp(a[0], e[0] - dir[0]*1.3, k), Math.sin(Math.PI*Math.min(1, k*1.25))*top*0.9 + k*Math.max(0.5, e[1] - 1.2)*0.3, lerp(a[1], e[2] - dir[1]*1.3, k)];
-          put(k < 0.25 ? 'wallkick' : 'bflip', q[0], Math.max(0, q[1]), q[2]); } })
+        tick:(dt, t, k)=>{ const a = at(d0 - 5.2), b = at(d0 - 4.6, 1.4), q = arc(a, b, k, Math.min(6.4, H() + 0.6)); put('bflip', q[0], Math.max(0, q[1]), q[2]); },
+        beats:[[1.2, ()=>hit(true)]] })
     );
     shots.push(...branch(four,
-      [ S({ dur:0.3, fov:30, cam:()=>{ const e = eye(); return [e[0] - dir[0]*3 + side[0]*1, e[1] + 0.4, e[2] - dir[1]*3 + side[1]*1]; }, look:eye, ramp:()=>ts(0.1), enter:()=>{ hit(true); LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); } }),
-        S({ dur:2.3, fov:66, ramp:ramp(0.3, 0.1, 0.25), cam:k=>{ const q = at(d0 - 11, 4.5 - k*1.5); return [q[0], 0.35, q[1]]; }, look:()=>mb(H()*0.7),
-          mon:mgo(2.2, -0.8, 0, 0, k=>toHer + Math.sin(k*10)*0.25*(1 - k)), enter:()=>{ if(mon){ mon.act('roar'); mon.flinch(); } roar(); shake(1.0, 2.0); cue('boom'); },
-          tick:(dt, t, k)=>{ const e = eye(), a = [e[0] - dir[0]*1.3, e[2] - dir[1]*1.3], b = at(d0 - 6.5, 1.2), q = arc(a, b, k, 0.6); her = [q[0], Math.max(0, lerp(Math.max(0.5, e[1] - 1.2), 0, k) + q[1]*0.3), q[2]]; stage(k < 0.8 ? 'evflip' : 'fight', her[0], her[1], her[2], ry); } }) ],
-      [ S({ dur:1.6, fov:56, ramp:ramp(0.3, 0.2, 0.12), cam:()=>{ const q = at(d0 - 11, -3); return [q[0], 1.2, q[1]]; }, look:()=>hb(1.0), mon:mgo(2.2, 1.0),
-          enter:()=>{ slam(); if(mon) mon.act('tail'); }, tick:(dt, t, k)=>{ const b = at(d0 - 8, -1); her = [lerp(her[0], b[0], k*0.3), Math.max(0, her[1]*(1 - k)), lerp(her[2], b[1], k*0.3)]; stage(k < 0.7 ? 'hit' : 'fall', her[0], her[1], her[2], ry); } }) ]));
+      [ // the uppercut, up through its jaw — white — it reels back screaming, and she comes down
+        S({ dur:1.0, fov:34, clip:'power', ramp:ramp(0.08, 0.45, 0.12), cam:()=>{ const q = at(d0 - 7.0, -1.6); return [q[0], 0.5, q[1]]; }, look:()=>hb(1.6),
+          enter:()=>cue('kick'), tick:(dt, t, k)=>{ const a = at(d0 - 4.6, 1.4), q = arc(a, a, k, 2.4); put('power', q[0], q[1], q[2]); },
+          beats:[[0.45, ()=>{ hit(true); LOOK.fx.flash = 0.9; LOOK.fx.flashCol.set(1, 1, 1); }]] }),
+        S({ dur:2.3, fov:66, clip:'fight', ramp:ramp(0.3, 0.1, 0.25), cam:k=>{ const q = at(d0 - 11, 4.5 - k*1.5); return [q[0], 0.35, q[1]]; }, look:()=>mb(H()*0.7),
+          mon:mgo(3.1, -0.8, 0, 0, k=>toHer + Math.sin(k*10)*0.25*(1 - k)), enter:()=>{ if(mon){ mon.act('roar'); mon.flinch(); } roar(); shake(1.0, 2.0); cue('boom'); },
+          tick:(dt, t, k)=>{ const q = at(d0 - 4.6, 1.4); put('fight', q[0], 0, q[1]); } }) ],
+      [ ...thrown(d0 - 4.6, d0 - 8.5, d0 - 10) ]));
     const finish = () => { ts(1); mashUI(false); cuffGlow(false); if(wind) wind.k = 0.8; };
     playReel(shots, aftDone(()=>{ reel = null; finish(); done(won); }), { ownClock:true });
   }
