@@ -267,6 +267,8 @@ window.TSH = (function(){
     mayaIn:    [['maya','You don\'t fight like a kid.'], ['robin','I took a lot of self-defence classes.'], ['maya','Mm. So did I.']],
     mayaGlitch:[['maya','What is that? Turn it off.'], ['robin','I can\'t!'], ['maya','Turn. It. OFF.'], ['kai','Maya?'], ['maya','Get... away...']],
     monsterKai:[['kai','No. No, no, no.'], ['kai','Maya, stop!']],
+    robinFight:[['robin','Give him back.']],
+    robinPunch:[['robin','I said GIVE HIM BACK!']],
     canonGone: [['robin','CANON!']],
     robinAlone:[['robin','Canon...'], ['robin','Think, Robin. Think.']],
     chaseStart:[['robin','No. No, no, no.'], ['robin','Okay. Okay. Secret\'s out.']],
@@ -4461,6 +4463,7 @@ window.TSH = (function(){
     if(aftWatch === 'entry' && S.step === 'courtyard' && Math.hypot(p.x - ENTRY[0], p.z - ENTRY[1]) < 3.4){ aftWatch = null; entryScene(); return; }
     if(aftWatch === 'tun'){ tickTunnels(dt); return; }
     if(aftWatch === 'escape'){ tickEscape(dt); return; }
+    if(aftWatch === 'brawl'){ tickBrawl(dt); return; }
     if(aftWatch === 'chase'){ tickChase(dt); return; }
     if(aftWatch === 'away' && S.step === 'gethome'){
       aftT += dt;
@@ -5143,10 +5146,23 @@ window.TSH = (function(){
           if(k > 0.97){ canonIn = true; c.hidden = true; LOOK.fx.flash = 0.45; LOOK.fx.flashCol.set(1, 1, 1); shake(0.9, 0.6); cue('clang'); } } }),
       // gone. Her face.
       ...cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], { start:()=>{ if(hay) hay.k = 1; if(wind) wind.k = 1.2; } }),
-      // and she runs
-      ...cuts(1.8, [CAM.run, CAM.runLow, CAM.runFront, CAM.run], { tick:(dt, t, k)=>{ runK = k; const r = Rrun(); stage('sprint', r[0], 0, r[1], ry + Math.PI); } })
+      // her face goes hard. Out of the pack: the jacket, the gloves — each waking up as it goes on. "Give him back."
+      { dur:1.6, fov:30, mood:'angry', cam:F.herTight.cam, look:F.herTight.look, enter:()=>{ standR(); if(hay) hay.k = 0.7; } },
+      { dur:1.4, fov:42, cam:[R[0] - dir[0]*1.6 + side[0]*1.2, 1.3, R[1] - dir[1]*1.6 + side[1]*1.2], look:[R[0], 1.2, R[1]],
+        enter:()=>standR(), beats:[[0.5, ()=>{ kitOn('jacket'); cue('zip'); }]] },
+      { dur:1.2, fov:26, cam:[R[0] + dir[0]*0.7 + side[0]*0.5, 1.15, R[1] + dir[1]*0.7 + side[1]*0.5], look:[R[0], 1.05, R[1]],
+        enter:()=>stage('fight', R[0], 0, R[1], ry), beats:[[0.3, ()=>{ kitOn('gloves'); cue('gear'); cuffGlow(true); }]] },
+      { dur:linesLen('robinFight') + 0.4, fov:26, mood:'angry', cam:F.her.cam, look:F.her.look, enter:()=>{ stage('fight', R[0], 0, R[1], ry); talk('robinFight'); } }
     ];
-    playReel(shots, aftDone(()=>{ reel = null; staged = null; dutch = 0; if(window.AVATAR) AVATAR.posture(null);
+    const runShots = [
+      // swatted across the platform — up — and she runs
+      { dur:1.1, fov:56, cam:[R[0] - dir[0]*5 + side[0]*3, 1.2, R[1] - dir[1]*5 + side[1]*3], look:[R[0] - dir[0]*2, 1.0, R[1] - dir[1]*2],
+        enter:()=>{ if(mon){ mon.act('tail'); mon.root.position.set(M[0], 0, M[1]); mon.root.rotation.y = myaw; } }, tick:(dt, t, k)=>{ const r = [R[0] - dir[0]*k*3, R[1] - dir[1]*k*3]; stage(k < 0.5 ? 'hit' : 'fall', r[0], Math.sin(k*Math.PI)*0.8, r[1], ry); } },
+      { dur:1.2, fov:40, cam:[R[0] - dir[0]*3 - side[0]*1.5, 0.5, R[1] - dir[1]*3 - side[1]*1.5], look:[R[0] - dir[0]*3, 0.6, R[1] - dir[1]*3],
+        enter:()=>{ stage('getup', R[0] - dir[0]*3, 0, R[1] - dir[1]*3, ry); shake(0.4, 0.5); } },
+      ...cuts(1.8, [CAM.run, CAM.runLow, CAM.runFront, CAM.run], { tick:(dt, t, k)=>{ runK = 1 + k*0.4; const r = Rrun(); stage('sprint', r[0], 0, r[1], ry + Math.PI); } })
+    ];
+    const toEscape = aftDone(()=>{ reel = null; staged = null; dutch = 0; if(window.AVATAR) AVATAR.posture(null);
       const n = canonNpc(); if(n) n.hidden = true;
       const k_ = crewTag('kai'); if(k_) k_.g.visible = false;
       if(mon){ mon.grow = 1; mon.pull = 1.2; }
@@ -5154,7 +5170,65 @@ window.TSH = (function(){
       placePlayer(r[0], r[1], ry, EYE_);                         // on the platform floor — not dropped from above the station's roof
       for(let i = 0; i < 40; i++) schoolCam(1/30);               // and the camera already behind her, under the ceiling, before the first frame
       esc_ = { t:0, caught:0, reach:1, hitT:0 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
-      note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); }), { ownClock:true });
+      note('RUN — the ladder at the end of the platform.', 'big'); lockPointer($('#view')); });
+    playReel(shots, aftDone(()=>brawl(M, ry, dir, side, ()=>playReel(runShots, toEscape, { ownClock:true }))), { ownClock:true });
+  }
+  /* SHE FIGHTS IT FOR HIM — on her own feet: you move her (WASD), it turns to keep its jaws on her. It rears back
+     before it bites (DODGE!): be out of its reach when the jaws come down — move, or SPACE throws her aside. A bite
+     that misses leaves it open (HIT IT!): get in close and click, and a punch lands and rocks it. Two that land, or
+     her down to nothing, or long enough, and it has had enough of her: it swats her across the platform, and she runs. */
+  const BRAWL = { s:null };                              // the fight in progress (one holder, never reassigned)
+  function brawlUI(html){ let o = el.querySelector('#tshBrawl'); if(!o){ o = document.createElement('div'); o.id = 'tshBrawl';
+      o.style.cssText = 'position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);text-align:center;font:800 30px/1.2 var(--font,system-ui);color:#fff;text-shadow:0 0 18px #b06aff,0 2px 4px #000;letter-spacing:.06em;pointer-events:none;z-index:5';
+      el.appendChild(o); } o.innerHTML = html || ''; o.style.display = html ? 'block' : 'none'; }
+  function brawl(M0, ry, dir, side, done){
+    const B = [M0[0] - dir[0]*4.2, M0[1] - dir[1]*4.2];
+    placePlayer(B[0], B[1], ry + Math.PI, EYE_); for(let i = 0; i < 30; i++) schoolCam(1/30);
+    mode = null; G.running = true; aftWatch = 'brawl'; lockPointer($('#view')); if(window.AVATAR) AVATAR.posture(null);
+    const b = BRAWL.s = { st:'wait', t:0, wait:1.6, hp:3, hits:0, all:0, punch:0, clicked:false, dash:null, lastSpace:false, done, hurtT:0 };
+    b.onDown = () => { b.clicked = true; };
+    window.addEventListener('mousedown', b.onDown);
+    brawlHud('');
+    talk('robinPunch');
+  }
+  function brawlHud(msg){ const b = BRAWL.s; if(!b) return;
+    brawlUI((msg ? '<div>' + msg + '</div>' : '') + '<div style="font-size:18px;opacity:.85">' + '♥'.repeat(Math.max(0, b.hp)) + '<span style="opacity:.25">' + '♥'.repeat(3 - Math.max(0, b.hp)) + '</span> &nbsp; ' + '✊'.repeat(b.hits) + '</div>'); }
+  function tickBrawl(dt){
+    const b = BRAWL.s; if(!b || !mon) return;
+    b.t += dt; b.all += dt;
+    const p = P(), r = mon.root, dx = p.x - r.position.x, dz = p.z - r.position.z, d = Math.hypot(dx, dz), a = Math.atan2(dx, dz);
+    // it keeps its jaws on her, and comes after her if she backs off
+    let da = a - r.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); r.rotation.y += da*Math.min(1, dt*(b.st === 'tele' ? 1.2 : 3));
+    if(d > 7 && b.st === 'wait'){ r.position.x += Math.sin(a)*dt*2.2; r.position.z += Math.cos(a)*dt*2.2; }
+    // SPACE: thrown aside, the way she is moving (or to her right)
+    const sp = !!G.keys.Space, space = sp && !b.lastSpace; b.lastSpace = sp;
+    if(space && !b.dash){ const k = G.keys, mx = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0), mz = (k.KeyS ? 1 : 0) - (k.KeyW ? 1 : 0);
+      const yaw = G.yaw, rx = Math.cos(yaw), rz = -Math.sin(yaw), fx = Math.sin(yaw), fz = Math.cos(yaw);
+      let vx = rx*(mx || 1) + fx*mz, vz = rz*(mx || 1) + fz*mz; const l = Math.hypot(vx, vz) || 1; b.dash = { vx:vx/l, vz:vz/l, t:0 }; cue('kick'); }
+    if(b.dash){ b.dash.t += dt; const step = dt*11*(1 - b.dash.t/0.25); moveAxis('x', b.dash.vx*step); moveAxis('z', b.dash.vz*step); if(b.dash.t > 0.25) b.dash = null; }
+    // a punch: a click; it lands if she is close and it is open
+    if(b.clicked){ b.clicked = false;
+      if(b.punch <= 0){ b.punch = 0.45; if(window.AVATAR) AVATAR.posture(['jab', 'cross', 'hook'][(Math.random()*3)|0]); cue('kick');
+        if(b.st === 'open' && d < 4.6){ b.hits++; later(()=>{ if(mon && mon.flinch) mon.flinch(); shake(0.55, 0.35); cue('punch'); LOOK.fx.flash = 0.22; LOOK.fx.flashCol.set(0.7, 0.5, 1); }, 160);
+          b.st = 'landed'; b.t = 0; brawlHud('✊'); }
+        else if(d < 4.6){ shake(0.15, 0.15); } } }
+    if(b.punch > 0){ b.punch -= dt; if(b.punch <= 0 && window.AVATAR) AVATAR.posture(null); }
+    // its attacks
+    if(b.st === 'wait'){ if(b.t > b.wait){ mon.act('bite'); cue('zip'); b.st = 'tele'; b.t = 0; brawlHud('<span style="color:#ff5a7a">DODGE!</span>'); } }
+    else if(b.st === 'tele'){
+      if(b.t > 0.62){ // the jaws come down: is she in front of it, in reach?
+        const fx = Math.sin(r.rotation.y), fz = Math.cos(r.rotation.y), ahead = (dx*fx + dz*fz), across = Math.abs(dx*fz - dz*fx);
+        if(ahead > -0.5 && ahead < 6.2 && across < 2.4 && !b.dash){ b.hp--; b.st = 'hurt'; b.t = 0; brawlHud('');
+          shake(0.75, 0.5); LOOK.fx.flash = 0.3; LOOK.fx.flashCol.set(1, 0.2, 0.3); cue('punch');
+          const k = 3.2/Math.max(d, 0.5); moveAxis('x', dx*k*0.5); moveAxis('z', dz*k*0.5); if(window.AVATAR) AVATAR.posture('hit'); }
+        else { b.st = 'open'; b.t = 0; brawlHud('<span style="color:#9df">HIT IT!</span>'); } } }
+    else if(b.st === 'open'){ if(b.t > 1.6){ b.st = 'wait'; b.t = 0; b.wait = 1.0 + Math.random()*1.0; brawlHud(''); } }
+    else if(b.st === 'landed'){ if(b.t > 0.9){ b.st = 'wait'; b.t = 0; b.wait = 0.8 + Math.random()*0.8; brawlHud(''); } }
+    else if(b.st === 'hurt'){ if(b.t > 0.7 && window.AVATAR) AVATAR.posture(null); if(b.t > 1.2){ b.st = 'wait'; b.t = 0; b.wait = 1.2 + Math.random()*0.8; brawlHud(''); } }
+    // it has had enough of her
+    if((b.hits >= 2 || b.hp <= 0 || b.all > 35) && (b.st === 'wait' || b.st === 'landed' && b.t > 0.6)){
+      window.removeEventListener('mousedown', b.onDown); brawlUI(''); aftWatch = null; BRAWL.s = null; if(window.AVATAR) AVATAR.posture(null);
+      const done_ = b.done; done_(); }
   }
   /* it comes after her: slow, enormous, reaching */
   let esc_ = null;
@@ -6069,6 +6143,7 @@ window.TSH = (function(){
     relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
   };
   const FEEL = {
+    'Give him back.':'angry', 'I said GIVE HIM BACK!':'angry',
     "Think, Robin. Think.":'nervous',
     "No. No, no, no.":'shocked',
     "Okay. Okay. Secret's out.":'determined',
@@ -7128,6 +7203,6 @@ window.TSH = (function(){
                   homeDoor, aptExit, title, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, caughtScene, detention, labScene, robotLives, talkScene, benchPuzzles, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
-                  raidIntro, raidGo, raidHome, raidFight, nightScene, get chase(){ return window.TSHCHASE; },
+                  raidIntro, raidGo, raidHome, raidFight, nightScene, alphaScene, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();

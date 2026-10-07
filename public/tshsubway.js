@@ -172,15 +172,16 @@ window.TSHSUB = (function(){
     spots.door = [X(1.2), -86.8];
 
     /* ---- the old platform, and the train stopped at it */
-    floor(-9, 3, -128, -88); ceil(-9, 9, -128, -88, 5.2);
-    wall(-9, -2, -88.3, -88, 5.4); wall(2, 9.3, -88.3, -88, 5.4); wall(-9.3, -9, -128, -88, 5.4); wall(9, 9.3, -128, -88, 5.4);
-    wall(-5, 9.3, -128.3, -128, 5.4);
+    floor(-9, 3, -128, -88); ceil(-9, 9, -128, -88, 8.5);          // high: the thing that comes up in here is bigger than a train
+    wall(-9, -2, -88.3, -88, 8.7); wall(2, 9.3, -88.3, -88, 8.7); wall(-9.3, -9, -128, -88, 8.7); wall(9, 9.3, -128, -88, 8.7);
+    box(tileM(4, 5.5), X(0), 3.2 + 5.5/2, -88.15, 4, 5.5, 0.3);          // over the door from the passage (above head height: not solid)
+    wall(-5, 9.3, -128.3, -128, 8.7); box(tileM(4.3, 5.7), X(-7.15), 3.0 + 5.7/2, -128.15, 4.3, 5.7, 0.3);   // and over the way out to the ladder
     rails(3, 9, -128, -88, -1.1);
     box(std({ color:0xc8a24a, roughness:0.6 }), X(2.85), 0.005, -108, 0.3, 0.01, 40);
     solid(3, 3.3, -128, -88, 3);
-    for(let z = -92; z > -128; z -= 7){ box(green, X(1.8), 2.6, z, 0.3, 5.2, 0.3); solid(1.65, 1.95, z - 0.15, z + 0.15); }
+    for(let z = -92; z > -128; z -= 7){ box(green, X(1.8), 4.25, z, 0.3, 8.5, 0.3); solid(1.65, 1.95, z - 0.15, z + 0.15); }
     { const b = new THREE.Mesh(new THREE.PlaneGeometry(16, 0.8), std({ map:bandTex('HARBOR LANE — UPTOWN'), roughness:0.5 })); b.rotation.y = Math.PI/2; b.position.set(X(-8.98), 3.0, -108); g.add(b); }
-    for(let z = -94; z > -128; z -= 9) lamp(-4, 4.9, z, 0xbfd8ff, 3.2, 17);
+    for(let z = -94; z > -128; z -= 9) lamp(-4, 8.2, z, 0xbfd8ff, 3.6, 20);
     // the train: silver, a stripe, dark windows, one door open
     const car = new THREE.Group(); g.add(car);
     const shell = std({ color:0xa8acb0, roughness:0.3, metalness:0.85 });
@@ -202,7 +203,7 @@ window.TSHSUB = (function(){
     spots.ladder = [X(-7), -144.6];
 
     out.solids.push(...solids);
-    const ceilingAt = (x, z) => z > 2 ? 3.4 : z > -32 ? 4.2 : z > -72 ? 4.5 : z > -88 ? 3.2 : z > -128 ? 5.2 : 3.0;
+    const ceilingAt = (x, z) => z > 2 ? 3.4 : z > -32 ? 4.2 : z > -72 ? 4.5 : z > -88 ? 3.2 : z > -128 ? 8.5 : 3.0;
     let power = 0, t = 0;
     S = { group:g, solids, lights, spots, ceilingAt, X, UX,
       /* the gates */

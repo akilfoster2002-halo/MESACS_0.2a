@@ -305,7 +305,7 @@ window.TSHALPHA = (function(){
        it. When its spider foot lifts it lets go, arcs up and forward, and lands ahead of the body, on the floor; and every
        landing gives the body a shove forward and a dip (M.push, for whatever moves it to move it with its steps). */
     const T_ = new THREE.Vector3(), E_ = new THREE.Vector3(), J_ = new THREE.Vector3(), A_ = new THREE.Vector3(), B_ = new THREE.Vector3(), PQ = new THREE.Quaternion(), BQ = new THREE.Quaternion(), W_ = new THREE.Vector3(), VEL = new THREE.Vector3(), lastW = new THREE.Vector3(at[0], 0, at[2]);
-    let push = 0, dip = 0;
+    let push = 0, dip = 0, flinch = 0;
     function solve(L, target){
       L.chain.forEach((b, i)=>b.quaternion.copy(L.rq[i]));
       L.chain[0].updateMatrixWorld(true);
@@ -323,7 +323,8 @@ window.TSHALPHA = (function(){
       VEL.copy(root.position).sub(lastW).divideScalar(Math.max(dt, 1e-3)); lastW.copy(root.position);
       const moving = VEL.length() > 0.15;
       push = Math.max(0, push - dt*2.2); dip = Math.max(0, dip - dt*0.5);
-      body.position.y = -dip + Math.sin(M.t*1.1)*0.03; body.updateMatrixWorld(true);      // the body first, then the feet onto the floor under it
+      flinch = Math.max(0, flinch - dt*2.8);
+      body.position.y = -dip + Math.sin(M.t*1.1)*0.03; body.position.z = -Math.sin(Math.min(1, flinch)*Math.PI)*0.7; body.rotation.z = flinch*0.18*Math.sin(M.t*40); body.updateMatrixWorld(true);      // the body first, then the feet onto the floor under it
       R.limbs.forEach(L=>{
         L.foot.getWorldPosition(A_); body.worldToLocal(A_); const up = A_.y - L.f0.y;      // how high the spider has this foot
         L.lift = Math.max(L.lift*0.999, up);                                                  // (its highest, to judge "up" by)
@@ -397,6 +398,8 @@ window.TSHALPHA = (function(){
         if(name !== 'roar'){ const a = R.sa.attack; if(a){ const was = R.spNow; R.spNow = play(R.spMix, R.sa, R.spNow, 'attack', 0.12, true);
           setTimeout(()=>{ if(R.spNow === a && was){ R.spNow = play(R.spMix, R.sa, a, was === a ? 'walk tight' : (was.getClip().name.replace(/^.*\|/, '')), 0.3); } }, 1100); } } },
       reach(at_){ const w = root.worldToLocal(at_.clone()); M.act(w.z < -1 ? 'tail' : 'bite'); },
+      /* hit: it rocks back, its head snapping round */
+      flinch(){ flinch = 1; },
       tick(dt){
         M.t += dt; U.uT.value = M.t;
         const g = M.grow, e = g*g*(3 - 2*g);
