@@ -4920,10 +4920,9 @@ window.TSH = (function(){
     o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(2400, t + 2.5); o2.frequency.setValueAtTime(181, t); o2.frequency.exponentialRampToValueAtTime(1210, t + 2.5);
     gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.05, t + 0.6); gn.gain.exponentialRampToValueAtTime(0.0001, t + (secs || 4.5));
     o.connect(gn); o2.connect(gn); gn.connect(a.destination); o.start(t); o2.start(t); o.stop(t + (secs || 4.5) + 0.1); o2.stop(t + (secs || 4.5) + 0.1); }catch(e){} }
-  function roar(){ if(mon && mon.act) mon.act('roar'); const a = audio(); if(!a) return; try{ const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate*3, a.sampleRate), d = b.getChannelData(0);
-    for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/d.length, 1.5);
-    const f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(90, t + 2.8);
-    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 3); n.buffer = b; n.connect(f); f.connect(g); g.connect(a.destination); n.start(t); }catch(e){} }
+  function roar(){ if(mon && mon.act) mon.act('roar'); cue('roar'); }
+  /* its feet: a thud each time one comes down (not two on top of each other), now and then a growl */
+  function monSounds(m){ let last = 0; m.onStep = () => { const n = performance.now(); if(n - last < 140) return; last = n; cue('thud'); }; }
   /* --------------------------------------------------------------- THE WIND
      Everything loose in the station going one way: streaks of dust and grit, and scraps — paper, ticket stubs,
      flakes of tile — tumbling, all of it pulled at Maya and then into the hole in what she has become, swirling
@@ -5051,7 +5050,7 @@ window.TSH = (function(){
     const M = [M0[0] + dir[0]*2.6, M0[1] + dir[1]*2.6], R = [R0[0] - dir[0]*1.6, R0[1] - dir[1]*1.6], myaw = angTo(M[0], M[1], R[0], R[1]);
     const F = pairAngles(R, [R[0] + dir[0], R[1] + dir[1]], dir, [-dir[0], -dir[1]], side, 1.62);
     if(mon) mon.dispose();
-    mon = TSHMONSTER.make(W.sub.group, [M[0], 0, M[1]], myaw); mon.grow = 0.02; mon.pull = 0.3;
+    mon = TSHMONSTER.make(W.sub.group, [M[0], 0, M[1]], myaw); monSounds(mon); mon.grow = 0.02; mon.pull = 0.3;
     mon.onSlam = ()=>{ shake(0.55, 1.1); cue('clang'); };                // its hand comes down on the platform
     // the station's own lamps go down to nothing: its light is the only light now
     W.sub.lights.forEach(l=>{ if(l.mul0 === undefined) l.mul0 = l.mul; l.mul = (l.mul || 0)*0.08; });
@@ -5215,7 +5214,7 @@ window.TSH = (function(){
         else if(d < 4.6){ shake(0.15, 0.15); } } }
     if(b.punch > 0){ b.punch -= dt; if(b.punch <= 0 && window.AVATAR) AVATAR.posture(null); }
     // its attacks
-    if(b.st === 'wait'){ if(b.t > b.wait){ mon.act('bite'); cue('zip'); b.st = 'tele'; b.t = 0; brawlHud('<span style="color:#ff5a7a">DODGE!</span>'); } }
+    if(b.st === 'wait'){ if(b.t > b.wait){ mon.act('bite'); cue('zip'); if(Math.random() < 0.5) cue('growl'); b.st = 'tele'; b.t = 0; brawlHud('<span style="color:#ff5a7a">DODGE!</span>'); } }
     else if(b.st === 'tele'){
       if(b.t > 0.62){ // the jaws come down: is she in front of it, in reach?
         const fx = Math.sin(r.rotation.y), fz = Math.cos(r.rotation.y), ahead = (dx*fx + dz*fz), across = Math.abs(dx*fz - dz*fx);
@@ -5295,7 +5294,7 @@ window.TSH = (function(){
     const at = [EXIT[0] - 0.8, EXIT[1] + 0.6], ry = angTo(at[0], at[1], ENTRY[0], ENTRY[1]), dir = [Math.sin(ry), Math.cos(ry)], side = [Math.cos(ry), -Math.sin(ry)];
     const F = facing(at, ry, 1.0, 1.62), A = F.A;
     if(mon) mon.dispose();
-    mon = TSHMONSTER.make(W.cityGroup, [ENTRY[0], 0, ENTRY[1] - 1.5], angTo(ENTRY[0], ENTRY[1], at[0], at[1])); mon.root.scale.setScalar(1.6); mon.grow = 0; mon.pull = 0.4;
+    mon = TSHMONSTER.make(W.cityGroup, [ENTRY[0], 0, ENTRY[1] - 1.5], angTo(ENTRY[0], ENTRY[1], at[0], at[1])); mon.root.scale.setScalar(1.6); monSounds(mon); cue('growl'); mon.grow = 0; mon.pull = 0.4;
     mon.onSlam = p=>{ const d = Math.hypot(p.x - G.pos.x, p.z - G.pos.z); shake(Math.max(0.15, 0.7 - d*0.012), 1.0); cue('clang'); };
     const stand = () => stage('idle', at[0], 0, at[1], ry);
     const E = [ENTRY[0], ENTRY[1]], eye = () => [mon.eyeAt.x, mon.eyeAt.y, mon.eyeAt.z];
