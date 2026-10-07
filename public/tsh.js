@@ -4877,7 +4877,7 @@ window.TSH = (function(){
     o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(2400, t + 2.5); o2.frequency.setValueAtTime(181, t); o2.frequency.exponentialRampToValueAtTime(1210, t + 2.5);
     gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.05, t + 0.6); gn.gain.exponentialRampToValueAtTime(0.0001, t + (secs || 4.5));
     o.connect(gn); o2.connect(gn); gn.connect(a.destination); o.start(t); o2.start(t); o.stop(t + (secs || 4.5) + 0.1); o2.stop(t + (secs || 4.5) + 0.1); }catch(e){} }
-  function roar(){ const a = audio(); if(!a) return; try{ const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate*3, a.sampleRate), d = b.getChannelData(0);
+  function roar(){ if(mon && mon.act) mon.act('roar'); const a = audio(); if(!a) return; try{ const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate*3, a.sampleRate), d = b.getChannelData(0);
     for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/d.length, 1.5);
     const f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(90, t + 2.8);
     g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 3); n.buffer = b; n.connect(f); f.connect(g); g.connect(a.destination); n.start(t); }catch(e){} }
