@@ -5566,13 +5566,13 @@ window.TSH = (function(){
   function storm(k){
     if(k > 0){
       if(!stormWas) stormWas = { amb:G.amb.intensity, hemi:G.hemi.intensity, sun:G.sun ? G.sun.intensity : 0, fog:G.scene.fog.color.clone(), fd:G.scene.fog.density, env:G.scene.environmentIntensity === undefined ? 1 : G.scene.environmentIntensity, exp:G.renderer ? G.renderer.toneMappingExposure : 1 };
-      const w = stormWas; G.amb.intensity = w.amb*(1 - 0.85*k); G.hemi.intensity = w.hemi*(1 - 0.88*k); if(G.sun) G.sun.intensity = w.sun*(1 - 0.95*k);
-      G.scene.fog.color.copy(w.fog).lerp(new THREE.Color(0x07040c), k); G.scene.fog.density = w.fd + 0.009*k; G.scene.background = G.scene.fog.color.clone();
+      const w = stormWas; G.amb.intensity = w.amb*(1 - 0.45*k); G.hemi.intensity = w.hemi*(1 - 0.5*k); if(G.sun) G.sun.intensity = w.sun*(1 - 0.85*k);
+      G.scene.fog.color.copy(w.fog).lerp(new THREE.Color(0x1c1428), k); G.scene.fog.density = w.fd + 0.0015*k; G.scene.background = G.scene.fog.color.clone();
       if(W && W.sky){                                                    // a bruise-dark shell inside the dome thickens: you watch the light go out of the sky
         if(!w.shell){ w.shell = new THREE.Mesh(new THREE.SphereGeometry(850, 24, 16), new THREE.MeshBasicMaterial({ color:0x0a0512, side:THREE.BackSide, transparent:true, opacity:0, fog:false, depthWrite:false }));
           w.shell.renderOrder = -9; W.sky.parent.add(w.shell); }
         w.shell.material.opacity = Math.min(0.96, k*1.05); }
-      G.scene.environmentIntensity = w.env*(1 - 0.9*k); if(G.renderer) G.renderer.toneMappingExposure = w.exp*(1 - 0.45*k);
+      G.scene.environmentIntensity = w.env*(1 - 0.55*k); if(G.renderer) G.renderer.toneMappingExposure = w.exp*(1 - 0.12*k);
       return; }
     if(!stormWas) return;
     G.amb.intensity = stormWas.amb; G.hemi.intensity = stormWas.hemi; if(G.sun) G.sun.intensity = stormWas.sun;
