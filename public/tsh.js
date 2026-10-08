@@ -5221,7 +5221,7 @@ window.TSH = (function(){
       placePlayer(r[0], r[1], angTo(L_[0], L_[1], r[0], r[1]), EYE_);                         // on the platform floor — not dropped from above the station's roof
       for(let i = 0; i < 40; i++) schoolCam(1/30);               // and the camera already behind her, under the ceiling, before the first frame
       esc_ = { t:0, caught:0, reach:1, hitT:0 }; aftWatch = 'escape'; if(hay) hay.k = 0.8;
-      note('RUN — the green EXIT, behind you.', 'big'); lockPointer($('#view')); });
+      note('RUN — the green EXIT, straight ahead.', 'big'); lockPointer($('#view')); });
     playReel(shots, aftDone(()=>fightClips().then(()=>brawl(M, ry, dir, side, ()=>fightClips().then(()=>duel(()=>{ fmAim(FIGHTM.drop3, 2.3 + linesLen('robinGo') + 0.2, [FIGHTM.drop3, FIGHTM.end]); playReel(runShots, toEscape, { ownClock:true }); }))))), { ownClock:true });   // (her moves put back on her: the jacket and gloves are a new body)
   }
   /* SHE FIGHTS IT FOR HIM — on her own feet: you move her (WASD), it turns to keep its jaws on her. It rears back
@@ -7631,6 +7631,6 @@ window.TSH = (function(){
                   homeDoor, aptExit, title, fightIntro, fightBegin, fightOutro, crewCast, get fprop(){ return fprop; }, get shake(){ return shk; }, newsScene, roofCut, scene, skipCut, chair, freed, ending, grab, caught,
                   detained, questEvent, find, caughtScene, detention, labScene, robotLives, talkScene, benchPuzzles, get lastKnown(){ return lastKnown; },
                   get convo(){ return cv; }, convoPick, convoAdvance,
-                  raidIntro, raidGo, raidHome, raidFight, nightScene, alphaScene, meetScene, streetScene, climbOut, wfcStandoff, hideScene, bedroom, chaosOn, brawlWin:()=>{ if(BRAWL.s) BRAWL.s.hits = 2; }, get mon(){ return mon; }, get chase(){ return window.TSHCHASE; },
+                  raidIntro, raidGo, raidHome, raidFight, nightScene, alphaScene, meetScene, intoSub, streetScene, climbOut, wfcStandoff, hideScene, bedroom, chaosOn, brawlWin:()=>{ if(BRAWL.s) BRAWL.s.hits = 2; }, get mon(){ return mon; }, get chase(){ return window.TSHCHASE; },
                   opening, fallStart, fireShoes, skipReel, get reel(){ return reel; }, lessonNext, get lesson(){ return lesson; }, get grip(){ return grip; }, tryScale, wallAt, get scale(){ return me.scale; } } };
 })();
