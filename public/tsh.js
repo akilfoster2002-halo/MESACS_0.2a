@@ -2547,6 +2547,7 @@ window.TSH = (function(){
         else { n.yaw += angDiff(h[2], n.yaw)*Math.min(1, dt*3); n.clip = 'idle'; }
         break; }
       case 'patrol': {
+        if(!n.route || !n.route.length){ n.clip = 'idle'; break; }                      // nowhere to walk: stand (an officer brought in for one scene)
         const w = n.route[n.ri];
         if(goTo(n, w[0], w[1], undefined, n.def.walk, dt)){ n.ri = (n.ri+1) % n.route.length; }
         break; }
@@ -5507,7 +5508,7 @@ window.TSH = (function(){
       const L = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:i % 2 ? 0x3a6aff : 0xff2a2a, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
       L.scale.set(9, 9, 1); L.position.set(at[0] + Math.sin(an)*r, 2.2, at[1] + Math.cos(an)*r); W.cityGroup.add(L); c.lights.push({ L, ph:Math.random()*6, k:i % 2 }); }
     // searchlights from the sky: long pale cones, raking
-    for(let i = 0; i < 3; i++){ const cone = new THREE.Mesh(new THREE.ConeGeometry(7, 80, 16, 1, true), new THREE.MeshBasicMaterial({ color:0xcfdcff, transparent:true, opacity:0.07, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
+    for(let i = 0; i < 3; i++){ const cone = new THREE.Mesh(new THREE.ConeGeometry(3.5, 80, 16, 1, true), new THREE.MeshBasicMaterial({ color:0xcfdcff, transparent:true, opacity:0.04, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
       cone.geometry.translate(0, -40, 0); cone.position.set(at[0] + (i - 1)*30, 70, at[1] - 20 + i*15); W.cityGroup.add(cone); c.beams.push({ sp:cone, ph:i*2.1 }); }
     // people running
     const spots = [];
@@ -5545,7 +5546,7 @@ window.TSH = (function(){
     const c = chaos; if(!c) return; c.t += dt;
     const fd = c.fade === undefined ? 1 : c.fade;
     c.lights.forEach(o=>{ o.L.material.opacity = (Math.sin(c.t*9 + o.ph + (o.k ? Math.PI : 0)) > 0.3 ? 0.9 : 0.05)*Math.min(1, c.t/2)*fd; });
-    c.beams.forEach(o=>{ const a = c.t*0.35 + o.ph; o.sp.rotation.set(Math.sin(a)*0.45, 0, Math.cos(a*1.3)*0.45); o.sp.material.opacity = 0.07*fd; });
+    c.beams.forEach(o=>{ const a = c.t*0.35 + o.ph; o.sp.rotation.set(Math.sin(a)*0.45, 0, Math.cos(a*1.3)*0.45); o.sp.material.opacity = 0.04*fd; });
     c.boltT -= dt; if(c.boltT <= 0 && c.fade === undefined){ c.boltT = 3 + Math.random()*5; LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.3); LOOK.fx.flashCol.set(0.75, 0.6, 1); later(()=>cue('boom'), 300 + Math.random()*600); }
     c.civs.forEach(n=>{ if(!n.gone) n.flee = 9999; });
     if(c.fade !== undefined){ c.fade = Math.max(0, c.fade - dt/3); if(c.fade <= 0) chaosGone(); }
@@ -5717,7 +5718,7 @@ window.TSH = (function(){
     const ry = Math.PI/2, F = facing(at, ry, 1.0, y0 + 1.62), A = F.A;
     const ring = [0, 1, 2].map(i=>{ const a = ry + (i - 1)*0.7, r = 6.5; return [at[0] + Math.sin(a)*r, at[1] + Math.cos(a)*r]; });
     wfcGone();
-    ring.forEach(([x, z], i)=>{ const n = spawn('wfc', ['walk-s','walk-t','walk-u'][i], x, z, { name:'wfcR' + i, state:'stand', y:y0 }); n.faceTo = at; n.pose = 'fight'; wfcCrew.push(n); });
+    ring.forEach(([x, z], i)=>{ const n = spawn('wfc', ['walk-s','walk-t','walk-u'][i], x, z, { name:'wfcR' + i, state:'stand', y:y0, route:[[x, z], [x + 2, z + 2]] }); n.base = 'patrol'; n.faceTo = at; n.pose = 'fight'; wfcCrew.push(n); });
     // the gunship, over her, its light on her
     { const g = new THREE.Group(), hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 6), new THREE.MeshStandardMaterial({ color:0x121a26, roughness:0.4, metalness:0.7 }));
       g.add(hull);
