@@ -282,11 +282,12 @@ window.TSH = (function(){
     hideCry:   [['robin','Pick up. Pick up, pick up, please.']],
     hideCry2:  [['robin','Canon, it\'s me. Please. Just... tell me you\'re okay.'], ['robin','I\'m so sorry. I\'m gonna get you back. I promise.']],
     aptPhone:  [['momroom','It\'s me. I\'m at the residence.'], ['momroom','No. Nothing yet.'], ['momroom','Then widen it. Every unit we have.']],
-    reveal1:   [['robin','...Mom?'], ['momroom','There you are. Sit down, Robin.']],
-    reveal2:   [['momroom','Your friend. Canon Cortez.'], ['momroom','He went into Harbor Lane Station this afternoon, and he never came out.'],
+    reveal1:   [['momroom','There you are. Come here, Robin. Sit with me.']],
+    reveal2:   [['momroom','I\'m so sorry, sweetheart. It\'s Canon.'], ['momroom','He went into Harbor Lane Station this afternoon, and he never came out.'],
                 ['robin','What... what happened to him?'], ['momroom','Something came up out of that station. And YU was there with it.']],
-    reveal3:   [['momroom','My officers say Canon was taken by YU, and an accomplice.']],
-    reveal4:   [['momroom','As of an hour ago, there is a full manhunt for YU.'], ['momroom','For the abduction, and possible murder, of Canon Cortez.'], ['momroom','I\'m going to find her, Robin.']],
+    reveal3:   [['momroom','They\'re saying YU took him. YU, and an accomplice.']],
+    reveal4:   [['momroom','As of an hour ago, there\'s a full manhunt for YU. For the abduction, and possible murder, of Canon Cortez.'],
+                ['momroom','I know he was your friend. I\'m going to find her, Robin. I promise you.']],
     momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
     momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
     momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
@@ -296,7 +297,7 @@ window.TSH = (function(){
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
-                momcall:['MOM','#9fd8ff'], momhome:['MOM','#9fd8ff'], momroom:['MOM','#9fd8ff'], reporter:['CH 6 · LIVE','#ff8a8a'], canon:['CANON','#a8f0b8'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
+                momcall:['MOM','#9fd8ff'], momhome:['MOM','#9fd8ff'], momroom:['THE DIRECTOR','#c8d4e8'], reporter:['CH 6 · LIVE','#ff8a8a'], canon:['CANON','#a8f0b8'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -4974,7 +4975,7 @@ window.TSH = (function(){
     o.connect(gn); o2.connect(gn); gn.connect(a.destination); o.start(t); o2.start(t); o.stop(t + (secs || 4.5) + 0.1); o2.stop(t + (secs || 4.5) + 0.1); }catch(e){} }
   function roar(){ if(mon && mon.act) mon.act('roar'); cue('roar'); }
   /* its feet: a thud each time one comes down (not two on top of each other), now and then a growl */
-  function monSounds(m){ let last = 0; m.onStep = () => { const n = performance.now(); if(n - last < 140) return; last = n; cue('thud'); }; }
+  function monSounds(m){ let last = 0; m.onStep = p => { const n = performance.now(); if(n - last < 140) return; if(p && Math.hypot(p.x - G.pos.x, p.z - G.pos.z) > 28) return; last = n; cue('thud'); }; }   // its feet, when it is near enough to hear
   /* --------------------------------------------------------------- THE WIND
      Everything loose in the station going one way: streaks of dust and grit, and scraps — paper, ticket stubs,
      flakes of tile — tumbling, all of it pulled at Maya and then into the hole in what she has become, swirling
@@ -5664,7 +5665,7 @@ window.TSH = (function(){
       if(d > 5){ r.position.x += Math.sin(a)*sp*dt; r.position.z += Math.cos(a)*sp*dt; }
       c.leapT = (c.leapT || 4) - dt;
       if(d > 60 && c.leapT <= 0){ c.leapT = 7 + Math.random()*3; const to = [p.x - Math.sin(a)*34, p.z - Math.cos(a)*34]; c.leap = { from:[r.position.x, r.position.z], to, t:0, dur:1.5 }; roar(); }   // a whole block — and down, still short of her
-      c.stepT -= dt; if(c.stepT <= 0){ c.stepT = c.lunge > 0 ? 0.3 : 0.55; if(d < 60) shake(Math.max(0.05, 0.3 - d*0.005), 0.5); }
+      c.stepT -= dt; if(c.stepT <= 0){ c.stepT = c.lunge > 0 ? 0.3 : 0.55; if(d < 18) shake(Math.max(0.04, 0.22 - d*0.01), 0.2); }   // only when it is right behind her
     }
     // up onto the roofs after her, with its arms
     c.reachT -= dt; if(c.reachT <= 0 && d < 22){ c.reachT = 0.9 + Math.random()*0.7; mon.reach(new THREE.Vector3(p.x, p.y + 1, p.z), 0.8); cue('zip'); }
@@ -5795,7 +5796,8 @@ window.TSH = (function(){
       { dur:3.4, fov:58, mood:'sad', cam:[at[0] - 9, y0 + 7, at[1] - 7], look:[at[0], y0 + 0.5, at[1]], enter:()=>{ sit(); storm(0.5); } }
     ];
     playReel(shots, aftDone(()=>{ reel = null; phoneBig(null); ringing(false); storm(0); haywire(0); windOff(); sit();
-      S.flags.tun = 0; save(); momCall(at, F, y0); }), { ownClock:true });
+      S.flags.tun = 0; S.flags.canonTaken = true; outcome('fixed'); checkpoint();
+      staged = null; if(window.AVATAR) AVATAR.posture(null); placePlayer(at[0], at[1], -Math.PI/2, y0 + EYE_); gethomeBegin(false); }), { ownClock:true });
   }
   /* on her own. Canon does not answer. And then her mother calls. */
   function aloneOnTheRoof(at, y0){
@@ -5917,8 +5919,7 @@ window.TSH = (function(){
   }
   /* the Director's clothes: a long charcoal coat over everything, and the badge on her chest */
   function directorLook(m){
-    m.traverse(o=>{ if(o.isMesh){ o.material = o.material.clone(); const skin = /skin|face|head|body/i.test(o.material.name || o.name || '');
-      if(!skin){ o.material.map = null; o.material.color = new THREE.Color(0x1a1d24); o.material.roughness = 0.55; o.material.metalness = 0.1; o.material.needsUpdate = true; } } });
+    m.traverse(o=>{ if(o.isMesh && o.material && o.material.metalness > 0.2){ o.material = o.material.clone(); o.material.metalness = 0; o.material.roughness = Math.max(0.7, o.material.roughness); } });   // her own black clothes; nothing shiny
     const ch = boneOf(m, /Spine2$/);
     if(ch){ m.updateMatrixWorld(true); const k = worldK(ch), b = badgeMesh(); b.scale.setScalar(k*0.6); b.position.set(0.08*k, 0.08*k, 0.13*k); ch.add(b); }
   }
@@ -5985,8 +5986,9 @@ window.TSH = (function(){
       // she can't. Her mother is hunting her, and doesn't know it. She can't let one thing show on her face.
       { dur:3.4, fov:20, mood:'sad', inside:true, cam:P2.herTight.cam, look:P2.herTight.look },
       ...lineShots(['reveal4'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['him', 'himTight'] } }),
-      // the two of them, either side of the room. Nobody moves.
-      { dur:3.6, fov:46, mood:'sad', inside:true, cam:P2.wide ? P2.wide.cam : P2.two.cam, look:P2.wide ? P2.wide.look : P2.two.look },
+      // she crosses the room to her daughter, and holds her. Robin lets her. Over her mother's shoulder, her eyes are open.
+      { dur:3.6, fov:40, mood:'sad', inside:true, cam:P2.two.cam, look:P2.two.look,
+        tick:(dt, tt, k)=>{ const t = Math.min(1, k*1.4); momAt(lerp(MS[0], RS[0] + Math.sin(ryR)*0.45, t), lerp(MS[1], RS[1] + Math.cos(ryR)*0.45, t), ryM, t < 1 ? 'walk' : 'idle'); } },
       { dur:3.0, fov:18, fov2:14, mood:'sad', inside:true, cam:P2.herTight.cam, look:P2.herTight.look }
     ];
     playReel(shots, aftDone(()=>{
