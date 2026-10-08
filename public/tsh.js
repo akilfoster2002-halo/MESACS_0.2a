@@ -274,6 +274,8 @@ window.TSH = (function(){
     robinAlone:[['robin','Canon...'], ['robin','Think, Robin. Think.']],
     chaseStart:[['robin','No. No, no, no.'], ['robin','Okay. Okay. Secret\'s out.']],
     chaseLost: [['robin','...Where did it go?']],
+    newsLive:  [['reporter','We are live over Harbor Lane, where something — we don\'t know what — has come up out of the ground.'], ['reporter','WFC are asking everyone to stay indoors.'],
+                ['reporter','And we\'re now hearing it may be chasing someone.']],
     wfcFreeze: [['wfc','FREEZE! WFC! Hands where we can see them!'], ['wfc','It\'s YU. That thing followed HER.'], ['robin','Wait— no, you don\'t understand—']],
     wfcCanon:  [['wfc','A boy went into Harbor Lane Station this afternoon and never came out. Canon Cortez. Where is he?'], ['robin','It took him! That thing took him, I tried to—'],
                 ['wfc','It chased her across half the city and never laid a hand on her.'], ['wfc','She\'s with it. Take her DOWN!'], ['robin','...I\'m sorry.']],
@@ -294,7 +296,7 @@ window.TSH = (function(){
   };
   const WHO = { robin:['ROBIN','#ffd9a8'], kai:['KAI','#ff8a6a'], dealer:['THE BUYER','#ffb347'], thug:['THUG','#c9c2b8'], unknown:['UNKNOWN NUMBER','#9fb4c0'], maya:['MAYA','#d0b4ff'], mom:['THE DIRECTOR','#9fd8ff'],
                 counselor:['COUNSELOR — VOICEMAIL','#b8c4c0'], wfc:['WFC','#8ff0ff'], vendor:['VENDOR','#ffd070'], buyer:['UNKNOWN NUMBER','#ff8a6a'],
-                momcall:['MOM','#9fd8ff'], momhome:['MOM','#9fd8ff'], momroom:['MOM','#9fd8ff'], canon:['CANON','#a8f0b8'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
+                momcall:['MOM','#9fd8ff'], momhome:['MOM','#9fd8ff'], momroom:['MOM','#9fd8ff'], reporter:['CH 6 · LIVE','#ff8a8a'], canon:['CANON','#a8f0b8'], drone:['WFC DRONE','#ff6a5a'], teacher:['TEACHER','#ffe08a'], guard:['SECURITY GUARD','#a8c8ff'], pa:['📢 PA SYSTEM','#c8d4dc'] };
 
   /* ============================================================ the save */
   const KEY = 'tsh';
@@ -563,7 +565,7 @@ window.TSH = (function(){
     octoStop();
     if(window.TSHSCHOOL) TSHSCHOOL.sneakStop(); inSchool = false; if(el) el.classList.remove('school');
     if(inSub){ inSub = false; subLook(false); if(W && W.sub) W.sub.group.visible = false; } tunCrew = false; alphaFx = null; aftWatch = null; if(gizmo && gizmo.parent) gizmo.parent.remove(gizmo); gizmo = null;
-    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } fmStop(); chaosOff(true); wfcGone(); haywire(0); windOff(); dutch = 0; storm(0); hunt = null; if(el){ const lb = el.querySelector('#tshLose'); if(lb) lb.classList.remove('on'); }
+    if(mon){ mon.dispose(); mon = null; } if(mOc){ mOc.dispose(); mOc = null; } fmStop(); chaosOff(true); wfcGone(); newsOff(); haywire(0); windOff(); dutch = 0; storm(0); hunt = null; if(el){ const lb = el.querySelector('#tshLose'); if(lb) lb.classList.remove('on'); }
     if(window.TSHPUZZLE) TSHPUZZLE.close(); bench = null; phones = null;
     on = false; mode = null; busy = null;
     save();
@@ -1330,6 +1332,7 @@ window.TSH = (function(){
     if(kind === 'time' && !day()) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ 3%</span></div><div class="pb-caller"><small>${esc(AI.clock(S.t).replace(/^0/, ''))} AM</small><b>${esc(AI.clock(S.t).replace(/^0/, ''))}</b><span>⏰ School · 7:15 AM</span></div></div>`;
     // the morning after: how late she is
     if(kind === 'late' || (kind === 'time' && day())) p.innerHTML = `<div class="pb-screen"><div class="pb-top"><span></span><span>▮ ${kind === 'late' ? 2 : 1}%</span></div><div class="pb-caller"><small>${esc(dclock(S.dm))} AM</small><b>${esc(dclock(S.dm))}</b><span>${kind === 'late' ? '⏰ 7:15 AM · snoozed' : ''}</span><span>🏫 School · 8:00 AM</span></div></div>`;
+    if(kind === 'news') p.innerHTML = lock(`<div class="pb-note"><small>CH 6 NEWS · NOW</small><b>BREAKING</b><p>Something enormous is moving through Harbor Lane. WFC: stay indoors.</p></div>`);
     if(kind === 'calling') p.innerHTML = lock(`<div class="pb-caller"><small>calling…</small><b>${esc(who || 'UNKNOWN')}</b><span>mobile</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
     if(kind === 'nocall') p.innerHTML = lock(`<div class="pb-caller"><small>call failed</small><b>${esc(who || 'UNKNOWN')}</b><span>no answer</span></div>`);
     if(kind === 'oncall') p.innerHTML = lock(`<div class="pb-caller"><small>00:04</small><b>${esc(who || 'UNKNOWN')}</b><span>on call</span></div><div class="pb-btns one"><i class="no">✕</i></div>`);
@@ -5497,14 +5500,18 @@ window.TSH = (function(){
     if(chaos) return;
     const a = audio(), c = chaos = { t:0, lights:[], civs:[], beams:[], boltT:2, nodes:[] };
     // red and blue, all round her
-    for(let i = 0; i < 6; i++){ const r = 14 + Math.random()*22, an = Math.random()*Math.PI*2, L = new THREE.PointLight(i % 2 ? 0x2a5aff : 0xff2a2a, 0, 34);
-      L.position.set(at[0] + Math.sin(an)*r, 2.2, at[1] + Math.cos(an)*r); W.cityGroup.add(L); c.lights.push({ L, ph:Math.random()*6, k:i % 2 }); }
-    // searchlights from the sky
-    for(let i = 0; i < 3; i++){ const sp = new THREE.SpotLight(0xdfe8ff, 60, 120, 0.16, 0.6, 1); sp.position.set(at[0] + (i - 1)*30, 60, at[1] - 20 + i*15);
-      W.cityGroup.add(sp); W.cityGroup.add(sp.target); c.beams.push({ sp, ph:i*2.1 }); }
+    // (glowing shapes, not lights: a real light added to the city recompiles every material in it and the frame rate dies)
+    const glowTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
+    for(let i = 0; i < 8; i++){ const r = 14 + Math.random()*24, an = Math.random()*Math.PI*2;
+      const L = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:i % 2 ? 0x3a6aff : 0xff2a2a, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+      L.scale.set(9, 9, 1); L.position.set(at[0] + Math.sin(an)*r, 2.2, at[1] + Math.cos(an)*r); W.cityGroup.add(L); c.lights.push({ L, ph:Math.random()*6, k:i % 2 }); }
+    // searchlights from the sky: long pale cones, raking
+    for(let i = 0; i < 3; i++){ const cone = new THREE.Mesh(new THREE.ConeGeometry(7, 80, 16, 1, true), new THREE.MeshBasicMaterial({ color:0xcfdcff, transparent:true, opacity:0.07, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
+      cone.geometry.translate(0, -40, 0); cone.position.set(at[0] + (i - 1)*30, 70, at[1] - 20 + i*15); W.cityGroup.add(cone); c.beams.push({ sp:cone, ph:i*2.1 }); }
     // people running
     const spots = [];
-    for(let i = 0; i < 16; i++){ const an = Math.random()*Math.PI*2, r = 10 + Math.random()*26; spots.push([at[0] + Math.sin(an)*r, at[1] + Math.cos(an)*r]); }
+    for(let i = 0; i < 10; i++){ const an = Math.random()*Math.PI*2, r = 10 + Math.random()*26; spots.push([at[0] + Math.sin(an)*r, at[1] + Math.cos(an)*r]); }
     spots.forEach(([x, z], i)=>{ const n = spawn('civ', CIV[i % CIV.length], x, z, { name:'panic' + i, phone:i % 4 === 0 }); n.flee = 9999; c.civs.push(n); });
     // the sirens: two wails, never quite together
     if(a){ try{ const g = a.createGain(); g.gain.value = 0; g.gain.linearRampToValueAtTime(0.05, a.currentTime + 2); g.connect(a.destination);
@@ -5512,8 +5519,21 @@ window.TSH = (function(){
         o.type = 'sawtooth'; o.frequency.value = f; lfo.frequency.value = rate; lg.gain.value = 260; lfo.connect(lg); lg.connect(o.frequency); lp.type = 'lowpass'; lp.frequency.value = 1400;
         o.connect(lp); lp.connect(g); o.start(); lfo.start(); c.nodes.push(o, lfo); });
       c.gain = g; }catch(e){} }
-    alertBanner(true);
   }
+  /* THE NEWS. A few beats into the run her phone buzzes — BREAKING — and in the corner of the screen a reporter is live,
+     saying what everybody in the city is now watching. */
+  function newsOn(){
+    let b = el.querySelector('#tshNews');
+    if(!b){ b = document.createElement('div'); b.id = 'tshNews';
+      b.style.cssText = 'position:absolute;right:18px;top:18%;width:min(300px,38vw);aspect-ratio:16/10;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.6);border:2px solid #222;z-index:30;pointer-events:none;opacity:0;transform:translateX(30px);transition:opacity .5s,transform .5s;background:linear-gradient(180deg,#1a2230,#0c0f16);font-family:var(--font,system-ui)';
+      b.innerHTML = '<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 120%,#3a2a4a 0,#0c0f16 70%)"></div>'
+        + '<div style="position:absolute;left:50%;bottom:22%;transform:translateX(-50%);width:34%;height:52%"><div style="position:absolute;left:30%;top:0;width:40%;height:40%;border-radius:50%;background:#c49a7a"></div><div style="position:absolute;left:28%;top:-4%;width:44%;height:22%;border-radius:50% 50% 30% 30%;background:#2a1a12"></div><div style="position:absolute;left:5%;top:38%;width:90%;height:62%;border-radius:40% 40% 0 0;background:#24324a"></div><div style="position:absolute;left:62%;top:46%;width:7%;height:24%;background:#111;border-radius:2px"></div></div>'
+        + '<div style="position:absolute;left:8px;top:8px;background:#d0021b;color:#fff;font:800 10px/1 inherit;padding:3px 6px;border-radius:3px;letter-spacing:.08em">● LIVE</div><div style="position:absolute;right:8px;top:8px;color:#fff;font:700 10px/1 inherit;opacity:.8">CH 6</div>'
+        + '<div style="position:absolute;left:0;right:0;bottom:0;background:#d0021b;color:#fff;font:800 11px/1.25 inherit;padding:5px 8px;letter-spacing:.04em">BREAKING · CREATURE ON HARBOR LANE<div style="font-weight:600;font-size:9px;opacity:.9">WFC RESPONDING · STAY INDOORS</div></div>';
+      el.appendChild(b); }
+    b.style.opacity = '1'; b.style.transform = 'none';
+  }
+  function newsOff(){ const b = el && el.querySelector('#tshNews'); if(b){ b.style.opacity = '0'; b.style.transform = 'translateX(30px)'; } }
   function alertBanner(on_){
     let b = el.querySelector('#tshAlert');
     if(!b){ b = document.createElement('div'); b.id = 'tshAlert';
@@ -5523,8 +5543,9 @@ window.TSH = (function(){
   }
   function tickChaos(dt){
     const c = chaos; if(!c) return; c.t += dt;
-    c.lights.forEach(o=>{ o.L.intensity = (Math.sin(c.t*9 + o.ph + (o.k ? Math.PI : 0)) > 0.3 ? 40 : 0)*Math.min(1, c.t/2)*(c.fade === undefined ? 1 : c.fade); });
-    c.beams.forEach(o=>{ const a = c.t*0.35 + o.ph, p = P(); o.sp.target.position.set(p.x + Math.sin(a)*28, 0, p.z + Math.cos(a*1.3)*28); o.sp.intensity = 60*(c.fade === undefined ? 1 : c.fade); });
+    const fd = c.fade === undefined ? 1 : c.fade;
+    c.lights.forEach(o=>{ o.L.material.opacity = (Math.sin(c.t*9 + o.ph + (o.k ? Math.PI : 0)) > 0.3 ? 0.9 : 0.05)*Math.min(1, c.t/2)*fd; });
+    c.beams.forEach(o=>{ const a = c.t*0.35 + o.ph; o.sp.rotation.set(Math.sin(a)*0.45, 0, Math.cos(a*1.3)*0.45); o.sp.material.opacity = 0.07*fd; });
     c.boltT -= dt; if(c.boltT <= 0 && c.fade === undefined){ c.boltT = 3 + Math.random()*5; LOOK.fx.flash = Math.max(LOOK.fx.flash || 0, 0.3); LOOK.fx.flashCol.set(0.75, 0.6, 1); later(()=>cue('boom'), 300 + Math.random()*600); }
     c.civs.forEach(n=>{ if(!n.gone) n.flee = 9999; });
     if(c.fade !== undefined){ c.fade = Math.max(0, c.fade - dt/3); if(c.fade <= 0) chaosGone(); }
@@ -5537,19 +5558,26 @@ window.TSH = (function(){
   }
   function chaosGone(){
     const c = chaos; if(!c) return; chaos = null;
-    c.lights.forEach(o=>{ if(o.L.parent) o.L.parent.remove(o.L); }); c.beams.forEach(o=>{ if(o.sp.parent){ o.sp.parent.remove(o.sp); o.sp.parent && o.sp.parent.remove(o.sp.target); } if(o.sp.target.parent) o.sp.target.parent.remove(o.sp.target); });
+    c.lights.forEach(o=>{ if(o.L.parent) o.L.parent.remove(o.L); }); c.beams.forEach(o=>{ if(o.sp.parent) o.sp.parent.remove(o.sp); });
     c.civs.forEach(n=>{ if(!n.gone) despawn(n); });
     if(c.gain && AC){ try{ c.gain.gain.setTargetAtTime(0, AC.currentTime, 0.4); }catch(e){} later(()=>c.nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }), 2500); }
     alertBanner(false);
   }
   function storm(k){
     if(k > 0){
-      if(!stormWas) stormWas = { amb:G.amb.intensity, hemi:G.hemi.intensity, sun:G.sun ? G.sun.intensity : 0, fog:G.scene.fog.color.clone(), fd:G.scene.fog.density };
+      if(!stormWas) stormWas = { amb:G.amb.intensity, hemi:G.hemi.intensity, sun:G.sun ? G.sun.intensity : 0, fog:G.scene.fog.color.clone(), fd:G.scene.fog.density, env:G.scene.environmentIntensity === undefined ? 1 : G.scene.environmentIntensity, exp:G.renderer ? G.renderer.toneMappingExposure : 1 };
       const w = stormWas; G.amb.intensity = w.amb*(1 - 0.85*k); G.hemi.intensity = w.hemi*(1 - 0.88*k); if(G.sun) G.sun.intensity = w.sun*(1 - 0.95*k);
-      G.scene.fog.color.copy(w.fog).lerp(new THREE.Color(0x07040c), k); G.scene.fog.density = w.fd + 0.009*k; G.scene.background = G.scene.fog.color.clone(); return; }
+      G.scene.fog.color.copy(w.fog).lerp(new THREE.Color(0x07040c), k); G.scene.fog.density = w.fd + 0.009*k; G.scene.background = G.scene.fog.color.clone();
+      if(W && W.sky){                                                    // a bruise-dark shell inside the dome thickens: you watch the light go out of the sky
+        if(!w.shell){ w.shell = new THREE.Mesh(new THREE.SphereGeometry(850, 24, 16), new THREE.MeshBasicMaterial({ color:0x0a0512, side:THREE.BackSide, transparent:true, opacity:0, fog:false, depthWrite:false }));
+          w.shell.renderOrder = -9; W.sky.parent.add(w.shell); }
+        w.shell.material.opacity = Math.min(0.96, k*1.05); }
+      G.scene.environmentIntensity = w.env*(1 - 0.9*k); if(G.renderer) G.renderer.toneMappingExposure = w.exp*(1 - 0.45*k);
+      return; }
     if(!stormWas) return;
     G.amb.intensity = stormWas.amb; G.hemi.intensity = stormWas.hemi; if(G.sun) G.sun.intensity = stormWas.sun;
-    G.scene.fog.color.copy(stormWas.fog); G.scene.fog.density = stormWas.fd; G.scene.background = stormWas.fog.clone(); stormWas = null;
+    G.scene.fog.color.copy(stormWas.fog); G.scene.fog.density = stormWas.fd; G.scene.background = stormWas.fog.clone();
+    if(stormWas.shell && stormWas.shell.parent) stormWas.shell.parent.remove(stormWas.shell); G.scene.environmentIntensity = stormWas.env; if(G.renderer) G.renderer.toneMappingExposure = stormWas.exp; stormWas = null;
   }
   function loseBar(v){
     let b = el.querySelector('#tshLose');
@@ -5587,13 +5615,20 @@ window.TSH = (function(){
     const glow = () => { LOOK.fx.flash = 0.35; LOOK.fx.flashCol.set(0.4, 1, 0.9); };
     const shots = [
       // up out of the ground into the afternoon. Breathing. For a second, it is over.
-      ...cuts(2.6, [C.herSide, C.her, C.street], { start:()=>{ stand(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); }, mood:'sad' }),
-      // the street shakes
-      ...cuts(1.8, [C.low, C.stair, C.her], { start:()=>{ roar(); shake(0.35, 1.8); storm(0.3); }, mood:'shocked' }),
+      { dur:2.6, fov:50, cam:[at[0] - dir[0]*4, 9, at[1] - dir[1]*4], look:[at[0], 0.8, at[1]], enter:()=>{ stand(); caption('EXT. HARBOR LANE — 4:40 PM'); cue('door'); } },
+      // bent over, hands on her knees, breathing. She made it.
+      { dur:2.4, fov:30, mood:'sad', cam:F.A.herTight.cam, look:F.A.herTight.look, enter:()=>stage('kneel', at[0], 0, at[1], ry) },
+      // she looks back at the hole she came out of. Nothing. A car goes by. An ordinary afternoon.
+      { dur:2.2, fov:36, cam:C.herSide.cam, look:[E[0], 0.4, E[1]], enter:stand },
+      { dur:2.0, fov:50, cam:C.street.cam, look:C.street.look, enter:stand },
+      // and then the puddle by her foot shivers
+      { dur:1.6, fov:30, cam:C.feetLow.cam, look:C.feetLow.look, enter:()=>{ stand(); shake(0.12, 0.4); cue('thud'); }, beats:[[0.8, ()=>cue('thud')]] },
+      // the street shakes; the boarded stair of the old station bulges; car alarms
+      ...cuts(2.2, [C.low, C.stair, C.her, C.stair], { start:()=>{ roar(); shake(0.35, 0.6); storm(0.05); cue('alert'); }, tick:(dt, t, k)=>storm(0.05 + k*0.2), mood:'shocked' }),
       // and it comes up out of the station, after her
-      ...cuts(3.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street],
-        { start:()=>{ roar(); haywire(0.55); windOn(0.6); stn.visible = false; shake(0.8, 1.2); LOOK.fx.flash = 0.6; chaosOn(at); },
-          tick:(dt, t, k)=>{ stand(); mon.grow = Math.min(1, k*1.15); storm(0.3 + k*0.7); if(Math.random() < dt*2) shake(0.5, 0.6); } }),
+      ...cuts(4.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street, C.rise],
+        { start:()=>{ roar(); haywire(0.55); windOn(0.6); stn.visible = false; shake(0.6, 0.5); LOOK.fx.flash = 0.6; chaosOn(at); },
+          tick:(dt, t, k)=>{ stand(); mon.grow = Math.min(1, k*1.15); storm(0.25 + k*0.75); if(Math.random() < dt*1.2){ LOOK.fx.flash = 0.35; LOOK.fx.flashCol.set(0.7, 0.6, 1); } if(Math.random() < dt*0.8) shake(0.3, 0.25); } }),
       // its eye finds her
       ...cuts(1.4, [C.eye, C.her], { start:()=>roar(), mood:'shocked' }),
       // "No. No, no, no." — "Okay. Okay. Secret's out."
@@ -5640,6 +5675,10 @@ window.TSH = (function(){
     // the further she gets, the calmer the world; keep far enough for long enough and it loses her
     if(hay) hay.k = 0.25 + 0.5*Math.max(0, 1 - d/70);
     if(d > 42) c.meter = Math.min(1, c.meter + dt/5); else if(d < 24) c.meter = Math.max(0, c.meter - dt/14);
+    // a few beats in: her phone — BREAKING — and the reporter, live, in the corner
+    if(c.t > 9 && !c.news){ c.news = 1; cue('ui'); phoneBig('news', 'BREAKING · CH 6'); later(()=>phoneBig(null), 2200); }
+    if(c.t > 11.5 && c.news === 1){ c.news = 2; newsOn(); talk('newsLive'); }
+    if(c.t > 11.5 + linesLen('newsLive') + 1 && c.news === 2){ c.news = 3; newsOff(); }
     loseBar(c.meter);
     if(c.meter >= 1 || c.t > 150){ aftWatch = null; loseBar(null); lostScene(); }
   }
@@ -5665,13 +5704,14 @@ window.TSH = (function(){
     ];
     playReel(shots, aftDone(()=>{ reel = null; dutch = 0;
       if(mon){ mon.dispose(); mon = null; } haywire(0.2); hunt = null; stn.visible = true;
-      wfcStandoff(at, y0); }), { ownClock:true });
+      newsOff(); wfcStandoff(at, y0); }), { ownClock:true });
   }
   /* WFC. Where it went down into the street, they come up all round her: they have Canon's name, and the last place
      anybody saw him — the station, with her — and they have watched that thing chase her across the city and never
      once touch her. She tries to tell them. They hear what they have already decided. */
   let wfcCrew = [], gun = null;
-  function wfcGone(){ wfcCrew.forEach(n=>{ if(!n.gone) despawn(n); }); wfcCrew = []; if(gun){ gun.g.parent && gun.g.parent.remove(gun.g); gun = null; } }
+  function gunGone(g0){ [g0.g, g0.sp, g0.pool].forEach(o=>{ if(o && o.parent) o.parent.remove(o); }); }
+  function wfcGone(){ wfcCrew.forEach(n=>{ if(!n.gone) despawn(n); }); wfcCrew = []; if(gun){ gunGone(gun); gun = null; } }
   function wfcStandoff(at, y0){
     flushTalk(); mark('wfcstandoff');
     const ry = Math.PI/2, F = facing(at, ry, 1.0, y0 + 1.62), A = F.A;
@@ -5680,9 +5720,16 @@ window.TSH = (function(){
     ring.forEach(([x, z], i)=>{ const n = spawn('wfc', ['walk-s','walk-t','walk-u'][i], x, z, { name:'wfcR' + i, state:'stand', y:y0 }); n.faceTo = at; n.pose = 'fight'; wfcCrew.push(n); });
     // the gunship, over her, its light on her
     { const g = new THREE.Group(), hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 6), new THREE.MeshStandardMaterial({ color:0x121a26, roughness:0.4, metalness:0.7 }));
-      g.add(hull); const sp = new THREE.SpotLight(0xe8f4ff, 180, 60, 0.22, 0.4, 1); sp.position.set(0, -0.6, 0); g.add(sp); g.add(sp.target);
-      const red = new THREE.PointLight(0xff2a2a, 8, 20); red.position.set(0, -0.6, 2.6); g.add(red);
-      g.position.set(at[0] + 4, y0 + 16, at[1] - 6); W.cityGroup.add(g); gun = { g, sp, red, t:0 }; sp.target.position.set(0, -20, 0); }
+      g.add(hull);
+      // its searchlight: a pale cone from its belly to wherever it is pointed, and a pool of light where it lands (meshes, not lights)
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1, 20, 1, true), new THREE.MeshBasicMaterial({ color:0xe8f4ff, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
+      sp.geometry.translate(0, -0.5, 0); W.cityGroup.add(sp);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(2.8, 24), new THREE.MeshBasicMaterial({ color:0xf4f8ff, transparent:true, opacity:0.35, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+      pool.rotation.x = -Math.PI/2; W.cityGroup.add(pool);
+      const red = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), new THREE.MeshBasicMaterial({ color:new THREE.Color(3, 0.2, 0.2) })); red.position.set(0, -0.6, 2.6); g.add(red);
+      g.position.set(at[0] + 4, y0 + 16, at[1] - 6); W.cityGroup.add(g);
+      gun = { g, sp, pool, red, t:0, aim:(x, y, z) => { const from = g.position, d = new THREE.Vector3(x - from.x, y - from.y, z - from.z), L = d.length();
+        sp.position.copy(from); sp.scale.set(1, L, 1); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), d.normalize()); pool.position.set(x, y + 0.05, z); } }; }
     const wf = () => wfcCrew[1] || wfcCrew[0], wfP = () => wf() ? [wf().x, (wf().y || y0) + 1.6, wf().z] : [at[0], y0 + 1.6, at[1] + 6];
     const C = {
       her:   { cam:A.herTight.cam, look:A.herTight.look, fov:26 },
@@ -5691,7 +5738,7 @@ window.TSH = (function(){
       top:   { cam:[at[0] + 1, y0 + 12, at[1] - 3], look:[at[0], y0, at[1]], fov:50 },
       low:   { cam:[at[0] + 1.6, y0 + 0.3, at[1] - 1.4], look:wfP, fov:56 }
     };
-    const stand = () => { stage('idle', at[0], y0, at[1], ry); if(gun) gun.sp.target.position.set(at[0] - gun.g.position.x, y0 - gun.g.position.y, at[1] - gun.g.position.z); };
+    const stand = () => { stage('idle', at[0], y0, at[1], ry); if(gun) gun.aim(at[0], y0, at[1]); };
     const pools = { robin:['her'], wfc:['them', 'low', 'wide'] };
     const shots = [
       // the light hits her from above. They are all round her.
@@ -5714,8 +5761,8 @@ window.TSH = (function(){
     const p = P(), g = gun.g.position, dx = p.x - g.x, dz = p.z - g.z, d = Math.hypot(dx, dz) || 1, sp = c.t < 3 ? 4 : 9.5;
     g.x += dx/d*Math.min(d, sp*dt); g.z += dz/d*Math.min(d, sp*dt); g.y += ((p.y + 15) - g.y)*Math.min(1, dt);
     gun.g.rotation.y = Math.atan2(dx, dz);
-    gun.sp.target.position.set(p.x - g.x, p.y - g.y, p.z - g.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -gun.g.rotation.y);
-    gun.red.intensity = Math.sin(c.t*8) > 0 ? 10 : 0;
+    { const ax = g.x + dx/d*Math.min(d, 6), az = g.z + dz/d*Math.min(d, 6); gun.aim(ax, Math.max(0, p.y - EYE_), az); }   // the light sweeps toward her, a little behind
+    gun.red.visible = Math.sin(c.t*8) > 0;
     const lit = d < 9;
     if(lit){ c.meter = Math.max(0, c.meter - dt/8); if(c.hitT <= 0){ c.hitT = 2.2; cue('alert'); note('In the light — break away!', 'bad'); } }
     else if(d > 22) c.meter = Math.min(1, c.meter + dt/7);
@@ -5729,7 +5776,7 @@ window.TSH = (function(){
     const F = facing(at, Math.PI/2, 1.0, y0 + 1.1), A = F.A;
     chaosOff(); fmStop(4);
     if(gun){ const g0 = gun; const away = [g0.g.position.x + 80, g0.g.position.z - 60]; gun = null;
-      let t = 0; const fly = () => { t += 0.016; g0.g.position.x += (away[0] - g0.g.position.x)*0.01; g0.g.position.z += (away[1] - g0.g.position.z)*0.01; if(t < 6) requestAnimationFrame(fly); else if(g0.g.parent) g0.g.parent.remove(g0.g); }; fly(); }
+      let t = 0; const fly = () => { t += 0.016; g0.g.position.x += (away[0] - g0.g.position.x)*0.01; g0.g.position.z += (away[1] - g0.g.position.z)*0.01; g0.sp.visible = g0.pool.visible = false; if(t < 6) requestAnimationFrame(fly); else gunGone(g0); }; fly(); }
     wfcCrew.forEach(n=>{ if(!n.gone) despawn(n); }); wfcCrew = [];
     const sit = () => stage('kneel', at[0], y0, at[1], F.ry);
     const fr = [Math.sin(F.ry), Math.cos(F.ry)];
