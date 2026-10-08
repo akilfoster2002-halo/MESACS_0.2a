@@ -274,17 +274,17 @@ window.TSH = (function(){
     robinAlone:[['robin','Canon...'], ['robin','Think, Robin. Think.']],
     chaseStart:[['robin','No. No, no, no.'], ['robin','Okay. Okay. Secret\'s out.']],
     chaseLost: [['robin','...Where did it go?']],
-    wfcFreeze: [['wfc','FREEZE! WFC! Hands where we can see them!'], ['wfc','That\'s the girl from the station. It followed HER.'], ['robin','Wait— no, you don\'t understand—']],
-    wfcCanon:  [['wfc','Canon Cortez. Sixteen. Went into Harbor Lane Station with you this afternoon. Where is he?'], ['robin','It took him! That thing took him, I tried to—'],
+    wfcFreeze: [['wfc','FREEZE! WFC! Hands where we can see them!'], ['wfc','It\'s YU. That thing followed HER.'], ['robin','Wait— no, you don\'t understand—']],
+    wfcCanon:  [['wfc','A boy went into Harbor Lane Station this afternoon and never came out. Canon Cortez. Where is he?'], ['robin','It took him! That thing took him, I tried to—'],
                 ['wfc','It chased her across half the city and never laid a hand on her.'], ['wfc','She\'s with it. Take her DOWN!'], ['robin','...I\'m sorry.']],
     hideCry:   [['robin','Pick up. Pick up, pick up, please.']],
     hideCry2:  [['robin','Canon, it\'s me. Please. Just... tell me you\'re okay.'], ['robin','I\'m so sorry. I\'m gonna get you back. I promise.']],
     aptPhone:  [['momroom','It\'s me. I\'m at the residence.'], ['momroom','No. Nothing yet.'], ['momroom','Then widen it. Every unit we have.']],
-    reveal1:   [['robin','...Mom?'], ['momroom','Sit down, Robin.']],
-    reveal2:   [['momroom','At four this afternoon, Canon Cortez went into Harbor Lane Station. With you.'], ['momroom','He didn\'t come out. You did. And so did that thing.'],
-                ['momroom','My officers watched it follow you across half the city. It never touched you.'], ['robin','Mom, I—'], ['momroom','Don\'t.']],
-    reveal3:   [['momroom','They say Canon was taken by you, and an accomplice.']],
-    reveal4:   [['momroom','As of an hour ago, there is a full manhunt for you.'], ['momroom','For the abduction, and possible murder, of Canon Cortez.']],
+    reveal1:   [['robin','...Mom?'], ['momroom','There you are. Sit down, Robin.']],
+    reveal2:   [['momroom','Your friend. Canon Cortez.'], ['momroom','He went into Harbor Lane Station this afternoon, and he never came out.'],
+                ['robin','What... what happened to him?'], ['momroom','Something came up out of that station. And YU was there with it.']],
+    reveal3:   [['momroom','My officers say Canon was taken by YU, and an accomplice.']],
+    reveal4:   [['momroom','As of an hour ago, there is a full manhunt for YU.'], ['momroom','For the abduction, and possible murder, of Canon Cortez.'], ['momroom','I\'m going to find her, Robin.']],
     momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
     momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
     momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
@@ -5856,8 +5856,8 @@ window.TSH = (function(){
      Home. She takes it all off — the shoes, the gloves, the jacket — and goes to wash the night off. And while the
      water runs, somebody lets themselves in: boots across her floor, a badge set down on her bench, a voice on a
      phone, WFC. The water stops. She comes back into a dark room, and somebody is standing at her window. The lamp
-     comes on. It is her mother — the Director of WFC — and her mother tells her what her officers have decided she
-     did. Robin cannot say a word of what is true without saying all of it. So she says nothing. */
+     comes on. It is her mother — the Director of WFC — and her mother tells her what her officers have decided YU
+     did, and that she is going to find her. Robin cannot say a word of what is true without saying all of it. So she says nothing. */
   let momN = null, showerS = null;
   function shower(on_){
     const a = audio(); if(!a) return;
@@ -5934,7 +5934,7 @@ window.TSH = (function(){
         enter:()=>{ cue('ui'); apt.lamp = true; aptLights(); LOOK.fx.flash = 0.2; LOOK.fx.flashCol.set(1, 0.9, 0.7); later(()=>cue('boom'), 250); } },
       ...lineShots(['reveal1', 'reveal2'], P2, { mood:'shocked', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); momAt(MS[0], MS[1], ryM, 'idle'); }, pools:{ robin:['herTight', 'her', 'profileL'], other:['himTight', 'overHer', 'him'] } }),
       ...lineShots(['reveal3'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['himTight'] } }),
-      // she can't. She could tell her everything, and she can't say a word of it. She takes it.
+      // she can't. Her mother is hunting her, and doesn't know it. She can't let one thing show on her face.
       { dur:3.4, fov:20, mood:'sad', inside:true, cam:P2.herTight.cam, look:P2.herTight.look },
       ...lineShots(['reveal4'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['him', 'himTight'] } }),
       // the two of them, either side of the room. Nobody moves.
@@ -6570,7 +6570,7 @@ window.TSH = (function(){
   };
   const FEEL = {
     'Give him back.':'angry', 'I said GIVE HIM BACK!':'angry', 'Get out of here, Robin. Get out. Go. GO.':'nervous', 'Wait— no, you don\'t understand—':'shocked', 'It took him! That thing took him, I tried to—':'angry', '...I\'m sorry.':'sad',
-    'Pick up. Pick up, pick up, please.':'sad', 'Canon, it\'s me. Please. Just... tell me you\'re okay.':'sad', 'I\'m so sorry. I\'m gonna get you back. I promise.':'sad', '...Mom?':'shocked', 'Mom, I—':'nervous',
+    'Pick up. Pick up, pick up, please.':'sad', 'Canon, it\'s me. Please. Just... tell me you\'re okay.':'sad', 'I\'m so sorry. I\'m gonna get you back. I promise.':'sad', '...Mom?':'shocked', 'What... what happened to him?':'nervous',
     "Think, Robin. Think.":'nervous',
     "No. No, no, no.":'shocked',
     "Okay. Okay. Secret's out.":'determined',
