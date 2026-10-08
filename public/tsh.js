@@ -5462,7 +5462,7 @@ window.TSH = (function(){
       esc_.reach -= dt; if(esc_.reach <= 0){ esc_.reach = 0.9 + Math.random()*0.8; mon.reach(new THREE.Vector3(p.x, 1.0, p.z), 0.7); cue('zip'); }
       esc_.hitT = Math.max(0, (esc_.hitT || 0) - dt);
       if(d < 5.2 && !esc_.hitT){ esc_.caught++; esc_.hitT = 1.2; shake(0.5, 0.4); cue('punch'); LOOK.fx.flash = 0.5; LOOK.fx.flashCol.copy(hueVec(Math.random(), 1, 0.6));
-        const push = 6.4 - d; G.pos.x += Math.sin(a)*push; G.pos.z += Math.cos(a)*push; note('Keep going!', 'bad'); }   // once, and clear of it
+        const push = 6.4 - d; for(let i = 0; i < 8; i++){ moveAxis('x', Math.sin(a)*push/8); moveAxis('z', Math.cos(a)*push/8); } note('Keep going!', 'bad'); }   // knocked back, but never into a wall   // once, and clear of it
     }
     if(Math.hypot(p.x - sp.ladder[0], p.z - sp.ladder[1]) < 1.6){ aftWatch = null; climbOut(); }
   }
@@ -5635,7 +5635,7 @@ window.TSH = (function(){
     // it has her: thrown
     if(d < 7.5 && p.y < 9 && c.hitT <= 0){ c.hitT = 1.4; shake(0.7, 0.6); cue('punch'); LOOK.fx.flash = 0.45; LOOK.fx.flashCol.set(1, 0.3, 0.4); c.meter = Math.max(0, c.meter - 0.25);
       if(window.BOOTS && BOOTS.B){ BOOTS.B.vx = Math.sin(a)*15; BOOTS.B.vz = Math.cos(a)*15; BOOTS.B.vy = 9; BOOTS.B.ground = false; BOOTS.B.state = 'air'; }
-      else { G.pos.x += Math.sin(a)*4; G.pos.z += Math.cos(a)*4; }
+      else { for(let i = 0; i < 8; i++){ moveAxis('x', Math.sin(a)*0.5); moveAxis('z', Math.cos(a)*0.5); } }
       note('It has you — MOVE!', 'bad'); }
     // the further she gets, the calmer the world; keep far enough for long enough and it loses her
     if(hay) hay.k = 0.25 + 0.5*Math.max(0, 1 - d/70);
