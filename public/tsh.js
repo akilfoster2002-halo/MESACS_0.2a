@@ -1309,7 +1309,7 @@ window.TSH = (function(){
      In the film the pieces go on one at a time, and each one wakes up —
      a flicker, then steady. Everywhere else she has all of it on. */
   const KIT_ON = { jacket:true, gloves:true, shoes:true, bracelet:true, pack:true };
-  function kitOn(p){ if(!me.kit) return; me.kit[p] = true; me.kitT[p] = 0; dress(); }
+  function kitOn(p){ if(!me.kit) return; me.kitT = me.kitT || {}; me.kit[p] = true; me.kitT[p] = 0; dress(); }
   function kitShow(){
     const t = me.kitT || {};
     const lit = p => (t[p] === undefined || t[p] > 0.75) ? 1 : (Math.random() < 0.5 ? 0.15 + t[p] : 1);
