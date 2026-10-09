@@ -425,7 +425,8 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(col/16.0, 1.0);
     }`;
   const COMP = `
-    uniform sampler2D tScene, tBloom; uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue, uContrast;
+    uniform sampler2D tScene, tBloom, tAO, tDof, tStreak; uniform float uAO, uDof, uStreak, uSat, uSharp, uSplit; uniform vec3 uStreakCol, uShadowTint, uHighTint;
+    uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue, uContrast;
     uniform vec3 uLift, uGain, uFlashCol; uniform vec2 uRes; varying vec2 vUv;
     float lumOf(vec2 p){ vec3 c = texture2D(tScene, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
     void main(){
@@ -441,7 +442,15 @@ window.TSHLOOK = (function(){
       // the comic: the plates printed a little off register — red one way, blue the other, more towards the edges
       vec2 mis = vec2(2.2, -1.4)/uRes*(uComic + uGlitch*9.0*(0.6 + 0.4*sin(uTime*23.0)))*(1.0 + r2*6.0);
       vec3 col = vec3(texture2D(tScene, uv - d*uCA*r2 + mis).r, texture2D(tScene, uv).g, texture2D(tScene, uv + d*uCA*r2 - mis).b);
+      // sharpen: contrast-adaptive, a touch — the MSAA and the bloom soften everything a little
+      if(uSharp > 0.001){ vec2 px = 1.0/uRes; vec3 nb = texture2D(tScene, uv + vec2(px.x, 0.0)).rgb + texture2D(tScene, uv - vec2(px.x, 0.0)).rgb + texture2D(tScene, uv + vec2(0.0, px.y)).rgb + texture2D(tScene, uv - vec2(0.0, px.y)).rgb;
+        col = max(col + (col - nb*0.25)*uSharp, 0.0); }
+      // contact shadow
+      if(uAO > 0.001){ float ao = texture2D(tAO, uv).r; col *= mix(1.0, ao, uAO); }
+      // out of focus
+      if(uDof > 0.001){ vec4 df = texture2D(tDof, uv); col = mix(col, df.rgb, clamp(df.a*1.4, 0.0, 1.0)*uDof); }
       col += texture2D(tBloom, uv).rgb * uBloom;
+      if(uStreak > 0.001) col += texture2D(tStreak, uv).rgb*uStreakCol*uStreak;
       col = col*uGain + uLift;
       if(abs(uHue) > 0.001){                       // the whole picture's colour turned round the wheel
         const vec3 k = vec3(0.57735); float cs = cos(uHue), sn = sin(uHue);
@@ -454,6 +463,11 @@ window.TSHLOOK = (function(){
       #include <colorspace_fragment>
       // high contrast: the blacks crushed, the lights pushed, an S through the middle
       if(uContrast > 0.001){ vec3 cc = gl_FragColor.rgb; gl_FragColor.rgb = mix(cc, smoothstep(0.07, 0.82, cc)*1.08, uContrast); }
+      // the film grade: cool in the shadows, warm in the highlights, a little more colour
+      { vec3 g0 = gl_FragColor.rgb; float L = dot(g0, vec3(0.2126, 0.7152, 0.0722));
+        g0 += uShadowTint*(1.0 - smoothstep(0.0, 0.45, L))*uSplit + uHighTint*smoothstep(0.5, 1.0, L)*uSplit;
+        g0 = mix(vec3(L), g0, uSat);
+        gl_FragColor.rgb = clamp(g0, 0.0, 1.0); }
       if(uComic > 0.001){
         /* INTO THE SPIDER-VERSE. Ink where the picture changes (an edge filter on the scene's light),
            Ben-Day dots where it is in half shadow, hatching where it is dark, the colour a little
@@ -490,6 +504,66 @@ window.TSHLOOK = (function(){
       if(abs(uv.y - 0.5) > 0.5 - uLetter) gl_FragColor.rgb = vec3(0.0);
       gl_FragColor.rgb *= 1.0 - uFade;
     }`;
+  /* AMBIENT OCCLUSION. Where two surfaces meet, light can't get in: a body on a floor, a box against a wall, the
+     inside of a doorway. Without it everything floats. Half resolution, from depth alone: the view-space position
+     of each pixel, its normal from how that position changes across the screen, and a dozen samples in the
+     hemisphere above it — how many land behind something nearer is how shut in that pixel is. */
+  const AO = `
+    #include <packing>
+    uniform sampler2D tDepth; uniform mat4 uProj, uInvProj; uniform vec2 uRes; uniform float uRadius, uNear, uFar;
+    varying vec2 vUv;
+    vec3 viewPos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 c = vec4(uv*2.0 - 1.0, d*2.0 - 1.0, 1.0); vec4 v = uInvProj*c; return v.xyz/v.w; }
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)))*43758.5453); }
+    void main(){
+      float d0 = texture2D(tDepth, vUv).x;
+      if(d0 >= 0.9999){ gl_FragColor = vec4(1.0); return; }
+      vec3 p = viewPos(vUv);
+      vec3 n = normalize(cross(dFdx(p), dFdy(p)));
+      float r = uRadius*clamp(-p.z*0.06, 0.35, 2.5), occ = 0.0, a0 = hash(vUv*uRes)*6.2831;
+      for(int i = 0; i < 12; i++){
+        float fi = float(i), a = a0 + fi*2.39996, h = (fi + 0.5)/12.0;
+        vec3 dir = normalize(vec3(cos(a)*sqrt(1.0 - h*h), sin(a)*sqrt(1.0 - h*h), h));
+        vec3 t = normalize(cross(abs(n.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), n)), b = cross(n, t);
+        vec3 sp = p + (t*dir.x + b*dir.y + n*dir.z)*r*(0.25 + 0.75*h*h);
+        vec4 q = uProj*vec4(sp, 1.0); vec2 suv = q.xy/q.w*0.5 + 0.5;
+        if(suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) continue;
+        float sz = viewPos(suv).z;
+        float range = smoothstep(0.0, 1.0, r/abs(p.z - sz));
+        occ += (sz >= sp.z + 0.03*r ? 1.0 : 0.0)*range;
+      }
+      gl_FragColor = vec4(vec3(pow(clamp(1.0 - occ/12.0, 0.0, 1.0), 1.6)), 1.0);
+    }`;
+  /* DEPTH OF FIELD. A film lens is only sharp at one distance; everything nearer and further goes soft — which is
+     most of why a still from a film looks like a film. The circle of confusion of each pixel from its depth and
+     the focus distance, and a gather of the scene round it, wider the further out of focus it is. */
+  const DOF = `
+    #include <packing>
+    uniform sampler2D tScene, tDepth; uniform vec2 uTexel; uniform float uFocus, uAperture, uMaxR, uNear, uFar; varying vec2 vUv;
+    float viewZ(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+    float coc(float z){ return clamp(abs(z - uFocus)/max(uFocus*uAperture, 0.01), 0.0, 1.0); }
+    void main(){
+      float c0 = coc(viewZ(vUv));
+      vec3 acc = texture2D(tScene, vUv).rgb; float w = 1.0;
+      for(int i = 1; i < 24; i++){
+        float fi = float(i), a = fi*2.39996, rr = sqrt(fi/24.0);
+        vec2 o = vec2(cos(a), sin(a))*rr*uMaxR*uTexel;
+        vec2 uv = vUv + o*max(c0, 0.0);
+        float ci = coc(viewZ(uv));
+        float wi = smoothstep(0.0, 1.0, ci + 0.2);
+        acc += texture2D(tScene, uv).rgb*wi; w += wi;
+      }
+      gl_FragColor = vec4(acc/w, c0);
+    }`;
+  /* ANAMORPHIC STREAK. A film lens with a squeezed element smears every bright light into a long horizontal line —
+     the blue streak across a headlight in every night chase ever filmed. The bloom's small, bright mip, blurred far
+     sideways and nowhere vertically. */
+  const STREAK = `
+    uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
+    void main(){
+      vec3 acc = vec3(0.0); float w = 0.0;
+      for(int i = -24; i <= 24; i++){ float fi = float(i), k = exp(-abs(fi)/9.0); acc += texture2D(tSrc, vUv + vec2(fi*uTexel.x*2.0, 0.0)).rgb*k; w += k; }
+      gl_FragColor = vec4(acc/w, 1.0);
+    }`;
   const LEVELS = 5;
   function rt(w, h, o){
     return new THREE.WebGLRenderTarget(Math.max(1, w|0), Math.max(1, h|0), Object.assign({
@@ -499,7 +573,9 @@ window.TSHLOOK = (function(){
   function build(){
     const size = R.getDrawingBufferSize(new THREE.Vector2());
     const w = size.x, h = size.y;
-    const scene = rt(w, h, { depthBuffer:true, samples:4 });
+    const depth = new THREE.DepthTexture(w, h); depth.type = THREE.UnsignedIntType;
+    const scene = rt(w, h, { depthBuffer:true, samples:4, depthTexture:depth });
+    const aoT = rt(w/2, h/2), dofT = rt(w/2, h/2), streakT = rt(w/8, h/8);
     const mips = [];
     for(let i=0;i<LEVELS;i++) mips.push(rt(w/Math.pow(2, i+1), h/Math.pow(2, i+1)));
     const refl = rt(w/2, h/2, { depthBuffer:true, generateMipmaps:true, minFilter:THREE.LinearMipmapLinearFilter });
@@ -509,16 +585,21 @@ window.TSHLOOK = (function(){
     const down = fsMat(DOWN, { tSrc:{value:null}, uTexel:{value:new THREE.Vector2()}, uFirst:{value:0}, uThreshold:{value:1.15}, uKnee:{value:0.5} });
     const up = fsMat(UP, { tSrc:{value:null}, uTexel:{value:new THREE.Vector2()}, uRadius:{value:1} },
                      { blending:THREE.AdditiveBlending, transparent:true });
-    const comp = fsMat(COMP, { tScene:{value:null}, tBloom:{value:null}, uBloom:{value:0.9}, uTime:{value:0},
+    const ao = fsMat(AO, { tDepth:{value:depth}, uProj:{value:new THREE.Matrix4()}, uInvProj:{value:new THREE.Matrix4()}, uRes:{value:new THREE.Vector2(w/2, h/2)}, uRadius:{value:0.6}, uNear:{value:0.1}, uFar:{value:1000} });
+    const dof = fsMat(DOF, { tScene:{value:null}, tDepth:{value:depth}, uTexel:{value:new THREE.Vector2(1/w, 1/h)}, uFocus:{value:5}, uAperture:{value:0.5}, uMaxR:{value:10}, uNear:{value:0.1}, uFar:{value:1000} });
+    const streak = fsMat(STREAK, { tSrc:{value:null}, uTexel:{value:new THREE.Vector2(8/w, 8/h)} });
+    const comp = fsMat(COMP, { tScene:{value:null}, tBloom:{value:null}, tAO:{value:aoT.texture}, tDof:{value:dofT.texture}, tStreak:{value:streakT.texture},
+      uAO:{value:0}, uDof:{value:0}, uStreak:{value:0}, uSat:{value:1.12}, uSharp:{value:0.35}, uSplit:{value:1}, uStreakCol:{value:new THREE.Vector3(0.45, 0.75, 1.0)},
+      uShadowTint:{value:new THREE.Vector3(-0.012, 0.004, 0.022)}, uHighTint:{value:new THREE.Vector3(0.03, 0.012, -0.02)}, uBloom:{value:0.9}, uTime:{value:0},
       uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uGlitch:{value:0}, uHue:{value:0}, uContrast:{value:0}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
       uGain:{value:new THREE.Vector3(0.93, 1.03, 1.0)}, uFlash:{value:0}, uFlashCol:{value:new THREE.Vector3(1,1,1)},
       uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)} }, { toneMapped:true });
-    P = { w, h, scene, mips, refl, cam, quad, qs, down, up, comp, t:0 };
+    P = { w, h, scene, depth, aoT, dofT, streakT, mips, refl, cam, quad, qs, down, up, comp, ao, dof, streak, t:0 };
   }
   function freeP(){
     if(!P) return;
-    [P.scene, P.refl, ...P.mips].forEach(t=>t.dispose());
-    [P.down, P.up, P.comp].forEach(m=>m.dispose());
+    [P.scene, P.refl, P.aoT, P.dofT, P.streakT, ...P.mips].forEach(t=>t.dispose()); if(P.depth) P.depth.dispose();
+    [P.down, P.up, P.comp, P.ao, P.dof, P.streak].forEach(m=>m.dispose());
     P = null;
   }
   function pass(mat, target){
@@ -603,7 +684,7 @@ window.TSHLOOK = (function(){
   let quality = 2, qT = 0, qN = 0, qSum = 0, slow = 0, pinned = null, lastNow = 0, warm = 0;
   function measure(){
     const now = performance.now(), dt = lastNow ? (now - lastNow)/1000 : 0; lastNow = now;
-    if(pinned !== null || !dt || dt > 2) return;
+    if(pinned !== null || !dt || dt > 0.25 || document.hidden) return;   // a hidden tab or a loading hitch says nothing about the machine
     if(warm < 1.5){ warm += dt; return; }            // the first second is shader compiles
     qT += dt; qN++; qSum += dt;
     if(qT < 2.5) return;
@@ -615,7 +696,8 @@ window.TSHLOOK = (function(){
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0, contrast:0,
+  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0, contrast:0.22,
+                ao:0.85, dof:0, focus:5, aperture:0.45, streak:0.35, sat:1.12, sharp:0.35, split:1,
                 gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
   /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
   function setWet(k){ fx.wet = k; applyQuality(); }
@@ -649,8 +731,14 @@ window.TSHLOOK = (function(){
       P.up.uniforms.tSrc.value = P.mips[i].texture; P.up.uniforms.uTexel.value.set(1/P.mips[i].width, 1/P.mips[i].height);
       R.autoClear = false; pass(P.up, P.mips[i-1]); R.autoClear = true;
     }
+    // 3b. the cinema passes (only at full quality): contact shadows, the lens, the streak
+    const cine = quality >= 2;
+    if(cine && fx.ao > 0){ const a = P.ao.uniforms; a.uProj.value.copy(camera.projectionMatrix); a.uInvProj.value.copy(camera.projectionMatrixInverse); a.uNear.value = camera.near; a.uFar.value = camera.far; pass(P.ao, P.aoT); }
+    if(cine && fx.dof > 0){ const u = P.dof.uniforms; u.tScene.value = P.scene.texture; u.uFocus.value = fx.focus; u.uAperture.value = fx.aperture; u.uNear.value = camera.near; u.uFar.value = camera.far; pass(P.dof, P.dofT); }
+    if(cine && fx.streak > 0){ P.streak.uniforms.tSrc.value = P.mips[2].texture; pass(P.streak, P.streakT); }
     // 4. put it together, tone map it, grade it
     const c = P.comp.uniforms;
+    c.uAO.value = cine ? fx.ao : 0; c.uDof.value = cine ? fx.dof : 0; c.uStreak.value = cine ? fx.streak : 0; c.uSat.value = fx.sat; c.uSharp.value = fx.sharp; c.uSplit.value = fx.split;
     c.tScene.value = P.scene.texture; c.tBloom.value = P.mips[0].texture;
     c.uBloom.value = fx.bloom; c.uTime.value = (P.t%10); c.uGain.value.copy(fx.gain); c.uVig.value = fx.vig;
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);

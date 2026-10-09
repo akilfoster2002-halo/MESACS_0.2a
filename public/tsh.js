@@ -1236,7 +1236,26 @@ window.TSH = (function(){
     const c = shotClear(at(s.cam), at(s.look)), l = at(s.look);
     G.camera.position.set(c[0], c[1], c[2]); G.camera.lookAt(l[0], l[1], l[2]);
     if(s.fov2){ G.camera.fov = lerp(s.fov || 50, s.fov2, e); G.camera.updateProjectionMatrix(); }
+    // the lens: focused on what the shot looks at; the longer the lens, the shallower the focus
+    const fxl = LOOK.fx; fxl.focus = Math.hypot(c[0] - l[0], c[1] - l[1], c[2] - l[2]); fxl.dof = s.dof === undefined ? 1 : s.dof;
+    fxl.aperture = clamp((G.camera.fov - 12)/55, 0.3, 1.4);
+    cineLights(c, l);
   }
+  /* LIT LIKE A FILM. In every shot a film is lit for: a key from one side of the camera, warm, that gives a face its
+     shape, and a rim from behind the subject, cold, that cuts the edge of her out of the dark behind her. Two lights
+     made once (so nothing recompiles) and swung round every shot to wherever the camera is looking; off in play. */
+  let cine = null;
+  function cineLights(c, l){
+    if(!cine){ cine = { key:new THREE.DirectionalLight(0xfff0e0, 0), rim:new THREE.DirectionalLight(0x8fd8ff, 0) };
+      G.scene.add(cine.key, cine.key.target, cine.rim, cine.rim.target); }
+    const dx = l[0] - c[0], dz = l[2] - c[2], d = Math.hypot(dx, dz) || 1, fx_ = dx/d, fz_ = dz/d;
+    // key: from the camera's left, up, toward the subject
+    cine.key.position.set(l[0] - fx_*4 - fz_*3, l[1] + 3, l[2] - fz_*4 + fx_*3); cine.key.target.position.set(l[0], l[1], l[2]);
+    // rim: from behind the subject, a little to the right, above
+    cine.rim.position.set(l[0] + fx_*5 + fz_*1.5, l[1] + 2.5, l[2] + fz_*5 - fx_*1.5); cine.rim.target.position.set(l[0], l[1], l[2]);
+    cine.key.intensity = inside ? 0.45 : 0.3; cine.rim.intensity = 1.6;
+  }
+  function cineOff(){ if(cine){ cine.key.intensity = 0; cine.rim.intensity = 0; } }
   /* A FILM'S CAMERA SEES WHAT IT LOOKS AT. A shot placed from where she is goes wherever she happens to be —
      crouched with her back to an AC unit, a step behind her is inside the unit; from her hiding place, the
      stairwell hut stands between the camera and the stairwell door — and the whole frame is the side of a
@@ -4946,7 +4965,7 @@ window.TSH = (function(){
   function haywire(k){
     if(k > 0){ hay = hay || { t:0, sh:0 }; hay.k = k; return; }
     hay = null;
-    const fx = LOOK.fx; fx.comic = 0; fx.glitch = 0; fx.hue = 0; fx.ca = 0; fx.flash = 0; fx.flashCol.set(1, 1, 1); fx.contrast = 0; fx.vig = 0.55;
+    const fx = LOOK.fx; fx.comic = 0; fx.glitch = 0; fx.hue = 0; fx.ca = 0; fx.flash = 0; fx.flashCol.set(1, 1, 1); fx.contrast = 0.22; fx.vig = 0.55;
     if(subWas && inSub){ G.amb.intensity = subWas.amb*0.3; G.hemi.intensity = subWas.hemi*0.25; }
     if(W && W.sub){ W.sub.group.position.set(0, 0, 0); W.sub.lights.forEach(l=>{ if(l.col0){ l.col.copy(l.col0); delete l.col0; } }); }
   }
@@ -7571,6 +7590,7 @@ window.TSH = (function(){
   function tick(dt){
     if(!on || !W) return;
     clock += dt;
+    if(mode !== 'reel'){ LOOK.fx.dof = 0; cineOff(); }       // the lens is only shallow, and the faces only lit, in a film
     if(chaos) tickChaos(dt);
     lipsTick(dt);
     octoTick(dt);
