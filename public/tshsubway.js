@@ -64,12 +64,17 @@ window.TSHSUB = (function(){
 
   function build(root, out){
     const g = new THREE.Group(); g.visible = false; root.add(g);
-    const solids = [], lights = [], spots = {}, fixtures = [];
+    const solids = [], lights = [], spots = {}, fixtures = [], cones = [];
     const tex = tileTex(), conc = concTex();
-    const tileM = (w, h) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(w/2, h/1); return std({ map:t, roughness:0.35, metalness:0.05 }); };
+    // RELIEF: the grout sunk between the tiles and the pitting in the concrete, as normal maps made from the same pictures
+    const nmap = (t, k) => { if(!window.TSHLOOK || !TSHLOOK.normalFrom) return null; const n = new THREE.CanvasTexture(TSHLOOK.normalFrom(t.image, k)); n.wrapS = n.wrapT = THREE.RepeatWrapping; return n; };
+    const tileN = nmap(tex, 6), concN = nmap(conc, 3);
+    const tileM = (w, h) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(w/2, h/1);
+      const o = { map:t, roughness:0.32, metalness:0.05 }; if(tileN){ const n = tileN.clone(); n.needsUpdate = true; n.repeat.copy(t.repeat); o.normalMap = n; o.normalScale = new THREE.Vector2(0.8, 0.8); } return std(o); };
     // the floors are wet: seepage, puddles — they mirror the lamps, and whatever comes up out of the dark (TSHLOOK's reflection pass)
     const floorM = (w, d) => { const t = conc.clone(); t.needsUpdate = true; t.repeat.set(w/3, d/3);
-      const m = std({ map:t, roughness:0.1, metalness:0.15, color:0x8a8c8c }); if(window.TSHLOOK && TSHLOOK.wet) TSHLOOK.wet(m, 0.95); return m; };
+      const o = { map:t, roughness:0.1, metalness:0.15, color:0x8a8c8c }; if(concN){ const n = concN.clone(); n.needsUpdate = true; n.repeat.copy(t.repeat); o.normalMap = n; o.normalScale = new THREE.Vector2(0.5, 0.5); }
+      const m = std(o); if(window.TSHLOOK && TSHLOOK.wet) TSHLOOK.wet(m, 0.95); return m; };
     const dark = std({ color:0x1a1c1e, roughness:0.8 }), ceilM = std({ color:0x2a2c2a, roughness:0.9 }), green = std({ color:0x2f5a44, roughness:0.5, metalness:0.5 });
     const steel = std({ color:0x8a8e92, roughness:0.35, metalness:0.9 }), rust = std({ color:0x5a3a28, roughness:0.85, metalness:0.3 }), black = std({ color:0x0c0d0e, roughness:0.7 });
     const box = (m, x, y, z, w, h, d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.receiveShadow = true; g.add(b); return b; };
@@ -83,6 +88,9 @@ window.TSHSUB = (function(){
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), glowM(col, 0.0)); bulb.position.set(X(x), y, z); g.add(bulb);
       const cage = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.22, 8, 1, true), std({ color:0x222222, wireframe:true })); cage.position.copy(bulb.position); g.add(cage);
       const src = { x:X(x), y:y - 0.2, z, col:new THREE.Color(col), k, d, mul:emerg ? 1 : 0 };
+      // THE LIGHT IN THE AIR: a soft cone of it under the lamp (the dust and damp in a dead station catch it)
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(y*0.55, y, 24, 1, true), new THREE.MeshBasicMaterial({ color:new THREE.Color(col), transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
+      cone.position.set(X(x), y/2, z); cone.renderOrder = 5; g.add(cone); cones.push({ cone, src, k:emerg ? 0.035 : 0.05 });
       lights.push(src); fixtures.push({ bulb, src, emerg:!!emerg, z, on:emerg ? 1 : 0, glow:emerg ? 1.8 : 3 });
       if(emerg) bulb.material.emissiveIntensity = 1.8;
       return src;
@@ -206,6 +214,46 @@ window.TSHSUB = (function(){
       shaft.position.set(X(-7), 1.5, -136.4); g.add(shaft); }
     spots.ladder = [X(-7), -135.6];
 
+    /* ---- SET DRESSING. A station that has been shut for years is full: pipes and cable trays along the roof, posters
+       peeling off the tiles, litter in the corners, a dead vending machine. Nothing here is solid; it is all to look at. */
+    const pipeM = std({ color:0x3a3e40, roughness:0.55, metalness:0.7 }), cableM = std({ color:0x111214, roughness:0.8 });
+    const pipeRun = (x, y, z1, z2, r, m) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(r, r, z2 - z1, 10), m || pipeM); p.rotation.x = Math.PI/2; p.position.set(X(x), y, (z1 + z2)/2); g.add(p);
+      for(let z = z1 + 1; z < z2; z += 3){ const br = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.06), pipeM); br.position.set(X(x), y + 0.2, z); g.add(br); } };
+    // platform A and B: two pipes and a cable bundle along the roof, the length of each
+    [[-5.5, 3.85, -31.5, 1.5], [-6.3, 3.95, -31.5, 1.5]].forEach(([x, y, a, b], i)=>pipeRun(x, y, a, b, i ? 0.07 : 0.12));
+    pipeRun(-4.8, 4.0, -31.5, 1.5, 0.05, cableM);
+    [[-7.5, 8.1, -127.5, -88.5], [-8.3, 8.25, -127.5, -88.5]].forEach(([x, y, a, b], i)=>pipeRun(x, y, a, b, i ? 0.09 : 0.16));
+    pipeRun(-6.8, 8.3, -127.5, -88.5, 0.06, cableM);
+    // the tunnel: a run of cable along its wall
+    pipeRun(-2.3, 3.2, -71.5, -32.5, 0.05, cableM); pipeRun(-2.3, 3.35, -71.5, -32.5, 0.04, cableM);
+    // posters on the tiles, some of them half gone
+    const poster = (x, y, z, ry, i) => { if(!window.TSHLOOK || !TSHLOOK.fashionAd) return;
+      const c = TSHLOOK.fashionAd(i), cx = c.image ? null : null;
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.4), std({ map:c, roughness:0.85, transparent:false }));
+      pm.position.set(X(x), y, z); pm.rotation.y = ry; pm.rotation.z = (Math.random() - 0.5)*0.05; g.add(pm); };
+    [[-6.97, 1.8, -6], [-6.97, 1.8, -12.5], [-6.97, 1.8, -24]].forEach(([x, y, z], i)=>poster(x, y, z, Math.PI/2, i));
+    [[-8.97, 2.0, -96], [-8.97, 2.0, -114], [-8.97, 2.0, -121]].forEach(([x, y, z], i)=>poster(x, y, z, Math.PI/2, i + 3));
+    // litter: paper, cans, a flattened box, in the corners and along the walls
+    const paperM = std({ color:0xd8d2c0, roughness:0.95, side:THREE.DoubleSide }), canM = std({ color:0x8a2a2a, roughness:0.3, metalness:0.8 }), cardM = std({ color:0x8a6a44, roughness:0.95 });
+    const litter = (x1, x2, z1, z2, n) => { for(let i = 0; i < n; i++){ const x = x1 + Math.random()*(x2 - x1), z = z1 + Math.random()*(z2 - z1), r = Math.random();
+      if(r < 0.55){ const p = new THREE.Mesh(new THREE.PlaneGeometry(0.2 + Math.random()*0.2, 0.25 + Math.random()*0.2), paperM); p.rotation.set(-Math.PI/2 + (Math.random() - 0.5)*0.3, 0, Math.random()*6); p.position.set(X(x), 0.012, z); g.add(p); }
+      else if(r < 0.85){ const c = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 10), canM); c.rotation.set(Math.PI/2, 0, Math.random()*6); c.position.set(X(x), 0.035, z); g.add(c); }
+      else { const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.45), cardM); b.rotation.y = Math.random()*6; b.position.set(X(x), 0.012, z); g.add(b); } } };
+    litter(-6.8, -5.6, -31, 1, 26); litter(-8.8, -7.4, -127, -89, 30); litter(-1.8, 1.8, -71, -33, 14);
+    // a dead vending machine against platform B's wall, its panel still faintly lit
+    { const vm = new THREE.Group(); vm.position.set(X(-8.5), 0, -100.5); g.add(vm);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.9, 0.9), std({ color:0x7a1e22, roughness:0.4, metalness:0.5 })); body.position.y = 0.95; vm.add(body);
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.1), glowM(0x9ad8ff, 0.35)); pane.position.set(0.41, 1.15, 0); pane.rotation.y = Math.PI/2; vm.add(pane); }
+    // DUST in the air, drifting through the lamplight
+    { const N = 900, pos = new Float32Array(N*3);
+      for(let i = 0; i < N; i++){ const k = Math.random(); let x, z, y;
+        if(k < 0.35){ x = -7 + Math.random()*9; z = -32 + Math.random()*34; y = Math.random()*4; }
+        else if(k < 0.5){ x = -2.5 + Math.random()*5; z = -72 + Math.random()*40; y = Math.random()*4.4; }
+        else { x = -9 + Math.random()*12; z = -128 + Math.random()*40; y = Math.random()*8.4; }
+        pos[i*3] = X(x); pos[i*3 + 1] = y; pos[i*3 + 2] = z; }
+      const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color:0xd8e4ff, size:0.022, transparent:true, opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending }));
+      dust.userData.dust = true; g.add(dust); out.subDust = dust; }
     out.solids.push(...solids);
     const ceilingAt = (x, z) => z > 2 ? 3.4 : z > -32 ? 4.2 : z > -72 ? 4.5 : z > -88 ? 3.2 : z > -128 ? 8.5 : 3.0;
     let power = 0, t = 0;
@@ -227,6 +275,10 @@ window.TSHSUB = (function(){
         // the lights coming on: a stutter, then steady
         fixtures.forEach(f=>{ if(f.emerg || f.at == null || f.on >= 1) return; const k = t - f.at; if(k < 0) return;
           const v = k > 0.5 ? 1 : (Math.sin(k*70) > 0.2 ? 1 : 0.1); f.src.mul = v; f.bulb.material.emissiveIntensity = v*f.glow; if(k > 0.5){ f.on = 1; } });
+        // the light in the air follows each lamp's power (src.mul, which the monster scene dims), and the dust drifts
+        cones.forEach(c=>{ c.cone.material.opacity = c.k*Math.min(1.5, c.src.mul || 0); });
+        if(out.subDust){ out.subDust.rotation.y = 0; const pa = out.subDust.geometry.attributes.position, ar = pa.array;
+          for(let i = 1; i < ar.length; i += 3){ ar[i] += Math.sin(t*0.4 + i)*0.0008 - 0.0003; if(ar[i] < 0) ar[i] += 4; } pa.needsUpdate = true; }
         // the Psi: it breathes
         const br = 0.6 + 0.4*Math.sin(t*2.3) + (Math.random() < 0.03 ? 0.5 : 0);
         psiM.opacity = 0.5 + 0.4*br; psiSrc.mul = 0.6 + 0.6*br;

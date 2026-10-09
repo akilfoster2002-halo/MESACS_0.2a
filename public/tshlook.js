@@ -762,7 +762,7 @@ window.TSHLOOK = (function(){
 
   return { init, render, dispose, wet, setWet, hideInMirror, fx,
            asphalt, paving, plaster, shutter, windows, shopfront, vsign, hsign, neonText, neon, dragon,
-           fashionAd, wfcSign, wfcMark, lanternTex, skyTex, glyphs, cv, tex, seeded,
+           fashionAd, wfcSign, wfcMark, lanternTex, skyTex, glyphs, cv, tex, seeded, normalFrom,
            get quality(){ return quality; }, set quality(q){ pinned = q; quality = q; applyQuality(); },
            BRANDS };
 })();

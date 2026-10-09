@@ -1234,7 +1234,10 @@ window.TSH = (function(){
     const f = reel, s = f.shot, k = Math.min(1, f.t/s.dur), e = s.ease === false ? k : k*k*(3 - 2*k);
     const at = v => typeof v === 'function' ? v(k, f.t) : Array.isArray(v[0]) ? v[0].map((a, i)=>lerp(a, v[1][i], e)) : v;
     const c = shotClear(at(s.cam), at(s.look)), l = at(s.look);
-    G.camera.position.set(c[0], c[1], c[2]); G.camera.lookAt(l[0], l[1], l[2]);
+    // a camera held by a person breathes: a few millimetres, slowly, never the same twice (a shot can turn it off with still:true)
+    const br = s.still ? 0 : 0.012 + 0.0006*G.camera.fov, tt = clock;
+    G.camera.position.set(c[0] + Math.sin(tt*0.9)*br + Math.sin(tt*2.3)*br*0.35, c[1] + Math.sin(tt*1.3 + 1)*br*0.8, c[2] + Math.cos(tt*0.7)*br);
+    G.camera.lookAt(l[0], l[1], l[2]);
     if(s.fov2){ G.camera.fov = lerp(s.fov || 50, s.fov2, e); G.camera.updateProjectionMatrix(); }
     // the lens: focused on what the shot looks at; the longer the lens, the shallower the focus
     const fxl = LOOK.fx; fxl.focus = Math.hypot(c[0] - l[0], c[1] - l[1], c[2] - l[2]); fxl.dof = s.dof === undefined ? 1 : s.dof;
@@ -1244,6 +1247,25 @@ window.TSH = (function(){
   /* LIT LIKE A FILM. In every shot a film is lit for: a key from one side of the camera, warm, that gives a face its
      shape, and a rim from behind the subject, cold, that cuts the edge of her out of the dark behind her. Two lights
      made once (so nothing recompiles) and swung round every shot to wherever the camera is looking; off in play. */
+  /* SKIN AND CLOTH, NOT PLASTIC. Every body in the story: rougher and non-metallic (a game export comes out shiny),
+     and a soft sheen where the surface turns away from the camera — the edge of a cheek, a sleeve — so a figure
+     reads against the dark behind it. Done once per body. */
+  function charLook(m){
+    if(!m || m.userData.charLook) return; m.userData.charLook = true;
+    m.traverse(o=>{ if(!o.isMesh || !o.material) return;
+      [].concat(o.material).forEach(mt=>{ if(!mt || !mt.userData || mt.userData.charLook) return; mt.userData.charLook = true;
+      if(mt.metalness !== undefined) mt.metalness = Math.min(mt.metalness, 0.05);
+      if(mt.roughness !== undefined) mt.roughness = Math.max(mt.roughness, 0.55);
+      const prev = mt.onBeforeCompile;
+      mt.onBeforeCompile = (sh, r)=>{ if(prev) prev(sh, r);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>',
+          `{ vec3 vd = normalize(vViewPosition); float fr = pow(1.0 - clamp(abs(dot(normal, vd)), 0.0, 1.0), 3.0);
+             outgoingLight += diffuseColor.rgb*fr*0.35 + vec3(0.04, 0.07, 0.1)*fr; }
+           #include <opaque_fragment>`); };
+      const key = mt.customProgramCacheKey ? mt.customProgramCacheKey.bind(mt) : null;
+      mt.customProgramCacheKey = ()=>(key ? key() : '') + '|charlook';
+      mt.needsUpdate = true; }); });
+  }
   let cine = null;
   function cineLights(c, l){
     if(!cine){ cine = { key:new THREE.DirectionalLight(0xfff0e0, 0), rim:new THREE.DirectionalLight(0x8fd8ff, 0) };
@@ -7590,7 +7612,9 @@ window.TSH = (function(){
   function tick(dt){
     if(!on || !W) return;
     clock += dt;
-    if(mode !== 'reel'){ LOOK.fx.dof = 0; cineOff(); }       // the lens is only shallow, and the faces only lit, in a film
+    if(mode !== 'reel'){ LOOK.fx.dof = 0; cineOff(); }
+    if(window.AVATAR && AVATAR.model && !AVATAR.model.userData.charLook) charLook(AVATAR.model);
+    for(let i = 0; i < npcs.length; i++){ const n = npcs[i]; if(n.model && !n.model.userData.charLook) charLook(n.model); }       // the lens is only shallow, and the faces only lit, in a film
     if(chaos) tickChaos(dt);
     lipsTick(dt);
     octoTick(dt);
