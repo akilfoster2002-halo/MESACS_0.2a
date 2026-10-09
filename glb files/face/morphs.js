@@ -136,17 +136,22 @@ const jawD = P.map(()=>[0, 0, 0]);
     const v = new T.Vector3(...p), r = v.clone().sub(pivot).applyQuaternion(q).add(pivot).sub(v).multiplyScalar(w);
     jawD[vi] = [r.x, r.y, r.z]; }); }
 /* blink: each eye's band closes onto its lower lid */
-const blink = P.map(()=>[0, 0, 0]);
-[['eyeR', 'eyeRout', 'eyeRin'], ['eyeL', 'eyeLout', 'eyeLin']].forEach(([c, o, i_])=>{
+const blink = P.map(()=>[0, 0, 0]), blinkR = P.map(()=>[0, 0, 0]), blinkL = P.map(()=>[0, 0, 0]);
+[['eyeR', 'eyeRout', 'eyeRin', blinkR], ['eyeL', 'eyeLout', 'eyeLin', blinkL]].forEach(([c, o, i_, one])=>{
   const C = HERS[c], half = Math.abs(HERS[o][0] - HERS[i_][0])/2 + 0.004, xc = (HERS[o][0] + HERS[i_][0])/2;
   // a painted eye is a thin band; a modelled cartoon eye (Canon's) is told how tall it is (landmarks.eyeHalf)
   const eh = HERS.eyeHalf || 0.004, low = C[1] - (HERS.eyeHalf ? eh*0.9 : 0.0035), up = C[1] + (HERS.eyeHalf ? eh : 0.0045), top = up + 0.007;
   P.forEach((q, vi)=>{ if(q[2] < C[2] - 0.02 || q[2] > C[2] + 0.008) return;     // not what is behind the eye, nor in front of it (glasses)
     const fx = 1 - smooth(0.7, 1, Math.abs(q[0] - xc)/half); if(fx <= 0 || q[1] < low || q[1] > top) return;
     const y = q[1], target = low + (y - low)*0.12, closeTo = y <= up ? target : y + (target - y)*(1 - smooth(up, top, y));
-    blink[vi][1] += (closeTo - y)*fx; });
+    blink[vi][1] += (closeTo - y)*fx; one[vi][1] += (closeTo - y)*fx; });
 });
-const names = ['jawOpen'].concat(SHAPES.map(s=>s.name), ['blink']), all = [jawD].concat(deltas, [blink]);
+/* EACH EYE ON ITS OWN (a wink, a squint on one side), and the mouth shapes for speech beyond the open jaw and
+   the "oo": an "ee" (wide, a little open), an "eh" (open and wide), a "u" (rounder and tighter than the "oo") */
+const mix = parts => P.map((_, vi)=>parts.reduce((o, [d, k])=>[o[0] + d[vi][0]*k, o[1] + d[vi][1]*k, o[2] + d[vi][2]*k], [0, 0, 0]));
+const S = n => deltas[SHAPES.findIndex(s=>s.name === n)];
+const mouthI = mix([[S('smile'), 0.7], [jawD, 0.25]]), mouthE = mix([[S('smile'), 0.4], [jawD, 0.55]]), mouthU = mix([[S('mouthO'), 1.15], [jawD, 0.1]]);
+const names = ['jawOpen'].concat(SHAPES.map(s=>s.name), ['blink', 'blinkL', 'blinkR', 'mouthI', 'mouthE', 'mouthU']), all = [jawD].concat(deltas, [blink, blinkL, blinkR, mouthI, mouthE, mouthU]);
 /* WHAT THE FACE DOES NOT MOVE: glasses (landmarks.freeze: [[y0, y1, z], …] — everything between those heights in
    front of that depth). A brow going up drags a frame along with it otherwise, and the eyes look as if they bulge. */
 (HERS.freeze || []).forEach(([y0, y1, z])=>P.forEach((p, vi)=>{ if(p[1] >= y0 && p[1] <= y1 && p[2] > z) all.forEach(d=>{ d[vi] = [0, 0, 0]; }); }));
