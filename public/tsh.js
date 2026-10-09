@@ -282,12 +282,13 @@ window.TSH = (function(){
     hideCry:   [['robin','Pick up. Pick up, pick up, please.']],
     hideCry2:  [['robin','Canon, it\'s me. Please. Just... tell me you\'re okay.'], ['robin','I\'m so sorry. I\'m gonna get you back. I promise.']],
     aptPhone:  [['momroom','It\'s me. I\'m at the residence.'], ['momroom','No. Nothing yet.'], ['momroom','Then widen it. Every unit we have.']],
-    reveal1:   [['momroom','There you are. Come here, Robin. Sit with me.']],
-    reveal2:   [['momroom','I\'m so sorry, sweetheart. It\'s Canon.'], ['momroom','He went into Harbor Lane Station this afternoon, and he never came out.'],
-                ['robin','What... what happened to him?'], ['momroom','Something came up out of that station. And YU was there with it.']],
-    reveal3:   [['momroom','They\'re saying YU took him. YU, and an accomplice.']],
-    reveal4:   [['momroom','As of an hour ago, there\'s a full manhunt for YU. For the abduction, and possible murder, of Canon Cortez.'],
-                ['momroom','I know he was your friend. I\'m going to find her, Robin. I promise you.']],
+    reveal1:   [['momroom','Sit down.']],
+    reveal2:   [['momroom','Canon Cortez is gone.'], ['momroom','Taken out of Harbor Lane Station this afternoon, in front of half the city.'],
+                ['robin','What... what happened to him?'], ['momroom','Don\'t look at me like that. You were seen near that station today.'],
+                ['momroom','Something tore its way up out of the ground. And YU was standing right next to it.']],
+    reveal3:   [['momroom','That boy is gone because of her. YU, and whatever she dragged up out of the dark.']],
+    reveal4:   [['momroom','As of an hour ago, every officer in this city is hunting her. For the abduction, and possible murder, of Canon Cortez.'],
+                ['momroom','And when I find her, Robin...'], ['momroom','...she will never see daylight again.']],
     momPhone:  [['robin','Hey, Mom.'], ['momcall','Where are you?'], ['robin','I\'m on my way home.'], ['momcall','You\'re coming straight home, right?']],
     momPhone2: [['robin','Yeah.'], ['momcall','Okay. I need you home before dinner.']],
     momPhone3: [['robin','Yeah. Okay.'], ['momcall','Love you.']],
@@ -4836,7 +4837,7 @@ window.TSH = (function(){
     mark('mayakai');
     fightClips().then(list=>{
       fightClipList = list;
-      if(!TSHFIGHT.KIND.kai){ TSHFIGHT.KIND.kai = { char:'kofi', hp:5, dmg:12, windup:0.72, walk:1.4, run:4.2 }; TSHFIGHT.KIND.maya = { char:'maya', hp:8, dmg:13, windup:0.6, walk:1.5, run:4.8 }; }
+      if(!TSHFIGHT.KIND.kai){ TSHFIGHT.KIND.kai = { char:'kofi', hp:9, dmg:15, windup:0.5, walk:1.6, run:4.8, aggr:0.55 }; TSHFIGHT.KIND.maya = { char:'maya', hp:14, dmg:16, windup:0.42, walk:1.7, run:5.4, aggr:0.45 }; }
       tunCtx = tunFightCtx(()=>kaiDown());
       tunCrew = true; TSHFIGHT.cast(tunCtx);
       later(()=>meetFilm(), 700);                              // their bodies, loaded
@@ -5305,6 +5306,26 @@ window.TSH = (function(){
     o.querySelector('.f').style.width = Math.round(k*100) + '%';
     o.querySelector('.s').textContent = left > 0 ? left.toFixed(1) + 's' : '';
   }
+  /* the bar's verdict, big, for a moment */
+  function mashResult(ok){
+    let o = el.querySelector('#tshMash'); if(!o) return;
+    o.querySelector('.l').innerHTML = ok ? '<span style="color:#7dffb0;font-size:40px">✔ SUCCESS</span>' : '<span style="color:#ff5a7a;font-size:40px">✖ FAILED</span><br><span style="font-size:16px">she takes the hit</span>';
+    o.querySelector('.f').style.width = ok ? '100%' : '0%'; o.querySelector('.s').textContent = '';
+  }
+  /* TOO MUCH FOR HER. Two that got away from her and it has her — the night starts over, from the door to the old platform. */
+  function restartNight(){
+    mashUI(false); G.timeScale = 1; cineOff();
+    const card = el.querySelector('.tsh-black'); black(true);
+    if(card) card.innerHTML = '<div class="tsh-tbc"><small>IT WAS TOO MUCH FOR HER</small><b>TRY AGAIN</b></div>';
+    later(()=>{ if(!on) return;
+      reel = null; mode = null; staged = null; aftWatch = null; BRAWL.s = null; brawlUI(''); el.classList.remove('cine', 'fighting');
+      if(window.AVATAR) AVATAR.posture(null); fmStop(0.3); tunnelsGone(); if(window.TSHFIGHT) TSHFIGHT.clear(); tunCrew = false;
+      const c = canonNpc(); if(c){ c.hidden = false; c.g.visible = true; c.g.scale.setScalar(1); c.y = 0; c.pose = null; }
+      if(me.kit){ me.kit.jacket = false; me.kit.gloves = false; dress(); }
+      G.running = true; tunnelsResume(6);
+      black(false); if(card) card.innerHTML = '';
+      note('Again — through the door, to the old platform.', 'big'); }, 2600);
+  }
   function duel(done){
     flushTalk(); mon.grow = 1;
     const p = P(), r = mon.root, Mx = [r.position.x, r.position.z];
@@ -5336,20 +5357,25 @@ window.TSH = (function(){
     const S = (o) => { const t0 = o.tick; o.tick = (dt, t, k) => { if(o.ramp) o.ramp(k); if(o.mon) o.mon(k); if(t0) t0(dt, t, k); };
       const e0 = o.enter; o.enter = () => { if(e0) e0(); if(o.mon) o.mon(0); if(!o.ramp) ts(1);
         const r_ = rigR(); if(o.clip && r_ && r_.restart){ r_.restart(o.clip, 0.05); const len = r_.seconds ? r_.seconds(o.clip) : 0; if(len) o.anim = len/(o.dur*(o.fill || 0.95)); } }; return o; };
-    let won = 0, combo = 0;
+    let won = 0, lost = 0, overwhelmed = false, combo = 0;
     // a mash: the world nearly stopped (it still moving, slowly, at her); SPACE fills the bar, it drains; full in time and she wins it
     const mash = (label, secs, cam, look, fov, hold) => {
       const m = { k:0, left:secs, done:false };
       return { dur:999, fov, cam, look, ease:false, anim:0.25,
-        enter:()=>{ ts(0.18); hold(0); cue('glitch'); mashUI(true, 0, label, secs); m.onKey = e => { if(e.code === 'Space'){ e.preventDefault(); if(!m.done){ m.k = Math.min(1, m.k + 0.085); shake(0.12, 0.08); } } };
+        enter:()=>{ ts(0.18); hold(0); cue('glitch'); mashUI(true, 0, label, secs); m.onKey = e => { if(e.code === 'Space'){ e.preventDefault(); if(!m.done){ m.k = Math.min(1, m.k + 0.13); shake(0.12, 0.08); } } };
           window.addEventListener('keydown', m.onKey); },
-        tick:(dt)=>{ const real = dt/Math.max(0.05, G.timeScale || 1); m.T = (m.T || 0) + real; hold(Math.min(1, m.T/secs)); if(m.done) return;
-          m.left -= real; m.k = Math.max(0, m.k - real*0.32); mashUI(true, m.k, label, m.left);
-          if(m.k >= 1 || m.left <= 0){ m.done = true; m.win = m.k >= 1; if(m.win) won++; window.removeEventListener('keydown', m.onKey); mashUI(false); ts(1);
-            if(reel) reel.t = 999; } },
+        tick:(dt)=>{ const real = dt/Math.max(0.05, G.timeScale || 1); m.T = (m.T || 0) + real; hold(Math.min(1, m.T/secs));
+          if(m.done){ m.endT -= real; if(m.endT <= 0){ mashUI(false); ts(1); if(reel) reel.t = 999; } return; }
+          m.left -= real; m.k = Math.max(0, m.k - real*0.2); mashUI(true, m.k, label, m.left);
+          if(m.k >= 1 || m.left <= 0){ m.done = true; m.win = m.k >= 1; m.endT = 0.9; window.removeEventListener('keydown', m.onKey);
+            if(m.win){ won++; mashResult(true); cue('win'); LOOK.fx.flash = 0.35; LOOK.fx.flashCol.set(0.5, 1, 0.8); }
+            else { lost++; mashResult(false); cue('fail'); shake(0.4, 0.3); if(lost >= 2) overwhelmed = true; } } },
         get win(){ return m.win; } };
     };
-    const branch = (mashShot, winS, loseS) => [mashShot, { dur:0.001, cam:mashShot.cam, look:mashShot.look, fov:mashShot.fov, enter:()=>{ const list = mashShot.win ? winS : loseS; reel.shots.splice(reel.i + 1, 0, ...list); } }];
+    const branch = (mashShot, winS, loseS) => [mashShot, { dur:0.001, cam:mashShot.cam, look:mashShot.look, fov:mashShot.fov, enter:()=>{
+      const list = mashShot.win ? winS : loseS;
+      if(overwhelmed){ reel.shots.splice(reel.i + 1, reel.shots.length, ...list, { dur:0.6, cam:mashShot.cam, look:mashShot.look, fov:mashShot.fov, enter:()=>restartNight() }); return; }
+      reel.shots.splice(reel.i + 1, 0, ...list); } }];
     const thrown = (from, to, camF) => [   // it throws her: across the floor, and up
       S({ dur:1.1, fov:52, cam:()=>{ const q = at(camF, -3.4); return [q[0], 1.3, q[1]]; }, look:()=>hb(1), ramp:ramp(0.35, 0.25, 0.12),
         enter:()=>{ slam(); }, tick:(dt, t, k)=>{ const a = at(from), b = at(to, -1.0), q = arc(a, b, k, 1.4); put(k < 0.6 ? 'hit' : 'fall', q[0], q[1], q[2]); } }),
@@ -6022,11 +6048,13 @@ window.TSH = (function(){
       // the lamp. Her mother.
       { dur:3.2, fov:40, fov2:22, ease:false, inside:true, cam:P2.overHer.cam, look:P2.himTight.look,
         enter:()=>{ cue('ui'); apt.lamp = true; aptLights(); LOOK.fx.flash = 0.2; LOOK.fx.flashCol.set(1, 0.9, 0.7); later(()=>cue('boom'), 250); } },
-      ...lineShots(['reveal1', 'reveal2'], P2, { mood:'shocked', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); momAt(MS[0], MS[1], ryM, 'idle'); }, pools:{ robin:['herTight', 'her', 'profileL'], other:['himTight', 'overHer', 'him'] } }),
+      ...lineShots(['reveal1', 'reveal2'], P2, { mood:'shocked', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); momAt(MS[0], MS[1], ryM, 'idle'); }, pools:{ robin:['herTight', 'her', 'profileL'], other:['himTight', 'overHer', 'him'] },
+        ins:[[/Don't look at me/, 'himTight', ()=>{ shake(0.15, 0.3); cue('thud'); }], [/tore its way/, 'him', ()=>{ apt.lamp = false; aptLights(); later(()=>{ apt.lamp = true; aptLights(); }, 180); later(()=>{ apt.lamp = false; aptLights(); }, 300); later(()=>{ apt.lamp = true; aptLights(); }, 520); }]] }),
       ...lineShots(['reveal3'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['himTight'] } }),
       // she can't. Her mother is hunting her, and doesn't know it. She can't let one thing show on her face.
       { dur:3.4, fov:20, mood:'sad', inside:true, cam:P2.herTight.cam, look:P2.herTight.look },
-      ...lineShots(['reveal4'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['him', 'himTight'] } }),
+      ...lineShots(['reveal4'], P2, { mood:'sad', each:()=>{ stage('idle', RS[0], 0, RS[1], ryR); }, pools:{ robin:['herTight'], other:['him', 'himTight'] },
+        ins:[[/never see daylight/, 'himTight', ()=>{ cue('boom'); shake(0.35, 0.6); LOOK.fx.flash = 0.25; LOOK.fx.flashCol.set(1, 0.85, 0.7); }]] }),
       // she crosses the room to her daughter, and holds her. Robin lets her. Over her mother's shoulder, her eyes are open.
       { dur:3.6, fov:40, mood:'sad', inside:true, cam:P2.two.cam, look:P2.two.look,
         tick:(dt, tt, k)=>{ const t = Math.min(1, k*1.4); momAt(lerp(MS[0], RS[0] + Math.sin(ryR)*0.45, t), lerp(MS[1], RS[1] + Math.cos(ryR)*0.45, t), ryM, t < 1 ? 'walk' : 'idle'); } },

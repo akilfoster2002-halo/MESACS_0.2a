@@ -541,7 +541,7 @@ window.TSHFIGHT = (function(){
           if(e.t >= e.strikeAt){ strike(e); }
           break;
         }
-        case 'recover': { if(e.t > 0.6){ e.state = 'circle'; e.t = 0; e.cool = rnd(1.4, 2.8) * (dir && dir.free ? 0.8 : 1.4); } break; }
+        case 'recover': { if(e.t > 0.6*(e.K.aggr || 1)){ e.state = 'circle'; e.t = 0; e.cool = rnd(1.4, 2.8) * (dir && dir.free ? 0.8 : 1.4) * (e.K.aggr || 1); } break; }
         case 'stagger': {
           e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= Math.exp(-dt*8); e.vz *= Math.exp(-dt*8);
           if(e.t > (e.parried ? 1.7 : 0.6)){ e.parried = false; e.state = 'circle'; e.t = 0; e.cool = rnd(0.8, 1.8); }
@@ -568,7 +568,7 @@ window.TSHFIGHT = (function(){
           else if(e.t > 2.4 && !(dir && dir.hold)){ e.state = 'getup'; e.t = 0; hit1(e, 'getup'); }
           break;
         }
-        case 'getup': { if(e.t > 1.5){ e.state = 'circle'; e.t = 0; e.cool = rnd(1.5, 3); } break; }
+        case 'getup': { if(e.t > 1.5*(e.K.aggr || 1)){ e.state = 'circle'; e.t = 0; e.cool = rnd(1.5, 3)*(e.K.aggr || 1); } break; }
         case 'grab': {
           // he has her from behind: she does not move, he does not let go
           const a = R.face + Math.PI; e.x = G.pos.x + Math.sin(a)*0.55; e.z = G.pos.z + Math.cos(a)*0.55; e.yaw = R.face;
