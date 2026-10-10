@@ -434,7 +434,9 @@ async function transfer(garUrl, rUrl, bUrl, outPath, o){
   const clean = s => String(s || '').replace(/^mixamorig:?/, '');
   const bonesR = new Map(smR.skeleton.bones.map(b=>[clean(b.name), b])), bonesB = new Map(smB.skeleton.bones.map(b=>[clean(b.name), b]));
   const gNames = gm.skeleton.bones.map(b=>clean(b.name));
-  const X = gNames.map(nm=>{ const br = bonesR.get(nm), bb = bonesB.get(nm); if(!br || !bb) return null; return bb.matrixWorld.clone().multiply(br.matrixWorld.clone().invert()); });
+  // position and turn only: two bodies can carry different unit scales on their skeletons (one in cm under a 0.01, one in m)
+  const rigid = m => { const t = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); m.decompose(t, q, s); return new THREE.Matrix4().compose(t, q, new THREE.Vector3(1, 1, 1)); };
+  const X = gNames.map(nm=>{ const br = bonesR.get(nm), bb = bonesB.get(nm); if(!br || !bb) return null; return rigid(bb.matrixWorld).multiply(rigid(br.matrixWorld).invert()); });
   const QB = new Float32Array(n*3);
   for(let i=0;i<n;i++){
     const p = new THREE.Vector3(Q[i*3], Q[i*3+1], Q[i*3+2]), acc = new THREE.Vector3(); let wsum = 0;

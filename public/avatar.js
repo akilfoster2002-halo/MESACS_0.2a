@@ -159,7 +159,7 @@ window.AVATAR = (function(){
   }
 
   async function load(id){
-    loader = loader || new THREE.GLTFLoader();
+    loader = loader || new THREE.GLTFLoader(); if(window.MeshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder);
     const buf = await file(id);
     const g = await new Promise((res,rej)=>
       loader.parse(buf.slice(0), BASE, res, rej));
@@ -197,7 +197,7 @@ window.AVATAR = (function(){
      player was holding nothing at all. */
   function blaster(){
     if(!gunProto){
-      loader = loader || new THREE.GLTFLoader();
+      loader = loader || new THREE.GLTFLoader(); if(window.MeshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder); if(window.MeshoptDecoder && loader.setMeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder);
       gunProto = new Promise((res,rej)=>loader.load(BLASTER, g=>res(g.scene), undefined, rej));
     }
     return gunProto;
@@ -566,13 +566,15 @@ window.AVATAR = (function(){
      own, every few seconds and now and then twice; whoever runs the scene sets how open her mouth is
      (mouth(), from her voice) and asks for an expression (expr(name, amount, seconds)). A body without
      the shapes ignores all of it. */
-  const face = { model:null, mesh:null, blinkIn:2.5, blinkT:0, mouth:0, expr:{}, cur:{} };
+  const face = { model:null, mesh:null, meshes:[], blinkIn:2.5, blinkT:0, mouth:0, expr:{}, cur:{} };
+  /* a face can be in several pieces (skin, teeth, brows, lashes, each with the same shapes by name): all of them move */
   function faceMesh(){
-    if(face.model !== model){ face.model = model; face.mesh = null; face.cur = {};
-      if(model) model.traverse(o=>{ if(!face.mesh && o.morphTargetDictionary && o.morphTargetDictionary.jawOpen !== undefined) face.mesh = o; }); }
+    if(face.model !== model){ face.model = model; face.mesh = null; face.meshes = []; face.cur = {};
+      if(model) model.traverse(o=>{ if(o.morphTargetDictionary && Object.keys(o.morphTargetDictionary).length){ face.meshes.push(o);
+        if(o.morphTargetDictionary.jawOpen !== undefined && (!face.mesh || o.morphTargetInfluences.length > face.mesh.morphTargetInfluences.length)) face.mesh = o; } }); }
     return face.mesh;
   }
-  function faceSet(m, name, v){ const i = m.morphTargetDictionary[name]; if(i !== undefined) m.morphTargetInfluences[i] = v; }
+  function faceSet(m, name, v){ for(const o of face.meshes){ const i = o.morphTargetDictionary[name]; if(i !== undefined) o.morphTargetInfluences[i] = v; } }
   function faceTick(dt){
     const m = faceMesh(); if(!m || !(dt >= 0)) return;
     // the blink: about a sixth of a second, closed in the middle of it
