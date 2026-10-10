@@ -425,12 +425,31 @@ window.TSHLOOK = (function(){
       gl_FragColor = vec4(col/16.0, 1.0);
     }`;
   const COMP = `
+    #include <packing>
+    uniform sampler2D tDepth; uniform float uVerse, uNear, uFar;
     uniform sampler2D tScene, tBloom, tAO, tDof, tStreak; uniform float uAO, uDof, uStreak, uSat, uSharp, uSplit; uniform vec3 uStreakCol, uShadowTint, uHighTint;
     uniform float uBloom, uTime, uVig, uGrain, uCA, uFlash, uLetter, uFade, uComic, uGlitch, uHue, uContrast;
     uniform vec3 uLift, uGain, uFlashCol; uniform vec2 uRes; varying vec2 vUv;
     float lumOf(vec2 p){ vec3 c = texture2D(tScene, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
+    /* PAINTED (Kuwahara): of the four little squares around a pixel, the one whose colour varies least gives it its
+       colour — flat patches with their edges kept, like gouache, not a blur */
+    vec3 kuwahara(vec2 uv, float rad){
+      vec2 px = rad/uRes; vec3 best = texture2D(tScene, uv).rgb; float bv = 1e9;
+      for(int q = 0; q < 4; q++){
+        vec2 dir = vec2(q == 0 || q == 3 ? -1.0 : 1.0, q < 2 ? -1.0 : 1.0);
+        vec3 m = vec3(0.0), m2 = vec3(0.0);
+        for(int i = 0; i < 3; i++) for(int j = 0; j < 3; j++){
+          vec3 c = texture2D(tScene, uv + dir*vec2(float(i), float(j))*px*0.5).rgb; c = c/(1.0 + c);
+          m += c; m2 += c*c; }
+        m /= 9.0; vec3 v = m2/9.0 - m*m; float vv = v.r + v.g + v.b;
+        if(vv < bv){ bv = vv; best = m/(1.0 - min(m, vec3(0.999))); }
+      }
+      return best;
+    }
     void main(){
       vec2 uv = vUv, d = uv - 0.5; float r2 = dot(d, d);
+      // INTO THE SPIDER-VERSE, the lens: a whisper of barrel distortion, the picture bowed out at the corners
+      if(uVerse > 0.001){ uv = 0.5 + d*(1.0 - 0.02*uVerse*r2*4.0); d = uv - 0.5; r2 = dot(d, d); }
       // HAYWIRE: the picture tears — bands of it shoved sideways, a frame at a time — and the plates slip further
       if(uGlitch > 0.001){
         float fr = floor(uTime*14.0), band = floor(uv.y*(10.0 + 30.0*fract(fr*0.37)));
@@ -442,6 +461,17 @@ window.TSHLOOK = (function(){
       // the comic: the plates printed a little off register — red one way, blue the other, more towards the edges
       vec2 mis = vec2(2.2, -1.4)/uRes*(uComic + uGlitch*9.0*(0.6 + 0.4*sin(uTime*23.0)))*(1.0 + r2*6.0);
       vec3 col = vec3(texture2D(tScene, uv - d*uCA*r2 + mis).r, texture2D(tScene, uv).g, texture2D(tScene, uv + d*uCA*r2 - mis).b);
+      if(uVerse > 0.001){
+        // painted, and printed off register: the colour plates slip apart, more the further away a thing is —
+        // whoever is close stays crisp, the city behind them fringes
+        vec3 paint = kuwahara(uv, 2.0 + uVerse*1.5);
+        float vz = -perspectiveDepthToViewZ(texture2D(tDepth, uv).r, uNear, uFar);
+        float far = smoothstep(2.5, 30.0, vz);
+        vec2 off = vec2(1.0, 0.35)/uRes*(1.5 + 6.0*far)*uVerse;
+        vec3 c0 = texture2D(tScene, uv).rgb;
+        vec3 fr = vec3(texture2D(tScene, uv + off).r - c0.r, 0.0, texture2D(tScene, uv - off).b - c0.b);
+        col = mix(col, paint, 0.8*uVerse) + fr*uVerse;
+      }
       // sharpen: contrast-adaptive, a touch — the MSAA and the bloom soften everything a little
       if(uSharp > 0.001){ vec2 px = 1.0/uRes; vec3 nb = texture2D(tScene, uv + vec2(px.x, 0.0)).rgb + texture2D(tScene, uv - vec2(px.x, 0.0)).rgb + texture2D(tScene, uv + vec2(0.0, px.y)).rgb + texture2D(tScene, uv - vec2(0.0, px.y)).rgb;
         col = max(col + (col - nb*0.25)*uSharp, 0.0); }
@@ -449,7 +479,17 @@ window.TSHLOOK = (function(){
       if(uAO > 0.001){ float ao = texture2D(tAO, uv).r; col *= mix(1.0, ao, uAO); }
       // out of focus
       if(uDof > 0.001){ vec4 df = texture2D(tDof, uv); col = mix(col, df.rgb, clamp(df.a*1.4, 0.0, 1.0)*uDof); }
-      col += texture2D(tBloom, uv).rgb * uBloom;
+      vec3 bloomC = texture2D(tBloom, uv).rgb * uBloom;
+      if(uVerse > 0.001){
+        /* the glow printed as dots: a Ben-Day grid at 15 degrees, each dot as big as the glow is bright there, so a
+           lamp's spill reads as a printed halo — solid at the light, breaking into dots as it falls off */
+        float bl = dot(bloomC, vec3(0.333)); bl = bl/(1.0 + bl);
+        vec2 g = mat2(0.966, -0.259, 0.259, 0.966)*(gl_FragCoord.xy/(4.5 + 1.5*uVerse));
+        float rad = sqrt(clamp(bl*1.6, 0.0, 1.0))*0.62, dt = length(fract(g) - 0.5);
+        float dotM = 1.0 - smoothstep(rad - 0.06, rad + 0.06, dt);
+        bloomC = mix(bloomC, bloomC*dotM*1.8, uVerse);
+      }
+      col += bloomC;
       if(uStreak > 0.001) col += texture2D(tStreak, uv).rgb*uStreakCol*uStreak;
       col = col*uGain + uLift;
       if(abs(uHue) > 0.001){                       // the whole picture's colour turned round the wheel
@@ -593,7 +633,7 @@ window.TSHLOOK = (function(){
       uShadowTint:{value:new THREE.Vector3(-0.012, 0.004, 0.022)}, uHighTint:{value:new THREE.Vector3(0.03, 0.012, -0.02)}, uBloom:{value:0.9}, uTime:{value:0},
       uVig:{value:0.55}, uGrain:{value:0.035}, uCA:{value:0.012}, uGlitch:{value:0}, uHue:{value:0}, uContrast:{value:0}, uLift:{value:new THREE.Vector3(0.0015, 0.004, 0.0038)},
       uGain:{value:new THREE.Vector3(0.93, 1.03, 1.0)}, uFlash:{value:0}, uFlashCol:{value:new THREE.Vector3(1,1,1)},
-      uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)} }, { toneMapped:true });
+      uLetter:{value:0}, uFade:{value:0}, uComic:{value:0}, uRes:{value:new THREE.Vector2(w, h)}, tDepth:{value:depth}, uVerse:{value:0}, uNear:{value:0.1}, uFar:{value:1000} }, { toneMapped:true });
     P = { w, h, scene, depth, aoT, dofT, streakT, mips, refl, cam, quad, qs, down, up, comp, ao, dof, streak, t:0 };
   }
   function freeP(){
@@ -696,7 +736,10 @@ window.TSHLOOK = (function(){
   }
 
   /* --------------------------------------------------------- the frame */
-  const fx = { flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0, contrast:0.22,
+  /* verse (0 to 1): INTO THE SPIDER-VERSE, the way it is done in Blender's compositor — glow printed as halftone dots,
+     the colour plates off register more with distance (the depth pass), a painted (Kuwahara) finish, a touch of lens.
+     On for the whole story; a machine too slow for the cinema passes loses it with them */
+  const fx = { verse:1, flash:0, flashCol:new V3(1,1,1), letter:0, fade:0, bloom:0.75, exposure:1.0, wet:1, comic:0, glitch:0, hue:0, ca:0, contrast:0.22,
                 ao:0.85, dof:0, focus:5, aperture:0.45, streak:0.35, sat:1.12, sharp:0.35, split:1,
                 gain:new V3(0.93, 1.03, 1.0), vig:0.55 };      // the night's grade: a little green in it; the morning's is warm
   /* how wet the street is, 0 to 1: a morning after the rain has stopped is only damp in the gutters */
@@ -744,6 +787,7 @@ window.TSHLOOK = (function(){
     c.uFlash.value = fx.flash; c.uFlashCol.value.copy(fx.flashCol);
     c.uLetter.value = fx.letter; c.uFade.value = fx.fade;
     c.uComic.value = fx.comic; c.uRes.value.set(P.w, P.h);
+    c.uVerse.value = cine ? (fx.verse || 0) : 0; c.uNear.value = camera.near; c.uFar.value = camera.far;
     c.uGlitch.value = fx.glitch || 0; c.uContrast.value = fx.contrast || 0; c.uHue.value = fx.hue || 0; c.uCA.value = 0.012 + (fx.ca || 0);
     pass(P.comp, null);
   }
