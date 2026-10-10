@@ -565,18 +565,31 @@ window.AVATAR = (function(){
      glb files/face/morphs.js) — jawOpen, smile, mouthO, frown, browUp, browDown, blink. She blinks on her
      own, every few seconds and now and then twice; whoever runs the scene sets how open her mouth is
      (mouth(), from her voice) and asks for an expression (expr(name, amount, seconds)). A body without
-     the shapes ignores all of it. */
+     the shapes ignores all of it.
+
+     A FACE WITH EVERY MUSCLE (the 52 ARKit shapes and the visemes — the MPFB Robin) is driven muscle by
+     muscle instead: a smile pulls the cheeks up and narrows the eyes with it, raised brows widen the eyes,
+     a scowl narrows them, and nothing is ever quite the same on both sides. Her lines are shaped by the
+     words (say(), visemes over the line's length, as open as the voice is loud), her brows lift on the
+     stressed syllables, and her eyes do what eyes do: quick jumps between places they rest, tiny drifts
+     while they rest, a look away to think when she starts to speak, lids that follow them down, a blink on
+     the big jumps, and her head turning a little after them. lookAt(point) gives them something to rest on. */
   const face = { model:null, mesh:null, meshes:[], blinkIn:2.5, blinkT:0, mouth:0, expr:{}, cur:{} };
   /* a face can be in several pieces (skin, teeth, brows, lashes, each with the same shapes by name): all of them move */
   function faceMesh(){
-    if(face.model !== model){ face.model = model; face.mesh = null; face.meshes = []; face.cur = {};
+    if(face.model !== model){ face.model = model; face.mesh = null; face.meshes = []; face.cur = {}; face.set = {}; face.head = null; face.heads = [];
+      face.arkit = false; face.vis = null; face.look = null;
       if(model) model.traverse(o=>{ if(o.morphTargetDictionary && Object.keys(o.morphTargetDictionary).length){ face.meshes.push(o);
-        if(o.morphTargetDictionary.jawOpen !== undefined && (!face.mesh || o.morphTargetInfluences.length > face.mesh.morphTargetInfluences.length)) face.mesh = o; } }); }
+        if(o.morphTargetDictionary.jawOpen !== undefined && (!face.mesh || o.morphTargetInfluences.length > face.mesh.morphTargetInfluences.length)) face.mesh = o; }
+        if(o.isBone && /(^|:|mixamorig)Head$/.test(o.name)){ face.heads.push(o); if(!face.head) face.head = o; } });   // a garment can carry its own copy of the skeleton
+      face.arkit = !!(face.mesh && face.mesh.morphTargetDictionary.mouthSmileLeft !== undefined && face.mesh.morphTargetDictionary.eyeSquintLeft !== undefined); }
     return face.mesh;
   }
   function faceSet(m, name, v){ for(const o of face.meshes){ const i = o.morphTargetDictionary[name]; if(i !== undefined) o.morphTargetInfluences[i] = v; } }
+  const CHANNELS = ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'];
   function faceTick(dt){
     const m = faceMesh(); if(!m || !(dt >= 0)) return;
+    if(face.arkit) return faceTickFull(m, dt);
     // the blink: about a sixth of a second, closed in the middle of it
     face.blinkIn -= dt;
     if(face.blinkIn <= 0){ face.blinkT = 0.17; face.blinkIn = Math.random() < 0.15 ? 0.25 : 2 + Math.random()*4; }
@@ -585,7 +598,7 @@ window.AVATAR = (function(){
     const k = 1 - Math.exp(-dt*22);
     // expressions ease in, hold for their time, and ease back out (a held-open mouth — surprise — under the talking)
     const ke = 1 - Math.exp(-dt*7), held = {};
-    ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{ const e = face.expr[n]; let want = 0;
+    CHANNELS.forEach(n=>{ const e = face.expr[n]; let want = 0;
       if(e){ e.t -= dt; if(e.t > 0) want = e.v; else delete face.expr[n]; }
       held[n] = (face.cur['_' + n] || 0) + (want - (face.cur['_' + n] || 0))*ke; face.cur['_' + n] = held[n]; });
     ['smile', 'frown', 'browUp', 'browDown'].forEach(n=>{ face.cur[n] = held[n]; });
@@ -593,33 +606,186 @@ window.AVATAR = (function(){
     face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.5, face.mouth*0.5 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
     face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
     faceSet(m, 'blink', Math.max(blink, held.blink));                 // heavy lids (sleepy) under the blinks
-    // the eyes are never still: a small glance every couple of seconds (eyes that turn — a face with eyeLook shapes)
-    if(m.morphTargetDictionary.eyeLookOutLeft !== undefined){
-      face.lookIn = (face.lookIn === undefined ? 1 : face.lookIn) - dt;
-      if(face.lookIn <= 0){ face.lookIn = 1.2 + Math.random()*2.8; const back = Math.random() < 0.45;
-        face.lookTo = back ? [0, 0] : [(Math.random()*2 - 1)*0.35, (Math.random()*2 - 1)*0.25]; }
-      const to = face.lookTo || [0, 0], kl = 1 - Math.exp(-dt*18);
-      face.lookX = (face.lookX || 0) + (to[0] - (face.lookX || 0))*kl; face.lookY = (face.lookY || 0) + (to[1] - (face.lookY || 0))*kl;
-      const x = face.lookX, y = face.lookY;                            // + is her left
-      faceSet(m, 'eyeLookOutLeft', Math.max(0, x)); faceSet(m, 'eyeLookInRight', Math.max(0, x));
-      faceSet(m, 'eyeLookInLeft', Math.max(0, -x)); faceSet(m, 'eyeLookOutRight', Math.max(0, -x));
-      faceSet(m, 'eyeLookUpLeft', Math.max(0, y)); faceSet(m, 'eyeLookUpRight', Math.max(0, y));
-      faceSet(m, 'eyeLookDownLeft', Math.max(0, -y)); faceSet(m, 'eyeLookDownRight', Math.max(0, -y));
-    }
     for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);
+  }
+
+  /* ---- the whole face ---- */
+  // a feeling reads smaller on a face across a room than it was written: everything she feels goes this much further.
+  // Her shapes (MPFB's) are gentle at full strength, so the muscles that carry a feeling are driven past 1 (a shape
+  // scales on past its end cleanly); the ones round the eyes are not, or a smile shuts them
+  const GAIN = 1.4;
+  const PAST = /^(mouthSmile|mouthFrown|brow|noseSneer|cheekSquint|mouthDimple|mouthStretch|mouthPress|mouthUpperUp|mouthShrug|mouthRoll)/;
+  const capOf = n => /^eyeSquint/.test(n) ? 0.4 : /^eyeWide/.test(n) ? 1.2 : /^(eyeBlink|eyeLook)/.test(n) ? 1 : /^viseme/.test(n) ? 1.1 : n === 'jawOpen' ? 0.55 : /^mouth(Funnel|Pucker)/.test(n) ? 0.7
+    : /^brow/.test(n) ? 1.4 : /^(noseSneer|mouthSmile|mouthDimple)/.test(n) ? 1.15 : 1.7;   // brows past this push the lids shut, a smile past it shows the teeth through the corners
+  // each of the old names, spread over the muscles that really make it
+  const SPREAD = {
+    smile:    { mouthSmileLeft:1, mouthSmileRight:1, cheekSquintLeft:0.6, cheekSquintRight:0.6, eyeSquintLeft:0.4, eyeSquintRight:0.4, mouthDimpleLeft:0.3, mouthDimpleRight:0.3 },
+    smirk:    { mouthSmileLeft:0.9, cheekSquintLeft:0.45, mouthDimpleLeft:0.5, eyeSquintLeft:0.25, mouthPressRight:0.3 },
+    frown:    { mouthFrownLeft:1, mouthFrownRight:1, mouthPressLeft:0.35, mouthPressRight:0.35, mouthShrugLower:0.4, mouthStretchLeft:0.15, mouthStretchRight:0.15 },
+    browUp:   { browInnerUp:1, browOuterUpLeft:0.85, browOuterUpRight:0.85, eyeWideLeft:0.4, eyeWideRight:0.4 },
+    worry:    { browInnerUp:1, browDownLeft:0.25, browDownRight:0.25, mouthStretchLeft:0.25, mouthStretchRight:0.25 },
+    browDown: { browDownLeft:1, browDownRight:1, eyeSquintLeft:0.45, eyeSquintRight:0.45, noseSneerLeft:0.2, noseSneerRight:0.2 },
+    sneer:    { noseSneerLeft:1, noseSneerRight:0.7, mouthUpperUpLeft:0.6, mouthUpperUpRight:0.35, cheekSquintLeft:0.3 },
+    squint:   { eyeSquintLeft:1, eyeSquintRight:1, cheekSquintLeft:0.3, cheekSquintRight:0.3 },
+    wide:     { eyeWideLeft:1, eyeWideRight:1 },
+    press:    { mouthPressLeft:1, mouthPressRight:1, mouthRollLower:0.3, mouthShrugUpper:0.3 },
+    mouthO:   { mouthFunnel:0.6, mouthPucker:0.2, jawOpen:0.15, mouthLowerDownLeft:0.2, mouthLowerDownRight:0.2 },
+    jawOpen:  { jawOpen:1, mouthLowerDownLeft:0.35, mouthLowerDownRight:0.35 },
+    blink:    { eyeBlinkLeft:1, eyeBlinkRight:1 }
+  };
+  // which shapes are her left (the slight lean of a real face to one side)
+  const sideOf = n => /Left$/.test(n) ? 1 : /Right$/.test(n) ? -1 : 0;
+  // the words, as mouth shapes: a letter (or two) → a viseme
+  function visemes(text){
+    const s = String(text || '').toLowerCase().replace(/\([^)]*\)/g, ' '), out = [];
+    for(let i = 0; i < s.length; i++){
+      const c = s[i], d = s.slice(i, i + 2);
+      if(d === 'th'){ out.push('TH'); i++; continue; }
+      if(d === 'sh' || d === 'ch'){ out.push('CH'); i++; continue; }
+      if(d === 'oo' || d === 'ou'){ out.push('U'); i++; continue; }
+      if(d === 'ee' || d === 'ea'){ out.push('I'); i++; continue; }
+      const v = 'a'===c ? 'aa' : 'e'===c ? 'E' : 'iy'.includes(c) ? 'I' : 'o'===c ? 'O' : 'uw'.includes(c) ? 'U'
+        : 'bmp'.includes(c) ? 'PP' : 'fv'.includes(c) ? 'FF' : 'dtl'.includes(c) ? 'DD' : 'n'===c ? 'nn'
+        : 'kgcq'.includes(c) ? 'kk' : 'szx'.includes(c) ? 'SS' : 'j'===c ? 'CH' : 'r'===c ? 'RR'
+        : /[\s,.!?;:—–-]/.test(c) ? (/[,.!?;:—–]/.test(c) ? 'pause' : 'sil') : null;
+      if(!v || (v === 'sil' && out[out.length - 1] === 'sil')) continue;
+      out.push(v);
+    }
+    return out;
+  }
+  // a line to speak: its mouth shapes spread over how long it takes (pauses and gaps a little longer than a letter)
+  function say(text, secs){
+    const seq = visemes(text); if(!seq.length) return;
+    const len = seq.reduce((a, v)=>a + (v === 'pause' ? 3 : v === 'sil' ? 1.4 : 1), 0), unit = Math.max(0.3, secs || seq.length*0.07)/len;
+    let t = 0; face.vis = { t:0, track:seq.map(v=>{ const d = (v === 'pause' ? 3 : v === 'sil' ? 1.4 : 1)*unit, k = { v:v === 'pause' ? 'sil' : v, at:t, d }; t += d; return k; }) };
+    // starting to speak, people often look away to find the words
+    if(Math.random() < 0.55){ const s = Math.random() < 0.5 ? 1 : -1; face.avert = { t:0.5 + Math.random()*0.7, to:[s*(0.35 + Math.random()*0.25), 0.15 + Math.random()*0.25] }; }
+  }
+  function lookAt(p){ face.target = p ? (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2])) : null; }
+  function faceTickFull(m, dt){
+    const w = {}, add = (n, v)=>{ if(v > 0) w[n] = (w[n] || 0) + v; };
+    // feelings: ease in, hold, ease out; any channel by its old name, a spread name, or a single muscle
+    const ke = 1 - Math.exp(-dt*8), live = new Set(Object.keys(face.expr));
+    for(const n in face.cur) if(n[0] === '_') live.add(n.slice(1));
+    if(face.sideFor !== face.exprGen){ face.sideFor = face.exprGen; face.side = (Math.random()*2 - 1)*0.1; }
+    for(const n of live){ const e = face.expr[n]; let want = 0;
+      if(e){ e.t -= dt; if(e.t > 0) want = e.v; else delete face.expr[n]; }
+      const h = (face.cur['_' + n] || 0) + (want - (face.cur['_' + n] || 0))*ke;
+      if(h < 0.002 && !want){ delete face.cur['_' + n]; continue; }
+      face.cur['_' + n] = h;
+      const v = h*GAIN, sp = SPREAD[n];
+      if(sp) for(const p in sp) add(p, v*sp[p]*(1 + face.side*sideOf(p))*(PAST.test(p) ? 1.3 : 1));
+      else add(n, v*(PAST.test(n) ? 1.3 : 1));
+    }
+    // between feelings the face is never quite blank: a brow that flickers, a mouth that sets a little
+    face.tic = (face.tic === undefined ? 3 : face.tic) - dt;
+    if(face.tic <= 0){ face.tic = 2.5 + Math.random()*5; const r = Math.random();
+      face.ticE = { n:r < 0.35 ? 'browInnerUp' : r < 0.6 ? 'mouthPressLeft' : r < 0.8 ? 'browOuterUpRight' : 'mouthDimpleRight', v:0.15 + Math.random()*0.2, t:0.6 + Math.random()*0.9, a:0 }; }
+    if(face.ticE){ const e = face.ticE; e.a += dt; const f = Math.sin(Math.min(1, e.a/e.t)*Math.PI); add(e.n, e.v*f); if(e.a >= e.t) face.ticE = null; }
+
+    // speaking: the shape of the word under the voice, the jaw as wide as the voice is loud
+    const k = 1 - Math.exp(-dt*24), mo = face.mouth, vis = face.vis;
+    face.vw = face.vw || {};
+    let cur = null;
+    if(vis){ vis.t += dt; const tr = vis.track;
+      while(tr.length > 1 && vis.t > tr[0].at + tr[0].d) tr.shift();
+      if(vis.t > tr[0].at + tr[0].d + 0.3) face.vis = null; else cur = tr[0].v; }
+    const open = Math.min(1, mo*1.6);
+    for(const v of ['aa', 'E', 'I', 'O', 'U', 'PP', 'FF', 'DD', 'nn', 'kk', 'SS', 'CH', 'RR', 'TH']){
+      const want = cur === v ? (v === 'PP' || v === 'FF' ? 0.85 : 0.35 + open*0.65) : 0;
+      face.vw[v] = (face.vw[v] || 0) + (want - (face.vw[v] || 0))*k;
+      add('viseme_' + v, Math.min(1, face.vw[v]));
+    }
+    // the jaw from the voice (less when the word is already shaping the mouth), and no further than about half
+    face.jaw = (face.jaw || 0) + ((cur ? mo*0.3 : Math.min(0.5, mo*0.5)) - (face.jaw || 0))*k; add('jawOpen', face.jaw);
+    if(!cur) add('mouthFunnel', mo*0.15);
+    // the stressed syllables: a loud jump in the voice lifts the brows a little
+    if(mo > 0.55 && (face.lastMo || 0) < 0.4 && Math.random() < 0.45) face.stress = 0.28;
+    face.lastMo = mo;
+    if(face.stress > 0){ face.stress = Math.max(0, face.stress - dt); const f = Math.sin(face.stress/0.28*Math.PI)*0.35; add('browInnerUp', f); add('browOuterUpLeft', f*0.8); add('browOuterUpRight', f*0.6); }
+
+    // the eyes: they rest, jump, and rest again
+    const L = face.look || (face.look = { x:0, y:0, tx:0, ty:0, rest:0.5, micro:0.2, mx:0, my:0, hx:0, hy:0 });
+    let home = [0, 0];
+    if(face.target && face.target.isVector3 && model){
+      // where she stood and faced when last drawn (a room can still turn her after this, so not where she is mid-frame)
+      const q = new THREE.Quaternion(), hp = new THREE.Vector3(), sc = new THREE.Vector3();
+      model.matrixWorld.decompose(sc, q, sc); hp.setFromMatrixPosition((face.head || model).matrixWorld);
+      const d = face.target.clone().sub(hp).applyQuaternion(q.invert());
+      const yaw = Math.atan2(d.x, d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+      if(Math.abs(yaw) < 1.3) home = [Math.max(-1, Math.min(1, yaw/0.55)), Math.max(-0.8, Math.min(0.8, pitch/0.45))];
+    }
+    L.rest -= dt;
+    if(face.avert){ face.avert.t -= dt; if(face.avert.t <= 0) face.avert = null; }
+    if(L.rest <= 0){
+      const r = Math.random();
+      const to = face.avert ? face.avert.to : r < 0.55 ? home : [home[0] + (Math.random()*2 - 1)*0.5, home[1] + (Math.random()*2 - 1)*0.32];
+      L.rest = face.avert ? face.avert.t : 0.5 + Math.random()*2.2;
+      // a big jump takes a blink with it as often as not
+      if(Math.hypot(to[0] - L.tx, to[1] - L.ty) > 0.35 && Math.random() < 0.4 && face.blinkT <= 0) face.blinkIn = 0.02;
+      L.tx = to[0]; L.ty = to[1];
+    } else if(face.target && L.rest > 0.3 && Math.hypot(home[0] - L.tx, home[1] - L.ty) < 0.25){ L.tx = home[0]; L.ty = home[1]; }   // following what she is looking at
+    // while resting, the tiny jumps that keep a living eye from ever being still
+    L.micro -= dt;
+    if(L.micro <= 0){ L.micro = 0.2 + Math.random()*0.5; L.mx = (Math.random()*2 - 1)*0.03; L.my = (Math.random()*2 - 1)*0.025; }
+    const ks = 1 - Math.exp(-dt*38);                                   // a jump is over in a few hundredths of a second
+    L.x += (L.tx + L.mx - L.x)*ks; L.y += (L.ty + L.my - L.y)*ks;
+    const x = L.x, y = L.y;                                            // + is her left, + is up
+    add('eyeLookOutLeft', Math.max(0, x)); add('eyeLookInRight', Math.max(0, x));
+    add('eyeLookInLeft', Math.max(0, -x)); add('eyeLookOutRight', Math.max(0, -x));
+    add('eyeLookUpLeft', Math.max(0, y)); add('eyeLookUpRight', Math.max(0, y));
+    add('eyeLookDownLeft', Math.max(0, -y)); add('eyeLookDownRight', Math.max(0, -y));
+    // the lids go with them: down a little when she looks down, open a little when she looks up
+    const lid = Math.max(0, -y)*0.35;
+    add('eyeWideLeft', Math.max(0, y)*0.2); add('eyeWideRight', Math.max(0, y)*0.2);
+
+    // the blink: quick to close, slower to open, now and then twice; the lids a hair apart in time
+    face.blinkIn -= dt;
+    if(face.blinkIn <= 0){ face.blinkT = 0.2; face.blinkIn = Math.random() < 0.15 ? 0.3 : 1.8 + Math.random()*4; }
+    let bl = 0, br = 0;
+    if(face.blinkT > 0){ face.blinkT = Math.max(0, face.blinkT - dt);
+      const shape = u=>{ u = Math.max(0, Math.min(1, u)); return u < 0.35 ? u/0.35 : 1 - (u - 0.35)/0.65; };
+      bl = Math.min(1, 1.15*shape(1 - face.blinkT/0.2)); br = Math.min(1, 1.15*shape(1 - (face.blinkT + 0.012)/0.2)); }
+    const lids = w.eyeBlinkLeft || 0;
+    w.eyeBlinkLeft = Math.min(1, Math.max(bl, lids + lid)); w.eyeBlinkRight = Math.min(1, Math.max(br, (w.eyeBlinkRight || 0) + lid));
+    // a blink pulls the brows down a touch
+    add('browDownLeft', bl*0.12); add('browDownRight', br*0.12);
+
+    // write it: every shape set this frame, and the ones set last frame that nobody wants now go back to rest
+    const was = face.set || {}; face.set = {};
+    for(const n in w){ faceSet(m, n, Math.min(capOf(n), w[n])); face.set[n] = 1; }
+    for(const n in was) if(!face.set[n]) faceSet(m, n, 0);
+    // the head goes after the eyes: later, and only part of the way
+    const kh = 1 - Math.exp(-dt*3.5);
+    L.hx += (L.tx*0.3 - L.hx)*kh; L.hy += (L.ty*0.25 - L.hy)*kh;
+  }
+  /* AFTER THE CLIP: the head turned a little towards where she is looking. The clip sets the head bone
+     each frame; one that does not animate it would keep the last frame's turn, so that is taken back off first. */
+  const _hq = new THREE.Quaternion(), _he = new THREE.Euler();
+  function faceHead(){
+    const L = face.look; if(!face.arkit || !L || !face.heads.length) return;
+    _he.set(-L.hy*0.5, L.hx*0.55, 0); _hq.setFromEuler(_he);
+    for(const h of face.heads){ const u = h.userData;
+      if(u.lookLast && h.quaternion.equals(u.lookLast)) h.quaternion.multiply(u.lookOff.clone().invert());
+      h.quaternion.multiply(_hq); u.lookOff = _hq.clone(); u.lookLast = h.quaternion.clone(); }
   }
   function mouth(v){ face.mouth = Math.max(0, Math.min(1, v || 0)); }
   function expr(name, v, secs){ face.expr[name] = { v:v === undefined ? 1 : v, t:secs || 1.5 }; }
   /* a whole feeling at once: { smile:.7, browDown:.3 } for `secs`; the shapes it does not name let go */
-  function feel(f, secs){ ['smile', 'frown', 'browUp', 'browDown', 'mouthO', 'jawOpen', 'blink'].forEach(n=>{ if(f && f[n]) expr(n, f[n], secs); else delete face.expr[n]; }); }
+  function feel(f, secs){
+    for(const n of new Set([...CHANNELS, ...Object.keys(face.expr)])) if(!(f && f[n])) delete face.expr[n];
+    if(f) for(const n in f) if(f[n]) expr(n, f[n], secs);
+    face.exprGen = (face.exprGen || 0) + 1;
+  }
   const hasFace = () => !!faceMesh();
   function stride(dt, moving, running, onGround){
     faceTick(dt);
     const name=clipFor(dt, moving, running, onGround);
     const r=rigOf(model);
     if((name==='walk' || name==='sprint') && r && r.locomote &&
-       r.locomote(gx, gz, name==='sprint', dt)){ r.update(dt||0); return; }
+       r.locomote(gx, gz, name==='sprint', dt)){ r.update(dt||0); faceHead(); return; }
     animate(model, dt, name);
+    faceHead();
   }
   function animate(obj, dt, name){
     const r = obj && obj.userData && obj.userData.rig;
@@ -908,6 +1074,7 @@ window.AVATAR = (function(){
     if(!model) return;
     faceTick(dt);
     animate(model, dt, clipFor(dt, moving, running, onGround));
+    faceHead();
   }
 
   function update(dt, moving, running, onGround){
@@ -981,7 +1148,7 @@ window.AVATAR = (function(){
   }
 
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle, gait,
-           tickClip, myName, myFace, mouth, expr, feel, hasFace,
+           tickClip, myName, myFace, mouth, expr, feel, hasFace, say, lookAt,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            get body(){ return body; }, get model(){ return model; },

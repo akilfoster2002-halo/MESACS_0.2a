@@ -6662,30 +6662,32 @@ window.TSH = (function(){
      a mix of her face's shapes; every line she has is given one (a line added without one gets a guess
      from its punctuation, and the tests ask for it to be given one). */
   const FEELS = {
-    smug:       { smile:0.75, browDown:0.3 },
-    grin:       { smile:1, browUp:0.35 },
-    happy:      { smile:0.9, browUp:0.55 },
-    sarcastic:  { smile:0.5, browUp:0.75 },
-    annoyed:    { frown:0.75, browDown:0.85 },
-    angry:      { frown:1, browDown:1, jawOpen:0.05 },
-    determined: { browDown:0.75, frown:0.3 },
-    skeptical:  { browDown:0.55, frown:0.45, smile:0.15 },
-    deadpan:    { browDown:0.4, frown:0.25 },
-    surprised:  { browUp:1, mouthO:0.5, jawOpen:0.2 },
-    shocked:    { browUp:1, mouthO:0.8, jawOpen:0.45 },
-    nervous:    { browUp:0.85, frown:0.55 },
-    sheepish:   { smile:0.55, browUp:0.8 },
-    tired:      { browUp:0.45, frown:0.45 },
-    hush:       { mouthO:0.7, browUp:0.5 },
-    pain:       { frown:1, browDown:0.6, browUp:0.4, jawOpen:0.25 },
+    // the old names (smile, frown, browUp, browDown, mouthO, jawOpen, blink) work on any face; on Robin's (every muscle)
+    // smirk (one side), worry (inner brows), sneer, squint, wide (eyes) and press (lips) add what the old ones can't say
+    smug:       { smirk:0.9, smile:0.25, browDown:0.25, squint:0.25 },
+    grin:       { smile:1, browUp:0.35, squint:0.2 },
+    happy:      { smile:0.95, browUp:0.5 },
+    sarcastic:  { smirk:0.7, browUp:0.6, squint:0.15 },
+    annoyed:    { frown:0.6, browDown:0.85, press:0.5, squint:0.3 },
+    angry:      { frown:0.9, browDown:1, sneer:0.45, squint:0.4, jawOpen:0.05 },
+    determined: { browDown:0.75, press:0.55, squint:0.35 },
+    skeptical:  { browDown:0.5, smirk:0.3, press:0.35, squint:0.45 },
+    deadpan:    { browDown:0.3, press:0.4, blink:0.25 },
+    surprised:  { browUp:1, wide:0.8, mouthO:0.5, jawOpen:0.2 },
+    shocked:    { browUp:1, wide:1, mouthO:0.8, jawOpen:0.45 },
+    nervous:    { worry:0.9, frown:0.35, press:0.4, wide:0.3, smile:0.15 },
+    sheepish:   { smile:0.5, worry:0.6, press:0.3, blink:0.15 },
+    tired:      { worry:0.4, frown:0.35, blink:0.4 },
+    hush:       { mouthO:0.7, browUp:0.5, wide:0.3 },
+    pain:       { frown:1, browDown:0.6, worry:0.6, squint:0.8, sneer:0.3, jawOpen:0.25 },
     // the ones she has without a word (a shot's `mood`)
-    sleepy:     { blink:0.5, browUp:0.3, frown:0.2 },
-    sad:        { browUp:0.85, frown:0.7 },
-    soft:       { smile:0.4, browUp:0.45 },
-    focused:    { browDown:0.6, frown:0.1 },
-    menace:     { smile:0.35, browDown:0.8 },
-    resolve:    { browDown:0.65, frown:0.4 },
-    relieved:   { smile:0.55, browUp:0.55, mouthO:0.15 }
+    sleepy:     { blink:0.55, browUp:0.25, frown:0.15 },
+    sad:        { worry:1, frown:0.7, press:0.25, blink:0.15 },
+    soft:       { smile:0.45, browUp:0.35, squint:0.15 },
+    focused:    { browDown:0.6, squint:0.45, press:0.3 },
+    menace:     { smirk:0.5, browDown:0.85, squint:0.5 },
+    resolve:    { browDown:0.65, press:0.6, frown:0.2 },
+    relieved:   { smile:0.6, browUp:0.5, mouthO:0.15, blink:0.2 }
   };
   const FEEL = {
     'Give him back.':'angry', 'I said GIVE HIM BACK!':'angry', 'Get out of here, Robin. Get out. Go. GO.':'nervous', 'Wait— no, you don\'t understand—':'shocked', 'It took him! That thing took him, I tried to—':'angry', '...I\'m sorry.':'sad',
@@ -6836,6 +6838,7 @@ window.TSH = (function(){
     const words = text.replace(/^\([^)]*\)\s*/, '');
     lips.flap = recorded ? 0 : 0.9 + words.length*0.05;
     const f = feelOf(text); if(f){ lips.feelT = (secs || lips.flap || 1.5) + 0.9; AVATAR.feel(FEELS[f], lips.feelT); }
+    if(AVATAR.say) AVATAR.say(words, secs || lips.flap);               // the words shape her mouth
   }
   /* her face between lines: a wince when she is hit, set while she fights, a small smile when it goes her way */
   function faceCue(kind){
