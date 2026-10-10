@@ -1099,7 +1099,19 @@ window.TSHFIGHT = (function(){
     }
   }
 
-  return { cast, pose, start, stop, clear, tick, key, play, hit1, talker, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
+  /* WHO SHE IS WATCHING (tsh.js turns her eyes to them): whoever is winding up to hit her or grabbing her first,
+     then the one she is hitting, then the one her next hit would go to */
+  function focus(){
+    if(!on) return null;
+    const live = E.filter(e=>e.g && e.g.visible !== false && standing(e) && !e.bystander);
+    const threat = live.filter(e=>e.state === 'windup' || e.state === 'grab').sort((a, b)=>Math.hypot(a.x - G.pos.x, a.z - G.pos.z) - Math.hypot(b.x - G.pos.x, b.z - G.pos.z))[0];
+    const t = threat || (R.act === 'attack' && R.target && standing(R.target) ? R.target : R.aim && standing(R.aim) ? R.aim : live[0]);
+    if(!t) return null;
+    if(t.headBone === undefined && t.model){ let b = null; t.model.traverse(o=>{ if(!b && o.isBone && /Head$/.test(o.name)) b = o; }); t.headBone = b; }
+    if(t.headBone) return t.headBone.getWorldPosition(new THREE.Vector3());
+    return new THREE.Vector3(t.g.position.x, t.g.position.y + 1.55, t.g.position.z);
+  }
+  return { cast, pose, start, stop, clear, tick, key, play, hit1, talker, focus, get on(){ return on; }, get ready(){ return ready; }, crew:()=>E, ARENA, MEET, MOVE, CHAIN, KIND, STEPS,
            /* for tests and the console */
            _E:()=>E, _R:()=>R, _aim:aimTarget, _choose:choose, _stepTo:stepTo, STRINGS, EVADE, _dir:()=>dir, _press:press, _release:release, _dodge:dodge, _parry:doParry, _pulse:pulse, _pull:pull };
 })();

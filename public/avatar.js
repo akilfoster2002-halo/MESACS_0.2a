@@ -542,7 +542,7 @@ window.AVATAR = (function(){
      so a panel that freezes the game to ask you something leaves a statue
      of yourself standing behind it. The quick change is exactly that panel,
      and what it is asking you to look at is a character. */
-  function idle(dt){ if(model) animate(model, dt||0, 'idle'); }
+  function idle(dt){ if(model){ faceTick(dt||0); animate(model, dt||0, 'idle'); faceHead(); } }
   /* CAN THE BODY YOU ARE WEARING DO THIS? play() leaves the current clip
      alone when it cannot find the name — which is the right thing to do
      and is also completely silent, so asking for a clip a model has not
@@ -582,7 +582,16 @@ window.AVATAR = (function(){
       if(model) model.traverse(o=>{ if(o.morphTargetDictionary && Object.keys(o.morphTargetDictionary).length){ face.meshes.push(o);
         if(o.morphTargetDictionary.jawOpen !== undefined && (!face.mesh || o.morphTargetInfluences.length > face.mesh.morphTargetInfluences.length)) face.mesh = o; }
         if(o.isBone && /(^|:|mixamorig)Head$/.test(o.name)){ face.heads.push(o); if(!face.head) face.head = o; } });   // a garment can carry its own copy of the skeleton
-      face.arkit = !!(face.mesh && face.mesh.morphTargetDictionary.mouthSmileLeft !== undefined && face.mesh.morphTargetDictionary.eyeSquintLeft !== undefined); }
+      face.arkit = !!(face.mesh && face.mesh.morphTargetDictionary.mouthSmileLeft !== undefined && face.mesh.morphTargetDictionary.eyeSquintLeft !== undefined);
+      /* HOW SHE STOOD WHEN SHE WAS DRAWN. Mid-frame her body can be anywhere on its way to its final turn (a room places
+         her after the avatar has moved her, and anything asking for a world matrix in between bakes the half-done one),
+         so what she looks at is measured from her pose as it was last drawn */
+      if(face.mesh && !face.mesh.userData.gazeHook){ const ms = face.mesh, mdl = model, prev = ms.onBeforeRender;
+        ms.userData.gazeHook = true;
+        ms.onBeforeRender = function(){ if(prev) prev.apply(this, arguments); if(face.model !== mdl) return;
+          const sc = new THREE.Vector3(); face.drawnQ = face.drawnQ || new THREE.Quaternion(); face.drawnHead = face.drawnHead || new THREE.Vector3();
+          mdl.matrixWorld.decompose(sc, face.drawnQ, sc); face.drawnHead.setFromMatrixPosition((face.head || mdl).matrixWorld);
+          (face.drawnM = face.drawnM || new THREE.Matrix4()).copy(mdl.matrixWorld); }; } }
     return face.mesh;
   }
   function faceSet(m, name, v){ for(const o of face.meshes){ const i = o.morphTargetDictionary[name]; if(i !== undefined) o.morphTargetInfluences[i] = v; } }
@@ -661,7 +670,31 @@ window.AVATAR = (function(){
     // starting to speak, people often look away to find the words
     if(Math.random() < 0.55){ const s = Math.random() < 0.5 ? 1 : -1; face.avert = { t:0.5 + Math.random()*0.7, to:[s*(0.35 + Math.random()*0.25), 0.15 + Math.random()*0.25] }; }
   }
-  function lookAt(p){ face.target = p ? (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2])) : null; }
+  /* WHAT SHE LOOKS AT. lookAt(point) — a Vector3, [x, y, z], or a function giving one each frame (something that
+     moves); null gives her eyes back to themselves. glanceSelf(slot) has her look down at a piece she has just put
+     on, for a couple of seconds; gazeMood('down' | 'dart' | null) is how a feeling carries the eyes. */
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function lookAt(p){ face.target = p || null; }
+  function gazeMood(m){ face.gmood = m || null; }
+  // where each slot is on her, and how far in front of the bone to look (a point inside her body has no direction)
+  const SELF = { outer:[/Spine2$/, 0.16, -0.05], top:[/Spine2$/, 0.16, -0.05], bottom:[/LeftLeg$/, 0.08, 0], shoes:[/LeftFoot$/, 0.12, 0],
+                 hands:[/LeftHand$/, 0.03, 0], wrist:[/LeftForeArm$/, 0.05, -0.1], back:[/RightShoulder$/, 0.02, 0] };
+  function glanceSelf(slot, secs){ const s = SELF[slot]; if(s) face.self = { s, t:secs || 2.4 }; }
+  const _gp = new THREE.Vector3();
+  function gazePoint(dt){
+    if(face.self){ face.self.t -= dt;
+      if(face.self.t > 0 && model){ const [re, ahead, up] = face.self.s; let b = null;
+        model.traverse(o=>{ if(!b && o.isBone && re.test(o.name)) b = o; });
+        if(b){ const q = new THREE.Quaternion(), sc = new THREE.Vector3();
+          b.getWorldPosition(_gp);                                         // where the bone is on her body (in her own frame)...
+          if(face.drawnM){ _gp.applyMatrix4(model.matrixWorld.clone().invert()).applyMatrix4(face.drawnM); q.copy(face.drawnQ); }   // ...put where she was drawn
+          else model.matrixWorld.decompose(sc, q, sc);
+          return _gp.add(new THREE.Vector3(0, up, ahead).applyQuaternion(q)); } }
+      else face.self = null; }
+    let t = face.target; if(!t) return null;
+    if(typeof t === 'function'){ try{ t = t(); }catch(e){ t = null; } if(!t) return null; }
+    return t.isVector3 ? _gp.copy(t) : _gp.set(t[0], t[1], t[2]);
+  }
   function faceTickFull(m, dt){
     const w = {}, add = (n, v)=>{ if(v > 0) w[n] = (w[n] || 0) + v; };
     // feelings: ease in, hold, ease out; any channel by its old name, a spread name, or a single muscle
@@ -704,27 +737,39 @@ window.AVATAR = (function(){
     face.lastMo = mo;
     if(face.stress > 0){ face.stress = Math.max(0, face.stress - dt); const f = Math.sin(face.stress/0.28*Math.PI)*0.35; add('browInnerUp', f); add('browOuterUpLeft', f*0.8); add('browOuterUpRight', f*0.6); }
 
-    // the eyes: they rest, jump, and rest again
-    const L = face.look || (face.look = { x:0, y:0, tx:0, ty:0, rest:0.5, micro:0.2, mx:0, my:0, hx:0, hy:0 });
-    let home = [0, 0];
-    if(face.target && face.target.isVector3 && model){
+    // the eyes: they rest, jump, and rest again — on what she is looking at, when there is something
+    const L = face.look || (face.look = { x:0, y:0, tx:0, ty:0, rest:0.5, micro:0.2, mx:0, my:0, hx:0, hy:0, htx:0, hty:0 });
+    let home = [0, 0], aim = null;
+    const tp = gazePoint(dt);
+    if(tp && model){
       // where she stood and faced when last drawn (a room can still turn her after this, so not where she is mid-frame)
       const q = new THREE.Quaternion(), hp = new THREE.Vector3(), sc = new THREE.Vector3();
-      model.matrixWorld.decompose(sc, q, sc); hp.setFromMatrixPosition((face.head || model).matrixWorld);
-      const d = face.target.clone().sub(hp).applyQuaternion(q.invert());
+      if(face.drawnQ){ q.copy(face.drawnQ); hp.copy(face.drawnHead); }
+      else { model.matrixWorld.decompose(sc, q, sc); hp.setFromMatrixPosition((face.head || model).matrixWorld); }
+      const d = tp.clone().sub(hp).applyQuaternion(q.invert());
       const yaw = Math.atan2(d.x, d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
-      if(Math.abs(yaw) < 1.3) home = [Math.max(-1, Math.min(1, yaw/0.55)), Math.max(-0.8, Math.min(0.8, pitch/0.45))];
+      // the head takes a share of the turn (most of it, for something well to the side or below), the eyes the rest
+      if(Math.abs(yaw) < 1.75){
+        const hy = clamp(yaw*0.6, -0.8, 0.8), hpch = clamp(pitch*0.55, -0.6, 0.35);
+        aim = [hy, hpch]; home = [clamp((yaw - hy)/0.55, -1, 1), clamp((pitch - hpch)/0.45, -0.85, 0.85)];
+      }
     }
+    const mood = face.gmood;
+    if(mood === 'down') home = [home[0]*0.5, Math.min(home[1], 0) - 0.45];        // sad, tired, ashamed: the eyes drop
     L.rest -= dt;
     if(face.avert){ face.avert.t -= dt; if(face.avert.t <= 0) face.avert = null; }
+    // something new to look at: the eyes are there a moment later (a reaction, not a slide)
+    if(aim && !face.avert && L.rest > 0.15 && Math.hypot(home[0] - L.tx, home[1] - L.ty) > 0.3) L.rest = 0.12;
     if(L.rest <= 0){
-      const r = Math.random();
-      const to = face.avert ? face.avert.to : r < 0.55 ? home : [home[0] + (Math.random()*2 - 1)*0.5, home[1] + (Math.random()*2 - 1)*0.32];
-      L.rest = face.avert ? face.avert.t : 0.5 + Math.random()*2.2;
+      const r = Math.random(), held = aim ? (mood === 'down' ? 0.55 : mood === 'dart' ? 0.5 : 0.85) : 0.55, spread = aim ? 0.22 : 0.5;
+      const to = face.avert ? face.avert.to : r < held ? home : [home[0] + (Math.random()*2 - 1)*spread, home[1] + (Math.random()*2 - 1)*spread*0.65];
+      L.rest = face.avert ? face.avert.t : mood === 'dart' ? 0.25 + Math.random()*0.6 : aim ? 0.6 + Math.random()*1.9 : 0.5 + Math.random()*2.2;
       // a big jump takes a blink with it as often as not
       if(Math.hypot(to[0] - L.tx, to[1] - L.ty) > 0.35 && Math.random() < 0.4 && face.blinkT <= 0) face.blinkIn = 0.02;
       L.tx = to[0]; L.ty = to[1];
-    } else if(face.target && L.rest > 0.3 && Math.hypot(home[0] - L.tx, home[1] - L.ty) < 0.25){ L.tx = home[0]; L.ty = home[1]; }   // following what she is looking at
+    } else if(aim && L.rest > 0.3 && Math.hypot(home[0] - L.tx, home[1] - L.ty) < 0.25){ L.tx = home[0]; L.ty = home[1]; }   // following what she is looking at
+    // the head: where the target needs it, or a little after wherever the eyes went
+    L.htx = aim ? aim[0] : L.tx*0.17; L.hty = aim ? aim[1] : L.ty*0.12 + (mood === 'down' ? -0.18 : 0);
     // while resting, the tiny jumps that keep a living eye from ever being still
     L.micro -= dt;
     if(L.micro <= 0){ L.micro = 0.2 + Math.random()*0.5; L.mx = (Math.random()*2 - 1)*0.03; L.my = (Math.random()*2 - 1)*0.025; }
@@ -755,16 +800,16 @@ window.AVATAR = (function(){
     const was = face.set || {}; face.set = {};
     for(const n in w){ faceSet(m, n, Math.min(capOf(n), w[n])); face.set[n] = 1; }
     for(const n in was) if(!face.set[n]) faceSet(m, n, 0);
-    // the head goes after the eyes: later, and only part of the way
-    const kh = 1 - Math.exp(-dt*3.5);
-    L.hx += (L.tx*0.3 - L.hx)*kh; L.hy += (L.ty*0.25 - L.hy)*kh;
+    // the head goes after the eyes: later (eyes lead, the neck follows)
+    const kh = 1 - Math.exp(-dt*4);
+    L.hx += (L.htx - L.hx)*kh; L.hy += (L.hty - L.hy)*kh;
   }
   /* AFTER THE CLIP: the head turned a little towards where she is looking. The clip sets the head bone
      each frame; one that does not animate it would keep the last frame's turn, so that is taken back off first. */
   const _hq = new THREE.Quaternion(), _he = new THREE.Euler();
   function faceHead(){
     const L = face.look; if(!face.arkit || !L || !face.heads.length) return;
-    _he.set(-L.hy*0.5, L.hx*0.55, 0); _hq.setFromEuler(_he);
+    _he.set(-L.hy, L.hx, 0); _hq.setFromEuler(_he);                    // radians: + turns her to her left, + lifts her chin
     for(const h of face.heads){ const u = h.userData;
       if(u.lookLast && h.quaternion.equals(u.lookLast)) h.quaternion.multiply(u.lookOff.clone().invert());
       h.quaternion.multiply(_hq); u.lookOff = _hq.clone(); u.lookLast = h.quaternion.clone(); }
@@ -1148,7 +1193,7 @@ window.AVATAR = (function(){
   }
 
   return { CHARS, load, pick, restore, other, attach, detach, update, orient, animate, idle, gait,
-           tickClip, myName, myFace, mouth, expr, feel, hasFace, say, lookAt,
+           tickClip, myName, myFace, mouth, expr, feel, hasFace, say, lookAt, glanceSelf, gazeMood,
            setCast, bodyOf, bodyDef, BODIES, get cast(){ return cast; },
            posture:setPosture, can, centre, get wearing(){ return posture; },
            get body(){ return body; }, get model(){ return model; },

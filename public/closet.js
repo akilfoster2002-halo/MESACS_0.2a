@@ -94,10 +94,11 @@ window.CLOSET = (function(){
       const id = t.dataset.item, it = WARDROBE.ITEMS[id];
       if(!WARDROBE.fits(id, who) || !WARDROBE.owns(id)){ if(window.beep) beep('bad'); return; }
       if(WARDROBE.on(who)[it.slot] === id) WARDROBE.takeOff(it.slot, who); else WARDROBE.wear(id, who);
+      if(window.AVATAR && AVATAR.glanceSelf) AVATAR.glanceSelf(it.slot);       // and looks down at it
       if(window.beep) beep('pop'); return;
     }
     if(t.dataset.off){ WARDROBE.takeOff(t.dataset.off, who); return; }
-    if(t.dataset.wear){ WARDROBE.wearOutfit(t.dataset.wear, who); if(window.beep) beep('pop'); return; }
+    if(t.dataset.wear){ WARDROBE.wearOutfit(t.dataset.wear, who); if(window.AVATAR && AVATAR.glanceSelf) AVATAR.glanceSelf('outer'); if(window.beep) beep('pop'); return; }
     if(t.dataset.drop){ WARDROBE.dropOutfit(t.dataset.drop); return; }
     if(t.dataset.plain){ WARDROBE.setOn(who, {}); return; }
   }

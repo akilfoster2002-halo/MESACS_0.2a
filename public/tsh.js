@@ -917,7 +917,7 @@ window.TSH = (function(){
     // dumpsters: hide
     W.covers.forEach(([x, z, h])=>{ if(h > 1.3) thing(x, z, 0, 'Hide', ()=>hide(x, z), { icon:'🗑', r:1.8, when:()=>!inside }); });
     // cans: something to throw
-    W.cans.forEach(([x, z], i)=>{ thing(x, z, 0, 'Pick up a can', ()=>{ S.can = true; S.flags['can'+i] = true; cue('pick'); note('🥫 A can — Q throws it. Somebody will go and look.'); hud(); },
+    W.cans.forEach(([x, z], i)=>{ thing(x, z, 0, 'Pick up a can', ()=>{ gazeAt(V(x, 0.1, z), 0.8); S.can = true; S.flags['can'+i] = true; cue('pick'); note('🥫 A can — Q throws it. Somebody will go and look.'); hud(); },
       { icon:'🥫', r:1.2, when:()=>!S.can && !S.flags['can'+i] && !inside }); });
     // the metro
     [['west','harbor'], ['harbor','west']].forEach(([a, b])=>{ const s = W.spots['metro_'+a];
@@ -1235,6 +1235,7 @@ window.TSH = (function(){
     const f = reel, s = f.shot, k = Math.min(1, f.t/s.dur), e = s.ease === false ? k : k*k*(3 - 2*k);
     const at = v => typeof v === 'function' ? v(k, f.t) : Array.isArray(v[0]) ? v[0].map((a, i)=>lerp(a, v[1][i], e)) : v;
     const c = shotClear(at(s.cam), at(s.look)), l = at(s.look);
+    f.lookPt = l;                                       // what the shot shows (her eyes go there when it is not her: gazeTick)
     // a camera held by a person breathes: a few millimetres, slowly, never the same twice (a shot can turn it off with still:true)
     const br = s.still ? 0 : 0.012 + 0.0006*G.camera.fov, tt = clock;
     G.camera.position.set(c[0] + Math.sin(tt*0.9)*br + Math.sin(tt*2.3)*br*0.35, c[1] + Math.sin(tt*1.3 + 1)*br*0.8, c[2] + Math.cos(tt*0.7)*br);
@@ -1351,7 +1352,9 @@ window.TSH = (function(){
      In the film the pieces go on one at a time, and each one wakes up —
      a flicker, then steady. Everywhere else she has all of it on. */
   const KIT_ON = { jacket:true, gloves:true, shoes:true, bracelet:true, pack:true };
-  function kitOn(p){ if(!me.kit) return; me.kitT = me.kitT || {}; me.kit[p] = true; me.kitT[p] = 0; dress(); }
+  function kitOn(p){ if(!me.kit) return; me.kitT = me.kitT || {}; me.kit[p] = true; me.kitT[p] = 0; dress();
+    const slot = { jacket:'outer', gloves:'hands', shoes:'shoes', bracelet:'wrist', pack:'back' }[p];
+    if(slot && window.AVATAR && AVATAR.glanceSelf) AVATAR.glanceSelf(slot, 2.2); }
   function kitShow(){
     const t = me.kitT || {};
     const lit = p => (t[p] === undefined || t[p] > 0.75) ? 1 : (Math.random() < 0.5 ? 0.15 + t[p] : 1);
@@ -1971,6 +1974,7 @@ window.TSH = (function(){
       return los(n.x, n.y+1.6, n.z, p.x, p.y+1.2, p.z);
     });
     hit.forEach(n=>stun(n, n.kind==='drone' ? 5 : 4));
+    if(hit.length){ const n = hit.slice().sort((a, b)=>Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]; gazeAt(()=>headOf(n), 1.3); }
     crime('flash', p.x, p.z, hit);
     questEvent('flash', { hit });
     hud();
@@ -1979,6 +1983,7 @@ window.TSH = (function(){
   function jam(){
     if(gad.jamCd > 0 || mode === 'cut' || mode === 'end'){ if(gad.jamCd > 0) note('📡 Jammer recharging…', 'warn'); return; }
     gad.jam = 6; gad.jamCd = 30;
+    if(window.AVATAR && AVATAR.glanceSelf) AVATAR.glanceSelf('wrist', 0.9);
     cue('jam');
     const p = P();
     ring(V(p.x, p.y + 0.1, p.z), 12, 0x8a6aff);
@@ -2006,6 +2011,7 @@ window.TSH = (function(){
     root.add(m);
     tween(0.7, k=>{ m.position.set(lerp(from.x, to.x, k), lerp(from.y, to.y, k) + Math.sin(k*Math.PI)*2.2, lerp(from.z, to.z, k)); m.rotation.x = k*12; },
       ()=>{ cue('kick'); noise(to.x, to.z, 13, 'can'); setTimeout(()=>{ if(m.parent) m.parent.remove(m); }, 6000); });
+    gazeAt(()=>m.position, 1.1);                            // and watches it go
     hud();
   }
   function tickGadgets(dt){
@@ -6867,6 +6873,82 @@ window.TSH = (function(){
     if(mode === 'reel' && lips.mood && lips.feelT <= 0 && AVATAR.feel){ AVATAR.feel(FEELS[lips.mood], 0.5); lips.feelT = 0.35; lips.moodOn = true; }
     if(mode === 'fight' && AVATAR.expr && lips.feelT <= 0){ lips.set = (lips.set || 0) - dt; if(lips.set <= 0){ lips.set = 0.25; AVATAR.expr('browDown', 0.7, 0.4); AVATAR.expr('frown', 0.25, 0.4); } }
   }
+  /* ======================================================= where she looks
+     Robin's eyes go where her attention is, everywhere in the story (avatar.js moves the eyes, and the head after
+     them when it is far to the side or down). In order: something she is handed to look at (gazeAt — the can she
+     throws, the people she flashes); a piece of her kit going on (glanceSelf); her phone, in her hands; whoever is
+     talking; in a film shot, whatever the shot shows when that is not her own face; whoever she is talking to; in a
+     fight, whoever is coming at her; on a ladder, where she is climbing to; the board she is reading; somebody
+     chasing her; what she could use, within reach; somebody who just shouted; and, now and then, somebody passing
+     close. A shot's feeling carries the eyes too: down when she is sad or tired or caught out, darting when she is
+     nervous or hunted. */
+  const gaze = { hold:null, who:null, whoT:0, partner:null, glance:null, glanceIn:2.5 };
+  function gazeAt(t, secs){ gaze.hold = { t, secs:secs || 1.5 }; }
+  function headOf(n){
+    if(!n) return null;
+    if(n.headBone === undefined && n.model) n.headBone = boneOf(n.model, /Head$/) || null;
+    if(n.headBone){ const p = V(0, 0, 0); n.headBone.getWorldPosition(p); return p; }
+    return V(n.x, (n.y || 0) + 1.55, n.z);
+  }
+  function talkerAt(who){
+    if(!who || who === 'robin') return null;
+    const n = speakerNpc(who); if(n && n.g && n.g.visible) return { n, p:headOf(n) };
+    if(window.TSHFIGHT && TSHFIGHT.crew){ const tags = { thug:['t1', 't2'], dealer:['buyer'] }[who] || [who];      // the lines' names for the crew
+      const e = TSHFIGHT.crew().find(e=>tags.includes(e.tag) || e.kind === who); if(e && e.g) return { n:e, p:headOf(e) }; }
+    return null;
+  }
+  const asV = t => !t ? null : t.isVector3 ? t : Array.isArray(t) ? V(t[0], t[1], t[2]) : null;
+  function gazeTick(dt){
+    if(!window.AVATAR || !AVATAR.lookAt) return;
+    const b = AVATAR.body; if(!b || !b.visible){ AVATAR.lookAt(null); return; }
+    const eye = V(b.position.x, b.position.y + 1.5, b.position.z), ry = b.rotation.y;
+    const off = p => { const dx = p.x - eye.x, dz = p.z - eye.z, d = Math.hypot(dx, dz) || 1; return (Math.sin(ry)*dx + Math.cos(ry)*dz)/d; };   // 1 dead ahead, 0 square to her side
+    const seen = (p, far, cosMin) => p && Math.hypot(p.x - eye.x, p.z - eye.z) < far && off(p) > (cosMin === undefined ? -0.25 : cosMin);
+    gaze.whoT = Math.max(0, gaze.whoT - dt); if(gaze.whoT <= 0) gaze.who = null;
+    const people = npcs.filter(n=>n.g && n.g.visible && !n.hidden && n.kind !== 'drone');
+    let t = null, why = null;
+    // handed something to look at
+    if(gaze.hold){ gaze.hold.secs -= dt; if(gaze.hold.secs <= 0) gaze.hold = null; else { const h = gaze.hold.t; t = asV(typeof h === 'function' ? h() : h); why = 'hold'; } }
+    // her phone (or anything she holds up in the texting pose)
+    if(!t && staged && staged.clip === 'text'){ const h = handsAt(); if(h) { t = h.at.clone(); why = 'hands'; } }
+    // whoever is talking
+    if(!t && gaze.who){ const k = talkerAt(gaze.who); if(k && seen(k.p, 14)){ t = k.p; why = 'talker'; gaze.partner = k.n; } }
+    // a film shot: what it shows, when that is not her
+    const shot = mode === 'reel' && reel ? reel.lookPt : mode === 'cut' && cut && cut.shot ? cut.shot.look : null;
+    if(!t && shot){ const l = V(shot[0], shot[1], shot[2]); if(l.distanceTo(eye) > 0.5 && seen(l, 150, 0)){ t = l; why = 'shot'; } }
+    // whoever she is talking to (or with, in a scene): the last one who spoke, or the nearest in front of her
+    if(!t && (gaze.who === 'robin' || mode === 'reel' || mode === 'cut')){
+      let p = gaze.partner && gaze.partner.g && gaze.partner.g.visible ? headOf(gaze.partner) : null;
+      if(!seen(p, 6, 0)){ p = null; let bd = 5; people.forEach(n=>{ const h = headOf(n), d = h.distanceTo(eye); if(d < bd && off(h) > 0.2){ bd = d; p = h; } }); }
+      if(p){ t = p; why = 'partner'; }
+    }
+    // a fight: whoever is coming at her
+    if(!t && mode === 'fight' && window.TSHFIGHT && TSHFIGHT.focus){ t = TSHFIGHT.focus(); if(t) why = 'fight'; }
+    // a ladder: where she is going
+    if(!t && mode === 'climb' && me.climbing){ const c = me.climbing, up = c.y1 > c.y0; t = V(c.to[0], c.y1 + (up ? 1.2 : 0), c.to[1]); why = 'climb'; }
+    // reading the board: along a line, and the next, and the next
+    if(!t && mode === 'read' && W.school){ const bd = W.school.spots.board, k = (clock*0.9)%1, line = Math.floor(clock*0.9)%5;
+      t = V(bd[0] - 0.75, 1.75 - line*0.09, bd[1] - 0.25 + k*0.5); why = 'read'; }
+    // somebody after her
+    let hunted = false;
+    if(!t && !mode){ let bd = 22; people.forEach(n=>{ if(n.state !== 'pursue' && n.state !== 'grab') return; const h = headOf(n), d = h.distanceTo(eye); if(d < bd && off(h) > -0.35){ bd = d; t = h; why = 'threat'; hunted = true; } }); }
+    // something she could use, right there
+    if(!t && !mode){ const th = nearestThing(); if(th){ const low = th.icon === '🥫'; t = V(th.x, (th.y !== undefined ? th.y : feet()) + (low ? 0.1 : 1.0), th.z); if(!seen(t, 4, -0.1)) t = null; else why = 'thing'; } }
+    // somebody who just shouted, or somebody passing close: a glance, now and then
+    if(!t && (!mode || mode === 'hide')){
+      if(gaze.glance){ gaze.glance.t -= dt; if(gaze.glance.t <= 0 || !gaze.glance.n.g.visible) gaze.glance = null; }
+      gaze.glanceIn -= dt;
+      if(!gaze.glance){ const loud = people.find(n=>n.barkT > 2.6 && seen(headOf(n), 16, -0.3));
+        if(loud) gaze.glance = { n:loud, t:1.4 };
+        else if(gaze.glanceIn <= 0){ gaze.glanceIn = 3 + Math.random()*5;
+          const near = people.filter(n=>{ const h = headOf(n), d = h.distanceTo(eye); return seen(h, 7, d < 3 ? -0.2 : 0.35); });            /* close by: even to her side */ if(near.length) gaze.glance = { n:near[(Math.random()*near.length)|0], t:1.1 + Math.random()*1.2 }; } }
+      if(gaze.glance){ t = headOf(gaze.glance.n); why = 'glance'; }
+    }
+    AVATAR.lookAt(t);
+    gaze.why = why;
+    const md = lips.mood;
+    if(AVATAR.gazeMood) AVATAR.gazeMood(why === 'read' ? 'dart' : /^(sad|tired|sheepish|sleepy)$/.test(md || '') ? 'down' : md === 'nervous' || hunted ? 'dart' : null);
+  }
   function voice(who, text, o){
     o = o || {};
     if(!o.bark) vstop();
@@ -6914,6 +6996,7 @@ window.TSH = (function(){
   function talkNow(key){
     const l = (LINES[key] || [])[0]; if(!l) return;
     sayOver = { who:l[0], text:l[1], t:Math.max(1.2 + l[1].length*0.045, vlen(l[0], l[1]) + 0.3) };
+    gaze.who = l[0]; gaze.whoT = sayOver.t;
     voice(l[0], l[1]);
     const n = speakerNpc(l[0]); if(n) bark(n, '');
   }
@@ -6933,6 +7016,7 @@ window.TSH = (function(){
     if(q.i >= q.lines.length){ talkQ.shift(); subtitle(null); if(window.TSHFIGHT && TSHFIGHT.ready) TSHFIGHT.talker(null); if(q.done) q.done(); return; }
     const [who, text] = q.lines[q.i];
     const dur = vlen(who, text);
+    gaze.who = who; gaze.whoT = (dur ? dur : 1.0 + text.length*0.052) + 0.5;
     q.t = dur ? Math.max(1.4, dur + 0.45) : Math.max(1.8, 1.0 + text.length*0.052);
     subtitle(who, text, q.paced);
     voice(who, text);
@@ -7648,6 +7732,7 @@ window.TSH = (function(){
     for(let i = 0; i < npcs.length; i++){ const n = npcs[i]; if(n.model && !n.model.userData.charLook) charLook(n.model); }       // the lens is only shallow, and the faces only lit, in a film
     if(chaos) tickChaos(dt);
     lipsTick(dt);
+    gazeTick(dt);
     octoTick(dt);
     chaseBack();
     if(busy === 'panel'){ return; }
@@ -7749,7 +7834,7 @@ window.TSH = (function(){
   return { enter, leave, stop, tick, key, render, LINES,
            get active(){ return on; }, get state(){ return S; }, get mode(){ return mode; }, get inside(){ return inside; },
            /* for tests and the console */
-           _cue:k=>cue(k), _npcs:()=>npcs, _world:()=>W, _outcome:outcome, _heat:heat, _flash:flash, _jam:jam, _goInside:goInside,
+           _cue:k=>cue(k), _gaze:()=>gaze, _npcs:()=>npcs, _world:()=>W, _outcome:outcome, _heat:heat, _flash:flash, _jam:jam, _goInside:goInside,
            _place:(x, z, yaw, y)=>{ placePlayer(x, z, yaw, y); if(typeof thirdPerson === 'function') for(let i=0;i<40;i++) thirdPerson(); },
            _reset:()=>{ S = fresh(); save(); }, _S:()=>S,
            _dbg:{ get apt(){ return apt; }, get cut(){ return cut; }, get gr(){ return gr; }, things:()=>things, nearestThing, marker,
