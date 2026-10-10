@@ -616,6 +616,22 @@ window.AVATAR = (function(){
     face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
     faceSet(m, 'blink', Math.max(blink, held.blink));                 // heavy lids (sleepy) under the blinks
     for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);
+    headGaze(dt);
+  }
+  /* A FACE WHOSE EYES CANNOT MOVE (painted on): what she looks at, she turns her head to — most of the way */
+  function headGaze(dt){
+    const L = face.look || (face.look = { x:0, y:0, tx:0, ty:0, rest:0.5, micro:0.2, mx:0, my:0, hx:0, hy:0, htx:0, hty:0 });
+    const tp = gazePoint(dt); let ax = 0, ay = face.gmood === 'down' ? -0.25 : 0;
+    if(tp && model){
+      const q = new THREE.Quaternion(), hp = new THREE.Vector3(), sc = new THREE.Vector3();
+      if(face.drawnQ){ q.copy(face.drawnQ); hp.copy(face.drawnHead); }
+      else { model.matrixWorld.decompose(sc, q, sc); hp.setFromMatrixPosition((face.head || model).matrixWorld); }
+      const d = tp.clone().sub(hp).applyQuaternion(q.invert());
+      const yaw = Math.atan2(d.x, d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+      if(Math.abs(yaw) < 1.75){ ax = clamp(yaw*0.85, -0.9, 0.9); ay = clamp(pitch*0.8, -0.7, 0.4); }
+    }
+    const kh = 1 - Math.exp(-dt*4);
+    L.hx += (ax - L.hx)*kh; L.hy += (ay - L.hy)*kh;
   }
 
   /* ---- the whole face ---- */
@@ -808,7 +824,7 @@ window.AVATAR = (function(){
      each frame; one that does not animate it would keep the last frame's turn, so that is taken back off first. */
   const _hq = new THREE.Quaternion(), _he = new THREE.Euler();
   function faceHead(){
-    const L = face.look; if(!face.arkit || !L || !face.heads.length) return;
+    const L = face.look; if(!L || !face.heads.length) return;
     _he.set(-L.hy, L.hx, 0); _hq.setFromEuler(_he);                    // radians: + turns her to her left, + lifts her chin
     for(const h of face.heads){ const u = h.userData;
       if(u.lookLast && h.quaternion.equals(u.lookLast)) h.quaternion.multiply(u.lookOff.clone().invert());
