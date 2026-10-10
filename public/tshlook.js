@@ -464,13 +464,27 @@ window.TSHLOOK = (function(){
       if(uVerse > 0.001){
         // painted, and printed off register: the colour plates slip apart, more the further away a thing is —
         // whoever is close stays crisp, the city behind them fringes
-        vec3 paint = kuwahara(uv, 2.0 + uVerse*1.5);
+        // painted, lightly: half the picture from the brush, so surfaces flatten but small things stay readable
+        vec3 paint = kuwahara(uv, 1.4 + uVerse*0.6);
         float vz = -perspectiveDepthToViewZ(texture2D(tDepth, uv).r, uNear, uFar);
-        float far = smoothstep(2.5, 30.0, vz);
-        vec2 off = vec2(1.0, 0.35)/uRes*(1.5 + 6.0*far)*uVerse;
+        float far = smoothstep(4.0, 40.0, vz);
+        vec2 off = vec2(1.0, 0.35)/uRes*(0.8 + 2.7*far)*uVerse;
         vec3 c0 = texture2D(tScene, uv).rgb;
         vec3 fr = vec3(texture2D(tScene, uv + off).r - c0.r, 0.0, texture2D(tScene, uv - off).b - c0.b);
-        col = mix(col, paint, 0.8*uVerse) + fr*uVerse;
+        col = mix(col, paint, 0.45*uVerse) + fr*uVerse*0.8;
+        // then crisp again: the edges the brush softened are sharpened back (after it, not before)
+        vec2 px1 = 1.0/uRes; vec3 nb = texture2D(tScene, uv + vec2(px1.x, 0.0)).rgb + texture2D(tScene, uv - vec2(px1.x, 0.0)).rgb
+          + texture2D(tScene, uv + vec2(0.0, px1.y)).rgb + texture2D(tScene, uv - vec2(0.0, px1.y)).rgb;
+        col = max(col + (c0 - nb*0.25)*0.6*uVerse, 0.0);
+        /* INK. A comic is drawn before it is coloured: a thin dark line wherever one thing stands in front of another
+           (a jump in the depth), so a figure reads against the city however busy the colour behind her is */
+        float zc = vz, zl = -perspectiveDepthToViewZ(texture2D(tDepth, uv - vec2(px1.x, 0.0)).r, uNear, uFar),
+              zr = -perspectiveDepthToViewZ(texture2D(tDepth, uv + vec2(px1.x, 0.0)).r, uNear, uFar),
+              zu = -perspectiveDepthToViewZ(texture2D(tDepth, uv + vec2(0.0, px1.y)).r, uNear, uFar),
+              zd = -perspectiveDepthToViewZ(texture2D(tDepth, uv - vec2(0.0, px1.y)).r, uNear, uFar);
+        float jump = (abs(zl + zr - 2.0*zc) + abs(zu + zd - 2.0*zc))/max(zc, 0.5);
+        float ink = smoothstep(0.06, 0.2, jump)*(1.0 - smoothstep(25.0, 60.0, zc));      // far away, no ink: it would only be noise
+        col = mix(col, col*0.12, ink*0.85*uVerse);
       }
       // sharpen: contrast-adaptive, a touch — the MSAA and the bloom soften everything a little
       if(uSharp > 0.001){ vec2 px = 1.0/uRes; vec3 nb = texture2D(tScene, uv + vec2(px.x, 0.0)).rgb + texture2D(tScene, uv - vec2(px.x, 0.0)).rgb + texture2D(tScene, uv + vec2(0.0, px.y)).rgb + texture2D(tScene, uv - vec2(0.0, px.y)).rgb;
@@ -484,7 +498,7 @@ window.TSHLOOK = (function(){
         /* the glow printed as dots: a Ben-Day grid at 15 degrees, each dot as big as the glow is bright there, so a
            lamp's spill reads as a printed halo — solid at the light, breaking into dots as it falls off */
         float bl = dot(bloomC, vec3(0.333)); bl = bl/(1.0 + bl);
-        vec2 g = mat2(0.966, -0.259, 0.259, 0.966)*(gl_FragCoord.xy/(4.5 + 1.5*uVerse));
+        vec2 g = mat2(0.966, -0.259, 0.259, 0.966)*(gl_FragCoord.xy/4.0);
         float rad = sqrt(clamp(bl*1.6, 0.0, 1.0))*0.62, dt = length(fract(g) - 0.5);
         float dotM = 1.0 - smoothstep(rad - 0.06, rad + 0.06, dt);
         bloomC = mix(bloomC, bloomC*dotM*1.8, uVerse);
