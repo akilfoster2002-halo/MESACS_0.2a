@@ -8,3 +8,4 @@
 /assets/*.png
 /assets/characters/*_texture_*.webp
 /assets/shop/*_[0-9].webp
+/assets/tsh/*.webp

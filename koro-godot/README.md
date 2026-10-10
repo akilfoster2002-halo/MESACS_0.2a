@@ -37,6 +37,18 @@ godot --path koro-godot                    # or straight into the game
 Walk into water deeper than you are tall and you swim. Fly into the falls
 and they push you down and out.
 
+## TSH — the test stage
+
+```bash
+godot --path koro-godot res://scenes/tsh_stage.tscn
+godot --path koro-godot res://scenes/tsh_stage.tscn -- <dir>    # photographs it into <dir> and quits
+```
+
+The browser's TSH night city (exported from the running game: `tools/tsh_export/`), Robin in her kit, Maya walking
+on Doctor Octopus's arms (`scripts/tsh/tentacles.gd`, the browser's `tentacles.js`), and the Spider-Verse look
+(`shaders/tsh_verse.gdshader`). WASD · Shift run · Space jump · mouse looks · scroll zooms · **V** the Spider-Verse
+look on/off · **B** Maya strikes · **M** Maya comes to you.
+
 ## Your account, and your class
 
 P → **Your account**: the address of your class's KORO server (the same one
