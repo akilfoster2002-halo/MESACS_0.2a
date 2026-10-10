@@ -29,10 +29,18 @@
    hips, z ahead; or o.world), where it holds, twitching like an insect, for
    o.hold seconds before it goes back to carrying her. A leg's burst stabs the
    roof (o.floor) and stays planted there.
+
+   THE ARMS THEMSELVES (tsh/maya/mecharm.glb): Doctor Octopus's mechanical arm, from a Maya rig — nineteen
+   linked segments and a three-fingered claw, skinned to a chain of joints. The solve above places the joints:
+   each link follows the curve the arm is bent into (carried along it, so the links never twist round), the claw
+   sits on the end and its fingers open and close. Until it has loaded, an arm is drawn as plain rings.
    ===================================================================== */
 window.TENTACLES = (function(){
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const SEG = 16;
+  const SEG = 19;                                       // the Doc Ock arm has nineteen joints along it
+  const MODEL = 'tsh/maya/mecharm.glb';
+  const CHAIN = Array.from({ length:19 }, (_, i)=>'MechArm' + (i ? i : ''));
+  const FINGERS = ['Claw1', 'Claw7', 'Claw4'];
 
   function material(){
     return {
@@ -68,6 +76,64 @@ window.TENTACLES = (function(){
     return { segs, claw, fingers, pts, L, len, open:0.6, ext:1, out:null };
   }
 
+  /* the modelled arm, loaded into an arm (each its own copy: this build of three cannot clone a skinned mesh) */
+  function dress(A, root){
+    if(!THREE.GLTFLoader) return;
+    const ld = new THREE.GLTFLoader(); if(window.MeshoptDecoder && ld.setMeshoptDecoder) ld.setMeshoptDecoder(window.MeshoptDecoder);
+    ld.load(MODEL + '?v=' + (window.ASSETV || '1'), g=>{
+      if(A.dead) return;
+      const sc = g.scene, by = {};
+      sc.traverse(o=>{ if(o.isBone) by[o.name] = o; if(o.isMesh){ o.frustumCulled = false; o.castShadow = true;
+        [].concat(o.material).forEach(m=>{ if(m.emissive) m.emissiveIntensity = 1.6; }); } });
+      const chain = CHAIN.map(n=>by[n]), claw = by.ClawBase, fingers = FINGERS.map(n=>by[n]);
+      if(chain.some(b=>!b) || !claw) return;
+      sc.updateMatrixWorld(true);
+      const head = b => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+      const H = chain.map(head).concat([head(claw)]);
+      let rest = 0; for(let i = 0; i < 19; i++) rest += H[i + 1].distanceTo(H[i]);
+      const restQ = new THREE.Quaternion(); chain[0].getWorldQuaternion(restQ);
+      const restDir = H[1].clone().sub(H[0]).normalize();
+      // each finger opens about the line across its root, away from the claw's axis: which way is out is where
+      // the finger's own metal is (its joints all start at the middle of the claw)
+      let skin = null; sc.traverse(o=>{ if(o.isSkinnedMesh) skin = o; });
+      const out = fingers.map(()=>V(0, 0, 0));
+      if(skin){ const G = skin.geometry, P = G.attributes.position, SI = G.attributes.skinIndex, SW = G.attributes.skinWeight, bones = skin.skeleton.bones;
+        const inv = skin.skeleton.boneInverses[bones.indexOf(claw)], v = V(0, 0, 0);
+        fingers.forEach((f, k)=>{ if(!f) return; const mine = [bones.indexOf(f)].concat(f.children.filter(c=>c.isBone).map(c=>bones.indexOf(c)));
+          for(let i = 0; i < P.count; i++){ let w = 0; for(let j = 0; j < 4; j++) if(mine.includes(SI.getComponent(i, j))) w += SW.getComponent(i, j);
+            if(w > 0.5){ v.fromBufferAttribute(P, i).applyMatrix4(skin.bindMatrix).applyMatrix4(inv); out[k].add(V(v.x, 0, v.z)); } } }); }
+      const fin = fingers.map((f, k)=>{ if(!f) return null; const o = out[k].lengthSq() > 1e-10 ? out[k].normalize() : V(Math.cos(k*2.09), 0, Math.sin(k*2.09));
+        // the hinge, in the finger's own frame (its rest turn relative to the claw)
+        const axis = V(0, 1, 0).cross(o).normalize().applyQuaternion(f.quaternion.clone().invert());
+        return { b:f, q0:f.quaternion.clone(), axis }; }).filter(Boolean);
+      // the armature's own place in the file, so bones can be set from where they should be in the arm's space
+      const rigM = chain[0].parent.matrixWorld.clone();
+      root.add(sc); sc.matrixAutoUpdate = false; sc.matrix.identity(); sc.updateMatrixWorld(true);
+      A.model = { sc, chain, claw, fin, rest, restQ, restDir, rigM };
+      A.segs.forEach(x=>x.visible = false); A.claw.visible = false;
+    }, undefined, ()=>{});
+  }
+  const _m = new THREE.Matrix4(), _p = new THREE.Matrix4(), _s = V(1, 1, 1), _q = new THREE.Quaternion(), _d = V(0, 0, 0), _t = new THREE.Quaternion();
+  /* the joints onto the solved points: q[0..19], the last the claw */
+  function poseModel(A, q){
+    const M = A.model; let len = 0; for(let i = 0; i < 19; i++) len += q[i + 1].distanceTo(q[i]);
+    const s = len/M.rest; _s.set(s, s, s);
+    let parent = M.rigM, prevD = null;
+    for(let i = 0; i <= 19; i++){
+      const b = i < 19 ? M.chain[i] : M.claw;
+      if(i < 19){ _d.copy(q[i + 1]).sub(q[i]); const l = _d.length() || 1e-6; _d.divideScalar(l);
+        if(!prevD) _q.setFromUnitVectors(M.restDir, _d).multiply(M.restQ);       // the first link: turned from how it lay
+        else { _t.setFromUnitVectors(prevD, _d); _q.premultiply(_t); }           // each next: carried on from the one before
+        prevD = (prevD || V(0, 0, 0)).copy(_d); }
+      _m.compose(q[i], _q, _s);
+      _p.copy(parent).invert().multiply(_m);
+      _p.decompose(b.position, b.quaternion, b.scale);
+      parent = _m.clone();
+    }
+    // the claw's fingers: open, closed
+    M.fin.forEach(f=>{ _t.setFromAxisAngle(f.axis, A.open*0.8); f.b.quaternion.copy(f.q0).multiply(_t); });
+  }
+
   /* FABRIK: the chain from base to target, segment lengths kept */
   function solve(pts, base, target, L){
     const n = pts.length - 1, total = L*n;
@@ -94,10 +160,11 @@ window.TENTACLES = (function(){
     const q = p.map((v, i)=>{ const k = i/n, env = Math.sin(k*Math.PI);
       const w = Math.sin(k*Math.PI*2.2 - t*3.1 + phase)*wave*env, w2 = Math.cos(k*Math.PI*1.6 - t*2.3 + phase)*wave*0.6*env;
       return v.clone().addScaledVector(side, w).addScaledVector(lift, w2); });
-    for(let i = 0; i < n; i++){
+    for(let i = 0; i < n && !A.model; i++){
       const s = A.segs[i], a = q[i], b = q[i + 1], d = b.clone().sub(a), l = d.length() || 1e-6;
       s.position.copy(a); s.quaternion.setFromUnitVectors(UP, d.divideScalar(l)); s.scale.set(1, Math.max(1e-3, l/A.L), 1);
     }
+    if(A.model) return poseModel(A, q);
     const tip = q[n], last = q[n].clone().sub(q[n - 1]).normalize();
     A.claw.position.copy(tip); A.claw.quaternion.setFromUnitVectors(UP, last);
     A.fingers.forEach(f=>{ f.rotation.z = -0.25 - A.open*0.7; });
@@ -110,6 +177,7 @@ window.TENTACLES = (function(){
     // sockets on her back: two high (between the shoulder blades), two low (above the hips), in her back's own frame
     const SOCK = [V(-0.09, 0.12, -0.13), V(0.09, 0.12, -0.13), V(-0.08, -0.12, -0.12), V(0.08, -0.12, -0.12)];
     const arms = [arm(root, M, 2.9, 0.075, 0.04), arm(root, M, 2.9, 0.075, 0.04), arm(root, M, 2.6, 0.085, 0.045), arm(root, M, 2.6, 0.085, 0.045)];
+    arms.forEach(A=>dress(A, root));
     const at = o.at || [0, floor, 0];
     const st = {
       body:V(at[0], floor + (o.lift === undefined ? 1.15 : o.lift), at[2]),   // her hips, held up off the roof
@@ -174,8 +242,8 @@ window.TENTACLES = (function(){
           if(u >= B.hold){ A.out = null; A.ext = 1;
             if(k >= 2){ const l = legs[k - 2]; l.at.copy(at); l.at.y = floor; l.to = null; } else free[k].at.copy(at); }
         }
-        if(A.ext < 0.02){ A.segs.forEach(s=>s.visible = false); A.claw.visible = false; return; }
-        A.segs.forEach(s=>s.visible = true); A.claw.visible = true;
+        if(A.ext < 0.02){ A.segs.forEach(s=>s.visible = false); A.claw.visible = false; if(A.model) A.model.sc.visible = false; return; }
+        if(A.model) A.model.sc.visible = true; else { A.segs.forEach(s=>s.visible = true); A.claw.visible = true; }
         // the chain bows outward from her back before it turns down to the claw: start the solve from a bent guess
         const out = S[k].clone().sub(st.body).setY(0).normalize();
         A.pts.forEach((p, i)=>{ const kk = i/(A.pts.length - 1); p.copy(S[k]).lerp(target, kk).addScaledVector(out, Math.sin(kk*Math.PI)*0.9).add(V(0, Math.sin(kk*Math.PI)*0.5, 0)); });
@@ -201,7 +269,7 @@ window.TENTACLES = (function(){
       out(k){ return arms[k].ext > 0.02; },
       get body(){ return st.body; }, get yaw(){ return st.yaw; }, get moving(){ return st.moving; },
       update,
-      dispose(){ if(root.parent) root.parent.remove(root); }
+      dispose(){ arms.forEach(A=>{ A.dead = true; }); if(root.parent) root.parent.remove(root); }
     };
   }
   return { make };
