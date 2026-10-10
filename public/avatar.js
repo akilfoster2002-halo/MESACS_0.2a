@@ -593,6 +593,19 @@ window.AVATAR = (function(){
     face.cur.jawOpen = (face.cur.jawOpen || 0) + (Math.min(0.5, face.mouth*0.5 + held.jawOpen) - (face.cur.jawOpen || 0))*k;
     face.cur.mouthO = (face.cur.mouthO || 0) + (Math.min(1, face.mouth*0.2 + held.mouthO) - (face.cur.mouthO || 0))*k;
     faceSet(m, 'blink', Math.max(blink, held.blink));                 // heavy lids (sleepy) under the blinks
+    // the eyes are never still: a small glance every couple of seconds (eyes that turn — a face with eyeLook shapes)
+    if(m.morphTargetDictionary.eyeLookOutLeft !== undefined){
+      face.lookIn = (face.lookIn === undefined ? 1 : face.lookIn) - dt;
+      if(face.lookIn <= 0){ face.lookIn = 1.2 + Math.random()*2.8; const back = Math.random() < 0.45;
+        face.lookTo = back ? [0, 0] : [(Math.random()*2 - 1)*0.35, (Math.random()*2 - 1)*0.25]; }
+      const to = face.lookTo || [0, 0], kl = 1 - Math.exp(-dt*18);
+      face.lookX = (face.lookX || 0) + (to[0] - (face.lookX || 0))*kl; face.lookY = (face.lookY || 0) + (to[1] - (face.lookY || 0))*kl;
+      const x = face.lookX, y = face.lookY;                            // + is her left
+      faceSet(m, 'eyeLookOutLeft', Math.max(0, x)); faceSet(m, 'eyeLookInRight', Math.max(0, x));
+      faceSet(m, 'eyeLookInLeft', Math.max(0, -x)); faceSet(m, 'eyeLookOutRight', Math.max(0, -x));
+      faceSet(m, 'eyeLookUpLeft', Math.max(0, y)); faceSet(m, 'eyeLookUpRight', Math.max(0, y));
+      faceSet(m, 'eyeLookDownLeft', Math.max(0, -y)); faceSet(m, 'eyeLookDownRight', Math.max(0, -y));
+    }
     for(const n in face.cur) if(n[0] !== '_') faceSet(m, n, face.cur[n]);
   }
   function mouth(v){ face.mouth = Math.max(0, Math.min(1, v || 0)); }

@@ -245,31 +245,32 @@
  "robin back:roll-top,bottom:baggy-jeans,hands:gecko-cuffs,outer:tech-jacket,shoes:skyline-shoes,wrist:flash-bangle": {
   "pass": true,
   "files": {
-   "body": "b4a2c10eafce",
+   "body": "ec1c9de5b41c",
    "roll-top": "814b6b9079a1",
-   "baggy-jeans": "c7420968765d",
-   "gecko-cuffs": "ec2cf412da37",
-   "tech-jacket": "6db98f69b480",
-   "skyline-shoes": "5d50663a8f17"
+   "baggy-jeans": "7bf344320d23",
+   "gecko-cuffs": "653ad73da5c8",
+   "tech-jacket": "5f0fd5c0e759",
+   "skyline-shoes": "b67a65e450ef"
   },
   "holes": {
-   "worst": 1,
-   "at": "walk@4"
+   "worst": 0,
+   "at": "idle@0",
+   "where": {}
   },
   "poke": {
-   "worst": 0.4,
-   "at": "flip@4",
-   "n": "2/31"
+   "worst": 1.3,
+   "at": "sprint_left@2",
+   "n": "5/67"
   },
   "doubled": {
-   "worst": 0.1,
-   "at": "kneel@0"
+   "worst": 1.3,
+   "at": "climb_up@5"
   },
-  "skin": 4,
-  "buried": 4,
+  "skin": 3,
+  "buried": 2,
   "mean": {
-   "holes": 0.36,
-   "poke": 0.03
+   "holes": 0,
+   "poke": 0.16
   },
   "frames": 112,
   "limit": {
@@ -283,27 +284,30 @@
  "robin bottom:baggy-jeans": {
   "pass": true,
   "files": {
-   "body": "b4a2c10eafce",
-   "baggy-jeans": "c7420968765d"
+   "body": "ec1c9de5b41c",
+   "baggy-jeans": "7bf344320d23"
   },
   "holes": {
-   "worst": 3,
-   "at": "sprint@2"
+   "worst": 1,
+   "at": "jump@1",
+   "where": {
+    "RightUpLeg": 1
+   }
   },
   "poke": {
-   "worst": 1.3,
-   "at": "flip@4",
-   "n": "2/35"
+   "worst": 4.6,
+   "at": "roll@5",
+   "n": "4/61"
   },
   "doubled": {
-   "worst": 0.1,
-   "at": "kneel@0"
+   "worst": 0.5,
+   "at": "kneel@5"
   },
   "skin": 0,
-  "buried": 0,
+  "buried": 13,
   "mean": {
-   "holes": 1.96,
-   "poke": 0.09
+   "holes": 0.04,
+   "poke": 0.56
   },
   "frames": 112,
   "limit": {
@@ -317,23 +321,59 @@
  "robin hands:gecko-cuffs": {
   "pass": true,
   "files": {
-   "body": "b4a2c10eafce",
-   "gecko-cuffs": "ec2cf412da37"
+   "body": "ec1c9de5b41c",
+   "gecko-cuffs": "653ad73da5c8"
   },
   "holes": {
    "worst": 0,
-   "at": "idle@0"
+   "at": "idle@0",
+   "where": {}
+  },
+  "poke": {
+   "worst": 9.1,
+   "at": "sprint_left@3",
+   "n": "5/11"
+  },
+  "doubled": {
+   "worst": 0.7,
+   "at": "climb_up@5"
+  },
+  "skin": 9,
+  "buried": 0,
+  "mean": {
+   "holes": 0,
+   "poke": 0.5
+  },
+  "frames": 112,
+  "limit": {
+   "holes": 5,
+   "poke": 25,
+   "doubled": 2,
+   "skin": 15,
+   "buried": 20
+  }
+ },
+ "robin outer:tech-jacket": {
+  "pass": true,
+  "files": {
+   "body": "ec1c9de5b41c",
+   "tech-jacket": "5f0fd5c0e759"
+  },
+  "holes": {
+   "worst": 0,
+   "at": "idle@0",
+   "where": {}
   },
   "poke": {
    "worst": 0,
    "at": "idle@0",
-   "n": "0/0"
+   "n": "0/7"
   },
   "doubled": {
    "worst": 0,
    "at": "idle@0"
   },
-  "skin": 10,
+  "skin": 2,
   "buried": 0,
   "mean": {
    "holes": 0,
@@ -348,60 +388,27 @@
    "buried": 20
   }
  },
- "robin outer:tech-jacket": {
+ "robin shoes:skyline-shoes": {
   "pass": true,
   "files": {
-   "body": "b4a2c10eafce",
-   "tech-jacket": "6db98f69b480"
+   "body": "ec1c9de5b41c",
+   "skyline-shoes": "b67a65e450ef"
   },
   "holes": {
-   "worst": 1,
-   "at": "sprint@2"
+   "worst": 0,
+   "at": "idle@0",
+   "where": {}
   },
   "poke": {
    "worst": 0,
    "at": "idle@0",
-   "n": "0/0"
+   "n": "0/4"
   },
   "doubled": {
    "worst": 0,
    "at": "idle@0"
   },
   "skin": 2,
-  "buried": 0,
-  "mean": {
-   "holes": 0.67,
-   "poke": 0
-  },
-  "frames": 112,
-  "limit": {
-   "holes": 5,
-   "poke": 25,
-   "doubled": 2,
-   "skin": 15,
-   "buried": 20
-  }
- },
- "robin shoes:skyline-shoes": {
-  "pass": true,
-  "files": {
-   "body": "b4a2c10eafce",
-   "skyline-shoes": "5d50663a8f17"
-  },
-  "holes": {
-   "worst": 0,
-   "at": "idle@0"
-  },
-  "poke": {
-   "worst": 0,
-   "at": "idle@0",
-   "n": "0/0"
-  },
-  "doubled": {
-   "worst": 0,
-   "at": "idle@0"
-  },
-  "skin": 4,
   "buried": 0,
   "mean": {
    "holes": 0,
