@@ -107,6 +107,11 @@ if(cmd){
       const res = await L.pg.evaluate((a, b, c, d, o)=>LAB.transfer(a, b, c, d, o), L.url(g), L.url(r), L.url(b), L.url(out), opt ? JSON.parse(opt) : {});
       console.log('wrote', out, JSON.stringify(res));
     }
+    if(cmd === 'clean'){                                           // clean <garment.glb> <body.glb> <out.glb> [json options]
+      const [gar, b, out, opt] = args;
+      const r = await L.pg.evaluate((a, b, c, o)=>LAB.clean(a, b, c, o), L.url(gar), L.url(b), L.url(out), opt ? JSON.parse(opt) : {});
+      console.log('wrote', out, JSON.stringify(r));
+    }
     if(cmd === 'card'){                                            // card <character.glb> <out.png>
       const [inp, out] = args;
       const png = await L.pg.evaluate(u=>LAB.card(u), L.url(inp));

@@ -896,4 +896,138 @@ async function card(url){
   return R2.domElement.toDataURL('image/png');
 }
 
-window.LAB = { render, base, card, garment:garmentFit, transfer, extract, measure, coverage, bitsToBase64, skinNow, poseToFit, staticMesh, icp, colours, ready:true };
+
+/* ===================================================== a garment, made clean
+   A garment cut from a lifted scan keeps the scan's faults: an edge that zigzags along its triangles, paper-thin, and a
+   colour map that is a scatter of islands with bits of whatever was next to it (her skin, the shirt under it, white
+   highlights) — which show as pale slivers at its edges and streaks on it. This takes them out:
+   - THE COLOUR: everything that is not the garment's own colour (o.maxLum: nothing lighter, unless it is the teal of
+     its lit lines) is filled from the garment's colour around it. The glow mask is made again from what is left.
+   - THE EDGE: triangles hanging off the edge by two sides are dropped (a few rounds: the zigzag's teeth), crumbs too,
+     then every edge loop is smoothed along itself, on the surface, and the cloth beside it eased to follow.
+   - A HEM: a narrow strip turned in at every edge, toward her, so the edge reads as cloth with a thickness.
+     clean <garment.glb> <body.glb> <out.glb> [{ maxLum, teeth, smooth, hem }] */
+async function clean(garUrl, bodyUrl, outPath, o){
+  o = Object.assign({ maxLum:72, teeth:3, smooth:30, trim:3, hem:0.004 }, o || {});
+  const g = await load(garUrl); let gm = null; g.scene.traverse(x=>{ if(!gm && x.isSkinnedMesh) gm = x; });
+  const body = await load(bodyUrl), sm = skinnedOf(body.scene), raw = arrays(sm);
+  // the garment's points are in the body's own (bind) space, which may be quantized units: o.hem is in metres
+  const Wb = worldVerts(sm), unit = (boxOf(Wb).max.y - boxOf(Wb).min.y)/(boxOf(raw.pos).max.y - boxOf(raw.pos).min.y) || 1;
+  // ---- the colour
+  const mat = gm.material, map = mat.map, img = map.image, Wc = img.width, Hc = img.height;
+  const cv = document.createElement('canvas'); cv.width = Wc; cv.height = Hc; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
+  const im = cx.getImageData(0, 0, Wc, Hc), d = im.data, npx = Wc*Hc, bad = new Uint8Array(npx);
+  let nbad = 0;
+  // what is light and warm (her skin) or light and grey-white (a shirt, a highlight) is not the garment; what is light and
+  // cool is its piping, made one clean teal (and so it lights, for the glow)
+  let piping = 0;
+  for(let i=0;i<npx;i++){ const r = d[i*4], gg = d[i*4+1], b = d[i*4+2], lum = 0.2126*r + 0.7152*gg + 0.0722*b;
+    if(lum <= o.maxLum) continue;
+    if((gg + b)/2 - r > (o.cool || 14) && b >= r){ if(o.piping === false) continue;                                   // denim is cool too: kept as it is
+      const v = Math.min(1, lum/170); d[i*4] = 30*v; d[i*4+1] = 205*v; d[i*4+2] = 195*v; piping++; continue; }
+    bad[i] = 1; nbad++; }
+  // fill from the good colour around it: blur of good pixels / blur of the good mask, growing until everything is filled
+  const fillPass = (rad) => { const acc = new Float32Array(npx*3), cnt = new Float32Array(npx);
+    const rowA = new Float32Array(npx*3), rowC = new Float32Array(npx);
+    for(let y=0;y<Hc;y++){ let sr = 0, sg = 0, sb = 0, sc = 0;
+      for(let x=-rad; x<Wc+rad; x++){ const xa = x + rad, xr = x - rad - 1;
+        if(xa >= 0 && xa < Wc){ const k = y*Wc + xa; if(!bad[k]){ sr += d[k*4]; sg += d[k*4+1]; sb += d[k*4+2]; sc++; } }
+        if(xr >= 0 && xr < Wc){ const k = y*Wc + xr; if(!bad[k]){ sr -= d[k*4]; sg -= d[k*4+1]; sb -= d[k*4+2]; sc--; } }
+        if(x >= 0 && x < Wc){ const k = y*Wc + x; rowA[k*3] = sr; rowA[k*3+1] = sg; rowA[k*3+2] = sb; rowC[k] = sc; } } }
+    for(let x=0;x<Wc;x++){ let sr = 0, sg = 0, sb = 0, sc = 0;
+      for(let y=-rad; y<Hc+rad; y++){ const ya = y + rad, yr = y - rad - 1;
+        if(ya >= 0 && ya < Hc){ const k = ya*Wc + x; sr += rowA[k*3]; sg += rowA[k*3+1]; sb += rowA[k*3+2]; sc += rowC[k]; }
+        if(yr >= 0 && yr < Hc){ const k = yr*Wc + x; sr -= rowA[k*3]; sg -= rowA[k*3+1]; sb -= rowA[k*3+2]; sc -= rowC[k]; }
+        if(y >= 0 && y < Hc){ const k = y*Wc + x; acc[k*3] = sr; acc[k*3+1] = sg; acc[k*3+2] = sb; cnt[k] = sc; } } }
+    let left = 0; for(let k=0;k<npx;k++){ if(!bad[k]) continue; if(cnt[k] > 0){ d[k*4] = acc[k*3]/cnt[k]; d[k*4+1] = acc[k*3+1]/cnt[k]; d[k*4+2] = acc[k*3+2]/cnt[k]; } else left++; }
+    return left; };
+  for(const rad of [6, 16, 48, 160]){ if(!fillPass(rad)) break; }
+  cx.putImageData(im, 0, 0);
+  const newMap = new THREE.CanvasTexture(cv); newMap.flipY = map.flipY; newMap.colorSpace = map.colorSpace; newMap.channel = map.channel;
+  mat.map = newMap;
+  const glow = glowMask(newMap, TEAL); if(glow && mat.emissiveMap){ mat.emissiveMap = glow; }
+  // ---- the edge
+  let geo = gm.geometry.clone(); const P = geo.attributes.position.array, n = P.length/3;
+  const rep = welded(P, n); let I = Array.from(geo.index.array);
+  const ekey = (a, b) => a < b ? a + ',' + b : b + ',' + a;
+  const edgeCount = () => { const m = new Map(); for(let t=0;t<I.length;t+=3){ for(let e=0;e<3;e++){ const k = ekey(rep[I[t+e]], rep[I[t+(e+1)%3]]); m.set(k, (m.get(k) || 0) + 1); } } return m; };
+  let teeth = 0;
+  for(let round=0; round<o.teeth; round++){ const ec = edgeCount(), keep = [];
+    for(let t=0;t<I.length;t+=3){ let open = 0; for(let e=0;e<3;e++) if(ec.get(ekey(rep[I[t+e]], rep[I[t+(e+1)%3]])) === 1) open++;
+      if(open >= 2){ teeth++; continue; } keep.push(I[t], I[t+1], I[t+2]); }
+    I = keep; }
+  // THE TEETH, CUT OFF: where the edge should run is the edge smoothed hard (not applied); the triangles past that line
+  // are taken away (never bent, which folds them into shards). A few rounds, then a light smoothing of what is left.
+  const boundaryOf = (I) => { const ec = edgeCount(), bn = new Map(), OUT = new Map();
+    for(let t=0;t<I.length;t+=3) for(let e=0;e<3;e++){ const a = rep[I[t+e]], b = rep[I[t+(e+1)%3]], c = rep[I[t+(e+2)%3]]; if(ec.get(ekey(a, b)) !== 1) continue;
+      if(!bn.has(a)) bn.set(a, new Set()); if(!bn.has(b)) bn.set(b, new Set()); bn.get(a).add(b); bn.get(b).add(a);
+      const mx = (P[a*3] + P[b*3])/2, my = (P[a*3+1] + P[b*3+1])/2, mz = (P[a*3+2] + P[b*3+2])/2;
+      const ex = P[b*3] - P[a*3], ey = P[b*3+1] - P[a*3+1], ez = P[b*3+2] - P[a*3+2], el = Math.hypot(ex, ey, ez) || 1;
+      let ix = P[c*3] - mx, iy = P[c*3+1] - my, iz = P[c*3+2] - mz; const al = (ix*ex + iy*ey + iz*ez)/el; ix -= ex/el*al; iy -= ey/el*al; iz -= ez/el*al;
+      const il = Math.hypot(ix, iy, iz) || 1; [a, b].forEach(v=>{ const o2 = OUT.get(v) || [0, 0, 0]; o2[0] -= ix/il; o2[1] -= iy/il; o2[2] -= iz/il; OUT.set(v, o2); }); }
+    return { ec, bn, OUT }; };
+  let cut = 0;
+  for(let round=0; round<(o.trim || 3); round++){
+    const { bn, OUT } = boundaryOf(I), S = new Map(); bn.forEach((_, a)=>S.set(a, [P[a*3], P[a*3+1], P[a*3+2]]));
+    for(let it=0; it<o.smooth; it++){ const nx = new Map(); bn.forEach((nbs, a)=>{ const p = S.get(a); if(nbs.size !== 2){ nx.set(a, p); return; } const [b, c] = [...nbs].map(v=>S.get(v));
+      nx.set(a, [p[0]*0.5 + (b[0] + c[0])*0.25, p[1]*0.5 + (b[1] + c[1])*0.25, p[2]*0.5 + (b[2] + c[2])*0.25]); }); nx.forEach((v, k)=>S.set(k, v)); }
+    const keys = [...bn.keys()], SP = new Float32Array(keys.length*3); keys.forEach((k, j)=>SP.set(S.get(k), j*3));
+    const SG = grid(SP, 0.03/unit), keep = [];
+    for(let t=0;t<I.length;t+=3){ const v = [rep[I[t]], rep[I[t+1]], rep[I[t+2]]]; if(!v.some(x=>bn.has(x))){ keep.push(I[t], I[t+1], I[t+2]); continue; }
+      const gx = (P[v[0]*3] + P[v[1]*3] + P[v[2]*3])/3, gy = (P[v[0]*3+1] + P[v[1]*3+1] + P[v[2]*3+1])/3, gz = (P[v[0]*3+2] + P[v[1]*3+2] + P[v[2]*3+2])/3;
+      const r = SG.nearest(gx, gy, gz, null, 3); if(r.i < 0){ keep.push(I[t], I[t+1], I[t+2]); continue; }
+      const k = keys[r.i], ou = OUT.get(k), ol = Math.hypot(...ou) || 1, sp = S.get(k);
+      const out = ((gx - sp[0])*ou[0] + (gy - sp[1])*ou[1] + (gz - sp[2])*ou[2])/ol;
+      if(out > 0){ cut++; continue; } keep.push(I[t], I[t+1], I[t+2]); }
+    I = keep; }
+  geo.setIndex(I); dropFragments(geo, 0.002); I = Array.from(geo.index.array);
+  const ec = edgeCount(), bn = boundaryOf(I).bn;
+  weldedNormals(geo); const N = geo.attributes.normal.array;
+  const Q = new Float32Array(P);
+  const nb = neighbours(I.map(i=>rep[i]), n);
+  for(let it=0; it<6; it++){
+    const nx = new Float32Array(Q);
+    bn.forEach((s, a)=>{ if(s.size !== 2) return; const [b, c] = [...s];
+      let dx = (Q[b*3] + Q[c*3])/2 - Q[a*3], dy = (Q[b*3+1] + Q[c*3+1])/2 - Q[a*3+1], dz = (Q[b*3+2] + Q[c*3+2])/2 - Q[a*3+2];
+      const dn = dx*N[a*3] + dy*N[a*3+1] + dz*N[a*3+2]; dx -= N[a*3]*dn; dy -= N[a*3+1]*dn; dz -= N[a*3+2]*dn;   // on the surface
+      nx[a*3] = Q[a*3] + dx*0.5; nx[a*3+1] = Q[a*3+1] + dy*0.5; nx[a*3+2] = Q[a*3+2] + dz*0.5; });
+    // the cloth beside the edge eases after it (no folded triangles)
+    for(let a=0;a<n;a++){ if(rep[a] !== a || bn.has(a)) continue; let near = false; nb[a].forEach(b=>{ if(bn.has(b)) near = true; }); if(!near) continue;
+      let sx = 0, sy = 0, sz = 0, c = 0; nb[a].forEach(b=>{ sx += nx[b*3]; sy += nx[b*3+1]; sz += nx[b*3+2]; c++; });
+      for(let k=0;k<3;k++) nx[a*3+k] = Q[a*3+k]*0.6 + [sx, sy, sz][k]/c*0.4; }
+    Q.set(nx); }
+  for(let i=0;i<n;i++){ const r = rep[i]; P[i*3] = Q[r*3]; P[i*3+1] = Q[r*3+1]; P[i*3+2] = Q[r*3+2]; }
+  geo.attributes.position.needsUpdate = true;
+  // ---- a hem: a strip turned in at every edge, toward her (never into her)
+  const BG = grid(raw.pos, 0.02/unit), hemR = o.hem/unit;
+  const UV = geo.attributes.uv.array, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight;
+  const pos = Array.from(P), uv = Array.from(UV), si = Array.from(SI.array), sw = Array.from(SW.array), extra = [];
+  const copyOf = new Map();                                                         // a rep's hem point: [index]
+  const firstCopy = new Map(); for(let i=0;i<n;i++) if(!firstCopy.has(rep[i])) firstCopy.set(rep[i], i);
+  const hemPoint = (i) => { const r = rep[i]; if(copyOf.has(i)) return copyOf.get(i);
+    const x = P[r*3], y = P[r*3+1], z = P[r*3+2], b = BG.nearest(x, y, z, null, 4);
+    let dx = -N[r*3], dy = -N[r*3+1], dz = -N[r*3+2], h = hemR;
+    if(b.i >= 0){ const bx = raw.pos[b.i*3] - x, by = raw.pos[b.i*3+1] - y, bz = raw.pos[b.i*3+2] - z, l = Math.hypot(bx, by, bz) || 1;
+      dx = bx/l; dy = by/l; dz = bz/l; h = Math.min(hemR, l*0.55); }
+    const k = pos.length/3; pos.push(x + dx*h, y + dy*h, z + dz*h); uv.push(UV[i*2], UV[i*2+1]);
+    for(let q=0;q<4;q++){ si.push(SI.array[i*4+q]); sw.push(SW.array[i*4+q]); }
+    copyOf.set(i, k); return k; };
+  let hems = 0;
+  for(let t=0;t<I.length;t+=3) for(let e=0;e<3;e++){ const ia = I[t+e], ib = I[t+(e+1)%3];
+    if(ec.get(ekey(rep[ia], rep[ib])) !== 1) continue;
+    const ha = hemPoint(ia), hb = hemPoint(ib);
+    extra.push(ib, ia, ha, ib, ha, hb); hems++; }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  out.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+  out.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+  out.setIndex(I.concat(extra));
+  weldedNormals(out);
+  gm.geometry = out;
+  const glb = await new Promise((ok, no)=>new GLTFExporter().parse(g.scene, ok, no, { binary:true }));
+  await fetch(outPath, { method:'POST', body:glb });
+  return { unit:+unit.toFixed(5), recoloured:+(nbad/npx).toFixed(4), piping:+(piping/npx).toFixed(4), teeth, cut, edgePoints:bn.size, hems, tris:(I.length + extra.length)/3 };
+}
+
+window.LAB = { render, clean, base, card, garment:garmentFit, transfer, extract, measure, coverage, bitsToBase64, skinNow, poseToFit, staticMesh, icp, colours, ready:true };

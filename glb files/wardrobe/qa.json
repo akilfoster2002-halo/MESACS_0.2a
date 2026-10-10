@@ -247,9 +247,9 @@
   "files": {
    "body": "ec1c9de5b41c",
    "roll-top": "814b6b9079a1",
-   "baggy-jeans": "7bf344320d23",
-   "gecko-cuffs": "653ad73da5c8",
-   "tech-jacket": "5f0fd5c0e759",
+   "baggy-jeans": "3b1c3be8fd5f",
+   "gecko-cuffs": "00605895ef74",
+   "tech-jacket": "9de2b9243d50",
    "skyline-shoes": "b67a65e450ef"
   },
   "holes": {
@@ -258,19 +258,19 @@
    "where": {}
   },
   "poke": {
-   "worst": 1.3,
-   "at": "sprint_left@2",
-   "n": "5/67"
+   "worst": 0.5,
+   "at": "roll@7",
+   "n": "2/14"
   },
   "doubled": {
-   "worst": 1.3,
-   "at": "climb_up@5"
+   "worst": 0.5,
+   "at": "flip@4"
   },
-  "skin": 3,
+  "skin": 1,
   "buried": 2,
   "mean": {
    "holes": 0,
-   "poke": 0.16
+   "poke": 0.07
   },
   "frames": 112,
   "limit": {
@@ -285,7 +285,7 @@
   "pass": true,
   "files": {
    "body": "ec1c9de5b41c",
-   "baggy-jeans": "7bf344320d23"
+   "baggy-jeans": "3b1c3be8fd5f"
   },
   "holes": {
    "worst": 1,
@@ -295,19 +295,19 @@
    }
   },
   "poke": {
-   "worst": 4.6,
+   "worst": 4.7,
    "at": "roll@5",
-   "n": "4/61"
+   "n": "4/51"
   },
   "doubled": {
-   "worst": 0.5,
-   "at": "kneel@5"
+   "worst": 0.4,
+   "at": "kneel@1"
   },
   "skin": 0,
   "buried": 13,
   "mean": {
    "holes": 0.04,
-   "poke": 0.56
+   "poke": 0.52
   },
   "frames": 112,
   "limit": {
@@ -322,7 +322,7 @@
   "pass": true,
   "files": {
    "body": "ec1c9de5b41c",
-   "gecko-cuffs": "653ad73da5c8"
+   "gecko-cuffs": "00605895ef74"
   },
   "holes": {
    "worst": 0,
@@ -330,19 +330,19 @@
    "where": {}
   },
   "poke": {
-   "worst": 9.1,
-   "at": "sprint_left@3",
-   "n": "5/11"
+   "worst": 0,
+   "at": "idle@0",
+   "n": "0/0"
   },
   "doubled": {
-   "worst": 0.7,
-   "at": "climb_up@5"
+   "worst": 0.1,
+   "at": "salsa@5"
   },
-  "skin": 9,
+  "skin": 0,
   "buried": 0,
   "mean": {
    "holes": 0,
-   "poke": 0.5
+   "poke": 0
   },
   "frames": 112,
   "limit": {
@@ -357,7 +357,7 @@
   "pass": true,
   "files": {
    "body": "ec1c9de5b41c",
-   "tech-jacket": "5f0fd5c0e759"
+   "tech-jacket": "9de2b9243d50"
   },
   "holes": {
    "worst": 0,
@@ -373,7 +373,7 @@
    "worst": 0,
    "at": "idle@0"
   },
-  "skin": 2,
+  "skin": 0,
   "buried": 0,
   "mean": {
    "holes": 0,
