@@ -434,9 +434,19 @@ async function transfer(garUrl, rUrl, bUrl, outPath, o){
   const clean = s => String(s || '').replace(/^mixamorig:?/, '');
   const bonesR = new Map(smR.skeleton.bones.map(b=>[clean(b.name), b])), bonesB = new Map(smB.skeleton.bones.map(b=>[clean(b.name), b]));
   const gNames = gm.skeleton.bones.map(b=>clean(b.name));
-  // position and turn only: two bodies can carry different unit scales on their skeletons (one in cm under a 0.01, one in m)
-  const rigid = m => { const t = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); m.decompose(t, q, s); return new THREE.Matrix4().compose(t, q, new THREE.Vector3(1, 1, 1)); };
-  const X = gNames.map(nm=>{ const br = bonesR.get(nm), bb = bonesB.get(nm); if(!br || !bb) return null; return rigid(bb.matrixWorld).multiply(rigid(br.matrixWorld).invert()); });
+  // each bone by where it is and the way it points — not its roll (two rigs roll the same bone differently, and a
+  // full turn would wring the cloth round it), and not its scale (one skeleton in cm under a 0.01, one in m)
+  const HRb = boxOf(WR).max.y - boxOf(WR).min.y, HBb = boxOf(WB).max.y - boxOf(WB).min.y, kH = HBb/HRb;
+  const headOf = b => b.getWorldPosition(new THREE.Vector3());
+  const dirOf = (b, map) => {
+    const kids = b.children.filter(c=>c.isBone && map.has(clean(c.name)));
+    if(kids.length){ const h = headOf(b), t = new THREE.Vector3(); kids.forEach(c=>t.add(headOf(c))); t.multiplyScalar(1/kids.length); const d = t.sub(h); if(d.length() > 1e-6) return d.normalize(); }
+    return b.parent && b.parent.isBone ? dirOf(b.parent, map) : new THREE.Vector3(0, 1, 0);
+  };
+  const X = gNames.map(nm=>{ const br = bonesR.get(nm), bb = bonesB.get(nm); if(!br || !bb) return null;
+    const q = new THREE.Quaternion().setFromUnitVectors(dirOf(br, bonesR), dirOf(bb, bonesB));
+    return new THREE.Matrix4().makeTranslation(...headOf(bb).toArray()).multiply(new THREE.Matrix4().makeRotationFromQuaternion(q))
+      .multiply(new THREE.Matrix4().makeScale(kH, kH, kH)).multiply(new THREE.Matrix4().makeTranslation(...headOf(br).negate().toArray())); });
   const QB = new Float32Array(n*3);
   for(let i=0;i<n;i++){
     const p = new THREE.Vector3(Q[i*3], Q[i*3+1], Q[i*3+2]), acc = new THREE.Vector3(); let wsum = 0;
@@ -485,6 +495,11 @@ async function transfer(garUrl, rUrl, bUrl, outPath, o){
   for(let i=0;i<n;i++) P.setXYZ(i, QB[i*3], QB[i*3+1], QB[i*3+2]);
   weldedNormals(geo);
   // what it covers on B, measured against B's own file
+  // only the parts of B that the garment really covered on R: a cuff near the fingers of a body whose arms are a
+  // little shorter must not hide the fingers (they curl out from under it and are gone)
+  const MR = await measure(rUrl), cR = gm.userData && gm.userData.covers ? base64ToBits(gm.userData.covers, MR.raw.n) : null;
+  if(cR && !o.allow){ const tot = {}, hit = {}; for(let j=0;j<MR.raw.n;j++){ const r = MR.region[j]; tot[r] = (tot[r] || 0) + 1; if(cR[j]) hit[r] = (hit[r] || 0) + 1; }
+    o = Object.assign({}, o, { allow:new Set(Object.keys(hit).filter(r=>hit[r]/tot[r] > (o.regionMin || 0.08))) }); console.log('transfer: covers regions', JSON.stringify(Object.fromEntries(Object.keys(hit).map(r=>[r, +(hit[r]/tot[r]).toFixed(3)]))), [...o.allow].join(',')); }
   const cov = coverage(MB, QB, geo.attributes.normal.array, o);
   const W = weldedWeights(geo, { pos:WB, nrm:NB, si:rawB.si, sw:rawB.sw, n:rawB.n }, smB.skeleton.bones.map(b=>clean(b.name)));
   geo.applyMatrix4(AB.inverse); weldedNormals(geo);
@@ -493,6 +508,9 @@ async function transfer(garUrl, rUrl, bUrl, outPath, o){
   out.userData = { covers:bitsToBase64(cov.bits), coversOf:rawB.n, made:'transfer' };
   smB.parent.add(out); out.position.copy(smB.position); out.quaternion.copy(smB.quaternion); out.scale.copy(smB.scale);
   out.bind(smB.skeleton, smB.bindMatrix); smB.parent.remove(smB);
+  // only the garment goes in the file: a body in several pieces (hair, eyes, teeth) would otherwise ride along, and
+  // whoever loads the garment takes the first skinned mesh in it
+  const extra = []; bodyB.scene.traverse(x=>{ if(x.isMesh && x !== out) extra.push(x); }); extra.forEach(x=>x.parent.remove(x));
   const glb = await new Promise((ok, no)=>new GLTFExporter().parse(bodyB.scene, ok, no, { binary:true }));
   await fetch(outPath, { method:'POST', body:glb });
   return { verts:n, covers:cov.count, of:rawB.n };
@@ -548,12 +566,12 @@ async function measure(url){
   const raw = arrays(sm), W = worldVerts(sm), A = affine(raw.pos, W), box = boxOf(W), H = box.max.y - box.min.y;
   const Wn = new Float32Array(raw.nrm.length); for(let i=0;i<raw.n;i++){ const v = new THREE.Vector3(raw.nrm[i*3], raw.nrm[i*3+1], raw.nrm[i*3+2]).applyMatrix3(A.normal).normalize(); Wn.set([v.x, v.y, v.z], i*3); }
   const names = sm.skeleton.bones.map(b=>b.name.replace(/^mixamorig:?/, ''));
-  const region = new Array(raw.n); for(let j=0;j<raw.n;j++){ let b = 0, w = -1; for(let k=0;k<4;k++) if(raw.sw[j*4+k] > w){ w = raw.sw[j*4+k]; b = raw.si[j*4+k]; } region[j] = REGION(names[b] || ''); }
+  const region = new Array(raw.n), finger = new Uint8Array(raw.n); for(let j=0;j<raw.n;j++){ let b = 0, w = -1; for(let k=0;k<4;k++) if(raw.sw[j*4+k] > w){ w = raw.sw[j*4+k]; b = raw.si[j*4+k]; } region[j] = REGION(names[b] || ''); finger[j] = /Hand(Thumb|Index|Middle|Ring|Pinky)/.test(names[b] || '') ? 1 : 0; }
   const mat = Array.isArray(sm.material) ? sm.material[0] : sm.material;
   const col = colours(mat.map, sm.geometry.attributes.uv, raw.n), skin = await skinMask(sm, raw);
   sm.skeleton.bones.forEach(b=>b.updateMatrixWorld(true));
   const bindWorld = sm.skeleton.bones.map(b=>b.matrixWorld.clone().invert());
-  return { body, sm, raw, W, Wn, A, H, names, region, col, skin, bindWorld };
+  return { body, sm, raw, W, Wn, A, H, names, region, finger, col, skin, bindWorld };
 }
 /* which of the body's vertices a garment (drawn-space positions G, normals GN) lies over */
 function coverage(B, G, GN, o){
@@ -561,6 +579,8 @@ function coverage(B, G, GN, o){
   const GG = grid(G, B.H/120), out = new Uint8Array(B.raw.n); let count = 0;
   for(let j=0;j<B.raw.n;j++){
     if(B.region[j] === 'head' || (!B.skin[j] && (B.region[j] === 'torso' || B.region[j] === 'neck'))) continue;   // hair stays drawn
+    if(o.allow && !o.allow.has(B.region[j])) continue;
+    if(B.finger && B.finger[j]) continue;                                     // no garment here covers fingers (the gauntlets leave them bare)
     const x = B.W[j*3], y = B.W[j*3+1], z = B.W[j*3+2], nx = B.Wn[j*3], ny = B.Wn[j*3+1], nz = B.Wn[j*3+2];
     // along the normal, a step at a time: is there garment over this point, close enough, facing the same way?
     for(let t=0; t<=reach; t+=side*0.7){
@@ -571,6 +591,7 @@ function coverage(B, G, GN, o){
   }
   return { bits:out, count };
 }
+function base64ToBits(b64, n){ const s = atob(b64), out = new Uint8Array(n); for(let i=0;i<n;i++) out[i] = (s.charCodeAt(i >> 3) >> (i & 7)) & 1; return out; }
 function bitsToBase64(bits){
   const bytes = new Uint8Array(Math.ceil(bits.length/8)); for(let i=0;i<bits.length;i++) if(bits[i]) bytes[i >> 3] |= 1 << (i & 7);
   let s = ''; for(let i=0;i<bytes.length;i++) s += String.fromCharCode(bytes[i]); return btoa(s);

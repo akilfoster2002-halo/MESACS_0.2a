@@ -133,7 +133,7 @@
         for(let t=0;t<bd.I.length;t++) any[bd.I[t]] = 1; for(let t=bd.start;t<bd.end;t++) shown[bd.I[t]] = 1;
         const G = gs.map((g, k)=>{ const P = posedOf(g), d = drawn(g); return { P, N:normalsOf(P, d.I, d.start, d.end), find:gridOf(P, near*2), edge:edges[k], s:flip[k] }; });
         const BN = normalsOf(B, bd.I, 0, bd.I.length);
-        let holes = 0, hidden = 0, poke = 0, close = 0, dbl = 0, bare = 0;
+        let holes = 0, hidden = 0, poke = 0, close = 0, dbl = 0, bare = 0; const holeIdx = [];
         for(let j=0;j<n;j++){
           const x = B[j*3], y = B[j*3+1], z = B[j*3+2];
           // a hole: skin not drawn that the garments have moved well away from (further than at rest, and far)
@@ -141,7 +141,7 @@
             if(best > far && best > dist0[j] + near){
               // far from cloth — but a wide trouser leg swings away from a shin and still hides it: only a hole if nothing lies out along its normal
               let over = false; for(let t=near; t<H*0.15 && !over; t+=near*0.75){ const px = x + BN[j*3]*t, py = y + BN[j*3+1]*t, pz = z + BN[j*3+2]*t; over = G.some(g=>{ const r = g.find(px, py, pz); return r.i >= 0 && r.d < near; }); }
-              if(!over) holes++; }
+              if(!over){ holes++; if(holeIdx.length < 400) holeIdx.push(j); } }
             continue; }
           // doubled: drawn skin with garment lying right on it, facing the same way (a hand moulded into a sleeve, a second skin)
           if(shown[j] && under[j] < 0){ bare++; for(const g of G){ const r = g.find(x, y, z); if(r.i < 0 || r.d > H*0.004 || g.edge[r.i]) continue; const i = r.i;
@@ -152,7 +152,7 @@
           const i = r.i, d = g.s*((x - g.P[i*3])*g.N[i*3] + (y - g.P[i*3+1])*g.N[i*3+1] + (z - g.P[i*3+2])*g.N[i*3+2]); if(d > out) poke++;
         }
         // (poke-through is out of all the skin the garments cover, drawn or not: good covers leave almost none of it drawn)
-        frames.push({ clip, f, holes, hidden, poke, close, dbl, holesK:hidden ? Math.round(holes/hidden*1000) : 0, pokeK:Math.round(poke/Math.max(1, hidden + close)*10000)/10, dblK:bare ? Math.round(dbl/bare*10000)/10 : 0 });
+        frames.push({ clip, f, holeIdx, holes, hidden, poke, close, dbl, holesK:hidden ? Math.round(holes/hidden*1000) : 0, pokeK:Math.round(poke/Math.max(1, hidden + close)*10000)/10, dblK:bare ? Math.round(dbl/bare*10000)/10 : 0 });
       }
     }
     const worst = k => frames.reduce((a, b)=>b[k] > a[k] ? b : a, frames[0]);
@@ -164,7 +164,7 @@
     [[0, 0, 1], [1, 0, 0], [0, 0, -1], [0.75, 0.25, 0.75]].forEach((d, i)=>{ const cam = new THREE.PerspectiveCamera(28, 1, 0.05, 50), n = new THREE.Vector3(...d).normalize();
       cam.position.copy(c).addScaledVector(n, h*2.25); cam.lookAt(c); const x = (i % 2)*512, y = (1 - Math.floor(i/2))*512; R.setViewport(x, y, 512, 512); R.setScissor(x, y, 512, 512); R.render(S, cam); });
     S.remove(m);
-    return { buried:gcount ? Math.round(buried/gcount*1000) : 0, skin:skinIn(sm, gs), shot:R.domElement.toDataURL('image/jpeg', 0.85), clips:clips.length, frames:frames.length, holes:{ worst:wh.holesK, at:wh.clip + '@' + wh.f }, poke:{ worst:wp.pokeK, at:wp.clip + '@' + wp.f, n:wp.poke + '/' + wp.close }, doubled:{ worst:wd.dblK, at:wd.clip + '@' + wd.f },
+    return { buried:gcount ? Math.round(buried/gcount*1000) : 0, skin:skinIn(sm, gs), shot:R.domElement.toDataURL('image/jpeg', 0.85), clips:clips.length, frames:frames.length, holes:{ worst:wh.holesK, at:wh.clip + '@' + wh.f, where:(()=>{ const names = sm.skeleton.bones.map(b=>b.name.replace(/^mixamorig:?/, '')), SI = sm.geometry.attributes.skinIndex, SW = sm.geometry.attributes.skinWeight, c = {}; wh.holeIdx.forEach(j=>{ let b = 0, w = -1; for(let k=0;k<4;k++){ const ww = SW.getComponent(j, k); if(ww > w){ w = ww; b = SI.getComponent(j, k); } } c[names[b]] = (c[names[b]] || 0) + 1; }); return c; })() }, poke:{ worst:wp.pokeK, at:wp.clip + '@' + wp.f, n:wp.poke + '/' + wp.close }, doubled:{ worst:wd.dblK, at:wd.clip + '@' + wd.f },
       mean:{ holes:+(frames.reduce((a, f)=>a + f.holesK, 0)/frames.length).toFixed(2), poke:+(frames.reduce((a, f)=>a + f.pokeK, 0)/frames.length).toFixed(2) } };
   };
   /* A SHEET OF MOVES: one body, clips from a moves file added to its rig, each at a moment, in a grid */

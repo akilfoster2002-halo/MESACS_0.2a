@@ -696,20 +696,31 @@ test('The Other Robin: caught, the assignment, the Psi lab, the prototype she fi
   ['headphones(true)', '3:20 PM', 'courtyardBegin(false)'].forEach(b => assert.ok(O.includes(b), 'outside has ' + b));
 });
 
-test('the face shapes really move: Robin\'s and Maya\'s are not empty (a sparse export once wrote them as zeros)', () => {
-  ['robin', 'maya'].forEach(who => {
+test('the face shapes really move: Robin\'s and Maya\'s are not empty (a sparse export once wrote them as zeros)', async () => {
+  // a model may be meshopt-compressed (Robin is): its data is decoded the way the game decodes it, with the same decoder
+  const md = require(path.join(__dirname, '..', 'public', 'lib', 'meshopt_decoder.js')), MeshoptDecoder = md.MeshoptDecoder || md;
+  await MeshoptDecoder.ready;
+  for(const who of ['robin', 'maya']){
     const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'characters', 'models', 'character-' + who + '.glb'));
     const jl = b.readUInt32LE(12), J = JSON.parse(b.slice(20, 20 + jl).toString('utf8')), bin = b.slice(20 + jl + 8);
-    const prim = J.meshes[0].primitives[0], names = J.meshes[0].extras.targetNames;
+    // the face is the mesh with the shapes (a face in pieces — skin, teeth, brows — has them on each; the skin has the most)
+    const mesh = J.meshes.filter(m => m.extras && m.extras.targetNames).sort((x, y) => y.extras.targetNames.length - x.extras.targetNames.length)[0];
+    const prim = mesh.primitives[0], names = mesh.extras.targetNames;
+    const view = bv => { const x = bv.extensions && bv.extensions.EXT_meshopt_compression;
+      if(!x) return { buf:bin, off:bv.byteOffset || 0, stride:bv.byteStride };
+      const out = new Uint8Array(x.count*x.byteStride), src = new Uint8Array(bin.buffer, bin.byteOffset + (x.byteOffset || 0), x.byteLength);
+      MeshoptDecoder.decodeGltfBuffer(out, x.count, x.byteStride, src, x.mode, x.filter || 'NONE');
+      return { buf:Buffer.from(out.buffer), off:0, stride:x.byteStride }; };
     ['jawOpen', 'smile', 'blink'].forEach(n => {
+      assert.ok(names.includes(n), who + ' has ' + n);
       const a = J.accessors[prim.targets[names.indexOf(n)].POSITION];
       assert.ok(!a.sparse, who + ' ' + n + ': stored whole, not sparse');
-      const bv = J.bufferViews[a.bufferView], sz = { 5126:4, 5122:2, 5120:1 }[a.componentType], rd = { 5126:'readFloatLE', 5122:'readInt16LE', 5120:'readInt8' }[a.componentType];
-      const st = bv.byteStride || 3*sz; let moved = 0;
-      for(let i = 0; i < a.count; i++) for(let c = 0; c < 3; c++) if(bin[rd]((bv.byteOffset || 0) + (a.byteOffset || 0) + i*st + c*sz)) moved++;
+      const v = view(J.bufferViews[a.bufferView]), sz = { 5126:4, 5122:2, 5120:1 }[a.componentType], rd = { 5126:'readFloatLE', 5122:'readInt16LE', 5120:'readInt8' }[a.componentType];
+      const st = v.stride || 3*sz; let moved = 0;
+      for(let i = 0; i < a.count; i++) for(let c = 0; c < 3; c++) if(v.buf[rd](v.off + (a.byteOffset || 0) + i*st + c*sz)) moved++;
       assert.ok(moved > 50, who + ' ' + n + ' moves some of her face (' + moved + ' values)');
     });
-  });
+  }
 });
 
 test("the buyer and his crew have faces: shapes on their bodies, and the fight on them", () => {
