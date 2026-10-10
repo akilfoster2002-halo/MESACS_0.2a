@@ -1030,4 +1030,38 @@ async function clean(garUrl, bodyUrl, outPath, o){
   return { unit:+unit.toFixed(5), recoloured:+(nbad/npx).toFixed(4), piping:+(piping/npx).toFixed(4), teeth, cut, edgePoints:bn.size, hems, tris:(I.length + extra.length)/3 };
 }
 
-window.LAB = { render, clean, base, card, garment:garmentFit, transfer, extract, measure, coverage, bitsToBase64, skinNow, poseToFit, staticMesh, icp, colours, ready:true };
+/* ===================================================== a garment made on her, taken in
+   A garment modelled on the body itself (in Blender, on her rest pose, with her skeleton and her weights) is already the
+   right shape and moves with her; what it needs is the record of which of her skin it covers, measured against the
+   very file the game loads (its points are numbered the way that file numbers them).
+     adopt <garment.glb> <body.glb> <out.glb> */
+async function adopt(garUrl, bodyUrl, outPath, o){
+  o = o || {};
+  const g = await load(garUrl); let gm = null; g.scene.traverse(x=>{ if(!gm && x.isSkinnedMesh) gm = x; });
+  // worn the way the game wears it (wardrobe.js): its own inverse binds on THIS body's bones, found by name — so its points
+  // land in the body file's own frame, whatever units that file was packed in
+  const MB = await measure(bodyUrl), smB = MB.sm, clean = s => String(s || '').replace(/^mixamorig:?/, '');
+  const ours = new Map(smB.skeleton.bones.map(b=>[clean(b.name), b]));
+  const skel = new THREE.Skeleton(gm.skeleton.bones.map(b=>ours.get(clean(b.name)) || smB.skeleton.bones[0]), gm.skeleton.boneInverses.map(m=>m.clone()));
+  const worn = new THREE.SkinnedMesh(gm.geometry, gm.material); smB.parent.add(worn);
+  worn.position.copy(smB.position); worn.quaternion.copy(smB.quaternion); worn.scale.copy(smB.scale); worn.bind(skel, gm.bindMatrix);
+  MB.body.scene.updateMatrixWorld(true);
+  const G = worldVerts(worn), geoW = gm.geometry.clone(), PW = geoW.attributes.position;
+  smB.parent.remove(worn);
+  for(let i=0;i<PW.count;i++) PW.setXYZ(i, G[i*3], G[i*3+1], G[i*3+2]);
+  weldedNormals(geoW);
+  const cov = coverage(MB, G, geoW.attributes.normal.array, o);
+  // the skin at the very edge stays drawn (a couple of rows in from where the covering stops): hidden right up to the
+  // edge, her triangles go in steps, and the steps show as dark notches beside it
+  const Ib = smB.geometry.index.array, nbB = neighbours(Ib, MB.raw.n), repB = welded(MB.raw.pos, MB.raw.n);
+  for(let round=0; round<(o.erode === undefined ? 2 : o.erode); round++){
+    const drop = []; for(let j=0;j<MB.raw.n;j++){ if(!cov.bits[j]) continue; for(const q of nbB[j]) if(!cov.bits[q]){ drop.push(j); break; } }
+    const dropRep = new Set(drop.map(j=>repB[j])); for(let j=0;j<MB.raw.n;j++) if(cov.bits[j] && dropRep.has(repB[j])){ cov.bits[j] = 0; cov.count--; } }
+  gm.userData = { covers:bitsToBase64(cov.bits), coversOf:MB.raw.n, made:'adopt' };
+  gm.name = 'garment';
+  const glb = await new Promise((ok, no)=>new GLTFExporter().parse(g.scene, ok, no, { binary:true }));
+  await fetch(outPath, { method:'POST', body:glb });
+  return { verts:PW.count, covers:cov.count, of:MB.raw.n };
+}
+
+window.LAB = { boxOfUrl:async u=>{ const g = await load(u); let sm = null; g.scene.traverse(x=>{ if(!sm && x.isSkinnedMesh) sm = x; }); if(sm) sm.skeleton.pose(); g.scene.updateMatrixWorld(true); const b = boxOf(worldVerts(sm)); return { name:sm.name, min:b.min.toArray().map(v=>+v.toFixed(3)), max:b.max.toArray().map(v=>+v.toFixed(3)), bones:sm.skeleton.bones.slice(0,3).map(x=>x.name), scale:sm.skeleton.bones[0].getWorldScale(new THREE.Vector3()).toArray() }; }, render, clean, adopt, base, card, garment:garmentFit, transfer, extract, measure, coverage, bitsToBase64, skinNow, poseToFit, staticMesh, icp, colours, ready:true };

@@ -249,7 +249,7 @@
    "roll-top": "814b6b9079a1",
    "baggy-jeans": "3b1c3be8fd5f",
    "gecko-cuffs": "00605895ef74",
-   "tech-jacket": "9de2b9243d50",
+   "tech-jacket": "f02c514bb559",
    "skyline-shoes": "b67a65e450ef"
   },
   "holes": {
@@ -258,19 +258,19 @@
    "where": {}
   },
   "poke": {
-   "worst": 0.5,
-   "at": "roll@7",
-   "n": "2/14"
+   "worst": 1,
+   "at": "flip@5",
+   "n": "4/67"
   },
   "doubled": {
-   "worst": 0.5,
-   "at": "flip@4"
+   "worst": 0.7,
+   "at": "flip@1"
   },
   "skin": 1,
   "buried": 2,
   "mean": {
    "holes": 0,
-   "poke": 0.07
+   "poke": 0.22
   },
   "frames": 112,
   "limit": {
@@ -357,7 +357,7 @@
   "pass": true,
   "files": {
    "body": "ec1c9de5b41c",
-   "tech-jacket": "9de2b9243d50"
+   "tech-jacket": "f02c514bb559"
   },
   "holes": {
    "worst": 0,
@@ -365,19 +365,19 @@
    "where": {}
   },
   "poke": {
-   "worst": 0,
-   "at": "idle@0",
-   "n": "0/7"
+   "worst": 1.8,
+   "at": "walk_back@7",
+   "n": "3/67"
   },
   "doubled": {
-   "worst": 0,
-   "at": "idle@0"
+   "worst": 0.4,
+   "at": "walk@3"
   },
   "skin": 0,
-  "buried": 0,
+  "buried": 4,
   "mean": {
    "holes": 0,
-   "poke": 0
+   "poke": 0.4
   },
   "frames": 112,
   "limit": {
