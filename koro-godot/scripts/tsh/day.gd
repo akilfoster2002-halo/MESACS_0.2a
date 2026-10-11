@@ -33,6 +33,14 @@ func enter() -> void:
 			var d: Array = g.nav.spots.schoolDoor
 			g.place(Vector3(d[0] + 1.5, 0, d[1] - 2.5), PI); g._beat_start()
 		"sneak", "detention", "after": g.hs.enter_at(g.S.step)
+		"courtyard":
+			g.kit_all(false); g.kit_set(g.SCHOOL_KIT); g.shades(false); g.show_inside(false)
+			g.courtyard_begin(true)
+		"gethome":
+			g.kit_all(false); g.kit_set(g.SCHOOL_KIT); g.shades(false); g.show_inside(false)
+			g.station.gethome_begin(true)
+		"evening":
+			g.mode = "end"; g.black(true); g.end_text("[font_size=18]ROBIN RYU[/font_size]\nTHE END")
 		_: g.hs.enter_at(g.S.step)
 
 func tick(dt: float) -> void:

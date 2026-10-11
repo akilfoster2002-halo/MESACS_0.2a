@@ -48,7 +48,9 @@ Ported so far: the opening (the buyer's call, her room, the kit, the note, the w
 lesson over the roofs (`scripts/tsh/boots.gd` is `public/boots.js` line for line: hold SPACE roof to roof, the
 rhythm, dive, pull-up, wall kick, dash), the Dragon Alley fight (`fight.gd`), the WFC raid and the chase
 (`raid.gd`, `chase.gd`: nine stretches, three fights, missiles, drones, the gunship, Mom's call), home at 3 AM and
-the watchers on the roof across the street — night one, to END OF PROLOGUE. What comes next: `TSH_PORT.md`.
+the watchers on the roof across the street — night one, to END OF PROLOGUE; then (ENTER) day two: the morning,
+school, the lab and its puzzles, Canon and Harbor Lane Station, Maya and Kai, the alpha, the chase, and home — to THE
+END. How it was ported: `TSH_PORT.md`.
 
 ## TSH — the test stage
 

@@ -4,5 +4,5 @@ func _init() -> void:
 	var st: Array = [n]
 	while st.size():
 		var c: Node = st.pop_back(); st.append_array(c.get_children())
-		if String(c.name).begins_with("worn"): print(c.name, " ", c.get_class())
+		if String(c.name).begins_with("worn") or String(c.name).begins_with("under"): print(c.name, " ", c.get_class())
 	quit()

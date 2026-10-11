@@ -43,7 +43,10 @@ const KIND := {
 	"big": {"char": "thug-a", "hp": 5.0, "dmg": 16.0, "windup": 0.80, "walk": 1.2, "run": 3.6},
 	"lean": {"char": "thug-b", "hp": 3.0, "dmg": 11.0, "windup": 0.58, "walk": 1.6, "run": 4.5},
 	"wfc": {"char": "thug-a", "hp": 4.0, "dmg": 12.0, "windup": 0.78, "walk": 1.3, "run": 4.0},
-	"wfcLean": {"char": "thug-b", "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6}}
+	"wfcLean": {"char": "thug-b", "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
+	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
+	"kai": {"char": "kofi", "hp": 9.0, "dmg": 15.0, "windup": 0.5, "walk": 1.6, "run": 4.8},
+	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
 var g          # the game (game.gd)
@@ -96,11 +99,11 @@ func _ready() -> void:
 # ================================================================== the cast
 func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	var K: Dictionary = KIND[kind].duplicate()
-	var e := {"kind": kind, "K": K, "hp": float(o.get("hp", K.hp)), "x": x, "z": z, "y": floor_y, "vx": 0.0, "vy": 0.0, "vz": 0.0, "yaw": float(o.get("yaw", 0.0)),
+	var e := {"bystander": o.get("bystander", false), "kind": kind, "K": K, "hp": float(o.get("hp", K.hp)), "x": x, "z": z, "y": floor_y, "vx": 0.0, "vy": 0.0, "vz": 0.0, "yaw": float(o.get("yaw", 0.0)),
 		"state": o.get("state", "idle"), "t": 0.0, "weapon": o.get("weapon", false), "grabber": false, "cool": randf_range(1.2, 2.6), "clip": "",
 		"active": false, "tag": o.get("tag", ""), "home": null, "want_ring": randf_range(2.5, 3.4), "side": -1.0 if randf() < 0.5 else 1.0,
 		"guard": null, "parried": false, "talking": false}
-	var n: Node3D = (load("res://assets/tsh/people/%s.glb" % K.char) as PackedScene).instantiate()
+	var n: Node3D = (load(K.get("path", "res://assets/tsh/people/%s.glb" % K.char)) as PackedScene).instantiate()
 	g.add_child(n); e.node = n; e.ap = g._find(n, func(x): return x is AnimationPlayer)
 	for nm in e.ap.get_animation_list():
 		if not nm in ONCE: e.ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
@@ -154,7 +157,7 @@ func hit1(e: Dictionary, nm: String) -> float:
 	e.clip = nm; e.ap.stop(); e.ap.play(nm, 0.06)
 	return e.ap.get_animation(nm).length
 func standing(e) -> bool:
-	return e != null and not e.state in ["down", "ko", "flying", "getup", "gone"] and e.kind != "buyer"
+	return e != null and not e.state in ["down", "ko", "flying", "getup", "gone"] and e.kind != "buyer" and not e.get("bystander", false)
 func alive() -> Array: return E.filter(func(e): return standing(e))
 func pick(tag: String) -> Dictionary:
 	for e in E:
@@ -724,7 +727,7 @@ func _brawl_enter() -> void:
 	dir.free = true; keys_label.visible = true
 	var i := 0
 	for e in E:
-		if e.hp > 0 and e.kind != "buyer": e.active = true; e.state = "approach"; e.t = 0.0; e.cool = 0.8 + i*0.7; i += 1
+		if e.hp > 0 and e.kind != "buyer" and not e.get("bystander", false): e.active = true; e.state = "approach"; e.t = 0.0; e.cool = 0.8 + i*0.7; i += 1
 
 func _dodge_lesson(x: Dictionary) -> void:
 	if x.e.tag == "t2" and x.dodged and not dir.get("dodged", false):
@@ -745,7 +748,7 @@ func _pull_enter() -> void:
 	var a := alive(); a.sort_custom(func(x, y): return dist(x) > dist(y))
 	if a.size(): var far = a[0]; later(1.6, func(): if on and dir.id == "pull" and not dir.get("pulled", false): freeze("G", "PULL", "drag him in", "pull", far))
 func _regret_enter() -> void:
-	var ks := E.filter(func(e): return e.state in ["ko", "down"] and e.hp <= 0 and e.kind != "buyer")
+	var ks := E.filter(func(e): return e.state in ["ko", "down"] and e.hp <= 0 and e.kind != "buyer" and not e.get("bystander", false))
 	ks.sort_custom(func(a, b): return (INF if a.state == "down" else float(a.get("ko_at", 0))) > (INF if b.state == "down" else float(b.get("ko_at", 0))))
 	dir.reg = null
 	if ks.size():
@@ -807,7 +810,7 @@ func _tick_director(dt: float) -> void:
 	if pd != null and pd.target.state == "windup" and pd.target.t >= pd.at: freeze(pd.key, pd.what, pd.sub, pd.want, pd.target)
 	elif pd != null and pd.target.state != "windup": dir.pending = null
 	var s: Dictionary = dir.steps[dir.i]
-	if dir.free and not dir.get("ending", false) and s.id != "regret" and s.id != "last" and not E.any(func(e): return e.kind != "buyer" and e.hp > 0):
+	if dir.free and not dir.get("ending", false) and s.id != "regret" and s.id != "last" and not E.any(func(e): return e.kind != "buyer" and not e.get("bystander", false) and e.hp > 0):
 		dir.ending = true; dir.pending = null
 		if dir.freeze != null: unfreeze()
 		R.force_target = null; g.cue("win")
@@ -836,7 +839,7 @@ func start(done: Callable, script := "") -> void:
 	hud.visible = true; keys_label.visible = false
 	for e in E:
 		e.node.visible = true
-		if e.kind != "buyer" and e.hp > 0: e.state = "circle"; e.t = 0.0; e.active = false
+		if e.kind != "buyer" and not e.get("bystander", false) and e.hp > 0: e.state = "circle"; e.t = 0.0; e.active = false
 		e.y = floor_y; _place(e)
 	time_scale = 1.0; ramp.to = 1.0
 	step_to(0)

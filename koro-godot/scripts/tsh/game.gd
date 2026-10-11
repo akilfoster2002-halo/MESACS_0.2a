@@ -64,6 +64,7 @@ var sky_mat: ProceduralSkyMaterial
 var lamp: OmniLight3D
 var mode := ""                  # "" play · "reel" a scene
 var reel = null
+var dutch := 0.0; var lens_roll := 0.0; var lens_jitter := Vector3.ZERO
 var staged = null               # {clip, pos, ry}
 var talk_q: Array = []
 var lesson := {"i": 0, "perfect": 0, "lands": 0}
@@ -72,6 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
+var shots_after := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var fight: Fight
@@ -79,6 +81,8 @@ var chase: Chase
 var today: TshDay
 var hs: School
 var puzzle: Puzzle
+var cy: Courtyard
+var station: Station
 var raid: Raid
 var ringing_on := false
 var end_label: RichTextLabel
@@ -106,6 +110,7 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
+	if args.size() >= 2 and args[0] == "aftershots": shots_dir = args[1]; shots_after = true
 	_load_data()
 	_world()
 	_robin()
@@ -117,16 +122,21 @@ func _ready() -> void:
 	raid = Raid.new(self); add_child(raid)
 	today = TshDay.new(self); add_child(today)
 	hs = School.new(self); add_child(hs)
+	cy = Courtyard.new(self); add_child(cy)
+	station = Station.new(self); add_child(station); station.cy = cy
 	puzzle = Puzzle.new(self); hud.add_child(puzzle)
 	if args.has("new") or shots_dir != "": S = _fresh()
 	if shots_fight: S.step = "deal"; S.lesson = 9
 	elif shots_raid: S.step = "raid"; S.lesson = 9
 	elif shots_day: S.day = true; S.step = "morning"; S.dm = 522
+	elif shots_after: S.day = true; S.step = "courtyard"; S.dm = 920
+	if args.size() >= 3 and args[2] == "street": S.tun = 7
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
 	elif shots_raid: _shots_raid()
 	elif shots_day: _shots_day()
+	elif shots_after: _shots_after()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -243,7 +253,7 @@ func _look() -> void:
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color("#e4ecf2").lerp(Color("#cfe6ff"), 0.5); env.ambient_light_energy = 1.1
 			env.fog_light_color = Color("#c9dde0"); env.fog_density = 0.0026*0.7; env.tonemap_exposure = 1.0
 			env.glow_intensity = 0.25
-			if sun: sun.light_color = Color("#ffe6c4"); sun.light_energy = 2.4; sun.rotation = Vector3(-0.9, -0.6, 0)
+			if sun: sun.light_color = Color("#ffe6c4"); sun.light_energy = 1.6; sun.rotation = Vector3(-0.9, -0.6, 0)
 			for l in city_lights: l[0].light_energy = l[1]*0.25
 		else:
 			env.background_mode = Environment.BG_COLOR; env.background_color = Color("#0b2a26")
@@ -331,6 +341,11 @@ const SCHOOL_KIT := {"jacket": false, "gloves": false, "shoes": true, "bracelet"
 func kit(piece: String, on: bool) -> void:
 	var n := _find(model, func(x): return x is Node3D and x.name == KIT_MESH.get(piece, "?"))
 	if n: n.visible = on
+	# what of her body the garment covers (the export keeps it apart): showing when the garment is off
+	var under := {"jacket": "under_jacket", "gloves": "under_cuffs"}
+	if under.has(piece):
+		var u := _find(model, func(x): return x is Node3D and x.name == under[piece])
+		if u: u.visible = not on
 func kit_all(on: bool) -> void:
 	for p in KIT_MESH: kit(p, on)
 	shades(on and not day())
@@ -511,8 +526,16 @@ func _reel_next() -> void:
 	if f.shot.has("enter"): f.shot.enter.call()
 	cam.fov = f.shot.get("fov", 50)
 	_reel_cam()
+## more shots, straight after the one playing (a branch: which way a mash went)
+func reel_insert(shots: Array) -> void:
+	if reel == null: return
+	for i in shots.size(): reel.shots.insert(reel.i + 1 + i, shots[i])
+func reel_replace_rest(shots: Array) -> void:
+	if reel == null: return
+	reel.shots.resize(reel.i + 1); reel.shots.append_array(shots)
 func _reel_end(skipped: bool) -> void:
 	var d: Callable = reel.done
+	dutch = 0.0; lens_roll = 0.0
 	reel = null; mode = ""; staged = null; talk_q.clear(); sub_label.text = ""; voice_player.stop()
 	d.call(skipped)
 func _at(v, k: float, t: float) -> Vector3:
@@ -525,8 +548,12 @@ func _reel_cam() -> void:
 	var e := k if s.get("ease", true) == false else k*k*(3 - 2*k)
 	var c := _at(s.cam, e, f.t); var l := _at(s.look, e, f.t)
 	var br := 0.012 + 0.0006*cam.fov; var tt := Time.get_ticks_msec()/1000.0
-	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br)
+	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br) + lens_jitter
 	if (l - cam.global_position).length() > 0.001: cam.look_at(l)
+	if s.has("fov2"): cam.fov = lerpf(s.get("fov", 50), s.fov2, e)
+	# the lens, tilted (a cut's dutch angle, easing in) and, while the station falls apart, hand-held
+	lens_roll += (dutch - lens_roll)*minf(1, get_process_delta_time()*10)
+	if absf(lens_roll) > 0.0005: cam.rotate_object_local(Vector3.FORWARD, lens_roll)
 func _tick_reel(dt: float) -> void:
 	var f = reel; var s = f.shot
 	f.t += dt
@@ -589,7 +616,7 @@ func _beat_start() -> void:
 			var d: Array = nav.spots.schoolDoor
 			marker.position = Vector3(d[0], 30, d[1]); marker.visible = true
 		"sneak": hs.sneak_begin()
-		"courtyard": courtyard_begin()
+		"courtyard": pass
 		"end":
 			mode = "end"; black(true); end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]")
 
@@ -914,10 +941,10 @@ func _near_school_door() -> bool:
 	var d: Array = nav.spots.schoolDoor
 	return Vector2(boots.x - d[0], boots.z - d[1]).length() < 2.4 and boots.y < 1.0
 ## AFTER SCHOOL: Canon, and the closed station under Harbor Lane (courtyard.gd)
-func courtyard_begin() -> void:
+func courtyard_begin(resume := false) -> void:
 	S.step = "courtyard"; _save()
 	objective(QUEST.courtyard.goal)
-	note("(Canon and Harbor Lane Station are the next part of the port.)")
+	cy.begin(resume)
 func _in_alley() -> bool:
 	var a: Dictionary = nav.zones.alley
 	return boots.x > a.x1 - 1 and boots.x < a.x2 + 1 and boots.z > a.z1 - 1 and boots.z < a.z2 + 1
@@ -933,6 +960,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 		return
 	if mode == "" and ev is InputEventKey and chase.key(ev): return
 	if ev is InputEventKey and hs.key(ev): return
+	if mode == "" and ev is InputEventKey and cy.key(ev): return
+	if station.B != null and ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT: station.brawl_click()
 	if mode == "puzzle": return
 	if mode == "end" and ev is InputEventKey and ev.pressed and (ev.keycode == KEY_ENTER or ev.keycode == KEY_KP_ENTER) and S.step == "end": today.start(); return
 	if mode == "" and ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_E and S.step == "school" and _near_school_door():
@@ -965,6 +994,8 @@ func _process(dt: float) -> void:
 	raid.tick(dt)
 	today.tick(dt)
 	hs.tick(dt)
+	cy.tick(dt)
+	station.tick(dt)
 	_crew_bag(dt)
 	if mode == "" and chase.on: chase.tick(dt)
 	if mode in ["fight", "end", "puzzle", "read", "wc"]: return
@@ -1150,6 +1181,97 @@ func _shots_day() -> void:
 	await reel_snaps.call("outside")
 	await get_tree().create_timer(1.5).timeout; await _snap("after")
 	print("day over: step=", S.step)
+	get_tree().quit()
+## after school, photographed: Canon at the stair, each gate in the station (E, the puzzle solved), the platform, the
+## fights (swung for her), the alpha, its fight (SPACE mashed for her), the escape, the street, the chase (lost for her),
+## WFC (lost), alone, home over the roofs, and the end
+func _shots_after() -> void:
+	var n := [0]; station.auto = true
+	var reel_snaps := func(tag: String, every := 3.0):
+		while mode == "reel":
+			await get_tree().create_timer(every).timeout; await _snap("%s_%02d" % [tag, n[0]]); n[0] += 1
+	var press_e := func():
+		var ev := InputEventKey.new(); ev.keycode = KEY_E; ev.pressed = true; _unhandled_input(ev)
+	var solve_all := func(tag: String):
+		await get_tree().create_timer(1.2).timeout; await _snap(tag)
+		for j in 6:
+			if not puzzle.visible: break
+			puzzle.solve(); await get_tree().create_timer(1.8).timeout
+	await get_tree().create_timer(2.0).timeout
+	if S.get("tun", 0) == 7: await _shots_street(n, reel_snaps); return
+	await _snap("street"); await get_tree().create_timer(4.0).timeout; await _snap("phone")
+	place(Vector3(Courtyard.ENTRY.x - 1, 0, Courtyard.ENTRY.y + 2.5), PI)
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("entry")
+	await get_tree().create_timer(2.0).timeout; await _snap("tunnel_in")
+	var stops := [["panel", Vector3(518.2, 0, 4.2)], ["switch", Vector3(514.6, 0, -27)], ["gizmo", Vector3(520, 0, -44)], ["hatch", Vector3(520.6, 0, -70.0)], ["quiet", Vector3(520, 0, -81)], ["door", Vector3(521.2, 0, -86.2)], ["meet", Vector3(520, 0, -95)]]
+	for st in stops:
+		place(st[1], 0.0); await get_tree().create_timer(1.0).timeout
+		if st[0] in ["panel", "switch", "hatch", "door"]: press_e.call()
+		await get_tree().create_timer(0.5).timeout
+		if puzzle.visible: await solve_all.call("puzzle_" + st[0])
+		await reel_snaps.call(st[0])
+		if puzzle.visible:
+			await solve_all.call("puzzle_" + st[0] + "_b"); await reel_snaps.call(st[0] + "_b")
+		await get_tree().create_timer(0.8).timeout
+	# the fights: swung for her until the next film starts
+	for fi in 2:
+		var t0 := Time.get_ticks_msec(); var k := 0
+		while mode != "reel" and Time.get_ticks_msec() - t0 < 60000:
+			await get_tree().create_timer(0.3).timeout
+			if mode == "fight": fight._press(); fight._release()
+			k += 1
+			if k % 15 == 0: await _snap("fight%d_%02d" % [fi, k/15])
+		await reel_snaps.call("after_fight%d" % fi)
+	# the alpha's fight on her feet: hit it till it has had enough
+	var t1 := Time.get_ticks_msec()
+	while station.B != null and Time.get_ticks_msec() - t1 < 40000:
+		await get_tree().create_timer(0.5).timeout; station.brawl_click()
+		if (Time.get_ticks_msec() - t1) % 5000 < 500: await _snap("brawl_%d" % ((Time.get_ticks_msec() - t1)/5000))
+		if Time.get_ticks_msec() - t1 > 12000 and station.B != null: station.B.hits = 2
+	await reel_snaps.call("duel", 2.0)
+	await get_tree().create_timer(1.5).timeout; await _snap("escape")
+	var L: Array = cy.sp.ladder; place(Vector3(L[0], 0, L[1] + 1.0), 0.0)
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("street")
+	await get_tree().create_timer(3.0).timeout; await _snap("chase_0")
+	await get_tree().create_timer(3.0).timeout; await _snap("chase_1")
+	if station.hunt: station.hunt.t = 999.0
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("lost")
+	await get_tree().create_timer(2.0).timeout; await _snap("wfc_run")
+	if station.hunt: station.hunt.t = 999.0
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("hide")
+	await get_tree().create_timer(1.0).timeout; await _snap("gethome")
+	place(Vector3(73, 12.02, 34), PI/2)
+	await get_tree().create_timer(2.0).timeout
+	await reel_snaps.call("home")
+	await get_tree().create_timer(2.0).timeout; await reel_snaps.call("end")
+	await _snap("the_end")
+	print("after over: step=", S.step)
+	get_tree().quit()
+func _shots_street(n: Array, reel_snaps: Callable) -> void:
+	await reel_snaps.call("street")
+	await get_tree().create_timer(3.0).timeout; await _snap("chase_0")
+	print("chase: watch=", cy.watch, " mode=", mode, " hunt=", station.hunt != null, " mon=", station.mon != null)
+	if station.hunt: station.hunt.t = 999.0
+	await get_tree().create_timer(1.0).timeout
+	print("after meter: watch=", cy.watch, " mode=", mode)
+	await reel_snaps.call("lost")
+	await get_tree().create_timer(2.0).timeout; await _snap("wfc_run")
+	print("wfc: watch=", cy.watch, " mode=", mode)
+	if station.hunt: station.hunt.t = 999.0
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("hide")
+	await get_tree().create_timer(1.0).timeout; await _snap("gethome")
+	print("gethome: watch=", cy.watch, " step=", S.step)
+	place(Vector3(73, 12.02, 34), PI/2)
+	await get_tree().create_timer(2.0).timeout
+	await reel_snaps.call("home")
+	await get_tree().create_timer(2.0).timeout; await reel_snaps.call("end")
+	await _snap("the_end")
+	print("after over: step=", S.step)
 	get_tree().quit()
 func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw

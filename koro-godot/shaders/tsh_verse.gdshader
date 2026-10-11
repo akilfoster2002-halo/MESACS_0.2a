@@ -10,6 +10,14 @@ uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform float verse : hint_range(0.0, 1.0) = 1.0;
 uniform float glow_threshold = 0.85;
 uniform float dot_size = 4.0;
+// HAYWIRE (tsh.js tickHaywire, the alpha): the picture tears into bands and slips its colour plates, the colour goes
+// round the wheel, the edges darken. All 0 = untouched.
+uniform float glitch = 0.0;
+uniform float ca = 0.0;
+uniform float hue = 0.0;
+uniform float vig = 0.0;
+uniform float contrast = 0.0;
+uniform float time = 0.0;
 
 void vertex(){ POSITION = vec4(VERTEX.xy, 1.0, 1.0); }
 
@@ -34,6 +42,8 @@ vec3 kuwahara(vec2 uv, vec2 px){
 void fragment(){
 	vec2 res = VIEWPORT_SIZE, px = 1.0/res;
 	vec2 uv = SCREEN_UV, d = uv - 0.5; float r2 = dot(d, d);
+	if(glitch > 0.0){ float band = floor(uv.y*24.0 + floor(time*14.0)*7.0); float h = fract(sin(band*91.7 + floor(time*14.0))*43758.5);
+		uv.x += (h - 0.5)*glitch*0.25*step(0.6, h); }
 	uv = 0.5 + d*(1.0 - 0.02*verse*r2*4.0);                                   // a touch of barrel lens
 	vec3 c0 = texture(screen_tex, uv).rgb;
 	vec3 col = c0;
@@ -61,5 +71,9 @@ void fragment(){
 		float dotm = 1.0 - smoothstep(rad - 0.06, rad + 0.06, dt);
 		col += glow*dotm*1.4*verse;
 	}
+	if(ca > 0.0){ col.r = mix(col.r, texture(screen_tex, uv + vec2(ca, 0.0)).r, 0.8); col.b = mix(col.b, texture(screen_tex, uv - vec2(ca, 0.0)).b, 0.8); }
+	if(hue != 0.0){ float a = hue*6.2831853; vec3 k = vec3(0.57735); col = col*cos(a) + cross(k, col)*sin(a) + k*dot(k, col)*(1.0 - cos(a)); }
+	if(contrast > 0.0){ col = max(vec3(0.0), (col - 0.18)*(1.0 + contrast) + 0.18); }
+	if(vig > 0.0){ col *= 1.0 - vig*smoothstep(0.15, 0.7, r2*2.0); }
 	ALBEDO = col;
 }

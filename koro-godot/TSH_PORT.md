@@ -20,7 +20,18 @@ The browser game in `public/tsh*.js` (~18,000 lines) is the source of truth; por
   the stretch again). `fight.gd` takes `setup({arena, blocks, floor, meet, uniform})` + `start(cb, "brawl")`.
 - Photograph: `-- shots <dir>` (opening, lesson), `-- fightshots <dir>` (alley → raid), `-- raidshots <dir>`
   (billboard → every chase stage → the three fights → home → 3 AM → end).
-- Not yet: the alt branch (Kai in the flat), day two.
+- Day two is ported too, to THE END: `day.gd` (the morning, the commute, the overlook), `school.gd` (the lobby,
+  the sneak — the teacher's round and cone, the board, the bathroom, the PA — caught, the lab alive with its four
+  shaders, the robot, the talk, outside), `puzzle.gd` (tshpuzzle.js: route/net, gears, freq, diagnose — the same
+  seeded boards), `courtyard.gd` (Canon, the station's gates and lamps, the gizmo, the hatch, the quiet passage,
+  pairAngles/lineShots), `station.gd` (Maya and Kai, both fights, the alpha, the monster's fight on her feet and the
+  duel with its mashes, the escape, the chase over the city, WFC, alone, home, her mother), `monster.gd`
+  (tshalpha.js: the goose driven by the spider and the T-rex, its IK gait, skin, static, swarm, blight; the alpha on
+  Maya), `retarget.gd` (her fight clips baked onto Kai, Maya and Canon).
+- Photograph: `-- dayshots <dir>` (morning → school → outside), `-- aftershots <dir> [street]` (Canon → THE END).
+- Exports for day two: `tools/tsh_export/export_day.js` (+ finish_day.sh: webp, prune, uninstance, dequantize) and
+  `export_robin.js` (Robin with every kit piece named, and the body under the jacket/cuffs as `under_*` meshes).
+- The browser's alt branch (news/home/apt/escape/chair) is unreachable there (QUEST raid → night), so not ported.
 - The Spider-Verse post quad reads the screen before transparent things draw: give anything transparent
   `render_priority = 101` or it disappears.
 
