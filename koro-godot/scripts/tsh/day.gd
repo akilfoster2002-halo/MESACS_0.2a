@@ -46,7 +46,7 @@ func enter() -> void:
 func tick(dt: float) -> void:
 	if alarm_on:
 		alarm_t -= dt
-		if alarm_t <= 0: alarm_t = 0.9; g.cue("ui"); g.get_tree().create_timer(0.16).timeout.connect(func(): if alarm_on: g.cue("ui"))
+		if alarm_t <= 0: alarm_t = 0.9; g.cue("beep")
 	# the commute: on the roof across the lane from school, the time, and down she goes
 	if g.S.step == "commute" and g.mode == "" and g.boots.ground and _on_overlook(): overlook()
 

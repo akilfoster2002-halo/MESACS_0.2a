@@ -276,7 +276,7 @@ func pa() -> void:
 	if g.mode == "read": read_stop()
 	var at: Vector3 = g.robin.position; var face: float = g.cam_yaw + PI
 	g.play_reel([{"dur": g.lines_len("pa") + 2.2, "fov": 36, "inside": true, "cam": g.rel(at.x, at.z, face, 1.4, 0.3, at.y + 1.35), "look": at + Vector3(0, 1.55, 0),
-		"enter": func(): g.stage("idle", at.x, at.y, at.z, face); g.cue("ui"),
+		"enter": func(): g.stage("idle", at.x, at.y, at.z, face); g.cue("pa"),
 		"beats": [[1.5, func(): g.talk("pa")], [g.lines_len("pa") + 1.5, func(): g.stage("idle", at.x, at.y, at.z, face + 0.6)]]}],
 		func(_s): g.black(true); g.get_tree().create_timer(0.4).timeout.connect(func(): g.black(false); caught_by("pa")))
 func caught_by(how: String) -> void:

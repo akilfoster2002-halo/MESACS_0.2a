@@ -84,7 +84,8 @@ var puzzle: Puzzle
 var cy: Courtyard
 var station: Station
 var raid: Raid
-var ringing_on := false
+var ringing_on := false; var ring_t := 0.0
+var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
 var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
 const CREW := [
@@ -453,17 +454,24 @@ func _audio() -> void:
 	voice_player = AudioStreamPlayer.new(); add_child(voice_player)
 	music = AudioStreamPlayer.new(); music.volume_db = -8; add_child(music)
 	for i in 6: var p := AudioStreamPlayer.new(); add_child(p); sfx_players.append(p)
+	var beds := Synth.bed_streams(); Synth.warm()
+	for k in ["rain", "rain_in", "hum", "hum_day"]:
+		var b := AudioStreamPlayer.new(); b.stream = beds[k]; b.volume_db = -80; add_child(b); b.play(); bed[k] = [b, 0.0]
 ## the browser's synth cues that have no recording of their own here, played as the nearest one that does
-const CUE_AS := {"sus": "lock", "pa": "ui", "ring": "ui", "alarm": "lock", "skid": "kick", "scan": "glitch", "sting": "flash", "rise": "growl", "window": "door", "zip": "pick", "phone": "ui", "hit": "punch"}
+## a recording if there is one (tsh/sfx), else the browser's own tone for it (synth.gd)
+const CUE_AS := {"hit": "punch"}
 func cue(kind: String) -> void:
-	if not ResourceLoader.exists("res://assets/tsh/sfx/%s-0.mp3" % kind): kind = CUE_AS.get(kind, kind)
+	kind = CUE_AS.get(kind, kind)
 	var files := []
 	for i in 6:
 		var f := "res://assets/tsh/sfx/%s-%d.mp3" % [kind, i]
 		if ResourceLoader.exists(f): files.append(f)
-	if files.is_empty(): return
+	var st: AudioStream = load(files.pick_random()) if not files.is_empty() else Synth.stream(kind)
+	if st == null: return
 	for p in sfx_players:
-		if not p.playing: p.stream = load(files.pick_random()); p.play(); return
+		if not p.playing:
+			p.stream = st; p.volume_db = linear_to_db(0.8) if not files.is_empty() else 0.0
+			p.pitch_scale = randf_range(0.95, 1.05) if not files.is_empty() else 1.0; p.play(); return
 func score(track: String, vol := -8.0) -> void:
 	var f := "res://assets/tsh/music/%s.mp3" % track
 	if not ResourceLoader.exists(f): return
@@ -578,7 +586,19 @@ func end_text(t: String) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	end_label.position = Vector2((vp.x - 900)/2, vp.y/2 - 90)
 	end_label.text = "[center]" + t + "[/center]"
-func ringing(v: bool) -> void: ringing_on = v
+func ringing(v: bool) -> void:
+	if v and not ringing_on: cue("ring"); ring_t = 1.5
+	ringing_on = v
+## tsh.js startBed / muffle: rain while it is raining (the night), muffled indoors; the city's hum, by day only
+## its low rumble
+func _bed(dt: float) -> void:
+	if bed.is_empty(): return
+	var d := day(); var rain := 0.0 if d else (0.025 if inside else 0.05)
+	var want := {"rain": 0.0 if inside else rain, "rain_in": rain if inside else 0.0, "hum": 0.0 if d else 0.07, "hum_day": 0.09 if d else 0.0}
+	var k := 1.0 - exp(-dt/0.4)
+	for n in bed:
+		var e: Array = bed[n]; e[1] = lerpf(e[1], want[n], k)
+		(e[0] as AudioStreamPlayer).volume_db = linear_to_db(maxf(e[1], 0.00001))
 func hidden_in_cover() -> bool: return chase.cover != null
 func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 
@@ -904,7 +924,7 @@ func fight_outro() -> void:
 			"tick": func(dt, t, k): walk_stage(SPOT, Q, minf(1, k*1.06)); _buyer_bolts(buyer, BP, t)},
 		{"dur": lines_len("fightText") + 1.6, "fov": 36, "cam": Vector3(Q.x + 0.05, 1.3, Q.y + 1.35), "look": Vector3(Q.x + 0.32, 1.32, Q.y),
 			"enter": func(): _hide(buyer); stage("text", Q.x, 0, Q.y, 0),
-			"beats": [[0.2, func(): cue("ui")], [0.6, func(): talk("fightText")]]},
+			"beats": [[0.2, func(): cue("phone")], [0.6, func(): talk("fightText")]]},
 		{"dur": lines_len("fightOut4") + lines_len("fightOut5") + 0.5, "fov": 36, "cam": rel(Q.x, Q.y, 0, -0.5, 0.35, 1.75), "look": Vector3(Q.x, 1.2, Q.y + 0.4),
 			"enter": func(): talk("fightOut4"); talk("fightOut5")},
 		{"dur": 3.0, "fov": 46, "cam": Vector3(-41.0, 1.9, Q.y - 5.5), "look": Vector3(-41.2, 1.4, Q.y + 6),
@@ -981,6 +1001,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 				if mode == "reel": skip_line()
 
 func _process(dt: float) -> void:
+	_bed(dt)
+	if ringing_on:
+		ring_t -= dt
+		if ring_t <= 0: ring_t = 1.5; cue("ring")
 	if note_t > 0:
 		note_t -= dt
 		if note_t <= 0: note_label.text = ""

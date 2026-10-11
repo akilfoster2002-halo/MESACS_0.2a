@@ -349,10 +349,10 @@ func dodge() -> bool:
 		R.act = "dodge"; R.evade = pk.kind; R.t = 0.0; R.len = ln; R.iframe = v.iframe; R.buffer = null
 		R.dash = {"x0": p.x, "z0": p.y, "x1": to.x, "z1": to.y, "t": 0.0, "len": ln*v.travel, "arc": 0.0}
 		R.face = a + PI if v.get("back", false) else a
-		R.since_dodge = 0.0; g.cue("kick"); slow_for(0.55, 0.25); event("dodge", {}); return true
+		R.since_dodge = 0.0; g.cue("swish"); slow_for(0.55, 0.25); event("dodge", {}); return true
 	var to2 := clamp_arena(p.x + sin(a)*2.6, p.y + cos(a)*2.6)
 	R.act = "dodge"; R.evade = null; R.t = 0.0; R.len = 0.42; R.iframe = 0.42; R.dash = {"x0": p.x, "z0": p.y, "x1": to2.x, "z1": to2.y, "t": 0.0, "len": 0.3, "arc": 0.0}
-	R.since_dodge = 0.0; robin_clip("dodge", true); event("dodge", {})
+	R.since_dodge = 0.0; robin_clip("dodge", true); g.cue("swish"); event("dodge", {})
 	return true
 
 func evade_for(p: Vector2, held):
@@ -437,12 +437,12 @@ func land() -> void:
 	var p := P()
 	if m.get("area", false):
 		var all := alive().filter(func(e): return Vector2(e.x, e.z).distance_to(p) <= m.reach + 0.3)
-		if all.is_empty(): return
+		if all.is_empty(): g.cue("swish"); return
 		for e in all: land_on(e, m, p)
 		return
 	var t = R.target
 	if not standing(t): return
-	if Vector2(t.x, t.z).distance_to(p) > m.reach + 0.45: return
+	if Vector2(t.x, t.z).distance_to(p) > m.reach + 0.45: g.cue("swish"); return
 	land_on(t, m, p)
 
 func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
@@ -589,9 +589,9 @@ func _step(e: Dictionary, a: float, sp: float, dt: float, keep := false) -> void
 func strike(e: Dictionary) -> void:
 	var p := P(); var d: float = Vector2(e.x, e.z).distance_to(p); var a: float = absf(ang_diff(ang_to(e.x, e.z, p.x, p.y), e.yaw))
 	e.state = "recover"; e.t = 0.0
-	if d > 2.1 or a > 1.0: event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
+	if d > 2.1 or a > 1.0: g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
 	if R.parry_t > 0: parried(e); return
-	if R.iframe > 0: event("whiff", {"e": e, "dodged": true}); return
+	if R.iframe > 0: g.cue("swish"); event("whiff", {"e": e, "dodged": true}); return
 	hurt(e, 22.0 if e.weapon else e.K.dmg)
 	event("hurt", {"e": e})
 func parried(e: Dictionary) -> void:

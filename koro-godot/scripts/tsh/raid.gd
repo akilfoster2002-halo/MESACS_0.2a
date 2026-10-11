@@ -381,5 +381,5 @@ func prologue_end() -> void:
 	g.S.step = "end"; g._save()
 	g.mode = "end"; g.black(true)
 	g.end_text("CUT TO BLACK.")
-	g.chase.later(2.4, func(): g.end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]"); g.cue("ui"))
+	g.chase.later(2.4, func(): g.end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]"); g.cue("phone"))
 	g.chase.later(7.6, func(): if g.S.step == "end": g.end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]\n\n\n[font_size=24]ENTER — ☀ Next: The Other Robin[/font_size]"))

@@ -900,7 +900,7 @@ func street_scene() -> void:
 		{"dur": 2.2, "fov": 36, "cam": C.herSide.cam, "look": V.call(E, 0.4), "enter": st},
 		{"dur": 2.0, "fov": 50, "cam": C.street.cam, "look": C.street.look, "enter": st},
 		{"dur": 1.6, "fov": 30, "cam": C.feetLow.cam, "look": C.feetLow.look, "enter": func(): st.call(); shake(0.12, 0.4); g.cue("thud"), "beats": [[0.8, func(): g.cue("thud")]]}]
-	shots.append_array(cuts(2.2, [C.low, C.stair, C.her, C.stair], {"start": func(): mon.act("roar"); g.cue("roar"); shake(0.35, 0.6); storm(0.05); g.cue("alarm"), "tick": func(dt, t, k): storm(0.05 + k*0.2)}))
+	shots.append_array(cuts(2.2, [C.low, C.stair, C.her, C.stair], {"start": func(): mon.act("roar"); g.cue("roar"); shake(0.35, 0.6); storm(0.05); g.cue("alert"), "tick": func(dt, t, k): storm(0.05 + k*0.2)}))
 	shots.append_array(cuts(4.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street, C.rise], {
 		"start": func(): mon.act("roar"); g.cue("roar"); haywire(0.55); wind_on(0.6); cy.props.visible = false; shake(0.6, 0.5); flash(0.6); chaos_on(at),
 		"tick": func(dt, t, k):
@@ -1016,7 +1016,7 @@ func wfc_standoff(at: Vector2, y0: float) -> void:
 		"top": {"cam": Vector3(at.x + 1, y0 + 12, at.y - 3), "look": Vector3(at.x, y0, at.y), "fov": 50},
 		"low": {"cam": Vector3(at.x + 1.6, y0 + 0.3, at.y - 1.4), "look": wf, "fov": 56}}
 	var AC: Dictionary = A.duplicate(); AC.merge(C, true)
-	var shots := cuts(1.8, [C.top, C.wide, C.her], {"start": func(): stand_.call(); flash(0.5); g.cue("alarm"); shake(0.3, 1), "tick": func(dt, t, k): stand_.call()})
+	var shots := cuts(1.8, [C.top, C.wide, C.her], {"start": func(): stand_.call(); flash(0.5); g.cue("alert"); shake(0.3, 1), "tick": func(dt, t, k): stand_.call()})
 	shots.append_array(cy.line_shots(["wfcFreeze", "wfcCanon"], _calls(AC), {"each": stand_, "pools": {"robin": ["her"], "wfc": ["them", "low", "wide"]}}))
 	shots.append_array(cuts(1.0, [C.low, C.top], {"start": func(): g.cue("launch"); flash(0.4, Color(0.4, 1, 0.9))}))
 	g.play_reel(shots, done(func():
@@ -1053,7 +1053,7 @@ func _tick_wfc_run(dt: float) -> void:
 	gun.red.visible = sin(c.t*8) > 0
 	if d < 9:
 		c.meter = maxf(0, c.meter - dt/8)
-		if c.hitT <= 0: c.hitT = 2.2; g.cue("alarm"); g.note("In the light — break away!")
+		if c.hitT <= 0: c.hitT = 2.2; g.cue("alert"); g.note("In the light — break away!")
 	elif d > 22: c.meter = minf(1, c.meter + dt/7)
 	for n in wfc_crew:
 		var v := Vector2(p.x - n.x, p.z - n.z)

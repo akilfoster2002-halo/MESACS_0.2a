@@ -520,12 +520,12 @@ func _vault(v: Dictionary) -> void:
 	var thick: float = (v.x2 - v.x1) if absf(f.x) > absf(f.y) else (v.z2 - v.z1)
 	var ln := thick + 2.2; var to := Vector2(p.x + f.x*ln, p.z + f.y*ln)
 	_act("vault", 0.48, func(k): _set_pos(Vector3(lerpf(p.x, to.x, k), p.y + sin(k*PI)*1.25, lerpf(p.z, to.y, k))), "jump", atan2(f.x, f.y))
-	g.cue("kick")
+	g.cue("swish")
 	if not st.flags.get("vaulted", false): st.flags.vaulted = true; g.note("✓ VAULT")
 func _slide() -> void:
 	var p := P(); var ln: float = ROUTE.gate.x - p.x + 3.4
 	_act("slide", 0.62, func(k): _set_pos(Vector3(lerpf(p.x, p.x + ln, k), p.y, lerpf(p.z, clampf(p.z, ROUTE.gate.z1 + 0.5, ROUTE.gate.z2 - 0.5), minf(1, k*3)))), "roll", PI/2)
-	g.cue("kick"); g.talk("raidGate")
+	g.cue("swish"); g.talk("raidGate")
 func _set_pos(q: Vector3) -> void:
 	g.boots.x = q.x; g.boots.y = q.y; g.boots.z = q.z; g.robin.position = q
 func _act(nm: String, dur: float, f: Callable, clip: String, face: float) -> void:
@@ -792,7 +792,7 @@ func _spotted(why: String) -> void:
 	if clock - was > 3:
 		var s := sid()
 		if s == "hide" or s == "call": set_heat(maxi(heat, 3))
-		g.cue("alarm")
+		g.cue("alert")
 		if not st.flags.get("lightTip", false) and why == "light": st.flags.lightTip = true; g.note("🔦 The light has you — out of it, or something between you and it.")
 		if s == "call" and st.flags.get("answered", false): found()
 func _tick_gate(dt: float) -> void:
