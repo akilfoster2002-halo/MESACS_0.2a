@@ -53,8 +53,21 @@ var talk_q: Array = []
 var lesson := {"i": 0, "perfect": 0, "lands": 0}
 var space_was := false
 var shots_dir := ""
+var shots_fight := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
+var fight: Fight
+## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
+const CREW := [
+	{"tag": "buyer", "kind": "buyer", "x": -41.6, "z": -28.6, "yaw": 0.0, "state": "idle"},
+	{"tag": "t1", "kind": "lean", "x": -42.7, "z": -29.5, "yaw": 0.3, "state": "idle"},
+	{"tag": "t2", "kind": "big", "x": -40.3, "z": -29.9, "yaw": -0.4, "state": "idle"},
+	{"tag": "t3", "kind": "lean", "x": -47.0, "z": -19.6, "yaw": PI, "state": "idle", "hidden": true},
+	{"tag": "t4", "kind": "big", "x": -33.2, "z": -12.6, "yaw": PI, "state": "idle", "hidden": true},
+	{"tag": "t5", "kind": "lean", "x": -33.6, "z": -34.6, "yaw": 0.0, "state": "idle", "hidden": true},
+	{"tag": "t6", "kind": "big", "x": -46.6, "z": -32.2, "yaw": 0.0, "state": "idle", "hidden": true, "weapon": true}]
+const RINGED := {"t1": Vector2(-42.2, -26.6), "t3": Vector2(-44.4, -22.4), "t4": Vector2(-38.1, -21.8), "t5": Vector2(-37.9, -27.7), "t6": Vector2(-44.7, -27.5)}
+const BUYER_CORNER := Vector2(-40.1, -33.0)
 
 # HUD
 var hud: CanvasLayer; var sub_label: RichTextLabel; var obj_label: RichTextLabel; var note_label: Label; var card: PanelContainer
@@ -65,16 +78,20 @@ var voice_player: AudioStreamPlayer; var sfx_players: Array = []; var music: Aud
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() >= 2 and args[0] == "shots": shots_dir = args[1]
+	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
 	_load_data()
 	_world()
 	_robin()
 	_camera()
+	fight = Fight.new(self); add_child(fight)
 	_hud()
 	_audio()
 	if args.has("new") or shots_dir != "": S = _fresh()
+	if shots_fight: S.step = "deal"; S.lesson = 9
 	else: _load()
 	_enter()
-	if shots_dir != "": _shots()
+	if shots_fight: _shots_fight()
+	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 # ================================================================== the save
@@ -107,9 +124,9 @@ func _world() -> void:
 	var lj = _json("res://assets/tsh/lights.json")
 	env = Environment.new()
 	env.background_mode = Environment.BG_COLOR; env.background_color = Color("#" + str(lj.env.bg))
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color(0.32, 0.5, 0.52); env.ambient_light_energy = 0.2
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES; env.tonemap_exposure = float(lj.env.exposure)
-	env.fog_enabled = true; env.fog_light_color = Color("#" + str(lj.env.fog.c)); env.fog_density = float(lj.env.fog.density)*1.6
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color(0.45, 0.62, 0.66); env.ambient_light_energy = 1.0
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES; env.tonemap_exposure = float(lj.env.exposure)*1.45
+	env.fog_enabled = true; env.fog_light_color = Color("#" + str(lj.env.fog.c)); env.fog_density = float(lj.env.fog.density)*0.7
 	env.glow_enabled = true; env.glow_intensity = 0.6; env.glow_bloom = 0.05; env.glow_hdr_threshold = 1.1
 	env.ssao_enabled = true; env.ssr_enabled = true; env.ssr_max_steps = 48
 	var we := WorldEnvironment.new(); we.environment = env; add_child(we)
@@ -118,13 +135,13 @@ func _world() -> void:
 		var col := Color("#" + str(l.c)); var p := Vector3(l.p[0], l.p[1], l.p[2])
 		match str(l.type):
 			"DirectionalLight":
-				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*0.45; d.shadow_enabled = bool(l.shadow); add_child(d)
+				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*1.1; d.shadow_enabled = bool(l.shadow); add_child(d)
 				var tg := Vector3(l.t[0], l.t[1], l.t[2]) if l.t != null else Vector3.ZERO
 				d.look_at_from_position(p, tg if tg != p else p + Vector3(0, -1, 0.01))
 			"PointLight":
-				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.07; o.omni_range = float(l.d) if float(l.d) > 0 else 20.0; o.position = p; add_child(o)
+				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.16; o.omni_range = float(l.d) if float(l.d) > 0 else 20.0; o.position = p; add_child(o)
 			"HemisphereLight":
-				env.ambient_light_color = col.lerp(Color("#" + str(l.g)), 0.5); env.ambient_light_energy = float(l.i)*0.18
+				env.ambient_light_color = col.lerp(Color("#" + str(l.g)), 0.5); env.ambient_light_energy = maxf(1.0, float(l.i)*0.8)
 	city = _scene("res://assets/tsh/city.glb")
 	apt = _scene("res://assets/tsh/apt.glb")
 	school = _scene("res://assets/tsh/school.glb")
@@ -136,7 +153,7 @@ func _world() -> void:
 	var ceil := OmniLight3D.new(); ceil.name = "AptFill"; ceil.light_color = Color(0.7, 0.85, 0.9); ceil.light_energy = 0.0; ceil.omni_range = 12
 	ceil.position = Vector3(a.x, 2.8, a.z); add_child(ceil)
 	# a soft light that follows her, so she reads against the night (the browser's charLook rim)
-	var key := OmniLight3D.new(); key.name = "Key"; key.light_color = Color(1.0, 0.86, 0.74); key.light_energy = 1.3; key.omni_range = 5.0; add_child(key)
+	var key := OmniLight3D.new(); key.name = "Key"; key.light_color = Color(1.0, 0.86, 0.74); key.light_energy = 2.2; key.omni_range = 6.0; add_child(key)
 	show_inside(false)
 	# the shoes' world: every solid, floor and roof
 	boots = Boots.new()
@@ -165,7 +182,7 @@ func show_inside(v: bool) -> void:
 	city.visible = not v
 	apt.visible = v
 	school.visible = false; sub.visible = false
-	env.fog_density = 0.004 if v else 0.0248
+	env.fog_density = 0.002 if v else 0.011
 	env.background_color = Color(0.008, 0.016, 0.016) if v else Color("#0b2a26")
 	($AptFill as OmniLight3D).light_energy = 0.35 if v else 0.0
 
@@ -177,6 +194,30 @@ func _robin() -> void:
 	for nm in anim.get_animation_list():
 		if nm in ["jump", "flip", "roll", "climb_top", "wake", "kneel", "text"]: continue
 		anim.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
+	_fight_clips()
+
+## HER PUNCHES, KICKS AND DODGES (characters/fight/robin.glb): a file of clips keyed to bones as plain nodes, put
+## onto her skeleton by bone name (mixamorig_Hips there is mixamorigHips here)
+func _fight_clips() -> void:
+	var src: Node = (load("res://assets/tsh/robin_fight.glb") as PackedScene).instantiate()
+	var sap: AnimationPlayer = _find(src, func(n): return n is AnimationPlayer)
+	var sk: Skeleton3D = _find(model, func(n): return n is Skeleton3D)
+	var skel_path := String(anim.get_node(anim.root_node).get_path_to(sk))
+	var names := {}
+	for i in sk.get_bone_count(): names[sk.get_bone_name(i).replace("_", "").replace(":", "")] = sk.get_bone_name(i)
+	var lib: AnimationLibrary = anim.get_animation_library("")
+	for nm in sap.get_animation_list():
+		if nm == "idle": continue
+		var a: Animation = sap.get_animation(nm).duplicate(true)
+		for t in range(a.get_track_count() - 1, -1, -1):
+			var path := String(a.track_get_path(t))
+			var bone := path.get_file().split(":")[0].replace("_", "").replace(":", "")
+			if names.has(bone): a.track_set_path(t, NodePath(skel_path + ":" + names[bone]))
+			else: a.remove_track(t)
+		a.loop_mode = Animation.LOOP_LINEAR if nm in ["fight", "boxing"] else Animation.LOOP_NONE
+		if lib.has_animation(nm): lib.remove_animation(nm)
+		lib.add_animation(nm, a)
+	src.free()
 
 func _find(n: Node, f: Callable) -> Node:
 	if f.call(n): return n
@@ -249,6 +290,9 @@ func _rich(p: Vector2, s: Vector2, fs: int, parent: Node = null) -> RichTextLabe
 	r.add_theme_constant_override("outline_size", 6); r.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	(parent if parent else hud).add_child(r); return r
 
+func lesson_card(head: String, title: String, how: String) -> void:
+	card.visible = title != ""
+	if title != "": card_text.text = "[center][color=#9fb4c0]%s[/color]\n[b][font_size=30]%s[/font_size][/b]\n%s[/center]" % [head, title, how]
 func note(text: String) -> void:
 	note_label.text = text; note_t = 4.0
 func set_caption(text: String) -> void:
@@ -388,8 +432,9 @@ func _beat_start() -> void:
 		"deal":
 			var a: Dictionary = nav.zones.alley
 			marker.position = Vector3((a.x1 + a.x2)/2, 30, (a.z1 + a.z2)/2); marker.visible = true
+			fight.cast(CREW)
 		"raid":
-			note("(The fight with the buyer and the WFC raid are the next part of the port.)")
+			note("(The WFC raid and the chase are the next part of the port.)")
 
 ## INT. ROBIN'S ROOM — 22:15. The buyer calls; she gets up; the kit, piece by piece; the note from her mother; the
 ## window, the sill over Kiln Street, and the jump (tsh.js opening())
@@ -526,12 +571,201 @@ func _lesson_event(e: Dictionary) -> void:
 func fire_shoes() -> void:
 	boots.ignite(cam_yaw); cue("blast"); lesson_next()
 
+# ------------------------------------------------------------------ Dragon Alley
+var bag: Node3D; var bag_on = null; var pack: Node3D
+func crew(tag: String): return fight.pick(tag) if fight.pick(tag).has("node") else null
+func crew_walk(e, a: Vector2, b: Vector2, k: float, nm := "walk") -> void:
+	if e == null: return
+	e.node.visible = true; e.x = lerpf(a.x, b.x, k); e.z = lerpf(a.y, b.y, k)
+	if k < 1: e.yaw = atan2(b.x - a.x, b.y - a.y); fight.play(e, nm)
+	fight._place(e)
+func crew_face(e, x: float, z: float, nm := "") -> void:
+	if e == null: return
+	e.yaw = atan2(x - e.x, z - e.z)
+	if nm != "": fight.play(e, nm)
+	fight._place(e)
+func _bag_mesh() -> Node3D:
+	var b := Node3D.new()
+	var m := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.24, 0.17, 0.09); m.mesh = bm
+	var mat := StandardMaterial3D.new(); mat.albedo_color = Color(0.1, 0.11, 0.125); mat.roughness = 0.85; m.material_override = mat; b.add_child(m)
+	var tag := MeshInstance3D.new(); var tm := QuadMesh.new(); tm.size = Vector2(0.06, 0.03); tag.mesh = tm
+	var tmat := StandardMaterial3D.new(); tmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; tmat.albedo_color = Color(0.22, 1, 0.82); tag.material_override = tmat; tag.position = Vector3(0.05, 0.02, 0.0455); b.add_child(tag)
+	add_child(b); return b
+func _hand(n: Node3D) -> Vector3:
+	var sk: Skeleton3D = _find(n, func(x): return x is Skeleton3D)
+	if sk:
+		for i in sk.get_bone_count():
+			if sk.get_bone_name(i).ends_with("RightHand"): return sk.global_transform*sk.get_bone_global_pose(i).origin
+	return n.global_position + Vector3(0, 1, 0)
+func _crew_bag(_dt: float) -> void:
+	if bag == null or bag_on == null: return
+	if bag_on is String and bag_on == "robin": bag.global_position = _hand(model) + Vector3(0, -0.1, 0)
+	elif bag_on is Dictionary and bag_on.has("node"): bag.global_position = _hand(bag_on.node) + Vector3(0, -0.1, 0)
+
+## EXT. DRAGON ALLEY. She walks in; the buyer and two of his at the bend; "You got the stuff?" — "About that…" — the
+## rest of them come out; "Oh." — "You're gonna be annoying." — the bag taken out of her hand; the shove; "Okay." —
+## the backpack off; "I really hate when people make me do things twice." (tsh.js fightIntro)
+func fight_intro() -> void:
+	talk_q.clear()
+	var R0: Vector2 = Fight.MEET.robin; var B0: Vector2 = Fight.MEET.buyer
+	var ry := atan2(B0.x - R0.x, B0.y - R0.y); var by := atan2(R0.x - B0.x, R0.y - B0.y)
+	var R1 := Vector2(R0.x + 0.05, R0.y + 0.6)
+	var buyer = crew("buyer"); var t1 = crew("t1"); var t2 = crew("t2")
+	var head := func(x: float, z: float, y := 1.55): return Vector3(x, y, z)
+	if bag: bag.queue_free()
+	bag = _bag_mesh(); bag_on = "robin"
+	var ring_face := func(nm: String):
+		for t in ["t1", "t2", "t3", "t4", "t5", "t6"]:
+			var e = crew(t)
+			if e: e.node.visible = true; crew_face(e, robin.position.x, robin.position.z, nm)
+	var shots := [
+		{"dur": 4.6, "fov": 46, "cam": [Vector3(-39.8, 1.0, -12.2), Vector3(-40.1, 1.3, -13.6)], "look": [Vector3(-41.4, 1.5, -24), Vector3(-41.4, 1.5, -26)],
+			"enter": func(): set_caption("EXT. DRAGON ALLEY — 22:31"); cue("step"),
+			"tick": func(dt, t, k): walk_stage(Vector2(-41.0, -12.8), Vector2(-41.3, -19.6), k)},
+		{"dur": 3.0, "fov": 40, "cam": [Vector3(-40.9, 1.75, -31.8), Vector3(-40.9, 1.7, -31.3)], "look": Vector3(-41.4, 1.3, -22),
+			"tick": func(dt, t, k): _walk_in(R0, ry, k)},
+		{"dur": lines_len("fightIn1") + 0.3, "fov": 36, "cam": rel(B0.x, B0.y, by, -0.85, 0.42, 1.78), "look": head.call(R0.x, R0.y, 1.5),
+			"enter": func(): stage("idle", R0.x, 0, R0.y, ry); talk("fightIn1"); fight.play(buyer, "talk")},
+		{"dur": lines_len("fightIn2") + 0.6, "fov": 32, "cam": rel(R0.x, R0.y, ry, -0.8, 0.4, 1.7), "look": head.call(B0.x, B0.y, 1.62),
+			"enter": func(): talk("fightIn2"); fight.play(buyer, "talk")},
+		{"dur": 4.4, "fov": 66, "cam": [Vector3(-40.4, 3.6, -16.4), Vector3(-40.4, 3.75, -17.4)], "look": Vector3(-41.2, 0.8, -26.2),
+			"enter": func(): cue("roar"); fight.play(buyer, "idle"),
+			"tick": func(dt, t, k): _come_out(k, t2, R0)},
+		{"dur": lines_len("fightIn3") + 0.6, "fov": 30, "cam": rel(R0.x, R0.y, ry, 0.95, -0.12, 1.6), "look": head.call(R0.x, R0.y),
+			"enter": func(): talk("fightIn3"); ring_face.call("fight")},
+		{"dur": lines_len("fightIn4") + 0.4, "fov": 42, "cam": Vector3(-39.6, 1.5, -24.0), "look": Vector3(-41.4, 1.35, -24.8),
+			"enter": func(): stage("talk", R0.x, 0, R0.y, ry); talk("fightIn4")},
+		{"dur": 1.8, "fov": 44, "cam": Vector3(-39.5, 1.25, -25.3), "look": Vector3(-41.6, 1.2, -25.2),
+			"enter": func(): stage("idle", R0.x, 0, R0.y, ry),
+			"tick": func(dt, t, k): _take_bag(t1, R0, t),
+			"beats": [[0.72, func(): fight.hit1(t1, "jab")], [0.95, func(): bag_on = t1; cue("kick")]]},
+		{"dur": lines_len("fightIn5") + 0.4, "fov": 38, "cam": rel(R0.x, R0.y, ry, -0.8, -0.45, 1.7), "look": Vector3((B0.x + R0.x)/2, 1.3, B0.y + 1.2),
+			"enter": func(): stage("talk", R0.x, 0, R0.y, ry); talk("fightIn5"),
+			"tick": func(dt, t, k): _step_back(t1, R0, t),
+			"beats": [[maxf(0.8, lines_len("fightIn5") - 1.5), func(): fight.hit1(t1, "jab"); bag_on = buyer]]},
+		{"dur": 1.7, "fov": 50, "cam": Vector3(-39.5, 1.4, -24.0), "look": Vector3(-41.5, 1.2, -25.0),
+			"enter": func(): stage("idle", R0.x, 0, R0.y, ry),
+			"tick": func(dt, t, k): _shove(t1, R0, R1, ry, t),
+			"beats": [[0.35, func(): fight.hit1(t1, "cross")], [0.55, func(): cue("hurt")]]},
+		{"dur": lines_len("fightIn6") + 0.7, "fov": 28, "cam": rel(R1.x, R1.y, ry, 0.9, 0.1, 1.6), "look": head.call(R1.x, R1.y),
+			"enter": func(): stage("idle", R1.x, 0, R1.y, ry); talk("fightIn6"); crew_walk(t1, Vector2(-41.6, -25.45), Vector2(-41.8, -26.2), 1); crew_face(t1, R1.x, R1.y, "fight")},
+		{"dur": 1.6, "fov": 44, "cam": Vector3(-39.7, 0.42, -23.0), "look": Vector3(-41.2, 0.45, -23.8),
+			"beats": [[0.3, func(): cue("door")]]},
+		{"dur": lines_len("fightIn7") + 0.9, "fov": 38, "cam": rel(R1.x, R1.y, ry, 1.7, 0.7, 0.75), "look": head.call(R1.x, R1.y, 1.45),
+			"enter": func(): stage("fight", R1.x, 0, R1.y, ry); talk("fightIn7"),
+			"beats": [[maxf(0.4, lines_len("fightIn7") - 0.3), func(): cue("gear")]]}]
+	play_reel(shots, func(_s): fight_begin(R1, ry))
+func _walk_in(R0: Vector2, ry: float, k: float) -> void:
+	if k < 0.92: walk_stage(Vector2(-41.3, -19.6), R0, k/0.92)
+	else: stage("idle", R0.x, 0, R0.y, ry)
+func _come_out(k: float, t2, R0: Vector2) -> void:
+	var m := minf(1, k*1.1)
+	for pair in [["t3", Vector2(-47.0, -19.6)], ["t4", Vector2(-33.2, -12.6)], ["t5", Vector2(-33.6, -34.6)], ["t6", Vector2(-46.6, -32.2)], ["t1", Vector2(-42.7, -29.5)]]:
+		var to: Vector2 = RINGED[pair[0]]
+		crew_walk(crew(pair[0]), pair[1], to, m, "sprint" if to.distance_to(pair[1]) > 7 else "walk")
+	crew_face(t2, R0.x, R0.y, "fight" if k > 0.5 else "")
+func _take_bag(t1, R0: Vector2, t: float) -> void:
+	if t < 0.7: crew_walk(t1, RINGED.t1, Vector2(-41.75, -25.45), t/0.7)
+	else: crew_face(t1, R0.x, R0.y)
+func _step_back(t1, R0: Vector2, t: float) -> void:
+	if t < 0.6: crew_walk(t1, Vector2(-41.75, -25.45), Vector2(-41.9, -26.3), t/0.6, "walk_back")
+	crew_face(t1, R0.x, R0.y, "fight" if t >= 0.6 else "")
+func _shove(t1, R0: Vector2, R1: Vector2, ry: float, t: float) -> void:
+	if t < 0.4: crew_walk(t1, Vector2(-41.9, -26.3), Vector2(-41.6, -25.45), t/0.4)
+	else: crew_face(t1, R0.x, R0.y)
+	if t >= 0.55:
+		var q := minf(1, (t - 0.55)/0.3)
+		stage("stagger" if t < 1.2 else "idle", lerpf(R0.x, R1.x, q), 0, lerpf(R0.y, R1.y, q), ry)
+
+## it is yours: the fight
+func fight_begin(R1: Vector2, ry: float) -> void:
+	staged = null; talk_q.clear()
+	for t in RINGED:
+		var e = crew(t)
+		if e: e.node.visible = true; e.x = RINGED[t].x; e.z = RINGED[t].y; fight._place(e)
+	var buyer = crew("buyer")
+	if buyer: buyer.state = "watch"; buyer.home = BUYER_CORNER; bag_on = buyer
+	robin.position = Vector3(R1.x, 0, R1.y); cam_yaw = ry + PI; cam_pitch = 0.0
+	mode = "fight"; marker.visible = false; ring.visible = false
+	objective("Fight your way out.")
+	score("wos-b", -10)
+	fight.start(func(): fight_outro())
+
+## after: the ones still standing run; she walks to the buyer in his corner; the bag; "So…" — "My money?" — nothing —
+## "Right. Worth a shot." — the buyer bolts; her phone: a number she does not know (tsh.js fightOutro)
+func fight_outro() -> void:
+	mode = ""
+	var buyer = crew("buyer")
+	var from := Vector2(robin.position.x, robin.position.z); var BP := BUYER_CORNER
+	var SPOT := Vector2(BP.x - 0.25, BP.y + 1.65); var BAG := Vector2(BP.x - 0.15, BP.y + 0.95)
+	var ry := atan2(BP.x - SPOT.x, BP.y - SPOT.y); var by := ry + PI
+	var Q := Vector2(-41.0, -23.3)
+	var runners := fight.E.filter(func(e): return e.kind != "buyer" and e.state in ["hesitate", "circle", "approach", "recover", "stagger", "windup", "getup", "idle", "watch"])
+	for e in runners: e.flee = [e.x, e.z, e.x, -7.0 if e.z > from.y else -47.0]; e.state = "fled"
+	if buyer: buyer.state = "cut"; buyer.x = BP.x; buyer.z = BP.y; buyer.yaw = by + PI; fight._place(buyer)
+	var shots := [
+		{"dur": 3.4, "fov": 55, "cam": Vector3(-39.5, 3.7, -20.5), "look": Vector3(-41.3, 0.5, -29),
+			"enter": func(): _cornered(buyer, SPOT, BAG),
+			"tick": func(dt, t, k): _flee(runners, t); walk_stage(from, SPOT, minf(1, k*1.08))},
+		{"dur": 2.4, "fov": 42, "cam": Vector3(-39.4, 0.8, -30.2), "look": Vector3(BAG.x, 0.4, BAG.y),
+			"enter": func(): _flee(runners, 9); stage("kneel", SPOT.x, 0, SPOT.y, ry), "beats": [[1.1, func(): bag_on = "robin"; cue("pick")]]},
+		{"dur": lines_len("fightOut1") + 1.2, "fov": 38, "cam": rel(SPOT.x, SPOT.y, ry, 1.1, 0.35, 1.72), "look": Vector3(SPOT.x, 1.32, SPOT.y),
+			"enter": func(): stage("text", SPOT.x, 0, SPOT.y, ry), "beats": [[0.6, func(): talk("fightOut1")]]},
+		{"dur": lines_len("fightOut2") + 0.4, "fov": 34, "cam": rel(SPOT.x, SPOT.y, ry, -0.75, 0.4, 1.7), "look": Vector3(BP.x, 1.5, BP.y),
+			"enter": func(): stage("talk", SPOT.x, 0, SPOT.y, ry); talk("fightOut2"); _crew_idle(buyer)},
+		{"dur": 2.0, "fov": 30, "cam": rel(BP.x, BP.y, by, 1.0, -0.25, 1.72), "look": Vector3(BP.x, 1.66, BP.y), "enter": func(): stage("idle", SPOT.x, 0, SPOT.y, ry)},
+		{"dur": lines_len("fightOut3") + 0.5, "fov": 40, "cam": rel(SPOT.x, SPOT.y, ry, 1.6, -0.9, 1.45), "look": Vector3(SPOT.x, 1.3, SPOT.y),
+			"enter": func(): stage("talk", SPOT.x, 0, SPOT.y, ry); talk("fightOut3")},
+		{"dur": 4.2, "fov": 50, "cam": Vector3(-42.7, 2.6, -34.6), "look": Vector3(-41.3, 0.9, -25.5),
+			"tick": func(dt, t, k): walk_stage(SPOT, Q, minf(1, k*1.06)); _buyer_bolts(buyer, BP, t)},
+		{"dur": lines_len("fightText") + 1.6, "fov": 36, "cam": Vector3(Q.x + 0.05, 1.3, Q.y + 1.35), "look": Vector3(Q.x + 0.32, 1.32, Q.y),
+			"enter": func(): _hide(buyer); stage("text", Q.x, 0, Q.y, 0),
+			"beats": [[0.2, func(): cue("ui")], [0.6, func(): talk("fightText")]]},
+		{"dur": lines_len("fightOut4") + lines_len("fightOut5") + 0.5, "fov": 36, "cam": rel(Q.x, Q.y, 0, -0.5, 0.35, 1.75), "look": Vector3(Q.x, 1.2, Q.y + 0.4),
+			"enter": func(): talk("fightOut4"); talk("fightOut5")},
+		{"dur": 3.0, "fov": 46, "cam": Vector3(-41.0, 1.9, Q.y - 5.5), "look": Vector3(-41.2, 1.4, Q.y + 6),
+			"enter": func(): cue("hangup"), "tick": func(dt, t, k): walk_stage(Q, Vector2(Q.x - 0.1, Q.y + 4.2), k)}]
+	play_reel(shots, func(_s): _after_fight(Q, runners, buyer))
+func _cornered(buyer, SPOT: Vector2, BAG: Vector2) -> void:
+	if buyer != null: crew_face(buyer, SPOT.x, SPOT.y); fight.hit1(buyer, "block")
+	bag_on = null; bag.global_position = Vector3(BAG.x, 0.085, BAG.y)
+func _crew_idle(e) -> void:
+	if e != null: fight.play(e, "idle")
+func _hide(e) -> void:
+	if e != null: e.node.visible = false
+func _flee(runners: Array, t: float) -> void:
+	for e in runners:
+		var f: Array = e.flee; var k := minf(1, t*4.6/absf(f[3] - f[1]))
+		crew_walk(e, Vector2(f[0], f[1]), Vector2(f[2], f[3]), k, "sprint")
+		if k >= 1: e.node.visible = false
+func _buyer_bolts(buyer, BP: Vector2, t: float) -> void:
+	if buyer == null: return
+	var m := minf(1, maxf(0, t - 0.4)*4.2/14)
+	crew_walk(buyer, BP, Vector2(BP.x + 0.1, BP.y - 14), m, "sprint")
+	if m >= 1: buyer.node.visible = false
+func _after_fight(Q: Vector2, runners: Array, buyer) -> void:
+	staged = null
+	for e in runners: e.node.visible = false
+	if buyer: buyer.node.visible = false
+	if bag: bag.queue_free(); bag = null
+	place(Vector3(Q.x - 0.1, 0, Q.y + 4.2), PI)
+	S.cash = 0; cue("win")
+	outcome("fought")
+	note("The bag, and the rings in it. No money.")
+
 func _in_alley() -> bool:
 	var a: Dictionary = nav.zones.alley
 	return boots.x > a.x1 - 1 and boots.x < a.x2 + 1 and boots.z > a.z1 - 1 and boots.z < a.z2 + 1
 
 # ================================================================== every frame
 func _unhandled_input(ev: InputEvent) -> void:
+	if mode == "fight":
+		if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
+		elif ev is InputEventKey and ev.pressed and ev.keycode == KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		elif ev is InputEventMouseButton and ev.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		else: fight.key(ev)
+		return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and mode == "":
 		cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
 	elif ev is InputEventMouseButton and ev.pressed:
@@ -554,6 +788,9 @@ func _process(dt: float) -> void:
 		caption_t -= dt
 		if caption_t <= 0: caption.text = ""
 	_tick_talk(dt)
+	fight.tick(dt)
+	_crew_bag(dt)
+	if mode == "fight": return
 	if mode == "reel": _tick_reel(dt); return
 	_play_tick(dt)
 
@@ -577,9 +814,9 @@ func _play_tick(dt: float) -> void:
 			"rebound", "reboundPerfect", "dash": cue("kick")
 	_follow(dt)
 	if S.step == "lesson" and lesson_id() == "alley" and _in_alley() and boots.y < 1.0: lesson_next()
-	if S.step == "deal" and _in_alley() and boots.y < 1.0 and not S.get("dealReached", false):
-		S.dealReached = true; marker.visible = false
-		note("Dragon Alley. (The buyer and the fight are the next part of the port.)")
+	if S.step == "deal" and _in_alley() and boots.y < 1.0 and fight.ready_:
+		var m: Vector2 = Fight.MEET.robin
+		if Vector2(boots.x, boots.z).distance_to(m) < 5 or (boots.z < m.y + 3 and boots.z > -38): marker.visible = false; fight_intro()
 
 func _follow(dt: float) -> void:
 	robin.position = Vector3(boots.x, boots.y, boots.z)
@@ -612,6 +849,35 @@ func _shots() -> void:
 	fire_shoes(); await get_tree().create_timer(1.2).timeout; await _snap("fired")
 	for i in 3:
 		await get_tree().create_timer(2.5).timeout; await _snap("lesson_%d" % i)
+	get_tree().quit()
+## the fight, photographed: in at the mouth of the alley, the film, then each lesson's key pressed when it is asked for
+func _shots_fight() -> void:
+	await get_tree().create_timer(1.0).timeout
+	place(Vector3(-41.0, 0, -20.5), 0.0)
+	var t0 := Time.get_ticks_msec(); var n := 0
+	while mode != "fight" and Time.get_ticks_msec() - t0 < 90000:
+		await get_tree().create_timer(4.0).timeout; await _snap("intro_%02d" % n); n += 1
+	n = 0
+	t0 = Time.get_ticks_msec()
+	while mode == "fight" and Time.get_ticks_msec() - t0 < 150000:
+		await get_tree().create_timer(0.25).timeout
+		var fz = fight.dir.freeze if fight.dir != null else null
+		if fz != null:
+			await _snap("fight_%02d_%s" % [n, fz.want]); n += 1
+			match fz.want:
+				"attack": fight._press(); fight._release()
+				"dodge": var ev := InputEventKey.new(); ev.keycode = KEY_SPACE; ev.pressed = true; fight.key(ev)
+				"parry": fight._do_parry()
+				"pulse": var ev2 := InputEventKey.new(); ev2.keycode = KEY_F; ev2.pressed = true; fight.key(ev2)
+				"pull": var ev3 := InputEventKey.new(); ev3.keycode = KEY_G; ev3.pressed = true; fight.key(ev3)
+			await get_tree().create_timer(0.35).timeout; await _snap("fight_%02d_hit" % n); n += 1
+		elif fight.dir != null and fight.dir.free and randf() < 0.5:
+			fight._press(); fight._release()
+		if n > 40: break
+	print("fight over: mode=", mode, " step=", S.step, " dir=", fight.dir.id if fight.dir else "")
+	while mode == "reel":
+		await get_tree().create_timer(5.0).timeout; await _snap("outro_%02d" % n); n += 1
+	await _snap("after")
 	get_tree().quit()
 func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw

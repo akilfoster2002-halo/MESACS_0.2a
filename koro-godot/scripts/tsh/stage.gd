@@ -51,12 +51,12 @@ func _environment() -> void:
 	env.background_color = bg
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.32, 0.5, 0.52)
-	env.ambient_light_energy = 0.2
+	env.ambient_light_energy = 1.0
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = float(L.env.exposure)
+	env.tonemap_exposure = float(L.env.exposure)*1.45
 	env.fog_enabled = true
 	env.fog_light_color = Color("#" + str(fog.c))
-	env.fog_density = float(fog.density)*1.6
+	env.fog_density = float(fog.density)*0.7
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.glow_bloom = 0.05
@@ -71,21 +71,21 @@ func _environment() -> void:
 		var p := Vector3(l.p[0], l.p[1], l.p[2])
 		match str(l.type):
 			"DirectionalLight":
-				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*0.45
+				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*1.1
 				d.shadow_enabled = bool(l.shadow); add_child(d)
 				var tgt := Vector3(l.t[0], l.t[1], l.t[2]) if l.t != null else Vector3.ZERO
 				d.look_at_from_position(p, tgt if tgt != p else p + Vector3(0, -1, 0.01))
 			"PointLight":
-				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.07
+				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.16
 				o.omni_range = float(l.d) if float(l.d) > 0 else 20.0; o.position = p; add_child(o)
 			"SpotLight":
-				var s := SpotLight3D.new(); s.light_color = col; s.light_energy = float(l.i)*0.07
+				var s := SpotLight3D.new(); s.light_color = col; s.light_energy = float(l.i)*0.16
 				s.spot_range = float(l.d) if float(l.d) > 0 else 25.0; add_child(s)
 				var tg := Vector3(l.t[0], l.t[1], l.t[2]) if l.t != null else p + Vector3(0, -1, 0)
 				s.look_at_from_position(p, tg)
 			"HemisphereLight":
 				env.ambient_light_color = col.lerp(Color("#" + str(l.g)), 0.5)
-				env.ambient_light_energy = float(l.i)*0.18
+				env.ambient_light_energy = maxf(1.0, float(l.i)*0.8)
 	# a soft light that follows her, so she reads against the night (the browser's charLook rim)
 	var key := OmniLight3D.new(); key.name = "Key"; key.light_color = Color(1.0, 0.86, 0.74); key.light_energy = 1.4; key.omni_range = 4.5
 	add_child(key)
