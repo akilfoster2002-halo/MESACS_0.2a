@@ -41,10 +41,20 @@ const EVADE := {
 const KIND := {
 	"buyer": {"char": "thug-buyer", "hp": 6.0, "dmg": 0.0, "windup": 0.7, "walk": 1.4, "run": 4.0},
 	"big": {"char": "thug-a", "hp": 5.0, "dmg": 16.0, "windup": 0.80, "walk": 1.2, "run": 3.6},
-	"lean": {"char": "thug-b", "hp": 3.0, "dmg": 11.0, "windup": 0.58, "walk": 1.6, "run": 4.5}}
+	"lean": {"char": "thug-b", "hp": 3.0, "dmg": 11.0, "windup": 0.58, "walk": 1.6, "run": 4.5},
+	"wfc": {"char": "thug-a", "hp": 4.0, "dmg": 12.0, "windup": 0.78, "walk": 1.3, "run": 4.0},
+	"wfcLean": {"char": "thug-b", "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
 var g          # the game (game.gd)
+## ANOTHER FIGHT, SOMEWHERE ELSE (the chase): its own arena, the floor it stands on, where she gets up (meet), what is
+## in the way (blocks, car), and a script — "brawl" for a straight fight with no lessons. The alley's are the defaults.
+var arena: Dictionary = ALLEY
+var blocks: Array = BLOCKS
+var car = CAR
+var floor_y := 0.0
+var meet: Vector2 = MEET.robin
+var uniform := false
 var on := false
 var ready_ := false
 var E: Array = []
@@ -86,7 +96,7 @@ func _ready() -> void:
 # ================================================================== the cast
 func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	var K: Dictionary = KIND[kind].duplicate()
-	var e := {"kind": kind, "K": K, "hp": float(o.get("hp", K.hp)), "x": x, "z": z, "y": 0.0, "vx": 0.0, "vy": 0.0, "vz": 0.0, "yaw": float(o.get("yaw", 0.0)),
+	var e := {"kind": kind, "K": K, "hp": float(o.get("hp", K.hp)), "x": x, "z": z, "y": floor_y, "vx": 0.0, "vy": 0.0, "vz": 0.0, "yaw": float(o.get("yaw", 0.0)),
 		"state": o.get("state", "idle"), "t": 0.0, "weapon": o.get("weapon", false), "grabber": false, "cool": randf_range(1.2, 2.6), "clip": "",
 		"active": false, "tag": o.get("tag", ""), "home": null, "want_ring": randf_range(2.5, 3.4), "side": -1.0 if randf() < 0.5 else 1.0,
 		"guard": null, "parried": false, "talking": false}
@@ -95,6 +105,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	for nm in e.ap.get_animation_list():
 		if not nm in ONCE: e.ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	if o.get("hidden", false): n.visible = false
+	if uniform: dress_wfc(n)
 	if e.weapon:
 		var hand = _bone_node(n, "RightHand")
 		if hand != null:
@@ -106,6 +117,26 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	E.append(e)
 	_place(e)
 	return e
+
+## WFC, in uniform: navy all over, a helmet with a lit visor (tsh.js uniform)
+func dress_wfc(n: Node) -> void:
+	var navy := StandardMaterial3D.new(); navy.albedo_color = Color(0.16, 0.22, 0.32); navy.roughness = 0.5; navy.metallic = 0.1; navy.rim_enabled = true; navy.rim = 0.6; navy.rim_tint = 0.3
+	var stack := [n]
+	while stack.size():
+		var c: Node = stack.pop_back()
+		if c is MeshInstance3D: (c as MeshInstance3D).material_override = navy
+		stack.append_array(c.get_children())
+	var head = _bone_node(n, "Head")
+	if head == null: return
+	var att := BoneAttachment3D.new(); att.bone_name = head[1]; head[0].add_child(att)
+	var sc: float = 1.0/maxf(0.001, head[0].global_basis.get_scale().x) if head[0].is_inside_tree() else 1.0
+	var h := Node3D.new(); att.add_child(h)
+	var helm := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.15; sm.height = 0.24; sm.is_hemisphere = true; helm.mesh = sm
+	var hm := StandardMaterial3D.new(); hm.albedo_color = Color(0.07, 0.1, 0.15); hm.metallic = 0.6; hm.roughness = 0.3; helm.material_override = hm; helm.position = Vector3(0, 0.1, 0); h.add_child(helm)
+	var visor := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.2, 0.045, 0.05); visor.mesh = bm
+	var vm := StandardMaterial3D.new(); vm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; vm.albedo_color = Color(0.5, 1, 1); vm.emission_enabled = true; vm.emission = Color(0.4, 1, 1); vm.emission_energy_multiplier = 3
+	visor.material_override = vm; visor.position = Vector3(0, 0.085, 0.115); h.add_child(visor)
+	h.scale = Vector3.ONE*sc
 
 func _bone_node(n: Node, suffix: String):
 	var sk: Skeleton3D = g._find(n, func(x): return x is Skeleton3D)
@@ -218,8 +249,8 @@ func choose(t) -> String:
 	return n
 
 func clamp_arena(x: float, z: float, r := 0.35) -> Vector2:
-	x = clampf(x, ALLEY.x1, ALLEY.x2); z = clampf(z, ALLEY.z1, ALLEY.z2)
-	for s in BLOCKS + [CAR]:
+	x = clampf(x, arena.x1, arena.x2); z = clampf(z, arena.z1, arena.z2)
+	for s in _obstacles():
 		if x > s.x1 - r and x < s.x2 + r and z > s.z1 - r and z < s.z2 + r:
 			var dx1: float = x - (s.x1 - r); var dx2: float = (s.x2 + r) - x; var dz1: float = z - (s.z1 - r); var dz2: float = (s.z2 + r) - z
 			var m: float = minf(minf(dx1, dx2), minf(dz1, dz2))
@@ -228,6 +259,7 @@ func clamp_arena(x: float, z: float, r := 0.35) -> Vector2:
 			elif m == dz1: z = s.z1 - r
 			else: z = s.z2 + r
 	return Vector2(x, z)
+func _obstacles() -> Array: return blocks + ([car] if car != null else [])
 func move_to(x: float, z: float) -> void:
 	var p := clamp_arena(x, z); g.robin.position.x = p.x; g.robin.position.z = p.y
 
@@ -302,7 +334,7 @@ func dodge() -> bool:
 	# toward a wall: off it, and onto whoever is nearest
 	var wx := p.x + sin(a)*1.2; var wz := p.y + cos(a)*1.2
 	var t = pick_target(9, 3.2)
-	if t != null and (wx < ALLEY.x1 + 0.05 or wx > ALLEY.x2 - 0.05):
+	if t != null and (wx < arena.x1 + 0.05 or wx > arena.x2 - 0.05):
 		var w := clamp_arena(wx, wz); R.dash = {"x0": p.x, "z0": p.y, "x1": w.x, "z1": w.y, "t": 0.0, "len": 0.22, "arc": 0.0}
 		var wl := robin_clip(EVADE.wall.clip, true); R.act = "wall"; R.t = 0.0; R.len = minf(0.55, (wl if wl > 0 else 0.5)*0.8); R.iframe = 0.9; R.wall_to = t
 		R.face = a; R.since_dodge = 0.0; g.cue("kick"); event("wall", {}); return true
@@ -327,9 +359,9 @@ func evade_for(p: Vector2, held):
 		var d := 0.0; var k := 0.5
 		while k <= go + 0.01:
 			var x := p.x + sin(a)*k; var z := p.y + cos(a)*k
-			if x < ALLEY.x1 or x > ALLEY.x2 or z < ALLEY.z1 or z > ALLEY.z2: break
+			if x < arena.x1 or x > arena.x2 or z < arena.z1 or z > arena.z2: break
 			var hit := false
-			for b in BLOCKS + [CAR]:
+			for b in _obstacles():
 				if x > b.x1 - 0.3 and x < b.x2 + 0.3 and z > b.z1 - 0.3 and z < b.z2 + 0.3: hit = true
 			if hit: break
 			d = k; k += 0.5
@@ -425,8 +457,9 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 	_spark(Vector3(lerpf(p.x, t.x, 0.7), 1.35, lerpf(p.y, t.z, 0.7)), Color(0.6, 1, 1) if R.move == "power" else Color.WHITE)
 	if m.has("fly"):
 		var ta := a
-		var ca := ang_to(t.x, t.z, CAR.x, CAR.z)
-		if absf(ang_diff(ca, a)) < 1.1 and Vector2(CAR.x - t.x, CAR.z - t.z).length() < 11: ta = ca
+		if car != null:
+			var ca := ang_to(t.x, t.z, car.x, car.z)
+			if absf(ang_diff(ca, a)) < 1.1 and Vector2(car.x - t.x, car.z - t.z).length() < 11: ta = ca
 		throw_off(t, ta, m.fly, 1.2); slow_for(0.12 if R.move == "power" else 0.25, 0.9); _flash(0.35)
 	elif m.get("down", false) or t.hp <= 0:
 		knock(t, a, m.get("push", 1.0))
@@ -458,7 +491,7 @@ func beaten() -> void:
 	R.act = "down"; R.t = 0.0; robin_clip("fall", true); slow_to(0.25, 6)
 	later(1.1, func():
 		R.hp = 100.0; R.act = null; robin_clip("fight")
-		move_to(MEET.robin.x, MEET.robin.y)
+		move_to(meet.x, meet.y)
 		var i := 0
 		for e in alive(): e.state = "circle"; e.t = 0.0; e.cool = 2 + i*0.6; i += 1
 		slow_to(1, 4); g.note("Back on your feet. They are still here."))
@@ -515,17 +548,17 @@ func _tick_crew(dt: float) -> void:
 				if e.t > (1.7 if e.parried else 0.6): e.parried = false; e.state = "circle"; e.t = 0.0; e.cool = randf_range(0.8, 1.8)
 			"pulled":
 				var k := clampf(e.t/0.34, 0, 1); var q := k*k
-				e.x = lerpf(e.from.x, e.to.x, q); e.z = lerpf(e.from.y, e.to.y, q); e.yaw = to_her; e.y = sin(k*PI)*0.35
-				if k >= 1: e.y = 0.0; e.state = "stagger"; e.t = 0.0; e.vx = 0.0; e.vz = 0.0; e.parried = true; shake(0.2, 0.2); hitstop(0.06); g.cue("punch")
+				e.x = lerpf(e.from.x, e.to.x, q); e.z = lerpf(e.from.y, e.to.y, q); e.yaw = to_her; e.y = floor_y + sin(k*PI)*0.35
+				if k >= 1: e.y = floor_y; e.state = "stagger"; e.t = 0.0; e.vx = 0.0; e.vz = 0.0; e.parried = true; shake(0.2, 0.2); hitstop(0.06); g.cue("punch")
 			"flying":
 				e.x += e.vx*dt; e.z += e.vz*dt; e.y += e.vy*dt; e.vy -= 18*dt
 				var c := _crash(e)
-				if c != "" or e.y <= 0:
-					e.y = maxf(0, e.y)
+				if c != "" or e.y <= floor_y:
+					e.y = maxf(floor_y, e.y)
 					if c != "": shake(0.5 if c == "car" else 0.3, 0.35); hitstop(0.07); g.cue("boom")
 					e.state = "down"; e.t = 0.0; e.vx *= 0.2; e.vz *= 0.2
 			"down":
-				e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= exp(-dt*5); e.vz *= exp(-dt*5); e.y = maxf(0, e.y - dt*4)
+				e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= exp(-dt*5); e.vz *= exp(-dt*5); e.y = maxf(floor_y, e.y - dt*4)
 				if e.hp <= 0:
 					if e.t > 0.9 and e.clip != "ko": e.state = "ko"; e.ko_at = Time.get_ticks_msec(); hit1(e, "ko")
 				elif e.t > 2.4 and not (dir != null and dir.hold): e.state = "getup"; e.t = 0.0; hit1(e, "getup")
@@ -570,8 +603,8 @@ func grab(e: Dictionary) -> void:
 	robin_clip("block", true); hit1(e, "block"); g.cue("grab"); shake(0.15, 0.2)
 	event("grabbed", {"e": e})
 func _crash(e: Dictionary) -> String:
-	if e.x > CAR.x1 - 0.2 and e.x < CAR.x2 + 0.2 and e.z > CAR.z1 - 0.2 and e.z < CAR.z2 + 0.2 and e.y < 1.5: e.x -= e.vx*0.03; e.z -= e.vz*0.03; return "car"
-	if e.x < ALLEY.x1 - 0.1 or e.x > ALLEY.x2 + 0.1: e.x = clampf(e.x, ALLEY.x1, ALLEY.x2); return "wall"
+	if car != null and e.x > car.x1 - 0.2 and e.x < car.x2 + 0.2 and e.z > car.z1 - 0.2 and e.z < car.z2 + 0.2 and e.y < floor_y + 1.5: e.x -= e.vx*0.03; e.z -= e.vz*0.03; return "car"
+	if e.x < arena.x1 - 0.1 or e.x > arena.x2 + 0.1: e.x = clampf(e.x, arena.x1, arena.x2); return "wall"
 	return ""
 
 # ================================================================== the look of it
@@ -628,12 +661,12 @@ func _fight_cam(real: float) -> void:
 	cam.pull = lerpf(cam.pull, clampf((td - 2)*0.35, 0, 1.6) if t != null else 0.0, 1 - exp(-real*3))
 	var back: float = 3.7 + cam.pull; var up: float = clampf(3.1 - sin(pitch)*1.2, 2.4, 3.8) + cam.pull*0.35
 	var want := Vector3(p.x - f.x*back + r.x*0.4, up, p.y - f.y*back + r.y*0.4)
-	want.x = clampf(want.x, ALLEY.x1 + 0.6, ALLEY.x2 - 0.6)
+	want.x = clampf(want.x, arena.x1 + 0.6, arena.x2 - 0.6); want.y += floor_y
 	if not cam.on: c.global_position = want; cam.on = true; cam.look = Vector3.ZERO
 	else: c.global_position = c.global_position.lerp(want, 1 - exp(-real*10))
-	var ahead := Vector3(p.x + f.x*2.2 + r.x*0.2, 0.95 + sin(pitch)*2.2, p.y + f.y*2.2 + r.y*0.2)
+	var ahead := Vector3(p.x + f.x*2.2 + r.x*0.2, floor_y + 0.95 + sin(pitch)*2.2, p.y + f.y*2.2 + r.y*0.2)
 	var look := ahead
-	if t != null: look = Vector3(lerpf(p.x, t.x, 0.42), 1.05 + sin(pitch)*1.4, lerpf(p.y, t.z, 0.42)).lerp(ahead, 0.3)
+	if t != null: look = Vector3(lerpf(p.x, t.x, 0.42), floor_y + 1.05 + sin(pitch)*1.4, lerpf(p.y, t.z, 0.42)).lerp(ahead, 0.3)
 	cam.look = look if cam.look == Vector3.ZERO else cam.look.lerp(look, 1 - exp(-real*8))
 	if shake_len > 0 and shake_t < shake_len:
 		shake_t += real; var k := shake_amp*(1 - shake_t/shake_len)
@@ -681,6 +714,17 @@ func _steps() -> Array:
 			"enter": func(): pass, "done": func(): return false},
 		{"id": "regret", "title": "ONE MORE", "how": "He is getting back up.", "enter": func(): _regret_enter(), "done": func(): return dir.get("reg") == null or dir.reg.hp <= 0},
 		{"id": "last", "title": "", "how": "", "enter": func(): _last_enter(), "done": func(): return false}]
+
+## A STRAIGHT FIGHT (the chase's): everything she learned in the alley, no lessons, nobody frozen
+func _brawl() -> Array:
+	return [
+		{"id": "free", "title": "", "how": "", "enter": func(): _brawl_enter(), "done": func(): return false},
+		{"id": "last", "title": "", "how": "", "enter": func(): dir.hold = true; later(1.4, func(): if on and not dir.get("finished", false): dir.finished = true; finish()), "done": func(): return false}]
+func _brawl_enter() -> void:
+	dir.free = true; keys_label.visible = true
+	var i := 0
+	for e in E:
+		if e.hp > 0 and e.kind != "buyer": e.active = true; e.state = "approach"; e.t = 0.0; e.cool = 0.8 + i*0.7; i += 1
 
 func _dodge_lesson(x: Dictionary) -> void:
 	if x.e.tag == "t2" and x.dodged and not dir.get("dodged", false):
@@ -753,7 +797,8 @@ func event(nm: String, x: Dictionary) -> void:
 func step_to(i: int) -> void:
 	dir.i = i; dir.t = 0.0; dir.id = dir.steps[i].id
 	var s: Dictionary = dir.steps[i]
-	if s.title != "": g.lesson_card("THE GAUNTLETS · %d / %d" % [i + 1, dir.steps.size() - 1], s.title, s.how); g.objective("Fight your way out.", [s.how])
+	if dir.steps != steps: g.lesson_card("", "", "")
+	elif s.title != "": g.lesson_card("THE GAUNTLETS · %d / %d" % [i + 1, dir.steps.size() - 1], s.title, s.how); g.objective("Fight your way out.", [s.how])
 	else: g.lesson_card("", "", "")
 	s.enter.call()
 func _tick_director(dt: float) -> void:
@@ -765,7 +810,10 @@ func _tick_director(dt: float) -> void:
 	if dir.free and not dir.get("ending", false) and s.id != "regret" and s.id != "last" and not E.any(func(e): return e.kind != "buyer" and e.hp > 0):
 		dir.ending = true; dir.pending = null
 		if dir.freeze != null: unfreeze()
-		R.force_target = null; g.cue("win"); step_to(_index("regret")); return
+		R.force_target = null; g.cue("win")
+		if dir.steps == steps: step_to(_index("regret"))
+		else: step_to(dir.steps.size() - 1)
+		return
 	if s.done.call() and dir.freeze == null:
 		if s.has("after"): g.talk(s.after)
 		g.cue("win")
@@ -776,15 +824,20 @@ func _index(id: String) -> int:
 	return steps.size() - 1
 
 # ================================================================== start, tick, keys
-func start(done: Callable) -> void:
+## the fight's ground: {arena, blocks, car, floor, meet, uniform}; nothing given is Dragon Alley
+func setup(c := {}) -> void:
+	arena = c.get("arena", ALLEY); blocks = c.get("blocks", BLOCKS); car = c.get("car", CAR) if c.has("car") else (CAR if not c.has("arena") else null)
+	floor_y = c.get("floor", 0.0); meet = c.get("meet", MEET.robin); uniform = c.get("uniform", false)
+func start(done: Callable, script := "") -> void:
 	done_cb = done
 	on = true; cam.on = false; cam.punch = 0.0; cam.pull = 0.0
 	_reset_robin()
-	dir = {"i": 0, "t": 0.0, "free": false, "steps": steps, "freeze": null, "pending": null, "hold": false, "id": ""}
+	dir = {"i": 0, "t": 0.0, "free": false, "steps": _brawl() if script == "brawl" else steps, "freeze": null, "pending": null, "hold": false, "id": ""}
 	hud.visible = true; keys_label.visible = false
 	for e in E:
 		e.node.visible = true
 		if e.kind != "buyer" and e.hp > 0: e.state = "circle"; e.t = 0.0; e.active = false
+		e.y = floor_y; _place(e)
 	time_scale = 1.0; ramp.to = 1.0
 	step_to(0)
 func stop() -> void:
@@ -829,9 +882,9 @@ func tick(real: float) -> void:
 		var d: Dictionary = R.dash; d.t += dt
 		var k := clampf(d.t/d.len, 0, 1); var e := 1 - (1 - k)*(1 - k)
 		move_to(lerpf(d.x0, d.x1, e), lerpf(d.z0, d.z1, e))
-		g.robin.position.y = sin(k*PI)*d.arc if d.arc > 0 else 0.0
+		g.robin.position.y = floor_y + (sin(k*PI)*d.arc if d.arc > 0 else 0.0)
 		if k >= 1: R.dash = null
-	else: g.robin.position.y = 0.0
+	else: g.robin.position.y = floor_y
 	if R.act != null:
 		R.t += dt
 		if R.act == "attack":

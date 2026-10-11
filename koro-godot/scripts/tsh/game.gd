@@ -54,9 +54,14 @@ var lesson := {"i": 0, "perfect": 0, "lands": 0}
 var space_was := false
 var shots_dir := ""
 var shots_fight := false
+var shots_raid := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var fight: Fight
+var chase: Chase
+var raid: Raid
+var ringing_on := false
+var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
 const CREW := [
 	{"tag": "buyer", "kind": "buyer", "x": -41.6, "z": -28.6, "yaw": 0.0, "state": "idle"},
@@ -79,6 +84,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() >= 2 and args[0] == "shots": shots_dir = args[1]
 	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
+	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	_load_data()
 	_world()
 	_robin()
@@ -86,11 +92,15 @@ func _ready() -> void:
 	fight = Fight.new(self); add_child(fight)
 	_hud()
 	_audio()
+	chase = Chase.new(self); add_child(chase)
+	raid = Raid.new(self); add_child(raid)
 	if args.has("new") or shots_dir != "": S = _fresh()
 	if shots_fight: S.step = "deal"; S.lesson = 9
-	else: _load()
+	elif shots_raid: S.step = "raid"; S.lesson = 9
+	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
+	elif shots_raid: _shots_raid()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -241,7 +251,7 @@ func kit_all(on: bool) -> void:
 ## Robin where the shot needs her: a clip, a place, a heading
 func stage(nm: String, x: float, y: float, z: float, ry: float) -> void:
 	staged = {"clip": nm, "pos": Vector3(x, y, z), "ry": ry}
-	robin.position = staged.pos; model.rotation.y = ry; play(nm, 0.15)
+	robin.position = staged.pos; model.rotation = Vector3(0, ry, 0); play(nm, 0.15)
 
 func place(p: Vector3, yaw: float) -> void:
 	boots.x = p.x; boots.y = p.y; boots.z = p.z; boots.vx = 0; boots.vy = 0; boots.vz = 0
@@ -303,6 +313,7 @@ func phone_show(kind: String, who := "") -> void:
 	phone.visible = kind != ""
 	match kind:
 		"call": phone_text.text = "[center]\n\n[color=#9fb4c0]incoming call[/color]\n[b]%s[/b]\nmobile\n\n\n\n[color=#ff5a5a]✕[/color]      [color=#5aff8a]✆[/color][/center]" % who
+		"time": phone_text.text = "[center]\n\n\n[font_size=64][b]%s[/b][/font_size]\n[color=#9fb4c0]Tuesday[/color]\n\n\n[color=#9fb4c0]school 8:00[/color][/center]" % who
 		"oncall": phone_text.text = "[center]\n\n[color=#9fb4c0]00:04[/color]\n[b]%s[/b]\non call\n\n\n\n[color=#ff5a5a]✕[/color][/center]" % who
 
 # ================================================================== sound
@@ -310,7 +321,10 @@ func _audio() -> void:
 	voice_player = AudioStreamPlayer.new(); add_child(voice_player)
 	music = AudioStreamPlayer.new(); music.volume_db = -8; add_child(music)
 	for i in 6: var p := AudioStreamPlayer.new(); add_child(p); sfx_players.append(p)
+## the browser's synth cues that have no recording of their own here, played as the nearest one that does
+const CUE_AS := {"alarm": "lock", "skid": "kick", "scan": "glitch", "sting": "flash", "rise": "growl", "window": "door", "zip": "pick", "phone": "ui", "hit": "punch"}
 func cue(kind: String) -> void:
+	if not ResourceLoader.exists("res://assets/tsh/sfx/%s-0.mp3" % kind): kind = CUE_AS.get(kind, kind)
 	var files := []
 	for i in 6:
 		var f := "res://assets/tsh/sfx/%s-%d.mp3" % [kind, i]
@@ -411,7 +425,17 @@ func rel(x: float, z: float, ry: float, d: float, s_: float, y: float) -> Vector
 	return Vector3(x + sin(ry)*d - cos(ry)*s_, y, z + cos(ry)*d + sin(ry)*s_)
 func walk_stage(a: Vector2, b: Vector2, k: float) -> void:
 	stage("walk", lerpf(a.x, b.x, k), 0, lerpf(a.y, b.y, k), atan2(b.x - a.x, b.y - a.y))
-func black(v: bool) -> void: black_rect.visible = v
+func black(v: bool) -> void:
+	black_rect.visible = v
+	if not v and end_label: end_label.text = ""
+func end_text(t: String) -> void:
+	if end_label == null:
+		end_label = _rich(Vector2.ZERO, Vector2(900, 300), 34)
+	var vp := get_viewport().get_visible_rect().size
+	end_label.position = Vector2((vp.x - 900)/2, vp.y/2 - 90)
+	end_label.text = "[center]" + t + "[/center]"
+func ringing(v: bool) -> void: ringing_on = v
+func hidden_in_cover() -> bool: return chase.cover != null
 func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 
 # ================================================================== the beats
@@ -421,6 +445,12 @@ func _enter() -> void:
 		"wake": opening()
 		"lesson":
 			kit_all(true); show_inside(false); place(HOME_ROOF, PI/2); lesson_begin(true)
+		"raid":
+			kit_all(true); show_inside(false)
+			var st: int = int(S.get("raid", {}).get("stage", 0)) if "raid" in S.seen else 0
+			place(chase._stage_start(st) if "raid" in S.seen else Vector3(-41.4, 0, -12.2), PI/2); _beat_start()
+		"night", "end":
+			kit_all(true); show_inside(false); place(Vector3(73, 12, 34), -PI/2); _beat_start()
 		_:
 			kit_all(true); show_inside(false); place(Vector3(-86, 0, 8), -PI/2); _beat_start()
 
@@ -434,7 +464,11 @@ func _beat_start() -> void:
 			marker.position = Vector3((a.x1 + a.x2)/2, 30, (a.z1 + a.z2)/2); marker.visible = true
 			fight.cast(CREW)
 		"raid":
-			note("(The WFC raid and the chase are the next part of the port.)")
+			if "raid" in S.seen: raid.go(int(S.get("raid", {}).get("stage", 0)))
+			else: raid.intro()
+		"night": raid.night()
+		"end":
+			mode = "end"; black(true); end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]")
 
 ## INT. ROBIN'S ROOM — 22:15. The buyer calls; she gets up; the kit, piece by piece; the note from her mother; the
 ## window, the sill over Kiln Street, and the jump (tsh.js opening())
@@ -766,6 +800,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 		elif ev is InputEventMouseButton and ev.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else: fight.key(ev)
 		return
+	if mode == "" and ev is InputEventKey and chase.key(ev): return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and mode == "":
 		cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
 	elif ev is InputEventMouseButton and ev.pressed:
@@ -788,9 +823,12 @@ func _process(dt: float) -> void:
 		caption_t -= dt
 		if caption_t <= 0: caption.text = ""
 	_tick_talk(dt)
+	($Key as OmniLight3D).global_position = robin.position + Vector3(0, 1.6, 0) + cam.global_basis.z*1.4
 	fight.tick(dt)
+	raid.tick(dt)
 	_crew_bag(dt)
-	if mode == "fight": return
+	if mode == "" and chase.on: chase.tick(dt)
+	if mode == "fight" or mode == "end": return
 	if mode == "reel": _tick_reel(dt); return
 	_play_tick(dt)
 
@@ -800,6 +838,13 @@ func _play_tick(dt: float) -> void:
 	var inp := {"x": float(k.call(KEY_D)) - float(k.call(KEY_A)), "z": float(k.call(KEY_W)) - float(k.call(KEY_S)), "yaw": cam_yaw,
 		"jump": space, "jump_edge": space and not space_was, "shift": k.call(KEY_SHIFT) or k.call(KEY_SHIFT)}
 	space_was = space
+	# the chase: her own moves on foot (a vault, a slide, a climb, knocked flat), behind cover, and the shoes cold
+	if chase.on:
+		var m = chase.marker()
+		marker.visible = m != null
+		if m != null: marker.position = m + Vector3(0, 30, 0)
+		if chase.tick_act(dt) or chase.tick_cover(dt): _play_camera(dt); return
+		if chase.st.i < chase.stage_at("roofs"): inp.jump = false; inp.jump_edge = false
 	# the lesson's first step: she falls slowly until SPACE fires the shoes
 	if S.step == "lesson" and lesson_id() == "fire" and not boots.ground:
 		if inp.jump_edge: fire_shoes()
@@ -836,7 +881,6 @@ func _follow(dt: float) -> void:
 		ring.position = Vector3(t.x, t.y + 0.05, t.z)
 		(ring.material_override as StandardMaterial3D).albedo_color = Color(1, 0.8, 0.3) if boots.gold else Color(0.4, 1, 0.95)
 	_play_camera(dt)
-	($Key as OmniLight3D).global_position = robin.position + Vector3(0, 1.6, 0) + cam.global_basis.z*1.4
 
 # ================================================================== photographs (-- shots <dir>)
 func _shots() -> void:
@@ -871,13 +915,58 @@ func _shots_fight() -> void:
 				"pulse": var ev2 := InputEventKey.new(); ev2.keycode = KEY_F; ev2.pressed = true; fight.key(ev2)
 				"pull": var ev3 := InputEventKey.new(); ev3.keycode = KEY_G; ev3.pressed = true; fight.key(ev3)
 			await get_tree().create_timer(0.35).timeout; await _snap("fight_%02d_hit" % n); n += 1
-		elif fight.dir != null and fight.dir.free and randf() < 0.5:
+		elif fight.dir != null and fight.dir.pending == null and randf() < 0.5:
 			fight._press(); fight._release()
 		if n > 40: break
 	print("fight over: mode=", mode, " step=", S.step, " dir=", fight.dir.id if fight.dir else "")
 	while mode == "reel":
 		await get_tree().create_timer(5.0).timeout; await _snap("outro_%02d" % n); n += 1
 	await _snap("after")
+	get_tree().quit()
+## the raid, photographed: the billboard film, then each stretch of the chase (put at its start), each fight fought by
+## pressing CLICK until they are down, home with no stars, and 3 AM
+func _shots_raid() -> void:
+	var n := [0]
+	var reel_snaps := func(tag: String):
+		while mode == "reel":
+			await get_tree().create_timer(3.0).timeout; await _snap("%s_%02d" % [tag, n[0]]); n[0] += 1
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("intro")
+	for i in Chase.STAGES.size():
+		var id: String = Chase.STAGES[i].id
+		if chase.st.i != i:
+			place(chase._stage_start(i), PI/2); chase.go(i)
+		await get_tree().create_timer(2.5).timeout; await _snap("stage_%d_%s" % [i, id])
+		if id == "run" or id == "home":
+			for j in 3:
+				await get_tree().create_timer(1.2).timeout; await _snap("stage_%d_%s_%d" % [i, id, j])
+		if Chase.STAGES[i].has("fight"):
+			await reel_snaps.call("fight%d" % Chase.STAGES[i].fight)
+			var t0 := Time.get_ticks_msec(); var k := 0
+			while mode == "fight" and Time.get_ticks_msec() - t0 < 40000:
+				await get_tree().create_timer(0.3).timeout
+				fight._press(); fight._release()
+				k += 1
+				if k % 12 == 0: await _snap("fight%d_%02d" % [Chase.STAGES[i].fight, k/12])
+			if mode == "fight":
+				for e in fight.E: e.hp = 0.0; e.state = "ko"
+				while mode == "fight": await get_tree().create_timer(0.5).timeout
+			await get_tree().create_timer(1.0).timeout; await _snap("stage_%d_after" % i)
+		if id == "call":
+			chase.answer(); await get_tree().create_timer(3.0).timeout; await _snap("stage_7_oncall")
+	# home, with nobody on her
+	while not chase.on: await get_tree().create_timer(0.5).timeout
+	chase.last_hit_t = chase.clock + 9999
+	for d in chase.drones: d.static = 9999.0
+	if chase.gun != null: chase.gun.leave = true
+	chase.set_heat(0); chase.st.flags.seenNow = false
+	for c in chase.cops: c.node.visible = false
+	chase.cops.clear()
+	place(Vector3(73, 12.02, 34), PI/2)
+	await get_tree().create_timer(1.5).timeout
+	await reel_snaps.call("night")
+	await get_tree().create_timer(3.0).timeout; await _snap("end")
+	print("raid over: step=", S.step)
 	get_tree().quit()
 func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw

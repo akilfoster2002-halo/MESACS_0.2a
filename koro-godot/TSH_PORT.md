@@ -12,6 +12,18 @@ The browser game in `public/tsh*.js` (~18,000 lines) is the source of truth; por
   KHR_mesh_quantization — `finish.sh` dequantizes. If an import fails once, delete that asset's `.import`.
 - `godot --path koro-godot res://scenes/tsh_stage.tscn -- <dir>` photographs the stage and quits (how to verify).
 
+## Night one is ported (scenes/tsh.tscn)
+- wake + lesson (`game.gd` opening/fall/lesson, `boots.gd`), deal (`game.gd` fight_intro/outro, `fight.gd`).
+- raid: `raid.gd` (billboard film, the three WFC fights' films, home, 3 AM watchers + Maya's arms, END OF
+  PROLOGUE) and `chase.gd` (tshchase.js: run/van/wall/roofs/rappel/hide/call/found/home, missiles, hunter drones,
+  gunship + searchlight + strafing runs, vault/slide, gecko-cuff climb, cover, Mom's call, heat stars, caught →
+  the stretch again). `fight.gd` takes `setup({arena, blocks, floor, meet, uniform})` + `start(cb, "brawl")`.
+- Photograph: `-- shots <dir>` (opening, lesson), `-- fightshots <dir>` (alley → raid), `-- raidshots <dir>`
+  (billboard → every chase stage → the three fights → home → 3 AM → end).
+- Not yet: the alt branch (Kai in the flat), day two.
+- The Spider-Verse post quad reads the screen before transparent things draw: give anything transparent
+  `render_priority = 101` or it disappears.
+
 ## The story (public/tshai.js QUEST + STORY), in order — port beat by beat, each playable before the next
 Night one: wake (buyer's call, kit on, out the window) → lesson (falls, shoes fire; over the roofs to Dragon Alley)
 → deal (the buyer and his crew: the fight, tshfight.js) → raid (billboard, WFC; chase stages tshchase.js; hide
