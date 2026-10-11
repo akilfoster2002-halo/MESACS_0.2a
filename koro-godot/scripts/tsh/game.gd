@@ -73,7 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_after := false; var shots_alpha := false
+var shots_climb := false; var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var fight: Fight
@@ -85,6 +85,7 @@ var cy: Courtyard
 var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
+var grip: Grip
 var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
 var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
@@ -111,10 +112,12 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
+	if args.size() >= 2 and args[0] == "climbshots": shots_dir = args[1]; shots_climb = true
 	if args.size() >= 2 and args[0] == "aftershots": shots_dir = args[1]; shots_after = true
 	_load_data()
 	_world()
 	_robin()
+	grip = Grip.new(self)
 	_camera()
 	fight = Fight.new(self); add_child(fight)
 	_hud()
@@ -139,6 +142,7 @@ func _ready() -> void:
 	elif shots_raid: _shots_raid()
 	elif shots_day: _shots_day()
 	elif shots_after: _shots_after()
+	elif shots_climb: _shots_climb()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -215,7 +219,7 @@ func _world() -> void:
 	# the shoes' world: every solid, floor and roof
 	boots = Boots.new()
 	var city_d = _json("res://assets/tsh/city.json")
-	for s in city_d.solids: boots.solids.append([s[0], s[1], s[2], s[3], s[4], s[5]])
+	for s in city_d.solids: boots.solids.append([s[0], s[1], s[2], s[3], s[4], s[5], s[6] if s.size() > 6 else ""])     # the tag: bld:B1 is a wall she can climb
 	for f in ["res://assets/tsh/school.json", "res://assets/tsh/sub.json"]:
 		var d2 = _json(f)
 		for s in d2.get("solids", []):
@@ -1060,6 +1064,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	elif ev is InputEventKey and ev.pressed and not ev.echo:
 		match ev.keycode:
 			KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			KEY_G: if mode == "" and not grip.on(): grip.try_scale()
 			KEY_V: verse_mat.set_shader_parameter("verse", 0.0 if float(verse_mat.get_shader_parameter("verse")) > 0.5 else 1.0)
 			KEY_ENTER, KEY_KP_ENTER:
 				if mode == "reel": _reel_end(true)
@@ -1099,6 +1104,9 @@ func _play_tick(dt: float) -> void:
 	var inp := {"x": float(k.call(KEY_D)) - float(k.call(KEY_A)), "z": float(k.call(KEY_W)) - float(k.call(KEY_S)), "yaw": cam_yaw,
 		"jump": space, "jump_edge": space and not space_was, "shift": k.call(KEY_SHIFT) or k.call(KEY_SHIFT)}
 	space_was = space
+	# on a wall: the cuffs have her
+	if grip.on():
+		grip.tick(dt); marker.visible = marker.visible and chase.on; _play_camera(dt); return
 	# the chase: her own moves on foot (a vault, a slide, a climb, knocked flat), behind cover, and the shoes cold
 	if chase.on:
 		var m = chase.marker()
@@ -1377,6 +1385,23 @@ func _shots_street(n: Array, reel_snaps: Callable) -> void:
 	await get_tree().create_timer(2.0).timeout; await reel_snaps.call("end")
 	await _snap("the_end")
 	print("after over: step=", S.step)
+	get_tree().quit()
+## the gecko cuffs, photographed: at B1's west wall, G, W held to the roof; then off the edge, G and S down
+func _shots_climb() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if reel: _reel_end(true)
+	S.step = "lesson"; S.lesson = 99; mode = ""; show_inside(false)
+	place(Vector3(-57.2, 0, -35), -PI/2); await get_tree().create_timer(0.8).timeout; await _snap("c0_at_wall")
+	var key := func(k: Key, down: bool):
+		var ev := InputEventKey.new(); ev.keycode = k; ev.physical_keycode = k; ev.pressed = down; Input.parse_input_event(ev)
+	key.call(KEY_G, true); await get_tree().process_frame; key.call(KEY_G, false)
+	print("grip on: ", grip.on())
+	key.call(KEY_W, true)
+	for i in 6:
+		await get_tree().create_timer(1.0).timeout; await _snap("c%d_up" % (i + 1)); print("y=", boots.y, " on=", grip.on())
+		if not grip.on(): break
+	key.call(KEY_W, false)
+	await get_tree().create_timer(1.5).timeout; await _snap("c9_roof"); print("roof: y=", boots.y, " ground=", boots.ground)
 	get_tree().quit()
 func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw

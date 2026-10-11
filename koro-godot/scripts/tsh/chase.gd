@@ -808,6 +808,7 @@ func _tick_gate(dt: float) -> void:
 func key(ev: InputEventKey) -> bool:
 	if not on or not ev.pressed or ev.echo: return false
 	var c := ev.keycode
+	if g.grip.on(): return c == KEY_G
 	if act != null: return c in [KEY_SPACE, KEY_E, KEY_G, KEY_F, KEY_J, KEY_Q]
 	if cover != null:
 		if c == KEY_E and sid() == "call" and not st.flags.answered: answer(); return true
@@ -818,7 +819,7 @@ func key(ev: InputEventKey) -> bool:
 	if c == KEY_E:
 		var cv = near_cover()
 		if cv != null: enter_cover(cv); return true
-	if c == KEY_G: try_climb(); return true
+	if c == KEY_G: g.grip.try_scale(); return true
 	if c == KEY_SPACE:
 		var pk = parkour()
 		if pk != null:
