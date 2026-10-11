@@ -245,7 +245,7 @@ func haywire(k: float) -> void:
 		hay.k = k; return
 	hay = null
 	for p in ["glitch", "ca", "hue", "vig", "contrast", "comic"]: g.verse_mat.set_shader_parameter(p, 0.0)
-	if hay_amb != null and g.sub.visible: g.env.ambient_light_energy = hay_amb
+	if hay_amb != null and g.sub.visible: g.env.ambient_light_energy = hay_amb[0]; g.env.ambient_light_color = hay_amb[1]
 	hay_amb = null
 	g.lens_jitter = Vector3.ZERO
 	if cy.lights_node:
@@ -255,12 +255,13 @@ func _tick_hay(dt: float) -> void:
 	hay.t += dt; var k: float = hay.k
 	var vm: ShaderMaterial = g.verse_mat
 	vm.set_shader_parameter("time", hay.t)
-	vm.set_shader_parameter("contrast", minf(1, 0.45 + k*0.6)); vm.set_shader_parameter("vig", 0.3 + k*0.6)
+	vm.set_shader_parameter("contrast", minf(1, 0.45 + k*0.6)*0.45); vm.set_shader_parameter("vig", 0.15 + k*0.3)
 	vm.set_shader_parameter("comic", minf(1, 0.4 + k*0.8))
-	# HARD LIGHT: the soft fill of the station goes out
+	# HARD LIGHT: the station's warm fill goes out and a cold one takes it (the browser's frames here are blue and
+	# readable: Godot's station starts far darker than the browser's, so taking its fill down too leaves nothing)
 	if g.sub.visible:
-		if hay_amb == null: hay_amb = g.env.ambient_light_energy
-		g.env.ambient_light_energy = hay_amb*(1 - 0.9*k)
+		if hay_amb == null: hay_amb = [g.env.ambient_light_energy, g.env.ambient_light_color]
+		g.env.ambient_light_color = (hay_amb[1] as Color).lerp(Color("#5a6cb8"), minf(1, k*1.5)); g.env.ambient_light_energy = lerpf(hay_amb[0], 1.25, minf(1, k*1.5))
 	var tear := randf() < 0.025
 	vm.set_shader_parameter("glitch", k*(0.04 + (0.45 if tear else 0.0)))
 	hay.gT -= dt
