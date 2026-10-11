@@ -286,8 +286,8 @@ func night() -> void:
 			"enter": func(): g.set_caption("EXT. ROOFTOP — 214 HARBOR LANE"); g.stage("kneel", roof.x, roof.y, roof.z, west); g.talk("raidHome"),
 			"beats": [[g.lines_len("raidHome")*0.35, func(): g.stage("idle", roof.x, roof.y, roof.z, west)]]},
 		{"dur": 2.6, "fov": 40, "inside": true, "cam": Vector3(win.x + 2.2, 0.7, win.z + 0.7), "look": Vector3(win.x + 0.2, 1.5, win.z),
-			"enter": func(): g.lamp.light_energy = 0; g.cue("window"); g.set_caption("INT. ROBIN'S ROOM — NIGHT"); g.stage("kneel", win.x + 0.32, 1.0, win.z, face_in),
-			"beats": [[1.5, func(): g.stage("idle", in_at.x, 0, in_at.y, face_in)], [2.1, func(): g.cue("door")]]},
+			"enter": func(): g.lamp.light_energy = 0; g.cue("window"); g.shades(false); g.apt_window(true); g.set_caption("INT. ROBIN'S ROOM — NIGHT"); g.stage("kneel", win.x + 0.32, 1.0, win.z, face_in),
+			"beats": [[1.5, func(): g.stage("idle", in_at.x, 0, in_at.y, face_in)], [2.1, func(): g.apt_window(false); g.cue("door")]]},
 		{"dur": 3.2, "fov": 34, "cam": g.rel(in_at.x, in_at.y, face_in, 0.9, 0.35, 1.6), "look": Vector3(in_at.x + 0.25, 1.25, in_at.y),
 			"enter": func(): g.stage("text", in_at.x, 0, in_at.y, face_in),
 			"beats": [[0.3, func(): g.cue("ui"); g.phone_show("time", "3:07")]]},
@@ -296,8 +296,8 @@ func night() -> void:
 		{"dur": g.lines_len("rats") + 0.8, "fov": 30, "cam": g.rel(in_at.x, in_at.y, face_in, 1.0, -0.15, 1.6), "look": Vector3(in_at.x, 1.55, in_at.y),
 			"enter": func(): g.stage("idle", in_at.x, 0, in_at.y, face_in); g.talk("rats")},
 		{"dur": 3.4, "fov": 46, "cam": Vector3(in_at.x + 2.3, 1.3, in_at.y + 1.4), "look": Vector3(in_at.x, 0.9, in_at.y),
-			"beats": [[0.3, func(): g.cue("door")], [1.0, func(): g.cue("zip"); g.kit("jacket", false)], [1.7, func(): g.cue("gear"); g.kit("gloves", false)],
-				[2.5, func(): g.cue("step"); g.kit("shoes", false)]]},
+			"beats": [[0.3, func(): g.cue("door"); g.kit("pack", false)], [1.0, func(): g.cue("zip"); g.kit("jacket", false)], [1.7, func(): g.cue("gear"); g.kit("gloves", false); g.kit("bracelet", false)],
+				[2.5, func(): g.cue("step"); g.kit("shoes", false); g.apt_boots(true)]]},
 		{"dur": 3.6, "fov": 42, "cam": [Vector3(bed.x + 2.0, 2.1, bed.z - 1.6), Vector3(bed.x + 1.5, 1.8, bed.z - 1.2)], "look": Vector3(bed.x - 0.1, 0.8, bed.z),
 			"enter": func(): lie.call(0.0),
 			"beats": [[0.9, func(): _blanket(bed, top); g.cue("door")]]},
@@ -382,3 +382,4 @@ func prologue_end() -> void:
 	g.mode = "end"; g.black(true)
 	g.end_text("CUT TO BLACK.")
 	g.chase.later(2.4, func(): g.end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]"); g.cue("ui"))
+	g.chase.later(7.6, func(): if g.S.step == "end": g.end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]\n\n\n[font_size=24]ENTER — ☀ Next: The Other Robin[/font_size]"))

@@ -257,6 +257,11 @@ window.TSHSUB = (function(){
     out.solids.push(...solids);
     const ceilingAt = (x, z) => z > 2 ? 3.4 : z > -32 ? 4.2 : z > -72 ? 4.5 : z > -88 ? 3.2 : z > -128 ? 8.5 : 3.0;
     let power = 0, t = 0;
+    // names, for the Godot export (koro-godot/tools/tsh_export): what moves and what lights
+    shutter.name = 'sub_shutter'; barrier.name = 'sub_barrier'; door.name = 'sub_door'; motes.name = 'sub_motes';
+    panelLed.name = 'sub_panelLed'; swLed.name = 'sub_swLed'; padLed.name = 'sub_padLed';
+    fixtures.forEach((f, i)=>{ f.bulb.name = 'sub_bulb' + i + (f.emerg ? '_e' : ''); }); cones.forEach((c, i)=>{ c.cone.name = 'sub_cone' + i; });
+    g.traverse(o=>{ if(o.isMesh && o.material === psiM && !o.name) o.name = 'sub_psi'; });
     S = { group:g, solids, lights, spots, ceilingAt, X, UX,
       /* the gates */
       open(which){

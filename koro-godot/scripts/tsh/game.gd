@@ -27,7 +27,17 @@ const QUEST := {
 	"deal": {"goal": "Meet the buyer in Dragon Alley. Get paid.", "to": {"fought": "raid", "confiscated": "raid"}},
 	"raid": {"goal": "Get out of Dragon Alley.", "to": {"home": "night"}},
 	"night": {"goal": "", "to": {"slept": "end"}},
-	"end": {"goal": "", "to": {}}}
+	"end": {"goal": "", "to": {}},
+	# THE OTHER ROBIN: the morning after
+	"morning": {"goal": "", "to": {"out": "commute"}},
+	"commute": {"goal": "Get to school. You are late.", "to": {"there": "school"}},
+	"school": {"goal": "Get into school.", "to": {"spotted": "sneak"}},
+	"sneak": {"goal": "Get to class without your teacher seeing you.", "to": {"caught": "detention"}},
+	"detention": {"goal": "", "to": {"fixed": "after"}},
+	"after": {"goal": "", "to": {"out": "courtyard"}},
+	"courtyard": {"goal": "Canon is waiting at the old station.", "to": {"fixed": "gethome"}},
+	"gethome": {"goal": "Get home.", "to": {"home": "evening"}},
+	"evening": {"goal": "", "to": {}}}
 const LESSON := [
 	{"id": "fire", "title": "THE SHOES", "how": "SPACE — fire them."},
 	{"id": "bound", "title": "HOLD SPACE", "how": "Hold SPACE. The shoes pick the roof you are facing — the ring — and take you there.", "teach": ["bound", "jump", "steer"]},
@@ -45,6 +55,12 @@ var robin: Node3D; var model: Node3D; var anim: AnimationPlayer; var clip := ""
 var cam: Camera3D; var cam_yaw := 0.0; var cam_pitch := -0.2; var cam_p := Vector3.ZERO
 var verse_mat: ShaderMaterial
 var env: Environment
+var sun: DirectionalLight3D
+var city_lights: Array = []          # [light, night energy]
+var night_look := {}
+var indoor := "apt"                  # which interior "inside" means: the flat, the school, the station
+var place_now := "city"
+var sky_mat: ProceduralSkyMaterial
 var lamp: OmniLight3D
 var mode := ""                  # "" play · "reel" a scene
 var reel = null
@@ -55,10 +71,14 @@ var space_was := false
 var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
+var shots_day := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var fight: Fight
 var chase: Chase
+var today: TshDay
+var hs: School
+var puzzle: Puzzle
 var raid: Raid
 var ringing_on := false
 var end_label: RichTextLabel
@@ -85,6 +105,7 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "shots": shots_dir = args[1]
 	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
+	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
 	_load_data()
 	_world()
 	_robin()
@@ -94,13 +115,18 @@ func _ready() -> void:
 	_audio()
 	chase = Chase.new(self); add_child(chase)
 	raid = Raid.new(self); add_child(raid)
+	today = TshDay.new(self); add_child(today)
+	hs = School.new(self); add_child(hs)
+	puzzle = Puzzle.new(self); hud.add_child(puzzle)
 	if args.has("new") or shots_dir != "": S = _fresh()
 	if shots_fight: S.step = "deal"; S.lesson = 9
 	elif shots_raid: S.step = "raid"; S.lesson = 9
+	elif shots_day: S.day = true; S.step = "morning"; S.dm = 522
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
 	elif shots_raid: _shots_raid()
+	elif shots_day: _shots_day()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -126,6 +152,7 @@ func _json(p: String):
 	return JSON.parse_string(FileAccess.get_file_as_string(p))
 func _load_data() -> void:
 	nav = _json("res://assets/tsh/city_nav.json")
+	nav.spots = _json("res://assets/tsh/city_spots.json").spots
 	room = _json("res://assets/tsh/apt.json")
 	var L = _json("res://assets/tsh/lines.json")
 	lines = L.lines; voice = L.voice
@@ -145,11 +172,11 @@ func _world() -> void:
 		var col := Color("#" + str(l.c)); var p := Vector3(l.p[0], l.p[1], l.p[2])
 		match str(l.type):
 			"DirectionalLight":
-				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*1.1; d.shadow_enabled = bool(l.shadow); add_child(d)
+				var d := DirectionalLight3D.new(); d.light_color = col; d.light_energy = float(l.i)*1.1; d.shadow_enabled = bool(l.shadow); add_child(d); sun = d
 				var tg := Vector3(l.t[0], l.t[1], l.t[2]) if l.t != null else Vector3.ZERO
 				d.look_at_from_position(p, tg if tg != p else p + Vector3(0, -1, 0.01))
 			"PointLight":
-				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.16; o.omni_range = float(l.d) if float(l.d) > 0 else 20.0; o.position = p; add_child(o)
+				var o := OmniLight3D.new(); o.light_color = col; o.light_energy = float(l.i)*0.16; o.omni_range = float(l.d) if float(l.d) > 0 else 20.0; o.position = p; add_child(o); city_lights.append([o, o.light_energy])
 			"HemisphereLight":
 				env.ambient_light_color = col.lerp(Color("#" + str(l.g)), 0.5); env.ambient_light_energy = maxf(1.0, float(l.i)*0.8)
 	city = _scene("res://assets/tsh/city.glb")
@@ -187,14 +214,71 @@ func _world() -> void:
 func _scene(p: String) -> Node3D:
 	var n: Node3D = (load(p) as PackedScene).instantiate(); add_child(n); return n
 
-func show_inside(v: bool) -> void:
-	inside = v
-	city.visible = not v
-	apt.visible = v
-	school.visible = false; sub.visible = false
-	env.fog_density = 0.002 if v else 0.011
-	env.background_color = Color(0.008, 0.016, 0.016) if v else Color("#0b2a26")
-	($AptFill as OmniLight3D).light_energy = 0.35 if v else 0.0
+## a shot "inside": whichever interior the story is in (the flat, the school, the station); outside: the city
+func show_inside(v: bool) -> void: show_place(indoor if v else "city")
+func show_place(w: String) -> void:
+	place_now = w; inside = w != "city"
+	city.visible = w == "city"; apt.visible = w == "apt"; school.visible = w == "school"; sub.visible = w == "sub"
+	for l in city_lights: l[0].visible = w == "city"
+	if w != "city": indoor = w
+	_look()
+	($AptFill as OmniLight3D).light_energy = (0.35 if not day() else 0.9) if w == "apt" else 0.0
+	if has_node("SchoolLights"): ($SchoolLights as Node3D).visible = w == "school"
+	if has_node("SubLights"): ($SubLights as Node3D).visible = w == "sub"
+func day() -> bool: return S.get("day", false)
+
+## THE LOOK: night (teal, wet, neon) or the morning after (tsh.js applyLook: a pale sky, the neon still on and
+## nothing next to the daylight, the towers' windows glass with the sky in them)
+func _look() -> void:
+	if night_look.is_empty():
+		night_look = {"amb": env.ambient_light_color, "ambE": env.ambient_light_energy, "fog": env.fog_light_color, "exp": env.tonemap_exposure, "sunC": sun.light_color if sun else Color.WHITE, "sunE": sun.light_energy if sun else 1.0, "glow": env.glow_intensity}
+	var d := day(); var w := place_now
+	if w == "city":
+		if d:
+			if sky_mat == null:
+				sky_mat = ProceduralSkyMaterial.new(); sky_mat.sky_top_color = Color("#3f7fd0"); sky_mat.sky_horizon_color = Color("#d6e6ee")
+				sky_mat.ground_horizon_color = Color("#c2ccca"); sky_mat.ground_bottom_color = Color("#8a9290"); sky_mat.sun_angle_max = 20
+			var sky := Sky.new(); sky.sky_material = sky_mat
+			env.background_mode = Environment.BG_SKY; env.sky = sky
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color("#e4ecf2").lerp(Color("#cfe6ff"), 0.5); env.ambient_light_energy = 1.1
+			env.fog_light_color = Color("#c9dde0"); env.fog_density = 0.0026*0.7; env.tonemap_exposure = 1.0
+			env.glow_intensity = 0.25
+			if sun: sun.light_color = Color("#ffe6c4"); sun.light_energy = 2.4; sun.rotation = Vector3(-0.9, -0.6, 0)
+			for l in city_lights: l[0].light_energy = l[1]*0.25
+		else:
+			env.background_mode = Environment.BG_COLOR; env.background_color = Color("#0b2a26")
+			env.ambient_light_color = night_look.amb; env.ambient_light_energy = night_look.ambE; env.fog_light_color = night_look.fog; env.fog_density = 0.011
+			env.tonemap_exposure = night_look.exp; env.glow_intensity = night_look.glow
+			if sun: sun.light_color = night_look.sunC; sun.light_energy = night_look.sunE
+			for l in city_lights: l[0].light_energy = l[1]
+		_city_windows(d)
+	else:
+		env.background_mode = Environment.BG_COLOR
+		match w:
+			"apt":
+				env.background_color = Color(0.008, 0.016, 0.016) if not d else Color("#c9dde0"); env.fog_density = 0.002
+				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE if not d else 0.9
+			"school":
+				env.background_color = Color("#e6ece8"); env.fog_density = 0.002; env.fog_light_color = Color("#e6ece8")
+				env.ambient_light_color = Color("#e4ecf2"); env.ambient_light_energy = 0.9; env.tonemap_exposure = 1.0
+			"sub":
+				env.background_color = Color("#040606"); env.fog_density = 0.01; env.fog_light_color = Color("#0a0e0c")
+				env.ambient_light_color = Color("#1c2622"); env.ambient_light_energy = 0.6; env.tonemap_exposure = night_look.exp
+		if sun: sun.light_energy = 0.0 if w == "sub" else (night_look.sunE if not d else 0.6)
+var _win_day = null
+func _city_windows(d: bool) -> void:
+	if _win_day == d: return
+	_win_day = d
+	var stack: Array = [city]
+	while stack.size():
+		var n: Node = stack.pop_back(); stack.append_array(n.get_children())
+		if not n is MeshInstance3D: continue
+		var mi := n as MeshInstance3D
+		for i in mi.get_surface_override_material_count():
+			var m = mi.get_active_material(i)
+			if m is StandardMaterial3D and m.emission_enabled and m.emission_texture != null:
+				if not m.has_meta("e"): m.set_meta("e", m.emission_energy_multiplier)
+				m.emission_energy_multiplier = float(m.get_meta("e"))*(0.3 if d else 1.0)
 
 # ================================================================== Robin
 func _robin() -> void:
@@ -241,12 +325,35 @@ func play(nm: String, blend := 0.2) -> void:
 	clip = nm; anim.play(nm, blend)
 
 ## her kit, piece by piece: the jacket, the gloves, the shoes (the meshes the browser's wardrobe put on her)
-const KIT_MESH := {"jacket": "worn:tech-jacket", "gloves": "worn:gecko-cuffs", "shoes": "worn:skyline-shoes"}
+const KIT_MESH := {"jacket": "worn_tech-jacket", "gloves": "worn_gecko-cuffs", "shoes": "worn_skyline-shoes", "bracelet": "worn_flash-bangle", "pack": "worn_roll-top"}
+## at school she is just Robin: the shoes and the pack, nothing else (tsh.js SCHOOL_KIT); no shades by day
+const SCHOOL_KIT := {"jacket": false, "gloves": false, "shoes": true, "bracelet": false, "pack": true}
 func kit(piece: String, on: bool) -> void:
-	var n := _find(model, func(x): return x is MeshInstance3D and x.name == KIT_MESH.get(piece, "?"))
+	var n := _find(model, func(x): return x is Node3D and x.name == KIT_MESH.get(piece, "?"))
 	if n: n.visible = on
 func kit_all(on: bool) -> void:
 	for p in KIT_MESH: kit(p, on)
+	shades(on and not day())
+func kit_set(k: Dictionary) -> void:
+	for p in k: kit(p, k[p])
+func shades(on: bool) -> void:
+	var n := _find(model, func(x): return x is Node3D and x.name == "worn_shades")
+	if n: n.visible = on
+## the flat's own things: her boots on the floor by the window, the pack, the window's sash (named in the export)
+func apt_node(nm: String) -> Node3D: return _find(apt, func(x): return x.name == nm) as Node3D
+func apt_boots(v: bool) -> void:
+	for i in 8:
+		var b := apt_node("boot%d" % i)
+		if b: b.visible = v
+func apt_pack(v: bool) -> void:
+	var p := apt_node("pack")
+	if p: p.visible = v
+var sash_y = null
+func apt_window(open: bool) -> void:
+	var w := apt_node("win_sash")
+	if w == null: return
+	if sash_y == null: sash_y = w.position.y
+	w.position.y = sash_y + (0.6 if open else 0.0)
 
 ## Robin where the shot needs her: a clip, a place, a heading
 func stage(nm: String, x: float, y: float, z: float, ry: float) -> void:
@@ -309,11 +416,21 @@ func set_caption(text: String) -> void:
 	caption.text = text; caption_t = 4.0
 func objective(title: String, how: Array = []) -> void:
 	obj_label.text = "" if title == "" else "[b]" + title + "[/b]" + ("\n[color=#9fb4c0]" + "\n".join(how) + "[/color]" if how.size() else "")
+var phone_msg := ""
+static func dclock(m: float) -> String:
+	var h := int(floor(m/60)); var mm := int(floor(m)) % 60
+	return "%d:%02d" % [(h + 11) % 12 + 1, mm]
 func phone_show(kind: String, who := "") -> void:
 	phone.visible = kind != ""
 	match kind:
 		"call": phone_text.text = "[center]\n\n[color=#9fb4c0]incoming call[/color]\n[b]%s[/b]\nmobile\n\n\n\n[color=#ff5a5a]✕[/color]      [color=#5aff8a]✆[/color][/center]" % who
 		"time": phone_text.text = "[center]\n\n\n[font_size=64][b]%s[/b][/font_size]\n[color=#9fb4c0]Tuesday[/color]\n\n\n[color=#9fb4c0]school 8:00[/color][/center]" % who
+		"late", "dtime":
+			var c := dclock(S.get("dm", 522))
+			phone_text.text = "[center]\n\n[color=#9fb4c0]%s AM[/color]\n[font_size=64][b]%s[/b][/font_size]\n%s\n[color=#9fb4c0]🏫 School · 8:00 AM[/color][/center]" % [c, c, "[color=#ffb0a0]⏰ 7:15 AM · snoozed[/color]" if kind == "late" else ""]
+		"text", "msg": phone_text.text = "[center][color=#9fb4c0]MESSAGES · NOW[/color]\n[b]%s[/b][/center]\n%s" % [who, phone_msg]
+		"calling": phone_text.text = "[center]\n\n[color=#9fb4c0]calling…[/color]\n[b]%s[/b]\nmobile\n\n\n\n[color=#ff5a5a]✕[/color][/center]" % who
+		"nocall": phone_text.text = "[center]\n\n[color=#9fb4c0]call failed[/color]\n[b]%s[/b]\nno answer[/center]" % who
 		"oncall": phone_text.text = "[center]\n\n[color=#9fb4c0]00:04[/color]\n[b]%s[/b]\non call\n\n\n\n[color=#ff5a5a]✕[/color][/center]" % who
 
 # ================================================================== sound
@@ -322,7 +439,7 @@ func _audio() -> void:
 	music = AudioStreamPlayer.new(); music.volume_db = -8; add_child(music)
 	for i in 6: var p := AudioStreamPlayer.new(); add_child(p); sfx_players.append(p)
 ## the browser's synth cues that have no recording of their own here, played as the nearest one that does
-const CUE_AS := {"alarm": "lock", "skid": "kick", "scan": "glitch", "sting": "flash", "rise": "growl", "window": "door", "zip": "pick", "phone": "ui", "hit": "punch"}
+const CUE_AS := {"sus": "lock", "pa": "ui", "ring": "ui", "alarm": "lock", "skid": "kick", "scan": "glitch", "sting": "flash", "rise": "growl", "window": "door", "zip": "pick", "phone": "ui", "hit": "punch"}
 func cue(kind: String) -> void:
 	if not ResourceLoader.exists("res://assets/tsh/sfx/%s-0.mp3" % kind): kind = CUE_AS.get(kind, kind)
 	var files := []
@@ -441,6 +558,7 @@ func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 # ================================================================== the beats
 func _enter() -> void:
 	if S.step == "intro": S.step = "wake"
+	if day(): today.enter(); return
 	match S.step:
 		"wake": opening()
 		"lesson":
@@ -467,6 +585,11 @@ func _beat_start() -> void:
 			if "raid" in S.seen: raid.go(int(S.get("raid", {}).get("stage", 0)))
 			else: raid.intro()
 		"night": raid.night()
+		"school":
+			var d: Array = nav.spots.schoolDoor
+			marker.position = Vector3(d[0], 30, d[1]); marker.visible = true
+		"sneak": hs.sneak_begin()
+		"courtyard": courtyard_begin()
 		"end":
 			mode = "end"; black(true); end_text("END OF PROLOGUE\n\n[color=#9fb4c0]Somebody has noticed her.[/color]")
 
@@ -475,7 +598,7 @@ func _beat_start() -> void:
 func opening() -> void:
 	var R: Dictionary = room.room; var a: Dictionary = room.apt; var bed: Dictionary = R.bed
 	var cx: float = (a.x1 + a.x2)/2; var cz: float = (a.z1 + a.z2)/2
-	show_inside(true); lamp.light_energy = 0; kit_all(false)
+	show_inside(true); lamp.light_energy = 0; kit_all(false); apt_boots(true); apt_pack(true); apt_window(false)
 	var sit_up := func(): stage("wake", bed.x - 0.15, bed.seat, bed.z - 0.05, PI/2)
 	var shoe := _v(R.boots.at); var form := _v(R.form.at); var pack := _v(R.pack.at); var kitc := _v(R.kitchen.at); var notep := _v(R.note.at)
 	var mom := _v(R.momDoor.at); var win := _v(R.window.at); var bench := _v(R.bench.at); var P := _v(R.packing.at)
@@ -506,13 +629,13 @@ func opening() -> void:
 			"enter": func(): stage("text", GL.x, 0, GL.y, gry), "beats": [[0.9, func(): kit("gloves", true); cue("gear")]]},
 		# the shoes: down on one knee by the window
 		{"dur": 3.2, "fov": 38, "cam": [Vector3(shoe.x + 1.5, 0.6, shoe.z - 1.1), Vector3(shoe.x + 1.2, 0.5, shoe.z - 0.8)], "look": Vector3(shoe.x + 0.2, 0.3, shoe.z),
-			"enter": func(): stage("kneel", shoe.x + 0.35, 0, shoe.z, -PI/2), "beats": [[1.5, func(): kit("shoes", true); cue("launch")]]},
+			"enter": func(): stage("kneel", shoe.x + 0.35, 0, shoe.z, -PI/2), "beats": [[1.5, func(): kit("shoes", true); apt_boots(false); cue("launch")]]},
 		# the bracelet
 		{"dur": 2.6, "fov": 30, "cam": rel(BR.x, BR.y, bry, 0.75, 0.35, 1.3), "look": rel(BR.x, BR.y, bry, 0.3, 0.15, 1.1),
-			"enter": func(): stage("text", BR.x, 0, BR.y, bry), "beats": [[0.8, func(): cue("gear")]]},
+			"enter": func(): stage("text", BR.x, 0, BR.y, bry), "beats": [[0.8, func(): kit("bracelet", true); cue("gear")]]},
 		# the backpack, and the door
 		{"dur": 3.0, "fov": 46, "cam": [Vector3(pack.x + 1.2, 1.5, pack.z - 2.2), Vector3(stop.x - 0.6, 1.55, stop.y - 2.0)], "look": func(k, t): return robin.position + Vector3(0, 1.1, 0),
-			"enter": func(): cue("pick"), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
+			"enter": func(): apt_pack(false); kit("pack", true); cue("pick"), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
 		{"dur": 2.0, "fov": 40, "cam": Vector3(stop.x + 1.3, 1.5, stop.y + 1.4), "look": Vector3(stop.x, 1.4, stop.y),
 			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y))},
 		# the kitchen: dinner on the table, still covered, and a note
@@ -528,7 +651,7 @@ func opening() -> void:
 		{"dur": 3.2, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
 			"enter": func(): score("wos-b", -8),
 			"tick": func(dt, t, k): _to_window(win, k),
-			"beats": [[1.7, func(): cue("door")]]},
+			"beats": [[1.7, func(): apt_window(true); cue("door")], [2.5, func(): shades(true); cue("ui")]]},
 		{"dur": 2.4, "fov": 40, "cam": Vector3(win.x + 2.2, 0.6, win.z + 0.6), "look": Vector3(win.x + 0.2, 1.6, win.z), "enter": func(): stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
 		# OUTSIDE: on the sill, over Kiln Street
 		{"dur": 3.0, "fov": 42, "inside": false, "cam": [Vector3(55.3, 13.4, 30.8), Vector3(55.5, 13.1, 31.5)], "look": Vector3(SILL.x - 0.2, SILL.y + 0.5, SILL.z),
@@ -787,6 +910,14 @@ func _after_fight(Q: Vector2, runners: Array, buyer) -> void:
 	outcome("fought")
 	note("The bag, and the rings in it. No money.")
 
+func _near_school_door() -> bool:
+	var d: Array = nav.spots.schoolDoor
+	return Vector2(boots.x - d[0], boots.z - d[1]).length() < 2.4 and boots.y < 1.0
+## AFTER SCHOOL: Canon, and the closed station under Harbor Lane (courtyard.gd)
+func courtyard_begin() -> void:
+	S.step = "courtyard"; _save()
+	objective(QUEST.courtyard.goal)
+	note("(Canon and Harbor Lane Station are the next part of the port.)")
 func _in_alley() -> bool:
 	var a: Dictionary = nav.zones.alley
 	return boots.x > a.x1 - 1 and boots.x < a.x2 + 1 and boots.z > a.z1 - 1 and boots.z < a.z2 + 1
@@ -801,6 +932,11 @@ func _unhandled_input(ev: InputEvent) -> void:
 		else: fight.key(ev)
 		return
 	if mode == "" and ev is InputEventKey and chase.key(ev): return
+	if ev is InputEventKey and hs.key(ev): return
+	if mode == "puzzle": return
+	if mode == "end" and ev is InputEventKey and ev.pressed and (ev.keycode == KEY_ENTER or ev.keycode == KEY_KP_ENTER) and S.step == "end": today.start(); return
+	if mode == "" and ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_E and S.step == "school" and _near_school_door():
+		marker.visible = false; black(true); get_tree().create_timer(0.4).timeout.connect(func(): black(false); hs.lobby()); return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and mode == "":
 		cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
 	elif ev is InputEventMouseButton and ev.pressed:
@@ -824,11 +960,14 @@ func _process(dt: float) -> void:
 		if caption_t <= 0: caption.text = ""
 	_tick_talk(dt)
 	($Key as OmniLight3D).global_position = robin.position + Vector3(0, 1.6, 0) + cam.global_basis.z*1.4
+	($Key as OmniLight3D).light_energy = 0.5 if day() else 2.2      # by day the sun lights her; the night's key would blow her face out
 	fight.tick(dt)
 	raid.tick(dt)
+	today.tick(dt)
+	hs.tick(dt)
 	_crew_bag(dt)
 	if mode == "" and chase.on: chase.tick(dt)
-	if mode == "fight" or mode == "end": return
+	if mode in ["fight", "end", "puzzle", "read", "wc"]: return
 	if mode == "reel": _tick_reel(dt); return
 	_play_tick(dt)
 
@@ -859,6 +998,7 @@ func _play_tick(dt: float) -> void:
 			"rebound", "reboundPerfect", "dash": cue("kick")
 	_follow(dt)
 	if S.step == "lesson" and lesson_id() == "alley" and _in_alley() and boots.y < 1.0: lesson_next()
+	if S.step == "school" and _near_school_door(): set_caption("E — Go in · Harbor Lane High")
 	if S.step == "deal" and _in_alley() and boots.y < 1.0 and fight.ready_:
 		var m: Vector2 = Fight.MEET.robin
 		if Vector2(boots.x, boots.z).distance_to(m) < 5 or (boots.z < m.y + 3 and boots.z > -38): marker.visible = false; fight_intro()
@@ -967,6 +1107,48 @@ func _shots_raid() -> void:
 	await reel_snaps.call("night")
 	await get_tree().create_timer(3.0).timeout; await _snap("end")
 	print("raid over: step=", S.step)
+	get_tree().quit()
+## the school day, photographed: the morning, over the roofs to the overlook, in at the door, the lobby, the sneak
+## (then the PA), caught, the lab, each puzzle (photographed, then solved), the robot, the talk, out into the afternoon
+func _shots_day() -> void:
+	var n := [0]
+	var reel_snaps := func(tag: String, every := 3.0):
+		while mode == "reel":
+			await get_tree().create_timer(every).timeout; await _snap("%s_%02d" % [tag, n[0]]); n[0] += 1
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("morning")
+	await get_tree().create_timer(1.5).timeout; await _snap("commute_0")
+	var o: Array = nav.spots.schoolOverlook
+	place(Vector3(o[0] + 2, o[2] + 0.02, o[1] - 2), PI*0.75)
+	await get_tree().create_timer(2.0).timeout; await _snap("commute_1")
+	await reel_snaps.call("overlook", 2.0)
+	await get_tree().create_timer(1.0).timeout; await _snap("door")
+	var ev := InputEventKey.new(); ev.keycode = KEY_E; ev.pressed = true; _unhandled_input(ev)
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("lobby")
+	await get_tree().create_timer(2.0).timeout; await _snap("sneak_0")
+	var r114: Array = hs.sp.room114
+	place(Vector3(r114[0] - 6, 0, r114[1] + 3), PI/2); await get_tree().create_timer(2.5).timeout; await _snap("sneak_1")
+	hs.pa()
+	await reel_snaps.call("pa")
+	await get_tree().create_timer(1.5).timeout
+	await reel_snaps.call("caught")
+	await get_tree().create_timer(1.5).timeout
+	await reel_snaps.call("lab")
+	for i in 3:
+		await get_tree().create_timer(1.5).timeout; await _snap("puzzle_%d_a" % i)
+		var kind := puzzle.kind
+		for j in 3:
+			if not puzzle.visible or puzzle.kind != kind: break
+			puzzle.solve(); await get_tree().create_timer(1.6).timeout
+			if j == 0: await _snap("puzzle_%d_b" % i)
+	await get_tree().create_timer(1.0).timeout
+	await reel_snaps.call("robot")
+	await reel_snaps.call("talk", 4.0)
+	await get_tree().create_timer(1.5).timeout
+	await reel_snaps.call("outside")
+	await get_tree().create_timer(1.5).timeout; await _snap("after")
+	print("day over: step=", S.step)
 	get_tree().quit()
 func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw
