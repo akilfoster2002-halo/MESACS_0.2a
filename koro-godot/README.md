@@ -37,6 +37,17 @@ godot --path koro-godot                    # or straight into the game
 Walk into water deeper than you are tall and you swim. Fly into the falls
 and they push you down and out.
 
+## TSH — the story (being ported)
+
+```bash
+godot --path koro-godot res://scenes/tsh.tscn            # from your save
+godot --path koro-godot res://scenes/tsh.tscn -- new     # from the start
+```
+
+Ported so far: the opening (the buyer's call, her room, the kit, the note, the window), the fall and the shoes'
+lesson over the roofs (`scripts/tsh/boots.gd` is `public/boots.js` line for line: hold SPACE roof to roof, the
+rhythm, dive, pull-up, wall kick, dash), on to Dragon Alley. What comes next: `TSH_PORT.md`.
+
 ## TSH — the test stage
 
 ```bash
