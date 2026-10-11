@@ -205,6 +205,10 @@ func _world() -> void:
 	lamp.position = Vector3(room.room.bed.x + 0.6, 2.2, room.room.bed.z - 1.0); add_child(lamp)
 	var ceil := OmniLight3D.new(); ceil.name = "AptFill"; ceil.light_color = Color(0.7, 0.85, 0.9); ceil.light_energy = 0.0; ceil.omni_range = 12
 	ceil.position = Vector3(a.x, 2.8, a.z); add_child(ceil)
+	# the morning: the sun in at the window, on the floor and the bed (tsh.js aptSrc.sun); the ceiling off
+	var w: Array = room.room.window.at
+	var sunin := OmniLight3D.new(); sunin.name = "AptSun"; sunin.light_color = Color("#ffe2b8"); sunin.light_energy = 0.0; sunin.omni_range = 11
+	sunin.position = Vector3(w[0] + 1.6, 2.4, w[2]); sunin.shadow_enabled = true; add_child(sunin)
 	# a soft light that follows her, so she reads against the night (the browser's charLook rim)
 	var key := OmniLight3D.new(); key.name = "Key"; key.light_color = Color(1.0, 0.86, 0.74); key.light_energy = 2.2; key.omni_range = 6.0; add_child(key)
 	show_inside(false)
@@ -238,7 +242,8 @@ func show_place(w: String) -> void:
 	for l in city_lights: l[0].visible = w == "city"
 	if w != "city": indoor = w
 	_look()
-	($AptFill as OmniLight3D).light_energy = (0.35 if not day() else 0.9) if w == "apt" else 0.0
+	($AptFill as OmniLight3D).light_energy = (0.35 if not day() else 0.0) if w == "apt" else 0.0
+	($AptSun as OmniLight3D).light_energy = 3.5 if w == "apt" and day() else 0.0
 	if has_node("SchoolLights"): ($SchoolLights as Node3D).visible = w == "school"
 	if has_node("SubLights"): ($SubLights as Node3D).visible = w == "sub"
 func day() -> bool: return S.get("day", false)
@@ -274,7 +279,8 @@ func _look() -> void:
 		match w:
 			"apt":
 				env.background_color = Color(0.008, 0.016, 0.016) if not d else Color("#c9dde0"); env.fog_density = 0.002
-				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE if not d else 0.9
+				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE if not d else 0.32
+				if d: env.ambient_light_color = Color("#bcd4d0"); env.tonemap_exposure = 0.8
 			"school":
 				env.background_color = Color("#e6ece8"); env.fog_density = 0.002; env.fog_light_color = Color("#e6ece8")
 				env.ambient_light_color = Color("#e4ecf2"); env.ambient_light_energy = 0.55; env.tonemap_exposure = 0.85
@@ -589,11 +595,40 @@ func _reel_cam() -> void:
 	var c := _at(s.cam, e, f.t); var l := _at(s.look, e, f.t)
 	var br := 0.012 + 0.0006*cam.fov; var tt := Time.get_ticks_msec()/1000.0
 	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br) + lens_jitter
+	_lens_guard(l)
 	if (l - cam.global_position).length() > 0.001: cam.look_at(l)
 	if s.has("fov2"): cam.fov = lerpf(s.get("fov", 50), s.fov2, e)
 	# the lens, tilted (a cut's dutch angle, easing in) and, while the station falls apart, hand-held
 	lens_roll += (dutch - lens_roll)*minf(1, get_process_delta_time()*10)
 	if absf(lens_roll) > 0.0005: cam.rotate_object_local(Vector3.FORWARD, lens_roll)
+## NEVER INSIDE A WALL. Indoors (the flat, the school, the station) a film's camera is kept on the near side of
+## whatever stands between it and what it looks at: the rooms' meshes get collision of their own (once, on a layer
+## nothing else uses), and a ray from the subject back to the lens finds the wall the lens would be in
+const LENS_LAYER := 1 << 19
+var _guarded := {}
+func _lens_guard(look: Vector3) -> void:
+	if not inside: return
+	var root: Node3D = {"apt": apt, "school": school, "sub": sub}.get(place_now)
+	if root == null: return
+	if not _guarded.has(place_now):
+		_guarded[place_now] = true
+		var st: Array = [root]
+		while st.size():
+			var n: Node = st.pop_back(); st.append_array(n.get_children())
+			if not n is MeshInstance3D or String(n.name).begins_with("SH"): continue
+			var mi := n as MeshInstance3D
+			if mi.mesh == null or mi.skin != null or mi.get_aabb().size.length() < 0.25: continue
+			if not mi.mesh is ArrayMesh or mi.mesh.get_surface_count() == 0 or (mi.mesh as ArrayMesh).surface_get_primitive_type(0) != Mesh.PRIMITIVE_TRIANGLES: continue
+			if mi.mesh.get_faces().is_empty(): continue
+			mi.create_trimesh_collision()
+			for c in mi.get_children():
+				if c is StaticBody3D: (c as StaticBody3D).collision_layer = LENS_LAYER; (c as StaticBody3D).collision_mask = 0
+	var p := cam.global_position; var to := p - look
+	if to.length() < 0.05: return
+	var q := PhysicsRayQueryParameters3D.create(look, p + to.normalized()*0.1, LENS_LAYER); q.hit_back_faces = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or not hit.collider.is_visible_in_tree(): return
+	cam.global_position = (hit.position as Vector3) - to.normalized()*0.12
 func _tick_reel(dt: float) -> void:
 	var f = reel; var s = f.shot
 	f.t += dt

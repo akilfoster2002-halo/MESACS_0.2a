@@ -18,7 +18,15 @@ uniform float hue = 0.0;
 uniform float vig = 0.0;
 uniform float contrast = 0.0;
 uniform float time = 0.0;
+// THE COMIC (tshlook.js uComic): ink where the light changes, Ben-Day dots in the half shadow, hatching in the dark,
+// the colour posterised — printed, not rendered. The station goes to it as it goes haywire.
+uniform float comic = 0.0;
 
+float lum_of(vec2 p){ vec3 c = texture(screen_tex, p).rgb; float l = dot(c, vec3(0.299, 0.587, 0.114)); return l/(1.0 + l); }
+// the browser grades after its tonemapping; here the picture is still linear light, so the grade is done in a
+// stand-in for display values (Reinhard, then gamma) and taken back out
+vec3 to_disp(vec3 c){ return pow(c/(1.0 + c), vec3(1.0/2.2)); }
+vec3 from_disp(vec3 t){ vec3 l = pow(clamp(t, 0.0, 0.995), vec3(2.2)); return l/(1.0 - l); }
 void vertex(){ POSITION = vec4(VERTEX.xy, 1.0, 1.0); }
 
 float view_z(vec2 uv, mat4 inv_proj){
@@ -71,9 +79,41 @@ void fragment(){
 		float dotm = 1.0 - smoothstep(rad - 0.06, rad + 0.06, dt);
 		col += glow*dotm*1.4*verse;
 	}
-	if(ca > 0.0){ col.r = mix(col.r, texture(screen_tex, uv + vec2(ca, 0.0)).r, 0.8); col.b = mix(col.b, texture(screen_tex, uv - vec2(ca, 0.0)).b, 0.8); }
-	if(hue != 0.0){ float a = hue*6.2831853; vec3 k = vec3(0.57735); col = col*cos(a) + cross(k, col)*sin(a) + k*dot(k, col)*(1.0 - cos(a)); }
-	if(contrast > 0.0){ col = max(vec3(0.0), (col - 0.18)*(1.0 + contrast) + 0.18); }
+	// the plates off register: red one way, blue the other, further towards the edges (tshlook.js: uCA, and uComic/uGlitch)
+	vec2 mis = vec2(2.2, -1.4)*px*(comic + glitch*9.0*(0.6 + 0.4*sin(time*23.0)))*(1.0 + r2*6.0);
+	if(ca > 0.0 || comic > 0.0 || glitch > 0.0){
+		col.r += texture(screen_tex, uv - d*ca*r2 + mis).r - c0.r; col.b += texture(screen_tex, uv + d*ca*r2 - mis).b - c0.b; col = max(col, vec3(0.0)); }
+	if(hue != 0.0){ vec3 k = vec3(0.57735); col = col*cos(hue) + cross(k, col)*sin(hue) + k*dot(k, col)*(1.0 - cos(hue)); }   // radians, as the browser's
 	if(vig > 0.0){ col *= 1.0 - vig*smoothstep(0.15, 0.7, r2*2.0); }
+	if(contrast > 0.0 || comic > 0.0){
+		vec3 c1 = to_disp(col);
+		// high contrast: the blacks crushed, the lights pushed, an S through the middle
+		if(contrast > 0.0) c1 = mix(c1, smoothstep(0.07, 0.82, c1)*1.08, contrast);
+		if(comic > 0.001){
+			vec3 cc = c1;
+			float tl = lum_of(uv + px*vec2(-1.0, -1.0)), t_ = lum_of(uv + px*vec2(0.0, -1.0)), tr = lum_of(uv + px*vec2(1.0, -1.0));
+			float l_ = lum_of(uv + px*vec2(-1.0, 0.0)), r_ = lum_of(uv + px*vec2(1.0, 0.0));
+			float bl = lum_of(uv + px*vec2(-1.0, 1.0)), b_ = lum_of(uv + px*vec2(0.0, 1.0)), br = lum_of(uv + px*vec2(1.0, 1.0));
+			float gx = -tl - 2.0*l_ - bl + tr + 2.0*r_ + br, gy = -bl - 2.0*b_ - br + tl + 2.0*t_ + tr;
+			float edge = smoothstep(0.13, 0.3, length(vec2(gx, gy)));
+			float lum = dot(cc, vec3(0.299, 0.587, 0.114));
+			vec3 ink = vec3(0.05, 0.015, 0.1);
+			vec2 g = mat2(vec2(0.7071, 0.7071), vec2(-0.7071, 0.7071))*(FRAGCOORD.xy/5.5);
+			float dd = length(fract(g) - 0.5), rad = sqrt(clamp(1.0 - lum*1.7, 0.0, 1.0))*0.6;
+			float dots = 1.0 - smoothstep(rad - 0.07, rad + 0.07, dd);
+			vec3 cm = mix(cc, cc*0.35 + ink*0.4, dots*smoothstep(0.62, 0.18, lum)*0.85);
+			vec2 g2 = mat2(vec2(0.966, 0.259), vec2(-0.259, 0.966))*(FRAGCOORD.xy/4.0);
+			float hd = 1.0 - smoothstep(0.18, 0.26, length(fract(g2) - 0.5));
+			float sat = max(cc.r, max(cc.g, cc.b)) - min(cc.r, min(cc.g, cc.b));
+			cm = mix(cm, cm*vec3(1.08, 0.82, 1.12), hd*smoothstep(0.55, 0.9, lum)*sat);
+			float hatch = step(0.62, fract((FRAGCOORD.x + FRAGCOORD.y)/5.0));
+			cm = mix(cm, ink, hatch*smoothstep(0.14, 0.03, lum)*0.75);
+			cm = mix(cm, floor(cm*7.0 + 0.5)/7.0, 0.3);
+			float m = dot(cm, vec3(0.333)); cm = mix(vec3(m), cm, 1.25);
+			cm = mix(cm, ink, edge*0.92);
+			c1 = mix(cc, clamp(cm, 0.0, 1.0), comic);
+		}
+		col = from_disp(c1);
+	}
 	ALBEDO = col;
 }

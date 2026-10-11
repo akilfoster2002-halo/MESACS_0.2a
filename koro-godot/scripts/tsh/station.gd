@@ -238,12 +238,15 @@ func fight_two(R: Vector2, ry: float) -> void:
 	g.note("Maya — and her arms. Keep moving.")
 
 # ================================================================== HAYWIRE, THE WIND, RAPID CUTS
+var hay_amb = null                      # the station's ambient before haywire took it down
 func haywire(k: float) -> void:
 	if k > 0:
 		if hay == null: hay = {"t": 0.0, "sh": 0.0, "gT": 0.0}
 		hay.k = k; return
 	hay = null
-	for p in ["glitch", "ca", "hue", "vig", "contrast"]: g.verse_mat.set_shader_parameter(p, 0.0)
+	for p in ["glitch", "ca", "hue", "vig", "contrast", "comic"]: g.verse_mat.set_shader_parameter(p, 0.0)
+	if hay_amb != null and g.sub.visible: g.env.ambient_light_energy = hay_amb
+	hay_amb = null
 	g.lens_jitter = Vector3.ZERO
 	if cy.lights_node:
 		for l in cy.lights_node.get_children(): if l.has_meta("c0"): l.light_color = l.get_meta("c0")
@@ -252,13 +255,18 @@ func _tick_hay(dt: float) -> void:
 	hay.t += dt; var k: float = hay.k
 	var vm: ShaderMaterial = g.verse_mat
 	vm.set_shader_parameter("time", hay.t)
-	vm.set_shader_parameter("contrast", minf(1, 0.45 + k*0.6) - 0.22); vm.set_shader_parameter("vig", 0.3 + k*0.6)
+	vm.set_shader_parameter("contrast", minf(1, 0.45 + k*0.6)); vm.set_shader_parameter("vig", 0.3 + k*0.6)
+	vm.set_shader_parameter("comic", minf(1, 0.4 + k*0.8))
+	# HARD LIGHT: the soft fill of the station goes out
+	if g.sub.visible:
+		if hay_amb == null: hay_amb = g.env.ambient_light_energy
+		g.env.ambient_light_energy = hay_amb*(1 - 0.9*k)
 	var tear := randf() < 0.025
 	vm.set_shader_parameter("glitch", k*(0.04 + (0.45 if tear else 0.0)))
 	hay.gT -= dt
 	if tear and k > 0.3 and hay.gT <= 0: hay.gT = 1.5; g.cue("glitch")
-	vm.set_shader_parameter("ca", k*0.006*(1.2 + sin(hay.t*13)))
-	vm.set_shader_parameter("hue", k*sin(hay.t*0.6)*0.5)
+	vm.set_shader_parameter("ca", k*0.03*(1.2 + sin(hay.t*13)))
+	vm.set_shader_parameter("hue", k*sin(hay.t*0.6))
 	if randf() < 0.06*k: flash(0.3*k, Color.from_hsv(randf(), 1, 1))
 	if cy.lights_node and g.sub.visible:
 		for l in cy.lights_node.get_children():
