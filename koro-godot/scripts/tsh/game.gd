@@ -73,7 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_after := false
+var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var fight: Fight
@@ -132,6 +132,7 @@ func _ready() -> void:
 	elif shots_day: S.day = true; S.step = "morning"; S.dm = 522
 	elif shots_after: S.day = true; S.step = "courtyard"; S.dm = 920
 	if args.size() >= 3 and args[2] == "street": S.tun = 7
+	if args.size() >= 3 and args[2] == "alpha": S.tun = 6; shots_alpha = true
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
@@ -192,6 +193,10 @@ func _world() -> void:
 				env.ambient_light_color = col.lerp(Color("#" + str(l.g)), 0.5); env.ambient_light_energy = maxf(1.0, float(l.i)*0.8)
 	city = _scene("res://assets/tsh/city.glb")
 	apt = _scene("res://assets/tsh/apt.glb")
+	# what the browser had swapped out for a model (the bed's boxes and its old duvet, the table, the form...): hidden
+	for h in _json("res://assets/tsh/apt_parts.json").hidden:
+		var n := apt.find_child(h, true, false) as Node3D
+		if n: n.visible = false
 	school = _scene("res://assets/tsh/school.glb")
 	sub = _scene("res://assets/tsh/sub.glb")
 	# the lamp by her bed (the browser's aptLights)
@@ -244,6 +249,7 @@ func _look() -> void:
 	if night_look.is_empty():
 		night_look = {"amb": env.ambient_light_color, "ambE": env.ambient_light_energy, "fog": env.fog_light_color, "exp": env.tonemap_exposure, "sunC": sun.light_color if sun else Color.WHITE, "sunE": sun.light_energy if sun else 1.0, "glow": env.glow_intensity}
 	var d := day(); var w := place_now
+	env.sky = _dome(d); env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	if w == "city":
 		if d:
 			if sky_mat == null:
@@ -276,6 +282,32 @@ func _look() -> void:
 				env.background_color = Color("#040606"); env.fog_density = 0.01; env.fog_light_color = Color("#0a0e0c")
 				env.ambient_light_color = Color("#1c2622"); env.ambient_light_energy = 0.6; env.tonemap_exposure = night_look.exp
 		if sun: sun.light_energy = 0.0 if w == "sub" else (night_look.sunE if not d else 0.6)
+## WHAT IT ALL REFLECTS (tsh.js applyLook, scene.environment): a teal dome with orange lanterns low down, the tubes
+## and the neon on it (by day a pale blue one, nothing on it), at 0.6 of its light by night and 0.8 by day. Never seen,
+## only reflected: in the wet, in glass — and in the alpha's skin, which is black and glossy and nothing without it
+var _domes := {}
+func _dome(d: bool) -> Sky:
+	if _domes.has(d): return _domes[d]
+	var W := 256; var H := 128
+	var im := Image.create(W, H, false, Image.FORMAT_RGBAF)
+	var top := Color("#5a9ae0") if d else Color("#0e3a34"); var hor := Color("#e8eeee") if d else Color("#2a7a6c"); var bot := Color("#4a4642") if d else Color("#050807")
+	var panels := [] if d else [[Color("#ff6a2a"), 3.0, Vector3(25, 3, 10), 8.0, 3.0], [Color("#ff5a1a"), 2.5, Vector3(-20, 2, 25), 6.0, 3.0], [Color("#c8ffe8"), 4.0, Vector3(0, 18, 0), 14.0, 2.0],
+		[Color("#38ffd0"), 3.0, Vector3(-30, 6, -15), 10.0, 4.0], [Color("#ff3fd0"), 2.0, Vector3(30, 8, -25), 8.0, 4.0], [Color("#8fd8ff"), 2.5, Vector3(5, 10, 35), 12.0, 5.0]]
+	for y in H:
+		for x in W:
+			var ph := (float(x)/W - 0.5)*TAU; var th := (0.5 - float(y)/H)*PI
+			var dir := Vector3(sin(ph)*cos(th), sin(th), -cos(ph)*cos(th))
+			var c := hor.lerp(top, pow(dir.y, 0.5)) if dir.y > 0 else hor.lerp(bot, pow(-dir.y, 0.4))
+			for p in panels:
+				var ctr: Vector3 = p[2]; var n := -ctr.normalized(); var dn := dir.dot(n)
+				if dn >= -0.001: continue
+				var hit := dir*(ctr.dot(n)/dn) - ctr
+				var r := (Vector3.UP.cross(-n)).normalized() if absf(n.y) < 0.999 else Vector3.RIGHT; var u := (-n).cross(r)
+				if absf(hit.dot(r)) < p[3]/2 and absf(hit.dot(u)) < p[4]/2: c = (p[0] as Color)*p[1]
+			im.set_pixel(x, y, c)
+	var m := PanoramaSkyMaterial.new(); m.panorama = ImageTexture.create_from_image(im); m.energy_multiplier = 0.8 if d else 0.6
+	var s := Sky.new(); s.sky_material = m; _domes[d] = s; return s
+
 var _win_day = null
 func _city_windows(d: bool) -> void:
 	if _win_day == d: return
@@ -1223,12 +1255,14 @@ func _shots_after() -> void:
 			puzzle.solve(); await get_tree().create_timer(1.8).timeout
 	await get_tree().create_timer(2.0).timeout
 	if S.get("tun", 0) == 7: await _shots_street(n, reel_snaps); return
-	await _snap("street"); await get_tree().create_timer(4.0).timeout; await _snap("phone")
-	place(Vector3(Courtyard.ENTRY.x - 1, 0, Courtyard.ENTRY.y + 2.5), PI)
-	await get_tree().create_timer(1.0).timeout
-	await reel_snaps.call("entry")
-	await get_tree().create_timer(2.0).timeout; await _snap("tunnel_in")
+	if not shots_alpha:
+		await _snap("street"); await get_tree().create_timer(4.0).timeout; await _snap("phone")
+		place(Vector3(Courtyard.ENTRY.x - 1, 0, Courtyard.ENTRY.y + 2.5), PI)
+		await get_tree().create_timer(1.0).timeout
+		await reel_snaps.call("entry")
+		await get_tree().create_timer(2.0).timeout; await _snap("tunnel_in")
 	var stops := [["panel", Vector3(518.2, 0, 4.2)], ["switch", Vector3(514.6, 0, -27)], ["gizmo", Vector3(520, 0, -44)], ["hatch", Vector3(520.6, 0, -70.0)], ["quiet", Vector3(520, 0, -81)], ["door", Vector3(521.2, 0, -86.2)], ["meet", Vector3(520, 0, -95)]]
+	if shots_alpha: stops = stops.slice(5)
 	for st in stops:
 		place(st[1], 0.0); await get_tree().create_timer(1.0).timeout
 		if st[0] in ["panel", "switch", "hatch", "door"]: press_e.call()
@@ -1238,6 +1272,18 @@ func _shots_after() -> void:
 		if puzzle.visible:
 			await solve_all.call("puzzle_" + st[0] + "_b"); await reel_snaps.call(st[0] + "_b")
 		await get_tree().create_timer(0.8).timeout
+	# straight to the alpha (the fights skipped): photographs of it, close, in the station's light
+	if shots_alpha:
+		var t9 := Time.get_ticks_msec()
+		while mode != "fight" and Time.get_ticks_msec() - t9 < 60000: await get_tree().create_timer(0.3).timeout
+		station.alpha_scene(); await reel_snaps.call("alpha", 1.5); await reel_snaps.call("monster", 1.5)
+		var t8 := Time.get_ticks_msec()
+		while station.B != null and Time.get_ticks_msec() - t8 < 16000:
+			await get_tree().create_timer(0.5).timeout; station.brawl_click()
+			if (Time.get_ticks_msec() - t8) % 2000 < 500: await _snap("brawl_%d" % ((Time.get_ticks_msec() - t8)/2000))
+			if Time.get_ticks_msec() - t8 > 9000 and station.B != null: station.B.hits = 2
+		await reel_snaps.call("duel", 1.5)
+		get_tree().quit(); return
 	# the fights: swung for her until the next film starts
 	for fi in 2:
 		var t0 := Time.get_ticks_msec(); var k := 0

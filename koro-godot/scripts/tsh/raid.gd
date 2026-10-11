@@ -18,7 +18,7 @@ var g
 var screen: Node3D; var screen_bg: StandardMaterial3D; var screen_text: Label3D; var screen_mode := ""
 var crew_out := false
 var maya: Node3D; var maya_ap: AnimationPlayer; var kai: Node3D; var kai_ap: AnimationPlayer; var oc: Tentacles
-var blanket: MeshInstance3D
+var blanket: Blanket
 var bino: ColorRect
 
 func _init(game) -> void: g = game
@@ -278,6 +278,7 @@ func night() -> void:
 	var top: float = bed.get("top", 0.72)
 	var lie := func(k := 0.0):
 		g.stage("idle", bed.x + 0.75, top + 0.12, bed.z, PI/2); g.model.rotation.x = -PI/2; g.model.rotation.z = k
+		g.get_tree().create_timer(0.3).timeout.connect(func(): if blanket != null and blanket.visible: blanket.fit(g.model, top))
 	_watchers()
 	var maya_head := func(k, t): return maya.position + Vector3(0, 1.55, 0)
 	var bino_at := Vector3(win.x + 0.15, 1.65, win.z + 0.1); var bed_ := Vector3(bed.x, top + 0.25, bed.z)
@@ -364,11 +365,8 @@ func _burst(k: int, at: Vector3, hold: float, on_floor := false) -> void:
 	oc.burst(k, w, hold, on_floor)
 ## the blanket over her, to her shoulders
 func _blanket(bed: Dictionary, top: float) -> void:
-	if blanket == null:
-		blanket = MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(1.55, 0.2, 1.1); blanket.mesh = bm
-		var m := StandardMaterial3D.new(); m.albedo_color = Color(0.3, 0.37, 0.51); m.roughness = 0.95; blanket.material_override = m
-		g.apt.add_child(blanket)
-	blanket.global_position = Vector3(bed.x + 0.45, top + 0.15, bed.z); blanket.visible = true
+	if blanket == null: blanket = Blanket.new(); g.apt.add_child(blanket)
+	blanket.visible = true; blanket.fit(g.model, top)
 
 ## CUT TO BLACK. END OF PROLOGUE.
 func prologue_end() -> void:

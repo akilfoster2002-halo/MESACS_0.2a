@@ -11,7 +11,7 @@ const DAY_KIT := {"jacket": false, "gloves": false, "shoes": false, "bracelet": 
 var g
 var alarm_t := 0.0
 var alarm_on := false
-var blanket: MeshInstance3D
+var blanket: Blanket
 
 func _init(game) -> void: g = game
 
@@ -54,11 +54,13 @@ func alarm(v: bool) -> void: alarm_on = v; alarm_t = 0.0
 
 func _blanket(on: bool) -> void:
 	var bed: Dictionary = g.room.room.bed; var top: float = bed.get("top", 0.72)
-	if blanket == null:
-		blanket = MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(1.55, 0.2, 1.1); blanket.mesh = bm
-		var m := StandardMaterial3D.new(); m.albedo_color = Color(0.3, 0.37, 0.51); m.roughness = 0.95; blanket.material_override = m
-		g.apt.add_child(blanket)
-	blanket.global_position = Vector3(bed.x + 0.45, top + 0.15, bed.z); blanket.visible = on
+	if blanket == null: blanket = Blanket.new(); g.apt.add_child(blanket)
+	blanket.visible = on
+	if on: _refit()
+## laid over her as she lies now (her pose settles over the clip's blend first)
+func _refit() -> void:
+	g.get_tree().create_timer(0.3).timeout.connect(func():
+		if blanket != null and blanket.visible: blanket.fit(g.model, g.room.room.bed.get("top", 0.72)))
 
 ## INT. ROBIN'S ROOM — MORNING
 func morning() -> void:
@@ -69,7 +71,7 @@ func morning() -> void:
 	if not "late" in g.S.seen: g.S.seen.append("late")
 	_blanket(true)
 	var lie := func(k: float):
-		g.stage("idle", bed.x + 0.75, top + 0.12, bed.z, PI/2); g.model.rotation.x = -PI/2; g.model.rotation.z = k
+		g.stage("idle", bed.x + 0.75, top + 0.12, bed.z, PI/2); g.model.rotation.x = -PI/2; g.model.rotation.z = k; _refit()
 	var sit_up := func(): g.stage("wake", bed.x - 0.15, bed.get("seat", 0.76), bed.z - 0.05, PI/2)
 	var shoe: Vector3 = g._v(R.boots.at); var form: Vector3 = g._v(R.form.at); var win: Vector3 = g._v(R.window.at)
 	var F := Vector2(form.x + 0.75, form.z + 0.6); var fry := atan2(-0.75, -0.6)
