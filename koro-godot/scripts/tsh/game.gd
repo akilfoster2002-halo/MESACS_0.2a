@@ -260,7 +260,7 @@ func _look() -> void:
 				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE if not d else 0.9
 			"school":
 				env.background_color = Color("#e6ece8"); env.fog_density = 0.002; env.fog_light_color = Color("#e6ece8")
-				env.ambient_light_color = Color("#e4ecf2"); env.ambient_light_energy = 0.9; env.tonemap_exposure = 1.0
+				env.ambient_light_color = Color("#e4ecf2"); env.ambient_light_energy = 0.55; env.tonemap_exposure = 0.85
 			"sub":
 				env.background_color = Color("#040606"); env.fog_density = 0.01; env.fog_light_color = Color("#0a0e0c")
 				env.ambient_light_color = Color("#1c2622"); env.ambient_light_energy = 0.6; env.tonemap_exposure = night_look.exp
@@ -1123,6 +1123,7 @@ func _shots_day() -> void:
 	await get_tree().create_timer(2.0).timeout; await _snap("commute_1")
 	await reel_snaps.call("overlook", 2.0)
 	await get_tree().create_timer(1.0).timeout; await _snap("door")
+	var sd: Array = nav.spots.schoolDoor; place(Vector3(sd[0] + 0.8, 0, sd[1] - 1.2), PI)
 	var ev := InputEventKey.new(); ev.keycode = KEY_E; ev.pressed = true; _unhandled_input(ev)
 	await get_tree().create_timer(1.0).timeout
 	await reel_snaps.call("lobby")

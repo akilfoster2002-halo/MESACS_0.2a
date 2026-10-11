@@ -90,7 +90,7 @@ func build() -> void:
 	# the building's lights (the browser's pool, as fixed lights here)
 	lights_node = Node3D.new(); lights_node.name = "SchoolLights"; g.add_child(lights_node)
 	for l in data.lights:
-		var o := OmniLight3D.new(); o.position = Vector3(l.x, l.y, l.z); o.omni_range = float(l.d); o.light_energy = float(l.k)*0.09
+		var o := OmniLight3D.new(); o.position = Vector3(l.x, l.y, l.z); o.omni_range = float(l.d); o.light_energy = float(l.k)*0.035
 		o.light_color = Color(1.0, 0.97, 0.92); lights_node.add_child(o); o.set_meta("e", o.light_energy)
 		if l.has("mul") and absf(l.x - at[0]) < 0.1 and absf(l.z - at[2]) < 0.1: lab_light = o; o.light_color = Color(0.62, 0.3, 1.0); o.light_energy = float(l.k)*0.3
 		elif l.has("mul"): t_light = o; o.light_color = Color(0.7, 0.55, 1.0)
@@ -404,6 +404,7 @@ func lab_scene() -> void:
 	var twoRig := Vector3(mid.x + sin(away)*2.4 + cos(away)*0.6, 1.6, mid.y + cos(away)*2.4 - sin(away)*0.6)
 	var hers: Vector3 = g.rel(T2.x, T2.y, toRobin, 0.95, 0.4, 1.62); var mine: Vector3 = g.rel(ex.x, ex.y, toTeach, 0.9, -0.4, 1.56)
 	robot.on = false; robot.field = false; robot.fix = 0
+	g.objective("")
 	if not "psi" in g.S.seen: g.S.seen.append("psi")
 	var shots := [
 		{"dur": 3.8, "fov": 56, "inside": true, "cam": Vector3(X(-3.6), 3.4, -35.0), "look": Vector3(rig.x, 1.3, rig.y),
@@ -661,7 +662,7 @@ func _lab_mood(want: float, dt: float) -> void:
 	if absf(mood - want) < 0.003: mood = want
 	var k := mood
 	if g.place_now == "school":
-		g.env.ambient_light_color = Color("#e4ecf2").lerp(Color("#3a2a6a"), k); g.env.ambient_light_energy = lerpf(0.9, 0.18, k)
+		g.env.ambient_light_color = Color("#e4ecf2").lerp(Color("#3a2a6a"), k); g.env.ambient_light_energy = lerpf(0.55, 0.18, k)
 		g.env.background_color = Color("#e6ece8").lerp(Color("#0a0612"), k)
 		g.env.glow_intensity = lerpf(0.6, 1.1, k)
 		if lights_node:
