@@ -22,6 +22,8 @@ col *= (1 - 0.65*np.clip((r - 0.78)/0.2, 0, 1))[..., None]                 # the
 pupil = np.clip((0.34 - r)/0.04, 0, 1)[..., None]
 col = col*(1 - pupil) + np.array([0.02, 0.015, 0.012])*pupil
 alpha = np.clip((0.98 - r)/0.05, 0, 1)
+hl0 = np.clip((0.13 - np.sqrt((u + 0.3)**2 + (v + 0.32)**2))/0.05, 0, 1)[..., None]*0.85
+col = col*(1 - hl0) + hl0                                                  # the catchlight, in the iris
 save('iris.png', np.dstack([col, alpha]))
 # the catchlight (it stays where the light is, not with the iris)
 hl = np.clip((0.12 - np.sqrt((u + 0.35)**2 + (v + 0.35)**2))/0.05, 0, 1)

@@ -20,8 +20,10 @@ func _init() -> void:
 	await process_frame
 	var hi := sk.find_bone("mixamorigHead"); var hp: Vector3 = sk.global_transform*sk.get_bone_global_pose(hi).origin
 	cam.look_at_from_position(hp + Vector3(0, 0.15, 0.75), hp + Vector3(0, 0.12, 0))
-	for v in [["centre", 0, 0], ["left", 1, 0], ["right", -1, 0], ["up", 0, 1], ["down", 0, -1], ["none", 9, 9]]:
-		if v[1] == 9: e.open(false)
+	var body: MeshInstance3D = n.find_child("char1", true, false)
+	for v in [["centre", 0, 0], ["left", 1, 0], ["right", -1, 0], ["up", 0, 1], ["down", 0, -1], ["blink", 8, 8], ["half", 7, 7]]:
+		if v[1] == 8: e.open(0.0); body.set_blend_shape_value(body.find_blend_shape_by_name("blink"), 1.0)
+		elif v[1] == 7: e.open(true); body.set_blend_shape_value(body.find_blend_shape_by_name("blink"), 0.45); e.look(0, 0)
 		else: e.look(v[1], v[2])
 		for i in 3: await process_frame
 		await RenderingServer.frame_post_draw

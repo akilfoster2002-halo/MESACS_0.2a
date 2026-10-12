@@ -28,7 +28,7 @@ var glance = null                      # {bone, ahead, up, t}: a look down at a 
 # the lips: a line's feeling, the shot's mood, the flap of a line with no recording
 var mood = null; var feel_t := 0.0; var mood_on := false
 var flap := 0.0; var ph := 0.0; var amp := 0.5; var robin_voice := false
-var eyes: Eyes = null; var eye_t := Vector2.ZERO; var eye_now := Vector2.ZERO; var eye_m := Vector2.ZERO; var eye_rest := 0.5; var eye_micro := 0.2; var blink_shown := 0.0
+var lid_open := 1.0; var eyes: Eyes = null; var eye_t := Vector2.ZERO; var eye_now := Vector2.ZERO; var eye_m := Vector2.ZERO; var eye_rest := 0.5; var eye_micro := 0.2; var blink_shown := 0.0
 var fight_set := 0.0; var _lt := 0.0
 var bus := -1; var analyzer: AudioEffectSpectrumAnalyzerInstance
 
@@ -47,8 +47,8 @@ func _ready() -> void:
 			shapes.append([n, idx])
 	if sk:
 		head = sk.find_bone("mixamorigHead")
-		eyes = Eyes.attach(g.model)
 		var hl := HeadLook.new(); hl.face = self; sk.add_child(hl)
+		eyes = Eyes.attach(g.model)                      # after the head's turn, so they ride it
 	# her voice on a bus of its own, so its loudness can open her mouth
 	bus = AudioServer.bus_count; AudioServer.add_bus(bus); AudioServer.set_bus_name(bus, "TSHVoice"); AudioServer.set_bus_send(bus, "Master")
 	AudioServer.add_bus_effect(bus, AudioEffectSpectrumAnalyzer.new())
@@ -117,7 +117,7 @@ func tick(dt: float) -> void:
 	# no further than about half: past that the lips stretch over a mouth with no inside to it
 	cur.jawOpen = cur.get("jawOpen", 0.0) + (minf(0.5, mouth*0.5 + held.jawOpen) - cur.get("jawOpen", 0.0))*k
 	cur.mouthO = cur.get("mouthO", 0.0) + (minf(1, mouth*0.2 + held.mouthO) - cur.get("mouthO", 0.0))*k
-	blink_shown = maxf(blink, held.blink); _shape("blink", blink_shown)                     # heavy lids (sleepy) under the blinks
+	blink_shown = maxf(blink, minf(held.blink, 0.3)); _shape("blink", blink_shown)                     # heavy lids (sleepy) under the blinks
 	for n in cur:
 		if not String(n).begins_with("_"): _shape(n, cur[n])
 	_gaze(dt)
@@ -193,9 +193,14 @@ func _gaze(dt: float) -> void:
 	elif aim and eye_rest > 0.3 and home.distance_to(eye_t) < 0.25: eye_t = home
 	if not aim: ax = eye_t.x*0.3; ay = eye_t.y*0.2 + (-0.18 if gmood == "down" else 0.0)
 	eye_micro -= dt
-	if eye_micro <= 0: eye_micro = 0.15 + randf()*0.35; eye_m = Vector2(randf_range(-0.06, 0.06), randf_range(-0.045, 0.045))
-	eye_now = eye_now.lerp(eye_t + eye_m, 1 - exp(-dt*38))
-	if eyes: eyes.look(eye_now.x, eye_now.y); eyes.open(blink_shown < 0.45)
+	if eye_micro <= 0: eye_micro = 0.15 + randf()*0.35; eye_m = Vector2(randf_range(-0.035, 0.035), randf_range(-0.025, 0.025))
+	var target_e: Vector2 = eye_t + eye_m
+	eye_now = eye_now.lerp(target_e, 1 - exp(-dt*(38.0 if target_e.distance_to(eye_now) > 0.12 else 12.0)))
+	if eyes:
+		eyes.look(eye_now.x, eye_now.y)
+		# with a little give, so a lid at the edge cannot make them chatter
+		if eyes.is_open and blink_shown > 0.5: eyes.open(false)
+		elif not eyes.is_open and blink_shown < 0.4: eyes.open(true)
 	var kh := 1 - exp(-dt*4)
 	hx += (ax - hx)*kh; hy += (ay - hy)*kh
 

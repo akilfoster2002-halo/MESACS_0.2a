@@ -1666,7 +1666,7 @@ func _shots_intro() -> void:
 	var n := 0
 	if OS.get_cmdline_user_args().has("guitar"): reel = null; intro._city_done([])
 	if OS.get_cmdline_user_args().has("calls"):
-		reel = null; mode = ""; robin.visible = true; show_inside(true); lamp.light_energy = 1.6; letterbox(true); black(false); intro.calls()
+		reel = null; mode = ""; talk_q.clear(); intro._title(false); chase.stop(); robin.visible = true; show_inside(true); lamp.light_energy = 1.6; letterbox(true); black(false); intro.calls()
 	while S.step == "intro" and n < 400:
 		await get_tree().create_timer(2.0 if mode == "guitar" else 0.5).timeout
 		await _snap("i%03d_%s%02d" % [n, mode, reel.i if reel else 0]); n += 1
