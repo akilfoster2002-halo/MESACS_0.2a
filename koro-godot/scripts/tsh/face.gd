@@ -27,6 +27,7 @@ var glance = null                      # {bone, ahead, up, t}: a look down at a 
 # the lips: a line's feeling, the shot's mood, the flap of a line with no recording
 var mood = null; var feel_t := 0.0; var mood_on := false
 var flap := 0.0; var ph := 0.0; var amp := 0.5; var robin_voice := false
+var eyes: Eyes = null; var eye_t := Vector2.ZERO; var eye_now := Vector2.ZERO; var eye_m := Vector2.ZERO; var eye_rest := 0.5; var eye_micro := 0.2; var blink_shown := 0.0
 var fight_set := 0.0; var _lt := 0.0
 var bus := -1; var analyzer: AudioEffectSpectrumAnalyzerInstance
 
@@ -45,6 +46,7 @@ func _ready() -> void:
 			shapes.append([n, idx])
 	if sk:
 		head = sk.find_bone("mixamorigHead")
+		eyes = Eyes.attach(g.model)
 		var hl := HeadLook.new(); hl.face = self; sk.add_child(hl)
 	# her voice on a bus of its own, so its loudness can open her mouth
 	bus = AudioServer.bus_count; AudioServer.add_bus(bus); AudioServer.set_bus_name(bus, "TSHVoice"); AudioServer.set_bus_send(bus, "Master")
@@ -113,7 +115,7 @@ func tick(dt: float) -> void:
 	# no further than about half: past that the lips stretch over a mouth with no inside to it
 	cur.jawOpen = cur.get("jawOpen", 0.0) + (minf(0.5, mouth*0.5 + held.jawOpen) - cur.get("jawOpen", 0.0))*k
 	cur.mouthO = cur.get("mouthO", 0.0) + (minf(1, mouth*0.2 + held.mouthO) - cur.get("mouthO", 0.0))*k
-	_shape("blink", maxf(blink, held.blink))                     # heavy lids (sleepy) under the blinks
+	blink_shown = maxf(blink, held.blink); _shape("blink", blink_shown)                     # heavy lids (sleepy) under the blinks
 	for n in cur:
 		if not String(n).begins_with("_"): _shape(n, cur[n])
 	_gaze(dt)
@@ -142,12 +144,32 @@ func _lips(dt: float) -> void:
 func _gaze(dt: float) -> void:
 	var tp = _point(dt)
 	var ax := 0.0; var ay := -0.25 if gmood == "down" else 0.0
+	var home := Vector2.ZERO; var aim := false
 	if tp != null and head >= 0:
 		var hp: Vector3 = sk.global_transform*sk.get_bone_global_pose(head).origin
 		var q: Quaternion = g.model.global_basis.get_rotation_quaternion()
 		var d: Vector3 = q.inverse()*((tp as Vector3) - hp)
 		var yaw := atan2(d.x, d.z); var pitch := atan2(d.y, Vector2(d.x, d.z).length())
-		if absf(yaw) < 1.75: ax = clampf(yaw*0.85, -0.9, 0.9); ay = clampf(pitch*0.8, -0.7, 0.4)
+		if absf(yaw) < 1.75:
+			var hy_ := clampf(yaw*0.6, -0.8, 0.8); var hp_ := clampf(pitch*0.55, -0.6, 0.35)
+			ax = hy_; ay = hp_; aim = true
+			home = Vector2(clampf((yaw - hy_)/0.55, -1, 1), clampf((pitch - hp_)/0.45, -0.85, 0.85))
+	if gmood == "down": home = Vector2(home.x*0.5, minf(home.y, 0) - 0.45)
+	# the eyes (avatar.js faceTickFull): they rest, jump, and rest again — on what she looks at, when there is something
+	eye_rest -= dt
+	if aim and eye_rest > 0.15 and home.distance_to(eye_t) > 0.3: eye_rest = 0.12
+	if eye_rest <= 0:
+		var held := (0.5 if gmood == "dart" else 0.85) if aim else 0.55; var spread := 0.22 if aim else 0.5
+		var to := home if randf() < held else home + Vector2(randf_range(-1, 1)*spread, randf_range(-1, 1)*spread*0.65)
+		eye_rest = 0.25 + randf()*0.6 if gmood == "dart" else (0.6 + randf()*1.9 if aim else 0.5 + randf()*2.2)
+		if to.distance_to(eye_t) > 0.35 and randf() < 0.4 and blink_t <= 0: blink_in = 0.02      # a big jump takes a blink with it
+		eye_t = to
+	elif aim and eye_rest > 0.3 and home.distance_to(eye_t) < 0.25: eye_t = home
+	if not aim: ax = eye_t.x*0.17; ay = eye_t.y*0.12 + (-0.18 if gmood == "down" else 0.0)
+	eye_micro -= dt
+	if eye_micro <= 0: eye_micro = 0.2 + randf()*0.5; eye_m = Vector2(randf_range(-0.03, 0.03), randf_range(-0.025, 0.025))
+	eye_now = eye_now.lerp(eye_t + eye_m, 1 - exp(-dt*38))
+	if eyes: eyes.look(eye_now.x, eye_now.y); eyes.open(blink_shown < 0.45)
 	var kh := 1 - exp(-dt*4)
 	hx += (ax - hx)*kh; hy += (ay - hy)*kh
 
