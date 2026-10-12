@@ -25,6 +25,9 @@ alpha = np.clip((0.98 - r)/0.05, 0, 1)
 hl0 = np.clip((0.13 - np.sqrt((u + 0.3)**2 + (v + 0.32)**2))/0.05, 0, 1)[..., None]*0.85
 col = col*(1 - hl0) + hl0                                                  # the catchlight, in the iris
 save('iris.png', np.dstack([col, alpha]))
+# the same iris in the middle third of a clear square: a decal three times its size (Godot culled the small one, now and then, for a frame)
+pad = np.zeros((N*3, N*3, 4)); pad[N:2*N, N:2*N] = np.dstack([col, alpha])
+save('iris_pad.png', pad)
 # the catchlight (it stays where the light is, not with the iris)
 hl = np.clip((0.12 - np.sqrt((u + 0.35)**2 + (v + 0.35)**2))/0.05, 0, 1)
 save('glint.png', np.dstack([np.ones((N, N, 3)), hl*0.9]))

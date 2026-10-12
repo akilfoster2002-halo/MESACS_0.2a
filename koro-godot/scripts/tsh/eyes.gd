@@ -13,7 +13,7 @@ const RANGE := Vector2(0.0037, 0.0018)      # sideways to the corners; up and do
 var eyes: Array = []                   # [{at, x, z, n, white, iris, glint}]
 var scale_k := 1.0
 var look_x := 0.0; var look_y := 0.0
-var head := -1
+var head := -1; var sk: Skeleton3D
 var body: MeshInstance3D; var skin_open: Material; var skin_shut: Material; var is_open := true
 
 static func attach(model: Node3D) -> Eyes:
@@ -28,10 +28,11 @@ static func attach(model: Node3D) -> Eyes:
 	m.albedo_texture = load("res://assets/tsh/eyes/skin.png"); body.set_surface_override_material(0, m)
 	# on her head as it is DRAWN: after every modifier (the turn of her head toward what she looks at) — a
 	# BoneAttachment read it before that, and the irises missed her eyes for a frame whenever she turned
-	var e := Eyes.new(); sk.add_child(e); e.head = sk.find_bone("mixamorigHead")
+	var e := Eyes.new(); sk.add_child(e); e.head = sk.find_bone("mixamorigHead"); e.sk = sk
+	e.top_level = true                                   # in the world at true size: under her model's 1/90 scale the decals were mis-culled
 	var fl := Follow.new(); fl.eyes = e; sk.add_child(fl)
 	e.body = body; e.skin_open = m; e.skin_shut = body.mesh.surface_get_material(0)
-	e.scale_k = 1.0/sk.global_transform.basis.get_scale().x if sk.is_inside_tree() else 1.0/0.011212
+	e.scale_k = 1.0
 	e._build()
 	return e
 
@@ -40,21 +41,29 @@ static func attach(model: Node3D) -> Eyes:
 ## eyes/skin.png) and each eye is one decal, its iris (the catchlight drawn into it)
 func _build() -> void:
 	var J = JSON.parse_string(FileAccess.get_file_as_string("res://assets/tsh/eyes/eyes.json"))
-	var it: Texture2D = load("res://assets/tsh/eyes/iris.png")
+	var it: Texture2D = load("res://assets/tsh/eyes/iris_pad.png")
 	for k in ["R", "L"]:
 		var at := Vector3(J[k].local[0], J[k].local[1], J[k].local[2]); var n := Vector3(J[k].normal[0], J[k].normal[1], J[k].normal[2]).normalized()
 		var x := Vector3.UP.cross(n).normalized(); var z := x.cross(n).normalized()
 		var d := Decal.new(); d.texture_albedo = it; d.cull_mask = LAYER
-		d.size = Vector3(IRIS*scale_k, 0.03*scale_k, IRIS*scale_k); d.normal_fade = 0.0; d.upper_fade = 0.05; d.lower_fade = 0.05      # deep enough to reach the eye where it curves toward her nose
+		d.size = Vector3(IRIS*3, 0.03, IRIS*3); d.normal_fade = 0.0; d.upper_fade = 0.05; d.lower_fade = 0.05      # deep enough to reach the eye where it curves toward her nose
 		d.transform = Transform3D(Basis(x, n, z), at); add_child(d)
 		eyes.append({"decal": d, "at": at, "x": x, "z": z, "b": Basis(x, n, z)})
 
+## her head bone as drawn, in the world, its scale taken out (the eyes' points are in its frame, in its units)
+var unit := 1.0
+func place() -> void:
+	var t := sk.global_transform*sk.get_bone_global_pose(head)
+	unit = t.basis.get_scale().x
+	global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
+	for e in eyes: _put(e)
+func _put(e: Dictionary) -> void:
+	var off: Vector3 = e.x*look_x*RANGE.x - e.z*look_y*RANGE.y
+	(e.decal as Decal).transform = Transform3D(e.b, e.at*unit + off)
 ## where the irises look: x to her left, y up (each -1…1)
 func look(x: float, y: float) -> void:
 	look_x = clampf(x, -1, 1); look_y = clampf(y, -1, 1)
-	for e in eyes:
-		var off: Vector3 = e.x*look_x*RANGE.x*scale_k - e.z*look_y*RANGE.y*scale_k
-		(e.decal as Decal).transform = Transform3D(e.b, e.at + off)
+	for e in eyes: _put(e)
 ## her lids: open, the moving irises over the whites painted into her skin; shut (a blink, past halfway), her own
 ## painted eyes — the lids close over those as they were made to. A clean swap at the middle of a blink, unseen
 func open(v) -> void:
@@ -69,4 +78,6 @@ class Follow extends SkeletonModifier3D:
 	var eyes
 	func _process_modification() -> void:
 		var s := get_skeleton()
-		if s and eyes and eyes.head >= 0: eyes.transform = s.get_bone_global_pose(eyes.head)
+		if eyes: eyes.sk = s
+		if s and eyes and eyes.head >= 0:
+			eyes.place()
