@@ -73,9 +73,10 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_climb := false; var shots_after := false; var shots_alpha := false
+var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
+var goal_mark: Control; var radar: Radar; var mute_btn: Button
 var fight: Fight
 var chase: Chase
 var today: TshDay
@@ -113,6 +114,7 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
 	if args.size() >= 2 and args[0] == "climbshots": shots_dir = args[1]; shots_climb = true
+	if args.size() >= 2 and args[0] == "jumpshots": shots_dir = args[1]; shots_climb = true; shots_jump = true
 	if args.size() >= 2 and args[0] == "aftershots": shots_dir = args[1]; shots_after = true
 	_load_data()
 	_world()
@@ -232,8 +234,43 @@ func _world() -> void:
 	var rm := StandardMaterial3D.new(); rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; rm.albedo_color = Color(0.4, 1.0, 0.95); rm.emission_enabled = true; rm.emission = Color(0.4, 1, 0.95); rm.emission_energy_multiplier = 3
 	ring.material_override = rm; ring.visible = false; add_child(ring)
 	marker = MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.25; cm.bottom_radius = 0.25; cm.height = 60; marker.mesh = cm
-	var mm := StandardMaterial3D.new(); mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; mm.albedo_color = Color(1, 0.75, 0.3, 0.35); mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	marker.material_override = mm; marker.visible = false; add_child(marker)
+	var mm := StandardMaterial3D.new(); mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; mm.albedo_color = Color(1, 0.82, 0.24, 0.45); mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mm.render_priority = 101; mm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; mm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	marker.material_override = mm; marker.visible = false; marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; add_child(marker)
+
+## WHERE TO GO (tsh.js marker): [x, z, the label's height, its name], or null. The beacon stands there, the diamond
+## over it on screen says how far, and the radar in the corner points the way
+func goal_at():
+	var s: Dictionary = nav.spots
+	if cy.watch == "escape": var L: Array = cy.sp.ladder; return [L[0], L[1], 2.6, "EXIT"]
+	match S.step:
+		"lesson": return [s.kai[0], s.kai[1], 2.2, "Dragon Alley"] if lesson_id() == "alley" else null
+		"deal": return [Fight.MEET.buyer.x, Fight.MEET.buyer.y, 2.4, "The buyer"]
+		"raid": return chase.marker() if chase.on else null
+		"commute": var o: Array = s.schoolOverlook; return [o[0], o[1], o[2] + 1.2, "School"]
+		"school": var d: Array = s.schoolDoor; return [d[0], d[1], 2.6, "Harbor Lane High"]
+		"sneak": var r: Array = hs.sp.room114 if hs.sp else []; return [r[0], r[1], 2.4, "Room 114"] if r.size() >= 2 else null
+		"courtyard": return [Courtyard.ENTRY.x, Courtyard.ENTRY.y, 2.6, "Canon"] if cy.watch == "entry" else null
+		"gethome": return [73, 34, 14, "Home"]
+	return null
+func _goal_tick() -> void:
+	var hide_all := mode in ["reel", "fight", "end", "puzzle", "read", "wc"]
+	var mk: Variant = null if hide_all else goal_at()
+	var p := robin.position
+	radar.visible = not hide_all and place_now != "school"
+	# the beacon: a column of light at the place, out in the city
+	marker.visible = mk != null and not inside
+	if marker.visible: marker.position = Vector3(mk[0], 30, mk[1])
+	# the diamond on screen, over the place (clamped to the edges when it is off them), its name and how far
+	goal_mark.visible = mk != null and not inside
+	if not goal_mark.visible: return
+	var at := Vector3(mk[0], mk[2], mk[1]); var vp := get_viewport().get_visible_rect().size
+	var sp: Vector2 = cam.unproject_position(at); var behind := cam.is_position_behind(at)
+	if behind: sp = Vector2(vp.x - sp.x, vp.y - 40)
+	sp = Vector2(clampf(sp.x, 40, vp.x - 40), clampf(sp.y, 60, vp.y - 60))
+	goal_mark.position = sp - Vector2(goal_mark.size.x/2, goal_mark.size.y)
+	goal_mark.modulate.a = 0.8 if behind else 1.0
+	(goal_mark.get_node("t") as Label).text = "%s · %d m" % [mk[3], roundi(Vector2(mk[0] - p.x, mk[1] - p.z).length())]
 
 func _scene(p: String) -> Node3D:
 	var n: Node3D = (load(p) as PackedScene).instantiate(); add_child(n); return n
@@ -421,7 +458,7 @@ func stage(nm: String, x: float, y: float, z: float, ry: float) -> void:
 func place(p: Vector3, yaw: float) -> void:
 	boots.x = p.x; boots.y = p.y; boots.z = p.z; boots.vx = 0; boots.vy = 0; boots.vz = 0
 	boots.ground = p.y <= boots.floor_at(p.x, p.z, p.y) + 0.05; boots.state = "ground" if boots.ground else "air"
-	cam_yaw = yaw; robin.position = p; cam_p = Vector3.ZERO
+	cam_yaw = yaw; robin.position = p; cam_p = Vector3.ZERO; model.rotation.x = 0
 
 # ================================================================== the lens
 func _camera() -> void:
@@ -431,17 +468,57 @@ func _camera() -> void:
 	verse_mat = ShaderMaterial.new(); verse_mat.shader = load("res://shaders/tsh_verse.gdshader"); verse_mat.render_priority = 100
 	q.material_override = verse_mat; cam.add_child(q); q.position = Vector3(0, 0, -0.5)
 
-## play: behind her and above, further back and wider the faster she goes (boots.js camera)
+## play (boots.js camera): back further and wider the faster she goes; up when she launches; above and looking down
+## the line in a dive; a little kick on every jump and a bigger one on a perfect move. With the mouse left alone in
+## the air it swings round behind her line, so where she is going is always on screen; and it looks ahead, to the
+## roof she is bounding to. Never inside a building: pulled in front of any between it and her.
+var punch := 0.0; var mouse_idle := 9.0; var cam_l := Vector3.ZERO; var fov_now := 70.0
 func _play_camera(dt: float) -> void:
-	var sp := minf(1.0, boots.speed()/30.0)
-	var dist := lerpf(6.2, 9.5, sp); cam.fov = lerpf(cam.fov, lerpf(70, 90, sp), minf(1, dt*3))
-	var head := robin.position + Vector3(0, 1.4, 0)
-	var back := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
-	var want := head + back*dist*cos(cam_pitch) + Vector3(0, 2.3 - 1.4 - sin(cam_pitch)*dist*0.6, 0)
-	if inside: want = head + back*2.4 + Vector3(0, 0.4, 0)
-	cam_p = want if cam_p == Vector3.ZERO else cam_p.lerp(want, minf(1, dt*6))
+	var b := boots; var feet := robin.position
+	if inside:
+		var hd := feet + Vector3(0, 1.4, 0); var back := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
+		var w := hd + back*2.4 + Vector3(0, 0.4, 0)
+		cam_p = w if cam_p == Vector3.ZERO else cam_p.lerp(w, minf(1, dt*6))
+		cam.global_position = cam_p; cam.look_at(hd + Vector3(0, sin(cam_pitch)*2, 0) - back*2.0); cam.fov = 70; return
+	var sp01 := clampf((b.speed() - 8)/42, 0, 1)
+	mouse_idle += dt
+	if not b.ground and b.hspeed() > 10 and b.wall == null and not grip.on() and mouse_idle > (0.3 if b.fly > 0 else (0.35 if b.bound != null else 0.6)):
+		cam_yaw += angle_difference(cam_yaw, atan2(-b.vx, -b.vz))*minf(1, dt*2.6*(0.5 + sp01))
+	var f := Vector3(-sin(cam_yaw), 0, -cos(cam_yaw))
+	var dist := lerpf(6.2, 9.5, sp01) + punch*1.5
+	var lift := 2.3 + (1.0 if b.vy > 10 else 0.0) + (2.2 if b.state == "dive" else 0.0) - sin(cam_pitch)*3
+	var head := feet + Vector3(0, 1.6, 0)
+	var want := Vector3(feet.x - f.x*dist + cos(cam_yaw)*0.5, feet.y + 1.6 + lift, feet.z - f.z*dist - sin(cam_yaw)*0.5)
+	want = _clear_of(head, want)
+	var look := Vector3(feet.x + b.vx*0.16 + f.x*4, feet.y + 1.4 + b.vy*0.1 + (-2.5 if b.state == "dive" else 0.0) + sin(cam_pitch)*4, feet.z + b.vz*0.16 + f.z*4)
+	if b.bound != null: look = look.lerp(Vector3(b.bound.x, b.bound.y + 1.2, b.bound.z), 0.28)
+	if cam_p == Vector3.ZERO: cam_p = want; cam_l = look
+	cam_p = cam_p.lerp(want, 1 - exp(-dt*(9.0 if b.ground else 7.0))); cam_l = cam_l.lerp(look, 1 - exp(-dt*10))
 	cam.global_position = cam_p
-	cam.look_at(head + Vector3(0, sin(cam_pitch)*2, 0) - back*2.0)
+	if (cam_l - cam_p).length() > 0.01: cam.look_at(cam_l)
+	punch = maxf(0, punch - dt*2.2)
+	fov_now = lerpf(fov_now, lerpf(70, 90, sp01) + punch*10, 1 - exp(-dt*5)); cam.fov = fov_now
+func _clear_of(from: Vector3, to: Vector3) -> Vector3:
+	var k := 1.0
+	for s in boots.solids:
+		if s[5] - maxf(s[4], 0) < 3: continue
+		for i in range(1, 13):
+			var t := i/12.0; var q := from.lerp(to, t)
+			if q.x > s[0] - 0.3 and q.x < s[1] + 0.3 and q.z > s[2] - 0.3 and q.z < s[3] + 0.3 and q.y > maxf(s[4], 0) and q.y < s[5] + 0.4:
+				k = minf(k, maxf(0.12, t - 0.1)); break
+	return from.lerp(to, k)
+## what each move feels like on the lens (boots.js react)
+func _boot_punch(e: Dictionary) -> void:
+	match e.name:
+		"jump": punch = maxf(punch, 0.35)
+		"jumpPerfect": punch = maxf(punch, 0.8)
+		"bound": punch = maxf(punch, 0.3)
+		"boundPerfect": punch = maxf(punch, 0.75)
+		"ignite": punch = 1.4
+		"pullPerfect": punch = 1.0
+		"pull": punch = maxf(punch, 0.4)
+		"rebound": punch = 0.5; boots.last.reboundT = 0.45
+		"reboundPerfect": punch = 1.0; boots.last.reboundT = 0.45
 
 # ================================================================== the HUD
 func _hud() -> void:
@@ -458,6 +535,24 @@ func _hud() -> void:
 	card_text = _rich(Vector2.ZERO, Vector2(520, 110), 18, card); card.visible = false; hud.add_child(card)
 	phone = PanelContainer.new(); phone.set_anchors_preset(Control.PRESET_CENTER_RIGHT); phone.position = Vector2(-330, -200); phone.custom_minimum_size = Vector2(260, 400)
 	phone_text = _rich(Vector2.ZERO, Vector2(260, 400), 22, phone); phone.visible = false; hud.add_child(phone)
+	# where to go: a yellow diamond over the place, its name and the distance (tsh.js .tsh-om)
+	goal_mark = VBoxContainer.new(); goal_mark.alignment = BoxContainer.ALIGNMENT_CENTER; goal_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var t := Label.new(); t.name = "t"; t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; t.add_theme_font_size_override("font_size", 13)
+	t.add_theme_color_override("font_color", Color("#ffd23d")); t.add_theme_constant_override("outline_size", 5); t.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	var dia := Control.new(); dia.custom_minimum_size = Vector2(20, 20); dia.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	dia.draw.connect(func():
+		dia.draw_circle(Vector2(10, 10), 10, Color(1, 0.82, 0.24, 0.25))
+		dia.draw_colored_polygon(PackedVector2Array([Vector2(10, 0), Vector2(20, 10), Vector2(10, 20), Vector2(0, 10)]), Color("#ffd23d")))
+	goal_mark.add_child(dia); goal_mark.add_child(t); goal_mark.visible = false; hud.add_child(goal_mark)
+	# the radar, bottom left
+	radar = Radar.new(self); radar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	radar.offset_left = 18; radar.offset_top = -238; radar.offset_right = 238; radar.offset_bottom = -18; hud.add_child(radar)
+	# the sound: on or off (M), remembered
+	mute_btn = Button.new(); mute_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	mute_btn.offset_left = -64; mute_btn.offset_top = 14; mute_btn.offset_right = -16; mute_btn.offset_bottom = 54
+	mute_btn.focus_mode = Control.FOCUS_NONE; mute_btn.add_theme_font_size_override("font_size", 20); mute_btn.flat = true
+	mute_btn.pressed.connect(func(): set_mute(not AudioServer.is_bus_mute(0))); hud.add_child(mute_btn)
+	var cf := ConfigFile.new(); set_mute(cf.load("user://tsh_settings.cfg") == OK and bool(cf.get_value("sound", "mute", false)), false)
 
 func _rich(p: Vector2, s: Vector2, fs: int, parent: Node = null) -> RichTextLabel:
 	var r := RichTextLabel.new(); r.bbcode_enabled = true; r.fit_content = true; r.position = p; r.size = s; r.custom_minimum_size = s
@@ -465,6 +560,11 @@ func _rich(p: Vector2, s: Vector2, fs: int, parent: Node = null) -> RichTextLabe
 	r.add_theme_constant_override("outline_size", 6); r.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	(parent if parent else hud).add_child(r); return r
 
+func set_mute(v: bool, keep := true) -> void:
+	AudioServer.set_bus_mute(0, v)
+	mute_btn.text = "🔇" if v else "🔊"; mute_btn.tooltip_text = ("Sound off" if v else "Sound on") + " (M)"
+	if keep:
+		var cf := ConfigFile.new(); cf.load("user://tsh_settings.cfg"); cf.set_value("sound", "mute", v); cf.save("user://tsh_settings.cfg")
 func lesson_card(head: String, title: String, how: String) -> void:
 	card.visible = title != ""
 	if title != "": card_text.text = "[center][color=#9fb4c0]%s[/color]\n[b][font_size=30]%s[/font_size][/b]\n%s[/center]" % [head, title, how]
@@ -1058,12 +1158,13 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if mode == "" and ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_E and S.step == "school" and _near_school_door():
 		marker.visible = false; black(true); get_tree().create_timer(0.4).timeout.connect(func(): black(false); hs.lobby()); return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and mode == "":
-		cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
+		mouse_idle = 0.0; cam_yaw -= ev.relative.x*0.0032; cam_pitch = clampf(cam_pitch - ev.relative.y*0.0028, -1.1, 0.6)
 	elif ev is InputEventMouseButton and ev.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif ev is InputEventKey and ev.pressed and not ev.echo:
 		match ev.keycode:
 			KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			KEY_M: set_mute(not AudioServer.is_bus_mute(0))
 			KEY_G: if mode == "" and not grip.on(): grip.try_scale()
 			KEY_V: verse_mat.set_shader_parameter("verse", 0.0 if float(verse_mat.get_shader_parameter("verse")) > 0.5 else 1.0)
 			KEY_ENTER, KEY_KP_ENTER:
@@ -1093,6 +1194,7 @@ func _process(dt: float) -> void:
 	cy.tick(dt)
 	station.tick(dt)
 	_crew_bag(dt)
+	_goal_tick()
 	if mode == "" and chase.on: chase.tick(dt)
 	if mode in ["fight", "end", "puzzle", "read", "wc"]: return
 	if mode == "reel": _tick_reel(dt); return
@@ -1106,12 +1208,9 @@ func _play_tick(dt: float) -> void:
 	space_was = space
 	# on a wall: the cuffs have her
 	if grip.on():
-		grip.tick(dt); marker.visible = marker.visible and chase.on; _play_camera(dt); return
+		grip.tick(dt); _play_camera(dt); return
 	# the chase: her own moves on foot (a vault, a slide, a climb, knocked flat), behind cover, and the shoes cold
 	if chase.on:
-		var m = chase.marker()
-		marker.visible = m != null
-		if m != null: marker.position = m + Vector3(0, 30, 0)
 		if chase.tick_act(dt) or chase.tick_cover(dt): _play_camera(dt); return
 		if chase.st.i < chase.stage_at("roofs"): inp.jump = false; inp.jump_edge = false
 	# the lesson's first step: she falls slowly until SPACE fires the shoes
@@ -1119,7 +1218,10 @@ func _play_tick(dt: float) -> void:
 		if inp.jump_edge: fire_shoes()
 		else:
 			boots.step({"yaw": cam_yaw}, dt*0.22); _follow(dt); return
+	if k.call(KEY_LEFT): cam_yaw += 2*dt
+	if k.call(KEY_RIGHT): cam_yaw -= 2*dt
 	for e in boots.step(inp, dt):
+		_boot_punch(e)
 		_lesson_event(e)
 		match e.name:
 			"bound", "boundPerfect", "jump", "jumpPerfect": cue("launch")
@@ -1133,15 +1235,37 @@ func _play_tick(dt: float) -> void:
 		var m: Vector2 = Fight.MEET.robin
 		if Vector2(boots.x, boots.z).distance_to(m) < 5 or (boots.z < m.y + 3 and boots.z > -38): marker.visible = false; fight_intro()
 
+## the body (boots.js animate): a flip high in the rhythm and on a perfect bound, soaring when she flies, a roll, a
+## flip out of a pull-up or off a wall, flying in a dive; she faces where she is going (or the wall) and leans into it
 func _follow(dt: float) -> void:
-	robin.position = Vector3(boots.x, boots.y, boots.z)
-	if boots.hspeed() > 0.5: model.rotation.y = lerp_angle(model.rotation.y, atan2(boots.vx, boots.vz), minf(1, dt*14))
-	var nm := "idle"
-	if boots.roll > 0: nm = "roll"
-	elif not boots.ground: nm = "fly" if boots.state == "dive" else "jump"
-	elif boots.hspeed() > 10.5: nm = "sprint"
-	elif boots.hspeed() > 0.6: nm = "walk"
+	var b := boots
+	robin.position = Vector3(b.x, b.y, b.z)
+	var L: Dictionary = b.last
+	var nm := ""
+	if L.get("flipT", 0.0) > 0: nm = "flip"
+	elif L.get("leapT", 0.0) > 0: nm = "jump"
+	elif b.fly > 0 and not b.ground and b.speed() > 12 and b.state != "dive": nm = "fly"
+	elif b.bound != null: nm = "flip" if b.bound.get("perfect", false) and b.air_t < 0.55 else "jump"
+	elif b.roll > 0 or L.get("rollT", 0.0) > 0: nm = "roll"
+	elif b.swoop != null or L.get("reboundT", 0.0) > 0: nm = "flip"
+	elif b.state == "dive" or b.dash_t > 0: nm = "fly"
+	elif b.wall != null or b.slide_wall != null or not b.ground: nm = "jump"
+	elif b.hspeed() > Boots.T.runSpeed + 1: nm = "sprint"
+	elif b.hspeed() > 0.6: nm = "walk"
+	else: nm = "idle"
+	for t in ["reboundT", "leapT", "flipT", "hardT"]:
+		if L.get(t, 0.0) > 0: L[t] = L[t] - dt
 	play(nm)
+	var w = b.wall
+	var face: float = atan2(-w.n.x, -w.n.y) if w != null else (atan2(b.vx, b.vz) if b.hspeed() > 0.6 else model.rotation.y)
+	var flying: bool = b.fly > 0 and not b.ground and b.state != "dive" and b.speed() > 12
+	var pitch := 0.0
+	if flying: pitch = clampf(atan2(-b.vy, b.hspeed() + 1)*0.85, -0.7, 1.0)
+	elif b.state == "dive": pitch = clampf(atan2(-b.vy, b.hspeed() + 1)*0.9, 0, 1.3)
+	elif b.dash_t > 0: pitch = 0.5
+	elif b.bound != null and b.vy < 0: pitch = clampf(-b.vy*0.018, 0, 0.35)
+	model.rotation.y = lerp_angle(model.rotation.y, face, minf(1, dt*14))
+	model.rotation.x = lerpf(model.rotation.x, pitch, minf(1, dt*8))
 	# the ring: where a bound would go now
 	var t = null
 	if not boots.ground and boots.bound != null: t = boots.bound
@@ -1390,10 +1514,19 @@ func _shots_street(n: Array, reel_snaps: Callable) -> void:
 func _shots_climb() -> void:
 	await get_tree().create_timer(1.0).timeout
 	if reel: _reel_end(true)
-	S.step = "lesson"; S.lesson = 99; mode = ""; show_inside(false)
-	place(Vector3(-57.2, 0, -35), -PI/2); await get_tree().create_timer(0.8).timeout; await _snap("c0_at_wall")
+	S.step = "lesson"; S.lesson = 99; lesson.i = 99; card.visible = false; mode = ""; show_inside(false)
 	var key := func(k: Key, down: bool):
 		var ev := InputEventKey.new(); ev.keycode = k; ev.physical_keycode = k; ev.pressed = down; Input.parse_input_event(ev)
+	# the shoes: SPACE and W held, bound after bound across the roofs, photographed in the air
+	if shots_jump:
+		for t in Boots.EARLY + Boots.MID: boots.have[t] = true
+		place(HOME_ROOF, PI/2); await get_tree().create_timer(1.0).timeout
+		key.call(KEY_W, true); key.call(KEY_SPACE, true)
+		for i in 16:
+			await get_tree().create_timer(0.35).timeout; await _snap("j%02d" % i); print("j", i, " pos=", robin.position.snapped(Vector3.ONE*0.1), " clip=", clip, " state=", boots.state, " fov=", snappedf(cam.fov, 0.1))
+		key.call(KEY_SPACE, false); key.call(KEY_W, false)
+		get_tree().quit(); return
+	place(Vector3(-57.2, 0, -35), -PI/2); await get_tree().create_timer(0.8).timeout; await _snap("c0_at_wall")
 	key.call(KEY_G, true); await get_tree().process_frame; key.call(KEY_G, false)
 	print("grip on: ", grip.on())
 	key.call(KEY_W, true)

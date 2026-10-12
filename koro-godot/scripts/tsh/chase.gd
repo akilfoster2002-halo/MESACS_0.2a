@@ -832,11 +832,11 @@ func key(ev: InputEventKey) -> bool:
 	return false
 func marker():
 	match sid():
-		"run": return Vector3(ROUTE.runDone + 1, 2.4, -8)
-		"wall": return Vector3(-22.5, 2.4, -14) if not st.flags.get("barrierDown", false) else Vector3(-17, 12.5, -25)
-		"roofs": return Vector3(42, 14, -27)
-		"hide": return null if cover != null else Vector3(ROUTE.ac.x, 15, ROUTE.ac.z)
-		"home": return Vector3(ROUTE.home.at.x, 13.5, ROUTE.home.at.y)
+		"run": return [ROUTE.runDone + 1, -8, 2.4, "East"]
+		"wall": return [-22.5, -14, 2.4, "Into the gap"] if not st.flags.get("barrierDown", false) else [-17, -25, 12.5, "The roof"]
+		"roofs": return [42, -27, 14, "East"]
+		"hide": return null if cover != null else [ROUTE.ac.x, ROUTE.ac.z, 15, "Cover"]
+		"home": return [ROUTE.home.at.x, ROUTE.home.at.y, 13.5, "Home"]
 	return null
 
 var _later: Array = []
