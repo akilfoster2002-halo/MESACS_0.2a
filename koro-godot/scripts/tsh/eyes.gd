@@ -9,7 +9,7 @@ extends Node3D
 const LAYER := 1 << 18                 # her skin alone takes them (not her hair, not her collar)
 const IRIS := 0.0134                   # metres across
 const WHITE := Vector2(0.022, 0.0153)
-const RANGE := Vector2(0.0032, 0.0018) # how far an iris can travel from the middle, metres
+const RANGE := Vector2(0.0037, 0.0018)      # sideways to the corners; up and down only as far as the lids allow # how far an iris can travel from the middle, metres
 var eyes: Array = []                   # [{at, x, z, n, white, iris, glint}]
 var scale_k := 1.0
 var look_x := 0.0; var look_y := 0.0

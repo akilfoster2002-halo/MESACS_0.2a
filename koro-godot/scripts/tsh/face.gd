@@ -11,6 +11,7 @@
 class_name Face
 extends Node
 
+const GAIN := 1.45                    # how much further every feeling goes than it was written
 const CHANNELS := ["smile", "frown", "browUp", "browDown", "mouthO", "jawOpen", "blink"]
 const SELF := {"jacket": ["Spine2", 0.16, -0.05], "shoes": ["LeftFoot", 0.12, 0.0], "gloves": ["LeftHand", 0.03, 0.0], "bracelet": ["LeftForeArm", 0.05, -0.1], "pack": ["RightShoulder", 0.02, 0.0]}
 var g
@@ -69,7 +70,7 @@ func feel(name, secs: float) -> void:
 	for n in CHANNELS:
 		if not f.has(n): expr.erase(n)
 	for n in f:
-		if n in CHANNELS and float(f[n]) > 0: expr_(n, float(f[n]), secs)
+		if n in CHANNELS and float(f[n]) > 0: expr_(n, minf(1.0, float(f[n])*GAIN), secs)
 ## a film shot's mood: held for the shot, under her lines
 func shot_mood(m) -> void:
 	mood = m
@@ -103,7 +104,8 @@ func tick(dt: float) -> void:
 	if blink_in <= 0: blink_t = 0.17; blink_in = 0.25 if randf() < 0.15 else 2 + randf()*4
 	var blink := 0.0
 	if blink_t > 0: blink_t = maxf(0, blink_t - dt); blink = minf(1, 1.4*(1 - absf(blink_t/0.17*2 - 1)))
-	var k := 1 - exp(-dt*22); var ke := 1 - exp(-dt*7); var held := {}
+	_alive(dt)
+	var k := 1 - exp(-dt*22); var ke := 1 - exp(-dt*10); var held := {}
 	for n in CHANNELS:
 		var want := 0.0
 		if expr.has(n):
@@ -123,6 +125,30 @@ func tick(dt: float) -> void:
 		_lt += dt
 		if _lt > 1.0: _lt = 0.0; print("FACE mood=", mood, " ", {"smile": snappedf(cur.get("smile", 0), 0.01), "frown": snappedf(cur.get("frown", 0), 0.01), "browUp": snappedf(cur.get("browUp", 0), 0.01), "browDown": snappedf(cur.get("browDown", 0), 0.01), "jaw": snappedf(cur.get("jawOpen", 0), 0.01)}, " head=", snappedf(hx, 0.01), ",", snappedf(hy, 0.01), " tgt=", target != null)
 
+## ALIVE: between feelings her face is never quite still — a brow flickers, the corner of her mouth goes, she squints
+## at something; in play she reacts to what she does. And when she talks, her brows ride the stressed syllables.
+var tic_t := 1.5; var stress := 0.0; var last_mouth := 0.0
+func _alive(dt: float) -> void:
+	tic_t -= dt
+	if tic_t <= 0:
+		tic_t = 1.2 + randf()*2.8
+		if feel_t <= 0.2:
+			var r := randf(); var d := 0.5 + randf()*0.9
+			if r < 0.3: expr_("browUp", 0.35 + randf()*0.35, d)
+			elif r < 0.5: expr_("smile", 0.25 + randf()*0.35, d + 0.6)
+			elif r < 0.68: expr_("browDown", 0.3 + randf()*0.3, d)
+			elif r < 0.82: expr_("frown", 0.2 + randf()*0.25, d)
+			else: expr_("mouthO", 0.25, 0.4); expr_("browUp", 0.5, 0.5)
+	if mouth > 0.5 and last_mouth < 0.35 and randf() < 0.55: stress = 0.3
+	last_mouth = mouth
+	if stress > 0:
+		stress = maxf(0, stress - dt)
+		expr_("browUp", maxf(expr.get("browUp", {"v": 0.0}).v, sin(stress/0.3*PI)*0.7), 0.1)
+## what she does, on her face (the shoes, a landing, a fall)
+func react(kind: String) -> void:
+	var f = {"ignite": ["shocked", 1.2], "jumpPerfect": ["grin", 1.0], "boundPerfect": ["grin", 0.9], "pullPerfect": ["grin", 1.0], "reboundPerfect": ["smug", 1.0],
+		"jump": ["determined", 0.6], "bound": ["focused", 0.5], "dive": ["determined", 0.8], "roll": ["annoyed", 0.7], "dash": ["determined", 0.5], "land": ["relieved", 0.6]}.get(kind)
+	if f != null and feel_t < 0.3: feel_t = f[1]; feel(f[0], f[1])
 func _lips(dt: float) -> void:
 	var v := 0.0
 	if robin_voice and g.voice_player.playing and analyzer:
@@ -159,15 +185,15 @@ func _gaze(dt: float) -> void:
 	eye_rest -= dt
 	if aim and eye_rest > 0.15 and home.distance_to(eye_t) > 0.3: eye_rest = 0.12
 	if eye_rest <= 0:
-		var held := (0.5 if gmood == "dart" else 0.85) if aim else 0.55; var spread := 0.22 if aim else 0.5
-		var to := home if randf() < held else home + Vector2(randf_range(-1, 1)*spread, randf_range(-1, 1)*spread*0.65)
-		eye_rest = 0.25 + randf()*0.6 if gmood == "dart" else (0.6 + randf()*1.9 if aim else 0.5 + randf()*2.2)
+		var held := (0.4 if gmood == "dart" else 0.65) if aim else 0.3; var spread := 0.45 if aim else 0.95
+		var to := home if randf() < held else home + Vector2(randf_range(-1, 1)*spread, randf_range(-1, 1)*spread*0.7)
+		eye_rest = 0.18 + randf()*0.4 if gmood == "dart" else (0.35 + randf()*1.0 if aim else 0.3 + randf()*0.9)
 		if to.distance_to(eye_t) > 0.35 and randf() < 0.4 and blink_t <= 0: blink_in = 0.02      # a big jump takes a blink with it
 		eye_t = to
 	elif aim and eye_rest > 0.3 and home.distance_to(eye_t) < 0.25: eye_t = home
-	if not aim: ax = eye_t.x*0.17; ay = eye_t.y*0.12 + (-0.18 if gmood == "down" else 0.0)
+	if not aim: ax = eye_t.x*0.3; ay = eye_t.y*0.2 + (-0.18 if gmood == "down" else 0.0)
 	eye_micro -= dt
-	if eye_micro <= 0: eye_micro = 0.2 + randf()*0.5; eye_m = Vector2(randf_range(-0.03, 0.03), randf_range(-0.025, 0.025))
+	if eye_micro <= 0: eye_micro = 0.15 + randf()*0.35; eye_m = Vector2(randf_range(-0.06, 0.06), randf_range(-0.045, 0.045))
 	eye_now = eye_now.lerp(eye_t + eye_m, 1 - exp(-dt*38))
 	if eyes: eyes.look(eye_now.x, eye_now.y); eyes.open(blink_shown < 0.45)
 	var kh := 1 - exp(-dt*4)

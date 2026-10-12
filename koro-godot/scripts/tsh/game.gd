@@ -1371,7 +1371,7 @@ func _play_tick(dt: float) -> void:
 	if k.call(KEY_LEFT): cam_yaw += 2*dt
 	if k.call(KEY_RIGHT): cam_yaw -= 2*dt
 	for e in boots.step(inp, dt):
-		_boot_punch(e)
+		_boot_punch(e); face.react(e.name)
 		_lesson_event(e)
 		match e.name:
 			"bound", "boundPerfect", "jump", "jumpPerfect": cue("launch")
