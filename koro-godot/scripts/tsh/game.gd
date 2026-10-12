@@ -87,6 +87,7 @@ var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
 var grip: Grip
+var shoe_glow: Array = []; var _shoes: Node3D = null
 var face: Face; var reel_look = null; var cam_kick := 0.0
 var intro: Intro
 var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
@@ -388,6 +389,16 @@ func _robin() -> void:
 		if nm in ["jump", "flip", "roll", "climb_top", "wake", "kneel", "text"]: continue
 		anim.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	_fight_clips()
+	# THE SHOES' GLOW (boots.js bootGlow): a small soft light at each foot, added in, not painted on — the export had
+	# lost its additive blending and left two white shells round her feet, on all the time
+	var st: Array = [model]
+	while st.size():
+		var n: Node = st.pop_back(); st.append_array(n.get_children())
+		if n is MeshInstance3D and String(n.get_parent().name).ends_with("Foot"):
+			var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.no_depth_test = false; m.render_priority = 101; m.albedo_color = Color(0.4, 1.8, 2.2, 0.85)
+			(n as MeshInstance3D).material_override = m; (n as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			shoe_glow.append([n, (n as Node3D).scale])
 
 ## HER PUNCHES, KICKS AND DODGES (characters/fight/robin.glb): a file of clips keyed to bones as plain nodes, put
 ## onto her skeleton by bone name (mixamorig_Hips there is mixamorigHips here)
@@ -850,6 +861,15 @@ func _bed(dt: float) -> void:
 	for n in bed:
 		var e: Array = bed[n]; e[1] = lerpf(e[1], want[n], k)
 		(e[0] as AudioStreamPlayer).volume_db = linear_to_db(maxf(e[1], 0.00001))
+## the glow: only on the shoes, only out in the city; brighter as her flow builds, gold when a press would be perfect
+func _tick_glow() -> void:
+	if _shoes == null: _shoes = _find(model, func(x): return x is Node3D and x.name == KIT_MESH.shoes)
+	var shoes: Node3D = _shoes
+	var on: bool = shoes != null and shoes.visible and not inside and model.visible and robin.visible
+	var col := Color(2.6, 1.9, 0.5, 0.85) if boots.gold else Color(0.4 + boots.flow*1.2, 1.6 + boots.flow*0.6, 2.2, 0.85)
+	for e in shoe_glow:
+		var n: MeshInstance3D = e[0]; n.visible = on
+		if on: (n.material_override as StandardMaterial3D).albedo_color = col; n.scale = (e[1] as Vector3)*(1 + boots.flow*0.8 + (0.8 if boots.gold else 0.0))
 func hidden_in_cover() -> bool: return chase.cover != null
 func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 
@@ -1300,6 +1320,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	_bed(dt)
+	_tick_glow()
 	if ringing_on:
 		ring_t -= dt
 		if ring_t <= 0: ring_t = 1.5; cue("ring")
