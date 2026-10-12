@@ -87,6 +87,7 @@ var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
 var grip: Grip
+var phone_prop: Phone
 var shoe_glow: Array = []; var _shoes: Node3D = null
 var face: Face; var reel_look = null; var cam_kick := 0.0
 var intro: Intro
@@ -389,6 +390,7 @@ func _robin() -> void:
 		if nm in ["jump", "flip", "roll", "climb_top", "wake", "kneel", "text"]: continue
 		anim.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	_fight_clips()
+	phone_prop = Phone.make(_find(model, func(x): return x is Skeleton3D))
 	# THE SHOES' GLOW (boots.js bootGlow): a small soft light at each foot, added in, not painted on — the export had
 	# lost its additive blending and left two white shells round her feet, on all the time
 	var st: Array = [model]
@@ -403,7 +405,12 @@ func _robin() -> void:
 ## HER PUNCHES, KICKS AND DODGES (characters/fight/robin.glb): a file of clips keyed to bones as plain nodes, put
 ## onto her skeleton by bone name (mixamorig_Hips there is mixamorigHips here)
 func _fight_clips() -> void:
-	var src: Node = (load("res://assets/tsh/robin_fight.glb") as PackedScene).instantiate()
+	_merge_clips("res://assets/tsh/robin_fight.glb", ["fight", "boxing"])
+	# ON THE PHONE (animations/talk on phone → glb files/cast/build-robin-phone.sh): standing at her ear, pacing,
+	# on a cell phone, and talking with her hands
+	_merge_clips("res://assets/tsh/robin_phone.glb", ["phone_talk", "phone_pace", "phone_cell", "talk_hands"])
+func _merge_clips(file: String, loops: Array) -> void:
+	var src: Node = (load(file) as PackedScene).instantiate()
 	var sap: AnimationPlayer = _find(src, func(n): return n is AnimationPlayer)
 	var sk: Skeleton3D = _find(model, func(n): return n is Skeleton3D)
 	var skel_path := String(anim.get_node(anim.root_node).get_path_to(sk))
@@ -418,7 +425,7 @@ func _fight_clips() -> void:
 			var bone := path.get_file().split(":")[0].replace("_", "").replace(":", "")
 			if names.has(bone): a.track_set_path(t, NodePath(skel_path + ":" + names[bone]))
 			else: a.remove_track(t)
-		a.loop_mode = Animation.LOOP_LINEAR if nm in ["fight", "boxing"] else Animation.LOOP_NONE
+		a.loop_mode = Animation.LOOP_LINEAR if nm in loops else Animation.LOOP_NONE
 		if lib.has_animation(nm): lib.remove_animation(nm)
 		lib.add_animation(nm, a)
 	src.free()
@@ -473,9 +480,18 @@ func apt_window(open: bool) -> void:
 	w.position.y = sash_y + (0.6 if open else 0.0)
 
 ## Robin where the shot needs her: a clip, a place, a heading
+## the phone clips: the phone at her ear ("phone_talk" standing, "phone_pace" walking to and fro); "phone_read" is
+## the texting pose with the phone in her hand, screen up
+const PHONE_CLIPS := {"phone_talk": "ear", "phone_pace": "ear", "phone_cell": "ear", "phone_read": "read"}
 func stage(nm: String, x: float, y: float, z: float, ry: float) -> void:
+	var how: String = PHONE_CLIPS.get(nm, "")
+	if nm == "phone_read": nm = "text"
 	staged = {"clip": nm, "pos": Vector3(x, y, z), "ry": ry}
-	robin.position = staged.pos; model.rotation = Vector3(0, ry, 0); play(nm, 0.15)
+	robin.position = staged.pos; model.rotation = Vector3(0, ry, 0)
+	var was := clip
+	play(nm, 0.15)
+	if nm in ["phone_talk", "phone_pace"] and was != nm: anim.seek(3.0 + randf()*4.0, true)      # already at her ear
+	if phone_prop: phone_prop.hold(how)
 
 func place(p: Vector3, yaw: float) -> void:
 	boots.x = p.x; boots.y = p.y; boots.z = p.z; boots.vx = 0; boots.vy = 0; boots.vz = 0
@@ -1235,12 +1251,12 @@ func fight_outro() -> void:
 		{"dur": 4.2, "fov": 50, "cam": Vector3(-42.7, 2.6, -34.6), "look": Vector3(-41.3, 0.9, -25.5),
 			"tick": func(dt, t, k): walk_stage(SPOT, Q, minf(1, k*1.06)); _buyer_bolts(buyer, BP, t)},
 		{"dur": lines_len("fightText") + 1.6, "fov": 36, "cam": Vector3(Q.x + 0.05, 1.3, Q.y + 1.35), "look": Vector3(Q.x + 0.32, 1.32, Q.y),
-			"enter": func(): _hide(buyer); stage("text", Q.x, 0, Q.y, 0),
+			"enter": func(): _hide(buyer); stage("phone_read", Q.x, 0, Q.y, 0),
 			"beats": [[0.2, func(): cue("phone")], [0.6, func(): talk("fightText")]]},
 		{"dur": lines_len("fightOut4") + lines_len("fightOut5") + 0.5, "fov": 36, "cam": rel(Q.x, Q.y, 0, -0.5, 0.35, 1.75), "look": Vector3(Q.x, 1.2, Q.y + 0.4),
-			"enter": func(): talk("fightOut4"); talk("fightOut5")},
+			"enter": func(): stage("phone_talk", Q.x, 0, Q.y, 0); talk("fightOut4"); talk("fightOut5")},
 		{"dur": 3.0, "fov": 46, "cam": Vector3(-41.0, 1.9, Q.y - 5.5), "look": Vector3(-41.2, 1.4, Q.y + 6),
-			"enter": func(): cue("hangup"), "tick": func(dt, t, k): walk_stage(Q, Vector2(Q.x - 0.1, Q.y + 4.2), k)}]
+			"enter": func(): cue("hangup"); phone_prop.hold(""), "tick": func(dt, t, k): walk_stage(Q, Vector2(Q.x - 0.1, Q.y + 4.2), k)}]
 	play_reel(shots, func(_s): _after_fight(Q, runners, buyer))
 func _cornered(buyer, SPOT: Vector2, BAG: Vector2) -> void:
 	if buyer != null: crew_face(buyer, SPOT.x, SPOT.y); fight.hit1(buyer, "block")
@@ -1405,7 +1421,15 @@ func _follow(dt: float) -> void:
 	else: nm = "idle"
 	for t in ["reboundT", "leapT", "flipT", "hardT"]:
 		if L.get(t, 0.0) > 0: L[t] = L[t] - dt
-	play(nm)
+	# on the phone to Mom, hiding from the gunship (the chase's "call"): the phone at her ear, pacing as you move her
+	var on_call: bool = chase.on and chase.sid() == "call" and chase.st.flags.get("answered", false) and not chase.st.flags.get("found", false)
+	if on_call and b.ground and b.roll <= 0 and b.hspeed() < 6.0:
+		var want := "phone_pace" if b.hspeed() > 0.6 else "phone_talk"
+		if want != clip: play(want, 0.25); anim.seek(3.0 + randf()*6.0, true)
+		phone_prop.hold("ear")
+	else:
+		if not on_call: phone_prop.hold("")
+		play(nm)
 	var w = b.wall
 	var face: float = atan2(-w.n.x, -w.n.y) if w != null else (atan2(b.vx, b.vz) if b.hspeed() > 0.6 else model.rotation.y)
 	var flying: bool = b.fly > 0 and not b.ground and b.state != "dive" and b.speed() > 12

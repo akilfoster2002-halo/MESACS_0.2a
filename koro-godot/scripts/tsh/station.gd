@@ -1094,7 +1094,7 @@ func hide_scene() -> void:
 	var shots := [
 		{"dur": 3.0, "fov": 48, "cam": Vector3(at.x - 5, y0 + 4, at.y + 4), "look": Vector3(at.x, y0 + 0.6, at.y), "enter": func(): sit.call(); g.set_caption("LATER")},
 		{"mood": "sad", "dur": 2.2, "fov": 26, "cam": her_t, "look": her_l, "enter": sit},
-		{"mood": "sad", "dur": g.lines_len("hideCry") + 1.6, "fov": 30, "cam": PH.cam, "look": PH.look, "enter": func(): g.stage("text", at.x, y0, at.y, F.ry); g.phone_show("calling", "CANON"); g.cue("ring"); g.talk("hideCry")},
+		{"mood": "sad", "dur": g.lines_len("hideCry") + 1.6, "fov": 30, "cam": PH.cam, "look": PH.look, "enter": func(): g.stage("phone_talk", at.x, y0, at.y, F.ry); g.phone_show("calling", "CANON"); g.cue("ring"); g.talk("hideCry")},
 		{"mood": "sad", "dur": 1.6, "fov": 22, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("nocall", "CANON"); g.cue("fail")},
 		{"mood": "sad", "dur": g.lines_len("hideCry2") + 1.0, "fov": 24, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("calling", "CANON"); g.cue("ui"); later(0.9, func(): g.phone_show("")); g.talk("hideCry2")},
 		{"mood": "sad", "dur": 3.4, "fov": 58, "cam": Vector3(at.x - 9, y0 + 7, at.y - 7), "look": Vector3(at.x, y0 + 0.5, at.y), "enter": func(): sit.call(); storm(0.5)}]

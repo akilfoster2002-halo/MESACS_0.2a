@@ -138,7 +138,7 @@ func overlook() -> void:
 		{"dur": 3.0, "fov": 46, "cam": func(k, t): return g.rel(at.x, at.z, face, -3.0 - k*0.8, 1.0, at.y + 3.0 + k*0.4), "look": Vector3(d[0], 3.4, d[1] + 2.2),
 			"enter": func(): g.stage("idle", at.x, at.y, at.z, face); g.set_caption("HARBOR LANE HIGH SCHOOL")},
 		{"dur": 2.2, "fov": 40, "cam": g.rel(at.x, at.z, face, 1.5, 0.5, at.y + 1.7), "look": at + Vector3(0, 1.25, 0),
-			"enter": func(): g.stage("text", at.x, at.y, at.z, face); g.cue("ui"); g.phone_show("dtime")},
+			"enter": func(): g.stage("phone_read", at.x, at.y, at.z, face); g.cue("ui"); g.phone_show("dtime")},
 		{"mood": "sheepish", "dur": g.lines_len("overlook") + 1.0, "fov": 32, "cam": g.rel(at.x, at.z, face, 1.1, -0.2, at.y + 1.55), "look": at + Vector3(0, 1.5, 0),
 			"enter": func(): g.phone_show(""); g.stage("idle", at.x, at.y, at.z, face); g.talk("overlook")},
 		{"dur": 1.3, "fov": 52, "cam": Vector3(d[0] + 6, 2.2, d[1] - 6), "look": func(k, t): return g.robin.position + Vector3(0, 1, 0),

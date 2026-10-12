@@ -303,8 +303,8 @@ func calls() -> void:
 	var R: Dictionary = g.room.room; var bed: Dictionary = R.bed
 	var sit := func(): g.stage("wake", bed.x - 0.15, bed.seat, bed.z - 0.05, PI/2)
 	var near := Vector3(bed.x + 0.6, 0, bed.z - 1.15); var ry := PI
-	var talking := func(): g.stage("talk" if g.anim.has_animation("talk") else "idle", near.x, 0, near.z, ry)
-	var reading := func(): g.stage("text", near.x, 0, near.z, ry)
+	var talking := func(): g.stage("phone_talk", near.x, 0, near.z, ry)
+	var reading := func(): g.stage("phone_read", near.x, 0, near.z, ry)
 	var c1: float = g.lines_len("canonPhone"); var c2: float = g.lines_len("canonHold"); var c3: float = g.lines_len("call")
 	var seat := Vector3(bed.x - 0.15, bed.seat, bed.z - 0.05)
 	var shots := [
@@ -327,7 +327,7 @@ func calls() -> void:
 			"enter": func(): g.cue("hangup"); g.get_tree().create_timer(0.3).timeout.connect(func(): g.cue("ui"); g.phone_show("oncall", "UNKNOWN"); g.talk("call")),
 			"beats": [[c3 + 1.0, func(): g.cue("hangup"); g.phone_show("")]]},
 	]
-	g.play_reel(shots, func(_s): g.phone_show(""); g.letterbox(false); g.S.step = "wake"; g._save(); g.opening(true))
+	g.play_reel(shots, func(_s): g.phone_show(""); g.phone_prop.hold(""); g.letterbox(false); g.S.step = "wake"; g._save(); g.opening(true))
 
 # ------------------------------------------------------------------ her arms on the guitar
 ## THE ARMS: two bones each, solved after the clip (a law-of-cosines solve in the skeleton's space): the left hand on

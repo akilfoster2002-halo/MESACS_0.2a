@@ -290,7 +290,7 @@ func night() -> void:
 			"enter": func(): g.lamp.light_energy = 0; g.cue("window"); g.shades(false); g.apt_window(true); g.set_caption("INT. ROBIN'S ROOM — NIGHT"); g.stage("kneel", win.x + 0.32, 1.0, win.z, face_in),
 			"beats": [[1.5, func(): g.stage("idle", in_at.x, 0, in_at.y, face_in)], [2.1, func(): g.apt_window(false); g.cue("door")]]},
 		{"dur": 3.2, "fov": 34, "cam": g.rel(in_at.x, in_at.y, face_in, 0.9, 0.35, 1.6), "look": Vector3(in_at.x + 0.25, 1.25, in_at.y),
-			"enter": func(): g.stage("text", in_at.x, 0, in_at.y, face_in),
+			"enter": func(): g.stage("phone_read", in_at.x, 0, in_at.y, face_in),
 			"beats": [[0.3, func(): g.cue("ui"); g.phone_show("time", "3:07")]]},
 		{"dur": 2.4, "fov": 44, "cam": Vector3(in_at.x + 0.4, 1.6, in_at.y - 0.3), "look": [Vector3(form.x, 1.4, form.z), Vector3(form.x + 0.3, 1.3, form.z)],
 			"enter": func(): g.phone_show("")},
