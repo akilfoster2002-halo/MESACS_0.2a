@@ -12,7 +12,7 @@ static var _lock := Mutex.new()
 ## the kinds this can make
 const KINDS := ["pa", "jam", "alert", "alert2", "sus", "rise", "sting", "heat", "pick", "step", "kick", "ui", "scan", "ring",
 	"hangup", "zip", "gear", "window", "phone", "punch", "door", "fail", "win", "swish", "boom", "blast", "clang", "hurt",
-	"grab", "lock", "launch", "skid", "alarm", "flash", "beep"]
+	"grab", "lock", "launch", "skid", "alarm", "flash", "beep", "siren"]
 
 static func stream(kind: String) -> AudioStreamWAV:
 	_lock.lock(); var have = _cache.get(kind); _lock.unlock()
@@ -168,6 +168,10 @@ func _make(kind: String) -> void:
 		"lock": tone(1900, 1900, 0.045, "square", 0.03)
 		"launch": burst(0.5, 900, 0.3, 0.5); tone(300, 1400, 0.4, "sawtooth", 0.04)
 		"skid": burst(0.9, 1600, 0.22, 2.5); burst(0.5, 300, 0.25, 0.5)
+		# a siren in the distance: two slow wails
+		"siren":
+			for d in [0.0, 1.7]:
+				_osc(d, 1.75, "triangle", [[d, 640.0], [d + 0.85, 1250.0], [d + 1.7, 640.0]], [[d, 0.0001], [d + 0.2, 0.05], [d + 1.5, 0.05], [d + 1.75, 0.0001]])
 		# her alarm clock (tsh.js alarm): two short beeps, every 0.9 s while it goes
 		"beep":
 			for d in [0.0, 0.16]: _osc(d, 0.13, "square", [[0.0, 1760.0]], [[d, 0.0001], [d + 0.01, 0.05], [d + 0.09, 0.05], [d + 0.11, 0.0001]])

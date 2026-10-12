@@ -73,7 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_open := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
+var shots_open := false; var shots_intro := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var goal_mark: Control; var radar: Radar; var mute_btn: Button
@@ -87,7 +87,8 @@ var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
 var grip: Grip
-var face: Face; var reel_look = null
+var face: Face; var reel_look = null; var cam_kick := 0.0
+var intro: Intro
 var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
 var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
@@ -115,6 +116,7 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
 	if args.size() >= 2 and args[0] == "openshots": shots_dir = args[1]; shots_open = true
+	if args.size() >= 2 and args[0] == "introshots": shots_dir = args[1]; shots_intro = true
 	if args.size() >= 2 and args[0] == "climbshots": shots_dir = args[1]; shots_climb = true
 	if args.size() >= 2 and args[0] == "jumpshots": shots_dir = args[1]; shots_climb = true; shots_jump = true
 	if args.size() >= 2 and args[0] == "aftershots": shots_dir = args[1]; shots_after = true
@@ -134,7 +136,9 @@ func _ready() -> void:
 	cy = Courtyard.new(self); add_child(cy)
 	station = Station.new(self); add_child(station); station.cy = cy
 	puzzle = Puzzle.new(self); hud.add_child(puzzle)
+	intro = Intro.new(self); add_child(intro)
 	if args.has("new") or shots_dir != "": S = _fresh()
+	if shots_dir != "" and not shots_intro: S.step = "wake"          # the photo passes start where they always have
 	if shots_fight: S.step = "deal"; S.lesson = 9
 	elif shots_raid: S.step = "raid"; S.lesson = 9
 	elif shots_day: S.day = true; S.step = "morning"; S.dm = 522
@@ -149,6 +153,7 @@ func _ready() -> void:
 	elif shots_after: _shots_after()
 	elif shots_climb: _shots_climb()
 	elif shots_open: _shots_open()
+	elif shots_intro: _shots_intro()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -261,7 +266,7 @@ func _goal_tick() -> void:
 	var hide_all := mode in ["reel", "fight", "end", "puzzle", "read", "wc"]
 	var mk: Variant = null if hide_all else goal_at()
 	var p := robin.position
-	radar.visible = not hide_all and place_now != "school"
+	radar.visible = not hide_all and place_now != "school" and mode != "guitar"
 	# the beacon: a column of light at the place, out in the city
 	marker.visible = mk != null and not inside
 	if marker.visible: marker.position = Vector3(mk[0], 30, mk[1])
@@ -531,8 +536,12 @@ func _hud() -> void:
 	hud = CanvasLayer.new(); add_child(hud)
 	black_rect = ColorRect.new(); black_rect.color = Color.BLACK; black_rect.set_anchors_preset(Control.PRESET_FULL_RECT); black_rect.visible = false; hud.add_child(black_rect)
 	obj_label = _rich(Vector2(24, 20), Vector2(560, 120), 18)
+	# the subtitles: every line, whoever says it, centred along the bottom (placed by offsets from that anchor; a
+	# position set after the anchors had put them off the top-left of the screen, where nobody ever saw them)
 	sub_label = _rich(Vector2(0, 0), Vector2(900, 120), 24); sub_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	sub_label.position = Vector2(-450, -150); sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_label.fit_content = false; sub_label.custom_minimum_size = Vector2.ZERO
+	sub_label.offset_left = -450; sub_label.offset_right = 450; sub_label.offset_top = -180; sub_label.offset_bottom = -50
+	sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; sub_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM; sub_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	note_label = Label.new(); note_label.set_anchors_preset(Control.PRESET_CENTER_TOP); note_label.position = Vector2(-300, 90); note_label.size = Vector2(600, 40)
 	note_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; note_label.add_theme_font_size_override("font_size", 20); hud.add_child(note_label)
 	caption = Label.new(); caption.position = Vector2(24, 0); caption.set_anchors_preset(Control.PRESET_BOTTOM_LEFT); caption.position = Vector2(24, -60)
@@ -566,6 +575,18 @@ func _rich(p: Vector2, s: Vector2, fs: int, parent: Node = null) -> RichTextLabe
 	r.add_theme_constant_override("outline_size", 6); r.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	(parent if parent else hud).add_child(r); return r
 
+## THE LETTERBOX: black bars to 2.39:1, sliding in and out (the films that want to look like films)
+var bars: Array = []; var bars_tw: Tween
+func letterbox(v: bool) -> void:
+	if bars.is_empty():
+		for top in [true, false]:
+			var r := ColorRect.new(); r.color = Color.BLACK; r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			r.set_anchors_preset(Control.PRESET_TOP_WIDE if top else Control.PRESET_BOTTOM_WIDE); hud.add_child(r); hud.move_child(r, 1); bars.append(r)
+	var vp := get_viewport().get_visible_rect().size
+	var h := maxf(0, (vp.y - vp.x/2.39)/2) if v else 0.0
+	if bars_tw: bars_tw.kill()
+	bars_tw = create_tween().set_parallel()
+	bars_tw.tween_property(bars[0], "offset_bottom", h, 0.6); bars_tw.tween_property(bars[1], "offset_top", -h, 0.6)
 func set_mute(v: bool, keep := true) -> void:
 	AudioServer.set_bus_mute(0, v)
 	mute_btn.text = "🔇" if v else "🔊"; mute_btn.tooltip_text = ("Sound off" if v else "Sound on") + " (M)"
@@ -722,6 +743,11 @@ func _reel_next() -> void:
 	f.shot = f.shots[f.i]; f.t = over; f.fired = {}
 	if f.shot.has("inside"): show_inside(f.shot.inside)
 	face.shot_mood(f.shot.get("mood"))
+	# depth of field: a shot's "dof" is the distance in focus; behind it goes soft
+	if f.shot.has("dof"):
+		var at := CameraAttributesPractical.new(); at.dof_blur_far_enabled = true; at.dof_blur_far_distance = float(f.shot.dof) + 0.6
+		at.dof_blur_far_transition = maxf(0.8, float(f.shot.dof)*0.8); at.dof_blur_amount = 0.12; cam.attributes = at
+	else: cam.attributes = null
 	if f.shot.has("enter"): f.shot.enter.call()
 	cam.fov = f.shot.get("fov", 50)
 	_reel_cam()
@@ -735,7 +761,7 @@ func reel_replace_rest(shots: Array) -> void:
 func _reel_end(skipped: bool) -> void:
 	var d: Callable = reel.done
 	dutch = 0.0; lens_roll = 0.0
-	reel = null; mode = ""; staged = null; talk_q.clear(); sub_label.text = ""; voice_player.stop(); face.shot_mood(null); reel_look = null
+	reel = null; mode = ""; staged = null; talk_q.clear(); sub_label.text = ""; voice_player.stop(); face.shot_mood(null); reel_look = null; cam.attributes = null
 	d.call(skipped)
 func _at(v, k: float, t: float) -> Vector3:
 	if v is Callable: return v.call(k, t)
@@ -747,7 +773,10 @@ func _reel_cam() -> void:
 	var e := k if s.get("ease", true) == false else k*k*(3 - 2*k)
 	var c := _at(s.cam, e, f.t); var l := _at(s.look, e, f.t); reel_look = l
 	var br := 0.012 + 0.0006*cam.fov; var tt := Time.get_ticks_msec()/1000.0
-	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br) + lens_jitter
+	# handheld (a shot's "hand": how much), and a kick that dies away (a blast, a landing)
+	var hand: float = s.get("hand", 0.0) + cam_kick
+	var hj := Vector3(sin(tt*7.3) + 0.6*sin(tt*13.1 + 1.2), sin(tt*8.7 + 0.4) + 0.5*sin(tt*15.3), sin(tt*6.1 + 2.0))*hand*0.03
+	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br) + lens_jitter + hj
 	_lens_guard(l)
 	if (l - cam.global_position).length() > 0.001: cam.look_at(l)
 	if s.has("fov2"): cam.fov = lerpf(s.get("fov", 50), s.fov2, e)
@@ -786,6 +815,7 @@ func _lens_guard(look: Vector3) -> void:
 func _tick_reel(dt: float) -> void:
 	var f = reel; var s = f.shot
 	f.t += dt
+	cam_kick = maxf(0, cam_kick - dt*3)
 	var bs: Array = s.get("beats", [])
 	for j in bs.size():
 		if f.t >= bs[j][0] and not f.fired.has(j): f.fired[j] = true; bs[j][1].call()
@@ -825,7 +855,7 @@ func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 
 # ================================================================== the beats
 func _enter() -> void:
-	if S.step == "intro": S.step = "wake"
+	if S.step == "intro": intro.start(); return
 	if day(): today.enter(); return
 	match S.step:
 		"wake": opening()
@@ -863,7 +893,8 @@ func _beat_start() -> void:
 
 ## INT. ROBIN'S ROOM — 22:15. The buyer calls; she gets up; the kit, piece by piece; the note from her mother; the
 ## window, the sill over Kiln Street, and the jump (tsh.js opening())
-func opening() -> void:
+## after_call: the film picks up after the buyer's call (the new start has played it, with Canon on the other line)
+func opening(after_call := false) -> void:
 	var R: Dictionary = room.room; var a: Dictionary = room.apt; var bed: Dictionary = R.bed
 	var cx: float = (a.x1 + a.x2)/2; var cz: float = (a.z1 + a.z2)/2
 	show_inside(true); lamp.light_energy = 0; kit_all(false); apt_boots(true); apt_pack(true); apt_window(false); _form_jacket(true); _note_home()
@@ -875,7 +906,8 @@ func opening() -> void:
 	var GL := Vector2(bench.x + 0.85, bench.z + 1.3); var gry := atan2(1, 0.55)
 	var BR := Vector2(shoe.x + 0.7, shoe.z - 0.4); var bry := PI/2
 	var face_table := atan2(kitc.x - at_table.x, kitc.z - at_table.y); var face_mom := atan2(mom.x - at_table.x, mom.z - at_table.y)
-	black(true); score("wos-a", -14)
+	if not after_call: black(true)
+	score("wos-a", -14)
 	var shots := [
 		{"mood": "sleepy", "dur": 9.0, "fov": 40, "inside": true, "cam": Vector3(bed.x + 1.5, 1.6, bed.z - 1), "look": Vector3(bed.x, 0.8, bed.z),
 			"enter": func(): sit_up.call(); ringing(true); get_tree().create_timer(0.6).timeout.connect(func(): if reel: phone_show("call", "UNKNOWN")),
@@ -929,6 +961,7 @@ func opening() -> void:
 		{"mood": "grin", "dur": 0.8, "fov": 56, "cam": Vector3(56.8, 6.6, 37.6), "look": func(k, t): return robin.position + Vector3(0, 1, 0),
 			"enter": func(): cue("kick"), "tick": func(dt, t, k): stage("jump", SILL.x - k*1.6, SILL.y + sin(k*PI*0.6)*0.7, SILL.z, -PI/2)},
 	]
+	if after_call: shots.pop_front()
 	play_reel(shots, func(_skipped): fall_start())
 
 ## the jacket on the dress form: there until she takes it
@@ -1242,6 +1275,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if mode == "" and ev is InputEventKey and cy.key(ev): return
 	if station.B != null and ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT: station.brawl_click()
 	if mode == "puzzle": return
+	if mode == "guitar":
+		if ev is InputEventKey and intro.key(ev): return
+		if ev is InputEventKey and ev.keycode == KEY_M and ev.pressed: set_mute(not AudioServer.is_bus_mute(0))
+		return
 	if mode == "end" and ev is InputEventKey and ev.pressed and (ev.keycode == KEY_ENTER or ev.keycode == KEY_KP_ENTER) and S.step == "end": today.start(); return
 	if mode == "" and ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_E and S.step == "school" and _near_school_door():
 		marker.visible = false; black(true); get_tree().create_timer(0.4).timeout.connect(func(): black(false); hs.lobby()); return
@@ -1276,7 +1313,8 @@ func _process(dt: float) -> void:
 	face.target = _gaze_target(); face.gmood = "down" if face.mood in ["sad", "tired", "sheepish", "sleepy"] else null
 	face.tick(dt)
 	($Key as OmniLight3D).global_position = robin.position + Vector3(0, 1.6, 0) + cam.global_basis.z*1.4
-	($Key as OmniLight3D).light_energy = 0.5 if day() else 2.2      # by day the sun lights her; the night's key would blow her face out
+	# by day the sun lights her; indoors the room's own lamps do — the night street's key, in a lit room, had her glowing
+	($Key as OmniLight3D).light_energy = (0.25 if inside else 0.5) if day() else (0.45 if inside else 2.2)
 	fight.tick(dt)
 	raid.tick(dt)
 	today.tick(dt)
@@ -1286,7 +1324,8 @@ func _process(dt: float) -> void:
 	_crew_bag(dt)
 	_goal_tick()
 	if mode == "" and chase.on: chase.tick(dt)
-	if mode in ["fight", "end", "puzzle", "read", "wc"]: return
+	intro.tick(dt)
+	if mode in ["fight", "end", "puzzle", "read", "wc", "guitar"]: return
 	if mode == "reel": _tick_reel(dt); return
 	_play_tick(dt)
 
@@ -1599,6 +1638,23 @@ func _shots_street(n: Array, reel_snaps: Callable) -> void:
 	await get_tree().create_timer(2.0).timeout; await reel_snaps.call("end")
 	await _snap("the_end")
 	print("after over: step=", S.step)
+	get_tree().quit()
+## the new start, photographed: the city and the montage every half-second, the song played by itself, the calls
+func _shots_intro() -> void:
+	intro.auto = true
+	var n := 0
+	if OS.get_cmdline_user_args().has("guitar"): reel = null; intro._city_done([])
+	while S.step == "intro" and n < 400:
+		await get_tree().create_timer(2.0 if mode == "guitar" else 0.5).timeout
+		await _snap("i%03d_%s%02d" % [n, mode, reel.i if reel else 0]); n += 1
+		if mode == "guitar" and n % 4 == 0:
+			intro.game.visible = false; intro.playing = false
+			cam.global_position = intro.spot + Vector3(0.3, 1.3, 2.0); cam.look_at(intro.spot + Vector3(0, 1.1, 0))
+			await _snap("i%03d_bare" % n); intro.game.visible = true; intro.playing = true; n += 1
+		if OS.has_environment("TSH_SUBLOG"): print("SUB rect=", sub_label.get_global_rect(), " vis=", sub_label.is_visible_in_tree(), " text=", sub_label.text.substr(0, 60))
+	for i in 6:
+		await get_tree().create_timer(0.5).timeout; await _snap("i%03d_open" % n); n += 1
+	print("intro over: step=", S.step)
 	get_tree().quit()
 ## the opening, frame by frame: every quarter-second of the film, named by its shot, then the fall
 func _shots_open() -> void:
