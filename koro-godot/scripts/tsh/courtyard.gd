@@ -498,7 +498,7 @@ func tuned(at: Vector2) -> void:
 	var shots := [{"dur": 1.8, "fov": 26, "cam": A.gizmo.cam, "look": A.gizmo.look, "enter": func(): place.call(); g.cue("win")}]
 	shots.append_array(line_shots(["canonTuned"], A, {"each": place, "ins": [["^Keep it\\.$", "himTight"], ["understands it", "two"]]}))
 	shots.append_array([
-		{"dur": 2.2, "fov": 24, "cam": A.herTight.cam, "look": A.herTight.look, "enter": place},
+		{"mood": "soft", "dur": 2.2, "fov": 24, "cam": A.herTight.cam, "look": A.herTight.look, "enter": place},
 		{"dur": 1.0, "fov": A.two.fov, "cam": A.two.cam, "look": A.two.look, "enter": func(): gz.visible = false; g.cue("zip")}])
 	g.play_reel(shots, _done(func(): gz.visible = false; _resume_tun(4, "On, down the tunnel.")))
 ## the hatch: he boosts her, she pulls him up, and for a second neither of them lets go
@@ -516,7 +516,7 @@ func boost_scene() -> void:
 		{"dur": 1.4, "fov": 40, "cam": Vector3(base.x - 0.6, 1.0, base.y + 1.4), "look": Vector3(h.x + 0.2, 3.0, wallZ), "enter": func(): g.stage("idle", ledge.x, 2.55, ledge.y, PI); g.cue("door")},
 		{"dur": 1.4, "fov": 34, "cam": Vector3(base.x + 1.2, 1.9, base.y + 1.3), "look": Vector3(base.x, 2.0, base.y),
 			"enter": func(): g.stage("idle", ledge.x, 2.55, ledge.y, 0); if canon: canon.pose = "jump", "beats": [[0.9, func(): g.cue("punch")]]},
-		{"dur": 1.0, "fov": 46, "cam": Vector3(after.x + 1.6, 1.6, after.y - 2.4), "look": Vector3(after.x, 1.2, after.y + 0.5),
+		{"mood": "soft", "dur": 1.0, "fov": 46, "cam": Vector3(after.x + 1.6, 1.6, after.y - 2.4), "look": Vector3(after.x, 1.2, after.y + 0.5),
 			"enter": func(): g.stage("idle", after.x, 0, after.y, PI); if canon: canon.pose = null; canon_at(F.T, after)}])
 	shots.append_array(line_shots(["canonHand"], F.A, {"each": func(): g.stage("idle", after.x, 0, after.y, PI), "pools": {"robin": ["herTight", "her", "overHim"], "canon": ["himTight", "overHer", "him"]}}))
 	g.play_reel(shots, _done(func():
@@ -529,9 +529,9 @@ func quiet_scene() -> void:
 	var p: Vector3 = g.robin.position; var at := Vector2(TX(-0.3), minf(p.z, -80.5)); var F := facing(at, PI/2, 0.62); var A: Dictionary = F.A
 	var place := func(): g.stage("idle", at.x, 0, at.y, PI/2); canon_at(F.T, at)
 	A.door = {"cam": Vector3(TX(0.6), 1.6, -84), "look": Vector3(TX(0), 1.6, -88), "fov": 40}
-	var shots := [{"dur": 2.0, "fov": 42, "cam": Vector3(at.x - 0.4, 1.7, at.y + 4.2), "look": Vector3(at.x + 0.3, 1.3, at.y), "enter": place}]
+	var shots := [{"mood": "soft", "dur": 2.0, "fov": 42, "cam": Vector3(at.x - 0.4, 1.7, at.y + 4.2), "look": Vector3(at.x + 0.3, 1.3, at.y), "enter": place}]
 	shots.append_array(line_shots(["canonQuiet"], A, {"each": place, "pools": {"robin": ["herTight", "overHim", "her", "profileL", "herTight"], "canon": ["himTight", "overHer", "him", "profileR", "low"]}}))
-	shots.append({"dur": 2.4, "fov": 30, "cam": A.profileL.cam, "look": A.two.look})
+	shots.append({"mood": "soft", "dur": 2.4, "fov": 30, "cam": A.profileL.cam, "look": A.two.look})
 	shots.append_array(line_shots(["canonDoor"], A, {"each": place, "ins": [["No admittance", "door"]]}))
 	g.play_reel(shots, _done(func(): _resume_tun(0)))
 func door_open() -> void:

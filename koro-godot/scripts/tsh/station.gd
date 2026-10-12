@@ -154,8 +154,8 @@ func canon_ko() -> void:
 		{"dur": 0.9, "fov": 34, "cam": A.profileL.cam, "look": A.two.look, "enter": func(): guard.call(); if kai: g.fight.play(kai, "hook"),
 			"beats": [[0.45, func(): g.cue("punch"); shake(0.4, 0.4); flash(0.25)]]},
 		{"dur": 1.6, "fov": 40, "cam": Vector3(C.x + 2.0, 0.6, C.y + 1.2), "look": Vector3(C.x, 0.5, C.y), "enter": func(): if c: c.face_to = null; c.pose = "ko"},
-		{"dur": g.lines_len("canonDown") + 0.6, "fov": 26, "cam": g.rel(R.x, R.y, ryR + 0.6, 0.85, 0.2, 1.62), "look": Vector3(R.x, 1.6, R.y), "enter": func(): stand("idle", R, ryR); g.talk("canonDown")},
-		{"dur": 1.6, "fov": 22, "cam": g.rel(R.x, R.y, ryR, 0.7, 0.0, 1.62), "look": Vector3(R.x, 1.6, R.y), "enter": func(): stand("idle", R, ryR)},
+		{"mood": "shocked", "dur": g.lines_len("canonDown") + 0.6, "fov": 26, "cam": g.rel(R.x, R.y, ryR + 0.6, 0.85, 0.2, 1.62), "look": Vector3(R.x, 1.6, R.y), "enter": func(): stand("idle", R, ryR); g.talk("canonDown")},
+		{"mood": "angry", "dur": 1.6, "fov": 22, "cam": g.rel(R.x, R.y, ryR, 0.7, 0.0, 1.62), "look": Vector3(R.x, 1.6, R.y), "enter": func(): stand("idle", R, ryR)},
 		{"dur": 1.2, "fov": 46, "cam": Vector3(R.x - 3.4, 1.2, R.y + 2.8), "look": Vector3(Kc.x, 1.2, Kc.y), "enter": func(): if kai: g.crew_face(kai, R.x, R.y, "fight")}])
 	g.play_reel(shots, done(func():
 		if c: c.x = C.x; c.z = C.y; c.pose = "ko"; c.follow = false
@@ -227,7 +227,7 @@ func kai_down() -> void:
 					later(0.7, func(): o.burst(2, at.call(-1.5, 0, 0.8), 2.0, true))
 					later(0.9, func(): o.burst(3, at.call(1.5, 0, 0.8), 2.0, true)),
 			"beats": [[0.4, func(): shake(0.2, 0.4); g.cue("zip")], [0.8, func(): g.cue("zip")], [1.2, func(): shake(0.3, 0.4); g.cue("clang")]]},
-		{"dur": 1.4, "fov": 24, "cam": F.herTight.cam, "look": F.herTight.look, "enter": func(): stand("fight", R, ry)}])
+		{"mood": "shocked", "dur": 1.4, "fov": 24, "cam": F.herTight.cam, "look": F.herTight.look, "enter": func(): stand("fight", R, ry)}])
 	g.play_reel(shots, done(func(): maya_arms(); fight_two(R, ry)))
 func fight_two(R: Vector2, ry: float) -> void:
 	var maya = crew("maya")
@@ -339,7 +339,7 @@ func cuts(dur: float, cams: Array, o := {}) -> Array:
 	while t < dur - 0.05:
 		var d := minf(dur - t, 0.34 + randf()*0.44); var c: Dictionary = cams[i % cams.size()]; var first := i == 0; i += 1
 		var roll := (randf() - 0.5)*0.36; var drift := Vector3((randf() - 0.5)*1.3, (randf() - 0.5)*0.5, (randf() - 0.5)*1.3); var f0: float = c.get("fov", 40)
-		out.append({"dur": d, "fov": f0, "fov2": f0*(0.76 + randf()*0.14), "ease": false,
+		out.append({"dur": d, "fov": f0, "fov2": f0*(0.76 + randf()*0.14), "ease": false, "mood": o.get("mood"),
 			"cam": func(k, tt): var p: Vector3 = at.call(c.cam); return p + drift*k,
 			"look": func(k, tt): return at.call(c.look),
 			"enter": func():
@@ -486,7 +486,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 			"look": V.call(M, 3.2), "enter": func(): g.dutch = 0.0; shake(0.2, 3.2),
 			"tick": func(dt, t, k): mon.pull = 1.1 + k*0.8; stand_r.call(); if wind: wind.k = 0.9 + k*0.3},
 		# her, looking at it: a dolly zoom — the camera falls back as the lens closes in, her face holding its size
-		{"dur": 2.4, "fov": 53, "ease": false,
+		{"mood": "shocked", "dur": 2.4, "fov": 53, "ease": false,
 			"cam": func(k, t):
 				var d = 0.7 + k*2.5; g.cam.fov = 2*rad_to_deg(atan(0.27/d))
 				return V.call(R + dir*d, 1.6),
@@ -506,16 +506,16 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 		if hay: hay.k = 1.0
 		if wind: wind.k = 1.2}))
 	shots.append_array([
-		{"dur": 1.6, "fov": 30, "cam": F.herTight.cam, "look": F.herTight.look, "enter": func(): stand_r.call(); if hay: hay.k = 0.7},
+		{"mood": "angry", "dur": 1.6, "fov": 30, "cam": F.herTight.cam, "look": F.herTight.look, "enter": func(): stand_r.call(); if hay: hay.k = 0.7},
 		{"dur": 1.4, "fov": 42, "cam": V.call(R - dir*1.6 + side*1.2, 1.3), "look": V.call(R, 1.2), "enter": stand_r, "beats": [[0.5, func(): g.kit("jacket", true); g.cue("zip")]]},
 		{"dur": 1.2, "fov": 26, "cam": V.call(R + dir*0.7 + side*0.5, 1.15), "look": V.call(R, 1.05), "enter": func(): stand("fight", R, ry), "beats": [[0.3, func(): g.kit("gloves", true); g.cue("gear")]]},
-		{"dur": g.lines_len("robinFight") + 0.4, "fov": 26, "cam": F.her.cam, "look": F.her.look, "enter": func(): stand("fight", R, ry); g.talk("robinFight")}])
+		{"mood": "angry", "dur": g.lines_len("robinFight") + 0.4, "fov": 26, "cam": F.her.cam, "look": F.her.look, "enter": func(): stand("fight", R, ry); g.talk("robinFight")}])
 	var run_shots := [
 		{"dur": 1.1, "fov": 56, "cam": V.call(R - dir*5 + side*3, 1.2), "look": V.call(R - dir*2, 1.0),
 			"enter": func(): if mon: mon.act("tail"); mon.position = Vector3(M.x, 0, M.y); mon.rotation.y = myaw,
 			"tick": func(dt, t, k): var r = R - dir*k*3; stand("hit" if k < 0.5 else "fall", r, ry, sin(k*PI)*0.8)},
 		{"dur": 1.2, "fov": 40, "cam": V.call(R - dir*3 - side*1.5, 0.5), "look": V.call(R - dir*3, 0.6), "enter": func(): stand("getup", R - dir*3, ry); shake(0.4, 0.5)},
-		{"dur": g.lines_len("robinGo") + 0.2, "fov": 24, "cam": V.call(R - dir*3 + side*0.45 + dir*0.6, 1.1), "look": V.call(R - dir*3, 1.05), "enter": func(): stand("kneel", R - dir*3, ry); g.talk("robinGo")}]
+		{"mood": "nervous", "dur": g.lines_len("robinGo") + 0.2, "fov": 24, "cam": V.call(R - dir*3 + side*0.45 + dir*0.6, 1.1), "look": V.call(R - dir*3, 1.05), "enter": func(): stand("kneel", R - dir*3, ry); g.talk("robinGo")}]
 	run_shots.append_array(cuts(1.8, [CAM.run, CAM.runLow, CAM.runFront, CAM.run], {"tick": func(dt, t, k): run.k = 1 + k*0.4; stand("sprint", rrun.call(), ry + PI)}))
 	var to_escape := done(func():
 		g.dutch = 0.0
@@ -721,7 +721,7 @@ func duel(cb: Callable) -> void:
 		thrown.call(d0 - 6.5, d0 - 8.0, d0 - 9.5) + [S.call({"dur": 0.5, "fov": 50, "cam": func(): var q: Vector2 = at.call(d0 - 10, 2); return Vector3(q.x, 1.0, q.y), "look": func(): return mb.call(H.call()*0.7), "mon": mgo.call(3.8, 1.0)})]))
 	# THREE. It roars into her face from a metre off; she leans into it
 	shots.append_array([
-		S.call({"dur": 1.0, "fov": 24, "cam": func(): var q: Vector2 = at.call(d0 - 6.6); return Vector3(q.x, 1.6, q.y), "look": func(): var q: Vector2 = at.call(d0 - 7.5); return Vector3(q.x, 1.6, q.y),
+		S.call({"mood": "angry", "dur": 1.0, "fov": 24, "cam": func(): var q: Vector2 = at.call(d0 - 6.6); return Vector3(q.x, 1.6, q.y), "look": func(): var q: Vector2 = at.call(d0 - 7.5); return Vector3(q.x, 1.6, q.y),
 			"mon": mgo.call(1.0, 2.2), "enter": func(): var q: Vector2 = at.call(d0 - 7.5); put.call("fight", q.x, 0, q.y)}),
 		S.call({"dur": 1.0, "fov": 38, "cam": func(): var m: Vector3 = mouth.call(); return Vector3(m.x - dir.x*5.5, m.y - 0.5, m.z - dir.y*5.5), "look": mouth,
 			"mon": mgo.call(2.2, 2.8), "enter": func(): mon.act("roar"); g.cue("roar"); shake(0.9, 2.5); if wind: wind.k = 1.4})])
@@ -905,20 +905,20 @@ func street_scene() -> void:
 		"feetLow": {"cam": V.call(at - side*0.9, 0.12), "look": V.call(at, 0.15), "fov": 40}}
 	var shots := [
 		{"dur": 2.6, "fov": 50, "cam": V.call(at - dir*4, 9), "look": V.call(at, 0.8), "enter": func(): st.call(); g.set_caption("EXT. HARBOR LANE — 4:40 PM"); g.cue("door")},
-		{"dur": 2.4, "fov": 30, "cam": A.herTight.cam, "look": A.herTight.look, "enter": func(): stand("kneel", at, ry)},
+		{"mood": "sad", "dur": 2.4, "fov": 30, "cam": A.herTight.cam, "look": A.herTight.look, "enter": func(): stand("kneel", at, ry)},
 		{"dur": 2.2, "fov": 36, "cam": C.herSide.cam, "look": V.call(E, 0.4), "enter": st},
 		{"dur": 2.0, "fov": 50, "cam": C.street.cam, "look": C.street.look, "enter": st},
-		{"dur": 1.6, "fov": 30, "cam": C.feetLow.cam, "look": C.feetLow.look, "enter": func(): st.call(); shake(0.12, 0.4); g.cue("thud"), "beats": [[0.8, func(): g.cue("thud")]]}]
-	shots.append_array(cuts(2.2, [C.low, C.stair, C.her, C.stair], {"start": func(): mon.act("roar"); g.cue("roar"); shake(0.35, 0.6); storm(0.05); g.cue("alert"), "tick": func(dt, t, k): storm(0.05 + k*0.2)}))
+		{"mood": "shocked", "dur": 1.6, "fov": 30, "cam": C.feetLow.cam, "look": C.feetLow.look, "enter": func(): st.call(); shake(0.12, 0.4); g.cue("thud"), "beats": [[0.8, func(): g.cue("thud")]]}]
+	shots.append_array(cuts(2.2, [C.low, C.stair, C.her, C.stair], {"mood": "shocked", "start": func(): mon.act("roar"); g.cue("roar"); shake(0.35, 0.6); storm(0.05); g.cue("alert"), "tick": func(dt, t, k): storm(0.05 + k*0.2)}))
 	shots.append_array(cuts(4.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street, C.rise], {
 		"start": func(): mon.act("roar"); g.cue("roar"); haywire(0.55); wind_on(0.6); cy.props.visible = false; shake(0.6, 0.5); flash(0.6); chaos_on(at),
 		"tick": func(dt, t, k):
 			st.call(); mon.grow = minf(1, k*1.15); storm(0.25 + k*0.75)
 			if randf() < dt*1.2: flash(0.35, Color(0.7, 0.6, 1))
 			if randf() < dt*0.8: shake(0.3, 0.25)}))
-	shots.append_array(cuts(1.4, [C.eye, C.her], {"start": func(): mon.act("roar"); g.cue("roar")}))
+	shots.append_array(cuts(1.4, [C.eye, C.her], {"mood": "shocked", "start": func(): mon.act("roar"); g.cue("roar")}))
 	shots.append_array(cuts(g.lines_len("chaseStart") + 0.3, [C.her, C.feet, C.herSide, C.feetLow, C.her], {"start": func(): g.talk("chaseStart"), "tick": func(dt, t, k): st.call()}))
-	shots.append_array(cuts(1.4, [C.feetLow, C.feet, C.low], {"start": func(): flash(0.35, Color(0.4, 1, 0.9)); g.cue("launch")}))
+	shots.append_array(cuts(1.4, [C.feetLow, C.feet, C.low], {"mood": "determined", "start": func(): flash(0.35, Color(0.4, 1, 0.9)); g.cue("launch")}))
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
 		g.S.shoesBack = true; g.S.chase = true; g._save()
@@ -985,7 +985,7 @@ func lost_scene() -> void:
 			if hay: hay.k = 0.6*(1 - k)
 			storm(1 - k*0.8)
 			if wind: wind.k = 0.6*(1 - k)}))
-	shots.append({"dur": g.lines_len("chaseLost") + 0.8, "fov": 26, "cam": Vector3(at.x + dir.x*0.8 + side.x*0.3, y0 + 1.66, at.y + dir.y*0.8 + side.y*0.3), "look": Vector3(at.x, y0 + 1.6, at.y),
+	shots.append({"mood": "shocked", "dur": g.lines_len("chaseLost") + 0.8, "fov": 26, "cam": Vector3(at.x + dir.x*0.8 + side.x*0.3, y0 + 1.66, at.y + dir.y*0.8 + side.y*0.3), "look": Vector3(at.x, y0 + 1.6, at.y),
 		"enter": func(): g.dutch = 0.0; g.talk("chaseLost"); g.stage("idle", at.x, y0, at.y, ry)})
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
@@ -1025,7 +1025,7 @@ func wfc_standoff(at: Vector2, y0: float) -> void:
 		"top": {"cam": Vector3(at.x + 1, y0 + 12, at.y - 3), "look": Vector3(at.x, y0, at.y), "fov": 50},
 		"low": {"cam": Vector3(at.x + 1.6, y0 + 0.3, at.y - 1.4), "look": wf, "fov": 56}}
 	var AC: Dictionary = A.duplicate(); AC.merge(C, true)
-	var shots := cuts(1.8, [C.top, C.wide, C.her], {"start": func(): stand_.call(); flash(0.5); g.cue("alert"); shake(0.3, 1), "tick": func(dt, t, k): stand_.call()})
+	var shots := cuts(1.8, [C.top, C.wide, C.her], {"mood": "shocked", "start": func(): stand_.call(); flash(0.5); g.cue("alert"); shake(0.3, 1), "tick": func(dt, t, k): stand_.call()})
 	shots.append_array(cy.line_shots(["wfcFreeze", "wfcCanon"], _calls(AC), {"each": stand_, "pools": {"robin": ["her"], "wfc": ["them", "low", "wide"]}}))
 	shots.append_array(cuts(1.0, [C.low, C.top], {"start": func(): g.cue("launch"); flash(0.4, Color(0.4, 1, 0.9))}))
 	g.play_reel(shots, done(func():
@@ -1093,11 +1093,11 @@ func hide_scene() -> void:
 	var her_t: Vector3 = A.herTight.cam; var her_l := Vector3(at.x, y0 + 1.05, at.y)
 	var shots := [
 		{"dur": 3.0, "fov": 48, "cam": Vector3(at.x - 5, y0 + 4, at.y + 4), "look": Vector3(at.x, y0 + 0.6, at.y), "enter": func(): sit.call(); g.set_caption("LATER")},
-		{"dur": 2.2, "fov": 26, "cam": her_t, "look": her_l, "enter": sit},
-		{"dur": g.lines_len("hideCry") + 1.6, "fov": 30, "cam": PH.cam, "look": PH.look, "enter": func(): g.stage("text", at.x, y0, at.y, F.ry); g.phone_show("calling", "CANON"); g.cue("ring"); g.talk("hideCry")},
-		{"dur": 1.6, "fov": 22, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("nocall", "CANON"); g.cue("fail")},
-		{"dur": g.lines_len("hideCry2") + 1.0, "fov": 24, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("calling", "CANON"); g.cue("ui"); later(0.9, func(): g.phone_show("")); g.talk("hideCry2")},
-		{"dur": 3.4, "fov": 58, "cam": Vector3(at.x - 9, y0 + 7, at.y - 7), "look": Vector3(at.x, y0 + 0.5, at.y), "enter": func(): sit.call(); storm(0.5)}]
+		{"mood": "sad", "dur": 2.2, "fov": 26, "cam": her_t, "look": her_l, "enter": sit},
+		{"mood": "sad", "dur": g.lines_len("hideCry") + 1.6, "fov": 30, "cam": PH.cam, "look": PH.look, "enter": func(): g.stage("text", at.x, y0, at.y, F.ry); g.phone_show("calling", "CANON"); g.cue("ring"); g.talk("hideCry")},
+		{"mood": "sad", "dur": 1.6, "fov": 22, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("nocall", "CANON"); g.cue("fail")},
+		{"mood": "sad", "dur": g.lines_len("hideCry2") + 1.0, "fov": 24, "cam": her_t, "look": her_l, "enter": func(): g.phone_show("calling", "CANON"); g.cue("ui"); later(0.9, func(): g.phone_show("")); g.talk("hideCry2")},
+		{"mood": "sad", "dur": 3.4, "fov": 58, "cam": Vector3(at.x - 9, y0 + 7, at.y - 7), "look": Vector3(at.x, y0 + 0.5, at.y), "enter": func(): sit.call(); storm(0.5)}]
 	g.play_reel(shots, done(func():
 		storm(0); haywire(0); wind_off(); sit.call()
 		g.S.tun = 0; g.S.canonTaken = true; g.outcome("fixed")
@@ -1181,8 +1181,8 @@ func apt_ending(R: Dictionary, win: Vector2, bn: Vector3, dr: Vector3, BS: Vecto
 		{"dur": 2.0, "fov": 44, "cam": Vector3(BS.x + 1.6, 1.6, BS.y + 1.4), "look": bn + Vector3(0, 0.05, 0), "tick": func(dt, t, k): g.walk_stage(win, BS, k)},
 		{"dur": 1.5, "fov": 32, "cam": Vector3(BS.x + 0.7, 0.45, BS.y + 0.6), "look": Vector3(BS.x, 0.15, BS.y), "enter": func(): g.stage("kneel", BS.x, 0, BS.y, PI), "beats": [[0.7, func(): g.kit("shoes", false); g.cue("gear")]]},
 		{"dur": 1.4, "fov": 28, "cam": g.rel(BS.x, BS.y, PI, 0.8, 0.35, 1.2), "look": Vector3(BS.x, 1.05, BS.y), "enter": func(): g.stage("idle", BS.x, 0, BS.y, PI), "beats": [[0.5, func(): g.kit("gloves", false); g.cue("zip")]]},
-		{"dur": 1.6, "fov": 34, "cam": g.rel(BS.x, BS.y, PI, 1.2, -0.4, 1.4), "look": Vector3(BS.x, 1.3, BS.y), "beats": [[0.6, func(): g.kit("jacket", false); g.cue("zip")]]},
-		{"dur": 2.2, "fov": 26, "cam": g.rel(BS.x, BS.y, PI, 0.9, 0.3, 1.55), "look": Vector3(BS.x, 1.5, BS.y)},
+		{"mood": "sad", "dur": 1.6, "fov": 34, "cam": g.rel(BS.x, BS.y, PI, 1.2, -0.4, 1.4), "look": Vector3(BS.x, 1.3, BS.y), "beats": [[0.6, func(): g.kit("jacket", false); g.cue("zip")]]},
+		{"mood": "sad", "dur": 2.2, "fov": 26, "cam": g.rel(BS.x, BS.y, PI, 0.9, 0.3, 1.55), "look": Vector3(BS.x, 1.5, BS.y)},
 		{"dur": 2.4, "fov": 40, "cam": Vector3(bn.x + 0.6, 1.4, bn.z + 1.4), "look": Vector3(bn.x, 0.95, bn.z), "tick": func(dt, t, k): g.walk_stage(BS, door, k), "beats": [[2.1, func(): g.cue("door")]]},
 		{"dur": 2.6, "fov": 52, "cam": Vector3(win.x + 0.3, 1.5, win.y + 0.4), "look": Vector3(door.x, 1.0, door.y), "enter": func(): g.staged = null; g.robin.visible = false; g.lamp.light_energy = 0.0},
 		{"dur": 1.6, "fov": 30, "cam": Vector3(door.x + 0.9, 0.25, door.y - 1.6), "look": Vector3(door.x, 0.3, door.y + 0.4), "enter": func(): g.cue("door"); mom_at.call(door.x, door.y + 0.6, PI, "walk"),
@@ -1203,11 +1203,11 @@ func apt_ending(R: Dictionary, win: Vector2, bn: Vector3, dr: Vector3, BS: Vecto
 			"enter": func(): mom_at.call(BS.x, BS.y + 0.2, PI, "idle"); g.talk([ln])})
 	shots.append_array([
 		{"dur": 2.2, "fov": 44, "cam": Vector3(MS.x + 0.2, 1.5, MS.y + 0.5), "look": Vector3(door.x, 1.3, door.y), "enter": func(): mom_at.call(MS.x, MS.y, ryM, "idle")},
-		{"dur": 2.4, "fov": 40, "cam": Vector3(RS.x - 0.3, 1.6, RS.y - 1.8), "look": Vector3(RS.x, 1.4, RS.y + 0.6), "enter": func(): g.cue("door"); g.robin.visible = true, "tick": func(dt, t, k): g.walk_stage(door, RS, k)},
+		{"mood": "soft", "dur": 2.4, "fov": 40, "cam": Vector3(RS.x - 0.3, 1.6, RS.y - 1.8), "look": Vector3(RS.x, 1.4, RS.y + 0.6), "enter": func(): g.cue("door"); g.robin.visible = true, "tick": func(dt, t, k): g.walk_stage(door, RS, k)},
 		{"dur": 2.8, "fov": 34, "cam": Vector3(RS.x - sin(ryR)*0.6 + cos(ryR)*0.3, 1.7, RS.y - cos(ryR)*0.6 - sin(ryR)*0.3), "look": Vector3(MS.x, 1.3, MS.y),
 			"enter": func(): g.stage("idle", RS.x, 0, RS.y, ryR); mom_at.call(MS.x, MS.y, ryM, "idle"); g.cue("glitch")},
-		{"dur": 1.4, "fov": 24, "cam": P2.herTight.cam, "look": P2.herTight.look},
-		{"dur": 3.2, "fov": 40, "fov2": 22, "ease": false, "cam": P2.overHer.cam, "look": P2.himTight.look,
+		{"mood": "shocked", "dur": 1.4, "fov": 24, "cam": P2.herTight.cam, "look": P2.herTight.look},
+		{"mood": "shocked", "dur": 3.2, "fov": 40, "fov2": 22, "ease": false, "cam": P2.overHer.cam, "look": P2.himTight.look,
 			"enter": func(): g.cue("ui"); g.lamp.light_energy = 1.6; flash(0.2, Color(1, 0.9, 0.7)); later(0.25, func(): g.cue("boom"))}])
 	var each := func(): g.stage("idle", RS.x, 0, RS.y, ryR); mom_at.call(MS.x, MS.y, ryM, "idle")
 	var flicker := func():
@@ -1215,13 +1215,13 @@ func apt_ending(R: Dictionary, win: Vector2, bn: Vector3, dr: Vector3, BS: Vecto
 	shots.append_array(cy.line_shots(["reveal1", "reveal2"], P2, {"each": each, "pools": {"robin": ["herTight", "her", "profileL"], "other": ["himTight", "overHer", "him"]},
 		"ins": [["Don't look at me", "himTight", func(): shake(0.15, 0.3); g.cue("thud")], ["tore its way", "him", flicker]]}))
 	shots.append_array(cy.line_shots(["reveal3"], P2, {"each": func(): g.stage("idle", RS.x, 0, RS.y, ryR), "pools": {"robin": ["herTight"], "other": ["himTight"]}}))
-	shots.append({"dur": 3.4, "fov": 20, "cam": P2.herTight.cam, "look": P2.herTight.look})
+	shots.append({"mood": "sad", "dur": 3.4, "fov": 20, "cam": P2.herTight.cam, "look": P2.herTight.look})
 	shots.append_array(cy.line_shots(["reveal4"], P2, {"each": func(): g.stage("idle", RS.x, 0, RS.y, ryR), "pools": {"robin": ["herTight"], "other": ["him", "himTight"]},
 		"ins": [["never see daylight", "himTight", func(): g.cue("boom"); shake(0.35, 0.6); flash(0.25, Color(1, 0.85, 0.7))]]}))
 	shots.append_array([
-		{"dur": 3.6, "fov": 40, "cam": P2.two.cam, "look": P2.two.look,
+		{"mood": "sad", "dur": 3.6, "fov": 40, "cam": P2.two.cam, "look": P2.two.look,
 			"tick": func(dt, t, k): var tt := minf(1, k*1.4); mom_at.call(lerpf(MS.x, RS.x + sin(ryR)*0.45, tt), lerpf(MS.y, RS.y + cos(ryR)*0.45, tt), ryM, "walk" if tt < 1 else "idle")},
-		{"dur": 3.0, "fov": 18, "fov2": 14, "cam": P2.herTight.cam, "look": P2.herTight.look}])
+		{"mood": "sad", "dur": 3.0, "fov": 18, "fov2": 14, "cam": P2.herTight.cam, "look": P2.herTight.look}])
 	g.play_reel(shots, done(func():
 		g.black(true); g.end_text("[font_size=18]ROBIN RYU[/font_size]\nTHE END")
 		g.S.dayDone = true; g.S.revealed = true; g.S.step = "evening"; g._save()

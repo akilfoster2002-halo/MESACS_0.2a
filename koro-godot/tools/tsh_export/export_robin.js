@@ -31,6 +31,7 @@
     return out; };
   const KIT = { bottom:'baggy-jeans', outer:'tech-jacket', hands:'gecko-cuffs', shoes:'skyline-shoes', wrist:'flash-bangle', back:'roll-top', face:'shades' };
   const wear = async o => { await WARDROBE.put(m, 'robin', o); await new Promise(r=>setTimeout(r, 900)); return visTris(); };
+  const vBare = await wear({ bottom:'baggy-jeans' });                 // barefoot: her feet, which the shoes drop
   const vNone = await wear({ bottom:'baggy-jeans', shoes:'skyline-shoes' });
   const vJ = await wear({ bottom:'baggy-jeans', shoes:'skyline-shoes', outer:'tech-jacket' });
   const vC = await wear({ bottom:'baggy-jeans', shoes:'skyline-shoes', hands:'gecko-cuffs' });
@@ -38,6 +39,7 @@
   await new Promise(r=>setTimeout(r, 1500));
   const vAll = visTris();
   const underJ = [...vNone].filter(t=>!vJ.has(t)), underC = [...vNone].filter(t=>!vC.has(t) && vJ.has(t));
+  const underS = [...vBare].filter(t=>!vNone.has(t));
   const base = [...vNone].filter(t=>vAll.has(t) || (!underJ.includes(t) && !underC.includes(t)));
   // the body: what shows with the whole kit on; and two small meshes of the rest, on the same skeleton
   const subset = (list) => { const src = body.geometry, map = new Map(), idx = [];
@@ -48,10 +50,10 @@
     g.setIndex(idx); return g; };
   const sk = (name, list) => { const sm = new THREE.SkinnedMesh(subset(list), [].concat(body.material)[0]); sm.name = name; sm.bind(body.skeleton, body.bindMatrix); body.parent.add(sm); return sm; };
   let saved = null;
-  const extra = [sk('under_jacket', underJ), sk('under_cuffs', underC)];
+  const extra = [sk('under_jacket', underJ), sk('under_cuffs', underC), sk('under_shoes', underS)];
   { const g = body.geometry.clone(), arr = []; base.forEach(t=>t.split(',').forEach(v=>arr.push(+v)));
     g.setIndex(arr); g.clearGroups(); saved = [body.geometry, body.material]; body.geometry = g; body.material = [].concat(body.material)[0];
-    console.log('body', base.length, underJ.length, underC.length); }
+    console.log('body', base.length, underJ.length, underC.length, underS.length); }
   await new Promise(r=>setTimeout(r, 1500));
   for(const id of IDS) WARDROBE.wornOn(m, id).forEach((o, i)=>{ o.name = 'worn:' + id + (i ? '_' + i : ''); });
   await person(m, 'robin.glb');

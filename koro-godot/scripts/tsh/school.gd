@@ -275,7 +275,7 @@ func pa() -> void:
 	sn.pa = true; sn.meter = 0.0; seen_bar.visible = false
 	if g.mode == "read": read_stop()
 	var at: Vector3 = g.robin.position; var face: float = g.cam_yaw + PI
-	g.play_reel([{"dur": g.lines_len("pa") + 2.2, "fov": 36, "inside": true, "cam": g.rel(at.x, at.z, face, 1.4, 0.3, at.y + 1.35), "look": at + Vector3(0, 1.55, 0),
+	g.play_reel([{"mood": "annoyed", "dur": g.lines_len("pa") + 2.2, "fov": 36, "inside": true, "cam": g.rel(at.x, at.z, face, 1.4, 0.3, at.y + 1.35), "look": at + Vector3(0, 1.55, 0),
 		"enter": func(): g.stage("idle", at.x, at.y, at.z, face); g.cue("pa"),
 		"beats": [[1.5, func(): g.talk("pa")], [g.lines_len("pa") + 1.5, func(): g.stage("idle", at.x, at.y, at.z, face + 0.6)]]}],
 		func(_s): g.black(true); g.get_tree().create_timer(0.4).timeout.connect(func(): g.black(false); caught_by("pa")))
@@ -315,11 +315,11 @@ func lobby() -> void:
 				gd.yaw += Fight.ang_diff(atan2(g.robin.position.x - gd.x, g.robin.position.z - gd.z), gd.yaw)*minf(1, dt*3)},
 		{"dur": 1.8, "fov": 32, "cam": g.rel(gd.x, gd.z, faceG, 1.5, 0.35, 1.72), "look": Vector3(gd.x, 1.6, gd.z),
 			"enter": func(): g.stage("idle", stop.x, 0, stop.y, north); gd.yaw = faceG},
-		{"dur": 1.6, "fov": 30, "cam": g.rel(stop.x, stop.y, faceT, -0.6, 0.35, 1.68), "look": Vector3(t.x, 1.55, t.z)},
+		{"mood": "tired", "dur": 1.6, "fov": 30, "cam": g.rel(stop.x, stop.y, faceT, -0.6, 0.35, 1.68), "look": Vector3(t.x, 1.55, t.z)},
 		{"dur": 1.6, "fov": 26, "cam": g.rel(t.x, t.z, faceT + PI, 2.2, 0.2, 1.6), "look": Vector3(t.x, 1.6, t.z),
 			"enter": func(): t.yaw = PI,
 			"tick": func(dt, tt, k): if tt > 0.5: t.yaw += Fight.ang_diff(faceT + PI, t.yaw)*minf(1, dt*6)},
-		{"dur": g.lines_len("nope") + 0.9, "fov": 36, "cam": g.rel(stop.x, stop.y, faceT + PI, 1.6, 0.3, 1.6), "look": Vector3(stop.x, 1.45, stop.y),
+		{"mood": "nervous", "dur": g.lines_len("nope") + 0.9, "fov": 36, "cam": g.rel(stop.x, stop.y, faceT + PI, 1.6, 0.3, 1.6), "look": Vector3(stop.x, 1.45, stop.y),
 			"enter": func(): g.stage("idle", stop.x, 0, stop.y, faceT); g.talk("nope"),
 			"tick": func(dt, tt, k): g.stage("idle", stop.x, 0, stop.y, faceT + PI*clampf((tt - 0.25)/0.35, 0, 1))}]
 	g.play_reel(shots, func(_s):
@@ -349,16 +349,16 @@ func caught_scene(how: String) -> void:
 	var shots := [
 		{"dur": g.lines_len("caught") + 0.7, "fov": 38, "inside": true, "cam": g.rel(t.x, t.z, side, -1.1, 0.45, 1.75), "look": Vector3(at.x, 1.35, at.y),
 			"enter": func(): g.stage("idle", at.x, 0, at.y, away); g.talk("caught"); g.cue("ui")},
-		{"dur": 1.5, "fov": 34, "cam": g.rel(at.x, at.y, toT, 1.3, -0.25, 1.6), "look": Vector3(at.x, 1.5, at.y),
+		{"mood": "nervous", "dur": 1.5, "fov": 34, "cam": g.rel(at.x, at.y, toT, 1.3, -0.25, 1.6), "look": Vector3(at.x, 1.5, at.y),
 			"tick": func(dt, tt, k): g.stage("idle", at.x, 0, at.y, away + Fight.ang_diff(toT, away)*clampf((tt - 0.55)/0.5, 0, 1))},
-		{"dur": g.lines_len("caught2") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("caught2")},
-		{"dur": g.lines_len("caught3") + 0.9, "fov": 30, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "enter": func(): still.call(); g.talk("caught3")},
+		{"mood": "sheepish", "dur": g.lines_len("caught2") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("caught2")},
+		{"mood": "grin", "dur": g.lines_len("caught3") + 0.9, "fov": 30, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "enter": func(): still.call(); g.talk("caught3")},
 		{"dur": g.lines_len("assign") + 0.5, "fov": 30, "cam": hers, "look": _person_look(t), "enter": func(): g.talk("assign")},
-		{"dur": 1.7, "fov": 30, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "tick": func(dt, tt, k): g.stage("idle", at.x, 0, at.y, toT + sin(tt*2.2)*0.12)},
+		{"mood": "sheepish", "dur": 1.7, "fov": 30, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "tick": func(dt, tt, k): g.stage("idle", at.x, 0, at.y, toT + sin(tt*2.2)*0.12)},
 		{"dur": g.lines_len("frustrate") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("frustrate")},
-		{"dur": 2.2, "fov": 28, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "tick": func(dt, tt, k): if tt > 0.9: g.stage("idle", at.x, 0, at.y, toT + 0.45)},
-		{"dur": g.lines_len("help") + 0.3, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("help")},
-		{"dur": 1.8, "fov": 28, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "enter": still}]
+		{"mood": "tired", "dur": 2.2, "fov": 28, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "tick": func(dt, tt, k): if tt > 0.9: g.stage("idle", at.x, 0, at.y, toT + 0.45)},
+		{"mood": "skeptical", "dur": g.lines_len("help") + 0.3, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("help")},
+		{"mood": "soft", "dur": 1.8, "fov": 28, "cam": mine, "look": Vector3(at.x, 1.55, at.y), "enter": still}]
 	g.play_reel(shots, func(_s):
 		g.staged = null
 		if not "assignment" in g.S.seen: g.S.seen.append("assignment")
@@ -410,19 +410,19 @@ func lab_scene() -> void:
 		{"dur": 3.8, "fov": 56, "inside": true, "cam": Vector3(X(-3.6), 3.4, -35.0), "look": Vector3(rig.x, 1.3, rig.y),
 			"enter": func(): g.set_caption("INT. ROBOTICS LAB — ROOM 120"); g.cue("door"),
 			"tick": func(dt, tt, k): g.walk_stage(door, A, minf(1, k*1.25)); _t_go(Vector2(door.x + 0.6, door.y + 0.3), B, minf(1, k*1.2))},
-		{"dur": 2.6, "fov": 30, "cam": g.rel(A.x, A.y, faceA, 1.1, 0.25, 1.6), "look": Vector3(A.x, 1.55, A.y),
+		{"mood": "focused", "dur": 2.6, "fov": 30, "cam": g.rel(A.x, A.y, faceA, 1.1, 0.25, 1.6), "look": Vector3(A.x, 1.55, A.y),
 			"enter": func(): g.stage("idle", A.x, 0, A.y, faceA); t.x = B.x; t.z = B.y; t.yaw = faceB},
 		{"dur": 3.4, "fov": 48, "cam": func(k, tt): return Vector3(lerpf(rig.x + 0.6, rig.x + 0.25, k), lerpf(1.2, 1.6, k), lerpf(rig.y + 4.6, rig.y + 3.3, k)), "look": Vector3(rig.x, 1.6, rig.y),
 			"beats": [[0.3, func(): g.cue("rise")]]},
 		{"dur": 2.4, "fov": 44, "cam": Vector3(X(4.6), 1.8, -44.6), "look": func(k, tt): return Vector3(X(5.0 + k*2.6), 1.95, -47.7)},
-		{"dur": g.lines_len("psi") + 0.4, "fov": 44, "cam": twoRig, "look": Vector3((mid.x + rig.x)/2, 1.45, (mid.y + rig.y)/2),
+		{"mood": "focused", "dur": g.lines_len("psi") + 0.4, "fov": 44, "cam": twoRig, "look": Vector3((mid.x + rig.x)/2, 1.45, (mid.y + rig.y)/2),
 			"enter": func(): g.stage("idle", A.x, 0, A.y, faceA); g.talk("psi"),
 			"tick": func(dt, tt, k): t.yaw += Fight.ang_diff(faceB if fmod(tt, 5.0) < 2.6 else atan2(rig.x - B.x, rig.y - B.y), t.yaw)*minf(1, dt*3)},
 		{"dur": g.lines_len("psi2") + 1.4, "fov": 40, "inside": true, "cam": Vector3(d.x - 1.4, 1.4, d.y + 1.5), "look": Vector3(d.x, 1.05, d.y),
 			"enter": func(): g.talk("psi2"), "beats": [[1.2, func(): robot.field = true; g.cue("fail")]]},
 		{"dur": 2.4, "fov": 46, "cam": Vector3(X(4.2), 1.7, -36.6), "look": func(k, tt): return Vector3(g.robin.position.x, 1.2, g.robin.position.z),
 			"tick": func(dt, tt, k): g.walk_stage(A, ex, k); _t_go(B, T2, minf(1, k*1.1))},
-		{"dur": g.lines_len("spike") + 0.4, "fov": 34, "cam": Vector3(d.x + 0.95, 1.7, d.y - 1.05), "look": Vector3(ex.x - 0.05, 1.45, ex.y),
+		{"mood": "focused", "dur": g.lines_len("spike") + 0.4, "fov": 34, "cam": Vector3(d.x + 0.95, 1.7, d.y - 1.05), "look": Vector3(ex.x - 0.05, 1.45, ex.y),
 			"enter": func(): g.stage("idle", ex.x, 0, ex.y, toBot); t.x = T2.x; t.z = T2.y; t.yaw = toRobin; g.talk("spike")},
 		{"dur": g.lines_len("what") + 0.5, "fov": 30, "cam": hers, "look": Vector3(T2.x, 1.6, T2.y), "enter": func(): g.talk("what")},
 		{"dur": g.lines_len("fighting") + 0.4, "fov": 40, "cam": Vector3(ex.x + 1.6, 1.55, (ex.y + d.y)/2 + 0.35), "look": Vector3(ex.x - 0.2, 1.2, (ex.y + d.y)/2),
@@ -454,8 +454,8 @@ func robot_lives() -> void:
 	var shots := [
 		{"dur": 3.4, "fov": 44, "inside": true, "cam": Vector3(d.x + 1.3, 1.5, d.y + 1.0), "look": Vector3(d.x + 0.05, 1.1, d.y - 0.05),
 			"enter": func(): seated(); robot.field = true; robot.on = true; robot.t = 0.0; g.cue("win")},
-		{"dur": g.lines_len("didIt") + 0.5, "fov": tf, "cam": two.p, "look": tl, "enter": func(): g.stage("idle", ex.x, 0, ex.y, toTeach); g.talk("didIt")},
-		{"dur": g.lines_len("most") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): g.talk("most")},
+		{"mood": "smug", "dur": g.lines_len("didIt") + 0.5, "fov": tf, "cam": two.p, "look": tl, "enter": func(): g.stage("idle", ex.x, 0, ex.y, toTeach); g.talk("didIt")},
+		{"mood": "grin", "dur": g.lines_len("most") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): g.talk("most")},
 		{"dur": g.lines_len("laugh") + 0.8, "fov": 30, "cam": hers, "look": Vector3(T2.x, 1.6, T2.y), "enter": func(): g.talk("laugh")}]
 	g.play_reel(shots, func(_s): g.S.step = "after"; g._save(); talk_scene())
 ## "That's exactly what I'm worried about." Brilliant — and starting to disappear. "Your mom knows how talented you
@@ -473,22 +473,22 @@ func talk_scene() -> void:
 	var tc: float = g.lines_len("toClass")
 	var shots := [
 		{"dur": g.lines_len("worried") + 0.6, "fov": 30, "inside": true, "cam": hers, "look": her_look, "enter": func(): still.call(0.7); g.talk("worried"); g.music.stop()},
-		{"dur": 1.4, "fov": 30, "cam": mine, "look": my_look, "tick": func(dt, tt, k): still.call(0.7*(1 - clampf(tt/0.6, 0, 1)))},
+		{"mood": "skeptical", "dur": 1.4, "fov": 30, "cam": mine, "look": my_look, "tick": func(dt, tt, k): still.call(0.7*(1 - clampf(tt/0.6, 0, 1)))},
 		{"dur": g.lines_len("brilliant") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("brilliant")},
 		{"dur": g.lines_len("intuition") + 0.3, "fov": 30, "cam": hers, "look": her_look, "enter": func(): g.talk("intuition")},
-		{"dur": g.lines_len("but") + 0.3, "fov": 28, "cam": mine, "look": my_look, "enter": func(): still.call(0.25); g.talk("but")},
+		{"mood": "tired", "dur": g.lines_len("but") + 0.3, "fov": 28, "cam": mine, "look": my_look, "enter": func(): still.call(0.25); g.talk("but")},
 		{"dur": g.lines_len("disappear") + 0.3, "fov": 30, "cam": hers, "look": her_look, "enter": func(): g.talk("disappear")},
-		{"dur": 2.2, "fov": 28, "cam": mine, "look": my_look, "enter": func(): still.call(0.3)},
+		{"mood": "tired", "dur": 2.2, "fov": 28, "cam": mine, "look": my_look, "enter": func(): still.call(0.3)},
 		{"dur": g.lines_len("best") + 0.4, "fov": 30, "cam": hers, "look": her_look, "enter": func(): g.talk("best")},
-		{"dur": 1.8, "fov": 30, "cam": mine, "look": my_look, "tick": func(dt, tt, k): still.call(0.75*clampf(tt/0.8, 0, 1))},
+		{"mood": "sad", "dur": 1.8, "fov": 30, "cam": mine, "look": my_look, "tick": func(dt, tt, k): still.call(0.75*clampf(tt/0.8, 0, 1))},
 		{"dur": g.lines_len("mom") + 0.4, "fov": 30, "cam": hers, "look": Vector3(T2.x, 1.58, T2.y), "enter": func(): g.talk("mom")},
-		{"dur": 3.6, "fov": 26, "cam": g.rel(ex.x, ex.y, toTeach + 0.75, 0.95, -0.1, 1.56), "look": Vector3(ex.x, 1.52, ex.y),
+		{"mood": "sad", "dur": 3.6, "fov": 26, "cam": g.rel(ex.x, ex.y, toTeach + 0.75, 0.95, -0.1, 1.56), "look": Vector3(ex.x, 1.52, ex.y),
 			"tick": func(dt, tt, k): if tt > 1.4: still.call(0.75 + 0.25*clampf((tt - 1.4)/1.2, 0, 1))},
 		{"dur": 1.8, "fov": 30, "cam": hers, "look": Vector3(T2.x, 1.58, T2.y)},
-		{"dur": g.lines_len("yeah") + 1.1, "fov": 28, "cam": g.rel(ex.x, ex.y, toTeach + 0.9, 1.0, 0.1, 1.55), "look": Vector3(ex.x, 1.5, ex.y), "enter": func(): still.call(1.0); g.talk("yeah")},
-		{"dur": 2.2, "fov": 40, "cam": g.rel(ex.x, ex.y, toTeach + 0.4, 1.7, 0, 1.45), "look": Vector3(ex.x, 1.1, ex.y),
+		{"mood": "sad", "dur": g.lines_len("yeah") + 1.1, "fov": 28, "cam": g.rel(ex.x, ex.y, toTeach + 0.9, 1.0, 0.1, 1.55), "look": Vector3(ex.x, 1.5, ex.y), "enter": func(): still.call(1.0); g.talk("yeah")},
+		{"mood": "sad", "dur": 2.2, "fov": 40, "cam": g.rel(ex.x, ex.y, toTeach + 0.4, 1.7, 0, 1.45), "look": Vector3(ex.x, 1.1, ex.y),
 			"enter": func(): g.stage("text", ex.x, 0, ex.y, PI*0.9), "beats": [[0.8, func(): g.cue("zip")]]},
-		{"dur": tc + 2.4, "fov": 44, "cam": g.rel(ex.x, ex.y, toTeach, 2.8, 0.6, 1.6), "look": func(k, tt): return Vector3(g.robin.position.x, 1.3, g.robin.position.z),
+		{"mood": "sad", "dur": tc + 2.4, "fov": 44, "cam": g.rel(ex.x, ex.y, toTeach, 2.8, 0.6, 1.6), "look": func(k, tt): return Vector3(g.robin.position.x, 1.3, g.robin.position.z),
 			"enter": func(): still.call(0.4); g.talk("toClass"),
 			"tick": func(dt, tt, k):
 				if tt < tc: still.call(0.4)
@@ -541,12 +541,12 @@ func outside_scene() -> void:
 		{"dur": 3.0, "fov": 46, "inside": false, "cam": Vector3(d[0] + 3.2, 1.7, d[1] - 6.2), "look": Vector3(d[0], 1.4, d[1] - 0.6),
 			"enter": func(): g.set_caption("EXT. HARBOR LANE HIGH — 3:20 PM"); g.cue("door"),
 			"tick": func(dt, tt, k): g.walk_stage(Vector2(d[0], d[1] + 0.6), lane, k*0.8)},
-		{"dur": 2.4, "fov": 30, "cam": g.rel(lane.x, lane.y, PI, 1.0, 0.25, 1.6), "look": Vector3(lane.x, 1.55, lane.y),
+		{"mood": "sad", "dur": 2.4, "fov": 30, "cam": g.rel(lane.x, lane.y, PI, 1.0, 0.25, 1.6), "look": Vector3(lane.x, 1.55, lane.y),
 			"enter": func(): g.stage("idle", lane.x, 0, lane.y, PI), "beats": [[0.7, func(): headphones(true); g.cue("ui")]]},
-		{"dur": 4.0, "fov": 40, "cam": func(k, tt): return Vector3(lerpf(lane.x + 1.6, far.x + 1.6, k), 1.5, lerpf(lane.y - 2.6, far.y - 2.6, k)),
+		{"mood": "sad", "dur": 4.0, "fov": 40, "cam": func(k, tt): return Vector3(lerpf(lane.x + 1.6, far.x + 1.6, k), 1.5, lerpf(lane.y - 2.6, far.y - 2.6, k)),
 			"look": func(k, tt): return Vector3(g.robin.position.x, 1.3, g.robin.position.z),
 			"tick": func(dt, tt, k): g.walk_stage(lane, far, k)},
-		{"dur": 2.8, "fov": 50, "cam": g.rel(far.x, far.y, -PI/2, 0.6, 0.3, 1.0), "look": Vector3(far.x - 20, 26, far.y - 10),
+		{"mood": "sad", "dur": 2.8, "fov": 50, "cam": g.rel(far.x, far.y, -PI/2, 0.6, 0.3, 1.0), "look": Vector3(far.x - 20, 26, far.y - 10),
 			"enter": func(): g.stage("idle", far.x, 0, far.y, -PI/2 + 0.3)},
 		{"dur": 3.0, "fov": 44, "cam": Vector3(far.x + 0.3, 1.6, far.y + 0.4), "look": func(k, tt): return Vector3(far.x - 10, 30 + k*60, far.y - 30)}]
 	g.play_reel(shots, func(_s):

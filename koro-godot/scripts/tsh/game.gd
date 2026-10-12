@@ -73,7 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
+var shots_open := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var goal_mark: Control; var radar: Radar; var mute_btn: Button
@@ -87,6 +87,7 @@ var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
 var grip: Grip
+var face: Face; var reel_look = null
 var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
 var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
@@ -113,6 +114,7 @@ func _ready() -> void:
 	if args.size() >= 2 and args[0] == "fightshots": shots_dir = args[1]; shots_fight = true
 	if args.size() >= 2 and args[0] == "raidshots": shots_dir = args[1]; shots_raid = true
 	if args.size() >= 2 and args[0] == "dayshots": shots_dir = args[1]; shots_day = true
+	if args.size() >= 2 and args[0] == "openshots": shots_dir = args[1]; shots_open = true
 	if args.size() >= 2 and args[0] == "climbshots": shots_dir = args[1]; shots_climb = true
 	if args.size() >= 2 and args[0] == "jumpshots": shots_dir = args[1]; shots_climb = true; shots_jump = true
 	if args.size() >= 2 and args[0] == "aftershots": shots_dir = args[1]; shots_after = true
@@ -124,6 +126,7 @@ func _ready() -> void:
 	fight = Fight.new(self); add_child(fight)
 	_hud()
 	_audio()
+	face = Face.new(self); add_child(face)
 	chase = Chase.new(self); add_child(chase)
 	raid = Raid.new(self); add_child(raid)
 	today = TshDay.new(self); add_child(today)
@@ -145,6 +148,7 @@ func _ready() -> void:
 	elif shots_day: _shots_day()
 	elif shots_after: _shots_after()
 	elif shots_climb: _shots_climb()
+	elif shots_open: _shots_open()
 	elif shots_dir != "": _shots()
 	else: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -420,9 +424,11 @@ const KIT_MESH := {"jacket": "worn_tech-jacket", "gloves": "worn_gecko-cuffs", "
 const SCHOOL_KIT := {"jacket": false, "gloves": false, "shoes": true, "bracelet": false, "pack": true}
 func kit(piece: String, on: bool) -> void:
 	var n := _find(model, func(x): return x is Node3D and x.name == KIT_MESH.get(piece, "?"))
-	if n: n.visible = on
+	if n:
+		if on and not n.visible and mode == "reel" and face: face.glance_self(piece)      # a look down at it as it goes on
+		n.visible = on
 	# what of her body the garment covers (the export keeps it apart): showing when the garment is off
-	var under := {"jacket": "under_jacket", "gloves": "under_cuffs"}
+	var under := {"jacket": "under_jacket", "gloves": "under_cuffs", "shoes": "under_shoes"}
 	if under.has(piece):
 		var u := _find(model, func(x): return x is Node3D and x.name == under[piece])
 		if u: u.visible = not on
@@ -604,6 +610,7 @@ func _audio() -> void:
 const CUE_AS := {"hit": "punch"}
 func cue(kind: String) -> void:
 	kind = CUE_AS.get(kind, kind)
+	if face: face.cue(kind)
 	var files := []
 	for i in 6:
 		var f := "res://assets/tsh/sfx/%s-%d.mp3" % [kind, i]
@@ -653,9 +660,50 @@ func _tick_talk(dt: float) -> void:
 	q.t = maxf(1.4, float(voice[k]) + 0.45) if voice.has(k) else maxf(1.8, 1.0 + text.length()*0.052)
 	var w: Array = WHO.get(who, [who.to_upper(), "#ffffff"])
 	sub_label.text = "[center][b][color=%s]%s[/color][/b]\n%s[/center]" % [w[1], w[0], text]
-	if voice.has(k):
-		var f := "res://assets/tsh/voice/%s.mp3" % k
-		if ResourceLoader.exists(f): voice_player.stream = load(f); voice_player.play()
+	var rec := voice.has(k) and ResourceLoader.exists("res://assets/tsh/voice/%s.mp3" % k)
+	if rec: voice_player.stream = load("res://assets/tsh/voice/%s.mp3" % k); voice_player.play()
+	face.say(who, text, float(voice[k]) if voice.has(k) else 0.0, rec)
+	talk_who = who
+var talk_who := ""
+## WHERE SHE LOOKS (tsh.js gazeTick): the phone in her hands; whoever is talking; what a film shot shows, when that
+## is not her own face; in a fight, whoever is coming at her
+func _gaze_target():
+	var eye := robin.position + Vector3(0, 1.5, 0); var ry := model.rotation.y
+	var seen := func(p: Vector3, far: float, cosmin: float) -> bool:
+		var d := Vector2(p.x - eye.x, p.z - eye.z)
+		if d.length() >= far: return false
+		var dn := d.normalized() if d.length() > 0.01 else Vector2(sin(ry), cos(ry))
+		return sin(ry)*dn.x + cos(ry)*dn.y > cosmin
+	if staged != null and staged.clip == "text":
+		var h = _hands_at()
+		if h != null: return h
+	if talk_q.size() and talk_who != "" and talk_who != "robin":
+		var hp = _head_of(talk_who)
+		if hp != null and seen.call(hp, 14.0, -0.25): return hp
+	if mode == "reel" and reel_look is Vector3 and (reel_look as Vector3).distance_to(eye) > 0.5 and seen.call(reel_look, 150.0, 0.0): return reel_look
+	if mode == "fight":
+		var best = null; var bd := 9.0
+		for e in fight.E:
+			if e.get("hp", 0) <= 0 or e.get("bystander", false): continue
+			var d := Vector2(e.x - eye.x, e.z - eye.z).length()
+			if d < bd: bd = d; best = Vector3(e.x, e.y + 1.55, e.z)
+		return best
+	return null
+func _bone_pos(n: Node, suffix: String):
+	var s: Skeleton3D = _find(n, func(x): return x is Skeleton3D)
+	if s == null: return null
+	for i in s.get_bone_count():
+		if s.get_bone_name(i).ends_with(suffix): return s.global_transform*s.get_bone_global_pose(i).origin
+	return null
+func _head_of(who: String):
+	if who == "canon" and cy.canon != null: return _bone_pos(cy.canon.node, "Head")
+	var tags: Array = {"thug": ["t1", "t2"], "dealer": ["buyer"]}.get(who, [who])
+	for e in fight.E:
+		if (e.tag in tags or e.kind == who) and e.get("node") != null and is_instance_valid(e.node): return _bone_pos(e.node, "Head")
+	return null
+func _hands_at():
+	var a = _bone_pos(model, "LeftHand"); var b = _bone_pos(model, "RightHand")
+	return null if a == null or b == null else ((a as Vector3) + (b as Vector3))/2
 func skip_line() -> void:
 	if talk_q.size(): talk_q[0].t = 0; voice_player.stop()
 
@@ -673,6 +721,7 @@ func _reel_next() -> void:
 	if f.i >= f.shots.size(): _reel_end(false); return
 	f.shot = f.shots[f.i]; f.t = over; f.fired = {}
 	if f.shot.has("inside"): show_inside(f.shot.inside)
+	face.shot_mood(f.shot.get("mood"))
 	if f.shot.has("enter"): f.shot.enter.call()
 	cam.fov = f.shot.get("fov", 50)
 	_reel_cam()
@@ -686,7 +735,7 @@ func reel_replace_rest(shots: Array) -> void:
 func _reel_end(skipped: bool) -> void:
 	var d: Callable = reel.done
 	dutch = 0.0; lens_roll = 0.0
-	reel = null; mode = ""; staged = null; talk_q.clear(); sub_label.text = ""; voice_player.stop()
+	reel = null; mode = ""; staged = null; talk_q.clear(); sub_label.text = ""; voice_player.stop(); face.shot_mood(null); reel_look = null
 	d.call(skipped)
 func _at(v, k: float, t: float) -> Vector3:
 	if v is Callable: return v.call(k, t)
@@ -696,7 +745,7 @@ func _reel_cam() -> void:
 	var f = reel; var s = f.shot
 	var k := minf(1.0, f.t/s.dur)
 	var e := k if s.get("ease", true) == false else k*k*(3 - 2*k)
-	var c := _at(s.cam, e, f.t); var l := _at(s.look, e, f.t)
+	var c := _at(s.cam, e, f.t); var l := _at(s.look, e, f.t); reel_look = l
 	var br := 0.012 + 0.0006*cam.fov; var tt := Time.get_ticks_msec()/1000.0
 	cam.global_position = c + Vector3(sin(tt*0.9)*br + sin(tt*2.3)*br*0.35, sin(tt*1.3 + 1)*br*0.8, cos(tt*0.7)*br) + lens_jitter
 	_lens_guard(l)
@@ -711,8 +760,8 @@ func _reel_cam() -> void:
 const LENS_LAYER := 1 << 19
 var _guarded := {}
 func _lens_guard(look: Vector3) -> void:
-	if not inside: return
-	var root: Node3D = {"apt": apt, "school": school, "sub": sub}.get(place_now)
+	if not inside or OS.has_environment("TSH_NOGUARD"): return
+	var root: Node3D = {"school": school, "sub": sub}.get(place_now)
 	if root == null: return
 	if not _guarded.has(place_now):
 		_guarded[place_now] = true
@@ -728,8 +777,9 @@ func _lens_guard(look: Vector3) -> void:
 			for c in mi.get_children():
 				if c is StaticBody3D: (c as StaticBody3D).collision_layer = LENS_LAYER; (c as StaticBody3D).collision_mask = 0
 	var p := cam.global_position; var to := p - look
-	if to.length() < 0.05: return
-	var q := PhysicsRayQueryParameters3D.create(look, p + to.normalized()*0.1, LENS_LAYER); q.hit_back_faces = true
+	if to.length() < 1.0: return
+	# from a little way out from the subject (what a shot looks at often sits on a surface: a bench, the floor)
+	var q := PhysicsRayQueryParameters3D.create(look + to.normalized()*0.6, p + to.normalized()*0.1, LENS_LAYER); q.hit_back_faces = true
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty() or not hit.collider.is_visible_in_tree(): return
 	cam.global_position = (hit.position as Vector3) - to.normalized()*0.12
@@ -816,7 +866,7 @@ func _beat_start() -> void:
 func opening() -> void:
 	var R: Dictionary = room.room; var a: Dictionary = room.apt; var bed: Dictionary = R.bed
 	var cx: float = (a.x1 + a.x2)/2; var cz: float = (a.z1 + a.z2)/2
-	show_inside(true); lamp.light_energy = 0; kit_all(false); apt_boots(true); apt_pack(true); apt_window(false)
+	show_inside(true); lamp.light_energy = 0; kit_all(false); apt_boots(true); apt_pack(true); apt_window(false); _form_jacket(true); _note_home()
 	var sit_up := func(): stage("wake", bed.x - 0.15, bed.seat, bed.z - 0.05, PI/2)
 	var shoe := _v(R.boots.at); var form := _v(R.form.at); var pack := _v(R.pack.at); var kitc := _v(R.kitchen.at); var notep := _v(R.note.at)
 	var mom := _v(R.momDoor.at); var win := _v(R.window.at); var bench := _v(R.bench.at); var P := _v(R.packing.at)
@@ -827,59 +877,97 @@ func opening() -> void:
 	var face_table := atan2(kitc.x - at_table.x, kitc.z - at_table.y); var face_mom := atan2(mom.x - at_table.x, mom.z - at_table.y)
 	black(true); score("wos-a", -14)
 	var shots := [
-		{"dur": 9.0, "fov": 40, "inside": true, "cam": Vector3(bed.x + 1.5, 1.6, bed.z - 1), "look": Vector3(bed.x, 0.8, bed.z),
-			"enter": func(): sit_up.call(); get_tree().create_timer(0.6).timeout.connect(func(): if reel: phone_show("call", "UNKNOWN")),
-			"beats": [[3.2, func(): cue("ui"); phone_show("oncall", "UNKNOWN")], [3.7, func(): talk("call")], [8.1, func(): cue("hangup"); phone_show("")]]},
-		{"dur": 5.2, "fov": 50, "cam": [Vector3(a.x2 - 0.5, 2.5, a.z2 - 0.7), Vector3(a.x2 - 1.5, 2.2, a.z2 - 1.3)], "look": [Vector3(bed.x, 0.9, bed.z), Vector3(bed.x - 0.6, 0.9, bed.z - 0.4)],
+		{"mood": "sleepy", "dur": 9.0, "fov": 40, "inside": true, "cam": Vector3(bed.x + 1.5, 1.6, bed.z - 1), "look": Vector3(bed.x, 0.8, bed.z),
+			"enter": func(): sit_up.call(); ringing(true); get_tree().create_timer(0.6).timeout.connect(func(): if reel: phone_show("call", "UNKNOWN")),
+			"beats": [[3.2, func(): ringing(false); cue("ui"); phone_show("oncall", "UNKNOWN")], [3.7, func(): talk("call")], [8.1, func(): cue("hangup"); phone_show("")]]},
+		{"mood": "sleepy", "dur": 5.2, "fov": 50, "cam": [Vector3(a.x2 - 0.5, 2.5, a.z2 - 0.7), Vector3(a.x2 - 1.5, 2.2, a.z2 - 1.3)], "look": [Vector3(bed.x, 0.9, bed.z), Vector3(bed.x - 0.6, 0.9, bed.z - 0.4)],
 			"enter": func(): sit_up.call(); lamp.light_energy = 1.6; cue("ui"); get_tree().create_timer(0.25).timeout.connect(func(): black(false)); set_caption("INT. ROBIN'S ROOM — 22:15")},
 		{"dur": 4.2, "fov": 42, "cam": [Vector3(bench.x + 0.9, 1.75, bench.z + 1.75), Vector3(bench.x - 0.9, 1.7, bench.z + 1.65)], "look": [Vector3(bench.x + 0.4, 0.98, bench.z - 0.05), Vector3(bench.x - 1.3, 0.98, bench.z - 0.05)]},
 		{"dur": 3.6, "fov": 40, "cam": [Vector3(form.x + 2.0, 1.55, form.z + 1.4), Vector3(form.x + 1.5, 1.5, form.z + 1.0)], "look": [Vector3(form.x - 0.2, 1.4, form.z - 0.2), Vector3(form.x - 0.3, 1.45, form.z - 0.3)]},
 		{"dur": 4.0, "fov": 44, "cam": [Vector3(P.x - 1.45, 1.95, P.z + 1.3), Vector3(P.x - 1.35, 1.8, P.z - 1.0)], "look": [Vector3(P.x, 0.85, P.z + 0.35), Vector3(P.x, 0.85, P.z - 0.6)]},
 		{"dur": 3.0, "fov": 34, "cam": [Vector3(shoe.x + 1.1, 0.42, shoe.z - 0.7), Vector3(shoe.x + 0.85, 0.32, shoe.z - 0.45)], "look": Vector3(shoe.x, 0.12, shoe.z)},
-		{"dur": 3.0, "fov": 44, "cam": [Vector3(bed.x + 1.7, 1.55, bed.z - 2.4), Vector3(bed.x + 1.4, 1.6, bed.z - 2.1)], "look": Vector3(bed.x + 0.6, 1.25, bed.z - 1.0),
+		{"mood": "tired", "dur": 3.0, "fov": 44, "cam": [Vector3(bed.x + 1.7, 1.55, bed.z - 2.4), Vector3(bed.x + 1.4, 1.6, bed.z - 2.1)], "look": Vector3(bed.x + 0.6, 1.25, bed.z - 1.0),
 			"enter": func(): stage("idle", bed.x + 0.6, 0, bed.z - 1.15, PI)},
 		# the jacket, off the form
-		{"dur": 3.2, "fov": 42, "cam": [Vector3(form.x + 1.9, 1.6, form.z + 1.6), Vector3(form.x + 1.6, 1.55, form.z + 1.3)], "look": Vector3(form.x + 0.3, 1.3, form.z + 0.3),
-			"enter": func(): stage("idle", J.x, 0, J.y, jry + PI), "beats": [[1.3, func(): kit("jacket", true); cue("gear")]]},
-		{"dur": 2.2, "fov": 34, "cam": rel(J.x, J.y, jry, 0.95, 0.25, 1.4), "look": rel(J.x, J.y, jry, 0, 0, 1.2), "enter": func(): stage("idle", J.x, 0, J.y, jry), "beats": [[0.3, func(): cue("gear")]]},
+		{"mood": "focused", "dur": 3.2, "fov": 42, "cam": [Vector3(form.x + 1.9, 1.6, form.z + 1.6), Vector3(form.x + 1.6, 1.55, form.z + 1.3)], "look": Vector3(form.x + 0.3, 1.3, form.z + 0.3),
+			"enter": func(): stage("idle", J.x, 0, J.y, jry + PI), "beats": [[1.3, func(): _form_jacket(false); kit("jacket", true); cue("zip")]]},
+		{"mood": "focused", "dur": 2.2, "fov": 34, "cam": rel(J.x, J.y, jry, 0.95, 0.25, 1.4), "look": rel(J.x, J.y, jry, 0, 0, 1.2), "enter": func(): stage("idle", J.x, 0, J.y, jry), "beats": [[0.3, func(): cue("gear")]]},
 		# the gloves, at the bench
-		{"dur": 2.8, "fov": 34, "cam": rel(GL.x, GL.y, gry, 0.95, -0.2, 1.4), "look": rel(GL.x, GL.y, gry, 0.3, 0, 1.1),
+		{"mood": "focused", "dur": 2.8, "fov": 34, "cam": rel(GL.x, GL.y, gry, 0.95, -0.2, 1.4), "look": rel(GL.x, GL.y, gry, 0.3, 0, 1.1),
 			"enter": func(): stage("text", GL.x, 0, GL.y, gry), "beats": [[0.9, func(): kit("gloves", true); cue("gear")]]},
 		# the shoes: down on one knee by the window
-		{"dur": 3.2, "fov": 38, "cam": [Vector3(shoe.x + 1.5, 0.6, shoe.z - 1.1), Vector3(shoe.x + 1.2, 0.5, shoe.z - 0.8)], "look": Vector3(shoe.x + 0.2, 0.3, shoe.z),
+		{"mood": "focused", "dur": 3.2, "fov": 38, "cam": [Vector3(shoe.x + 1.5, 0.6, shoe.z - 1.1), Vector3(shoe.x + 1.2, 0.5, shoe.z - 0.8)], "look": Vector3(shoe.x + 0.2, 0.3, shoe.z),
 			"enter": func(): stage("kneel", shoe.x + 0.35, 0, shoe.z, -PI/2), "beats": [[1.5, func(): kit("shoes", true); apt_boots(false); cue("launch")]]},
 		# the bracelet
-		{"dur": 2.6, "fov": 30, "cam": rel(BR.x, BR.y, bry, 0.75, 0.35, 1.3), "look": rel(BR.x, BR.y, bry, 0.3, 0.15, 1.1),
-			"enter": func(): stage("text", BR.x, 0, BR.y, bry), "beats": [[0.8, func(): kit("bracelet", true); cue("gear")]]},
+		{"mood": "soft", "dur": 2.6, "fov": 30, "cam": rel(BR.x, BR.y, bry, 0.75, 0.35, 1.3), "look": rel(BR.x, BR.y, bry, 0.3, 0.15, 1.1),
+			"enter": func(): stage("text", BR.x, 0, BR.y, bry), "beats": [[0.8, func(): kit("bracelet", true); cue("gear"); get_tree().create_timer(0.26).timeout.connect(func(): cue("pick"))]]},
 		# the backpack, and the door
-		{"dur": 3.0, "fov": 46, "cam": [Vector3(pack.x + 1.2, 1.5, pack.z - 2.2), Vector3(stop.x - 0.6, 1.55, stop.y - 2.0)], "look": func(k, t): return robin.position + Vector3(0, 1.1, 0),
+		{"mood": "focused", "dur": 3.0, "fov": 46, "cam": [Vector3(pack.x + 1.2, 1.5, pack.z - 2.2), Vector3(stop.x - 0.6, 1.55, stop.y - 2.0)], "look": func(k, t): return robin.position + Vector3(0, 1.1, 0),
 			"enter": func(): apt_pack(false); kit("pack", true); cue("pick"), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
-		{"dur": 2.0, "fov": 40, "cam": Vector3(stop.x + 1.3, 1.5, stop.y + 1.4), "look": Vector3(stop.x, 1.4, stop.y),
+		{"mood": "sad", "dur": 2.0, "fov": 40, "cam": Vector3(stop.x + 1.3, 1.5, stop.y + 1.4), "look": Vector3(stop.x, 1.4, stop.y),
 			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y))},
 		# the kitchen: dinner on the table, still covered, and a note
-		{"dur": 3.4, "fov": 34, "cam": [Vector3(kitc.x + 0.9, 1.35, kitc.z + 1.2), Vector3(kitc.x + 0.55, 1.2, kitc.z + 0.8)], "look": Vector3(kitc.x, 0.8, kitc.z),
+		{"mood": "sad", "dur": 3.4, "fov": 34, "cam": [Vector3(kitc.x + 0.9, 1.35, kitc.z + 1.2), Vector3(kitc.x + 0.55, 1.2, kitc.z + 0.8)], "look": Vector3(kitc.x, 0.8, kitc.z),
 			"enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table)},
-		{"dur": 2.6, "fov": 34, "cam": Vector3(kitc.x + 0.25, 1.4, kitc.z - 0.35), "look": Vector3(at_table.x, 1.45, at_table.y)},
-		{"dur": 3.0, "fov": 24, "cam": Vector3(notep.x - 0.05, notep.y + 0.55, notep.z + 0.28), "look": notep, "ease": false},
-		{"dur": 2.8, "fov": 40, "cam": Vector3(at_table.x + 0.45, 1.65, at_table.y + 0.8), "look": Vector3(mom.x, 1.2, mom.z), "enter": func(): stage("idle", at_table.x, 0, at_table.y, face_mom)},
-		{"dur": 3.6, "fov": 40, "cam": rel(at_table.x, at_table.y, face_table, 0.85, 0.15, 1.5), "look": rel(at_table.x, at_table.y, face_table, 0.15, 0, 1.3),
-			"enter": func(): stage("text", at_table.x, 0, at_table.y, face_table)},
-		{"dur": 2.2, "fov": 32, "cam": Vector3(kitc.x + 0.6, 1.25, kitc.z + 0.55), "look": Vector3(notep.x, 0.8, notep.z), "enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table)},
+		{"mood": "sad", "dur": 2.6, "fov": 34, "cam": Vector3(kitc.x + 0.25, 1.4, kitc.z - 0.35), "look": Vector3(at_table.x, 1.45, at_table.y)},
+		{"mood": "sad", "dur": 3.0, "fov": 24, "cam": Vector3(notep.x - 0.05, notep.y + 0.55, notep.z + 0.28), "look": notep, "ease": false},
+		{"mood": "sad", "dur": 2.8, "fov": 40, "cam": Vector3(at_table.x + 0.45, 1.65, at_table.y + 0.8), "look": Vector3(mom.x, 1.2, mom.z), "enter": func(): stage("idle", at_table.x, 0, at_table.y, face_mom)},
+		# she picks the note up, looks at it; and puts it back down
+		{"mood": "sad", "dur": 3.6, "fov": 40, "cam": rel(at_table.x, at_table.y, face_table, 0.85, 0.15, 1.5), "look": rel(at_table.x, at_table.y, face_table, 0.15, 0, 1.3),
+			"enter": func(): stage("text", at_table.x, 0, at_table.y, face_table), "tick": func(dt, t, k): _note_hold()},
+		{"mood": "resolve", "dur": 2.2, "fov": 32, "cam": Vector3(kitc.x + 0.6, 1.25, kitc.z + 0.55), "look": Vector3(notep.x, 0.8, notep.z), "enter": func(): _note_home(); stage("idle", at_table.x, 0, at_table.y, face_table)},
 		# THE WINDOW. The city comes in.
-		{"dur": 3.2, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
+		{"mood": "determined", "dur": 3.2, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
 			"enter": func(): score("wos-b", -8),
 			"tick": func(dt, t, k): _to_window(win, k),
 			"beats": [[1.7, func(): apt_window(true); cue("door")], [2.5, func(): shades(true); cue("ui")]]},
-		{"dur": 2.4, "fov": 40, "cam": Vector3(win.x + 2.2, 0.6, win.z + 0.6), "look": Vector3(win.x + 0.2, 1.6, win.z), "enter": func(): stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
+		{"mood": "focused", "dur": 2.4, "fov": 40, "cam": Vector3(win.x + 2.2, 0.6, win.z + 0.6), "look": Vector3(win.x + 0.2, 1.6, win.z), "enter": func(): stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
 		# OUTSIDE: on the sill, over Kiln Street
-		{"dur": 3.0, "fov": 42, "inside": false, "cam": [Vector3(55.3, 13.4, 30.8), Vector3(55.5, 13.1, 31.5)], "look": Vector3(SILL.x - 0.2, SILL.y + 0.5, SILL.z),
+		{"mood": "focused", "dur": 3.0, "fov": 42, "inside": false, "cam": [Vector3(55.3, 13.4, 30.8), Vector3(55.5, 13.1, 31.5)], "look": Vector3(SILL.x - 0.2, SILL.y + 0.5, SILL.z),
 			"enter": func(): stage("idle", SILL.x, SILL.y, SILL.z, -PI/2); set_caption("EXT. KILN STREET — 22:17")},
-		{"dur": 2.2, "fov": 36, "cam": Vector3(SILL.x - 1.7, SILL.y + 1.65, SILL.z + 0.45), "look": Vector3(SILL.x, SILL.y + 1.5, SILL.z)},
-		{"dur": 0.8, "fov": 56, "cam": Vector3(56.8, 6.6, 37.6), "look": func(k, t): return robin.position + Vector3(0, 1, 0),
+		{"mood": "grin", "dur": 2.2, "fov": 36, "cam": Vector3(SILL.x - 1.7, SILL.y + 1.65, SILL.z + 0.45), "look": Vector3(SILL.x, SILL.y + 1.5, SILL.z)},
+		{"mood": "grin", "dur": 0.8, "fov": 56, "cam": Vector3(56.8, 6.6, 37.6), "look": func(k, t): return robin.position + Vector3(0, 1, 0),
 			"enter": func(): cue("kick"), "tick": func(dt, t, k): stage("jump", SILL.x - k*1.6, SILL.y + sin(k*PI*0.6)*0.7, SILL.z, -PI/2)},
 	]
 	play_reel(shots, func(_skipped): fall_start())
 
+## the jacket on the dress form: there until she takes it
+func _form_jacket(v: bool) -> void:
+	var j := apt_node("form_jacket")
+	if j: j.visible = v
+## MOM'S NOTE (tshroom.js room.note): on the kitchen table; in her hands while she reads it. Its paper is drawn unlit,
+## and in Godot's grade that is past white — it is taken down to read as paper
+var _note: MeshInstance3D = null; var _note_xf: Transform3D
+func _note_node() -> MeshInstance3D:
+	if _note: return _note
+	var at := _v(room.room.note.at)
+	var st: Array = [apt]
+	while st.size():
+		var n: Node = st.pop_back(); st.append_array(n.get_children())
+		if not n is MeshInstance3D: continue
+		var mi := n as MeshInstance3D; var bb := mi.global_transform*mi.get_aabb()
+		if bb.size.length() < 0.3 and bb.get_center().distance_to(at) < 0.06:
+			_note = mi; _note_xf = mi.global_transform
+			var m = mi.get_active_material(0)
+			if m is StandardMaterial3D:
+				var m2 := (m as StandardMaterial3D).duplicate() as StandardMaterial3D; m2.albedo_color = m2.albedo_color*0.62; mi.material_override = m2
+			return _note
+	return null
+func _note_home() -> void:
+	var n := _note_node()
+	if n: n.global_transform = _note_xf
+func _note_hold() -> void:
+	var n := _note_node(); var sk: Skeleton3D = _find(model, func(x): return x is Skeleton3D)
+	if n == null or sk == null: return
+	var hand := Vector3.ZERO; var c := 0; var head := Vector3.ZERO
+	for i in sk.get_bone_count():
+		var bn := sk.get_bone_name(i)
+		if bn.ends_with("LeftHand") or bn.ends_with("RightHand"): hand += sk.global_transform*sk.get_bone_global_pose(i).origin; c += 1
+		elif bn.ends_with("Head"): head = sk.global_transform*sk.get_bone_global_pose(i).origin
+	if c == 0: return
+	var p := hand/c + Vector3(0, 0.03, 0)
+	n.global_position = p
+	if head.distance_to(p) > 0.05: n.look_at(head, Vector3.UP, true)      # its face (+Z, as three.js lookAt turns it) to her
 func _to_window(win: Vector3, k: float) -> void:
 	if k < 0.45: walk_stage(Vector2(win.x + 2.0, win.z - 0.9), Vector2(win.x + 0.75, win.z), k/0.45)
 	else: stage("idle", win.x + 0.75, 0, win.z, -PI/2)
@@ -1185,6 +1273,8 @@ func _process(dt: float) -> void:
 		caption_t -= dt
 		if caption_t <= 0: caption.text = ""
 	_tick_talk(dt)
+	face.target = _gaze_target(); face.gmood = "down" if face.mood in ["sad", "tired", "sheepish", "sleepy"] else null
+	face.tick(dt)
 	($Key as OmniLight3D).global_position = robin.position + Vector3(0, 1.6, 0) + cam.global_basis.z*1.4
 	($Key as OmniLight3D).light_energy = 0.5 if day() else 2.2      # by day the sun lights her; the night's key would blow her face out
 	fight.tick(dt)
@@ -1509,6 +1599,16 @@ func _shots_street(n: Array, reel_snaps: Callable) -> void:
 	await get_tree().create_timer(2.0).timeout; await reel_snaps.call("end")
 	await _snap("the_end")
 	print("after over: step=", S.step)
+	get_tree().quit()
+## the opening, frame by frame: every quarter-second of the film, named by its shot, then the fall
+func _shots_open() -> void:
+	var n := 0
+	while reel != null or n == 0:
+		await get_tree().create_timer(0.25).timeout
+		if reel == null: break
+		await _snap("o%03d_s%02d" % [n, reel.i]); n += 1
+	for i in 4:
+		await get_tree().create_timer(0.5).timeout; await _snap("o%03d_fall" % n); n += 1
 	get_tree().quit()
 ## the gecko cuffs, photographed: at B1's west wall, G, W held to the roof; then off the edge, G and S down
 func _shots_climb() -> void:
