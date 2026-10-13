@@ -409,6 +409,8 @@ func _fight_clips() -> void:
 	# ON THE PHONE (animations/talk on phone → glb files/cast/build-robin-phone.sh): standing at her ear, pacing,
 	# on a cell phone, and talking with her hands
 	_merge_clips("res://assets/tsh/robin_phone.glb", ["phone_talk", "phone_pace", "phone_cell", "talk_hands"])
+	# PLAYING THE GUITAR (animations/guitar → glb files/cast/build-robin-guitar.sh): two of Mixamo's
+	_merge_clips("res://assets/tsh/robin_guitar.glb", ["guitar_a", "guitar_b"])
 func _merge_clips(file: String, loops: Array) -> void:
 	var src: Node = (load(file) as PackedScene).instantiate()
 	var sap: AnimationPlayer = _find(src, func(n): return n is AnimationPlayer)
@@ -850,6 +852,7 @@ func _tick_reel(dt: float) -> void:
 	if s.has("tick"): s.tick.call(dt, f.t, minf(1.0, f.t/s.dur))
 	if staged != null: robin.position = staged.pos; model.rotation.y = staged.ry
 	_reel_cam()
+	if OS.has_environment("TSH_REELLOG") and Engine.get_process_frames() % 15 == 0: print("REEL i=", f.i, " t=", snappedf(f.t, 0.01), " cam=", cam.global_position.snapped(Vector3.ONE*0.01), " fov=", snappedf(cam.fov, 0.1), " mode=", mode)
 	if f.t >= s.dur: _reel_next()
 func rel(x: float, z: float, ry: float, d: float, s_: float, y: float) -> Vector3:
 	return Vector3(x + sin(ry)*d - cos(ry)*s_, y, z + cos(ry)*d + sin(ry)*s_)
@@ -1041,6 +1044,19 @@ func _to_window(win: Vector3, k: float) -> void:
 	if k < 0.45: walk_stage(Vector2(win.x + 2.0, win.z - 0.9), Vector2(win.x + 0.75, win.z), k/0.45)
 	else: stage("idle", win.x + 0.75, 0, win.z, -PI/2)
 
+## THE HANDOFF (draft 1.1, shot 31): the film ends with her already falling, the shoes already fired; the player
+## takes her mid-air with her speed and her heading — no prompt, no card, no voice. The lesson's card waits a few seconds
+func take_over(p: Vector3, v: Vector3, yaw: float) -> void:
+	black(false); phone_show(""); kit_all(true); shades(true); show_inside(false); robin.visible = true; model.rotation.x = 0
+	if S.step in ["intro", "wake"]: S.step = "wake"; outcome("out")
+	S.lesson = 1
+	place(p, yaw)
+	boots.vx = v.x; boots.vy = v.y; boots.vz = v.z; boots.ground = false; boots.state = "air"; boots.air_t = 0.3; boots.cut = true
+	cam_yaw = atan2(-v.x, -v.z)
+	lesson_begin(false)
+	card.visible = false; obj_label.visible = false
+	get_tree().create_timer(5.0).timeout.connect(func(): if S.step == "lesson": card.visible = true; obj_label.visible = true)
+	_save()
 ## off the sill, falling towards Kiln Street — slowly, until SPACE fires the shoes
 func fall_start() -> void:
 	black(false); phone_show(""); kit_all(true); show_inside(false)
@@ -1327,7 +1343,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 			KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			KEY_M: set_mute(not AudioServer.is_bus_mute(0))
 			KEY_G: if mode == "" and not grip.on(): grip.try_scale()
-			KEY_V: verse_mat.set_shader_parameter("verse", 0.0 if float(verse_mat.get_shader_parameter("verse")) > 0.5 else 1.0)
+			KEY_V:
+				var vv = verse_mat.get_shader_parameter("verse")
+				verse_mat.set_shader_parameter("verse", 0.0 if (1.0 if vv == null else float(vv)) > 0.5 else 1.0)
 			KEY_ENTER, KEY_KP_ENTER:
 				if mode == "reel": _reel_end(true)
 				elif S.step == "lesson": (fire_shoes() if lesson_id() == "fire" else lesson_next())

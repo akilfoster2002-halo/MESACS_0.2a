@@ -56,3 +56,10 @@ kenney_*/
 # Source models for tools/pack-nyc.py (and the like): large, and only the
 # packed result in public/ is what the game loads.
 maps/
+
+# raw downloads for the WFC models (converted into koro-godot/assets/tsh/wfc/*.glb)
+koro-godot/assets/tsh/wfc_src/
+animations/props/*.zip
+animations/props/buster-drone/
+animations/props/dodge-charger-srt-police/
+animations/props/future-police-knight/

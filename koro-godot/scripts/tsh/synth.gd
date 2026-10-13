@@ -12,7 +12,7 @@ static var _lock := Mutex.new()
 ## the kinds this can make
 const KINDS := ["pa", "jam", "alert", "alert2", "sus", "rise", "sting", "heat", "pick", "step", "kick", "ui", "scan", "ring",
 	"hangup", "zip", "gear", "window", "phone", "punch", "door", "fail", "win", "swish", "boom", "blast", "clang", "hurt",
-	"grab", "lock", "launch", "skid", "alarm", "flash", "beep", "siren"]
+	"grab", "lock", "launch", "skid", "alarm", "flash", "beep", "siren", "fridge"]
 
 static func stream(kind: String) -> AudioStreamWAV:
 	_lock.lock(); var have = _cache.get(kind); _lock.unlock()
@@ -168,6 +168,10 @@ func _make(kind: String) -> void:
 		"lock": tone(1900, 1900, 0.045, "square", 0.03)
 		"launch": burst(0.5, 900, 0.3, 0.5); tone(300, 1400, 0.4, "sawtooth", 0.04)
 		"skid": burst(0.9, 1600, 0.22, 2.5); burst(0.5, 300, 0.25, 0.5)
+		# a refrigerator's compressor starting somewhere in the flat: a low hum that rises and settles
+		"fridge":
+			_osc(0.0, 2.6, "sawtooth", [[0.0, 50.0], [0.4, 60.0]], [[0.0, 0.0001], [0.5, 0.025], [2.2, 0.02], [2.6, 0.0001]])
+			_osc(0.0, 2.6, "sine", [[0.0, 120.0]], [[0.0, 0.0001], [0.5, 0.012], [2.6, 0.0001]])
 		# a siren in the distance: two slow wails
 		"siren":
 			for d in [0.0, 1.7]:

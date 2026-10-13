@@ -102,17 +102,22 @@ func _barrier(x: float, z1: float, z2: float) -> void:
 	_box(Vector3(0.6, 1.0, z2 - z1), _mat(Color(0.55, 0.55, 0.52)), Vector3(x, 0.5, (z1 + z2)/2))
 	_box(Vector3(0.62, 0.12, z2 - z1), _mat(Color(1, 0.65, 0.12), true), Vector3(x, 0.82, (z1 + z2)/2))
 	vaults.append({"x1": x - 0.3, "x2": x + 0.3, "z1": z1, "z2": z2, "s": solid(x - 0.3, x + 0.3, z1, z2, -1, 1.0)})
+## THE WFC'S CAR (animations/props/dodge-charger-srt-police → tools/wfc_props.py): a police Charger, its light bar
+## flashing red and blue (the old van's place, its length along local Z)
 func _van() -> Dictionary:
 	var n := Node3D.new(); g.add_child(n); props.append(n)
-	_box(Vector3(2.3, 2.3, 5.6), _mat(Color(0.08, 0.11, 0.16), false, 0.5, 0.35), Vector3(0, 1.35, 0), n)
-	_box(Vector3(2.1, 0.7, 0.05), _mat(Color(0.1, 0.15, 0.2), false, 0.6, 0.1), Vector3(0, 1.85, 2.81), n)
-	_box(Vector3(2.32, 0.2, 5.62), _mat(Color(0.3, 1, 1), true), Vector3(0, 1.1, 0), n)
-	var red := _box(Vector3(0.7, 0.16, 0.3), _mat(Color(1, 0.1, 0.08), true), Vector3(-0.45, 2.58, 1.6), n)
-	var blue := _box(Vector3(0.7, 0.16, 0.3), _mat(Color(0.1, 0.3, 1), true), Vector3(0.45, 2.58, 1.6), n)
-	for w in [[-1.1, 1.8], [1.1, 1.8], [-1.1, -1.8], [1.1, -1.8]]:
-		var t := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.42; cm.bottom_radius = 0.42; cm.height = 0.3; t.mesh = cm
-		t.material_override = _mat(Color(0.04, 0.04, 0.04)); t.rotation.z = PI/2; t.position = Vector3(w[0], 0.42, w[1]); n.add_child(t)
-	var light := OmniLight3D.new(); light.light_color = Color(1, 0.2, 0.2); light.light_energy = 2.5; light.omni_range = 12; light.position = Vector3(0, 3, 0); n.add_child(light)
+	var car: Node3D = (load("res://assets/tsh/wfc/police_car.glb") as PackedScene).instantiate(); n.add_child(car)
+	var bb := AABB(); var first := true
+	for mi in car.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = (mi as MeshInstance3D).transform*(mi as MeshInstance3D).get_aabb()
+		var p: Node = mi.get_parent()
+		while p != car and p is Node3D: b = (p as Node3D).transform*b; p = p.get_parent()
+		bb = b if first else bb.merge(b); first = false
+	car.position = Vector3(-bb.get_center().x, -bb.position.y, -bb.get_center().z)
+	var top := bb.size.y
+	var red := _box(Vector3(0.5, 0.08, 0.18), _mat(Color(1, 0.1, 0.08), true), Vector3(-0.3, top + 0.02, -0.2), n)
+	var blue := _box(Vector3(0.5, 0.08, 0.18), _mat(Color(0.1, 0.3, 1), true), Vector3(0.3, top + 0.02, -0.2), n)
+	var light := OmniLight3D.new(); light.light_color = Color(1, 0.2, 0.2); light.light_energy = 2.5; light.omni_range = 12; light.position = Vector3(0, top + 0.6, 0); n.add_child(light)
 	return {"n": n, "red": red, "blue": blue, "light": light, "s": null}
 func van_place(v: Dictionary, x: float, z: float, ry: float) -> void:
 	v.n.position = Vector3(x, 0, z); v.n.rotation.y = ry
@@ -276,8 +281,9 @@ func _rappel(at: Vector3) -> void:
 
 # ================================================================== WFC on foot, and the drones
 func spawn_cop(at: Vector3, state: String) -> Dictionary:
-	var node: Node3D = (load("res://assets/tsh/people/%s.glb" % ["thug-a", "thug-b"].pick_random()) as PackedScene).instantiate()
-	g.add_child(node); g.fight.dress_wfc(node)
+	# THE WFC OFFICER (animations/props/future-police-knight, rigged on the officer skeleton: tools/wfc_officer.py)
+	var node: Node3D = (load("res://assets/tsh/wfc/officer.glb") as PackedScene).instantiate()
+	g.add_child(node)
 	var ap: AnimationPlayer = g._find(node, func(x): return x is AnimationPlayer)
 	for nm in ap.get_animation_list():
 		if nm in ["idle", "walk", "sprint", "fight"]: ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
@@ -290,10 +296,8 @@ func _cop_place(c: Dictionary) -> void:
 	c.node.position = Vector3(c.x, c.y, c.z); c.node.rotation.y = c.yaw
 func spawn_drone(at: Vector3) -> Dictionary:
 	var n := Node3D.new(); g.add_child(n)
-	_box(Vector3(0.7, 0.22, 0.7), _mat(Color(0.1, 0.12, 0.16), false, 0.6, 0.3), Vector3.ZERO, n)
-	for ax in [[0.5, 0.5], [-0.5, 0.5], [0.5, -0.5], [-0.5, -0.5]]:
-		var r := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.28; cm.bottom_radius = 0.28; cm.height = 0.02; r.mesh = cm
-		var rm := _mat(Color(0.6, 0.7, 0.7)); rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; rm.render_priority = 101; rm.albedo_color.a = 0.3; r.material_override = rm; r.position = Vector3(ax[0], 0.12, ax[1]); n.add_child(r)
+	# THE WFC DRONE (animations/props/buster-drone → tools/wfc_props.py)
+	var body: Node3D = (load("res://assets/tsh/wfc/drone.glb") as PackedScene).instantiate(); body.scale = Vector3.ONE*0.8; n.add_child(body)
 	var eye := _box(Vector3(0.16, 0.16, 0.16), _mat(Color(1, 0.15, 0.1), true), Vector3(0, -0.14, 0.3), n)
 	var spot := SpotLight3D.new(); spot.light_color = Color(1, 0.3, 0.25); spot.light_energy = 6; spot.spot_range = 30; spot.spot_angle = 14; spot.rotation.x = -PI/2.3; n.add_child(spot)
 	n.position = at

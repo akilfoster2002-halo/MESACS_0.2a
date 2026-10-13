@@ -24,6 +24,8 @@ func _ready() -> void:
 func start() -> void:
 	g.talk_q.clear(); g.kit_all(false); g.shades(false)
 	g.letterbox(true)
+	# for review (-- new room): straight to her room, the song played by itself
+	if OS.get_cmdline_user_args().has("room"): auto = true; g.black(true); room(); return
 	# SEQUENCE 1 (docs/script/the_other_robin_cold_open_1.1.md, shots 01–11)
 	var oc = OpeningCity.new(g); add_child(oc)
 	oc.play(func(): oc.queue_free(); g.black(true); g.talk_q.clear(); g.mode = "end"; g.get_tree().create_timer(0.35).timeout.connect(room))
@@ -126,53 +128,17 @@ func _city_done(cops: Array) -> void:
 
 # ================================================================== B · HER ROOM, 21:58 (cut to the song's intro)
 var eq: Array = []
+var orm: OpeningRoom
 func room() -> void:
-	var R: Dictionary = g.room.room; var a: Dictionary = g.room.apt
+	var R: Dictionary = g.room.room
 	g.robin.visible = true
 	g.show_inside(true); g.lamp.light_energy = 1.6
 	g.kit_all(false); g.apt_boots(true); g.apt_pack(true); g.apt_window(false); g._form_jacket(true); g._note_home()
 	_find_guitar(); _find_eq()
-	var bed: Dictionary = R.bed; var top: float = bed.get("top", 0.72)
-	var spk: Vector3 = g._v(R.speaker.at)
-	spot = Vector3(300.6, 0, -0.9); face_y = 0.0
-	var G_at := Vector3(301.85, 0, -2.75)
-	game.song()
-	var bar := 60.0/140.0*4.0; var beat := bar/4
-	var P := spot
-	var run0 := Vector2(305.0, -3.3); var run1 := Vector2(299.9, 1.35)
-	var rdir := (run1 - run0).normalized(); var rside := Vector2(rdir.y, -rdir.x)
-	if rside.x < 0: rside = -rside
-	var her := func(y := 1.1): return g.robin.position + Vector3(0, y, 0)
-	var shots := [
-		# B1 EXTREME CLOSE-UP: the speaker, pushing in as the riff starts
-		{"dur": beat*2, "fov": 36, "dof": 0.5, "mood": "grin", "inside": true, "cam": [spk + Vector3(0.42, 0.14, 0.5), spk + Vector3(0.24, 0.16, 0.3)], "look": spk + Vector3(0.0, 0.1, 0.1),
-			"enter": func(): g.black(false); g.set_caption("INT. ROBIN'S ROOM — 21:58"); g.stage("sprint", run0.x, 0, run0.y, atan2(rdir.x, rdir.y))},
-		# B2 TRACKING, a zoom: she sprints across the apartment, kitchen to bed
-		{"dur": beat*6, "fov": 58, "fov2": 28, "mood": "grin", "hand": 0.25,
-			"cam": func(k, t): var q: Vector3 = g.robin.position; return Vector3(q.x + rside.x*2.6, 1.0, q.z + rside.y*2.6) + Vector3(rdir.x, 0, rdir.y)*0.8,
-			"look": func(k, t): return her.call(1.15),
-			"tick": func(dt, t, k): g.stage("sprint", lerpf(run0.x, run1.x, k), 0, lerpf(run0.y, run1.y, k), atan2(rdir.x, rdir.y)), "ease": false},
-		# B3 LOW ANGLE, crane up: she leaps onto the bed and bounces on the beat
-		{"dur": bar, "fov": 48, "mood": "happy", "cam": [Vector3(bed.x + 1.4, 0.2, bed.z - 1.1), Vector3(bed.x + 1.2, 1.3, bed.z - 1.3)], "look": func(k, t): return her.call(1.0),
-			"tick": func(dt, t, k): g.stage("jump", bed.x + 0.2, top + absf(sin(t*PI*140.0/60.0))*0.6, bed.z, PI/2)},
-		# B4 CLOSE-UP, dutch, handheld: her face, singing along
-		{"dur": beat*2, "fov": 28, "dof": 1.1, "mood": "grin", "hand": 0.6, "cam": g.rel(P.x, P.z, 0.0, 1.0, 0.2, 1.55), "look": P + Vector3(0, 1.55, 0),
-			"enter": func(): g.stage("dance", P.x, 0, P.z, 0.0); g.dutch = 0.2; g.face.flap = 1.2},
-		# B5 INSERT: her feet on the rug
-		{"dur": beat*2, "fov": 40, "cam": [P + Vector3(0.7, 0.16, 0.75), P + Vector3(0.45, 0.14, 0.65)], "look": P + Vector3(0, 0.1, 0),
-			"enter": func(): g.dutch = 0.0},
-		# B6 ORBIT: a fast half-circle round her as she dances
-		{"dur": bar, "fov": 44, "mood": "happy", "cam": func(k, t): var an = -1.5 + k*PI; return P + Vector3(sin(an)*2.1, 1.15 + k*0.4, cos(an)*2.1),
-			"look": P + Vector3(0, 1.15, 0), "ease": false},
-		# B7 WIDE, overhead from the ceiling corner: a spin
-		{"dur": bar, "fov": 56, "mood": "grin", "cam": [Vector3(a.x2 - 0.5, 2.95, a.z1 + 0.5), Vector3(a.x2 - 0.9, 2.85, a.z1 + 0.8)], "look": P + Vector3(0, 0.6, 0),
-			"enter": func(): g.stage("salsa", P.x, 0, P.z, 0.0)},
-		# B8 PUSH-IN on the guitar against the amp; she steps into frame, kneels, takes it
-		{"dur": bar, "fov": 34, "dof": 1.2, "mood": "determined", "cam": [G_at + Vector3(0.95, 1.05, 1.45), G_at + Vector3(0.55, 0.9, 0.95)], "look": G_at + Vector3(0, 0.55, -0.55),
-			"tick": func(dt, t, k): if k < 0.45: g.walk_stage(Vector2(P.x, P.z), Vector2(G_at.x, G_at.z + 0.2), k/0.45),
-			"beats": [[bar*0.45, func(): g.stage("kneel", G_at.x, 0, G_at.z, PI)], [bar*0.75, func(): _hold(true); g.cue("gear"); g.stage("idle", G_at.x, 0, G_at.z, PI)]]},
-	]
-	g.play_reel(shots, func(_s): _play())
+	spot = Vector3(301.6, 0, -1.6); face_y = PI*0.85
+	if orm: orm.clear(); orm.queue_free()
+	orm = OpeningRoom.new(g, self); add_child(orm)
+	orm.film(func(): _play())
 
 ## the speaker's light bars: they jump with the song
 func _find_eq() -> void:
@@ -202,7 +168,7 @@ func _hold(v: bool) -> void:
 	if v and pose == null:
 		var sk: Skeleton3D = g._find(g.model, func(x): return x is Skeleton3D)
 		pose = GuitarPose.new(); pose.intro = self; sk.add_child(pose)
-	if pose: pose.active = v
+	if pose: pose.active = v and not g.anim.has_animation("guitar_a")        # her own playing clips, when she has them
 
 ## a guitar like hers: red, the pickguard cream, a dark neck — slung across her: its body at her right hip, its neck up
 ## to her left (her model faces +Z; her left is +X)
@@ -223,13 +189,24 @@ func _axe() -> Node3D:
 	root.transform = Transform3D(Basis(side, up, side.cross(up)), Vector3(-0.1, 0.98, 0.2))
 	return root
 ## where her hands go on it (world): the left on the neck, the right over the strings, strumming
+## THE GUITAR IN HER HANDS (with the Mixamo playing clips): its body at her strumming hand, its neck out to her
+## fretting hand, its face to the front of her — refitted every frame as the clip moves her arms
+func fit_axe() -> void:
+	if axe == null or not axe.visible or not g.anim.has_animation("guitar_a") or not g.clip.begins_with("guitar"): return
+	var sk: Skeleton3D = g._find(g.model, func(x): return x is Skeleton3D)
+	var r := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigRightHand")).origin
+	var l := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigLeftHand")).origin
+	var fwd: Vector3 = g.model.global_basis.z.normalized()
+	var up := (l - r).normalized()
+	var z := (fwd - up*fwd.dot(up)).normalized(); var x := up.cross(z).normalized()
+	axe.global_transform = Transform3D(Basis(x, up, z), r - up*0.06 - fwd*0.06)
 func neck_at() -> Vector3: return axe.global_transform*Vector3(0, 0.55, 0.03)
 func strum_at() -> Vector3: return axe.global_transform*Vector3(0.02, 0.02 - strum*0.09, 0.07)
 
 # ------------------------------------------------------------------ C · the game, and the camera on her
 func _play() -> void:
 	g.mode = "guitar"; g.set_caption(""); g.dutch = 0.0
-	g.stage("idle", spot.x, 0, spot.z, face_y)
+	g.stage("guitar_a" if g.anim.has_animation("guitar_a") else "idle", spot.x, 0, spot.z, face_y)
 	game.auto = auto
 	game.start(func(r): _played(r), func(lane): strum = 1.0)
 	g.lesson_card("ROBIN · HER SONG", "PLAY", "A  S  D  F  G — each note as it reaches the line.\nHit them and the guitar stays in the song.")
@@ -239,6 +216,7 @@ func _play() -> void:
 ## the camera through the song: a new angle for each part of it (docs/INTRO_SHOT_LIST.md, C)
 func tick(dt: float) -> void:
 	strum = maxf(0, strum - dt*6)
+	fit_axe()
 	for e in eq:
 		var lvl := absf(sin(game.now*PI*140.0/60.0*(1 + e[2]*0.1) + e[2]))*(1.0 if game.band.playing else 0.0)
 		(e[0] as Node3D).scale = Vector3(e[1].x, e[1].y*(0.4 + lvl*1.8), e[1].z)
@@ -249,36 +227,42 @@ func tick(dt: float) -> void:
 	var fwd := Vector3(sin(face_y), 0, cos(face_y)); var left := Vector3(cos(face_y), 0, -sin(face_y))
 	var pos := Vector3.ZERO; var look := P + Vector3(0, 1.15, 0); var fov := 46.0
 	var beatk := absf(sin(now*PI*140.0/60.0))
+	var dof := -1.0
+	if g.anim.has_animation("guitar_b"):
+		var chorus: bool = (now >= float(S.chorus1) and now < float(S.verse2)) or now >= float(S.chorus2)
+		if not (now >= float(S.outro) and g.clip in ["jump", "idle"]): g.stage("guitar_b" if chorus else "guitar_a", P.x, 0, P.z, face_y)
 	if now < float(S.verse1):
-		# HERO, low angle, crane up: from her shoes to her face
-		var k := clampf(gt/1.8, 0, 1); k = k*k*(3 - 2*k)
-		pos = P + fwd*1.6 - left*0.3 + Vector3(0, lerpf(0.25, 1.5, k), 0); look = P + Vector3(0, lerpf(0.4, 1.45, k), 0); fov = 40
+		# SHOT 17 · the opening riff: her picking hand, the strings in front, her face soft behind
+		var h: Vector3 = strum_at() if axe else P + Vector3(0, 1.0, 0)
+		pos = h + fwd*0.42 - left*0.12 + Vector3(0, 0.07, 0); look = h; fov = 32; dof = 0.45
 	elif now < float(S.chorus1):
-		# slow orbit, her to one side of the highway
-		var an := 0.5 + sin((now - float(S.verse1))*0.12)*0.9; var r := 2.6
-		pos = P + Vector3(sin(an + face_y)*r, 1.4, cos(an + face_y)*r)
+		# · first verse: low from the floor, her towering over the lens
+		var k := (now - float(S.verse1))/(float(S.chorus1) - float(S.verse1))
+		pos = P + fwd*lerpf(1.5, 1.2, k) - left*0.35 + Vector3(0, 0.14, 0); look = P + Vector3(0, 1.35, 0); fov = 58
 	elif now < float(S.verse2):
-		# low hero angle, pushing in
-		var k := (now - float(S.chorus1))/(float(S.verse2) - float(S.chorus1))
-		pos = P + fwd*lerpf(2.4, 1.7, k) + left*0.9 + Vector3(0, 0.45, 0); look = P + Vector3(0, 1.35, 0); fov = 44
+		# · first chorus: a fast orbit, the window, the bench, the form sweeping past
+		var an := (now - float(S.chorus1))*0.85; var r := 2.0
+		pos = P + Vector3(sin(an + face_y)*r, 1.3, cos(an + face_y)*r); fov = 50
 	elif now < float(S.chorus2):
-		# over her left shoulder, down the neck
-		var k := (now - float(S.verse2))/(float(S.chorus2) - float(S.verse2))
-		pos = P - fwd*1.0 + left*0.75 + Vector3(0, 1.9, 0); look = (neck_at() if axe else P) + fwd*0.7 - Vector3(0, 0.2, 0); fov = lerpf(52, 44, k)
+		# · the fill: over her shoulder, close, her fingers on the fretboard, the city beyond
+		pos = P - fwd*0.42 + left*0.32 + Vector3(0, 1.62, 0); look = (neck_at() if axe else P + Vector3(0, 1.2, 0)) + fwd*0.15; fov = 40; dof = 1.0
 	elif now < float(S.solo):
-		# wide from the bed, drifting
-		var k := (now - float(S.chorus2))/(float(S.solo) - float(S.chorus2))
-		var bed: Dictionary = g.room.room.bed
-		pos = Vector3(bed.x + 0.9 + k*0.5, 1.75, bed.z - 0.6); fov = 40
-	elif now < float(S.outro):
-		# the solo: close on her hands and the guitar, a fast orbit
-		var an := (now - float(S.solo))*0.45 - 0.6
-		pos = P + Vector3(sin(an + face_y)*1.1, 1.2, cos(an + face_y)*1.1); look = (strum_at() if axe else P + Vector3(0, 1, 0)); fov = 38
-	else:
-		# the end: up and out to the whole room
-		var k := clampf((now - float(S.outro))/6.0, 0, 1)
+		# · second chorus: wide, from on top of the wardrobe in the corner, looking down on her
 		var a: Dictionary = g.room.apt
-		pos = (P + fwd*2.2 + Vector3(0, 1.3, 0)).lerp(Vector3(a.x2 - 0.6, 2.8, a.z2 - 0.8), k); fov = lerpf(44, 56, k)
+		var k := (now - float(S.chorus2))/(float(S.solo) - float(S.chorus2))
+		pos = Vector3(a.x2 - 0.45, 2.85, a.z1 + 0.45 + k*0.4); look = P + Vector3(0, 0.9, 0); fov = 54
+	elif now < float(S.outro):
+		# · the final riff: tight and frontal; her hair whipping across her face; lost in it
+		pos = P + fwd*0.95 + Vector3(0, 1.52, 0); look = P + Vector3(0, 1.45, 0); fov = 30; dof = 1.4
+	else:
+		# · the final chord: a low hero angle; she jumps and lands on the chord; the camera overshoots and settles
+		var k := clampf((now - float(S.outro))/(float(game.chart.end) - float(S.outro)), 0, 1)
+		pos = P + fwd*1.7 - left*0.5 + Vector3(0, 0.3 + sin(k*PI)*0.25, 0); look = P + Vector3(0, 1.25 + sin(k*PI)*0.2, 0); fov = 50
+		if k > 0.62 and k < 0.8: g.stage("jump", P.x, sin((k - 0.62)/0.18*PI)*0.5, P.z, face_y)
+		elif k >= 0.8: g.stage("idle", P.x, 0, P.z, face_y)
+	if dof > 0:
+		var at := CameraAttributesPractical.new(); at.dof_blur_far_enabled = true; at.dof_blur_far_distance = dof + 0.3; at.dof_blur_far_transition = maxf(0.6, dof); at.dof_blur_amount = 0.14; cam.attributes = at
+	else: cam.attributes = null
 	# her a little to one side of the highway: the look shifted the other way along the lens
 	var side := (look - pos).cross(Vector3.UP).normalized()
 	look += side*0.45
@@ -293,12 +277,16 @@ func key(ev: InputEventKey) -> bool:
 		var r := game.result(); game.stop(); _played(r); return true
 	return true
 
+## SEQUENCE 3 (opening_suit.gd), the ring box from the table going into her pack
+func suit() -> void:
+	var s = OpeningSuit.new(g); add_child(s)
+	s.play(orm.box if orm else null)
 func _played(r: Dictionary) -> void:
 	if not playing: return
 	playing = false; game.stop()
 	g.mode = ""; _hold(false)
 	g.note("★".repeat(r.stars) + "  %d / %d" % [r.hits, r.total])
-	calls()
+	orm.after(func(): suit())
 
 # ================================================================== D · CANON CALLS
 func calls() -> void:

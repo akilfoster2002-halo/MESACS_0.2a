@@ -42,8 +42,8 @@ const KIND := {
 	"buyer": {"char": "thug-buyer", "hp": 6.0, "dmg": 0.0, "windup": 0.7, "walk": 1.4, "run": 4.0},
 	"big": {"char": "thug-a", "hp": 5.0, "dmg": 16.0, "windup": 0.80, "walk": 1.2, "run": 3.6},
 	"lean": {"char": "thug-b", "hp": 3.0, "dmg": 11.0, "windup": 0.58, "walk": 1.6, "run": 4.5},
-	"wfc": {"char": "thug-a", "hp": 4.0, "dmg": 12.0, "windup": 0.78, "walk": 1.3, "run": 4.0},
-	"wfcLean": {"char": "thug-b", "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
+	"wfc": {"char": "thug-a", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 4.0, "dmg": 12.0, "windup": 0.78, "walk": 1.3, "run": 4.0},
+	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	"kai": {"char": "kofi", "hp": 9.0, "dmg": 15.0, "windup": 0.5, "walk": 1.6, "run": 4.8},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
@@ -108,7 +108,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	for nm in e.ap.get_animation_list():
 		if not nm in ONCE: e.ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	if o.get("hidden", false): n.visible = false
-	if uniform: dress_wfc(n)
+	if uniform and not K.get("officer", false): dress_wfc(n)
 	if e.weapon:
 		var hand = _bone_node(n, "RightHand")
 		if hand != null:
