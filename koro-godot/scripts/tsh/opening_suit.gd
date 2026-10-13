@@ -97,7 +97,7 @@ func play(ring_box: Node3D) -> void:
 		# 3: the shoe, from beneath, turning: the coils compress, glow; THUMP — not a stop, a redirection
 		{"dur": 0.8, "fov": 40, "cam": func(k, t): return _bone("RightFoot") + Vector3(cos(k*2.0)*0.5, -0.35, sin(k*2.0)*0.5), "look": func(k, t): return _bone("RightFoot"),
 			"tick": func(dt, t, k): _fly(jump, 1.6 + t*0.3, "fly"); coil.global_position = _bone("RightFoot"); coil.light_energy = 6.0*minf(1, t/0.3),
-			"beats": [[0.3, func(): g.cue("blast"); g.cam_kick = 1.4; jump.v = Vector3(-4.0, 14.0, -1.5); jump.p0 = g.robin.position; jump.t0 = 1.6 + 0.3*0.3]]},
+			"beats": [[0.3, func(): g.cue("step"); g.cam_kick = 0.6; jump.v = Vector3(-4.0, 14.0, -1.5); jump.p0 = g.robin.position; jump.t0 = 1.6 + 0.3*0.3]]},
 		# 4: wide: she arcs away from the building, the camera rolling with her until the city is sideways; flying —
 		# then gravity
 		{"dur": 1.0, "fov": 58, "cam": func(k, t): return g.robin.position + Vector3(3.0, 2.0, 5.0), "look": func(k, t): return g.robin.position,

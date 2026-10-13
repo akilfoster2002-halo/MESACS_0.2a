@@ -1413,9 +1413,9 @@ func _play_tick(dt: float) -> void:
 		_boot_punch(e); face.react(e.name)
 		_lesson_event(e)
 		match e.name:
-			"bound", "boundPerfect", "jump", "jumpPerfect": cue("launch")
+			"bound", "boundPerfect", "jump", "jumpPerfect": cue("step")          # her feet leaving: no boom
 			"land", "boundLand": cue("step")
-			"roll": cue("thud")
+			"roll": cue("step")
 			"rebound", "reboundPerfect", "dash": cue("kick")
 	_follow(dt)
 	if S.step == "lesson" and lesson_id() == "alley" and _in_alley() and boots.y < 1.0: lesson_next()
