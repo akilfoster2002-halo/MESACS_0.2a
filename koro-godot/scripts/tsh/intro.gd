@@ -176,7 +176,64 @@ func _hold(v: bool) -> void:
 
 ## a guitar like hers: red, the pickguard cream, a dark neck — slung across her: its body at her right hip, its neck up
 ## to her left (her model faces +Z; her left is +X)
-func _axe() -> Node3D: return make_axe()
+func _axe() -> Node3D:
+	var real := _axe_from_room()
+	return real if real else make_axe()
+## HER OWN GUITAR, the one against the amp, copied into her hands: its meshes measured where they stand (the long
+## axis its neck; the wide end its body; its face the side turned to the room) and re-based to make_axe's frame —
+## the body's pickups at the origin, the neck up +Y, the face +Z — so place_axe fits it the same way
+func _axe_from_room() -> Node3D:
+	_find_guitar()
+	if room_guitar.is_empty(): return null
+	var pts := PackedVector3Array()
+	for mi in room_guitar:
+		var m: Mesh = (mi as MeshInstance3D).mesh
+		for si in m.get_surface_count():
+			var vs: PackedVector3Array = m.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]
+			for i in range(0, vs.size(), maxi(1, vs.size()/4000)): pts.append(mi.global_transform*vs[i])
+	if pts.size() < 10: return null
+	var c := Vector3.ZERO
+	for p in pts: c += p
+	c /= pts.size()
+	# its long axis: the covariance's biggest direction (power iteration)
+	var cov := [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+	for p in pts:
+		var d := p - c
+		cov[0] += d*d.x; cov[1] += d*d.y; cov[2] += d*d.z
+	var mul := func(v: Vector3) -> Vector3: return cov[0]*v.x + cov[1]*v.y + cov[2]*v.z
+	var up := Vector3.UP
+	for i in 30: up = (mul.call(up) as Vector3).normalized()
+	# its width: the biggest direction across the long one
+	var w := Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD
+	for i in 30:
+		w = mul.call(w); w = (w - up*w.dot(up)).normalized()
+	var t0 := INF; var t1 := -INF
+	for p in pts: var t := (p - c).dot(up); t0 = minf(t0, t); t1 = maxf(t1, t)
+	# which end is the body: the wider third
+	var wa := 0.0; var wb := 0.0; var L := t1 - t0
+	for p in pts:
+		var t := (p - c).dot(up); var ww := absf((p - c).dot(w))
+		if t < t0 + L/3: wa = maxf(wa, ww)
+		elif t > t1 - L/3: wb = maxf(wb, ww)
+	if wb > wa: up = -up; var tt := t0; t0 = -t1; t1 = -tt
+	var face := w.cross(up).normalized()
+	var room_mid := Vector3(300, c.y, 0)
+	if face.dot(room_mid - c) < 0: face = -face; w = -w                 # its face the side turned to the room
+	# the origin: across the body, a fifth of the way up from its end (where the pickups are)
+	var o := c + up*(t0 + L*0.2)
+	var body_c := Vector3.ZERO; var nb := 0
+	for p in pts:
+		if (p - c).dot(up) < t0 + L*0.4: body_c += p; nb += 1
+	if nb > 0: body_c /= nb; o += w*(body_c - o).dot(w)
+	var frame := Transform3D(Basis(w, up, face), o)
+	var root := Node3D.new(); root.name = "axe"
+	var inv := frame.affine_inverse()
+	for mi in room_guitar:
+		var copy := MeshInstance3D.new(); copy.mesh = mi.mesh
+		for si in mi.get_surface_override_material_count(): copy.set_surface_override_material(si, mi.get_surface_override_material(si))
+		copy.material_override = mi.material_override
+		copy.transform = inv*mi.global_transform; root.add_child(copy)
+	return root
 ## a guitar like hers: red, the pickguard cream, a dark neck; its body at the origin, its neck along +Y, its face +Z
 static func make_axe() -> Node3D:
 	var root := Node3D.new(); root.name = "axe"
