@@ -25,6 +25,7 @@ func start() -> void:
 	g.talk_q.clear(); g.kit_all(false); g.shades(false)
 	g.letterbox(true)
 	# for review (-- new room): straight to her room, the song played by itself
+	if OS.get_cmdline_user_args().has("auto"): auto = true          # for recording: the song plays itself
 	if OS.get_cmdline_user_args().has("room"): auto = true; g.black(true); room(); return
 	if OS.get_cmdline_user_args().has("suit"):
 		g.robin.visible = true; g.show_inside(true); g.kit_all(false); g.apt_boots(true); g.apt_pack(true); g._form_jacket(true); g._note_home(); suit(); return
@@ -225,66 +226,98 @@ func _play() -> void:
 	g.stage("guitar_a" if g.anim.has_animation("guitar_a") else "idle", spot.x, 0, spot.z, face_y)
 	game.auto = auto
 	game.start(func(r): _played(r), func(lane): strum = 1.0)
-	g.lesson_card("ROBIN · HER SONG", "PLAY", "A  S  D  F  G — each note as it reaches the line.\nHit them and the guitar stays in the song.")
+	g.lesson_card("ROBIN · HER SONG", "PLAY", "←  ↓  ↑  →  — each note as it reaches the line.\nWhen the guitar drops out, watch the room.")
 	g.get_tree().create_timer(3.5).timeout.connect(func(): g.lesson_card("", "", ""))
 	playing = true; gt = 0.0
 
-## the camera through the song: a new angle for each part of it (docs/INTRO_SHOT_LIST.md, C)
+## THE CAMERA THROUGH THE SONG (worth_chart.json). Where the electric guitar plays (chart.play, and a moment before it,
+## so the first notes are seen coming) the camera is on her playing — a new angle every two bars, cut on the bar line.
+## Where it drops out, the scene looks round her room: the homework, the drafting board, the cables — a cut every two
+## beats, on the beat, with her in the back of it now and then. The last bars: the hero angle, the jump on the chord.
+const PLAY_ANGLES := ["hand", "floor", "orbit", "shoulder", "wardrobe", "front"]
+const TOUR := ["homework", "schematic", "her", "test", "wires", "sensor", "her", "pinned", "tangle", "her"]
+func _idx(arr: Array, t: float) -> int:
+	# how many of the times in arr are at or before t
+	var i := 0
+	while i < arr.size() and float(arr[i]) <= t + 0.01: i += 1
+	return i
 func tick(dt: float) -> void:
 	strum = maxf(0, strum - dt*6)
 	fit_axe()
+	var bpm: float = float(game.chart.bpm)
 	for e in eq:
-		var lvl := absf(sin(game.now*PI*140.0/60.0*(1 + e[2]*0.1) + e[2]))*(1.0 if game.band.playing else 0.0)
+		var lvl := absf(sin(game.now*PI*bpm/60.0*(1 + e[2]*0.1) + e[2]))*(1.0 if game.band.playing else 0.0)
 		(e[0] as Node3D).scale = Vector3(e[1].x, e[1].y*(0.4 + lvl*1.8), e[1].z)
 	if not playing: return
 	gt += dt
-	var now := game.now; var S: Dictionary = game.chart.sections
+	var now := game.now; var C: Dictionary = game.chart
 	var cam: Camera3D = g.cam; var P := spot
 	var fwd := Vector3(sin(face_y), 0, cos(face_y)); var left := Vector3(cos(face_y), 0, -sin(face_y))
 	var pos := Vector3.ZERO; var look := P + Vector3(0, 1.15, 0); var fov := 46.0
-	var beatk := absf(sin(now*PI*140.0/60.0))
-	var dof := -1.0
-	if g.anim.has_animation("guitar_b"):
-		var chorus: bool = (now >= float(S.chorus1) and now < float(S.verse2)) or now >= float(S.chorus2)
-		if not (now >= float(S.outro) and g.clip in ["jump", "idle"]): g.stage("guitar_b" if chorus else "guitar_a", P.x, 0, P.z, face_y)
-	if now < float(S.verse1):
-		# SHOT 17 · the opening riff: her picking hand, the strings in front, her face soft behind
-		var h: Vector3 = strum_at() if axe else P + Vector3(0, 1.0, 0)
-		pos = h + fwd*0.42 - left*0.12 + Vector3(0, 0.07, 0); look = h; fov = 32; dof = 0.45
-	elif now < float(S.chorus1):
-		# · first verse: low from the floor, her towering over the lens
-		var k := (now - float(S.verse1))/(float(S.chorus1) - float(S.verse1))
-		pos = P + fwd*lerpf(1.5, 1.2, k) - left*0.35 + Vector3(0, 0.14, 0); look = P + Vector3(0, 1.35, 0); fov = 58
-	elif now < float(S.verse2):
-		# · first chorus: a fast orbit, the window, the bench, the form sweeping past
-		var an := (now - float(S.chorus1))*0.85; var r := 2.0
-		pos = P + Vector3(sin(an + face_y)*r, 1.3, cos(an + face_y)*r); fov = 50
-	elif now < float(S.chorus2):
-		# · the fill: over her shoulder, close, her fingers on the fretboard, the city beyond
-		pos = P - fwd*0.42 + left*0.32 + Vector3(0, 1.62, 0); look = (neck_at() if axe else P + Vector3(0, 1.2, 0)) + fwd*0.15; fov = 40; dof = 1.0
-	elif now < float(S.solo):
-		# · second chorus: wide, from on top of the wardrobe in the corner, looking down on her
-		var a: Dictionary = g.room.apt
-		var k := (now - float(S.chorus2))/(float(S.solo) - float(S.chorus2))
-		pos = Vector3(a.x2 - 0.45, 2.85, a.z1 + 0.45 + k*0.4); look = P + Vector3(0, 0.9, 0); fov = 54
-	elif now < float(S.outro):
-		# · the final riff: tight and frontal; her hair whipping across her face; lost in it
-		pos = P + fwd*0.95 + Vector3(0, 1.52, 0); look = P + Vector3(0, 1.45, 0); fov = 30; dof = 1.4
-	else:
-		# · the final chord: a low hero angle; she jumps and lands on the chord; the camera overshoots and settles
-		var k := clampf((now - float(S.outro))/(float(game.chart.end) - float(S.outro)), 0, 1)
-		pos = P + fwd*1.7 - left*0.5 + Vector3(0, 0.3 + sin(k*PI)*0.25, 0); look = P + Vector3(0, 1.25 + sin(k*PI)*0.2, 0); fov = 50
+	var beat := 60.0/bpm
+	var beatk := absf(sin(now*PI/beat))
+	var dof := -1.0; var shift := 0.45
+	var bars: Array = C.bars; var beats: Array = C.beats
+	var end: float = float(C.end); var last: Array = C.play[-1]
+	var win := -1
+	for i in C.play.size():
+		if now >= float(C.play[i][0]) - AHEAD_CAM and now < float(C.play[i][1]) + 0.25: win = i
+	# her playing: the first section on one clip, the second on the other
+	var hero := now >= end - bar_len()*2.0
+	if g.anim.has_animation("guitar_b") and not hero: g.stage("guitar_b" if win == 1 else "guitar_a", P.x, 0, P.z, face_y)
+	if hero:
+		# · the final chord: a low hero angle; she jumps and lands on it; the camera overshoots and settles
+		var k := clampf((now - (end - bar_len()*2.0))/(bar_len()*2.0 - 0.6), 0, 1)
+		pos = P + fwd*1.7 - left*0.5 + Vector3(0, 0.3 + sin(k*PI)*0.25, 0); look = P + Vector3(0, 1.25 + sin(k*PI)*0.2, 0); fov = 50; shift = 0.0
 		if k > 0.62 and k < 0.8: g.stage("jump", P.x, sin((k - 0.62)/0.18*PI)*0.5, P.z, face_y)
 		elif k >= 0.8: g.stage("idle", P.x, 0, P.z, face_y)
+	elif win >= 0:
+		# a new angle every two bars, on the bar line (counted from the section's own first bar)
+		var b0 := _idx(bars, float(C.play[win][0]) - AHEAD_CAM)
+		var n := maxi(0, _idx(bars, now) - b0)/2 + win*3
+		var since: float = now - (float(bars[maxi(0, _idx(bars, now) - 1)]) if _idx(bars, now) > 0 else 0.0)
+		var k := clampf(since/(bar_len()*2.0), 0, 1)
+		match PLAY_ANGLES[n % PLAY_ANGLES.size()]:
+			"hand":           # her picking hand, the strings in front, her face soft behind
+				var h: Vector3 = strum_at() if axe else P + Vector3(0, 1.0, 0)
+				pos = h + fwd*0.42 - left*0.12 + Vector3(0, 0.07, 0); look = h; fov = 32; dof = 0.45
+			"floor":          # low from the floor, her towering over the lens
+				pos = P + fwd*lerpf(1.5, 1.2, k) - left*0.35 + Vector3(0, 0.14, 0); look = P + Vector3(0, 1.35, 0); fov = 58
+			"orbit":          # a fast orbit: the window, the bench, the drafting board sweeping past
+				var an := now*0.85; pos = P + Vector3(sin(an + face_y)*2.0, 1.3, cos(an + face_y)*2.0); fov = 50
+			"shoulder":       # over her shoulder, her fingers on the fretboard
+				pos = P - fwd*0.42 + left*0.32 + Vector3(0, 1.62, 0); look = (neck_at() if axe else P + Vector3(0, 1.2, 0)) + fwd*0.15; fov = 40; dof = 1.0
+			"wardrobe":       # wide, from on top of the wardrobe in the corner, looking down on her
+				var a: Dictionary = g.room.apt
+				pos = Vector3(a.x2 - 0.45, 2.85, a.z1 + 0.45 + k*0.4); look = P + Vector3(0, 0.9, 0); fov = 54
+			_:                # tight and frontal; lost in it
+				pos = P + fwd*0.95 + Vector3(0, 1.52, 0); look = P + Vector3(0, 1.45, 0); fov = 30; dof = 1.4
+	else:
+		# THE ROOM: a cut every two beats, on the beat; each a slow push
+		var j := maxi(0, _idx(beats, now) - 1)                        # the beat we are on
+		var cut := j/2; var c_at: float = float(beats[cut*2])
+		var k := clampf((now - c_at)/(beat*2.0), 0, 1)
+		var spot_name: String = TOUR[cut % TOUR.size()]
+		var sp: Dictionary = orm.dress.spots if orm and orm.dress else {}
+		shift = 0.0
+		if spot_name == "her" or not sp.has(spot_name):
+			# her, playing on, from across the room past the bench and the cables
+			pos = P + fwd*2.6 + left*1.1 + Vector3(0, 1.0, 0); pos = pos.lerp(P + fwd*2.2 + left*0.9 + Vector3(0, 1.05, 0), k)
+			look = P + Vector3(0, 1.1, 0); fov = 42; dof = 2.2
+		else:
+			var at: Vector3 = sp[spot_name][0]; var from: Vector3 = sp[spot_name][1]
+			pos = from.lerp(at + (from - at)*0.82, k); look = at; fov = 40; dof = (from - at).length()*0.9
 	if dof > 0:
 		var at := CameraAttributesPractical.new(); at.dof_blur_far_enabled = true; at.dof_blur_far_distance = dof + 0.3; at.dof_blur_far_transition = maxf(0.6, dof); at.dof_blur_amount = 0.14; cam.attributes = at
 	else: cam.attributes = null
-	# her a little to one side of the highway: the look shifted the other way along the lens
+	# while the highway is up: her a little to one side of it (the look shifted the other way along the lens)
 	var side := (look - pos).cross(Vector3.UP).normalized()
-	look += side*0.45
+	look += side*shift*game.shown
 	cam.global_position = pos + Vector3(0, beatk*0.015, 0)
 	if (look - pos).length() > 0.05: cam.look_at(look)
 	cam.fov = fov
+const AHEAD_CAM := 1.8
+func bar_len() -> float: return 240.0/float(game.chart.bpm)
 
 func key(ev: InputEventKey) -> bool:
 	if not playing: return false

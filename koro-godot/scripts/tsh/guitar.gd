@@ -1,14 +1,16 @@
-## THE GUITAR (Guitar Hero, in her room). Her song (tools/song/rock.py: the band and the lead guitar as two stems)
-## plays; from the first verse its lead line comes down a highway of five frets — A S D F G (or 1–5) as each note
-## reaches the line. A note hit keeps the lead in the song; a note missed drops it out until the next one lands, as
+## THE GUITAR (Guitar Hero, in her room). Her song (beabadoobee, "Worth It", from 2:14: tools/song/worth_it.py) plays;
+## where its electric guitar comes in, the highway slides up and its hits come down four lanes — the ARROW keys as each
+## note reaches the line; where the guitar drops out the highway slides away and the scene watches her room. A miss
+## dips the song and scratches; a run of hits raises the multiplier. As
 ## the real game does. Every ten in a row raises the multiplier (to ×4); the rock meter, green to red, is how the
 ## room thinks it is going. At the end: how many she hit, her best streak, her stars.
 class_name GuitarGame
 extends Control
 
-const KEYS := [[KEY_A, KEY_1], [KEY_S, KEY_2], [KEY_D, KEY_3], [KEY_F, KEY_4], [KEY_G, KEY_5]]
-const COLS := [Color("#3cd25a"), Color("#e8384a"), Color("#f5d23c"), Color("#3c8cf0"), Color("#f59a32")]
-const NAMES := ["A", "S", "D", "F", "G"]
+const LANES := 4
+const KEYS := [[KEY_LEFT, KEY_A], [KEY_DOWN, KEY_S], [KEY_UP, KEY_W], [KEY_RIGHT, KEY_D]]
+const COLS := [Color("#3cd25a"), Color("#e8384a"), Color("#f5d23c"), Color("#3c8cf0")]
+const NAMES := ["←", "↓", "↑", "→"]
 const AHEAD := 2.0              # seconds of highway on screen
 const WINDOW := 0.11            # how far either side of the line a note can be hit
 const PERFECT := 0.045
@@ -18,7 +20,7 @@ var band: AudioStreamPlayer; var lead: AudioStreamPlayer
 var on := false; var playing := false; var shown := 0.0
 var now := 0.0; var _clk := 0.0
 var score := 0; var streak := 0; var best := 0; var hits := 0; var misses := 0; var meter := 0.5
-var lead_on := true; var held := [false, false, false, false, false]; var flare := [0.0, 0.0, 0.0, 0.0, 0.0]
+var lead_on := true; var held := [false, false, false, false]; var flare := [0.0, 0.0, 0.0, 0.0]; var dip := 0.0
 var judge := ""; var judge_t := 0.0
 var done_cb: Callable; var strum_cb: Callable
 var finished := false; var results := false
@@ -27,22 +29,27 @@ var auto := false               # the photo pass plays it by itself
 func _init(game) -> void:
 	g = game
 	mouse_filter = Control.MOUSE_FILTER_IGNORE; set_anchors_preset(Control.PRESET_FULL_RECT); visible = false
-	chart = g._json("res://assets/tsh/rock_chart.json")
-	band = AudioStreamPlayer.new(); band.stream = load("res://assets/tsh/music/rock_band.mp3"); band.volume_db = -4; game.add_child(band)
-	lead = AudioStreamPlayer.new(); lead.stream = load("res://assets/tsh/music/rock_lead.mp3"); lead.volume_db = -4; game.add_child(lead)
+	chart = g._json("res://assets/tsh/worth_chart.json")
+	band = AudioStreamPlayer.new(); band.stream = load("res://assets/tsh/music/worth_it.mp3"); band.volume_db = -3; game.add_child(band)
+	lead = AudioStreamPlayer.new(); game.add_child(lead)
 
 ## the song from the top (the montage plays over its intro)
 func song() -> void:
-	band.play(0.0); lead.play(0.0); lead.volume_db = -4; _clk = 0.0; now = 0.0
+	band.play(0.0); _clk = 0.0; now = 0.0
 ## the game: from here the notes come down; done(result) when the song is over
 func start(done: Callable, strum := Callable()) -> void:
 	done_cb = done; strum_cb = strum
 	notes = []
 	for n in chart.notes: notes.append({"t": float(n.t), "len": float(n.len), "lane": int(n.lane), "hit": false, "missed": false})
 	score = 0; streak = 0; best = 0; hits = 0; misses = 0; meter = 0.5; lead_on = true; finished = false; results = false
-	on = true; playing = true; visible = true; shown = 0.0
+	on = true; playing = true; visible = true; shown = 0.0; dip = 0.0
 func stop() -> void:
 	on = false; playing = false; visible = false; band.stop(); lead.stop()
+## inside one of the song's guitar sections
+func in_play(t: float) -> bool:
+	for w in chart.play:
+		if t >= float(w[0]) and t <= float(w[1]): return true
+	return false
 func mult() -> int: return mini(4, 1 + streak/10)
 
 func _clock() -> float:
@@ -55,8 +62,10 @@ func _clock() -> float:
 func _process(dt: float) -> void:
 	if band.playing or playing: now = _clock()
 	if not on: return
-	shown = minf(1.0, shown + dt*2)
-	for i in 5: flare[i] = maxf(0, flare[i] - dt*4)
+	# the highway: up from a moment before a guitar section (so its first notes are seen coming), away after it
+	shown = clampf(shown + dt*2.5*(1.0 if in_play(now + AHEAD*0.9) or in_play(now - 0.3) else -1.0), 0.0, 1.0)
+	for i in LANES: flare[i] = maxf(0, flare[i] - dt*4)
+	dip = maxf(0, dip - dt); band.volume_db = -3.0 - 9.0*minf(1, dip*3)
 	judge_t = maxf(0, judge_t - dt)
 	if playing:
 		for n in notes:
@@ -70,7 +79,7 @@ func _process(dt: float) -> void:
 
 func key(ev: InputEventKey) -> bool:
 	if not on or not playing: return false
-	for i in 5:
+	for i in LANES:
 		if ev.keycode in KEYS[i] or ev.physical_keycode in KEYS[i]:
 			held[i] = ev.pressed
 			if ev.pressed and not ev.echo: _press(i)
@@ -96,13 +105,13 @@ func _hit(n: Dictionary, err: float) -> void:
 	score += (60 if perfect else 50)*mult()
 	meter = minf(1, meter + 0.03)
 	flare[n.lane] = 0.6
-	if not lead_on: lead_on = true; lead.volume_db = -4
+
 	_say("PERFECT" if perfect else "GOOD", Color("#9ff8ff") if perfect else Color("#ffffff"))
 	if streak in [10, 20, 30]: _say("×%d" % mult(), Color("#ffd23d"))
 	if strum_cb.is_valid(): strum_cb.call(n.lane)
 func _miss() -> void:
 	misses += 1; streak = 0; meter = maxf(0, meter - 0.06)
-	if lead_on: lead_on = false; lead.volume_db = -60; g.cue("fail")
+	dip = 0.35; g.cue("fail")
 	_say("MISS", Color("#ff5a5a"))
 func _say(t: String, c: Color) -> void: judge = t; judge_t = 0.6; set_meta("jc", c)
 
@@ -114,6 +123,7 @@ func result() -> Dictionary:
 # ------------------------------------------------------------------ the highway
 func _draw() -> void:
 	if not on: return
+	if shown <= 0.001 and not results: return
 	var vp := size; var cx := vp.x*0.5
 	var y_strike := vp.y - 120.0; var y_far := 150.0
 	var w_near := minf(560.0, vp.x*0.5); var a := shown
@@ -121,23 +131,23 @@ func _draw() -> void:
 	var at := func(p: float, lane: float) -> Vector2:
 		var s: float = persp.call(p); var s1: float = persp.call(1.0)
 		var y := y_strike - (y_strike - y_far)*(1.0 - s)/(1.0 - s1)
-		return Vector2(cx + (lane - 2.0)*w_near/5.0*s, y)
+		return Vector2(cx + (lane - 1.5)*w_near/4.0*s, y)
 	# the board
-	var c0: Vector2 = at.call(0, -0.5); var c1: Vector2 = at.call(0, 4.5); var c2: Vector2 = at.call(1, 4.5); var c3: Vector2 = at.call(1, -0.5)
+	var c0: Vector2 = at.call(0, -0.5); var c1: Vector2 = at.call(0, 3.5); var c2: Vector2 = at.call(1, 3.5); var c3: Vector2 = at.call(1, -0.5)
 	draw_colored_polygon(PackedVector2Array([c0 + Vector2(0, 40), c1 + Vector2(0, 40), c2, c3]), Color(0.03, 0.04, 0.06, 0.82*a))
 	# the frets' strings, and bar lines going by
-	for l in 6:
+	for l in LANES + 1:
 		var p0: Vector2 = at.call(0, l - 0.5); var p1: Vector2 = at.call(1, l - 0.5)
-		draw_line(p0 + Vector2(0, 40), p1, Color(0.5, 0.6, 0.7, 0.35*a), 2.0 if l in [0, 5] else 1.0)
+		draw_line(p0 + Vector2(0, 40), p1, Color(0.5, 0.6, 0.7, 0.35*a), 2.0 if l in [0, LANES] else 1.0)
 	var bar := 60.0/float(chart.bpm)*4.0
 	var b0 := ceilf(now/bar)*bar
 	for i in 4:
 		var p := (b0 + i*bar - now)/AHEAD
 		if p < 0 or p > 1: continue
-		draw_line(at.call(p, -0.5), at.call(p, 4.5), Color(0.6, 0.7, 0.8, 0.25*a), 2.0)
+		draw_line(at.call(p, -0.5), at.call(p, 3.5), Color(0.6, 0.7, 0.8, 0.25*a), 2.0)
 	# the line, and the five frets on it
-	draw_line(at.call(0, -0.5), at.call(0, 4.5), Color(1, 1, 1, 0.8*a), 3.0)
-	for i in 5:
+	draw_line(at.call(0, -0.5), at.call(0, 3.5), Color(1, 1, 1, 0.8*a), 3.0)
+	for i in LANES:
 		var p: Vector2 = at.call(0, i)
 		draw_circle(p, 30, Color(0, 0, 0, 0.6*a))
 		draw_arc(p, 28, 0, TAU, 32, COLS[i]*Color(1, 1, 1, a), 5.0, true)

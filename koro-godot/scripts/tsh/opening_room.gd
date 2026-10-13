@@ -13,6 +13,7 @@ var chip: MeshInstance3D               # the component that jumps off the bench
 var string_m: MeshInstance3D           # the string that opens the song
 var phone_bed: Node3D                  # her phone, on the bedspread
 var box: Node3D; var lid: Node3D; var rings: Array = []
+var dress: RoomDressing
 
 func _init(game, i) -> void: g = game; intro = i
 
@@ -39,6 +40,8 @@ func _build() -> void:
 	# her lights: the warm lamp, a monitor's blue on the bench, a red LED strip behind the desk
 	_light(Color(0.35, 0.55, 1.0), g._v(R.bench.at) + Vector3(0.4, 0.5, 0.3), 1.6, 3.5)
 	_light(Color(1.0, 0.12, 0.2), g._v(R.packing.at) + Vector3(-0.4, 0.4, -0.3), 1.4, 3.0)
+	# the room lived in: the homework, the cables, the drafting board (room_dressing.gd)
+	dress = RoomDressing.new(g); g.add_child(dress); _keep(dress); dress.build()
 	# the string on the guitar's body, close
 	string_m = _box(Vector3(0.0035, 0.42, 0.0035), Vector3(301.86, 0.5, -3.2), _mat(Color(0.95, 0.92, 0.85), 0.6, 0.2, 0.8))
 	string_m.rotation = Vector3(0, 0.3, 0.32)
@@ -77,59 +80,61 @@ func clear() -> void:
 		if is_instance_valid(n): n.queue_free()
 	made = []; lights = []; sticks = []
 
-# ------------------------------------------------------------------ SHOTS 12–16, cut to the song's eight bars of intro
+# ------------------------------------------------------------------ SHOTS 12–16, cut to the song's intro: thirteen beats
+## of "Worth It" (worth_chart.json), each cut on a beat; the guitar comes in on the fourth bar and the game with it
 func film(done: Callable) -> void:
 	_build()
 	var R: Dictionary = g.room.room; var bed: Dictionary = R.bed; var top: float = bed.get("top", 0.72)
-	var bar := 60.0/140.0*4.0; var beat := bar/4
+	var BT: Array = intro.game.chart.beats
+	var beat: float = 60.0/float(intro.game.chart.bpm); var bar := beat*4
+	var span := func(a: int, b: int) -> float: return (float(BT[b]) if b < BT.size() else float(BT[-1])) - (0.0 if a == 0 else float(BT[a]))
 	var GB := Vector3(301.86, 0.5, -3.2)                         # the guitar's body
 	var run0 := Vector2(304.4, -0.6); var run1 := Vector2(300.3, 2.6)
 	var rd := (run1 - run0).normalized(); var ry := atan2(rd.x, rd.y)
 	var B = g._v(R.bench.at); var S = g._v(R.sewing.at); var F = g._v(R.form.at); var P = g._v(R.packing.at); var SH = g._v(R.boots.at)
 	var drum := Vector3(B.x, 0, B.z + 0.75)
 	var her := func(y := 1.1) -> Vector3: return g.robin.position + Vector3(0, y, 0)
-	var bounce := func(t: float): g.stage("jump", bed.x + 0.3, top + absf(sin(t*PI*140.0/60.0))*0.55, bed.z, PI/2)
+	var bounce := func(t: float): g.stage("jump", bed.x + 0.3, top + absf(sin(t*PI/beat))*0.55, bed.z, PI/2)
 	var shots := [
 		# SHOT 12 · the string, vibrating; the pick across it; the riff
-		{"dur": beat*2, "fov": 22, "dof": 0.3, "mood": "grin", "inside": true, "cam": GB + Vector3(0.1, 0.06, 0.24), "look": GB + Vector3(0, 0.02, 0),
+		{"dur": span.call(0, 1), "fov": 22, "dof": 0.3, "mood": "grin", "inside": true, "cam": GB + Vector3(0.1, 0.06, 0.24), "look": GB + Vector3(0, 0.02, 0),
 			"enter": func(): g.black(false); intro.game.song(); g.stage("sprint", run0.x, 0, run0.y, ry); g.set_caption("INT. ROBIN'S ROOM — 21:58"),
 			"tick": func(dt, t, k): string_m.position.x = GB.x + sin(t*90.0)*0.004*(1.0 - k*0.4)},
 		# · the whip pan: past the amp, the cables, a sock off the desk — onto her, sprinting in
-		{"dur": beat*2, "fov": 46, "ease": false, "cam": Vector3(301.6, 1.05, -1.2),
+		{"dur": span.call(1, 2), "fov": 46, "ease": false, "cam": Vector3(301.6, 1.05, -1.2),
 			"look": func(k, t): var e = k*k*(3 - 2*k); return (GB + Vector3(0, 0.3, 0)).lerp(her.call(1.1), e),
 			"tick": func(dt, t, k): g.stage("sprint", lerpf(run0.x, 302.6, k), 0, lerpf(run0.y, 0.6, k), ry)},
 		# SHOT 13 · the wide master from the foot of the bed, low and handheld; she lands, bounces, arms up; sings
-		{"dur": bar*2, "fov": 62, "hand": 0.55, "mood": "grin", "cam": Vector3(300.9, 0.55, 3.35), "look": func(k, t): return her.call(0.9).lerp(Vector3(bed.x, 1.0, bed.z), 0.3),
-			"enter": func(): g.face.flap = bar*2.2,
+		{"dur": span.call(2, 4), "fov": 62, "hand": 0.55, "mood": "grin", "cam": Vector3(300.9, 0.55, 3.35), "look": func(k, t): return her.call(0.9).lerp(Vector3(bed.x, 1.0, bed.z), 0.3),
+			"enter": func(): g.face.flap = beat*2.2,
 			"tick": func(dt, t, k):
 				if t < 0.45: g.stage("sprint", lerpf(302.6, run1.x, t/0.45), 0, lerpf(0.6, run1.y, t/0.45), ry)
 				else: bounce.call(t)},
 		# SHOT 14A · the sewing machine: low, from the side; a spark from the soldering iron
-		{"dur": beat*2, "fov": 34, "dof": 0.5, "cam": S + Vector3(0.42, -0.04, 0.42), "look": S + Vector3(0, -0.02, 0),
+		{"dur": span.call(4, 5), "fov": 34, "dof": 0.5, "cam": S + Vector3(0.42, -0.04, 0.42), "look": S + Vector3(0, -0.02, 0),
 			"tick": func(dt, t, k): bounce.call(t), "beats": [[beat*0.9, func(): _spark(B + Vector3(0.3, 0.02, 0.1))]]},
 		# 14B · the jacket on the form, low; her bouncing on the bed far behind; a blue pulse
-		{"dur": beat*2, "fov": 38, "dof": 1.0, "cam": F + Vector3(0.55, 0.75, 0.75), "look": F + Vector3(0, 1.25, 0),
+		{"dur": span.call(5, 6), "fov": 38, "dof": 1.0, "cam": F + Vector3(0.55, 0.75, 0.75), "look": F + Vector3(0, 1.25, 0),
 			"tick": func(dt, t, k): bounce.call(t); g._form_jacket(true)},
 		# 14C · the business, from above: the boxes, the burner phone, the cash under the mug
-		{"dur": beat*2, "fov": 40, "cam": P + Vector3(0.02, 0.85, 0.06), "look": P + Vector3(0, 0, 0)},
+		{"dur": span.call(6, 7), "fov": 40, "cam": P + Vector3(0.02, 0.85, 0.06), "look": P + Vector3(0, 0, 0)},
 		# 14D · the sneakers, at the floor; a car's light across the coils; her socks slide into the foreground
-		{"dur": beat*2, "fov": 36, "dof": 0.6, "cam": SH + Vector3(0.75, 0.09, -0.35), "look": SH + Vector3(0, 0.08, 0),
+		{"dur": span.call(7, 8), "fov": 36, "dof": 0.6, "cam": SH + Vector3(0.75, 0.09, -0.35), "look": SH + Vector3(0, 0.08, 0),
 			"tick": func(dt, t, k): _carlight(SH, k); g.stage("walk", lerpf(SH.x + 1.2, SH.x + 0.45, k), 0, SH.z - 0.2, -PI/2)},
 		# SHOT 15 · air-drumming: a lateral profile, a screwdriver past the lens
-		{"dur": bar, "fov": 40, "hand": 0.45, "mood": "grin", "cam": [drum + Vector3(1.6, 1.2, 0.2), drum + Vector3(0.9, 1.25, 0.25)], "look": func(k, t): return her.call(1.15),
-			"enter": func(): _sticks(true); g.face.flap = bar*1.6,
+		{"dur": span.call(8, 10), "fov": 40, "hand": 0.45, "mood": "grin", "cam": [drum + Vector3(1.6, 1.2, 0.2), drum + Vector3(0.9, 1.25, 0.25)], "look": func(k, t): return her.call(1.15),
+			"enter": func(): _sticks(true); g.face.flap = beat*2,
 			"tick": func(dt, t, k): g.stage("jab" if int(t/beat) % 2 == 0 else "cross", drum.x, 0, drum.z, PI)},
 		# · the reverse: drumming toward the lens; she hits the bench too hard; a part jumps; she catches it
-		{"dur": beat*2, "fov": 36, "cam": Vector3(B.x + 0.15, 1.25, B.z + 0.05), "look": func(k, t): return her.call(1.3),
+		{"dur": span.call(10, 11), "fov": 36, "cam": Vector3(B.x + 0.15, 1.25, B.z + 0.05), "look": func(k, t): return her.call(1.3),
 			"tick": func(dt, t, k): g.stage("cross" if int(t/beat) % 2 == 0 else "jab", drum.x, 0, drum.z, PI); _chip_jump(t, beat, drum)},
 		# SHOT 16 · she stops; the guitar against the amp, behind a hanging jacket; a slow push; she walks to it, seriously
-		{"dur": bar*1.5, "fov": 40, "dof": 1.6, "mood": "determined", "cam": [Vector3(300.2, 1.15, -1.5), Vector3(300.7, 1.1, -2.0)], "look": GB + Vector3(-0.2, 0.25, 0),
+		{"dur": span.call(11, 12), "fov": 40, "dof": 1.6, "mood": "determined", "cam": [Vector3(300.2, 1.15, -1.5), Vector3(300.7, 1.1, -2.0)], "look": GB + Vector3(-0.2, 0.25, 0),
 			"enter": func(): _sticks(false); g.stage("idle", drum.x, 0, drum.z, PI/2),
-			"tick": func(dt, t, k):
-				if k > 0.25 and k < 0.75: g.walk_stage(Vector2(drum.x, drum.z), Vector2(301.85, -2.55), (k - 0.25)/0.5),
-			"beats": [[bar*1.5*0.78, func(): intro._hold(true); g.cue("gear"); g.stage("idle", 301.85, 0, -2.55, PI)]]},
+			"tick": func(dt, t, k): g.walk_stage(Vector2(drum.x, drum.z), Vector2(301.85, -2.55), minf(1, k*1.3)),
+			"beats": [[beat*0.8, func(): intro._hold(true); g.cue("gear"); g.stage("idle", 301.85, 0, -2.55, PI)]]},
 		# · LOW ANGLE as she kicks the amp on: feedback
-		{"dur": beat*2, "fov": 52, "mood": "grin", "cam": Vector3(302.4, 0.25, -2.0), "look": Vector3(301.85, 1.3, -2.55),
+		{"dur": span.call(12, 13), "fov": 52, "mood": "grin", "cam": Vector3(302.4, 0.25, -2.0), "look": Vector3(301.85, 1.3, -2.55),
 			"enter": func(): g.cue("jam"); g.cam_kick = 0.8},
 	]
 	g.play_reel(shots, func(_s): done.call())
