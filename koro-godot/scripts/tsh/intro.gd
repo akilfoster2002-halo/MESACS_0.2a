@@ -236,7 +236,8 @@ func _play() -> void:
 ## Where it drops out, the scene looks round her room: the homework, the drafting board, the cables — a cut every two
 ## beats, on the beat, with her in the back of it now and then. The last bars: the hero angle, the jump on the chord.
 const PLAY_ANGLES := ["hand", "floor", "orbit", "shoulder", "wardrobe", "front"]
-const TOUR := ["homework", "schematic", "her", "test", "wires", "sensor", "her", "pinned", "tangle", "her"]
+## the room between the guitar's sections, one list per gap (no shot twice): the first gap is short, two cuts
+const TOURS := [["test", "wires"], ["homework", "wall", "tangle", "her", "schematic", "sensor", "cat", "shelf", "her"]]
 func _idx(arr: Array, t: float) -> int:
 	# how many of the times in arr are at or before t
 	var i := 0
@@ -275,13 +276,16 @@ func tick(dt: float) -> void:
 	elif win >= 0:
 		# a new angle every two bars, on the bar line (counted from the section's own first bar)
 		var b0 := _idx(bars, float(C.play[win][0]) - AHEAD_CAM)
-		var n := maxi(0, _idx(bars, now) - b0)/2 + win*3
+		var m := maxi(0, _idx(bars, now) - b0)/2
+		# an angle that would only get a moment before the section ends stays on the one before it
+		if m > 0 and b0 + 2*m - 1 < bars.size() and float(bars[b0 + 2*m - 1]) + bar_len() > float(C.play[win][1]) + 0.25: m -= 1
+		var n := m + win*3
 		var since: float = now - (float(bars[maxi(0, _idx(bars, now) - 1)]) if _idx(bars, now) > 0 else 0.0)
 		var k := clampf(since/(bar_len()*2.0), 0, 1)
 		match PLAY_ANGLES[n % PLAY_ANGLES.size()]:
 			"hand":           # her picking hand, the strings in front, her face soft behind
 				var h: Vector3 = strum_at() if axe else P + Vector3(0, 1.0, 0)
-				pos = h + fwd*0.42 - left*0.12 + Vector3(0, 0.07, 0); look = h; fov = 32; dof = 0.45
+				pos = P + fwd*1.25 - left*0.3 + Vector3(0, 1.15, 0); look = h; fov = 20; dof = (pos - h).length()
 			"floor":          # low from the floor, her towering over the lens
 				pos = P + fwd*lerpf(1.5, 1.2, k) - left*0.35 + Vector3(0, 0.14, 0); look = P + Vector3(0, 1.35, 0); fov = 58
 			"orbit":          # a fast orbit: the window, the bench, the drafting board sweeping past
@@ -294,19 +298,29 @@ func tick(dt: float) -> void:
 			_:                # tight and frontal; lost in it
 				pos = P + fwd*0.95 + Vector3(0, 1.52, 0); look = P + Vector3(0, 1.45, 0); fov = 30; dof = 1.4
 	else:
-		# THE ROOM: a cut every two beats, on the beat; each a slow push
-		var j := maxi(0, _idx(beats, now) - 1)                        # the beat we are on
-		var cut := j/2; var c_at: float = float(beats[cut*2])
-		var k := clampf((now - c_at)/(beat*2.0), 0, 1)
-		var spot_name: String = TOUR[cut % TOUR.size()]
-		var sp: Dictionary = orm.dress.spots if orm and orm.dress else {}
+		# THE ROOM: the gap's own list, a cut every two beats on the beat (the first takes the part-beat before it,
+		# the last runs to the gap's end); each a slow push
+		var gi := 0; var g0 := 0.0; var g1 := end - bar_len()*2.0
+		for i in C.play.size():
+			if now >= float(C.play[i][1]) + 0.25: gi = i; g0 = float(C.play[i][1]) + 0.25; g1 = float(C.play[i + 1][0]) - AHEAD_CAM if i + 1 < C.play.size() else end - bar_len()*2.0
+		var list: Array = TOURS[mini(gi, TOURS.size() - 1)]
+		var j0 := _idx(beats, g0)
+		var cuts := [g0]
+		for c in range(1, list.size()):
+			var at_i := j0 - 1 + 2*c
+			if at_i >= beats.size() or float(beats[at_i]) > g1 - beat*1.5: break
+			cuts.append(float(beats[at_i]))
+		var cut := maxi(0, _idx(cuts, now) - 1)
+		var c_end: float = float(cuts[cut + 1]) if cut + 1 < cuts.size() else g1
+		var k := clampf((now - float(cuts[cut]))/maxf(0.1, c_end - float(cuts[cut])), 0, 1)
+		var shot := _tour_shot(list[cut])
 		shift = 0.0
-		if spot_name == "her" or not sp.has(spot_name):
+		if shot.is_empty():
 			# her, playing on, from across the room past the bench and the cables
-			pos = P + fwd*2.6 + left*1.1 + Vector3(0, 1.0, 0); pos = pos.lerp(P + fwd*2.2 + left*0.9 + Vector3(0, 1.05, 0), k)
+			pos = (P + fwd*2.6 + left*1.1 + Vector3(0, 1.0, 0)).lerp(P + fwd*2.2 + left*0.9 + Vector3(0, 1.05, 0), k)
 			look = P + Vector3(0, 1.1, 0); fov = 42; dof = 2.2
 		else:
-			var at: Vector3 = sp[spot_name][0]; var from: Vector3 = sp[spot_name][1]
+			var at: Vector3 = shot[0]; var from: Vector3 = shot[1]
 			pos = from.lerp(at + (from - at)*0.82, k); look = at; fov = 40; dof = (from - at).length()*0.9
 	if dof > 0:
 		var at := CameraAttributesPractical.new(); at.dof_blur_far_enabled = true; at.dof_blur_far_distance = dof + 0.3; at.dof_blur_far_transition = maxf(0.6, dof); at.dof_blur_amount = 0.14; cam.attributes = at
@@ -318,6 +332,19 @@ func tick(dt: float) -> void:
 	if (look - pos).length() > 0.05: cam.look_at(look)
 	cam.fov = fov
 const AHEAD_CAM := 1.8
+## a place in her room for the tour: [look at, from] — the dressing's own spots, else the bedroom's (seen from the
+## room's middle side of them), else [] (her)
+func _tour_shot(name: String) -> Array:
+	if orm and orm.dress and orm.dress.spots.has(name): return orm.dress.spots[name]
+	var bd = g.get("bedroom")
+	if bd == null: return []
+	if name == "cat" and bd.cat: var h: Vector3 = bd.cat.head.global_position; return [h, h + Vector3(0.45, 0.12, -0.35)]
+	if not bd.spots.has(name): return []
+	var at: Vector3 = bd.spots[name]
+	var mid := Vector3(300, at.y, 0); var out := (mid - at); out.y = 0; out = out.normalized()
+	var dist := 2.0 if name == "wall" else 1.0
+	if name == "shelf": return [at + Vector3(0, -0.12, 0), at + out*1.1 + Vector3(0, -0.05, 0)]      # level with the records
+	return [at, at + out*dist + Vector3(0, 0.2, 0)]
 func bar_len() -> float: return 240.0/float(game.chart.bpm)
 
 func key(ev: InputEventKey) -> bool:

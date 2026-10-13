@@ -91,7 +91,7 @@ func _schematic() -> Texture2D:
 # ------------------------------------------------------------------ the pieces
 func _quad(tex: Texture2D, size: Vector2, at: Vector3, rot: Vector3) -> MeshInstance3D:
 	var q := MeshInstance3D.new(); var qm := QuadMesh.new(); qm.size = size; q.mesh = qm
-	var m := StandardMaterial3D.new(); m.albedo_texture = tex; m.roughness = 0.9; m.cull_mode = BaseMaterial3D.CULL_DISABLED; q.material_override = m
+	var m := StandardMaterial3D.new(); m.albedo_texture = tex; m.albedo_color = Color(0.72, 0.72, 0.72); m.roughness = 0.9; m.cull_mode = BaseMaterial3D.CULL_DISABLED; q.material_override = m
 	q.position = at; q.rotation = rot; add_child(q); return q
 func _mat(c: Color, rough := 0.6, metal := 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new(); m.albedo_color = c; m.roughness = rough; m.metallic = metal; return m
@@ -118,10 +118,10 @@ func build() -> void:
 		["Chem Lab Write-up #6", "MISSING", ""], ["Unit 3 Test", "SEE ME", "F"], ["English: Essay Draft", "LATE", ""]]
 	var tex := []
 	for h in hw: tex.append(_homework(h[0], h[1], h[2]))
-	var floor_at := Vector3(bed.x + 1.3, 0.004, bed.z - 1.6)
+	var floor_at := Vector3(B.x + 0.2, 0.02, B.z + 1.05)            # on the floor in front of the bench, clear of the rug
 	for i in 4:
 		_quad(tex[i], Vector2(0.21, 0.27), floor_at + Vector3(randf_range(-0.35, 0.35), i*0.0015, randf_range(-0.3, 0.3)), Vector3(-PI/2, randf_range(-0.9, 0.9), 0))
-	spots.homework = [floor_at, floor_at + Vector3(0.55, 0.75, 0.6)]
+	spots.homework = [floor_at, floor_at + Vector3(0.75, 0.85, 0.55)]
 	_quad(tex[4], Vector2(0.21, 0.27), B + Vector3(-0.35, 0.012, 0.18), Vector3(-PI/2, 0.35, 0))
 	spots.test = [B + Vector3(-0.35, 0.01, 0.18), B + Vector3(-0.15, 0.55, 0.65)]
 	var cork: Vector3 = g._v(R.cork.at)
@@ -156,5 +156,5 @@ func build() -> void:
 	var ps := MeshInstance3D.new(); var pb := BoxMesh.new(); pb.size = Vector3(0.32, 0.04, 0.06); ps.mesh = pb; ps.material_override = _mat(Color(0.9, 0.9, 0.88))
 	ps.position = Vector3(300.6, 0.02, -2.4); add_child(ps)
 	var led := OmniLight3D.new(); led.light_color = Color(1, 0.3, 0.2); led.light_energy = 0.3; led.omni_range = 0.4; led.position = ps.position + Vector3(0.14, 0.05, 0); add_child(led)
-	spots.wires = [Vector3(301.0, 0.05, -2.3), Vector3(301.9, 0.35, -1.5)]
+	spots.wires = [Vector3(301.0, 0.05, -2.3), Vector3(300.2, 0.4, -1.75)]      # from her left, clear of her
 	spots.tangle = [B + Vector3(0.0, 0.03, 0.12), B + Vector3(0.55, 0.42, 0.65)]
