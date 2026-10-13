@@ -26,6 +26,8 @@ func start() -> void:
 	g.letterbox(true)
 	# for review (-- new room): straight to her room, the song played by itself
 	if OS.get_cmdline_user_args().has("room"): auto = true; g.black(true); room(); return
+	if OS.get_cmdline_user_args().has("suit"):
+		g.robin.visible = true; g.show_inside(true); g.kit_all(false); g.apt_boots(true); g.apt_pack(true); g._form_jacket(true); g._note_home(); suit(); return
 	# SEQUENCE 1 (docs/script/the_other_robin_cold_open_1.1.md, shots 01–11)
 	var oc = OpeningCity.new(g); add_child(oc)
 	oc.play(func(): oc.queue_free(); g.black(true); g.talk_q.clear(); g.mode = "end"; g.get_tree().create_timer(0.35).timeout.connect(room))
@@ -172,34 +174,48 @@ func _hold(v: bool) -> void:
 
 ## a guitar like hers: red, the pickguard cream, a dark neck — slung across her: its body at her right hip, its neck up
 ## to her left (her model faces +Z; her left is +X)
-func _axe() -> Node3D:
+func _axe() -> Node3D: return make_axe()
+## a guitar like hers: red, the pickguard cream, a dark neck; its body at the origin, its neck along +Y, its face +Z
+static func make_axe() -> Node3D:
 	var root := Node3D.new(); root.name = "axe"
 	var m := func(c: Color, r := 0.3, met := 0.2) -> StandardMaterial3D:
 		var s := StandardMaterial3D.new(); s.albedo_color = c; s.roughness = r; s.metallic = met; return s
-	var body := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.19; cm.bottom_radius = 0.19; cm.height = 0.05; body.mesh = cm
-	body.material_override = m.call(Color("#b8203a"), 0.5, 0.0); body.rotation.x = PI/2; body.scale = Vector3(1, 1, 1.3); root.add_child(body)
-	var guard := MeshInstance3D.new(); var gm := CylinderMesh.new(); gm.top_radius = 0.1; gm.bottom_radius = 0.1; gm.height = 0.052; guard.mesh = gm
-	guard.material_override = m.call(Color("#f5f2e8"), 0.4, 0.0); guard.rotation.x = PI/2; guard.position = Vector3(0.05, -0.04, 0.0); root.add_child(guard)
-	var neck := MeshInstance3D.new(); var nb := BoxMesh.new(); nb.size = Vector3(0.05, 0.62, 0.028); neck.mesh = nb
-	neck.material_override = m.call(Color("#6a4a2a"), 0.6, 0.0); neck.position = Vector3(0, 0.5, 0); root.add_child(neck)
-	var head := MeshInstance3D.new(); var hb := BoxMesh.new(); hb.size = Vector3(0.08, 0.16, 0.03); head.mesh = hb
-	head.material_override = m.call(Color("#111111"), 0.4); head.position = Vector3(0, 0.88, 0); root.add_child(head)
-	# slung: the neck (+Y) up and to her left, the face (+Z) out from her
-	var up := Vector3(0.82, 0.57, 0.0).normalized(); var fwd := Vector3(0, 0, 1); var side := up.cross(fwd).normalized()
-	root.transform = Transform3D(Basis(side, up, side.cross(up)), Vector3(-0.1, 0.98, 0.2))
+	var red: StandardMaterial3D = m.call(Color("#b8203a"), 0.35, 0.1)
+	var disc := func(r: float, at: Vector3, mat: Material, h := 0.045):
+		var d := MeshInstance3D.new(); var c := CylinderMesh.new(); c.top_radius = r; c.bottom_radius = r; c.height = h; c.radial_segments = 32; d.mesh = c
+		d.material_override = mat; d.rotation.x = PI/2; d.position = at; root.add_child(d); return d
+	disc.call(0.17, Vector3(0, -0.04, 0), red)                                 # the lower bout
+	disc.call(0.13, Vector3(0, 0.17, 0), red)                                  # the upper bout
+	disc.call(0.09, Vector3(0, 0.07, 0), red)                                  # the waist between them
+	disc.call(0.075, Vector3(0.035, -0.07, 0.003), m.call(Color("#f5f2e8"), 0.4, 0.0), 0.046)   # the pickguard
+	var bridge := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.11, 0.025, 0.012); bridge.mesh = bm
+	bridge.material_override = m.call(Color(0.75, 0.75, 0.78), 0.2, 0.9); bridge.position = Vector3(0, -0.1, 0.028); root.add_child(bridge)
+	for i in 2:
+		var pu := MeshInstance3D.new(); var pm := BoxMesh.new(); pm.size = Vector3(0.085, 0.03, 0.01); pu.mesh = pm
+		pu.material_override = m.call(Color(0.08, 0.08, 0.09), 0.4, 0.3); pu.position = Vector3(0, 0.0 + i*0.07, 0.027); root.add_child(pu)
+	var neck := MeshInstance3D.new(); var nb := BoxMesh.new(); nb.size = Vector3(0.045, 0.56, 0.022); neck.mesh = nb
+	neck.material_override = m.call(Color("#6a4a2a"), 0.6, 0.0); neck.position = Vector3(0, 0.55, 0); root.add_child(neck)
+	var head := MeshInstance3D.new(); var hb := BoxMesh.new(); hb.size = Vector3(0.07, 0.15, 0.022); head.mesh = hb
+	head.material_override = m.call(Color("#111111"), 0.4); head.position = Vector3(0, 0.9, 0); root.add_child(head)
 	return root
+## THE GUITAR IN HER HANDS: its body against her, under her strumming hand; its neck running to her fretting hand
+## (which sits two thirds of the way up it); its face out from her body
+static func place_axe(axe: Node3D, sk: Skeleton3D, model: Node3D) -> void:
+	var b := func(n: String) -> Vector3: return sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorig" + n)).origin
+	var r: Vector3 = b.call("RightHand"); var l: Vector3 = b.call("LeftHand"); var chest: Vector3 = b.call("Spine1")
+	var fwd: Vector3 = model.global_basis.z.normalized()
+	var c: Vector3 = r - (l - r).normalized()*0.04 + Vector3(0, -0.03, 0)    # its pickups under the strumming hand
+	# against her: no further out from her body than her belly
+	var out_now := (c - chest).dot(fwd); c += fwd*(0.13 - out_now)
+	var up := (l - c).normalized()
+	var z := (fwd - up*fwd.dot(up)).normalized(); var x := up.cross(z).normalized()
+	axe.global_transform = Transform3D(Basis(x, up, z), c)
 ## where her hands go on it (world): the left on the neck, the right over the strings, strumming
 ## THE GUITAR IN HER HANDS (with the Mixamo playing clips): its body at her strumming hand, its neck out to her
 ## fretting hand, its face to the front of her — refitted every frame as the clip moves her arms
 func fit_axe() -> void:
 	if axe == null or not axe.visible or not g.anim.has_animation("guitar_a") or not g.clip.begins_with("guitar"): return
-	var sk: Skeleton3D = g._find(g.model, func(x): return x is Skeleton3D)
-	var r := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigRightHand")).origin
-	var l := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigLeftHand")).origin
-	var fwd: Vector3 = g.model.global_basis.z.normalized()
-	var up := (l - r).normalized()
-	var z := (fwd - up*fwd.dot(up)).normalized(); var x := up.cross(z).normalized()
-	axe.global_transform = Transform3D(Basis(x, up, z), r - up*0.06 - fwd*0.06)
+	place_axe(axe, g._find(g.model, func(x): return x is Skeleton3D), g.model)
 func neck_at() -> Vector3: return axe.global_transform*Vector3(0, 0.55, 0.03)
 func strum_at() -> Vector3: return axe.global_transform*Vector3(0.02, 0.02 - strum*0.09, 0.07)
 

@@ -212,9 +212,9 @@ func play(done: Callable) -> void:
 			"tick": func(dt, t, k): brace.call(clampf(t/3.3, 0, 1)); _flicker(t); _juno_aim(dt, t, J, W),
 			"beats": [[3.9, func(): g.cue("blast"); g.cam_kick = 1.6; g.station.flash(0.7, Color(1, 0.7, 0.5))]]},
 		# SHOT 06 · the window explodes: wide from across the street, in slow motion; the impact, then the glass
-		{"dur": 4.0, "fov": 40, "ease": false, "cam": [Vector3(W.x - 2.0, 1.5, 6.0), Vector3(W.x - 1.4, 1.6, 4.6)], "look": func(k, t): return W.lerp(_one_shard(), clampf((k - 0.55)/0.45, 0, 1)),
+		{"dur": 2.6, "fov": 40, "ease": false, "cam": [Vector3(W.x - 2.0, 1.5, 6.0), Vector3(W.x - 1.4, 1.6, 4.6)], "look": func(k, t): return W.lerp(_one_shard(), clampf((k - 0.55)/0.45, 0, 1)),
 			"enter": func(): pane.visible = false; _shatter(); g.get_tree().create_timer(0.18).timeout.connect(func(): g.cue("clang")); _clip(juno, "talk2"),
-			"tick": func(dt, t, k): _shards_tick(dt*(0.12 if t < 3.0 else 0.5)); keep_brace.call(dt, t, k)},
+			"tick": func(dt, t, k): _shards_tick(dt*(0.12 if t < 1.9 else 0.5)); keep_brace.call(dt, t, k)},
 		# SHOT 07 · the girl, through the shelter glass; the line; red across her face, from a van behind her
 		{"dur": maxf(4.4, vlen.call("vo4") + 1.2), "fov": 30, "dof": 3.0, "cam": Vector3(AVE + 5.6, 1.0, 6.6), "look": Vector3(AVE + 5.2, 0.7, 8.7),
 			"enter": func(): g.talk("vo4"); _red(0.0),

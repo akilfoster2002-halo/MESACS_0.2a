@@ -30,7 +30,8 @@ func play(ring_box: Node3D) -> void:
 	var city_glow := _light(Color(0.55, 0.75, 0.9), win + Vector3(1.0, -0.2, 0), 0.9, 4.0)          # the city through the window, the lamp off
 	var arm_light := _light(Color(0.3, 0.9, 1.0), Vector3.ZERO, 0.0, 1.4)
 	var coil := _light(Color(0.3, 0.7, 1.0), Vector3.ZERO, 0.0, 1.2)
-	var jump := {"p0": SILL, "v": Vector3(-6.5, 3.2, 1.2)}
+	# out over Kiln Street, low; the shoes kick her up and across onto B25's roof (x 34–56, 12 m) — the nearest landing
+	var jump := {"p0": SILL, "v": Vector3(-1.0, 4.5, -0.4)}
 	var shots := [
 		# SHOT 22 · the jacket, from behind the form: her hand out of the dark; it lifts; black across the lens; on;
 		# the lines in its sleeves waking from her wrists to her shoulders
@@ -85,7 +86,7 @@ func play(ring_box: Node3D) -> void:
 		{"dur": 2.6, "fov": 70, "inside": false, "cam": SILL + Vector3(0.1, 1.2, 0), "look": [SILL + Vector3(-6, -3, 0), SILL + Vector3(-3.5, -9, 0)],
 			"enter": func(): g.set_caption("EXT. KILN STREET — 22:17"); g.stage("kneel", SILL.x, SILL.y, SILL.z, -PI/2)},
 		{"dur": 2.0, "fov": 36, "cam": SILL + Vector3(-0.3, 0.9, 2.2), "look": SILL + Vector3(0, 0.7, 0)},
-		{"dur": g.lines_len("open") + 0.8, "fov": 28, "mood": "grin", "cam": g.rel(SILL.x, SILL.z, -PI/2, 0.9, 0.2, SILL.y + 1.0), "look": SILL + Vector3(0, 0.95, 0),
+		{"dur": g.lines_len("open") + 0.8, "fov": 28, "mood": "grin", "cam": g.rel(SILL.x, SILL.z, -PI/2, 0.75, -0.5, SILL.y + 1.2), "look": SILL + Vector3(0, 1.08, 0),
 			"beats": [[0.3, func(): g.talk("open")]]},
 		# SHOT 31 · the jump. 1: outside, side on: she pushes off, horizontal against the city for a moment
 		{"dur": 0.7, "fov": 48, "cam": SILL + Vector3(-1.2, -1.0, 4.0), "look": func(k, t): return g.robin.position + Vector3(0, 0.6, 0),
@@ -96,16 +97,16 @@ func play(ring_box: Node3D) -> void:
 		# 3: the shoe, from beneath, turning: the coils compress, glow; THUMP — not a stop, a redirection
 		{"dur": 0.8, "fov": 40, "cam": func(k, t): return _bone("RightFoot") + Vector3(cos(k*2.0)*0.5, -0.35, sin(k*2.0)*0.5), "look": func(k, t): return _bone("RightFoot"),
 			"tick": func(dt, t, k): _fly(jump, 1.6 + t*0.3, "fly"); coil.global_position = _bone("RightFoot"); coil.light_energy = 6.0*minf(1, t/0.3),
-			"beats": [[0.3, func(): g.cue("blast"); g.cam_kick = 1.4; jump.v = Vector3(-9.0, 9.0, 2.5); jump.p0 = g.robin.position; jump.t0 = 1.6 + 0.3*0.3]]},
+			"beats": [[0.3, func(): g.cue("blast"); g.cam_kick = 1.4; jump.v = Vector3(-4.0, 14.0, -1.5); jump.p0 = g.robin.position; jump.t0 = 1.6 + 0.3*0.3]]},
 		# 4: wide: she arcs away from the building, the camera rolling with her until the city is sideways; flying —
 		# then gravity
-		{"dur": 1.6, "fov": 58, "cam": func(k, t): return g.robin.position + Vector3(3.0, 2.0, 5.0), "look": func(k, t): return g.robin.position,
+		{"dur": 1.0, "fov": 58, "cam": func(k, t): return g.robin.position + Vector3(3.0, 2.0, 5.0), "look": func(k, t): return g.robin.position,
 			"enter": func(): g.dutch = 0.0, "tick": func(dt, t, k): _fly(jump, jump.get("t0", 1.7) + t, "fly"); g.dutch = sin(k*PI)*0.55; coil.light_energy = 0.0},
 		# 5: behind her, just above her shoulder; steadier; the roofs ahead; only the wind and the shoes' pulse
-		{"dur": 1.0, "fov": 72, "cam": func(k, t): return g.robin.position + Vector3(4.0, 2.0, 0.0), "look": func(k, t): return g.robin.position + Vector3(-8, -1, 0),
-			"enter": func(): g.dutch = 0.0, "tick": func(dt, t, k): _fly(jump, jump.get("t0", 1.7) + 1.6 + t, "fly")},
+		{"dur": 0.5, "fov": 72, "cam": func(k, t): return g.robin.position + Vector3(4.0, 2.0, 0.0), "look": func(k, t): return g.robin.position + Vector3(-8, -1, 0),
+			"enter": func(): g.dutch = 0.0, "tick": func(dt, t, k): _fly(jump, jump.get("t0", 1.7) + 1.0 + t, "fly")},
 	]
-	g.play_reel(shots, func(_s): clear(); g.dutch = 0.0; g.letterbox(false); g.take_over(g.robin.position, _vel(jump, jump.get("t0", 1.7) + 2.6), -PI/2))
+	g.play_reel(shots, func(_s): clear(); g.dutch = 0.0; g.letterbox(false); g.take_over(g.robin.position, _vel(jump, jump.get("t0", 1.7) + 1.5), -PI/2))
 
 func _pocket(rb) -> void:
 	if is_instance_valid(rb): rb.visible = false
