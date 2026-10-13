@@ -106,9 +106,10 @@ func film(done: Callable) -> void:
 	var prelude := [
 		# ROOM · 21:58 — the fairy lights, close and soft, along the top of the wall under the ivy; the focus drifts down it
 		{"dur": 2.6, "fov": 34, "dof": 0.5, "inside": true, "cam": [Vector3(295.2, 2.5, 3.35), Vector3(295.5, 2.45, 3.3)], "look": [Vector3(296.6, 2.72, 3.95), Vector3(299.0, 2.72, 3.95)],
-			"enter": func(): g.black(false); g.set_caption("INT. ROBIN'S ROOM — 21:58"); g.stage("idle", run0.x, 0, run0.y, ry)},
+			"enter": func(): g.black(false); intro._title(true, "THE OTHER ROBIN"); g.stage("idle", run0.x, 0, run0.y, ry)},
 		# · her wall, a slow track along it: the band posters, the moon, vinyl, good things take time, the polaroids
-		{"dur": 3.2, "fov": 42, "ease": false, "cam": [Vector3(301.7, 1.85, 2.55), Vector3(299.4, 1.85, 2.55)], "look": [Vector3(301.9, 1.95, 4.0), Vector3(299.6, 1.95, 4.0)]},
+		{"dur": 3.2, "fov": 42, "ease": false, "cam": [Vector3(301.7, 1.85, 2.55), Vector3(299.4, 1.85, 2.55)], "look": [Vector3(301.9, 1.95, 4.0), Vector3(299.6, 1.95, 4.0)],
+			"beats": [[1.4, func(): intro._title(false); g.set_caption("INT. ROBIN'S ROOM — 21:58")]]},
 		# · the nightstand: the candle flickering, the tulips, her instant camera; a slow push
 		{"dur": 2.4, "fov": 34, "dof": 0.6, "cam": [N + Vector3(-0.5, 0.34, -0.72), N + Vector3(-0.42, 0.3, -0.62)], "look": N + Vector3(-0.04, 0.1, 0.0)},
 		# · her school ID, hung off the lamp: HARBOR HIGH · ROBIN RYU · GRADE 11

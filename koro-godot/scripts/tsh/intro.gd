@@ -22,7 +22,7 @@ func _ready() -> void:
 	game = GuitarGame.new(g); g.hud.add_child(game)
 
 func start() -> void:
-	g.talk_q.clear(); g.kit_all(false); g.shades(false)
+	g.talk_q.clear(); g.kit_all(false); g.shades(false); g.music.stop(); game.band.stop()
 	g.letterbox(true)
 	# for review (-- new room): straight to her room, the song played by itself
 	if OS.get_cmdline_user_args().has("auto"): auto = true          # for recording: the song plays itself
@@ -110,13 +110,14 @@ func city() -> void:
 
 ## the title over the first shot
 var title_l: Label; var title_tw: Tween
-func _title(v: bool) -> void:
+func _title(v: bool, text := "NEW YORK CITY\n2044") -> void:
 	if title_l == null:
 		title_l = Label.new(); title_l.set_anchors_preset(Control.PRESET_FULL_RECT); title_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; title_l.add_theme_font_size_override("font_size", 54)
 		title_l.add_theme_constant_override("outline_size", 10); title_l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-		title_l.mouse_filter = Control.MOUSE_FILTER_IGNORE; title_l.text = "NEW YORK CITY\n2044"; g.hud.add_child(title_l)
+		title_l.mouse_filter = Control.MOUSE_FILTER_IGNORE; g.hud.add_child(title_l)
 	if title_tw: title_tw.kill()
+	if v: title_l.text = text; title_l.add_theme_font_size_override("font_size", 54 if "\n" in text else 84)
 	title_tw = g.create_tween(); title_l.modulate.a = 0.0 if v else title_l.modulate.a
 	title_tw.tween_property(title_l, "modulate:a", 1.0 if v else 0.0, 0.8 if v else 0.6)
 func _city_done(cops: Array) -> void:

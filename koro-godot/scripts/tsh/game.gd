@@ -678,6 +678,7 @@ func cue(kind: String) -> void:
 func score(track: String, vol := -8.0) -> void:
 	var f := "res://assets/tsh/music/%s.mp3" % track
 	if not ResourceLoader.exists(f): return
+	if intro and intro.game: intro.game.band.stop()            # one song at a time
 	music.stream = load(f); music.volume_db = vol; music.play()
 
 # ================================================================== the words

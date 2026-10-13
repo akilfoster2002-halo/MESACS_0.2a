@@ -35,6 +35,7 @@ func _init(game) -> void:
 
 ## the song from the top (the montage plays over its intro)
 func song() -> void:
+	g.music.stop()                                              # one song at a time
 	band.play(0.0); _clk = 0.0; now = 0.0
 ## the game: from here the notes come down; done(result) when the song is over
 func start(done: Callable, strum := Callable()) -> void:
