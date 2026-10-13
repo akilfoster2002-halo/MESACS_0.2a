@@ -172,7 +172,7 @@ func _hold(v: bool) -> void:
 	if v and pose == null:
 		var sk: Skeleton3D = g._find(g.model, func(x): return x is Skeleton3D)
 		pose = GuitarPose.new(); pose.intro = self; sk.add_child(pose)
-	if pose: pose.active = v and not g.anim.has_animation("guitar_a")        # her own playing clips, when she has them
+	if pose: pose.active = v                       # with her playing clips: only her strumming hand, out onto the strings
 
 ## a guitar like hers: red, the pickguard cream, a dark neck — slung across her: its body at her right hip, its neck up
 ## to her left (her model faces +Z; her left is +X)
@@ -227,6 +227,10 @@ func _axe_from_room() -> Node3D:
 	if nb > 0: body_c /= nb; o += w*(body_c - o).dot(w)
 	var frame := Transform3D(Basis(w, up, face), o)
 	var root := Node3D.new(); root.name = "axe"
+	var front := 0.0; var back := 0.0                                   # how far its face and its back stand from its middle
+	for p in pts:
+		if (p - c).dot(up) < t0 + L*0.45: front = maxf(front, (p - o).dot(face)); back = maxf(back, -(p - o).dot(face))
+	root.set_meta("front", clampf(front, 0.01, 0.08)); root.set_meta("back", clampf(back, 0.01, 0.08))
 	var inv := frame.affine_inverse()
 	for mi in room_guitar:
 		var copy := MeshInstance3D.new(); copy.mesh = mi.mesh
@@ -268,6 +272,14 @@ static func place_axe(axe: Node3D, sk: Skeleton3D, model: Node3D) -> void:
 	var out_now := (c - chest).dot(fwd); c += fwd*(0.13 - out_now)
 	var up := (l - c).normalized()
 	var z := (fwd - up*fwd.dot(up)).normalized(); var x := up.cross(z).normalized()
+	# off her body: its back a hand's breadth clear of the front of her torso (her spine and hips, plus the body
+	# round them)
+	var torso := -INF
+	for bn in ["Hips", "Spine", "Spine1", "Spine2"]: torso = maxf(torso, (b.call(bn) as Vector3).dot(z))
+	torso += 0.14
+	var front: float = axe.get_meta("front", 0.025); var back: float = axe.get_meta("back", 0.025)
+	c += z*(torso + back + 0.04 - c.dot(z))                              # (her hand is brought out to it: GuitarPose)
+	up = (l - c).normalized(); z = (fwd - up*fwd.dot(up)).normalized(); x = up.cross(z).normalized()
 	axe.global_transform = Transform3D(Basis(x, up, z), c)
 ## where her hands go on it (world): the left on the neck, the right over the strings, strumming
 ## THE GUITAR IN HER HANDS (with the Mixamo playing clips): its body at her strumming hand, its neck out to her
@@ -459,11 +471,23 @@ func calls() -> void:
 class GuitarPose extends SkeletonModifier3D:
 	var intro
 	func _process_modification() -> void:
-		if not active or intro == null or intro.axe == null: return
+		if not active or intro == null or intro.axe == null or not intro.axe.visible: return
 		var s := get_skeleton(); var inv := s.global_transform.affine_inverse()
+		if intro.g.anim.has_animation("guitar_a"): _onto_strings(s, inv); return
 		var mb: Basis = intro.g.model.global_basis
 		_arm(s, "Left", inv*intro.neck_at(), inv.basis*(mb*Vector3(0.6, -1.0, -0.4)))
 		_arm(s, "Right", inv*intro.strum_at(), inv.basis*(mb*Vector3(-0.7, -1.0, -0.2)))
+	## her playing clip's strumming hand, where it would be inside the guitar's body: out to just over its face
+	func _onto_strings(s: Skeleton3D, inv: Transform3D) -> void:
+		var axe: Node3D = intro.axe; var z := axe.global_basis.z.normalized()
+		var ia := s.find_bone("mixamorigRightArm"); var ic := s.find_bone("mixamorigRightHand"); var ib := s.find_bone("mixamorigRightForeArm")
+		if ia < 0 or ib < 0 or ic < 0: return
+		var r := s.global_transform*s.get_bone_global_pose(ic).origin
+		var plane := (axe.global_position + z*(float(axe.get_meta("front", 0.025)) + 0.035)).dot(z)
+		var d := plane - r.dot(z)
+		if d <= 0: return
+		var A := s.get_bone_global_pose(ia).origin; var B := s.get_bone_global_pose(ib).origin; var C := s.get_bone_global_pose(ic).origin
+		_arm(s, "Right", inv*(r + z*d), B - (A + C)*0.5)
 	func _arm(s: Skeleton3D, side: String, t: Vector3, pole: Vector3) -> void:
 		var ia := s.find_bone("mixamorig%sArm" % side); var ib := s.find_bone("mixamorig%sForeArm" % side); var ic := s.find_bone("mixamorig%sHand" % side)
 		if ia < 0 or ib < 0 or ic < 0: return
