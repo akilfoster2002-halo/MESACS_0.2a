@@ -25,7 +25,7 @@ func _init() -> void:
 			if sk.find_bone(bone) >= 0: a.track_set_path(t, NodePath(skp + ":" + bone))
 			else: a.remove_track(t)
 		ap.get_animation_library("").add_animation(nm, a)
-	var ph := Phone.make(sk); ph.hold("ear")
+	var ph := PhoneProp.make(sk); ph.hold("ear")
 	ap.play("phone_talk"); ap.seek(10.0, true)
 	var cam := Camera3D.new(); root.add_child(cam); cam.current = true; cam.fov = 22
 	for i in 3: await process_frame

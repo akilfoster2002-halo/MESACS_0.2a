@@ -87,10 +87,11 @@ var station: Station
 var raid: Raid
 var ringing_on := false; var ring_t := 0.0
 var grip: Grip
-var phone_prop: Phone
+var phone_prop: PhoneProp
 var shoe_glow: Array = []; var _shoes: Node3D = null
 var face: Face; var reel_look = null; var cam_kick := 0.0
 var intro: Intro
+var bedroom: Bedroom
 var bed := {}                       # the rain and the city under it: {rain, rain_in, hum, hum_day} players
 var end_label: RichTextLabel
 ## the buyer and his crew, where they wait (tsh.js CREW), and where the four who step out end up (RINGED)
@@ -214,6 +215,8 @@ func _world() -> void:
 	for h in _json("res://assets/tsh/apt_parts.json").hidden:
 		var n := apt.find_child(h, true, false) as Node3D
 		if n: n.visible = false
+	# her corner of it, dressed: the wall behind the bed, the fairy lights, the bedding, the nightstand, her cat
+	bedroom = Bedroom.new(); bedroom.build(apt, room.room)
 	school = _scene("res://assets/tsh/school.glb")
 	sub = _scene("res://assets/tsh/sub.glb")
 	# the lamp by her bed (the browser's aptLights)
@@ -331,7 +334,8 @@ func _look() -> void:
 		match w:
 			"apt":
 				env.background_color = Color(0.008, 0.016, 0.016) if not d else Color("#c9dde0"); env.fog_density = 0.002
-				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE if not d else 0.32
+				# by night the teal is turned down: her fairy lights and her lamp warm her corner of it
+				env.ambient_light_color = night_look.amb if not d else Color("#e4ecf2"); env.ambient_light_energy = night_look.ambE*0.7 if not d else 0.32
 				if d: env.ambient_light_color = Color("#bcd4d0"); env.tonemap_exposure = 0.8
 			"school":
 				env.background_color = Color("#e6ece8"); env.fog_density = 0.002; env.fog_light_color = Color("#e6ece8")
@@ -390,7 +394,7 @@ func _robin() -> void:
 		if nm in ["jump", "flip", "roll", "climb_top", "wake", "kneel", "text"]: continue
 		anim.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	_fight_clips()
-	phone_prop = Phone.make(_find(model, func(x): return x is Skeleton3D))
+	phone_prop = PhoneProp.make(_find(model, func(x): return x is Skeleton3D))
 	# THE SHOES' GLOW (boots.js bootGlow): a small soft light at each foot, added in, not painted on — the export had
 	# lost its additive blending and left two white shells round her feet, on all the time
 	var st: Array = [model]
