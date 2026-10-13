@@ -1,6 +1,6 @@
 ## HER PHONE: the iPhone (animations/props → assets/tsh/props/iphone.glb) in her right hand, held as a phone is —
 ## screen to her palm, its top past her fingers — whenever a scene puts it there
-class_name Phone
+class_name PhoneProp
 extends BoneAttachment3D
 
 ## where it sits in her hand, in the hand bone's frame (its units: the model is scaled 1/90): the bone's +Y runs from
@@ -10,8 +10,8 @@ const AT := Vector3(-1.5, 1.2, 0.3)
 const SIZE := 0.88                     # a Pro Max is a big phone for her hand
 const AXES := [Vector3(0, 0, 1), Vector3(0, 1, 0), Vector3(-1, 0, 0)]
 
-static func make(sk: Skeleton3D) -> Phone:
-	var p := Phone.new(); p.bone_name = "mixamorigRightHand"; sk.add_child(p)
+static func make(sk: Skeleton3D) -> PhoneProp:
+	var p := PhoneProp.new(); p.bone_name = "mixamorigRightHand"; sk.add_child(p)
 	var m: Node3D = (load("res://assets/tsh/props/iphone.glb") as PackedScene).instantiate()
 	var k := (1.0/sk.global_transform.basis.get_scale().x if sk.is_inside_tree() else 1.0/0.011212)*SIZE
 	m.transform = Transform3D(Basis(AXES[0], AXES[1], AXES[2]).scaled(Vector3.ONE*k), AT); p.add_child(m)
