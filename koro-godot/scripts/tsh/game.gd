@@ -76,7 +76,7 @@ var shots_day := false
 var shots_open := false; var shots_intro := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
-var goal_mark: Control; var radar: Radar; var mute_btn: Button
+var goal_mark: Control; var radar: Radar; var mute_btn: Button; var health: HealthBar
 var fight: Fight
 var chase: Chase
 var today: TshDay
@@ -272,6 +272,7 @@ func _goal_tick() -> void:
 	var mk: Variant = null if hide_all else goal_at()
 	var p := robin.position
 	radar.visible = not hide_all and place_now != "school" and mode != "guitar"
+	health.visible = (not hide_all or mode == "fight") and mode != "guitar" and reel == null
 	# the beacon: a column of light at the place, out in the city
 	marker.visible = mk != null and not inside
 	if marker.visible: marker.position = Vector3(mk[0], 30, mk[1])
@@ -595,6 +596,9 @@ func _hud() -> void:
 	# the radar, bottom left
 	radar = Radar.new(self); radar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	radar.offset_left = 18; radar.offset_top = -238; radar.offset_right = 238; radar.offset_bottom = -18; hud.add_child(radar)
+	# her health, just above it
+	health = HealthBar.new(self); health.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	health.offset_left = 18; health.offset_top = -284; health.offset_right = 278; health.offset_bottom = -244; hud.add_child(health)
 	# the sound: on or off (M), remembered
 	mute_btn = Button.new(); mute_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	mute_btn.offset_left = -64; mute_btn.offset_top = 14; mute_btn.offset_right = -16; mute_btn.offset_bottom = 54

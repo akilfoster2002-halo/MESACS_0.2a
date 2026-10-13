@@ -435,6 +435,7 @@ func _t_roofs(p: Vector3) -> void:
 	if on_roof(p, ["B8"]) and g.boots.ground and p.x < ROUTE.gate.x - 0.5 and p.y > r.h - 1: next(); return
 	if on_roof(p, ["B8"]) and p.x > ROUTE.gate.x + 1 and p.y > r.h - 1: st.i += 1; next()
 func _t_hide(dt: float, p: Vector3) -> void:
+	_cover_prompt()
 	if gate != null and not gate.closing and on_roof(p, ["B8"]) and p.x > ROUTE.gate.x - 10 and p.x < ROUTE.gate.x: gate.closing = true; g.cue("alarm")
 	if st.flags.has("copAt") and (cover != null or st.t > st.flags.copAt): st.flags.erase("copAt"); _ensure_cop()
 	if not st.flags.get("hideTip", false) and cover != null: st.flags.hideTip = true; g.talk("raidShh")
@@ -443,6 +444,7 @@ func _t_hide(dt: float, p: Vector3) -> void:
 	if st.flags.hiddenT > 6: next()
 func _t_call(dt: float, p: Vector3) -> void:
 	var f: Dictionary = st.flags; var cop = st.get("cop")
+	if f.get("answered", true): _cover_prompt()
 	if f.found: return
 	if not f.answered:
 		f.ringT += dt
@@ -599,8 +601,12 @@ func _stage_start(i: int) -> Vector3:
 func near_cover():
 	var p := P()
 	for c in covers:
-		if absf(p.y - c.y) < 1.2 and p.x > c.x1 - 1.6 and p.x < c.x2 + 1.6 and p.z > c.z1 - 1.6 and p.z < c.z2 + 1.6: return c
+		# beside it or up on it (the beacon is over its top), within a couple of metres
+		if p.y > c.y - 1.2 and p.y < c.top + 1.0 and p.x > c.x1 - 2.2 and p.x < c.x2 + 2.2 and p.z > c.z1 - 2.2 and p.z < c.z2 + 2.2: return c
 	return null
+## near something to get behind, and not behind it yet: say so
+func _cover_prompt() -> void:
+	if cover == null and act == null and g.mode == "" and near_cover() != null: g.set_caption("E — HIDE behind it")
 func enter_cover(c: Dictionary) -> void:
 	cover = {"c": c, "s": _perim_s(c, P().x, P().z)}
 	g.cue("step")
