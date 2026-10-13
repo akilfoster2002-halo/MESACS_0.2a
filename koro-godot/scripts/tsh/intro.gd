@@ -24,7 +24,9 @@ func _ready() -> void:
 func start() -> void:
 	g.talk_q.clear(); g.kit_all(false); g.shades(false)
 	g.letterbox(true)
-	city()
+	# SEQUENCE 1 (docs/script/the_other_robin_cold_open_1.1.md, shots 01–11)
+	var oc = OpeningCity.new(g); add_child(oc)
+	oc.play(func(): oc.queue_free(); g.black(true); g.talk_q.clear(); g.mode = "end"; g.get_tree().create_timer(0.35).timeout.connect(room))
 
 # ================================================================== A · NEW YORK CITY · 2044 (docs/INTRO_SHOT_LIST.md)
 func city() -> void:
