@@ -60,10 +60,10 @@ func play(ring_box: Node3D) -> void:
 			"beats": [[0.6, func(): _pocket(ring_box)], [1.3, func(): g.apt_pack(false); g.kit("pack", true); g.cue("zip")]]},
 		# SHOT 26 · dinner: wide, still, through the kitchen; the cover, the glass, untouched; the cooler light
 		{"dur": 3.0, "fov": 40, "mood": "sad", "cam": Vector3(K.x - 2.2, 1.5, K.z + 2.8), "look": Vector3(K.x, 0.9, K.z),
-			"enter": func(): _light(Color(0.75, 0.85, 1.0), K + Vector3(0, 1.2, 0), 1.2, 3.0),
+			"enter": func(): _light(Color(0.75, 0.85, 1.0), K + Vector3(0, 1.2, 0), 1.2, 3.0); g.score_level(-14.0, 2.0),
 			"tick": func(dt, t, k): _to_table(k, Vector2(PK.x + 0.3, PK.z - 1.0), at_table, face_table)},
 		# · the note
-		{"dur": 2.6, "fov": 24, "ease": false, "cam": Vector3(N.x - 0.05, N.y + 0.5, N.z + 0.28), "look": N, "enter": func(): g.cue("window")},
+		{"dur": 2.6, "fov": 24, "ease": false, "cam": Vector3(N.x - 0.05, N.y + 0.5, N.z + 0.28), "look": N, "enter": func(): g.score_level(-26.0, 2.5, true)},
 		# · her, reading: it stops on "Love"; hold a second longer than a reaction; she looks down the hall
 		{"dur": 3.6, "fov": 30, "mood": "sad", "cam": g.rel(at_table.x, at_table.y, face_table, 0.85, 0.15, 1.5), "look": Vector3(at_table.x, 1.4, at_table.y),
 			"enter": func(): g.stage("text", at_table.x, 0, at_table.y, face_table),
@@ -74,39 +74,13 @@ func play(ring_box: Node3D) -> void:
 			"enter": func(): g._note_home(); g.stage("idle", at_table.x, 0, at_table.y, atan2(D.x - at_table.x, D.z - at_table.y)),
 			"beats": [[2.4, func(): g.face.target = null], [3.0, func(): g.stage("walk", at_table.x - 0.6, 0, at_table.y + 0.6, -PI*0.6)]]},
 		{"dur": 1.6, "fov": 26, "dof": 0.5, "cam": N + Vector3(0.25, 0.35, 0.45), "look": N},
-		# SHOT 28 · at the window: open; the wind; the sunglasses out of her jacket; on, at night; a tilt of the head; a grin
-		{"dur": 3.4, "fov": 30, "mood": "grin", "cam": [Vector3(win.x - 0.4, 1.6, win.z), Vector3(win.x - 0.15, 1.6, win.z)], "look": Vector3(win.x + 0.75, 1.58, win.z),
-			"enter": func(): g.stage("idle", win.x + 0.75, 0, win.z, -PI/2); g.apt_window(true); g.cue("window"),
-			"beats": [[1.4, func(): g.shades(true); g.cue("ui")], [2.2, func(): g.face.feel("smug", 1.2)]]},
-		# SHOT 29 · the sill: from inside, the room dark, her silhouette in the city's light; testing her balance; a drone below
-		{"dur": 3.2, "fov": 44, "cam": [Vector3(win.x + 3.0, 1.3, win.z + 0.6), Vector3(win.x + 1.9, 1.35, win.z + 0.3)], "look": Vector3(win.x, 1.5, win.z),
-			"enter": func(): g.stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
-		# SHOT 30 · five storeys above Kiln Street: her view, down; then her profile on the sill; one hand off, the other;
-		# a close-up, the smile: "Let's go."
-		{"dur": 2.6, "fov": 70, "inside": false, "cam": SILL + Vector3(0.1, 1.2, 0), "look": [SILL + Vector3(-6, -3, 0), SILL + Vector3(-3.5, -9, 0)],
-			"enter": func(): g.set_caption("EXT. KILN STREET — 22:17"); g.stage("kneel", SILL.x, SILL.y, SILL.z, -PI/2)},
-		{"dur": 2.0, "fov": 36, "cam": SILL + Vector3(-0.3, 0.9, 2.2), "look": SILL + Vector3(0, 0.7, 0)},
-		{"dur": g.lines_len("open") + 0.8, "fov": 28, "mood": "grin", "cam": g.rel(SILL.x, SILL.z, -PI/2, 0.75, -0.5, SILL.y + 1.2), "look": SILL + Vector3(0, 1.08, 0),
-			"beats": [[0.3, func(): g.talk("open")]]},
-		# SHOT 31 · the jump. 1: outside, side on: she pushes off, horizontal against the city for a moment
-		{"dur": 0.7, "fov": 48, "cam": SILL + Vector3(-1.2, -1.0, 4.0), "look": func(k, t): return g.robin.position + Vector3(0, 0.6, 0),
-			"enter": func(): g.cue("kick"), "tick": func(dt, t, k): _fly(jump, t, "jump")},
-		# 2: behind her, falling: the facade rushing up; the jacket lines; the soles flicker; the wind
-		{"dur": 0.9, "fov": 62, "hand": 0.4, "cam": func(k, t): return g.robin.position + Vector3(2.0, 1.8, 0.3), "look": func(k, t): return g.robin.position + Vector3(-2, -1.5, 0),
-			"tick": func(dt, t, k): _fly(jump, 0.7 + t, "fly"); coil.global_position = g.robin.position; coil.light_energy = 1.5 if fmod(t*12, 1.0) > 0.5 else 0.3},
-		# 3: the shoe, from beneath, turning: the coils compress, glow; THUMP — not a stop, a redirection
-		{"dur": 0.8, "fov": 40, "cam": func(k, t): return _bone("RightFoot") + Vector3(cos(k*2.0)*0.5, -0.35, sin(k*2.0)*0.5), "look": func(k, t): return _bone("RightFoot"),
-			"tick": func(dt, t, k): _fly(jump, 1.6 + t*0.3, "fly"); coil.global_position = _bone("RightFoot"); coil.light_energy = 6.0*minf(1, t/0.3),
-			"beats": [[0.3, func(): g.cue("step"); g.cam_kick = 0.6; jump.v = Vector3(-4.0, 14.0, -1.5); jump.p0 = g.robin.position; jump.t0 = 1.6 + 0.3*0.3]]},
-		# 4: wide: she arcs away from the building, the camera rolling with her until the city is sideways; flying —
-		# then gravity
-		{"dur": 1.0, "fov": 58, "cam": func(k, t): return g.robin.position + Vector3(3.0, 2.0, 5.0), "look": func(k, t): return g.robin.position,
-			"enter": func(): g.dutch = 0.0, "tick": func(dt, t, k): _fly(jump, jump.get("t0", 1.7) + t, "fly"); g.dutch = sin(k*PI)*0.55; coil.light_energy = 0.0},
-		# 5: behind her, just above her shoulder; steadier; the roofs ahead; only the wind and the shoes' pulse
-		{"dur": 0.5, "fov": 72, "cam": func(k, t): return g.robin.position + Vector3(4.0, 2.0, 0.0), "look": func(k, t): return g.robin.position + Vector3(-8, -1, 0),
-			"enter": func(): g.dutch = 0.0, "tick": func(dt, t, k): _fly(jump, jump.get("t0", 1.7) + 1.0 + t, "fly")},
 	]
-	g.play_reel(shots, func(_s): clear(); g.dutch = 0.0; g.letterbox(false); g.take_over(g.robin.position, _vel(jump, jump.get("t0", 1.7) + 1.5), -PI/2))
+	# SHOTS 28–31 as the browser has them: the window, the sill, the look down, the smile, the jump — then the fall,
+	# slow, the beat held, until SPACE fires the shoes (game.gd window_shots / fall_start)
+	shots.append_array(g.window_shots())
+	# THE SCORE (game.gd SONG): the full beat as she gets ready; down at dinner; almost nothing at the note
+	g.song_at("a", 23.5, -7.0)
+	g.play_reel(shots, func(_s): clear(); g.dutch = 0.0; g.fall_start())
 
 func _pocket(rb) -> void:
 	if is_instance_valid(rb): rb.visible = false

@@ -683,7 +683,51 @@ func score(track: String, vol := -8.0) -> void:
 	var f := "res://assets/tsh/music/%s.mp3" % track
 	if not ResourceLoader.exists(f): return
 	if intro and intro.game: intro.game.band.stop()            # one song at a time
+	_score_bus(); if score_tw: score_tw.kill()
+	_score_lp.cutoff_hz = 18000.0; score_holding = false
 	music.stream = load(f); music.volume_db = vol; music.play()
+
+## THE SCORE, as the browser lays it (tsh.js SONG): WEB OF SILENCE, cut to the film — wos-a is the song from 0:06.5,
+## wos-b from 2:25; every time here is the SONG's. The full beat as she gets ready; down to almost nothing at her
+## mother's note; 2:25 the breakdown from near silence as the window goes up — building through the sill, the look
+## down, the jump; 2:33.5 the last beat before the drop, HELD while she falls, slow, until SPACE; 2:34.4 the drop, on
+## the shoes; and the rest of the song is the first roofs
+const SONG := {"a": 6.5, "b": 145.0, "hold": [153.50, 154.45], "drop": 154.40}
+var score_holding := false; var score_tw: Tween; var _score_lp: AudioEffectLowPassFilter
+func _score_bus() -> void:
+	if AudioServer.get_bus_index("Score") >= 0:
+		music.bus = "Score"; return
+	AudioServer.add_bus(); var i := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(i, "Score"); AudioServer.set_bus_send(i, "Master")
+	_score_lp = AudioEffectLowPassFilter.new(); _score_lp.cutoff_hz = 18000.0; AudioServer.add_bus_effect(i, _score_lp)
+	music.bus = "Score"
+## the song's file k from song time t
+func song_at(k: String, t: float, vol := -6.0) -> void:
+	score(("wos-" + k), vol)
+	music.seek(maxf(0.0, t - float(SONG[k])))
+## the level (dB) and the muffle, over secs
+func score_level(db: float, secs: float, muffled := false) -> void:
+	_score_bus(); if score_tw: score_tw.kill()
+	score_tw = create_tween(); score_tw.tween_property(music, "volume_db", db, secs)
+	score_tw.parallel().tween_property(_score_lp, "cutoff_hz", 650.0 if muffled else 18000.0, secs)
+## the window: the first half of the song out, the breakdown in — timed so it reaches the held beat as she jumps
+func score_break(left: float) -> void:
+	song_at("b", maxf(float(SONG.b), float(SONG.hold[0]) - left), -3.0); score_holding = true
+## falling: the held beat, round and round, the filter opening and the level rising while it waits for SPACE
+func score_falling() -> void:
+	if not (music.playing and music.stream and music.stream.resource_path.ends_with("wos-b.mp3")): song_at("b", float(SONG.hold[0]), -10.0)
+	score_holding = true
+	if score_tw: score_tw.kill()
+	_score_lp.cutoff_hz = 900.0
+	score_tw = create_tween(); score_tw.tween_property(_score_lp, "cutoff_hz", 9000.0, 5.0)
+	score_tw.parallel().tween_property(music, "volume_db", -1.0, 5.0)
+## BOOM: the drop, now — and the rest of the song for the first roofs
+func score_drop() -> void:
+	song_at("b", float(SONG.drop), -1.5)
+	score_tw = create_tween(); score_tw.tween_interval(6.0); score_tw.tween_property(music, "volume_db", -5.0, 6.0)
+func _score_tick() -> void:
+	if score_holding and music.playing and music.get_playback_position() >= float(SONG.hold[1]) - float(SONG.b):
+		music.seek(float(SONG.hold[0]) - float(SONG.b))
 
 # ================================================================== the words
 static func vkey(who: String, text: String) -> String:
@@ -861,7 +905,7 @@ func _tick_reel(dt: float) -> void:
 	if s.has("tick"): s.tick.call(dt, f.t, minf(1.0, f.t/s.dur))
 	if staged != null: robin.position = staged.pos; model.rotation.y = staged.ry
 	_reel_cam()
-	if OS.has_environment("TSH_REELLOG") and Engine.get_process_frames() % 15 == 0: print("REEL i=", f.i, " t=", snappedf(f.t, 0.01), " cam=", cam.global_position.snapped(Vector3.ONE*0.01), " fov=", snappedf(cam.fov, 0.1), " mode=", mode)
+	if OS.has_environment("TSH_REELLOG") and Engine.get_process_frames() % 15 == 0: print("REEL ms=", Time.get_ticks_msec(), " i=", f.i, " t=", snappedf(f.t, 0.01), " cam=", cam.global_position.snapped(Vector3.ONE*0.01), " fov=", snappedf(cam.fov, 0.1), " mode=", mode)
 	if f.t >= s.dur: _reel_next()
 func rel(x: float, z: float, ry: float, d: float, s_: float, y: float) -> Vector3:
 	return Vector3(x + sin(ry)*d - cos(ry)*s_, y, z + cos(ry)*d + sin(ry)*s_)
@@ -996,11 +1040,22 @@ func opening(after_call := false) -> void:
 		{"mood": "sad", "dur": 3.6, "fov": 40, "cam": rel(at_table.x, at_table.y, face_table, 0.85, 0.15, 1.5), "look": rel(at_table.x, at_table.y, face_table, 0.15, 0, 1.3),
 			"enter": func(): stage("text", at_table.x, 0, at_table.y, face_table), "tick": func(dt, t, k): _note_hold()},
 		{"mood": "resolve", "dur": 2.2, "fov": 32, "cam": Vector3(kitc.x + 0.6, 1.25, kitc.z + 0.55), "look": Vector3(notep.x, 0.8, notep.z), "enter": func(): _note_home(); stage("idle", at_table.x, 0, at_table.y, face_table)},
+	]
+	shots.append_array(window_shots())
+	if after_call: shots.pop_front()
+	play_reel(shots, func(_skipped): fall_start())
+
+## THE WINDOW, THE SILL, THE JUMP — as the browser films it (tsh.js opening(), its last five shots): the window
+## up and the city in; up onto the sill; outside, on the sill over Kiln Street, a look down; a smile; she jumps. Then
+## fall_start(): falling, slow, the beat held, until SPACE
+func window_shots() -> Array:
+	var win := _v(room.room.window.at)
+	return [
 		# THE WINDOW. The city comes in.
 		{"mood": "determined", "dur": 3.2, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
-			"enter": func(): score("wos-b", -8),
+			"enter": func(): score_break(11.6),
 			"tick": func(dt, t, k): _to_window(win, k),
-			"beats": [[1.7, func(): apt_window(true); cue("door")], [2.5, func(): shades(true); cue("ui")]]},
+			"beats": [[1.7, func(): apt_window(true); cue("window")], [2.5, func(): shades(true); cue("ui")]]},
 		{"mood": "focused", "dur": 2.4, "fov": 40, "cam": Vector3(win.x + 2.2, 0.6, win.z + 0.6), "look": Vector3(win.x + 0.2, 1.6, win.z), "enter": func(): stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
 		# OUTSIDE: on the sill, over Kiln Street
 		{"mood": "focused", "dur": 3.0, "fov": 42, "inside": false, "cam": [Vector3(55.3, 13.4, 30.8), Vector3(55.5, 13.1, 31.5)], "look": Vector3(SILL.x - 0.2, SILL.y + 0.5, SILL.z),
@@ -1009,8 +1064,6 @@ func opening(after_call := false) -> void:
 		{"mood": "grin", "dur": 0.8, "fov": 56, "cam": Vector3(56.8, 6.6, 37.6), "look": func(k, t): return robin.position + Vector3(0, 1, 0),
 			"enter": func(): cue("kick"), "tick": func(dt, t, k): stage("jump", SILL.x - k*1.6, SILL.y + sin(k*PI*0.6)*0.7, SILL.z, -PI/2)},
 	]
-	if after_call: shots.pop_front()
-	play_reel(shots, func(_skipped): fall_start())
 
 ## the jacket on the dress form: there until she takes it
 func _form_jacket(v: bool) -> void:
@@ -1069,10 +1122,12 @@ func take_over(p: Vector3, v: Vector3, yaw: float) -> void:
 ## off the sill, falling towards Kiln Street — slowly, until SPACE fires the shoes
 func fall_start() -> void:
 	black(false); phone_show(""); kit_all(true); show_inside(false)
-	if S.step == "wake": outcome("out")
+	if S.step in ["intro", "wake"]: S.step = "wake"; outcome("out")
 	S.lesson = 0
 	place(Vector3(SILL.x - 1.6, SILL.y + 0.55, SILL.z), 0.35)
 	boots.vx = -2; boots.vy = 1.2; boots.ground = false; boots.state = "air"; boots.air_t = 0.2
+	letterbox(false); robin.visible = true; model.rotation.x = 0
+	score_falling()
 	lesson_begin(true)
 
 # ------------------------------------------------------------------ the lesson
@@ -1126,7 +1181,7 @@ func _lesson_event(e: Dictionary) -> void:
 			lesson.lands += 1
 			if lesson.lands % 4 == 0: note("Watch the ring — the moment it goes gold, tap SPACE.")
 func fire_shoes() -> void:
-	boots.ignite(cam_yaw); cue("blast"); lesson_next()
+	boots.ignite(cam_yaw); score_drop(); station.flash(0.6, Color(1, 1, 1)); lesson_next()      # the song's drop is the boom
 
 # ------------------------------------------------------------------ Dragon Alley
 var bag: Node3D; var bag_on = null; var pack: Node3D
@@ -1363,6 +1418,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	_bed(dt)
+	_score_tick()
 	_tick_glow()
 	if ringing_on:
 		ring_t -= dt
