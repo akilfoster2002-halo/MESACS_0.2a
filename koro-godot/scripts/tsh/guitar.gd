@@ -125,9 +125,10 @@ func result() -> Dictionary:
 func _draw() -> void:
 	if not on: return
 	if shown <= 0.001 and not results: return
-	var vp := size; var cx := vp.x*0.5
+	# the highway on the right of the screen (her on the left of it); the meter and the score to its left
+	var vp := size; var w_near := minf(480.0, vp.x*0.36); var cx := vp.x - w_near*0.5 - maxf(40.0, vp.x*0.06)
 	var y_strike := vp.y - 120.0; var y_far := 150.0
-	var w_near := minf(560.0, vp.x*0.5); var a := shown
+	var a := shown
 	var persp := func(p: float) -> float: return 1.0/(1.0 + p*3.0)            # how big a thing is p of the way up the highway
 	var at := func(p: float, lane: float) -> Vector2:
 		var s: float = persp.call(p); var s1: float = persp.call(1.0)
@@ -171,9 +172,9 @@ func _draw() -> void:
 		draw_circle(q + Vector2(0, -4*s), 10*s + 1, Color(1, 1, 1, 0.55*a))
 	# the score, the streak, the multiplier, the rock meter
 	var f := ThemeDB.fallback_font
-	draw_string(f, Vector2(cx + w_near*0.5 + 40, y_strike - 60), "%d" % score, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, Color(1, 1, 1, a))
-	draw_string(f, Vector2(cx + w_near*0.5 + 40, y_strike - 24), "×%d   streak %d" % [mult(), streak], HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("#ffd23d")*Color(1, 1, 1, a))
-	var mx := cx - w_near*0.5 - 70; var mh := 220.0; var my := y_strike - mh
+	var mx := cx - w_near*0.5 - 50; var mh := 220.0; var my := y_strike - mh
+	draw_string(f, Vector2(mx - 230, y_strike - 60), "%d" % score, HORIZONTAL_ALIGNMENT_RIGHT, 210, 34, Color(1, 1, 1, a))
+	draw_string(f, Vector2(mx - 230, y_strike - 24), "×%d   streak %d" % [mult(), streak], HORIZONTAL_ALIGNMENT_RIGHT, 210, 20, Color("#ffd23d")*Color(1, 1, 1, a))
 	draw_rect(Rect2(mx, my, 18, mh), Color(0, 0, 0, 0.6*a))
 	var mc := Color("#e8384a").lerp(Color("#f5d23c"), clampf(meter*2, 0, 1)).lerp(Color("#3cd25a"), clampf(meter*2 - 1, 0, 1))
 	draw_rect(Rect2(mx, my + mh*(1 - meter), 18, mh*meter), mc*Color(1, 1, 1, a))
@@ -183,8 +184,8 @@ func _draw() -> void:
 		draw_string(f, Vector2(cx - 200, y_strike - 260), judge, HORIZONTAL_ALIGNMENT_CENTER, 400, 30, jc*Color(1, 1, 1, minf(1, judge_t*3)*a))
 	if results:
 		var r := result()
-		draw_rect(Rect2(cx - 260, vp.y*0.25, 520, 230), Color(0, 0, 0, 0.82))
-		draw_string(f, Vector2(cx - 260, vp.y*0.25 + 50), "ROBIN · LIVE FROM HER BEDROOM", HORIZONTAL_ALIGNMENT_CENTER, 520, 22, Color("#9fb4c0"))
-		draw_string(f, Vector2(cx - 260, vp.y*0.25 + 100), "★".repeat(r.stars) + "☆".repeat(5 - r.stars), HORIZONTAL_ALIGNMENT_CENTER, 520, 40, Color("#ffd23d"))
-		draw_string(f, Vector2(cx - 260, vp.y*0.25 + 150), "%d / %d notes  ·  %d%%" % [r.hits, r.total, roundi(r.pct*100)], HORIZONTAL_ALIGNMENT_CENTER, 520, 22, Color.WHITE)
-		draw_string(f, Vector2(cx - 260, vp.y*0.25 + 190), "best streak %d  ·  score %d" % [r.best, r.score], HORIZONTAL_ALIGNMENT_CENTER, 520, 20, Color(1, 1, 1, 0.8))
+		draw_rect(Rect2(vp.x*0.5 - 260, vp.y*0.25, 520, 230), Color(0, 0, 0, 0.82))
+		draw_string(f, Vector2(vp.x*0.5 - 260, vp.y*0.25 + 50), "ROBIN · LIVE FROM HER BEDROOM", HORIZONTAL_ALIGNMENT_CENTER, 520, 22, Color("#9fb4c0"))
+		draw_string(f, Vector2(vp.x*0.5 - 260, vp.y*0.25 + 100), "★".repeat(r.stars) + "☆".repeat(5 - r.stars), HORIZONTAL_ALIGNMENT_CENTER, 520, 40, Color("#ffd23d"))
+		draw_string(f, Vector2(vp.x*0.5 - 260, vp.y*0.25 + 150), "%d / %d notes  ·  %d%%" % [r.hits, r.total, roundi(r.pct*100)], HORIZONTAL_ALIGNMENT_CENTER, 520, 22, Color.WHITE)
+		draw_string(f, Vector2(vp.x*0.5 - 260, vp.y*0.25 + 190), "best streak %d  ·  score %d" % [r.best, r.score], HORIZONTAL_ALIGNMENT_CENTER, 520, 20, Color(1, 1, 1, 0.8))
