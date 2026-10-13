@@ -216,11 +216,11 @@ func after(done: Callable) -> void:
 			"enter": func(): cat.wake(0.5, lie + Vector3(0, 0.3, 0), true),
 			"beats": [[1.0, func(): g.cue("phone"); cat.wake(1.0, phone_bed.position)]]},
 		# SHOT 18 · the phone on the bedspread, from above; her hand comes in; she answers without looking
-		{"dur": c1 + 0.8, "fov": 30, "cam": phone_bed.position + Vector3(0.3, 0.5, 0.25), "look": phone_bed.position,
+		{"dur": 1.4, "fov": 30, "cam": phone_bed.position + Vector3(0.3, 0.5, 0.25), "look": phone_bed.position,
 			"enter": func(): g.ringing(true); g.phone_show("call", "CANON"); cat.wake(0.0),
 			"beats": [[0.7, func(): g.ringing(false); g.cue("ui"); phone_bed.visible = false; g.phone_show("oncall", "CANON"); g.talk("canonA")]]},
 		# · loose medium close, sitting on the bed, the guitar across her lap
-		{"dur": c2 + 0.7, "fov": 36, "mood": "smug", "cam": g.rel(seat.x - 0.75, seat.z + 0.3, PI/2, 1.35, 0.3, 1.15), "look": func(k, t): return _bone("Head") + Vector3(0, -0.15, 0),
+		{"dur": c1 + c2, "fov": 36, "mood": "smug", "cam": g.rel(seat.x - 0.75, seat.z + 0.3, PI/2, 1.35, 0.3, 1.15), "look": func(k, t): return _bone("Head") + Vector3(0, -0.15, 0),
 			"enter": func(): g.stage("wake", seat.x - 0.75, seat.y, seat.z + 0.3, PI/2); g.phone_prop.hold("ear"); g.talk("canonB")},
 		# · up, and pacing: a loose handheld track, waist up, past the bench, the boxes, the form
 		{"dur": c3 + 0.6, "fov": 40, "hand": 0.35, "ease": false,
@@ -235,7 +235,7 @@ func after(done: Callable) -> void:
 			"enter": func(): g.stage("phone_talk", D.x + 0.3, 0, D.z + 1.1, PI*0.75); g.talk("canonE"); _warm(D),
 			"beats": [[c5 + 0.4, func(): g.cue("phone"); g.face.feel("skeptical", 1.4)]]},
 		# SHOT 20 · the phone, close: UNKNOWN NUMBER over Canon's name; its cold light on her thumb
-		{"dur": 1.6, "fov": 30, "dof": 0.5, "cam": func(k, t): return phone_hand.call() + Vector3(0.32, -0.05, -0.32), "look": func(k, t): return phone_hand.call().lerp(_bone("Head"), 0.35),
+		{"dur": 1.6, "fov": 32, "dof": 1.1, "cam": g.rel(D.x + 0.3, D.z + 1.1, PI*0.75, 1.05, 0.3, 1.45), "look": func(k, t): return _bone("Head") + Vector3(0, -0.12, 0),
 			"enter": func(): g.stage("phone_read", D.x + 0.3, 0, D.z + 1.1, PI*0.75); g.phone_show("call", "UNKNOWN")},
 		# · her eyes flick to the boxes; "Hold on. Let me call you back."
 		{"dur": c6 + 0.4, "fov": 26, "mood": "focused", "cam": g.rel(D.x + 0.3, D.z + 1.1, PI*0.75, 0.85, 0.12, 1.55), "look": Vector3(D.x + 0.3, 1.52, D.z + 1.1),
