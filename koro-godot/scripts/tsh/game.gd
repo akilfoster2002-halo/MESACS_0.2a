@@ -1186,7 +1186,7 @@ func fight_intro() -> void:
 		{"dur": lines_len("fightIn2") + 0.6, "fov": 32, "cam": rel(R0.x, R0.y, ry, -0.8, 0.4, 1.7), "look": head.call(B0.x, B0.y, 1.62),
 			"enter": func(): talk("fightIn2"); fight.play(buyer, "talk")},
 		{"dur": 4.4, "fov": 66, "cam": [Vector3(-40.4, 3.6, -16.4), Vector3(-40.4, 3.75, -17.4)], "look": Vector3(-41.2, 0.8, -26.2),
-			"enter": func(): cue("roar"); fight.play(buyer, "idle"),
+			"enter": func(): cue("step"); fight.play(buyer, "idle"),
 			"tick": func(dt, t, k): _come_out(k, t2, R0)},
 		{"dur": lines_len("fightIn3") + 0.6, "fov": 30, "cam": rel(R0.x, R0.y, ry, 0.95, -0.12, 1.6), "look": head.call(R0.x, R0.y),
 			"enter": func(): talk("fightIn3"); ring_face.call("fight")},
