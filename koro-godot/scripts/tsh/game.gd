@@ -132,6 +132,9 @@ func _ready() -> void:
 	_hud()
 	_audio()
 	face = Face.new(self); add_child(face)
+	var toes := ShoeToes.new(); toes.g = self
+	var sk0: Skeleton3D = _find(model, func(x): return x is Skeleton3D)
+	if sk0: sk0.add_child(toes)
 	chase = Chase.new(self); add_child(chase)
 	raid = Raid.new(self); add_child(raid)
 	today = TshDay.new(self); add_child(today)
@@ -905,7 +908,7 @@ func _tick_reel(dt: float) -> void:
 	if s.has("tick"): s.tick.call(dt, f.t, minf(1.0, f.t/s.dur))
 	if staged != null: robin.position = staged.pos; model.rotation.y = staged.ry
 	_reel_cam()
-	if OS.has_environment("TSH_REELLOG") and Engine.get_process_frames() % 15 == 0: print("REEL ms=", Time.get_ticks_msec(), " i=", f.i, " t=", snappedf(f.t, 0.01), " cam=", cam.global_position.snapped(Vector3.ONE*0.01), " fov=", snappedf(cam.fov, 0.1), " mode=", mode)
+	if OS.has_environment("TSH_REELLOG") and Engine.get_process_frames() % 15 == 0: print("REEL ms=", Time.get_ticks_msec(), " fr=", Engine.get_frames_drawn(), " i=", f.i, " t=", snappedf(f.t, 0.01), " cam=", cam.global_position.snapped(Vector3.ONE*0.01), " fov=", snappedf(cam.fov, 0.1), " mode=", mode)
 	if f.t >= s.dur: _reel_next()
 func rel(x: float, z: float, ry: float, d: float, s_: float, y: float) -> Vector3:
 	return Vector3(x + sin(ry)*d - cos(ry)*s_, y, z + cos(ry)*d + sin(ry)*s_)
@@ -1012,6 +1015,27 @@ func opening(after_call := false) -> void:
 		{"dur": 3.0, "fov": 34, "cam": [Vector3(shoe.x + 1.1, 0.42, shoe.z - 0.7), Vector3(shoe.x + 0.85, 0.32, shoe.z - 0.45)], "look": Vector3(shoe.x, 0.12, shoe.z)},
 		{"mood": "tired", "dur": 3.0, "fov": 44, "cam": [Vector3(bed.x + 1.7, 1.55, bed.z - 2.4), Vector3(bed.x + 1.4, 1.6, bed.z - 2.1)], "look": Vector3(bed.x + 0.6, 1.25, bed.z - 1.0),
 			"enter": func(): stage("idle", bed.x + 0.6, 0, bed.z - 1.15, PI)},
+	]
+	shots.append_array(suit_shots())
+	shots.append_array(window_shots())
+	if after_call: shots.pop_front()
+	play_reel(shots, func(_skipped): fall_start())
+
+## HER KIT, PIECE BY PIECE, AND THE NOTE — as the browser films it (tsh.js opening(), the jacket to the note put
+## down): the jacket off the form; the gloves at the bench; down on one knee by the window for the shoes; the
+## bracelet; the backpack, and the door; she stops; dinner on the table, covered, and a note; her mother's door, dark;
+## the note picked up, looked at, put back. on_pack: anything else that goes into the pack as she takes it
+func suit_shots(on_pack := Callable()) -> Array:
+	var R: Dictionary = room.room; var a: Dictionary = room.apt
+	var cx: float = (a.x1 + a.x2)/2; var cz: float = (a.z1 + a.z2)/2
+	var shoe := _v(R.boots.at); var form := _v(R.form.at); var pack := _v(R.pack.at); var kitc := _v(R.kitchen.at); var notep := _v(R.note.at)
+	var mom := _v(R.momDoor.at); var bench := _v(R.bench.at)
+	var stop := Vector2(cx + 2.4, cz + 0.9); var at_table := Vector2(kitc.x - 0.3, kitc.z + 0.95)
+	var J := Vector2(form.x + 0.75, form.z + 0.6); var jry := atan2(0.75, 0.6)
+	var GL := Vector2(bench.x + 0.85, bench.z + 1.3); var gry := atan2(1, 0.55)
+	var BR := Vector2(shoe.x + 0.7, shoe.z - 0.4); var bry := PI/2
+	var face_table := atan2(kitc.x - at_table.x, kitc.z - at_table.y); var face_mom := atan2(mom.x - at_table.x, mom.z - at_table.y)
+	return [
 		# the jacket, off the form
 		{"mood": "focused", "dur": 3.2, "fov": 42, "cam": [Vector3(form.x + 1.9, 1.6, form.z + 1.6), Vector3(form.x + 1.6, 1.55, form.z + 1.3)], "look": Vector3(form.x + 0.3, 1.3, form.z + 0.3),
 			"enter": func(): stage("idle", J.x, 0, J.y, jry + PI), "beats": [[1.3, func(): _form_jacket(false); kit("jacket", true); cue("zip")]]},
@@ -1021,18 +1045,18 @@ func opening(after_call := false) -> void:
 			"enter": func(): stage("text", GL.x, 0, GL.y, gry), "beats": [[0.9, func(): kit("gloves", true); cue("gear")]]},
 		# the shoes: down on one knee by the window
 		{"mood": "focused", "dur": 3.2, "fov": 38, "cam": [Vector3(shoe.x + 1.5, 0.6, shoe.z - 1.1), Vector3(shoe.x + 1.2, 0.5, shoe.z - 0.8)], "look": Vector3(shoe.x + 0.2, 0.3, shoe.z),
-			"enter": func(): stage("kneel", shoe.x + 0.35, 0, shoe.z, -PI/2), "beats": [[1.5, func(): kit("shoes", true); apt_boots(false); cue("launch")]]},
+			"enter": func(): stage("kneel", shoe.x + 0.35, 0, shoe.z, -PI/2), "beats": [[1.5, func(): kit("shoes", true); apt_boots(false); cue("gear")]]},
 		# the bracelet
 		{"mood": "soft", "dur": 2.6, "fov": 30, "cam": rel(BR.x, BR.y, bry, 0.75, 0.35, 1.3), "look": rel(BR.x, BR.y, bry, 0.3, 0.15, 1.1),
 			"enter": func(): stage("text", BR.x, 0, BR.y, bry), "beats": [[0.8, func(): kit("bracelet", true); cue("gear"); get_tree().create_timer(0.26).timeout.connect(func(): cue("pick"))]]},
 		# the backpack, and the door
 		{"mood": "focused", "dur": 3.0, "fov": 46, "cam": [Vector3(pack.x + 1.2, 1.5, pack.z - 2.2), Vector3(stop.x - 0.6, 1.55, stop.y - 2.0)], "look": func(k, t): return robin.position + Vector3(0, 1.1, 0),
-			"enter": func(): apt_pack(false); kit("pack", true); cue("pick"), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
+			"enter": func(): apt_pack(false); kit("pack", true); cue("pick"); if on_pack.is_valid(): on_pack.call(), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
 		{"mood": "sad", "dur": 2.0, "fov": 40, "cam": Vector3(stop.x + 1.3, 1.5, stop.y + 1.4), "look": Vector3(stop.x, 1.4, stop.y),
-			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y))},
+			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y)); score_level(-14.0, 2.0)},
 		# the kitchen: dinner on the table, still covered, and a note
 		{"mood": "sad", "dur": 3.4, "fov": 34, "cam": [Vector3(kitc.x + 0.9, 1.35, kitc.z + 1.2), Vector3(kitc.x + 0.55, 1.2, kitc.z + 0.8)], "look": Vector3(kitc.x, 0.8, kitc.z),
-			"enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table)},
+			"enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table); score_level(-26.0, 2.5, true)},
 		{"mood": "sad", "dur": 2.6, "fov": 34, "cam": Vector3(kitc.x + 0.25, 1.4, kitc.z - 0.35), "look": Vector3(at_table.x, 1.45, at_table.y)},
 		{"mood": "sad", "dur": 3.0, "fov": 24, "cam": Vector3(notep.x - 0.05, notep.y + 0.55, notep.z + 0.28), "look": notep, "ease": false},
 		{"mood": "sad", "dur": 2.8, "fov": 40, "cam": Vector3(at_table.x + 0.45, 1.65, at_table.y + 0.8), "look": Vector3(mom.x, 1.2, mom.z), "enter": func(): stage("idle", at_table.x, 0, at_table.y, face_mom)},
@@ -1041,9 +1065,6 @@ func opening(after_call := false) -> void:
 			"enter": func(): stage("text", at_table.x, 0, at_table.y, face_table), "tick": func(dt, t, k): _note_hold()},
 		{"mood": "resolve", "dur": 2.2, "fov": 32, "cam": Vector3(kitc.x + 0.6, 1.25, kitc.z + 0.55), "look": Vector3(notep.x, 0.8, notep.z), "enter": func(): _note_home(); stage("idle", at_table.x, 0, at_table.y, face_table)},
 	]
-	shots.append_array(window_shots())
-	if after_call: shots.pop_front()
-	play_reel(shots, func(_skipped): fall_start())
 
 ## THE WINDOW, THE SILL, THE JUMP — as the browser films it (tsh.js opening(), its last five shots): the window
 ## up and the city in; up onto the sill; outside, on the sill over Kiln Street, a look down; a smile; she jumps. Then
@@ -1826,3 +1847,21 @@ func _snap(nm: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(shots_dir.path_join(nm + ".png"))
 	print("shot ", nm, " step=", S.step, " lesson=", lesson.i, " pos=", robin.position)
+
+## HER TOES IN HER SHOES: the clips bend her toes (kneeling most — Mixamo's kneel curls them right under), and the
+## shoes are skinned to those bones, so the shoe folded across the toe. A shoe does not bend there: with the shoes
+## on, the toe bones are held all but straight (a fifth of the clip's bend left in, so the sole still meets the floor)
+class ShoeToes extends SkeletonModifier3D:
+	var g; var bones := []; var shoe: Node3D
+	func _process_modification() -> void:
+		var s := get_skeleton()
+		if s == null or g == null: return
+		if bones.is_empty():
+			for nm in ["mixamorigLeftToeBase", "mixamorigRightToeBase", "mixamorigLeftToe_End", "mixamorigRightToe_End"]:
+				var i := s.find_bone(nm)
+				if i >= 0: bones.append(i)
+		if shoe == null: shoe = g._find(g.model, func(x): return x is Node3D and x.name == "worn_skyline-shoes")
+		if shoe == null or not shoe.visible: return
+		for i in bones:
+			var rest := s.get_bone_rest(i).basis.get_rotation_quaternion()
+			s.set_bone_pose_rotation(i, rest.slerp(s.get_bone_pose_rotation(i), 0.2))

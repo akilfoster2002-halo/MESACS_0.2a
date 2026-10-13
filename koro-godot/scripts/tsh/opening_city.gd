@@ -69,7 +69,7 @@ func _build() -> void:
 	c.stop(); c.build()
 	# Juno and his two friends, under a broken storefront sign on the north side
 	juno = _person("thug-a", Vector3(AVE + 4.0, 0, -8.7), 0.0, "idle")
-	friends = [_person("thug-b", Vector3(AVE + 2.4, 0, -8.4), 0.4, "talk"), _person("u", Vector3(AVE + 5.7, 0, -8.2), -0.5, "idle")]
+	friends = [_person("thug-b", Vector3(AVE + 2.4, 0, -8.4), 0.4, "talk"), _person("theo", Vector3(AVE + 5.7, 0, -8.2), -0.5, "idle")]
 	# the shop window he blows out: a pane in the wall, and the shards it becomes
 	pane = _box(Vector3(3.2, 2.2, 0.04), Vector3(AVE + 7.6, 1.5, -9.92), _mat(Color(0.55, 0.75, 0.8, 1), 0.0, 0.05, 0.6))
 	_box(Vector3(3.6, 0.5, 0.25), Vector3(AVE + 7.6, 3.0, -9.85), _mat(Color("#ff2a6a"), 2.2))            # the broken sign over it
@@ -267,7 +267,7 @@ func _ring_at() -> Vector3:
 	var h = _hand(_g1); var gl: Node3D = _g1.n.get_meta("glow"); gl.global_position = h; return h
 var _cour: Dictionary; var _bike: Node3D
 func _glimpse_courier() -> void:
-	_cour = _person("u", Vector3(AVE - 10, 0.35, 2.0), PI/2, "ride")
+	_cour = _person("nia", Vector3(AVE - 10, 0.35, 2.0), PI/2, "ride")
 	_bike = Node3D.new(); g.add_child(_bike); _keep(_bike)
 	_box(Vector3(1.6, 0.5, 0.25), Vector3(0, 0.45, 0), _mat(Color(0.08, 0.08, 0.1), 0.0, 0.3, 0.6), _bike)
 	_box(Vector3(0.1, 0.06, 0.24), Vector3(0.8, 0.6, 0), _mat(Color(1, 0.95, 0.8), 3.0), _bike)

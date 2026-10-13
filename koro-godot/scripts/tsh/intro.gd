@@ -306,7 +306,7 @@ func _play() -> void:
 ## beats, on the beat, with her in the back of it now and then. The last bars: the hero angle, the jump on the chord.
 const PLAY_ANGLES := ["hand", "floor", "orbit", "shoulder", "wardrobe", "front"]
 ## the room between the guitar's sections, one list per gap (no shot twice): the first gap is short, two cuts
-const TOURS := [["test", "wires"], ["homework", "wall", "tangle", "her", "schematic", "sensor", "cat", "shelf", "her"]]
+const TOURS := [["test", "wires"], ["homework", "wall", "tangle", "her", "schematic", "sensor", "cat", "pinned", "her"]]
 func _idx(arr: Array, t: float) -> int:
 	# how many of the times in arr are at or before t
 	var i := 0
@@ -360,7 +360,7 @@ func tick(dt: float) -> void:
 			"orbit":          # a fast orbit: the window, the bench, the drafting board sweeping past
 				var an := now*0.85; pos = P + Vector3(sin(an + face_y)*2.0, 1.3, cos(an + face_y)*2.0); fov = 50
 			"shoulder":       # over her shoulder, her fingers on the fretboard
-				pos = P - fwd*0.42 + left*0.32 + Vector3(0, 1.62, 0); look = (neck_at() if axe else P + Vector3(0, 1.2, 0)) + fwd*0.15; fov = 40; dof = 1.0
+				pos = P + left*1.3 + fwd*0.35 + Vector3(0, 1.45, 0); look = (neck_at() if axe else P + Vector3(0, 1.2, 0)); fov = 36; dof = 1.4
 			"wardrobe":       # wide, from on top of the wardrobe in the corner, looking down on her
 				var a: Dictionary = g.room.apt
 				pos = Vector3(a.x2 - 0.45, 2.85, a.z1 + 0.45 + k*0.4); look = P + Vector3(0, 0.9, 0); fov = 54

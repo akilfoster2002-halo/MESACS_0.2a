@@ -60,7 +60,7 @@ func _build() -> void:
 	# her phone, on the bedspread
 	var bed: Dictionary = R.bed
 	phone_bed = (load("res://assets/tsh/props/iphone.glb") as PackedScene).instantiate(); g.add_child(phone_bed); _keep(phone_bed)
-	phone_bed.scale = Vector3.ONE*0.88; phone_bed.position = Vector3(bed.x + 0.15, bed.top + 0.01, bed.z - 0.45); phone_bed.rotation = Vector3(-PI/2, 0.4, 0)
+	phone_bed.scale = Vector3.ONE*0.88; phone_bed.position = Vector3(bed.x + 0.15, bed.top + 0.14, bed.z - 0.45)      # on the duvet, not under it; phone_bed.rotation = Vector3(-PI/2, 0.4, 0)
 	phone_bed.visible = false
 	# the ring box, on the packing table
 	var P = g._v(R.packing.at)
@@ -115,7 +115,7 @@ func film(done: Callable) -> void:
 		# · her school ID, hung off the lamp: HARBOR HIGH · ROBIN RYU · GRADE 11
 		{"dur": 1.9, "fov": 22, "dof": 0.25, "cam": [ID + Vector3(-0.12, 0.06, -0.34), ID + Vector3(-0.09, 0.04, -0.26)], "look": ID},
 		# · the homework on the bed from above: problem set 6, due Friday, a doodle in the margin, the pencil down
-		{"dur": 2.0, "fov": 30, "cam": [HW + Vector3(0.02, 0.5, 0.14), HW + Vector3(0.0, 0.42, 0.12)], "look": HW},
+		{"dur": 2.0, "fov": 34, "cam": [HW + Vector3(0.4, 0.7, 0.45), HW + Vector3(0.34, 0.62, 0.38)], "look": HW + Vector3(-0.08, 0, 0)},
 		# · and the cat: black, asleep on the throw at the foot of the bed, breathing; the lights soft behind it.
 		# An ear flicks — as if it heard what is coming
 		{"dur": 3.0, "fov": 28, "dof": 0.55, "cam": [cat_cam + Vector3(0, 0.04, 0), cat_cam], "look": Hd + Vector3(0, -0.02, 0),
@@ -123,7 +123,7 @@ func film(done: Callable) -> void:
 	]
 	var shots := prelude + [
 		# SHOT 12 · the string, vibrating; the pick across it; the riff
-		{"dur": span.call(0, 1), "fov": 22, "dof": 0.3, "mood": "grin", "inside": true, "cam": GB + Vector3(0.1, 0.06, 0.24), "look": GB + Vector3(0, 0.02, 0),
+		{"dur": span.call(0, 1), "fov": 22, "dof": 0.3, "mood": "grin", "inside": true, "cam": GB + Vector3(0.3, 0.25, 0.55), "look": GB + Vector3(0, 0.12, 0),
 			"enter": func(): intro.game.song(); g.stage("sprint", run0.x, 0, run0.y, ry),
 			"tick": func(dt, t, k): string_m.position.x = GB.x + sin(t*90.0)*0.004*(1.0 - k*0.4)},
 		# · the whip pan: past the amp, the cables, a sock off the desk — onto her, sprinting in
@@ -148,10 +148,10 @@ func film(done: Callable) -> void:
 		{"dur": span.call(5, 6), "fov": 38, "dof": 1.0, "cam": F + Vector3(0.55, 0.75, 0.75), "look": F + Vector3(0, 1.25, 0),
 			"tick": func(dt, t, k): bounce.call(t); g._form_jacket(true)},
 		# 14C · the business, from above: the boxes, the burner phone, the cash under the mug
-		{"dur": span.call(6, 7), "fov": 40, "cam": P + Vector3(0.02, 0.85, 0.06), "look": P + Vector3(0, 0, 0)},
+		{"dur": span.call(6, 7), "fov": 40, "cam": P + Vector3(-0.9, 0.95, 0.7), "look": P + Vector3(0, 0, 0)},
 		# 14D · the sneakers, at the floor; a car's light across the coils; her socks slide into the foreground
 		{"dur": span.call(7, 8), "fov": 36, "dof": 0.6, "cam": SH + Vector3(0.75, 0.09, -0.35), "look": SH + Vector3(0, 0.08, 0),
-			"tick": func(dt, t, k): _carlight(SH, k); g.stage("walk", lerpf(SH.x + 1.2, SH.x + 0.45, k), 0, SH.z - 0.2, -PI/2)},
+			"tick": func(dt, t, k): _carlight(SH, k); g.stage("walk", lerpf(SH.x + 1.4, SH.x + 0.8, k), 0, SH.z - 0.6, -PI/2)},
 		# SHOT 15 · air-drumming: a lateral profile, a screwdriver past the lens
 		{"dur": span.call(8, 10), "fov": 40, "hand": 0.45, "mood": "grin", "cam": [drum + Vector3(1.6, 1.2, 0.2), drum + Vector3(0.9, 1.25, 0.25)], "look": func(k, t): return her.call(1.15),
 			"enter": func(): _sticks(true); g.face.flap = beat*2,
@@ -192,7 +192,7 @@ func _chip_jump(t: float, beat: float, drum: Vector3) -> void:
 # ------------------------------------------------------------------ after the song: SHOTS 17 (end) – 21
 func after(done: Callable) -> void:
 	var R: Dictionary = g.room.room; var bed: Dictionary = R.bed; var top: float = bed.get("top", 0.72)
-	var lie := Vector3(bed.x + 0.25, top + 0.05, bed.z)
+	var lie := Vector3(bed.x + 0.25, top + 0.11, bed.z)                 # on the duvet
 	var seat := Vector3(bed.x + 0.6, bed.get("seat", 0.55), bed.z - 0.35)
 	var D: Vector3 = g._v(R.momDoor.at); var P = g._v(R.packing.at)
 	var path := [Vector2(seat.x + 0.4, seat.z - 0.6), Vector2(299.6, -0.6), Vector2(D.x + 0.3, D.z + 1.1)]
@@ -208,18 +208,19 @@ func after(done: Callable) -> void:
 	var c4: float = g.lines_len("canonD"); var c5: float = g.lines_len("canonE"); var c6: float = g.lines_len("canonHold"); var c7: float = g.lines_len("call")
 	var shots := [
 		# · back onto the bed, the guitar on her chest, laughing at nobody; the song ends; silence; let her breathe
-		{"dur": 3.4, "fov": 40, "mood": "happy", "inside": true, "cam": [lie + Vector3(0.9, 1.4, -1.2), lie + Vector3(0.75, 1.25, -1.0)], "look": lie + Vector3(0, 0.2, 0),
+		{"dur": 3.4, "fov": 40, "mood": "happy", "inside": true,
+			"cam": func(k, t): return _bone("Spine1") + Vector3(0.9, 1.3, -1.1).lerp(Vector3(0.75, 1.15, -0.95), k), "look": func(k, t): return _bone("Spine1"),
 			"enter": func(): g.stage("sleep", lie.x, lie.y, lie.z, PI/2); g.model.rotation.x = 0.0; g.face.flap = 1.4; g.face.feel("happy", 3.0); phone_bed.visible = true; g.phone_prop.hold("")},
 		# · the cat, moved to the shelf behind the bed: one eye on her, unimpressed; the phone buzzes and its head comes up
 		{"dur": 1.9, "fov": 26, "dof": 0.6, "cam": Hc + Vector3(0.28, 0.1, -0.55), "look": Hc + Vector3(0, -0.02, 0),
 			"enter": func(): cat.wake(0.5, lie + Vector3(0, 0.3, 0), true),
 			"beats": [[1.0, func(): g.cue("phone"); cat.wake(1.0, phone_bed.position)]]},
 		# SHOT 18 · the phone on the bedspread, from above; her hand comes in; she answers without looking
-		{"dur": c1 + 0.8, "fov": 30, "cam": phone_bed.position + Vector3(0.02, 0.55, 0.03), "look": phone_bed.position,
+		{"dur": c1 + 0.8, "fov": 30, "cam": phone_bed.position + Vector3(0.3, 0.5, 0.25), "look": phone_bed.position,
 			"enter": func(): g.ringing(true); g.phone_show("call", "CANON"); cat.wake(0.0),
 			"beats": [[0.7, func(): g.ringing(false); g.cue("ui"); phone_bed.visible = false; g.phone_show("oncall", "CANON"); g.talk("canonA")]]},
 		# · loose medium close, sitting on the bed, the guitar across her lap
-		{"dur": c2 + 0.7, "fov": 36, "mood": "smug", "cam": g.rel(seat.x, seat.z, PI, 1.25, 0.35, 1.1), "look": seat + Vector3(0, 0.75, 0),
+		{"dur": c2 + 0.7, "fov": 36, "mood": "smug", "cam": g.rel(seat.x - 0.75, seat.z + 0.3, PI/2, 1.35, 0.3, 1.15), "look": func(k, t): return _bone("Head") + Vector3(0, -0.15, 0),
 			"enter": func(): g.stage("wake", seat.x - 0.75, seat.y, seat.z + 0.3, PI/2); g.phone_prop.hold("ear"); g.talk("canonB")},
 		# · up, and pacing: a loose handheld track, waist up, past the bench, the boxes, the form
 		{"dur": c3 + 0.6, "fov": 40, "hand": 0.35, "ease": false,
@@ -234,13 +235,13 @@ func after(done: Callable) -> void:
 			"enter": func(): g.stage("phone_talk", D.x + 0.3, 0, D.z + 1.1, PI*0.75); g.talk("canonE"); _warm(D),
 			"beats": [[c5 + 0.4, func(): g.cue("phone"); g.face.feel("skeptical", 1.4)]]},
 		# SHOT 20 · the phone, close: UNKNOWN NUMBER over Canon's name; its cold light on her thumb
-		{"dur": 1.6, "fov": 24, "dof": 0.5, "cam": func(k, t): return phone_hand.call() + Vector3(0.18, 0.22, 0.12), "look": func(k, t): return phone_hand.call(),
+		{"dur": 1.6, "fov": 30, "dof": 0.5, "cam": func(k, t): return phone_hand.call() + Vector3(0.32, -0.05, -0.32), "look": func(k, t): return phone_hand.call().lerp(_bone("Head"), 0.35),
 			"enter": func(): g.stage("phone_read", D.x + 0.3, 0, D.z + 1.1, PI*0.75); g.phone_show("call", "UNKNOWN")},
 		# · her eyes flick to the boxes; "Hold on. Let me call you back."
 		{"dur": c6 + 0.4, "fov": 26, "mood": "focused", "cam": g.rel(D.x + 0.3, D.z + 1.1, PI*0.75, 0.85, 0.12, 1.55), "look": Vector3(D.x + 0.3, 1.52, D.z + 1.1),
 			"enter": func(): g.stage("phone_talk", D.x + 0.3, 0, D.z + 1.1, PI*0.75); g.face.target = P + Vector3(0, 0.9, 0); g.phone_show("oncall", "CANON"); g.talk("canonHold")},
 		# · from behind her shoulder; she switches calls; the buyer; she turns toward the boxes
-		{"dur": c7 + 1.0, "fov": 34, "mood": "focused", "cam": Vector3(D.x - 0.1, 1.65, D.z + 0.55), "look": P + Vector3(0, 0.8, 0),
+		{"dur": c7 + 1.0, "fov": 34, "mood": "focused", "cam": _behind(Vector2(D.x + 0.3, D.z + 1.1), P), "look": P + Vector3(0, 0.8, 0),
 			"enter": func(): g.cue("hangup"); g.get_tree().create_timer(0.25).timeout.connect(func(): g.cue("ui"); g.phone_show("oncall", "UNKNOWN"); g.talk("call")),
 			"tick": func(dt, t, k): var a := atan2(P.x - (D.x + 0.3), P.z - (D.z + 1.1)); g.stage("phone_talk", D.x + 0.3, 0, D.z + 1.1, lerp_angle(PI*0.75, a, minf(1, k*1.5)))},
 		# SHOT 21 · the rings, from above: the box opens under her thumb; the light travelling round each ring; a push
@@ -261,8 +262,13 @@ func after(done: Callable) -> void:
 func _lights_out() -> void:
 	g.lamp.light_energy = 0.0; g.cue("ui"); g.bedroom.lights(false)
 	for l in lights: l.light_energy = 0.0
+## from behind her shoulder, standing at q, looking past her to `at`: clear of her hair
+func _behind(q: Vector2, at: Vector3) -> Vector3:
+	var d := Vector2(at.x - q.x, at.z - q.y).normalized(); var side := Vector2(-d.y, d.x)
+	var c := q - d*1.5 + side*0.6
+	return Vector3(c.x, 1.72, c.y)
 func _warm(D: Vector3) -> void:
-	var l := _light(Color(1.0, 0.75, 0.45), Vector3(D.x + 0.9, 1.6, D.z + 1.5), 1.8, 2.2)
+	var l := _light(Color(1.0, 0.75, 0.45), Vector3(D.x + 0.9, 1.6, D.z + 1.5), 0.6, 2.2)
 func _rings_pulse(t: float) -> void:
 	for i in rings.size():
 		var gl: MeshInstance3D = rings[i][1]

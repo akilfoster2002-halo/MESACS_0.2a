@@ -576,7 +576,7 @@ func _school(bx: float, bz: float, top: float) -> void:
 	spots.bag = bag.global_position + Vector3(0, 0.25, 0)
 	# the homework: two sheets on the duvet, a textbook open, a pencil
 	var hw := Node3D.new(); add_child(hw); hw.position = Vector3(bx - 0.3, top + 0.075, bz - 0.3); hw.rotation.y = 0.3          # clear of her phone (bed.x + 0.15)
-	var paper := _mat(Color("#d9d5cb"), 0.8)
+	var paper := _mat(Color("#b9b5ab"), 0.85)                   # (paper under her lamp: a whiter one burns out)
 	_box(Vector3(0.21, 0.002, 0.28), Vector3(0, 0, 0), paper, hw)
 	_box(Vector3(0.21, 0.002, 0.28), Vector3(0.06, 0.002, 0.04), paper, hw).rotation.y = -0.25
 	var up := Vector3(0, 1, 0)
@@ -584,8 +584,8 @@ func _school(bx: float, bz: float, top: float) -> void:
 	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT; t1.rotation = Vector3(-PI/2, 0, 0)
 	var dood := text3("☆ ♪ ♡", Vector3(0.05, 0.003, 0.1), 0.02, Color("#d0503a"), up, hw); dood.rotation = Vector3(-PI/2, 0, 0.2)
 	var book := Node3D.new(); hw.add_child(book); book.position = Vector3(-0.27, 0.0, 0.05); book.rotation.y = -0.2
-	_box(Vector3(0.2, 0.018, 0.27), Vector3(-0.1, 0.009, 0), _mat(Color("#f3efe4"), 0.8), book).rotation.z = 0.06
-	_box(Vector3(0.2, 0.018, 0.27), Vector3(0.1, 0.009, 0), _mat(Color("#f3efe4"), 0.8), book).rotation.z = -0.06
+	_box(Vector3(0.2, 0.018, 0.27), Vector3(-0.1, 0.009, 0), _mat(Color("#cfcabd"), 0.85), book).rotation.z = 0.06
+	_box(Vector3(0.2, 0.018, 0.27), Vector3(0.1, 0.009, 0), _mat(Color("#cfcabd"), 0.85), book).rotation.z = -0.06
 	_box(Vector3(0.42, 0.008, 0.28), Vector3(0, -0.002, 0), _mat(Color("#2a5d8f"), 0.7), book)
 	var pen := _cyl(0.004, 0.17, Vector3(0.12, 0.006, -0.05), _mat(Color("#f2c230"), 0.6), hw, -1.0, 6); pen.rotation = Vector3(PI/2, 0, 0.9)
 	spots.homework = hw.global_position

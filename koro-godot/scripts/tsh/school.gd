@@ -11,7 +11,7 @@ class_name School
 extends Node
 
 const SX := 400.0
-const STUDENTS := ["s", "t", "u", "v", "x", "nia", "zuri"]          # walk-s … walk-x, nia, zuri (people/*.glb)
+const STUDENTS := ["s", "t", "v", "x", "nia", "zuri"]          # walk-s … walk-x, nia, zuri (people/*.glb)
 ## her round: [x (plan), z, wait at it, which way she looks while she waits]
 const TEACHER_ROUTE := [[2.5, -4.2, 2.5, 0.0], [-8.6, 2, 3.5, -PI/2], [-3, 6.5, 0.8, 0.0], [2, -5, 1.2, PI], [2, -16, 2.2, -PI/2],
 	[2, -26, 2.4, PI/2], [2, -32.8, 0.6, PI], [2, -36, 3.5, 0.0], [2, -31, 0.5, 0.0], [2, -20, 1.5, PI/2], [2, -5, 1, 0.0]]
