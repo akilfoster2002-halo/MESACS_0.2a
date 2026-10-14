@@ -48,6 +48,9 @@ class Arm:
 	var rest_len := 1.0
 	var rest_dir := Vector3.UP
 	var rest_basis := Basis()
+	var sock := Vector3.ZERO     # her back, smoothed: the arm does not whip with every jolt of her body
+	var tg := Vector3.ZERO       # where the claw is going, smoothed
+	var has_prev := false
 
 func setup(f: float, at: Vector3, y := 0.0) -> void:
 	floor_y = f; yaw = y
@@ -100,7 +103,12 @@ func go_to(x: float, z: float, spd := 0.0) -> void:
 	if spd > 0: speed = spd
 
 func burst(k: int, at: Vector3, hold := 1.2, on_floor := false) -> void:
-	arms[k].out = {"t": 0.0, "from": arms[k].ext, "at": at, "hold": hold, "floor": on_floor, "jit": Vector3.ZERO, "jt": 0.0}
+	arms[k].out = {"t": 0.0, "from": arms[k].ext, "at": at, "hold": hold, "floor": on_floor}
+## A STRIKE, in one motion: the arm draws back over her shoulder, drives out to `at` (arriving `reach` seconds from now),
+## the claw closes there a moment, and it comes home
+func strike(k: int, at: Vector3, reach := 0.3) -> void:
+	var A: Arm = arms[k]
+	A.out = {"strike": true, "t": 0.0, "at": at, "reach": reach, "from": A.tg}
 
 func _sockets() -> Array:
 	var out := []
@@ -156,16 +164,29 @@ func _process(dt: float) -> void:
 		var target: Vector3 = (legs[k - 2].at + Vector3(0, 0.04, 0)) if k >= 2 else free[k].at
 		var wave := 0.05 if k >= 2 else 0.11
 		var B = A.out
-		if B != null:
+		var snap := false
+		if B != null and B.get("strike", false):
+			B.t += dt
+			var u: float = B.t; var R: float = B.reach; var c := R*0.4
+			var home: Vector3 = target
+			var back: Vector3 = (S[k] as Vector3) + ((S[k] as Vector3) - (B.at as Vector3)).normalized()*0.5 + Vector3(0, 0.7, 0)
+			if u < c:                                  # drawn back
+				var e := _smooth(u/c); target = (B.from as Vector3).lerp(back, e); A.ext = 1.0; A.open = 0.9
+			elif u < R:                                # driven out
+				var e2 := 1.0 - pow(1.0 - (u - c)/(R - c), 3); target = back.lerp(B.at, e2); A.ext = 1.0 + 0.12*e2; A.open = 1.0; snap = true
+			elif u < R + 0.2:                          # there: the claw shuts on it
+				target = B.at; A.ext = 1.12; A.open = 0.05; snap = true
+			elif u < R + 0.75:                         # home
+				var e3 := _smooth((u - R - 0.2)/0.55); target = (B.at as Vector3).lerp(home, e3); A.ext = lerpf(1.12, 1.0, e3); A.open = lerpf(0.05, 0.5, e3)
+			else:
+				A.out = null; A.ext = 1.0
+			wave = 0.03
+		elif B != null:
 			B.t += dt
 			var u: float = B.t
-			A.ext = (B.from + (1.14 - B.from)*(1.0 - pow(1.0 - u/0.16, 3))) if u < 0.16 else 1.0 + 0.14*exp(-(u - 0.16)*7.0)*cos((u - 0.16)*24.0)
+			A.ext = (B.from + (1.12 - B.from)*_smooth(u/0.22)) if u < 0.22 else 1.0 + 0.12*exp(-(u - 0.22)*4.0)
 			var at: Vector3 = B.at
-			if not B.floor:
-				B.jt -= dt
-				if B.jt <= 0: B.jt = 0.05 + randf()*0.09; B.jit = Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5)*0.16
-				at += B.jit
-			target = at; wave += 0.32*exp(-u*2.4)
+			target = at; wave += 0.12*exp(-u*3.0)
 			A.open = 1.0 if u < B.hold - 0.12 else 0.05
 			if u >= B.hold:
 				A.out = null; A.ext = 1.0
@@ -175,13 +196,25 @@ func _process(dt: float) -> void:
 			A.open = 0.9 if legs[k - 2].to != null else 0.15
 		A.root.visible = A.ext > 0.02
 		if not A.root.visible: continue
-		# the chain bows outward from her back before it turns down to the claw: a bent first guess, then the solve
-		var outd: Vector3 = (S[k] as Vector3) - body; outd.y = 0; outd = outd.normalized()
-		for i in SEG + 1:
-			var kk := float(i)/SEG
-			A.pts[i] = (S[k] as Vector3).lerp(target, kk) + outd*sin(kk*PI)*0.9 + Vector3(0, sin(kk*PI)*0.5, 0)
-		_solve(A.pts, S[k], target, A.L*A.ext)
+		if not A.has_prev: A.sock = S[k]; A.tg = target
+		A.sock = A.sock.lerp(S[k], minf(1.0, dt*14.0))
+		A.tg = target if snap else A.tg.lerp(target, minf(1.0, dt*(9.0 if B != null else 5.0)))
+		# the chain bows outward from her back before it turns down to the claw: a bent first guess (then last frame's
+		# arm, so it moves from where it was rather than snapping to a new shape), then the solve
+		var outd: Vector3 = A.sock - body; outd.y = 0; outd = outd.normalized()
+		if not A.has_prev:
+			for i in SEG + 1:
+				var kk := float(i)/SEG
+				A.pts[i] = A.sock.lerp(A.tg, kk) + outd*sin(kk*PI)*0.9 + Vector3(0, sin(kk*PI)*0.5, 0)
+			A.has_prev = true
+		else:
+			for i in SEG + 1:                          # last frame's curve, kept bowed out a little so it never folds flat
+				var kk := float(i)/SEG
+				A.pts[i] = A.pts[i].lerp(A.sock.lerp(A.tg, kk) + outd*sin(kk*PI)*0.9 + Vector3(0, sin(kk*PI)*0.5, 0), 0.15)
+		_solve(A.pts, A.sock, A.tg, A.L*A.ext)
 		_pose(A, wave*minf(1.0, A.ext), k*1.7)
+
+static func _smooth(x: float) -> float: var c := clampf(x, 0, 1); return c*c*(3.0 - 2.0*c)
 
 func _solve(p: Array[Vector3], base: Vector3, target: Vector3, L: float) -> void:
 	var n := p.size() - 1

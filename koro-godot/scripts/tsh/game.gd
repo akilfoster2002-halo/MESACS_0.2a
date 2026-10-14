@@ -73,7 +73,7 @@ var shots_dir := ""
 var shots_fight := false
 var shots_raid := false
 var shots_day := false
-var shots_open := false; var shots_intro := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false
+var shots_open := false; var shots_intro := false; var shots_climb := false; var shots_jump := false; var shots_after := false; var shots_alpha := false; var shots_maya := false
 var ring: MeshInstance3D
 var marker: MeshInstance3D
 var goal_mark: Control; var radar: Radar; var mute_btn: Button; var health: HealthBar
@@ -150,8 +150,8 @@ func _ready() -> void:
 	elif shots_day: S.day = true; S.step = "morning"; S.dm = 522
 	elif shots_after: S.day = true; S.step = "courtyard"; S.dm = 920
 	if args.size() >= 3 and args[2] == "street": S.tun = 7
-	if args.size() >= 3 and args[2] == "alpha": S.tun = 6; S.lesson = 99; shots_alpha = true
-	if shots_dir == "" and (args.has("alpha") or args.has("kai")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
+	if args.size() >= 3 and args[2] in ["alpha", "maya"]: S.tun = 6; S.lesson = 99; shots_alpha = true; shots_maya = args[2] == "maya"
+	if shots_dir == "" and (args.has("alpha") or args.has("kai") or args.has("maya")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
@@ -164,13 +164,13 @@ func _ready() -> void:
 	elif shots_dir != "": _shots()
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		if args.has("alpha") or args.has("kai"): _watch_alpha(args.has("kai"))
+		if args.has("alpha") or args.has("kai") or args.has("maya"): _watch_alpha(args.has("kai"), args.has("maya"))
 
 # ================================================================== the save
 func _fresh() -> Dictionary:
 	return {"v": 1, "step": "intro", "lesson": 0, "seen": [], "boots": [], "cash": 0, "flash": 3}
 func _save() -> void:
-	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai"): return      # watching (-- alpha, -- kai) leaves the real save alone
+	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai") or OS.get_cmdline_user_args().has("maya"): return      # watching (-- alpha, -- kai) leaves the real save alone
 	var f := FileAccess.open("user://tsh.json", FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(S))
 func _load() -> void:
@@ -1715,7 +1715,13 @@ func _shots_day() -> void:
 ## WFC (lost), alone, home over the roofs, and the end
 ## -- alpha: through the station's last door to Maya, and straight to what comes up out of her; then it is the player's.
 ## -- kai: the same, but it stops at the fight with Kai
-func _watch_alpha(kai_fight := false) -> void:
+## Kai, beaten (for going straight to Maya): down where he stands, out of the fight
+func _kai_out() -> void:
+	var k = crew("kai")
+	if k == null: return
+	k.hp = 0.0; k.state = "ko"; k.active = false; fight.hit1(k, "ko")
+## -- maya: past Kai (he goes down at once) to Maya and her arms
+func _watch_alpha(kai_fight := false, maya_fight := false) -> void:
 	await get_tree().create_timer(2.0).timeout
 	for at in [Vector3(521.2, 0, -86.2), Vector3(520, 0, -95)]:
 		place(at, 0.0); await get_tree().create_timer(1.0).timeout
@@ -1723,7 +1729,8 @@ func _watch_alpha(kai_fight := false) -> void:
 		await get_tree().create_timer(0.5).timeout
 	var t0 := Time.get_ticks_msec()
 	while mode != "fight" and Time.get_ticks_msec() - t0 < 60000: await get_tree().create_timer(0.3).timeout
-	if not kai_fight: station.alpha_scene()
+	if maya_fight: _kai_out(); station.kai_down()
+	elif not kai_fight: station.alpha_scene()
 func _shots_after() -> void:
 	var n := [0]; station.auto = true
 	var reel_snaps := func(tag: String, every := 3.0):
@@ -1759,6 +1766,12 @@ func _shots_after() -> void:
 	if shots_alpha:
 		var t9 := Time.get_ticks_msec()
 		while mode != "fight" and Time.get_ticks_msec() - t9 < 60000: await get_tree().create_timer(0.3).timeout
+		if shots_maya:
+			_kai_out(); station.kai_down()
+			var tm := Time.get_ticks_msec()
+			while mode != "fight" and Time.get_ticks_msec() - tm < 40000: await get_tree().create_timer(0.3).timeout
+			for i in 24: await get_tree().create_timer(0.5).timeout; await _snap("mayafight_%02d" % i)
+			get_tree().quit(); return
 		for i in 20: await get_tree().create_timer(1.0).timeout; await _snap("kaifight_%d" % i)      # Kai, a few seconds of him
 		station.alpha_scene(); await reel_snaps.call("alpha", 1.5); await reel_snaps.call("monster", 1.5)
 		var t8 := Time.get_ticks_msec()

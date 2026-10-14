@@ -47,7 +47,7 @@ const KIND := {
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
 	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
-	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
+	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
 var g          # the game (game.gd)
@@ -621,6 +621,7 @@ func _tick_crew(dt: float) -> void:
 						e.state = "windup"; e.t = 0.0; e.win = 0.95 if e.weapon else e.K.windup
 						var ln := hit1(e, "hook" if (e.weapon or randf() < 0.5) else "cross")
 						e.strike_at = minf(e.win, ln*0.42)
+						if e.has("arm_strike"): e.strike_at = maxf(e.strike_at, 0.45)
 						if e.has("blade"):                       # a sword hits only where it cuts; and he never swings just once
 							e.seq = [["hook", "cross", "hook"], ["cross", "hook", "kick"], ["hook", "cross", "hook", "kick"], ["cross", "hook", "cross"]].pick_random()
 							e.combo = 0; ln = hit1(e, e.seq[0]); _blade_swing(e, e.seq[0], ln)
@@ -636,6 +637,14 @@ func _tick_crew(dt: float) -> void:
 						if e.t >= e.strike_at: var h0: float = R.hp; strike(e); _landed(e, R.hp < h0); _combo(e, d)
 					elif e.t >= e.strike_at and blade_hits(e): var h1: float = R.hp; strike(e, true); _landed(e, R.hp < h1); _combo(e, d)
 					elif e.t > e.swing_end: e.state = "recover"; e.t = 0.0; event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); _combo(e, d)
+				elif e.has("arm_strike"):                 # Maya: her punch, and the arm finishes it — out to where she was
+					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
+					if not e.get("arm_out", false) and e.t >= e.strike_at - 0.3:
+						e.arm_out = true; e.arm_at = Vector3(p.x, g.robin.position.y + 1.15, p.y); (e.arm_strike as Callable).call(e.arm_at, 0.3)
+					if e.t >= e.strike_at:
+						e.arm_out = false
+						if Vector2(p.x - e.arm_at.x, p.y - e.arm_at.z).length() < 0.85: strike(e, true)
+						else: e.state = "recover"; e.t = 0.0; g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9})
 				else:
 					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
 					if e.t >= e.strike_at: strike(e)

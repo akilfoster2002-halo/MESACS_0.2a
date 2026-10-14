@@ -191,7 +191,7 @@ func _tick_arms(dt: float) -> void:
 	var maya = crew("maya")
 	if maya == null or not maya.node.visible: oc.visible = false; return
 	oc.go_to(maya.x, maya.z, 9)
-	if g.mode == "fight" and watch == "fight2":
+	if g.mode == "fight" and watch == "fight2" and not maya.has("arm_strike"):
 		stab -= dt
 		if stab <= 0:
 			stab = 1.3 + randf()*1.3
@@ -232,7 +232,15 @@ func kai_down() -> void:
 	g.play_reel(shots, done(func(): maya_arms(); fight_two(R, ry)))
 func fight_two(R: Vector2, ry: float) -> void:
 	var maya = crew("maya")
-	if maya: maya.bystander = false; maya.hp = maya.K.hp; maya.state = "circle"; maya.active = true
+	if maya:
+		maya.bystander = false; maya.hp = maya.K.hp; maya.state = "circle"; maya.active = true
+		# her attacks end in an arm: the upper one on the side she is striking from drives out to Robin
+		maya.arm_strike = func(at: Vector3, reach: float):
+			var o := maya_arms()
+			if o == null: return
+			o.visible = true
+			var right := Vector2(cos(maya.yaw), -sin(maya.yaw)); var side: float = (at.x - maya.x)*right.x + (at.z - maya.z)*right.y
+			o.strike(1 if side > 0 else 0, at, reach); g.cue("zip")
 	stab = 2.2
 	_fight_begin(R, ry, func(): _fight_end(); alpha_scene())
 	watch = "fight2"
