@@ -732,7 +732,30 @@ func score_falling() -> void:
 func score_drop() -> void:
 	song_at("b", float(SONG.drop), -1.5)
 	score_tw = create_tween(); score_tw.tween_interval(6.0); score_tw.tween_property(music, "volume_db", -5.0, 6.0)
+## MONSTER FIGHT (music/monster.mp3, 80.75 bpm), under the whole of the monster as the browser lays it (tsh.js FIGHTM):
+## in as Canon steps up, its low opening looping under both fights; the first drop as it comes up out of Maya; the
+## second as the fight is hers (four bars of it looping while she fights); the biggest as she runs, to the end.
+const FIGHTM := {"drop1": 17.4, "drop2": 125.44, "bar": 60.0/80.75*4, "drop3": 150.5, "end": 208.5}
+var fm: AudioStreamPlayer; var fm_loop := []; var fm_tw: Tween; var _fm_lp: AudioEffectLowPassFilter
+## the song, so that song time `song` is heard `in_sec` from now; a loop span [from, to] if asked
+func fm_aim(song: float, in_sec := 0.0, loop := []) -> void:
+	if fm == null:
+		var i := AudioServer.bus_count; AudioServer.add_bus(i); AudioServer.set_bus_name(i, "FightM"); AudioServer.set_bus_send(i, "Master")
+		_fm_lp = AudioEffectLowPassFilter.new(); _fm_lp.cutoff_hz = 18000.0; AudioServer.add_bus_effect(i, _fm_lp)
+		fm = AudioStreamPlayer.new(); fm.stream = load("res://assets/tsh/music/monster.mp3"); fm.bus = "FightM"; add_child(fm)
+	var at := maxf(0.0, song - in_sec)
+	if fm.playing and loop.is_empty() and fm_loop.is_empty() and absf(fm.get_playback_position() - at) < 0.25: return
+	if fm_tw: fm_tw.kill()
+	fm_loop = loop; fm.volume_db = linear_to_db(0.85); fm.play(at)
+func fm_stop(secs := 0.5) -> void:
+	if fm == null or not fm.playing: return
+	fm_loop = []; if fm_tw: fm_tw.kill()
+	fm_tw = create_tween(); fm_tw.tween_property(fm, "volume_db", -60.0, secs); fm_tw.tween_callback(fm.stop)
+## the song goes under water with the world when it slows
+func fm_slow(k: float) -> void:
+	if _fm_lp: _fm_lp.cutoff_hz = 18000.0 if k > 0.92 else 400.0 + 11000.0*k*k
 func _score_tick() -> void:
+	if fm and fm.playing and fm_loop.size() == 2 and fm.get_playback_position() >= float(fm_loop[1]): fm.seek(float(fm_loop[0]))
 	if score_holding and music.playing and music.get_playback_position() >= float(SONG.hold[1]) - float(SONG.b):
 		music.seek(float(SONG.hold[0]) - float(SONG.b))
 

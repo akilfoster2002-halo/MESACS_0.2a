@@ -136,6 +136,7 @@ func meet_film() -> void:
 ## Canon steps in front of her — he has no idea she can fight — and Kai puts him on the floor
 func canon_ko() -> void:
 	g.talk_q.clear()
+	g.fm_aim(0.0, 0.0, [6.9, 6.9 + g.FIGHTM.bar*3])           # the song comes in as Canon steps up, and its low opening waits under both fights
 	var kai = crew("kai"); var c = cy.canon
 	var R := _a(sp.meetR); var K := _a(sp.kai); var ryR := ang(R, K); var f := Vector2(sin(ryR), cos(ryR))
 	var C := R + f*0.9; var Kc := C + f*1.2; var ryC := ang(C, K); var fc := Vector2(sin(ryC), cos(ryC))
@@ -361,7 +362,7 @@ func alpha_scene() -> void:
 	if g.fight.on: g.fight.stop()
 	_fight_end()
 	if not "alpha" in g.S.seen: g.S.seen.append("alpha")
-	g.cue("glitch")
+	g.cue("glitch"); g.fm_aim(g.FIGHTM.drop1, 4.0 + g.lines_len("mayaGlitch") + 0.3)
 	var maya = crew("maya"); var p: Vector3 = g.robin.position; var R := Vector2(p.x, p.z)
 	var M := Vector2(maya.x, maya.z) if maya else _a(sp.maya); var ry := ang(R, M); var dir := Vector2(sin(ry), cos(ry)); var side := Vector2(cos(ry), -sin(ry))
 	var F: Dictionary = cy.pair_angles(R, M, dir, -dir, side, 1.62, 1.62)
@@ -450,7 +451,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 	var stand_r := func(): stand("idle", R, ry)
 	var canon_from := {"p": null, "in": false}
 	var shots := cuts(3.8, [CAM.rising, CAM.her, CAM.lowUp, CAM.high, CAM.lowUp2, CAM.herWide, CAM.side, CAM.lowUp], {
-		"start": func(): mon.act("roar"); g.cue("roar"); haywire(0.6); g.cue("clang"); if maya: g.fight.play(maya, "stagger"); stand_r.call(); if wind: wind.k = 0.7,
+		"start": func(): g.fm_aim(g.FIGHTM.drop1); mon.act("roar"); g.cue("roar"); haywire(0.6); g.cue("clang"); if maya: g.fight.play(maya, "stagger"); stand_r.call(); if wind: wind.k = 0.7,
 		"tick": func(dt, t, k):
 			stand_r.call(); mon.grow = minf(1, 0.02 + k*1.05)
 			if alpha_fx: alpha_fx.cover = 1.0
@@ -503,6 +504,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 			c.node.scale = Vector3.ONE*maxf(0.02, 1 - k*k)
 			if k > 0.97: canon_from.in = true; c.node.visible = false; flash(0.45); shake(0.9, 0.6); g.cue("clang")}))
 	shots.append_array(cuts(2.0, [CAM.her, CAM.high, CAM.herSide, CAM.her], {"start": func():
+		g.fm_aim(g.FIGHTM.drop2, 2.0 + 1.6 + 1.4 + 1.2 + g.lines_len("robinFight") + 0.4)
 		if hay: hay.k = 1.0
 		if wind: wind.k = 1.2}))
 	shots.append_array([
@@ -526,7 +528,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 		esc = {"t": 0.0, "caught": 0, "reach": 1.0, "hitT": 0.0}; cy.watch = "escape"
 		if hay: hay.k = 0.8
 		g.note("RUN — the green EXIT, straight ahead."))
-	g.play_reel(shots, done(func(): brawl(M, ry, dir, side, func(): duel(func(): g.play_reel(run_shots, to_escape)))))
+	g.play_reel(shots, done(func(): brawl(M, ry, dir, side, func(): duel(func(): g.fm_aim(g.FIGHTM.drop3, 2.3 + g.lines_len("robinGo") + 0.2, [g.FIGHTM.drop3, g.FIGHTM.end]); g.play_reel(run_shots, to_escape)))))
 
 ## SHE FIGHTS IT FOR HIM — on her own feet: you move her (WASD), it turns to keep its jaws on her. It rears back before
 ## it bites (DODGE!): be out of its reach when the jaws come down — move, or SPACE throws her aside. A bite that misses
@@ -539,6 +541,7 @@ func brawl(M0: Vector2, ry: float, dir: Vector2, _side: Vector2, cb: Callable) -
 	B = {"st": "wait", "t": 0.0, "wait": 1.6, "hp": 3, "hits": 0, "all": 0.0, "punch": 0.0, "dash": null, "last_space": false, "done": cb}
 	_brawl_hud("")
 	g.talk("robinPunch")
+	g.fm_aim(g.FIGHTM.drop2, 0.0, [g.FIGHTM.drop2, g.FIGHTM.drop2 + g.FIGHTM.bar*4])
 func _brawl_hud(msg: String) -> void:
 	if B == null: brawl_l.text = ""; return
 	brawl_l.text = (msg + "\n" if msg != "" else "") + "♥".repeat(maxi(0, B.hp)) + "♡".repeat(3 - maxi(0, B.hp)) + "   " + "✊".repeat(B.hits)
@@ -623,7 +626,7 @@ func duel(cb: Callable) -> void:
 		if mon: mon.flinch()
 		shake(0.9 if big else 0.5, 0.6 if big else 0.35); g.cue("punch"); flash(0.5 if big else 0.25, Color(0.75, 0.5, 1))
 	var slam := func(): shake(0.8, 0.5); g.cue("punch"); flash(0.35, Color(1, 0.2, 0.3))
-	var ts := func(v: float): Engine.time_scale = v
+	var ts := func(v: float): Engine.time_scale = v; g.fm_slow(v)
 	var ramp := func(lo: float, mid_: float, w := 0.16) -> Callable: return func(k): ts.call(1 - (1 - lo)*exp(-pow((k - mid_)/w, 2)))
 	var S := func(o: Dictionary) -> Dictionary:
 		var t0 = o.get("tick"); var e0 = o.get("enter")
@@ -758,12 +761,12 @@ func duel(cb: Callable) -> void:
 			"tick": func(dt, t, k): var q: Vector2 = at.call(d0 - 4.6, 1.4); put.call("fight", q.x, 0, q.y)})],
 		thrown.call(d0 - 4.6, d0 - 8.5, d0 - 10)))
 	g.play_reel(shots, done(func():
-		Engine.time_scale = 1.0; mash_box.visible = false; g.anim.speed_scale = 1.0
+		Engine.time_scale = 1.0; mash_box.visible = false; g.anim.speed_scale = 1.0; g.fm_slow(1.0)
 		if wind: wind.k = 0.8
 		cb.call()))
 ## too much for her: the night starts over, from the door to the old platform
 func restart_night() -> void:
-	mash_box.visible = false; Engine.time_scale = 1.0
+	mash_box.visible = false; Engine.time_scale = 1.0; g.fm_slow(1.0); g.fm_stop(0.3)
 	g.black(true); g.end_text("[font_size=18]IT WAS TOO MUCH FOR HER[/font_size]\nTRY AGAIN")
 	later(2.6, func():
 		if g.reel: g.reel = null
@@ -801,6 +804,7 @@ func tunnels_gone() -> void:
 	if alpha_fx: alpha_fx.remove(); alpha_fx = null
 	if mon: mon.dispose(); mon = null
 	if oc: oc.queue_free(); oc = null
+	g.fm_stop(1.5)
 	g.music.stop(); haywire(0); wind_off(); g.dutch = 0.0
 	if cy.gizmo: cy.gizmo.visible = false
 	if cy.lights_node:
@@ -1081,7 +1085,7 @@ func hide_scene() -> void:
 	if not "hide" in g.S.seen: g.S.seen.append("hide")
 	var p: Vector3 = g.robin.position; var at := Vector2(p.x, p.z); var y0 := maxf(0, p.y)
 	var F: Dictionary = cy.facing(at, PI/2, 1.0, y0 + 1.1); var A: Dictionary = F.A
-	chaos_off(); g.music.stop()
+	chaos_off(); g.music.stop(); g.fm_stop(4.0)
 	if gun:
 		var g0 = gun; gun = null; g0.cone.visible = false; g0.pool.visible = false
 		var tw = g.create_tween(); tw.tween_property(g0.g, "position", g0.g.position + Vector3(80, 10, -60), 6.0); tw.tween_callback(func(): g0.g.queue_free(); g0.cone.queue_free(); g0.pool.queue_free())
