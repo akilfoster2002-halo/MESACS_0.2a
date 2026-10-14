@@ -45,7 +45,8 @@ const KIND := {
 	"wfc": {"char": "thug-a", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 4.0, "dmg": 12.0, "windup": 0.78, "walk": 1.3, "run": 4.0},
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
-	"kai": {"char": "kofi", "hp": 9.0, "dmg": 15.0, "windup": 0.5, "walk": 1.6, "run": 4.8},
+	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
+	"kai": {"char": "kai", "hp": 9.0, "dmg": 20.0, "windup": 0.9, "walk": 1.6, "run": 4.8, "reach": 2.2, "hit_range": 2.9},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -531,7 +532,7 @@ func _tick_crew(dt: float) -> void:
 				if e.active and e.cool <= 0 and swingers < max_swing and not (dir != null and dir.hold) and R.grabbed_by == null: e.state = "approach"; e.t = 0.0
 			"approach":
 				e.yaw = turn_to(e.yaw, to_her, dt*8)
-				var reach := 0.9 if e.grabber else 1.55
+				var reach: float = 0.9 if e.grabber else float(e.K.get("reach", 1.55))
 				if d > reach: _step(e, to_her, e.K.run if d > 3 else e.K.walk*1.6, dt); play(e, "sprint" if d > 3 else "walk")
 				if d <= reach + 0.05:
 					if e.grabber: grab(e)
@@ -589,7 +590,7 @@ func _step(e: Dictionary, a: float, sp: float, dt: float, keep := false) -> void
 func strike(e: Dictionary) -> void:
 	var p := P(); var d: float = Vector2(e.x, e.z).distance_to(p); var a: float = absf(ang_diff(ang_to(e.x, e.z, p.x, p.y), e.yaw))
 	e.state = "recover"; e.t = 0.0
-	if d > 2.1 or a > 1.0: g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
+	if d > float(e.K.get("hit_range", 2.1)) or a > 1.0: g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
 	if R.parry_t > 0: parried(e); return
 	if R.iframe > 0: g.cue("swish"); event("whiff", {"e": e, "dodged": true}); return
 	hurt(e, 22.0 if e.weapon else e.K.dmg)
