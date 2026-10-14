@@ -134,6 +134,21 @@ derive("cross", "jab", "cut", *out["cross"].frame_range)
 d0, d1 = out["fall"].frame_range
 derive("fall", "ko", "hold"); derive("fall", "getup", "rev"); derive("fall", "hit", "cut", d0, d0 + 14); derive("fall", "stagger", "cut", d0, d0 + 18)
 ad = K.animation_data or K.animation_data_create()
+# stand him on the floor: his feet at the end of the draw, wherever they came out, put at z = 0 in every clip
+ad.action = out["draw"]
+if len(out["draw"].slots): ad.action_slot = out["draw"].slots[0]
+bpy.context.scene.frame_set(int(out["draw"].frame_range[1])); bpy.context.view_layer.update()
+lift = min((K.matrix_world @ p.head).z for p in K.pose.bones if "Toe" in p.name or "Foot" in p.name)
+down = Rh.inverted() @ Vector((0, 0, -lift + 0.02))
+for ac in out.values():
+    for cb in bags(ac):
+        for i in range(3):
+            fc = cb.fcurves.find('pose.bones["mixamorig:Hips"].location', index=i)
+            if fc is None: fc = cb.fcurves.new('pose.bones["mixamorig:Hips"].location', index=i, group_name="mixamorig:Hips"); fc.keyframe_points.insert(1, 0.0)
+            for k in fc.keyframe_points: k.co[1] += down[i]; k.handle_left[1] += down[i]; k.handle_right[1] += down[i]
+            fc.update()
+ad.action = None
+print("LIFT", lift)
 for name, ac in out.items():
     tr = ad.nla_tracks.new(); tr.name = name; st = tr.strips.new(name, int(ac.frame_range[0]), ac)
     if len(ac.slots): st.action_slot = ac.slots[0]

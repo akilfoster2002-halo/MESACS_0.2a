@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 9.0, "dmg": 20.0, "windup": 0.9, "walk": 1.6, "run": 4.8, "reach": 2.2, "hit_range": 2.9},
+	"kai": {"char": "kai", "hp": 9.0, "dmg": 20.0, "windup": 0.9, "walk": 1.6, "run": 4.8, "reach": 1.1, "aim": 0.45},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -117,10 +117,32 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 			var p := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.022; cm.bottom_radius = 0.022; cm.height = 0.85; p.mesh = cm
 			var pm := StandardMaterial3D.new(); pm.albedo_color = Color(0.29, 0.3, 0.31); pm.metallic = 0.75; pm.roughness = 0.45; p.material_override = pm
 			p.rotation.x = PI/2.4; p.position = Vector3(0, 0.05, 0.25); att.add_child(p); e.pipe = p
+	_blade(e)
 	play(e, "talk" if e.state == "talk" else "idle", 0)
 	E.append(e)
 	_place(e)
 	return e
+
+## A REAL BLADE (Kai's sword): its two ends, in the sword's own space — the one nearer his hand is the grip
+func _blade(e: Dictionary) -> void:
+	var sw = g._find(e.node, func(x): return x is MeshInstance3D and String(x.name).begins_with("Sword"))
+	if sw == null: return
+	var bx: AABB = sw.get_aabb(); var ax := 0
+	for i in 3: if bx.size[i] > bx.size[ax]: ax = i
+	var c := bx.get_center(); var a := c; var b := c
+	a[ax] = bx.position[ax]; b[ax] = bx.end[ax]
+	var hand: Vector3 = sw.get_parent().position if sw.get_parent() is Node3D else Vector3.ZERO
+	var hl: Vector3 = sw.transform.affine_inverse()*hand
+	if a.distance_to(hl) > b.distance_to(hl): var t := a; a = b; b = t
+	e.blade = {"node": sw, "grip": a, "tip": b}
+## does the blade, now, cut through her (her body: feet to head, 0.38 round)?
+func blade_hits(e: Dictionary) -> bool:
+	if not e.has("blade"): return false
+	var sw: MeshInstance3D = e.blade.node
+	var a: Vector3 = sw.global_transform*(e.blade.grip as Vector3); var b: Vector3 = sw.global_transform*(e.blade.tip as Vector3)
+	var p := P(); var f := Vector3(p.x, g.robin.position.y + 0.15, p.y); var h := f + Vector3(0, 1.5, 0)
+	var q := Geometry3D.get_closest_points_between_segments(a, b, f, h)
+	return q[0].distance_to(q[1]) < 0.38
 
 ## WFC, in uniform: navy all over, a helmet with a lit visor (tsh.js uniform)
 func dress_wfc(n: Node) -> void:
@@ -540,11 +562,17 @@ func _tick_crew(dt: float) -> void:
 						e.state = "windup"; e.t = 0.0; e.win = 0.95 if e.weapon else e.K.windup
 						var ln := hit1(e, "hook" if (e.weapon or randf() < 0.5) else "cross")
 						e.strike_at = minf(e.win, ln*0.42)
+						if e.has("blade"): e.strike_at = ln*0.35; e.swing_end = ln*0.75      # a sword hits only where it cuts
 						event("windup", {"e": e})
 				if e.t > 6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1, 2)
 			"windup":
-				e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
-				if e.t >= e.strike_at: strike(e)
+				if e.has("blade"):                       # a sword hits only where it cuts: from the strike on, while the blade is through her
+					e.yaw = turn_to(e.yaw, to_her + float(e.K.get("aim", 0.0)), dt*(6.0 if e.t < e.strike_at else 1.2))      # turned a little, so the arc goes through her
+					if e.t >= e.strike_at and blade_hits(e): strike(e, true)
+					elif e.t > e.swing_end: e.state = "recover"; e.t = 0.0; g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9})
+				else:
+					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
+					if e.t >= e.strike_at: strike(e)
 			"recover":
 				if e.t > 0.6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1.4, 2.8)*(0.8 if (dir != null and dir.free) else 1.4)
 			"stagger":
@@ -587,10 +615,10 @@ func _tick_crew(dt: float) -> void:
 func _step(e: Dictionary, a: float, sp: float, dt: float, keep := false) -> void:
 	e.x += sin(a)*sp*dt; e.z += cos(a)*sp*dt
 	if not keep: e.yaw = turn_to(e.yaw, a, dt*8)
-func strike(e: Dictionary) -> void:
+func strike(e: Dictionary, cut := false) -> void:
 	var p := P(); var d: float = Vector2(e.x, e.z).distance_to(p); var a: float = absf(ang_diff(ang_to(e.x, e.z, p.x, p.y), e.yaw))
 	e.state = "recover"; e.t = 0.0
-	if d > float(e.K.get("hit_range", 2.1)) or a > 1.0: g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
+	if not cut and (d > float(e.K.get("hit_range", 2.1)) or a > 1.0): g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
 	if R.parry_t > 0: parried(e); return
 	if R.iframe > 0: g.cue("swish"); event("whiff", {"e": e, "dodged": true}); return
 	hurt(e, 22.0 if e.weapon else e.K.dmg)

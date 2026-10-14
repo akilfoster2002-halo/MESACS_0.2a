@@ -1759,7 +1759,7 @@ func _shots_after() -> void:
 	if shots_alpha:
 		var t9 := Time.get_ticks_msec()
 		while mode != "fight" and Time.get_ticks_msec() - t9 < 60000: await get_tree().create_timer(0.3).timeout
-		for i in 5: await get_tree().create_timer(1.4).timeout; await _snap("kaifight_%d" % i)      # Kai, a few seconds of him
+		for i in 12: await get_tree().create_timer(1.0).timeout; await _snap("kaifight_%d" % i)      # Kai, a few seconds of him
 		station.alpha_scene(); await reel_snaps.call("alpha", 1.5); await reel_snaps.call("monster", 1.5)
 		var t8 := Time.get_ticks_msec()
 		while station.B != null and Time.get_ticks_msec() - t8 < 16000:
