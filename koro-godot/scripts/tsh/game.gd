@@ -751,6 +751,13 @@ func fm_stop(secs := 0.5) -> void:
 	if fm == null or not fm.playing: return
 	fm_loop = []; if fm_tw: fm_tw.kill()
 	fm_tw = create_tween(); fm_tw.tween_property(fm, "volume_db", -60.0, secs); fm_tw.tween_callback(fm.stop)
+## held breath: the song sunk low and muffled under a scene, then back
+func fm_tension(on: bool) -> void:
+	if fm == null or _fm_lp == null: return
+	if fm_tw: fm_tw.kill()
+	fm_tw = create_tween(); fm_tw.set_parallel(true)
+	fm_tw.tween_property(fm, "volume_db", -22.0 if on else linear_to_db(0.85), 0.8 if on else 0.15)
+	fm_tw.tween_property(_fm_lp, "cutoff_hz", 380.0 if on else 18000.0, 0.8 if on else 0.15)
 ## the song goes under water with the world when it slows
 func fm_slow(k: float) -> void:
 	if _fm_lp: _fm_lp.cutoff_hz = 18000.0 if k > 0.92 else 400.0 + 11000.0*k*k
@@ -1770,7 +1777,12 @@ func _shots_after() -> void:
 			_kai_out(); station.kai_down()
 			var tm := Time.get_ticks_msec()
 			while mode != "fight" and Time.get_ticks_msec() - tm < 40000: await get_tree().create_timer(0.3).timeout
-			for i in 24: await get_tree().create_timer(0.5).timeout; await _snap("mayafight_%02d" % i)
+			for i in 10: await get_tree().create_timer(0.5).timeout; await _snap("mayafight_%02d" % i)
+			var mm = crew("maya")
+			if mm: mm.hp = mm.K.hp*0.4                  # past half: the gizmo falls
+			await get_tree().create_timer(0.3).timeout
+			await reel_snaps.call("drop", 0.6)
+			await reel_snaps.call("alpha", 1.0)
 			get_tree().quit(); return
 		for i in 20: await get_tree().create_timer(1.0).timeout; await _snap("kaifight_%d" % i)      # Kai, a few seconds of him
 		station.alpha_scene(); await reel_snaps.call("alpha", 1.5); await reel_snaps.call("monster", 1.5)

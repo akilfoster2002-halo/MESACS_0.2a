@@ -106,9 +106,9 @@ func burst(k: int, at: Vector3, hold := 1.2, on_floor := false) -> void:
 	arms[k].out = {"t": 0.0, "from": arms[k].ext, "at": at, "hold": hold, "floor": on_floor}
 ## A STRIKE, in one motion: the arm draws back over her shoulder, drives out to `at` (arriving `reach` seconds from now),
 ## the claw closes there a moment, and it comes home
-func strike(k: int, at: Vector3, reach := 0.3) -> void:
+func strike(k: int, at: Vector3, reach := 0.3, coil := 0.4) -> void:
 	var A: Arm = arms[k]
-	A.out = {"strike": true, "t": 0.0, "at": at, "reach": reach, "from": A.tg}
+	A.out = {"strike": true, "t": 0.0, "at": at, "reach": reach, "coil": coil, "from": A.tg}
 
 func _sockets() -> Array:
 	var out := []
@@ -167,7 +167,7 @@ func _process(dt: float) -> void:
 		var snap := false
 		if B != null and B.get("strike", false):
 			B.t += dt
-			var u: float = B.t; var R: float = B.reach; var c := R*0.4
+			var u: float = B.t; var R: float = B.reach; var c: float = R*float(B.get("coil", 0.4))
 			var home: Vector3 = target
 			var back: Vector3 = (S[k] as Vector3) + ((S[k] as Vector3) - (B.at as Vector3)).normalized()*0.5 + Vector3(0, 0.7, 0)
 			if u < c:                                  # drawn back

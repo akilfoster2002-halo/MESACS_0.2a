@@ -32,6 +32,7 @@ var sub_t := 0.0
 var lights_node: Node3D
 var psi_light: OmniLight3D
 var gizmo: Node3D
+var gizmo_dropped := false      # it fell out of her jacket in the fight with Maya (station.gd drop_scene)
 
 func _init(game) -> void: g = game
 func TX(v: float) -> float: return 520.0 + v

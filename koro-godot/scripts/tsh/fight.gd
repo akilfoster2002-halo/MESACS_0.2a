@@ -47,7 +47,7 @@ const KIND := {
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
 	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
-	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
+	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
 var g          # the game (game.gd)
@@ -639,8 +639,8 @@ func _tick_crew(dt: float) -> void:
 					elif e.t > e.swing_end: e.state = "recover"; e.t = 0.0; event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); _combo(e, d)
 				elif e.has("arm_strike"):                 # Maya: her punch, and the arm finishes it — out to where she was
 					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
-					if not e.get("arm_out", false) and e.t >= e.strike_at - 0.3:
-						e.arm_out = true; e.arm_at = Vector3(p.x, g.robin.position.y + 1.15, p.y); (e.arm_strike as Callable).call(e.arm_at, 0.3)
+					if not e.get("arm_out", false) and e.t >= e.strike_at - 0.42:      # drawn back through her windup; let go with her punch, arriving as it lands
+						e.arm_out = true; e.arm_at = Vector3(p.x, g.robin.position.y + 1.15, p.y); (e.arm_strike as Callable).call(e.arm_at, 0.42, 0.7)
 					if e.t >= e.strike_at:
 						e.arm_out = false
 						if Vector2(p.x - e.arm_at.x, p.y - e.arm_at.z).length() < 0.85: strike(e, true)

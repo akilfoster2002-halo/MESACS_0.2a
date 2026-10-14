@@ -79,7 +79,7 @@ func tick(dt: float) -> void:
 	if alpha_fx != null: alpha_fx.tick(dt)
 	if watch == "fight2" and g.mode == "fight":
 		var m = crew("maya")
-		if m != null and m.hp <= m.K.hp*0.5: watch = ""; alpha_scene()
+		if m != null and m.hp <= m.K.hp*0.5: watch = ""; drop_scene()
 	if B != null: _tick_brawl(dt)
 func tick_watch(w: String, dt: float) -> void:
 	match w:
@@ -235,12 +235,12 @@ func fight_two(R: Vector2, ry: float) -> void:
 	if maya:
 		maya.bystander = false; maya.hp = maya.K.hp; maya.state = "circle"; maya.active = true
 		# her attacks end in an arm: the upper one on the side she is striking from drives out to Robin
-		maya.arm_strike = func(at: Vector3, reach: float):
+		maya.arm_strike = func(at: Vector3, reach: float, coil: float):
 			var o := maya_arms()
 			if o == null: return
 			o.visible = true
 			var right := Vector2(cos(maya.yaw), -sin(maya.yaw)); var side: float = (at.x - maya.x)*right.x + (at.z - maya.z)*right.y
-			o.strike(1 if side > 0 else 0, at, reach); g.cue("zip")
+			o.strike(1 if side > 0 else 0, at, reach, coil); later(reach*coil, func(): g.cue("zip"))
 	stab = 2.2
 	_fight_begin(R, ry, func(): _fight_end(); alpha_scene())
 	watch = "fight2"
@@ -365,6 +365,57 @@ func cuts(dur: float, cams: Array, o := {}) -> Array:
 	return out
 
 # ================================================================== THE GIZMO SCREAMS
+## THE GIZMO FALLS. In the scuffle Canon's gizmo slips out of her jacket and hits the platform — and starts to beep.
+## Nobody moves. The song goes under; the two of them, and Maya's arms, hold where they are; the beeps come faster
+## and faster, its light red each time — and then what is in Maya answers it (alpha_scene).
+func drop_scene() -> void:
+	g.talk_q.clear()
+	if g.fight.on: g.fight.stop()
+	_fight_end()
+	var maya = crew("maya"); var p: Vector3 = g.robin.position; var R := Vector2(p.x, p.z)
+	var M := Vector2(maya.x, maya.z) if maya else _a(sp.maya); var ry := ang(R, M); var dir := Vector2(sin(ry), cos(ry)); var side := Vector2(cos(ry), -sin(ry))
+	var F: Dictionary = cy.pair_angles(R, M, dir, -dir, side, 1.62, 1.62)
+	var gp: Node3D = cy.gizmo_prop(); gp.visible = true; cy.gizmo_dropped = true
+	var top := Vector3(R.x + dir.x*0.22 + side.x*0.15, 1.15, R.y + dir.y*0.22 + side.y*0.15)
+	var rest := Vector3(R.x + dir.x*0.75 + side.x*0.35, 0.012, R.y + dir.y*0.75 + side.y*0.35)
+	gp.position = top
+	var led: MeshInstance3D = gp.get_node("led"); var scr: MeshInstance3D = gp.get_node("scr")
+	var B := {"t": 0.0, "next": 1.4, "lit": 0.0}
+	# the beeps: one, a long wait, then closer and closer; the light red while each sounds
+	var beep := func(dt: float):
+		B.t += dt; B.lit = maxf(0, B.lit - dt)
+		B.next -= dt
+		if B.next <= 0:
+			g.cue("beep"); B.lit = 0.07
+			B.next = maxf(0.09, 1.25*exp(-B.t*0.28))
+		(led.material_override as StandardMaterial3D).albedo_color = Color(4, 0.15, 0.1) if B.lit > 0 else Color(0.15, 0.02, 0.02)
+		(scr.material_override as StandardMaterial3D).albedo_color = Color(1.4, 0.1, 0.1) if B.lit > 0 else Color(0.08, 0.02, 0.03)
+	# the fall: off her, down, one bounce, and still — screen up
+	var fall := func(t: float):
+		var y: float
+		if t < 0.45: y = lerpf(top.y, 0.012, pow(t/0.45, 2))
+		elif t < 0.7: y = 0.012 + 0.11*sin(PI*(t - 0.45)/0.25)
+		else: y = 0.012
+		var k := clampf(t/0.7, 0, 1)
+		gp.position = Vector3(lerpf(top.x, rest.x, k), y, lerpf(top.z, rest.z, k))
+		gp.rotation = Vector3(lerpf(-0.2, -PI/2, minf(1, t/0.6)) + sin(t*14)*0.3*(1 - k), ry + t*4.0*(1 - k), sin(t*11)*0.4*(1 - k))
+	var hold := func():
+		stand("fight", R, ry)
+		if maya: g.crew_face(maya, R.x, R.y, "fight")
+	var low := Vector3(rest.x - dir.x*0.5 + side.x*0.6, 0.12, rest.z - dir.y*0.5 + side.y*0.6)
+	var shots := [
+		{"dur": 0.9, "fov": 40, "cam": Vector3(R.x - side.x*1.4 + dir.x*0.4, 0.35, R.y - side.y*1.4 + dir.y*0.4), "look": func(_k = 0.0, _t = 0.0): return gp.position,
+			"enter": func(): hold.call(); g.cue("grab"); g.fm_tension(true), "tick": func(dt, t, k): fall.call(t)},
+		{"dur": 1.7, "fov": 34, "cam": low, "look": rest, "enter": func(): fall.call(9.0); g.cue("thud"), "tick": func(dt, t, k): beep.call(dt)},
+		{"mood": "shocked", "dur": 1.8, "fov": 26, "cam": F.herTight.cam, "look": F.herTight.look, "enter": hold, "tick": func(dt, t, k): beep.call(dt)},
+		{"dur": 1.6, "fov": 28, "cam": F.himTight.cam, "look": Vector3(M.x, 1.45, M.y), "tick": func(dt, t, k): beep.call(dt)},
+		{"dur": 1.4, "fov": 20, "cam": rest + Vector3(side.x*0.3 - dir.x*0.15, 0.22, side.y*0.3 - dir.y*0.15), "look": rest, "tick": func(dt, t, k): beep.call(dt)},
+		{"dur": 1.3, "fov": 46, "cam": Vector3(M.x - dir.x*1.6 + side.x*1.4, 0.5, M.y - dir.y*1.6 + side.y*1.4), "look": Vector3(M.x, 1.6, M.y), "tick": func(dt, t, k): beep.call(dt)},
+		{"mood": "shocked", "dur": 1.1, "fov": 24, "cam": F.herTight.cam, "look": F.herTight.look, "tick": func(dt, t, k): beep.call(dt)},
+		{"dur": 0.9, "fov": 34, "cam": F.overHer.cam, "look": rest, "tick": func(dt, t, k): beep.call(dt)},
+		{"dur": 0.8, "fov": 16, "cam": rest + Vector3(side.x*0.18, 0.12, side.y*0.18), "look": rest, "tick": func(dt, t, k): beep.call(dt)}]
+	g.play_reel(shots, done(func(): g.fm_tension(false); alpha_scene()))
+
 func alpha_scene() -> void:
 	g.talk_q.clear()
 	if g.fight.on: g.fight.stop()
@@ -385,13 +436,14 @@ func alpha_scene() -> void:
 	var grow := func(k: float, gl: float):
 		if alpha_fx == null and maya: alpha_fx = Monster.AlphaFx.new(maya.node.get_child(0) as Node3D if maya.node.get_child_count() else maya.node)
 		if alpha_fx: alpha_fx.cover = maxf(alpha_fx.cover, k); alpha_fx.glitch = gl
-	var gz := func() -> Vector3: return cy.gizmo_prop().position
+	var gz := func(_k = 0.0, _t = 0.0) -> Vector3: return cy.gizmo_prop().position
 	var pocket := func():
 		var gp: Node3D = cy.gizmo_prop(); gp.visible = true
+		if cy.gizmo_dropped: return                     # on the platform, where it fell
 		gp.position = Vector3(R.x + dir.x*0.25 + side.x*0.12, 1.0, R.y + dir.y*0.25 + side.y*0.12); gp.rotation = Vector3(-0.2, ry, 0)
 	var C := {
-		"gizmo": {"cam": func(): var q: Vector3 = gz.call(); return q + Vector3(side.x*0.35 - dir.x*0.2, 0.12, side.y*0.35 - dir.y*0.2), "look": gz, "fov": 30},
-		"gizmoX": {"cam": func(): var q: Vector3 = gz.call(); return q + Vector3(-side.x*0.25 + dir.x*0.25, 0.05, -side.y*0.25 + dir.y*0.25), "look": gz, "fov": 22},
+		"gizmo": {"cam": func(_k = 0.0, _t = 0.0): var q: Vector3 = gz.call(); return q + Vector3(side.x*0.35 - dir.x*0.2, 0.12, side.y*0.35 - dir.y*0.2), "look": gz, "fov": 30},
+		"gizmoX": {"cam": func(_k = 0.0, _t = 0.0): var q: Vector3 = gz.call(); return q + Vector3(-side.x*0.25 + dir.x*0.25, 0.05, -side.y*0.25 + dir.y*0.25), "look": gz, "fov": 22},
 		"her": {"cam": F.herTight.cam, "look": F.herTight.look, "fov": 26},
 		"herSide": {"cam": F.profileL.cam, "look": F.two.look, "fov": 34},
 		"maya": {"cam": F.himTight.cam, "look": mh, "fov": 28},
