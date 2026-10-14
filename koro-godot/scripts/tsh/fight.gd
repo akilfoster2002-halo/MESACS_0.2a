@@ -136,6 +136,18 @@ func _blade(e: Dictionary) -> void:
 	var hl: Vector3 = sw.transform.affine_inverse()*hand
 	if a.distance_to(hl) > b.distance_to(hl): var t := a; a = b; b = t
 	e.blade = {"node": sw, "grip": a, "tip": b}
+## a sword's swing: the clip a little quicker than it was made, the cut from a third of the way in to three quarters
+func _blade_swing(e: Dictionary, clip: String, ln := -1.0) -> void:
+	if ln < 0: ln = hit1(e, clip)
+	e.anim_k = 1.3; ln /= 1.3
+	e.kicking = clip == "kick"
+	e.strike_at = ln*(0.4 if e.kicking else 0.35); e.swing_end = ln*0.75; e.state = "windup"; e.t = 0.0
+## and straight into the next, up to three: slash, slash, the kick
+func _combo(e: Dictionary, d: float) -> void:
+	if e.get("combo", 0) >= 2 or d > 2.8 or randf() > 0.65 or not standing(e): return
+	e.combo = e.get("combo", 0) + 1
+	var nxt: String = ["cross", "kick"][e.combo - 1] if e.clip == "hook" else ["hook", "kick"][e.combo - 1]
+	_blade_swing(e, nxt); event("windup", {"e": e})
 ## does the blade, now, cut through her (her body: feet to head, 0.38 round)?
 func blade_hits(e: Dictionary) -> bool:
 	if not e.has("blade"): return false
@@ -174,11 +186,11 @@ func _bone_node(n: Node, suffix: String):
 
 func play(e: Dictionary, nm: String, fade := 0.15) -> void:
 	e.clip_want = nm
-	if e.clip != nm and e.ap.has_animation(nm): e.clip = nm; e.ap.play(nm, fade)
+	if e.clip != nm and e.ap.has_animation(nm): e.clip = nm; e.ap.play(nm, fade); e.anim_k = 1.0
 func hit1(e: Dictionary, nm: String) -> float:
 	e.clip_want = nm
 	if not e.ap.has_animation(nm): return 0.6
-	e.clip = nm; e.ap.stop(); e.ap.play(nm, 0.06)
+	e.clip = nm; e.ap.stop(); e.ap.play(nm, 0.06); e.anim_k = 1.0
 	return e.ap.get_animation(nm).length
 func standing(e) -> bool:
 	return e != null and not e.state in ["down", "ko", "flying", "getup", "gone"] and e.kind != "buyer" and not e.get("bystander", false)
@@ -552,30 +564,39 @@ func _tick_crew(dt: float) -> void:
 				if moving: _step(e, atan2(mv.x, mv.y), e.K.walk*0.8, dt, true)
 				play(e, (("walk" if off > 0 else "walk_back") if absf(off) > 0.35 else ("walk_left" if e.side > 0 else "walk_right")) if moving else "fight")
 				e.cool -= dt
-				if e.active and e.cool <= 0 and swingers < max_swing and not (dir != null and dir.hold) and R.grabbed_by == null: e.state = "approach"; e.t = 0.0
+				if e.has("blade") and R.act == "attack" and d < 2.6 and randf() < dt*3.0:     # her swing coming: out of the way, and back in fast
+					e.state = "evade"; e.t = 0.0; e.ev_a = to_her + PI/2*e.side; g.cue("swish")
+					play(e, "walk_left" if e.side > 0 else "walk_right", 0.05); e.anim_k = 2.2
+				elif e.active and e.cool <= 0 and swingers < max_swing and not (dir != null and dir.hold) and R.grabbed_by == null: e.state = "approach"; e.t = 0.0
+			"evade":
+				_step(e, e.ev_a, 6.5*(1.0 - e.t/0.4), dt, true); e.yaw = turn_to(e.yaw, to_her, dt*8)
+				if e.t > 0.4: e.anim_k = 1.0; e.state = "circle"; e.t = 0.0; e.cool = 0.25; e.side *= -1
 			"approach":
 				e.yaw = turn_to(e.yaw, to_her, dt*8)
 				var reach: float = 0.9 if e.grabber else float(e.K.get("reach", 1.55))
-				if d > reach: _step(e, to_her, e.K.run if d > 3 else e.K.walk*1.6, dt); play(e, "sprint" if d > 3 else "walk")
+				if e.has("blade") and d > reach and d < 4.5: _step(e, to_her, 8.5, dt); play(e, "sprint"); e.anim_k = 1.6
+				elif d > reach: _step(e, to_her, e.K.run if d > 3 else e.K.walk*1.6, dt); play(e, "sprint" if d > 3 else "walk")
 				if d <= reach + 0.05:
 					if e.grabber: grab(e)
 					else:
 						e.state = "windup"; e.t = 0.0; e.win = 0.95 if e.weapon else e.K.windup
 						var ln := hit1(e, "hook" if (e.weapon or randf() < 0.5) else "cross")
 						e.strike_at = minf(e.win, ln*0.42)
-						if e.has("blade"): e.strike_at = ln*0.35; e.swing_end = ln*0.75      # a sword hits only where it cuts
+						if e.has("blade"): e.combo = 0; _blade_swing(e, "hook" if randf() < 0.5 else "cross", ln)      # a sword hits only where it cuts
 						event("windup", {"e": e})
 				if e.t > 6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1, 2)
 			"windup":
 				if e.has("blade"):                       # a sword hits only where it cuts: from the strike on, while the blade is through her
 					e.yaw = turn_to(e.yaw, to_her + float(e.K.get("aim", 0.0)), dt*(6.0 if e.t < e.strike_at else 1.2))      # turned a little, so the arc goes through her
-					if e.t >= e.strike_at and blade_hits(e): strike(e, true)
-					elif e.t > e.swing_end: e.state = "recover"; e.t = 0.0; g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9})
+					if e.get("kicking", false):
+						if e.t >= e.strike_at: strike(e); _combo(e, d)
+					elif e.t >= e.strike_at and blade_hits(e): strike(e, true); _combo(e, d)
+					elif e.t > e.swing_end: e.state = "recover"; e.t = 0.0; g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); _combo(e, d)
 				else:
 					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
 					if e.t >= e.strike_at: strike(e)
 			"recover":
-				if e.t > 0.6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1.4, 2.8)*(0.8 if (dir != null and dir.free) else 1.4)
+				if e.t > 0.6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1.4, 2.8)*(0.8 if (dir != null and dir.free) else 1.4)*(0.45 if e.has("blade") else 1.0); e.anim_k = 1.0
 			"stagger":
 				e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= exp(-dt*8); e.vz *= exp(-dt*8)
 				if e.t > (1.7 if e.parried else 0.6): e.parried = false; e.state = "circle"; e.t = 0.0; e.cool = randf_range(0.8, 1.8)
@@ -610,7 +631,7 @@ func _tick_crew(dt: float) -> void:
 				var dv := Vector2(e.x - o.x, e.z - o.z); var dd := dv.length()
 				if dd > 0 and dd < 0.8: e.x += dv.x/dd*(0.8 - dd)*0.5; e.z += dv.y/dd*(0.8 - dd)*0.5
 		if e.state != "flying": var c2 := clamp_arena(e.x, e.z, 0.3); e.x = c2.x; e.z = c2.y
-		e.ap.speed_scale = 0.0 if held else 1.0
+		e.ap.speed_scale = 0.0 if held else float(e.get("anim_k", 1.0))
 		_place(e)
 
 func _step(e: Dictionary, a: float, sp: float, dt: float, keep := false) -> void:
@@ -945,7 +966,7 @@ func tick(real: float) -> void:
 	aim_target(); _tick_mark(real)
 	_fight_cam(real)
 	_tick_crew(dt)
-	for e in E: e.ap.speed_scale = time_scale if e.ap.speed_scale > 0 else 0.0
+	for e in E: e.ap.speed_scale = time_scale*float(e.get("anim_k", 1.0)) if e.ap.speed_scale > 0 else 0.0
 	_tick_director(dt)
 	hp_bar.size.x = 260*clampf(R.hp, 0, 100)/100.0; hp_bar.color = Color(1, 0.4, 0.3) if R.hp < 35 else Color(0.4, 1, 0.9)
 	combo_label.text = ("%d HITS" % R.combo) if (R.combo >= 2 and R.combo_t > 0) else ""

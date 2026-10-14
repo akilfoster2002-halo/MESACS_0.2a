@@ -110,14 +110,14 @@ def key(name, f):
 def jaw(p):
     if p.z > MOUTH.z + 0.0015*S: return None
     w = min(1.0, (MOUTH.z + 0.0015*S - p.z)/(0.006*S))
-    q = Matrix.Rotation(math.radians(13)*w, 3, 'X') @ (p - JAW) + JAW
+    q = Matrix.Rotation(math.radians(24)*w, 3, 'X') @ (p - JAW) + JAW
     return q - p
 key("jawOpen", jaw)
-key("mouthO", lambda p: (Vector((-(p.x - MOUTH.x)*0.45, -0.004*S, 0)))*near(p, MOUTH, 0.017*S))
-key("smile", lambda p: sum((Vector((0.003*S*(1 if k == "L" else -1), 0.002*S, 0.0045*S))*near(p, c, 0.011*S) for k, c in CORNER.items()), Vector()))
-key("frown", lambda p: sum((Vector((0, 0, -0.004*S))*near(p, c, 0.011*S) for c in CORNER.values()), Vector()))
-key("browUp", lambda p: sum((Vector((0, 0, 0.004*S))*near(p, c, 0.013*S) for c in BROW.values()), Vector()))
-key("browDown", lambda p: sum((Vector((-0.0015*S*(1 if k == "L" else -1), -0.001*S, -0.003*S))*near(p, c, 0.012*S) for k, c in BROW.items()), Vector()))
+key("mouthO", lambda p: (Vector((-(p.x - MOUTH.x)*0.7, -0.008*S, 0)))*near(p, MOUTH, 0.019*S))
+key("smile", lambda p: sum((Vector((0.0055*S*(1 if k == "L" else -1), 0.003*S, 0.009*S))*near(p, c, 0.013*S) for k, c in CORNER.items()), Vector()))
+key("frown", lambda p: sum((Vector((0.001*S*(1 if c.x > 0 else -1), 0, -0.008*S))*near(p, c, 0.013*S) for c in CORNER.values()), Vector()))
+key("browUp", lambda p: sum((Vector((0, -0.001*S, 0.0085*S))*near(p, c, 0.015*S) for c in BROW.values()), Vector()))
+key("browDown", lambda p: sum((Vector((-0.003*S*(1 if k == "L" else -1), -0.002*S, -0.0065*S))*near(p, c, 0.014*S) for k, c in BROW.items()), Vector()))
 key("blink", lambda p: sum((Vector((0, -0.002*S, -0.0085*S))*near(p, c, 0.0075*S) for c in LID.values()), Vector()))
 # EYEBALLS that turn: white, an iris, a pupil — set in his sockets, on his head bone
 def eyeball(side):

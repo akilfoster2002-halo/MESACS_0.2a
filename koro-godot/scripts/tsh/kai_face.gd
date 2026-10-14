@@ -11,6 +11,7 @@ var eyes: Array = []; var rest: Array = []
 var sk: Skeleton3D; var head := -1
 var blink_in := 2.0; var blink_t := 0.0; var t := 0.0
 var cur := {}
+var last_hp := 0.0; var wince := 0.0; var her_hp := 100.0; var smirk := 0.0
 
 static func attach(game, ent: Dictionary) -> KaiFace:
 	var f := KaiFace.new(); f.g = game; f.e = ent
@@ -56,10 +57,22 @@ func _process(dt: float) -> void:
 	# talking: a syllable at a time while his line is up
 	var talking: bool = g.talk_who == "kai" and g.sub_label.text != ""
 	var flap := (0.35 + 0.65*absf(sin(t*11.0))*(0.6 + 0.4*sin(t*3.7))) if talking else 0.0
-	_shape("jawOpen", flap*0.75, dt, 18.0); _shape("mouthO", flap*0.25, dt, 14.0)
+	_shape("jawOpen", flap*0.9, dt, 18.0); _shape("mouthO", flap*0.3, dt, 14.0)
 	# fighting: brows down, mouth set
 	var fighting: bool = g.fight.on and e.get("active", false)
-	_shape("browDown", 0.8 if fighting else 0.25, dt, 4.0); _shape("frown", 0.5 if fighting else 0.1, dt, 4.0)
+	# a wince when he is hit; a snarl as he swings; a smirk when he has hurt her
+	var hp: float = float(e.get("hp", 0.0))
+	if hp < last_hp - 0.01: wince = 0.6
+	last_hp = hp; wince = maxf(0, wince - dt)
+	var rh: float = float(g.fight.R.get("hp", 100.0)) if g.fight.on and g.fight.R is Dictionary else 100.0
+	if rh < her_hp - 0.5: smirk = 1.2
+	her_hp = rh; smirk = maxf(0, smirk - dt)
+	var swing: bool = fighting and e.get("state", "") == "windup"
+	_shape("browDown", (1.0 if fighting else 0.3) * (0.3 if wince > 0 else 1.0), dt, 6.0)
+	_shape("frown", 0.9 if wince > 0 else (0.75 if fighting and smirk <= 0 else 0.15), dt, 8.0)
+	_shape("smile", 0.8 if smirk > 0 else 0.0, dt, 8.0)
+	if wince > 0: _shape("blink", 0.7, dt, 30.0)
+	if swing or wince > 0: _shape("jawOpen", 0.55 if swing else 0.35, dt, 14.0)
 	_shape("browUp", 0.35*absf(sin(t*2.3)) if talking else 0.0, dt, 6.0)
 	# the eyes: each turned toward what he looks at (an eyeball's front is its +Z), no further than an eye turns from
 	# where his face points
