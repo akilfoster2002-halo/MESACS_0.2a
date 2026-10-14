@@ -1,29 +1,22 @@
 ## TSH · ALPHA — public/tshalpha.js (TSHMONSTER and TSHALPHA), ported.
 ## What came up out of Maya keeps coming: a mass of the black stuff as big as the platform, heaving, pale lights
 ## opening and shutting all over it, one white eye high on it, strands of it whipping out, a swarm of black flakes.
-## THE BODY IT COMES UP IN is the goose (assets/tsh/monster/goose.glb) — and nothing of its movement is its own. A
-## spider (spider.glb) crawls, unseen, and its feet are where the goose's blade tips and knees go; a tyrannosaur
-## (trexhead.glb: idle, bite, roar, attack_tail) works its spine, neck and head, and its head is drawn on the goose's
-## neck. Every frame each goose bone turns (in the monster's own frame) by as much as its source has turned since the
-## first frame of its idle.
+## THE BODY IT COMES UP IN is the alien (assets/tsh/monster/alien.glb), rigged by tools/alien-rig.py on the
+## tyrannosaur's own skeleton and moving by its clips: idle standing, run going, bite, roar, attack_tail.
 ##
 ##   var m := Monster.new(); parent.add_child(m); m.setup(at, yaw)   m.grow = 0..1   m.mouth / m.eye_at (world)
 ##   m.act("roar" | "bite" | "tail")   m.reach(at)   m.flinch()
 class_name Monster
 extends Node3D
 
-## goose bone ← [rig, its bone (dots stripped), how much of its turn]; parents before children
-const MAP := [["Hips", "sp", "Bone004", 0.5], ["Spine", "tx", "bn_Spine15", 1.0], ["Chest", "tx", "bn_Spine26", 1.1], ["Neck", "tx", "bn_Neck18", 1.2], ["Head", "tx", "bn_Head10", 1.3]]
-## where the spider's feet go are where its blade tips and its knees go: [goose chain, the point it reaches with (body-local), spider foot]
-const LIMBS := [
-	{"chain": ["Shoulder.L", "UpperArm.L", "Forearm.L"], "tip": Vector3(1.41, 0.0, 1.01), "foot": "Bone002_L006"},
-	{"chain": ["Shoulder.R", "UpperArm.R", "Forearm.R"], "tip": Vector3(-1.41, 0.0, 1.01), "foot": "Bone002_R006"},
-	{"chain": ["Thigh.L", "Shin.L", "Foot.L"], "tip": Vector3(1.19, 0.0, -2.93), "foot": "Bone_L006"},
-	{"chain": ["Thigh.R", "Shin.R", "Foot.R"], "tip": Vector3(-1.19, 0.0, -2.93), "foot": "Bone_R006"}]
+## the old goose names the strands and flakes hang from → the alien's (the tyrannosaur's) bones
+const BONES := {"Head": "bn_Head", "Neck": "bn_Neck1", "Chest": "bn_Spine2", "Spine": "bn_Spine1", "Hips": "bn_Spine",
+	"Forearm.L": "bn_LeftForeArm", "Forearm.R": "bn_RightForeArm", "UpperArm.L": "bn_LeftArm", "UpperArm.R": "bn_RightArm",
+	"Shin.L": "bn_LeftLeg", "Shin.R": "bn_RightLeg", "Foot.L": "bn_LeftFoot", "Foot.R": "bn_RightFoot"}
 const SIZE := 1.35
 const ANCH := ["Head", "Neck", "Chest", "Hips", "Forearm.L", "Forearm.R", "UpperArm.L", "UpperArm.R", "Shin.L", "Shin.R", "Foot.L", "Foot.R", "Spine"]
 const FANCH := ["Forearm.L", "Forearm.R", "UpperArm.L", "UpperArm.R", "Shin.L", "Shin.R", "Foot.L", "Foot.R", "Head", "Neck", "Hips", "Chest"]
-const NL := 110; const NPT := 14; const NF := 1100; const NB := 40
+const NL := 110; const NPT := 14; const NF := 1100
 
 var grow := 0.0
 var pull := 1.0
@@ -37,65 +30,39 @@ var push := 0.0
 
 var body: Node3D
 var skin: ShaderMaterial
-var gsk: Skeleton3D; var ssk: Skeleton3D; var tsk: Skeleton3D
-var sap: AnimationPlayer; var tap: AnimationPlayer
-var tx: Node3D
+var gsk: Skeleton3D
+var tap: AnimationPlayer
 var ready_ := false
-var refs: Array = []
-var limbs: Array = []
 var act_name = null; var act_t := 0.0; var bit := false
-var sp_now := ""
+var clip_now := ""; var step_t := 0.0
 var head: Node3D; var eye: MeshInstance3D; var halo: Sprite3D
 var rims: Array = []; var fill: OmniLight3D; var spot: SpotLight3D; var strobe: OmniLight3D
 var strands: Array = []; var ink: MultiMeshInstance3D
 var flakes_d: Array = []; var flakes: MultiMeshInstance3D
-var blights: Array = []; var bi := 0
 var last_pos := Vector3.ZERO; var speed := 0.0
 var last_w := Vector3.ZERO
 var dip := 0.0; var flinch_k := 0.0
-var spider_names := {}; var trex_names := {}
+var bone_ix := {}
 
-static func _plain(s: String) -> String: return s.replace(".", "")
+## the importer's names carry the tyrannosaur's numbers (bn_Head.10 → bn_Head10): the name without them
+static func _plain(s: String) -> String:
+	var i := s.rfind(".")
+	if i < 0: i = s.rfind("_")
+	return s.substr(0, i) if i > 0 and s.substr(i + 1).is_valid_int() else s
 
 func setup(at: Vector3, yaw: float) -> void:
 	position = Vector3(at.x, 0, at.z); rotation.y = yaw
 	last_pos = position; last_w = position
 	body = Node3D.new(); add_child(body)
 	skin = ShaderMaterial.new(); skin.shader = load("res://shaders/tsh_alpha_skin.gdshader")
-	var goose: Node3D = (load("res://assets/tsh/monster/goose.glb") as PackedScene).instantiate(); body.add_child(goose)
-	var sp: Node3D = (load("res://assets/tsh/monster/spider.glb") as PackedScene).instantiate(); body.add_child(sp)
-	tx = (load("res://assets/tsh/monster/trexhead.glb") as PackedScene).instantiate(); tx.scale = Vector3.ONE*0.6; body.add_child(tx)
-	_each(goose, func(n): if n is MeshInstance3D: n.material_override = skin)
-	_each(tx, func(n): if n is MeshInstance3D: n.material_override = skin)
-	_each(sp, func(n): if n is MeshInstance3D: n.visible = false)
-	gsk = _find_t(goose, "Skeleton3D"); ssk = _find_t(sp, "Skeleton3D"); tsk = _find_t(tx, "Skeleton3D")
-	sap = _find_t(sp, "AnimationPlayer"); tap = _find_t(tx, "AnimationPlayer")
-	for i in ssk.get_bone_count(): spider_names[_plain(ssk.get_bone_name(i))] = i
-	for i in tsk.get_bone_count(): trex_names[_plain(tsk.get_bone_name(i))] = i
-	for a in sap.get_animation_list(): sap.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	var alien: Node3D = (load("res://assets/tsh/monster/alien.glb") as PackedScene).instantiate(); body.add_child(alien)
+	_each(alien, func(n): if n is MeshInstance3D: n.material_override = skin)
+	gsk = _find_t(alien, "Skeleton3D"); tap = _find_t(alien, "AnimationPlayer")
+	for i in gsk.get_bone_count(): bone_ix[_plain(gsk.get_bone_name(i))] = i
 	for a in tap.get_animation_list(): tap.get_animation(a).loop_mode = Animation.LOOP_LINEAR if a in ["idle", "run"] else Animation.LOOP_NONE
-	tap.animation_finished.connect(func(_n): act_name = null; tap.play("idle", 0.35))
-	# the reference: each animal at the first frame of its idle, the goose at rest
-	_sp_play("walk", 0.0); tap.play("idle"); sap.seek(0, true); tap.seek(0, true)
-	for m in MAP:
-		var src_sk: Skeleton3D = ssk if m[1] == "sp" else tsk
-		var si: int = (spider_names if m[1] == "sp" else trex_names).get(m[2], -1); var di: int = gsk.find_bone(m[0])
-		if si < 0 or di < 0: continue
-		refs.append({"g": m[0], "src_sk": src_sk, "si": si, "di": di, "k": m[3], "s": _rel(src_sk, si), "d": _rel(gsk, di)})
-	for L in LIMBS:
-		var chain := []
-		for nm in L.chain: chain.append(gsk.find_bone(nm))
-		var fi: int = spider_names.get(L.foot, -1)
-		if chain.has(-1) or fi < 0: continue
-		var last: int = chain[chain.size() - 1]
-		var tipw := body.to_global(L.tip)
-		var eff_local := _bone_world(gsk, last).affine_inverse()*tipw
-		var rest := body.to_local(tipw); rest.y = 0
-		var f0 := body.to_local(_bone_world(ssk, fi).origin)
-		limbs.append({"chain": chain, "eff": eff_local, "foot": fi, "rest": rest, "f0": f0, "rq": chain.map(func(b): return gsk.get_bone_pose_rotation(b)),
-			"planted": true, "lock": null, "from": Vector3.ZERO, "swT": 0.0, "swDur": 0.35, "lift": 0.02})
-	_sp_play("walk tight", 0.25)
-	_face(); _static(); _swarm(); _blights()
+	tap.animation_finished.connect(func(_n): act_name = null; clip_now = ""; _play("idle", 0.35))
+	_play("idle", 0.0)
+	_face(); _static(); _swarm()
 	ready_ = true
 func _each(n: Node, f: Callable) -> void:
 	f.call(n)
@@ -106,15 +73,11 @@ func _find_t(n: Node, cls: String) -> Node:
 		var r := _find_t(c, cls)
 		if r: return r
 	return null
-func _sp_play(nm: String, fade := 0.25) -> void:
-	var full := "Armature|Armature|" + nm
-	if sp_now == nm or not sap.has_animation(full): return
-	sp_now = nm; sap.play(full, fade)
+func _play(nm: String, fade := 0.25) -> void:
+	if clip_now == nm or not tap.has_animation(nm): return
+	clip_now = nm; tap.play(nm, fade)
 func _bone_world(sk: Skeleton3D, i: int) -> Transform3D: return sk.global_transform*sk.get_bone_global_pose(i)
-## a bone's turn in the monster's own frame
-func _rel(sk: Skeleton3D, i: int) -> Quaternion:
-	return global_basis.get_rotation_quaternion().inverse()*_bone_world(sk, i).basis.get_rotation_quaternion()
-func _bone_of(nm: String) -> int: return gsk.find_bone(nm) if gsk else -1
+func _bone_of(nm: String) -> int: return bone_ix.get(BONES.get(nm, nm), -1) if gsk else -1
 func anchor(nm: String) -> Vector3:
 	var b := _bone_of(nm)
 	return body.to_local(_bone_world(gsk, b).origin) if b >= 0 else Vector3(0, 2.5, 0)
@@ -161,92 +124,26 @@ func _swarm() -> void:
 		var bn: String = FANCH[i % FANCH.size()]; var torso := bn == "Chest" or bn == "Hips"
 		flakes_d.append({"bone": bn, "r": (0.5 if torso else 0.12) + pow(randf(), 2.2)*(0.9 if torso else 1.1), "a": randf()*7, "b": randf()*7,
 			"sp": (0.4 + randf()*1.6)*(-1 if randf() < 0.5 else 1), "s": 0.015 + randf()*0.05, "y": (randf() - 0.5)*1.2, "back": torso})
-func _blights() -> void:
-	var sh = load("res://shaders/tsh_alpha_blight.gdshader")
-	for i in NB:
-		var q := MeshInstance3D.new(); var pm := PlaneMesh.new(); pm.size = Vector2(1, 1); q.mesh = pm
-		var m := ShaderMaterial.new(); m.shader = sh; m.render_priority = 100; q.material_override = m; q.visible = false
-		blights.append({"m": q, "age": 99.0})
-func _blight(at: Vector3) -> void:
-	var b: Dictionary = blights[bi % NB]; bi += 1
-	var par := get_parent()
-	if b.m.get_parent() != par:
-		if b.m.get_parent(): b.m.get_parent().remove_child(b.m)
-		par.add_child(b.m)
-	var sz := 3.2 + randf()*2.6
-	b.m.global_position = Vector3(at.x, at.y + 0.02, at.z); b.m.scale = Vector3(sz, 1, sz); b.m.rotation.y = randf()*TAU; b.m.visible = true
-	b.m.material_override.set_shader_parameter("uSeed", randf()*50); b.age = 0.0
-
 # ================================================================== what it does
 func act(nm: String) -> void:
 	if not ready_: return
 	var clip: String = {"roar": "roar", "bite": "bite", "tail": "attack_tail"}.get(nm, "")
 	if clip == "": return
 	act_name = nm; act_t = 0.0; bit = false
-	tap.play(clip, 0.15)
-	if nm != "roar" and sap.has_animation("Armature|Armature|attack"):
-		var was := sp_now; sp_now = ""; _sp_play("attack", 0.12)
-		get_tree().create_timer(1.1).timeout.connect(func(): if sp_now == "attack": sp_now = ""; _sp_play(was if was != "attack" else "walk tight", 0.3))
+	clip_now = clip; tap.play(clip, 0.15)
 func reach(at: Vector3, _k := 1.0) -> void:
 	act("tail" if to_local(at).z < -1 else "bite")
 func flinch() -> void: flinch_k = 1.0
 
-# ================================================================== the retarget, the gait
-func _drive() -> void:
-	var rootq := global_basis.get_rotation_quaternion(); var skq := gsk.global_basis.get_rotation_quaternion()
-	for r in refs:
-		var q: Quaternion = _rel(r.src_sk, r.si)*r.s.inverse()
-		var k: float = r.k
-		if k != 1.0:
-			var q2 := Quaternion.IDENTITY.slerp(q, minf(1, k))
-			if k > 1: q2 = q2*Quaternion.IDENTITY.slerp(q, k - 1)
-			q = q2
-		var want: Quaternion = rootq*(q*r.d)                     # in the world
-		var ds: Quaternion = skq.inverse()*want                    # in the goose skeleton's space
-		var par := gsk.get_bone_parent(r.di)
-		var ps := gsk.get_bone_global_pose(par).basis.get_rotation_quaternion() if par >= 0 else Quaternion.IDENTITY
-		gsk.set_bone_pose_rotation(r.di, (ps.inverse()*ds).normalized())
-func _solve(L: Dictionary, target: Vector3) -> void:
-	var ch: Array = L.chain
-	for i in ch.size(): gsk.set_bone_pose_rotation(ch[i], L.rq[i])
-	var skq := gsk.global_basis.get_rotation_quaternion()
-	for it in 10:
-		for i in range(ch.size() - 1, -1, -1):
-			var b: int = ch[i]
-			var J := _bone_world(gsk, b).origin; var E = _bone_world(gsk, ch[ch.size() - 1])*L.eff
-			var A = E - J; var B := target - J
-			if A.length_squared() < 1e-6 or B.length_squared() < 1e-6: continue
-			var pq := Quaternion(A.normalized(), B.normalized())
-			var bw := skq*gsk.get_bone_global_pose(b).basis.get_rotation_quaternion()
-			var nw := pq*bw
-			var par := gsk.get_bone_parent(b)
-			var pw := skq*(gsk.get_bone_global_pose(par).basis.get_rotation_quaternion() if par >= 0 else Quaternion.IDENTITY)
-			gsk.set_bone_pose_rotation(b, (pw.inverse()*nw).normalized())
+# ================================================================== its weight: the bob, the flinch, its footfalls
 func _steps(dt: float) -> void:
-	var floor_y := global_position.y
-	var vel := (global_position - last_w)/maxf(dt, 1e-3); last_w = global_position
-	var moving := vel.length() > 0.15
 	push = maxf(0, push - dt*2.2); dip = maxf(0, dip - dt*0.5); flinch_k = maxf(0, flinch_k - dt*2.8)
 	body.position.y = -dip + sin(t*1.1)*0.03; body.position.z = -sin(minf(1, flinch_k)*PI)*0.7; body.rotation.z = flinch_k*0.18*sin(t*40)
-	for L in limbs:
-		var up: float = body.to_local(_bone_world(ssk, L.foot).origin).y - L.f0.y
-		L.lift = maxf(L.lift*0.999, up)
-		var home := body.to_global(L.rest); home.y = floor_y
-		var stretch: float = Vector2(L.lock.x - home.x, L.lock.z - home.z).length() if L.lock != null else 99.0
-		var wants_up: bool = up > L.lift*0.25 if moving else stretch > 0.45
-		var T: Vector3
-		if L.planted:
-			if L.lock == null: L.lock = home
-			if wants_up or stretch > 1.8: L.planted = false; L.swT = 0.0; L.from = L.lock
-			T = L.lock
-		else:
-			L.swT += dt; var k: float = minf(1, L.swT/L.swDur)
-			var land = home + vel*L.swDur*0.9; land.y = floor_y
-			T = (L.from as Vector3).lerp(land, k*k*(3 - 2*k)); T.y = floor_y + sin(k*PI)*(0.35 + minf(0.5, vel.length()*0.08))
-			if k >= 1 and (not wants_up or L.swT > L.swDur*1.6):
-				L.planted = true; L.lock = land; push = minf(1.4, push + 0.55); dip = minf(0.12, dip + 0.07); _blight(land)
-				if on_step.is_valid(): on_step.call(land)
-		_solve(L, T)
+	if clip_now != "run": step_t = 0.0; return
+	step_t += dt*tap.speed_scale
+	if step_t > 0.42:
+		step_t -= 0.42; push = minf(1.4, push + 0.55); dip = minf(0.12, dip + 0.07)
+		if on_step.is_valid(): on_step.call(global_position)
 
 # ================================================================== every frame
 func _process(dt: float) -> void:
@@ -255,38 +152,25 @@ func _process(dt: float) -> void:
 	var e := grow*grow*(3 - 2*grow)
 	body.scale = Vector3.ONE*maxf(0.001, e)*SIZE
 	speed += ((global_position.distance_to(last_pos)/maxf(dt, 1e-3)) - speed)*minf(1, dt*6); last_pos = global_position
-	var want := "run" if speed > 4.5 else ("large walk" if speed > 0.6 else "walk tight")
-	if sp_now != "attack": _sp_play(want, 0.3)
-	if sp_now != "attack": sap.speed_scale = minf(2.2, 0.6 + speed*0.25) if speed > 0.6 else 0.5 + pull*0.4
-	tap.speed_scale = 1.2 if act_name != null else 1.0
-	_drive()
-	# it jerks: a bone snaps somewhere else for a frame (never a limb: a planted foot stays planted)
+	if act_name == null: _play("run" if speed > 0.6 else "idle", 0.3)
+	tap.speed_scale = 1.2 if act_name != null else (clampf(speed/5.0, 0.6, 1.8) if clip_now == "run" else 0.8 + pull*0.3)
+	# it jerks: a bone snaps somewhere else for a frame
 	if randf() < 0.07:
-		var ks := ["Hips", "Spine", "Chest", "Neck"]; var b := gsk.find_bone(ks[randi() % ks.size()])
+		var ks := ["Hips", "Spine", "Chest", "Neck"]; var b := _bone_of(ks[randi() % ks.size()])
 		if b >= 0: gsk.set_bone_pose_rotation(b, gsk.get_bone_pose_rotation(b)*Quaternion.from_euler(Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5)*0.5))
 	_steps(dt)
-	# the tyrannosaur's neck set on the goose's: the head goes where the goose's head was
-	var gh := gsk.find_bone("Head"); var tn: int = trex_names.get("bn_Neck29", -1)
-	if gh >= 0 and tn >= 0:
-		var v1 := body.to_local(_bone_world(gsk, gh).origin); var v2 := body.to_local(_bone_world(tsk, tn).origin)
-		tx.position += v1 - v2
-		gsk.set_bone_pose_scale(gh, Vector3.ONE*0.001)
 	if act_name == "bite" or act_name == "tail":
 		act_t += dt
 		if not bit and act_t > (0.55 if act_name == "bite" else 0.7):
 			bit = true
 			if on_slam.is_valid(): on_slam.call(to_global(Vector3(0, 0, 2)))
-	# the face and the hole ride the dinosaur's head: between its skull and its jaw, out at its teeth
-	var th: int = trex_names.get("bn_Head10", -1); var tj: int = trex_names.get("bn_Jaw11", -1)
-	if th >= 0 and tj >= 0:
-		var a := body.to_local(_bone_world(tsk, th).origin); var b2 := body.to_local(_bone_world(tsk, tj).origin)
+	# the face and the hole ride its head: between its skull and its jaw, out at its teeth
+	var hb := _bone_of("Head"); var jb := _bone_of("bn_Jaw")
+	if hb >= 0 and jb >= 0:
+		var a := body.to_local(_bone_world(gsk, hb).origin); var b2 := body.to_local(_bone_world(gsk, jb).origin)
 		head.position = a.lerp(b2, 0.5) + Vector3(0, 0, 0.55)
 	eye.visible = grow > 0.9
 	_tick_static(dt); _tick_swarm(dt)
-	for b in blights:
-		if not b.m.visible: continue
-		b.age += dt; b.m.material_override.set_shader_parameter("uAge", b.age); b.m.material_override.set_shader_parameter("uT", t)
-		if b.age > 30: b.m.visible = false
 	skin.set_shader_parameter("uAmp", 0.045 + 0.025*sin(t*0.7) + pull*0.02)
 	halo.modulate.a = 0.35 + 0.15*sin(t*7)
 	fill.light_energy = 9.0*e
@@ -330,7 +214,6 @@ func _tick_swarm(dt: float) -> void:
 		mm.set_instance_transform(i, Transform3D(Basis.from_euler(Vector3(f.a*3, f.b*2, 0)).scaled(Vector3(sc, sc*1.6, sc)), v))
 
 func dispose() -> void:
-	for b in blights: if is_instance_valid(b.m): b.m.queue_free()
 	queue_free()
 
 # ================================================================== ALPHA, IN MAYA
