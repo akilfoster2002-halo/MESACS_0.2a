@@ -86,6 +86,54 @@ hand = "mixamorig:RightHand"; handPosed = K.matrix_world @ K.pose.bones[hand].ma
 swM = handPosed @ (K.matrix_world @ KT[hand]).inverted()
 bpy.ops.object.select_all(action='DESELECT'); K.select_set(True); bpy.context.view_layer.objects.active = K
 bpy.ops.object.mode_set(mode='POSE'); bpy.ops.pose.armature_apply(selected=False); bpy.ops.object.mode_set(mode='OBJECT')
+# HIS FACE: morph targets as Robin's are (jawOpen, mouthO, smile, frown, browUp, browDown, blink), sculpted where his
+# face is (measured on him standing, in his own 0..1 units) and carried onto his head as it now stands
+import math
+headM = (K.matrix_world @ K.data.bones["mixamorig:Head"].matrix_local) @ (K.matrix_world @ KT["mixamorig:Head"]).inverted()
+HR = headM.to_3x3()
+F = lambda p: Vector(p)*S
+EYE = {"L": F((0.0185, -0.0435, 0.9025)), "R": F((-0.019, -0.0435, 0.902))}; EYE_R = 0.0088*S
+MOUTH = F((0, -0.057, 0.8705)); CORNER = {"L": F((0.0135, -0.053, 0.8705)), "R": F((-0.0135, -0.053, 0.8705))}
+BROW = {"L": F((0.019, -0.051, 0.9095)), "R": F((-0.019, -0.051, 0.9095))}; LID = {k: v + F((0, -0.004, 0.0035)) for k, v in EYE.items()}
+JAW = F((0, -0.002, 0.886)); CHIN = F((0, -0.052, 0.857))
+tpose = {v.index: headM.inverted() @ v.co for v in ob.data.vertices}           # each vertex where it stood in the T-pose
+def near(p, c, r): return math.exp(-((p - c).length/r)**2)
+face = lambda p: p.y < -0.03*S and abs(p.x) < 0.045*S and 0.835*S < p.z < 0.93*S
+ob.shape_key_add(name="Basis")
+def key(name, f):
+    k = ob.shape_key_add(name=name, from_mix=False)
+    for v in ob.data.vertices:
+        p = tpose[v.index]
+        if not face(p): continue
+        d = f(p)
+        if d is not None and d.length > 1e-7: k.data[v.index].co = v.co + HR @ d
+def jaw(p):
+    if p.z > MOUTH.z + 0.0015*S: return None
+    w = min(1.0, (MOUTH.z + 0.0015*S - p.z)/(0.006*S))
+    q = Matrix.Rotation(math.radians(13)*w, 3, 'X') @ (p - JAW) + JAW
+    return q - p
+key("jawOpen", jaw)
+key("mouthO", lambda p: (Vector((-(p.x - MOUTH.x)*0.45, -0.004*S, 0)))*near(p, MOUTH, 0.017*S))
+key("smile", lambda p: sum((Vector((0.003*S*(1 if k == "L" else -1), 0.002*S, 0.0045*S))*near(p, c, 0.011*S) for k, c in CORNER.items()), Vector()))
+key("frown", lambda p: sum((Vector((0, 0, -0.004*S))*near(p, c, 0.011*S) for c in CORNER.values()), Vector()))
+key("browUp", lambda p: sum((Vector((0, 0, 0.004*S))*near(p, c, 0.013*S) for c in BROW.values()), Vector()))
+key("browDown", lambda p: sum((Vector((-0.0015*S*(1 if k == "L" else -1), -0.001*S, -0.003*S))*near(p, c, 0.012*S) for k, c in BROW.items()), Vector()))
+key("blink", lambda p: sum((Vector((0, -0.002*S, -0.0085*S))*near(p, c, 0.0075*S) for c in LID.values()), Vector()))
+# EYEBALLS that turn: white, an iris, a pupil — set in his sockets, on his head bone
+def eyeball(side):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=32, radius=EYE_R, location=(0, 0, 0))
+    e = bpy.context.active_object; e.name = "Eye" + side
+    col = e.data.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
+    for v in e.data.vertices:
+        c = (-v.co.y)/EYE_R                                     # facing forward (-Y)
+        col.data[v.index].color = (0.01, 0.01, 0.01, 1) if c > 0.955 else ((0.2, 0.11, 0.05, 1) if c > 0.8 else ((0.1, 0.06, 0.03, 1) if c > 0.78 else (0.86, 0.84, 0.8, 1)))
+    m = bpy.data.materials.new("Eye"); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
+    at = nt.nodes.new("ShaderNodeVertexColor"); at.layer_name = "Col"; nt.links.new(at.outputs[0], b.inputs["Base Color"]); b.inputs["Roughness"].default_value = 0.15
+    e.data.materials.append(m)
+    e.matrix_world = headM @ Matrix.Translation(EYE[side])
+    keep = e.matrix_world.copy(); e.parent = K; e.parent_type = 'BONE'; e.parent_bone = "mixamorig:Head"; bpy.context.view_layer.update(); e.matrix_world = keep
+eyeball("L"); eyeball("R")
+bpy.ops.object.select_all(action='DESELECT')
 m2 = ob.modifiers.new("Armature", 'ARMATURE'); m2.object = K; ob.parent = K
 sw.matrix_world = swM @ sw.matrix_world
 bpy.context.view_layer.update()

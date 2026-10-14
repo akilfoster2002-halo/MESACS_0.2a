@@ -1,0 +1,74 @@
+## KAI'S FACE (people/kai.glb, tools/kai-rig.py): his morph targets as Robin's are (jawOpen, mouthO, smile, frown,
+## browUp, browDown, blink) and eyeballs that turn. He blinks on his own; his eyes — and a little of his head — go to
+## whoever is talking, or to her in a fight; his jaw moves while his line is up (he is not heard: a syllable at a time);
+## his brows come down and his mouth sets when he fights.
+class_name KaiFace
+extends Node
+
+var g; var e: Dictionary
+var body: MeshInstance3D; var idx := {}
+var eyes: Array = []; var rest: Array = []
+var sk: Skeleton3D; var head := -1
+var blink_in := 2.0; var blink_t := 0.0; var t := 0.0
+var cur := {}
+
+static func attach(game, ent: Dictionary) -> KaiFace:
+	var f := KaiFace.new(); f.g = game; f.e = ent
+	var st: Array = [ent.node]
+	while st.size():
+		var x: Node = st.pop_back(); st.append_array(x.get_children())
+		if x is MeshInstance3D and (x as MeshInstance3D).mesh and (x as MeshInstance3D).mesh.get_blend_shape_count() > 0: f.body = x
+		if x is MeshInstance3D and String(x.name).begins_with("Eye"): f.eyes.append(x)
+		if x is Skeleton3D: f.sk = x
+	if f.body == null: return null
+	for i in f.body.mesh.get_blend_shape_count(): f.idx[String(f.body.mesh.get_blend_shape_name(i))] = i
+	for ey in f.eyes:
+		f.rest.append(ey.transform)
+		var m := StandardMaterial3D.new(); m.vertex_color_use_as_albedo = true; m.roughness = 0.12; m.specular = 0.8; ey.material_override = m
+	if f.sk: f.head = f.sk.find_bone("mixamorig_Head")
+	ent.node.add_child(f)
+	return f
+
+func _shape(nm: String, v: float, dt: float, rate := 10.0) -> void:
+	if not idx.has(nm): return
+	var c: float = cur.get(nm, 0.0); c = lerpf(c, v, minf(1, dt*rate)); cur[nm] = c
+	body.set_blend_shape_value(idx[nm], c)
+
+func _look_at_point() -> Vector3:
+	if g.talk_who != "" and g.talk_who != "kai":
+		var who = g.robin if g.talk_who == "robin" else null
+		if who == null:
+			var c = g.crew(g.talk_who)
+			if c != null: return c.node.global_position + Vector3(0, 1.6, 0)
+		if who != null: return who.global_position + Vector3(0, 1.5, 0)
+	return g.robin.global_position + Vector3(0, 1.5, 0)
+
+func _process(dt: float) -> void:
+	if not is_instance_valid(e.node) or not e.node.visible: return
+	t += dt
+	# the blink
+	blink_in -= dt
+	if blink_in <= 0: blink_t = 0.16; blink_in = 2.0 + randf()*3.5 if randf() > 0.2 else 0.25
+	blink_t = maxf(0, blink_t - dt)
+	var b := sin(PI*clampf(1.0 - blink_t/0.16, 0, 1)) if blink_t > 0 else 0.0
+	_shape("blink", b, dt, 40.0)
+	for ey in eyes: ey.visible = b < 0.6
+	# talking: a syllable at a time while his line is up
+	var talking: bool = g.talk_who == "kai" and g.sub_label.text != ""
+	var flap := (0.35 + 0.65*absf(sin(t*11.0))*(0.6 + 0.4*sin(t*3.7))) if talking else 0.0
+	_shape("jawOpen", flap*0.75, dt, 18.0); _shape("mouthO", flap*0.25, dt, 14.0)
+	# fighting: brows down, mouth set
+	var fighting: bool = g.fight.on and e.get("active", false)
+	_shape("browDown", 0.8 if fighting else 0.25, dt, 4.0); _shape("frown", 0.5 if fighting else 0.1, dt, 4.0)
+	_shape("browUp", 0.35*absf(sin(t*2.3)) if talking else 0.0, dt, 6.0)
+	# the eyes: each turned toward what he looks at (an eyeball's front is its +Z), no further than an eye turns from
+	# where his face points
+	var to := _look_at_point()
+	var face_fwd: Vector3 = e.node.global_basis.z.normalized()
+	for ey in eyes:
+		var p: Vector3 = ey.global_position
+		var d := (to - p).normalized()
+		var ang := face_fwd.angle_to(d)
+		if ang > 0.6: d = face_fwd.slerp(d, 0.6/ang).normalized()
+		var sc: Vector3 = ey.global_basis.get_scale()
+		ey.global_basis = Basis.looking_at(-d, Vector3.UP)*Basis.from_scale(sc)
