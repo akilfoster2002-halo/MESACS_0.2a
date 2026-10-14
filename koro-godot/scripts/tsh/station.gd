@@ -98,7 +98,7 @@ func meet() -> void:
 	g.fight.cast([{"kind": "kai", "x": sp.trainDoor[0], "z": sp.trainDoor[1] - 0.6, "tag": "kai", "state": "idle", "yaw": -PI/2, "hidden": true},
 		{"kind": "maya", "x": sp.trainDoor[0], "z": sp.trainDoor[1] + 0.2, "tag": "maya", "state": "watch", "yaw": -PI/2, "bystander": true, "hidden": true}])
 	for e in g.fight.E:
-		Retarget.apply(g, e.node, FCLIPS, e.K.char)
+		if e.kind != "kai": Retarget.apply(g, e.node, FCLIPS, e.K.char)      # Kai has his own (the sword's, people/kai.glb)
 		e.home = _a(sp.maya) if e.kind == "maya" else null
 	if cy.canon: Retarget.apply(g, cy.canon.node, FCLIPS + ["fall"], "theo")
 	if not "mayakai" in g.S.seen: g.S.seen.append("mayakai")
