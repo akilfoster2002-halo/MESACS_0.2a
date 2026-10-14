@@ -151,7 +151,7 @@ func _ready() -> void:
 	elif shots_after: S.day = true; S.step = "courtyard"; S.dm = 920
 	if args.size() >= 3 and args[2] == "street": S.tun = 7
 	if args.size() >= 3 and args[2] == "alpha": S.tun = 6; S.lesson = 99; shots_alpha = true
-	if shots_dir == "" and args.has("alpha"): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
+	if shots_dir == "" and (args.has("alpha") or args.has("kai")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
@@ -164,13 +164,13 @@ func _ready() -> void:
 	elif shots_dir != "": _shots()
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		if args.has("alpha"): _watch_alpha()
+		if args.has("alpha") or args.has("kai"): _watch_alpha(args.has("kai"))
 
 # ================================================================== the save
 func _fresh() -> Dictionary:
 	return {"v": 1, "step": "intro", "lesson": 0, "seen": [], "boots": [], "cash": 0, "flash": 3}
 func _save() -> void:
-	if OS.get_cmdline_user_args().has("alpha"): return      # watching the alpha (-- alpha) leaves the real save alone
+	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai"): return      # watching (-- alpha, -- kai) leaves the real save alone
 	var f := FileAccess.open("user://tsh.json", FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(S))
 func _load() -> void:
@@ -1713,8 +1713,9 @@ func _shots_day() -> void:
 ## after school, photographed: Canon at the stair, each gate in the station (E, the puzzle solved), the platform, the
 ## fights (swung for her), the alpha, its fight (SPACE mashed for her), the escape, the street, the chase (lost for her),
 ## WFC (lost), alone, home over the roofs, and the end
-## -- alpha: through the station's last door to Maya, and straight to what comes up out of her; then it is the player's
-func _watch_alpha() -> void:
+## -- alpha: through the station's last door to Maya, and straight to what comes up out of her; then it is the player's.
+## -- kai: the same, but it stops at the fight with Kai
+func _watch_alpha(kai_fight := false) -> void:
 	await get_tree().create_timer(2.0).timeout
 	for at in [Vector3(521.2, 0, -86.2), Vector3(520, 0, -95)]:
 		place(at, 0.0); await get_tree().create_timer(1.0).timeout
@@ -1722,7 +1723,7 @@ func _watch_alpha() -> void:
 		await get_tree().create_timer(0.5).timeout
 	var t0 := Time.get_ticks_msec()
 	while mode != "fight" and Time.get_ticks_msec() - t0 < 60000: await get_tree().create_timer(0.3).timeout
-	station.alpha_scene()
+	if not kai_fight: station.alpha_scene()
 func _shots_after() -> void:
 	var n := [0]; station.auto = true
 	var reel_snaps := func(tag: String, every := 3.0):
