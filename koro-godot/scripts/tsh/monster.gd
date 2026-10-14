@@ -1,6 +1,6 @@
 ## TSH · ALPHA — public/tshalpha.js (TSHMONSTER and TSHALPHA), ported.
 ## What came up out of Maya keeps coming: a mass of the black stuff as big as the platform, heaving, pale lights
-## opening and shutting all over it, one white eye high on it.
+## opening and shutting all over it.
 ## THE BODY IT COMES UP IN is the alien (assets/tsh/monster/alien.glb), rigged by tools/alien-rig.py on the
 ## tyrannosaur's own skeleton and moving by its clips: idle standing, run going, bite, roar, attack_tail.
 ##
@@ -18,7 +18,7 @@ const SIZE := 1.35
 var grow := 0.0
 var pull := 1.0
 var t := 0.0
-var key = null                     # a close-up can take the hard front light down
+var key = null                     # (a close-up's light level; it carries no lights now)
 var mouth := Vector3.ZERO
 var eye_at := Vector3.ZERO
 var on_slam: Callable
@@ -31,8 +31,7 @@ var tap: AnimationPlayer
 var ready_ := false
 var act_name = null; var act_t := 0.0; var bit := false
 var clip_now := ""; var step_t := 0.0
-var head: Node3D; var eye: MeshInstance3D; var halo: Sprite3D
-var rims: Array = []; var fill: OmniLight3D; var spot: SpotLight3D; var strobe: OmniLight3D
+var head: Node3D; var eye: Node3D
 var last_pos := Vector3.ZERO; var speed := 0.0
 var last_w := Vector3.ZERO
 var dip := 0.0; var flinch_k := 0.0
@@ -74,24 +73,10 @@ func anchor(nm: String) -> Vector3:
 	var b := _bone_of(nm)
 	return body.to_local(_bone_world(gsk, b).origin) if b >= 0 else Vector3(0, 2.5, 0)
 
-# ================================================================== its face: the eye, its lights, the hole
+# ================================================================== its face: where its eye is (the cameras look there), the hole
 func _face() -> void:
 	head = Node3D.new(); head.position = Vector3(0, 4.7, 0.25); body.add_child(head)
-	eye = MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.09; sm.height = 0.18; eye.mesh = sm
-	var em := StandardMaterial3D.new(); em.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; em.albedo_color = Color(4, 4, 4.4); eye.material_override = em
-	eye.position = Vector3(0, 0.12, 0.3); head.add_child(eye); eye.visible = false
-	halo = Sprite3D.new(); halo.texture = _radial(); halo.pixel_size = 0.9/64.0; halo.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	halo.modulate = Color(1, 1, 1, 0.5); halo.render_priority = 101; eye.add_child(halo)
-	for r in [[Color("#ff2aa8"), -4.5, 3.6, 3.4], [Color("#22e8ff"), 4.5, 3.0, 2.8], [Color("#b06aff"), 0, 7, -2.5]]:
-		var l := OmniLight3D.new(); l.light_color = r[0]; l.omni_range = 18; l.position = Vector3(r[1], r[2], r[3]); body.add_child(l); rims.append(l)
-	fill = OmniLight3D.new(); fill.light_color = Color("#a9a2ff"); fill.omni_range = 16; fill.position = Vector3(0, 3.2, 4.5); body.add_child(fill)
-	spot = SpotLight3D.new(); spot.light_color = Color("#ffe8ff"); spot.spot_range = 40; spot.spot_angle = 46; spot.shadow_enabled = true; spot.position = Vector3(0, 0, 0.45); head.add_child(spot)
-	spot.rotation.x = -atan2(4.2, 11.0)
-	strobe = OmniLight3D.new(); strobe.omni_range = 30; strobe.position = Vector3(0, 0, 0.4); head.add_child(strobe)
-func _radial() -> Texture2D:
-	var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1, 0.5); gt.width = 64; gt.height = 64
-	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(0.78, 0.86, 1, 0)); gr.add_point(0.25, Color(0.86, 0.92, 1, 0.6)); gt.gradient = gr
-	return gt
+	eye = Node3D.new(); eye.position = Vector3(0, 0.12, 0.3); head.add_child(eye)
 
 # ================================================================== what it does
 func act(nm: String) -> void:
@@ -138,14 +123,6 @@ func _process(dt: float) -> void:
 	if hb >= 0 and jb >= 0:
 		var a := body.to_local(_bone_world(gsk, hb).origin); var b2 := body.to_local(_bone_world(gsk, jb).origin)
 		head.position = a.lerp(b2, 0.5) + Vector3(0, 0, 0.55)
-	eye.visible = grow > 0.9
-	halo.modulate.a = 0.35 + 0.15*sin(t*7)
-	fill.light_energy = 9.0*e
-	for i in rims.size():
-		rims[i].light_energy = (8.0 + 4.0*sin(t*(2.1 + i) + i*2))*e; rims[i].light_color = Color.from_hsv(fmod(t*0.11 + i*0.33, 1.0), 1, 1)
-	spot.light_energy = (30 + 20*randf()*pull*0.5)*e*(1.0 if key == null else float(key))
-	spot.light_color = Color.from_hsv(fmod(0.85 + sin(t*3)*0.1 + 1, 1.0), 0.4, 1)
-	strobe.light_energy = 11*e if randf() < 0.02*pull else strobe.light_energy*0.8
 	mouth = head.to_global(Vector3(0, -0.2, 0.42)); eye_at = eye.global_position
 func dispose() -> void:
 	queue_free()
