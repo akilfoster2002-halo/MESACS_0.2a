@@ -1,6 +1,6 @@
 ## TSH · ALPHA — public/tshalpha.js (TSHMONSTER and TSHALPHA), ported.
 ## What came up out of Maya keeps coming: a mass of the black stuff as big as the platform, heaving, pale lights
-## opening and shutting all over it, one white eye high on it, strands of it whipping out, a swarm of black flakes.
+## opening and shutting all over it, one white eye high on it.
 ## THE BODY IT COMES UP IN is the alien (assets/tsh/monster/alien.glb), rigged by tools/alien-rig.py on the
 ## tyrannosaur's own skeleton and moving by its clips: idle standing, run going, bite, roar, attack_tail.
 ##
@@ -9,14 +9,11 @@
 class_name Monster
 extends Node3D
 
-## the old goose names the strands and flakes hang from → the alien's (the tyrannosaur's) bones
+## the old goose names → the alien's (the tyrannosaur's) bones
 const BONES := {"Head": "bn_Head", "Neck": "bn_Neck1", "Chest": "bn_Spine2", "Spine": "bn_Spine1", "Hips": "bn_Spine",
 	"Forearm.L": "bn_LeftForeArm", "Forearm.R": "bn_RightForeArm", "UpperArm.L": "bn_LeftArm", "UpperArm.R": "bn_RightArm",
 	"Shin.L": "bn_LeftLeg", "Shin.R": "bn_RightLeg", "Foot.L": "bn_LeftFoot", "Foot.R": "bn_RightFoot"}
 const SIZE := 1.35
-const ANCH := ["Head", "Neck", "Chest", "Hips", "Forearm.L", "Forearm.R", "UpperArm.L", "UpperArm.R", "Shin.L", "Shin.R", "Foot.L", "Foot.R", "Spine"]
-const FANCH := ["Forearm.L", "Forearm.R", "UpperArm.L", "UpperArm.R", "Shin.L", "Shin.R", "Foot.L", "Foot.R", "Head", "Neck", "Hips", "Chest"]
-const NL := 110; const NPT := 14; const NF := 1100
 
 var grow := 0.0
 var pull := 1.0
@@ -29,7 +26,6 @@ var on_step: Callable
 var push := 0.0
 
 var body: Node3D
-var skin: ShaderMaterial
 var gsk: Skeleton3D
 var tap: AnimationPlayer
 var ready_ := false
@@ -37,8 +33,6 @@ var act_name = null; var act_t := 0.0; var bit := false
 var clip_now := ""; var step_t := 0.0
 var head: Node3D; var eye: MeshInstance3D; var halo: Sprite3D
 var rims: Array = []; var fill: OmniLight3D; var spot: SpotLight3D; var strobe: OmniLight3D
-var strands: Array = []; var ink: MultiMeshInstance3D
-var flakes_d: Array = []; var flakes: MultiMeshInstance3D
 var last_pos := Vector3.ZERO; var speed := 0.0
 var last_w := Vector3.ZERO
 var dip := 0.0; var flinch_k := 0.0
@@ -54,15 +48,13 @@ func setup(at: Vector3, yaw: float) -> void:
 	position = Vector3(at.x, 0, at.z); rotation.y = yaw
 	last_pos = position; last_w = position
 	body = Node3D.new(); add_child(body)
-	skin = ShaderMaterial.new(); skin.shader = load("res://shaders/tsh_alpha_skin.gdshader")
 	var alien: Node3D = (load("res://assets/tsh/monster/alien.glb") as PackedScene).instantiate(); body.add_child(alien)
-	_each(alien, func(n): if n is MeshInstance3D: n.material_override = skin)
 	gsk = _find_t(alien, "Skeleton3D"); tap = _find_t(alien, "AnimationPlayer")
 	for i in gsk.get_bone_count(): bone_ix[_plain(gsk.get_bone_name(i))] = i
 	for a in tap.get_animation_list(): tap.get_animation(a).loop_mode = Animation.LOOP_LINEAR if a in ["idle", "run"] else Animation.LOOP_NONE
 	tap.animation_finished.connect(func(_n): act_name = null; clip_now = ""; _play("idle", 0.35))
 	_play("idle", 0.0)
-	_face(); _static(); _swarm()
+	_face()
 	ready_ = true
 func _each(n: Node, f: Callable) -> void:
 	f.call(n)
@@ -101,29 +93,6 @@ func _radial() -> Texture2D:
 	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(0.78, 0.86, 1, 0)); gr.add_point(0.25, Color(0.86, 0.92, 1, 0.6)); gt.gradient = gr
 	return gt
 
-# ================================================================== the static: strands of black thrown off it
-func _static() -> void:
-	ink = MultiMeshInstance3D.new(); var mm := MultiMesh.new(); mm.transform_format = MultiMesh.TRANSFORM_3D
-	var cm := CylinderMesh.new(); cm.top_radius = 1; cm.bottom_radius = 1; cm.height = 1; cm.radial_segments = 5; cm.rings = 1; cm.cap_top = false; cm.cap_bottom = false
-	mm.mesh = cm; mm.instance_count = NL*NPT; mm.visible_instance_count = 0; ink.multimesh = mm
-	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(0.004, 0.004, 0.008); ink.material_override = m
-	ink.extra_cull_margin = 30; body.add_child(ink)
-	for i in NL:
-		var th := randf()*TAU; var ph := (randf() - 0.3)*PI*0.9
-		var d := Vector3(cos(th)*cos(ph), sin(ph) + 0.25, sin(th)*cos(ph))
-		if d.z > 0.3: d.z *= -0.6
-		strands.append({"th": 0.012 + randf()*0.03, "bone": ANCH[i % ANCH.size()], "dir": d.normalized(), "len": 2 + randf()*6, "curl": 2 + randf()*6,
-			"w": 0.15 + randf()*0.6, "sp": 0.6 + randf()*2.2, "ph": randf()*20, "gap": 0.2 + randf()*0.5, "jump": Vector3.ZERO})
-func _swarm() -> void:
-	flakes = MultiMeshInstance3D.new(); var mm := MultiMesh.new(); mm.transform_format = MultiMesh.TRANSFORM_3D
-	var tm := SphereMesh.new(); tm.radius = 1; tm.height = 2; tm.radial_segments = 4; tm.rings = 2
-	mm.mesh = tm; mm.instance_count = NF; flakes.multimesh = mm
-	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color.BLACK; flakes.material_override = m
-	flakes.extra_cull_margin = 30; body.add_child(flakes)
-	for i in NF:
-		var bn: String = FANCH[i % FANCH.size()]; var torso := bn == "Chest" or bn == "Hips"
-		flakes_d.append({"bone": bn, "r": (0.5 if torso else 0.12) + pow(randf(), 2.2)*(0.9 if torso else 1.1), "a": randf()*7, "b": randf()*7,
-			"sp": (0.4 + randf()*1.6)*(-1 if randf() < 0.5 else 1), "s": 0.015 + randf()*0.05, "y": (randf() - 0.5)*1.2, "back": torso})
 # ================================================================== what it does
 func act(nm: String) -> void:
 	if not ready_: return
@@ -148,7 +117,7 @@ func _steps(dt: float) -> void:
 # ================================================================== every frame
 func _process(dt: float) -> void:
 	if not ready_: return
-	t += dt; skin.set_shader_parameter("uT", t)
+	t += dt
 	var e := grow*grow*(3 - 2*grow)
 	body.scale = Vector3.ONE*maxf(0.001, e)*SIZE
 	speed += ((global_position.distance_to(last_pos)/maxf(dt, 1e-3)) - speed)*minf(1, dt*6); last_pos = global_position
@@ -170,8 +139,6 @@ func _process(dt: float) -> void:
 		var a := body.to_local(_bone_world(gsk, hb).origin); var b2 := body.to_local(_bone_world(gsk, jb).origin)
 		head.position = a.lerp(b2, 0.5) + Vector3(0, 0, 0.55)
 	eye.visible = grow > 0.9
-	_tick_static(dt); _tick_swarm(dt)
-	skin.set_shader_parameter("uAmp", 0.045 + 0.025*sin(t*0.7) + pull*0.02)
 	halo.modulate.a = 0.35 + 0.15*sin(t*7)
 	fill.light_energy = 9.0*e
 	for i in rims.size():
@@ -180,39 +147,6 @@ func _process(dt: float) -> void:
 	spot.light_color = Color.from_hsv(fmod(0.85 + sin(t*3)*0.1 + 1, 1.0), 0.4, 1)
 	strobe.light_energy = 11*e if randf() < 0.02*pull else strobe.light_energy*0.8
 	mouth = head.to_global(Vector3(0, -0.2, 0.42)); eye_at = eye.global_position
-func _tick_static(dt: float) -> void:
-	var mm := ink.multimesh; var si := 0
-	for st in strands:
-		var av := anchor(st.bone)
-		if randf() < 0.02: st.jump = Vector3(randf() - 0.5, (randf() - 0.5)*0.66, randf() - 0.5)*1.2
-		else: st.jump *= 0.85
-		var tt: float = t*st.sp + st.ph; var L: float = st.len*(0.75 + 0.25*sin(tt*0.7))*(1 + pull*0.3)
-		var d: Vector3 = st.dir; var sa := Vector3(-d.z, 0, d.x).normalized(); var sb := d.cross(sa)
-		var p0 := Vector3.ZERO
-		for j in NPT:
-			var u: float = st.gap + (1 - st.gap)*j/float(NPT - 1); var r: float = st.w*u*(1 + sin(tt*1.3 + u*4)); var c: float = u*st.curl*TAU + tt*2.0
-			var pv: Vector3 = av + st.jump + d*u*L + sa*cos(c)*r + sb*sin(c)*r*0.8
-			pv.y -= u*u*0.6; pv += Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5)*0.06
-			if j > 0 and randf() > 0.3 and si < mm.instance_count:
-				var seg := pv - p0; var ln := seg.length()
-				if ln > 1e-4:
-					var w: float = st.th*(1 - u*0.6)
-					var bas := Basis(Quaternion(Vector3.UP, seg/ln)).scaled(Vector3(w, ln, w))
-					mm.set_instance_transform(si, Transform3D(bas, (pv + p0)/2)); si += 1
-			p0 = pv
-	mm.visible_instance_count = si
-func _tick_swarm(dt: float) -> void:
-	var mm := flakes.multimesh; var anchors := {}
-	for nm in FANCH: anchors[nm] = anchor(nm)
-	for i in flakes_d.size():
-		var f: Dictionary = flakes_d[i]; var av: Vector3 = anchors[f.bone]
-		f.a += dt*f.sp*(1 + pull); f.b += dt*f.sp*0.7
-		var r: float = f.r*(1 + 0.25*sin(t*2 + i))
-		var v := Vector3(av.x + cos(f.a)*cos(f.b)*r, av.y + f.y*0.5 + sin(f.b)*r*0.6, av.z + sin(f.a)*cos(f.b)*r)
-		if f.back and v.z > av.z: v.z = av.z - (v.z - av.z)
-		var sc: float = f.s*(2.5 if randf() < 0.04 else 1.0)
-		mm.set_instance_transform(i, Transform3D(Basis.from_euler(Vector3(f.a*3, f.b*2, 0)).scaled(Vector3(sc, sc*1.6, sc)), v))
-
 func dispose() -> void:
 	queue_free()
 
