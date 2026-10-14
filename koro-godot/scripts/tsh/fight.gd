@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 9.0, "dmg": 20.0, "windup": 0.9, "walk": 1.6, "run": 4.8, "reach": 1.1, "aim": 0.45},
+	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 16.0, "windup": 0.42, "walk": 1.7, "run": 5.4}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -105,7 +105,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 		"active": false, "tag": o.get("tag", ""), "home": null, "want_ring": randf_range(2.5, 3.4), "side": -1.0 if randf() < 0.5 else 1.0,
 		"guard": null, "parried": false, "talking": false}
 	var n: Node3D = (load(K.get("path", "res://assets/tsh/people/%s.glb" % K.char)) as PackedScene).instantiate()
-	g.add_child(n); e.node = n; e.ap = g._find(n, func(x): return x is AnimationPlayer)
+	g.add_child(n); n.scale = Vector3.ONE*float(K.get("scale", 1.0)); e.node = n; e.ap = g._find(n, func(x): return x is AnimationPlayer)
 	for nm in e.ap.get_animation_list():
 		if not nm in ONCE: e.ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	if o.get("hidden", false): n.visible = false
@@ -535,6 +535,10 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 			var ca := ang_to(t.x, t.z, car.x, car.z)
 			if absf(ang_diff(ca, a)) < 1.1 and Vector2(car.x - t.x, car.z - t.z).length() < 11: ta = ca
 		throw_off(t, ta, m.fly, 1.2); slow_for(0.12 if R.move == "power" else 0.25, 0.9); _flash(0.35)
+	elif t.K.get("tough", false) and t.hp > 0 and (t.state == "windup" or randf() < 0.5):
+		t.x += sin(a)*0.15; t.z += cos(a)*0.15          # he takes it and keeps coming: no stagger mid-swing, and half the time not even then
+	elif m.get("down", false) and t.K.get("tough", false) and t.hp > 0:
+		t.state = "stagger"; t.t = 0.0; t.vx = sin(a)*m.push*2; t.vz = cos(a)*m.push*2; hit1(t, "stagger")
 	elif m.get("down", false) or t.hp <= 0:
 		knock(t, a, m.get("push", 1.0))
 		if t.hp <= 0: slow_for(0.35, 0.5)
@@ -599,7 +603,7 @@ func _tick_crew(dt: float) -> void:
 				if moving: _step(e, atan2(mv.x, mv.y), e.K.walk*0.8, dt, true)
 				play(e, (("walk" if off > 0 else "walk_back") if absf(off) > 0.35 else ("walk_left" if e.side > 0 else "walk_right")) if moving else "fight")
 				e.cool -= dt
-				if e.has("blade") and d < 4.5 and ((R.act == "attack" and d < 2.6 and randf() < dt*3.0) or randf() < dt*0.35):     # her swing coming: out of the way, and back in fast
+				if e.has("blade") and d < 4.5 and ((R.act == "attack" and d < 2.6 and randf() < dt*5.0) or randf() < dt*0.35):     # her swing coming: out of the way, and back in fast
 					e.state = "evade"; e.t = 0.0; e.ev_a = to_her + PI/2*e.side; g.cue("swish")
 					play(e, "walk_left" if e.side > 0 else "walk_right", 0.05); e.anim_k = 2.2
 				elif e.active and e.cool <= 0 and swingers < max_swing and not (dir != null and dir.hold) and R.grabbed_by == null: e.state = "approach"; e.t = 0.0
@@ -636,7 +640,7 @@ func _tick_crew(dt: float) -> void:
 					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))
 					if e.t >= e.strike_at: strike(e)
 			"recover":
-				if e.t > 0.6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1.4, 2.8)*(0.8 if (dir != null and dir.free) else 1.4)*(0.45 if e.has("blade") else 1.0); e.anim_k = 1.0
+				if e.t > 0.6: e.state = "circle"; e.t = 0.0; e.cool = randf_range(1.4, 2.8)*(0.8 if (dir != null and dir.free) else 1.4)*(0.3 if e.has("blade") else 1.0); e.anim_k = 1.0
 			"stagger":
 				e.x += e.vx*dt; e.z += e.vz*dt; e.vx *= exp(-dt*8); e.vz *= exp(-dt*8)
 				if e.t > (1.7 if e.parried else 0.6): e.parried = false; e.state = "circle"; e.t = 0.0; e.cool = randf_range(0.8, 1.8)
