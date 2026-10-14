@@ -13,7 +13,7 @@ extends Node3D
 const BONES := {"Head": "bn_Head", "Neck": "bn_Neck1", "Chest": "bn_Spine2", "Spine": "bn_Spine1", "Hips": "bn_Spine",
 	"Forearm.L": "bn_LeftForeArm", "Forearm.R": "bn_RightForeArm", "UpperArm.L": "bn_LeftArm", "UpperArm.R": "bn_RightArm",
 	"Shin.L": "bn_LeftLeg", "Shin.R": "bn_RightLeg", "Foot.L": "bn_LeftFoot", "Foot.R": "bn_RightFoot"}
-const SIZE := 1.35
+const SIZE := 2.0
 
 var grow := 0.0
 var pull := 1.0
