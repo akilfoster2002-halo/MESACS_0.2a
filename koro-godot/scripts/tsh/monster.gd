@@ -33,6 +33,7 @@ var act_name = null; var act_t := 0.0; var bit := false
 var clip_now := ""; var step_t := 0.0
 var head: Node3D; var eye: Node3D
 var flame: CPUParticles3D; var flame_to = null; var flame_dir := Vector3.FORWARD
+var pillar: CPUParticles3D; var hit_at := Vector3.ZERO; var flame_t := 0.0
 var last_pos := Vector3.ZERO; var speed := 0.0
 var last_w := Vector3.ZERO
 var dip := 0.0; var flinch_k := 0.0
@@ -79,8 +80,8 @@ func _face() -> void:
 	head = Node3D.new(); head.position = Vector3(0, 4.7, 0.25); body.add_child(head)
 	eye = Node3D.new(); eye.position = Vector3(0, 0.12, 0.3); head.add_child(eye)
 
-# ================================================================== its breath: black fire out of its mouth
-const FLAME_LEN := 10.0; const FLAME_HALF := 0.36          # how far it reaches; the cone's half-angle (radians)
+# ================================================================== its breath: black fire out of its mouth, down onto the floor, and up again there as a pillar
+const FLAME_HALF := 0.12; const PILLAR_R := 1.5; const PILLAR_H := 7.0
 func _flame() -> void:
 	flame = CPUParticles3D.new(); flame.emitting = false; flame.amount = 420; flame.lifetime = 0.9; flame.local_coords = false
 	var q := QuadMesh.new(); q.size = Vector2(1, 1); flame.mesh = q
@@ -96,20 +97,27 @@ func _flame() -> void:
 	gr.add_point(0.07, Color(0.04, 0.0, 0.07, 0.97)); gr.add_point(0.3, Color(0.0, 0.0, 0.0, 0.97)); gr.add_point(0.75, Color(0.01, 0.0, 0.015, 0.7))
 	flame.color_ramp = gr
 	add_child(flame)
+	pillar = flame.duplicate(); pillar.emitting = false; pillar.amount = 900; pillar.lifetime = 1.1
+	pillar.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE; pillar.emission_sphere_radius = PILLAR_R*0.7
+	pillar.direction = Vector3(0, 1, 0); pillar.spread = 6.0; pillar.initial_velocity_min = 7.0; pillar.initial_velocity_max = 11.0
+	pillar.gravity = Vector3(0, 3.0, 0); pillar.damping_min = 0.0; pillar.damping_max = 0.5; pillar.scale_amount_min = 2.0; pillar.scale_amount_max = 3.4
+	add_child(pillar)
 func _puff() -> Texture2D:
 	var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1, 0.5); gt.width = 64; gt.height = 64
 	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(1, 1, 1, 0)); gr.add_point(0.45, Color(1, 1, 1, 0.7)); gt.gradient = gr
 	return gt
-## breathe at a point in the world (null: stop)
+## breathe at a point on the floor (null: stop): the stream comes down there, and a pillar of it goes up
 func breathe(at) -> void:
-	if at != null and flame_to == null: flame_dir = global_basis.z.normalized()
+	if at != null and flame_to == null: flame_dir = ((at as Vector3) - mouth).normalized() if mouth != Vector3.ZERO else global_basis.z.normalized(); flame_t = 0.0
 	flame_to = at
 	if flame: flame.emitting = at != null
-## is a point in the fire? (only while it breathes)
+	if pillar and at == null: pillar.emitting = false
+## is a point in the fire — in the pillar where the stream comes down, or in the stream itself?
 func burns(p: Vector3) -> bool:
-	if flame_to == null: return false
-	var v := p - flame.global_position; var d := v.length()
-	return d < FLAME_LEN*maxf(0.5, grow) and d > 0.01 and v.normalized().dot(flame_dir) > cos(FLAME_HALF)
+	if flame_to == null or not pillar.emitting: return false
+	if Vector2(p.x - hit_at.x, p.z - hit_at.z).length() < PILLAR_R and p.y < hit_at.y + PILLAR_H: return true
+	var v := p - flame.global_position
+	return v.length() < flame.global_position.distance_to(hit_at) and v.normalized().dot(flame_dir) > cos(FLAME_HALF)
 
 # ================================================================== what it does
 func act(nm: String) -> void:
@@ -162,6 +170,16 @@ func _process(dt: float) -> void:
 		if flame_to != null:
 			flame_dir = flame_dir.slerp(((flame_to as Vector3) - mouth).normalized(), minf(1, dt*5)).normalized()
 			flame.global_basis = Basis.looking_at(-flame_dir, Vector3.UP if absf(flame_dir.y) < 0.98 else Vector3.RIGHT)
+			# where the stream meets the floor; the stream takes a moment to get there
+			var fy: float = (flame_to as Vector3).y
+			var k := (mouth.y - fy)/maxf(0.05, -flame_dir.y)
+			hit_at = mouth + flame_dir*k; hit_at.y = fy
+			var reach := mouth.distance_to(hit_at)
+			flame_t += dt
+			var sp := reach/maxf(0.2, flame.lifetime*0.8)
+			flame.initial_velocity_min = sp; flame.initial_velocity_max = sp*1.15
+			pillar.global_position = hit_at
+			if flame_t > 0.25 and not pillar.emitting: pillar.emitting = true
 func dispose() -> void:
 	queue_free()
 

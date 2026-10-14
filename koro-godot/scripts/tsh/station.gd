@@ -582,9 +582,9 @@ func _tick_brawl(dt: float) -> void:
 				if randf() < 0.45 and d > 3.0: mon.act("roar"); g.cue("roar"); shake(0.4, 0.8); B.st = "roar"; B.t = 0.0; _brawl_hud("GET OUT OF ITS FIRE!")
 				else: mon.act("bite"); g.cue("zip"); B.st = "tele"; B.t = 0.0; _brawl_hud("DODGE!")
 		"roar":
-			if B.t > 0.7: mon.breathe(p + Vector3(0, 0.9, 0)); B.st = "fire"; B.t = 0.0
+			if B.t > 0.7: mon.breathe(Vector3(p.x, mon.global_position.y, p.z)); B.st = "fire"; B.t = 0.0
 		"fire":
-			mon.breathe(p + Vector3(0, 0.9, 0))
+			mon.breathe(Vector3(p.x, mon.global_position.y, p.z))
 			B.burnT = maxf(0, B.burnT - dt)
 			if mon.burns(p + Vector3(0, 1.0, 0)) and B.dash == null:
 				B.hp -= 26.0*dt
