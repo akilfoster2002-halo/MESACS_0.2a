@@ -10,10 +10,14 @@ S = 5.1                                             # the model is 0.98 tall; th
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=TREX)
 arm = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE'][0]
+# the tyrannosaur's own skin is kept for its head (see THE HEAD below); the rest of what came with it goes
+rex = None
 for o in list(bpy.context.scene.objects):
-    if o.type == 'MESH': bpy.data.objects.remove(o)
+    if o.type == 'MESH':
+        if o.name.startswith("TRex"): rex = o
+        else: bpy.data.objects.remove(o)
 bpy.ops.import_scene.fbx(filepath=FBX)
-ob = [o for o in bpy.context.scene.objects if o.type == 'MESH'][0]; ob.name = "Alien"
+ob = [o for o in bpy.context.scene.objects if o.type == 'MESH' and o != rex][0]; ob.name = "Alien"
 bpy.ops.object.select_all(action='DESELECT'); bpy.context.view_layer.objects.active = ob; ob.select_set(True)
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 for v in ob.data.vertices: v.co = v.co*S
@@ -24,7 +28,7 @@ J = {"bn_Spine": ((0, -0.05, 0.47), (0, -0.06, 0.50)),
      "bn_Spine1": ((0, -0.06, 0.50), (0, -0.09, 0.62)), "bn_Spine2": ((0, -0.09, 0.62), (0, -0.12, 0.74)),
      "bn_Neck": ((0, -0.12, 0.74), (0, -0.135, 0.79)), "bn_Neck1": ((0, -0.135, 0.79), (0, -0.145, 0.825)),
      "bn_Neck2": ((0, -0.145, 0.825), (0, -0.16, 0.86)), "bn_Head": ((0, -0.16, 0.86), (0, -0.34, 0.87)),
-     "bn_Jaw": ((0, -0.18, 0.845), (0, -0.32, 0.825))}
+}
 tail = [(0, -0.01, 0.46), (0, 0.05, 0.41), (0, 0.10, 0.36), (0, 0.15, 0.29), (0, 0.19, 0.23), (0, 0.24, 0.16), (0, 0.28, 0.11), (0, 0.32, 0.08), (0, 0.35, 0.07)]
 for i in range(8): J["bn_Tail%02d" % (i + 1)] = (tail[i], tail[i + 1])
 for sd, s in (("Left", 1), ("Right", -1)):
@@ -44,7 +48,16 @@ E = arm.data.edit_bones; mw = arm.matrix_world; inv = mw.inverted()
 base = lambda n: n.split(".")[0]
 old = {e.name: (mw @ e.head, mw @ e.tail, (mw.to_3x3() @ e.matrix.to_3x3()).normalized()) for e in E}
 new = {}
-K = 0.45                                            # the tyrannosaur's small bones (fingers, toes, face) come over this much smaller
+K = 0.45                                            # the tyrannosaur's small bones (fingers, toes) come over this much smaller
+# its head comes over whole, shrunk to the alien's: the skull from its base to its lips, to the alien's skull
+HEADS = set()
+def _under(e):
+    HEADS.add(e.name)
+    for c in e.children: _under(c)
+_under([e for e in E if base(e.name) == "bn_Head"][0])
+_oh = old[[n for n in old if base(n) == "bn_Head"][0]][0]; _lip = old[[n for n in old if base(n) == "bn_LeftInnerLip"][0]][0]
+KH = ((Vector(J["bn_Head"][1]) - Vector(J["bn_Head"][0]))*S).length/abs(_lip.y - _oh.y)
+print("HEAD SCALE", KH)
 def place(e):
     oh, ot, orot = old[e.name]
     if base(e.name) in J:
@@ -52,7 +65,8 @@ def place(e):
     else:                                           # follow its parent: the same offset, turned and shrunk as the parent was
         p = e.parent; ph, pt, prot = old[p.name]; nh, nt, nrot = new[p.name]
         d = nrot @ prot.inverted()
-        h = nh + d @ (oh - ph)*K; t = h + d @ (ot - oh)*K
+        kk = KH if e.name in HEADS else K
+        h = nh + d @ (oh - ph)*kk; t = h + d @ (ot - oh)*kk
     od = (ot - oh); nd = (t - h)
     if od.length < 1e-6: od = orot.col[1].copy()
     if nd.length < 1e-6: nd = od.copy()
@@ -82,11 +96,46 @@ for ac in bpy.data.actions:
               v = R @ Vector([fc[i].keyframe_points[k].co[1] for i in range(3)])*HIP
               for i in range(3): fc[i].keyframe_points[k].co[1] = v[i]; fc[i].keyframe_points[k].handle_left_type = fc[i].keyframe_points[k].handle_right_type = 'AUTO_CLAMPED'
           for f in fc: f.update()
-# the face's little bones carry no skin of their own
+# THE HEAD: the alien's own is cut off, and the tyrannosaur's put on in its place — its skull, jaw, tongue and teeth, on
+# the bones the clips move, so its roar and bite are its own. Each vertex goes where its bones went (shrunk as they
+# were); whatever of the tyrannosaur is not its head is thrown away.
+import bmesh
+hb = [n for n in new if base(n) == "bn_Head"][0]
+hc = (new[hb][0] + new[hb][1])*0.5
+bm = bmesh.new(); bm.from_mesh(ob.data)
+cut = [v for v in bm.verts if (v.co - hc).length < 0.105*S or (v.co.z > new[hb][0].z - 0.01*S and v.co.y < new[hb][0].y + 0.005*S)]
+bmesh.ops.delete(bm, geom=cut, context='VERTS'); bm.to_mesh(ob.data); bm.free()
+print("ALIEN HEAD CUT", len(cut))
+if rex is not None:
+    names = {g.index: g.name for g in rex.vertex_groups}
+    rw = rex.matrix_world.copy(); rinv = rw.inverted()
+    keep_out = []
+    for v in rex.data.vertices:
+        p0 = rw @ v.co; acc = Vector(); wsum = 0.0; whead = 0.0
+        for gi in v.groups:
+            bn = names.get(gi.group)
+            if bn not in old or gi.weight <= 0: continue
+            oh, _, orot = old[bn]; nh, _, nrot = new[bn]
+            kk = KH if bn in HEADS else 1.0
+            acc += (nh + (nrot @ orot.inverted()) @ (p0 - oh)*kk)*gi.weight; wsum += gi.weight
+            if bn in HEADS: whead += gi.weight
+        if wsum > 0: v.co = rinv @ (acc/wsum)
+        if wsum <= 0 or whead/wsum < 0.5: keep_out.append(v.index)
+    bm = bmesh.new(); bm.from_mesh(rex.data)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in keep_out], context='VERTS'); bm.to_mesh(rex.data); bm.free()
+    print("REX HEAD VERTS", len(rex.data.vertices))
+    rex.name = "RexHead"
+    mat = bpy.data.materials.new("RexHide"); mat.use_nodes = True                # its hide made the alien's: near black, wet
+    b = [n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+    b.inputs["Base Color"].default_value = (0.018, 0.016, 0.024, 1); b.inputs["Roughness"].default_value = 0.16; b.inputs["Metallic"].default_value = 0.4
+    rex.data.materials.clear(); rex.data.materials.append(mat)
+# the face's little bones carry none of the alien's skin (they carry the tyrannosaur's)
 for b in arm.data.bones:
     if any(k in b.name for k in ("Eye", "Pupil", "Lid", "Lip", "Tongue")): b.use_deform = False
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); arm.select_set(True); bpy.context.view_layer.objects.active = arm
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+for b in arm.data.bones: b.use_deform = True
 print("GROUPS", len(ob.vertex_groups), "UNWEIGHTED", sum(1 for v in ob.data.vertices if not v.groups))
 # every clip back on the armature as an NLA strip so all of them export
 ad = arm.animation_data or arm.animation_data_create()
