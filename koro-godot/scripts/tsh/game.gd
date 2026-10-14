@@ -769,7 +769,7 @@ static func vkey(who: String, text: String) -> String:
 	return "%08x" % h
 func line_len(who: String, text: String) -> float:
 	var k := vkey(who, text)
-	return float(voice[k]) if voice.has(k) else 1.0 + text.length()*0.052
+	return float(voice[k]) if voice.has(k) and who != "kai" else 1.0 + text.length()*0.052
 func lines_len(key: String) -> float:
 	var t := 0.0
 	for l in lines.get(key, []): t += maxf(1.4, line_len(l[0], l[1]) + 0.45)
@@ -790,10 +790,10 @@ func _tick_talk(dt: float) -> void:
 		return
 	var who: String = q.lines[q.i][0]; var text: String = q.lines[q.i][1]
 	var k := vkey(who, text)
-	q.t = maxf(1.4, float(voice[k]) + 0.45) if voice.has(k) else maxf(1.8, 1.0 + text.length()*0.052)
+	q.t = maxf(1.4, float(voice[k]) + 0.45) if voice.has(k) and who != "kai" else maxf(1.8, 1.0 + text.length()*0.052)
 	var w: Array = WHO.get(who, [who.to_upper(), "#ffffff"])
 	sub_label.text = "[center][b][color=%s]%s[/color][/b]\n%s[/center]" % [w[1], w[0], text]
-	var rec := voice.has(k) and ResourceLoader.exists("res://assets/tsh/voice/%s.mp3" % k)
+	var rec := who != "kai" and voice.has(k) and ResourceLoader.exists("res://assets/tsh/voice/%s.mp3" % k)      # Kai is not heard: his lines are read
 	if rec: voice_player.stream = load("res://assets/tsh/voice/%s.mp3" % k); voice_player.play()
 	face.say(who, text, float(voice[k]) if voice.has(k) else 0.0, rec)
 	talk_who = who

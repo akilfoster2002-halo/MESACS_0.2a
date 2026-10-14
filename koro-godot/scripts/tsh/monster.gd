@@ -5,7 +5,7 @@
 ## tyrannosaur's own skeleton and moving by its clips: idle standing, run going, bite, roar, attack_tail.
 ##
 ##   var m := Monster.new(); parent.add_child(m); m.setup(at, yaw)   m.grow = 0..1   m.mouth / m.eye_at (world)
-##   m.act("roar" | "bite" | "tail")   m.reach(at)   m.flinch()
+##   m.act("roar" | "bite" | "tail")   m.reach(at)   m.flinch()   m.breathe(at) / m.breathe(null)   m.burns(p)
 class_name Monster
 extends Node3D
 
@@ -32,6 +32,7 @@ var ready_ := false
 var act_name = null; var act_t := 0.0; var bit := false
 var clip_now := ""; var step_t := 0.0
 var head: Node3D; var eye: Node3D
+var flame: CPUParticles3D; var flame_to = null; var flame_dir := Vector3.FORWARD
 var last_pos := Vector3.ZERO; var speed := 0.0
 var last_w := Vector3.ZERO
 var dip := 0.0; var flinch_k := 0.0
@@ -53,7 +54,7 @@ func setup(at: Vector3, yaw: float) -> void:
 	for a in tap.get_animation_list(): tap.get_animation(a).loop_mode = Animation.LOOP_LINEAR if a in ["idle", "run"] else Animation.LOOP_NONE
 	tap.animation_finished.connect(func(_n): act_name = null; clip_now = ""; _play("idle", 0.35))
 	_play("idle", 0.0)
-	_face()
+	_face(); _flame()
 	ready_ = true
 func _each(n: Node, f: Callable) -> void:
 	f.call(n)
@@ -77,6 +78,38 @@ func anchor(nm: String) -> Vector3:
 func _face() -> void:
 	head = Node3D.new(); head.position = Vector3(0, 4.7, 0.25); body.add_child(head)
 	eye = Node3D.new(); eye.position = Vector3(0, 0.12, 0.3); head.add_child(eye)
+
+# ================================================================== its breath: black fire out of its mouth
+const FLAME_LEN := 10.0; const FLAME_HALF := 0.36          # how far it reaches; the cone's half-angle (radians)
+func _flame() -> void:
+	flame = CPUParticles3D.new(); flame.emitting = false; flame.amount = 420; flame.lifetime = 0.9; flame.local_coords = false
+	var q := QuadMesh.new(); q.size = Vector2(1, 1); flame.mesh = q
+	var m := StandardMaterial3D.new(); m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES; m.vertex_color_use_as_albedo = true; m.albedo_texture = _puff(); flame.material_override = m
+	flame.direction = Vector3(0, 0, 1); flame.spread = rad_to_deg(FLAME_HALF)*0.8
+	flame.initial_velocity_min = 13.0; flame.initial_velocity_max = 17.0; flame.gravity = Vector3(0, 1.5, 0); flame.damping_min = 2.0; flame.damping_max = 4.0
+	flame.angle_min = -180; flame.angle_max = 180; flame.angular_velocity_min = -200; flame.angular_velocity_max = 200
+	var sc := Curve.new(); sc.add_point(Vector2(0, 0.25)); sc.add_point(Vector2(0.5, 1.0)); sc.add_point(Vector2(1, 1.5)); flame.scale_amount_curve = sc
+	flame.scale_amount_min = 1.2; flame.scale_amount_max = 2.2
+	var gr := Gradient.new()                                  # a violet-hot core, then black, then smoke gone
+	gr.set_color(0, Color(0.4, 0.06, 0.7, 0.85)); gr.set_color(1, Color(0, 0, 0, 0))
+	gr.add_point(0.07, Color(0.04, 0.0, 0.07, 0.97)); gr.add_point(0.3, Color(0.0, 0.0, 0.0, 0.97)); gr.add_point(0.75, Color(0.01, 0.0, 0.015, 0.7))
+	flame.color_ramp = gr
+	add_child(flame)
+func _puff() -> Texture2D:
+	var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1, 0.5); gt.width = 64; gt.height = 64
+	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(1, 1, 1, 0)); gr.add_point(0.45, Color(1, 1, 1, 0.7)); gt.gradient = gr
+	return gt
+## breathe at a point in the world (null: stop)
+func breathe(at) -> void:
+	if at != null and flame_to == null: flame_dir = global_basis.z.normalized()
+	flame_to = at
+	if flame: flame.emitting = at != null
+## is a point in the fire? (only while it breathes)
+func burns(p: Vector3) -> bool:
+	if flame_to == null: return false
+	var v := p - flame.global_position; var d := v.length()
+	return d < FLAME_LEN*maxf(0.5, grow) and d > 0.01 and v.normalized().dot(flame_dir) > cos(FLAME_HALF)
 
 # ================================================================== what it does
 func act(nm: String) -> void:
@@ -124,6 +157,11 @@ func _process(dt: float) -> void:
 		var a := body.to_local(_bone_world(gsk, hb).origin); var b2 := body.to_local(_bone_world(gsk, jb).origin)
 		head.position = a.lerp(b2, 0.5) + Vector3(0, 0, 0.55)
 	mouth = head.to_global(Vector3(0, -0.2, 0.42)); eye_at = eye.global_position
+	if flame:
+		flame.global_position = mouth
+		if flame_to != null:
+			flame_dir = flame_dir.slerp(((flame_to as Vector3) - mouth).normalized(), minf(1, dt*5)).normalized()
+			flame.global_basis = Basis.looking_at(-flame_dir, Vector3.UP if absf(flame_dir.y) < 0.98 else Vector3.RIGHT)
 func dispose() -> void:
 	queue_free()
 

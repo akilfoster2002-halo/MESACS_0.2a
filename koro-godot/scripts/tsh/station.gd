@@ -538,13 +538,13 @@ func brawl(M0: Vector2, ry: float, dir: Vector2, _side: Vector2, cb: Callable) -
 	var b0 := M0 - dir*4.2
 	g.place(Vector3(b0.x, 0, b0.y), ry + PI)
 	g.mode = ""
-	B = {"st": "wait", "t": 0.0, "wait": 1.6, "hp": 3, "hits": 0, "all": 0.0, "punch": 0.0, "dash": null, "last_space": false, "done": cb}
+	B = {"st": "wait", "t": 0.0, "wait": 1.6, "hp": 100.0, "burnT": 0.0, "hits": 0, "all": 0.0, "punch": 0.0, "dash": null, "last_space": false, "done": cb}
 	_brawl_hud("")
 	g.talk("robinPunch")
 	g.fm_aim(g.FIGHTM.drop2, 0.0, [g.FIGHTM.drop2, g.FIGHTM.drop2 + g.FIGHTM.bar*4])
 func _brawl_hud(msg: String) -> void:
 	if B == null: brawl_l.text = ""; return
-	brawl_l.text = (msg + "\n" if msg != "" else "") + "♥".repeat(maxi(0, B.hp)) + "♡".repeat(3 - maxi(0, B.hp)) + "   " + "✊".repeat(B.hits)
+	brawl_l.text = (msg + "\n" if msg != "" else "") + "✊".repeat(B.hits)
 func brawl_click() -> void:
 	if B == null or B.punch > 0: return
 	B.punch = 0.45; g.play(["jab", "cross", "hook"][randi() % 3], 0.05); g.cue("kick")
@@ -578,12 +578,23 @@ func _tick_brawl(dt: float) -> void:
 	if B.punch > 0: B.punch -= dt
 	match B.st:
 		"wait":
-			if B.t > B.wait: mon.act("bite"); g.cue("zip"); B.st = "tele"; B.t = 0.0; _brawl_hud("DODGE!")
+			if B.t > B.wait:
+				if randf() < 0.45 and d > 3.0: mon.act("roar"); g.cue("roar"); shake(0.4, 0.8); B.st = "roar"; B.t = 0.0; _brawl_hud("GET OUT OF ITS FIRE!")
+				else: mon.act("bite"); g.cue("zip"); B.st = "tele"; B.t = 0.0; _brawl_hud("DODGE!")
+		"roar":
+			if B.t > 0.7: mon.breathe(p + Vector3(0, 0.9, 0)); B.st = "fire"; B.t = 0.0
+		"fire":
+			mon.breathe(p + Vector3(0, 0.9, 0))
+			B.burnT = maxf(0, B.burnT - dt)
+			if mon.burns(p + Vector3(0, 1.0, 0)) and B.dash == null:
+				B.hp -= 26.0*dt
+				if B.burnT <= 0: B.burnT = 0.35; flash(0.18, Color(0.35, 0.05, 0.6)); shake(0.25, 0.2); g.cue("punch"); g.play("hit", 0.05)
+			if B.t > 2.2 or B.hp <= 0: mon.breathe(null); B.st = "open"; B.t = 0.0; _brawl_hud("HIT IT!")
 		"tele":
 			if B.t > 0.62:
 				var fx2 := sin(r.rotation.y); var fz2 := cos(r.rotation.y); var ahead := dx*fx2 + dz*fz2; var across := absf(dx*fz2 - dz*fx2)
 				if ahead > -0.5 and ahead < 6.2 and across < 2.4 and B.dash == null:
-					B.hp -= 1; B.st = "hurt"; B.t = 0.0; _brawl_hud(""); shake(0.75, 0.5); flash(0.3, Color(1, 0.2, 0.3)); g.cue("punch")
+					B.hp -= 34.0; B.st = "hurt"; B.t = 0.0; _brawl_hud(""); shake(0.75, 0.5); flash(0.3, Color(1, 0.2, 0.3)); g.cue("punch")
 					_push(Vector2(dx, dz).normalized()*1.6); g.play("hit", 0.05)
 				else: B.st = "open"; B.t = 0.0; _brawl_hud("HIT IT!")
 		"open":
