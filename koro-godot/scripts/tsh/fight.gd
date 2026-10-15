@@ -192,8 +192,11 @@ func _trail(e: Dictionary) -> void:
 	var tr: Array = e.tr; var sw: MeshInstance3D = e.blade.node
 	if e.state == "windup" and e.t > e.strike_at*0.6 and e.t < e.swing_end and not e.get("kicking", false):
 		tr.push_front([sw.global_transform*(e.blade.grip as Vector3).lerp(e.blade.tip, 0.25), sw.global_transform*(e.blade.tip as Vector3)])
+		if _ink(e): fx.swing_at(e.node.get_instance_id(), sw.global_transform*(e.blade.tip as Vector3), sw.global_transform*(e.blade.grip as Vector3).lerp(e.blade.tip, 0.5))
 		if tr.size() > 12: tr.pop_back()
-	elif tr.size(): tr.pop_back()
+	else:
+		if _ink(e): fx.end_swing(e.node.get_instance_id())
+		if tr.size(): tr.pop_back()
 	var im: ImmediateMesh = e.trail.mesh; im.clear_surfaces()
 	if tr.size() < 2: return
 	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
