@@ -461,6 +461,21 @@ func alpha_scene() -> void:
 			if wind: wind.k = 0.5 + k*0.3}))
 	g.play_reel(shots, done(func(): if cy.gizmo: cy.gizmo.visible = false; monster_scene(R, ry)))
 
+## a burst of black smoke, thrown out at once and hanging, then gone
+func _smoke(at: Vector3) -> void:
+	var p := CPUParticles3D.new(); p.one_shot = true; p.explosiveness = 0.92; p.amount = 260; p.lifetime = 2.4
+	var q := QuadMesh.new(); q.size = Vector2(1, 1); p.mesh = q
+	var m := StandardMaterial3D.new(); m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES; m.vertex_color_use_as_albedo = true
+	var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1, 0.5)
+	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(1, 1, 1, 0)); gt.gradient = gr; m.albedo_texture = gt
+	p.material_override = m
+	p.direction = Vector3(0, 1, 0); p.spread = 180; p.initial_velocity_min = 4; p.initial_velocity_max = 13; p.damping_min = 4; p.damping_max = 7; p.gravity = Vector3(0, 0.6, 0)
+	var sc := Curve.new(); sc.add_point(Vector2(0, 0.4)); sc.add_point(Vector2(1, 2.2)); p.scale_amount_curve = sc; p.scale_amount_min = 1.6; p.scale_amount_max = 3.4
+	var cr := Gradient.new(); cr.set_color(0, Color(0.02, 0.0, 0.04, 0.95)); cr.set_color(1, Color(0, 0, 0, 0)); cr.add_point(0.6, Color(0.01, 0.0, 0.02, 0.7)); p.color_ramp = cr
+	g.sub.add_child(p); p.global_position = at; p.emitting = true
+	later(3.0, func(): if is_instance_valid(p): p.queue_free())
+
 ## IT DOES NOT STOP. The black comes up out of her and keeps coming, until it is the size of the platform.
 func monster_scene(R0: Vector2, ry: float) -> void:
 	g.talk_q.clear()
@@ -510,15 +525,25 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 		"runFront": {"cam": func(): var r: Vector2 = rrun.call(); return V.call(r - dir*3.5, 1.2), "look": func(): return V.call(rrun.call(), 1.3), "fov": 44}}
 	var stand_r := func(): stand("idle", R, ry)
 	var canon_from := {"p": null, "in": false}
+	var burst := {"done": false}
 	var shots := cuts(3.8, [CAM.rising, CAM.her, CAM.lowUp, CAM.high, CAM.lowUp2, CAM.herWide, CAM.side, CAM.lowUp], {
 		"start": func(): g.fm_aim(g.FIGHTM.drop1); mon.act("roar"); g.cue("roar"); haywire(0.6); g.cue("clang"); if maya: g.fight.play(maya, "stagger"); stand_r.call(); if wind: wind.k = 0.7,
 		"tick": func(dt, t, k):
-			stand_r.call(); mon.grow = minf(1, 0.02 + k*1.05)
+			# not grown: the black takes her as she is lifted; then it breaks out of her all at once, full size, and
+			# rises up out of the black where she was
+			stand_r.call()
 			if alpha_fx: alpha_fx.cover = 1.0
-			if maya and maya.node.visible: maya.x = lerpf(M0.x, M.x, k*0.6); maya.z = lerpf(M0.y, M.y, k*0.6); maya.y = k*1.6; g.fight._place(maya)
-			if mon.grow > 0.35 and maya:
-				maya.node.visible = false
-				if oc: oc.queue_free(); oc = null
+			if k < 0.45:
+				mon.grow = 0.001
+				if maya and maya.node.visible: maya.x = lerpf(M0.x, M.x, k*1.2); maya.z = lerpf(M0.y, M.y, k*1.2); maya.y = k*2.2; g.fight._place(maya)
+			else:
+				if not burst.done:
+					burst.done = true; mon.grow = 1.0
+					if maya: maya.node.visible = false
+					if oc: oc.queue_free(); oc = null
+					flash(0.7); shake(1.0, 0.9); g.cue("boom"); g.cue("roar"); mon.act("roar"); _smoke(Vector3(M.x, 1.2, M.y))
+				var u := clampf((k - 0.45)/0.3, 0, 1); var e := 1.0 - pow(1.0 - u, 3)
+				mon.position.y = lerpf(-7.0, 0.0, e)
 			if hay: hay.k = 0.6 + k*0.3
 			if randf() < dt*3: shake(0.5, 0.3)})
 	shots.append_array(cuts(1.6, [CAM.eye, CAM.her, CAM.eyeX], {"start": func(): mon.grow = 1.0; flash(0.28); mon.act("roar"); g.cue("roar")}))
