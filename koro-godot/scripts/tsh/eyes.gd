@@ -23,14 +23,14 @@ static func attach(model: Node3D, dir := "res://assets/tsh/eyes") -> Eyes:
 	while st.size():
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
 		if x is Skeleton3D: sk = x
-		if x.name == "char1": body = x
+		if x.name in ["char1", "KaiBody"]: body = x
 	if sk == null or body == null: return null
 	body.layers |= LAYER
 	var m: StandardMaterial3D = (body.get_active_material(0) as StandardMaterial3D).duplicate()
 	m.albedo_texture = load(dir + "/skin.png"); body.set_surface_override_material(0, m)
 	# on her head as it is DRAWN: after every modifier (the turn of her head toward what she looks at) — a
 	# BoneAttachment read it before that, and the irises missed her eyes for a frame whenever she turned
-	var e := Eyes.new(); e.dir = dir; sk.add_child(e); e.head = sk.find_bone("mixamorigHead"); e.sk = sk
+	var e := Eyes.new(); e.dir = dir; sk.add_child(e); e.head = (sk.find_bone("mixamorigHead") if sk.find_bone("mixamorigHead") >= 0 else sk.find_bone("mixamorig_Head")); e.sk = sk
 	e.top_level = true                                   # in the world at true size: under her model's 1/90 scale the decals were mis-culled
 	var fl := Follow.new(); fl.eyes = e; sk.add_child(fl)
 	e.body = body; e.skin_open = m; e.skin_shut = body.mesh.surface_get_material(0)

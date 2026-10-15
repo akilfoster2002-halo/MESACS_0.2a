@@ -12,10 +12,10 @@ func _init() -> void:
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
 		if x is Skeleton3D: sk = x
 		if x is AnimationPlayer: (x as AnimationPlayer).stop()
-		if x.name == "char1": body = x
+		if x.name in ["char1", "KaiBody"]: body = x
 	sk.reset_bone_poses()
 	await process_frame
-	var head := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigHead"))
+	var head := sk.global_transform*sk.get_bone_global_pose((sk.find_bone("mixamorigHead") if sk.find_bone("mixamorigHead") >= 0 else sk.find_bone("mixamorig_Head")))
 	var J = JSON.parse_string(FileAccess.get_file_as_string(dir + "/eyes.json"))
 	var eyes := []
 	for k in ["R", "L"]:

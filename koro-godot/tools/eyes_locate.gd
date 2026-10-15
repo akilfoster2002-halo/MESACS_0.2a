@@ -7,6 +7,7 @@ func _init() -> void:
 	var A := OS.get_cmdline_user_args(); var out: String = A[0]
 	var model: String = A[1] if A.size() > 1 else "res://assets/tsh/robin.glb"
 	var win: Array = [400, 500, 120, 280, 450, 620] if A.size() < 8 else Array(A.slice(2, 8)).map(func(x): return int(x))
+	var dy: float = float(A[8]) if A.size() > 8 else 0.155        # how far above the head bone the eyes are
 	var env := Environment.new(); env.background_mode = Environment.BG_COLOR; env.background_color = Color("#1a2a2e")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color.WHITE; env.ambient_light_energy = 1.0
 	var we := WorldEnvironment.new(); we.environment = env; root.add_child(we)
@@ -16,15 +17,15 @@ func _init() -> void:
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
 		if x is Skeleton3D: sk = x
 		if x is AnimationPlayer: (x as AnimationPlayer).stop()
-		if x.name == "char1": body = x
+		if x.name in ["char1", "KaiBody"]: body = x
 		if (String(x.name).begins_with("worn_") and x.name != "worn_baggy-jeans") or String(x.name).begins_with("glasses"): x.visible = false
 	sk.reset_bone_poses()
 	await process_frame
-	var hi := sk.find_bone("mixamorigHead")
+	var hi := (sk.find_bone("mixamorigHead") if sk.find_bone("mixamorigHead") >= 0 else sk.find_bone("mixamorig_Head"))
 	var hp: Vector3 = sk.global_transform*sk.get_bone_global_pose(hi).origin
 	var cam := Camera3D.new(); root.add_child(cam); cam.current = true; cam.fov = 12
 	await process_frame
-	cam.look_at_from_position(hp + Vector3(-0.01, 0.155, 0.9), hp + Vector3(-0.01, 0.155, 0))
+	cam.look_at_from_position(hp + Vector3(-0.01, dy, 0.9), hp + Vector3(-0.01, dy, 0))
 	for i in 3: await process_frame
 	await RenderingServer.frame_post_draw
 	var im := root.get_texture().get_image(); im.save_png(out + "/eyes_c.png")
@@ -46,7 +47,7 @@ func _init() -> void:
 			var w := Wt[vi*nb + j]
 			if w > 0: q += (poses[B[vi*nb + j]] as Transform3D)*V[vi]*w
 		P[vi] = q
-	var eye_guess := hp + Vector3(-0.01, 0.155, 0.06)
+	var eye_guess := hp + Vector3(-0.01, dy, 0.06)
 	var tris := []
 	for k in range(0, I.size(), 3):
 		var a := P[I[k]]; var b := P[I[k + 1]]; var c3 := P[I[k + 2]]

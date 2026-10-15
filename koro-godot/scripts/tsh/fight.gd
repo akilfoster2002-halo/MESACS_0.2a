@@ -118,7 +118,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 			var pm := StandardMaterial3D.new(); pm.albedo_color = Color(0.29, 0.3, 0.31); pm.metallic = 0.75; pm.roughness = 0.45; p.material_override = pm
 			p.rotation.x = PI/2.4; p.position = Vector3(0, 0.05, 0.25); att.add_child(p); e.pipe = p
 	_blade(e)
-	if kind == "kai": e.face = KaiFace.attach(g, e)
+	if kind == "kai": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/kai")
 	elif kind == "maya": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/maya")
 	play(e, "talk" if e.state == "talk" else "idle", 0)
 	E.append(e)
