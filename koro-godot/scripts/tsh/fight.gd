@@ -7,7 +7,7 @@
 ## crawl at the instant that matters and waits for the key. Every hit lands with a jolt (hit-stop) and a shake.
 ##
 ##   CLICK / K       punch — again for the chain: jab, cross, hook, kick      hold CLICK: the POWER punch on letting go
-##   G               PULL the nearest one in front to her                     SPACE: dodge (toward a man: over him)
+##   G               DASH to the one she faces (or the nearest in front)                     SPACE: dodge (toward a man: over him)
 ##   RIGHT-CLICK / R parry the instant before a hit; hold it to block         F: the bangle's PULSE
 class_name Fight
 extends Node
@@ -98,7 +98,7 @@ func _ready() -> void:
 	prompt_label.add_theme_font_size_override("bold_font_size", 46); prompt_label.add_theme_constant_override("outline_size", 8); prompt_label.add_theme_color_override("font_outline_color", Color.BLACK); hud.add_child(prompt_label)
 	keys_label = Label.new(); keys_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM); keys_label.position = Vector2(-430, -60); keys_label.size = Vector2(860, 30)
 	keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; keys_label.add_theme_font_size_override("font_size", 15); keys_label.modulate = Color(1, 1, 1, 0.75)
-	keys_label.text = "MOUSE aim · CLICK strike · HOLD power · G pull · SPACE dodge · RIGHT-CLICK parry · F pulse"; keys_label.visible = false; hud.add_child(keys_label)
+	keys_label.text = "MOUSE aim · CLICK strike · HOLD power · G dash · SPACE dodge · RIGHT-CLICK parry · F pulse"; keys_label.visible = false; hud.add_child(keys_label)
 	steps = _steps()
 
 # ================================================================== the cast
@@ -526,17 +526,24 @@ func pulse() -> bool:
 
 func pull() -> bool:
 	if R.grabbed_by != null or (R.act != null and R.act != "idle"): return false
-	if R.pull_cd > 0: g.note("🦎 The gauntlet needs a second."); return false
+	if R.pull_cd > 0: return false
 	var t = R.force_target if standing(R.force_target) else aim_target()
 	if t == null: t = pick_target(15, 0.6)
 	if t == null: t = pick_target(15, 3.2)
-	if t == null: g.note("🦎 Nobody in reach of the line."); return false
+	if t == null: return false
 	var p := P()
-	R.pull_cd = 1.6; R.act = "pull"; R.t = 0.0; R.len = 0.55; R.face = ang_to(p.x, p.y, t.x, t.z)
-	robin_clip("jab", true)
-	t.state = "pulled"; t.t = 0.0; t.from = Vector2(t.x, t.z); t.to = clamp_arena(p.x + sin(R.face)*1.05, p.y + cos(R.face)*1.05, 0.2)
-	hit1(t, "stagger"); _tether(t)
-	g.cue("grab"); slow_for(0.3, 0.55); shake(0.12, 0.2)
+	# THE DASH: she goes to him — a burst across the floor that stops just short of him, untouchable while she
+	# travels, and her next blow lands as a counter
+	R.face = ang_to(p.x, p.y, t.x, t.z)
+	var d: float = Vector2(t.x, t.z).distance_to(p)
+	var to := clamp_arena(t.x - sin(R.face)*1.05, t.z - cos(R.face)*1.05, 0.2)
+	var ln := clampf((d - 1.05)/22.0, 0.08, 0.32)
+	R.pull_cd = 0.9; R.act = "pull"; R.t = 0.0; R.len = ln + 0.06; R.iframe = ln + 0.1
+	R.dash = {"x0": p.x, "z0": p.y, "x1": to.x, "z1": to.y, "t": 0.0, "len": ln, "arc": 0.0}
+	R.counter_ready = true; R.force_target = t
+	robin_clip("sprint")
+	g.cue("kick"); shake(0.1, 0.15)
+	if fx: fx.lines(Vector3(p.x, floor_y + 1.1, p.y), Vector3(sin(R.face), 0, cos(R.face)), 1.3)
 	event("pull", {})
 	return true
 
@@ -902,7 +909,7 @@ func _steps() -> Array:
 			"on": {"hit": func(x): if x.move == "power": dir.powered = true,
 				"charge": func(x): if not dir.get("charge_seen", false): dir.charge_seen = true; slow_to(0.45, 6); prompt("LET GO", "POWER PUNCH", "when you are ready")},
 			"done": func(): return dir.get("powered", false) or dir.t > 14},
-		{"id": "pull", "title": "THE GAUNTLETS · PULL", "how": "G — the gauntlet casts a line at the one you are facing and drags him to you. Then hit him.",
+		{"id": "pull", "title": "THE DASH", "how": "G — dash straight to the one you are facing. Hit him as you arrive: it lands as a counter.",
 			"enter": func(): _pull_enter(),
 			"on": {"pull": func(x): dir.pulled = true},
 			"done": func(): return (dir.get("pulled", false) and dir.t > 1.5) or (alive().is_empty() and dir.t > 2)},
@@ -939,7 +946,7 @@ func _combo_enter() -> void:
 		var e := pick(t); e.active = true; e.state = "approach"; e.t = 0.0; e.cool = 3 + i*2; e.K.windup = 1.1; i += 1
 func _pull_enter() -> void:
 	var a := alive(); a.sort_custom(func(x, y): return dist(x) > dist(y))
-	if a.size(): var far = a[0]; later(1.6, func(): if on and dir.id == "pull" and not dir.get("pulled", false): freeze("G", "PULL", "drag him in", "pull", far))
+	if a.size(): var far = a[0]; later(1.6, func(): if on and dir.id == "pull" and not dir.get("pulled", false): freeze("G", "DASH", "get to him", "pull", far))
 func _regret_enter() -> void:
 	var ks := E.filter(func(e): return e.state in ["ko", "down"] and e.hp <= 0 and e.kind != "buyer" and not e.get("bystander", false))
 	ks.sort_custom(func(a, b): return (INF if a.state == "down" else float(a.get("ko_at", 0))) > (INF if b.state == "down" else float(b.get("ko_at", 0))))
