@@ -120,6 +120,30 @@ for pull, rise in ((0.35, 0.03*S), (0.65, 0.06*S)):
     edge = [x for x in r["geom"] if isinstance(x, bmesh.types.BMEdge) and x.is_boundary]
 bmesh.ops.holes_fill(bm, edges=edge, sides=0)
 bm.to_mesh(ob.data); bm.free()
+# THE PALE SPINES behind its head: the fins down its neck and upper back are light in its texture where it is black —
+# every face there whose colour is pale goes
+img = None
+for m in ob.data.materials:
+    if m and m.use_nodes:
+        for n in m.node_tree.nodes:
+            if n.type == 'TEX_IMAGE' and n.image and "basecolor" in n.image.name.lower(): img = n.image
+if img is not None:
+    W, H = img.size; px = img.pixels[:]
+    def lum(uv):
+        x = int((uv.x % 1.0)*(W - 1)); y = int((uv.y % 1.0)*(H - 1)); i = (y*W + x)*4
+        return 0.3*px[i] + 0.59*px[i + 1] + 0.11*px[i + 2]
+    bm = bmesh.new(); bm.from_mesh(ob.data); uvl = bm.loops.layers.uv.active
+    pale = []
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if c.z < 0.62*S or abs(c.x) > 0.07*S: continue
+        u = sum((l[uvl].uv for l in f.loops), Vector((0, 0)))/len(f.loops)
+        if lum(u) > 0.42: pale.append(f)
+    bmesh.ops.delete(bm, geom=pale, context='FACES')
+    bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=12)      # the little holes they leave, closed
+    loose = [v for v in bm.verts if not v.link_faces]; bmesh.ops.delete(bm, geom=loose, context='VERTS')
+    bm.to_mesh(ob.data); bm.free()
+    print("PALE SPINES", len(pale))
 if rex is not None:
     names = {g.index: g.name for g in rex.vertex_groups}
     rw = rex.matrix_world.copy(); rinv = rw.inverted()
