@@ -2,6 +2,7 @@
 # the sword (sword-fbx.zip) in his right hand, and those clips under the names fight.gd plays. Exports
 # koro-godot/assets/tsh/people/kai.glb.
 #   Blender -b --python tools/kai-rig.py -- <kai.fbx> <Sword_FBX.fbx> <dir of the Mixamo .fbx clips> <out.glb>
+# Kai is anime+character+3d+model.zip now (the T-shirt and the spiked trousers); the joints and face below are his
 # How: a copy of the clips' skeleton is fitted to Kai standing in his T-pose (each bone turned the least way onto his
 # joints, so its twist is kept), he is skinned to it there, then every bone is turned back to the clips' own rest and
 # his mesh bent with it — so the clips play on him as made.
@@ -9,15 +10,15 @@ import bpy, sys, os
 from mathutils import Vector, Matrix
 KAI, SWORD, ANIMS, OUT = sys.argv[-4:]
 S = 1.89                                                     # the model is 0.98 tall; Kai is 1.85
-J = {"Hips": (0, 0, 0.569), "Spine": (0, 0, 0.62), "Spine1": (0, 0, 0.68), "Spine2": (0, 0, 0.75), "Neck": (0, -0.005, 0.825),
-     "Head": (0, -0.01, 0.856), "HeadTop_End": (0, -0.01, 0.98)}
+J = {"Hips": (0, 0, 0.5875), "Spine": (0, 0, 0.6375), "Spine1": (0, 0, 0.70), "Spine2": (0, 0, 0.7625), "Neck": (0, -0.002, 0.835),
+     "Head": (0, -0.006, 0.866), "HeadTop_End": (0, -0.006, 0.98)}
 for sd, s in (("Left", 1), ("Right", -1)):
     m = lambda p: (s*p[0], p[1], p[2])
-    J.update({sd + "Shoulder": m((0.035, 0, 0.80)), sd + "Arm": m((0.10, 0.005, 0.794)), sd + "ForeArm": m((0.206, 0.01, 0.763)),
-        sd + "Hand": m((0.306, 0.01, 0.738)), sd + "HandIndex1": m((0.335, 0.0, 0.733)), sd + "HandIndex2": m((0.345, 0.0, 0.731)),
-        sd + "HandIndex3": m((0.353, 0.0, 0.729)), sd + "HandIndex4": m((0.36, 0.0, 0.727)),
-        sd + "UpLeg": m((0.05, 0, 0.55)), sd + "Leg": m((0.08, -0.005, 0.30)), sd + "Foot": m((0.105, 0.01, 0.11)),
-        sd + "ToeBase": m((0.11, -0.05, 0.025)), sd + "Toe_End": m((0.11, -0.10, 0.02))})
+    J.update({sd + "Shoulder": m((0.0375, 0, 0.825)), sd + "Arm": m((0.1125, 0, 0.806)), sd + "ForeArm": m((0.20, -0.025, 0.769)),
+        sd + "Hand": m((0.2625, -0.05, 0.731)), sd + "HandIndex1": m((0.281, -0.058, 0.719)), sd + "HandIndex2": m((0.2975, -0.064, 0.71)),
+        sd + "HandIndex3": m((0.31, -0.068, 0.7025)), sd + "HandIndex4": m((0.325, -0.072, 0.694)),
+        sd + "UpLeg": m((0.0625, 0, 0.569)), sd + "Leg": m((0.069, -0.005, 0.30)), sd + "Foot": m((0.10, 0.0125, 0.106)),
+        sd + "ToeBase": m((0.105, -0.045, 0.025)), sd + "Toe_End": m((0.105, -0.0875, 0.02))})
 CLIPS = {"Withdrawing Sword": "draw", "Sheathing Sword": "sheath", "Great Sword Walk": "walk", "Great Sword Run": "sprint", "Great Sword Strafe": "walk_left",
     "Great Sword Slash": "hook", "Great Sword Slash (1)": "cross", "Great Sword Kick": "kick", "Sword And Shield Death": "fall"}
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -67,6 +68,19 @@ bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 grip = Vector((0.084, 0.0, 0.0745)); fist = Vector((-0.335, -0.01, 0.728))*S
 Rz = Matrix.Rotation(1.5708, 3, 'Z')
 for v in sw.data.vertices: v.co = Rz @ ((v.co - grip)*7.0) + fist
+# its own textures (sword-fbx.zip textures/: the albedo, the normal map, the specular)
+tx = os.path.join(os.path.dirname(os.path.dirname(SWORD)), "textures")
+if os.path.isdir(tx):
+    sm = bpy.data.materials.new("Sword"); nt = sm.node_tree; bsdf = [n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+    def timg(name, nonc=False):
+        n = nt.nodes.new("ShaderNodeTexImage"); n.image = bpy.data.images.load(os.path.join(tx, name))
+        if nonc: n.image.colorspace_settings.name = 'Non-Color'
+        return n
+    nt.links.new(timg("FFX_Sword_Albedo2.tga.png").outputs[0], bsdf.inputs["Base Color"])
+    nm = nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(timg("FFX_Sword_Normal.tga.png", True).outputs[0], nm.inputs["Color"]); nt.links.new(nm.outputs[0], bsdf.inputs["Normal"])
+    sp = timg("FFX_Sword_Spec.tga.png", True); inv = nt.nodes.new("ShaderNodeInvert"); nt.links.new(sp.outputs[0], inv.inputs[1]); nt.links.new(inv.outputs[0], bsdf.inputs["Roughness"])
+    bsdf.inputs["Metallic"].default_value = 0.85
+    sw.data.materials.clear(); sw.data.materials.append(sm)
 # skin him in his T-pose
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); K.select_set(True); bpy.context.view_layer.objects.active = K
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
@@ -92,13 +106,13 @@ import math
 headM = (K.matrix_world @ K.data.bones["mixamorig:Head"].matrix_local) @ (K.matrix_world @ KT["mixamorig:Head"]).inverted()
 HR = headM.to_3x3()
 F = lambda p: Vector(p)*S
-EYE = {"L": F((0.0185, -0.0435, 0.9025)), "R": F((-0.019, -0.0435, 0.902))}; EYE_R = 0.0088*S
-MOUTH = F((0, -0.057, 0.8705)); CORNER = {"L": F((0.0135, -0.053, 0.8705)), "R": F((-0.0135, -0.053, 0.8705))}
-BROW = {"L": F((0.019, -0.051, 0.9095)), "R": F((-0.019, -0.051, 0.9095))}; LID = {k: v + F((0, -0.004, 0.0035)) for k, v in EYE.items()}
-JAW = F((0, -0.002, 0.886)); CHIN = F((0, -0.052, 0.857))
+EYE = {"L": F((0.0205, -0.0375, 0.9035)), "R": F((-0.0165, -0.0375, 0.903))}; EYE_R = 0.0068*S
+MOUTH = F((0.003, -0.057, 0.8746)); CORNER = {"L": F((0.0135, -0.053, 0.8746)), "R": F((-0.0075, -0.053, 0.8746))}
+BROW = {"L": F((0.021, -0.051, 0.910)), "R": F((-0.016, -0.051, 0.910))}; LID = {k: v + F((0, -0.004, 0.0035)) for k, v in EYE.items()}
+JAW = F((0, -0.004, 0.886)); CHIN = F((0.003, -0.052, 0.858))
 tpose = {v.index: headM.inverted() @ v.co for v in ob.data.vertices}           # each vertex where it stood in the T-pose
 def near(p, c, r): return math.exp(-((p - c).length/r)**2)
-face = lambda p: p.y < -0.03*S and abs(p.x) < 0.045*S and 0.835*S < p.z < 0.93*S
+face = lambda p: p.y < -0.03*S and abs(p.x) < 0.045*S and 0.845*S < p.z < 0.93*S
 ob.shape_key_add(name="Basis")
 def key(name, f):
     k = ob.shape_key_add(name=name, from_mix=False)
@@ -118,7 +132,7 @@ key("smile", lambda p: sum((Vector((0.0055*S*(1 if k == "L" else -1), 0.003*S, 0
 key("frown", lambda p: sum((Vector((0.001*S*(1 if c.x > 0 else -1), 0, -0.008*S))*near(p, c, 0.013*S) for c in CORNER.values()), Vector()))
 key("browUp", lambda p: sum((Vector((0, -0.001*S, 0.0085*S))*near(p, c, 0.015*S) for c in BROW.values()), Vector()))
 key("browDown", lambda p: sum((Vector((-0.003*S*(1 if k == "L" else -1), -0.002*S, -0.0065*S))*near(p, c, 0.014*S) for k, c in BROW.items()), Vector()))
-key("blink", lambda p: sum((Vector((0, -0.002*S, -0.0085*S))*near(p, c, 0.0075*S) for c in LID.values()), Vector()))
+key("blink", lambda p: sum((Vector((0, -0.0015*S, -0.012*S))*near(p, c + F((0, 0, 0.002)), 0.0085*S) for c in LID.values()), Vector()))
 # EYEBALLS that turn: white, an iris, a pupil — set in his sockets, on his head bone
 def eyeball(side):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=32, radius=EYE_R, location=(0, 0, 0))
@@ -132,7 +146,7 @@ def eyeball(side):
     e.data.materials.append(m)
     e.matrix_world = headM @ Matrix.Translation(EYE[side])
     keep = e.matrix_world.copy(); e.parent = K; e.parent_type = 'BONE'; e.parent_bone = "mixamorig:Head"; bpy.context.view_layer.update(); e.matrix_world = keep
-eyeball("L"); eyeball("R")
+# this Kai's eyes are painted, and drawn well: eyeballs sat in front of them or hid behind his face, so he keeps them
 bpy.ops.object.select_all(action='DESELECT')
 m2 = ob.modifiers.new("Armature", 'ARMATURE'); m2.object = K; ob.parent = K
 sw.matrix_world = swM @ sw.matrix_world
