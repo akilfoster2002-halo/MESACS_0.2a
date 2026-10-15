@@ -1,10 +1,12 @@
 ## Her face's texture with the painted irises covered — the white of each eye painted over them, in the texture itself
 ## (where the moving irises go, nothing then needs to sit under them). Uses eyes.json (tools/eyes_locate.gd).
-##   godot --headless --path koro-godot -s res://tools/eyes_bake.gd   → assets/tsh/eyes/skin.png
+##   godot --headless --path koro-godot -s res://tools/eyes_bake.gd [-- model.glb dir]   → <dir>/skin.png (Robin: assets/tsh/eyes)
 extends SceneTree
 const WHITE := Vector2(0.022, 0.0153)
 func _init() -> void:
-	var n: Node3D = (load("res://assets/tsh/robin.glb") as PackedScene).instantiate(); root.add_child(n)
+	var A := OS.get_cmdline_user_args()
+	var model: String = A[0] if A.size() > 0 else "res://assets/tsh/robin.glb"; var dir: String = A[1] if A.size() > 1 else "res://assets/tsh/eyes"
+	var n: Node3D = (load(model) as PackedScene).instantiate(); root.add_child(n)
 	var sk: Skeleton3D; var body: MeshInstance3D; var st: Array = [n]
 	while st.size():
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
@@ -14,7 +16,7 @@ func _init() -> void:
 	sk.reset_bone_poses()
 	await process_frame
 	var head := sk.global_transform*sk.get_bone_global_pose(sk.find_bone("mixamorigHead"))
-	var J = JSON.parse_string(FileAccess.get_file_as_string("res://assets/tsh/eyes/eyes.json"))
+	var J = JSON.parse_string(FileAccess.get_file_as_string(dir + "/eyes.json"))
 	var eyes := []
 	for k in ["R", "L"]:
 		var at: Vector3 = head*Vector3(J[k].local[0], J[k].local[1], J[k].local[2])
@@ -60,6 +62,6 @@ func _init() -> void:
 					var shade := 0.82 + 0.18*clampf((v + 1.0)/2.0, 0, 1)
 					var wc := Color(0.86*shade, 0.80*shade, 0.78*shade)
 					im.set_pixel(px, py, im.get_pixel(px, py).lerp(wc, al)); painted += 1
-	im.save_png("res://assets/tsh/eyes/skin.png")
+	im.save_png(dir + "/skin.png")
 	print("painted ", painted)
 	quit()

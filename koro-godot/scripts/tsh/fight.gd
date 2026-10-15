@@ -119,6 +119,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 			p.rotation.x = PI/2.4; p.position = Vector3(0, 0.05, 0.25); att.add_child(p); e.pipe = p
 	_blade(e)
 	if kind == "kai": e.face = KaiFace.attach(g, e)
+	elif kind == "maya": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/maya")
 	play(e, "talk" if e.state == "talk" else "idle", 0)
 	E.append(e)
 	_place(e)

@@ -1,20 +1,23 @@
 ## Where her eyes are on her model: her face rendered straight on in its rest pose, the pupils found (the darkest
 ## pixels in each eye), and the rays through them met with her skinned face. Writes eyes.json (head-bone space).
-##   godot --path koro-godot --resolution 800x800 -s res://tools/eyes_locate.gd -- <dir>
+##   godot --path koro-godot --resolution 800x800 -s res://tools/eyes_locate.gd -- <dir> [model.glb] [y0 y1 rx0 rx1 lx0 lx1]
+##   (Robin by default; another model of the same make — Maya — with where to look for her pupils in the picture)
 extends SceneTree
 func _init() -> void:
-	var out: String = OS.get_cmdline_user_args()[0]
+	var A := OS.get_cmdline_user_args(); var out: String = A[0]
+	var model: String = A[1] if A.size() > 1 else "res://assets/tsh/robin.glb"
+	var win: Array = [400, 500, 120, 280, 450, 620] if A.size() < 8 else Array(A.slice(2, 8)).map(func(x): return int(x))
 	var env := Environment.new(); env.background_mode = Environment.BG_COLOR; env.background_color = Color("#1a2a2e")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color.WHITE; env.ambient_light_energy = 1.0
 	var we := WorldEnvironment.new(); we.environment = env; root.add_child(we)
-	var n: Node3D = (load("res://assets/tsh/robin.glb") as PackedScene).instantiate(); root.add_child(n)
+	var n: Node3D = (load(model) as PackedScene).instantiate(); root.add_child(n)
 	var sk: Skeleton3D; var body: MeshInstance3D; var st: Array = [n]
 	while st.size():
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
 		if x is Skeleton3D: sk = x
 		if x is AnimationPlayer: (x as AnimationPlayer).stop()
 		if x.name == "char1": body = x
-		if String(x.name).begins_with("worn_") and x.name != "worn_baggy-jeans": x.visible = false
+		if (String(x.name).begins_with("worn_") and x.name != "worn_baggy-jeans") or String(x.name).begins_with("glasses"): x.visible = false
 	sk.reset_bone_poses()
 	await process_frame
 	var hi := sk.find_bone("mixamorigHead")
@@ -50,9 +53,9 @@ func _init() -> void:
 		if a.distance_to(eye_guess) < 0.12: tris.append([a, b, c3])
 	print("face tris ", tris.size())
 	var res := {}
-	for side in [["R", 120, 280], ["L", 450, 620]]:
+	for side in [["R", win[2], win[3]], ["L", win[4], win[5]]]:
 		var sx := 0.0; var sy := 0.0; var c := 0.0
-		for y in range(400, 500):
+		for y in range(win[0], win[1]):
 			for x in range(side[1], side[2]):
 				var p := im.get_pixel(x, y); var l := p.r*0.3 + p.g*0.59 + p.b*0.11
 				if l < 0.16: sx += x; sy += y; c += 1

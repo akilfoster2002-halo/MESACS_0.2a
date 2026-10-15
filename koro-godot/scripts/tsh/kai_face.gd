@@ -1,5 +1,6 @@
-## KAI'S FACE (people/kai.glb, tools/kai-rig.py): his morph targets as Robin's are (jawOpen, mouthO, smile, frown,
-## browUp, browDown, blink) and eyeballs that turn. He blinks on his own; his eyes — and a little of his head — go to
+## KAI'S FACE (people/kai.glb, tools/kai-rig.py) — and MAYA'S: morph targets as Robin's are (jawOpen, mouthO, smile,
+## frown, browUp, browDown, blink), and eyes that turn: Kai's eyeballs; Maya's painted eyes given moving irises as
+## Robin's are (Eyes, from eyes/maya — tools/eyes_locate.gd and eyes_bake.gd run on her). He blinks on his own; his eyes — and a little of his head — go to
 ## whoever is talking, or to her in a fight; his jaw moves while his line is up (he is not heard: a syllable at a time);
 ## his brows come down and his mouth sets when he fights.
 class_name KaiFace
@@ -9,12 +10,13 @@ var g; var e: Dictionary
 var body: MeshInstance3D; var idx := {}
 var eyes: Array = []; var rest: Array = []
 var sk: Skeleton3D; var head := -1
+var decals: Eyes = null; var who := "kai"
 var blink_in := 2.0; var blink_t := 0.0; var t := 0.0
 var cur := {}
 var last_hp := 0.0; var wince := 0.0; var her_hp := 100.0; var smirk := 0.0
 
-static func attach(game, ent: Dictionary) -> KaiFace:
-	var f := KaiFace.new(); f.g = game; f.e = ent
+static func attach(game, ent: Dictionary, eyes_dir := "") -> KaiFace:
+	var f := KaiFace.new(); f.g = game; f.e = ent; f.who = String(ent.get("tag", "kai"))
 	var st: Array = [ent.node]
 	while st.size():
 		var x: Node = st.pop_back(); st.append_array(x.get_children())
@@ -27,6 +29,7 @@ static func attach(game, ent: Dictionary) -> KaiFace:
 		f.rest.append(ey.transform)
 		var m := StandardMaterial3D.new(); m.vertex_color_use_as_albedo = true; m.roughness = 0.12; m.specular = 0.8; ey.material_override = m
 	if f.sk: f.head = f.sk.find_bone("mixamorig_Head")
+	if eyes_dir != "": f.decals = Eyes.attach(ent.node, eyes_dir)
 	ent.node.add_child(f)
 	return f
 
@@ -36,7 +39,7 @@ func _shape(nm: String, v: float, dt: float, rate := 10.0) -> void:
 	body.set_blend_shape_value(idx[nm], c)
 
 func _look_at_point() -> Vector3:
-	if g.talk_who != "" and g.talk_who != "kai":
+	if g.talk_who != "" and g.talk_who != who:
 		var who = g.robin if g.talk_who == "robin" else null
 		if who == null:
 			var c = g.crew(g.talk_who)
@@ -54,8 +57,9 @@ func _process(dt: float) -> void:
 	var b := sin(PI*clampf(1.0 - blink_t/0.16, 0, 1)) if blink_t > 0 else 0.0
 	_shape("blink", b, dt, 40.0)
 	for ey in eyes: ey.visible = b < 0.6
+	if decals: decals.open(b < 0.5)
 	# talking: a syllable at a time while his line is up
-	var talking: bool = g.talk_who == "kai" and g.sub_label.text != ""
+	var talking: bool = g.talk_who == who and g.sub_label.text != ""
 	var flap := (0.35 + 0.65*absf(sin(t*11.0))*(0.6 + 0.4*sin(t*3.7))) if talking else 0.0
 	_shape("jawOpen", flap*0.9, dt, 18.0); _shape("mouthO", flap*0.3, dt, 14.0)
 	# fighting: brows down, mouth set
@@ -78,6 +82,9 @@ func _process(dt: float) -> void:
 	# where his face points
 	var to := _look_at_point()
 	var face_fwd: Vector3 = e.node.global_basis.z.normalized()
+	if decals and is_instance_valid(decals):          # her irises: toward it, as far as eyes go (x to her left, y up)
+		var lt: Vector3 = decals.global_transform.affine_inverse()*to
+		decals.look(clampf(atan2(lt.x, lt.z)/0.5, -1, 1), clampf(atan2(lt.y, maxf(0.05, Vector2(lt.x, lt.z).length()))/0.35, -1, 1))
 	for ey in eyes:
 		var p: Vector3 = ey.global_position
 		var d := (to - p).normalized()
