@@ -174,6 +174,8 @@ func _combo(e: Dictionary, d: float) -> void:
 ## a blow that lands: every one jolts; the last of a combo stops the world
 func _landed(e: Dictionary, hurt_her: bool) -> void:
 	if not hurt_her: return
+	if e.get("finisher", false): cine("finisher", 0.06, 0.3, 0.7, g.robin.position + Vector3(0, 1.2, 0))
+	elif e.has("blade"): cine("hurt", 0.06, 0.12, 0.4)
 	if _ink(e):
 		var hd: Vector3 = g.robin.position - Vector3(e.x, g.robin.position.y, e.z)
 		fx.sparks(g.robin.position + Vector3(0, 1.2, 0), hd, 1.5 if e.get("finisher", false) else 0.8)
@@ -402,6 +404,11 @@ func attack(kind: String) -> bool:
 	var m: Dictionary = MOVE[nm]
 	R.act = "attack"; R.move = nm; R.last_move = nm; R.t = 0.0; R.target = t; R.landed = false
 	R.len = robin_clip(m.clip, true); if R.len <= 0: R.len = 0.6
+	var land_at: float = R.len*float(m.hit)
+	var tg = t
+	var at_t = (func(): return Vector3(tg.x, floor_y + 1.2, tg.z)) if t != null else null
+	if R.counter_ready and t != null: cine("counter", land_at, 0.25, 0.55, at_t)
+	elif SHOTS.has(nm): cine(nm, land_at, 0.22 if nm != "power" else 0.32, 0.55, at_t)
 	if t != null:
 		var p := P(); var d: float = Vector2(t.x, t.z).distance_to(p); var a: float = ang_to(p.x, p.y, t.x, t.z)
 		R.face = a
@@ -543,6 +550,7 @@ func pull() -> bool:
 	R.dash = {"x0": p.x, "z0": p.y, "x1": to.x, "z1": to.y, "t": 0.0, "len": ln, "arc": 0.0}
 	R.counter_ready = true; R.force_target = t
 	robin_clip("dash", true)
+	cine("dash", ln*0.6, 0.05, 0.35)
 	g.cue("kick"); shake(0.1, 0.15)
 	if fx: fx.lines(Vector3(p.x, floor_y + 1.1, p.y), Vector3(sin(R.face), 0, cos(R.face)), 1.3)
 	event("pull", {})
@@ -827,6 +835,7 @@ func shake(amp: float, ln: float) -> void:
 ## in the picture together, and a hit pushes it in for an instant
 func _fight_cam(real: float) -> void:
 	var c: Camera3D = g.cam
+	if cam.has("base"): c.global_position = cam.base        # the base camera's own place, without last frame's shot
 	var yaw: float = g.cam_yaw; var pitch: float = g.cam_pitch
 	var f := Vector2(-sin(yaw), -cos(yaw)); var r := Vector2(cos(yaw), -sin(yaw)); var p := P()
 	var t = R.target if (R.act == "attack" and standing(R.target)) else (R.aim if standing(R.aim) else null)
@@ -849,6 +858,8 @@ func _fight_cam(real: float) -> void:
 	c.look_at(cam.look)
 	cam.punch = maxf(0, cam.punch - real*5)
 	c.fov = 70 - 7*sin(minf(1, cam.punch)*PI/2)
+	cam.base = c.global_position
+	_apply_shot(c, real)
 
 ## OVER HER SHOULDER (the duel with Kai): low and close behind her right shoulder, at her head's height, her in the
 ## lower left and the one she fights filling the middle-right; it eases round to keep him in it (the mouse still turns it)
@@ -878,6 +889,56 @@ func _close_cam(real: float, t, p: Vector2) -> void:
 	c.look_at(cam.look)
 	cam.punch = maxf(0, cam.punch - real*5)
 	c.fov = 52 - 6*sin(minf(1, cam.punch)*PI/2)
+	cam.base = c.global_position
+	_apply_shot(c, real)
+
+# ================================================================== THE COMBAT CAMERA
+## Two layers. The BASE camera (_fight_cam / _close_cam) is the player's: it follows her and lets her be steered.
+## Over it, COMBAT SHOTS: short moves of the camera choreographed to an attack — it drifts in over her shoulder as
+## she winds up, ARRIVES at the instant the blow lands (timed to the animation), holds on the impact, and blends back
+## to the base camera. A shot is an offset in the camera's own frame (right, up, toward the action), a lens change,
+## a lean (dutch), and how far the camera's aim is pulled onto the one being hit.
+const SHOTS := {
+	"kick":     {"off": Vector3(0.55, -0.15, 0.9), "fov": -9.0, "dutch": 0.06, "aim": 0.35},
+	"power":    {"off": Vector3(-0.35, -0.35, 1.3), "fov": -13.0, "dutch": -0.08, "aim": 0.5},
+	"flykick":  {"off": Vector3(-0.7, 0.45, 0.5), "fov": -6.0, "dutch": 0.1, "aim": 0.4},
+	"spin":     {"off": Vector3(0.0, 0.5, -0.8), "fov": 6.0, "dutch": 0.0, "aim": 0.0},
+	"sweep":    {"off": Vector3(0.4, -0.45, -0.4), "fov": 4.0, "dutch": -0.05, "aim": 0.2},
+	"counter":  {"off": Vector3(0.9, -0.1, 1.0), "fov": -10.0, "dutch": 0.07, "aim": 0.45},
+	"dash":     {"off": Vector3(0.0, 0.1, -0.6), "fov": 11.0, "dutch": 0.0, "aim": 0.2},
+	"hurt":     {"off": Vector3(-0.8, -0.1, 0.9), "fov": -8.0, "dutch": 0.12, "aim": 0.0},
+	"finisher": {"off": Vector3(1.0, 0.25, -0.5), "fov": 7.0, "dutch": -0.1, "aim": 0.3}}
+var shot = null                         # {k, t, in, hold, out, at: Callable|Vector3}
+## a combat shot: `land` seconds from now is the impact (the camera is there by then), held `hold`, back over `out`
+func cine(kind: String, land := 0.12, hold := 0.22, out := 0.5, at = null) -> void:
+	if not SHOTS.has(kind): return
+	shot = {"k": SHOTS[kind], "t": 0.0, "in": maxf(0.05, land), "hold": hold, "out": out, "at": at}
+func _shot_w() -> float:
+	if shot == null: return 0.0
+	var t: float = shot.t
+	if t < shot.in: var u: float = t/shot.in; return u*u*(3 - 2*u)
+	if t < shot.in + shot.hold: return 1.0
+	var o: float = (t - shot.in - shot.hold)/shot.out
+	if o >= 1: return 0.0
+	return 1.0 - o*o*(3 - 2*o)
+## laid over whatever the base camera did this frame (it keeps its own state; this is only added on top)
+func _apply_shot(c: Camera3D, real: float) -> void:
+	if shot == null: return
+	shot.t += real
+	var w := _shot_w()
+	if shot.t > shot.in + shot.hold + shot.out: shot = null; return
+	var k: Dictionary = shot.k
+	var fwd: Vector3 = (cam.look - c.global_position); fwd.y = 0; fwd = fwd.normalized() if fwd.length() > 0.01 else -c.global_basis.z
+	var rt: Vector3 = fwd.cross(Vector3.UP).normalized()
+	var o: Vector3 = k.off
+	c.global_position += (rt*o.x + Vector3.UP*o.y + fwd*o.z)*w
+	var look: Vector3 = cam.look
+	var at = shot.at
+	if at is Callable: at = at.call()
+	if at is Vector3 and k.aim > 0: look = look.lerp(at, k.aim*w)
+	c.look_at(look)
+	c.rotate_object_local(Vector3(0, 0, 1), k.dutch*w)
+	c.fov += k.fov*w
 
 # ================================================================== the lesson
 func _steps() -> Array:
