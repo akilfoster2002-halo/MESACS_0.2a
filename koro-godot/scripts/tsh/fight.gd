@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
+	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -824,6 +824,8 @@ func _fight_cam(real: float) -> void:
 	var t = R.target if (R.act == "attack" and standing(R.target)) else (R.aim if standing(R.aim) else null)
 	var td: float = Vector2(t.x, t.z).distance_to(p) if t != null else 0.0
 	cam.pull = lerpf(cam.pull, clampf((td - 2)*0.35, 0, 1.6) if t != null else 0.0, 1 - exp(-real*3))
+	if E.any(func(e): return e.K.get("close_cam", false) and standing(e)):
+		_close_cam(real, t, p); return
 	var back: float = 3.7 + cam.pull; var up: float = clampf(3.1 - sin(pitch)*1.2, 2.4, 3.8) + cam.pull*0.35
 	var want := Vector3(p.x - f.x*back + r.x*0.4, up, p.y - f.y*back + r.y*0.4)
 	want.x = clampf(want.x, arena.x1 + 0.6, arena.x2 - 0.6); want.y += floor_y
@@ -839,6 +841,35 @@ func _fight_cam(real: float) -> void:
 	c.look_at(cam.look)
 	cam.punch = maxf(0, cam.punch - real*5)
 	c.fov = 70 - 7*sin(minf(1, cam.punch)*PI/2)
+
+## OVER HER SHOULDER (the duel with Kai): low and close behind her right shoulder, at her head's height, her in the
+## lower left and the one she fights filling the middle-right; it eases round to keep him in it (the mouse still turns it)
+func _close_cam(real: float, t, p: Vector2) -> void:
+	var c: Camera3D = g.cam
+	if t == null:
+		for e in E: if e.K.get("close_cam", false) and standing(e): t = e
+	if t != null:                                        # turn toward him, gently
+		var want_yaw := atan2(-(t.x - p.x), -(t.z - p.y))
+		g.cam_yaw = lerp_angle(g.cam_yaw, want_yaw, 1 - exp(-real*3.5))
+	var yaw: float = g.cam_yaw
+	var f := Vector2(-sin(yaw), -cos(yaw)); var r := Vector2(cos(yaw), -sin(yaw))
+	var td: float = Vector2(t.x, t.z).distance_to(p) if t != null else 3.0
+	var back := 2.6 + clampf((td - 2.5)*0.25, 0, 1.2)
+	var want := Vector3(p.x - f.x*back + r.x*0.85, floor_y + 1.8, p.y - f.y*back + r.y*0.85)
+	want.x = clampf(want.x, arena.x1 + 0.4, arena.x2 - 0.4)
+	if not cam.on: c.global_position = want; cam.on = true; cam.look = Vector3.ZERO
+	else: c.global_position = c.global_position.lerp(want, 1 - exp(-real*7))
+	var off := Vector2(c.global_position.x - p.x, c.global_position.z - p.y)      # never into her: at least 1.9 m off
+	if off.length() < 1.9: off = (off.normalized() if off.length() > 0.01 else -f)*1.9; c.global_position.x = p.x + off.x; c.global_position.z = p.y + off.y
+	var look := Vector3(p.x + f.x*3.0 + r.x*0.35, floor_y + 1.3, p.y + f.y*3.0 + r.y*0.35)
+	if t != null: look = Vector3(lerpf(p.x, t.x, 0.65) + r.x*0.35, floor_y + 1.35, lerpf(p.y, t.z, 0.65) + r.y*0.35)
+	cam.look = look if cam.look == Vector3.ZERO else cam.look.lerp(look, 1 - exp(-real*6))
+	if shake_len > 0 and shake_t < shake_len:
+		shake_t += real; var k := shake_amp*(1 - shake_t/shake_len)
+		c.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1))*k*0.18
+	c.look_at(cam.look)
+	cam.punch = maxf(0, cam.punch - real*5)
+	c.fov = 52 - 6*sin(minf(1, cam.punch)*PI/2)
 
 # ================================================================== the lesson
 func _steps() -> Array:
