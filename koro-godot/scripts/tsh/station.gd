@@ -463,18 +463,18 @@ func alpha_scene() -> void:
 
 ## a burst of black smoke, thrown out at once and hanging, then gone
 func _smoke(at: Vector3) -> void:
-	var p := CPUParticles3D.new(); p.one_shot = true; p.explosiveness = 0.92; p.amount = 260; p.lifetime = 2.4
+	var p := CPUParticles3D.new(); p.one_shot = true; p.explosiveness = 0.85; p.amount = 900; p.lifetime = 4.0
 	var q := QuadMesh.new(); q.size = Vector2(1, 1); p.mesh = q
 	var m := StandardMaterial3D.new(); m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES; m.vertex_color_use_as_albedo = true
 	var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1, 0.5)
 	var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(1, 1, 1, 0)); gt.gradient = gr; m.albedo_texture = gt
 	p.material_override = m
-	p.direction = Vector3(0, 1, 0); p.spread = 180; p.initial_velocity_min = 4; p.initial_velocity_max = 13; p.damping_min = 4; p.damping_max = 7; p.gravity = Vector3(0, 0.6, 0)
-	var sc := Curve.new(); sc.add_point(Vector2(0, 0.4)); sc.add_point(Vector2(1, 2.2)); p.scale_amount_curve = sc; p.scale_amount_min = 1.6; p.scale_amount_max = 3.4
+	p.direction = Vector3(0, 1, 0); p.spread = 180; p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE; p.emission_sphere_radius = 1.4; p.initial_velocity_min = 3; p.initial_velocity_max = 15; p.damping_min = 4; p.damping_max = 7; p.gravity = Vector3(0, 0.6, 0)
+	var sc := Curve.new(); sc.add_point(Vector2(0, 0.4)); sc.add_point(Vector2(1, 3.0)); p.scale_amount_curve = sc; p.scale_amount_min = 2.4; p.scale_amount_max = 5.0
 	var cr := Gradient.new(); cr.set_color(0, Color(0.02, 0.0, 0.04, 0.95)); cr.set_color(1, Color(0, 0, 0, 0)); cr.add_point(0.6, Color(0.01, 0.0, 0.02, 0.7)); p.color_ramp = cr
 	g.sub.add_child(p); p.global_position = at; p.emitting = true
-	later(3.0, func(): if is_instance_valid(p): p.queue_free())
+	later(4.6, func(): if is_instance_valid(p): p.queue_free())
 
 ## IT DOES NOT STOP. The black comes up out of her and keeps coming, until it is the size of the platform.
 func monster_scene(R0: Vector2, ry: float) -> void:
@@ -541,7 +541,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 					burst.done = true; mon.grow = 1.0
 					if maya: maya.node.visible = false
 					if oc: oc.queue_free(); oc = null
-					flash(0.7); shake(1.0, 0.9); g.cue("boom"); g.cue("roar"); mon.act("roar"); _smoke(Vector3(M.x, 1.2, M.y))
+					flash(0.7); shake(1.0, 0.9); g.cue("boom"); g.cue("roar"); mon.act("roar"); _smoke(Vector3(M.x, 1.2, M.y)); later(0.25, func(): _smoke(Vector3(M.x, 0.4, M.y))); later(0.6, func(): _smoke(Vector3(M.x, 2.6, M.y)))
 				var u := clampf((k - 0.45)/0.3, 0, 1); var e := 1.0 - pow(1.0 - u, 3)
 				mon.position.y = lerpf(-7.0, 0.0, e)
 			if hay: hay.k = 0.6 + k*0.3
