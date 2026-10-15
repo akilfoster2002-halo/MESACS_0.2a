@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "ink": true},
+	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -73,8 +73,8 @@ var done_cb: Callable
 var cam := {"pull": 0.0, "look": Vector3.ZERO, "punch": 0.0, "on": false}
 var mark: MeshInstance3D
 var fx: FightFX
-## the anime ink (action lines, impact frames) — for now only in a fight with someone who has it on (Kai)
-func _ink(e) -> bool: return fx != null and e is Dictionary and e.get("K", {}).get("ink", false)
+## the anime ink (speed lines, sparks, slash lines) — on every fight
+func _ink(e) -> bool: return fx != null and e is Dictionary and e.has("K")
 var hud: CanvasLayer; var hp_bar: ColorRect; var hp_back: ColorRect; var combo_label: Label; var prompt_label: RichTextLabel; var keys_label: Label; var red: ColorRect
 var shake_amp := 0.0; var shake_len := 0.0; var shake_t := 0.0
 var later_q: Array = []
