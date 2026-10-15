@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true},
+	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "ink": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -72,6 +72,9 @@ var input := {"held": false, "held_t": 0.0, "charging": false}
 var done_cb: Callable
 var cam := {"pull": 0.0, "look": Vector3.ZERO, "punch": 0.0, "on": false}
 var mark: MeshInstance3D
+var fx: FightFX
+## the anime ink (action lines, impact frames) — for now only in a fight with someone who has it on (Kai)
+func _ink(e) -> bool: return fx != null and e is Dictionary and e.get("K", {}).get("ink", false)
 var hud: CanvasLayer; var hp_bar: ColorRect; var hp_back: ColorRect; var combo_label: Label; var prompt_label: RichTextLabel; var keys_label: Label; var red: ColorRect
 var shake_amp := 0.0; var shake_len := 0.0; var shake_t := 0.0
 var later_q: Array = []
@@ -85,6 +88,7 @@ func _ready() -> void:
 	var mm := StandardMaterial3D.new(); mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; mm.albedo_color = Color.WHITE; mark.material_override = mm
 	mark.scale = Vector3(1, 0.05, 1); mark.visible = false; g.add_child(mark)
 	hud = CanvasLayer.new(); hud.visible = false; add_child(hud)
+	fx = FightFX.new(g); hud.add_child(fx)
 	red = ColorRect.new(); red.color = Color(0.8, 0, 0, 0); red.set_anchors_preset(Control.PRESET_FULL_RECT); red.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud.add_child(red)
 	hp_back = ColorRect.new(); hp_back.visible = false; hp_back.color = Color(0, 0, 0, 0.5); hp_back.position = Vector2(24, 140); hp_back.size = Vector2(260, 12); hud.add_child(hp_back)
 	hp_bar = ColorRect.new(); hp_bar.visible = false; hp_bar.color = Color(0.4, 1, 0.9); hp_bar.position = Vector2(24, 140); hp_bar.size = Vector2(260, 12); hud.add_child(hp_bar)
@@ -136,7 +140,18 @@ func _blade(e: Dictionary) -> void:
 	var hand: Vector3 = sw.get_parent().position if sw.get_parent() is Node3D else Vector3.ZERO
 	var hl: Vector3 = sw.transform.affine_inverse()*hand
 	if a.distance_to(hl) > b.distance_to(hl): var t := a; a = b; b = t
-	e.blade = {"node": sw, "grip": a, "tip": b}
+	e.blade = {"node": sw, "grip": a, "tip": b, "hand": sw.get_parent(), "at_hand": sw.transform}
+	# SHEATHED at his left hip, as the draw has it: where the sword is at the moment his hand reaches that hip in the
+	# draw (0.4 of the way in), held on his hips from then on; he draws it when the fight starts
+	var sk: Skeleton3D = g._find(e.node, func(x): return x is Skeleton3D)
+	var hb := sk.find_bone("mixamorig_Hips"); var hand_b := sk.find_bone("mixamorig_RightHand")
+	if hb >= 0 and hand_b >= 0 and e.ap.has_animation("draw"):
+		var an: Animation = e.ap.get_animation("draw")
+		e.ap.play("draw"); e.ap.seek(an.length*0.4, true)
+		var at_draw := sk.get_bone_global_pose(hand_b)*(sw.transform as Transform3D)
+		var hip := BoneAttachment3D.new(); hip.bone_name = sk.get_bone_name(hb); sk.add_child(hip)
+		e.blade.hip = hip; e.blade.at_hip = sk.get_bone_global_pose(hb).affine_inverse()*at_draw
+		e.drawn = true; _sheathe(e, false)
 ## a sword's swing: the clip a little quicker than it was made, the cut from a third of the way in to three quarters
 func _blade_swing(e: Dictionary, clip: String, ln := -1.0) -> void:
 	if ln < 0: ln = hit1(e, clip)
@@ -159,6 +174,10 @@ func _combo(e: Dictionary, d: float) -> void:
 ## a blow that lands: every one jolts; the last of a combo stops the world
 func _landed(e: Dictionary, hurt_her: bool) -> void:
 	if not hurt_her: return
+	if _ink(e):
+		var hd: Vector3 = g.robin.position - Vector3(e.x, g.robin.position.y, e.z)
+		fx.sparks(g.robin.position + Vector3(0, 1.2, 0), hd, 1.5 if e.get("finisher", false) else 0.8)
+		if e.get("finisher", false): fx.lines(g.robin.position + Vector3(0, 1.2, 0), hd, 1.2)
 	if e.get("finisher", false):
 		hitstop(0.16); slow_for(0.3, 0.7); shake(0.65, 0.55); _flash(0.4); g.cue("clang")
 	else:
@@ -183,6 +202,15 @@ func _trail(e: Dictionary) -> void:
 		var ca := Color(0.75, 0.9, 1.0, 0.75*(1.0 - float(i)/tr.size())); var cb := Color(0.75, 0.9, 1.0, 0.75*(1.0 - float(i + 1)/tr.size()))
 		for v in [[a0, ca], [a1, ca], [b1, cb], [a0, ca], [b1, cb], [b0, cb]]: im.surface_set_color(v[1]); im.surface_add_vertex(v[0])
 	im.surface_end()
+
+## his sword: to his hip (sheathed) or to his hand
+func _sheathe(e: Dictionary, on: bool) -> void:
+	if not e.has("blade") or not e.blade.has("hip") or e.drawn == on: return
+	var sw: Node3D = e.blade.node
+	sw.get_parent().remove_child(sw)
+	if on: e.blade.hand.add_child(sw); sw.transform = e.blade.at_hand
+	else: e.blade.hip.add_child(sw); sw.transform = e.blade.at_hip
+	e.drawn = on
 
 ## does the blade, now, cut through her (her body: feet to head, 0.38 round)?
 func blade_hits(e: Dictionary) -> bool:
@@ -221,9 +249,15 @@ func _bone_node(n: Node, suffix: String):
 	return null
 
 func play(e: Dictionary, nm: String, fade := 0.15) -> void:
+	if e.get("drawn", true) == false:
+		if nm in ["idle", "talk", "fight", "block"]:          # standing with it sheathed: the draw's first frame, held
+			if e.clip != "sheathed": e.clip = "sheathed"; e.ap.play("draw", fade); e.ap.seek(0.0, true); e.ap.pause()
+			return
+		if nm in ["hook", "cross", "jab", "kick"]: _sheathe(e, true)
 	e.clip_want = nm
 	if e.clip != nm and e.ap.has_animation(nm): e.clip = nm; e.ap.play(nm, fade); e.anim_k = 1.0
 func hit1(e: Dictionary, nm: String) -> float:
+	if e.get("drawn", true) == false and nm in ["hook", "cross", "jab", "kick"]: _sheathe(e, true)
 	e.clip_want = nm
 	if not e.ap.has_animation(nm): return 0.6
 	e.clip = nm; e.ap.stop(); e.ap.play(nm, 0.06); e.anim_k = 1.0
@@ -545,6 +579,11 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 		if t.hp <= 0: slow_for(0.35, 0.5)
 	else:
 		t.state = "stagger"; t.t = 0.0; t.vx = sin(a)*m.push*3; t.vz = cos(a)*m.push*3; hit1(t, "hit")
+	if _ink(t):
+		var at := Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.35, lerpf(p.y, t.z, 0.7))
+		var hd := Vector3(t.x - p.x, 0, t.z - p.y)
+		fx.sparks(at, hd, 1.3 if big else 0.7)
+		if big: fx.lines(at, hd, 0.9)
 	event("hit", {"move": R.move, "target": t, "chain": R.chain})
 
 func knock(e: Dictionary, a: float, push: float) -> void:
@@ -584,7 +623,13 @@ func _tick_crew(dt: float) -> void:
 		var held: bool = dir != null and dir.freeze != null and dir.freeze.target == e and (e.state == "windup" or e.state == "grab")
 		if not held: e.t += dt
 		var d: float = Vector2(e.x, e.z).distance_to(p); var to_her := ang_to(e.x, e.z, p.x, p.y)
+		if e.get("drawn", true) == false and e.active and on and not e.state in ["drawing", "down", "ko", "flying", "getup"]:
+			e.state = "drawing"; e.t = 0.0; e.draw_len = hit1(e, "draw"); g.cue("gear")
 		match e.state:
+			"drawing":                                   # the draw: hand to the hilt, out, and into his stance
+				e.yaw = turn_to(e.yaw, to_her, dt*4)
+				if e.t >= e.draw_len*0.4 and not e.drawn: _sheathe(e, true); g.cue("swish")
+				if e.t >= e.draw_len*0.92: e.state = "circle"; e.t = 0.0; e.cool = 0.6
 			"idle", "talk", "watch":
 				var far := 0.0
 				if e.home != null: far = Vector2(e.home.x - e.x, e.home.y - e.z).length()
@@ -613,8 +658,11 @@ func _tick_crew(dt: float) -> void:
 				if e.t > 0.4: e.anim_k = 1.0; e.state = "circle"; e.t = 0.0; e.cool = 0.25; e.side *= -1
 			"approach":
 				e.yaw = turn_to(e.yaw, to_her, dt*8)
+				if d > 4.5: e.lunging = false
 				var reach: float = 0.9 if e.grabber else float(e.K.get("reach", 1.55))
-				if e.has("blade") and d > reach and d < 4.5: _step(e, to_her, 8.5, dt); play(e, "sprint"); e.anim_k = 1.6
+				if e.has("blade") and d > reach and d < 4.5:      # the lunge
+					_step(e, to_her, 8.5, dt); play(e, "sprint"); e.anim_k = 1.6
+					if _ink(e) and not e.get("lunging", false): e.lunging = true; fx.lines(Vector3(e.x, floor_y + 1.2, e.z), Vector3(sin(to_her), 0, cos(to_her)), 1.0)
 				elif d > reach: _step(e, to_her, e.K.run if d > 3 else e.K.walk*1.6, dt); play(e, "sprint" if d > 3 else "walk")
 				if d <= reach + 0.05:
 					if e.grabber: grab(e)
@@ -633,7 +681,9 @@ func _tick_crew(dt: float) -> void:
 					e.yaw = turn_to(e.yaw, to_her + float(e.K.get("aim", 0.0)), dt*(6.0 if e.t < e.strike_at else 1.2))      # turned a little, so the arc goes through her
 					if e.t < e.strike_at and d > 0.95: _step(e, to_her, 2.6 if not e.get("finisher", false) else 1.2, dt, true)     # he drives into every swing
 					if e.get("finisher", false): e.anim_k = 0.75 if e.t < e.strike_at*0.75 else 1.9         # the last one: held back, then all at once
-					if e.t >= e.strike_at and not e.get("swished", false): e.swished = true; g.cue("swish")
+					if e.t >= e.strike_at and not e.get("swished", false):
+						e.swished = true; g.cue("swish")
+						if _ink(e) and e.get("finisher", false): fx.lines(Vector3(e.x, floor_y + 1.3, e.z), Vector3(sin(e.yaw), 0, cos(e.yaw)), 1.3)
 					if e.get("kicking", false):
 						if e.t >= e.strike_at: var h0: float = R.hp; strike(e); _landed(e, R.hp < h0); _combo(e, d)
 					elif e.t >= e.strike_at and blade_hits(e): var h1: float = R.hp; strike(e, true); _landed(e, R.hp < h1); _combo(e, d)
