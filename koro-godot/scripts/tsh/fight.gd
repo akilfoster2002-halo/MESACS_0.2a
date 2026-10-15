@@ -88,7 +88,7 @@ func _ready() -> void:
 	var mm := StandardMaterial3D.new(); mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; mm.albedo_color = Color.WHITE; mark.material_override = mm
 	mark.scale = Vector3(1, 0.05, 1); mark.visible = false; g.add_child(mark)
 	hud = CanvasLayer.new(); hud.visible = false; add_child(hud)
-	fx = FightFX.new(g); hud.add_child(fx)
+	var fl := CanvasLayer.new(); fl.layer = 3; add_child(fl); fx = FightFX.new(g); fl.add_child(fx)      # its own layer: shown in the monster's fight too
 	red = ColorRect.new(); red.color = Color(0.8, 0, 0, 0); red.set_anchors_preset(Control.PRESET_FULL_RECT); red.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud.add_child(red)
 	hp_back = ColorRect.new(); hp_back.visible = false; hp_back.color = Color(0, 0, 0, 0.5); hp_back.position = Vector2(24, 140); hp_back.size = Vector2(260, 12); hud.add_child(hp_back)
 	hp_bar = ColorRect.new(); hp_bar.visible = false; hp_bar.color = Color(0.4, 1, 0.9); hp_bar.position = Vector2(24, 140); hp_bar.size = Vector2(260, 12); hud.add_child(hp_bar)
@@ -697,7 +697,11 @@ func _tick_crew(dt: float) -> void:
 						e.arm_out = true; e.arm_at = Vector3(p.x, g.robin.position.y + 1.15, p.y); (e.arm_strike as Callable).call(e.arm_at, 0.42, 0.7)
 					if e.t >= e.strike_at:
 						e.arm_out = false
-						if Vector2(p.x - e.arm_at.x, p.y - e.arm_at.z).length() < 0.85: strike(e, true)
+						if Vector2(p.x - e.arm_at.x, p.y - e.arm_at.z).length() < 0.85:
+							var h0: float = R.hp; strike(e, true)
+							if R.hp < h0 and _ink(e):                 # the claw goes in: sparks off it, and its speed
+								var ad: Vector3 = g.robin.position - Vector3(e.x, g.robin.position.y, e.z)
+								fx.sparks(e.arm_at, ad, 1.1); fx.lines(e.arm_at, ad, 0.8); hitstop(0.05)
 						else: e.state = "recover"; e.t = 0.0; g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9})
 				else:
 					e.yaw = turn_to(e.yaw, to_her, dt*(6.0 if e.t < e.strike_at*0.6 else 1.0))

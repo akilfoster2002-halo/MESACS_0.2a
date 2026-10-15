@@ -654,7 +654,7 @@ func _tick_brawl(dt: float) -> void:
 			if B.t > 0.62:
 				var fx2 := sin(r.rotation.y); var fz2 := cos(r.rotation.y); var ahead := dx*fx2 + dz*fz2; var across := absf(dx*fz2 - dz*fx2)
 				if ahead > -0.5 and ahead < 6.2 and across < 2.4 and B.dash == null:
-					B.hp -= 34.0; B.st = "hurt"; B.t = 0.0; _brawl_hud(""); shake(0.75, 0.5); flash(0.3, Color(1, 0.2, 0.3)); g.cue("punch")
+					B.hp -= 34.0; B.st = "hurt"; B.t = 0.0; _brawl_hud(""); var bd: Vector3 = Vector3(dx, 0, dz); g.fight.fx.sparks(p + Vector3(0, 1.2, 0), bd, 1.4); g.fight.fx.lines(p + Vector3(0, 1.2, 0), bd, 1.1); shake(0.75, 0.5); flash(0.3, Color(1, 0.2, 0.3)); g.cue("punch")
 					_push(Vector2(dx, dz).normalized()*1.6); g.play("hit", 0.05)
 				else: B.st = "open"; B.t = 0.0; _brawl_hud("HIT IT!")
 		"open":
@@ -694,7 +694,11 @@ func duel(cb: Callable) -> void:
 	var hb := func(y := 1.1) -> Vector3: return her.p + Vector3(0, y, 0)
 	var mb := func(y: float) -> Vector3: var q: Vector2 = mpos.call(); return Vector3(q.x, y, q.y)
 	var hit := func(big: bool):
-		if mon: mon.flinch()
+		if mon:
+			mon.flinch()
+			var mp: Vector3 = mon.global_position + Vector3(0, 2.6, 0); var hd: Vector3 = mp - g.robin.position; hd.y = 0
+			g.fight.fx.sparks(mp, hd, 1.4 if big else 0.9)
+			if big: g.fight.fx.lines(mp, hd, 1.2)
 		shake(0.9 if big else 0.5, 0.6 if big else 0.35); g.cue("punch"); flash(0.5 if big else 0.25, Color(0.75, 0.5, 1))
 	var slam := func(): shake(0.8, 0.5); g.cue("punch"); flash(0.35, Color(1, 0.2, 0.3))
 	var ts := func(v: float): Engine.time_scale = v; g.fm_slow(v)
