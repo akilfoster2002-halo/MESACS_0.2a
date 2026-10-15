@@ -14,6 +14,7 @@ var eyes: Array = []                   # [{at, x, z, n, white, iris, glint}]
 var dir := "res://assets/tsh/eyes"
 var scale_k := 1.0
 var look_x := 0.0; var look_y := 0.0
+var drop := 0.0                        # metres the eye's white has been carried down by her face (her browUp shape moves it): the irises go with it
 var head := -1; var sk: Skeleton3D
 var body: MeshInstance3D; var skin_open: Material; var skin_shut: Material; var is_open := true
 
@@ -60,7 +61,7 @@ func place() -> void:
 	global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
 	for e in eyes: _put(e)
 func _put(e: Dictionary) -> void:
-	var off: Vector3 = e.x*look_x*RANGE.x - e.z*look_y*RANGE.y
+	var off: Vector3 = e.x*look_x*RANGE.x - e.z*look_y*RANGE.y + e.z*drop
 	(e.decal as Decal).transform = Transform3D(e.b, e.at*unit + off)
 ## where the irises look: x to her left, y up (each -1…1)
 func look(x: float, y: float) -> void:

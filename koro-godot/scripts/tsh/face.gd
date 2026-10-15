@@ -11,6 +11,7 @@
 class_name Face
 extends Node
 
+const DROP_PER_BROW := 0.006           # metres the whites of her eyes move down per unit of her browUp shape (measured)
 const GAIN := 1.45                    # how much further every feeling goes than it was written
 const CHANNELS := ["smile", "frown", "browUp", "browDown", "mouthO", "jawOpen", "blink"]
 const SELF := {"jacket": ["Spine2", 0.16, -0.05], "shoes": ["LeftFoot", 0.12, 0.0], "gloves": ["LeftHand", 0.03, 0.0], "bracelet": ["LeftForeArm", 0.05, -0.1], "pack": ["RightShoulder", 0.02, 0.0]}
@@ -197,6 +198,7 @@ func _gaze(dt: float) -> void:
 	var target_e: Vector2 = eye_t + eye_m
 	eye_now = eye_now.lerp(target_e, 1 - exp(-dt*(38.0 if target_e.distance_to(eye_now) > 0.12 else 12.0)))
 	if eyes:
+		eyes.drop = DROP_PER_BROW*maxf(0.0, float(cur.get("browUp", 0.0)))      # her raised brows carry her eyes' whites down with them
 		eyes.look(eye_now.x, eye_now.y)
 		# with a little give, so a lid at the edge cannot make them chatter
 		if eyes.is_open and blink_shown > 0.5: eyes.open(false)
