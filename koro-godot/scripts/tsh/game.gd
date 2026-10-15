@@ -423,6 +423,8 @@ func _fight_clips() -> void:
 	_merge_clips("res://assets/tsh/robin_phone.glb", ["phone_talk", "phone_pace", "phone_cell", "talk_hands"])
 	# PLAYING THE GUITAR (animations/guitar → glb files/cast/build-robin-guitar.sh): two of Mixamo's
 	_merge_clips("res://assets/tsh/robin_guitar.glb", ["guitar_a", "guitar_b"])
+	# HER DASH (G in a fight; animations/dash → glb files/cast/build-robin-dash.sh): Mixamo's "Run"
+	_merge_clips("res://assets/tsh/robin_dash.glb", ["dash"])
 func _merge_clips(file: String, loops: Array) -> void:
 	var src: Node = (load(file) as PackedScene).instantiate()
 	var sap: AnimationPlayer = _find(src, func(n): return n is AnimationPlayer)

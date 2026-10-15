@@ -298,6 +298,7 @@ func robin_clip(nm: String, once := false) -> float:
 		if MOVE[k].clip == nm: sp = MOVE[k].speed
 	for k in EVADE:
 		if EVADE[k].clip == nm: sp = EVADE[k].speed
+	if nm == "dash": sp = 2.2                            # a run at a sprint's speed: the strides as quick as the burst
 	if once:
 		g.clip = nm; ap.stop(); ap.play(nm, 0.06, sp)
 	elif g.clip != nm:
@@ -541,7 +542,7 @@ func pull() -> bool:
 	R.pull_cd = 0.9; R.act = "pull"; R.t = 0.0; R.len = ln + 0.06; R.iframe = ln + 0.1
 	R.dash = {"x0": p.x, "z0": p.y, "x1": to.x, "z1": to.y, "t": 0.0, "len": ln, "arc": 0.0}
 	R.counter_ready = true; R.force_target = t
-	robin_clip("sprint")
+	robin_clip("dash", true)
 	g.cue("kick"); shake(0.1, 0.15)
 	if fx: fx.lines(Vector3(p.x, floor_y + 1.1, p.y), Vector3(sin(R.face), 0, cos(R.face)), 1.3)
 	event("pull", {})
