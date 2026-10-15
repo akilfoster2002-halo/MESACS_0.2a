@@ -106,6 +106,20 @@ bm = bmesh.new(); bm.from_mesh(ob.data)
 cut = [v for v in bm.verts if (v.co - hc).length < 0.105*S or (v.co.z > new[hb][0].z - 0.01*S and v.co.y < new[hb][0].y + 0.005*S)]
 bmesh.ops.delete(bm, geom=cut, context='VERTS'); bm.to_mesh(ob.data); bm.free()
 print("ALIEN HEAD CUT", len(cut))
+# THE SEAM, the other half: the alien's neck, where its head came off, grown up into the tyrannosaur's skull — two
+# rings, each drawn toward the skull's middle — so there is neck under the head, not a gap or a lip
+bm = bmesh.new(); bm.from_mesh(ob.data)
+neck_top = new[hb][0]
+edge = [e for e in bm.edges if e.is_boundary and all((v.co - neck_top).length < 0.09*S for v in e.verts)]     # the neck's own edge, not a cut fin's
+print("NECK EDGE", len(edge))
+mid = new[hb][0] + (new[hb][1] - new[hb][0])*0.25
+for pull, rise in ((0.35, 0.03*S), (0.65, 0.06*S)):
+    r = bmesh.ops.extrude_edge_only(bm, edges=edge)
+    for v in [x for x in r["geom"] if isinstance(x, bmesh.types.BMVert)]:
+        v.co = v.co.lerp(mid, pull) + Vector((0, 0, rise*(1 - pull)))
+    edge = [x for x in r["geom"] if isinstance(x, bmesh.types.BMEdge) and x.is_boundary]
+bmesh.ops.holes_fill(bm, edges=edge, sides=0)
+bm.to_mesh(ob.data); bm.free()
 if rex is not None:
     names = {g.index: g.name for g in rex.vertex_groups}
     rw = rex.matrix_world.copy(); rinv = rw.inverted()
@@ -125,7 +139,20 @@ if rex is not None:
     bm.verts.ensure_lookup_table()
     bmesh.ops.delete(bm, geom=[bm.verts[i] for i in keep_out], context='VERTS'); bm.to_mesh(rex.data); bm.free()
     print("REX HEAD VERTS", len(rex.data.vertices))
-    rex.name = "RexHead"
+    # THE SEAM, its half: the head's open underside closed, the cap drawn up a little inside the skull
+    bm = bmesh.new(); bm.from_mesh(rex.data)
+    loops = [e for e in bm.edges if e.is_boundary]
+    r = bmesh.ops.holes_fill(bm, edges=loops, sides=0)
+    rw = rex.matrix_world; rinv = rw.inverted()
+    up = (rw.to_3x3().inverted() @ Vector((0, 0, 1))).normalized()
+    for f in r["faces"]:
+        c = f.calc_center_median()
+        for v in f.verts:
+            if v.is_boundary: continue
+        bmesh.ops.poke(bm, faces=[f])
+    for f in bm.faces: f.smooth = True
+    bm.to_mesh(rex.data); bm.free()
+    print("SEAM CAPS", len(r["faces"]))
     mat = bpy.data.materials.new("RexHide"); mat.use_nodes = True                # its hide made the alien's: near black, wet
     b = [n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'][0]
     b.inputs["Base Color"].default_value = (0.018, 0.016, 0.024, 1); b.inputs["Roughness"].default_value = 0.16; b.inputs["Metallic"].default_value = 0.4
