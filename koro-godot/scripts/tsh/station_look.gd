@@ -118,6 +118,7 @@ static func apply(sub: Node3D, spots: Dictionary) -> void:
 	var A: Dictionary = spots.arena
 	_wreck(root, A)
 	_air(root, A)
+	_spots(root, A)
 
 ## the wreck of years: rubble, tiles, paper, bags, cables — mostly at the walls and round the pillars, little in the middle
 static func _wreck(root: Node3D, A: Dictionary) -> void:
@@ -167,6 +168,28 @@ static func _wreck(root: Node3D, A: Dictionary) -> void:
 			root.add_child(seg); seg.position = (prev + p)*0.5
 			seg.basis = Basis(Quaternion(Vector3.UP, (p - prev).normalized()))
 			prev = p
+
+## SPOTLIGHTS: old caged work lamps hung down the hall, each a hard cone straight down (or angled across), casting
+## shadows of everyone under it onto the floor and the walls, seen in the haze
+static func _spots(root: Node3D, A: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new(); rng.seed = 88
+	var lamp := StandardMaterial3D.new(); lamp.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; lamp.albedo_color = Color(3.0, 2.6, 1.9)
+	var cage := StandardMaterial3D.new(); cage.albedo_color = Color(0.08, 0.08, 0.08); cage.metallic = 0.6
+	var z: float = A.z2 + 2.0
+	var i := 0
+	while z > A.z1 - 2.0:
+		var x: float = lerpf(A.x1 + 1.5, A.x2 - 1.5, 0.25 if i % 2 == 0 else 0.7) + rng.randf_range(-1.0, 1.0)
+		var at := Vector3(x, 5.2, z)
+		var sl := SpotLight3D.new(); sl.light_color = Color(1.0, 0.85, 0.62) if i % 3 else Color(0.75, 0.88, 1.0)
+		sl.light_energy = 9.0; sl.spot_range = 9.0; sl.spot_angle = rng.randf_range(24, 34); sl.spot_attenuation = 0.8; sl.spot_angle_attenuation = 2.0
+		sl.shadow_enabled = true; sl.shadow_blur = 0.6; sl.light_volumetric_fog_energy = 2.5
+		root.add_child(sl); sl.global_position = at
+		sl.rotation = Vector3(-PI/2 + rng.randf_range(-0.35, 0.35), 0, rng.randf_range(-0.35, 0.35))
+		var b := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.12; cm.bottom_radius = 0.2; cm.height = 0.22; b.mesh = cm; b.material_override = cage
+		root.add_child(b); b.global_position = at + Vector3(0, 0.1, 0)
+		var bulb := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.08; sm.height = 0.16; bulb.mesh = sm; bulb.material_override = lamp
+		root.add_child(bulb); bulb.global_position = at - Vector3(0, 0.05, 0)
+		z -= rng.randf_range(6.0, 9.0); i += 1
 
 ## the air: dust that hangs in the lamps' light; water dripping off the ceiling
 static func _air(root: Node3D, A: Dictionary) -> void:
