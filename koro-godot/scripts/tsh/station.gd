@@ -206,6 +206,16 @@ func _tick_arms(dt: float) -> void:
 	var maya = crew("maya")
 	if maya == null or not maya.node.visible: oc.visible = false; return
 	oc.go_to(maya.x, maya.z, 9)
+	if g.mode == "fight" and watch == "fight2":
+		# she rides her arms: carried on them, her feet off the floor, swaying with their stride
+		oc.visible = true
+		var ride: float = maxf(0.0, oc.body.y - 0.15) + sin(Time.get_ticks_msec()*0.004)*0.04
+		maya.y = lerpf(float(maya.y), ride, minf(1.0, dt*6.0)); g.fight._place(maya)
+		# and throws: an upper arm tears up rubble and hurls it at her
+		throw_t -= dt
+		if throw_t <= 0 and g.fight.standing(maya) and maya.state != "windup":
+			throw_t = 2.2 + randf()*1.8; _throw(maya)
+	_tick_rocks(dt)
 	if g.mode == "fight" and watch == "fight2" and not maya.has("arm_strike"):
 		stab -= dt
 		if stab <= 0:
@@ -217,6 +227,38 @@ func _tick_arms(dt: float) -> void:
 				if m == null or g.mode != "fight" or Vector2(q.x - tgt.x, q.z - tgt.z).length() > 0.9: return
 				shake(0.35, 0.4); g.cue("punch"); flash(0.3, Color(1, 0.25, 0.3))
 				var a := atan2(q.x - m.x, q.z - m.z); g.robin.position += Vector3(sin(a), 0, cos(a))*0.9)
+## MAYA'S THROWS: a chunk of the platform in a claw, hurled in an arc at where Robin is going; it hits if she is still
+## near where it lands (dodging through it, she is safe)
+var throw_t := 2.0
+var rocks: Array = []
+func _throw(maya) -> void:
+	var k := 0 if randf() < 0.5 else 1
+	var p: Vector3 = g.robin.position
+	var lead: Vector3 = p + (p - g.fight.get_meta("last_p", p))*6.0; g.fight.set_meta("last_p", p)
+	var from := Vector3(maya.x, float(maya.y) + 2.2, maya.z) + Vector3(randf_range(-0.8, 0.8), 0, 0)
+	oc.strike(k, from, 0.25, 0.6); g.cue("gear")
+	later(0.3, func():
+		var r := MeshInstance3D.new(); var bm := BoxMesh.new(); var sz := randf_range(0.35, 0.6); bm.size = Vector3(sz, sz*0.7, sz*0.9); r.mesh = bm
+		var m := StandardMaterial3D.new(); m.albedo_color = Color(0.32, 0.31, 0.29); m.roughness = 0.95; r.material_override = m
+		g.sub.add_child(r); r.global_position = from
+		var to := Vector3(lead.x, 0.4, lead.z)
+		rocks.append({"n": r, "from": from, "to": to, "t": 0.0, "dur": clampf(from.distance_to(to)/14.0, 0.45, 0.9), "spin": Vector3(randf(), randf(), randf())*8.0})
+		g.cue("zip"))
+func _tick_rocks(dt: float) -> void:
+	for rk in rocks.duplicate():
+		rk.t += dt
+		var u: float = minf(1.0, rk.t/rk.dur)
+		var pos: Vector3 = (rk.from as Vector3).lerp(rk.to, u); pos.y += sin(u*PI)*2.2
+		rk.n.global_position = pos; rk.n.rotation += (rk.spin as Vector3)*dt
+		if u >= 1.0:
+			var q: Vector3 = g.robin.position
+			g.cue("boom"); shake(0.3, 0.3)
+			if g.fight.fx: g.fight.fx.sparks(rk.to, Vector3(0, 1, 0), 1.0)
+			if g.fight.on and Vector2(q.x - rk.to.x, q.z - rk.to.z).length() < 1.1 and g.fight.R.iframe <= 0:
+				var m = crew("maya")
+				if m: g.fight.hurt(m, 20.0)
+			rk.n.queue_free(); rocks.erase(rk)
+
 ## Kai down. Maya, walking in — and her arms come out
 func kai_down() -> void:
 	g.talk_q.clear(); _fight_end()

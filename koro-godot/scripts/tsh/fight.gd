@@ -254,6 +254,7 @@ func _bone_node(n: Node, suffix: String):
 	return null
 
 func play(e: Dictionary, nm: String, fade := 0.15) -> void:
+	if e.kind == "maya" and g.station and g.station.watch == "fight2" and nm in ["walk", "walk_back", "walk_left", "walk_right", "sprint"]: nm = "fight"      # carried on her arms: her legs do not walk
 	if e.get("drawn", true) == false:
 		if nm in ["idle", "talk", "fight", "block"]:          # standing with it sheathed: an idle of his own (else the draw's first frame, held)
 			if e.ap.has_animation("idle_free"):
