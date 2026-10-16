@@ -205,6 +205,7 @@ func _tick_arms(dt: float) -> void:
 	if oc == null or not is_instance_valid(oc): return
 	var maya = crew("maya")
 	if maya == null or not maya.node.visible: oc.visible = false; return
+	if g.mode == "fight" and watch == "fight2": _junk_out()
 	if g.mode == "fight" and watch == "fight2":
 		# her arms carry her: where her fight wants her is where they walk; she is where they have got to
 		oc.stride = true; oc.go_to(maya.x, maya.z, 3.2)
@@ -243,24 +244,63 @@ func _tick_arms(dt: float) -> void:
 ## near where it lands (dodging through it, she is safe)
 var throw_t := 2.0
 var rocks: Array = []
+## THE JUNK on the platform: crates, drums, a bench, a sign, an extinguisher — hers to throw
+var junk: Array = []
+func _junk_out() -> void:
+	if not junk.is_empty(): return
+	var A: Dictionary = sp.arena
+	var rng := RandomNumberGenerator.new(); rng.seed = 2044
+	var wood := StandardMaterial3D.new(); wood.albedo_color = Color(0.36, 0.25, 0.15); wood.roughness = 0.9
+	var drum := StandardMaterial3D.new(); drum.albedo_color = Color(0.45, 0.12, 0.08); drum.metallic = 0.6; drum.roughness = 0.6
+	var steel := StandardMaterial3D.new(); steel.albedo_color = Color(0.4, 0.42, 0.44); steel.metallic = 0.7; steel.roughness = 0.45
+	var red := StandardMaterial3D.new(); red.albedo_color = Color(0.7, 0.05, 0.05); red.roughness = 0.4
+	var signm := StandardMaterial3D.new(); signm.albedo_color = Color(0.9, 0.75, 0.1); signm.roughness = 0.6
+	for i in 18:
+		var n := MeshInstance3D.new(); var kind := i % 5
+		match kind:
+			0: var b := BoxMesh.new(); b.size = Vector3(0.6, 0.6, 0.6); n.mesh = b; n.material_override = wood
+			1: var c := CylinderMesh.new(); c.top_radius = 0.3; c.bottom_radius = 0.3; c.height = 0.9; n.mesh = c; n.material_override = drum
+			2: var b2 := BoxMesh.new(); b2.size = Vector3(1.4, 0.12, 0.4); n.mesh = b2; n.material_override = wood
+			3: var b3 := BoxMesh.new(); b3.size = Vector3(0.7, 0.9, 0.05); n.mesh = b3; n.material_override = signm
+			4: var c2 := CylinderMesh.new(); c2.top_radius = 0.09; c2.bottom_radius = 0.09; c2.height = 0.5; n.mesh = c2; n.material_override = red
+		g.sub.add_child(n)
+		var x := rng.randf_range(A.x1 + 0.8, A.x2 - 0.8); var z := rng.randf_range(A.z1 + 2.0, A.z2 - 2.0)
+		var h: float = n.get_aabb().size.y
+		n.global_position = Vector3(x, h*0.5, z); n.rotation.y = rng.randf()*TAU
+		if kind == 3: n.rotation.z = PI/2*0.9; n.global_position.y = 0.06
+		junk.append(n)
 func _throw(maya) -> void:
 	var k := 0 if randf() < 0.5 else 1
 	var p: Vector3 = g.robin.position
 	var lead: Vector3 = p + (p - g.fight.get_meta("last_p", p))*6.0; g.fight.set_meta("last_p", p)
-	var from := Vector3(maya.x, float(maya.y) + 2.2, maya.z) + Vector3(randf_range(-0.8, 0.8), 0, 0)
-	oc.strike(k, from, 0.25, 0.6); g.cue("gear")
-	later(0.3, func():
-		var r := MeshInstance3D.new(); var bm := BoxMesh.new(); var sz := randf_range(0.35, 0.6); bm.size = Vector3(sz, sz*0.7, sz*0.9); r.mesh = bm
-		var m := StandardMaterial3D.new(); m.albedo_color = Color(0.32, 0.31, 0.29); m.roughness = 0.95; r.material_override = m
-		g.sub.add_child(r); r.global_position = from
+	var from := Vector3(maya.x, float(maya.y) + 2.4, maya.z) + Vector3(randf_range(-0.8, 0.8), 0, 0)
+	# the nearest piece of junk in reach: the arm goes down for it, lifts it, and throws it
+	var pick: MeshInstance3D = null; var bd := 6.5
+	for j in junk:
+		var d := Vector2(j.global_position.x - maya.x, j.global_position.z - maya.z).length()
+		if d < bd: bd = d; pick = j
+	var grab: Vector3 = pick.global_position if pick else from
+	if pick: junk.erase(pick)
+	oc.strike(k, grab, 0.3, 0.5); g.cue("gear")
+	later(0.35, func():
+		var r: MeshInstance3D = pick
+		if r == null:
+			r = MeshInstance3D.new(); var bm := BoxMesh.new(); var sz := randf_range(0.35, 0.6); bm.size = Vector3(sz, sz*0.7, sz*0.9); r.mesh = bm
+			var m := StandardMaterial3D.new(); m.albedo_color = Color(0.32, 0.31, 0.29); m.roughness = 0.95; r.material_override = m
+			g.sub.add_child(r); r.global_position = from
+		else: g.cue("grab")
 		var to := Vector3(lead.x, 0.4, lead.z)
-		rocks.append({"n": r, "from": from, "to": to, "t": 0.0, "dur": clampf(from.distance_to(to)/14.0, 0.45, 0.9), "spin": Vector3(randf(), randf(), randf())*8.0})
+		var start: Vector3 = r.global_position
+		# up out of her claw to over her head, then thrown
+		rocks.append({"n": r, "from": start, "lift": from, "to": to, "t": 0.0, "up": 0.3 if pick else 0.0, "dur": clampf(from.distance_to(to)/14.0, 0.45, 0.9), "spin": Vector3(randf(), randf(), randf())*8.0})
 		g.cue("zip"))
 func _tick_rocks(dt: float) -> void:
 	for rk in rocks.duplicate():
 		rk.t += dt
-		var u: float = minf(1.0, rk.t/rk.dur)
-		var pos: Vector3 = (rk.from as Vector3).lerp(rk.to, u); pos.y += sin(u*PI)*2.2
+		if rk.t < rk.up:                                       # lifted by the claw
+			var e: float = rk.t/rk.up; rk.n.global_position = (rk.from as Vector3).lerp(rk.lift, e*e*(3 - 2*e)); continue
+		var u: float = minf(1.0, (rk.t - rk.up)/rk.dur)
+		var pos: Vector3 = (rk.lift as Vector3 if rk.up > 0 else rk.from as Vector3).lerp(rk.to, u); pos.y += sin(u*PI)*2.2
 		rk.n.global_position = pos; rk.n.rotation += (rk.spin as Vector3)*dt
 		if u >= 1.0:
 			var q: Vector3 = g.robin.position
