@@ -121,7 +121,7 @@ func populate() -> void:
 	var k := 0
 	for w in [[0, 2.6, -10, 0.95, -32, -7], [1, 3.6, -26, 1.1, -32, -7], [2, 0.4, -18, 0.85, -32, -7], [3, 1.4, -8, 1.0, -32, -7], [4, -3, 6, 0.9, 1, 14], [5, 6.6, 2, 1.05, -4, 12]]:
 		var n := _add(STUDENTS[w[0]], X(w[1]), w[2], 0.0); n.walk = {"a": w[4], "b": w[5], "dir": 1 if k % 2 else -1, "sp": w[3], "x": X(w[1])}; k += 1
-	for st in [[6, -0.3, -22, PI/2], [1, 5.6, 9, PI*0.9], [2, 12, -25.2, PI], [3, 13, -26.8, 0.0]]:
+	for st in [[5, -0.3, -22, PI/2], [1, 5.6, 9, PI*0.9], [2, 12, -25.2, PI], [3, 13, -26.8, 0.0]]:
 		var n2 := _add(STUDENTS[st[0]], X(st[1]), st[2], st[3]); n2.chat = true
 func _add(file: String, x: float, z: float, yaw: float) -> Dictionary:
 	var node: Node3D = (load("res://assets/tsh/people/%s.glb" % file) as PackedScene).instantiate(); g.school.add_child(node)
