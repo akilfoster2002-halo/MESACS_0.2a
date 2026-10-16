@@ -180,6 +180,7 @@ static func _send() -> void:
 	var l := SpotLight3D.new(); l.light_color = Color(1, 0.92, 0.75); l.spot_range = 45; l.spot_angle = 28; l.shadow_enabled = true; l.light_volumetric_fog_energy = 1.2; g.sub.add_child(l)
 	l.rotation.y = 0.0 if dir < 0 else PI                    # its beam ahead of it, down the track
 	trains.append({"node": n, "light": l, "x": x, "z": z0, "z0": z0, "dir": dir, "t": 0.0, "warn": 2.6, "horn": false})
+	if g.fight and g.fight.fx and absf(g.robin.position.x - x) < 6.0: g.fight.fx.sense(Vector3(x, 1.5, z0))      # near its track: she feels it coming
 	g.cue("rise")
 
 ## a train: four cars, dark and dirty, lit windows going by, headlights at its nose (it runs toward -z; its nose at z)

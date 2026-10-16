@@ -148,6 +148,7 @@ func _make(kind: String) -> void:
 		"kick": burst(0.3, 250, 0.4, 0.5); tone(120, 60, 0.3, "sine", 0.2)
 		"ui": tone(900, 900, 0.06, "sine", 0.04)
 		"beep": tone(2700, 2700, 0.07, "square", 0.045)
+		"sense": tone(1800, 2600, 0.18, "sine", 0.05); tone(2400, 3400, 0.22, "sine", 0.04, 0.04); tone(3000, 4200, 0.25, "triangle", 0.03, 0.08)
 		"horn": tone(311, 300, 1.1, "sawtooth", 0.07); tone(370, 360, 1.1, "sawtooth", 0.06); tone(155, 150, 1.1, "square", 0.05)
 		"scan": tone(1500, 1500, 0.05, "sine", 0.03)
 		"ring":

@@ -289,6 +289,7 @@ func _throw(maya) -> void:
 	var grab: Vector3 = pick.global_position if pick else from
 	if pick: junk.erase(pick)
 	oc.strike(k, grab, 0.3, 0.5); g.cue("gear")
+	if g.fight.fx: g.fight.fx.sense(from, Vector3(lead.x, 0.02, lead.z), 0.35 + (0.3 if pick else 0.0) + clampf(from.distance_to(Vector3(lead.x, 0.4, lead.z))/14.0, 0.45, 0.9))
 	later(0.35, func():
 		var r: MeshInstance3D = pick
 		if r == null:
@@ -334,6 +335,7 @@ func _lunge(maya) -> void:
 	oc.burst(2, Vector3(land.x + side.x*0.9, 0.02, land.y + side.y*0.9), 0.75, true)
 	oc.burst(3, Vector3(land.x - side.x*0.9, 0.02, land.y - side.y*0.9), 0.75, true)
 	lunge = {"t": 0.0, "from": from, "to": land, "y0": float(maya.y)}
+	if g.fight.fx: g.fight.fx.sense(Vector3(maya.x, 1.5, maya.z), Vector3(land.x, 0.02, land.y), 0.63)
 	maya.yaw = atan2(dir.x, dir.y); g.cue("gear"); g.cue("zip")
 	if g.fight.fx: g.fight.fx.lines(Vector3(maya.x, 1.6, maya.z), Vector3(dir.x, 0, dir.y), 1.1)
 func _tick_lunge(maya, dt: float) -> void:

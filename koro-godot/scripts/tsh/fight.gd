@@ -156,6 +156,7 @@ func _blade(e: Dictionary) -> void:
 func _blade_swing(e: Dictionary, clip: String, ln := -1.0) -> void:
 	if ln < 0: ln = hit1(e, clip)
 	e.finisher = e.has("seq") and int(e.get("combo", 0)) == (e.seq as Array).size() - 1
+	if e.finisher and fx: fx.sense(Vector3(e.x, floor_y + 1.3, e.z))
 	var k := 1.45 if not e.finisher else 1.2
 	e.anim_k = k; ln /= k
 	e.kicking = clip == "kick"; e.swished = false
