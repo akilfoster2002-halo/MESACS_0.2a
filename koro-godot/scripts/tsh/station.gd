@@ -205,7 +205,19 @@ func _tick_arms(dt: float) -> void:
 	if oc == null or not is_instance_valid(oc): return
 	var maya = crew("maya")
 	if maya == null or not maya.node.visible: oc.visible = false; return
-	oc.go_to(maya.x, maya.z, 9)
+	if g.mode == "fight" and watch == "fight2":
+		# her arms carry her: where her fight wants her is where they walk; she is where they have got to
+		oc.stride = true; oc.go_to(maya.x, maya.z, 3.2)
+		maya.x = oc.body.x; maya.z = oc.body.z
+		# and they hang from her body, steady — not from her spine bone, which jerks with every blow
+		if not oc.has_meta("steady"):
+			oc.set_meta("steady", true)
+			oc.socket = func():
+				var m = crew("maya")
+				var y: float = float(m.yaw) if m else 0.0
+				var at := Vector3(m.x, float(m.y) + 1.25, m.z) if m else oc.body
+				return Transform3D(Basis(Vector3.UP, y).scaled(Vector3.ONE*0.95), at)
+	else: oc.go_to(maya.x, maya.z, 9)
 	if g.mode == "fight" and watch == "fight2":
 		# she rides her arms: carried on them, her feet off the floor, swaying with their stride
 		oc.visible = true

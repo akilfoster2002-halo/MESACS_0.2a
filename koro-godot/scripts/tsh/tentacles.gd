@@ -27,6 +27,7 @@ var yaw := 0.0
 var speed := 1.3
 var lift := 1.15
 var moving := false
+var stride := false              # move in strides (the body surges with each step) rather than gliding
 var socket: Callable
 var t := 0.0
 var arms: Array = []
@@ -125,8 +126,10 @@ func _process(dt: float) -> void:
 	var to := Vector3(goal.x - body.x, 0, goal.z - body.z)
 	var dist := to.length()
 	moving = dist > 0.08
-	if moving:
-		body += to.normalized()*minf(dist, speed*dt)
+	var swinging0 := false
+	for l in legs: if l.to != null: swinging0 = true
+	if moving:                                          # carried by the legs: a surge while one swings, a crawl while both are planted
+		body += to.normalized()*minf(dist, speed*dt*(1.5 if swinging0 else (0.3 if stride else 1.0)))
 		var want := atan2(to.x, to.z)
 		yaw += atan2(sin(want - yaw), cos(want - yaw))*minf(1.0, dt*3.0)
 	var swinging := false
@@ -162,7 +165,7 @@ func _process(dt: float) -> void:
 	for k in 4:
 		var A: Arm = arms[k]
 		var target: Vector3 = (legs[k - 2].at + Vector3(0, 0.04, 0)) if k >= 2 else free[k].at
-		var wave := 0.05 if k >= 2 else 0.11
+		var wave := 0.03 if k >= 2 else 0.05
 		var B = A.out
 		var snap := false
 		if B != null and B.get("strike", false):
@@ -197,7 +200,7 @@ func _process(dt: float) -> void:
 		A.root.visible = A.ext > 0.02
 		if not A.root.visible: continue
 		if not A.has_prev: A.sock = S[k]; A.tg = target
-		A.sock = A.sock.lerp(S[k], minf(1.0, dt*14.0))
+		A.sock = A.sock.lerp(S[k], minf(1.0, dt*8.0))
 		A.tg = target if snap else A.tg.lerp(target, minf(1.0, dt*(9.0 if B != null else 5.0)))
 		# the chain bows outward from her back before it turns down to the claw: a bent first guess (then last frame's
 		# arm, so it moves from where it was rather than snapping to a new shape), then the solve
