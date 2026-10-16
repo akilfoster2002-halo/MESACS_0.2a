@@ -227,7 +227,7 @@ func _tick_arms(dt: float) -> void:
 		# and throws: an upper arm tears up rubble and hurls it at her
 		throw_t -= dt
 		if throw_t <= 0 and g.fight.standing(maya) and maya.state != "windup":
-			throw_t = 2.2 + randf()*1.8; _throw(maya)
+			throw_t = 0.9 + randf()*0.7; _throw(maya)
 	_tick_rocks(dt)
 	if g.mode == "fight" and watch == "fight2" and not maya.has("arm_strike"):
 		stab -= dt
@@ -242,7 +242,7 @@ func _tick_arms(dt: float) -> void:
 				var a := atan2(q.x - m.x, q.z - m.z); g.robin.position += Vector3(sin(a), 0, cos(a))*0.9)
 ## MAYA'S THROWS: a chunk of the platform in a claw, hurled in an arc at where Robin is going; it hits if she is still
 ## near where it lands (dodging through it, she is safe)
-var throw_t := 2.0
+var throw_t := 1.0
 var rocks: Array = []
 ## THE JUNK on the platform: crates, drums, a bench, a sign, an extinguisher — hers to throw
 var junk: Array = []
