@@ -99,17 +99,30 @@ func meet() -> void:
 		{"kind": "maya", "x": sp.trainDoor[0], "z": sp.trainDoor[1] + 0.2, "tag": "maya", "state": "watch", "yaw": -PI/2, "bystander": true, "hidden": true}])
 	for e in g.fight.E:
 		if e.kind != "kai": Retarget.apply(g, e.node, FCLIPS, e.K.char)      # Kai has his own (the sword's, people/kai.glb)
+		else: _free_clips(e)
 		e.home = _a(sp.maya) if e.kind == "maya" else null
 	if cy.canon: Retarget.apply(g, cy.canon.node, FCLIPS + ["fall"], "theo")
 	if not "mayakai" in g.S.seen: g.S.seen.append("mayakai")
 	later(0.3, meet_film)
+## Kai, sword sheathed, standing and walking: her idle and her walk on his bones (retarget.gd), kept as idle_free and
+## walk_free beside his sword's own idle and walk
+func _free_clips(e) -> void:
+	var ap: AnimationPlayer = e.ap; var lib: AnimationLibrary = ap.get_animation_library("")
+	var keep := {}
+	for nm in ["idle", "walk"]: if lib.has_animation(nm): keep[nm] = lib.get_animation(nm)
+	Retarget.apply(g, e.node, ["idle", "walk"], "kai_free")
+	for nm in ["idle", "walk"]:
+		if lib.has_animation(nm):
+			var baked: Animation = lib.get_animation(nm); lib.remove_animation(nm)
+			baked.loop_mode = Animation.LOOP_LINEAR; lib.add_animation(nm + "_free", baked)
+		if keep.has(nm): lib.add_animation(nm, keep[nm])
 func meet_film() -> void:
 	g.talk_q.clear()
 	var kai = crew("kai"); var maya = crew("maya")
 	var R := _a(sp.meetR); var C := _a(sp.canon); var M := _a(sp.maya); var K := _a(sp.kai); var TD := _a(sp.trainDoor)
 	var ryR := ang(R, M); var f := Vector2(sin(ryR), cos(ryR))
 	var RM: Dictionary = cy.pair_angles(R, M, f, -f, Vector2(f.y, -f.x), 1.62, 1.55)
-	var CK: Dictionary = cy.pair_angles(C, K, Vector2(0, -1), Vector2(0, 1), Vector2(1, 0), 1.5, 1.7)
+	var CK: Dictionary = cy.pair_angles(C, K, Vector2(0, -1), Vector2(0, 1), Vector2(1, 0), 1.5, 2.0)
 	var A: Dictionary = RM.duplicate()
 	A.canon = {"cam": CK.her.cam, "look": CK.her.look, "fov": 28}; A.kai = {"cam": CK.him.cam, "look": CK.him.look, "fov": 28}
 	A.overKai = {"cam": CK.overHim.cam, "look": CK.overHim.look, "fov": 32}; A.overCanon = {"cam": CK.overHer.cam, "look": CK.overHer.look, "fov": 32}
@@ -126,10 +139,11 @@ func meet_film() -> void:
 	var pools := {"robin": ["her", "herTight", "overHim", "low"], "maya": ["him", "himTight", "overHer", "mayaWatch"], "canon": ["canon", "overKai", "room"], "kai": ["kai", "overCanon", "room"]}
 	var shots := [
 		{"dur": 2.0, "fov": 40, "cam": Vector3(R.x - 1.2, 1.6, R.y + 2.2), "look": Vector3(TD.x, 1.3, TD.y), "enter": func(): stand("idle", R, ryR); cy.canon_at(C, TD); g.cue("step")},
-		{"dur": 2.6, "fov": 34, "cam": Vector3(TD.x - 3.0, 1.3, TD.y + 1.4), "look": Vector3(TD.x, 1.4, TD.y),
+		{"dur": 5.0, "fov": 38, "cam": Vector3(TD.x - 4.0, 1.5, TD.y + 1.8), "look": Vector3(TD.x - 1.5, 1.4, TD.y - 1.0),
 			"tick": func(dt, t, k):
-				g.crew_walk(maya, TD, M, minf(1, k*1.1))
-				if k > 0.4: g.crew_walk(kai, TD, K, minf(1, (k - 0.4)*1.8))}]
+				g.crew_walk(maya, TD, M, minf(1, k*2.2))                          # she steps out first
+				if k > 0.25: g.crew_walk(kai, TD, K, minf(1, (k - 0.25)*1.34))      # and he walks out after her, unhurried
+				elif kai: kai.node.visible = false}]
 	shots.append_array(cy.line_shots(["meetMaya", "meetKai", "meetWfc", "meetYu"], A, {"each": place, "pools": pools,
 		"ins": [["Nobody\\. Same as you", "mayaWatch"], ["one girl in a pair of shoes", "mayaWatch"], ["People exaggerate", "herTight"], ["^Do they\\?$", "mayaWatch"], ["It's singing", "gizmo", sing], ["^Nothing\\.$", "her"], ["Hand it over", "kai"]]}))
 	g.play_reel(shots, done(func(): place.call(); if cy.gizmo: cy.gizmo.visible = false; canon_ko()))
@@ -140,7 +154,7 @@ func canon_ko() -> void:
 	var kai = crew("kai"); var c = cy.canon
 	var R := _a(sp.meetR); var K := _a(sp.kai); var ryR := ang(R, K); var f := Vector2(sin(ryR), cos(ryR))
 	var C := R + f*0.9; var Kc := C + f*1.2; var ryC := ang(C, K); var fc := Vector2(sin(ryC), cos(ryC))
-	var CK: Dictionary = cy.pair_angles(C, Kc, fc, -fc, Vector2(fc.y, -fc.x), 1.5, 1.7)
+	var CK: Dictionary = cy.pair_angles(C, Kc, fc, -fc, Vector2(fc.y, -fc.x), 1.5, 2.0)
 	var A: Dictionary = CK.duplicate(); A.past = {"cam": Vector3(R.x - sin(ryR)*0.6 + cos(ryR)*0.35, 1.7, R.y - cos(ryR)*0.6 - sin(ryR)*0.35), "look": Vector3(Kc.x, 1.45, Kc.y), "fov": 34}
 	var guard := func():
 		stand("idle", R, ryR)
@@ -515,7 +529,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 		"eyeX": {"cam": V.call(R - dir*0.4 - side*0.3, 1.6), "look": eye, "fov": 8},
 		"mouth": {"cam": func(): var m: Vector3 = mouth.call(); return Vector3(m.x - dir.x*6 + side.x*1.5, 1.8, m.z - dir.y*6 + side.y*1.5), "look": mouth, "fov": 46},
 		"mouthX": {"cam": func(): var m: Vector3 = mouth.call(); return Vector3(m.x - dir.x*3.2 - side.x*0.8, m.y - 0.3, m.z - dir.y*3.2 - side.y*0.8), "look": mouth, "fov": 34},
-		"kai": {"cam": func(): var k: Vector3 = kp.call(1.6); return Vector3(k.x - dir.x*1.5 + side.x*0.7, 1.62, k.z - dir.y*1.5 + side.y*0.7), "look": func(): return kp.call(1.55), "fov": 28},
+		"kai": {"cam": func(): var k: Vector3 = kp.call(1.9); return Vector3(k.x - dir.x*2.0 + side.x*0.9, 1.85, k.z - dir.y*2.0 + side.y*0.9), "look": func(): return kp.call(1.7), "fov": 32},
 		"kaiWide": {"cam": func(): var k: Vector3 = kp.call(1.6); return Vector3(k.x + side.x*3.6, 1.3, k.z + side.y*3.6), "look": func(): return kp.call(1.2), "fov": 50},
 		"overKai": {"cam": func(): var k: Vector3 = kp.call(1.6); return Vector3(k.x - dir.x*1.1 - side.x*0.5, 1.8, k.z - dir.y*1.1 - side.y*0.5), "look": V.call(M, 2.8), "fov": 52},
 		"canon": {"cam": func(): var q: Vector3 = cp.call(); return Vector3(q.x + side.x*1.6, 0.5, q.z + side.y*1.6), "look": cp, "fov": 40},

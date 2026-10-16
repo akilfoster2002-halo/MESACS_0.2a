@@ -165,10 +165,11 @@ func pair_angles(R: Vector2, T: Vector2, fR: Vector2, fT: Vector2, n: Vector2, h
 	var at := func(p: Vector2, y: float) -> Vector3: return Vector3(p.x, y, p.y)
 	var rh := Vector3(R.x, hR, R.y); var th := Vector3(T.x, hT, T.y); var mid := Vector3(M.x, h - 0.15, M.y)
 	return {
-		"her": {"cam": at.call(P_.call(R, [[fR, 0.8], [n, 0.7], [u, 0.25]]), hR + 0.06), "look": rh, "fov": 28},
-		"him": {"cam": at.call(P_.call(T, [[fT, 0.8], [n, 0.7], [u, -0.25]]), hT + 0.06), "look": th, "fov": 28},
-		"herTight": {"cam": at.call(P_.call(R, [[fR, 0.7], [n, 0.4]]), hR + 0.02), "look": rh, "fov": 24},
-		"himTight": {"cam": at.call(P_.call(T, [[fT, 0.7], [n, 0.4]]), hT + 0.02), "look": th, "fov": 24},
+		# a single on each: head, shoulders and chest (a "tight" one: head and shoulders) — not a face filling the frame
+		"her": {"cam": at.call(P_.call(R, [[fR, 1.5], [n, 1.0], [u, 0.35]]), hR - 0.05), "look": rh - Vector3(0, 0.18, 0), "fov": 32},
+		"him": {"cam": at.call(P_.call(T, [[fT, 1.5], [n, 1.0], [u, -0.35]]), hT - 0.05), "look": th - Vector3(0, 0.18, 0), "fov": 32},
+		"herTight": {"cam": at.call(P_.call(R, [[fR, 1.15], [n, 0.6]]), hR), "look": rh - Vector3(0, 0.07, 0), "fov": 28},
+		"himTight": {"cam": at.call(P_.call(T, [[fT, 1.15], [n, 0.6]]), hT), "look": th - Vector3(0, 0.07, 0), "fov": 28},
 		"overHim": {"cam": at.call(P_.call(T, [[u, 0.6], [n, 0.45]]), maxf(hT, hR) + 0.12), "look": rh, "fov": 32},
 		"overHer": {"cam": at.call(P_.call(R, [[u, -0.6], [n, 0.45]]), maxf(hT, hR) + 0.12), "look": th, "fov": 32},
 		"two": {"cam": at.call(P_.call(M, [[n, 2.4]]), h - 0.05), "look": mid, "fov": 36},

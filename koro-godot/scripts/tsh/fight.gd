@@ -255,8 +255,14 @@ func _bone_node(n: Node, suffix: String):
 
 func play(e: Dictionary, nm: String, fade := 0.15) -> void:
 	if e.get("drawn", true) == false:
-		if nm in ["idle", "talk", "fight", "block"]:          # standing with it sheathed: the draw's first frame, held
+		if nm in ["idle", "talk", "fight", "block"]:          # standing with it sheathed: an idle of his own (else the draw's first frame, held)
+			if e.ap.has_animation("idle_free"):
+				if e.clip != "idle_free": e.clip = "idle_free"; e.ap.play("idle_free", fade); e.anim_k = 1.0
+				return
 			if e.clip != "sheathed": e.clip = "sheathed"; e.ap.play("draw", fade); e.ap.seek(0.0, true); e.ap.pause()
+			return
+		if nm in ["walk", "walk_back", "walk_left", "walk_right", "sprint"] and e.ap.has_animation("walk_free"):
+			if e.clip != "walk_free": e.clip = "walk_free"; e.ap.play("walk_free", fade); e.anim_k = 1.0
 			return
 		if nm in ["hook", "cross", "jab", "kick"]: _sheathe(e, true)
 	e.clip_want = nm
