@@ -7,8 +7,8 @@
 ## crawl at the instant that matters and waits for the key. Every hit lands with a jolt (hit-stop) and a shake.
 ##
 ##   CLICK / K       punch — again for the chain: jab, cross, hook, kick      hold CLICK: the POWER punch on letting go
-##   G               DASH to the one she faces (or the nearest in front)                     SPACE: dodge (toward a man: over him)
-##   RIGHT-CLICK / R parry the instant before a hit; hold it to block         F: the bangle's PULSE
+##   F               DASH to the one she faces (or the nearest in front)                     SPACE: dodge (toward a man: over him)
+##   RIGHT-CLICK / R parry the instant before a hit; hold it to block         G: the bangle's PULSE
 class_name Fight
 extends Node
 
@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 16.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
+	"kai": {"char": "kai", "hp": 28.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -98,7 +98,7 @@ func _ready() -> void:
 	prompt_label.add_theme_font_size_override("bold_font_size", 46); prompt_label.add_theme_constant_override("outline_size", 8); prompt_label.add_theme_color_override("font_outline_color", Color.BLACK); hud.add_child(prompt_label)
 	keys_label = Label.new(); keys_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM); keys_label.position = Vector2(-430, -60); keys_label.size = Vector2(860, 30)
 	keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; keys_label.add_theme_font_size_override("font_size", 15); keys_label.modulate = Color(1, 1, 1, 0.75)
-	keys_label.text = "MOUSE aim · CLICK strike · HOLD power · G dash · SPACE dodge · RIGHT-CLICK parry · F pulse"; keys_label.visible = false; hud.add_child(keys_label)
+	keys_label.text = "MOUSE aim · CLICK strike · HOLD power · F dash · SPACE dodge · RIGHT-CLICK parry · G pulse"; keys_label.visible = false; hud.add_child(keys_label)
 	steps = _steps()
 
 # ================================================================== the cast
@@ -589,7 +589,7 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 			var ca := ang_to(t.x, t.z, car.x, car.z)
 			if absf(ang_diff(ca, a)) < 1.1 and Vector2(car.x - t.x, car.z - t.z).length() < 11: ta = ca
 		throw_off(t, ta, m.fly, 1.2); slow_for(0.12 if R.move == "power" else 0.25, 0.9); _flash(0.35)
-	elif t.K.get("tough", false) and t.hp > 0 and (t.state == "windup" or randf() < 0.5):
+	elif t.K.get("tough", false) and t.hp > 0 and (t.state == "windup" or randf() < 0.7):
 		t.x += sin(a)*0.15; t.z += cos(a)*0.15          # he takes it and keeps coming: no stagger mid-swing, and half the time not even then
 	elif m.get("down", false) and t.K.get("tough", false) and t.hp > 0:
 		t.state = "stagger"; t.t = 0.0; t.vx = sin(a)*m.push*2; t.vz = cos(a)*m.push*2; hit1(t, "stagger")
@@ -908,6 +908,7 @@ const SHOTS := {
 	"dash":     {"off": Vector3(0.0, 0.1, -0.6), "fov": 11.0, "dutch": 0.0, "aim": 0.2},
 	"hurt":     {"off": Vector3(-0.8, -0.1, 0.9), "fov": -8.0, "dutch": 0.12, "aim": 0.0},
 	"finisher": {"off": Vector3(1.0, 0.25, -0.5), "fov": 7.0, "dutch": -0.1, "aim": 0.3}}
+const SHOT_K := 1.7                      # how strong every shot is (1: as the table has it)
 var shot = null                         # {k, t, in, hold, out, at: Callable|Vector3}
 ## a combat shot: `land` seconds from now is the impact (the camera is there by then), held `hold`, back over `out`
 func cine(kind: String, land := 0.12, hold := 0.22, out := 0.5, at = null) -> void:
@@ -930,15 +931,15 @@ func _apply_shot(c: Camera3D, real: float) -> void:
 	var k: Dictionary = shot.k
 	var fwd: Vector3 = (cam.look - c.global_position); fwd.y = 0; fwd = fwd.normalized() if fwd.length() > 0.01 else -c.global_basis.z
 	var rt: Vector3 = fwd.cross(Vector3.UP).normalized()
-	var o: Vector3 = k.off
+	var o: Vector3 = k.off*SHOT_K
 	c.global_position += (rt*o.x + Vector3.UP*o.y + fwd*o.z)*w
 	var look: Vector3 = cam.look
 	var at = shot.at
 	if at is Callable: at = at.call()
 	if at is Vector3 and k.aim > 0: look = look.lerp(at, k.aim*w)
 	c.look_at(look)
-	c.rotate_object_local(Vector3(0, 0, 1), k.dutch*w)
-	c.fov += k.fov*w
+	c.rotate_object_local(Vector3(0, 0, 1), k.dutch*w*SHOT_K)
+	c.fov += k.fov*w*SHOT_K
 
 # ================================================================== the lesson
 func _steps() -> Array:
@@ -957,9 +958,9 @@ func _steps() -> Array:
 			"on": {"windup": func(x): if not dir.get("combo_shown", false) and x.e.tag in ["t3", "t4"]: dir.combo_shown = true; freeze("CLICK ×4", "COMBO", "jab · cross · hook · kick — keep it going", "attack", x.e, 0.5),
 				"hit": func(x): if x.chain >= 2 and not dir.get("said", false): dir.said = true; g.talk("fightCombo")},
 			"done": func(): return pick("t3").hp <= 0 and pick("t4").hp <= 0},
-		{"id": "break", "title": "BREAK", "how": "One gets hold of her. F — the bangle on her wrist: a pulse.",
+		{"id": "break", "title": "BREAK", "how": "One gets hold of her. G — the bangle on her wrist: a pulse.",
 			"enter": func(): var e := pick("t5"); e.active = true; e.grabber = true; e.state = "approach"; e.t = 0.0; e.guard = func(): return not dir.get("broke", false),
-			"on": {"grabbed": func(x): freeze("F", "BREAK FREE", "the bangle", "pulse", x.e), "pulse": func(x): dir.broke = true; later(0.6, func(): g.talk("fightBreak"))},
+			"on": {"grabbed": func(x): freeze("G", "BREAK FREE", "the bangle", "pulse", x.e), "pulse": func(x): dir.broke = true; later(0.6, func(): g.talk("fightBreak"))},
 			"done": func(): return R.grabbed_by == null and not pick("t5").state in ["grab", "approach"] and dir.t > 2},
 		{"id": "parry", "title": "PARRY", "how": "One has a pipe. RIGHT-CLICK (or R) the instant before it lands: the gauntlet takes it.",
 			"enter": func(): var e := pick("t6"); e.active = true; e.state = "approach"; e.t = 0.0; e.guard = func(): return not dir.get("parried", false),
@@ -971,7 +972,7 @@ func _steps() -> Array:
 			"on": {"hit": func(x): if x.move == "power": dir.powered = true,
 				"charge": func(x): if not dir.get("charge_seen", false): dir.charge_seen = true; slow_to(0.45, 6); prompt("LET GO", "POWER PUNCH", "when you are ready")},
 			"done": func(): return dir.get("powered", false) or dir.t > 14},
-		{"id": "pull", "title": "THE DASH", "how": "G — dash straight to the one you are facing. Hit him as you arrive: it lands as a counter.",
+		{"id": "pull", "title": "THE DASH", "how": "F — dash straight to the one you are facing. Hit him as you arrive: it lands as a counter.",
 			"enter": func(): _pull_enter(),
 			"on": {"pull": func(x): dir.pulled = true},
 			"done": func(): return (dir.get("pulled", false) and dir.t > 1.5) or (alive().is_empty() and dir.t > 2)},
@@ -1008,7 +1009,7 @@ func _combo_enter() -> void:
 		var e := pick(t); e.active = true; e.state = "approach"; e.t = 0.0; e.cool = 3 + i*2; e.K.windup = 1.1; i += 1
 func _pull_enter() -> void:
 	var a := alive(); a.sort_custom(func(x, y): return dist(x) > dist(y))
-	if a.size(): var far = a[0]; later(1.6, func(): if on and dir.id == "pull" and not dir.get("pulled", false): freeze("G", "DASH", "get to him", "pull", far))
+	if a.size(): var far = a[0]; later(1.6, func(): if on and dir.id == "pull" and not dir.get("pulled", false): freeze("F", "DASH", "get to him", "pull", far))
 func _regret_enter() -> void:
 	var ks := E.filter(func(e): return e.state in ["ko", "down"] and e.hp <= 0 and e.kind != "buyer" and not e.get("bystander", false))
 	ks.sort_custom(func(a, b): return (INF if a.state == "down" else float(a.get("ko_at", 0))) > (INF if b.state == "down" else float(b.get("ko_at", 0))))
@@ -1206,12 +1207,12 @@ func key(ev: InputEvent) -> bool:
 					clear_for("dodge")
 					if dodge() and dir.freeze != null and dir.freeze.want == "dodge": R.iframe = maxf(R.iframe, 0.6); unfreeze()
 				return true
-			KEY_F:
+			KEY_G:
 				if ev.pressed and _allow("pulse") and (R.grabbed_by != null or R.only_key == null):
 					clear_for("pulse")
 					if pulse() and dir.freeze != null and dir.freeze.want == "pulse": unfreeze()
 				return true
-			KEY_G:
+			KEY_F:
 				if ev.pressed and _allow("pull"):
 					clear_for("pull")
 					if pull() and dir.freeze != null and dir.freeze.want == "pull": unfreeze()

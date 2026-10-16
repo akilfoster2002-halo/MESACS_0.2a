@@ -251,7 +251,7 @@ func _info() -> Array:
 	var s := sid(); var out := []
 	if st.i < stage_at("roofs"): out.append("The shoes are cold after the fight — on foot until they charge.")
 	if s == "run": out.append("SPACE at a barrier vaults it. A red ring is a missile: get out of it.")
-	if fighting(): out.append("CLICK strike · hold CLICK power · SPACE dodge · R parry · G pull · F pulse.")
+	if fighting(): out.append("CLICK strike · hold CLICK power · SPACE dodge · R parry · F dash · G pulse.")
 	if s == "wall": out.append("G facing the wall. W climbs.")
 	if s == "roofs": out.append("In the air, a lock follows you: SHIFT dives, or turn, and it misses.")
 	if s == "hide" or s == "call": out.append("Behind cover, WASD move you round it. Keep it between you and them.")

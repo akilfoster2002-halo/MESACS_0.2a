@@ -11,7 +11,7 @@ const RAID := {"from": Vector2(-41.4, -12.2), "at": Vector2(-41.3, -7.8)}
 const VW := Vector2(-56, -2.8)
 const VE := Vector2(-31, -2.8)
 const RING := [Vector2(-49.0, -4.6), Vector2(-48.0, -8.8), Vector2(-51.5, -6.6), Vector2(-46.5, -2.6)]
-const READY := "CLICK strike · hold CLICK, let go: power · SPACE dodge · R parry · G pull · F pulse"
+const READY := "CLICK strike · hold CLICK, let go: power · SPACE dodge · R parry · F dash · G pulse"
 const MK := {"maya": Vector2(54.4, 34.9), "kai": Vector2(54.4, 33.1), "y": 12.0}
 
 var g
