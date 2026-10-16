@@ -152,6 +152,7 @@ func _ready() -> void:
 	if args.size() >= 3 and args[2] == "street": S.tun = 7
 	if args.size() >= 3 and args[2] in ["alpha", "maya"]: S.tun = 6; S.lesson = 99; shots_alpha = true; shots_maya = args[2] == "maya"
 	if shots_dir == "" and (args.has("alpha") or args.has("kai") or args.has("maya")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
+	elif shots_dir == "" and args.has("lab"): S = _fresh(); S.step = "detention"   # to watch the lab: -- lab
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
 	if shots_fight: _shots_fight()
@@ -170,7 +171,7 @@ func _ready() -> void:
 func _fresh() -> Dictionary:
 	return {"v": 1, "step": "intro", "lesson": 0, "seen": [], "boots": [], "cash": 0, "flash": 3}
 func _save() -> void:
-	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai") or OS.get_cmdline_user_args().has("maya"): return      # watching (-- alpha, -- kai) leaves the real save alone
+	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai") or OS.get_cmdline_user_args().has("maya") or OS.get_cmdline_user_args().has("lab"): return      # watching (-- alpha, -- kai) leaves the real save alone
 	var f := FileAccess.open("user://tsh.json", FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(S))
 func _load() -> void:
