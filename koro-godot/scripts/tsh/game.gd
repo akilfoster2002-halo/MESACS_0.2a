@@ -318,6 +318,8 @@ func _look() -> void:
 		night_look = {"amb": env.ambient_light_color, "ambE": env.ambient_light_energy, "fog": env.fog_light_color, "exp": env.tonemap_exposure, "sunC": sun.light_color if sun else Color.WHITE, "sunE": sun.light_energy if sun else 1.0, "glow": env.glow_intensity}
 	var d := day(); var w := place_now
 	env.sky = _dome(d); env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	if not night_look.has("tm"): night_look.tm = env.tonemap_mode; night_look.ssao = env.ssao_enabled; night_look.vf = env.volumetric_fog_enabled
+	env.tonemap_mode = night_look.tm; env.ssao_enabled = night_look.ssao; env.volumetric_fog_enabled = night_look.vf      # the station's look is the station's alone
 	if w == "city":
 		if d:
 			if sky_mat == null:
@@ -350,7 +352,14 @@ func _look() -> void:
 				env.ambient_light_color = Color("#e4ecf2"); env.ambient_light_energy = 0.55; env.tonemap_exposure = 0.85
 			"sub":
 				env.background_color = Color("#040606"); env.fog_density = 0.01; env.fog_light_color = Color("#0a0e0c")
-				env.ambient_light_color = Color("#1c2622"); env.ambient_light_energy = 0.6; env.tonemap_exposure = night_look.exp
+				# THE STATION, DRAMATIC: little light but its own — pools under its lamps, the dark between, haze the
+				# lamps throw shafts through, contact shadow in its corners, a filmic curve so the darks are dark
+				env.ambient_light_color = Color("#16211e"); env.ambient_light_energy = 0.2; env.tonemap_exposure = night_look.exp*1.15
+				env.tonemap_mode = Environment.TONE_MAPPER_ACES
+				env.ssao_enabled = true; env.ssao_radius = 1.2; env.ssao_intensity = 2.4
+				env.volumetric_fog_enabled = true; env.volumetric_fog_density = 0.012; env.volumetric_fog_albedo = Color(0.55, 0.6, 0.58)
+				env.volumetric_fog_emission_energy = 0.0; env.volumetric_fog_anisotropy = 0.55; env.volumetric_fog_length = 40.0
+				env.glow_intensity = maxf(night_look.glow, 0.9); env.glow_bloom = 0.15
 		if sun: sun.light_energy = 0.0 if w == "sub" else (night_look.sunE if not d else 0.6)
 ## WHAT IT ALL REFLECTS (tsh.js applyLook, scene.environment): a teal dome with orange lanterns low down, the tubes
 ## and the neon on it (by day a pale blue one, nothing on it), at 0.6 of its light by night and 0.8 by day. Never seen,

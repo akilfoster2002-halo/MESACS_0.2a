@@ -244,6 +244,12 @@ func build_sub() -> void:
 	for o in lts:
 		var tied := bulbs.any(func(bb): return bb.light == o)
 		if not tied: o.light_energy = float(o.get_meta("e"))      # the emergency lamps, the panel's LED, the Psi
+	# the lamps make pools: brighter, shadows cast, and through the haze
+	for bb in bulbs:
+		var o = bb.light
+		if o == null: continue
+		o.set_meta("e", float(o.get_meta("e"))*1.8); o.shadow_enabled = true; o.light_volumetric_fog_energy = 3.0
+		o.omni_attenuation = 1.6
 	for nm in ["shutter", "barrier", "door"]:
 		var node: Node3D = found.get("sub_" + nm)
 		gates[nm] = {"node": node, "t": 0.0, "open": false, "y0": node.position.y if node else 0.0, "x0": node.position.x if node else 0.0, "sy": node.scale.y if node else 1.0, "s": _gate_solid(nm)}
