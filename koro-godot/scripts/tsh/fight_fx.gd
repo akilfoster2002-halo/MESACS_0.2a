@@ -78,7 +78,7 @@ func _draw() -> void:
 		# the swept crescent between the tip's path and the blade's middle, pale
 		for i in range(1, n):
 			var al0: float = clampf(1.0 - float(P[i][2])/0.35, 0, 1)*fade
-			if al0 > 0: draw_colored_polygon(PackedVector2Array([P[i - 1][0], P[i][0], P[i][1], P[i - 1][1]]), Color(0.85, 0.93, 1.0, 0.13*al0))
+			if al0 > 0: _quad(P[i - 1][0], P[i][0], P[i][1], P[i - 1][1], Color(0.85, 0.93, 1.0, 0.13*al0))
 		# four cuts along it, each tapering thin at both ends and thickest in the middle of the swing
 		for layer in 4:
 			var f := layer/4.0; var w0: float = 7.0 - layer*1.4
@@ -103,7 +103,7 @@ func _draw() -> void:
 			var tail: Vector2 = head - d*ln
 			var w: float = rng.randf_range(0.6, 1.8)
 			var c := Color(1, 1, 1, rng.randf_range(0.18, 0.45)*a)
-			draw_colored_polygon(PackedVector2Array([head + nrm*w*0.3, head - nrm*w*0.3, tail - nrm*w, tail + nrm*w]), Color(c.r, c.g, c.b, 0.0) if false else c)
+			_quad(head + nrm*w*0.3, head - nrm*w*0.3, tail - nrm*w, tail + nrm*w, c)
 	for q in parts:
 		var u: float = q.t/q.life; var al: float = 1.0 - u
 		var col: Color = (Color(1, 0.96, 0.8) if u < 0.35 else Color(1, 0.62, 0.18)) if q.hot else Color(1, 1, 1)
@@ -114,3 +114,9 @@ func _draw() -> void:
 
 static func _cr(a: Vector2, b: Vector2, c: Vector2, d: Vector2, u: float) -> Vector2:
 	return 0.5*((2.0*b) + (-a + c)*u + (2.0*a - 5.0*b + 4.0*c - d)*u*u + (-a + 3.0*b - 3.0*c + d)*u*u*u)
+
+## a four-cornered shape as two triangles (draw_colored_polygon fails on thin or crossed ones)
+func _quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, col: Color) -> void:
+	var cs := PackedColorArray([col, col, col])
+	draw_primitive(PackedVector2Array([a, b, c]), cs, PackedVector2Array())
+	draw_primitive(PackedVector2Array([a, c, d]), cs, PackedVector2Array())

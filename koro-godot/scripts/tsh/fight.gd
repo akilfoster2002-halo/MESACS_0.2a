@@ -46,7 +46,7 @@ const KIND := {
 	"wfcLean": {"char": "thug-b", "path": "res://assets/tsh/wfc/officer.glb", "officer": true, "hp": 3.0, "dmg": 10.0, "windup": 0.62, "walk": 1.6, "run": 4.6},
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
-	"kai": {"char": "kai", "hp": 28.0, "dmg": 24.0, "windup": 0.9, "walk": 1.8, "run": 5.4, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
+	"kai": {"char": "kai", "hp": 40.0, "dmg": 26.0, "windup": 0.9, "walk": 2.4, "run": 6.4, "dodge": 0.55, "block": 0.3, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 14.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -405,6 +405,18 @@ func attack(kind: String) -> bool:
 	R.act = "attack"; R.move = nm; R.last_move = nm; R.t = 0.0; R.target = t; R.landed = false
 	R.len = robin_clip(m.clip, true); if R.len <= 0: R.len = 0.6
 	var land_at: float = R.len*float(m.hit)
+	if t != null and t.K.get("dodge", 0.0) > 0 and standing(t) and not t.state in ["drawing", "pulled", "stagger"] and randf() < float(t.K.dodge)*(0.6 if t.state == "windup" else 1.0):
+		var dt0: Dictionary = t
+		later(maxf(0.0, land_at - 0.16), func():          # he reads it: out of the way the instant before it lands
+			if not standing(dt0): return
+			if dt0.state == "windup": dt0.erase("seq")          # he lets his own swing go to get out of hers
+			var pp := P(); var away: float = ang_to(pp.x, pp.y, dt0.x, dt0.z)
+			var sd := -1.0 if randf() < 0.5 else 1.0
+			dt0.state = "evade"; dt0.t = 0.0; dt0.dodge_t = 0.4; dt0.side = sd
+			dt0.ev_a = away + sd*(0.9 + randf()*0.5)          # back and to the side
+			play(dt0, "walk_left" if sd > 0 else "walk_right", 0.04); dt0.anim_k = 2.6
+			g.cue("swish")
+			if fx: fx.lines(Vector3(dt0.x, floor_y + 1.2, dt0.z), Vector3(sin(dt0.ev_a), 0, cos(dt0.ev_a)), 0.9))
 	var tg = t
 	var at_t = (func(): return Vector3(tg.x, floor_y + 1.2, tg.z)) if t != null else null
 	if R.counter_ready and t != null: cine("counter", land_at, 0.25, 0.55, at_t)
@@ -571,6 +583,13 @@ func land() -> void:
 	land_on(t, m, p)
 
 func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
+	if float(t.get("dodge_t", 0.0)) > 0:                  # gone: it cuts air
+		g.cue("swish"); event("whiff", {"e": t, "dodged": true}); return
+	if t.K.get("block", 0.0) > 0 and t.state in ["circle", "approach", "evade"] and randf() < float(t.K.block):
+		t.state = "stagger"; t.t = 0.4; t.vx = 0.0; t.vz = 0.0; hit1(t, "block"); g.cue("clang"); shake(0.12, 0.15)
+		if fx: fx.sparks(Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.3, lerpf(p.y, t.z, 0.7)), Vector3(t.x - p.x, 0, t.z - p.y), 0.8)
+		t.cool = 0.0                                       # and straight back at her
+		return
 	if t.guard != null and t.guard.call():
 		g.cue("clang"); shake(0.05, 0.1)
 		if t.state != "windup": t.state = "stagger"; t.t = 0.3; t.vx = 0.0; t.vz = 0.0; hit1(t, "block")
@@ -665,7 +684,7 @@ func _tick_crew(dt: float) -> void:
 				var sa: float = to_her + PI/2*e.side; mv += Vector2(sin(sa), cos(sa))*0.45
 				if e.t > randf_range(2, 4): e.side *= -1; e.t = 0.0
 				var moving := mv.length() > 0.3
-				if moving: _step(e, atan2(mv.x, mv.y), e.K.walk*0.8, dt, true)
+				if moving: _step(e, atan2(mv.x, mv.y), e.K.walk*(1.3 if e.has("blade") else 0.8), dt, true)
 				play(e, (("walk" if off > 0 else "walk_back") if absf(off) > 0.35 else ("walk_left" if e.side > 0 else "walk_right")) if moving else "fight")
 				e.cool -= dt
 				if e.has("blade") and d < 4.5 and ((R.act == "attack" and d < 2.6 and randf() < dt*5.0) or randf() < dt*0.35):     # her swing coming: out of the way, and back in fast
@@ -673,8 +692,11 @@ func _tick_crew(dt: float) -> void:
 					play(e, "walk_left" if e.side > 0 else "walk_right", 0.05); e.anim_k = 2.2
 				elif e.active and e.cool <= 0 and swingers < max_swing and not (dir != null and dir.hold) and R.grabbed_by == null: e.state = "approach"; e.t = 0.0
 			"evade":
-				_step(e, e.ev_a, 6.5*(1.0 - e.t/0.4), dt, true); e.yaw = turn_to(e.yaw, to_her, dt*8)
-				if e.t > 0.4: e.anim_k = 1.0; e.state = "circle"; e.t = 0.0; e.cool = 0.25; e.side *= -1
+				e.dodge_t = maxf(0.0, float(e.get("dodge_t", 0.0)) - dt)
+				_step(e, e.ev_a, 9.0*(1.0 - e.t/0.4), dt, true); e.yaw = turn_to(e.yaw, to_her, dt*8)
+				if e.t > 0.4:
+					e.anim_k = 1.0; e.state = "circle"; e.t = 0.0; e.side *= -1
+					e.cool = 0.0 if randf() < 0.6 else 0.25     # often straight back in: a counter
 			"approach":
 				e.yaw = turn_to(e.yaw, to_her, dt*8)
 				if d > 4.5: e.lunging = false
