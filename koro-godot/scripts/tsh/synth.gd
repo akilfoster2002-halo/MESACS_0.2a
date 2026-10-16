@@ -148,6 +148,7 @@ func _make(kind: String) -> void:
 		"kick": burst(0.3, 250, 0.4, 0.5); tone(120, 60, 0.3, "sine", 0.2)
 		"ui": tone(900, 900, 0.06, "sine", 0.04)
 		"beep": tone(2700, 2700, 0.07, "square", 0.045)
+		"horn": tone(311, 300, 1.1, "sawtooth", 0.07); tone(370, 360, 1.1, "sawtooth", 0.06); tone(155, 150, 1.1, "square", 0.05)
 		"scan": tone(1500, 1500, 0.05, "sine", 0.03)
 		"ring":
 			var ds := [0.0, 0.13, 0.26, 0.52, 0.65, 0.78]; var fs := [1319.0, 1568.0, 1976.0, 1319.0, 1568.0, 1976.0]

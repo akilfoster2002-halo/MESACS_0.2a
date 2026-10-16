@@ -170,6 +170,7 @@ func fight_one(R: Vector2, ry: float) -> void:
 	var maya = crew("maya")
 	if maya: maya.bystander = true; maya.state = "watch"; maya.home = Vector2(TX(1.6), -116)
 	_fight_begin(R, ry, kai_down)
+	StationTrains.depart()                          # the car they came in pulls out: the tracks are open, and the trains come
 	g.note("Kai.")
 func _fight_end() -> void:
 	g.mode = ""; g.place(g.robin.position, g.cam_yaw)

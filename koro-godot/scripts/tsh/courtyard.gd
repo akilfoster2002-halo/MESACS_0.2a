@@ -254,6 +254,7 @@ func build_sub() -> void:
 		var node: Node3D = found.get("sub_" + nm)
 		gates[nm] = {"node": node, "t": 0.0, "open": false, "y0": node.position.y if node else 0.0, "x0": node.position.x if node else 0.0, "sy": node.scale.y if node else 1.0, "s": _gate_solid(nm)}
 	reset_sub()
+	StationTrains.build(g, g.sub, sp)               # the hall wider, the tracks up, the tunnels open (station_trains.gd)
 	StationLook.apply(g.sub, sp)                   # aged, wrecked, its air and its failing lamps (station_look.gd)
 func _gate_solid(nm: String):
 	var want: Array = {"shutter": [TX(-2.5), TX(2.5), 1.9, 2.3], "barrier": [TX(-2.5), TX(2.5), -32.3, -31.9], "door": [TX(-2), TX(2), -88.3, -87.9]}[nm]
@@ -316,6 +317,7 @@ func tick_sub(dt: float) -> void:
 		_bulb(b, v)
 		if k > 0.5: b.on = 1.0
 	StationLook.tick(bulbs, dt)
+	StationTrains.tick(dt)
 	# the Psi: it breathes
 	var br := 0.6 + 0.4*sin(sub_t*2.3) + (0.5 if randf() < 0.03 else 0.0)
 	if psi_light: psi_light.light_energy = float(psi_light.get_meta("e"))*(0.6 + 0.6*br)
