@@ -122,7 +122,7 @@ func meet_film() -> void:
 	var R := _a(sp.meetR); var C := _a(sp.canon); var M := _a(sp.maya); var K := _a(sp.kai); var TD := _a(sp.trainDoor)
 	var ryR := ang(R, M); var f := Vector2(sin(ryR), cos(ryR))
 	var RM: Dictionary = cy.pair_angles(R, M, f, -f, Vector2(f.y, -f.x), 1.62, 1.55)
-	var CK: Dictionary = cy.pair_angles(C, K, Vector2(0, -1), Vector2(0, 1), Vector2(1, 0), 1.5, 2.0)
+	var CK: Dictionary = cy.pair_angles(C, K, Vector2(0, -1), Vector2(0, 1), Vector2(1, 0), 1.5, 1.55)
 	var A: Dictionary = RM.duplicate()
 	A.canon = {"cam": CK.her.cam, "look": CK.her.look, "fov": 28}; A.kai = {"cam": CK.him.cam, "look": CK.him.look, "fov": 28}
 	A.overKai = {"cam": CK.overHim.cam, "look": CK.overHim.look, "fov": 32}; A.overCanon = {"cam": CK.overHer.cam, "look": CK.overHer.look, "fov": 32}
@@ -154,7 +154,7 @@ func canon_ko() -> void:
 	var kai = crew("kai"); var c = cy.canon
 	var R := _a(sp.meetR); var K := _a(sp.kai); var ryR := ang(R, K); var f := Vector2(sin(ryR), cos(ryR))
 	var C := R + f*0.9; var Kc := C + f*1.2; var ryC := ang(C, K); var fc := Vector2(sin(ryC), cos(ryC))
-	var CK: Dictionary = cy.pair_angles(C, Kc, fc, -fc, Vector2(fc.y, -fc.x), 1.5, 2.0)
+	var CK: Dictionary = cy.pair_angles(C, Kc, fc, -fc, Vector2(fc.y, -fc.x), 1.5, 1.55)
 	var A: Dictionary = CK.duplicate(); A.past = {"cam": Vector3(R.x - sin(ryR)*0.6 + cos(ryR)*0.35, 1.7, R.y - cos(ryR)*0.6 - sin(ryR)*0.35), "look": Vector3(Kc.x, 1.45, Kc.y), "fov": 34}
 	var guard := func():
 		stand("idle", R, ryR)
@@ -672,7 +672,7 @@ func monster_scene(R0: Vector2, ry: float) -> void:
 		"eyeX": {"cam": V.call(R - dir*0.4 - side*0.3, 1.6), "look": eye, "fov": 8},
 		"mouth": {"cam": func(): var m: Vector3 = mouth.call(); return Vector3(m.x - dir.x*6 + side.x*1.5, 1.8, m.z - dir.y*6 + side.y*1.5), "look": mouth, "fov": 46},
 		"mouthX": {"cam": func(): var m: Vector3 = mouth.call(); return Vector3(m.x - dir.x*3.2 - side.x*0.8, m.y - 0.3, m.z - dir.y*3.2 - side.y*0.8), "look": mouth, "fov": 34},
-		"kai": {"cam": func(): var k: Vector3 = kp.call(1.9); return Vector3(k.x - dir.x*2.0 + side.x*0.9, 1.85, k.z - dir.y*2.0 + side.y*0.9), "look": func(): return kp.call(1.7), "fov": 32},
+		"kai": {"cam": func(): var k: Vector3 = kp.call(1.55); return Vector3(k.x - dir.x*2.0 + side.x*0.9, 1.55, k.z - dir.y*2.0 + side.y*0.9), "look": func(): return kp.call(1.35), "fov": 32},
 		"kaiWide": {"cam": func(): var k: Vector3 = kp.call(1.6); return Vector3(k.x + side.x*3.6, 1.3, k.z + side.y*3.6), "look": func(): return kp.call(1.2), "fov": 50},
 		"overKai": {"cam": func(): var k: Vector3 = kp.call(1.6); return Vector3(k.x - dir.x*1.1 - side.x*0.5, 1.8, k.z - dir.y*1.1 - side.y*0.5), "look": V.call(M, 2.8), "fov": 52},
 		"canon": {"cam": func(): var q: Vector3 = cp.call(); return Vector3(q.x + side.x*1.6, 0.5, q.z + side.y*1.6), "look": cp, "fov": 40},

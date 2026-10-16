@@ -170,8 +170,8 @@ func pair_angles(R: Vector2, T: Vector2, fR: Vector2, fT: Vector2, n: Vector2, h
 		"him": {"cam": at.call(P_.call(T, [[fT, 1.5], [n, 1.0], [u, -0.35]]), hT - 0.05), "look": th - Vector3(0, 0.18, 0), "fov": 32},
 		"herTight": {"cam": at.call(P_.call(R, [[fR, 1.15], [n, 0.6]]), hR), "look": rh - Vector3(0, 0.07, 0), "fov": 28},
 		"himTight": {"cam": at.call(P_.call(T, [[fT, 1.15], [n, 0.6]]), hT), "look": th - Vector3(0, 0.07, 0), "fov": 28},
-		"overHim": {"cam": at.call(P_.call(T, [[u, 0.6], [n, 0.45]]), maxf(hT, hR) + 0.12), "look": rh, "fov": 32},
-		"overHer": {"cam": at.call(P_.call(R, [[u, -0.6], [n, 0.45]]), maxf(hT, hR) + 0.12), "look": th, "fov": 32},
+		"overHim": {"cam": at.call(P_.call(T, [[u, 0.75], [n, 0.38]]), hT + 0.05), "look": rh - Vector3(0, 0.08, 0), "fov": 34},
+		"overHer": {"cam": at.call(P_.call(R, [[u, -0.75], [n, 0.38]]), hR + 0.05), "look": th - Vector3(0, 0.08, 0), "fov": 34},
 		"two": {"cam": at.call(P_.call(M, [[n, 2.4]]), h - 0.05), "look": mid, "fov": 36},
 		"wide": {"cam": at.call(P_.call(M, [[n, 4.2], [u, 2.0]]), h + 0.9), "look": mid, "fov": 46},
 		"low": {"cam": at.call(P_.call(M, [[n, 1.6], [u, -0.4]]), 0.4), "look": Vector3(M.x, h, M.y), "fov": 44},
@@ -188,7 +188,7 @@ func facing(R: Vector2, ry: float, gap: float, h := 1.62) -> Dictionary:
 func line_shots(keys: Array, A: Dictionary, o := {}) -> Array:
 	var pools := {"robin": ["her", "overHim", "herTight", "low", "profileL", "her", "high", "two"], "other": ["him", "overHer", "himTight", "profileR", "wide", "him", "behind", "two"]}
 	pools.merge(o.get("pools", {}), true)
-	var ix := {}; var prev = null; var out := []
+	var ix := {}; var prev = null; var out := []; var n_ots := 0
 	for key in keys:
 		for ln in g.lines.get(key, []):
 			var w: String = ln[0]; var x: String = ln[1]
@@ -196,6 +196,10 @@ func line_shots(keys: Array, A: Dictionary, o := {}) -> Array:
 			for ins in o.get("ins", []):
 				var re := RegEx.create_from_string(ins[0])
 				if re.search(x): nm = ins[1]; also = ins[2] if ins.size() > 2 else null; break
+			# every other line over the listener's shoulder onto whoever is talking
+			var ots: String = {"robin": "overHim", "maya": "overHer"}.get(w, "")
+			if nm == null and n_ots % 2 == 0 and ots != "" and A.has(ots) and ots != prev: nm = ots
+			n_ots += 1
 			if nm == null or not A.has(nm):
 				var side: String = w if pools.has(w) else ("robin" if w == "robin" else "other")
 				var p: Array = pools[side]; ix[side] = ix.get(side, 0)
