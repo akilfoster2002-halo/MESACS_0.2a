@@ -6,7 +6,9 @@
 # onto his joints), he is skinned to it there, then every bone turned back to theo's rest and his mesh bent with it.
 import bpy, sys
 from mathutils import Vector
-FBX, THEO, OUT, H = sys.argv[-4:]
+import os
+FBX, THEO, OUT, H = sys.argv[sys.argv.index("--")+1:][:4]
+LEG = float(os.environ.get("LEG", "1"))                       # longer-legged models: hips and knees raised by this much
 S = float(H)/0.98                                            # the model is 0.98 tall
 J = {"Hips": (0, 0, 0.50), "Spine": (0, 0, 0.56), "Spine1": (0, 0, 0.63), "Spine2": (0, 0, 0.71), "Neck": (0, 0, 0.80),
      "Head": (0, 0, 0.845), "HeadTop_End": (0, 0, 0.975), "headfront": (0, -0.06, 0.9)}
@@ -16,6 +18,8 @@ for sd, s in (("Left", 1), ("Right", -1)):
         sd + "Hand": m((0.30, 0, 0.675)), sd + "HandIndex1": m((0.33, 0, 0.665)),
         sd + "UpLeg": m((0.07, 0, 0.49)), sd + "Leg": m((0.085, 0, 0.255)), sd + "Foot": m((0.095, 0.01, 0.06)),
         sd + "ToeBase": m((0.10, -0.05, 0.015)), sd + "Toe_End": m((0.10, -0.09, 0.012))})
+for k in list(J):
+    if "UpLeg" in k or k.endswith("Leg") or k == "Hips": J[k] = (J[k][0], J[k][1], min(J[k][2]*LEG, 0.54 if k != "Hips" else 0.545))
 nm = lambda b: b.replace("mixamorig:", "")
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=THEO)
