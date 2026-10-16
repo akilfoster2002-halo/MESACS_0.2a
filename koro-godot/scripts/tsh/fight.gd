@@ -174,8 +174,8 @@ func _combo(e: Dictionary, d: float) -> void:
 ## a blow that lands: every one jolts; the last of a combo stops the world
 func _landed(e: Dictionary, hurt_her: bool) -> void:
 	if not hurt_her: return
-	if e.get("finisher", false): cine("finisher", 0.06, 0.3, 0.7, g.robin.position + Vector3(0, 1.2, 0))
-	elif e.has("blade"): cine("hurt", 0.06, 0.12, 0.4)
+	if e.get("finisher", false): cine("finisher", 0.16, 0.3, 0.8, g.robin.position + Vector3(0, 1.2, 0))
+	elif e.has("blade") and shot == null: cine("hurt", 0.12, 0.08, 0.6)          # a nudge, not a lurch; never cutting across a shot already going
 	if _ink(e):
 		var hd: Vector3 = g.robin.position - Vector3(e.x, g.robin.position.y, e.z)
 		fx.sparks(g.robin.position + Vector3(0, 1.2, 0), hd, 1.5 if e.get("finisher", false) else 0.8)
@@ -934,8 +934,8 @@ const SHOTS := {
 	"sweep":    {"off": Vector3(0.4, -0.45, -0.4), "fov": 4.0, "dutch": -0.05, "aim": 0.2},
 	"counter":  {"off": Vector3(0.9, -0.1, 1.0), "fov": -10.0, "dutch": 0.07, "aim": 0.45},
 	"dash":     {"off": Vector3(0.0, 0.1, -0.6), "fov": 11.0, "dutch": 0.0, "aim": 0.2},
-	"hurt":     {"off": Vector3(-0.8, -0.1, 0.9), "fov": -8.0, "dutch": 0.12, "aim": 0.0},
-	"finisher": {"off": Vector3(1.0, 0.25, -0.5), "fov": 7.0, "dutch": -0.1, "aim": 0.3}}
+	"hurt":     {"off": Vector3(-0.15, -0.05, 0.35), "fov": -4.0, "dutch": 0.035, "aim": 0.0},
+	"finisher": {"off": Vector3(0.5, 0.2, -0.45), "fov": 6.0, "dutch": -0.05, "aim": 0.2}}
 const SHOT_K := 1.7                      # how strong every shot is (1: as the table has it)
 var shot = null                         # {k, t, in, hold, out, at: Callable|Vector3}
 ## a combat shot: `land` seconds from now is the impact (the camera is there by then), held `hold`, back over `out`
