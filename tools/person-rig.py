@@ -20,6 +20,8 @@ nm = lambda b: b.replace("mixamorig:", "")
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=THEO)
 A = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE'][0]
+for b in A.data.bones:                                   # (some rigs spell them mixamorigHips; the clips follow the rename)
+    if b.name.startswith("mixamorig") and not b.name.startswith("mixamorig:"): b.name = "mixamorig:" + b.name[9:]
 for o in list(bpy.data.objects):
     if o.type == 'MESH': bpy.data.objects.remove(o)
 acts = list(bpy.data.actions)
@@ -49,7 +51,10 @@ before = set(bpy.data.objects); bpy.ops.import_scene.fbx(filepath=FBX)
 ob = [o for o in bpy.data.objects if o not in before and o.type == 'MESH'][0]; ob.name = "char1"
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-for v in ob.data.vertices: v.co = v.co*S
+xs = [v.co.x for v in ob.data.vertices]; ys = [v.co.y for v in ob.data.vertices]; zs = [v.co.z for v in ob.data.vertices]
+C = Vector(((min(xs) + max(xs))/2, (min(ys) + max(ys))/2, min(zs))); K = 0.98/(max(zs) - min(zs))
+print("CENTRE", C, "SCALE", K)                                  # (some exports sit off the origin, or not 0.98 tall)
+for v in ob.data.vertices: v.co = (v.co - C)*K*S
 d = ob.modifiers.new("d", 'DECIMATE'); d.ratio = 0.03; bpy.ops.object.modifier_apply(modifier="d")
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=0.001); bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); A.select_set(True); bpy.context.view_layer.objects.active = A
@@ -93,7 +98,8 @@ if len(ref.slots): ad.action_slot = ref.slots[0]
 bpy.context.scene.frame_set(int(ref.frame_range[0])); bpy.context.view_layer.update()
 lift = min((A.matrix_world @ pb.head).z for pb in A.pose.bones if "Toe" in pb.name or "Foot" in pb.name) - 0.03
 Rh = A.data.bones["mixamorig:Hips"].matrix_local.to_3x3().normalized()
-down = Rh.inverted() @ Vector((0, 0, -lift))
+hp = A.matrix_world @ A.pose.bones["mixamorig:Hips"].head          # (and over the origin: some clips carry the hips off to one side)
+down = Rh.inverted() @ Vector((-hp.x, -hp.y, -lift))
 for ac in acts:
     for cb in bags(ac):
         for i in range(3):
