@@ -641,6 +641,7 @@ func throw_off(e: Dictionary, a: float, sp: float, up: float) -> void:
 	if e.has("pipe") and e.pipe != null: e.pipe.visible = false; e.pipe = null; e.weapon = false
 
 func hurt(e: Dictionary, dmg: float) -> void:
+	if R.act == "down": return                             # already down: nothing more lands on her
 	if R.blocking and R.act == "block": dmg *= 0.2; g.cue("clang"); shake(0.08, 0.12); R.hp -= dmg; return
 	R.hp -= dmg; R.hurt_t = 0.0; R.chain = 0; R.chain_t = 0.0; R.combo = 0; R.buffer = null
 	if R.grabbed_by != null: return
@@ -650,13 +651,51 @@ func hurt(e: Dictionary, dmg: float) -> void:
 	g.cue("hurt"); shake(0.28, 0.3); hitstop(0.07); red.color.a = 0.45
 	if R.hp <= 0: beaten()
 func beaten() -> void:
-	R.act = "down"; R.t = 0.0; robin_clip("fall", true); slow_to(0.25, 6)
+	R.act = "down"; R.t = 0.0; R.iframe = 99.0
+	if brawl_mode and not at_start.is_empty():
+		# she goes down and stays down; the screen goes; the fight again from its start
+		g.cue("thud"); cam.punch = 1.0
+		stop_t = 0.0; slow_timer = 0.0; ramp.to = 1.0; time_scale = 1.0; Engine.time_scale = 1.0
+		var ap: AnimationPlayer = g.anim
+		g.clip = "fall"; ap.stop(); ap.play("fall", 0.08)                 # all the way down
+		dying = true
+		# down: whatever holds her pose, her body goes over onto the floor — knees first, then flat
+		var md: Node3D = g.model
+		var tw: Tween = g.create_tween(); tw.set_ignore_time_scale(true)
+		tw.tween_property(md, "rotation:x", -0.35, 0.25).set_ease(Tween.EASE_OUT)
+		tw.tween_property(md, "rotation:x", -PI*0.48, 0.45).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		tw.tween_callback(func(): g.cue("thud"); shake(0.25, 0.25))
+		var fl: float = ap.get_animation("fall").length*0.95 if ap.has_animation("fall") else 1.2
+		later(fl, func(): if R.act == "down": ap.pause())                  # and lying there, still
+		later(fl + 1.0, func(): g.black(true))
+		later(fl + 1.8, func(): dying = false; ap.play(); _restart())
+		return
+	robin_clip("fall", true); slow_to(0.25, 6)
 	later(1.1, func():
 		R.hp = 100.0; R.act = null; robin_clip("fight")
 		move_to(meet.x, meet.y)
 		var i := 0
 		for e in alive(): e.state = "circle"; e.t = 0.0; e.cool = 2 + i*0.6; i += 1
 		slow_to(1, 4); g.note("Back on your feet. They are still here."))
+
+## the fight as it began: her at her place, full; each of them where they stood, as they were; the trains gone
+func _restart() -> void:
+	if not on: return
+	R.hp = 100.0; R.act = null; R.iframe = 1.0; R.dash = null; R.grabbed_by = null; R.counter_ready = false
+	g.robin.position = at_start.robin; R.face = at_start.face; robin_clip("fight", true)
+	g.model.rotation.x = 0.0
+	for c in at_start.crew:
+		var e: Dictionary = c[0]
+		if not E.has(e): continue
+		e.x = c[1]; e.z = c[2]; e.yaw = c[3]; e.hp = float(c[4])
+		e.y = floor_y; e.vx = 0.0; e.vy = 0.0; e.vz = 0.0; e.anim_k = 1.0; e.erase("seq"); e.dodge_t = 0.0
+		e.state = c[5] if c[5] != "ko" else "circle"; e.t = 0.0; e.cool = 1.5
+		e.active = c[6] or (e.kind != "buyer" and not e.get("bystander", false) and e.hp > 0)
+		e.node.visible = true; play(e, "fight", 0.0); _place(e)
+	for tr in StationTrains.trains: tr.node.queue_free(); tr.light.queue_free()
+	StationTrains.trains.clear(); StationTrains.next = 6.0
+	shot = null; cam.on = false; time_scale = 1.0; ramp.to = 1.0; Engine.time_scale = 1.0
+	g.black(false); g.note("Again.")
 
 # ================================================================== the crew, thinking
 func _tick_crew(dt: float) -> void:
@@ -799,6 +838,7 @@ func strike(e: Dictionary, cut := false) -> void:
 	if R.parry_t > 0: parried(e); return
 	if R.iframe > 0: g.cue("swish"); event("whiff", {"e": e, "dodged": true}); return
 	hurt(e, 22.0 if e.weapon else e.K.dmg)
+	if not cut and shot == null: cine("hurt", 0.12, 0.08, 0.6)
 	event("hurt", {"e": e})
 func parried(e: Dictionary) -> void:
 	e.state = "stagger"; e.t = 0.0; e.parried = true; hit1(e, "stagger")
@@ -869,7 +909,7 @@ func _fight_cam(real: float) -> void:
 	var t = R.target if (R.act == "attack" and standing(R.target)) else (R.aim if standing(R.aim) else null)
 	var td: float = Vector2(t.x, t.z).distance_to(p) if t != null else 0.0
 	cam.pull = lerpf(cam.pull, clampf((td - 2)*0.35, 0, 1.6) if t != null else 0.0, 1 - exp(-real*3))
-	if E.any(func(e): return e.K.get("close_cam", false) and standing(e)):
+	if E.any(func(e): return standing(e) and e.get("active", false) and not e.get("bystander", false)):
 		_close_cam(real, t, p); return
 	var back: float = 3.7 + cam.pull; var up: float = clampf(3.1 - sin(pitch)*1.2, 2.4, 3.8) + cam.pull*0.35
 	var want := Vector3(p.x - f.x*back + r.x*0.4, up, p.y - f.y*back + r.y*0.4)
@@ -894,7 +934,9 @@ func _fight_cam(real: float) -> void:
 func _close_cam(real: float, t, p: Vector2) -> void:
 	var c: Camera3D = g.cam
 	if t == null:
-		for e in E: if e.K.get("close_cam", false) and standing(e): t = e
+		var bd := 1e9
+		for e in E:
+			if standing(e) and e.get("active", false) and not e.get("bystander", false) and dist(e) < bd: bd = dist(e); t = e
 	if t != null:                                        # turn toward him, gently
 		var want_yaw := atan2(-(t.x - p.x), -(t.z - p.y))
 		g.cam_yaw = lerp_angle(g.cam_yaw, want_yaw, 1 - exp(-real*3.5))
@@ -937,6 +979,7 @@ const SHOTS := {
 	"hurt":     {"off": Vector3(-0.15, -0.05, 0.35), "fov": -4.0, "dutch": 0.035, "aim": 0.0},
 	"finisher": {"off": Vector3(0.5, 0.2, -0.45), "fov": 6.0, "dutch": -0.05, "aim": 0.2}}
 const SHOT_K := 1.7                      # how strong every shot is (1: as the table has it)
+var brawl_mode := false; var at_start := {}; var dying := false
 var shot = null                         # {k, t, in, hold, out, at: Callable|Vector3}
 ## a combat shot: `land` seconds from now is the impact (the camera is there by then), held `hold`, back over `out`
 func cine(kind: String, land := 0.12, hold := 0.22, out := 0.5, at = null) -> void:
@@ -1133,6 +1176,8 @@ func start(done: Callable, script := "") -> void:
 		if e.kind != "buyer" and not e.get("bystander", false) and e.hp > 0: e.state = "circle"; e.t = 0.0; e.active = false
 		e.y = floor_y; _place(e)
 	time_scale = 1.0; ramp.to = 1.0
+	brawl_mode = script == "brawl"
+	at_start = {"robin": g.robin.position, "face": R.face, "crew": E.map(func(e): return [e, e.x, e.z, e.yaw, e.hp, e.state, e.get("active", false)])}
 	step_to(0)
 func stop() -> void:
 	on = false; hud.visible = false; prompt(""); mark.visible = false
@@ -1161,7 +1206,7 @@ func tick(real: float) -> void:
 	if not on: return
 	_tick_time(real)
 	var dt := real*time_scale
-	g.anim.speed_scale = time_scale
+	g.anim.speed_scale = 1.0 if dying else time_scale
 	R.iframe = maxf(0, R.iframe - dt); R.parry_t = maxf(0, R.parry_t - dt); R.chain_t = maxf(0, R.chain_t - dt)
 	R.since_dodge += dt; R.pulse_cd = maxf(0, R.pulse_cd - dt); R.pull_cd = maxf(0, R.pull_cd - dt); R.combo_t = maxf(0, R.combo_t - dt); R.hurt_t += dt
 	if R.combo_t <= 0: R.combo = 0
