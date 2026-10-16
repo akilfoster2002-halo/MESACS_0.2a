@@ -75,21 +75,26 @@ func _draw() -> void:
 	for q in senses:
 		var head := _scr(g.robin.position + Vector3(0, 1.75, 0))
 		var a: float = clampf(1.0 - q.t/0.7, 0, 1)
-		# the squiggles: short jagged lines flaring out round her head, twitching
 		if a > 0:
-			for i in 9:
-				var th := -PI*0.95 + PI*0.9*i/8.0 + sin(q.t*40.0 + i)*0.05
-				var d := Vector2(cos(th), sin(th)); var nrm := Vector2(-d.y, d.x)
-				var r0 := 34.0 + 6.0*sin(q.t*30.0 + i*1.7); var r1 := r0 + 26.0*(0.6 + 0.4*a)
-				var pts := PackedVector2Array()
-				for k in 5: var u := k/4.0; pts.append(head + d*lerpf(r0, r1, u) + nrm*(4.0 if k % 2 else -4.0))
-				draw_polyline(pts, Color(1, 0.25, 0.2, a), 3.0, true)
-				draw_polyline(pts, Color(1, 0.95, 0.9, a*0.8), 1.2, true)
-			# which way: a chevron off her head toward it
+			# ripples: thin rings expanding off her head, one after another, fading as they go
+			for k in 3:
+				var u: float = clampf((q.t - k*0.12)/0.55, 0, 1)
+				if u <= 0 or u >= 1: continue
+				var rr := lerpf(18.0, 120.0, 1.0 - pow(1.0 - u, 2)); var al := (1.0 - u)*0.85
+				draw_arc(head, rr, 0, TAU, 48, Color(1, 0.35, 0.3, al*0.5), 6.0, true)
+				draw_arc(head, rr, 0, TAU, 48, Color(1, 0.95, 0.92, al), 1.6, true)
+			# the edge it comes from, glowing red
 			var dirv := _scr(q.from) - head
 			if dirv.length() > 1:
-				dirv = dirv.normalized(); var tip := head + dirv*95.0; var nn := Vector2(-dirv.y, dirv.x)
-				draw_colored_polygon(PackedVector2Array([tip, tip - dirv*18 + nn*11, tip - dirv*10, tip - dirv*18 - nn*11]), Color(1, 0.3, 0.25, a))
+				dirv = dirv.normalized()
+				var W := size; var c := W*0.5
+				var edge := c + dirv*minf(W.x/absf(dirv.x) if absf(dirv.x) > 0.01 else 1e9, W.y/absf(dirv.y) if absf(dirv.y) > 0.01 else 1e9)*0.5
+				var nn := Vector2(-dirv.y, dirv.x); var w := W.length()*0.3; var depth := W.length()*0.16
+				for band in 14:
+					var f := band/14.0
+					var col := Color(1, 0.12, 0.08, a*0.045*(1.0 - f)*(1.0 - f))
+					var inn := edge - dirv*depth*(f + 0.15)
+					draw_colored_polygon(PackedVector2Array([edge + nn*w, edge - nn*w, inn - nn*w*(1.0 - f*0.5), inn + nn*w*(1.0 - f*0.5)]), col)
 		# where it lands: a red ring, pulsing, on the floor
 		if q.land != null and q.t < q.dur:
 			var c := _scr(q.land as Vector3); var e := _scr((q.land as Vector3) + Vector3(1.0, 0, 0))
