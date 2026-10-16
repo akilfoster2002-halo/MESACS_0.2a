@@ -227,7 +227,7 @@ func _tick_arms(dt: float) -> void:
 		# and throws: an upper arm tears up rubble and hurls it at her
 		throw_t -= dt
 		if throw_t <= 0 and g.fight.standing(maya) and maya.state != "windup":
-			throw_t = 0.9 + randf()*0.7; _throw(maya)
+			throw_t = 2.5 + randf()*1.5; _throw(maya)
 	_tick_rocks(dt)
 	if g.mode == "fight" and watch == "fight2" and not maya.has("arm_strike"):
 		stab -= dt
@@ -242,7 +242,7 @@ func _tick_arms(dt: float) -> void:
 				var a := atan2(q.x - m.x, q.z - m.z); g.robin.position += Vector3(sin(a), 0, cos(a))*0.9)
 ## MAYA'S THROWS: a chunk of the platform in a claw, hurled in an arc at where Robin is going; it hits if she is still
 ## near where it lands (dodging through it, she is safe)
-var throw_t := 1.0
+var throw_t := 2.0
 var rocks: Array = []
 ## THE JUNK on the platform: crates, drums, a bench, a sign, an extinguisher — hers to throw
 var junk: Array = []
@@ -255,7 +255,7 @@ func _junk_out() -> void:
 	var steel := StandardMaterial3D.new(); steel.albedo_color = Color(0.4, 0.42, 0.44); steel.metallic = 0.7; steel.roughness = 0.45
 	var red := StandardMaterial3D.new(); red.albedo_color = Color(0.7, 0.05, 0.05); red.roughness = 0.4
 	var signm := StandardMaterial3D.new(); signm.albedo_color = Color(0.9, 0.75, 0.1); signm.roughness = 0.6
-	for i in 18:
+	for i in 36:
 		var n := MeshInstance3D.new(); var kind := i % 5
 		match kind:
 			0: var b := BoxMesh.new(); b.size = Vector3(0.6, 0.6, 0.6); n.mesh = b; n.material_override = wood
@@ -292,7 +292,7 @@ func _throw(maya) -> void:
 		var to := Vector3(lead.x, 0.4, lead.z)
 		var start: Vector3 = r.global_position
 		# up out of her claw to over her head, then thrown
-		rocks.append({"n": r, "from": start, "lift": from, "to": to, "t": 0.0, "up": 0.3 if pick else 0.0, "dur": clampf(from.distance_to(to)/14.0, 0.45, 0.9), "spin": Vector3(randf(), randf(), randf())*8.0})
+		rocks.append({"junk": pick != null, "n": r, "from": start, "lift": from, "to": to, "t": 0.0, "up": 0.3 if pick else 0.0, "dur": clampf(from.distance_to(to)/14.0, 0.45, 0.9), "spin": Vector3(randf(), randf(), randf())*8.0})
 		g.cue("zip"))
 func _tick_rocks(dt: float) -> void:
 	for rk in rocks.duplicate():
@@ -309,7 +309,13 @@ func _tick_rocks(dt: float) -> void:
 			if g.fight.on and Vector2(q.x - rk.to.x, q.z - rk.to.z).length() < 1.1 and g.fight.R.iframe <= 0:
 				var m = crew("maya")
 				if m: g.fight.hurt(m, 20.0)
-			rk.n.queue_free(); rocks.erase(rk)
+			if rk.junk:                                        # it lies where it fell, to be thrown again
+				var h: float = rk.n.get_aabb().size.y
+				var A: Dictionary = sp.arena
+				rk.n.global_position = Vector3(clampf(rk.to.x, A.x1 + 0.6, A.x2 - 0.6), h*0.5, clampf(rk.to.z, A.z1 + 1.0, A.z2 - 1.0))
+				rk.n.rotation = Vector3(0, randf()*TAU, 0); junk.append(rk.n)
+			else: rk.n.queue_free()
+			rocks.erase(rk)
 
 ## Kai down. Maya, walking in — and her arms come out
 func kai_down() -> void:
