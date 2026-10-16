@@ -208,8 +208,14 @@ func _tick_arms(dt: float) -> void:
 	if g.mode == "fight" and watch == "fight2": _junk_out()
 	if g.mode == "fight" and watch == "fight2":
 		# her arms carry her: where her fight wants her is where they walk; she is where they have got to
-		oc.stride = true; oc.go_to(maya.x, maya.z, 3.2)
-		maya.x = oc.body.x; maya.z = oc.body.z
+		oc.stride = true
+		if lunge != null: _tick_lunge(maya, dt)
+		else:
+			oc.go_to(maya.x, maya.z, 3.2)
+			maya.x = oc.body.x; maya.z = oc.body.z
+			lunge_t -= dt
+			var pr: Vector3 = g.robin.position; var dd := Vector2(pr.x - maya.x, pr.z - maya.z).length()
+			if lunge_t <= 0 and dd > 3.5 and dd < 12.0 and g.fight.standing(maya) and maya.state != "windup": _lunge(maya)
 		# and they hang from her body, steady — not from her spine bone, which jerks with every blow
 		if not oc.has_meta("steady"):
 			oc.set_meta("steady", true)
@@ -223,7 +229,7 @@ func _tick_arms(dt: float) -> void:
 		# she rides her arms: carried on them, her feet off the floor, swaying with their stride
 		oc.visible = true
 		var ride: float = maxf(0.0, oc.body.y - 0.15) + sin(Time.get_ticks_msec()*0.004)*0.04
-		maya.y = lerpf(float(maya.y), ride, minf(1.0, dt*6.0)); g.fight._place(maya)
+		if lunge == null: maya.y = lerpf(float(maya.y), ride, minf(1.0, dt*6.0)); g.fight._place(maya)
 		# and throws: an upper arm tears up rubble and hurls it at her
 		throw_t -= dt
 		if throw_t <= 0 and g.fight.standing(maya) and maya.state != "windup":
@@ -243,6 +249,7 @@ func _tick_arms(dt: float) -> void:
 ## MAYA'S THROWS: a chunk of the platform in a claw, hurled in an arc at where Robin is going; it hits if she is still
 ## near where it lands (dodging through it, she is safe)
 var throw_t := 2.0
+var lunge = null; var lunge_t := 4.0
 var rocks: Array = []
 ## THE JUNK on the platform: crates, drums, a bench, a sign, an extinguisher — hers to throw
 var junk: Array = []
@@ -316,6 +323,40 @@ func _tick_rocks(dt: float) -> void:
 				rk.n.rotation = Vector3(0, randf()*TAU, 0); junk.append(rk.n)
 			else: rk.n.queue_free()
 			rocks.erase(rk)
+
+## MAYA'S LUNGE: the two lower arms shoot out and plant just short of Robin, the claws bite the floor, and they haul
+## her body through the air to them — she lands where they are; anyone she lands on is hit and thrown back
+func _lunge(maya) -> void:
+	var p: Vector3 = g.robin.position; var from := Vector2(maya.x, maya.z); var to2 := Vector2(p.x, p.z)
+	var d := from.distance_to(to2); var dir := (to2 - from)/maxf(0.01, d)
+	var land := from + dir*maxf(0.0, d - 1.2)
+	var side := Vector2(dir.y, -dir.x)
+	oc.burst(2, Vector3(land.x + side.x*0.9, 0.02, land.y + side.y*0.9), 0.75, true)
+	oc.burst(3, Vector3(land.x - side.x*0.9, 0.02, land.y - side.y*0.9), 0.75, true)
+	lunge = {"t": 0.0, "from": from, "to": land, "y0": float(maya.y)}
+	maya.yaw = atan2(dir.x, dir.y); g.cue("gear"); g.cue("zip")
+	if g.fight.fx: g.fight.fx.lines(Vector3(maya.x, 1.6, maya.z), Vector3(dir.x, 0, dir.y), 1.1)
+func _tick_lunge(maya, dt: float) -> void:
+	var L: Dictionary = lunge
+	L.t += dt
+	var wind := 0.25; var fly := 0.38
+	if L.t < wind:                                         # the claws going out; her body drawn back a little
+		var b: Vector2 = (L.from as Vector2) - ((L.to as Vector2) - (L.from as Vector2)).normalized()*0.4*(L.t/wind)
+		maya.x = b.x; maya.z = b.y
+	else:
+		var u := clampf((L.t - wind)/fly, 0, 1); var e := u*u*(3 - 2*u)
+		var at: Vector2 = (L.from as Vector2).lerp(L.to, e)
+		maya.x = at.x; maya.z = at.y; maya.y = float(L.y0) + sin(u*PI)*1.3
+		if u >= 1.0:                                       # down
+			shake(0.45, 0.4); g.cue("thud")
+			var q: Vector3 = g.robin.position
+			if Vector2(q.x - maya.x, q.z - maya.z).length() < 1.8 and g.fight.R.iframe <= 0:
+				g.fight.hurt(maya, 22.0)
+				var a := atan2(q.x - maya.x, q.z - maya.z); g.robin.position += Vector3(sin(a), 0, cos(a))*1.4
+				if g.fight.fx: g.fight.fx.sparks(q + Vector3(0, 1.1, 0), Vector3(sin(a), 0, cos(a)), 1.2)
+			oc.body = Vector3(maya.x, oc.body.y, maya.z); oc.go_to(maya.x, maya.z)
+			lunge = null; lunge_t = 4.0 + randf()*3.0
+	g.fight._place(maya)
 
 ## Kai down. Maya, walking in — and her arms come out
 func kai_down() -> void:
