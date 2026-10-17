@@ -57,14 +57,27 @@ for e in E:
     M = rot.to_4x4(); M.translation = h; e.matrix = M; e.length = max((t - h).length, 0.02)
 bpy.ops.object.mode_set(mode='OBJECT')
 before = set(bpy.data.objects); bpy.ops.import_scene.fbx(filepath=FBX)
-ob = [o for o in bpy.data.objects if o not in before and o.type == 'MESH'][0]; ob.name = "char1"
+new = [o for o in bpy.data.objects if o not in before]
+ms = sorted([o for o in new if o.type == 'MESH'], key=lambda o: -len(o.data.vertices)); ob = ms[0]; ob.name = "char1"
+for o in new:                                                  # (a Mixamo-rigged export brings its own skeleton: off it, and gone)
+    if o.type == 'MESH':
+        for m in list(o.modifiers): o.modifiers.remove(m)
+        o.parent = None; o.vertex_groups.clear()
+bpy.ops.object.select_all(action='DESELECT')
+for o in ms: o.select_set(True)
+bpy.context.view_layer.objects.active = ob
+if len(ms) > 1: bpy.ops.object.join()
+for o in new:
+    if o.type != 'MESH' and o.name in bpy.data.objects:
+        o2 = bpy.data.objects[o.name]
+        if o2 != ob and o2 != A: bpy.data.objects.remove(o2)
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 xs = [v.co.x for v in ob.data.vertices]; ys = [v.co.y for v in ob.data.vertices]; zs = [v.co.z for v in ob.data.vertices]
 C = Vector(((min(xs) + max(xs))/2, (min(ys) + max(ys))/2, min(zs))); K = 0.98/(max(zs) - min(zs))
 print("CENTRE", C, "SCALE", K)                                  # (some exports sit off the origin, or not 0.98 tall)
 for v in ob.data.vertices: v.co = (v.co - C)*K*S
-d = ob.modifiers.new("d", 'DECIMATE'); d.ratio = 0.03; bpy.ops.object.modifier_apply(modifier="d")
+if len(ob.data.vertices) > 100000: d = ob.modifiers.new("d", 'DECIMATE'); d.ratio = 30000/len(ob.data.vertices); bpy.ops.object.modifier_apply(modifier="d")
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=0.001); bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); A.select_set(True); bpy.context.view_layer.objects.active = A
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
