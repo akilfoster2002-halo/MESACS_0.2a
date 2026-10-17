@@ -117,11 +117,11 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			if not e.get("rolled", false) and f.R.grabbed_by == null:      # each time she comes in: one of her own, or (else) the ordinary blow
 				e.rolled = true
 				var r := randf()
-				if r < 0.45 and not piles.is_empty():                  # (the charged rush is out: the user didn't like the power-up)
-					var best = null; var bd := 1e9
-					for pl in piles:
-						var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
-						if dd < bd: bd = dd; best = pl
+				var best = null; var bd := 1e9                         # junk only if there is some right by her: she doesn't go looking for it
+				for pl in piles:
+					var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
+					if dd < bd: bd = dd; best = pl
+				if best != null and bd < 4.0 and r < 0.7:
 					e.state = "to_pile"; e.t = 0.0; e.pile = best; return true
 				e.seq = COMBOS.pick_random(); e.ci = 0
 				if d > 2.0: e.state = "run_in"; e.t = 0.0; return true     # she runs at her first, then the string
