@@ -1292,7 +1292,7 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
 	if not "boss" in g.S.seen: g.S.seen.append("boss")
 	Tower.skyline(g, false)
-	var pad := tc + Vector2(4, 2)
+	var pad := tc + Tower.PAD
 	g.fight.setup({"arena": Tower.arena(), "blocks": Tower.blocks(), "floor": T, "meet": R0})
 	g.fight.cast([{"kind": "director", "x": pad.x, "z": pad.y, "tag": "director", "state": "idle", "yaw": atan2(R0.x - pad.x, R0.y - pad.y), "hidden": true}])
 	var D = crew("director")

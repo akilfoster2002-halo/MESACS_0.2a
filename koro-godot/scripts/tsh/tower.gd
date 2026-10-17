@@ -12,9 +12,9 @@ const TOP := 140.0                        # the roof
 static var node: Node3D
 static var wet: Array = []                # the roof's materials, made to shine when it rains
 
-# what stands on the roof: [x, z, w, d, h] about the middle — the fight goes round them
-const PLANT := [[-14.0, -18.0, 9.0, 7.0, 4.2], [16.0, 15.0, 5.0, 3.2, 1.8], [19.5, 9.0, 5.0, 3.2, 1.8], [-19.0, 16.0, 6.0, 6.0, 1.4]]
-const TANK := Vector3(18.0, 0.0, -17.0)
+# the roof IS the helipad: one open deck, edge to edge; all that stands on it is the stair hut in a corner [x, z, w, d, h]
+const PLANT := [[-24.5, -24.5, 6.0, 6.0, 3.2]]
+const PAD := Vector2(0.0, 0.0)            # its middle, about the roof's
 
 static func _std(c: Color, r := 0.8, m := 0.0) -> StandardMaterial3D:
 	var s := StandardMaterial3D.new(); s.albedo_color = c; s.roughness = r; s.metallic = m; return s
@@ -25,7 +25,6 @@ static func arena() -> Dictionary: return {"x1": C.x - HALF + 1.6, "x2": C.x + H
 static func blocks() -> Array:
 	var out := []
 	for q in PLANT: out.append({"x1": C.x + q[0] - q[2]/2, "x2": C.x + q[0] + q[2]/2, "z1": C.y + q[1] - q[3]/2, "z2": C.y + q[1] + q[3]/2})
-	out.append({"x1": C.x + TANK.x - 2.6, "x2": C.x + TANK.x + 2.6, "z1": C.y + TANK.z - 2.6, "z2": C.y + TANK.z + 2.6})
 	return out
 
 static func build(g) -> void:
@@ -62,30 +61,50 @@ void fragment() {
 		var along_x: bool = s[0] == 0
 		var sz := Vector3(HALF*2 + 1.2 if along_x else 0.6, 1.1, 0.6 if along_x else HALF*2 + 1.2)
 		_box(node, sz, Vector3(C.x + s[0]*(HALF + 0.3), TOP + 0.55, C.y + s[1]*(HALF + 0.3)), conc)
-	# the helipad: a dark disc, its ring and its H
-	var pad := MeshInstance3D.new(); var cy := CylinderMesh.new(); cy.top_radius = 9.0; cy.bottom_radius = 9.0; cy.height = 0.06; pad.mesh = cy
-	var padm := _std(Color(0.07, 0.075, 0.08), 0.5); wet.append(padm); pad.material_override = padm; pad.position = Vector3(C.x + 4, TOP + 0.03, C.y + 2); node.add_child(pad)
-	var ring := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 8.2; tm.outer_radius = 8.6; ring.mesh = tm; ring.scale = Vector3(1, 0.05, 1)
-	ring.material_override = _std(Color(0.95, 0.8, 0.2), 0.5); ring.position = pad.position + Vector3(0, 0.04, 0); node.add_child(ring)
-	var paint := _std(Color(0.92, 0.92, 0.9), 0.55)
-	for q in [Vector3(-2.0, 0, 0), Vector3(2.0, 0, 0)]: _box(node, Vector3(0.7, 0.02, 6.0), pad.position + q + Vector3(0, 0.04, 0), paint)
-	_box(node, Vector3(4.0, 0.02, 0.7), pad.position + Vector3(0, 0.04, 0), paint)
-	# lights round the pad's edge
-	for i in 12:
-		var a := i*TAU/12; var l := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.12; sm.height = 0.24; l.mesh = sm
-		var lm := StandardMaterial3D.new(); lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; lm.albedo_color = Color(0.4, 1.6, 0.6); l.material_override = lm
-		l.position = pad.position + Vector3(sin(a)*9.3, 0.12, cos(a)*9.3); node.add_child(l)
-	# plant: the lift housing, AC units, a low box of ducts
-	for q in PLANT:
-		_box(node, Vector3(q[2], q[4], q[3]), Vector3(C.x + q[0], TOP + q[4]/2, C.y + q[1]), conc if q[4] > 3 else dark)
-	var door := _std(Color(0.3, 0.06, 0.05), 0.6); _box(node, Vector3(1.3, 2.3, 0.08), Vector3(C.x - 14, TOP + 1.15, C.y - 18 + 3.55), door)
-	for i in 2:
-		var fan := MeshInstance3D.new(); var fc := CylinderMesh.new(); fc.top_radius = 1.1; fc.bottom_radius = 1.1; fc.height = 0.1; fan.mesh = fc
-		fan.material_override = _std(Color(0.05, 0.05, 0.05), 0.4, 0.6); fan.position = Vector3(C.x + 16 + i*3.5, TOP + 1.86, C.y + (15.0 if i == 0 else 9.0)); fan.position.x = C.x + (16.0 if i == 0 else 19.5); node.add_child(fan)
-	# the water tank on its legs
-	var tank := MeshInstance3D.new(); var tc := CylinderMesh.new(); tc.top_radius = 2.4; tc.bottom_radius = 2.4; tc.height = 4.0; tank.mesh = tc
-	tank.material_override = _std(Color(0.28, 0.2, 0.14), 0.9); tank.position = Vector3(C.x + TANK.x, TOP + 4.6, C.y + TANK.z); node.add_child(tank)
-	for q in [Vector2(-1.6, -1.6), Vector2(1.6, -1.6), Vector2(-1.6, 1.6), Vector2(1.6, 1.6)]: _box(node, Vector3(0.2, 2.6, 0.2), Vector3(C.x + TANK.x + q.x, TOP + 1.3, C.y + TANK.z + q.y), dark)
+	# THE DECK: the whole roof marked as one great pad — a dark non-slip deck, a broad yellow ring, a white aiming circle,
+	# a huge H, the tower's name along one side, chevrons in from the corners, and lights all the way round the edge
+	var deck := _std(Color(0.085, 0.09, 0.1), 0.7); wet.append(deck)
+	_box(node, Vector3(HALF*2 - 0.4, 0.04, HALF*2 - 0.4), Vector3(C.x, TOP + 0.02, C.y), deck)
+	var yel := _std(Color(0.98, 0.78, 0.12), 0.5); var wht := _std(Color(0.93, 0.93, 0.9), 0.5)
+	wet.append(yel); wet.append(wht)
+	var P := Vector3(C.x + PAD.x, TOP + 0.05, C.y + PAD.y)
+	var ring := func(r_in: float, r_out: float, m: Material, y := 0.0):
+		var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = r_in; tm.outer_radius = r_out; tm.rings = 96; mi.mesh = tm
+		mi.scale = Vector3(1, 0.02, 1); mi.material_override = m; mi.position = P + Vector3(0, y, 0); node.add_child(mi)
+	ring.call(24.0, 25.6, yel)                       # the edge of the landing area
+	ring.call(14.0, 14.8, wht)                       # the touchdown circle
+	# the H, 16 m tall
+	for q in [-5.0, 5.0]: _box(node, Vector3(2.4, 0.03, 16.0), P + Vector3(q, 0.0, 0), wht)
+	_box(node, Vector3(10.0, 0.03, 2.4), P, wht)
+	# a white border just inside the parapet, and yellow chevrons pointing in from the corners
+	for s2 in [[0, -1], [0, 1], [-1, 0], [1, 0]]:
+		var ax: bool = s2[0] == 0
+		_box(node, Vector3(HALF*2 - 2.4 if ax else 0.5, 0.03, 0.5 if ax else HALF*2 - 2.4), Vector3(C.x + s2[0]*(HALF - 1.4), TOP + 0.05, C.y + s2[1]*(HALF - 1.4)), wht)
+	for cx in [-1.0, 1.0]:
+		for cz in [-1.0, 1.0]:
+			if cx < 0 and cz < 0: continue           # (the stair hut's corner)
+			for k2 in 3:
+				var at := Vector3(C.x + cx*(HALF - 4.5 - k2*1.6), TOP + 0.05, C.y + cz*(HALF - 4.5 - k2*1.6))
+				var bar := _box(node, Vector3(3.0, 0.03, 0.6), at, yel); bar.rotation.y = PI/4*cx*cz
+	# the edge lights: green round the landing ring, white along the parapet
+	var green := StandardMaterial3D.new(); green.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; green.albedo_color = Color(0.4, 1.8, 0.6)
+	var white := StandardMaterial3D.new(); white.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; white.albedo_color = Color(1.6, 1.6, 1.5)
+	var bead := SphereMesh.new(); bead.radius = 0.14; bead.height = 0.28
+	for i in 32:
+		var a := i*TAU/32; var l := MeshInstance3D.new(); l.mesh = bead; l.material_override = green
+		l.position = P + Vector3(sin(a)*26.2, 0.12, cos(a)*26.2); node.add_child(l)
+	for i in 15:
+		var t := -HALF + 2.0 + i*(HALF*2 - 4.0)/14.0
+		for e in [Vector2(t, -HALF + 0.6), Vector2(t, HALF - 0.6), Vector2(-HALF + 0.6, t), Vector2(HALF - 0.6, t)]:
+			var l2 := MeshInstance3D.new(); l2.mesh = bead; l2.material_override = white; l2.position = Vector3(C.x + e.x, TOP + 0.12, C.y + e.y); node.add_child(l2)
+	# the stair hut in its corner, its red door
+	for q in PLANT: _box(node, Vector3(q[2], q[4], q[3]), Vector3(C.x + q[0], TOP + q[4]/2, C.y + q[1]), conc)
+	var door := _std(Color(0.3, 0.06, 0.05), 0.6); _box(node, Vector3(1.3, 2.3, 0.08), Vector3(C.x - 24.5 + 1.5, TOP + 1.15, C.y - 24.5 + 3.05), door)
+	# a windsock on its pole in the far corner
+	var wpole := Vector3(C.x + HALF - 2.0, TOP, C.y - HALF + 2.0)
+	_box(node, Vector3(0.12, 4.5, 0.12), wpole + Vector3(0, 2.25, 0), dark)
+	var sock := MeshInstance3D.new(); var sc := CylinderMesh.new(); sc.top_radius = 0.4; sc.bottom_radius = 0.15; sc.height = 2.2; sock.mesh = sc
+	sock.material_override = _std(Color(1.0, 0.4, 0.05), 0.8); sock.rotation.z = PI/2*0.85; sock.position = wpole + Vector3(-1.1, 4.2, 0); node.add_child(sock)
 	# the mast, and its red light
 	_box(node, Vector3(0.5, 22.0, 0.5), Vector3(C.x - 24, TOP + 11, C.y - 24), dark)
 	var red := OmniLight3D.new(); red.light_color = Color(1, 0.1, 0.08); red.light_energy = 3.0; red.omni_range = 8; red.position = Vector3(C.x - 24, TOP + 22.3, C.y - 24); node.add_child(red)
@@ -110,4 +129,4 @@ static func skyline(g, on: bool) -> void:
 ## rain on the roof: it goes dark and shines
 static func soak(k: float) -> void:
 	for m in wet:
-		(m as StandardMaterial3D).roughness = lerpf(0.85, 0.12, k); (m as StandardMaterial3D).metallic = lerpf(0.0, 0.35, k)
+		(m as StandardMaterial3D).roughness = lerpf(0.85, 0.32, k); (m as StandardMaterial3D).metallic = lerpf(0.0, 0.15, k)
