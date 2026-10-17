@@ -50,6 +50,7 @@ var S := {}
 var city: Node3D; var apt: Node3D; var school: Node3D; var sub: Node3D
 var nav := {}; var room := {}; var lines := {}; var voice := {}
 var storm_rain := 0.0
+var autopilot: bool = OS.get_cmdline_user_args().has("auto")        # -- boss auto: Robin plays herself
 var inside := false
 var boots: Boots
 var robin: Node3D; var model: Node3D; var anim: AnimationPlayer; var clip := ""

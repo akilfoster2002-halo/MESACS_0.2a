@@ -198,13 +198,18 @@ void fragment() {
 	vec2 p = wp.xz;
 	float grit = n(p*9.0)*0.5 + n(p*31.0)*0.5;
 	float stain = fbm(p*0.12);
-	float puddle = smoothstep(0.56 - 0.12*wet, 0.62 - 0.12*wet, fbm(p*0.07 + 3.7)) * wet;
+	float puddle = smoothstep(0.5 - 0.14*wet, 0.53 - 0.14*wet, fbm(p*0.09 + 3.7)) * smoothstep(0.05, 0.4, wet);
+	// rain rings on the water: little circles opening and gone, everywhere at once
+	vec2 cell = floor(p*2.2); vec2 fp = fract(p*2.2) - 0.5;
+	float ph = fract(TIME*1.3 + h(cell)*7.0);
+	float ring = smoothstep(0.05, 0.0, abs(length(fp - (vec2(h(cell + 1.3), h(cell + 2.7)) - 0.5)*0.5) - ph*0.45)) * (1.0 - ph);
+	NORMAL_MAP = normalize(vec3(0.5 + ring*0.35*puddle*(fp.x), 0.5 + ring*0.35*puddle*(fp.y), 1.0));
 	vec3 base = %s;
 	base *= mix(0.75, 1.1, grit) * mix(0.7, 1.15, stain);
 	%s
-	ALBEDO = base * mix(1.0, 0.55, puddle) * mix(1.0, 0.8, wet);
-	ROUGHNESS = mix(mix(0.82, 0.55, wet), 0.04, puddle);
-	METALLIC = 0.0; SPECULAR = mix(0.4, 0.75, wet);
+	ALBEDO = base * mix(1.0, 0.35, puddle) * mix(1.0, 0.8, wet);
+	ROUGHNESS = mix(mix(0.82, 0.55, wet), 0.0, puddle);
+	METALLIC = 0.0; SPECULAR = mix(mix(0.4, 0.75, wet), 1.0, puddle);
 }""" % ["paint" if paint else "vec3(0.07, 0.075, 0.085)",
 		"if (fbm(p*1.7) < 0.36 || n(p*14.0) < 0.12) discard;" if paint else ""]
 	return sh
@@ -230,6 +235,8 @@ static func night(g, on: bool) -> void:
 		env.volumetric_fog_enabled = true; env.volumetric_fog_density = 0.011; env.volumetric_fog_albedo = Color(0.7, 0.76, 0.85)
 		env.volumetric_fog_emission_energy = 0.0; env.volumetric_fog_anisotropy = 0.6; env.volumetric_fog_length = 70.0
 		env.tonemap_exposure = 1.05; env.glow_enabled = true; env.glow_intensity = 1.1
+		if not was.has("ssr"): was.ssr = env.ssr_enabled
+		env.ssr_enabled = true; env.ssr_max_steps = 96; env.ssr_fade_in = 0.1; env.ssr_fade_out = 2.0       # the puddles show the lights
 		if g.sun: g.sun.light_energy = 0.0
 		if not was.has("dl"):                                  # (and the city's teal moon: every far light off but the lightning)
 			was.dl = []
@@ -237,7 +244,7 @@ static func night(g, on: bool) -> void:
 				if l != Rain.sky and l != g.sun: was.dl.append([l, l.light_energy]); l.light_energy = 0.0
 		return
 	if was.is_empty(): return
-	env.background_mode = was.bgm; env.background_color = was.bg; env.sky = was.get("sky"); sky_mat = null; env.fog_sky_affect = was.get("fsa", 1.0); env.reflected_light_source = was.get("rls", Environment.REFLECTION_SOURCE_SKY); env.ambient_light_sky_contribution = was.get("asc", 1.0); env.ambient_light_color = was.amb; env.ambient_light_energy = was.ambE
+	env.background_mode = was.bgm; env.background_color = was.bg; env.sky = was.get("sky"); sky_mat = null; env.fog_sky_affect = was.get("fsa", 1.0); env.reflected_light_source = was.get("rls", Environment.REFLECTION_SOURCE_SKY); env.ambient_light_sky_contribution = was.get("asc", 1.0); env.ssr_enabled = was.get("ssr", false); env.ambient_light_color = was.amb; env.ambient_light_energy = was.ambE
 	env.fog_light_color = was.fog; env.fog_density = was.fd; env.tonemap_exposure = was.exp; env.volumetric_fog_enabled = was.vf
 	env.volumetric_fog_density = was.vfd; env.volumetric_fog_albedo = was.vfa; env.volumetric_fog_length = was.vfl; env.volumetric_fog_emission_energy = was.vfe
 	env.volumetric_fog_anisotropy = was.vfan; env.glow_enabled = was.glow; env.glow_intensity = was.gi

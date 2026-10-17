@@ -392,6 +392,28 @@ func _obstacles() -> Array: return blocks + ([car] if car != null else [])
 func move_to(x: float, z: float) -> void:
 	var p := clamp_arena(x, z); g.robin.position.x = p.x; g.robin.position.z = p.y
 
+## AUTOPILOT: in close and hitting; out of the way of the Director's charge, her swings and her junk
+var auto_t := 0.0; var auto_dodge := 0.0
+func _auto(dt: float) -> void:
+	auto_t -= dt; auto_dodge -= dt
+	var t = pick_target(30)
+	if t == null: return
+	var d: float = dist(t)
+	var danger: bool = (t.state in ["rush"] and d < 9) or (t.state == "charge" and t.t > 1.0) or (t.state == "windup" and d < 2.6 and t.t > t.get("strike_at", 0.4)*0.5)
+	for s in Director.shots:
+		if is_instance_valid(s.node) and (s.node as Node3D).global_position.distance_to(g.robin.position + Vector3(0, 1, 0)) < 7.0: danger = true
+	if danger and auto_dodge <= 0 and R.act in [null, "idle", "attack"]:
+		auto_dodge = 0.9; dodge(); return
+	if d < 2.0 and auto_t <= 0 and R.act in [null, "idle", "attack"]:
+		auto_t = randf_range(0.18, 0.32)
+		if randf() < 0.12: _do_parry(); later(0.25, func(): R.blocking = false)
+		else: attack("punch")
+func _auto_walk(dt: float) -> bool:
+	var t = pick_target(30)
+	if t == null or dist(t) < 1.7: return false
+	var p := P(); var a := ang_to(p.x, p.y, t.x, t.z)
+	move_to(p.x + sin(a)*4.8*dt, p.y + cos(a)*4.8*dt); R.face = turn_to(R.face, a, dt*12); robin_clip("sprint")
+	return true
 func walk_robin(dt: float) -> bool:
 	var kk := _keys()
 	if kk == Vector2.ZERO: return false
@@ -1258,8 +1280,9 @@ func tick(real: float) -> void:
 			var b2 = R.buffer; R.act = null; R.evade = null; R.buffer = null; R.evade_end = 0.0
 			if b2 != null: R.out_of_evade = true; attack(b2)
 		elif R.act != "grabbed" and R.act != "down" and R.t >= R.len: R.act = null; R.blocking = false
+	if g.autopilot and R.act != "down": _auto(dt)              # -- auto: she plays herself (to watch the fight)
 	if R.act == null or R.act == "idle":
-		if not walk_robin(dt):
+		if not (g.autopilot and _auto_walk(dt)) and not walk_robin(dt):
 			var t2 = R.aim if (standing(R.aim) and dist(R.aim) < 5) else pick_target(5)
 			if t2 != null: R.face = turn_to(R.face, ang_to(P().x, P().y, t2.x, t2.z), dt*6)
 			robin_clip("fight")
