@@ -18,6 +18,11 @@ for sd, s in (("Left", 1), ("Right", -1)):
         sd + "Hand": m((0.30, 0, 0.675)), sd + "HandIndex1": m((0.33, 0, 0.665)),
         sd + "UpLeg": m((0.07, 0, 0.49)), sd + "Leg": m((0.085, 0, 0.255)), sd + "Foot": m((0.095, 0.01, 0.06)),
         sd + "ToeBase": m((0.10, -0.05, 0.015)), sd + "Toe_End": m((0.10, -0.09, 0.012))})
+if os.environ.get("JOINTS"):                                    # a model's own measured joints (left side; mirrored), as Kai's
+    import json
+    for k, v in json.load(open(os.environ["JOINTS"])).items():
+        if k.startswith("Left"): J[k] = tuple(v); J["Right" + k[4:]] = (-v[0], v[1], v[2])
+        else: J[k] = tuple(v)
 for k in list(J):
     if "UpLeg" in k or k.endswith("Leg") or k == "Hips": J[k] = (J[k][0], J[k][1], min(J[k][2]*LEG, 0.54 if k != "Hips" else 0.545))
 nm = lambda b: b.replace("mixamorig:", "")
