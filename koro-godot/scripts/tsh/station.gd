@@ -82,6 +82,12 @@ func tick(dt: float) -> void:
 		var m = crew("maya")
 		if m != null and m.hp <= m.K.hp*0.5: watch = ""; drop_scene()
 	if B != null: _tick_brawl(dt)
+	if not Drones.list.is_empty():
+		var tg: Array = [g.robin.position + Vector3(0, 1.0, 0)]
+		var d = crew("director")
+		if d and d.node.visible: tg.append(Vector3(d.x, d.y + 1.0, d.z))
+		Drones.tick(g, dt, tg, gun.g.position + Vector3(0, -0.6, 0) if gun else null)
+		if gun: gun.cone.visible = false; gun.pool.visible = false        # (the real light does it now)
 func tick_watch(w: String, dt: float) -> void:
 	match w:
 		"escape": _tick_escape(dt)
@@ -1251,6 +1257,7 @@ func tower_climb() -> void:
 	g.talk_q.clear()
 	for n in wfc_crew: n.node.queue_free(); g.chase.cops.erase(n)
 	wfc_crew.clear()
+	Tower.night(g, true); Rain.start(g, 0.35)                      # the storm is in: dark, and the first of the rain
 	var p: Vector3 = g.robin.position; var tc: Vector2 = Tower.C; var H: float = Tower.HALF; var T: float = Tower.TOP
 	# the face she reached: its outward normal, a point on it in line with her
 	var dx := p.x - tc.x; var dz := p.z - tc.y
@@ -1291,7 +1298,8 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 	g.talk_q.clear()
 	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
 	if not "boss" in g.S.seen: g.S.seen.append("boss")
-	Tower.skyline(g, false)
+	Tower.skyline(g, false); Tower.night(g, true); Rain.start(g, 0.35)
+	Drones.build(g, tc, T)
 	var pad := tc + Tower.PAD
 	g.fight.setup({"arena": Tower.arena(), "blocks": Tower.blocks(), "floor": T, "meet": R0})
 	g.fight.cast([{"kind": "director", "x": pad.x, "z": pad.y, "tag": "director", "state": "idle", "yaw": atan2(R0.x - pad.x, R0.y - pad.y), "hidden": true}])
@@ -1327,7 +1335,7 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 			"enter": func(): st.call(); g.talk("bossIn3")},
 		{"dur": g.lines_len("bossIn4") + 0.6, "fov": 30, "cam": mom_ots.lerp(her_ots, 0.0), "look": func(k, t): return mom_face.call(),
 			"enter": func(): g.crew_face(D, R0.x, R0.y, "talk"); g.talk("bossIn4"),
-			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", g0.g.position + Vector3(0, 30, -40), 5.0)]]},
+			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", Vector3(tc.x + Tower.HALF + 14, T + 12, tc.y + 6), 5.0)]]},
 		# the rain comes in as they square up
 		{"dur": 3.0, "fov": 46, "cam": Vector3((R0.x + meet_at.x)/2 + cos(ry)*6, T + 2.2, (R0.y + meet_at.y)/2 - sin(ry)*6), "look": Vector3((R0.x + meet_at.x)/2, T + 1.2, (R0.y + meet_at.y)/2),
 			"enter": func(): Rain.start(g, 1.0); storm(1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("boom"); flash(0.7, Color(0.85, 0.9, 1)),
@@ -1396,7 +1404,7 @@ func boss_end() -> void:
 			"tick": func(dt, t, k): if D and k > 0.6: g.crew_face(D, edge.x, edge.y, "idle")}]
 	g.play_reel(shots, done(func():
 		Rain.stop(); g.storm_rain = 0.0
-		Tower.skyline(g, true)
+		Tower.skyline(g, true); Tower.night(g, false); Drones.clear()
 		g.fight.clear()
 		var q := off + nrm*20.0
 		g.place(Vector3(q.x, 0, q.y), away)

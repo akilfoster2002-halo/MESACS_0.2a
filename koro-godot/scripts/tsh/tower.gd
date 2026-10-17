@@ -50,7 +50,7 @@ void fragment() {
 	EMISSION = lit * mix(vec3(1.0, 0.82, 0.55), vec3(0.75, 0.85, 1.0), h(cell + 3.1)) * 1.6;
 }"""
 	var glass := ShaderMaterial.new(); glass.shader = sh
-	_box(node, Vector3(HALF*2, TOP, HALF*2), Vector3(C.x, TOP/2, C.y), glass)
+	_box(node, Vector3(HALF*2, TOP - 0.3, HALF*2), Vector3(C.x, (TOP - 0.3)/2, C.y), glass)     # (its top under the roof: the windows are not on the roof)
 	# a stepped crown under the roof edge, and the roof slab
 	var conc := _std(Color(0.2, 0.21, 0.22), 0.75); var dark := _std(Color(0.08, 0.085, 0.09), 0.6, 0.3)
 	_box(node, Vector3(HALF*2 + 1.2, 2.4, HALF*2 + 1.2), Vector3(C.x, TOP - 1.2, C.y), dark)
@@ -63,9 +63,10 @@ void fragment() {
 		_box(node, sz, Vector3(C.x + s[0]*(HALF + 0.3), TOP + 0.55, C.y + s[1]*(HALF + 0.3)), conc)
 	# THE DECK: the whole roof marked as one great pad — a dark non-slip deck, a broad yellow ring, a white aiming circle,
 	# a huge H, the tower's name along one side, chevrons in from the corners, and lights all the way round the edge
-	var deck := _std(Color(0.085, 0.09, 0.1), 0.7); wet.append(deck)
+	var deck := ShaderMaterial.new(); deck.shader = _deck_shader(false); wet.append(deck)
 	_box(node, Vector3(HALF*2 - 0.4, 0.04, HALF*2 - 0.4), Vector3(C.x, TOP + 0.02, C.y), deck)
-	var yel := _std(Color(0.98, 0.78, 0.12), 0.5); var wht := _std(Color(0.93, 0.93, 0.9), 0.5)
+	var yel := ShaderMaterial.new(); yel.shader = _deck_shader(true); yel.set_shader_parameter("paint", Color(0.95, 0.72, 0.1))
+	var wht := ShaderMaterial.new(); wht.shader = yel.shader; wht.set_shader_parameter("paint", Color(0.86, 0.86, 0.82))
 	wet.append(yel); wet.append(wht)
 	var P := Vector3(C.x + PAD.x, TOP + 0.05, C.y + PAD.y)
 	var ring := func(r_in: float, r_out: float, m: Material, y := 0.0):
@@ -114,7 +115,7 @@ void fragment() {
 	for s in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
 		var at := Vector3(C.x + s.x*(HALF - 1.0), TOP + 5.5, C.y + s.y*(HALF - 1.0))
 		_box(node, Vector3(0.25, 5.5, 0.25), at - Vector3(0, 2.75, 0), dark)
-		var sp := SpotLight3D.new(); sp.light_color = Color(0.85, 0.92, 1.0); sp.light_energy = 6.0; sp.spot_range = 52; sp.spot_angle = 48; sp.shadow_enabled = true
+		var sp := SpotLight3D.new(); sp.light_color = Color(1.0, 0.72, 0.42); sp.light_energy = 1.4; sp.spot_range = 46; sp.spot_angle = 34; sp.shadow_enabled = true; sp.shadow_bias = 0.12; sp.shadow_normal_bias = 2.5; sp.light_volumetric_fog_energy = 1.6
 		node.add_child(sp); sp.look_at_from_position(at, Vector3(C.x - s.x*6, TOP, C.y - s.y*6))
 	# the world: a wall she can run at, a roof she can land on, its plant in her way
 	g.boots.solids.append([C.x - HALF, C.x + HALF, C.y - HALF, C.y + HALF, -1.0, TOP, "bld:TOWER"])
@@ -129,4 +130,59 @@ static func skyline(g, on: bool) -> void:
 ## rain on the roof: it goes dark and shines
 static func soak(k: float) -> void:
 	for m in wet:
-		(m as StandardMaterial3D).roughness = lerpf(0.85, 0.32, k); (m as StandardMaterial3D).metallic = lerpf(0.0, 0.15, k)
+		if m is ShaderMaterial: (m as ShaderMaterial).set_shader_parameter("wet", k)
+		else: (m as StandardMaterial3D).roughness = lerpf(0.85, 0.32, k); (m as StandardMaterial3D).metallic = lerpf(0.0, 0.15, k)
+
+## the deck: dark, gritty, stained; puddles that fill as it rains (mirror-smooth, darker); the paint worn and chipped
+static func _deck_shader(paint: bool) -> Shader:
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+uniform vec3 paint : source_color = vec3(0.9);
+uniform float wet = 0.0;
+varying vec3 wp;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f*f*(3.0 - 2.0*f);
+	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a*n(p); p *= 2.03; a *= 0.5; } return s; }
+void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+void fragment() {
+	vec2 p = wp.xz;
+	float grit = n(p*9.0)*0.5 + n(p*31.0)*0.5;
+	float stain = fbm(p*0.12);
+	float puddle = smoothstep(0.56 - 0.12*wet, 0.62 - 0.12*wet, fbm(p*0.07 + 3.7)) * wet;
+	vec3 base = %s;
+	base *= mix(0.75, 1.1, grit) * mix(0.7, 1.15, stain);
+	%s
+	ALBEDO = base * mix(1.0, 0.55, puddle) * mix(1.0, 0.8, wet);
+	ROUGHNESS = mix(mix(0.82, 0.55, wet), 0.04, puddle);
+	METALLIC = 0.0; SPECULAR = mix(0.4, 0.75, wet);
+}""" % ["paint" if paint else "vec3(0.07, 0.075, 0.085)",
+		"if (fbm(p*1.7) < 0.36 || n(p*14.0) < 0.12) discard;" if paint else ""]
+	return sh
+
+## NIGHT ON THE TOWER: the sky gone black-blue, no sun, a low cold ambient, and a haze the lights cut shafts through
+static var was := {}
+static func night(g, on: bool) -> void:
+	var env: Environment = g.env
+	if on:
+		if was.is_empty():
+			was = {"bgm": env.background_mode, "bg": env.background_color, "amb": env.ambient_light_color, "ambE": env.ambient_light_energy, "fog": env.fog_light_color,
+				"fd": env.fog_density, "exp": env.tonemap_exposure, "vf": env.volumetric_fog_enabled, "vfd": env.volumetric_fog_density, "vfa": env.volumetric_fog_albedo,
+				"vfl": env.volumetric_fog_length, "vfe": env.volumetric_fog_emission_energy, "vfan": env.volumetric_fog_anisotropy, "sun": g.sun.light_energy if g.sun else 1.0,
+				"glow": env.glow_enabled, "gi": env.glow_intensity}
+		env.background_mode = Environment.BG_COLOR; env.background_color = Color(0.012, 0.016, 0.03)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color(0.25, 0.32, 0.48); env.ambient_light_energy = 0.12
+		env.fog_light_color = Color(0.02, 0.03, 0.055); env.fog_density = 0.006
+		env.volumetric_fog_enabled = true; env.volumetric_fog_density = 0.011; env.volumetric_fog_albedo = Color(0.7, 0.76, 0.85)
+		env.volumetric_fog_emission_energy = 0.0; env.volumetric_fog_anisotropy = 0.6; env.volumetric_fog_length = 70.0
+		env.tonemap_exposure = 1.05; env.glow_enabled = true; env.glow_intensity = 1.1
+		if g.sun: g.sun.light_energy = 0.0
+		return
+	if was.is_empty(): return
+	env.background_mode = was.bgm; env.background_color = was.bg; env.ambient_light_color = was.amb; env.ambient_light_energy = was.ambE
+	env.fog_light_color = was.fog; env.fog_density = was.fd; env.tonemap_exposure = was.exp; env.volumetric_fog_enabled = was.vf
+	env.volumetric_fog_density = was.vfd; env.volumetric_fog_albedo = was.vfa; env.volumetric_fog_length = was.vfl; env.volumetric_fog_emission_energy = was.vfe
+	env.volumetric_fog_anisotropy = was.vfan; env.glow_enabled = was.glow; env.glow_intensity = was.gi
+	if g.sun: g.sun.light_energy = was.sun
+	was = {}

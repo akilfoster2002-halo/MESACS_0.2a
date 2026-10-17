@@ -8,6 +8,7 @@ static var k := 0.0
 static var want := 0.0
 static var bolt := 4.0
 static var thunder := -1.0
+static var sky: DirectionalLight3D        # the lightning: a real light, for a moment, throwing everything's shadow at once
 
 static func start(g, hard := 1.0) -> void:
 	want = hard
@@ -24,6 +25,7 @@ static func start(g, hard := 1.0) -> void:
 	m.render_priority = 110                  # after the ink pass (it redraws the screen over anything sooner)
 	q.material = m; drops.draw_pass_1 = q
 	g.add_child(drops)
+	sky = DirectionalLight3D.new(); sky.light_color = Color(0.8, 0.86, 1.0); sky.light_energy = 0.0; sky.shadow_enabled = true; sky.shadow_bias = 0.1; sky.shadow_normal_bias = 2.0; sky.rotation = Vector3(-1.1, 0.7, 0); g.add_child(sky)
 	k = 0.0; bolt = 3.0
 
 static func stop() -> void:
@@ -39,12 +41,16 @@ static func tick(g, dt: float) -> void:
 	g.storm_rain = 0.22*k
 	Tower.soak(k)
 	if k < 0.3:
-		if want <= 0.0 and k <= 0.0: drops.queue_free(); drops = null
+		if want <= 0.0 and k <= 0.0:
+			drops.queue_free(); drops = null
+			if sky: sky.queue_free(); sky = null
 		return
+	if sky: sky.light_energy = move_toward(sky.light_energy, 0.0, dt*(18.0 if sky.light_energy > 2.5 else 6.0))
 	bolt -= dt
 	if bolt <= 0:
 		bolt = 5.0 + randf()*7.0; thunder = 0.35 + randf()*0.9
-		if g.station: g.station.flash(0.55, Color(0.85, 0.9, 1.0)); g.station.later(0.12, func(): g.station.flash(0.35, Color(0.85, 0.9, 1.0)))
+		if g.station: g.station.flash(0.35, Color(0.85, 0.9, 1.0))
+		if sky: sky.light_energy = 6.0; sky.rotation.y = randf()*TAU
 	if thunder >= 0:
 		thunder -= dt
 		if thunder < 0: g.cue("boom")
