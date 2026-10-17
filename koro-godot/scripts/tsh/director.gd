@@ -123,8 +123,16 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 						var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
 						if dd < bd: bd = dd; best = pl
 					e.state = "to_pile"; e.t = 0.0; e.pile = best; return true
-				e.seq = COMBOS.pick_random(); e.ci = 0; _move(f, e); return true
+				e.seq = COMBOS.pick_random(); e.ci = 0
+				if d > 2.0: e.state = "run_in"; e.t = 0.0; return true     # she runs at her first, then the string
+				_move(f, e); return true
 			return false
+		"run_in":
+			e.yaw = f.turn_to(e.yaw, to_her, dt*10)
+			f._step(e, to_her, float(e.K.run), dt, true); f.play(e, "sprint", 0.1); e.anim_k = 1.25
+			if d <= 1.9: e.anim_k = 1.0; _move(f, e)
+			elif e.t > 3.0: e.state = "circle"; e.t = 0.0; e.anim_k = 1.0
+			return true
 		"combo":
 			e.yaw = f.turn_to(e.yaw, to_her, dt*(10.0 if e.t < e.mv_hit else 1.5))
 			var reach: float = 1.9 if e.seq[e.ci] in ["flykick", "spin", "round", "sweep"] else 1.5      # her fist or foot has to reach her
@@ -188,9 +196,9 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			var pl: Dictionary = e.pile
 			var at := Vector2(pl.at.x, pl.at.z); var dv := at - Vector2(e.x, e.z)
 			if dv.length() > 2.0:
-				f._step(e, atan2(dv.x, dv.y), float(e.K.run), dt); f.play(e, "sprint")
+				f._step(e, atan2(dv.x, dv.y), float(e.K.run), dt); f.play(e, "sprint"); e.anim_k = 1.25
 			else:
-				e.state = "volley"; e.t = 0.0; e.n_shot = 0; e.next_shot = 0.35
+				e.anim_k = 1.0; e.state = "volley"; e.t = 0.0; e.n_shot = 0; e.next_shot = 0.35
 			if e.t > 4.0: e.state = "circle"; e.t = 0.0; e.cool = 0.5
 			return true
 		"volley":
