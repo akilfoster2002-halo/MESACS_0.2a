@@ -402,6 +402,13 @@ func _auto(dt: float) -> void:
 	var danger: bool = (t.state in ["rush"] and d < 9) or (t.state == "charge" and t.t > 1.0) or (t.state == "windup" and d < 2.6 and t.t > t.get("strike_at", 0.4)*0.5)
 	for s in Director.shots:
 		if is_instance_valid(s.node) and (s.node as Node3D).global_position.distance_to(g.robin.position + Vector3(0, 1, 0)) < 7.0: danger = true
+	if R.has("cuff") and randf() < dt*9.0: R.cuff.k = int(R.cuff.k) + 1
+	if t.state == "fire" or (t.state == "aim" and t.t > 0.45): danger = true
+	var S = Director.strafe.get("on") if not Director.strafe.is_empty() else null
+	if S != null and S.t > 0.7 and S.t < 1.6:
+		var a2: Vector3 = S.a; var b2: Vector3 = S.b; var rp: Vector3 = g.robin.position
+		var ab := b2 - a2; var q := a2 + ab*clampf((rp - a2).dot(ab)/ab.length_squared(), 0, 1)
+		if Vector2(rp.x - q.x, rp.z - q.z).length() < 1.4: danger = true
 	if danger and auto_dodge <= 0 and R.act in [null, "idle", "attack"]:
 		auto_dodge = 0.9; dodge(); return
 	if d < 2.0 and auto_t <= 0 and R.act in [null, "idle", "attack"]:
@@ -441,10 +448,10 @@ func attack(kind: String) -> bool:
 	R.act = "attack"; R.move = nm; R.last_move = nm; R.t = 0.0; R.target = t; R.landed = false
 	R.len = robin_clip(m.clip, true); if R.len <= 0: R.len = 0.6
 	var land_at: float = R.len*float(m.hit)
-	if t != null and t.K.get("dodge", 0.0) > 0 and standing(t) and not t.state in ["drawing", "pulled", "stagger", "combo", "volley", "to_pile"] and randf() < float(t.K.dodge)*(0.6 if t.state == "windup" else 1.0):
+	if t != null and t.K.get("dodge", 0.0) > 0 and standing(t) and not t.state in ["drawing", "pulled", "stagger", "combo", "volley", "to_pile", "aim", "fire", "tether", "reel", "run_in"] and randf() < float(t.K.dodge)*(0.6 if t.state == "windup" else 1.0):
 		var dt0: Dictionary = t
 		later(maxf(0.0, land_at - 0.16), func():          # he reads it: out of the way the instant before it lands
-			if not standing(dt0) or dt0.state in ["combo", "volley", "to_pile"]: return
+			if not standing(dt0) or dt0.state in ["combo", "volley", "to_pile", "aim", "fire", "tether", "reel", "run_in"]: return
 			if dt0.state == "windup": dt0.erase("seq")          # he lets his own swing go to get out of hers
 			var pp := P(); var away: float = ang_to(pp.x, pp.y, dt0.x, dt0.z)
 			var sd := -1.0 if randf() < 0.5 else 1.0
@@ -621,7 +628,7 @@ func land() -> void:
 func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 	if float(t.get("dodge_t", 0.0)) > 0:                  # gone: it cuts air
 		g.cue("swish"); event("whiff", {"e": t, "dodged": true}); return
-	var armour: bool = t.kind == "director" and t.state in ["combo", "volley", "to_pile", "smash"] and t.hp > 0     # mid-string she doesn't flinch
+	var armour: bool = t.kind == "director" and t.state in ["combo", "volley", "to_pile", "smash", "aim", "fire", "tether", "reel", "run_in"] and t.hp > 0     # mid-string she doesn't flinch
 	if t.K.get("block", 0.0) > 0 and t.state in ["circle", "approach", "evade"] and randf() < float(t.K.block):
 		t.state = "stagger"; t.t = 0.4; t.vx = 0.0; t.vz = 0.0; hit1(t, "block"); g.cue("clang"); shake(0.12, 0.15)
 		if fx: fx.sparks(Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.3, lerpf(p.y, t.z, 0.7)), Vector3(t.x - p.x, 0, t.z - p.y), 0.8)
@@ -1318,6 +1325,7 @@ func key(ev: InputEvent) -> bool:
 				else: R.blocking = false
 				return true
 			KEY_SPACE:
+				if ev.pressed and R.has("cuff"): R.cuff.k = int(R.cuff.k) + 1; shake(0.06, 0.06); g.cue("kick"); return true      # mashing out of the Director's cuffs
 				if ev.pressed and _allow("dodge"):
 					clear_for("dodge")
 					if dodge() and dir.freeze != null and dir.freeze.want == "dodge": R.iframe = maxf(R.iframe, 0.6); unfreeze()

@@ -16,6 +16,89 @@ static var piles: Array = []     # {node, at: Vector3, left}
 static var shots: Array = []
 static var scatter: Array = []   # {node, v, spin, down}: broken bits blown across the roof     # {node, v, t}
 
+static var cuff := {}             # the cuff in flight
+static var strafe := {}           # the gunship's runs: {next, on: {a, b, t, phase, line, hit}}
+static var fx_nodes := {}
+
+static func _hand(f, e: Dictionary) -> Vector3: return Vector3(e.x + sin(e.yaw)*0.45, f.floor_y + 1.35, e.z + cos(e.yaw)*0.45)
+static func _unlit(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = c; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; m.render_priority = 106; m.cull_mode = BaseMaterial3D.CULL_DISABLED; return m
+## a thin line between two points (a stretched box), made once and moved
+static func _beam(f, key: String, a: Vector3, b: Vector3, w: float, c: Color, on: bool) -> void:
+	if not fx_nodes.has(key):
+		var mi := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(1, 1, 1); mi.mesh = bm; mi.material_override = _unlit(c); f.g.add_child(mi); fx_nodes[key] = mi
+	var n: MeshInstance3D = fx_nodes[key]
+	n.visible = on and a.distance_to(b) > 0.05
+	if not n.visible: return
+	(n.material_override as StandardMaterial3D).albedo_color = c
+	var mid := (a + b)/2; var dv := b - a
+	n.global_transform = Transform3D(Basis.looking_at(dv.normalized(), Vector3.UP if absf(dv.normalized().y) < 0.99 else Vector3.RIGHT).scaled(Vector3(w, w, dv.length())), mid)
+static func _laser(f, e: Dictionary, on: bool) -> void:
+	var c := Color(3.0, 0.15, 0.1, 0.8 if fmod(e.t*12.0, 1.0) < 0.6 else 0.35)
+	_beam(f, "laser", _hand(f, e), f.g.robin.position + Vector3(0, 1.0, 0), 0.02, c, on)
+static func _arc(f, e: Dictionary, on: bool) -> void:
+	var a := _hand(f, e); var b: Vector3 = f.g.robin.position + Vector3(0, 1.05, 0)
+	var j := Vector3(randf_range(-0.12, 0.12), randf_range(-0.12, 0.12), randf_range(-0.12, 0.12))
+	_beam(f, "arc1", a, (a + b)/2 + j, 0.035, Color(0.6, 0.85, 3.0, 0.9), on)
+	_beam(f, "arc2", (a + b)/2 + j, b, 0.035, Color(0.6, 0.85, 3.0, 0.9), on)
+static func _cuff_mesh(f) -> MeshInstance3D:
+	var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.08; tm.outer_radius = 0.13; mi.mesh = tm
+	mi.material_override = _unlit(Color(0.7, 0.9, 3.0, 1.0)); f.g.add_child(mi)
+	var l := OmniLight3D.new(); l.light_color = Color(0.5, 0.75, 1.0); l.light_energy = 2.0; l.omni_range = 2.5; mi.add_child(l)
+	return mi
+## the cuff flying: on her it locks; past her it is gone
+static func _tick_cuff(f, dt: float) -> void:
+	if cuff.is_empty(): return
+	var n: MeshInstance3D = cuff.node
+	var want: Vector3 = (f.g.robin.position + Vector3(0, 1.0, 0) - n.global_position).normalized()*26.0
+	cuff.v = (cuff.v as Vector3).lerp(want, minf(1, dt*3.5))           # it seeks her a little: dodge it, don't just walk
+	cuff.t += dt; n.global_position += cuff.v*dt; n.rotation += Vector3(9, 4, 0)*dt
+	var e: Dictionary = cuff.e
+	var rp: Vector3 = f.g.robin.position + Vector3(0, 1.0, 0)
+	if n.global_position.distance_to(rp) < 0.75 and f.R.iframe <= 0 and f.R.act != "down" and e.state == "fire":
+		n.queue_free(); cuff = {}
+		f.R.grabbed_by = e; f.R.act = "grabbed"; f.R.t = 0.0; f.R.dash = null; f.R.cuff = {"k": 0}; f.robin_clip("hit", true)
+		e.state = "tether"; e.t = 0.0; e.cuffed = true
+		f.g.cue("hurt"); f.shake(0.3, 0.3); f.g.note("CUFFED — mash SPACE to break free!")
+		return
+	if cuff.t > 1.0: n.queue_free(); cuff = {}; f.g.cue("swish")
+
+## THE GUNSHIP'S RUNS: a red line across the roof through where Robin is; a second later the guns walk down it
+static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
+	var st = f.g.station
+	var gun = st.gun if st else null
+	var T: float = f.floor_y
+	if strafe.on == null:
+		strafe.next -= dt
+		if strafe.next <= 0 and f.R.act != "down":
+			var rp: Vector3 = f.g.robin.position; var a := randf()*TAU; var dir := Vector3(sin(a), 0, cos(a))
+			var A := Vector3(rp.x, T + 0.03, rp.z) - dir*16.0; var B := Vector3(rp.x, T + 0.03, rp.z) + dir*16.0
+			strafe.on = {"a": A, "b": B, "t": 0.0, "hit": false}
+			f.g.cue("alarm")
+		return
+	var S: Dictionary = strafe.on
+	S.t += dt
+	var warn := 1.1; var run := 0.7
+	if gun: gun.g.global_position = gun.g.global_position.lerp(S.a.lerp(S.b, clampf((S.t - warn)/run, 0, 1)) + Vector3(0, 13, 0), minf(1, dt*3))
+	if S.t < warn:
+		var pulse := 0.5 + 0.5*sin(S.t*30.0)
+		_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.25 + 0.45*pulse), true)
+		return
+	_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.15), true)
+	var k := clampf((S.t - warn)/run, 0, 1)
+	var head: Vector3 = S.a.lerp(S.b, k)
+	if Engine.get_process_frames() % 2 == 0:
+		f.g.cue("punch")
+		if f._ink(e): f.fx.sparks(head + Vector3(randf_range(-0.2, 0.2), 0.1, randf_range(-0.2, 0.2)), Vector3.UP, 0.7)
+	f.shake(0.12, 0.08)
+	var rp2: Vector3 = f.g.robin.position
+	if not S.hit and Vector2(rp2.x - head.x, rp2.z - head.z).length() < 1.1 and f.R.iframe <= 0 and f.R.act != "down":
+		S.hit = true; var h0: float = f.R.hp; f.hurt(e, 15.0)
+		if f.R.hp < h0: f.g.cue("boom"); f._flash(0.3)
+	if k >= 1.0:
+		_beam(f, "strafe", S.a, S.b, 0.35, Color.BLACK, false); strafe.on = null; strafe.next = randf_range(4.5, 6.5)
+
 ## HER STRINGS: three or four, the big ones in them, the last the biggest
 const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "hook"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
 	["elbow", "round", "flykick"], ["jab", "cross", "elbow"], ["knee", "elbow", "hook", "round"]]      # (no hurricane kick: cut)
@@ -105,6 +188,11 @@ static func _aura_off(e: Dictionary) -> void:
 		e.aura.l.light_energy = 0.0; e.aura.m.albedo_color.a = 0.0; e.aura.p.emitting = false
 
 static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector2) -> bool:
+	e.cuff_cd = maxf(0.0, float(e.get("cuff_cd", 3.0)) - dt)
+	if not e.get("phase2", false) and e.hp > 0 and e.hp <= float(e.K.hp)*0.5:      # HALF HER HEALTH: she calls the gunship in
+		e.phase2 = true; strafe = {"next": 2.5, "on": null}
+		f.g.cue("alert"); f.g.note("She's called in the gunship — get out of the red!"); f.shake(0.3, 0.5)
+	if not strafe.is_empty() and e.hp > 0: _tick_strafe(f, e, dt)
 	var mine := _tick(f, e, dt, d, to_her, p)
 	if mine: f._place(e)                                       # (her model where she is: without this she lagged and jumped)
 	return mine
@@ -113,12 +201,16 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 	match e.state:
 		"circle":
 			e.rolled = false
+			if d > 3.2 and d < 11.0 and float(e.get("cuff_cd", 0.0)) <= 0.0 and f.R.grabbed_by == null and randf() < dt*1.2:      # at range: the cuffs
+				e.state = "aim"; e.t = 0.0; e.cuff_cd = 8.0; f.g.cue("lock"); return true
 			e.cool = minf(e.cool, 0.9)                           # she doesn't wait long (but a breath, to hit her in)
 			return false
 		"approach":
 			if not e.get("rolled", false) and f.R.grabbed_by == null:      # each time she comes in: one of her own, or (else) the ordinary blow
 				e.rolled = true
 				var r := randf()
+				if d > 3.0 and d < 10.0 and r < 0.35 and float(e.get("cuff_cd", 0.0)) <= 0.0:      # THE TASER CUFFS
+					e.state = "aim"; e.t = 0.0; e.cuff_cd = 9.0; f.g.cue("lock"); return true
 				var best = null; var bd := 1e9                         # junk only if there is some right by her: she doesn't go looking for it
 				for pl in piles:
 					var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
@@ -129,6 +221,44 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 				if d > 2.0: e.state = "run_in"; e.t = 0.0; return true     # she runs at her first, then the string
 				_move(f, e); return true
 			return false
+		"aim":                                                     # the laser on her: half a second to see it coming
+			e.yaw = f.turn_to(e.yaw, to_her, dt*10); f.play(e, "fight")
+			_laser(f, e, true)
+			if e.t >= 0.55:
+				_laser(f, e, false); f.hit1(e, "jab"); e.anim_k = 1.6; f.g.cue("zip")
+				var from := _hand(f, e); var rp: Vector3 = f.g.robin.position + Vector3(0, 1.0, 0)
+				cuff = {"node": _cuff_mesh(f), "at": from, "v": (rp - from).normalized()*26.0, "t": 0.0, "e": e}
+				cuff.node.global_position = from
+				e.state = "fire"; e.t = 0.0
+			return true
+		"fire":
+			e.yaw = f.turn_to(e.yaw, to_her, dt*6)
+			if cuff.is_empty() and e.state == "fire": e.state = "recover"; e.t = 0.0; e.anim_k = 1.0
+			return true
+		"tether":                                                  # her current through the cuff into Robin
+			e.yaw = f.turn_to(e.yaw, to_her, dt*6); f.play(e, "fight")
+			_arc(f, e, true)
+			if f.R.grabbed_by != e:                                # broken free (or pulsed her off)
+				_arc(f, e, false); e.erase("cuffed"); f.R.erase("cuff")
+				if e.state == "tether": e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
+				return true
+			f.R.hp -= 5.0*dt; f.shake(0.05, 0.1)
+			if Engine.get_process_frames() % 6 == 0: f.g.cue("zip")
+			if int(f.R.cuff.k) >= 8:                               # she broke it: the Director thrown off balance, open
+				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed")
+				e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
+				f.g.cue("clang"); f.hitstop(0.1); f._flash(0.3); f.g.note("Free — hit her now!")
+				if f._ink(e): f.fx.sparks(f.g.robin.position + Vector3(0, 1.2, 0), Vector3.UP, 1.4)
+				return true
+			if e.t >= 1.9:                                         # too slow: reeled in, and the blow
+				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed")
+				var near := Vector2(e.x, e.z) + Vector2(p.x - e.x, p.y - e.z).normalized()*0.95
+				f.R.dash = {"x0": p.x, "z0": p.y, "x1": near.x, "z1": near.y, "t": 0.0, "len": 0.18, "arc": 0.3}
+				e.state = "reel"; e.t = 0.0
+			return true
+		"reel":
+			if e.t > 0.4: e.seq = ["round"]; e.ci = 0; _move(f, e)
+			return true
 		"run_in":
 			e.yaw = f.turn_to(e.yaw, to_her, dt*10)
 			f._step(e, to_her, float(e.K.run), dt, true); f.play(e, "sprint", 0.1); e.anim_k = 1.25
@@ -295,6 +425,7 @@ static func _punch_out(f, e: Dictionary) -> void:
 	if f._ink(e): f.fx.lines(from, v.normalized(), 0.9)
 
 static func _tick_shots(f, dt: float) -> void:
+	_tick_cuff(f, dt)
 	for q in scatter:
 		var n: MeshInstance3D = q.node
 		if not is_instance_valid(n) or q.get("down", false): continue
@@ -327,5 +458,9 @@ static func _tick_shots(f, dt: float) -> void:
 static func clear() -> void:
 	for s in shots: if is_instance_valid(s.node): s.node.queue_free()
 	shots.clear(); scatter.clear()
+	if not cuff.is_empty() and is_instance_valid(cuff.node): cuff.node.queue_free()
+	cuff = {}; strafe = {}
+	for k in fx_nodes: if is_instance_valid(fx_nodes[k]): fx_nodes[k].queue_free()
+	fx_nodes = {}
 	for p in piles: if is_instance_valid(p.node): p.node.queue_free()
 	piles.clear()
