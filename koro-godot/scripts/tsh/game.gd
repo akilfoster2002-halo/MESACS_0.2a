@@ -1296,7 +1296,7 @@ func fight_intro() -> void:
 	var ring_face := func(nm: String):
 		for t in ["t1", "t2", "t3", "t4", "t5", "t6"]:
 			var e = crew(t)
-			if e: e.node.visible = true; crew_face(e, robin.position.x, robin.position.z, nm)
+			if e: e.node.visible = true; crew_face(e, robin.position.x, robin.position.z, "smoke" if t == "t2" else nm)
 	var shots := [
 		{"dur": 4.6, "fov": 46, "cam": [Vector3(-39.8, 1.0, -12.2), Vector3(-40.1, 1.3, -13.6)], "look": [Vector3(-41.4, 1.5, -24), Vector3(-41.4, 1.5, -26)],
 			"enter": func(): set_caption("EXT. DRAGON ALLEY — 22:31"); cue("step"),
@@ -1342,7 +1342,7 @@ func _come_out(k: float, t2, R0: Vector2) -> void:
 	for pair in [["t3", Vector2(-47.0, -19.6)], ["t4", Vector2(-33.2, -12.6)], ["t5", Vector2(-33.6, -34.6)], ["t6", Vector2(-46.6, -32.2)], ["t1", Vector2(-42.7, -29.5)]]:
 		var to: Vector2 = RINGED[pair[0]]
 		crew_walk(crew(pair[0]), pair[1], to, m, "sprint" if to.distance_to(pair[1]) > 7 else "walk")
-	crew_face(t2, R0.x, R0.y, "fight" if k > 0.5 else "")
+	crew_face(t2, R0.x, R0.y, "smoke" if k > 0.5 else "")                # the big one squares up to her smoking
 func _take_bag(t1, R0: Vector2, t: float) -> void:
 	if t < 0.7: crew_walk(t1, RINGED.t1, Vector2(-41.75, -25.45), t/0.7)
 	else: crew_face(t1, R0.x, R0.y)
