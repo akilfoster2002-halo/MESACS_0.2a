@@ -46,6 +46,7 @@ static func _power_hit(f, e: Dictionary, p: Vector2, fin: bool) -> void:
 
 ## a ring of air off the blow, flat to the line it came along, out fast and gone
 static func _shockwave(f, at: Vector3, dir: Vector3, big: bool) -> void:
+	return                                                     # (the ring looked cheap: off)
 	var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.35; tm.outer_radius = 0.42; tm.rings = 48; mi.mesh = tm
 	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.albedo_color = Color(1.0, 0.95, 0.85, 0.9); m.render_priority = 107; mi.material_override = m; f.g.add_child(mi)
