@@ -73,9 +73,7 @@ static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector
 			if not e.get("rolled", false) and f.R.grabbed_by == null:      # each time she comes in: one of her own, or (else) the ordinary blow
 				e.rolled = true
 				var r := randf()
-				if r < 0.4 and d > 2.5:
-					e.state = "charge"; e.t = 0.0; f.play(e, "roar", 0.1); f.g.cue("rise"); return true
-				if r < 0.75 and not piles.is_empty():
+				if r < 0.45 and not piles.is_empty():                  # (the charged rush is out: the user didn't like the power-up)
 					var best = null; var bd := 1e9
 					for pl in piles:
 						var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
