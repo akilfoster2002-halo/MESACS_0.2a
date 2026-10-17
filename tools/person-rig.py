@@ -8,6 +8,7 @@ import bpy, sys
 from mathutils import Vector
 import os
 FBX, THEO, OUT, H = sys.argv[sys.argv.index("--")+1:][:4]
+KEEPW = os.environ.get("KEEPW") == "1"                      # keep the export's own skin weights (a rigged Tripo/Mixamo .fbx)
 LEG = float(os.environ.get("LEG", "1"))                       # longer-legged models: hips and knees raised by this much
 S = float(H)/0.98                                            # the model is 0.98 tall
 J = {"Hips": (0, 0, 0.50), "Spine": (0, 0, 0.56), "Spine1": (0, 0, 0.63), "Spine2": (0, 0, 0.71), "Neck": (0, 0, 0.80),
@@ -62,7 +63,8 @@ ms = sorted([o for o in new if o.type == 'MESH'], key=lambda o: -len(o.data.vert
 for o in new:                                                  # (a Mixamo-rigged export brings its own skeleton: off it, and gone)
     if o.type == 'MESH':
         for m in list(o.modifiers): o.modifiers.remove(m)
-        o.parent = None; o.vertex_groups.clear()
+        mw = o.matrix_world.copy(); o.parent = None; o.matrix_world = mw
+        if not KEEPW: o.vertex_groups.clear()
 bpy.ops.object.select_all(action='DESELECT')
 for o in ms: o.select_set(True)
 bpy.context.view_layer.objects.active = ob
@@ -80,7 +82,24 @@ for v in ob.data.vertices: v.co = (v.co - C)*K*S
 if len(ob.data.vertices) > 100000: d = ob.modifiers.new("d", 'DECIMATE'); d.ratio = 30000/len(ob.data.vertices); bpy.ops.object.modifier_apply(modifier="d")
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=0.001); bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); A.select_set(True); bpy.context.view_layer.objects.active = A
-bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+if KEEPW:                                                      # its weights onto these bones: fingers and the rest into the nearest bone here
+    have = {b.name for b in A.data.bones}
+    def home(n):
+        if n in have: return n
+        for k in ("Index", "Middle", "Ring", "Pinky", "Thumb"):
+            if k in n: return n.split(k)[0]
+        return None
+    for vg in list(ob.vertex_groups):
+        h = home(vg.name)
+        if h == vg.name: continue
+        if h and h in have:
+            tg = ob.vertex_groups.get(h) or ob.vertex_groups.new(name=h)
+            for v in ob.data.vertices:
+                for g in v.groups:
+                    if g.group == vg.index: tg.add([v.index], g.weight, 'ADD')
+        ob.vertex_groups.remove(vg)
+    md = ob.modifiers.new("Armature", 'ARMATURE'); md.object = A; ob.parent = A
+else: bpy.ops.object.parent_set(type='ARMATURE_AUTO')
 print("UNWEIGHTED", sum(1 for v in ob.data.vertices if not v.groups), "OF", len(ob.data.vertices))
 # back to theo's rest, the mesh bent with it
 bpy.ops.object.select_all(action='DESELECT'); A.select_set(True); bpy.context.view_layer.objects.active = A
