@@ -13,7 +13,8 @@ const RUSH := 26.0               # metres a second across the roof
 const BIG := 1.8                 # the blow, against her ordinary one
 const SHOTS := 5                 # pieces punched in a volley
 static var piles: Array = []     # {node, at: Vector3, left}
-static var shots: Array = []     # {node, v, t}
+static var shots: Array = []
+static var scatter: Array = []   # {node, v, spin, down}: broken bits blown across the roof     # {node, v, t}
 
 ## HER STRINGS: three or four, the big ones in them, the last the biggest
 const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "spin"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
@@ -207,17 +208,17 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			var pl: Dictionary = e.pile
 			if not e.get("broke", false):
 				e.yaw = f.turn_to(e.yaw, f.ang_to(e.x, e.z, pl.at.x, pl.at.z), dt*10)
-				if e.t > 0.05 and not e.get("swung", false): e.swung = true; f.hit1(e, "hook"); e.anim_k = 1.5
-				if e.t >= 0.32: e.broke = true; _smash(f, e); e.next_shot = e.t + 0.55; e.n_shot = 0
+				if not e.get("swung", false): e.swung = true; f.hit1(e, "hook"); e.anim_k = 2.2
+				if e.t >= 0.16: e.broke = true; _smash(f, e); e.next_shot = e.t + 0.22; e.n_shot = 0
 				return true
 			e.yaw = f.turn_to(e.yaw, to_her, dt*8)
 			_tick_debris(f, e, dt)
 			var left: Array = e.debris.filter(func(q): return is_instance_valid(q.node) and not q.gone)
 			if e.t >= e.next_shot and left.size():
-				e.n_shot += 1; e.next_shot = e.t + 0.45
-				f.hit1(e, "jab" if e.n_shot % 2 else "cross"); e.anim_k = 1.7
+				e.n_shot += 1; e.next_shot = e.t + 0.24
+				f.hit1(e, "jab" if e.n_shot % 2 else "cross"); e.anim_k = 2.6
 				var q: Dictionary = left[0]
-				f.later(0.12, func(): _launch(f, e, q))
+				f.later(0.06, func(): _launch(f, e, q))
 			if left.is_empty() and e.t > e.next_shot - 0.1:
 				e.state = "recover"; e.t = 0.0; e.anim_k = 1.0; e.broke = false; e.swung = false
 			return true
@@ -227,16 +228,29 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 static func _smash(f, e: Dictionary) -> void:
 	var pl: Dictionary = e.pile
 	e.debris = []
-	var front := Vector3(e.x + sin(e.yaw)*1.1, f.floor_y, e.z + cos(e.yaw)*1.1)
-	for c in pl.node.get_children():
+	var front := Vector3(e.x + sin(e.yaw)*1.0, f.floor_y, e.z + cos(e.yaw)*1.0)
+	var frags: Array = []
+	for c in pl.node.get_children():                           # every piece of it broken in three or four
 		var mi := c as MeshInstance3D
-		var at: Vector3 = mi.global_position; var basis: Basis = mi.global_basis
-		pl.node.remove_child(mi); f.g.add_child(mi); mi.global_position = at; mi.global_basis = basis
-		var home := front + Vector3(randf_range(-1.2, 1.2), randf_range(1.0, 2.1), randf_range(-0.6, 0.6))
-		e.debris.append({"node": mi, "home": home, "t": 0.0, "gone": false, "spin": Vector3(randf_range(-3, 3), randf_range(-3, 3), randf_range(-3, 3))})
+		var ab: AABB = mi.get_aabb(); var at: Vector3 = mi.global_position
+		for k in randi_range(3, 4):
+			var fr := MeshInstance3D.new(); var bm := BoxMesh.new()
+			bm.size = Vector3(ab.size.x*randf_range(0.3, 0.55), ab.size.y*randf_range(0.3, 0.55), ab.size.z*randf_range(0.3, 0.55)); fr.mesh = bm
+			fr.material_override = mi.material_override; f.g.add_child(fr)
+			fr.global_position = at + Vector3(randf_range(-0.2, 0.2), randf_range(0.0, 0.3), randf_range(-0.2, 0.2)); fr.rotation = Vector3(randf()*TAU, randf()*TAU, randf()*TAU)
+			frags.append(fr)
 	pl.node.queue_free(); piles.erase(pl)
-	f.g.cue("boom"); f.shake(0.5, 0.35); f.hitstop(0.08)
-	if f._ink(e): f.fx.sparks(front + Vector3(0, 0.8, 0), Vector3(sin(e.yaw), 0.4, cos(e.yaw)), 1.6)
+	frags.shuffle()
+	for i in frags.size():
+		var fr: MeshInstance3D = frags[i]
+		if i < SHOTS:                                          # five hang in front of her, to be punched
+			var home := front + Vector3(randf_range(-1.0, 1.0), randf_range(1.0, 1.9), randf_range(-0.5, 0.5))
+			e.debris.append({"node": fr, "home": home, "t": 0.0, "gone": false, "spin": Vector3(randf_range(-3, 3), randf_range(-3, 3), randf_range(-3, 3))})
+		else:                                                  # the rest blown across the roof
+			var a := randf()*TAU
+			scatter.append({"node": fr, "v": Vector3(sin(a)*randf_range(3, 7), randf_range(3, 6), cos(a)*randf_range(3, 7)), "spin": Vector3(randf_range(-8, 8), randf_range(-8, 8), randf_range(-8, 8))})
+	f.g.cue("boom"); f.shake(0.6, 0.35); f.hitstop(0.06)
+	if f._ink(e): f.fx.sparks(front + Vector3(0, 0.8, 0), Vector3(sin(e.yaw), 0.4, cos(e.yaw)), 2.0); f.fx.lines(front + Vector3(0, 0.8, 0), Vector3(sin(e.yaw), 0, cos(e.yaw)), 1.0)
 	_shockwave(f, front + Vector3(0, 0.6, 0), Vector3(sin(e.yaw), 0, cos(e.yaw)), true)
 ## the pieces float up to where they hang, and turn slowly there
 static func _tick_debris(f, e: Dictionary, dt: float) -> void:
@@ -244,7 +258,7 @@ static func _tick_debris(f, e: Dictionary, dt: float) -> void:
 		if q.gone or not is_instance_valid(q.node): continue
 		q.t += dt
 		var n: MeshInstance3D = q.node
-		n.global_position = n.global_position.lerp(q.home + Vector3(0, sin(q.t*3.0)*0.06, 0), minf(1, dt*7))
+		n.global_position = n.global_position.lerp(q.home + Vector3(0, sin(q.t*3.0)*0.06, 0), minf(1, dt*16))
 		n.rotation += q.spin*dt*0.4
 ## one hanging piece, punched: straight at where Robin is going
 static func _launch(f, e: Dictionary, q: Dictionary) -> void:
@@ -254,7 +268,7 @@ static func _launch(f, e: Dictionary, q: Dictionary) -> void:
 	var from: Vector3 = piece.global_position
 	var rp: Vector3 = f.g.robin.position
 	var to := Vector3(rp.x, f.floor_y + 1.0, rp.z)
-	var v := (to - from).normalized()*28.0
+	var v := (to - from).normalized()*36.0
 	shots.append({"node": piece, "v": v, "t": 0.0, "spin": Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9)), "e": e})
 	f.g.cue("punch"); f.shake(0.15, 0.12)
 	_shockwave(f, from, v, false)
@@ -280,6 +294,14 @@ static func _punch_out(f, e: Dictionary) -> void:
 	if f._ink(e): f.fx.lines(from, v.normalized(), 0.9)
 
 static func _tick_shots(f, dt: float) -> void:
+	for q in scatter:
+		var n: MeshInstance3D = q.node
+		if not is_instance_valid(n) or q.get("down", false): continue
+		q.v.y -= 18.0*dt; n.global_position += q.v*dt; n.rotation += q.spin*dt
+		if n.global_position.y < f.floor_y + 0.08:
+			n.global_position.y = f.floor_y + 0.08; q.down = true
+			var tw: Tween = f.g.create_tween(); tw.tween_interval(5.0); tw.tween_callback(n.queue_free)
+	scatter = scatter.filter(func(q): return is_instance_valid(q.node) and not q.get("down", false))
 	if shots.is_empty(): return
 	var rp: Vector3 = f.g.robin.position + Vector3(0, 1.0, 0)
 	var keep := []
@@ -303,6 +325,6 @@ static func _tick_shots(f, dt: float) -> void:
 
 static func clear() -> void:
 	for s in shots: if is_instance_valid(s.node): s.node.queue_free()
-	shots.clear()
+	shots.clear(); scatter.clear()
 	for p in piles: if is_instance_valid(p.node): p.node.queue_free()
 	piles.clear()
