@@ -124,8 +124,56 @@ void fragment() {
 
 ## the painted skyline round the city (the "manhattan" backdrop) has a tower of its own beside this one: off while
 ## we are up here, back when we leave
+## (not off: anything of it within ~45 m of the camera fades out — the tower's neighbour — and the rest stands round her)
+static var faded := {}
 static func skyline(g, on: bool) -> void:
-	for m in g.city.find_children("manhattan*", "MeshInstance3D", true, false): m.visible = on
+	for m in g.city.find_children("*", "MeshInstance3D", true, false):       # the city's own sky box (1.8 km round it): off, so the storm shows
+		if (m as MeshInstance3D).get_aabb().size.x > 1500: m.visible = on
+	for m in g.city.find_children("manhattan*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			if on:
+				if faded.has(mi): mi.set_surface_override_material(i, faded[mi][i])
+				continue
+			if not faded.has(mi): faded[mi] = []
+			var was_m = mi.get_surface_override_material(i); faded[mi].append(was_m)
+			var src = was_m if was_m else mi.mesh.surface_get_material(i)
+			if src is StandardMaterial3D:
+				var d: StandardMaterial3D = src.duplicate()
+				d.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER; d.distance_fade_min_distance = 45.0; d.distance_fade_max_distance = 75.0
+				d.emission_enabled = true; d.emission = Color(0.9, 0.7, 0.45); d.emission_energy_multiplier = 0.05     # (a little of the city's own light on them)
+				mi.set_surface_override_material(i, d)
+	if on: faded.clear()
+
+## THE STORM SKY: low cloud rolling over, lit from under by the city (amber at the horizon), lit through when it flashes
+static var sky_mat: ShaderMaterial
+static func _sky() -> Sky:
+	var sh := Shader.new()
+	sh.code = """
+shader_type sky;
+uniform float flash = 0.0;
+uniform float t = 0.0;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0 - 2.0*f);
+	return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p) { float a = 0.5; float s = 0.0; for (int i = 0; i < 6; i++) { s += a*n(p); p *= 2.07; a *= 0.5; } return s; }
+void sky() {
+	vec3 d = EYEDIR;
+	float up = clamp(d.y, -0.2, 1.0);
+	vec3 top = vec3(0.004, 0.006, 0.012); vec3 hor = vec3(0.07, 0.045, 0.03);
+	vec3 col = mix(hor, top, smoothstep(-0.02, 0.45, up));
+	vec2 uv = d.xz/max(d.y + 0.12, 0.05);
+	float c = fbm(uv*0.6 + vec2(t*0.02, t*0.013));
+	float c2 = fbm(uv*1.7 - vec2(t*0.035, 0.0));
+	float cloud = smoothstep(0.35, 0.8, c*0.75 + c2*0.35);
+	vec3 under = mix(vec3(0.1, 0.06, 0.04), vec3(0.025, 0.03, 0.045), smoothstep(0.0, 0.5, up));
+	col = mix(col, under*(0.6 + 0.6*c2), cloud*smoothstep(-0.05, 0.08, up));
+	col += vec3(0.75, 0.82, 1.0)*flash*(0.25 + 1.2*cloud)*smoothstep(-0.05, 0.3, up);
+	col += vec3(0.16, 0.08, 0.035)*exp(-abs(d.y)*10.0);
+	COLOR = col;
+}"""
+	sky_mat = ShaderMaterial.new(); sky_mat.shader = sh
+	var sky := Sky.new(); sky.sky_material = sky_mat; return sky
 
 ## rain on the roof: it goes dark and shines
 static func soak(k: float) -> void:
@@ -171,18 +219,28 @@ static func night(g, on: bool) -> void:
 				"fd": env.fog_density, "exp": env.tonemap_exposure, "vf": env.volumetric_fog_enabled, "vfd": env.volumetric_fog_density, "vfa": env.volumetric_fog_albedo,
 				"vfl": env.volumetric_fog_length, "vfe": env.volumetric_fog_emission_energy, "vfan": env.volumetric_fog_anisotropy, "sun": g.sun.light_energy if g.sun else 1.0,
 				"glow": env.glow_enabled, "gi": env.glow_intensity}
-		env.background_mode = Environment.BG_COLOR; env.background_color = Color(0.012, 0.016, 0.03)
+		if not was.has("sky"): was.sky = env.sky
+		env.background_mode = Environment.BG_SKY; env.sky = _sky()
+		if not was.has("rls"): was.rls = env.reflected_light_source; was.asc = env.ambient_light_sky_contribution
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_BG; env.ambient_light_sky_contribution = 0.0      # (the sky is not what lights the roof)
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color(0.25, 0.32, 0.48); env.ambient_light_energy = 0.12
-		env.fog_light_color = Color(0.02, 0.03, 0.055); env.fog_density = 0.006
+		env.fog_light_color = Color(0.03, 0.035, 0.05); env.fog_density = 0.0022
+		if not was.has("fsa"): was.fsa = env.fog_sky_affect
+		env.fog_sky_affect = 0.15
 		env.volumetric_fog_enabled = true; env.volumetric_fog_density = 0.011; env.volumetric_fog_albedo = Color(0.7, 0.76, 0.85)
 		env.volumetric_fog_emission_energy = 0.0; env.volumetric_fog_anisotropy = 0.6; env.volumetric_fog_length = 70.0
 		env.tonemap_exposure = 1.05; env.glow_enabled = true; env.glow_intensity = 1.1
 		if g.sun: g.sun.light_energy = 0.0
+		if not was.has("dl"):                                  # (and the city's teal moon: every far light off but the lightning)
+			was.dl = []
+			for l in g.get_tree().root.find_children("*", "DirectionalLight3D", true, false):
+				if l != Rain.sky and l != g.sun: was.dl.append([l, l.light_energy]); l.light_energy = 0.0
 		return
 	if was.is_empty(): return
-	env.background_mode = was.bgm; env.background_color = was.bg; env.ambient_light_color = was.amb; env.ambient_light_energy = was.ambE
+	env.background_mode = was.bgm; env.background_color = was.bg; env.sky = was.get("sky"); sky_mat = null; env.fog_sky_affect = was.get("fsa", 1.0); env.reflected_light_source = was.get("rls", Environment.REFLECTION_SOURCE_SKY); env.ambient_light_sky_contribution = was.get("asc", 1.0); env.ambient_light_color = was.amb; env.ambient_light_energy = was.ambE
 	env.fog_light_color = was.fog; env.fog_density = was.fd; env.tonemap_exposure = was.exp; env.volumetric_fog_enabled = was.vf
 	env.volumetric_fog_density = was.vfd; env.volumetric_fog_albedo = was.vfa; env.volumetric_fog_length = was.vfl; env.volumetric_fog_emission_energy = was.vfe
 	env.volumetric_fog_anisotropy = was.vfan; env.glow_enabled = was.glow; env.glow_intensity = was.gi
 	if g.sun: g.sun.light_energy = was.sun
+	for pr in was.get("dl", []): if is_instance_valid(pr[0]): pr[0].light_energy = pr[1]
 	was = {}

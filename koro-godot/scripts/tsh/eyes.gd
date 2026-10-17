@@ -13,6 +13,7 @@ const RANGE := Vector2(0.0037, 0.0018)      # sideways to the corners; up and do
 var eyes: Array = []                   # [{at, x, z, n, white, iris, glint}]
 var dir := "res://assets/tsh/eyes"
 var scale_k := 1.0
+var size_k := 1.0
 var look_x := 0.0; var look_y := 0.0
 var drop := 0.0                        # metres the eye's white has been carried down by her face (her browUp shape moves it): the irises go with it
 var head := -1; var sk: Skeleton3D
@@ -45,11 +46,12 @@ static func attach(model: Node3D, dir := "res://assets/tsh/eyes") -> Eyes:
 func _build() -> void:
 	var J = JSON.parse_string(FileAccess.get_file_as_string(dir + "/eyes.json"))
 	var it: Texture2D = load("res://assets/tsh/eyes/iris_pad.png")
+	size_k = float(J.get("size", 1.0))                      # (an eye smaller than Robin's: "size" in eyes.json)
 	for k in ["R", "L"]:
 		var at := Vector3(J[k].local[0], J[k].local[1], J[k].local[2]); var n := Vector3(J[k].normal[0], J[k].normal[1], J[k].normal[2]).normalized()
 		var x := Vector3.UP.cross(n).normalized(); var z := x.cross(n).normalized()
 		var d := Decal.new(); d.texture_albedo = it; d.cull_mask = LAYER
-		d.size = Vector3(IRIS*3, 0.03, IRIS*3); d.normal_fade = 0.0; d.upper_fade = 0.05; d.lower_fade = 0.05      # deep enough to reach the eye where it curves toward her nose
+		d.size = Vector3(IRIS*3*size_k, 0.03, IRIS*3*size_k); d.normal_fade = 0.0; d.upper_fade = 0.05; d.lower_fade = 0.05      # deep enough to reach the eye where it curves toward her nose
 		d.transform = Transform3D(Basis(x, n, z), at); add_child(d)
 		eyes.append({"decal": d, "at": at, "x": x, "z": z, "b": Basis(x, n, z)})
 
@@ -61,7 +63,7 @@ func place() -> void:
 	global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
 	for e in eyes: _put(e)
 func _put(e: Dictionary) -> void:
-	var off: Vector3 = e.x*look_x*RANGE.x - e.z*look_y*RANGE.y + e.z*drop
+	var off: Vector3 = (e.x*look_x*RANGE.x - e.z*look_y*RANGE.y + e.z*drop)*size_k
 	(e.decal as Decal).transform = Transform3D(e.b, e.at*unit + off)
 ## where the irises look: x to her left, y up (each -1…1)
 func look(x: float, y: float) -> void:

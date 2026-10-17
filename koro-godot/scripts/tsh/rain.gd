@@ -45,12 +45,14 @@ static func tick(g, dt: float) -> void:
 			drops.queue_free(); drops = null
 			if sky: sky.queue_free(); sky = null
 		return
-	if sky: sky.light_energy = move_toward(sky.light_energy, 0.0, dt*(18.0 if sky.light_energy > 2.5 else 6.0))
+	if sky: sky.light_energy = move_toward(sky.light_energy, 0.0, dt*(9.0 if sky.light_energy > 1.0 else 3.0))
+	if Tower.sky_mat:
+		Tower.sky_mat.set_shader_parameter("flash", (sky.light_energy/2.2) if sky else 0.0); Tower.sky_mat.set_shader_parameter("t", Time.get_ticks_msec()/1000.0)
 	bolt -= dt
 	if bolt <= 0:
 		bolt = 5.0 + randf()*7.0; thunder = 0.35 + randf()*0.9
-		if g.station: g.station.flash(0.35, Color(0.85, 0.9, 1.0))
-		if sky: sky.light_energy = 6.0; sky.rotation.y = randf()*TAU
+		if g.station: g.station.flash(0.12, Color(0.85, 0.9, 1.0))
+		if sky: sky.light_energy = 2.2; sky.rotation.y = randf()*TAU
 	if thunder >= 0:
 		thunder -= dt
 		if thunder < 0: g.cue("boom")

@@ -1317,7 +1317,6 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 	var her_ots: Vector3 = g.rel(meet_at.x, meet_at.y, dy, -0.85, 0.42, T + 1.72)
 	var mom_ots: Vector3 = g.rel(R0.x, R0.y, ry, -0.85, 0.42, T + 1.7)
 	var her_face := Vector3(R0.x, T + 1.55, R0.y); var mom_face := func(): return Vector3(D.x, T + 1.6, D.z) if D else her_face
-	storm(0.6)
 	var shots := [
 		{"dur": 3.2, "fov": 56, "cam": Vector3(tc.x - 26, T + 9, tc.y + 24), "look": Vector3(tc.x, T, tc.y),
 			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"); g.cue("alert"), "tick": func(dt, t, k): hover.call(k*0.4)},
@@ -1338,7 +1337,7 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", Vector3(tc.x + Tower.HALF + 14, T + 12, tc.y + 6), 5.0)]]},
 		# the rain comes in as they square up
 		{"dur": 3.0, "fov": 46, "cam": Vector3((R0.x + meet_at.x)/2 + cos(ry)*6, T + 2.2, (R0.y + meet_at.y)/2 - sin(ry)*6), "look": Vector3((R0.x + meet_at.x)/2, T + 1.2, (R0.y + meet_at.y)/2),
-			"enter": func(): Rain.start(g, 1.0); storm(1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("boom"); flash(0.7, Color(0.85, 0.9, 1)),
+			"enter": func(): Rain.start(g, 1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("boom"); flash(0.7, Color(0.85, 0.9, 1)),
 			"beats": [[1.6, func(): g.cue("gear")]]}]
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0

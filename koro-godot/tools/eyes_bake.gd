@@ -17,6 +17,7 @@ func _init() -> void:
 	await process_frame
 	var head := sk.global_transform*sk.get_bone_global_pose((sk.find_bone("mixamorigHead") if sk.find_bone("mixamorigHead") >= 0 else sk.find_bone("mixamorig_Head")))
 	var J = JSON.parse_string(FileAccess.get_file_as_string(dir + "/eyes.json"))
+	var WH: Vector2 = WHITE*float(J.get("size", 1.0))          # (smaller eyes than Robin's: "size" in eyes.json)
 	var eyes := []
 	for k in ["R", "L"]:
 		var at: Vector3 = head*Vector3(J[k].local[0], J[k].local[1], J[k].local[2])
@@ -56,7 +57,7 @@ func _init() -> void:
 					var l1 := ((b.y - c.y)*(p.x - c.x) + (c.x - b.x)*(p.y - c.y))/den; var l2 := ((c.y - a.y)*(p.x - c.x) + (a.x - c.x)*(p.y - c.y))/den; var l3 := 1 - l1 - l2
 					if l1 < -0.02 or l2 < -0.02 or l3 < -0.02: continue
 					var w3: Vector3 = P[ia]*l1 + P[ib]*l2 + P[ic]*l3 - e[0]
-					var u: float = w3.dot(e[1])/(WHITE.x/2); var v: float = w3.dot(e[2])/(WHITE.y/2)
+					var u: float = w3.dot(e[1])/(WH.x/2); var v: float = w3.dot(e[2])/(WH.y/2)
 					var r := sqrt(u*u + v*v); var al := clampf((1.0 - r)/0.14, 0, 1)
 					if al <= 0 or px < 0 or py < 0 or px >= int(S.x) or py >= int(S.y): continue
 					var shade := 0.82 + 0.18*clampf((v + 1.0)/2.0, 0, 1)

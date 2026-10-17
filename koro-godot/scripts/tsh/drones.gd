@@ -29,11 +29,11 @@ static func build(g, c: Vector2, top: float) -> void:
 		var red := OmniLight3D.new(); red.light_color = Color(1, 0.05, 0.05); red.omni_range = 9; red.light_energy = 0.0; red.position = Vector3(-0.5, 0, 0); red.light_volumetric_fog_energy = 0.6; n.add_child(red)
 		var blue := OmniLight3D.new(); blue.light_color = Color(0.1, 0.25, 1); blue.omni_range = 9; blue.light_energy = 0.0; blue.position = Vector3(0.5, 0, 0); blue.light_volumetric_fog_energy = 0.6; n.add_child(blue)
 		var sp := SpotLight3D.new(); sp.light_color = Color(0.92, 0.96, 1.0); sp.light_energy = 7.0; sp.spot_range = 70; sp.spot_angle = 11.0; sp.spot_attenuation = 0.6
-		sp.shadow_enabled = true; sp.shadow_blur = 0.4; sp.shadow_bias = 0.12; sp.shadow_normal_bias = 2.5; sp.light_volumetric_fog_energy = 0.9
+		sp.shadow_enabled = true; sp.shadow_blur = 0.4; sp.shadow_bias = 0.12; sp.shadow_normal_bias = 2.5; sp.light_volumetric_fog_energy = 0.45
 		g.city.add_child(sp)
 		list.append({"node": n, "spot": sp, "red": red, "blue": blue, "home": homes[i], "phase": i*2.1, "aim": Vector3(c.x, top, c.y)})
 	gun_spot = SpotLight3D.new(); gun_spot.light_color = Color(1.0, 0.97, 0.9); gun_spot.light_energy = 10.0; gun_spot.spot_range = 90; gun_spot.spot_angle = 16.0
-	gun_spot.shadow_enabled = true; gun_spot.shadow_blur = 0.3; gun_spot.shadow_bias = 0.12; gun_spot.shadow_normal_bias = 2.5; gun_spot.light_volumetric_fog_energy = 1.1; g.city.add_child(gun_spot)
+	gun_spot.shadow_enabled = true; gun_spot.shadow_blur = 0.3; gun_spot.shadow_bias = 0.12; gun_spot.shadow_normal_bias = 2.5; gun_spot.light_volumetric_fog_energy = 0.4; g.city.add_child(gun_spot)
 	t = 0.0
 
 ## each drone drifts round its spot and keeps its light on one of the targets (taking turns), lagging a little, wobbling
