@@ -17,8 +17,8 @@ static var shots: Array = []
 static var scatter: Array = []   # {node, v, spin, down}: broken bits blown across the roof     # {node, v, t}
 
 ## HER STRINGS: three or four, the big ones in them, the last the biggest
-const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "spin"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
-	["elbow", "round", "flykick"], ["jab", "cross", "spin"], ["knee", "elbow", "hook", "round"]]
+const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "hook"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
+	["elbow", "round", "flykick"], ["jab", "cross", "elbow"], ["knee", "elbow", "hook", "round"]]      # (no hurricane kick: cut)
 const HIT_AT := {"jab": 0.32, "cross": 0.36, "hook": 0.4, "elbow": 0.38, "knee": 0.42, "round": 0.45, "spin": 0.5, "flykick": 0.5, "sweep": 0.42, "flurry": 0.3, "kick": 0.42}
 static func _move(f, e: Dictionary) -> void:
 	var clip: String = e.seq[e.ci]
