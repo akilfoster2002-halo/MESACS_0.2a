@@ -103,6 +103,10 @@ static func _aura_off(e: Dictionary) -> void:
 		e.aura.l.light_energy = 0.0; e.aura.m.albedo_color.a = 0.0; e.aura.p.emitting = false
 
 static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector2) -> bool:
+	var mine := _tick(f, e, dt, d, to_her, p)
+	if mine: f._place(e)                                       # (her model where she is: without this she lagged and jumped)
+	return mine
+static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector2) -> bool:
 	_tick_shots(f, dt)
 	match e.state:
 		"circle":
@@ -123,15 +127,16 @@ static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector
 			return false
 		"combo":
 			e.yaw = f.turn_to(e.yaw, to_her, dt*(10.0 if e.t < e.mv_hit else 1.5))
-			var reach: float = 2.9 if e.seq[e.ci] in ["flykick", "spin", "round", "sweep"] else 2.2
-			if e.t < e.mv_hit and d > 1.1: f._step(e, to_her, (13.0 if e.seq[e.ci] == "flykick" else 7.5), dt, true)
+			var reach: float = 1.9 if e.seq[e.ci] in ["flykick", "spin", "round", "sweep"] else 1.5      # her fist or foot has to reach her
+			if e.t < e.mv_hit and d > 0.95: f._step(e, to_her, minf((d - 0.9)/maxf(e.mv_hit - e.t, 0.05), 13.0 if e.seq[e.ci] == "flykick" else 8.0), dt, true)      # closing the gap by the time the blow lands
 			if e.t >= e.mv_hit and not e.mv_done:
 				e.mv_done = true
 				var fin: bool = e.ci == (e.seq as Array).size() - 1
 				f.g.cue("swish")
 				if f._ink(e): f.fx.lines(Vector3(e.x, f.floor_y + 1.3, e.z), Vector3(sin(e.yaw), 0, cos(e.yaw)), 1.4 if fin else 1.0)
 				var a: float = absf(f.ang_diff(to_her, e.yaw))
-				if d < reach and a < 1.2: _power_hit(f, e, p, fin)
+				if d < reach and a < 0.9: _power_hit(f, e, p, fin)
+				else: f.event("whiff", {"e": e, "dodged": f.R.since_dodge < 0.9})
 			if e.t >= e.mv_len*0.82:
 				e.ci += 1
 				if e.ci < (e.seq as Array).size() and d < 5.0: _move(f, e)
@@ -189,15 +194,63 @@ static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector
 			if e.t > 4.0: e.state = "circle"; e.t = 0.0; e.cool = 0.5
 			return true
 		"volley":
+			# first she smashes the heap: it bursts into pieces that hang in the air round her fist; then she punches
+			# them at Robin one by one
+			var pl: Dictionary = e.pile
+			if not e.get("broke", false):
+				e.yaw = f.turn_to(e.yaw, f.ang_to(e.x, e.z, pl.at.x, pl.at.z), dt*10)
+				if e.t > 0.05 and not e.get("swung", false): e.swung = true; f.hit1(e, "hook"); e.anim_k = 1.5
+				if e.t >= 0.32: e.broke = true; _smash(f, e); e.next_shot = e.t + 0.55; e.n_shot = 0
+				return true
 			e.yaw = f.turn_to(e.yaw, to_her, dt*8)
-			if e.t >= e.next_shot:
-				e.n_shot += 1; e.next_shot = e.t + 0.55
-				f.hit1(e, "jab" if e.n_shot % 2 else "cross"); e.anim_k = 1.6
-				f.later(0.12, func(): _punch_out(f, e))
-			if e.n_shot >= SHOTS and e.t > e.next_shot - 0.1:
-				e.state = "recover"; e.t = 0.0; e.anim_k = 1.0
+			_tick_debris(f, e, dt)
+			var left: Array = e.debris.filter(func(q): return is_instance_valid(q.node) and not q.gone)
+			if e.t >= e.next_shot and left.size():
+				e.n_shot += 1; e.next_shot = e.t + 0.45
+				f.hit1(e, "jab" if e.n_shot % 2 else "cross"); e.anim_k = 1.7
+				var q: Dictionary = left[0]
+				f.later(0.12, func(): _launch(f, e, q))
+			if left.is_empty() and e.t > e.next_shot - 0.1:
+				e.state = "recover"; e.t = 0.0; e.anim_k = 1.0; e.broke = false; e.swung = false
 			return true
 	return false
+
+## THE HEAP BURSTS: every piece of it thrown up off the roof round her, and held there a moment, turning
+static func _smash(f, e: Dictionary) -> void:
+	var pl: Dictionary = e.pile
+	e.debris = []
+	var front := Vector3(e.x + sin(e.yaw)*1.1, f.floor_y, e.z + cos(e.yaw)*1.1)
+	for c in pl.node.get_children():
+		var mi := c as MeshInstance3D
+		var at: Vector3 = mi.global_position; var basis: Basis = mi.global_basis
+		pl.node.remove_child(mi); f.g.add_child(mi); mi.global_position = at; mi.global_basis = basis
+		var home := front + Vector3(randf_range(-1.2, 1.2), randf_range(1.0, 2.1), randf_range(-0.6, 0.6))
+		e.debris.append({"node": mi, "home": home, "t": 0.0, "gone": false, "spin": Vector3(randf_range(-3, 3), randf_range(-3, 3), randf_range(-3, 3))})
+	pl.node.queue_free(); piles.erase(pl)
+	f.g.cue("boom"); f.shake(0.5, 0.35); f.hitstop(0.08)
+	if f._ink(e): f.fx.sparks(front + Vector3(0, 0.8, 0), Vector3(sin(e.yaw), 0.4, cos(e.yaw)), 1.6)
+	_shockwave(f, front + Vector3(0, 0.6, 0), Vector3(sin(e.yaw), 0, cos(e.yaw)), true)
+## the pieces float up to where they hang, and turn slowly there
+static func _tick_debris(f, e: Dictionary, dt: float) -> void:
+	for q in e.get("debris", []):
+		if q.gone or not is_instance_valid(q.node): continue
+		q.t += dt
+		var n: MeshInstance3D = q.node
+		n.global_position = n.global_position.lerp(q.home + Vector3(0, sin(q.t*3.0)*0.06, 0), minf(1, dt*7))
+		n.rotation += q.spin*dt*0.4
+## one hanging piece, punched: straight at where Robin is going
+static func _launch(f, e: Dictionary, q: Dictionary) -> void:
+	if not is_instance_valid(q.node): return
+	q.gone = true
+	var piece: MeshInstance3D = q.node
+	var from: Vector3 = piece.global_position
+	var rp: Vector3 = f.g.robin.position
+	var to := Vector3(rp.x, f.floor_y + 1.0, rp.z)
+	var v := (to - from).normalized()*28.0
+	shots.append({"node": piece, "v": v, "t": 0.0, "spin": Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9)), "e": e})
+	f.g.cue("punch"); f.shake(0.15, 0.12)
+	_shockwave(f, from, v, false)
+	if f._ink(e): f.fx.lines(from, v.normalized(), 0.9)
 
 ## one piece off the heap, punched: away from her fist at the place Robin is about to be
 static func _punch_out(f, e: Dictionary) -> void:
@@ -226,13 +279,17 @@ static func _tick_shots(f, dt: float) -> void:
 		s.t += dt
 		var n: MeshInstance3D = s.node
 		if not is_instance_valid(n): continue
+		s.v.y -= 4.0*dt
 		n.global_position += s.v*dt; n.rotation += s.spin*dt
+		if n.global_position.y < f.floor_y + 0.25 or s.t > 1.6:      # missed: it comes down and lies on the roof
+			n.global_position.y = maxf(n.global_position.y, f.floor_y + 0.25); f.g.cue("thud")
+			var tw: Tween = f.g.create_tween(); tw.tween_interval(4.0); tw.tween_callback(n.queue_free)
+			continue
 		if n.global_position.distance_to(rp) < 0.9 and f.R.iframe <= 0 and f.R.act != "down":
 			var h0: float = f.R.hp
 			f.hurt(s.e, float(s.e.K.dmg)*0.4)
 			if f.R.hp < h0: f.g.cue("boom"); f.shake(0.4, 0.3); f._flash(0.2)
 			n.queue_free(); continue
-		if s.t > 2.0: n.queue_free(); continue
 		keep.append(s)
 	shots = keep
 

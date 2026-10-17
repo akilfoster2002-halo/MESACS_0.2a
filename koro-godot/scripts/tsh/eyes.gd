@@ -14,6 +14,7 @@ var eyes: Array = []                   # [{at, x, z, n, white, iris, glint}]
 var dir := "res://assets/tsh/eyes"
 var scale_k := 1.0
 var size_k := 1.0
+var range_k := 1.0
 var look_x := 0.0; var look_y := 0.0
 var drop := 0.0                        # metres the eye's white has been carried down by her face (her browUp shape moves it): the irises go with it
 var head := -1; var sk: Skeleton3D
@@ -36,6 +37,8 @@ static func attach(model: Node3D, dir := "res://assets/tsh/eyes") -> Eyes:
 	e.top_level = true                                   # in the world at true size: under her model's 1/90 scale the decals were mis-culled
 	var fl := Follow.new(); fl.eyes = e; sk.add_child(fl)
 	e.body = body; e.skin_open = m; e.skin_shut = body.mesh.surface_get_material(0)
+	if ResourceLoader.exists(dir + "/skin_shut.png"):         # her eyes shut painted (tools/eyes_bake.gd): not her painted eyes showing under a lid
+		var ms: StandardMaterial3D = m.duplicate(); ms.albedo_texture = load(dir + "/skin_shut.png"); e.skin_shut = ms
 	e.scale_k = 1.0
 	e._build()
 	return e
@@ -46,7 +49,7 @@ static func attach(model: Node3D, dir := "res://assets/tsh/eyes") -> Eyes:
 func _build() -> void:
 	var J = JSON.parse_string(FileAccess.get_file_as_string(dir + "/eyes.json"))
 	var it: Texture2D = load("res://assets/tsh/eyes/iris_pad.png")
-	size_k = float(J.get("size", 1.0))                      # (an eye smaller than Robin's: "size" in eyes.json)
+	size_k = float(J.get("size", 1.0)); range_k = float(J.get("range", 1.0))      # (and how far hers travel)                      # (an eye smaller than Robin's: "size" in eyes.json)
 	for k in ["R", "L"]:
 		var at := Vector3(J[k].local[0], J[k].local[1], J[k].local[2]); var n := Vector3(J[k].normal[0], J[k].normal[1], J[k].normal[2]).normalized()
 		var x := Vector3.UP.cross(n).normalized(); var z := x.cross(n).normalized()
@@ -63,7 +66,7 @@ func place() -> void:
 	global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
 	for e in eyes: _put(e)
 func _put(e: Dictionary) -> void:
-	var off: Vector3 = (e.x*look_x*RANGE.x - e.z*look_y*RANGE.y + e.z*drop)*size_k
+	var off: Vector3 = (e.x*look_x*RANGE.x*range_k - e.z*look_y*RANGE.y*range_k + e.z*drop)*size_k
 	(e.decal as Decal).transform = Transform3D(e.b, e.at*unit + off)
 ## where the irises look: x to her left, y up (each -1…1)
 func look(x: float, y: float) -> void:

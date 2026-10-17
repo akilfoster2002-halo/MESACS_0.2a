@@ -43,26 +43,42 @@ func _init() -> void:
 	var im: Image = mat.albedo_texture.get_image(); if im.is_compressed(): im.decompress()
 	im.convert(Image.FORMAT_RGBA8)
 	var S := Vector2(im.get_width(), im.get_height()); var painted := 0
-	for t in range(0, I.size(), 3):
-		var ia := I[t]; var ib := I[t + 1]; var ic := I[t + 2]
-		for e in eyes:
-			if P[ia].distance_to(e[0]) > 0.03: continue
-			var a := UV[ia]*S; var b := UV[ib]*S; var c := UV[ic]*S
-			var lo := Vector2i(floori(minf(a.x, minf(b.x, c.x))), floori(minf(a.y, minf(b.y, c.y)))); var hi := Vector2i(ceili(maxf(a.x, maxf(b.x, c.x))), ceili(maxf(a.y, maxf(b.y, c.y))))
-			var den := (b.y - c.y)*(a.x - c.x) + (c.x - b.x)*(a.y - c.y)
-			if absf(den) < 1e-9: continue
-			for py in range(lo.y, hi.y + 1):
-				for px in range(lo.x, hi.x + 1):
-					var p := Vector2(px + 0.5, py + 0.5)
-					var l1 := ((b.y - c.y)*(p.x - c.x) + (c.x - b.x)*(p.y - c.y))/den; var l2 := ((c.y - a.y)*(p.x - c.x) + (a.x - c.x)*(p.y - c.y))/den; var l3 := 1 - l1 - l2
-					if l1 < -0.02 or l2 < -0.02 or l3 < -0.02: continue
-					var w3: Vector3 = P[ia]*l1 + P[ib]*l2 + P[ic]*l3 - e[0]
-					var u: float = w3.dot(e[1])/(WH.x/2); var v: float = w3.dot(e[2])/(WH.y/2)
-					var r := sqrt(u*u + v*v); var al := clampf((1.0 - r)/0.14, 0, 1)
-					if al <= 0 or px < 0 or py < 0 or px >= int(S.x) or py >= int(S.y): continue
-					var shade := 0.82 + 0.18*clampf((v + 1.0)/2.0, 0, 1)
-					var wc := Color(0.86*shade, 0.80*shade, 0.78*shade)
-					im.set_pixel(px, py, im.get_pixel(px, py).lerp(wc, al)); painted += 1
-	im.save_png(dir + "/skin.png")
+	var shut: Image = im.duplicate()                         # and her eyes shut: the eye painted over in her lid's own skin, a lash line low across it
+	var ring := [Color(0, 0, 0, 0), Color(0, 0, 0, 0)]
+	for pass_ in 2:
+		for t in range(0, I.size(), 3):
+			var ia := I[t]; var ib := I[t + 1]; var ic := I[t + 2]
+			for e in eyes:
+				if P[ia].distance_to(e[0]) > 0.03: continue
+				var a := UV[ia]*S; var b := UV[ib]*S; var c := UV[ic]*S
+				var lo := Vector2i(floori(minf(a.x, minf(b.x, c.x))), floori(minf(a.y, minf(b.y, c.y)))); var hi := Vector2i(ceili(maxf(a.x, maxf(b.x, c.x))), ceili(maxf(a.y, maxf(b.y, c.y))))
+				var den := (b.y - c.y)*(a.x - c.x) + (c.x - b.x)*(a.y - c.y)
+				if absf(den) < 1e-9: continue
+				for py in range(lo.y, hi.y + 1):
+					for px in range(lo.x, hi.x + 1):
+						var p := Vector2(px + 0.5, py + 0.5)
+						var l1 := ((b.y - c.y)*(p.x - c.x) + (c.x - b.x)*(p.y - c.y))/den; var l2 := ((c.y - a.y)*(p.x - c.x) + (a.x - c.x)*(p.y - c.y))/den; var l3 := 1 - l1 - l2
+						if l1 < -0.02 or l2 < -0.02 or l3 < -0.02: continue
+						var w3: Vector3 = P[ia]*l1 + P[ib]*l2 + P[ic]*l3 - e[0]
+						var u: float = w3.dot(e[1])/(WH.x/2); var v: float = w3.dot(e[2])/(WH.y/2)
+						var r := sqrt(u*u + v*v); var al := clampf((1.0 - r)/0.14, 0, 1)
+						var ei: int = eyes.find(e)
+						if pass_ == 0:                                       # the skin round the eye (the lid's colour), averaged
+							if r > 1.7 and r < 2.3 and px >= 0 and py >= 0 and px < int(S.x) and py < int(S.y):
+								var c0 := im.get_pixel(px, py)
+								if c0.get_luminance() > 0.22 and c0.get_luminance() < 0.6: ring[ei] += Color(c0.r, c0.g, c0.b, 1)
+							continue
+						if r > 1.7 or px < 0 or py < 0 or px >= int(S.x) or py >= int(S.y): continue
+						var lid: Color = ring[ei]/maxf(ring[ei].a, 1.0); lid.a = 1.0
+						var al2 := clampf((1.65 - r)/0.35, 0, 1)
+						var sc := shut.get_pixel(px, py).lerp(lid*(0.88 + 0.1*clampf(1.0 - absf(v), 0, 1)), al2)
+						var curve := 0.18 - 0.25*u*u                        # the shut lids' line: a shallow smile across the eye
+						var lash := clampf(1.0 - absf(v - curve)/0.2, 0, 1)*clampf((1.35 - absf(u))/0.3, 0, 1)
+						shut.set_pixel(px, py, sc.lerp(Color(0.05, 0.035, 0.035), clampf(lash*1.3, 0, 1)*al2))
+						if al <= 0: continue
+						var shade := 0.82 + 0.18*clampf((v + 1.0)/2.0, 0, 1)
+						var wc := Color(0.86*shade, 0.80*shade, 0.78*shade)
+						im.set_pixel(px, py, im.get_pixel(px, py).lerp(wc, al)); painted += 1
+	im.save_png(dir + "/skin.png"); shut.save_png(dir + "/skin_shut.png")
 	print("painted ", painted)
 	quit()

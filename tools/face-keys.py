@@ -98,7 +98,7 @@ def key(name, f):
         JAW_I[0] = v.index
         d = f(p)
         if d is not None and d.length > 1e-7: k.data[v.index].co = v.co + R3 @ d
-U = 4.2*fs                                    # Kai's sculpt was in his 0..1 units times 1.93: the same moves, her size
+U = 2.6*fs                                    # Kai's sculpt was in his 0..1 units times 1.93: the same moves, her size
 JAW_I = [None]
 def jaw(p):
     if JAW_I[0] in UPPER: return None                         # the upper lip's side of the cut stays
@@ -112,7 +112,15 @@ key("jawOpen", jaw)
 key("mouthO", lambda p: (Vector((-(p.x - MOUTH.x)*0.7, -0.008*U, 0)))*near(p, MOUTH, 0.019*U))
 key("smile", lambda p: sum((Vector((0.0055*U*(1 if k == "L" else -1), 0.003*U, 0.009*U))*near(p, c, 0.013*U) for k, c in CORNER.items()), Vector()))
 key("frown", lambda p: sum((Vector((0.001*U*(1 if k == "L" else -1), 0, -0.008*U))*near(p, c, 0.013*U) for k, c in CORNER.items()), Vector()))
-key("browUp", lambda p: sum((Vector((0, -0.001*U, 0.0085*U))*near(p, c, 0.015*U) for c in BROW.values()), Vector()))
-key("browDown", lambda p: sum((Vector((-0.003*U*(1 if k == "L" else -1), -0.002*U, -0.0065*U))*near(p, c, 0.014*U) for k, c in BROW.items()), Vector()))
-key("blink", lambda p: sum((Vector((0, -0.0015*U, -0.012*U))*near(p, c, 0.0085*U) for c in LID.values()), Vector()))
+above = lambda p, f: f(p) if p.z > max(EYE["L"].z, EYE["R"].z) + 0.0065 else None     # the brows move; the lids under them do not
+key("browUp", lambda p: above(p, lambda p: sum((Vector((0, -0.001*U, 0.0085*U))*near(p, c, 0.015*U) for c in BROW.values()), Vector())))
+key("browDown", lambda p: above(p, lambda p: sum((Vector((-0.003*U*(1 if k == "L" else -1), -0.002*U, -0.0065*U))*near(p, c, 0.014*U) for k, c in BROW.items()), Vector())))
+def blink(p):                                                  # the upper lid only, down over the eye to just under its middle
+    for c in EYE.values():
+        dx = (p.x - c.x)/0.0135; dz = (p.z - c.z)
+        if abs(dx) >= 1 or dz < -0.0005 or dz > 0.011: continue
+        w = (1 - dx*dx)**1.5 * (1.0 if dz < 0.0065 else max(0.0, 1 - (dz - 0.0065)/0.0045))
+        return Vector((0, -0.0012, -(dz + 0.0048)*w))          # to the lower lash line: shut
+    return None
+key("blink", blink)
 print("FACE keys", [k.name for k in body.data.shape_keys.key_blocks])
