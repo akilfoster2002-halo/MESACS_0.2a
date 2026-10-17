@@ -2,7 +2,7 @@
 # Mixamo .fbx files, bone by bone: each bone turned in the world as the clip's bone turns from its T-pose, so the
 # two skeletons' bone axes need not agree. The hips go where the clip's go, scaled to these legs; walks, runs and
 # strafes have their travel taken out (the game moves people itself).
-#   Blender -b --python tools/mixamo-rig.py -- <rigged.fbx> <out.glb> <height in metres> <set: person|fighter>
+#   Blender -b --python tools/mixamo-rig.py -- <rigged.fbx> <out.glb> <height in metres> <set: person|fighter|both>
 import bpy, sys, os
 from mathutils import Matrix, Vector, Quaternion
 FBX, OUT, H, SET = sys.argv[sys.argv.index("--")+1:][:4]
@@ -16,7 +16,7 @@ FIGHTER.update({"fight": "NoisyBoy/Bouncing Fight Idle.fbx", "jab": "NoisyBoy/Pu
     "hook": "NoisyBoy/Hook Punch.fbx", "kick": "NoisyBoy/Kicking.fbx", "block": "NoisyBoy/Block.fbx", "hit": "NoisyBoy/Taking Punch.fbx",
     "stagger": "NoisyBoy/Receive Uppercut To The Face.fbx", "ko": "NoisyBoy/Sweep Fall.fbx", "fall": "NoisyBoy/Dying.fbx",
     "getup": "NoisyBoy/Crouch To Stand.fbx", "roar": "NoisyBoy/Mutant Roaring.fbx"})
-CLIPS = PERSON if SET == "person" else FIGHTER
+CLIPS = PERSON if SET == "person" else FIGHTER if SET == "fighter" else {**PERSON, **FIGHTER}      # both: a person who also fights (the Director)
 TRAVEL = {"walk", "sprint", "walk_back", "walk_left", "walk_right", "sprint_back", "sprint_left", "sprint_right", "swim", "fly"}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

@@ -2,8 +2,9 @@
 ## Out of the train's open door: two people who have no business down here either. The gizmo in Robin's pocket starts
 ## to sing as Maya gets close. Canon puts himself in front of Robin, and Kai puts him on the floor. So she fights: Kai,
 ## then Maya — with her arms out of her back. And the gizmo screams, and what is in Maya comes up out of her and does
-## not stop; Canon goes into it; Robin fights it for him, and runs. Up the ladder into the afternoon — and it comes up
-## out of the street after her. The shoes. The chase. WFC. Alone, she calls him. Home. And her mother is in her room.
+## not stop; Canon goes into it; Robin fights it for him, and runs. Up the ladder into the afternoon — and it stays
+## down there. WFC, all round her. The chase, east, up the Meridian Tower; on its roof, in the rain, the Director of
+## WFC — her mother, who has no idea who she is fighting. Off the edge. Alone, she calls him. Home. Her mother in her room.
 class_name Station
 extends Node
 
@@ -84,7 +85,6 @@ func tick(dt: float) -> void:
 func tick_watch(w: String, dt: float) -> void:
 	match w:
 		"escape": _tick_escape(dt)
-		"chase": _tick_chase(dt)
 		"wfcRun": _tick_wfc_run(dt)
 		"home": _tick_home(dt)
 func _tick_home(dt: float) -> void:
@@ -1136,124 +1136,29 @@ func storm(k: float) -> void:
 func lose(v) -> void:
 	lose_box.visible = v != null
 	if v != null: lose_bar.value = v
-## up the ladder, into the light — and it comes up out of the ground after her
+## up the ladder, into the light — and it does NOT come up after her. It stays down there. She has one breath of it,
+## and then WFC are all round her (wfc_standoff).
 func street_scene() -> void:
 	g.talk_q.clear()
 	g.S.dm = maxf(g.S.get("dm", 0), 16*60 + 40)
 	if cy.canon: cy.canon.node.queue_free(); cy.canon = null
 	cy.station_props()
-	g.S.tun = 7; g._save()
+	g.S.tun = 7; g.S.shoesBack = true; g.S.chase = true; g._save()
 	g.kit("jacket", true); g.kit("gloves", true)
-	var E := cy.ENTRY; var at := Vector2(cy.EXIT.x - 0.8, cy.EXIT.y + 0.6); var ry := ang(at, E); var dir := Vector2(sin(ry), cos(ry)); var side := Vector2(cos(ry), -sin(ry))
+	for t2 in Boots.EARLY + Boots.MID: g.boots.have[t2] = true
+	if mon: mon.dispose(); mon = null
+	Tower.build(g)
+	var E := cy.ENTRY; var at := Vector2(cy.EXIT.x - 0.8, cy.EXIT.y + 0.6); var ry := ang(at, E)
 	var F: Dictionary = cy.facing(at, ry, 1.0); var A: Dictionary = F.A
-	if mon: mon.dispose()
-	mon = Monster.new(); g.city.add_child(mon); mon.setup(Vector3(E.x, 0, E.y - 1.5), ang(E, at)); mon.scale = Vector3.ONE*1.6
-	mon.on_slam = func(q): var d: float = q.distance_to(g.robin.position); shake(maxf(0.15, 0.7 - d*0.012), 1.0); g.cue("clang")
-	mon.on_step = func(q): if q.distance_to(g.robin.position) < 28: g.cue("thud")
-	g.cue("growl"); mon.grow = 0.0; mon.pull = 0.4
 	var st := func(): stand("idle", at, ry)
-	var V := func(p2: Vector2, y: float) -> Vector3: return Vector3(p2.x, y, p2.y)
-	var eye := func(): return mon.eye_at
-	var C := {
-		"her": {"cam": A.herTight.cam, "look": A.herTight.look, "fov": 26},
-		"herSide": {"cam": A.profileL.cam, "look": A.two.look, "fov": 32},
-		"street": {"cam": V.call(at - dir*5 + side*3, 1.4), "look": V.call(E, 2), "fov": 50},
-		"low": {"cam": V.call(at + dir*3 - side*1.5, 0.25), "look": V.call(E, 1), "fov": 58},
-		"stair": {"cam": V.call(E + side*6 - dir*4, 1.2), "look": V.call(E, 0.5), "fov": 44},
-		"rise": {"cam": V.call(E - dir*14 + side*4, 0.4), "look": func(): return Vector3(E.x, 1 + mon.grow*9, E.y), "fov": 66},
-		"high": {"cam": V.call(at - dir*6, 14), "look": V.call((at + E)/2, 0), "fov": 60},
-		"eye": {"cam": V.call(at - dir*0.6 + side*0.4, 1.7), "look": eye, "fov": 16},
-		"feet": {"cam": V.call(at + dir*0.9 + side*0.5, 0.35), "look": V.call(at, 0.12), "fov": 30},
-		"feetLow": {"cam": V.call(at - side*0.9, 0.12), "look": V.call(at, 0.15), "fov": 40}}
 	var shots := [
-		{"dur": 2.6, "fov": 50, "cam": V.call(at - dir*4, 9), "look": V.call(at, 0.8), "enter": func(): st.call(); g.set_caption("EXT. HARBOR LANE — 4:40 PM"); g.cue("door")},
+		{"dur": 2.6, "fov": 50, "cam": Vector3(at.x - sin(ry)*4, 9, at.y - cos(ry)*4), "look": Vector3(at.x, 0.8, at.y), "enter": func(): st.call(); g.set_caption("EXT. HARBOR LANE — 4:40 PM"); g.cue("door")},
 		{"mood": "sad", "dur": 2.4, "fov": 30, "cam": A.herTight.cam, "look": A.herTight.look, "enter": func(): stand("kneel", at, ry)},
-		{"dur": 2.2, "fov": 36, "cam": C.herSide.cam, "look": V.call(E, 0.4), "enter": st},
-		{"dur": 2.0, "fov": 50, "cam": C.street.cam, "look": C.street.look, "enter": st},
-		{"mood": "shocked", "dur": 1.6, "fov": 30, "cam": C.feetLow.cam, "look": C.feetLow.look, "enter": func(): st.call(); shake(0.12, 0.4); g.cue("thud"), "beats": [[0.8, func(): g.cue("thud")]]}]
-	shots.append_array(cuts(2.2, [C.low, C.stair, C.her, C.stair], {"mood": "shocked", "start": func(): mon.act("roar"); g.cue("roar"); shake(0.35, 0.6); storm(0.05); g.cue("alert"), "tick": func(dt, t, k): storm(0.05 + k*0.2)}))
-	shots.append_array(cuts(4.8, [C.rise, C.her, C.stair, C.high, C.rise, C.low, C.street, C.rise], {
-		"start": func(): mon.act("roar"); g.cue("roar"); haywire(0.55); wind_on(0.6); cy.props.visible = false; shake(0.6, 0.5); flash(0.6); chaos_on(at),
-		"tick": func(dt, t, k):
-			st.call(); mon.grow = minf(1, k*1.15); storm(0.25 + k*0.75)
-			if randf() < dt*1.2: flash(0.35, Color(0.7, 0.6, 1))
-			if randf() < dt*0.8: shake(0.3, 0.25)}))
-	shots.append_array(cuts(1.4, [C.eye, C.her], {"mood": "shocked", "start": func(): mon.act("roar"); g.cue("roar")}))
-	shots.append_array(cuts(g.lines_len("chaseStart") + 0.3, [C.her, C.feet, C.herSide, C.feetLow, C.her], {"start": func(): g.talk("chaseStart"), "tick": func(dt, t, k): st.call()}))
-	shots.append_array(cuts(1.4, [C.feetLow, C.feet, C.low], {"mood": "determined", "start": func(): flash(0.35, Color(0.4, 1, 0.9)); g.cue("launch")}))
+		{"mood": "shocked", "dur": 2.0, "fov": 34, "cam": A.profileL.cam, "look": Vector3(cy.EXIT.x, 0.2, cy.EXIT.y), "enter": func(): st.call(); shake(0.15, 0.6); g.cue("thud")},
+		{"dur": g.lines_len("surfaceBreath") + 0.4, "fov": 28, "cam": A.herTight.cam, "look": A.herTight.look, "enter": func(): st.call(); g.talk("surfaceBreath")}]
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
-		g.S.shoesBack = true; g.S.chase = true; g._save()
-		for t2 in Boots.EARLY + Boots.MID: g.boots.have[t2] = true
-		var away := ry + PI
-		g.place(Vector3(at.x, 0, at.y), ry)
-		later(0.15, func(): g.boots.vx = sin(away)*9; g.boots.vz = cos(away)*9; g.boots.ignite(away); g.note("RUN — over the roofs. Lose it."))
-		hunt = {"t": 0.0, "meter": 0.0, "lunge": 0.0, "lungeT": 3.0, "leap": null, "hitT": 0.0, "reachT": 1.0, "stepT": 0.0, "leapT": 4.0, "news": 0}
-		cy.watch = "chase"; lose(0.0)))
-func _tick_chase(dt: float) -> void:
-	var c = hunt
-	if c == null or mon == null: return
-	c.t += dt; c.hitT -= dt
-	var p: Vector3 = g.robin.position; var r := mon
-	var d := Vector2(p.x - r.position.x, p.z - r.position.z).length(); var a := atan2(p.x - r.position.x, p.z - r.position.z)
-	r.rotation.y += Fight.ang_diff(a, r.rotation.y)*minf(1, dt*3)
-	if c.leap != null:
-		var L: Dictionary = c.leap; L.t += dt; var k: float = minf(1, L.t/L.dur)
-		r.position = Vector3(lerpf(L.from.x, L.to.x, k), sin(k*PI)*14, lerpf(L.from.y, L.to.y, k))
-		if k >= 1:
-			c.leap = null; r.position.y = 0; var dd := Vector2(p.x - r.position.x, p.z - r.position.z).length()
-			shake(maxf(0.2, 0.9 - dd*0.012), 1.2); g.cue("clang"); mon.act("roar"); flash(0.25)
-	else:
-		c.lungeT -= dt
-		if c.lungeT <= 0 and d < 26: c.lunge = 0.9; c.lungeT = 3.5 + randf()*2.5; mon.act("roar"); g.cue("roar")
-		if c.lunge > 0: c.lunge -= dt
-		var spd := 13.0 if c.lunge > 0 else 6.8
-		if d > 5: r.position += Vector3(sin(a), 0, cos(a))*spd*dt
-		c.leapT -= dt
-		if d > 60 and c.leapT <= 0:
-			c.leapT = 7 + randf()*3; c.leap = {"from": Vector2(r.position.x, r.position.z), "to": Vector2(p.x - sin(a)*34, p.z - cos(a)*34), "t": 0.0, "dur": 1.5}; mon.act("roar")
-		c.stepT -= dt
-		if c.stepT <= 0:
-			c.stepT = 0.3 if c.lunge > 0 else 0.55
-			if d < 18: shake(maxf(0.04, 0.22 - d*0.01), 0.2)
-	c.reachT -= dt
-	if c.reachT <= 0 and d < 22: c.reachT = 0.9 + randf()*0.7; mon.reach(Vector3(p.x, p.y + 1, p.z)); g.cue("zip")
-	if d < 7.5 and p.y < 9 and c.hitT <= 0:
-		c.hitT = 1.4; shake(0.7, 0.6); g.cue("punch"); flash(0.45, Color(1, 0.3, 0.4)); c.meter = maxf(0, c.meter - 0.25)
-		g.boots.vx = sin(a)*15; g.boots.vz = cos(a)*15; g.boots.vy = 9; g.boots.ground = false; g.boots.state = "air"
-		g.note("It has you — MOVE!")
-	if hay: hay.k = 0.25 + 0.5*maxf(0, 1 - d/70)
-	if d > 42: c.meter = minf(1, c.meter + dt/5)
-	elif d < 24: c.meter = maxf(0, c.meter - dt/14)
-	if c.t > 9 and c.news == 0: c.news = 1; g.cue("ui"); g.phone_msg = "Something enormous is moving through Harbor Lane. WFC: stay indoors."; g.phone_show("msg", "BREAKING · CH 6"); later(2.2, func(): g.phone_show(""))
-	if c.t > 11.5 and c.news == 1: c.news = 2; news_p.visible = true; g.talk("newsLive")
-	if c.t > 11.5 + g.lines_len("newsLive") + 1 and c.news == 2: c.news = 3; news_p.visible = false
-	lose(c.meter)
-	if c.meter >= 1 or c.t > 150: cy.watch = ""; lose(null); lost_scene()
-## it has lost her: it stands in the street, its head turning — and goes back down into the ground
-func lost_scene() -> void:
-	g.talk_q.clear()
-	if not "chase" in g.S.seen: g.S.seen.append("chase")
-	var p: Vector3 = g.robin.position; var at := Vector2(p.x, p.z); var y0 := p.y; var r := mon; var M := Vector2(r.position.x, r.position.z)
-	var ry := ang(at, M); var dir := Vector2(sin(ry), cos(ry)); var side := Vector2(cos(ry), -sin(ry))
-	var C := {
-		"far": {"cam": Vector3(at.x - dir.x*1.2 + side.x*0.6, y0 + 1.8, at.y - dir.y*1.2 + side.y*0.6), "look": Vector3(M.x, 4, M.y), "fov": 30},
-		"it": {"cam": Vector3(M.x + side.x*16, 3, M.y + side.y*16), "look": Vector3(M.x, 4, M.y), "fov": 44},
-		"under": {"cam": Vector3(M.x - dir.x*10, 0.4, M.y - dir.y*10), "look": func(): return Vector3(M.x, 2 + r.position.y, M.y), "fov": 58}}
-	var shots := cuts(2.4, [C.it, C.far, C.it], {"start": func(): mon.act("roar"); g.cue("roar"); g.stage("idle", at.x, y0, at.y, ry), "tick": func(dt, t, k): r.rotation.y += sin(t*2.2)*dt*1.4})
-	shots.append_array(cuts(3.0, [C.under, C.it, C.far, C.under], {"start": func(): shake(0.5, 2.5); g.cue("clang"),
-		"tick": func(dt, t, k):
-			r.position.y = -k*k*14
-			if hay: hay.k = 0.6*(1 - k)
-			storm(1 - k*0.8)
-			if wind: wind.k = 0.6*(1 - k)}))
-	shots.append({"mood": "shocked", "dur": g.lines_len("chaseLost") + 0.8, "fov": 26, "cam": Vector3(at.x + dir.x*0.8 + side.x*0.3, y0 + 1.66, at.y + dir.y*0.8 + side.y*0.3), "look": Vector3(at.x, y0 + 1.6, at.y),
-		"enter": func(): g.dutch = 0.0; g.talk("chaseLost"); g.stage("idle", at.x, y0, at.y, ry)})
-	g.play_reel(shots, done(func():
-		g.dutch = 0.0
-		if mon: mon.dispose(); mon = null
-		haywire(0.2); hunt = null; cy.props.visible = true; news_p.visible = false
-		wfc_standoff(at, y0)))
+		wfc_standoff(at, 0.0)))
 ## WFC. Where it went down into the street, they come up all round her. She tries to tell them.
 func wfc_standoff(at: Vector2, y0: float) -> void:
 	g.talk_q.clear()
@@ -1293,9 +1198,12 @@ func wfc_standoff(at: Vector2, y0: float) -> void:
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
 		g.place(Vector3(at.x, y0, at.y), ry)
-		later(0.15, func(): g.boots.vx = sin(ry + PI)*10; g.boots.vz = cos(ry + PI)*10; g.boots.ignite(ry + PI); g.note("WFC — LOSE THEM. Get out of the light."))
+		later(0.15, func(): g.boots.vx = sin(ry + PI)*10; g.boots.vz = cos(ry + PI)*10; g.boots.ignite(ry + PI); g.note("WFC — RUN. The Meridian Tower, east of everything: get to the top."))
 		for n in wfc_crew: n.state = "pursue"
-		hunt = {"t": 0.0, "meter": 0.0, "hitT": 0.0}; cy.watch = "wfcRun"; lose(0.0)))
+		Tower.build(g)
+		g.objective("Get to the Meridian Tower.")
+		g.marker.position = Vector3(Tower.C.x, 12, Tower.C.y + Tower.HALF + 2); g.marker.visible = true
+		hunt = {"t": 0.0, "meter": 0.0, "hitT": 0.0}; cy.watch = "wfcRun"))
 ## the angle dictionaries line_shots wants: a Callable look/cam with no arguments, made into one of (k, t)
 func _calls(A: Dictionary) -> Dictionary:
 	var out := {}
@@ -1331,12 +1239,169 @@ func _tick_wfc_run(dt: float) -> void:
 		if v.length() > 1.2 and absf(p.y - n.y) < 2: var s := v.normalized()*minf(v.length(), 4.5*dt); n.x += s.x; n.z += s.y; n.yaw = atan2(v.x, v.y); g.chase._cop_play(n, "sprint")
 		else: g.chase._cop_play(n, "idle")
 		g.chase._cop_place(n)
-	lose(c.meter)
-	if c.meter >= 1 or c.t > 120: cy.watch = ""; lose(null); hunt = null; hide_scene()
+	# at the tower's foot (or somehow already on it): up
+	var tc: Vector2 = Tower.C; var ex := maxf(absf(p.x - tc.x) - Tower.HALF, 0.0); var ez := maxf(absf(p.z - tc.y) - Tower.HALF, 0.0)
+	if Vector2(ex, ez).length() < 5.0: cy.watch = ""; hunt = null; g.marker.visible = false; tower_climb()
 func _wfc_gone() -> void:
 	for n in wfc_crew: n.node.queue_free(); g.chase.cops.erase(n)
 	wfc_crew.clear()
 	if gun: gun.g.queue_free(); gun.cone.queue_free(); gun.pool.queue_free(); gun = null
+## UP THE MERIDIAN TOWER: 140 m of glass, straight up the face, the gunship's light climbing after her
+func tower_climb() -> void:
+	g.talk_q.clear()
+	for n in wfc_crew: n.node.queue_free(); g.chase.cops.erase(n)
+	wfc_crew.clear()
+	var p: Vector3 = g.robin.position; var tc: Vector2 = Tower.C; var H: float = Tower.HALF; var T: float = Tower.TOP
+	# the face she reached: its outward normal, a point on it in line with her
+	var dx := p.x - tc.x; var dz := p.z - tc.y
+	var nrm := Vector2(signf(dx), 0) if absf(dx) - H > absf(dz) - H else Vector2(0, signf(dz))
+	var along := Vector2(-nrm.y, nrm.x)
+	var off := clampf(Vector2(dx, dz).dot(along), -H + 4, H - 4)
+	var foot := tc + nrm*(H + 0.35) + along*off
+	var ry := atan2(-nrm.x, -nrm.y)                          # facing the glass
+	var up := func(k: float): g.stage("climb_up", foot.x, k*T, foot.y, ry)
+	var land := tc + nrm*(H - 4.0) + along*off
+	var V := func(q: Vector2, y: float) -> Vector3: return Vector3(q.x, y, q.y)
+	var her := func(dy := 1.0) -> Vector3: return Vector3(foot.x, g.robin.position.y + dy, foot.y)
+	var shots := [
+		{"dur": 2.2, "fov": 72, "cam": V.call(foot + nrm*7 + along*2, 0.4), "look": func(k, t): return her.call(1.2),
+			"enter": func(): g.set_caption("THE MERIDIAN TOWER"); g.cue("launch"); flash(0.3, Color(0.4, 1, 0.9)),
+			"tick": func(dt, t, k): up.call(k*0.08)},
+		{"dur": 2.6, "fov": 40, "cam": func(k, t): return V.call(foot + nrm*6 + along*4, T*(0.08 + k*0.42) + 1.5), "look": func(k, t): return her.call(),
+			"tick": func(dt, t, k):
+				up.call(0.08 + k*0.42)
+				if gun: gun.g.position = Vector3(foot.x + nrm.x*16, T*(0.08 + k*0.42) - 6, foot.y + nrm.y*16); _aim(foot.x, g.robin.position.y, foot.y),
+			"beats": [[0.4, func(): g.cue("step")], [1.2, func(): g.cue("step")], [2.0, func(): g.cue("step")]]},
+		{"dur": 2.0, "fov": 58, "cam": V.call(foot + nrm*1.2, T + 6), "look": func(k, t): return her.call(),
+			"tick": func(dt, t, k): up.call(0.5 + k*0.42)},
+		{"dur": 1.6, "fov": 50, "cam": V.call(land - nrm*6 + along*3, T + 2.2), "look": V.call(foot, T + 0.8),
+			"enter": func(): g.cue("swish"),
+			"tick": func(dt, t, k):
+				var q := foot.lerp(land, smoothstep(0.0, 1.0, k))
+				g.stage("climb_up" if k < 0.35 else "idle", q.x, T + (sin(k*PI)*1.6 if k < 1 else 0.0) - (1.0 - k)*0.9*(1 if k < 0.35 else 0), q.y, ry + PI if k > 0.35 else ry),
+			"beats": [[1.4, func(): g.cue("thud"); shake(0.2, 0.3)]]}]
+	g.play_reel(shots, done(func():
+		g.dutch = 0.0
+		boss_scene(land, atan2(tc.x - land.x, tc.y - land.y))))
+
+## THE DIRECTOR. On the roof, the gunship comes down onto the pad and somebody steps out of its light: the head of WFC,
+## alone — she sends the gunship off. It is Robin's mother. Robin knows the voice before the face. Her mother has no
+## idea who is under the mask. The rain starts as they square up; she fights her (Fight "director").
+func boss_scene(R0: Vector2, ry: float) -> void:
+	g.talk_q.clear()
+	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
+	if not "boss" in g.S.seen: g.S.seen.append("boss")
+	Tower.skyline(g, false)
+	var pad := tc + Vector2(4, 2)
+	g.fight.setup({"arena": Tower.arena(), "blocks": Tower.blocks(), "floor": T, "meet": R0})
+	g.fight.cast([{"kind": "director", "x": pad.x, "z": pad.y, "tag": "director", "state": "idle", "yaw": atan2(R0.x - pad.x, R0.y - pad.y), "hidden": true}])
+	var D = crew("director")
+	if D: D.y = T; g.fight._place(D)
+	var meet_at := R0 + Vector2(sin(ry), cos(ry))*4.2
+	var dy := atan2(R0.x - meet_at.x, R0.y - meet_at.y)
+	var st := func(nm := "idle"): g.stage(nm, R0.x, T, R0.y, ry)
+	if gun == null:                                              # (a save picked up here: a gunship of its own)
+		wfc_standoff_gun(Vector3(pad.x, T + 22, pad.y))
+	var hover := func(k: float):
+		if gun == null: return
+		gun.g.position = Vector3(pad.x, T + lerpf(22.0, 3.2, smoothstep(0.0, 1.0, k)), pad.y); gun.g.rotation.y = ry + PI
+		_aim(pad.x, T, pad.y)
+	var her_ots: Vector3 = g.rel(meet_at.x, meet_at.y, dy, -0.85, 0.42, T + 1.72)
+	var mom_ots: Vector3 = g.rel(R0.x, R0.y, ry, -0.85, 0.42, T + 1.7)
+	var her_face := Vector3(R0.x, T + 1.55, R0.y); var mom_face := func(): return Vector3(D.x, T + 1.6, D.z) if D else her_face
+	storm(0.6)
+	var shots := [
+		{"dur": 3.2, "fov": 56, "cam": Vector3(tc.x - 26, T + 9, tc.y + 24), "look": Vector3(tc.x, T, tc.y),
+			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"); g.cue("alert"), "tick": func(dt, t, k): hover.call(k*0.4)},
+		{"dur": 3.0, "fov": 44, "cam": Vector3(R0.x - sin(ry)*1.2 + cos(ry)*0.6, T + 1.6, R0.y - cos(ry)*1.2 - sin(ry)*0.6), "look": Vector3(pad.x, T + 2.5, pad.y),
+			"tick": func(dt, t, k): st.call(); hover.call(0.4 + k*0.6); shake(0.04, 0.1)},
+		{"dur": 3.4, "fov": 34, "cam": Vector3(pad.x + 3, T + 1.0, pad.y - 4), "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.cue("door"),
+			"tick": func(dt, t, k): g.crew_walk(D, pad, pad.lerp(meet_at, 0.55), minf(1, k*1.1))},
+		{"dur": g.lines_len("bossIn1") + 0.5, "fov": 30, "cam": her_ots, "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.crew_walk(D, pad.lerp(meet_at, 0.55), meet_at, 1.0); g.crew_face(D, R0.x, R0.y, "idle"); g.talk("bossIn1")},
+		{"mood": "shocked", "dur": 2.0, "fov": 24, "cam": g.rel(R0.x, R0.y, ry, 0.8, 0.1, T + 1.6), "look": her_face, "enter": func(): st.call()},
+		{"dur": g.lines_len("bossIn2") + 0.6, "fov": 28, "cam": her_ots, "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.crew_face(D, R0.x, R0.y, "talk"); g.talk("bossIn2")},
+		{"mood": "sad", "dur": g.lines_len("bossIn3") + 0.6, "fov": 22, "cam": g.rel(R0.x, R0.y, ry, 0.7, -0.15, T + 1.58), "look": her_face,
+			"enter": func(): st.call(); g.talk("bossIn3")},
+		{"dur": g.lines_len("bossIn4") + 0.6, "fov": 30, "cam": mom_ots.lerp(her_ots, 0.0), "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.crew_face(D, R0.x, R0.y, "talk"); g.talk("bossIn4"),
+			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", g0.g.position + Vector3(0, 30, -40), 5.0)]]},
+		# the rain comes in as they square up
+		{"dur": 3.0, "fov": 46, "cam": Vector3((R0.x + meet_at.x)/2 + cos(ry)*6, T + 2.2, (R0.y + meet_at.y)/2 - sin(ry)*6), "look": Vector3((R0.x + meet_at.x)/2, T + 1.2, (R0.y + meet_at.y)/2),
+			"enter": func(): Rain.start(g, 1.0); storm(1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("boom"); flash(0.7, Color(0.85, 0.9, 1)),
+			"beats": [[1.6, func(): g.cue("gear")]]}]
+	g.play_reel(shots, done(func():
+		g.dutch = 0.0
+		g.robin.position = Vector3(R0.x, T, R0.y); g.cam_yaw = ry + PI; g.cam_pitch = 0.0
+		g.mode = "fight"; g.marker.visible = false
+		g.objective("The Director.")
+		g.note("Your mother. She doesn't know it's you.")
+		g.fight.start(boss_end, "brawl")))
+
+## to watch it: -- boss (straight onto the roof, past the surface and the run)
+func boss_test() -> void:
+	g.talk_q.clear(); cy.watch = ""; hunt = null
+	Tower.build(g)
+	if OS.get_cmdline_user_args().has("climb"):            # -- boss climb: from the foot of the tower
+		g.place(Vector3(Tower.C.x - 6, 0, Tower.C.y + Tower.HALF + 2), PI); tower_climb(); return
+	var R0 := Tower.C + Vector2(-6, 18)
+	boss_scene(R0, atan2(Tower.C.x + 4 - R0.x, Tower.C.y + 2 - R0.y))
+
+## a gunship of its own, over a point (the roof, when a save starts there)
+func wfc_standoff_gun(at: Vector3) -> void:
+	var gn := Node3D.new(); g.city.add_child(gn)
+	var hull := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(3.2, 1.0, 6); hull.mesh = bm
+	var hm := StandardMaterial3D.new(); hm.albedo_color = Color("#121a26"); hm.metallic = 0.7; hm.roughness = 0.4; hull.material_override = hm; gn.add_child(hull)
+	var red := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.25; sm.height = 0.5; red.mesh = sm; var rmat := StandardMaterial3D.new(); rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; rmat.albedo_color = Color(3, 0.2, 0.2); red.material_override = rmat
+	red.position = Vector3(0, -0.6, 2.6); gn.add_child(red)
+	var cone := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.05; cm.bottom_radius = 2.6; cm.height = 1.0; cone.mesh = cm
+	var cmat := StandardMaterial3D.new(); cmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; cmat.albedo_color = Color(0.91, 0.96, 1, 0.16); cmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	cmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; cmat.cull_mode = BaseMaterial3D.CULL_DISABLED; cmat.render_priority = 101; cone.material_override = cmat; g.city.add_child(cone)
+	var pool := MeshInstance3D.new(); var pm := CylinderMesh.new(); pm.top_radius = 2.8; pm.bottom_radius = 2.8; pm.height = 0.01; pool.mesh = pm
+	var pmat: StandardMaterial3D = cmat.duplicate(); pmat.albedo_color = Color(0.96, 0.97, 1, 0.35); pool.material_override = pmat; g.city.add_child(pool)
+	gn.position = at
+	gun = {"g": gn, "cone": cone, "pool": pool, "red": red}
+
+## she has her mother down in the rain. Her mother asks who she is. She cannot say. She goes off the edge.
+func boss_end() -> void:
+	g.talk_q.clear()
+	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
+	var D = crew("director")
+	var p: Vector3 = g.robin.position; var at := Vector2(p.x, p.z)
+	var M := Vector2(D.x, D.z) if D else at + Vector2(0, 2)
+	var ry := ang(at, M)
+	# the nearest edge, and over it
+	var dx := at.x - tc.x; var dz := at.y - tc.y
+	var nrm := Vector2(signf(dx), 0) if absf(dx) > absf(dz) else Vector2(0, signf(dz))
+	var edge := Vector2(at.x if nrm.x == 0 else tc.x + nrm.x*(Tower.HALF + 0.3), at.y if nrm.y == 0 else tc.y + nrm.y*(Tower.HALF + 0.3))
+	var off := edge + nrm*8.0
+	var away := atan2(nrm.x, nrm.y)
+	var her := Vector3(at.x, T + 1.55, at.y); var mom_face := Vector3(M.x, T + 0.9, M.y)
+	if D: g.fight.play(D, "ko", 0.2)
+	var shots := [
+		{"dur": 3.0, "fov": 50, "cam": Vector3(at.x + cos(ry)*5, T + 3.5, at.y - sin(ry)*5), "look": Vector3((at.x + M.x)/2, T + 0.6, (at.y + M.y)/2),
+			"enter": func(): g.stage("idle", at.x, T, at.y, ry); g.cue("thud"); flash(0.5, Color(0.85, 0.9, 1))},
+		{"dur": g.lines_len("bossOut1") + 0.6, "fov": 26, "cam": g.rel(at.x, at.y, ry, -0.9, 0.35, T + 1.6), "look": mom_face, "enter": func(): g.talk("bossOut1")},
+		{"mood": "sad", "dur": g.lines_len("bossOut2") + 1.0, "fov": 22, "cam": g.rel(at.x, at.y, ry, 0.75, -0.1, T + 1.55), "look": her, "enter": func(): g.talk("bossOut2")},
+		{"dur": 1.6, "fov": 44, "cam": Vector3(edge.x - nrm.x*6 + nrm.y*3, T + 1.4, edge.y - nrm.y*6 - nrm.x*3), "look": Vector3(edge.x, T + 1.0, edge.y),
+			"enter": func(): g.cue("launch"),
+			"tick": func(dt, t, k): var q := at.lerp(edge, k); g.stage("sprint", q.x, T, q.y, away)},
+		{"dur": 2.6, "fov": 62, "cam": Vector3(edge.x + nrm.x*3, T + 6, edge.y + nrm.y*3), "look": func(k, t): return g.robin.position + Vector3(0, 1, 0),
+			"enter": func(): g.cue("swish"),
+			"tick": func(dt, t, k): var q := edge.lerp(off, k); g.stage("fly", q.x, T + 1.5 - k*k*40.0, q.y, away)},
+		{"dur": 3.0, "fov": 40, "cam": Vector3(M.x - sin(ry)*3, T + 1.2, M.y - cos(ry)*3), "look": Vector3(edge.x, T + 0.8, edge.y),
+			"enter": func(): g.stage("idle", off.x, T - 60, off.y, away); if D: g.fight.play(D, "getup", 0.2),
+			"tick": func(dt, t, k): if D and k > 0.6: g.crew_face(D, edge.x, edge.y, "idle")}]
+	g.play_reel(shots, done(func():
+		Rain.stop(); g.storm_rain = 0.0
+		Tower.skyline(g, true)
+		g.fight.clear()
+		var q := off + nrm*20.0
+		g.place(Vector3(q.x, 0, q.y), away)
+		hide_scene()))
+
 ## she has lost them. Somewhere dark, on her own, she stops — and it all comes down on her. She calls him.
 func hide_scene() -> void:
 	g.talk_q.clear()

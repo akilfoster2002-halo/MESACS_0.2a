@@ -47,6 +47,8 @@ const KIND := {
 	# the old platform: Kai, and Maya (her arms out, in the second fight) — her moves on their bones (retarget.gd)
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
 	"kai": {"char": "kai", "hp": 40.0, "dmg": 26.0, "windup": 0.9, "walk": 2.4, "run": 6.4, "dodge": 0.55, "block": 0.3, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
+	# the boss: Robin's mother, the Director of WFC, on the roof of the Meridian Tower in the rain (tools/mixamo-rig.py both)
+	"director": {"char": "mom", "hp": 64.0, "dmg": 24.0, "windup": 0.55, "walk": 1.9, "run": 5.8, "dodge": 0.5, "block": 0.4, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 48.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3, "dodge": 0.4, "block": 0.25}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 

@@ -49,6 +49,7 @@ const LESSON := [
 var S := {}
 var city: Node3D; var apt: Node3D; var school: Node3D; var sub: Node3D
 var nav := {}; var room := {}; var lines := {}; var voice := {}
+var storm_rain := 0.0
 var inside := false
 var boots: Boots
 var robin: Node3D; var model: Node3D; var anim: AnimationPlayer; var clip := ""
@@ -152,6 +153,7 @@ func _ready() -> void:
 	if args.size() >= 3 and args[2] == "street": S.tun = 7
 	if args.size() >= 3 and args[2] in ["alpha", "maya"]: S.tun = 6; S.lesson = 99; shots_alpha = true; shots_maya = args[2] == "maya"
 	if shots_dir == "" and (args.has("alpha") or args.has("kai") or args.has("maya")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 920; S.tun = 6; S.lesson = 99   # to watch it: -- alpha
+	elif shots_dir == "" and (args.has("surface") or args.has("boss")): S = _fresh(); S.day = true; S.step = "courtyard"; S.dm = 1000; S.tun = 7; S.lesson = 99   # out of the station (-- surface), or straight onto the roof (-- boss)
 	elif shots_dir == "" and args.has("lab"): S = _fresh(); S.day = true; S.step = "detention"; S.dm = 540   # to watch the lab: -- lab
 	elif shots_dir == "" and not args.has("new"): _load()
 	_enter()
@@ -166,12 +168,22 @@ func _ready() -> void:
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		if args.has("alpha") or args.has("kai") or args.has("maya"): _watch_alpha(args.has("kai"), args.has("maya"))
+		if args.has("boss"): get_tree().create_timer(0.6).timeout.connect(func(): station.boss_test())
+		var ev := args.find("snapevery")                 # -- boss snapevery <dir> <secs>: a frame every few seconds, to look at it later
+		if ev >= 0 and args.size() > ev + 2:
+			var dir: String = args[ev + 1]; var every := float(args[ev + 2]); var n := [0]
+			var tm := Timer.new(); tm.wait_time = every; tm.autostart = true; add_child(tm)
+			tm.timeout.connect(func():
+				n[0] += 1
+				await RenderingServer.frame_post_draw
+				get_viewport().get_texture().get_image().save_png(dir.path_join("f%03d.png" % n[0]))
+				print("snap ", n[0], " mode=", mode, " fight=", fight.on, " pos=", robin.position))
 
 # ================================================================== the save
 func _fresh() -> Dictionary:
 	return {"v": 1, "step": "intro", "lesson": 0, "seen": [], "boots": [], "cash": 0, "flash": 3}
 func _save() -> void:
-	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai") or OS.get_cmdline_user_args().has("maya") or OS.get_cmdline_user_args().has("lab"): return      # watching (-- alpha, -- kai) leaves the real save alone
+	if OS.get_cmdline_user_args().has("alpha") or OS.get_cmdline_user_args().has("kai") or OS.get_cmdline_user_args().has("maya") or OS.get_cmdline_user_args().has("lab") or OS.get_cmdline_user_args().has("surface") or OS.get_cmdline_user_args().has("boss"): return      # watching (-- alpha, -- kai) leaves the real save alone
 	var f := FileAccess.open("user://tsh.json", FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(S))
 func _load() -> void:
@@ -977,6 +989,7 @@ func ringing(v: bool) -> void:
 func _bed(dt: float) -> void:
 	if bed.is_empty(): return
 	var d := day(); var rain := 0.0 if d else (0.025 if inside else 0.05)
+	rain = maxf(rain, storm_rain*(0.5 if inside else 1.0))          # the storm on the tower (rain.gd)
 	var want := {"rain": 0.0 if inside else rain, "rain_in": rain if inside else 0.0, "hum": 0.0 if d else 0.07, "hum_day": 0.09 if d else 0.0}
 	var k := 1.0 - exp(-dt/0.4)
 	for n in bed:
@@ -1508,6 +1521,7 @@ func _process(dt: float) -> void:
 	hs.tick(dt)
 	cy.tick(dt)
 	station.tick(dt)
+	Rain.tick(self, dt)
 	_crew_bag(dt)
 	_goal_tick()
 	if mode == "" and chase.on: chase.tick(dt)
