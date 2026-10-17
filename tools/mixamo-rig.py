@@ -33,6 +33,8 @@ T.scale = T.scale*k; bpy.context.view_layer.update()
 zs = [(o.matrix_world @ v.co).z for o in ms for v in o.data.vertices]
 T.location.z -= min(zs); bpy.context.view_layer.update()
 W = T.matrix_world.copy(); Wr = W.to_quaternion(); Wri = Wr.inverted()
+body = max(ms, key=lambda o: len(o.data.vertices)); body.name = "char1"     # (the face and eye tools look for char1)
+if os.environ.get("FACE"): exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "face-keys.py")).read())
 TB = T.data.bones
 rest_w = {b.name: (W @ b.matrix_local).to_quaternion() for b in TB}             # each bone's rest turn, in the world
 hipsT = (W @ TB["mixamorig:Hips"].head_local)

@@ -126,6 +126,9 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	_blade(e)
 	if kind == "kai": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/kai")
 	elif kind == "maya": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/maya")
+	elif kind == "director":                                   # her face (tools/face-keys.py): her lines are "mom"'s
+		e.face = KaiFace.attach(g, e)
+		if e.face: e.face.who = "mom"
 	play(e, "talk" if e.state == "talk" else "idle", 0)
 	E.append(e)
 	_place(e)
