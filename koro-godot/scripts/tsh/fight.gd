@@ -48,7 +48,7 @@ const KIND := {
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
 	"kai": {"char": "kai", "hp": 40.0, "dmg": 26.0, "windup": 0.9, "walk": 2.4, "run": 6.4, "dodge": 0.55, "block": 0.3, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
 	# the boss: Robin's mother, the Director of WFC, on the roof of the Meridian Tower in the rain (tools/mixamo-rig.py both)
-	"director": {"char": "mom", "hp": 64.0, "dmg": 24.0, "windup": 0.55, "walk": 1.9, "run": 5.8, "dodge": 0.5, "block": 0.4, "tough": true, "close_cam": true},
+	"director": {"char": "mom", "hp": 64.0, "dmg": 28.0, "windup": 0.75, "walk": 1.9, "run": 6.5, "dodge": 0.5, "block": 0.4, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 48.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3, "dodge": 0.4, "block": 0.25}}
 const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
 
@@ -260,6 +260,7 @@ func _bone_node(n: Node, suffix: String):
 	return null
 
 func play(e: Dictionary, nm: String, fade := 0.15) -> void:
+	if e.kind == "director" and nm in ["walk_left", "walk_right", "walk_back"]: nm = "walk"      # (her strafe clips throw her legs out)
 	if e.kind == "maya" and g.station and g.station.watch == "fight2" and nm in ["walk", "walk_back", "walk_left", "walk_right", "sprint"]: nm = "fight"      # carried on her arms: her legs do not walk
 	if e.get("drawn", true) == false:
 		if nm in ["idle", "talk", "fight", "block"]:          # standing with it sheathed: an idle of his own (else the draw's first frame, held)
@@ -634,7 +635,7 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 		var at := Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.35, lerpf(p.y, t.z, 0.7))
 		var hd := Vector3(t.x - p.x, 0, t.z - p.y)
 		fx.sparks(at, hd, 1.3 if big else 0.7)
-		if big: fx.lines(at, hd, 0.9)
+		if big or t.kind == "director": fx.lines(at, hd, 0.9 if big else 0.6)      # (every blow on the Director gets its lines)
 	event("hit", {"move": R.move, "target": t, "chain": R.chain})
 
 func knock(e: Dictionary, a: float, push: float) -> void:
@@ -715,6 +716,7 @@ func _tick_crew(dt: float) -> void:
 		var d: float = Vector2(e.x, e.z).distance_to(p); var to_her := ang_to(e.x, e.z, p.x, p.y)
 		if e.get("drawn", true) == false and e.active and on and not e.state in ["drawing", "down", "ko", "flying", "getup"]:
 			e.state = "drawing"; e.t = 0.0; e.draw_len = hit1(e, "draw"); g.cue("gear")
+		if e.kind == "director" and Director.tick(self, e, dt, d, to_her, p): continue     # her own moves (director.gd)
 		match e.state:
 			"drawing":                                   # the draw: hand to the hilt, out, and into his stance
 				e.yaw = turn_to(e.yaw, to_her, dt*4)
@@ -841,10 +843,17 @@ func _step(e: Dictionary, a: float, sp: float, dt: float, keep := false) -> void
 func strike(e: Dictionary, cut := false) -> void:
 	var p := P(); var d: float = Vector2(e.x, e.z).distance_to(p); var a: float = absf(ang_diff(ang_to(e.x, e.z, p.x, p.y), e.yaw))
 	e.state = "recover"; e.t = 0.0
+	var power: bool = e.kind == "director"
+	if power and _ink(e): fx.lines(Vector3(e.x, floor_y + 1.3, e.z), Vector3(sin(e.yaw), 0, cos(e.yaw)), 1.1)      # her every swing: the air goes with it
 	if not cut and (d > float(e.K.get("hit_range", 2.1)) or a > 1.0): g.cue("swish"); event("whiff", {"e": e, "dodged": R.since_dodge < 0.9}); return
 	if R.parry_t > 0: parried(e); return
 	if R.iframe > 0: g.cue("swish"); event("whiff", {"e": e, "dodged": true}); return
+	var h0: float = R.hp
 	hurt(e, 22.0 if e.weapon else e.K.dmg)
+	if power and R.hp < h0 and _ink(e):                      # and when it lands, it lands like a truck
+		var hd: Vector3 = g.robin.position - Vector3(e.x, g.robin.position.y, e.z)
+		fx.sparks(g.robin.position + Vector3(0, 1.2, 0), hd, 1.7); fx.lines(g.robin.position + Vector3(0, 1.2, 0), hd, 1.3)
+		hitstop(0.12); shake(0.6, 0.4); _flash(0.25); g.cue("boom")
 	if not cut and shot == null: cine("hurt", 0.12, 0.08, 0.6)
 	event("hurt", {"e": e})
 func parried(e: Dictionary) -> void:

@@ -1292,14 +1292,15 @@ func tower_climb() -> void:
 		boss_scene(land, atan2(tc.x - land.x, tc.y - land.y))))
 
 ## THE DIRECTOR. On the roof, the gunship comes down onto the pad and somebody steps out of its light: the head of WFC,
-## alone — she sends the gunship off. It is Robin's mother. Robin knows the voice before the face. Her mother has no
-## idea who is under the mask. The rain starts as they square up; she fights her (Fight "director").
+## alone — she sends the gunship off. Robin's mother, and Robin knows it; her mother has no idea who is under the
+## mask — that the one she is hunting, YU, is her own daughter. The rain starts as they square up; she fights her (Fight "director").
 func boss_scene(R0: Vector2, ry: float) -> void:
 	g.talk_q.clear()
 	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
 	if not "boss" in g.S.seen: g.S.seen.append("boss")
 	Tower.skyline(g, false); Tower.night(g, true); Rain.start(g, 0.35)
 	Drones.build(g, tc, T)
+	Director.build_piles(g, tc, T)
 	var pad := tc + Tower.PAD
 	g.fight.setup({"arena": Tower.arena(), "blocks": Tower.blocks(), "floor": T, "meet": R0})
 	g.fight.cast([{"kind": "director", "x": pad.x, "z": pad.y, "tag": "director", "state": "idle", "yaw": atan2(R0.x - pad.x, R0.y - pad.y), "hidden": true}])
@@ -1314,8 +1315,8 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 		if gun == null: return
 		gun.g.position = Vector3(pad.x, T + lerpf(22.0, 3.2, smoothstep(0.0, 1.0, k)), pad.y); gun.g.rotation.y = ry + PI
 		_aim(pad.x, T, pad.y)
-	var her_ots: Vector3 = g.rel(meet_at.x, meet_at.y, dy, -0.85, 0.42, T + 1.72)
-	var mom_ots: Vector3 = g.rel(R0.x, R0.y, ry, -0.85, 0.42, T + 1.7)
+	var her_ots: Vector3 = g.rel(R0.x, R0.y, ry, -0.75, 0.38, T + 1.68)        # over Robin's shoulder, on her mother's face
+	var mom_ots: Vector3 = her_ots
 	var her_face := Vector3(R0.x, T + 1.55, R0.y); var mom_face := func(): return Vector3(D.x, T + 1.6, D.z) if D else her_face
 	var shots := [
 		{"dur": 3.2, "fov": 56, "cam": Vector3(tc.x - 26, T + 9, tc.y + 24), "look": Vector3(tc.x, T, tc.y),
@@ -1325,15 +1326,15 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 		{"dur": 3.4, "fov": 34, "cam": Vector3(pad.x + 3, T + 1.0, pad.y - 4), "look": func(k, t): return mom_face.call(),
 			"enter": func(): g.cue("door"),
 			"tick": func(dt, t, k): g.crew_walk(D, pad, pad.lerp(meet_at, 0.55), minf(1, k*1.1))},
-		{"dur": g.lines_len("bossIn1") + 0.5, "fov": 30, "cam": her_ots, "look": func(k, t): return mom_face.call(),
+		{"dur": g.lines_len("bossIn1") + 0.5, "fov": 15, "cam": her_ots, "look": func(k, t): return mom_face.call(),
 			"enter": func(): g.crew_walk(D, pad.lerp(meet_at, 0.55), meet_at, 1.0); g.crew_face(D, R0.x, R0.y, "idle"); g.talk("bossIn1")},
 		{"mood": "shocked", "dur": 2.0, "fov": 24, "cam": g.rel(R0.x, R0.y, ry, 0.8, 0.1, T + 1.6), "look": her_face, "enter": func(): st.call()},
-		{"dur": g.lines_len("bossIn2") + 0.6, "fov": 28, "cam": her_ots, "look": func(k, t): return mom_face.call(),
-			"enter": func(): g.crew_face(D, R0.x, R0.y, "talk"); g.talk("bossIn2")},
+		{"dur": g.lines_len("bossIn2") + 0.6, "fov": 14, "cam": her_ots, "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.crew_face(D, R0.x, R0.y, "idle"); g.talk("bossIn2")},
 		{"mood": "sad", "dur": g.lines_len("bossIn3") + 0.6, "fov": 22, "cam": g.rel(R0.x, R0.y, ry, 0.7, -0.15, T + 1.58), "look": her_face,
 			"enter": func(): st.call(); g.talk("bossIn3")},
-		{"dur": g.lines_len("bossIn4") + 0.6, "fov": 30, "cam": mom_ots.lerp(her_ots, 0.0), "look": func(k, t): return mom_face.call(),
-			"enter": func(): g.crew_face(D, R0.x, R0.y, "talk"); g.talk("bossIn4"),
+		{"dur": g.lines_len("bossIn4") + 0.6, "fov": 16, "cam": mom_ots.lerp(her_ots, 0.0), "look": func(k, t): return mom_face.call(),
+			"enter": func(): g.crew_face(D, R0.x, R0.y, "idle"); g.talk("bossIn4"),
 			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", Vector3(tc.x + Tower.HALF + 14, T + 12, tc.y + 6), 5.0)]]},
 		# the rain comes in as they square up
 		{"dur": 3.0, "fov": 46, "cam": Vector3((R0.x + meet_at.x)/2 + cos(ry)*6, T + 2.2, (R0.y + meet_at.y)/2 - sin(ry)*6), "look": Vector3((R0.x + meet_at.x)/2, T + 1.2, (R0.y + meet_at.y)/2),
@@ -1403,7 +1404,7 @@ func boss_end() -> void:
 			"tick": func(dt, t, k): if D and k > 0.6: g.crew_face(D, edge.x, edge.y, "idle")}]
 	g.play_reel(shots, done(func():
 		Rain.stop(); g.storm_rain = 0.0
-		Tower.skyline(g, true); Tower.night(g, false); Drones.clear()
+		Tower.skyline(g, true); Tower.night(g, false); Drones.clear(); Director.clear()
 		g.fight.clear()
 		var q := off + nrm*20.0
 		g.place(Vector3(q.x, 0, q.y), away)

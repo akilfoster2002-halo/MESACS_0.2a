@@ -50,9 +50,37 @@ static func tick(g, dt: float) -> void:
 		Tower.sky_mat.set_shader_parameter("flash", (sky.light_energy/2.2) if sky else 0.0); Tower.sky_mat.set_shader_parameter("t", Time.get_ticks_msec()/1000.0)
 	bolt -= dt
 	if bolt <= 0:
-		bolt = 5.0 + randf()*7.0; thunder = 0.35 + randf()*0.9
+		bolt = 1.8 + randf()*3.5; _strike(g); thunder = 0.35 + randf()*0.9
 		if g.station: g.station.flash(0.12, Color(0.85, 0.9, 1.0))
 		if sky: sky.light_energy = 2.2; sky.rotation.y = randf()*TAU
 	if thunder >= 0:
 		thunder -= dt
 		if thunder < 0: g.cue("boom")
+
+## a bolt you can see: a jagged white line from the cloud down to the city, forks off it, gone in a quarter second
+static func _strike(g) -> void:
+	var cam: Camera3D = g.get_viewport().get_camera_3d()
+	if cam == null: return
+	var a := randf()*TAU; var far := randf_range(140.0, 260.0)
+	var base: Vector3 = cam.global_position + Vector3(sin(a)*far, 0, cos(a)*far)
+	var top := base + Vector3(randf_range(-20, 20), 140.0, randf_range(-20, 20)); var bottom := Vector3(base.x, cam.global_position.y - 120.0, base.z)
+	var im := ImmediateMesh.new(); var mi := MeshInstance3D.new(); mi.mesh = im; mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(3.5, 3.6, 4.5); m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.render_priority = 104
+	mi.material_override = m; g.add_child(mi)
+	var side := (top - bottom).cross(cam.global_position - bottom).normalized()
+	var ribbon := func(pts: Array, w: float):
+		im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+		for q in pts: im.surface_add_vertex(q - side*w); im.surface_add_vertex(q + side*w)
+		im.surface_end()
+	var path := [top]; var n := 14
+	for i in range(1, n + 1):
+		var q: Vector3 = top.lerp(bottom, float(i)/n) + side*randf_range(-9, 9) + Vector3(randf_range(-4, 4), 0, randf_range(-4, 4))
+		path.append(q)
+	ribbon.call(path, 0.9)
+	for f in 3:
+		var i0 := randi_range(2, n - 4); var fork := [path[i0]]; var q: Vector3 = path[i0]
+		for k in 5: q += (bottom - top).normalized()*12.0 + side*randf_range(-12, 12); fork.append(q)
+		ribbon.call(fork, 0.45)
+	var tw: Tween = g.create_tween()
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.08).set_delay(0.06); tw.tween_property(m, "albedo_color:a", 1.0, 0.03); tw.tween_property(m, "albedo_color:a", 0.0, 0.25)
+	tw.tween_callback(mi.queue_free)
