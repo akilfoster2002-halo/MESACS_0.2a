@@ -48,9 +48,9 @@ const KIND := {
 	# Kai fights with a great sword (people/kai.glb, tools/kai-rig.py): longer reach, a slower swing that hits harder
 	"kai": {"char": "kai", "hp": 40.0, "dmg": 26.0, "windup": 0.9, "walk": 2.4, "run": 6.4, "dodge": 0.55, "block": 0.3, "reach": 1.25, "aim": 0.45, "scale": 1.15, "tough": true, "close_cam": true},
 	# the boss: Robin's mother, the Director of WFC, on the roof of the Meridian Tower in the rain (tools/mixamo-rig.py both)
-	"director": {"char": "mom", "hp": 64.0, "dmg": 28.0, "windup": 0.75, "walk": 1.9, "run": 6.5, "dodge": 0.5, "block": 0.4, "tough": true, "close_cam": true},
+	"director": {"char": "mom", "hp": 64.0, "dmg": 28.0, "windup": 0.75, "walk": 2.8, "run": 8.5, "dodge": 0.5, "block": 0.4, "tough": true, "close_cam": true},
 	"maya": {"char": "maya", "path": "res://assets/tsh/maya.glb", "hp": 48.0, "dmg": 27.0, "windup": 0.5, "walk": 1.7, "run": 5.4, "reach": 2.3, "dodge": 0.4, "block": 0.25}}
-const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar"]
+const ONCE := ["jab", "cross", "hook", "kick", "knee", "elbow", "power", "dodge", "block", "hit", "stagger", "fall", "getup", "ko", "flykick", "sweep", "spin", "cartL", "cartR", "bflip", "wallkick", "evroll", "evflip", "roar", "round", "flurry"]
 
 var g          # the game (game.gd)
 ## ANOTHER FIGHT, SOMEWHERE ELSE (the chase): its own arena, the floor it stands on, where she gets up (meet), what is
@@ -128,7 +128,7 @@ func spawn(kind: String, x: float, z: float, o := {}) -> Dictionary:
 	elif kind == "maya": e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/maya")
 	elif kind == "director":                                   # her face (tools/face-keys.py): her lines are "mom"'s
 		e.face = KaiFace.attach(g, e, "res://assets/tsh/eyes/mom")      # moving irises (tools/eyes_locate.gd, eyes_bake.gd)
-		if e.face: e.face.who = "mom"
+		if e.face: e.face.who = "mom"; e.face.jaw_k = 0.3
 	play(e, "talk" if e.state == "talk" else "idle", 0)
 	E.append(e)
 	_place(e)
@@ -406,7 +406,7 @@ func _auto(dt: float) -> void:
 		auto_dodge = 0.9; dodge(); return
 	if d < 2.0 and auto_t <= 0 and R.act in [null, "idle", "attack"]:
 		auto_t = randf_range(0.18, 0.32)
-		if randf() < 0.12: _do_parry(); later(0.25, func(): R.blocking = false)
+		if randf() < 0.04: _do_parry(); later(0.25, func(): R.blocking = false)
 		else: attack("punch")
 func _auto_walk(dt: float) -> bool:
 	var t = pick_target(30)
@@ -441,10 +441,10 @@ func attack(kind: String) -> bool:
 	R.act = "attack"; R.move = nm; R.last_move = nm; R.t = 0.0; R.target = t; R.landed = false
 	R.len = robin_clip(m.clip, true); if R.len <= 0: R.len = 0.6
 	var land_at: float = R.len*float(m.hit)
-	if t != null and t.K.get("dodge", 0.0) > 0 and standing(t) and not t.state in ["drawing", "pulled", "stagger"] and randf() < float(t.K.dodge)*(0.6 if t.state == "windup" else 1.0):
+	if t != null and t.K.get("dodge", 0.0) > 0 and standing(t) and not t.state in ["drawing", "pulled", "stagger", "combo", "volley", "to_pile"] and randf() < float(t.K.dodge)*(0.6 if t.state == "windup" else 1.0):
 		var dt0: Dictionary = t
 		later(maxf(0.0, land_at - 0.16), func():          # he reads it: out of the way the instant before it lands
-			if not standing(dt0): return
+			if not standing(dt0) or dt0.state in ["combo", "volley", "to_pile"]: return
 			if dt0.state == "windup": dt0.erase("seq")          # he lets his own swing go to get out of hers
 			var pp := P(); var away: float = ang_to(pp.x, pp.y, dt0.x, dt0.z)
 			var sd := -1.0 if randf() < 0.5 else 1.0
@@ -621,6 +621,7 @@ func land() -> void:
 func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 	if float(t.get("dodge_t", 0.0)) > 0:                  # gone: it cuts air
 		g.cue("swish"); event("whiff", {"e": t, "dodged": true}); return
+	var armour: bool = t.kind == "director" and t.state in ["combo", "volley", "to_pile", "smash"] and t.hp > 0     # mid-string she doesn't flinch
 	if t.K.get("block", 0.0) > 0 and t.state in ["circle", "approach", "evade"] and randf() < float(t.K.block):
 		t.state = "stagger"; t.t = 0.4; t.vx = 0.0; t.vz = 0.0; hit1(t, "block"); g.cue("clang"); shake(0.12, 0.15)
 		if fx: fx.sparks(Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.3, lerpf(p.y, t.z, 0.7)), Vector3(t.x - p.x, 0, t.z - p.y), 0.8)
@@ -638,7 +639,9 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 	var big: bool = m.has("fly") or m.get("down", false) or t.hp <= 0
 	hitstop(0.11 if big else 0.055); shake(m.shake*(1.4 if t.hp <= 0 else 1.0), 0.32 if big else 0.16); cam.punch = maxf(cam.punch, 1.0 if big else 0.45)
 	_spark(Vector3(lerpf(p.x, t.x, 0.7), 1.35, lerpf(p.y, t.z, 0.7)), Color(0.6, 1, 1) if R.move == "power" else Color.WHITE)
-	if m.has("fly"):
+	if armour:
+		t.x += sin(a)*0.1; t.z += cos(a)*0.1
+	elif m.has("fly"):
 		var ta := a
 		if car != null:
 			var ca := ang_to(t.x, t.z, car.x, car.z)

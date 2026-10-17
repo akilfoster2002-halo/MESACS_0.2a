@@ -15,6 +15,45 @@ const SHOTS := 5                 # pieces punched in a volley
 static var piles: Array = []     # {node, at: Vector3, left}
 static var shots: Array = []     # {node, v, t}
 
+## HER STRINGS: three or four, the big ones in them, the last the biggest
+const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "spin"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
+	["elbow", "round", "flykick"], ["jab", "cross", "spin"], ["knee", "elbow", "hook", "round"]]
+const HIT_AT := {"jab": 0.32, "cross": 0.36, "hook": 0.4, "elbow": 0.38, "knee": 0.42, "round": 0.45, "spin": 0.5, "flykick": 0.5, "sweep": 0.42, "flurry": 0.3, "kick": 0.42}
+static func _move(f, e: Dictionary) -> void:
+	var clip: String = e.seq[e.ci]
+	if not e.ap.has_animation(clip): clip = "hook"
+	var k := 1.45
+	var ln: float = f.hit1(e, clip); e.anim_k = k
+	e.mv_len = ln/k; e.mv_hit = e.mv_len*float(HIT_AT.get(clip, 0.4)); e.mv_done = false; e.state = "combo"; e.t = 0.0
+	f.event("windup", {"e": e})
+
+## a blow of hers that lands: a shockwave off it, the world stopping for it, Robin thrown back — the last of a string, across the roof
+static func _power_hit(f, e: Dictionary, p: Vector2, fin: bool) -> void:
+	if f.R.parry_t > 0: f.parried(e); return
+	if f.R.iframe > 0 or f.R.act == "down": f.event("whiff", {"e": e, "dodged": true}); return
+	var h0: float = f.R.hp
+	f.hurt(e, float(e.K.dmg)*(1.25 if fin else 0.55))
+	if f.R.hp >= h0: return
+	var a: float = f.ang_to(e.x, e.z, p.x, p.y); var push := 5.5 if fin else 1.6
+	f.R.dash = {"x0": p.x, "z0": p.y, "x1": clampf(p.x + sin(a)*push, f.arena.x1, f.arena.x2), "z1": clampf(p.y + cos(a)*push, f.arena.z1, f.arena.z2), "t": 0.0, "len": 0.4 if fin else 0.18, "arc": 1.0 if fin else 0.0}
+	var at: Vector3 = f.g.robin.position + Vector3(0, 1.2, 0)
+	var hd: Vector3 = at - Vector3(e.x, at.y, e.z)
+	if f._ink(e): f.fx.sparks(at, hd, 2.4 if fin else 1.6); f.fx.lines(at, hd, 1.8 if fin else 1.2)
+	_shockwave(f, at, hd, fin)
+	f.hitstop(0.2 if fin else 0.1); f.shake(1.0 if fin else 0.55, 0.6 if fin else 0.3); f._flash(0.5 if fin else 0.22); f.g.cue("boom")
+	if fin: f.slow_for(0.3, 0.8); f.cine("finisher", 0.18, 0.32, 0.8, at)
+
+## a ring of air off the blow, flat to the line it came along, out fast and gone
+static func _shockwave(f, at: Vector3, dir: Vector3, big: bool) -> void:
+	var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.35; tm.outer_radius = 0.42; tm.rings = 48; mi.mesh = tm
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(1.0, 0.95, 0.85, 0.9); m.render_priority = 107; mi.material_override = m; f.g.add_child(mi)
+	mi.global_position = at
+	if dir.length() > 0.01: mi.look_at(at + dir.normalized(), Vector3.UP); mi.rotate_object_local(Vector3.RIGHT, PI/2)
+	var tw: Tween = f.g.create_tween(); tw.set_ignore_time_scale(true)
+	tw.tween_property(mi, "scale", Vector3.ONE*(6.0 if big else 3.5), 0.28).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.28); tw.tween_callback(mi.queue_free)
+
 ## the junk piles: four heaps round the roof, each a few boxes and drums she can punch apart
 static func build_piles(g, c: Vector2, top: float) -> void:
 	for p in piles: if is_instance_valid(p.node): p.node.queue_free()
@@ -68,6 +107,7 @@ static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector
 	match e.state:
 		"circle":
 			e.rolled = false
+			e.cool = minf(e.cool, 0.55)                          # she doesn't wait long
 			return false
 		"approach":
 			if not e.get("rolled", false) and f.R.grabbed_by == null:      # each time she comes in: one of her own, or (else) the ordinary blow
@@ -79,7 +119,24 @@ static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector
 						var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
 						if dd < bd: bd = dd; best = pl
 					e.state = "to_pile"; e.t = 0.0; e.pile = best; return true
+				e.seq = COMBOS.pick_random(); e.ci = 0; _move(f, e); return true
 			return false
+		"combo":
+			e.yaw = f.turn_to(e.yaw, to_her, dt*(10.0 if e.t < e.mv_hit else 1.5))
+			var reach: float = 2.9 if e.seq[e.ci] in ["flykick", "spin", "round", "sweep"] else 2.2
+			if e.t < e.mv_hit and d > 1.1: f._step(e, to_her, (13.0 if e.seq[e.ci] == "flykick" else 7.5), dt, true)
+			if e.t >= e.mv_hit and not e.mv_done:
+				e.mv_done = true
+				var fin: bool = e.ci == (e.seq as Array).size() - 1
+				f.g.cue("swish")
+				if f._ink(e): f.fx.lines(Vector3(e.x, f.floor_y + 1.3, e.z), Vector3(sin(e.yaw), 0, cos(e.yaw)), 1.4 if fin else 1.0)
+				var a: float = absf(f.ang_diff(to_her, e.yaw))
+				if d < reach and a < 1.2: _power_hit(f, e, p, fin)
+			if e.t >= e.mv_len*0.82:
+				e.ci += 1
+				if e.ci < (e.seq as Array).size() and d < 5.0: _move(f, e)
+				else: e.state = "recover"; e.t = 0.0; e.anim_k = 1.0
+			return true
 		"charge":
 			e.yaw = f.turn_to(e.yaw, to_her, dt*5)
 			var k: float = clampf(e.t/CHARGE, 0.0, 1.0)

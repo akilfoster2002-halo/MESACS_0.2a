@@ -16,7 +16,9 @@ FIGHTER.update({"fight": "NoisyBoy/Bouncing Fight Idle.fbx", "jab": "NoisyBoy/Pu
     "hook": "NoisyBoy/Hook Punch.fbx", "kick": "NoisyBoy/Kicking.fbx", "block": "NoisyBoy/Block.fbx", "hit": "NoisyBoy/Taking Punch.fbx",
     "stagger": "NoisyBoy/Receive Uppercut To The Face.fbx", "ko": "NoisyBoy/Sweep Fall.fbx", "fall": "NoisyBoy/Dying.fbx",
     "getup": "NoisyBoy/Crouch To Stand.fbx", "roar": "NoisyBoy/Mutant Roaring.fbx"})
-CLIPS = PERSON if SET == "person" else FIGHTER if SET == "fighter" else {**PERSON, **FIGHTER}      # both: a person who also fights (the Director)
+DRAMA = {"flykick": "NoisyBoy/Flying Kick.fbx", "spin": "NoisyBoy/Hurricane Kick.fbx", "round": "NoisyBoy/Roundhouse Kick.fbx",
+    "elbow": "NoisyBoy/Elbow Punch.fbx", "knee": "NoisyBoy/Knee Kick Lead.fbx", "sweep": "NoisyBoy/Leg Sweep.fbx", "flurry": "NoisyBoy/Boxing.fbx"}
+CLIPS = PERSON if SET == "person" else FIGHTER if SET == "fighter" else {**PERSON, **FIGHTER, **DRAMA}      # both: a person who also fights (the Director)
 TRAVEL = {"walk", "sprint", "walk_back", "walk_left", "walk_right", "sprint_back", "sprint_left", "sprint_right", "swim", "fly"}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

@@ -31,11 +31,11 @@ def key(name, f):
         if not face(p): continue
         d = f(p)
         if d is not None and d.length > 1e-7: k.data[v.index].co = v.co + R3 @ d
-U = 2.6*fs                                    # Kai's sculpt was in his 0..1 units times 1.93: the same moves, her size
+U = 4.2*fs                                    # Kai's sculpt was in his 0..1 units times 1.93: the same moves, her size
 def jaw(p):
     if p.z > MOUTH.z + 0.0015*U: return None
     w = min(1.0, (MOUTH.z + 0.0015*U - p.z)/(0.006*U))
-    q = Matrix.Rotation(math.radians(14)*w, 3, 'X') @ (p - JAW) + JAW
+    q = Matrix.Rotation(math.radians(24)*w, 3, 'X') @ (p - JAW) + JAW
     return q - p
 key("jawOpen", jaw)
 key("mouthO", lambda p: (Vector((-(p.x - MOUTH.x)*0.7, -0.008*U, 0)))*near(p, MOUTH, 0.019*U))

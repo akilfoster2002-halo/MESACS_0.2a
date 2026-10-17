@@ -13,6 +13,7 @@ var sk: Skeleton3D; var head := -1
 var decals: Eyes = null; var who := "kai"
 var blink_in := 2.0; var blink_t := 0.0; var t := 0.0
 var cur := {}
+var jaw_k := 1.0             # how far the jaw may open (the Director's face has no inside to its mouth: a little)
 var last_hp := 0.0; var wince := 0.0; var her_hp := 100.0; var smirk := 0.0
 
 static func attach(game, ent: Dictionary, eyes_dir := "") -> KaiFace:
@@ -35,6 +36,7 @@ static func attach(game, ent: Dictionary, eyes_dir := "") -> KaiFace:
 
 func _shape(nm: String, v: float, dt: float, rate := 10.0) -> void:
 	if not idx.has(nm): return
+	if nm == "jawOpen" or nm == "mouthO": v *= jaw_k
 	var c: float = cur.get(nm, 0.0); c = lerpf(c, v, minf(1, dt*rate)); cur[nm] = c
 	body.set_blend_shape_value(idx[nm], c)
 
