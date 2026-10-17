@@ -113,7 +113,7 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 	match e.state:
 		"circle":
 			e.rolled = false
-			e.cool = minf(e.cool, 0.55)                          # she doesn't wait long
+			e.cool = minf(e.cool, 0.9)                           # she doesn't wait long (but a breath, to hit her in)
 			return false
 		"approach":
 			if not e.get("rolled", false) and f.R.grabbed_by == null:      # each time she comes in: one of her own, or (else) the ordinary blow
