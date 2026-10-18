@@ -165,7 +165,7 @@ static func _tick_tracers(dt: float) -> void:
 			var p: Vector3 = (q.a as Vector3).lerp(q.b, q.t); q.n.global_position = p
 			if q.get("live", false) and Vector2(p.x - rp.x, p.z - rp.z).length() < 0.5 and p.y < rp.y + 0.9 and p.y > rp.y - 1.1 and not busy:      # it found her
 				q.live = false; q.t = 1.0
-				if grace <= 0: grace = 0.35; hurt(3.0)
+				if grace <= 0: grace = 0.35; hurt(3.0); struck(p, (q.b as Vector3) - (q.a as Vector3))
 			keep.append(q)
 	tracers = keep
 static func _muzzles_off(s: Dictionary) -> void:
@@ -218,7 +218,7 @@ static func _tick_gunship(dt: float) -> void:
 		if randf() < 0.4 and g.fight.fx: g.fight.fx.sparks(at + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.6)
 	g.station.shake(0.22, 0.08)
 	if not S.hit and Vector2(rp.x - head.x, rp.z - head.z).length() < 1.3 and rp.y < T + 1.5:
-		S.hit = true; hurt(14.0)
+		S.hit = true; hurt(14.0); struck(rp + Vector3(0, 1.0, 0), Vector3(0, -1, 0))
 		var push := (Vector2(rp.x, rp.z) - Vector2(head.x, head.z)).normalized()
 		g.boots.vx = push.x*9; g.boots.vz = push.y*9; g.boots.vy = 6; g.boots.ground = false; g.boots.state = "air"
 	if k >= 1.0:
@@ -257,8 +257,39 @@ static func _spent(s: Dictionary, v: bool) -> void:
 		if s.mark and is_instance_valid(s.mark): s.mark.queue_free()
 		s.smoke = null; s.mark = null; s.nav.light_color = Color(1, 0.2, 0.15)
 
+## A ROUND FINDS HER: a flash and sparks where it lands on her, her whole body flashing red, a flinch and a step back,
+## the screen's edge pulsing red
+static var tint: StandardMaterial3D
+static var edge: ColorRect
+static func struck(at: Vector3, dir: Vector3) -> void:
+	g.cue("hurt"); g.cue("punch")
+	if g.fight.fx: g.fight.fx.sparks(at, -dir.normalized() + Vector3.UP*0.3, 1.3)
+	var fl := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.25; sm.height = 0.5; fl.mesh = sm
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(3.0, 1.6, 0.6, 1.0); fl.material_override = m; g.add_child(fl); fl.global_position = at
+	var tw: Tween = g.create_tween(); tw.tween_property(fl, "scale", Vector3.ONE*2.2, 0.12); tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.12); tw.tween_callback(fl.queue_free)
+	# her body red, a moment
+	if tint == null:
+		tint = StandardMaterial3D.new(); tint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		tint.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; tint.albedo_color = Color(1.0, 0.1, 0.05, 0.0)
+	for mi in g.model.find_children("*", "MeshInstance3D", true, false): (mi as MeshInstance3D).material_overlay = tint
+	tint.albedo_color.a = 0.75
+	var tw2: Tween = g.create_tween(); tw2.tween_property(tint, "albedo_color:a", 0.0, 0.35)
+	# a flinch, a step back
+	var ap: AnimationPlayer = g.anim
+	if ap.has_animation("hit"): ap.play("hit", 0.03, 1.6)
+	var d := Vector2(dir.x, dir.z).normalized()
+	g.boots.vx += d.x*4.0; g.boots.vz += d.y*4.0
+	# the edge of the screen, red
+	if edge == null or not is_instance_valid(edge):
+		var layer := CanvasLayer.new(); layer.layer = 19; g.add_child(layer)
+		edge = ColorRect.new(); edge.set_anchors_preset(Control.PRESET_FULL_RECT); edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sh := Shader.new(); sh.code = "shader_type canvas_item; uniform float a = 0.0; void fragment() { vec2 c = UV - 0.5; float v = smoothstep(0.25, 0.75, length(c*vec2(1.0, 1.3))); COLOR = vec4(0.9, 0.02, 0.02, v*a); }"
+		var sm2 := ShaderMaterial.new(); sm2.shader = sh; edge.material = sm2; layer.add_child(edge)
+	(edge.material as ShaderMaterial).set_shader_parameter("a", 0.85)
+	var tw3: Tween = g.create_tween(); tw3.tween_method(func(v): (edge.material as ShaderMaterial).set_shader_parameter("a", v), 0.85, 0.0, 0.45)
 static func hurt(n: float) -> void:
-	hp -= n; g.cue("boom"); g.station.flash(0.3, Color(1, 0.25, 0.2)); g.station.shake(0.5, 0.3)
+	hp -= n; g.station.shake(0.45 if n > 5 else 0.25, 0.25)
 	if hp <= 0: _again()
 
 ## too much: the roof again, every ship back up
