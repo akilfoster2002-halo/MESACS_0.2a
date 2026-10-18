@@ -690,6 +690,14 @@ func hurt(e: Dictionary, dmg: float) -> void:
 	R.dash = {"x0": p.x, "z0": p.y, "x1": p.x + sin(a)*0.7, "z1": p.y + cos(a)*0.7, "t": 0.0, "len": 0.2, "arc": 0.0}
 	g.cue("hurt"); shake(0.28, 0.3); hitstop(0.07); red.color.a = 0.45
 	if R.hp <= 0: beaten()
+## KNOCKED DOWN (a big blow): off her feet — and straight back up, quick, untouchable while she's on the floor
+func knockdown() -> void:
+	if R.act == "down" or R.hp <= 0: return
+	R.act = "knocked"; R.t = 0.0; R.len = 1.45; R.iframe = maxf(R.iframe, 1.6); R.buffer = null; R.blocking = false
+	var ap: AnimationPlayer = g.anim
+	if ap.has_animation("fall"): g.clip = "fall"; ap.play("fall", 0.06, 1.9)
+	later(0.62, func():
+		if R.act == "knocked" and ap.has_animation("getup"): g.clip = "getup"; ap.play("getup", 0.12, 2.1); g.cue("step"))
 func beaten() -> void:
 	R.act = "down"; R.t = 0.0; R.iframe = 99.0
 	if brawl_mode and not at_start.is_empty():

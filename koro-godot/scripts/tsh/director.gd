@@ -16,6 +16,49 @@ static var piles: Array = []     # {node, at: Vector3, left}
 static var shots: Array = []
 static var scatter: Array = []   # {node, v, spin, down}: broken bits blown across the roof     # {node, v, t}
 
+## THE PROMPT: a big SPACE key in the middle of the screen, bouncing, pressing down with every press; a bar under it
+## filling toward free; and BREAK FREE! when it goes
+static var ui: Dictionary = {}
+static func _mash_ui(f, show: bool, k: float) -> void:
+	if ui.is_empty():
+		var layer := CanvasLayer.new(); layer.layer = 20; f.g.add_child(layer)
+		var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; layer.add_child(root)
+		var key := PanelContainer.new(); var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.95, 0.95, 0.97); sb.set_corner_radius_all(14)
+		sb.border_color = Color(0.35, 0.65, 1.0); sb.set_border_width_all(5); sb.shadow_color = Color(0.3, 0.6, 1.0, 0.6); sb.shadow_size = 18
+		key.add_theme_stylebox_override("panel", sb); key.custom_minimum_size = Vector2(260, 84); root.add_child(key)
+		var kl := Label.new(); kl.text = "SPACE"; kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; kl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		kl.add_theme_font_size_override("font_size", 44); kl.add_theme_color_override("font_color", Color(0.08, 0.1, 0.16)); key.add_child(kl)
+		var title := Label.new(); title.text = "MASH TO BREAK THE CABLE!"; title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", 30); title.add_theme_color_override("font_color", Color(0.75, 0.88, 1.0))
+		title.add_theme_color_override("font_outline_color", Color.BLACK); title.add_theme_constant_override("outline_size", 10); root.add_child(title)
+		var bar := ProgressBar.new(); bar.show_percentage = false; bar.max_value = 1.0; bar.custom_minimum_size = Vector2(420, 22)
+		var bg := StyleBoxFlat.new(); bg.bg_color = Color(0, 0, 0, 0.6); bg.set_corner_radius_all(11); bar.add_theme_stylebox_override("background", bg)
+		var fg := StyleBoxFlat.new(); fg.bg_color = Color(0.4, 0.75, 1.0); fg.set_corner_radius_all(11); bar.add_theme_stylebox_override("fill", fg); root.add_child(bar)
+		var pop := Label.new(); pop.text = "BREAK FREE!"; pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pop.add_theme_font_size_override("font_size", 72); pop.add_theme_color_override("font_color", Color(1.0, 0.92, 0.4))
+		pop.add_theme_color_override("font_outline_color", Color.BLACK); pop.add_theme_constant_override("outline_size", 14); pop.modulate.a = 0.0; root.add_child(pop)
+		ui = {"layer": layer, "root": root, "key": key, "title": title, "bar": bar, "pop": pop, "press": 0.0, "last": 0}
+	var vp: Vector2 = f.g.get_viewport().get_visible_rect().size
+	ui.key.visible = show; ui.title.visible = show; ui.bar.visible = show
+	if not show: return
+	var t := Time.get_ticks_msec()/1000.0
+	var pressed: int = int(f.R.get("cuff", {}).get("k", 0))
+	if pressed != ui.last: ui.last = pressed; ui.press = 1.0
+	ui.press = maxf(0.0, ui.press - 0.016*8.0)
+	var bob := sin(t*14.0)*6.0; var sq: float = 1.0 - 0.12*ui.press
+	ui.key.pivot_offset = ui.key.size/2; ui.key.scale = Vector2(1.0 + 0.06*sin(t*14.0), sq)
+	ui.key.position = Vector2(vp.x/2 - ui.key.size.x/2, vp.y*0.62 + bob + 10*ui.press)
+	ui.title.size = Vector2(vp.x, 40); ui.title.position = Vector2(0, vp.y*0.62 - 56)
+	ui.bar.position = Vector2(vp.x/2 - 210, vp.y*0.62 + 104); ui.bar.value = k
+static func _pop(f) -> void:
+	if ui.is_empty(): return
+	var vp: Vector2 = f.g.get_viewport().get_visible_rect().size
+	var p: Label = ui.pop; p.size = Vector2(vp.x, 90); p.position = Vector2(0, vp.y*0.55); p.pivot_offset = p.size/2
+	p.modulate.a = 1.0; p.scale = Vector2(0.6, 0.6)
+	var tw: Tween = f.g.create_tween(); tw.set_ignore_time_scale(true)
+	tw.tween_property(p, "scale", Vector2(1.15, 1.15), 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.35); tw.tween_property(p, "modulate:a", 0.0, 0.3)
+
 static var cuff := {}             # the cuff in flight
 static var strafe := {}           # the gunship's runs: {next, on: {a, b, t, phase, line, hit}}
 static var fx_nodes := {}
@@ -106,7 +149,7 @@ static func _tick_cuff(f, dt: float) -> void:
 		n.queue_free(); cuff = {}
 		f.R.grabbed_by = e; f.R.act = "grabbed"; f.R.t = 0.0; f.R.dash = null; f.R.cuff = {"k": 0}; f.robin_clip("hit", true)
 		e.state = "tether"; e.t = 0.0; e.cuffed = true
-		f.g.cue("hurt"); f.shake(0.3, 0.3); f.g.note("CUFFED — mash SPACE to break free!")
+		f.g.cue("hurt"); f.shake(0.3, 0.3)
 		return
 	if cuff.t > 1.0: n.queue_free(); cuff = {}; f.g.cue("swish"); _hide_cable("line")
 
@@ -171,7 +214,7 @@ static func _power_hit(f, e: Dictionary, p: Vector2, fin: bool) -> void:
 	if f._ink(e): f.fx.sparks(at, hd, 2.4 if fin else 1.6); f.fx.lines(at, hd, 1.8 if fin else 1.2)
 	_shockwave(f, at, hd, fin)
 	f.hitstop(0.2 if fin else 0.1); f.shake(1.0 if fin else 0.55, 0.6 if fin else 0.3); f._flash(0.5 if fin else 0.22); f.g.cue("boom")
-	if fin: f.slow_for(0.3, 0.8); f.cine("finisher", 0.18, 0.32, 0.8, at)
+	if fin: f.slow_for(0.3, 0.8); f.cine("finisher", 0.18, 0.32, 0.8, at); f.knockdown()
 
 ## a ring of air off the blow, flat to the line it came along, out fast and gone
 static func _shockwave(f, at: Vector3, dir: Vector3, big: bool) -> void:
@@ -269,7 +312,6 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			return false
 		"aim":                                                     # the laser on her: half a second to see it coming
 			e.yaw = f.turn_to(e.yaw, to_her, dt*10); f.play(e, "fight")
-			_laser(f, e, true)
 			if e.t >= 0.55:
 				_laser(f, e, false); f.hit1(e, "jab"); e.anim_k = 1.6; f.g.cue("zip")
 				var from := _hand(f, e); var rp: Vector3 = f.g.robin.position + Vector3(0, 1.0, 0)
@@ -285,25 +327,45 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			e.yaw = f.turn_to(e.yaw, to_her, dt*6); f.play(e, "fight")
 			_arc(f, e, true)
 			if f.R.grabbed_by != e:                                # broken free (or pulsed her off)
-				_arc(f, e, false); e.erase("cuffed"); f.R.erase("cuff")
+				_arc(f, e, false); e.erase("cuffed"); f.R.erase("cuff"); f.g.model.rotation.x = 0.0; _mash_ui(f, false, 0)
 				if e.state == "tether": e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
 				return true
 			f.R.hp -= 5.0*dt; f.shake(0.05, 0.1)
+			_mash_ui(f, true, clampf(float(f.R.cuff.k)/8.0, 0, 1))
+			# Robin: braced, arms up, leaning back from the pull, shaking with the current; dragged in a step at a time
+			var away: float = f.ang_to(e.x, e.z, p.x, p.y)
+			f.R.face = away + PI; f.robin_clip("block")
+			f.g.model.rotation.x = 0.22 + sin(e.t*40.0)*0.04          # heels dug in
+			if Vector2(p.x - e.x, p.y - e.z).length() > 2.0: f.move_to(p.x - sin(away)*0.6*dt, p.y - cos(away)*0.6*dt)
 			if Engine.get_process_frames() % 6 == 0: f.g.cue("zip")
 			if int(f.R.cuff.k) >= 8:                               # she broke it: the Director thrown off balance, open
-				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed")
+				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed"); f.g.model.rotation.x = 0.0
 				e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
-				f.g.cue("clang"); f.hitstop(0.1); f._flash(0.3); f.g.note("Free — hit her now!")
+				f.g.cue("clang"); f.hitstop(0.1); f._flash(0.3); _mash_ui(f, false, 0); _pop(f)
 				if f._ink(e): f.fx.sparks(f.g.robin.position + Vector3(0, 1.2, 0), Vector3.UP, 1.4)
 				return true
-			if e.t >= 1.9:                                         # too slow: reeled in, and the blow
-				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed")
-				var near := Vector2(e.x, e.z) + Vector2(p.x - e.x, p.y - e.z).normalized()*0.95
-				f.R.dash = {"x0": p.x, "z0": p.y, "x1": near.x, "z1": near.y, "t": 0.0, "len": 0.18, "arc": 0.3}
+			if e.t >= 1.9:                                         # too slow: YANKED — and the cross already coming
+				_arc(f, e, false); _mash_ui(f, false, 0)
+				var to := Vector2(e.x, e.z) + Vector2(p.x - e.x, p.y - e.z).normalized()*0.9
+				e.reel = {"from": p, "to": to}
+				var ln: float = f.hit1(e, "cross"); e.anim_k = 1.5
+				e.reel_hit = ln/1.5*0.36                           # the fist lands as she arrives
 				e.state = "reel"; e.t = 0.0
+				f.g.cue("zip"); f.shake(0.25, 0.2)
 			return true
 		"reel":
-			if e.t > 0.4: e.seq = ["round"]; e.ci = 0; _move(f, e)
+			var R0: Vector2 = e.reel.from; var R1: Vector2 = e.reel.to
+			var k := clampf(e.t/float(e.reel_hit), 0, 1); var q := k*k               # quicker and quicker, into the fist
+			if not e.get("reeled", false):
+				f.move_to(lerpf(R0.x, R1.x, q), lerpf(R0.y, R1.y, q))
+				f.R.face = f.ang_to(R1.x, R1.y, e.x, e.z); f.R.act = "grabbed"; f.R.grabbed_by = e
+				f.robin_clip("hit"); f.g.model.rotation.x = -0.35*k            # pitched forward, off her feet
+				_cable(f, "line", _line_pts(_hand(f, e), f.g.robin.position + Vector3(0, 1.05, 0), 0.4), 0.008)
+			if e.t >= float(e.reel_hit) and not e.get("reeled", false):
+				e.reeled = true; _hide_cable("line"); _hide_cable("coil"); _rope_material().emission_energy_multiplier = 0.0
+				f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed"); f.g.model.rotation.x = 0.0
+				f.R.iframe = 0.0; _power_hit(f, e, f.P(), true)
+			if e.t >= float(e.reel_hit) + 0.45: e.reeled = false; e.state = "recover"; e.t = 0.0; e.anim_k = 1.0
 			return true
 		"run_in":
 			e.yaw = f.turn_to(e.yaw, to_her, dt*10)
@@ -506,6 +568,8 @@ static func clear() -> void:
 	shots.clear(); scatter.clear()
 	if not cuff.is_empty() and is_instance_valid(cuff.node): cuff.node.queue_free()
 	cuff = {}; strafe = {}
+	if not ui.is_empty() and is_instance_valid(ui.layer): ui.layer.queue_free()
+	ui = {}
 	for k in fx_nodes:
 		var v = fx_nodes[k]
 		for mi in (v if v is Array else [v]): if is_instance_valid(mi): mi.queue_free()
