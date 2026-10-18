@@ -171,23 +171,60 @@ static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
 			var head0: Vector3 = S.a.lerp(S.b, clampf((S.t - warn)/run, 0, 1))
 			gun.g.aim_at = head0; gun.g.firing = S.t >= warn
 	if S.t < warn:
-		var pulse := 0.5 + 0.5*sin(S.t*30.0)
-		_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.25 + 0.45*pulse), true)
+		var pulse := 0.5 + 0.5*sin(S.t*(18.0 + S.t*30.0))         # quicker and quicker as it comes
+		_beam(f, "strafe", S.a, S.b, 0.12 + 0.3*pulse, Color(2.5, 0.1, 0.05, 0.25 + 0.55*pulse), true)
+		_reticle(f, S, true, S.t/warn)
 		return
+	_reticle(f, S, false, 1.0)
 	_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.15), true)
 	var k := clampf((S.t - warn)/run, 0, 1)
 	var head: Vector3 = S.a.lerp(S.b, k)
 	if not S.get("fired", false): S.fired = true; f.g.cue("gun")         # one burst down the line
-	if Engine.get_process_frames() % 2 == 0:
-		if f._ink(e): f.fx.sparks(head + Vector3(randf_range(-0.2, 0.2), 0.1, randf_range(-0.2, 0.2)), Vector3.UP, 0.7)
-	f.shake(0.12, 0.08)
+	_impacts(f, e, S, head, dt)
+	f.shake(0.22, 0.08)
 	var rp2: Vector3 = f.g.robin.position
 	if not S.hit and Vector2(rp2.x - head.x, rp2.z - head.z).length() < 1.1 and f.R.iframe <= 0 and f.R.act != "down":
-		S.hit = true; var h0: float = f.R.hp; f.hurt(e, 15.0)
-		if f.R.hp < h0: f.g.cue("boom"); f._flash(0.3)
+		S.hit = true; var h0: float = f.R.hp; f.hurt(e, 13.0)
+		if f.R.hp < h0: f.g.cue("boom"); f._flash(0.35); f.hitstop(0.08); f.knockdown()
 	if k >= 1.0:
 		_beam(f, "strafe", S.a, S.b, 0.35, Color.BLACK, false); strafe.on = null; strafe.next = randf_range(4.5, 6.5)
+		if fx_nodes.has("headlight"): fx_nodes["headlight"].light_energy = 0.0
 		if gun and gun.g is GunshipRig: gun.g.firing = false; gun.g.aim_at = f.g.robin.position + Vector3(0, 1, 0)
+
+## the lock: a red ring closing on where she stood
+static func _reticle(f, S: Dictionary, on: bool, k: float) -> void:
+	if not fx_nodes.has("reticle"):
+		var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.9; tm.outer_radius = 1.0; tm.rings = 48; mi.mesh = tm
+		mi.material_override = _unlit(Color(3, 0.15, 0.1, 0.9)); f.g.add_child(mi); fx_nodes["reticle"] = mi
+	var r: MeshInstance3D = fx_nodes["reticle"]; r.visible = on
+	if not on: return
+	r.global_position = (S.a + S.b)/2 + Vector3(0, 0.05, 0); r.scale = Vector3(lerpf(2.6, 0.7, k), 0.05, lerpf(2.6, 0.7, k))
+## the bullets landing: each a flash, a spit of water and grit, sparks; a light running with them; scars left behind
+static func _impacts(f, e: Dictionary, S: Dictionary, head: Vector3, dt: float) -> void:
+	if not fx_nodes.has("headlight"):
+		var l := OmniLight3D.new(); l.light_color = Color(1.0, 0.65, 0.3); l.omni_range = 7.0; f.g.add_child(l); fx_nodes["headlight"] = l
+	var hl: OmniLight3D = fx_nodes["headlight"]; hl.global_position = head + Vector3(0, 0.8, 0); hl.light_energy = randf_range(3, 8)
+	S.acc = float(S.get("acc", 0.0)) + dt
+	while S.acc > 0.025:                                         # forty rounds a second
+		S.acc -= 0.025
+		var at := head + Vector3(randf_range(-0.6, 0.6), 0.02, randf_range(-0.6, 0.6))
+		_splash(f, at)
+		if randf() < 0.5 and f._ink(e): f.fx.sparks(at + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.6)
+		if randf() < 0.35: _scar(f, at)
+static func _splash(f, at: Vector3) -> void:
+	var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.05; cm.bottom_radius = 0.18; cm.height = 1.0; cm.radial_segments = 8; mi.mesh = cm
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.85, 0.9, 1.0, 0.7) if randf() < 0.6 else Color(1.0, 0.75, 0.4, 0.9); mi.material_override = m; f.g.add_child(mi)
+	mi.global_position = at + Vector3(0, 0.05, 0); mi.scale = Vector3(1, 0.05, 1)
+	var h := randf_range(0.5, 1.1)
+	var tw: Tween = f.g.create_tween(); tw.set_ignore_time_scale(true)
+	tw.tween_property(mi, "scale", Vector3(1.4, h, 1.4), 0.08); tw.parallel().tween_property(mi, "position:y", at.y + h*0.5, 0.08)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.18); tw.tween_callback(mi.queue_free)
+static func _scar(f, at: Vector3) -> void:
+	var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = randf_range(0.08, 0.16); cm.bottom_radius = cm.top_radius; cm.height = 0.005; mi.mesh = cm
+	var m := StandardMaterial3D.new(); m.albedo_color = Color(0.02, 0.02, 0.02); m.roughness = 1.0; m.emission_enabled = true; m.emission = Color(1.0, 0.45, 0.1); m.emission_energy_multiplier = 2.5
+	mi.material_override = m; f.g.add_child(mi); mi.global_position = at + Vector3(0, 0.012, 0)
+	var tw: Tween = f.g.create_tween(); tw.tween_property(m, "emission_energy_multiplier", 0.0, 1.2); tw.tween_interval(6.0); tw.tween_callback(mi.queue_free)
 
 ## HER STRINGS: three or four, the big ones in them, the last the biggest
 const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "hook"], ["flurry", "flykick"], ["hook", "cross", "sweep"],
