@@ -8,6 +8,7 @@ static var k := 0.0
 static var want := 0.0
 static var bolt := 4.0
 static var thunder := -1.0
+static var sounds: Array = []           # [drizzle, downpour] players: rain made by Raindear (github.com/nielsiano/Raindear, MIT), looped
 static var sky: DirectionalLight3D        # the lightning: a real light, for a moment, throwing everything's shadow at once
 
 static func start(g, hard := 1.0) -> void:
@@ -27,6 +28,12 @@ static func start(g, hard := 1.0) -> void:
 	g.add_child(drops)
 	sky = DirectionalLight3D.new(); sky.light_color = Color(0.8, 0.86, 1.0); sky.light_energy = 0.0; sky.shadow_enabled = true; sky.shadow_bias = 0.1; sky.shadow_normal_bias = 2.0; sky.rotation = Vector3(-1.1, 0.7, 0); g.add_child(sky)
 	k = 0.0; bolt = 3.0
+	sounds = []
+	for nm in ["storm_drizzle", "storm_pour"]:
+		var st: AudioStreamWAV = load("res://assets/tsh/music/%s.wav" % nm)
+		if st == null: continue
+		st = st.duplicate(); st.loop_mode = AudioStreamWAV.LOOP_FORWARD; st.loop_begin = 0; st.loop_end = int(st.get_length()*st.mix_rate)
+		var pl := AudioStreamPlayer.new(); pl.stream = st; pl.volume_db = -80; g.add_child(pl); pl.play(randf()*20.0); sounds.append(pl)
 
 static func stop() -> void:
 	want = 0.0
@@ -38,11 +45,16 @@ static func tick(g, dt: float) -> void:
 	drops.emitting = k > 0.01
 	var cam: Camera3D = g.get_viewport().get_camera_3d()
 	if cam: drops.global_position = cam.global_position + Vector3(0, 16, 0) - cam.global_basis.z*6
-	g.storm_rain = 0.22*k
+	g.storm_rain = 0.0 if sounds.size() == 2 else 0.22*k
+	if sounds.size() == 2:                                   # drizzle at first, the downpour taking over as it builds
+		var dz := clampf(k/0.3, 0, 1)*(1.0 - clampf((k - 0.35)/0.4, 0, 1)*0.7); var pr := clampf((k - 0.25)/0.6, 0, 1)
+		sounds[0].volume_db = linear_to_db(maxf(dz*0.9, 0.0001)); sounds[1].volume_db = linear_to_db(maxf(pr*0.85, 0.0001))
 	Tower.soak(k)
 	if k < 0.3:
 		if want <= 0.0 and k <= 0.0:
 			drops.queue_free(); drops = null
+			for pl in sounds: if is_instance_valid(pl): pl.queue_free()
+			sounds = []
 			if sky: sky.queue_free(); sky = null
 		return
 	if sky: sky.light_energy = move_toward(sky.light_energy, 0.0, dt*(9.0 if sky.light_energy > 1.0 else 3.0))
