@@ -23,41 +23,36 @@ static func _mash_ui(f, show: bool, k: float) -> void:
 	if ui.is_empty():
 		var layer := CanvasLayer.new(); layer.layer = 20; f.g.add_child(layer)
 		var root := Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; layer.add_child(root)
-		var key := PanelContainer.new(); var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.95, 0.95, 0.97); sb.set_corner_radius_all(14)
-		sb.border_color = Color(0.35, 0.65, 1.0); sb.set_border_width_all(5); sb.shadow_color = Color(0.3, 0.6, 1.0, 0.6); sb.shadow_size = 18
-		key.add_theme_stylebox_override("panel", sb); key.custom_minimum_size = Vector2(260, 84); root.add_child(key)
-		var kl := Label.new(); kl.text = "SPACE"; kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; kl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		kl.add_theme_font_size_override("font_size", 44); kl.add_theme_color_override("font_color", Color(0.08, 0.1, 0.16)); key.add_child(kl)
-		var title := Label.new(); title.text = "MASH TO BREAK THE CABLE!"; title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.add_theme_font_size_override("font_size", 30); title.add_theme_color_override("font_color", Color(0.75, 0.88, 1.0))
-		title.add_theme_color_override("font_outline_color", Color.BLACK); title.add_theme_constant_override("outline_size", 10); root.add_child(title)
-		var bar := ProgressBar.new(); bar.show_percentage = false; bar.max_value = 1.0; bar.custom_minimum_size = Vector2(420, 22)
-		var bg := StyleBoxFlat.new(); bg.bg_color = Color(0, 0, 0, 0.6); bg.set_corner_radius_all(11); bar.add_theme_stylebox_override("background", bg)
-		var fg := StyleBoxFlat.new(); fg.bg_color = Color(0.4, 0.75, 1.0); fg.set_corner_radius_all(11); bar.add_theme_stylebox_override("fill", fg); root.add_child(bar)
-		var pop := Label.new(); pop.text = "BREAK FREE!"; pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		pop.add_theme_font_size_override("font_size", 72); pop.add_theme_color_override("font_color", Color(1.0, 0.92, 0.4))
-		pop.add_theme_color_override("font_outline_color", Color.BLACK); pop.add_theme_constant_override("outline_size", 14); pop.modulate.a = 0.0; root.add_child(pop)
-		ui = {"layer": layer, "root": root, "key": key, "title": title, "bar": bar, "pop": pop, "press": 0.0, "last": 0}
+		var box := Control.new(); box.mouse_filter = Control.MOUSE_FILTER_IGNORE; box.custom_minimum_size = Vector2(220, 44); root.add_child(box)
+		var st := {"press": 0.0, "k": 0.0}
+		box.draw.connect(func():                                   # a small key, the words beside it, a thin bar under
+			var dy: float = 3.0*st.press
+			var key := Rect2(Vector2(0, dy), Vector2(74, 26))
+			box.draw_rect(key, Color(0, 0, 0, 0.45), true)
+			box.draw_rect(key, Color(1, 1, 1, 0.9), false, 1.5)
+			box.draw_rect(Rect2(Vector2(0, 26 + dy), Vector2(74, 2.5 - dy*0.8)), Color(1, 1, 1, 0.35), true)
+			box.draw_rect(Rect2(Vector2(0, 38), Vector2(220, 3)), Color(0, 0, 0, 0.5), true)
+			box.draw_rect(Rect2(Vector2(0, 38), Vector2(220*float(st.k), 3)), Color("#ffd23d"), true))
+		var kl := Label.new(); kl.text = "SPACE"; kl.add_theme_font_size_override("font_size", 13); kl.add_theme_color_override("font_color", Color.WHITE)
+		kl.position = Vector2(14, 4); box.add_child(kl)
+		var tl := Label.new(); tl.text = "break free"; tl.add_theme_font_size_override("font_size", 15); tl.add_theme_color_override("font_color", Color("#9fb4c0"))
+		tl.add_theme_constant_override("outline_size", 5); tl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85)); tl.position = Vector2(86, 3); box.add_child(tl)
+		var pop := Label.new(); pop.text = "free"; pop.add_theme_font_size_override("font_size", 22); pop.add_theme_color_override("font_color", Color("#ffd23d"))
+		pop.add_theme_constant_override("outline_size", 6); pop.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85)); pop.modulate.a = 0.0; root.add_child(pop)
+		ui = {"layer": layer, "box": box, "st": st, "pop": pop, "last": 0}
 	var vp: Vector2 = f.g.get_viewport().get_visible_rect().size
-	ui.key.visible = show; ui.title.visible = show; ui.bar.visible = show
+	ui.box.visible = show
 	if not show: return
-	var t := Time.get_ticks_msec()/1000.0
 	var pressed: int = int(f.R.get("cuff", {}).get("k", 0))
-	if pressed != ui.last: ui.last = pressed; ui.press = 1.0
-	ui.press = maxf(0.0, ui.press - 0.016*8.0)
-	var bob := sin(t*14.0)*6.0; var sq: float = 1.0 - 0.12*ui.press
-	ui.key.pivot_offset = ui.key.size/2; ui.key.scale = Vector2(1.0 + 0.06*sin(t*14.0), sq)
-	ui.key.position = Vector2(vp.x/2 - ui.key.size.x/2, vp.y*0.62 + bob + 10*ui.press)
-	ui.title.size = Vector2(vp.x, 40); ui.title.position = Vector2(0, vp.y*0.62 - 56)
-	ui.bar.position = Vector2(vp.x/2 - 210, vp.y*0.62 + 104); ui.bar.value = k
+	if pressed != ui.last: ui.last = pressed; ui.st.press = 1.0
+	ui.st.press = maxf(0.0, ui.st.press - 0.12); ui.st.k = lerpf(float(ui.st.k), k, 0.4)
+	ui.box.position = Vector2(vp.x/2 - 110, vp.y - 150); ui.box.queue_redraw()
 static func _pop(f) -> void:
 	if ui.is_empty(): return
 	var vp: Vector2 = f.g.get_viewport().get_visible_rect().size
-	var p: Label = ui.pop; p.size = Vector2(vp.x, 90); p.position = Vector2(0, vp.y*0.55); p.pivot_offset = p.size/2
-	p.modulate.a = 1.0; p.scale = Vector2(0.6, 0.6)
+	var p: Label = ui.pop; p.position = Vector2(vp.x/2 - 20, vp.y - 156); p.modulate.a = 1.0
 	var tw: Tween = f.g.create_tween(); tw.set_ignore_time_scale(true)
-	tw.tween_property(p, "scale", Vector2(1.15, 1.15), 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(0.35); tw.tween_property(p, "modulate:a", 0.0, 0.3)
+	tw.tween_property(p, "position:y", vp.y - 176, 0.5); tw.parallel().tween_property(p, "modulate:a", 0.0, 0.5)
 
 static var cuff := {}             # the cuff in flight
 static var strafe := {}           # the gunship's runs: {next, on: {a, b, t, phase, line, hit}}
@@ -177,8 +172,8 @@ static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
 	_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.15), true)
 	var k := clampf((S.t - warn)/run, 0, 1)
 	var head: Vector3 = S.a.lerp(S.b, k)
+	if not S.get("fired", false): S.fired = true; f.g.cue("gun")         # one burst down the line
 	if Engine.get_process_frames() % 2 == 0:
-		f.g.cue("punch")
 		if f._ink(e): f.fx.sparks(head + Vector3(randf_range(-0.2, 0.2), 0.1, randf_range(-0.2, 0.2)), Vector3.UP, 0.7)
 	f.shake(0.12, 0.08)
 	var rp2: Vector3 = f.g.robin.position
@@ -337,7 +332,7 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			f.R.face = away + PI; f.robin_clip("block")
 			f.g.model.rotation.x = 0.22 + sin(e.t*40.0)*0.04          # heels dug in
 			if Vector2(p.x - e.x, p.y - e.z).length() > 2.0: f.move_to(p.x - sin(away)*0.6*dt, p.y - cos(away)*0.6*dt)
-			if Engine.get_process_frames() % 6 == 0: f.g.cue("zip")
+			if fmod(e.t, 0.5) < dt: f.g.cue("zip")                 # the current, buzzing
 			if int(f.R.cuff.k) >= 8:                               # she broke it: the Director thrown off balance, open
 				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed"); f.g.model.rotation.x = 0.0
 				e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
