@@ -141,8 +141,8 @@ static func skyline(g, on: bool) -> void:
 			var src = was_m if was_m else mi.mesh.surface_get_material(i)
 			if src is StandardMaterial3D:
 				var d: StandardMaterial3D = src.duplicate()
-				d.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER; d.distance_fade_min_distance = 45.0; d.distance_fade_max_distance = 75.0
-				d.emission_enabled = true; d.emission = Color(0.9, 0.7, 0.45); d.emission_energy_multiplier = 0.05     # (a little of the city's own light on them)
+				d.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+				d.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA; d.distance_fade_min_distance = 45.0; d.distance_fade_max_distance = 75.0      # (a smooth fade: the dither speckled orange)
 				mi.set_surface_override_material(i, d)
 	if on: faded.clear()
 

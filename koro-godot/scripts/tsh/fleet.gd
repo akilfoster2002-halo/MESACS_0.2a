@@ -356,7 +356,7 @@ static func _boom(s: Dictionary) -> void:
 	tw.tween_callback(fb.queue_free)
 	if g.fight.fx: g.fight.fx.sparks(at, Vector3.UP, 2.5)
 	# it burns on the way down
-	var p := GPUParticles3D.new(); p.amount = 90; p.lifetime = 1.2; p.local_coords = false
+	var p := GPUParticles3D.new(); p.amount = 40; p.lifetime = 0.5; p.local_coords = true      # (on the ship: no trail of embers across the sky)
 	var pm := ParticleProcessMaterial.new(); pm.direction = Vector3(0, 1, 0); pm.spread = 30.0; pm.initial_velocity_min = 1.0; pm.initial_velocity_max = 3.0; pm.scale_min = 1.5; pm.scale_max = 3.5; p.process_material = pm
 	var q := QuadMesh.new(); q.size = Vector2(0.7, 0.7)
 	var qm := StandardMaterial3D.new(); qm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; qm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; qm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
