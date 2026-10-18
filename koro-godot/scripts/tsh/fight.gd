@@ -630,12 +630,12 @@ func land_on(t: Dictionary, m: Dictionary, p: Vector2) -> void:
 		g.cue("swish"); event("whiff", {"e": t, "dodged": true}); return
 	var armour: bool = t.kind == "director" and t.state in ["combo", "volley", "to_pile", "smash", "aim", "fire", "tether", "reel", "run_in"] and t.hp > 0     # mid-string she doesn't flinch
 	if t.K.get("block", 0.0) > 0 and t.state in ["circle", "approach", "evade"] and randf() < float(t.K.block):
-		t.state = "stagger"; t.t = 0.4; t.vx = 0.0; t.vz = 0.0; hit1(t, "block"); g.cue("clang"); shake(0.12, 0.15)
+		t.state = "stagger"; t.t = 0.4; t.vx = 0.0; t.vz = 0.0; hit1(t, "block"); g.cue("block"); shake(0.12, 0.15)
 		if fx: fx.sparks(Vector3(lerpf(p.x, t.x, 0.7), floor_y + 1.3, lerpf(p.y, t.z, 0.7)), Vector3(t.x - p.x, 0, t.z - p.y), 0.8)
 		t.cool = 0.0                                       # and straight back at her
 		return
 	if t.guard != null and t.guard.call():
-		g.cue("clang"); shake(0.05, 0.1)
+		g.cue("block"); shake(0.05, 0.1)
 		if t.state != "windup": t.state = "stagger"; t.t = 0.3; t.vx = 0.0; t.vz = 0.0; hit1(t, "block")
 		return
 	var dmg: float = m.dmg*(2.0 if R.counter_ready else 1.0)
@@ -682,7 +682,7 @@ func throw_off(e: Dictionary, a: float, sp: float, up: float) -> void:
 
 func hurt(e: Dictionary, dmg: float) -> void:
 	if R.act == "down": return                             # already down: nothing more lands on her
-	if R.blocking and R.act == "block": dmg *= 0.2; g.cue("clang"); shake(0.08, 0.12); R.hp -= dmg; return
+	if R.blocking and R.act == "block": dmg *= 0.2; g.cue("block"); shake(0.08, 0.12); R.hp -= dmg; return
 	R.hp -= dmg; R.hurt_t = 0.0; R.chain = 0; R.chain_t = 0.0; R.combo = 0; R.buffer = null
 	if R.grabbed_by != null: return
 	R.act = "hurt"; R.t = 0.0; R.len = 0.42; robin_clip("hit", true)

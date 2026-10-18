@@ -1320,7 +1320,7 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 	var her_face := Vector3(R0.x, T + 1.55, R0.y); var mom_face := func(): return Vector3(D.x, T + 1.6, D.z) if D else her_face
 	var shots := [
 		{"dur": 3.2, "fov": 56, "cam": Vector3(tc.x - 26, T + 9, tc.y + 24), "look": Vector3(tc.x, T, tc.y),
-			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"); "tick": func(dt, t, k): hover.call(k*0.4)},
+			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"), "tick": func(dt, t, k): hover.call(k*0.4)},
 		{"dur": 3.0, "fov": 44, "cam": Vector3(R0.x - sin(ry)*1.2 + cos(ry)*0.6, T + 1.6, R0.y - cos(ry)*1.2 - sin(ry)*0.6), "look": Vector3(pad.x, T + 2.5, pad.y),
 			"tick": func(dt, t, k): st.call(); hover.call(0.4 + k*0.6); shake(0.04, 0.1)},
 		{"dur": 3.4, "fov": 34, "cam": Vector3(pad.x + 3, T + 1.0, pad.y - 4), "look": func(k, t): return mom_face.call(),

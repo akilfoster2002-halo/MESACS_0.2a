@@ -286,7 +286,7 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 		"circle":
 			e.rolled = false
 			if d > 3.2 and d < 11.0 and float(e.get("cuff_cd", 0.0)) <= 0.0 and f.R.grabbed_by == null and randf() < dt*1.2:      # at range: the cuffs
-				e.state = "aim"; e.t = 0.0; e.cuff_cd = 8.0; f.g.cue("lock"); return true
+				e.state = "aim"; e.t = 0.0; e.cuff_cd = 8.0; return true
 			e.cool = minf(e.cool, 0.9)                           # she doesn't wait long (but a breath, to hit her in)
 			return false
 		"approach":
@@ -294,7 +294,7 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 				e.rolled = true
 				var r := randf()
 				if d > 3.0 and d < 10.0 and r < 0.35 and float(e.get("cuff_cd", 0.0)) <= 0.0:      # THE TASER CUFFS
-					e.state = "aim"; e.t = 0.0; e.cuff_cd = 9.0; f.g.cue("lock"); return true
+					e.state = "aim"; e.t = 0.0; e.cuff_cd = 9.0; return true
 				var best = null; var bd := 1e9                         # junk only if there is some right by her: she doesn't go looking for it
 				for pl in piles:
 					var dd: float = Vector2(pl.at.x - e.x, pl.at.z - e.z).length()
@@ -336,7 +336,7 @@ static func _tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vecto
 			if int(f.R.cuff.k) >= 8:                               # she broke it: the Director thrown off balance, open
 				_arc(f, e, false); f.R.grabbed_by = null; f.R.act = null; f.R.erase("cuff"); e.erase("cuffed"); f.g.model.rotation.x = 0.0
 				e.state = "stagger"; e.t = 0.0; e.parried = true; f.hit1(e, "stagger")
-				f.g.cue("clang"); f.hitstop(0.1); f._flash(0.3); _mash_ui(f, false, 0); _pop(f)
+				f.g.cue("thud"); f.hitstop(0.1); f._flash(0.3); _mash_ui(f, false, 0); _pop(f)
 				if f._ink(e): f.fx.sparks(f.g.robin.position + Vector3(0, 1.2, 0), Vector3.UP, 1.4)
 				return true
 			if e.t >= 1.9:                                         # too slow: YANKED — and the cross already coming
