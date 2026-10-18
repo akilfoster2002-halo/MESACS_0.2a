@@ -128,7 +128,7 @@ static func tick(game, dt: float) -> void:
 			var a := randf()*TAU; var dir := Vector3(sin(a), 0, cos(a))
 			var c := Vector3(rp.x, T + 0.03, rp.z)
 			s.line = {"a": c - dir*16.0, "b": c + dir*16.0, "dir": dir}; s.state = "run"; s.t = 0.0; s.hit = false; s.acc = 0.0
-			g.cue("alarm"); print("RUN ", s.i)
+			g.cue("alarm")
 		var left := alive().size()
 		next_run = lerpf(3.0, 5.5, float(left)/N)
 	var left2 := alive().size()
