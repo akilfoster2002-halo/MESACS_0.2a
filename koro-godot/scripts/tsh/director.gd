@@ -37,11 +37,56 @@ static func _beam(f, key: String, a: Vector3, b: Vector3, w: float, c: Color, on
 static func _laser(f, e: Dictionary, on: bool) -> void:
 	var c := Color(3.0, 0.15, 0.1, 0.8 if fmod(e.t*12.0, 1.0) < 0.6 else 0.35)
 	_beam(f, "laser", _hand(f, e), f.g.robin.position + Vector3(0, 1.0, 0), 0.02, c, on)
+## THE TASER LINE: a steel cable from her hand, sagging, twitching with the current; and round Robin, coils of it
+static var rope_mat: StandardMaterial3D
+static func _rope_material() -> StandardMaterial3D:
+	if rope_mat == null:
+		rope_mat = StandardMaterial3D.new(); rope_mat.albedo_color = Color(0.12, 0.13, 0.15); rope_mat.metallic = 0.8; rope_mat.roughness = 0.35
+		rope_mat.emission_enabled = true; rope_mat.emission = Color(0.35, 0.6, 1.0); rope_mat.emission_energy_multiplier = 0.0
+	return rope_mat
+## a run of points drawn as a cable: short cylinders end to end, pooled under a key
+static func _cable(f, key: String, pts: Array, r: float) -> void:
+	if not fx_nodes.has(key): fx_nodes[key] = []
+	var pool: Array = fx_nodes[key]
+	while pool.size() < pts.size() - 1:
+		var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 1.0; cm.bottom_radius = 1.0; cm.height = 1.0; cm.radial_segments = 6; cm.rings = 1
+		mi.mesh = cm; mi.material_override = _rope_material(); mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; f.g.add_child(mi); pool.append(mi)
+	for i in pool.size():
+		var mi: MeshInstance3D = pool[i]
+		if i >= pts.size() - 1: mi.visible = false; continue
+		var a: Vector3 = pts[i]; var b: Vector3 = pts[i + 1]; var dv := b - a; var L := dv.length()
+		if L < 0.001: mi.visible = false; continue
+		mi.visible = true
+		var y := dv/L; var x := y.cross(Vector3.UP if absf(y.y) < 0.95 else Vector3.RIGHT).normalized(); var z := x.cross(y)
+		mi.global_transform = Transform3D(Basis(x*r, y*(L + r), z*r), (a + b)/2)
+static func _hide_cable(key: String) -> void:
+	for mi in fx_nodes.get(key, []): if is_instance_valid(mi): mi.visible = false
+## from her hand to a point: hanging a little, and buzzing while it carries current
+static func _line_pts(a: Vector3, b: Vector3, live: float) -> Array:
+	var out := []; var n := 18
+	for i in n + 1:
+		var k := float(i)/n
+		var q := a.lerp(b, k)
+		q.y -= sin(k*PI)*0.18*(1.0 - live*0.6)
+		if live > 0 and i > 0 and i < n: q += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1))*0.025*live
+		out.append(q)
+	return out
+## coils round her: three turns from her hips to her chest, closing in from loose to tight
+static func _coil_pts(c: Vector3, k: float, yaw: float) -> Array:
+	var out := []; var n := 54; var r := lerpf(0.55, 0.24, clampf(k, 0, 1))
+	for i in n + 1:
+		var u := float(i)/n; var a := yaw + u*TAU*3.0
+		out.append(c + Vector3(sin(a)*r*(1.0 + 0.12*sin(u*TAU*6.0)), lerpf(0.85, 1.45, u), cos(a)*r*0.8))
+	return out
 static func _arc(f, e: Dictionary, on: bool) -> void:
-	var a := _hand(f, e); var b: Vector3 = f.g.robin.position + Vector3(0, 1.05, 0)
-	var j := Vector3(randf_range(-0.12, 0.12), randf_range(-0.12, 0.12), randf_range(-0.12, 0.12))
-	_beam(f, "arc1", a, (a + b)/2 + j, 0.035, Color(0.6, 0.85, 3.0, 0.9), on)
-	_beam(f, "arc2", (a + b)/2 + j, b, 0.035, Color(0.6, 0.85, 3.0, 0.9), on)
+	if not on:
+		_hide_cable("line"); _hide_cable("coil"); _rope_material().emission_energy_multiplier = 0.0; return
+	var rp: Vector3 = f.g.robin.position
+	var k := clampf(float(e.get("t", 0.0))/0.25, 0, 1)            # the coils close in a quarter second
+	var coil := _coil_pts(Vector3(rp.x, rp.y, rp.z), k, float(e.yaw))
+	_cable(f, "coil", coil, 0.012)
+	_cable(f, "line", _line_pts(_hand(f, e), coil[0], 1.0), 0.008)
+	_rope_material().emission_energy_multiplier = 1.5 + 2.5*randf()     # the current in it, flickering
 static func _cuff_mesh(f) -> MeshInstance3D:
 	var mi := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.08; tm.outer_radius = 0.13; mi.mesh = tm
 	mi.material_override = _unlit(Color(0.7, 0.9, 3.0, 1.0)); f.g.add_child(mi)
@@ -55,6 +100,7 @@ static func _tick_cuff(f, dt: float) -> void:
 	cuff.v = (cuff.v as Vector3).lerp(want, minf(1, dt*3.5))           # it seeks her a little: dodge it, don't just walk
 	cuff.t += dt; n.global_position += cuff.v*dt; n.rotation += Vector3(9, 4, 0)*dt
 	var e: Dictionary = cuff.e
+	_cable(f, "line", _line_pts(_hand(f, e), n.global_position, 0.0), 0.008)     # the wire paying out behind it
 	var rp: Vector3 = f.g.robin.position + Vector3(0, 1.0, 0)
 	if n.global_position.distance_to(rp) < 0.75 and f.R.iframe <= 0 and f.R.act != "down" and e.state == "fire":
 		n.queue_free(); cuff = {}
@@ -62,7 +108,7 @@ static func _tick_cuff(f, dt: float) -> void:
 		e.state = "tether"; e.t = 0.0; e.cuffed = true
 		f.g.cue("hurt"); f.shake(0.3, 0.3); f.g.note("CUFFED — mash SPACE to break free!")
 		return
-	if cuff.t > 1.0: n.queue_free(); cuff = {}; f.g.cue("swish")
+	if cuff.t > 1.0: n.queue_free(); cuff = {}; f.g.cue("swish"); _hide_cable("line")
 
 ## THE GUNSHIP'S RUNS: a red line across the roof through where Robin is; a second later the guns walk down it
 static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
@@ -460,7 +506,9 @@ static func clear() -> void:
 	shots.clear(); scatter.clear()
 	if not cuff.is_empty() and is_instance_valid(cuff.node): cuff.node.queue_free()
 	cuff = {}; strafe = {}
-	for k in fx_nodes: if is_instance_valid(fx_nodes[k]): fx_nodes[k].queue_free()
+	for k in fx_nodes:
+		var v = fx_nodes[k]
+		for mi in (v if v is Array else [v]): if is_instance_valid(mi): mi.queue_free()
 	fx_nodes = {}
 	for p in piles: if is_instance_valid(p.node): p.node.queue_free()
 	piles.clear()
