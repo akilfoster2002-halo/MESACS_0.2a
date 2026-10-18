@@ -547,7 +547,7 @@ static func _tick_shots(f, dt: float) -> void:
 		s.v.y -= 4.0*dt
 		n.global_position += s.v*dt; n.rotation += s.spin*dt
 		if n.global_position.y < f.floor_y + 0.25 or s.t > 1.6:      # missed: it comes down and lies on the roof
-			n.global_position.y = maxf(n.global_position.y, f.floor_y + 0.25); f.g.cue("thud")
+			n.global_position.y = maxf(n.global_position.y, f.floor_y + 0.25)
 			var tw: Tween = f.g.create_tween(); tw.tween_interval(4.0); tw.tween_callback(n.queue_free)
 			continue
 		if n.global_position.distance_to(rp) < 0.9 and f.R.iframe <= 0 and f.R.act != "down":

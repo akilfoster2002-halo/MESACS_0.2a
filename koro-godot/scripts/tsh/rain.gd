@@ -48,7 +48,7 @@ static func tick(g, dt: float) -> void:
 	g.storm_rain = 0.0 if sounds.size() == 2 else 0.22*k
 	if sounds.size() == 2:                                   # drizzle at first, the downpour taking over as it builds
 		var dz := clampf(k/0.3, 0, 1)*(1.0 - clampf((k - 0.35)/0.4, 0, 1)*0.7); var pr := clampf((k - 0.25)/0.6, 0, 1)
-		sounds[0].volume_db = linear_to_db(maxf(dz*0.9, 0.0001)); sounds[1].volume_db = linear_to_db(maxf(pr*1.15, 0.0001))
+		sounds[0].volume_db = linear_to_db(maxf(dz*0.45, 0.0001)); sounds[1].volume_db = linear_to_db(maxf(pr*0.55, 0.0001))
 	Tower.soak(k)
 	if k < 0.3:
 		if want <= 0.0 and k <= 0.0:
