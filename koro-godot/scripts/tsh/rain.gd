@@ -48,7 +48,7 @@ static func tick(g, dt: float) -> void:
 	g.storm_rain = 0.0 if sounds.size() == 2 else 0.22*k
 	if sounds.size() == 2:                                   # drizzle at first, the downpour taking over as it builds
 		var dz := clampf(k/0.3, 0, 1)*(1.0 - clampf((k - 0.35)/0.4, 0, 1)*0.7); var pr := clampf((k - 0.25)/0.6, 0, 1)
-		sounds[0].volume_db = linear_to_db(maxf(dz*0.9, 0.0001)); sounds[1].volume_db = linear_to_db(maxf(pr*0.85, 0.0001))
+		sounds[0].volume_db = linear_to_db(maxf(dz*0.9, 0.0001)); sounds[1].volume_db = linear_to_db(maxf(pr*1.15, 0.0001))
 	Tower.soak(k)
 	if k < 0.3:
 		if want <= 0.0 and k <= 0.0:
@@ -62,12 +62,12 @@ static func tick(g, dt: float) -> void:
 		Tower.sky_mat.set_shader_parameter("flash", (sky.light_energy/2.2) if sky else 0.0); Tower.sky_mat.set_shader_parameter("t", Time.get_ticks_msec()/1000.0)
 	bolt -= dt
 	if bolt <= 0:
-		bolt = 1.8 + randf()*3.5; _strike(g); thunder = 0.35 + randf()*0.9
+		bolt = 1.8 + randf()*3.5; _strike(g); thunder = 0.15 + randf()*0.6
 		if g.station: g.station.flash(0.12, Color(0.85, 0.9, 1.0))
 		if sky: sky.light_energy = 2.2; sky.rotation.y = randf()*TAU
 	if thunder >= 0:
 		thunder -= dt
-		if thunder < 0: g.cue("boom")
+		if thunder < 0: g.cue("thunder")                      # (Raindear's thunder rolls: not the fight's impact)
 
 ## a bolt you can see: a jagged white line from the cloud down to the city, forks off it, gone in a quarter second
 static func _strike(g) -> void:

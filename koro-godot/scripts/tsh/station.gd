@@ -1320,12 +1320,11 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 	var her_face := Vector3(R0.x, T + 1.55, R0.y); var mom_face := func(): return Vector3(D.x, T + 1.6, D.z) if D else her_face
 	var shots := [
 		{"dur": 3.2, "fov": 56, "cam": Vector3(tc.x - 26, T + 9, tc.y + 24), "look": Vector3(tc.x, T, tc.y),
-			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"); g.cue("alert"), "tick": func(dt, t, k): hover.call(k*0.4)},
+			"enter": func(): st.call(); g.set_caption("THE ROOF — THE MERIDIAN TOWER"); "tick": func(dt, t, k): hover.call(k*0.4)},
 		{"dur": 3.0, "fov": 44, "cam": Vector3(R0.x - sin(ry)*1.2 + cos(ry)*0.6, T + 1.6, R0.y - cos(ry)*1.2 - sin(ry)*0.6), "look": Vector3(pad.x, T + 2.5, pad.y),
 			"tick": func(dt, t, k): st.call(); hover.call(0.4 + k*0.6); shake(0.04, 0.1)},
 		{"dur": 3.4, "fov": 34, "cam": Vector3(pad.x + 3, T + 1.0, pad.y - 4), "look": func(k, t): return mom_face.call(),
-			"enter": func(): g.cue("door"),
-			"tick": func(dt, t, k): g.crew_walk(D, pad, pad.lerp(meet_at, 0.55), minf(1, k*1.1))},
+						"tick": func(dt, t, k): g.crew_walk(D, pad, pad.lerp(meet_at, 0.55), minf(1, k*1.1))},
 		{"dur": g.lines_len("bossIn1") + 0.5, "fov": 15, "cam": her_ots, "look": func(k, t): return mom_face.call(),
 			"enter": func(): g.crew_walk(D, pad.lerp(meet_at, 0.55), meet_at, 1.0); g.crew_face(D, R0.x, R0.y, "idle"); g.talk("bossIn1")},
 		{"mood": "shocked", "dur": 2.0, "fov": 24, "cam": g.rel(R0.x, R0.y, ry, 0.8, 0.1, T + 1.6), "look": her_face, "enter": func(): st.call()},
@@ -1338,7 +1337,7 @@ func boss_scene(R0: Vector2, ry: float) -> void:
 			"beats": [[1.0, func(): if gun: var g0 = gun; var tw = g.create_tween(); tw.tween_property(g0.g, "position", Vector3(tc.x + Tower.HALF + 14, T + 12, tc.y + 6), 5.0)]]},
 		# the rain comes in as they square up
 		{"dur": 3.0, "fov": 46, "cam": Vector3((R0.x + meet_at.x)/2 + cos(ry)*6, T + 2.2, (R0.y + meet_at.y)/2 - sin(ry)*6), "look": Vector3((R0.x + meet_at.x)/2, T + 1.2, (R0.y + meet_at.y)/2),
-			"enter": func(): Rain.start(g, 1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("boom"); flash(0.7, Color(0.85, 0.9, 1)),
+			"enter": func(): Rain.start(g, 1.0); g.crew_face(D, R0.x, R0.y, "fight"); st.call("fight"); g.cue("thunder"); flash(0.7, Color(0.85, 0.9, 1)),
 			"beats": [[1.6, func(): g.cue("gear")]]}]
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
