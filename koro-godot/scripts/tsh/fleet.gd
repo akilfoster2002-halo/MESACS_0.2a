@@ -7,7 +7,7 @@
 class_name Fleet
 extends RefCounted
 
-const N := 5
+const N := 3
 const R_ORBIT := 40.0
 static var on := false
 static var g
@@ -163,7 +163,7 @@ static func _tick_tracers(dt: float) -> void:
 				if randf() < 0.3 and g.fight.fx: g.fight.fx.sparks(q.b + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.5)
 		else:
 			var p: Vector3 = (q.a as Vector3).lerp(q.b, q.t); q.n.global_position = p
-			if q.get("live", false) and p.distance_to(rp) < 0.75 and not busy:      # it found her
+			if q.get("live", false) and Vector2(p.x - rp.x, p.z - rp.z).length() < 0.5 and p.y < rp.y + 0.9 and p.y > rp.y - 1.1 and not busy:      # it found her
 				q.live = false; q.t = 1.0
 				if grace <= 0: grace = 0.35; hurt(3.0)
 			keep.append(q)
@@ -234,11 +234,9 @@ static func _rounds(s: Dictionary, head: Vector3, dt: float) -> void:
 		var mzp: Vector3 = (s.mz[0].l as OmniLight3D).global_position
 		var fly := mzp.distance_to(head)/BULLET                      # where she will be when it gets there, if she keeps on as she is
 		var lead := Vector3(g.boots.vx, 0, g.boots.vz)*fly
-		var at := head + lead + Vector3(randf_range(-0.35, 0.35), 0.9 + randf_range(-0.15, 0.15), randf_range(-0.35, 0.35))
 		var m: Dictionary = s.mz[randi() % s.mz.size()]
 		var from := (m.l as OmniLight3D).global_position
-		var to := from + (at - from)*((at - from).length() + 6.0)/(at - from).length()      # on through, to the deck behind
-		to.y = maxf(to.y, Tower.TOP + 0.02)
+		var to := Vector3(head.x, Tower.TOP + 0.02, head.z) + lead + Vector3(randf_range(-0.35, 0.35), 0, randf_range(-0.35, 0.35))      # down into the deck at her feet
 		_tracer(from, to, true)
 	g.station.shake(0.06, 0.05)
 

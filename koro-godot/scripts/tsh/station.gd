@@ -1300,13 +1300,33 @@ func fleet_scene(R0: Vector2, ry: float) -> void:
 	Fleet.busy = true; Fleet.next_run = 5.0
 	var st := func(): g.stage("fight", R0.x, T, R0.y, ry)
 	var her := Vector3(R0.x, T + 1.5, R0.y)
+	var fwd := Vector3(sin(ry), 0, cos(ry)); var side := Vector3(cos(ry), 0, -sin(ry))
+	var ship := func(i: int) -> Vector3: return Fleet.ships[i].root.position if Fleet.ships.size() > i and is_instance_valid(Fleet.ships[i].root) else Vector3(tc.x, T + 8, tc.y)
+	var orbit := func(k: float, r: float, a0: float, a1: float, h: float) -> Vector3:
+		var a: float = ry + lerpf(a0, a1, k); return Vector3(R0.x + sin(a)*r, T + h, R0.y + cos(a)*r)
 	var shots := [
-		{"dur": 3.4, "fov": 55, "cam": Vector3(R0.x, T + 2.0, R0.y) - Vector3(sin(ry), 0, cos(ry))*4.0, "look": func(k, t): return Fleet.ships[0].root.position if Fleet.ships.size() else Vector3(tc.x, T + 6, tc.y),
-			"enter": func(): st.call(); g.cue("alert"), "tick": func(dt, t, k): st.call()},
-		{"dur": g.lines_len("fleetIn") + 0.6, "fov": 48, "cam": Vector3(R0.x, T + 0.4, R0.y) - Vector3(sin(ry), 0, cos(ry))*3.0, "look": func(k, t): return (Fleet.ships[2].root.position if Fleet.ships.size() > 2 else her + Vector3(0, 5, 0)).lerp(her, 0.35),
-			"enter": func(): g.talk("fleetIn"), "tick": func(dt, t, k): st.call()},
-		{"dur": 2.4, "fov": 70, "cam": Vector3(tc.x, T + 34, tc.y + 10), "look": Vector3(tc.x, T, tc.y),
-			"enter": func(): g.cue("gear")}]
+		# out of the dark: from down at the deck, the camera cranes up as the first of them rises over the edge behind her
+		{"dur": 3.0, "fov": 58, "cam": func(k, t): return Vector3(R0.x, T, R0.y) - fwd*5.5 + side*1.2 + Vector3(0, lerpf(0.25, 2.6, smoothstep(0.0, 1.0, k)), 0),
+			"look": func(k, t): return her.lerp(ship.call(0), 0.25 + 0.55*k),
+			"enter": func(): st.call(); g.cue("alert"); g.dutch = -0.06, "tick": func(dt, t, k): st.call()},
+		# a second and a third, whipping past the lens on either side of her
+		{"dur": 1.8, "fov": 46, "cam": func(k, t): var d: Vector3 = (ship.call(1) - her); d.y = 0; d = d.normalized(); return her - d*3.0 + Vector3(0, 0.5, 0) + Vector3(-d.z, 0, d.x)*lerpf(-1.6, 1.6, k),
+			"look": func(k, t): return ship.call(1), "enter": func(): g.dutch = 0.1; g.cue("launch")},
+		# her, small in the middle of it, the ring of them round her — pushing in fast
+		{"mood": "shocked", "dur": 1.8, "fov": 62, "cam": func(k, t): return Vector3(R0.x, T, R0.y) + fwd*lerpf(9.0, 3.2, smoothstep(0.0, 1.0, k)) + Vector3(0, lerpf(6.0, 1.7, k), 0),
+			"look": her, "enter": func(): g.dutch = 0.0},
+		# "YU. Look around you." — round her, the fleet sliding by behind
+		{"dur": g.lines_len("fleetIn1") + 0.5, "fov": 34, "cam": func(k, t): return orbit.call(k, 3.4, -0.7, 0.5, 1.7), "look": her,
+			"enter": func(): g.talk("fleetIn1"); g.dutch = 0.04},
+		# "Every ship I have is on this roof." — over the guns of one, down at her
+		{"dur": g.lines_len("fleetIn2") + 0.5, "fov": 30, "cam": func(k, t): var p: Vector3 = ship.call(2); var d: Vector3 = (p - her).normalized(); return p + Vector3(0, 4.5, 0) + d*7.0 + Vector3(-d.z, 0, d.x)*lerpf(-2, 2, k),
+			"look": her, "enter": func(): g.talk("fleetIn2"); g.dutch = -0.08},
+		# her, low and close, looking up at them; the lens drifting
+		{"mood": "determined", "dur": g.lines_len("fleetIn3") + 0.6, "fov": 24, "cam": func(k, t): return Vector3(R0.x, T + 0.9, R0.y) + fwd*1.3 + side*lerpf(0.5, -0.4, k),
+			"look": func(k, t): return her + Vector3(0, 0.15, 0), "enter": func(): g.talk("fleetIn3"); g.dutch = 0.06},
+		# and up, high over the roof, the whole thing turning beneath: her and the three of them, the gunship's light
+		{"dur": 2.6, "fov": 64, "cam": func(k, t): var a := lerpf(0.0, 1.2, k); return Vector3(tc.x + sin(a)*14, T + lerpf(18, 30, k), tc.y + cos(a)*14),
+			"look": Vector3(R0.x, T, R0.y), "enter": func(): g.dutch = 0.0; g.cue("gear")}]
 	g.play_reel(shots, func(_x):
 		g.dutch = 0.0; g.staged = null; g.place(Vector3(R0.x, T, R0.y), ry); Fleet.busy = false
 		pass)
