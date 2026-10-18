@@ -241,8 +241,7 @@ static func _boom(s: Dictionary) -> void:
 	qm.albedo_color = Color(1.6, 0.6, 0.15, 0.6); q.material = qm; p.draw_pass_1 = q; s.root.add_child(p)
 
 static func _finish() -> void:
-	print("FLEET DONE")
-	on = false; _parapet(false); g.objective("")
+	on = false; g.boots.vertical_only = false; _parapet(false); g.objective("")
 	for s in ships: if is_instance_valid(s.root): s.root.queue_free()
 	ships = []
 	if done_cb.is_valid(): done_cb.call()
