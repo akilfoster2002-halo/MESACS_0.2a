@@ -274,8 +274,9 @@ static func _aura_off(e: Dictionary) -> void:
 static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector2) -> bool:
 	e.cuff_cd = maxf(0.0, float(e.get("cuff_cd", 3.0)) - dt)
 	if not e.get("phase2", false) and e.hp > 0 and e.hp <= float(e.K.hp)*0.5:      # HALF HER HEALTH: she calls the gunship in
-		e.phase2 = true; strafe = {"next": 2.5, "on": null}
-		f.g.cue("alert"); f.g.note("She's called in the gunship — get out of the red!"); f.shake(0.3, 0.5)
+		e.phase2 = true
+		if f.g.station and f.g.station.has_method("gunship_cut"): f.g.station.gunship_cut(e); return true     # a cut: she calls it in
+		strafe = {"next": 2.5, "on": null}
 	if not strafe.is_empty() and e.hp > 0: _tick_strafe(f, e, dt)
 	var mine := _tick(f, e, dt, d, to_her, p)
 	if mine: f._place(e)                                       # (her model where she is: without this she lagged and jumped)

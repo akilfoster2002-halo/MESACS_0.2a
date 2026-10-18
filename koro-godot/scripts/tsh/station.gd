@@ -1356,6 +1356,37 @@ func boss_test() -> void:
 	var R0 := Tower.C + Vector2(-6, 18)
 	boss_scene(R0, atan2(Tower.C.x + 4 - R0.x, Tower.C.y + 2 - R0.y))
 
+## HALF HER HEALTH: the fight stops; she touches her ear — "Bring the bird around. Light her up." — and the gunship
+## comes up over the edge of the roof, its light swinging onto Robin, and turns its guns on her. Then the runs begin.
+func gunship_cut(D) -> void:
+	var F = g.fight; var T: float = Tower.TOP; var tc: Vector2 = Tower.C
+	F.on = false; F.hud.visible = false
+	var rp: Vector3 = g.robin.position; var R0 := Vector2(rp.x, rp.z); var M := Vector2(D.x, D.z)
+	var ry := ang(R0, M); var my := ang(M, R0)
+	# the gunship below the roof's edge on the far side of her, ready to rise
+	var away := (R0 - M).normalized() if (R0 - M).length() > 0.1 else Vector2(1, 0)
+	var edge := tc + away*(Tower.HALF + 9.0)
+	if gun == null: wfc_standoff_gun(Vector3(edge.x, T - 14, edge.y))
+	gun.g.position = Vector3(edge.x, T - 14, edge.y)
+	var rise := func(k: float): gun.g.position = Vector3(edge.x, lerpf(T - 14, T + 6, smoothstep(0.0, 1.0, k)), edge.y); gun.g.rotation.y = atan2(R0.x - edge.x, R0.y - edge.y)
+	var st := func(): g.stage("fight", R0.x, T, R0.y, ry); F.play(D, "idle"); D.yaw = my; F._place(D)
+	var mface := Vector3(M.x, T + 1.6, M.y); var rface := Vector3(R0.x, T + 1.5, R0.y)
+	var shots := [
+		{"dur": g.lines_len("bossCall") + 0.4, "fov": 22, "cam": g.rel(M.x, M.y, my, 1.3, -0.25, T + 1.65), "look": mface,
+			"enter": func(): st.call(); g.talk("bossCall"); F.play(D, "talk2")},
+		{"dur": 3.2, "fov": 55, "cam": Vector3(clampf(R0.x - away.x*3.0 + away.y*3.5, tc.x - Tower.HALF + 3, tc.x + Tower.HALF - 3), T + 1.7, clampf(R0.y - away.y*3.0 - away.x*3.5, tc.y - Tower.HALF + 3, tc.y + Tower.HALF - 3)), "look": func(k, t): return gun.g.position.lerp(Vector3(edge.x, T + 2, edge.y), 0.3),
+			"enter": func(): st.call(); g.cue("alert"),
+			"tick": func(dt, t, k): rise.call(k); shake(0.05 + 0.1*k, 0.1)},
+		{"mood": "shocked", "dur": 1.8, "fov": 46, "cam": Vector3(R0.x - away.x*2.6 - away.y*0.9, T + 0.45, R0.y - away.y*2.6 + away.x*0.9), "look": func(k, t): return gun.g.position.lerp(rface, 0.35),
+			"tick": func(dt, t, k): rise.call(1.0)},
+		{"dur": 1.6, "fov": 30, "cam": func(k, t): return gun.g.position + Vector3(away.x*-3.5, -0.4, away.y*-3.5) + Vector3(-away.y, 0, away.x)*2.0, "look": rface,
+			"enter": func(): g.cue("lock"), "beats": [[0.6, func(): flash(0.25, Color(1, 0.2, 0.15))]]}]
+	g.play_reel(shots, func(_s):
+		g.dutch = 0.0; g.staged = null
+		F.on = true; F.hud.visible = true; g.mode = "fight"
+		Director.strafe = {"next": 1.2, "on": null}
+		g.note("The gunship — get out of the red!"))
+
 ## a gunship of its own, over a point (the roof, when a save starts there)
 func wfc_standoff_gun(at: Vector3) -> void:
 	var gn := Node3D.new(); g.city.add_child(gn)
