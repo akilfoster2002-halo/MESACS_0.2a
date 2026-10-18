@@ -211,17 +211,55 @@ static func _impacts(f, e: Dictionary, S: Dictionary, head: Vector3, dt: float) 
 		_splash(f, at)
 		if randf() < 0.5 and f._ink(e): f.fx.sparks(at + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.6)
 		if randf() < 0.35: _scar(f, at)
-static func _splash(f, at: Vector3) -> void:
-	var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.05; cm.bottom_radius = 0.18; cm.height = 1.0; cm.radial_segments = 8; mi.mesh = cm
-	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.85, 0.9, 1.0, 0.7) if randf() < 0.6 else Color(1.0, 0.75, 0.4, 0.9); mi.material_override = m; f.g.add_child(mi)
-	mi.global_position = at + Vector3(0, 0.05, 0); mi.scale = Vector3(1, 0.05, 1)
-	var h := randf_range(0.5, 1.1)
-	var tw: Tween = f.g.create_tween(); tw.set_ignore_time_scale(true)
-	tw.tween_property(mi, "scale", Vector3(1.4, h, 1.4), 0.08); tw.parallel().tween_property(mi, "position:y", at.y + h*0.5, 0.08)
-	tw.tween_property(m, "albedo_color:a", 0.0, 0.18); tw.tween_callback(mi.queue_free)
+## A ROUND STRIKING THE DECK: a white-hot flash, sparks thrown up and out, now and then a ricochet glancing off along
+## the line it came in on, a low puff of spray off the wet, a couple of chips. dir: the way the round was travelling.
+static func _splash(f, at: Vector3, dir := Vector3(0, -1, 0)) -> void:
+	var root: Node = f.g
+	var d := dir.normalized() if dir.length() > 0.01 else Vector3(0, -1, 0)
+	var out := Vector3(d.x, -d.y, d.z).normalized()               # the bounce: off the deck the way it came in
+	# the flash
+	var fl := MeshInstance3D.new(); var q := QuadMesh.new(); q.size = Vector2(0.5, 0.5); fl.mesh = q
+	var fm := StandardMaterial3D.new(); fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED; fm.albedo_color = Color(4.0, 3.2, 1.8, 1.0); fm.albedo_texture = _dot(); fl.material_override = fm
+	root.add_child(fl); fl.global_position = at + Vector3(0, 0.06, 0); fl.scale = Vector3.ONE*randf_range(0.7, 1.3)
+	var tw: Tween = root.create_tween(); tw.tween_property(fm, "albedo_color:a", 0.0, 0.06); tw.tween_callback(fl.queue_free)
+	# sparks: short hot streaks, up and out (mostly along the bounce), falling under gravity
+	var p := GPUParticles3D.new(); p.amount = 14; p.lifetime = 0.35; p.one_shot = true; p.explosiveness = 1.0; p.local_coords = false
+	var pm := ParticleProcessMaterial.new(); pm.direction = (out + Vector3(0, 0.6, 0)).normalized(); pm.spread = 55.0
+	pm.initial_velocity_min = 3.0; pm.initial_velocity_max = 9.0; pm.gravity = Vector3(0, -14, 0); pm.scale_min = 0.6; pm.scale_max = 1.2
+	pm.particle_flag_align_y = true; p.process_material = pm
+	var sq := QuadMesh.new(); sq.size = Vector2(0.018, 0.16)
+	var sm := StandardMaterial3D.new(); sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; sm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	sm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES; sm.albedo_color = Color(3.0, 1.8, 0.6); sq.material = sm; p.draw_pass_1 = sq
+	root.add_child(p); p.global_position = at + Vector3(0, 0.04, 0); p.emitting = true
+	var tw2: Tween = root.create_tween(); tw2.tween_interval(0.6); tw2.tween_callback(p.queue_free)
+	# a ricochet, sometimes: a streak off the deck the way it bounced
+	if randf() < 0.35:
+		var r := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.012, 0.012, 0.7); r.mesh = bm
+		var rm := StandardMaterial3D.new(); rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; rm.albedo_color = Color(1.6, 1.2, 0.6, 1.0); r.material_override = rm
+		root.add_child(r); var rd := (out + Vector3(randf_range(-0.3, 0.3), randf_range(0.1, 0.5), randf_range(-0.3, 0.3))).normalized()
+		r.global_position = at; r.look_at(at + rd, Vector3.UP if absf(rd.y) < 0.95 else Vector3.RIGHT)
+		var tw3: Tween = root.create_tween(); tw3.tween_property(r, "global_position", at + rd*9.0, 0.18); tw3.parallel().tween_property(rm, "albedo_color:a", 0.0, 0.18); tw3.tween_callback(r.queue_free)
+	# spray off the wet deck: low and wide, quickly gone
+	var mi := MeshInstance3D.new(); var sp := SphereMesh.new(); sp.radius = 0.5; sp.height = 0.5; mi.mesh = sp
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.albedo_color = Color(0.75, 0.8, 0.9, 0.35); mi.material_override = m
+	root.add_child(mi); mi.global_position = at + Vector3(0, 0.05, 0); mi.scale = Vector3(0.2, 0.08, 0.2)
+	var tw4: Tween = root.create_tween(); tw4.tween_property(mi, "scale", Vector3(1.0, 0.25, 1.0), 0.16).set_ease(Tween.EASE_OUT); tw4.parallel().tween_property(m, "albedo_color:a", 0.0, 0.22); tw4.tween_callback(mi.queue_free)
+	# a chip or two of the deck
+	for k in randi_range(1, 2):
+		var c := MeshInstance3D.new(); var cb := BoxMesh.new(); cb.size = Vector3.ONE*randf_range(0.03, 0.06); c.mesh = cb
+		var cm := StandardMaterial3D.new(); cm.albedo_color = Color(0.12, 0.12, 0.13); c.material_override = cm; root.add_child(c); c.global_position = at + Vector3(0, 0.05, 0)
+		var v := (out + Vector3(randf_range(-0.6, 0.6), randf_range(0.5, 1.2), randf_range(-0.6, 0.6))).normalized()*randf_range(1.5, 3.5)
+		var tw5: Tween = root.create_tween(); tw5.tween_method(func(t: float): if is_instance_valid(c): c.global_position = at + v*t + Vector3(0, -7.0*t*t, 0); c.rotation += Vector3(0.3, 0.2, 0.1), 0.0, 0.45, 0.45)
+		tw5.tween_callback(c.queue_free)
+static var dot_tex: Texture2D
+static func _dot() -> Texture2D:
+	if dot_tex == null:
+		var gt := GradientTexture2D.new(); gt.fill = GradientTexture2D.FILL_RADIAL; gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1.0, 0.5)
+		var gr := Gradient.new(); gr.set_color(0, Color(1, 1, 1, 1)); gr.set_color(1, Color(1, 1, 1, 0)); gt.gradient = gr; dot_tex = gt
+	return dot_tex
 static func _scar(f, at: Vector3) -> void:
-	var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = randf_range(0.08, 0.16); cm.bottom_radius = cm.top_radius; cm.height = 0.005; mi.mesh = cm
+	var mi := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = randf_range(0.04, 0.08); cm.bottom_radius = cm.top_radius; cm.height = 0.005; mi.mesh = cm
 	var m := StandardMaterial3D.new(); m.albedo_color = Color(0.02, 0.02, 0.02); m.roughness = 1.0; m.emission_enabled = true; m.emission = Color(1.0, 0.45, 0.1); m.emission_energy_multiplier = 2.5
 	mi.material_override = m; f.g.add_child(mi); mi.global_position = at + Vector3(0, 0.012, 0)
 	var tw: Tween = f.g.create_tween(); tw.tween_property(m, "emission_energy_multiplier", 0.0, 1.2); tw.tween_interval(6.0); tw.tween_callback(mi.queue_free)

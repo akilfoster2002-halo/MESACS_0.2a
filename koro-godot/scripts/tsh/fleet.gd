@@ -93,23 +93,25 @@ static func tick(game, dt: float) -> void:
 				root.position = root.position.lerp(s.hold, minf(1, dt*2.5))
 				_face(s, rp, dt*2.0)
 				var mzp: Vector3 = (s.mz[0].l as OmniLight3D).global_position.lerp((s.mz[1].l as OmniLight3D).global_position, 0.5)
-				if s.t < 0.75:                                         # the lock: a red line on her, flickering faster — her cue to move
-					var fl: bool = fmod(s.t*(10.0 + s.t*30.0), 1.0) < 0.6
-					Director._beam(fx, "aim%d" % s.i, mzp, rp + Vector3(0, 1.0, 0), 0.025, Color(3, 0.1, 0.08, 0.85 if fl else 0.3), true)
-					if not s.get("locked", false): s.locked = true; g.cue("beep")
-				else: Director._beam(fx, "aim%d" % s.i, mzp, rp, 0.02, Color.BLACK, false)
+				var lead2 := Vector3(g.boots.vx, 0, g.boots.vz)*0.35
+				if s.t < 0.75: s.aim = Vector3(rp.x, T, rp.z) + lead2           # the mark follows her while it locks…
+				else:                                                  # …then holds, and only creeps after her: step out of it
+					var to2 := Vector3(rp.x, T, rp.z); s.aim = (s.aim as Vector3).move_toward(to2, dt*2.2)
+				_reticle(s, true)
+				if s.t < 0.75 and not s.get("locked", false): s.locked = true; g.cue("beep")      # (the mark on the deck is the warning; no laser across the sky)
 				if s.t > 0.75 and s.t < 1.85:
 					if not s.get("fired", false): s.fired = true; g.cue("gun")
-					_rounds(s, rp, dt)
+					_rounds(s, s.aim, dt)
 				else: _muzzles_off(s)
 				if s.t >= 2.2:
-					s.fired = false; s.locked = false; _muzzles_off(s); s.bursts = int(s.get("bursts", 0)) + 1
-					if s.bursts >= 2:                                 # its guns too hot: down it goes to the edge, smoking
-						s.state = "spent"; s.t = 0.0; s.bursts = 0
+					s.fired = false; s.locked = false; _muzzles_off(s); _reticle(s, false); s.bursts = int(s.get("bursts", 0)) + 1
+					if s.bursts >= 1:                                 # its guns too hot: down it goes to the edge, smoking
+						s.state = "spent"; s.t = 0.0; s.bursts = 0; _reticle(s, false)
 						var d := (Vector2(rp.x, rp.z) - tc).normalized() if (Vector2(rp.x, rp.z) - tc).length() > 1 else Vector2(1, 0)
 						d = d.rotated(randf_range(-0.6, 0.6))
 						s.home = Vector3(tc.x + d.x*(Tower.HALF + 2.6), T - 0.1, tc.y + d.y*(Tower.HALF + 2.6)); s.hp = 5
 						_spent(s, true)
+						g.note("A fighter's down at the edge, smoking — JUMP onto it and CLICK to break it!")
 					else: s.state = "orbit"; s.t = 0.0; s.cool = randf_range(2.5, 4.5)
 			"spent":                                              # down at the edge, smoking: jump on and break it
 				root.position = root.position.lerp(s.home, minf(1, dt*3.0))
@@ -144,8 +146,8 @@ static func tick(game, dt: float) -> void:
 
 ## a round in flight: a hot streak from the muzzle to where it lands
 static func _tracer(from: Vector3, to: Vector3, live := false) -> void:
-	var tr := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.06, 0.06, 2.6); tr.mesh = bm
-	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(3.2, 2.2, 0.7); tr.material_override = m
+	var tr := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.03, 0.03, 1.6); tr.mesh = bm
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(2.0, 1.4, 0.5); tr.material_override = m
 	tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; g.add_child(tr)
 	tr.global_position = from; tr.look_at(to, Vector3.UP)
 	tracers.append({"n": tr, "a": from, "b": to, "t": 0.0, "live": live, "speed": BULLET/maxf(1.0, from.distance_to(to))})
@@ -158,9 +160,8 @@ static func _tick_tracers(dt: float) -> void:
 		if q.t >= 1.0 or not is_instance_valid(q.n):
 			if is_instance_valid(q.n): q.n.queue_free()
 			if q.get("live", false):
-				Director._splash(fx, q.b)
+				Director._splash(fx, q.b, (q.b as Vector3) - (q.a as Vector3))
 				if randf() < 0.3: Director._scar(fx, q.b)
-				if randf() < 0.3 and g.fight.fx: g.fight.fx.sparks(q.b + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.5)
 		else:
 			var p: Vector3 = (q.a as Vector3).lerp(q.b, q.t); q.n.global_position = p
 			if q.get("live", false) and Vector2(p.x - rp.x, p.z - rp.z).length() < 0.5 and p.y < rp.y + 0.9 and p.y > rp.y - 1.1 and not busy:      # it found her
@@ -168,6 +169,25 @@ static func _tick_tracers(dt: float) -> void:
 				if grace <= 0: grace = 0.35; hurt(3.0); struck(p, (q.b as Vector3) - (q.a as Vector3))
 			keep.append(q)
 	tracers = keep
+## THE MARK on the deck where a fighter's rounds will land: a red ring and a dot, pulsing
+static func _reticle(s: Dictionary, on: bool) -> void:
+	if not s.has("ret"):
+		var n := Node3D.new(); g.add_child(n)
+		var ring := MeshInstance3D.new(); var tm := TorusMesh.new(); tm.inner_radius = 0.92; tm.outer_radius = 1.0; tm.rings = 40; ring.mesh = tm; ring.scale = Vector3(1, 0.03, 1)
+		var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.albedo_color = Color(2.2, 0.15, 0.1, 0.9)
+		ring.material_override = m; n.add_child(ring)
+		var dot := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.12; cm.bottom_radius = 0.12; cm.height = 0.01; dot.mesh = cm; dot.material_override = m; n.add_child(dot)
+		for k in 4:                                                     # crosshair ticks
+			var tk := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.05, 0.01, 0.35); tk.mesh = bm; tk.material_override = m
+			var a := k*PI/2; tk.position = Vector3(sin(a)*1.25, 0, cos(a)*1.25); tk.rotation.y = a; n.add_child(tk)
+		s.ret = {"n": n, "m": m}
+	var R: Dictionary = s.ret; R.n.visible = on
+	if not on: return
+	R.n.global_position = (s.aim as Vector3) + Vector3(0, 0.04, 0)
+	var locking: bool = s.t < 0.75
+	R.n.scale = Vector3.ONE*(lerpf(1.6, 1.0, clampf(s.t/0.75, 0, 1)) if locking else 1.0)
+	R.n.rotation.y += 0.05
+	(R.m as StandardMaterial3D).albedo_color.a = (0.5 + 0.5*sin(s.t*30.0)) if locking else 0.95
 static func _muzzles_off(s: Dictionary) -> void:
 	for m in s.get("mz", []): m.l.light_energy = 0.0; m.f.visible = false
 
@@ -213,9 +233,8 @@ static func _tick_gunship(dt: float) -> void:
 	while S.acc > 0.025:
 		S.acc -= 0.025
 		var at := head + Vector3(randf_range(-0.6, 0.6), 0.02, randf_range(-0.6, 0.6))
-		Director._splash(fx, at)
+		Director._splash(fx, at, at - rig.global_position)
 		if randf() < 0.35: Director._scar(fx, at)
-		if randf() < 0.4 and g.fight.fx: g.fight.fx.sparks(at + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.6)
 	g.station.shake(0.22, 0.08)
 	if not S.hit and Vector2(rp.x - head.x, rp.z - head.z).length() < 1.3 and rp.y < T + 1.5:
 		S.hit = true; hurt(14.0); struck(rp + Vector3(0, 1.0, 0), Vector3(0, -1, 0))
@@ -232,11 +251,11 @@ static func _rounds(s: Dictionary, head: Vector3, dt: float) -> void:
 	while s.acc > 0.09:
 		s.acc -= 0.09
 		var mzp: Vector3 = (s.mz[0].l as OmniLight3D).global_position
-		var fly := mzp.distance_to(head)/BULLET                      # where she will be when it gets there, if she keeps on as she is
-		var lead := Vector3(g.boots.vx, 0, g.boots.vz)*fly
+		var lead := Vector3.ZERO                                     # (the mark already leads her)
 		var m: Dictionary = s.mz[randi() % s.mz.size()]
 		var from := (m.l as OmniLight3D).global_position
-		var to := Vector3(head.x, Tower.TOP + 0.02, head.z) + lead + Vector3(randf_range(-0.35, 0.35), 0, randf_range(-0.35, 0.35))      # down into the deck at her feet
+		var rr := randf()*TAU; var rd := sqrt(randf())*0.85
+		var to := Vector3(head.x, Tower.TOP + 0.02, head.z) + lead + Vector3(cos(rr)*rd, 0, sin(rr)*rd)      # down into the deck at her feet
 		_tracer(from, to, true)
 	g.station.shake(0.06, 0.05)
 
@@ -298,7 +317,9 @@ static func _again() -> void:
 	g.black(true); g.end_text("[font_size=18]THE FLEET HAD HER[/font_size]\nAGAIN")
 	g.get_tree().create_timer(2.2).timeout.connect(func():
 		g.end_text(""); g.black(false)
-		for s in ships: if is_instance_valid(s.root): s.root.queue_free()
+		for s in ships:
+			if is_instance_valid(s.root): s.root.queue_free()
+			if s.has("ret") and is_instance_valid(s.ret.n): s.ret.n.queue_free()
 		ships = []; begin(g, done_cb)
 		g.place(Vector3(Tower.C.x, Tower.TOP, Tower.C.y + 12), PI))
 
@@ -366,6 +387,8 @@ static func _finish() -> void:
 	if not gs.is_empty(): Director._beam(fx, "gsline", Vector3.ZERO, Vector3.ONE, 0.3, Color.BLACK, false); if is_instance_valid(gs.rig): gs.rig.queue_free()
 	gs = {}
 	on = false; g.boots.vertical_only = false; _parapet(false); g.objective("")
-	for s in ships: if is_instance_valid(s.root): s.root.queue_free()
+	for s in ships:
+		if is_instance_valid(s.root): s.root.queue_free()
+		if s.has("ret") and is_instance_valid(s.ret.n): s.ret.n.queue_free()
 	ships = []
 	if done_cb.is_valid(): done_cb.call()
