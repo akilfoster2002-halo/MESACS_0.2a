@@ -164,7 +164,12 @@ static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
 	var S: Dictionary = strafe.on
 	S.t += dt
 	var warn := 1.1; var run := 0.7
-	if gun: gun.g.global_position = gun.g.global_position.lerp(S.a.lerp(S.b, clampf((S.t - warn)/run, 0, 1)) + Vector3(0, 13, 0), minf(1, dt*3))
+	if gun:
+		gun.g.global_position = gun.g.global_position.lerp(S.a.lerp(S.b, clampf((S.t - warn)/run, 0, 1)) + Vector3(0, 13, 0), minf(1, dt*3))
+		var dv: Vector3 = S.b - S.a; gun.g.rotation.y = lerp_angle(gun.g.rotation.y, atan2(dv.x, dv.z), minf(1, dt*3))
+		if gun.g is GunshipRig:
+			var head0: Vector3 = S.a.lerp(S.b, clampf((S.t - warn)/run, 0, 1))
+			gun.g.aim_at = head0; gun.g.firing = S.t >= warn
 	if S.t < warn:
 		var pulse := 0.5 + 0.5*sin(S.t*30.0)
 		_beam(f, "strafe", S.a, S.b, 0.35, Color(2.5, 0.1, 0.05, 0.25 + 0.45*pulse), true)
@@ -182,6 +187,7 @@ static func _tick_strafe(f, e: Dictionary, dt: float) -> void:
 		if f.R.hp < h0: f.g.cue("boom"); f._flash(0.3)
 	if k >= 1.0:
 		_beam(f, "strafe", S.a, S.b, 0.35, Color.BLACK, false); strafe.on = null; strafe.next = randf_range(4.5, 6.5)
+		if gun and gun.g is GunshipRig: gun.g.firing = false; gun.g.aim_at = f.g.robin.position + Vector3(0, 1, 0)
 
 ## HER STRINGS: three or four, the big ones in them, the last the biggest
 const COMBOS := [["cross", "hook", "round"], ["jab", "elbow", "knee", "hook"], ["flurry", "flykick"], ["hook", "cross", "sweep"],

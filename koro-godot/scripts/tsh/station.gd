@@ -88,6 +88,7 @@ func tick(dt: float) -> void:
 		if d and d.node.visible: tg.append(Vector3(d.x, d.y + 1.0, d.z))
 		Drones.tick(g, dt, tg, gun.g.position + Vector3(0, -0.6, 0) if gun else null)
 		if gun: gun.cone.visible = false; gun.pool.visible = false        # (the real light does it now)
+		if gun and gun.g is GunshipRig and not gun.g.firing: gun.g.aim_at = g.robin.position + Vector3(0, 1.0, 0)      # its gun on her
 func tick_watch(w: String, dt: float) -> void:
 	match w:
 		"escape": _tick_escape(dt)
@@ -1174,11 +1175,8 @@ func wfc_standoff(at: Vector2, y0: float) -> void:
 		var a := ry + (i - 1)*0.7; var x := at.x + sin(a)*6.5; var z := at.y + cos(a)*6.5
 		var n: Dictionary = g.chase.spawn_cop(Vector3(x, y0, z), "cut"); n.yaw = atan2(at.x - x, at.y - z); g.chase._cop_place(n); g.chase._cop_play(n, "fight"); wfc_crew.append(n)
 	# the gunship, over her, its light on her
-	var gn := Node3D.new(); g.city.add_child(gn)
-	var hull := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(3.2, 1.0, 6); hull.mesh = bm
-	var hm := StandardMaterial3D.new(); hm.albedo_color = Color("#121a26"); hm.metallic = 0.7; hm.roughness = 0.4; hull.material_override = hm; gn.add_child(hull)
-	var red := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.25; sm.height = 0.5; red.mesh = sm; var rmat := StandardMaterial3D.new(); rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; rmat.albedo_color = Color(3, 0.2, 0.2); red.material_override = rmat
-	red.position = Vector3(0, -0.6, 2.6); gn.add_child(red)
+	var gn := GunshipRig.make(g.city)                         # the gunship (wfc/gunship.glb, gunship.gd: it flies itself)
+	var red := Node3D.new(); gn.add_child(red)
 	var cone := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.05; cm.bottom_radius = 2.6; cm.height = 1.0; cone.mesh = cm
 	var cmat := StandardMaterial3D.new(); cmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; cmat.albedo_color = Color(0.91, 0.96, 1, 0.16); cmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; cmat.cull_mode = BaseMaterial3D.CULL_DISABLED; cmat.render_priority = 101; cone.material_override = cmat; g.city.add_child(cone)
@@ -1389,11 +1387,8 @@ func gunship_cut(D) -> void:
 
 ## a gunship of its own, over a point (the roof, when a save starts there)
 func wfc_standoff_gun(at: Vector3) -> void:
-	var gn := Node3D.new(); g.city.add_child(gn)
-	var hull := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(3.2, 1.0, 6); hull.mesh = bm
-	var hm := StandardMaterial3D.new(); hm.albedo_color = Color("#121a26"); hm.metallic = 0.7; hm.roughness = 0.4; hull.material_override = hm; gn.add_child(hull)
-	var red := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.25; sm.height = 0.5; red.mesh = sm; var rmat := StandardMaterial3D.new(); rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; rmat.albedo_color = Color(3, 0.2, 0.2); red.material_override = rmat
-	red.position = Vector3(0, -0.6, 2.6); gn.add_child(red)
+	var gn := GunshipRig.make(g.city)                         # the gunship (wfc/gunship.glb, gunship.gd: it flies itself)
+	var red := Node3D.new(); gn.add_child(red)
 	var cone := MeshInstance3D.new(); var cm := CylinderMesh.new(); cm.top_radius = 0.05; cm.bottom_radius = 2.6; cm.height = 1.0; cone.mesh = cm
 	var cmat := StandardMaterial3D.new(); cmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; cmat.albedo_color = Color(0.91, 0.96, 1, 0.16); cmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; cmat.cull_mode = BaseMaterial3D.CULL_DISABLED; cmat.render_priority = 101; cone.material_override = cmat; g.city.add_child(cone)
