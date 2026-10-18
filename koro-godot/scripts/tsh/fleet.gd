@@ -28,7 +28,7 @@ static func _model(parent: Node) -> Dictionary:
 	return {"root": root, "holder": holder, "nav": nav}
 
 static func begin(game, cb: Callable) -> void:
-	g = game; done_cb = cb; on = true; hp = 100.0; next_run = 4.0; busy = false; fx = g.fight
+	g = game; done_cb = cb; on = true; g.boots.vertical_only = true; hp = 100.0; next_run = 4.0; busy = false; fx = g.fight
 	for s in ships: if is_instance_valid(s.root): s.root.queue_free()
 	ships = []
 	var tc: Vector2 = Tower.C; var T: float = Tower.TOP
@@ -46,7 +46,7 @@ static func _parapet(v: bool) -> void:
 	if v and walls.is_empty():
 		for w in [[tc.x - H - 1, tc.x + H + 1, tc.y - H - 1, tc.y - H + 0.3], [tc.x - H - 1, tc.x + H + 1, tc.y + H - 0.3, tc.y + H + 1],
 				[tc.x - H - 1, tc.x - H + 0.3, tc.y - H - 1, tc.y + H + 1], [tc.x + H - 0.3, tc.x + H + 1, tc.y - H - 1, tc.y + H + 1]]:
-			var s := [w[0], w[1], w[2], w[3], T - 1.0, T + 3.0, ""]; g.boots.solids.append(s); walls.append(s)
+			var s := [w[0], w[1], w[2], w[3], T - 1.0, T + 0.9, ""]; g.boots.solids.append(s); walls.append(s)
 	elif not v:
 		for s in walls: g.boots.solids.erase(s)
 		walls = []
@@ -95,23 +95,31 @@ static func tick(game, dt: float) -> void:
 					s.state = "spent"; s.t = 0.0; s.fired = false
 					var d := (Vector2(rp.x, rp.z) - tc).normalized() if (Vector2(rp.x, rp.z) - tc).length() > 1 else Vector2(1, 0)
 					d = d.rotated(randf_range(-0.6, 0.6))
-					s.home = Vector3(tc.x + d.x*(Tower.HALF + 3.2), T + 1.6, tc.y + d.y*(Tower.HALF + 3.2))
+					s.home = Vector3(tc.x + d.x*(Tower.HALF + 2.6), T - 0.1, tc.y + d.y*(Tower.HALF + 2.6)); s.hp = 5
 					_spent(s, true)
-			"spent":                                              # sinking to the edge, smoking: her chance
-				root.position = root.position.lerp(s.home + Vector3(0, sin(s.t*7.0)*0.15, 0), minf(1, dt*2.5))
+			"spent":                                              # down at the edge, smoking: jump on and break it
+				root.position = root.position.lerp(s.home, minf(1, dt*3.0))
 				_face(s, Vector3(tc.x, T, tc.y), dt)
-				s.holder.rotation.z = sin(s.t*9.0)*0.06
-				if s.mark: s.mark.global_position = root.global_position + Vector3(0, 3.0, 0); s.mark.visible = Vector2(rp.x - root.position.x, rp.z - root.position.z).length() < 9.0
-				if s.t > 5.0: _spent(s, false); s.state = "orbit"; s.t = 0.0
+				s.holder.rotation.z = lerpf(s.holder.rotation.z, 0.0, minf(1, dt*6)) + sin(s.t*9.0)*0.02
+				_deck(s, true)
+				var on_it := _on(s)
+				if s.mark:
+					s.mark.global_position = root.global_position + Vector3(0, 3.2, 0)
+					s.mark.text = "CLICK" if on_it else "JUMP ON"
+					s.mark.visible = Vector2(rp.x - root.position.x, rp.z - root.position.z).length() < 12.0
+				var limit := 9.0 if on_it else 6.0
+				if s.t > limit:                                     # it gets its engines back: off it she goes, and it climbs away
+					if on_it: _throw_off(s)
+					_deck(s, false); _spent(s, false); s.state = "orbit"; s.t = 0.0
 			"falling":
 				s.v.y -= 14.0*dt; root.position += s.v*dt; root.rotation += Vector3(1.4, 2.2, 0.6)*dt
 				if root.position.y < T - 120: s.state = "dead"; root.queue_free()
 	if g.autopilot and not busy:                                  # -- auto: she goes for the spent ones herself
 		for s in ships:
 			if s.state == "spent" and s.t > 1.2:
-				var tcv := Vector2(tc.x, tc.y); var sp2 := Vector2(s.root.position.x, s.root.position.z)
-				var near := tcv + (sp2 - tcv).normalized()*(Tower.HALF - 3.0)
-				g.place(Vector3(near.x, T, near.y), atan2(sp2.x - near.x, sp2.y - near.y)); _takedown(s); break
+				if not _on(s): var p: Vector3 = s.root.position; g.place(p + Vector3(0, DECK_Y, 0), 0.0)
+				elif fmod(s.t, 0.35) < dt: _strike(s)
+				break
 	next_run -= dt
 	if next_run <= 0 and not running and not busy:
 		var free := ships.filter(func(s): return s.state == "orbit")
@@ -124,7 +132,7 @@ static func tick(game, dt: float) -> void:
 		var left := alive().size()
 		next_run = lerpf(3.0, 5.5, float(left)/N)
 	var left2 := alive().size()
-	g.objective("Bring them down — %d left" % left2, ["Wait for one to sink to the edge, smoking — get to it and press E"])
+	g.objective("Bring them down — %d left" % left2, ["When one sinks to the edge smoking: jump onto it, hit it (CLICK) until it breaks"])
 	if left2 == 0 and not busy: _finish()
 
 static func _face(s: Dictionary, at: Vector3, dt: float) -> void:
@@ -150,7 +158,7 @@ static func _spent(s: Dictionary, v: bool) -> void:
 		var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED; m.albedo_color = Color(0.08, 0.08, 0.09, 0.55); q.material = m; p.draw_pass_1 = q
 		s.root.add_child(p); s.smoke = p
-		var mk := Label3D.new(); mk.text = "E"; mk.font_size = 96; mk.outline_size = 18; mk.modulate = Color("#ffd23d"); mk.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		var mk := Label3D.new(); mk.text = "JUMP ON"; mk.font_size = 64; mk.font_size = 96; mk.outline_size = 18; mk.modulate = Color("#ffd23d"); mk.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		mk.no_depth_test = true; g.add_child(mk); s.mark = mk
 		s.nav.light_color = Color(1.0, 0.55, 0.1)
 	else:
@@ -176,36 +184,42 @@ static func key(game, ev: InputEvent) -> bool:
 	if not on or busy: return false
 	var press: bool = (ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_E) or (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
 	if not press: return false
-	var rp: Vector3 = g.robin.position; var best = null; var bd := 9.0
 	for s in ships:
-		if s.state != "spent": continue
-		var d := Vector2(rp.x - s.root.position.x, rp.z - s.root.position.z).length()
-		if d < bd: bd = d; best = s
-	if best == null: return false
-	_takedown(best); return true
+		if s.state == "spent" and _on(s): _strike(s); return true
+	return false
 
-## SHE GOES UP ONTO IT: a leap from the roof onto its back, a blow down through it, and off it as it goes
-static func _takedown(s: Dictionary) -> void:
-	busy = true; print("TAKEDOWN ", s.i)
-	var T: float = Tower.TOP
-	var rp: Vector3 = g.robin.position; var R0 := Vector2(rp.x, rp.z)
-	var sp: Vector3 = s.root.position; var top := sp + Vector3(0, 1.7, 0)
-	var ry := atan2(sp.x - R0.x, sp.z - R0.y)
-	var back := Vector2(Tower.C.x, Tower.C.y) + (R0 - Vector2(Tower.C.x, Tower.C.y))*0.8
-	var side := Vector3(cos(ry), 0, -sin(ry))
-	var shots := [
-		{"dur": 0.6, "fov": 50, "cam": Vector3(R0.x, T + 1.2, R0.y) + side*5.0 - Vector3(sin(ry), 0, cos(ry))*2.0, "look": func(k, t): return g.robin.position + Vector3(0, 1, 0),
-			"enter": func(): g.cue("launch"),
-			"tick": func(dt, t, k): var q := Vector3(R0.x, T, R0.y).lerp(top, k); q.y += sin(k*PI)*2.5; g.stage("flip", q.x, q.y, q.z, ry)},
-		{"dur": 0.9, "fov": 40, "cam": top + side*8.5 + Vector3(0, 3.0, 0) - Vector3(sin(ry), 0, cos(ry))*3.0, "look": top + Vector3(0, 0.6, 0),
-			"enter": func(): g.stage("fight", top.x, top.y, top.z, ry),
-			"beats": [[0.15, func(): g.stage("hook", top.x, top.y, top.z, ry); g.cue("punch")], [0.42, func(): _boom(s)]]},
-		{"dur": 1.6, "fov": 58, "cam": Vector3(R0.x, T + 2.5, R0.y) - Vector3(sin(ry), 0, cos(ry))*4.0 + side*2.0, "look": func(k, t): return s.root.position,
-			"enter": func(): s.state = "falling"; s.v = Vector3(sin(ry)*3, 2, cos(ry)*3); _spent(s, false),
-			"tick": func(dt, t, k): var q := top.lerp(Vector3(back.x, T, back.y), minf(1, k*1.6)); q.y = lerpf(top.y, T, minf(1, k*1.6)) + sin(minf(1, k*1.6)*PI)*1.5; g.stage("flip" if k < 0.6 else "fight", q.x, q.y, q.z, ry + PI)}]
-	g.play_reel(shots, func(_x):
-		g.dutch = 0.0; g.staged = null; g.place(Vector3(back.x, T, back.y), ry + PI); busy = false
-		g.note("%d left" % alive().size()))
+const DECK_Y := 1.45                       # her feet on its back, above where it hangs
+## a floor on its back while it is down, so she can stand on it
+static func _deck(s: Dictionary, v: bool) -> void:
+	if s.get("plat") != null: g.boots.plats.erase(s.plat); s.plat = null
+	if not v: return
+	var p: Vector3 = s.root.position
+	s.plat = [p.x - 2.2, p.x + 2.2, p.z - 2.2, p.z + 2.2, p.y + DECK_Y]; g.boots.plats.append(s.plat)
+static func _on(s: Dictionary) -> bool:
+	var rp: Vector3 = g.robin.position; var p: Vector3 = s.root.position
+	return absf(rp.x - p.x) < 2.4 and absf(rp.z - p.z) < 2.4 and absf(rp.y - (p.y + DECK_Y)) < 0.6
+## a blow into its back: it rocks, sparks, a piece of it gone; the fifth breaks it
+static func _strike(s: Dictionary) -> void:
+	var ap: AnimationPlayer = g.anim
+	var clip: String = ["jab", "cross", "hook", "kick"][(5 - int(s.hp)) % 4]
+	if ap.has_animation(clip): ap.play(clip, 0.05, 1.6)
+	s.hp = int(s.hp) - 1; s.t = minf(s.t, 4.0)                 # (keeping at it buys time)
+	var at: Vector3 = s.root.position + Vector3(0, DECK_Y - 0.2, 0)
+	g.cue("punch"); g.station.shake(0.35, 0.15)
+	if g.fight.fx: g.fight.fx.sparks(at, Vector3(randf_range(-0.5, 0.5), 1, randf_range(-0.5, 0.5)), 1.4)
+	s.holder.rotation.z = randf_range(-0.18, 0.18); s.holder.rotation.x = randf_range(-0.1, 0.1)
+	if s.hp <= 0: _destroy(s)
+## it goes: the blast, she is thrown back onto the roof, it falls burning
+static func _destroy(s: Dictionary) -> void:
+	_boom(s); _deck(s, false); _spent(s, false)
+	_throw_off(s)
+	s.state = "falling"; s.v = (s.root.position - Vector3(Tower.C.x, s.root.position.y, Tower.C.y)).normalized()*4.0 + Vector3(0, 2, 0)
+	g.note("%d left" % alive().size())
+static func _throw_off(s: Dictionary) -> void:
+	if not _on(s): return
+	var rp: Vector3 = g.robin.position; var c := Vector2(Tower.C.x, Tower.C.y)
+	var d := (c - Vector2(rp.x, rp.z)).normalized()
+	g.boots.vx = d.x*9.0; g.boots.vz = d.y*9.0; g.boots.vy = 7.0; g.boots.ground = false; g.boots.state = "air"
 
 ## the ship going: a fireball, a flash, sparks, the boom; then it falls burning
 static func _boom(s: Dictionary) -> void:

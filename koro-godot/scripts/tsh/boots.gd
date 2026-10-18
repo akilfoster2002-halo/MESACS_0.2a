@@ -66,6 +66,7 @@ var plats: Array = []         # [x1, x2, z1, z2, top]
 var roofs: Array = []         # {id, x1, x2, z1, z2, top}
 var bounds := Rect2(-1400, -1400, 2800, 2800)
 var enabled := true
+var vertical_only := false      # (the fleet on the tower: her jumps straight up — no leap carrying her off the roof)
 
 func _init(skills: Array = EARLY + MID) -> void:
 	for s in skills: have[s] = true
@@ -183,13 +184,14 @@ func _decide(inp: Dictionary, wish) -> void:
 	if vy < 0 and time_to_ground(g) <= T.perfectLanding: return
 	var hs := hspeed()
 	if hs > T.reboundMin and wall_ahead(vx, vz, hs*T.perfectRebound + 0.3) < INF: return
-	if have.has("dash") and charges > 0 and dash_cd <= 0 and air_t > 0.15: _dash(wish)
+	if have.has("dash") and charges > 0 and dash_cd <= 0 and air_t > 0.15 and not vertical_only: _dash(wish)
 
 func _charge_jump(wish) -> void:
 	var c = charge; charge = null
 	var q := clampf(c.t/T.chargeTime, 0, 1)
 	vy = lerpf(T.jumpMin, T.jumpMax, q)*T.combo[c.combo]*flow_k("flowPower")
 	vx *= T.chargeCarry; vz *= T.chargeCarry
+	if vertical_only: vx = 0.0; vz = 0.0; wish = null
 	if wish != null:
 		var f: float = lerpf(T.leapMin, T.leapMax, q)*(1 + T.leapTier*c.combo); vx += wish.x*f; vz += wish.z*f
 	var leap: bool = wish != null and (q >= T.soarFrom or c.combo > 0)
@@ -204,6 +206,7 @@ func _super_jump(wish, k: float, why: String) -> void:
 	var p := flow_k("flowPower")*k
 	vy = T.jumpUp*p
 	vx *= T.jumpCarry; vz *= T.jumpCarry
+	if vertical_only: vx = 0.0; vz = 0.0; wish = null
 	if wish != null: vx += wish.x*T.jumpFwd; vz += wish.z*T.jumpFwd
 	ground = false; coyote = 0; cut = false; roll = 0; sliding = false; state = "air"; air_t = 0; dive_t = 0
 	slide_wall = null; shift_latch = true

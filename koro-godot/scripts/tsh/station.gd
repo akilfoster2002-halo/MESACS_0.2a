@@ -1309,7 +1309,7 @@ func fleet_scene(R0: Vector2, ry: float) -> void:
 			"enter": func(): g.cue("gear")}]
 	g.play_reel(shots, func(_x):
 		g.dutch = 0.0; g.staged = null; g.place(Vector3(R0.x, T, R0.y), ry); Fleet.busy = false
-		g.note("Bring them down — when one sinks to the edge, smoking, get to it and press E"))
+		g.note("Bring them down — when one sinks to the edge smoking, jump onto it and hit it"))
 
 ## THE DIRECTOR. On the roof, the gunship comes down onto the pad and somebody steps out of its light: the head of WFC,
 ## alone — she sends the gunship off. Robin's mother, and Robin knows it; her mother has no idea who is under the
