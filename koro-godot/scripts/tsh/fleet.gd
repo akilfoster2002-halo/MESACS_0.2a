@@ -25,7 +25,14 @@ static func _model(parent: Node) -> Dictionary:
 	m.rotation.y = -PI/2; m.scale = Vector3.ONE*6.5             # nose (+X in the file) to +Z; about six metres long
 	var nav := OmniLight3D.new(); nav.light_color = Color(1, 0.2, 0.15); nav.omni_range = 5; nav.light_energy = 2.0; nav.position = Vector3(0, 1.2, 0); holder.add_child(nav)
 	var under := OmniLight3D.new(); under.light_color = Color(0.7, 0.8, 1.0); under.omni_range = 8; under.light_energy = 2.5; under.position = Vector3(0, -1.5, 0); holder.add_child(under)
-	return {"root": root, "holder": holder, "nav": nav}
+	var mz := []
+	for side in [-1.0, 1.0]:                                     # the two nose guns' muzzles
+		var l := OmniLight3D.new(); l.light_color = Color(1.0, 0.7, 0.3); l.omni_range = 7; l.light_energy = 0.0; l.position = Vector3(side*0.75, 0.1, 3.3); holder.add_child(l)
+		var fl := MeshInstance3D.new(); var sm := SphereMesh.new(); sm.radius = 0.28; sm.height = 0.56; fl.mesh = sm
+		var fm := StandardMaterial3D.new(); fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; fm.albedo_color = Color(3.0, 1.8, 0.6); fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; fl.material_override = fm; fl.visible = false; l.add_child(fl)
+		mz.append({"l": l, "f": fl})
+	return {"root": root, "holder": holder, "nav": nav, "mz": mz}
 
 static func begin(game, cb: Callable) -> void:
 	g = game; done_cb = cb; on = true; g.boots.vertical_only = true; hp = 100.0; next_run = 4.0; busy = false; fx = g.fight
@@ -38,6 +45,10 @@ static func begin(game, cb: Callable) -> void:
 		d.root.position = Vector3(tc.x + cos(a)*R_ORBIT, T - 14, tc.y + sin(a)*R_ORBIT)
 		ships.append(d)
 	_parapet(true)
+	if gs.is_empty() or not is_instance_valid(gs.rig):
+		var rig := GunshipRig.make(g.city); rig.position = Vector3(tc.x, T + 40.0, tc.y - 30.0)
+		gs = {"rig": rig, "a": 0.0, "line": null, "next": 6.0}
+	else: gs.line = null; gs.next = 6.0
 
 ## a wall round the roof while they are up, so she can't run off it
 static var walls: Array = []
@@ -60,6 +71,7 @@ static func tick(game, dt: float) -> void:
 	var rp: Vector3 = g.robin.position
 	if rp.y < T - 6.0:                                            # off the roof somehow: back on it, and it costs her
 		g.place(Vector3(tc.x, T, tc.y), 0.0); hurt(15.0)
+	_tick_tracers(dt)
 	var running := false
 	for s in ships:
 		if s.state == "dead" or not is_instance_valid(s.root): s.state = "dead"; continue
@@ -71,32 +83,28 @@ static func tick(game, dt: float) -> void:
 				var to := Vector3(tc.x + cos(s.a)*R_ORBIT, s.y + sin(s.t*0.9 + s.i)*0.8, tc.y + sin(s.a)*R_ORBIT)
 				root.position = root.position.lerp(to, minf(1, dt*(2.2 if root.position.y < T else 1.2)))
 				_face(s, rp, dt)
-			"run":
-				running = true
-				var S: Dictionary = s.line
-				var warn := 1.1; var run := 0.8
-				var k := clampf((s.t - warn)/run, 0, 1)
-				var head: Vector3 = (S.a as Vector3).lerp(S.b, k)
-				root.position = root.position.lerp(head + Vector3(0, 11, 0) - S.dir*6.0, minf(1, dt*3))
-				_face(s, head, dt)
-				if s.t < warn:
-					var pulse := 0.5 + 0.5*sin(s.t*(18.0 + s.t*30.0))
-					Director._beam(fx, "fleet%d" % s.i, S.a, S.b, 0.12 + 0.3*pulse, Color(2.5, 0.1, 0.05, 0.25 + 0.55*pulse), true)
-				else:
-					Director._beam(fx, "fleet%d" % s.i, S.a, S.b, 0.3, Color(2.5, 0.1, 0.05, 0.12), true)
+				s.cool = float(s.get("cool", randf_range(1.0, 4.0))) - dt
+				var firing := ships.filter(func(q): return q.state == "burst").size()
+				if s.cool <= 0 and firing < 2 and not busy and root.position.y > T:
+					var tcv := Vector2(tc.x, tc.y); var dv := (Vector2(root.position.x, root.position.z) - tcv).normalized()
+					s.hold = Vector3(tc.x + dv.x*(Tower.HALF + 10.0), T + 7.0, tc.y + dv.y*(Tower.HALF + 10.0))
+					s.state = "burst"; s.t = 0.0; s.acc = 0.0
+			"burst":                                              # hanging there, both guns on her
+				root.position = root.position.lerp(s.hold, minf(1, dt*2.5))
+				_face(s, rp, dt*2.0)
+				if s.t > 0.5 and s.t < 1.9:
 					if not s.get("fired", false): s.fired = true; g.cue("gun")
-					_rounds(s, head, dt)
-					if not s.hit and Vector2(rp.x - head.x, rp.z - head.z).length() < 1.3 and rp.y < T + 1.5:
-						s.hit = true; hurt(14.0)
-						var push := (Vector2(rp.x, rp.z) - Vector2(head.x, head.z)).normalized()
-						g.boots.vx = push.x*9; g.boots.vz = push.y*9; g.boots.vy = 6; g.boots.ground = false; g.boots.state = "air"
-				if k >= 1.0:
-					Director._beam(fx, "fleet%d" % s.i, S.a, S.b, 0.3, Color.BLACK, false)
-					s.state = "spent"; s.t = 0.0; s.fired = false
-					var d := (Vector2(rp.x, rp.z) - tc).normalized() if (Vector2(rp.x, rp.z) - tc).length() > 1 else Vector2(1, 0)
-					d = d.rotated(randf_range(-0.6, 0.6))
-					s.home = Vector3(tc.x + d.x*(Tower.HALF + 2.6), T - 0.1, tc.y + d.y*(Tower.HALF + 2.6)); s.hp = 5
-					_spent(s, true)
+					_rounds(s, rp, dt)
+				else: _muzzles_off(s)
+				if s.t >= 2.2:
+					s.fired = false; _muzzles_off(s); s.bursts = int(s.get("bursts", 0)) + 1
+					if s.bursts >= 2:                                 # its guns too hot: down it goes to the edge, smoking
+						s.state = "spent"; s.t = 0.0; s.bursts = 0
+						var d := (Vector2(rp.x, rp.z) - tc).normalized() if (Vector2(rp.x, rp.z) - tc).length() > 1 else Vector2(1, 0)
+						d = d.rotated(randf_range(-0.6, 0.6))
+						s.home = Vector3(tc.x + d.x*(Tower.HALF + 2.6), T - 0.1, tc.y + d.y*(Tower.HALF + 2.6)); s.hp = 5
+						_spent(s, true)
+					else: s.state = "orbit"; s.t = 0.0; s.cool = randf_range(2.5, 4.5)
 			"spent":                                              # down at the edge, smoking: jump on and break it
 				root.position = root.position.lerp(s.home, minf(1, dt*3.0))
 				_face(s, Vector3(tc.x, T, tc.y), dt)
@@ -114,40 +122,116 @@ static func tick(game, dt: float) -> void:
 			"falling":
 				s.v.y -= 14.0*dt; root.position += s.v*dt; root.rotation += Vector3(1.4, 2.2, 0.6)*dt
 				if root.position.y < T - 120: s.state = "dead"; root.queue_free()
+	if g.autopilot and not busy and ships.filter(func(q): return q.state == "spent").is_empty():      # -- auto: she keeps moving
+		var a2 := Time.get_ticks_msec()/1000.0*0.6; var to2 := Vector3(tc.x + cos(a2)*12.0, T, tc.y + sin(a2)*12.0)
+		g.robin.position = g.robin.position.lerp(to2, minf(1, dt*1.5)); g.boots.x = g.robin.position.x; g.boots.z = g.robin.position.z
 	if g.autopilot and not busy:                                  # -- auto: she goes for the spent ones herself
 		for s in ships:
 			if s.state == "spent" and s.t > 1.2:
 				if not _on(s): var p: Vector3 = s.root.position; g.place(p + Vector3(0, DECK_Y, 0), 0.0)
 				elif fmod(s.t, 0.35) < dt: _strike(s)
 				break
-	next_run -= dt
-	if next_run <= 0 and not running and not busy:
-		var free := ships.filter(func(s): return s.state == "orbit")
-		if free.size():
-			var s = free.pick_random()
-			var a := randf()*TAU; var dir := Vector3(sin(a), 0, cos(a))
-			var c := Vector3(rp.x, T + 0.03, rp.z)
-			s.line = {"a": c - dir*16.0, "b": c + dir*16.0, "dir": dir}; s.state = "run"; s.t = 0.0; s.hit = false; s.acc = 0.0
-			g.cue("alarm")
-		var left := alive().size()
-		next_run = lerpf(3.0, 5.5, float(left)/N)
+	_tick_gunship(dt)
 	var left2 := alive().size()
-	g.objective("Bring them down — %d left" % left2, ["When one sinks to the edge smoking: jump onto it, hit it (CLICK) until it breaks"])
+	g.objective("Bring them down — %d left" % left2, ["Keep moving. Smoking at the edge: jump on, CLICK"])
 	if left2 == 0 and not busy: _finish()
+
+## a round in flight: a hot streak from the muzzle to where it lands
+static func _tracer(from: Vector3, to: Vector3, live := false) -> void:
+	var tr := MeshInstance3D.new(); var bm := BoxMesh.new(); bm.size = Vector3(0.06, 0.06, 2.6); tr.mesh = bm
+	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(3.2, 2.2, 0.7); tr.material_override = m
+	tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; g.add_child(tr)
+	tr.global_position = from; tr.look_at(to, Vector3.UP)
+	tracers.append({"n": tr, "a": from, "b": to, "t": 0.0, "live": live, "speed": 70.0/maxf(1.0, from.distance_to(to))})
+static func _tick_tracers(dt: float) -> void:
+	grace -= dt
+	var keep := []
+	var rp: Vector3 = g.robin.position + Vector3(0, 1.0, 0)
+	for q in tracers:
+		q.t += dt*float(q.get("speed", 7.0))
+		if q.t >= 1.0 or not is_instance_valid(q.n):
+			if is_instance_valid(q.n): q.n.queue_free()
+			if q.get("live", false):
+				Director._splash(fx, q.b)
+				if randf() < 0.3: Director._scar(fx, q.b)
+				if randf() < 0.3 and g.fight.fx: g.fight.fx.sparks(q.b + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.5)
+		else:
+			var p: Vector3 = (q.a as Vector3).lerp(q.b, q.t); q.n.global_position = p
+			if q.get("live", false) and p.distance_to(rp) < 0.75 and not busy:      # it found her
+				q.live = false; q.t = 1.0
+				if grace <= 0: grace = 0.35; hurt(3.0)
+			keep.append(q)
+	tracers = keep
+static func _muzzles_off(s: Dictionary) -> void:
+	for m in s.get("mz", []): m.l.light_energy = 0.0; m.f.visible = false
 
 static func _face(s: Dictionary, at: Vector3, dt: float) -> void:
 	var root: Node3D = s.root; var d := at - root.position
 	if Vector2(d.x, d.z).length() > 0.5: root.rotation.y = lerp_angle(root.rotation.y, atan2(d.x, d.z), minf(1, dt*3))
 
-static func _rounds(s: Dictionary, head: Vector3, dt: float) -> void:
-	s.acc = float(s.get("acc", 0.0)) + dt
-	while s.acc > 0.03:
-		s.acc -= 0.03
+static var tracers: Array = []
+static var grace := 0.0                # after a round finds her, a beat before the next can
+## THE BIG ONE: the gunship over the roof, and only it lays the red lines and walks its guns down them
+static var gs := {}
+static func _tick_gunship(dt: float) -> void:
+	if gs.is_empty() or busy: return
+	var T: float = Tower.TOP; var tc: Vector2 = Tower.C; var rp: Vector3 = g.robin.position
+	var rig: GunshipRig = gs.rig
+	if gs.line == null:
+		gs.a += dt*0.08
+		rig.position = rig.position.lerp(Vector3(tc.x + cos(gs.a)*24.0, T + 16.0, tc.y + sin(gs.a)*24.0), minf(1, dt*1.5))
+		rig.rotation.y = lerp_angle(rig.rotation.y, atan2(rp.x - rig.position.x, rp.z - rig.position.z), minf(1, dt*2))
+		rig.aim_at = rp + Vector3(0, 1, 0); rig.firing = false
+		gs.next -= dt
+		if gs.next <= 0:
+			var a := randf()*TAU; var dir := Vector3(sin(a), 0, cos(a)); var c := Vector3(rp.x, T + 0.03, rp.z)
+			gs.line = {"a": c - dir*16.0, "b": c + dir*16.0, "dir": dir, "t": 0.0, "hit": false, "acc": 0.0}; g.cue("alarm")
+		return
+	var S: Dictionary = gs.line; S.t += dt
+	var warn := 1.2; var run := 0.8
+	var k := clampf((S.t - warn)/run, 0, 1); var head: Vector3 = (S.a as Vector3).lerp(S.b, k)
+	rig.position = rig.position.lerp(head + Vector3(0, 13, 0) - S.dir*7.0, minf(1, dt*2.5))
+	rig.rotation.y = lerp_angle(rig.rotation.y, atan2(S.dir.x, S.dir.z), minf(1, dt*3))
+	rig.aim_at = head
+	if S.t < warn:
+		var pulse := 0.5 + 0.5*sin(S.t*(18.0 + S.t*30.0))
+		Director._beam(fx, "gsline", S.a, S.b, 0.12 + 0.3*pulse, Color(2.5, 0.1, 0.05, 0.25 + 0.55*pulse), true)
+		Director._reticle(fx, S, true, S.t/warn)
+		return
+	Director._reticle(fx, S, false, 1.0)
+	Director._beam(fx, "gsline", S.a, S.b, 0.3, Color(2.5, 0.1, 0.05, 0.12), true)
+	rig.firing = true
+	if not S.get("fired", false): S.fired = true; g.cue("gun")
+	S.acc += dt
+	while S.acc > 0.025:
+		S.acc -= 0.025
 		var at := head + Vector3(randf_range(-0.6, 0.6), 0.02, randf_range(-0.6, 0.6))
 		Director._splash(fx, at)
-		if randf() < 0.3: Director._scar(fx, at)
+		if randf() < 0.35: Director._scar(fx, at)
 		if randf() < 0.4 and g.fight.fx: g.fight.fx.sparks(at + Vector3(0, 0.1, 0), Vector3(randf_range(-0.3, 0.3), 1, randf_range(-0.3, 0.3)), 0.6)
-	g.station.shake(0.2, 0.08)
+	g.station.shake(0.22, 0.08)
+	if not S.hit and Vector2(rp.x - head.x, rp.z - head.z).length() < 1.3 and rp.y < T + 1.5:
+		S.hit = true; hurt(14.0)
+		var push := (Vector2(rp.x, rp.z) - Vector2(head.x, head.z)).normalized()
+		g.boots.vx = push.x*9; g.boots.vz = push.y*9; g.boots.vy = 6; g.boots.ground = false; g.boots.state = "air"
+	if k >= 1.0:
+		Director._beam(fx, "gsline", S.a, S.b, 0.3, Color.BLACK, false); rig.firing = false
+		gs.line = null; gs.next = randf_range(5.5, 8.0)
+static func _rounds(s: Dictionary, head: Vector3, dt: float) -> void:
+	s.acc = float(s.get("acc", 0.0)) + dt
+	for m in s.mz:                                               # the muzzles flashing
+		var on_: bool = randf() < 0.65
+		m.l.light_energy = randf_range(4, 9) if on_ else 0.0; m.f.visible = on_; m.f.scale = Vector3.ONE*randf_range(0.6, 1.3)
+	while s.acc > 0.1:
+		s.acc -= 0.1
+		var lead := Vector3(g.boots.vx, 0, g.boots.vz)*0.2
+		var at := head + lead + Vector3(randf_range(-1.6, 1.6), 0.9 + randf_range(-0.3, 0.3), randf_range(-1.6, 1.6))
+		var m: Dictionary = s.mz[randi() % s.mz.size()]
+		var from := (m.l as OmniLight3D).global_position
+		var to := from + (at - from)*((at - from).length() + 6.0)/(at - from).length()      # on through, to the deck behind
+		to.y = maxf(to.y, Tower.TOP + 0.02)
+		_tracer(from, to, true)
+	g.station.shake(0.06, 0.05)
 
 static func _spent(s: Dictionary, v: bool) -> void:
 	if v:
@@ -241,6 +325,8 @@ static func _boom(s: Dictionary) -> void:
 	qm.albedo_color = Color(1.6, 0.6, 0.15, 0.6); q.material = qm; p.draw_pass_1 = q; s.root.add_child(p)
 
 static func _finish() -> void:
+	if not gs.is_empty(): Director._beam(fx, "gsline", Vector3.ZERO, Vector3.ONE, 0.3, Color.BLACK, false); if is_instance_valid(gs.rig): gs.rig.queue_free()
+	gs = {}
 	on = false; g.boots.vertical_only = false; _parapet(false); g.objective("")
 	for s in ships: if is_instance_valid(s.root): s.root.queue_free()
 	ships = []
