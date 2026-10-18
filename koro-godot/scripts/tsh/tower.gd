@@ -119,6 +119,7 @@ void fragment() {
 		node.add_child(sp); sp.look_at_from_position(at, Vector3(C.x - s.x*6, TOP, C.y - s.y*6))
 	# the world: a wall she can run at, a roof she can land on, its plant in her way
 	g.boots.solids.append([C.x - HALF, C.x + HALF, C.y - HALF, C.y + HALF, -1.0, TOP, "bld:TOWER"])
+	g.boots.plats.append([C.x - HALF, C.x + HALF, C.y - HALF, C.y + HALF, TOP])          # a floor she can stand on
 	g.boots.roofs.append({"id": "TOWER", "x1": C.x - HALF, "x2": C.x + HALF, "z1": C.y - HALF, "z2": C.y + HALF, "top": TOP})
 	for q in PLANT: g.boots.solids.append([C.x + q[0] - q[2]/2, C.x + q[0] + q[2]/2, C.y + q[1] - q[3]/2, C.y + q[1] + q[3]/2, TOP, TOP + q[4]])
 

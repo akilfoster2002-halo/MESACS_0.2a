@@ -316,7 +316,7 @@ static func _aura_off(e: Dictionary) -> void:
 
 static func tick(f, e: Dictionary, dt: float, d: float, to_her: float, p: Vector2) -> bool:
 	e.cuff_cd = maxf(0.0, float(e.get("cuff_cd", 3.0)) - dt)
-	if not e.get("phase2", false) and e.hp > 0 and e.hp <= float(e.K.hp)*0.5:      # HALF HER HEALTH: she calls the gunship in
+	if false and not e.get("phase2", false) and e.hp > 0 and e.hp <= float(e.K.hp)*0.5:      # (the gunship phase: the fleet comes first now, not this)      # HALF HER HEALTH: she calls the gunship in
 		e.phase2 = true
 		if f.g.station and f.g.station.has_method("gunship_cut"): f.g.station.gunship_cut(e); return true     # a cut: she calls it in
 		strafe = {"next": 2.5, "on": null}

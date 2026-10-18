@@ -1287,7 +1287,29 @@ func tower_climb() -> void:
 			"beats": [[1.4, func(): g.cue("thud"); shake(0.2, 0.3)]]}]
 	g.play_reel(shots, done(func():
 		g.dutch = 0.0
-		boss_scene(land, atan2(tc.x - land.x, tc.y - land.y))))
+		fleet_scene(land, atan2(tc.x - land.x, tc.y - land.y))))
+
+## THE FLEET COMES UP: round the roof, out of the dark below its edge, five WFC fighters; her voice on their speakers.
+## Robin, alone in the middle of the pad. Then it is hers to bring them down (fleet.gd) — and then the Director.
+func fleet_scene(R0: Vector2, ry: float) -> void:
+	g.talk_q.clear()
+	var T: float = Tower.TOP; var tc: Vector2 = Tower.C
+	Tower.skyline(g, false); Tower.night(g, true); Rain.start(g, 1.0)
+	Drones.build(g, tc, T)
+	Fleet.begin(g, func(): boss_scene(Vector2(g.robin.position.x, g.robin.position.z), atan2(tc.x + 4 - g.robin.position.x, tc.y + 2 - g.robin.position.z)))
+	Fleet.busy = true; Fleet.next_run = 5.0
+	var st := func(): g.stage("fight", R0.x, T, R0.y, ry)
+	var her := Vector3(R0.x, T + 1.5, R0.y)
+	var shots := [
+		{"dur": 3.4, "fov": 55, "cam": Vector3(R0.x, T + 2.0, R0.y) - Vector3(sin(ry), 0, cos(ry))*4.0, "look": func(k, t): return Fleet.ships[0].root.position if Fleet.ships.size() else Vector3(tc.x, T + 6, tc.y),
+			"enter": func(): st.call(); g.cue("alert"), "tick": func(dt, t, k): st.call()},
+		{"dur": g.lines_len("fleetIn") + 0.6, "fov": 48, "cam": Vector3(R0.x, T + 0.4, R0.y) - Vector3(sin(ry), 0, cos(ry))*3.0, "look": func(k, t): return (Fleet.ships[2].root.position if Fleet.ships.size() > 2 else her + Vector3(0, 5, 0)).lerp(her, 0.35),
+			"enter": func(): g.talk("fleetIn"), "tick": func(dt, t, k): st.call()},
+		{"dur": 2.4, "fov": 70, "cam": Vector3(tc.x, T + 34, tc.y + 10), "look": Vector3(tc.x, T, tc.y),
+			"enter": func(): g.cue("gear")}]
+	g.play_reel(shots, func(_x):
+		g.dutch = 0.0; g.staged = null; g.place(Vector3(R0.x, T, R0.y), ry); Fleet.busy = false
+		g.note("Bring them down — when one sinks to the edge, smoking, get to it and press E"))
 
 ## THE DIRECTOR. On the roof, the gunship comes down onto the pad and somebody steps out of its light: the head of WFC,
 ## alone — she sends the gunship off. Robin's mother, and Robin knows it; her mother has no idea who is under the
@@ -1352,6 +1374,8 @@ func boss_test() -> void:
 	if OS.get_cmdline_user_args().has("climb"):            # -- boss climb: from the foot of the tower
 		g.place(Vector3(Tower.C.x - 6, 0, Tower.C.y + Tower.HALF + 2), PI); tower_climb(); return
 	var R0 := Tower.C + Vector2(-6, 18)
+	if not OS.get_cmdline_user_args().has("director"):          # -- boss: from the fleet; -- boss director: straight to her
+		g.place(Vector3(R0.x, Tower.TOP, R0.y), 0.0); fleet_scene(R0, atan2(Tower.C.x - R0.x, Tower.C.y - R0.y)); return
 	boss_scene(R0, atan2(Tower.C.x + 4 - R0.x, Tower.C.y + 2 - R0.y))
 
 ## HALF HER HEALTH: the fight stops; she touches her ear — "Bring the bird around. Light her up." — and the gunship

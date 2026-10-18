@@ -1467,6 +1467,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 		elif ev is InputEventMouseButton and ev.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else: fight.key(ev)
 		return
+	if mode == "" and Fleet.key(self, ev): return              # the fleet: E onto a spent ship
 	if mode == "" and ev is InputEventKey and chase.key(ev): return
 	if ev is InputEventKey and hs.key(ev): return
 	if mode == "" and ev is InputEventKey and cy.key(ev): return
@@ -1523,6 +1524,7 @@ func _process(dt: float) -> void:
 	cy.tick(dt)
 	station.tick(dt)
 	Rain.tick(self, dt)
+	Fleet.tick(self, dt)
 	_crew_bag(dt)
 	_goal_tick()
 	if mode == "" and chase.on: chase.tick(dt)

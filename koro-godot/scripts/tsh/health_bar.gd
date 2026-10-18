@@ -11,6 +11,7 @@ func _init(game) -> void:
 
 func value() -> float:
 	if g.station and g.station.B != null: return clampf(float(g.station.B.hp), 0, 100)      # the monster, on her feet
+	if Fleet.on: return clampf(Fleet.hp, 0, 100)
 	if g.fight and g.fight.on and g.fight.R is Dictionary and g.fight.R.has("hp"): return clampf(float(g.fight.R.hp), 0, 100)
 	if g.chase and g.chase.on: return 100.0*float(Chase.HITS - g.chase.hits)/float(Chase.HITS)
 	return 100.0
