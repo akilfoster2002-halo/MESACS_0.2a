@@ -92,12 +92,18 @@ static func tick(game, dt: float) -> void:
 			"burst":                                              # hanging there, both guns on her
 				root.position = root.position.lerp(s.hold, minf(1, dt*2.5))
 				_face(s, rp, dt*2.0)
-				if s.t > 0.5 and s.t < 1.9:
+				var mzp: Vector3 = (s.mz[0].l as OmniLight3D).global_position.lerp((s.mz[1].l as OmniLight3D).global_position, 0.5)
+				if s.t < 0.75:                                         # the lock: a red line on her, flickering faster — her cue to move
+					var fl: bool = fmod(s.t*(10.0 + s.t*30.0), 1.0) < 0.6
+					Director._beam(fx, "aim%d" % s.i, mzp, rp + Vector3(0, 1.0, 0), 0.025, Color(3, 0.1, 0.08, 0.85 if fl else 0.3), true)
+					if not s.get("locked", false): s.locked = true; g.cue("beep")
+				else: Director._beam(fx, "aim%d" % s.i, mzp, rp, 0.02, Color.BLACK, false)
+				if s.t > 0.75 and s.t < 1.85:
 					if not s.get("fired", false): s.fired = true; g.cue("gun")
 					_rounds(s, rp, dt)
 				else: _muzzles_off(s)
 				if s.t >= 2.2:
-					s.fired = false; _muzzles_off(s); s.bursts = int(s.get("bursts", 0)) + 1
+					s.fired = false; s.locked = false; _muzzles_off(s); s.bursts = int(s.get("bursts", 0)) + 1
 					if s.bursts >= 2:                                 # its guns too hot: down it goes to the edge, smoking
 						s.state = "spent"; s.t = 0.0; s.bursts = 0
 						var d := (Vector2(rp.x, rp.z) - tc).normalized() if (Vector2(rp.x, rp.z) - tc).length() > 1 else Vector2(1, 0)
@@ -142,7 +148,7 @@ static func _tracer(from: Vector3, to: Vector3, live := false) -> void:
 	var m := StandardMaterial3D.new(); m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; m.albedo_color = Color(3.2, 2.2, 0.7); tr.material_override = m
 	tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; g.add_child(tr)
 	tr.global_position = from; tr.look_at(to, Vector3.UP)
-	tracers.append({"n": tr, "a": from, "b": to, "t": 0.0, "live": live, "speed": 70.0/maxf(1.0, from.distance_to(to))})
+	tracers.append({"n": tr, "a": from, "b": to, "t": 0.0, "live": live, "speed": BULLET/maxf(1.0, from.distance_to(to))})
 static func _tick_tracers(dt: float) -> void:
 	grace -= dt
 	var keep := []
@@ -169,6 +175,7 @@ static func _face(s: Dictionary, at: Vector3, dt: float) -> void:
 	var root: Node3D = s.root; var d := at - root.position
 	if Vector2(d.x, d.z).length() > 0.5: root.rotation.y = lerp_angle(root.rotation.y, atan2(d.x, d.z), minf(1, dt*3))
 
+const BULLET := 32.0                     # metres a second: quick, but she can get out of its way
 static var tracers: Array = []
 static var grace := 0.0                # after a round finds her, a beat before the next can
 ## THE BIG ONE: the gunship over the roof, and only it lays the red lines and walks its guns down them
@@ -222,10 +229,12 @@ static func _rounds(s: Dictionary, head: Vector3, dt: float) -> void:
 	for m in s.mz:                                               # the muzzles flashing
 		var on_: bool = randf() < 0.65
 		m.l.light_energy = randf_range(4, 9) if on_ else 0.0; m.f.visible = on_; m.f.scale = Vector3.ONE*randf_range(0.6, 1.3)
-	while s.acc > 0.1:
-		s.acc -= 0.1
-		var lead := Vector3(g.boots.vx, 0, g.boots.vz)*0.2
-		var at := head + lead + Vector3(randf_range(-1.6, 1.6), 0.9 + randf_range(-0.3, 0.3), randf_range(-1.6, 1.6))
+	while s.acc > 0.09:
+		s.acc -= 0.09
+		var mzp: Vector3 = (s.mz[0].l as OmniLight3D).global_position
+		var fly := mzp.distance_to(head)/BULLET                      # where she will be when it gets there, if she keeps on as she is
+		var lead := Vector3(g.boots.vx, 0, g.boots.vz)*fly
+		var at := head + lead + Vector3(randf_range(-0.35, 0.35), 0.9 + randf_range(-0.15, 0.15), randf_range(-0.35, 0.35))
 		var m: Dictionary = s.mz[randi() % s.mz.size()]
 		var from := (m.l as OmniLight3D).global_position
 		var to := from + (at - from)*((at - from).length() + 6.0)/(at - from).length()      # on through, to the deck behind
