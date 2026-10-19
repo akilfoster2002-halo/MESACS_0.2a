@@ -1,0 +1,588 @@
+<title>The Other Robin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&display=swap">
+<style>
+/* Layout: a single screenplay page on a desk — the industry format (Courier, slug lines, a dialogue column) on paper,
+   a title page first; playable stretches are margin notes in the city's teal, title cards in WFC red. */
+:root {
+  --desk: #e6e8ea;
+  --paper: #fcfcfa;
+  --ink: #1d2024;
+  --muted: #6c727a;
+  --rule: #d5d9dd;
+  --teal: #0b7480;
+  --red: #b3262f;
+  --shadow: 0 1px 2px rgba(20, 30, 40, .08), 0 8px 30px rgba(20, 30, 40, .08);
+  --mono: "Courier Prime", "Courier New", Courier, monospace;
+  --display: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #0e1114; --paper: #171b20; --ink: #e4e2dc; --muted: #8d949c; --rule: #2a3037;
+    --teal: #5ccbd4; --red: #ef6a70; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 40px rgba(0,0,0,.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --desk: #0e1114; --paper: #171b20; --ink: #e4e2dc; --muted: #8d949c; --rule: #2a3037;
+  --teal: #5ccbd4; --red: #ef6a70; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 40px rgba(0,0,0,.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--desk); color: var(--ink); font-family: var(--mono); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.sheet {
+  max-width: 46rem; margin: 0 auto; background: var(--paper); box-shadow: var(--shadow);
+  padding: clamp(28px, 7vw, 80px) clamp(20px, 8vw, 88px);
+}
+nav.jump {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; max-width: 46rem; margin: 0 auto 16px;
+  display: flex; gap: 8px 20px; flex-wrap: wrap; justify-content: center; padding: 10px 0;
+  background: var(--desk); font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+}
+nav.jump a { color: var(--muted); text-decoration: none; }
+nav.jump a:hover, nav.jump a:focus-visible { color: var(--teal); }
+a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+/* the title page */
+.titlepage { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 28px; border-bottom: 1px dashed var(--rule); padding-bottom: 48px; margin-bottom: 40px; }
+.titlepage h1 { font-family: var(--display); font-weight: 400; font-size: clamp(3.2rem, 12vw, 6rem); line-height: .9; letter-spacing: .04em; margin: 0; text-wrap: balance; }
+.titlepage .by { margin: 0; text-transform: uppercase; letter-spacing: .06em; }
+.titlepage .note { margin: 0; color: var(--muted); max-width: 34rem; font-size: 14px; }
+.titlepage .meta { margin: 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+
+/* the screenplay */
+h2.part { font-family: var(--display); font-weight: 400; font-size: 2rem; letter-spacing: .06em; text-align: center; margin: 72px 0 36px; color: var(--ink); scroll-margin-top: 64px; }
+h2.part::before, h2.part::after { content: "— "; color: var(--muted); }
+h2.part::after { content: " —"; }
+h3.slug { font: 700 1rem/1.5 var(--mono); text-transform: uppercase; margin: 2.2em 0 1em; display: flex; justify-content: space-between; gap: 12px; }
+h3.slug .num { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; flex: none; }
+h3.slug .num:first-child { margin-left: -3.2em; width: 2.6em; text-align: right; }
+h3.slug .num:last-child { margin-right: -3.2em; width: 2.6em; }
+p.action { margin: 0 0 1em; }
+.speech { margin: 0 0 1em; padding-left: 22%; padding-right: 14%; }
+.speech p { margin: 0; }
+.cue { padding-left: 22%; text-transform: uppercase; }
+.paren { padding-left: 12%; color: var(--muted); }
+p.card { margin: 1.4em 0; text-align: center; text-transform: uppercase; color: var(--red); letter-spacing: .03em; }
+p.card strong { font-weight: 700; }
+aside.play { margin: 1.4em 0; padding: .6em 0 .6em 1em; border-left: 3px solid var(--teal); color: var(--teal); }
+aside.play p { margin: 0; font-style: italic; }
+aside.play .tag { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; font-style: normal; margin-bottom: .2em; }
+.end { text-align: center; margin-top: 64px; text-transform: uppercase; color: var(--muted); letter-spacing: .12em; }
+
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  h3.slug .num { display: none; }
+  .speech { padding-left: 10%; padding-right: 4%; }
+  .cue { padding-left: 18%; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<nav class="jump" aria-label="Parts"><a href="#prologue">Prologue</a> <a href="#morning">The Morning After</a></nav>
+<main class="sheet">
+  <section class="titlepage">
+    <p class="meta">Robin Ryu</p>
+    <h1>The Other Robin</h1>
+    <p class="by">The game, as it plays now</p>
+    <p class="note">The prologue and the day after, scene by scene: every line of dialogue as the game speaks it, the directions as the scenes are filmed, and the stretches you play marked in the margin.</p>
+    <p class="meta">34 scenes · Koro</p>
+  </section>
+<h2 class="part" id="prologue">PROLOGUE</h2>
+<h3 class="slug"><span class="num">1</span>COLD OPEN — BLACK<span class="num">1</span></h3>
+<p class="action">Black. Rain, the hum of a city, a siren that never arrives. A click. A single red light in the dark.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Ten years ago, the weapons got small enough to wear.</p></div>
+<h3 class="slug"><span class="num">2</span>EXT. THE SKY OVER NEW YORK — NIGHT<span class="num">2</span></h3>
+<p class="action">Falling through cloud — thick, then thinning as the skyline appears. Drones at every depth.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">A ring. A bracelet. A pair of shoes.</p></div>
+<p class="action">Three glimpses as she names them: a commuter on a roof terrace turns their hand and a RING catches red; a courier weaving through traffic, a band of light under the sleeve — a BRACELET; far off, somebody leaps between two roofs — a pair of SHOES. On &quot;shoes&quot; the camera pitches down toward the city.</p>
+<h3 class="slug"><span class="num">3</span>EXT. THE ELEVATED LINE — NIGHT<span class="num">3</span></h3>
+<p class="action">Tracking alongside a train: WFC in every window. A pillar wipes the frame.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">And the gangs wore them first.</p></div>
+<h3 class="slug"><span class="num">4</span>EXT. NEON AVENUE — NIGHT<span class="num">4</span></h3>
+<p class="action">Inches above the wet road, out from behind the pillar; a car tears through the foreground. JUNO and his two friends under a broken storefront sign. A slow push on Juno&#x27;s bracelet: the light wakes, fills, goes red.</p>
+<p class="action">The shop window explodes — wide, from across the street, in slow motion: the impact, then the glass.</p>
+<p class="action">Through the glass of a bus shelter: a GIRL and her MOTHER, crouched. Red light washes across the girl&#x27;s face from a van behind her.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Our streets became battlegrounds. Our children grew up afraid.</p></div>
+<p class="action">WFC arrives, symmetrical and locked: vans from both ends of the avenue meet; officers step out in a line. Juno&#x27;s friends run. A drone drops between Juno and the lens — its eye; three lights across his face.</p>
+<div class="speech"><p class="cue">WFC DRONE</p><p class="line">Unregistered wearable detected.</p></div>
+<p class="action">Officers close. One takes his wrist. The bracelet goes dark. A click.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">The World Field Command is here to take this city back.</p></div>
+<p class="action">At boot height: the arrest. Boots, a fallen phone, his hand behind his back, the dead bracelet.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">To make New York safe again.</p></div>
+<p class="action">The camera cranes up the face of a tower to a billboard: THE DIRECTOR of the World Field Command, her face huge and calm. WFC. PROTECTING NEW YORK.</p>
+<p class="card">NEW YORK CITY · 2044</p>
+<p class="action">Smash cut to black.</p>
+<h3 class="slug"><span class="num">5</span>INT. ROBIN&#x27;S ROOM — 21:58<span class="num">5</span></h3>
+<p class="action">Quiet. Fairy lights strung along the top of the wall under trailing ivy, close and soft.</p>
+<p class="card">THE OTHER ROBIN</p>
+<p class="action">A slow track along her wall: band posters, a moon, vinyl, <em>good things take time</em>, polaroids. The title gives way to the time.</p>
+<p class="card">INT. ROBIN&#x27;S ROOM — 21:58</p>
+<p class="action">The nightstand: a candle flickering, tulips, an instant camera. Her school ID hanging off the lamp — HARBOR HIGH · ROBIN RYU · GRADE 11. Her homework on the bed: AP Physics, problem set 6, due Friday, a doodle in the margin, the pencil down. And at the foot of the bed, asleep on the knit throw, her black CAT. An ear flicks — as if it heard what is coming.</p>
+<p class="action"><strong>MUSIC IN: &quot;Worth It&quot; (from 2:14).</strong> Every cut lands on a beat.</p>
+<p class="action">A guitar string, vibrating; a pick across it; the riff. A whip pan past the amp and the cables onto ROBIN RYU (16), sprinting in. She lands on the bed, bounces, arms up, singing. The cat, bounced, opens one flat eye at her. It has seen this before.</p>
+<p class="action">Her room in four inserts: the sewing machine, a spark off the soldering iron; a jacket on a dress form, wiring in its seams; the business — boxes taped and labelled, a burner phone, cash under a mug; a pair of sneakers with coils in the soles, a car&#x27;s light sliding across them.</p>
+<p class="action">She air-drums with two screwdrivers, hits the bench too hard — a component jumps — she catches it without looking. She stops. Her guitar, leaning on the amp. She picks it up, seriously, and kicks the amp on. Feedback.</p>
+<h3 class="slug"><span class="num">6</span>INT. ROBIN&#x27;S ROOM — CONTINUOUS (THE GUITAR)<span class="num">6</span></h3>
+<p class="card">ROBIN · HER SONG — PLAY</p>
+<aside class="play"><span class="tag">Playable</span><p>A rhythm game. When the electric guitar comes in, a note highway rises on the right of the screen; the notes come down four lanes — ← ↓ ↑ → — and are hit as they reach the line. Hits keep the guitar in the song; a miss dips it. A streak builds a multiplier (×2, ×3, ×4); a rock meter shows how the room thinks it is going. ENTER skips.</p></aside>
+<p class="action">While she plays, the camera finds a new angle on her every two bars. Where the guitar drops out, the highway sinks away and the camera looks round her room on the beat: a chem test stamped SEE ME; cables across the floor to a power strip; homework on the floor stamped MISSING and LATE; her poster wall; a tangle of wire on the bench; a drafting board — ACTUATOR RIG v3, R. RYU, LAB 120, DO NOT TOUCH — with a Ψ-FIELD SENSOR circled in yellow; the cat; the cork board.</p>
+<p class="action">The last chord: a low hero angle. She jumps and lands on it.</p>
+<p class="card">ROBIN — LIVE FROM HER BEDROOM: stars · notes hit · best streak · score</p>
+<h3 class="slug"><span class="num">7</span>INT. ROBIN&#x27;S ROOM — LATER<span class="num">7</span></h3>
+<p class="action">Back on the bed, the guitar on her chest, laughing at nobody. The song ends. Silence. The cat, moved to the shelf behind the bed, watches her, unimpressed. Her phone buzzes on the duvet — CANON. She answers without looking.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Mm.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">You alive? You missed chem. Again.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I was there. Spiritually.</p></div>
+<p class="action">Up, pacing, phone to her ear — past the bench, the boxes, the form.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Teacher says one more missed lab write-up and she&#x27;s calling home.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">She can try.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Nobody&#x27;s ever home.</p></div>
+<p class="action">The fridge clicks on somewhere in the flat. No light under her mother&#x27;s door.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">You&#x27;re coming tomorrow, though. I&#x27;m not building that robot by myself.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yes, Canon. I&#x27;ll be there.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">On time?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Don&#x27;t push it.</p></div>
+<p class="action">The phone buzzes against her ear. She looks at it: UNKNOWN. The smile goes. Her eyes flick to the boxes.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Hold on. Let me call you back. I have to do something.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Robin, wait...</p></div>
+<p class="action">She switches calls.</p>
+<div class="speech"><p class="cue">THE BUYER (ON THE PHONE)</p><p class="line">Hey. You got my order?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. It&#x27;s ready.</p></div>
+<p class="action">The ring box, from above. It opens under her thumb: two rings, light travelling round each one.</p>
+<p class="action">She closes it. Alone in her room, the amp humming. Her phone: 22:15.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay.</p></div>
+<p class="action">The lamp goes off. On the shelf, in the dark, two gold eyes open and watch her go.</p>
+<h3 class="slug"><span class="num">8</span>INT. ROBIN&#x27;S ROOM — NIGHT (THE KIT)<span class="num">8</span></h3>
+<p class="action"><strong>MUSIC IN: &quot;Web of Silence&quot;</strong> — the full beat as she gets ready. The lamp back on.</p>
+<p class="action">THE JACKET off the form; its seams wake up. THE GLOVES, at the bench. THE SHOES — down on one knee by the window; the soles go bright and the coils whine. THE BRACELET. THE BACKPACK — the ring box goes into it — and she heads for the door.</p>
+<p class="action">She stops. The music sinks.</p>
+<h3 class="slug"><span class="num">9</span>INT. THE FLAT — KITCHEN — NIGHT<span class="num">9</span></h3>
+<p class="action">Dinner on the table, still covered. A note. The music almost gone, muffled.</p>
+<p class="card">NOTE: &quot;Dinner&#x27;s in the fridge. Love you. — Mom ♥&quot;</p>
+<p class="action">She looks down the hall: her mother&#x27;s door, dark. She picks the note up. Looks at it. Puts it back exactly where it was.</p>
+<h3 class="slug"><span class="num">10</span>INT. ROBIN&#x27;S ROOM — NIGHT<span class="num">10</span></h3>
+<p class="action">THE WINDOW. The breakdown comes in from near silence. She slides the window up and the city comes in. Sunglasses on, at night.</p>
+<p class="action">Up onto the sill.</p>
+<h3 class="slug"><span class="num">11</span>EXT. KILN STREET — 22:17<span class="num">11</span></h3>
+<p class="action">Outside, on the sill, five storeys over Kiln Street. A look down. A smile.</p>
+<p class="action">She jumps.</p>
+<h3 class="slug"><span class="num">12</span>EXT. KILN STREET — CONTINUOUS (THE FALL)<span class="num">12</span></h3>
+<p class="action">The music holds its last beat before the drop, round and round, rising, while she falls — slowly.</p>
+<p class="card">THE SHOES · 1 / 6 — SPACE: fire them.</p>
+<aside class="play"><span class="tag">Playable</span><p>SPACE. The shoes fire — the song&#x27;s drop lands on it — and she goes straight up past the roofs.</p></aside>
+<h3 class="slug"><span class="num">13</span>EXT. THE ROOFS — NIGHT (THE LESSON)<span class="num">13</span></h3>
+<p class="action">The song carries the first roofs. The shoes teach themselves one thing at a time:</p>
+<p class="card">HOLD SPACE — the shoes pick the roof you are facing (the ring) and take you there.</p>
+<p class="card">KEEP HOLDING — every landing springs into the next. Three roofs in a row.</p>
+<p class="card">POINT — look where you want to go. North, over Neon Avenue.</p>
+<p class="card">THE RHYTHM — tap SPACE as her feet touch, when the ring goes gold. Two in a row.</p>
+<p class="card">DRAGON ALLEY — the buyer is in Dragon Alley. Get there.</p>
+<aside class="play"><span class="tag">Playable</span><p>Over the roofs to Dragon Alley. (The shoes do more: SHIFT in the air dives · SPACE out of a dive pulls up · SPACE at a wall kicks off it.)</p></aside>
+<h3 class="slug"><span class="num">14</span>EXT. DRAGON ALLEY — 22:31<span class="num">14</span></h3>
+<p class="action">She walks in. THE BUYER and two of his crew at the bend.</p>
+<div class="speech"><p class="cue">THE BUYER</p><p class="line">You got the stuff?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. You got the money?</p></div>
+<div class="speech"><p class="cue">THE BUYER</p><p class="line">About that...</p></div>
+<p class="action">The rest of his crew step out of the dark behind him.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Oh.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You&#x27;re gonna be annoying.</p></div>
+<p class="action">One of them takes the bag out of her hand.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Uh, no. That&#x27;s actually mine.</p></div>
+<div class="speech"><p class="cue">THE BUYER</p><p class="line">Not anymore.</p></div>
+<p class="action">A shove.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay.</p></div>
+<p class="action">The backpack comes off.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I really hate when people make me do things twice.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>THE FIGHT. It teaches itself, one move at a time; the world slows to a crawl at the instant that matters and waits for the key.</p></aside>
+<p class="card">ATTACK — the first one charges. CLICK (or K) to hit him.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">See? That wasn&#x27;t so hard.</p></div>
+<p class="card">DODGE — another one swings. SPACE as the fist comes.</p>
+<p class="card">COMBO — two rush her. CLICK ×4: jab, cross, hook, kick.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay, there&#x27;s a few more of you than I expected.</p></div>
+<p class="card">BREAK — one gets hold of her. G: the bangle&#x27;s pulse.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Definitely keeping that.</p></div>
+<p class="card">PARRY — one has a pipe. RIGHT-CLICK (or R) the instant before it lands.</p>
+<div class="speech"><p class="cue">THE BUYER</p><p class="line">GET HER!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Do you guys have, like, a group chat or something?</p></div>
+<p class="card">THE GAUNTLETS · POWER — hold CLICK, let go. Put one through the car.</p>
+<p class="card">THE DASH — F: straight to the one you are facing.</p>
+<p class="card">EVERYTHING — use all of it. Every one of them down.</p>
+<p class="card">ONE MORE — he is getting back up.</p>
+<div class="speech"><p class="cue">THUG</p><p class="line">You&#x27;re gonna regret this!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">People keep saying that.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Anybody else?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Great.</p></div>
+<p class="action">The ones still standing run. She walks to the buyer in his corner and picks up the bag.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">So...</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">My money?</p></div>
+<p class="action">Nothing.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Right. Worth a shot.</p></div>
+<p class="action">The buyer bolts. Her phone buzzes: a number she doesn&#x27;t know.</p>
+<div class="speech"><p class="cue">UNKNOWN NUMBER (TEXT)</p><p class="line">📱 You just cost us a lot of money.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Send me an invoice.</p></div>
+<p class="card">The bag, and the rings in it. No money.</p>
+<h3 class="slug"><span class="num">15</span>EXT. NEON AVENUE — 23:02<span class="num">15</span></h3>
+<p class="action">Out of the alley with the bag. Across the avenue the billboard: WFC. PROTECTING NEW YORK.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. Sure.</p></div>
+<p class="action">The screen changes: CITIZEN ALERT — SECTOR 9 — DRAGON ALLEY.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Huh.</p></div>
+<p class="action">A drone drops in her face and reads her gloves.</p>
+<div class="speech"><p class="cue">WFC DRONE</p><p class="line">UNREGISTERED WEARABLE DETECTED.</p></div>
+<p class="action">Vans from both ends of the avenue. Officers pouring out.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">THERE! DROP THE BAG! GET ON THE GROUND!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay, little weird.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Actually...</p></div>
+<h3 class="slug"><span class="num">16</span>THE CHASE<span class="num">16</span></h3>
+<aside class="play"><span class="tag">Playable</span><p>The shoes are cold from the fight: on foot. A red ring on the ground is a missile — get out of it.</p></aside>
+<p class="card">THE CHASE · 1 — RUN. East, down Neon Avenue. SHIFT sprints; SPACE vaults a barrier.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">STOP!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You&#x27;re really committed to this!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Are you KIDDING me?!</p></div>
+<p class="card">THE CHASE · 2 — CORNERED. A WFC car brakes across the pavement.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">END OF THE LINE, KID.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. Fine.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>WFC · FIGHT 1 / 3.</p></aside>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Sorry! Reflex!</p></div>
+<p class="card">THE CHASE · 3 — RUN. North, into the gap between the buildings. If it closes: G, and up the wall.</p>
+<p class="action">A WFC barrier slams down across the gap.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. Okay okay okay.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Please work.</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">She&#x27;s on the building!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. I noticed.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. That&#x27;s new.</p></div>
+<p class="card">THE CHASE · 4 — HOLD SPACE. The shoes are charged: roof to roof, east.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay, Robin. Don&#x27;t embarrass yourself.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. Definitely keeping that.</p></div>
+<h3 class="slug"><span class="num">17</span>EXT. ROOFTOP — NIGHT<span class="num">17</span></h3>
+<p class="action">An alarm. The gunship drops a team on the roof in front of her; a gate slams across the way on.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">SUSPECT CONTAINED.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Seriously?!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Okay.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Oh, come on.</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">HANDS WHERE I CAN SEE THEM!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah, I&#x27;m gonna pass on that.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>WFC · FIGHT 2 / 3.</p></aside>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Who even trains you guys?</p></div>
+<p class="card">THE CHASE · 6 — E: HIDE. You cannot outrun a gunship. Behind the AC unit — and stay on the far side of whatever is looking.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">SUSPECT IS ON THE ROOFTOPS. ALL UNITS, SECTOR 9.</p></div>
+<p class="action">A searchlight sweeps the roof. She gets behind the AC unit.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Shhh.</p></div>
+<p class="action">Her phone rings. MOM.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Oh, you&#x27;ve gotta be kidding me.</p></div>
+<p class="card">MOM — keep talking. Keep the box between you and him.</p>
+<p class="action">An officer walks round the box toward the sound.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Hey, Mom.</p></div>
+<div class="speech"><p class="cue">MOM (ON THE PHONE)</p><p class="line">Hey, Robin. I&#x27;m still at work. I think I&#x27;m going to be later than usual tonight.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. Yeah. No problem.</p></div>
+<div class="speech"><p class="cue">MOM (ON THE PHONE)</p><p class="line">You okay? You sound out of breath.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. I&#x27;m fine. Just... stairs.</p></div>
+<div class="speech"><p class="cue">MOM (ON THE PHONE)</p><p class="line">What was that?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Uh... TV.</p></div>
+<div class="speech"><p class="cue">MOM (ON THE PHONE)</p><p class="line">At this hour?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Really good TV.</p></div>
+<div class="speech"><p class="cue">MOM (ON THE PHONE)</p><p class="line">Alright. Don&#x27;t stay up too late.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah. You too.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Crap.</p></div>
+<p class="card">THE CHASE · 8 — FOUND. He came round the box.</p>
+<aside class="play"><span class="tag">Playable</span><p>WFC · FIGHT 3 / 3.</p></aside>
+<p class="card">THE CHASE · 9 — GET HOME. Lose them, and land on your own roof with nobody on you.</p>
+<aside class="play"><span class="tag">Playable</span><p>Everything at once: the gunship strafing, drones, officers. Lose every star, then home.</p></aside>
+<h3 class="slug"><span class="num">18</span>EXT. ROOFTOP — 214 HARBOR LANE<span class="num">18</span></h3>
+<p class="action">Her own roof. She drops to one knee.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay...</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Definitely never doing that again.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Probably.</p></div>
+<h3 class="slug"><span class="num">19</span>INT. ROBIN&#x27;S ROOM — NIGHT<span class="num">19</span></h3>
+<p class="action">In at the window. The room dark. Her phone says 3:07. School in the morning.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Rats.</p></div>
+<p class="action">Everything off, onto the floor, and into bed.</p>
+<h3 class="slug"><span class="num">20</span>EXT. ROOFTOP ACROSS KILN STREET — NIGHT<span class="num">20</span></h3>
+<p class="action">Two people on a roof with binoculars, watching her window: MAYA and KAI.</p>
+<div class="speech"><p class="cue">MAYA</p><p class="line">That&#x27;s her.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">You&#x27;re sure?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Yeah.</p></div>
+<p class="action">And then they come out of her back — arms, four of them, rearing up over Maya&#x27;s shoulder while she stares down the lens.</p>
+<p class="card">CUT TO BLACK.</p>
+<p class="card">END OF PROLOGUE — Somebody has noticed her.</p>
+<h2 class="part" id="morning">THE OTHER ROBIN — THE MORNING AFTER</h2>
+<h3 class="slug"><span class="num">21</span>INT. ROBIN&#x27;S ROOM — MORNING<span class="num">21</span></h3>
+<p class="action">Sun in at the window. An alarm that has been going for a while: 8:42. School started at 8:00.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Rats.</p></div>
+<p class="action">School clothes, the backpack — and the boots by the window.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You&#x27;re up.</p></div>
+<h3 class="slug"><span class="num">22</span>EXT. KILN STREET — 8:44 AM<span class="num">22</span></h3>
+<aside class="play"><span class="tag">Playable</span><p>Out of the window into daylight and over the roofs the way she went last night — no heat, no drones, no WFC. A school day.</p></aside>
+<h3 class="slug"><span class="num">23</span>EXT. ROOFTOP — HARBOR LANE HIGH SCHOOL — 8:57 AM<span class="num">23</span></h3>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay. Technically not that late.</p></div>
+<p class="action">And over the edge.</p>
+<h3 class="slug"><span class="num">24</span>INT. HARBOR LANE HIGH — 9:01 AM<span class="num">24</span></h3>
+<p class="action">In through the revolving door. The atrium.</p>
+<div class="speech"><p class="cue">SECURITY GUARD</p><p class="line">Morning, Robin.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Morning.</p></div>
+<div class="speech"><p class="cue">SECURITY GUARD</p><p class="line">Long night?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You could say that.</p></div>
+<p class="action">And across the lobby, her TEACHER.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Nope.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>THE SNEAK. Get to class without your teacher seeing you. Her teacher walks a round and sees down a cone in front of her; inside it a meter fills. Walls, a passing student, the bulletin board (E: read it) and the bathroom (E: wait it out) are cover.</p></aside>
+<p class="action">However it goes — seen, or the PA catches up with her:</p>
+<div class="speech"><p class="cue">PA (V.O.)</p><p class="line">Robin, please report to Room 120. Robin, Room 120.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">Robin.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I was here yesterday.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">That&#x27;s not really how attendance works.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Worth a shot.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">Assignment six-two?</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You know what&#x27;s frustrating?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">The fact that I&#x27;m standing here?</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">The fact that I know you could have finished this in an hour.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">Come on. I need your help.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">So I&#x27;m not in trouble?</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You&#x27;re absolutely in trouble.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Okay.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">But you&#x27;re also useful.</p></div>
+<h3 class="slug"><span class="num">25</span>INT. ROBOTICS LAB — ROOM 120<span class="num">25</span></h3>
+<p class="action">Not a classroom: a containment rig with a few centimetres of violet light held in it.</p>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">This is what I&#x27;ve been working on.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">We&#x27;re calling it Psi Energy.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">Honestly? We don&#x27;t completely understand it yet.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">We&#x27;ve managed to hold a tiny field. It&#x27;s unstable. But it&#x27;s real.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">The problem is the prototype. Every time we expose it to the field, it malfunctions.</p></div>
+<p class="action">The prototype — the actuator rig from her drafting board — goes into the field and malfunctions.</p>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">The energy output spikes whenever the actuator—</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Because the actuator is compensating.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">What?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You&#x27;re telling it to maintain a constant output while the Psi field is fluctuating.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s fighting itself.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">That&#x27;s why I keep you around.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>At the stand: route the Psi energy · match its frequency · stabilise the actuators.</p></aside>
+<p class="action">It runs, in the field.</p>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You did it.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Obviously.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You know, most people wait until I finish explaining the problem.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Most people aren&#x27;t me.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">(laughs)</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">That&#x27;s exactly what I&#x27;m worried about.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You&#x27;re brilliant, Robin. You know that, right?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I&#x27;ve heard.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">No. I don&#x27;t think you have.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You have the kind of intuition that could take you somewhere extraordinary.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">But you&#x27;re late. You&#x27;re missing assignments. You&#x27;re exhausted. You&#x27;re somewhere else half the time.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">I don&#x27;t care about one late assignment. I care that you&#x27;re starting to disappear.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">You could be one of the best roboticists I&#x27;ve ever taught.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">Your mom knows how talented you are.</p></div>
+<div class="speech"><p class="cue">TEACHER</p><p class="line">She&#x27;d be proud to see what you&#x27;re capable of.</p></div>
+<p class="action">It hits her.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Yeah.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I should get to class.</p></div>
+<h3 class="slug"><span class="num">26</span>EXT. HARBOR LANE HIGH — 3:20 PM<span class="num">26</span></h3>
+<p class="action">Through the doors into the sun; students everywhere. Headphones in. She walks — not bouncing now — and looks up at the city, and past it at the sky.</p>
+<p class="action">Her phone. CANON: <em>you coming?</em> — ROBIN: <em>where?</em> — CANON: <em>old harbor lane station. trust me</em></p>
+<h3 class="slug"><span class="num">27</span>EXT. HARBOR LANE STATION — DAY<span class="num">27</span></h3>
+<p class="action">Canon, by the boarded-up stair of a station closed since before they were born.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">You came.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You said &quot;trust me.&quot; That&#x27;s never good.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">It&#x27;s always good.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s never good, Canon.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">It&#x27;s sometimes good.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Harbor Lane Station. Closed since before we were born.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">And we&#x27;re going in because...</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Because nobody else does.</p></div>
+<h3 class="slug"><span class="num">28</span>INT. HARBOR LANE STATION — CLOSED<span class="num">28</span></h3>
+<p class="action">Dark.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Power&#x27;s dead. The whole line.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s not dead. It&#x27;s disconnected.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>RESTORE THE POWER — the breaker is fine, the feed is not: turn the pieces until power runs from the mains to the lights.</p></aside>
+<p class="action">The lights come on down the line, one after another, with a flicker.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Okay. That was cool.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">That was a breaker.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">A cool breaker.</p></div>
+<p class="action">They walk the tunnel.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">So what&#x27;s the thing your teacher has you working on?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s an actuator rig.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">So, a robot.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...Fine. A robot.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">And?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It kept fighting itself. The field it sits in moves, and it wasn&#x27;t moving with it.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">And you fixed it.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I listened to it.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">You talk about machines like they&#x27;re people.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Machines are easier.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Than people?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Than you.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I&#x27;ll take that as a compliment.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It wasn&#x27;t one.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">The barrier&#x27;s tied to the old signal switch.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Then we throw the switch.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>THROW THE SWITCH — line every notch of the gears up with the lever. The barrier to the tracks lifts.</p></aside>
+<p class="action">Near a crack in the tunnel wall, Canon&#x27;s homemade gizmo starts to hum.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Okay. I want to show you something. Don&#x27;t laugh.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">No promises.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I built it out of a dead phone and a radio. It picks something up down here.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Picks up what?</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I don&#x27;t know. It just hums. Only in the tunnels.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">That&#x27;s not noise.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">What is it?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s a field. It&#x27;s oscillating.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s like the field in the lab.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">What lab?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">My teacher keeps Psi energy in a containment rig. A few centimetres of it.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s not supposed to be loose down here.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Can you make it read it properly?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">If I match it.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>TUNE IT TO THE FIELD — make the gizmo&#x27;s wave match the field&#x27;s: count the humps, line up the peaks.</p></aside>
+<div class="speech"><p class="cue">CANON</p><p class="line">You just tuned something you&#x27;ve never seen before.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s the same wave as the lab. You just have to match it.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Keep it.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s yours.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I built it. You&#x27;re the one who understands it.</p></div>
+<p class="action">A hatch, high in the wall.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">There&#x27;s a hatch.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Two and a half metres up.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Boost me.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">And then what? I live down here now?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">And then I pull you up.</p></div>
+<p class="action">He boosts her; she pulls him up. For a second neither of them lets go.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Hi.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Hi.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">You can let go now.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Right. Yes.</p></div>
+<p class="action">The passage beyond.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Can I tell you something?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">You&#x27;re going to anyway.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I like this.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">The tunnel?</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Down here. With you.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...It&#x27;s a tunnel, Canon.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">It&#x27;s a nice tunnel.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It&#x27;s an okay tunnel.</p></div>
+<p class="action">A security door. A sign.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">&quot;No admittance. WFC.&quot;</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Since when does the WFC own a dead station?</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Since when does the WFC ask?</p></div>
+<aside class="play"><span class="tag">Playable</span><p>WHY WON&#x27;T IT OPEN — the keypad takes Canon&#x27;s guess (1-2-3-4) and the door does not move. Check it, then say what is wrong.</p></aside>
+<h3 class="slug"><span class="num">29</span>INT. HARBOR LANE STATION — THE OLD PLATFORM<span class="num">29</span></h3>
+<p class="action">An abandoned train, its door open. Out of it: MAYA and KAI.</p>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Well. Look at this.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Who are you?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Nobody. Same as you.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Two kids in a dead station. Cute.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">This place is closed.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">So why are you in it?</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Why are you?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Same reason as everybody down here. Nobody looks.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">You&#x27;re not WFC.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Do we look WFC?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">The WFC sealed this station and forgot about it. That&#x27;s what they do.</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">Yeah. Nobody down here likes the WFC.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Finally. Somebody gets it.</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">They&#x27;re scared of one girl in a pair of shoes. YU.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">People exaggerate.</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Do they?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">What&#x27;s that in your pocket? It&#x27;s singing.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Nothing.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Hand it over.</p></div>
+<p class="action">The gizmo in Robin&#x27;s pocket sings louder as Maya gets close.</p>
+<div class="speech"><p class="cue">CANON</p><p class="line">Robin. Get behind me.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Canon, don&#x27;t—</p></div>
+<div class="speech"><p class="cue">CANON</p><p class="line">I said get behind me.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Brave.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Stupid. But brave.</p></div>
+<p class="action">Kai puts Canon on the floor.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Canon!</p></div>
+<p class="card">Kai.</p>
+<aside class="play"><span class="tag">Playable</span><p>THE FIGHT — Kai, and his great sword.</p></aside>
+<p class="action">Kai down. Maya walks in.</p>
+<div class="speech"><p class="cue">MAYA</p><p class="line">You don&#x27;t fight like a kid.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I took a lot of self-defence classes.</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Mm. So did I.</p></div>
+<p class="action">Maya&#x27;s arms come out of her back — four of them.</p>
+<aside class="play"><span class="tag">Playable</span><p>THE FIGHT — Maya: claws, lunges, and the platform&#x27;s junk thrown at you. Keep moving.</p></aside>
+<p class="action">In the scuffle the gizmo slips out of Robin&#x27;s jacket and hits the platform. It beeps — faster and faster, red each time. Nobody moves.</p>
+<div class="speech"><p class="cue">MAYA</p><p class="line">What is that? Turn it off.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I can&#x27;t!</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Turn. It. OFF.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Maya?</p></div>
+<div class="speech"><p class="cue">MAYA</p><p class="line">Get... away...</p></div>
+<p class="action">What is in Maya answers it. Black smoke bursts out of her and hangs — and then it does not stop. It comes up out of her and keeps coming until it is the size of the platform: ALPHA, heaving, pale lights opening and shutting all over it.</p>
+<div class="speech"><p class="cue">KAI</p><p class="line">No. No, no, no.</p></div>
+<div class="speech"><p class="cue">KAI</p><p class="line">Maya, stop!</p></div>
+<p class="action">Canon goes into it.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">CANON!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Give him back.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>SHE FIGHTS IT FOR HIM. It rears back before it bites — DODGE (be out of reach, or SPACE). A bite that misses leaves it open — HIT IT!</p></aside>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I said GIVE HIM BACK!</p></div>
+<aside class="play"><span class="tag">Playable</span><p>AND THEN SHE REALLY FIGHTS IT. Four passes, each ending with it on her — SPACE, as fast as you can, to break free: a flying kick into its jaw; under it, a backflip and a spin kick into its eye; leaning into its roar; and everything she has, from higher than she has ever gone.</p></aside>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Get out of here, Robin. Get out. Go. GO.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>RUN — the green EXIT, straight ahead.</p></aside>
+<h3 class="slug"><span class="num">30</span>EXT. HARBOR LANE — 4:40 PM<span class="num">30</span></h3>
+<p class="action">Up the ladder into the afternoon. It does not come up after her. It stays down there.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...It&#x27;s not coming up.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It stayed down there.</p></div>
+<p class="action">WFC — all round her.</p>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">FREEZE! WFC! Hands where we can see them!</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">It&#x27;s YU. She was down there with that thing.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Wait— no, you don&#x27;t understand—</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">A boy went into Harbor Lane Station this afternoon and never came out. Canon Cortez. Where is he?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">It took him! That thing took him, I tried to—</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">It chased her across half the city and never laid a hand on her.</p></div>
+<div class="speech"><p class="cue">WFC OFFICER</p><p class="line">She&#x27;s with it. Take her DOWN!</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">...I&#x27;m sorry.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>RUN. The Meridian Tower, east of everything: get to the top.</p></aside>
+<h3 class="slug"><span class="num">31</span>EXT. THE MERIDIAN TOWER<span class="num">31</span></h3>
+<aside class="play"><span class="tag">Playable</span><p>Straight up 140 metres of glass, the gunship&#x27;s light climbing after her.</p></aside>
+<h3 class="slug"><span class="num">32</span>EXT. THE ROOF — THE MERIDIAN TOWER — NIGHT<span class="num">32</span></h3>
+<p class="action">Five WFC fighters rise round the roof out of the dark below its edge. Her mother&#x27;s voice on their speakers.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">YU. Look around you.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Every ship I have is on this roof. Stand down.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="paren">(thinking)</p><p class="line">Of course she brought an army.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>THE FLEET — they make their runs one at a time (a red line, then the guns walk it). A spent ship sinks smoking to the edge: jump on and CLICK to bring it down. All five.</p></aside>
+<p class="action">The gunship comes down onto the pad. Out of its light steps THE DIRECTOR of WFC — alone. Robin&#x27;s mother. She has no idea who is under the mask.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">That&#x27;s far enough.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">A station torn open. My people in the hospital. A boy nobody can find.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Whatever you are, it ends on this roof.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="paren">(thinking)</p><p class="line">Mom.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="paren">(thinking)</p><p class="line">She can&#x27;t find out it&#x27;s me. Not like this.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Take the bird up. Nobody else comes near this roof.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">I&#x27;ll do this myself.</p></div>
+<p class="action">The rain starts as they square up.</p>
+<p class="card">The Director. — Your mother. She doesn&#x27;t know it&#x27;s you.</p>
+<aside class="play"><span class="tag">Playable</span><p>THE DIRECTOR — her charge (she powers up, then crosses the roof in an instant: be out of line), her volleys of junk, her taser line.</p></aside>
+<p class="action">At half her strength the fight stops. She touches her ear.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Bring the bird around.</p></div>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Light her up.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>The gunship comes up over the edge and turns its guns on Robin — get out of the red.</p></aside>
+<p class="action">Robin has her mother down, in the rain.</p>
+<div class="speech"><p class="cue">THE DIRECTOR (V.O.)</p><p class="line">Who... are you?</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="paren">(thinking)</p><p class="line">I&#x27;m sorry, Mom.</p></div>
+<p class="action">She goes off the edge.</p>
+<h3 class="slug"><span class="num">33</span>LATER<span class="num">33</span></h3>
+<p class="action">Somewhere dark, on her own, she stops — and it all comes down on her. She calls him.</p>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Pick up. Pick up, pick up, please.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">Canon, it&#x27;s me. Please. Just... tell me you&#x27;re okay.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">I&#x27;m so sorry. I&#x27;m gonna get you back. I promise.</p></div>
+<aside class="play"><span class="tag">Playable</span><p>GET HOME — over the roofs, however you like. Her own roof. Her window. One final jump.</p></aside>
+<h3 class="slug"><span class="num">34</span>INT. ROBIN&#x27;S BEDROOM — NIGHT<span class="num">34</span></h3>
+<p class="action">She takes it all off and goes to wash the night away. While the water runs, somebody lets themselves in: boots across her floor, a badge set down on her bench, a voice on a phone.</p>
+<div class="speech"><p class="cue">MOM</p><p class="line">It&#x27;s me. I&#x27;m at the residence.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">No. Nothing yet.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">Then widen it. Every unit we have.</p></div>
+<p class="action">The lamp comes on. It is her mother — the Director of WFC.</p>
+<div class="speech"><p class="cue">MOM</p><p class="line">Sit down.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">Canon Cortez is gone.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">Taken out of Harbor Lane Station this afternoon, in front of half the city.</p></div>
+<div class="speech"><p class="cue">ROBIN</p><p class="line">What... what happened to him?</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">Don&#x27;t look at me like that. You were seen near that station today.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">Something tore its way up out of the ground. And YU was standing right next to it.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">That boy is gone because of her. YU, and whatever she dragged up out of the dark.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">As of an hour ago, every officer in this city is hunting her. For the abduction, and possible murder, of Canon Cortez.</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">And when I find her, Robin...</p></div>
+<div class="speech"><p class="cue">MOM</p><p class="line">...she will never see daylight again.</p></div>
+<p class="action">Robin cannot say a word of what is true. So she says nothing.</p>
+<p class="card">ROBIN RYU — THE END</p>
+  <p class="end">— End —</p>
+</main>

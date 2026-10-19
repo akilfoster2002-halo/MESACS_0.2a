@@ -1,0 +1,97 @@
+<title>The Other Robin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&display=swap">
+<style>
+/* Layout: a single screenplay page on a desk — the industry format (Courier, slug lines, a dialogue column) on paper,
+   a title page first; playable stretches are margin notes in the city's teal, title cards in WFC red. */
+:root {
+  --desk: #e6e8ea;
+  --paper: #fcfcfa;
+  --ink: #1d2024;
+  --muted: #6c727a;
+  --rule: #d5d9dd;
+  --teal: #0b7480;
+  --red: #b3262f;
+  --shadow: 0 1px 2px rgba(20, 30, 40, .08), 0 8px 30px rgba(20, 30, 40, .08);
+  --mono: "Courier Prime", "Courier New", Courier, monospace;
+  --display: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #0e1114; --paper: #171b20; --ink: #e4e2dc; --muted: #8d949c; --rule: #2a3037;
+    --teal: #5ccbd4; --red: #ef6a70; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 40px rgba(0,0,0,.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --desk: #0e1114; --paper: #171b20; --ink: #e4e2dc; --muted: #8d949c; --rule: #2a3037;
+  --teal: #5ccbd4; --red: #ef6a70; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 40px rgba(0,0,0,.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--desk); color: var(--ink); font-family: var(--mono); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.sheet {
+  max-width: 46rem; margin: 0 auto; background: var(--paper); box-shadow: var(--shadow);
+  padding: clamp(28px, 7vw, 80px) clamp(20px, 8vw, 88px);
+}
+nav.jump {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; max-width: 46rem; margin: 0 auto 16px;
+  display: flex; gap: 8px 20px; flex-wrap: wrap; justify-content: center; padding: 10px 0;
+  background: var(--desk); font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+}
+nav.jump a { color: var(--muted); text-decoration: none; }
+nav.jump a:hover, nav.jump a:focus-visible { color: var(--teal); }
+a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+/* the title page */
+.titlepage { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 28px; border-bottom: 1px dashed var(--rule); padding-bottom: 48px; margin-bottom: 40px; }
+.titlepage h1 { font-family: var(--display); font-weight: 400; font-size: clamp(3.2rem, 12vw, 6rem); line-height: .9; letter-spacing: .04em; margin: 0; text-wrap: balance; }
+.titlepage .by { margin: 0; text-transform: uppercase; letter-spacing: .06em; }
+.titlepage .note { margin: 0; color: var(--muted); max-width: 34rem; font-size: 14px; }
+.titlepage .meta { margin: 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+
+/* the screenplay */
+h2.part { font-family: var(--display); font-weight: 400; font-size: 2rem; letter-spacing: .06em; text-align: center; margin: 72px 0 36px; color: var(--ink); scroll-margin-top: 64px; }
+h2.part::before, h2.part::after { content: "— "; color: var(--muted); }
+h2.part::after { content: " —"; }
+h3.slug { font: 700 1rem/1.5 var(--mono); text-transform: uppercase; margin: 2.2em 0 1em; display: flex; justify-content: space-between; gap: 12px; }
+h3.slug .num { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; flex: none; }
+h3.slug .num:first-child { margin-left: -3.2em; width: 2.6em; text-align: right; }
+h3.slug .num:last-child { margin-right: -3.2em; width: 2.6em; }
+p.action { margin: 0 0 1em; }
+.speech { margin: 0 0 1em; padding-left: 22%; padding-right: 14%; }
+.speech p { margin: 0; }
+.cue { padding-left: 22%; text-transform: uppercase; }
+.paren { padding-left: 12%; color: var(--muted); }
+p.card { margin: 1.4em 0; text-align: center; text-transform: uppercase; color: var(--red); letter-spacing: .03em; }
+p.card strong { font-weight: 700; }
+aside.play { margin: 1.4em 0; padding: .6em 0 .6em 1em; border-left: 3px solid var(--teal); color: var(--teal); }
+aside.play p { margin: 0; font-style: italic; }
+aside.play .tag { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; font-style: normal; margin-bottom: .2em; }
+.end { text-align: center; margin-top: 64px; text-transform: uppercase; color: var(--muted); letter-spacing: .12em; }
+
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  h3.slug .num { display: none; }
+  .speech { padding-left: 10%; padding-right: 4%; }
+  .cue { padding-left: 18%; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<nav class="jump" aria-label="Parts">{{NAV}}</nav>
+<main class="sheet">
+  <section class="titlepage">
+    <p class="meta">Robin Ryu</p>
+    <h1>The Other Robin</h1>
+    <p class="by">The game, as it plays now</p>
+    <p class="note">The prologue and the day after, scene by scene: every line of dialogue as the game speaks it, the directions as the scenes are filmed, and the stretches you play marked in the margin.</p>
+    <p class="meta">{{SCENES}} scenes · Koro</p>
+  </section>
+{{BODY}}
+  <p class="end">— End —</p>
+</main>

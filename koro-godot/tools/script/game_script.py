@@ -5,23 +5,24 @@ script can never drift from what the game says).
   python3 tools/script/game_script.py   → docs/script/the_other_robin_game_script.md
 """
 import json, os
+TEMPLATE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'screenplay.html')).read()
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
 L = json.load(open(os.path.join(ROOT, 'assets/tsh/lines.json')))['lines']
 WHO = {'mom': 'THE DIRECTOR (V.O.)', 'drone': 'WFC DRONE', 'robin': 'ROBIN', 'canon': 'CANON', 'buyer': 'THE BUYER (ON THE PHONE)',
        'dealer': 'THE BUYER', 'thug': 'THUG', 'unknown': 'UNKNOWN NUMBER (TEXT)', 'wfc': 'WFC OFFICER', 'momcall': 'MOM (ON THE PHONE)',
        'maya': 'MAYA', 'kai': 'KAI', 'teacher': 'TEACHER', 'guard': 'SECURITY GUARD', 'pa': 'PA (V.O.)', 'momroom': 'MOM'}
-out = []
-def H(t): out.append(f'\n### {t}\n')
-def A(t): out.append(f'{t}\n')
-def CARD(t): out.append(f'> **{t}**\n')
-def PLAY(t): out.append(f'> 🎮 *{t}*\n')
+out = []; ev = []          # the Markdown, and the same script as events for the screenplay page
+def H(t): out.append(f'\n### {t}\n'); ev.append(('h', t))
+def A(t): out.append(f'{t}\n'); ev.append(('a', t))
+def CARD(t): out.append(f'> **{t}**\n'); ev.append(('card', t))
+def PLAY(t): out.append(f'> 🎮 *{t}*\n'); ev.append(('play', t))
 def SAY(*keys, who=None):
     for k in keys:
         for w, txt in L[k]:
             name = who.get(w, WHO.get(w, w.upper())) if who else WHO.get(w, w.upper())
             if txt.startswith('(') and txt.endswith(')') and w == 'robin': name = 'ROBIN (THINKING)'; txt = txt[1:-1]
-            out.append(f'**{name}**  \n{txt}\n')
-def PART(t): out.append(f'\n---\n\n## {t}\n')
+            out.append(f'**{name}**  \n{txt}\n'); ev.append(('say', name, txt))
+def PART(t): out.append(f'\n---\n\n## {t}\n'); ev.append(('part', t))
 
 out.append('# THE OTHER ROBIN\n\n*The game\'s script as it plays now — Godot build, the prologue and the day after. '
            'Every line of dialogue is the game\'s own (assets/tsh/lines.json); the directions follow the scenes as they are filmed '
@@ -357,3 +358,30 @@ CARD('ROBIN RYU — THE END')
 
 open(os.path.join(ROOT, 'docs/script/the_other_robin_game_script.md'), 'w').write('\n'.join(out))
 print('wrote', len(out), 'blocks')
+
+# ------------------------------------------------------------------ the screenplay page
+import html, re
+def esc(t):
+    t = html.escape(t)
+    t = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', t)
+    return re.sub(r'\*(.+?)\*', r'<em>\1</em>', t)
+body = []; scene = 0; parts = []
+for e in ev:
+    k = e[0]
+    if k == 'part':
+        pid = 'prologue' if 'PROLOGUE' in e[1] else 'morning'
+        parts.append((pid, e[1])); body.append(f'<h2 class="part" id="{pid}">{esc(e[1])}</h2>')
+    elif k == 'h':
+        scene += 1; body.append(f'<h3 class="slug"><span class="num">{scene}</span>{esc(e[1])}<span class="num">{scene}</span></h3>')
+    elif k == 'a': body.append(f'<p class="action">{esc(e[1])}</p>')
+    elif k == 'card': body.append(f'<p class="card">{esc(e[1])}</p>')
+    elif k == 'play': body.append(f'<aside class="play"><span class="tag">Playable</span><p>{esc(e[1])}</p></aside>')
+    elif k == 'say':
+        name = e[1]; paren = ''
+        m = re.match(r'(.+?) \((.+)\)$', name)
+        if m and m.group(2) in ('THINKING',): name, paren = m.group(1), '(thinking)'
+        body.append('<div class="speech"><p class="cue">' + esc(name) + '</p>' + (f'<p class="paren">{paren}</p>' if paren else '') + f'<p class="line">{esc(e[2])}</p></div>')
+nav = ' '.join(f'<a href="#{pid}">{esc(t.title().replace("The Other Robin — ", ""))}</a>' for pid, t in parts)
+page = TEMPLATE.replace('{{NAV}}', nav).replace('{{BODY}}', '\n'.join(body)).replace('{{SCENES}}', str(scene))
+open(os.path.join(ROOT, 'docs/script/the_other_robin_game_script.html'), 'w').write(page)
+print('wrote the screenplay page,', scene, 'scenes')
