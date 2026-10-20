@@ -385,3 +385,56 @@ nav = ' '.join(f'<a href="#{pid}">{esc(t.title().replace("The Other Robin — ",
 page = TEMPLATE.replace('{{NAV}}', nav).replace('{{BODY}}', '\n'.join(body)).replace('{{SCENES}}', str(scene))
 open(os.path.join(ROOT, 'docs/script/the_other_robin_game_script.html'), 'w').write(page)
 print('wrote the screenplay page,', scene, 'scenes')
+
+# ------------------------------------------------------------------ the PDF: industry screenplay format on Letter, through headless Chrome
+pr = []; scene = 0
+for e in ev:
+    k = e[0]
+    if k == 'part': pr.append(f'<h2 class="part">{esc(e[1])}</h2>')
+    elif k == 'h': scene += 1; pr.append(f'<p class="slug"><span class="n">{scene}</span>{esc(e[1])}<span class="n r">{scene}</span></p>')
+    elif k == 'a': pr.append(f'<p class="action">{esc(e[1])}</p>')
+    elif k == 'card': pr.append(f'<p class="card">{esc(e[1])}</p>')
+    elif k == 'play': pr.append(f'<p class="play"><b>PLAYABLE —</b> {esc(e[1])}</p>')
+    elif k == 'say':
+        name = e[1]; paren = ''
+        m = re.match(r'(.+?) \((THINKING)\)$', name)
+        if m: name, paren = m.group(1), '(thinking)'
+        pr.append(f'<div class="say"><p class="cue">{esc(name)}</p>' + (f'<p class="paren">{paren}</p>' if paren else '') + f'<p class="dia">{esc(e[2])}</p></div>')
+doc = f'''<!doctype html><html><head><meta charset="utf-8"><title>The Other Robin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+@page {{ size: Letter; margin: 1in 1in 1in 1.5in; @top-right {{ content: counter(page) "."; font: 12pt "Courier Prime", "Courier New", monospace; }} }}
+@page :first {{ @top-right {{ content: none; }} }}
+body {{ font: 12pt/1.0 "Courier Prime", "Courier New", Courier, monospace; color: #000; margin: 0; }}
+p {{ margin: 0 0 12pt; }}
+.title {{ height: 9in; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; break-after: page; }}
+.title h1 {{ font-size: 12pt; font-weight: bold; text-transform: uppercase; text-decoration: underline; margin: 0 0 24pt; }}
+.title .low {{ margin-top: 2.6in; align-self: flex-start; text-align: left; }}
+h2.part {{ break-before: page; text-align: center; font-size: 12pt; font-weight: bold; text-decoration: underline; margin: 0 0 36pt; }}
+.slug {{ font-weight: bold; text-transform: uppercase; margin: 24pt 0 12pt; break-after: avoid; position: relative; }}
+.slug .n {{ position: absolute; left: -0.75in; font-weight: normal; }}
+.slug .n.r {{ left: auto; right: 0; }}
+.slug {{ padding-right: 0.5in; }}
+.action {{ max-width: 6in; }}
+.say {{ break-inside: avoid; margin-bottom: 12pt; }}
+.say p {{ margin: 0; }}
+.cue {{ margin-left: 2.2in !important; text-transform: uppercase; }}
+.paren {{ margin-left: 1.6in !important; }}
+.dia {{ margin-left: 1.0in !important; max-width: 3.5in; }}
+.card {{ text-align: center; text-transform: uppercase; margin: 18pt 0; }}
+.play {{ font-style: italic; border-left: 1.5pt solid #000; padding-left: 10pt; max-width: 5.6in; }}
+.play b {{ font-style: normal; }}
+.end {{ text-align: center; margin-top: 36pt; text-decoration: underline; }}
+</style></head><body>
+<div class="title"><h1>The Other Robin</h1><p>The game, as it plays now</p><p>Robin Ryu · Koro</p>
+<div class="low">The prologue and the day after.<br>{scene} scenes.<br>Every line of dialogue as the game speaks it;<br>the stretches you play marked PLAYABLE.</div></div>
+{chr(10).join(pr)}
+<p class="end">THE END</p>
+</body></html>'''
+hp = os.path.join(ROOT, 'docs/script/.the_other_robin_print.html'); open(hp, 'w').write(doc)
+pdf = os.path.join(ROOT, 'docs/script/the_other_robin_game_script.pdf')
+import subprocess
+chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+if os.path.exists(chrome):
+    subprocess.run([chrome, '--headless=new', '--disable-gpu', '--no-pdf-header-footer', '--virtual-time-budget=8000', f'--print-to-pdf={pdf}', 'file://' + os.path.abspath(hp)], check=True, capture_output=True)
+    os.remove(hp); print('wrote', pdf, os.path.getsize(pdf))
