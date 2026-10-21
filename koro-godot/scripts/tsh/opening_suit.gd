@@ -29,8 +29,8 @@ func play(ring_box: Node3D) -> void:
 	# SHOTS 28–31 as the browser has them: the window, the sill, the look down, the smile, the jump — then the fall,
 	# slow, the beat held, until SPACE fires the shoes (game.gd window_shots / fall_start)
 	shots.append_array(g.window_shots())
-	# THE SCORE (game.gd SONG): the full beat as she gets ready; down at dinner; almost nothing at the note
-	g.song_at("a", 23.5, -7.0)
+	# THE SCORE (data/tsh_score.json, wake.*): the full beat as she gets ready; down at dinner; almost nothing at the note
+	g.music_cue("wake.suit")
 	g.play_reel(shots, func(_s): clear(); g.dutch = 0.0; g.fall_start())
 
 func _pocket(rb) -> void:

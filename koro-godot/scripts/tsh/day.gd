@@ -94,7 +94,7 @@ func morning() -> void:
 			"enter": func(): g.stage("idle", K.x + 0.6, 0, K.y + 0.4, kry); g.talk("upBoots")},
 		{"mood": "grin", "dur": 2.6, "fov": 38, "cam": [Vector3(shoe.x + 1.5, 0.6, shoe.z - 1.1), Vector3(shoe.x + 1.2, 0.5, shoe.z - 0.8)], "look": Vector3(shoe.x + 0.2, 0.3, shoe.z),
 			"enter": func(): g.stage("kneel", shoe.x + 0.35, 0, shoe.z, kry),
-			"beats": [[1.1, func(): g.apt_boots(false); g.kit("shoes", true); g.cue("launch"); g.get_tree().create_timer(0.7).timeout.connect(func(): g.score("wos-b", -8))]]},
+			"beats": [[1.1, func(): g.apt_boots(false); g.kit("shoes", true); g.cue("launch"); g.music_cue("morning.shoes")]]},
 		{"mood": "determined", "dur": 2.6, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
 			"tick": func(dt, t, k): g._to_window(win, k),
 			"beats": [[1.4, func(): g.apt_window(true); g.cue("window")]]},

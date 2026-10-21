@@ -79,7 +79,7 @@ func city() -> void:
 			if h != null: glows[i].global_position = h; lights[i].global_position = h + Vector3(0.1, 0.1, 0)
 	var sweep_dr := func(k: float):                    # the drone across the street, its light raking it
 		dr2.node.position = Vector3(-40, 14, 16).lerp(Vector3(-78, 9, -6), k); dr2.node.rotation.y = -2.2
-	g.score("wos-a", -16)
+	g.music_cue("intro.city")
 	var L: float = g.lines_len("cityVO")
 	var shots := [
 		# A1 EXTREME WIDE: a crane down over the district, tilting from the roofs up to the skyline; the title

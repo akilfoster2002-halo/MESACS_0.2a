@@ -136,7 +136,7 @@ func go(i: int, drone = null) -> void:
 	g.staged = null; g.talk_q.clear()
 	screens("raid")
 	g.chase.start(i, drone)
-	g.score("wos-b", -10)
+	g.music_cue("raid.chase")
 
 # ================================================================== THE THREE FIGHTS
 const RAIDFIGHT := {
@@ -265,7 +265,7 @@ func _fight_end(done: Callable) -> void:
 ## across the street, two people on a roof with binoculars.
 func home() -> void:
 	g.chase.stop()
-	g.music.stop()
+	g.music_cue("raid.home")
 	g.outcome("home")
 func night() -> void:
 	g.talk_q.clear()
@@ -314,7 +314,7 @@ func night() -> void:
 		# AND THEN THEY COME OUT: one rears up over her shoulder while she stares down the lens; two stab the roof
 		# behind her and lift her off it; one goes for Kai's face and stops a hand short; then all four, spread wide
 		{"dur": 1.6, "fov": 34, "cam": g.rel(MK.maya.x, MK.maya.y, PI/2, 1.7, 0.2, MK.y + 1.0), "look": func(k, t): return maya.position + Vector3(0, 1.8, 0),
-			"enter": func(): g.music.stop(); g.cue("rise"),
+			"enter": func(): g.music_cue("night.watchers"); g.cue("rise"),
 			"beats": [[0.8, func(): _burst(0, Vector3(0.25, 1.15, 0.6), 3.6); g.cue("gear"); g.fight.shake(0.12, 0.3)]]},
 		{"dur": 1.6, "fov": 48, "cam": g.rel(MK.maya.x, MK.maya.y, PI/2, -1.9, 1.3, MK.y + 0.3), "look": func(k, t): return maya.position + Vector3(0, 1.4, 0),
 			"beats": [[0.25, func(): _burst(2, Vector3(1.7, 0, -0.7), 0.5, true); oc.lift = 1.5; g.cue("blast"); g.fight.shake(0.45, 0.45)],

@@ -472,7 +472,7 @@ func talk_scene() -> void:
 	var her_look := Vector3(T2.x, 1.6, T2.y); var my_look := Vector3(ex.x, 1.55, ex.y)
 	var tc: float = g.lines_len("toClass")
 	var shots := [
-		{"dur": g.lines_len("worried") + 0.6, "fov": 30, "inside": true, "cam": hers, "look": her_look, "enter": func(): still.call(0.7); g.talk("worried"); g.music.stop()},
+		{"dur": g.lines_len("worried") + 0.6, "fov": 30, "inside": true, "cam": hers, "look": her_look, "enter": func(): still.call(0.7); g.talk("worried"); g.music_cue("school.worried")},
 		{"mood": "skeptical", "dur": 1.4, "fov": 30, "cam": mine, "look": my_look, "tick": func(dt, tt, k): still.call(0.7*(1 - clampf(tt/0.6, 0, 1)))},
 		{"dur": g.lines_len("brilliant") + 0.4, "fov": tf, "cam": two.p, "look": tl, "enter": func(): still.call(); g.talk("brilliant")},
 		{"dur": g.lines_len("intuition") + 0.3, "fov": 30, "cam": hers, "look": her_look, "enter": func(): g.talk("intuition")},

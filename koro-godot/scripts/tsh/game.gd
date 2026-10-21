@@ -196,7 +196,7 @@ func outcome(what: String) -> void:
 	var q: Dictionary = QUEST.get(S.step, {})
 	var nxt = q.get("to", {}).get(what)
 	if nxt == null: return
-	S.step = nxt; _save(); _beat_start()
+	S.step = nxt; _save(); music_cue("step." + S.step); _beat_start()
 
 # ================================================================== the world
 func _json(p: String):
@@ -711,85 +711,97 @@ func cue(kind: String) -> void:
 		if not p.playing:
 			p.stream = st; p.volume_db = linear_to_db(0.8) if not files.is_empty() else 0.0
 			p.pitch_scale = randf_range(0.95, 1.05) if not files.is_empty() else 1.0; p.play(); return
-func score(track: String, vol := -8.0) -> void:
-	var f := "res://assets/tsh/music/%s.mp3" % track
-	if not ResourceLoader.exists(f): return
-	if intro and intro.game: intro.game.band.stop()            # one song at a time
-	_score_bus(); if score_tw: score_tw.kill()
-	_score_lp.cutoff_hz = 18000.0; score_holding = false
-	music.stream = load(f); music.volume_db = vol; music.play()
-
-## THE SCORE, as the browser lays it (tsh.js SONG): WEB OF SILENCE, cut to the film — wos-a is the song from 0:06.5,
-## wos-b from 2:25; every time here is the SONG's. The full beat as she gets ready; down to almost nothing at her
-## mother's note; 2:25 the breakdown from near silence as the window goes up — building through the sill, the look
-## down, the jump; 2:33.5 the last beat before the drop, HELD while she falls, slow, until SPACE; 2:34.4 the drop, on
-## the shoes; and the rest of the song is the first roofs
-const SONG := {"a": 6.5, "b": 145.0, "hold": [153.50, 154.45], "drop": 154.40}
-var score_holding := false; var score_tw: Tween; var _score_lp: AudioEffectLowPassFilter
-func _score_bus() -> void:
-	if AudioServer.get_bus_index("Score") >= 0:
-		music.bus = "Score"; return
-	AudioServer.add_bus(); var i := AudioServer.bus_count - 1
-	AudioServer.set_bus_name(i, "Score"); AudioServer.set_bus_send(i, "Master")
-	_score_lp = AudioEffectLowPassFilter.new(); _score_lp.cutoff_hz = 18000.0; AudioServer.add_bus_effect(i, _score_lp)
-	music.bus = "Score"
-## the song's file k from song time t
-func song_at(k: String, t: float, vol := -6.0) -> void:
-	score(("wos-" + k), vol)
-	music.seek(maxf(0.0, t - float(SONG[k])))
-## the level (dB) and the muffle, over secs
-func score_level(db: float, secs: float, muffled := false) -> void:
-	_score_bus(); if score_tw: score_tw.kill()
-	score_tw = create_tween(); score_tw.tween_property(music, "volume_db", db, secs)
-	score_tw.parallel().tween_property(_score_lp, "cutoff_hz", 650.0 if muffled else 18000.0, secs)
-## the window: the first half of the song out, the breakdown in — timed so it reaches the held beat as she jumps
-func score_break(left: float) -> void:
-	song_at("b", maxf(float(SONG.b), float(SONG.hold[0]) - left), -3.0); score_holding = true
-## falling: the held beat, round and round, the filter opening and the level rising while it waits for SPACE
-func score_falling() -> void:
-	if not (music.playing and music.stream and music.stream.resource_path.ends_with("wos-b.mp3")): song_at("b", float(SONG.hold[0]), -10.0)
-	score_holding = true
-	if score_tw: score_tw.kill()
-	_score_lp.cutoff_hz = 900.0
-	score_tw = create_tween(); score_tw.tween_property(_score_lp, "cutoff_hz", 9000.0, 5.0)
-	score_tw.parallel().tween_property(music, "volume_db", -1.0, 5.0)
-## BOOM: the drop, now — and the rest of the song for the first roofs
-func score_drop() -> void:
-	song_at("b", float(SONG.drop), -1.5)
-	score_tw = create_tween(); score_tw.tween_interval(6.0); score_tw.tween_property(music, "volume_db", -5.0, 6.0)
-## MONSTER FIGHT (music/monster.mp3, 80.75 bpm), under the whole of the monster as the browser lays it (tsh.js FIGHTM):
-## in as Canon steps up, its low opening looping under both fights; the first drop as it comes up out of Maya; the
-## second as the fight is hers (four bars of it looping while she fights); the biggest as she runs, to the end.
-const FIGHTM := {"drop1": 17.4, "drop2": 125.44, "bar": 60.0/80.75*4, "drop3": 150.5, "end": 208.5}
-var fm: AudioStreamPlayer; var fm_loop := []; var fm_tw: Tween; var _fm_lp: AudioEffectLowPassFilter
-## the song, so that song time `song` is heard `in_sec` from now; a loop span [from, to] if asked
-func fm_aim(song: float, in_sec := 0.0, loop := []) -> void:
-	if fm == null:
-		var i := AudioServer.bus_count; AudioServer.add_bus(i); AudioServer.set_bus_name(i, "FightM"); AudioServer.set_bus_send(i, "Master")
-		_fm_lp = AudioEffectLowPassFilter.new(); _fm_lp.cutoff_hz = 18000.0; AudioServer.add_bus_effect(i, _fm_lp)
-		fm = AudioStreamPlayer.new(); fm.stream = load("res://assets/tsh/music/monster.mp3"); fm.bus = "FightM"; add_child(fm)
-	var at := maxf(0.0, song - in_sec)
-	if fm.playing and loop.is_empty() and fm_loop.is_empty() and absf(fm.get_playback_position() - at) < 0.25: return
-	if fm_tw: fm_tw.kill()
-	fm_loop = loop; fm.volume_db = linear_to_db(0.85); fm.play(at)
-func fm_stop(secs := 0.5) -> void:
-	if fm == null or not fm.playing: return
-	fm_loop = []; if fm_tw: fm_tw.kill()
-	fm_tw = create_tween(); fm_tw.tween_property(fm, "volume_db", -60.0, secs); fm_tw.tween_callback(fm.stop)
-## held breath: the song sunk low and muffled under a scene, then back
-func fm_tension(on: bool) -> void:
-	if fm == null or _fm_lp == null: return
-	if fm_tw: fm_tw.kill()
-	fm_tw = create_tween(); fm_tw.set_parallel(true)
-	fm_tw.tween_property(fm, "volume_db", -22.0 if on else linear_to_db(0.85), 0.8 if on else 0.15)
-	fm_tw.tween_property(_fm_lp, "cutoff_hz", 380.0 if on else 18000.0, 0.8 if on else 0.15)
+## THE SCORE SHEET (data/tsh_score.json): every music cue in the game, by name — a song in music/ from where in it, how
+## loud, how it comes in, muffled or open, looped or not; or a stop, or a change of level. Written in the score editor
+## (tools/score, `python3 tools/score/serve.py`); read again whenever the file changes, so a running game plays an edit
+## at its next cue. The code says only WHEN a cue fires (and, for some, how long before it the song has to start so its
+## moment lands on a line — `lead`); the sheet says what is heard.
+const SHEET := "res://data/tsh_score.json"
+const OPEN_HZ := 18000.0
+var sheet := {}; var _sheet_t := -1
+var fm: AudioStreamPlayer; var _fm_lp: AudioEffectLowPassFilter; var _score_lp: AudioEffectLowPassFilter
+var _mus := {}                     # player name → {"p", "lp", "tw", "loop"}
+func sheet_cues() -> Dictionary:
+	var t := FileAccess.get_modified_time(SHEET)
+	if t != _sheet_t or sheet.is_empty():
+		_sheet_t = t; var d = _json(SHEET)
+		if d is Dictionary: sheet = d
+	return sheet.get("cues", {})
+## the player a cue is on: "score" (the songs), "fight" (the monster's) — each its own bus with a low-pass for the muffle
+func _mplayer(on: String) -> Dictionary:
+	if _mus.has(on): return _mus[on]
+	var bus := "Score" if on == "score" else "FightM"
+	var i := AudioServer.get_bus_index(bus)
+	if i < 0:
+		i = AudioServer.bus_count; AudioServer.add_bus(i); AudioServer.set_bus_name(i, bus); AudioServer.set_bus_send(i, "Master")
+		var lp := AudioEffectLowPassFilter.new(); lp.cutoff_hz = OPEN_HZ; AudioServer.add_bus_effect(i, lp)
+	var p := music if on == "score" else AudioStreamPlayer.new()
+	if on != "score": add_child(p); fm = p
+	p.bus = bus
+	var m := {"p": p, "lp": AudioServer.get_bus_effect(i, 0), "tw": null, "loop": []}
+	if on == "score": _score_lp = m.lp
+	else: _fm_lp = m.lp
+	_mus[on] = m; return m
+## a song by name: imported if Godot has seen it, else straight off the disk (a file just dropped in music/)
+func song_stream(track: String) -> AudioStream:
+	for ext in ["mp3", "ogg", "wav"]:
+		var f := "res://assets/tsh/music/%s.%s" % [track, ext]
+		if ResourceLoader.exists(f): return load(f)
+		if FileAccess.file_exists(f):
+			match ext:
+				"mp3": return AudioStreamMP3.load_from_file(f)
+				"ogg": return AudioStreamOggVorbis.load_from_file(f)
+				"wav": return AudioStreamWAV.load_from_file(f)
+	return null
+## fire cue `id` from the sheet; `lead`: the song starts that many seconds early, so its `at` is heard `lead` from now
+func music_cue(id: String, lead := 0.0) -> void:
+	var c = sheet_cues().get(id)
+	if not c is Dictionary: return
+	if float(c.get("delay", 0.0)) > 0.0:
+		get_tree().create_timer(float(c.delay)).timeout.connect(func(): _music_do(c, lead)); return
+	_music_do(c, lead)
+func _music_do(c: Dictionary, lead: float) -> void:
+	var what: String = c.get("do", "none")
+	if what == "none": return
+	for on in (["score", "fight"] if c.get("on", "score") == "all" else [c.get("on", "score")]):
+		var m := _mplayer(on); var p: AudioStreamPlayer = m.p; var lp: AudioEffectLowPassFilter = m.lp
+		if m.tw: m.tw.kill()
+		var fade := float(c.get("fade", 0.0)); var vol := float(c.get("vol", -8.0)); var hz := float(c.get("lowpass", OPEN_HZ))
+		match what:
+			"stop":
+				m.loop = []
+				if not p.playing: continue
+				if fade <= 0.0: p.stop(); continue
+				m.tw = create_tween(); m.tw.tween_property(p, "volume_db", -60.0, fade); m.tw.tween_callback(p.stop)
+			"level":
+				m.tw = create_tween().set_parallel(true)
+				m.tw.tween_property(p, "volume_db", vol, maxf(0.01, fade)); m.tw.tween_property(lp, "cutoff_hz", hz, maxf(0.01, fade))
+			"play":
+				var track: String = c.get("track", "")
+				var at := maxf(0.0, float(c.get("at", 0.0)) - lead)
+				var same: bool = p.playing and p.stream != null and p.stream.resource_path.get_file().get_basename() == track
+				var loop: Array = c.get("loop", [])
+				m.loop = loop if loop.size() == 2 and float(loop[1]) > float(loop[0]) else []
+				# already playing this song, near enough where it should be (or told to carry on): let it run, just move the level
+				if same and (c.get("keep", false) or (m.loop.is_empty() and absf(p.get_playback_position() - at) < 0.25)): pass
+				else:
+					var st := song_stream(track)
+					if st == null: push_warning("score: no song '%s' in assets/tsh/music" % track); continue
+					if on == "score" and intro and intro.game: intro.game.band.stop()        # one song at a time
+					p.stream = st; p.volume_db = -60.0 if fade > 0.0 else vol; p.play(at)
+				lp.cutoff_hz = float(c.get("lowpass_from", lp.cutoff_hz if same else hz))
+				m.tw = create_tween().set_parallel(true)
+				m.tw.tween_property(p, "volume_db", vol, maxf(0.01, fade)); m.tw.tween_property(lp, "cutoff_hz", hz, maxf(0.01, fade))
+				var settle: Array = c.get("settle", [])          # [after, dB, over]: and then, later, down (or up) to here
+				if settle.size() == 3:
+					m.tw.chain().tween_interval(float(settle[0])); m.tw.chain().tween_property(p, "volume_db", float(settle[1]), maxf(0.01, float(settle[2])))
 ## the song goes under water with the world when it slows
 func fm_slow(k: float) -> void:
-	if _fm_lp: _fm_lp.cutoff_hz = 18000.0 if k > 0.92 else 400.0 + 11000.0*k*k
+	if _fm_lp: _fm_lp.cutoff_hz = OPEN_HZ if k > 0.92 else 400.0 + 11000.0*k*k
 func _score_tick() -> void:
-	if fm and fm.playing and fm_loop.size() == 2 and fm.get_playback_position() >= float(fm_loop[1]): fm.seek(float(fm_loop[0]))
-	if score_holding and music.playing and music.get_playback_position() >= float(SONG.hold[1]) - float(SONG.b):
-		music.seek(float(SONG.hold[0]) - float(SONG.b))
+	for on in _mus:
+		var m: Dictionary = _mus[on]; var p: AudioStreamPlayer = m.p
+		if p.playing and m.loop.size() == 2 and p.get_playback_position() >= float(m.loop[1]): p.seek(float(m.loop[0]))
 
 # ================================================================== the words
 static func vkey(who: String, text: String) -> String:
@@ -1010,6 +1022,7 @@ func _v(a) -> Vector3: return Vector3(a[0], a[1], a[2])
 
 # ================================================================== the beats
 func _enter() -> void:
+	music_cue("step." + S.step)
 	if S.step == "intro": intro.start(); return
 	if day(): today.enter(); return
 	match S.step:
@@ -1062,7 +1075,7 @@ func opening(after_call := false) -> void:
 	var BR := Vector2(shoe.x + 0.7, shoe.z - 0.4); var bry := PI/2
 	var face_table := atan2(kitc.x - at_table.x, kitc.z - at_table.y); var face_mom := atan2(mom.x - at_table.x, mom.z - at_table.y)
 	if not after_call: black(true)
-	score("wos-a", -14)
+	music_cue("wake.call")
 	var shots := [
 		{"mood": "sleepy", "dur": 9.0, "fov": 40, "inside": true, "cam": Vector3(bed.x + 1.5, 1.6, bed.z - 1), "look": Vector3(bed.x, 0.8, bed.z),
 			"enter": func(): sit_up.call(); ringing(true); get_tree().create_timer(0.6).timeout.connect(func(): if reel: phone_show("call", "UNKNOWN")),
@@ -1113,10 +1126,10 @@ func suit_shots(on_pack := Callable()) -> Array:
 		{"mood": "focused", "dur": 3.0, "fov": 46, "cam": [Vector3(pack.x + 1.2, 1.5, pack.z - 2.2), Vector3(stop.x - 0.6, 1.55, stop.y - 2.0)], "look": func(k, t): return robin.position + Vector3(0, 1.1, 0),
 			"enter": func(): apt_pack(false); kit("pack", true); cue("pick"); if on_pack.is_valid(): on_pack.call(), "tick": func(dt, t, k): walk_stage(Vector2(pack.x - 0.2, pack.z - 0.5), stop, minf(1, k*1.05))},
 		{"mood": "sad", "dur": 2.0, "fov": 40, "cam": Vector3(stop.x + 1.3, 1.5, stop.y + 1.4), "look": Vector3(stop.x, 1.4, stop.y),
-			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y)); score_level(-14.0, 2.0)},
+			"enter": func(): stage("idle", stop.x, 0, stop.y, atan2(kitc.x - stop.x, kitc.z - stop.y)); music_cue("wake.door")},
 		# the kitchen: dinner on the table, still covered, and a note
 		{"mood": "sad", "dur": 3.4, "fov": 34, "cam": [Vector3(kitc.x + 0.9, 1.35, kitc.z + 1.2), Vector3(kitc.x + 0.55, 1.2, kitc.z + 0.8)], "look": Vector3(kitc.x, 0.8, kitc.z),
-			"enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table); score_level(-26.0, 2.5, true)},
+			"enter": func(): stage("idle", at_table.x, 0, at_table.y, face_table); music_cue("wake.dinner")},
 		{"mood": "sad", "dur": 2.6, "fov": 34, "cam": Vector3(kitc.x + 0.25, 1.4, kitc.z - 0.35), "look": Vector3(at_table.x, 1.45, at_table.y)},
 		{"mood": "sad", "dur": 3.0, "fov": 24, "cam": Vector3(notep.x - 0.05, notep.y + 0.55, notep.z + 0.28), "look": notep, "ease": false},
 		{"mood": "sad", "dur": 2.8, "fov": 40, "cam": Vector3(at_table.x + 0.45, 1.65, at_table.y + 0.8), "look": Vector3(mom.x, 1.2, mom.z), "enter": func(): stage("idle", at_table.x, 0, at_table.y, face_mom)},
@@ -1134,7 +1147,7 @@ func window_shots() -> Array:
 	return [
 		# THE WINDOW. The city comes in.
 		{"mood": "determined", "dur": 3.2, "fov": 44, "cam": Vector3(win.x + 2.4, 1.6, win.z - 1.2), "look": Vector3(win.x, 1.5, win.z),
-			"enter": func(): score_break(11.6),
+			"enter": func(): music_cue("wake.window"),
 			"tick": func(dt, t, k): _to_window(win, k),
 			"beats": [[1.7, func(): apt_window(true); cue("window")], [2.5, func(): shades(true); cue("ui")]]},
 		{"mood": "focused", "dur": 2.4, "fov": 40, "cam": Vector3(win.x + 2.2, 0.6, win.z + 0.6), "look": Vector3(win.x + 0.2, 1.6, win.z), "enter": func(): stage("kneel", win.x + 0.32, 1.0, win.z, -PI/2)},
@@ -1208,7 +1221,7 @@ func fall_start() -> void:
 	place(Vector3(SILL.x - 1.6, SILL.y + 0.55, SILL.z), 0.35)
 	boots.vx = -2; boots.vy = 1.2; boots.ground = false; boots.state = "air"; boots.air_t = 0.2
 	letterbox(false); robin.visible = true; model.rotation.x = 0
-	score_falling()
+	music_cue("wake.fall")
 	lesson_begin(true)
 
 # ------------------------------------------------------------------ the lesson
@@ -1262,7 +1275,7 @@ func _lesson_event(e: Dictionary) -> void:
 			lesson.lands += 1
 			if lesson.lands % 4 == 0: note("Watch the ring — the moment it goes gold, tap SPACE.")
 func fire_shoes() -> void:
-	boots.ignite(cam_yaw); score_drop(); station.flash(0.6, Color(1, 1, 1)); lesson_next()      # the song's drop is the boom
+	boots.ignite(cam_yaw); music_cue("wake.drop"); station.flash(0.6, Color(1, 1, 1)); lesson_next()      # the song's drop is the boom
 
 # ------------------------------------------------------------------ Dragon Alley
 var bag: Node3D; var bag_on = null; var pack: Node3D
@@ -1381,7 +1394,7 @@ func fight_begin(R1: Vector2, ry: float) -> void:
 	robin.position = Vector3(R1.x, 0, R1.y); cam_yaw = ry + PI; cam_pitch = 0.0
 	mode = "fight"; marker.visible = false; ring.visible = false
 	objective("Fight your way out.")
-	score("wos-b", -10)
+	music_cue("deal.fight")
 	fight.start(func(): fight_outro())
 
 ## after: the ones still standing run; she walks to the buyer in his corner; the bag; "So…" — "My money?" — nothing —

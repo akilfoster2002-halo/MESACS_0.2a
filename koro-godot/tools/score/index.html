@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TSH Score</title>
+<style>
+:root {
+  --bg: #0f1114; --panel: #16191e; --panel2: #1c2027; --line: #2a2f38; --text: #e6e8ec; --dim: #8b93a1; --faint: #5d6573;
+  --accent: #ffb347; --accent2: #5ad1c8; --red: #ff6b5a; --wave: #3c4a5c; --wave-hi: #7f9bbd;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+header { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 15px; letter-spacing: .08em; margin: 0; font-weight: 650; }
+header h1 span { color: var(--accent); }
+#status { color: var(--dim); font-size: 13px; }
+#status.dirty { color: var(--accent); }
+.spacer { flex: 1; }
+.btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: #3d4452; }
+.btn.primary { background: var(--accent); color: #1a1206; border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+main { display: grid; grid-template-columns: 340px 1fr; height: calc(100% - 52px); }
+#list { border-right: 1px solid var(--line); overflow-y: auto; background: var(--panel); }
+#filter { width: calc(100% - 24px); margin: 12px; padding: 7px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; }
+.scene { padding: 14px 16px 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.cue { padding: 8px 16px 9px; cursor: pointer; border-left: 3px solid transparent; }
+.cue:hover { background: var(--panel2); }
+.cue.sel { background: #222833; border-left-color: var(--accent); }
+.cue .id { font-family: var(--mono); font-size: 12px; color: var(--dim); display: flex; gap: 6px; align-items: center; }
+.cue .id .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: none; }
+.cue.changed .id .dot { display: inline-block; }
+.cue .sum { font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cue .sum.none { color: var(--faint); }
+.tag { font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--panel2); border: 1px solid var(--line); color: var(--dim); }
+.tag.fight { color: var(--red); border-color: #5a2f2b; }
+#editor { overflow-y: auto; padding: 22px 28px 60px; }
+#editor h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+#when { width: 100%; background: transparent; border: 0; border-bottom: 1px dashed transparent; font-size: 20px; font-weight: 600; padding: 0; }
+#when:hover, #when:focus { border-bottom-color: var(--line); outline: none; }
+.meta { color: var(--dim); font-family: var(--mono); font-size: 12px; margin: 6px 0 18px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 7px 14px; cursor: pointer; color: var(--dim); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--panel2); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: flex-end; margin: 18px 0; }
+.f { display: flex; flex-direction: column; gap: 5px; }
+.f > label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.f input[type=text], .f input[type=number], .f select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 110px; font-family: var(--mono); font-size: 13px; }
+.f select { width: 220px; font-family: inherit; }
+.f input[type=range] { width: 200px; accent-color: var(--accent); }
+.val { font-family: var(--mono); font-size: 12px; color: var(--dim); min-width: 64px; display: inline-block; }
+.check { display: flex; gap: 8px; align-items: center; color: var(--dim); font-size: 13px; cursor: pointer; }
+.wavebox { margin: 14px 0 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 10px 6px; }
+canvas { display: block; width: 100%; height: 170px; cursor: crosshair; }
+.hint { color: var(--faint); font-size: 12px; margin: 6px 2px 0; }
+.transport { display: flex; gap: 10px; align-items: center; margin: 16px 0 4px; }
+.play { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: #1a1206; font-size: 16px; cursor: pointer; }
+.note { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent2); border-radius: 6px; padding: 9px 12px; color: var(--dim); font-size: 13px; margin: 14px 0; }
+fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px 4px; margin: 18px 0 0; }
+legend { color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; }
+.hidden { display: none !important; }
+#drop { position: fixed; inset: 0; background: rgba(15,17,20,.85); border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center; font-size: 22px; z-index: 9; }
+#drop.on { display: flex; }
+kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TSH <span>SCORE</span></h1>
+  <span id="status">loading…</span>
+  <div class="spacer"></div>
+  <button class="btn" id="addSong" title="Add an mp3/ogg/wav to assets/tsh/music (or drop one on the page)">＋ Add a song</button>
+  <input type="file" id="songFile" accept=".mp3,.ogg,.wav" class="hidden">
+  <button class="btn" id="revert" disabled>Revert</button>
+  <button class="btn primary" id="save" disabled>Save <kbd style="color:#1a1206;border-color:#1a120655">⌘S</kbd></button>
+</header>
+<main>
+  <nav id="list"><input id="filter" placeholder="Filter cues…"><div id="cues"></div></nav>
+  <section id="editor"></section>
+</main>
+<div id="drop">Drop a song to add it to the score</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const OPEN = 18000;
+let sheet = null, saved = '', savedCues = {}, tracks = [], sel = null;
+const bufs = {}, peaks = {};
+
+// ---------------------------------------------------------------- load / save
+async function load() {
+  sheet = await (await fetch('/api/sheet')).json();
+  saved = JSON.stringify(sheet); savedCues = JSON.parse(saved).cues;
+  tracks = await (await fetch('/api/tracks')).json();
+  if (!sel || !sheet.cues[sel]) sel = Object.keys(sheet.cues)[0];
+  renderList(); renderEditor(); dirty();
+}
+async function save() {
+  const r = await fetch('/api/sheet', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sheet)});
+  if (!r.ok) { $('#status').textContent = 'save failed: ' + (await r.text()); return; }
+  saved = JSON.stringify(sheet); savedCues = JSON.parse(saved).cues; renderList(); dirty();
+  $('#status').textContent = 'Saved — the game plays it at the next cue';
+}
+function dirty() {
+  const d = JSON.stringify(sheet) !== saved;
+  $('#save').disabled = !d; $('#revert').disabled = !d;
+  $('#status').className = d ? 'dirty' : '';
+  if (d) $('#status').textContent = 'Unsaved changes';
+  else if ($('#status').textContent.startsWith('Unsaved') || $('#status').textContent === 'loading…') $('#status').textContent = 'Saved';
+}
+$('#save').onclick = save;
+$('#revert').onclick = () => { stop(); sheet = JSON.parse(saved); renderList(); renderEditor(); dirty(); };
+window.addEventListener('beforeunload', e => { if (JSON.stringify(sheet) !== saved) e.preventDefault(); });
+
+// ---------------------------------------------------------------- songs
+async function buffer(track) {
+  if (bufs[track]) return bufs[track];
+  const t = tracks.find(t => t.name === track); if (!t) return null;
+  bufs[track] = (async () => {
+    const b = await ctx().decodeAudioData(await (await fetch('/music/' + encodeURIComponent(t.file))).arrayBuffer());
+    const R = 200, n = Math.ceil(b.duration * R), p = new Float32Array(n);
+    for (let c = 0; c < b.numberOfChannels; c++) {
+      const d = b.getChannelData(c), per = b.sampleRate / R;
+      for (let i = 0; i < n; i++) { let m = 0; const e = Math.min(d.length, (i + 1) * per); for (let j = Math.floor(i * per); j < e; j += 4) { const v = Math.abs(d[j]); if (v > m) m = v; } if (m > p[i]) p[i] = m; }
+    }
+    peaks[track] = {R, p}; return b;
+  })();
+  return bufs[track];
+}
+async function addSong(file) {
+  $('#status').textContent = 'adding ' + file.name + '…';
+  const r = await fetch('/api/upload?name=' + encodeURIComponent(file.name), {method: 'POST', body: file});
+  const j = await r.json();
+  if (!r.ok) { $('#status').textContent = j.error; return; }
+  tracks = await (await fetch('/api/tracks')).json(); delete bufs[j.name];
+  const c = cue();
+  if (c && c.do === 'play') { c.track = j.name; c.at = 0; c.loop = []; }
+  renderList(); renderEditor(); dirty();
+  $('#status').textContent = `Added ${j.file} to assets/tsh/music`;
+}
+$('#addSong').onclick = () => $('#songFile').click();
+$('#songFile').onchange = e => e.target.files[0] && addSong(e.target.files[0]);
+addEventListener('dragover', e => { e.preventDefault(); $('#drop').classList.add('on'); });
+$('#drop').addEventListener('dragleave', () => $('#drop').classList.remove('on'));
+addEventListener('drop', e => { e.preventDefault(); $('#drop').classList.remove('on'); const f = e.dataTransfer.files[0]; if (f) addSong(f); });
+
+// ---------------------------------------------------------------- helpers
+const cue = () => sheet.cues[sel];
+const fmt = t => { t = Math.max(0, +t || 0); const m = Math.floor(t / 60); return m + ':' + (t - m * 60).toFixed(2).padStart(5, '0'); };
+const parseT = s => { s = String(s).trim(); if (s.includes(':')) { const [m, x] = s.split(':'); return (+m) * 60 + (+x); } return +s; };
+const r2 = x => Math.round(x * 100) / 100;
+function summary(c) {
+  const on = c.on === 'fight' ? ' <span class="tag fight">monster</span>' : c.on === 'all' ? ' <span class="tag">both</span>' : '';
+  switch (c.do) {
+    case 'play': return `▶ ${c.track} @ ${fmt(c.at)} · ${c.vol ?? -8} dB${c.loop && c.loop.length ? ' · ⟲' : ''}${on}`;
+    case 'level': return `◢ level → ${c.vol ?? -8} dB${(c.lowpass ?? OPEN) < OPEN ? ' · muffled' : ''}${c.fade ? ' over ' + c.fade + 's' : ''}${on}`;
+    case 'stop': return `■ stop${c.fade ? ' · fade ' + c.fade + 's' : ''}${on}`;
+    default: return '— nothing (empty slot)';
+  }
+}
+
+// ---------------------------------------------------------------- the list
+function renderList() {
+  const q = $('#filter').value.toLowerCase(); let html = '', scene = null;
+  for (const [id, c] of Object.entries(sheet.cues)) {
+    if (q && !(id + ' ' + c.when + ' ' + c.scene + ' ' + (c.track || '')).toLowerCase().includes(q)) continue;
+    if (c.scene !== scene) { scene = c.scene; html += `<div class="scene">${scene}</div>`; }
+    const changed = JSON.stringify(c) !== JSON.stringify(savedCues[id]);
+    html += `<div class="cue${id === sel ? ' sel' : ''}${changed ? ' changed' : ''}" data-id="${id}"><div class="id"><span class="dot"></span>${id}</div>
+      <div class="sum${c.do === 'none' ? ' none' : ''}" title="${c.when.replace(/"/g, '&quot;')}">${summary(c)}</div></div>`;
+  }
+  $('#cues').innerHTML = html;
+  $('#cues').querySelectorAll('.cue').forEach(el => el.onclick = () => { stop(); sel = el.dataset.id; renderList(); renderEditor(); });
+}
+$('#filter').oninput = renderList;
+function touched() { const el = $(`.cue[data-id="${CSS.escape(sel)}"]`); if (el) { el.querySelector('.sum').innerHTML = summary(cue()); el.classList.toggle('changed', JSON.stringify(cue()) !== JSON.stringify(savedCues[sel])); el.querySelector('.sum').classList.toggle('none', cue().do === 'none'); } dirty(); }
+
+// ---------------------------------------------------------------- the editor
+function renderEditor() {
+  const c = cue(); if (!c) return;
+  const ed = $('#editor');
+  const isPlay = c.do === 'play', isLevel = c.do === 'level', isStop = c.do === 'stop';
+  const onOpts = isStop ? [['score', 'Songs'], ['fight', 'Monster'], ['all', 'Both']] : [['score', 'Songs'], ['fight', 'Monster']];
+  if (!isStop && c.on === 'all') c.on = 'score';
+  ed.innerHTML = `
+    <input id="when" value="${c.when.replace(/"/g, '&quot;')}" title="What is happening when this cue fires (your note)">
+    <div class="meta">${sel} · ${c.scene}</div>
+    <div class="row">
+      <div class="f"><label>This cue</label><div class="seg" id="do">
+        ${[['play', '▶ Play a song'], ['level', '◢ Change level'], ['stop', '■ Stop'], ['none', 'Nothing']].map(([k, t]) => `<button data-v="${k}" class="${c.do === k ? 'on' : ''}">${t}</button>`).join('')}
+      </div></div>
+      <div class="f ${c.do === 'none' ? 'hidden' : ''}"><label>On the player</label><div class="seg" id="on">
+        ${onOpts.map(([k, t]) => `<button data-v="${k}" class="${(c.on || 'score') === k ? 'on' : ''}">${t}</button>`).join('')}
+      </div></div>
+    </div>
+    ${c.do === 'none' ? `<div class="note">Silent for now. Choose <b>Play a song</b> to score this moment.</div>` : ''}
+    ${c.lead ? `<div class="note">This cue is <b>aimed</b>: the song starts early so that your <b>start</b> point lands ${c.lead}. Put the start on the hit you want there.</div>` : ''}
+    <div class="${isPlay ? '' : 'hidden'}">
+      <div class="row">
+        <div class="f"><label>Song</label><select id="track">${tracks.map(t => `<option ${t.name === c.track ? 'selected' : ''}>${t.name}</option>`).join('')}${tracks.some(t => t.name === c.track) ? '' : `<option selected>${c.track || ''}</option>`}</select></div>
+        <div class="f"><label>Start at</label><input type="text" id="at" value="${fmt(c.at)}"></div>
+        <div class="f"><label>Loop</label><div style="display:flex;gap:6px;align-items:center"><input type="text" id="l0" placeholder="from" value="${c.loop && c.loop.length ? fmt(c.loop[0]) : ''}"><input type="text" id="l1" placeholder="to" value="${c.loop && c.loop.length ? fmt(c.loop[1]) : ''}"><button class="btn" id="noloop" title="No loop">✕</button></div></div>
+      </div>
+      <div class="wavebox"><canvas id="wave"></canvas>
+        <div class="hint">Click: start here · Drag: loop that stretch · Double-click: listen from there · Scroll: zoom · Shift+scroll: pan</div></div>
+    </div>
+    <div class="${isPlay || isLevel ? '' : 'hidden'} row">
+      <div class="f"><label>Volume</label><div><input type="range" id="vol" min="-40" max="6" step="0.5" value="${c.vol ?? -8}"> <span class="val" id="volv">${c.vol ?? -8} dB</span></div></div>
+      <div class="f"><label>Muffle</label><div><input type="range" id="lp" min="0" max="1" step="0.005" value="${hz2k(c.lowpass ?? OPEN)}"> <span class="val" id="lpv">${lpText(c.lowpass ?? OPEN)}</span></div></div>
+    </div>
+    <div class="${c.do === 'none' ? 'hidden' : ''} row">
+      <div class="f"><label>${isPlay ? 'Fade in' : isStop ? 'Fade out' : 'Over'} (s)</label><input type="number" id="fade" min="0" step="0.1" value="${c.fade ?? 0}"></div>
+      <div class="f"><label>Delay (s)</label><input type="number" id="delay" min="0" step="0.1" value="${c.delay ?? 0}"></div>
+    </div>
+    <fieldset class="${isPlay ? '' : 'hidden'}"><legend>More</legend>
+      <div class="row" style="margin-top:4px">
+        <label class="check"><input type="checkbox" id="keep" ${c.keep ? 'checked' : ''}> If this song is already playing, carry on (just change level / muffle / loop)</label>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="lpf" ${c.lowpass_from != null ? 'checked' : ''}> Start muffled at</label>
+        <div><input type="range" id="lpfrom" min="0" max="1" step="0.005" value="${hz2k(c.lowpass_from ?? 900)}" ${c.lowpass_from != null ? '' : 'disabled'}> <span class="val" id="lpfv">${lpText(c.lowpass_from ?? 900)}</span></div>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="st" ${c.settle && c.settle.length === 3 ? 'checked' : ''}> Then, after</label>
+        <input type="number" id="s0" step="0.5" style="width:70px" value="${c.settle?.[0] ?? 6}"> <span class="val">s, go to</span>
+        <input type="number" id="s1" step="0.5" style="width:70px" value="${c.settle?.[1] ?? -10}"> <span class="val">dB over</span>
+        <input type="number" id="s2" step="0.5" style="width:70px" value="${c.settle?.[2] ?? 4}"> <span class="val">s</span>
+      </div>
+    </fieldset>
+    <div class="transport ${c.do === 'none' ? 'hidden' : ''}">
+      <button class="play" id="play" title="Listen (Space)">▶</button>
+      <span class="val" id="pos"></span>
+      <span class="hint" id="ctxnote"></span>
+    </div>`;
+  bind();
+  if (isPlay) { view = null; drawWave(); buffer(c.track).then(() => { if (cue() === c) { fitView(); drawWave(); } }); }
+  if (!isPlay && c.do !== 'none') { const p = prevPlay(); $('#ctxnote').textContent = p ? `Listens to ${p[0]} (${p[1].track}), then this cue at 3 s` : 'No song plays before this cue'; }
+}
+const hz2k = hz => Math.log(hz / 200) / Math.log(OPEN / 200);
+const k2hz = k => Math.round(200 * Math.pow(OPEN / 200, k));
+const lpText = hz => hz >= OPEN - 1 ? 'open' : hz >= 1000 ? (hz / 1000).toFixed(1) + ' kHz' : hz + ' Hz';
+
+function bind() {
+  const c = cue();
+  $('#when').oninput = e => { c.when = e.target.value; touched(); };
+  document.querySelectorAll('#do button').forEach(b => b.onclick = () => {
+    stop(); c.do = b.dataset.v;
+    if (c.do === 'play' && !c.track) { c.track = tracks[0]?.name; c.at = 0; c.vol = c.vol ?? -8; }
+    if (c.do === 'none') for (const k of ['on', 'track', 'at', 'vol', 'fade', 'lowpass', 'lowpass_from', 'loop', 'keep', 'settle', 'delay']) delete c[k];
+    touched(); renderEditor();
+  });
+  document.querySelectorAll('#on button').forEach(b => b.onclick = () => { c.on = b.dataset.v; touched(); renderEditor(); });
+  const num = (id, key, f = x => x) => { const el = $('#' + id); if (el) el.onchange = () => { const v = f(el.value); if (isFinite(v)) { if (v) c[key] = r2(v); else delete c[key]; } touched(); }; };
+  num('fade', 'fade', Number); num('delay', 'delay', Number);
+  if ($('#track')) $('#track').onchange = e => { stop(); c.track = e.target.value; c.at = 0; c.loop = []; touched(); renderEditor(); };
+  if ($('#at')) $('#at').onchange = e => { c.at = r2(parseT(e.target.value) || 0); e.target.value = fmt(c.at); touched(); drawWave(); };
+  const setLoop = () => { const a = parseT($('#l0').value), b = parseT($('#l1').value); c.loop = isFinite(a) && isFinite(b) && b > a ? [r2(a), r2(b)] : []; touched(); drawWave(); };
+  if ($('#l0')) { $('#l0').onchange = setLoop; $('#l1').onchange = setLoop; $('#noloop').onclick = () => { c.loop = []; $('#l0').value = $('#l1').value = ''; touched(); drawWave(); }; }
+  $('#vol').oninput = e => { c.vol = +e.target.value; $('#volv').textContent = c.vol + ' dB'; touched(); live(); };
+  $('#lp').oninput = e => { const hz = k2hz(+e.target.value); if (hz >= OPEN - 50) delete c.lowpass; else c.lowpass = hz; $('#lpv').textContent = lpText(c.lowpass ?? OPEN); touched(); live(); };
+  $('#keep').onchange = e => { if (e.target.checked) c.keep = true; else delete c.keep; touched(); };
+  $('#lpf').onchange = e => { $('#lpfrom').disabled = !e.target.checked; if (e.target.checked) c.lowpass_from = k2hz(+$('#lpfrom').value); else delete c.lowpass_from; touched(); };
+  $('#lpfrom').oninput = e => { c.lowpass_from = k2hz(+e.target.value); $('#lpfv').textContent = lpText(c.lowpass_from); touched(); };
+  const settle = () => { if ($('#st').checked) c.settle = [+$('#s0').value, +$('#s1').value, +$('#s2').value]; else delete c.settle; touched(); };
+  ['st', 's0', 's1', 's2'].forEach(id => $('#' + id).onchange = settle);
+  $('#play').onclick = () => playing ? stop() : audition();
+  const cv = $('#wave'); if (cv) waveEvents(cv);
+}
+
+// ---------------------------------------------------------------- the waveform
+let view = null;  // [t0, t1]
+function dur() { const p = peaks[cue().track]; return p ? p.p.length / p.R : 0; }
+function fitView() { view = [0, dur()]; }
+function drawWave() {
+  const cv = $('#wave'); if (!cv) return; const c = cue();
+  const W = cv.clientWidth, H = cv.clientHeight, dpr = devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
+  g.fillStyle = col('--panel'); g.fillRect(0, 0, W, H);
+  const pk = peaks[c.track];
+  if (!pk) { g.fillStyle = col('--dim'); g.fillText('decoding ' + (c.track || '') + '…', 12, 20); return; }
+  if (!view) fitView();
+  const [t0, t1] = view, X = t => (t - t0) / (t1 - t0) * W, T = x => t0 + x / W * (t1 - t0);
+  const top = 18, h = H - top - 4, mid = top + h / 2;
+  // loop
+  if (c.loop && c.loop.length === 2) { g.fillStyle = 'rgba(90,209,200,.13)'; g.fillRect(X(c.loop[0]), top, X(c.loop[1]) - X(c.loop[0]), h); g.fillStyle = col('--accent2'); g.fillRect(X(c.loop[0]), top, 1, h); g.fillRect(X(c.loop[1]) - 1, top, 1, h); g.fillText('loop', X(c.loop[0]) + 4, top + 12); }
+  if (drag && drag.moved) { g.fillStyle = 'rgba(90,209,200,.2)'; g.fillRect(Math.min(drag.x0, drag.x1), top, Math.abs(drag.x1 - drag.x0), h); }
+  // the song
+  for (let x = 0; x < W; x++) {
+    const a = Math.floor(T(x) * pk.R), b = Math.max(a + 1, Math.floor(T(x + 1) * pk.R)); let m = 0;
+    for (let i = a; i < b && i < pk.p.length; i++) if (pk.p[i] > m) m = pk.p[i];
+    g.fillStyle = T(x) >= (c.at || 0) ? col('--wave-hi') : col('--wave');
+    const y = Math.max(0.5, m * h / 2); g.fillRect(x, mid - y, 1, y * 2);
+  }
+  // the ruler
+  const span = t1 - t0, step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60].find(s => span / s < W / 70) || 60;
+  g.fillStyle = col('--faint'); g.font = '10px ' + col('--mono');
+  for (let t = Math.ceil(t0 / step) * step; t < t1; t += step) { const x = X(t); g.fillRect(x, 0, 1, 5); g.fillText(fmt(t).replace(/\.00$/, ''), x + 3, 11); }
+  // start
+  const sx = X(c.at || 0); g.fillStyle = col('--accent'); g.fillRect(sx - 1, top, 2, h); g.beginPath(); g.moveTo(sx, top); g.lineTo(sx + 9, top + 5); g.lineTo(sx, top + 10); g.fill();
+  g.fillText('START', sx + 12, top + 9);
+  // the playhead
+  if (playing && playing.track === c.track) { g.fillStyle = '#fff'; g.fillRect(X(headPos()) - 0.5, top, 1, h); }
+}
+let drag = null;
+function waveEvents(cv) {
+  const T = e => { const r = cv.getBoundingClientRect(); return view[0] + (e.clientX - r.left) / r.width * (view[1] - view[0]); };
+  const XX = e => e.clientX - cv.getBoundingClientRect().left;
+  cv.onmousedown = e => { if (!view) return; drag = {t0: T(e), x0: XX(e), x1: XX(e), moved: false}; };
+  addEventListener('mousemove', e => { if (!drag || !$('#wave')) return; drag.x1 = XX(e); drag.t1 = T(e); if (Math.abs(drag.x1 - drag.x0) > 4) drag.moved = true; drawWave(); });
+  addEventListener('mouseup', e => {
+    if (!drag || !$('#wave')) { drag = null; return; } const c = cue(), d = drag; drag = null;
+    if (d.moved) { const a = Math.max(0, Math.min(d.t0, d.t1)), b = Math.min(dur(), Math.max(d.t0, d.t1)); c.loop = [r2(a), r2(b)]; $('#l0').value = fmt(a); $('#l1').value = fmt(b); }
+    else { c.at = r2(Math.max(0, d.t0)); $('#at').value = fmt(c.at); }
+    touched(); drawWave();
+  });
+  cv.ondblclick = e => audition(T(e));
+  cv.onwheel = e => {
+    e.preventDefault(); if (!view) return; const D = dur(); let [a, b] = view; const span = b - a;
+    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { const dt = (e.shiftKey ? e.deltaY : e.deltaX) / cv.clientWidth * span; a += dt; b += dt; }
+    else { const t = T(e), k = Math.exp(e.deltaY * 0.002); a = t - (t - a) * k; b = t + (b - t) * k; if (b - a < 0.5) return; }
+    if (b - a > D) { a = 0; b = D; } if (a < 0) { b -= a; a = 0; } if (b > D) { a -= b - D; b = D; }
+    view = [Math.max(0, a), b]; drawWave();
+  };
+}
+addEventListener('resize', drawWave);
+
+// ---------------------------------------------------------------- listening (the game's players, in WebAudio)
+let AC = null, playing = null;
+function ctx() { return AC || (AC = new AudioContext()); }
+const db = d => Math.pow(10, d / 20);
+function voice(c, from) {
+  // one song as the game would start it: from `from` (default: its start), the fade, the muffle, the loop, the settle
+  const a = ctx(), b = bufs[c.track + '#b'];
+  const src = a.createBufferSource(); src.buffer = b;
+  const gain = a.createGain(), lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.7;
+  src.connect(lp).connect(gain).connect(a.destination);
+  const at = from ?? (c.at || 0), now = a.currentTime + 0.03, fade = +c.fade || 0, vol = c.vol ?? -8;
+  const hz = c.lowpass ?? OPEN, hz0 = c.lowpass_from ?? hz;
+  const loop = c.loop && c.loop.length === 2 && at < c.loop[1] ? c.loop : null;
+  if (loop) { src.loop = true; src.loopStart = loop[0]; src.loopEnd = loop[1]; }
+  gain.gain.setValueAtTime(fade > 0 ? db(-60) : db(vol), now); lp.frequency.setValueAtTime(hz0, now);
+  if (fade > 0) gain.gain.linearRampToValueAtTime(db(vol), now + fade);
+  lp.frequency.linearRampToValueAtTime(hz, now + Math.max(0.01, fade));
+  if (c.settle && c.settle.length === 3) { const t = now + Math.max(0.01, fade) + +c.settle[0]; gain.gain.setValueAtTime(db(vol), t); gain.gain.linearRampToValueAtTime(db(+c.settle[1]), t + Math.max(0.01, +c.settle[2])); }
+  src.start(now, at);
+  return {src, gain, lp, track: c.track, at, t0: now, loop, cue: c};
+}
+function prevPlay() {
+  // the song this cue would be heard over: the nearest play before it, on its player
+  const ids = Object.keys(sheet.cues), on = cue().on || 'score';
+  for (let i = ids.indexOf(sel) - 1; i >= 0; i--) { const p = sheet.cues[ids[i]]; if (p.do === 'play' && (on === 'all' || (p.on || 'score') === on)) return [ids[i], p]; }
+  return null;
+}
+async function audition(from) {
+  stop(); const c = cue(); await ctx().resume();
+  if (c.do === 'play') {
+    const b = await buffer(c.track); if (!b) return; bufs[c.track + '#b'] = b;
+    if (c.delay && from == null) $('#ctxnote').textContent = `(the game waits ${c.delay}s first)`;
+    playing = voice(c, from);
+  } else if (c.do === 'level' || c.do === 'stop') {
+    const p = prevPlay(); if (!p) return;
+    const b = await buffer(p[1].track); if (!b) return; bufs[p[1].track + '#b'] = b;
+    const pc = {...p[1], fade: 0, settle: null}; playing = voice(pc, Math.max(0, (pc.at || 0)));
+    const t = playing.t0 + 3, fade = Math.max(0.01, +c.fade || 0), G = playing.gain.gain, F = playing.lp.frequency;
+    G.cancelScheduledValues(t); F.cancelScheduledValues(t); G.setValueAtTime(db(pc.vol ?? -8), t); F.setValueAtTime(pc.lowpass ?? OPEN, t);
+    if (c.do === 'level') { G.linearRampToValueAtTime(db(c.vol ?? -8), t + fade); F.linearRampToValueAtTime(c.lowpass ?? OPEN, t + fade); }
+    else { G.linearRampToValueAtTime(0.0001, t + fade); playing.src.stop(t + fade + 0.05); }
+  }
+  if (playing) { playing.src.onended = () => { if (playing && playing.src.onended) stop(); }; $('#play').textContent = '■'; tick(); }
+}
+function live() {
+  // drag volume / muffle while it plays: hear it now
+  if (!playing || playing.cue !== cue() || cue().do !== 'play') return;
+  const a = ctx().currentTime, c = cue();
+  playing.gain.gain.cancelScheduledValues(a); playing.gain.gain.setTargetAtTime(db(c.vol ?? -8), a, 0.03);
+  playing.lp.frequency.cancelScheduledValues(a); playing.lp.frequency.setTargetAtTime(c.lowpass ?? OPEN, a, 0.03);
+}
+function headPos() {
+  const p = playing; let t = p.at + Math.max(0, ctx().currentTime - p.t0);
+  if (p.loop && t >= p.loop[1]) t = p.loop[0] + (t - p.loop[1]) % (p.loop[1] - p.loop[0]);
+  return t;
+}
+function tick() {
+  if (!playing) return;
+  if ($('#pos')) $('#pos').textContent = fmt(headPos());
+  drawWave(); requestAnimationFrame(tick);
+}
+function stop() {
+  if (playing) { playing.src.onended = null; try { playing.src.stop(); } catch (e) {} playing = null; }
+  if ($('#play')) $('#play').textContent = '▶'; if ($('#pos')) $('#pos').textContent = ''; drawWave();
+}
+
+// ---------------------------------------------------------------- keys
+addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); return; }
+  if (e.target.matches('input, select')) return;
+  if (e.key === ' ') { e.preventDefault(); playing ? stop() : audition(); }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); const ids = [...document.querySelectorAll('.cue')].map(el => el.dataset.id), i = ids.indexOf(sel);
+    const n = ids[i + (e.key === 'ArrowDown' ? 1 : -1)]; if (n) { stop(); sel = n; renderList(); renderEditor(); $(`.cue[data-id="${CSS.escape(n)}"]`)?.scrollIntoView({block: 'nearest'}); }
+  }
+});
+load();
+</script>
+</body>
+</html>

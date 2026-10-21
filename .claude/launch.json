@@ -54,6 +54,14 @@
         "tools/dev-server.js"
       ],
       "port": 8811
+    },
+    {
+      "name": "tsh-score",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "koro-godot/tools/score/serve.py"
+      ],
+      "port": 8765
     }
   ]
 }

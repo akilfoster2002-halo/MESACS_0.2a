@@ -1,0 +1,336 @@
+{
+  "v": 1,
+  "about": "TSH's music cues. Edit with: python3 tools/score/serve.py",
+  "cues": {
+    "intro.city": {
+      "scene": "Intro \u2014 the city",
+      "when": "The opening: the city at night, the gang, the drones (as the VO starts)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-a",
+      "at": 0,
+      "vol": -16
+    },
+    "wake.call": {
+      "scene": "Robin's room \u2014 22:15",
+      "when": "Black; the phone rings, the buyer's call",
+      "do": "play",
+      "on": "score",
+      "track": "wos-a",
+      "at": 0,
+      "vol": -14
+    },
+    "wake.suit": {
+      "scene": "Robin's room \u2014 22:15",
+      "when": "After the call: she gets ready, the kit piece by piece",
+      "do": "play",
+      "on": "score",
+      "track": "wos-a",
+      "at": 17.0,
+      "vol": -7
+    },
+    "wake.door": {
+      "scene": "Robin's room \u2014 22:15",
+      "when": "She stops at the door, facing the kitchen",
+      "do": "level",
+      "on": "score",
+      "vol": -14,
+      "fade": 2.0
+    },
+    "wake.dinner": {
+      "scene": "Robin's room \u2014 22:15",
+      "when": "The kitchen: dinner still covered, her mother's note",
+      "do": "level",
+      "on": "score",
+      "vol": -26,
+      "fade": 2.5,
+      "lowpass": 650
+    },
+    "wake.window": {
+      "scene": "Robin's room \u2014 22:15",
+      "when": "The window goes up, the city comes in \u2014 the sill, the look down, the jump (loop holds the beat before the drop)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 0,
+      "vol": -3,
+      "loop": [
+        8.5,
+        9.45
+      ]
+    },
+    "wake.fall": {
+      "scene": "Kiln Street \u2014 falling",
+      "when": "Off the sill, falling slowly until SPACE (keeps the held beat, opens the filter)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 8.5,
+      "vol": -1,
+      "fade": 5,
+      "lowpass_from": 900,
+      "lowpass": 9000,
+      "loop": [
+        8.5,
+        9.45
+      ],
+      "keep": true
+    },
+    "wake.drop": {
+      "scene": "Kiln Street \u2014 falling",
+      "when": "SPACE: the shoes fire \u2014 the drop, then the first roofs",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 9.4,
+      "vol": -1.5,
+      "settle": [
+        6,
+        -5,
+        6
+      ]
+    },
+    "deal.fight": {
+      "scene": "Dragon Alley \u2014 the deal",
+      "when": "The fight with the buyer's crew starts",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 0,
+      "vol": -10
+    },
+    "raid.chase": {
+      "scene": "Dragon Alley \u2014 the raid",
+      "when": "The drone chase is yours (each stage start / retry)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 0,
+      "vol": -10
+    },
+    "raid.home": {
+      "scene": "Home \u2014 3 AM",
+      "when": "She makes it back to her own roof",
+      "do": "stop",
+      "on": "score"
+    },
+    "night.watchers": {
+      "scene": "Home \u2014 3 AM",
+      "when": "The watchers on the roof across \u2014 the tentacles rise",
+      "do": "stop",
+      "on": "score"
+    },
+    "morning.shoes": {
+      "scene": "The morning after",
+      "when": "Getting ready: the shoes go on (fires 0.7 s after the launch sound)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 0,
+      "vol": -8,
+      "delay": 0.7
+    },
+    "school.worried": {
+      "scene": "School",
+      "when": "Caught in the hall \u2014 'worried'",
+      "do": "stop",
+      "on": "score"
+    },
+    "station.canon": {
+      "scene": "The old station",
+      "when": "Canon steps up to her \u2014 the monster song's low opening, waiting under both fights",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 0,
+      "vol": -1.41,
+      "loop": [
+        6.9,
+        15.816
+      ]
+    },
+    "station.canon.song": {
+      "scene": "The old station",
+      "when": "Canon steps up (the song player, at the same time)",
+      "do": "play",
+      "on": "score",
+      "track": "wos-b",
+      "at": 0,
+      "vol": -8
+    },
+    "station.grab": {
+      "scene": "The old station",
+      "when": "The grab \u2014 the gizmo falls and beeps (held breath)",
+      "do": "level",
+      "on": "fight",
+      "vol": -22,
+      "lowpass": 380,
+      "fade": 0.8
+    },
+    "station.grab.after": {
+      "scene": "The old station",
+      "when": "After the beeping",
+      "do": "level",
+      "on": "fight",
+      "vol": -1.41,
+      "fade": 0.15
+    },
+    "station.glitch": {
+      "scene": "The old station",
+      "when": "Maya glitches \u2014 'at' lands as she comes up out of it",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 17.4,
+      "vol": -1.41,
+      "lead": "after the mayaGlitch lines"
+    },
+    "station.roar": {
+      "scene": "The old station",
+      "when": "The monster rises and roars",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 17.4,
+      "vol": -1.41
+    },
+    "station.hers": {
+      "scene": "The old station",
+      "when": "Canon is swallowed \u2014 'at' lands as the fight is hers",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 125.44,
+      "vol": -1.41,
+      "lead": "after robinFight"
+    },
+    "station.brawl": {
+      "scene": "The old station",
+      "when": "She fights it on her own feet (loops while she fights)",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 125.44,
+      "vol": -1.41,
+      "loop": [
+        125.44,
+        137.329
+      ]
+    },
+    "station.run": {
+      "scene": "The old station",
+      "when": "RUN \u2014 'at' lands as she runs, to the end",
+      "do": "play",
+      "on": "fight",
+      "track": "monster",
+      "at": 150.5,
+      "vol": -1.41,
+      "loop": [
+        150.5,
+        208.5
+      ],
+      "lead": "after robinGo"
+    },
+    "station.retry": {
+      "scene": "The old station",
+      "when": "Too much for her \u2014 the night starts over",
+      "do": "stop",
+      "on": "fight",
+      "fade": 0.3
+    },
+    "station.out": {
+      "scene": "The old station",
+      "when": "Out of the tunnels, onto the street",
+      "do": "stop",
+      "on": "all",
+      "fade": 1.5
+    },
+    "station.hide": {
+      "scene": "The old station",
+      "when": "She has lost them; somewhere dark she stops and calls him",
+      "do": "stop",
+      "on": "all",
+      "fade": 4.0
+    },
+    "step.intro": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'intro' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.wake": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'wake' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.lesson": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'lesson' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.deal": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'deal' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.raid": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'raid' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.night": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'night' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.end": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'end' (PROLOGUE) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.morning": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'morning' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.commute": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'commute' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.school": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'school' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.sneak": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'sneak' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.detention": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'detention' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.after": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'after' (THE MORNING AFTER) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.courtyard": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'courtyard' (THE OLD STATION) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.gethome": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'gethome' (THE OLD STATION) \u2014 or a save loads there",
+      "do": "none"
+    },
+    "step.evening": {
+      "scene": "Story steps (empty slots)",
+      "when": "When the story reaches 'evening' (THE OLD STATION) \u2014 or a save loads there",
+      "do": "none"
+    }
+  }
+}
